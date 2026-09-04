@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { resolve } from 'node:path'
 import { type ActionsFileV1, emptyActionsFileV1 } from '@porcelain/shared/actions-file'
 import { describe, expect, it } from 'vitest'
 import { createActionsOperations } from './actions-operations'
@@ -517,7 +518,7 @@ describe('actions operations', () => {
         title: 'A',
         command: 'echo a',
         where: 'primary',
-        cwd: WORKTREE,
+        cwd: resolve(WORKTREE),
       },
     })
     expect(events).toEqual([])
@@ -543,7 +544,13 @@ describe('actions operations', () => {
     })
     expect(prepared).toEqual({
       ok: true,
-      value: { id: ID_A, title: 'A', command: 'echo a', where: 'primary', cwd: OTHER_WORKTREE },
+      value: {
+        id: ID_A,
+        title: 'A',
+        command: 'echo a',
+        where: 'primary',
+        cwd: resolve(OTHER_WORKTREE),
+      },
     })
   })
 

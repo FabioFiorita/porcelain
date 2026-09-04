@@ -1,5 +1,9 @@
 import type { ShellRouter } from '@main/shell-api'
 import type { EndpointKind } from '@porcelain/contracts'
+import {
+  environmentSessionFor,
+  setShellEnvironmentConnections,
+} from '@renderer/lib/environment-sessions'
 import { shellTrpc } from '@renderer/lib/trpc'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -12,6 +16,7 @@ import {
   useEnvironmentStatuses,
   usePairEnvironmentConnection,
   useRemoteEnvironments,
+  useShellEnvironmentConnections,
   useSetupWslEnvironment,
 } from './remote-shell'
 
@@ -66,6 +71,7 @@ const emptyEnvironments = {
 beforeEach(() => {
   platform.isBrowser = true
   platform.isWindowsShell = false
+  setShellEnvironmentConnections([])
 })
 
 describe('remote shell Electron gate', () => {
@@ -162,6 +168,53 @@ describe('remote shell pairing invalidation', () => {
       expect(requests.filter((path) => path === 'query:remoteEnvironments')).toHaveLength(2),
     )
     expect(requests.filter((path) => path === 'query:environmentStatuses')).toHaveLength(2)
+  })
+})
+
+describe('secondary Environment failover', () => {
+  beforeEach(() => {
+    platform.isBrowser = false
+  })
+
+  it('re-resolves a mounted secondary session when its daemon closes', async () => {
+    const requests: string[] = []
+    let refreshed = false
+    const wrapper = shellWrapper(async (op) => {
+      requests.push(`${op.type}:${op.path}`)
+      if (op.path === 'environmentConnections') {
+        return [
+          {
+            id: 'env-secondary',
+            name: 'Secondary',
+            url: refreshed ? 'http://100.64.0.1:43117' : 'http://192.168.1.50:43117',
+            token: 'pc_client_secondary',
+          },
+        ]
+      }
+      if (op.path === 'refreshEnvironmentEndpoint') {
+        refreshed = true
+        return 'http://100.64.0.1:43117'
+      }
+      return undefined
+    })
+
+    const { unmount } = renderHook(() => useShellEnvironmentConnections(), { wrapper })
+
+    await waitFor(() => expect(requests).toContain('query:environmentConnections'))
+    await waitFor(() => expect(environmentSessionFor('env-secondary')).not.toBeNull())
+    const session = environmentSessionFor('env-secondary')?.session
+    expect(session).toBeDefined()
+
+    act(() => session?.runtime.disconnected())
+
+    await waitFor(() => expect(requests).toContain('mutation:refreshEnvironmentEndpoint'))
+    await waitFor(() =>
+      expect(requests.filter((request) => request === 'query:environmentConnections')).toHaveLength(
+        2,
+      ),
+    )
+    expect(session?.endpoint().url).toBe('http://100.64.0.1:43117')
+    unmount()
   })
 })
 

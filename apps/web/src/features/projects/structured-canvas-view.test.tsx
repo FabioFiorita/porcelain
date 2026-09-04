@@ -1,7 +1,14 @@
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { StructuredCanvasView } from './structured-canvas-view'
+
+vi.mock('@renderer/features/review/comments/comment-mutations', () => ({
+  useCommentActions: () => ({ add: vi.fn() }),
+}))
+vi.mock('@renderer/features/review/comments/comment-queries', () => ({
+  useReviewComments: () => [],
+}))
 
 const decision = JSON.stringify({
   version: 2,
@@ -101,6 +108,8 @@ describe('StructuredCanvasView', () => {
       />,
     )
     expect(screen.getByRole('heading', { name: 'Why' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Discussion' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Evidence' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'How' }))
     expect(screen.getByRole('heading', { name: 'How' })).toBeInTheDocument()
   })

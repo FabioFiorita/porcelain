@@ -1,5 +1,6 @@
 import { reviewCommentsQuery } from '@porcelain/client-runtime/review'
 import type { FreshnessRequirement } from '@porcelain/client-runtime/session/recovery'
+import { hubInventoryQuery } from '@porcelain/client-runtime/projects'
 import type { SessionChange } from '@porcelain/contracts/session'
 import { settleBackground } from '@porcelain/shared/background'
 import {
@@ -11,6 +12,7 @@ import {
 import * as Network from 'expo-network'
 import { type ReactNode, useEffect } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { invalidateCanvasQueries } from '@/features/canvas/canvas-data'
 import {
   activeEnvironment,
   activeProjectPathOf,
@@ -67,6 +69,12 @@ export function proceduresForChange(change: SessionChange): readonly string[] {
     case 'review.changed':
       // Review comments use their own typed identity below, rather than the legacy
       // procedure-name cache this provider owns.
+      return []
+    case 'review.canvas-changed':
+      // Typed Canvas identities are invalidated in the lifecycle bridge below.
+      return []
+    case 'projects.inventory-changed':
+      // The typed Hub inventory identity is invalidated in the lifecycle bridge below.
       return []
   }
 }
@@ -262,6 +270,23 @@ function DaemonLifecycle(): null {
       onChange: (change) => {
         if (change.kind === 'review.changed') {
           invalidateReviewComments(environmentId, change.projectPath)
+          return
+        }
+        if (change.kind === 'review.canvas-changed') {
+          settleBackground(
+            invalidateCanvasQueries(queryClient, environmentId, change.projectId),
+            'invalidation',
+          )
+          return
+        }
+        if (change.kind === 'projects.inventory-changed') {
+          settleBackground(
+            queryClient.invalidateQueries({
+              exact: true,
+              queryKey: ['daemon', environmentId, hubInventoryQuery()],
+            }),
+            'invalidation',
+          )
           return
         }
         invalidateProcedures(environmentId, proceduresForChange(change))

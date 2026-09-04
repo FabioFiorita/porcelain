@@ -17,6 +17,9 @@ vi.mock('electron', () => ({
 }))
 
 let state: RemoteEnvironmentState = { activeId: null, environments: [] }
+let hubCache: Record<string, unknown> = {}
+let hubCacheSaveCount = 0
+let hubCacheSaveError: Error | null = null
 
 vi.mock('./daemon', () => ({
   getDefaultEnvironmentId: (): null => null,
@@ -72,6 +75,15 @@ vi.mock('./wsl-environments', () => ({
   ]),
   prepareWslEnvironment: vi.fn(),
   rememberWslEnvironment: vi.fn(),
+}))
+
+vi.mock('./shell-hub-inventory-cache', () => ({
+  loadShellHubInventoryCache: async () => hubCache,
+  saveShellHubInventoryCache: async (next: Record<string, unknown>) => {
+    hubCacheSaveCount += 1
+    if (hubCacheSaveError !== null) throw hubCacheSaveError
+    hubCache = next
+  },
 }))
 
 vi.mock('./window', () => ({
@@ -259,6 +271,9 @@ const caller = (): ReturnType<typeof shellRouter.createCaller> =>
   shellRouter.createCaller({ sender: {} as never })
 
 beforeEach(() => {
+  hubCache = {}
+  hubCacheSaveCount = 0
+  hubCacheSaveError = null
   seen.length = 0
   state = { activeId: null, environments: [] }
   stubDaemon()
@@ -420,6 +435,32 @@ describe('shell daemon requests', () => {
     expectsProtocol(identity)
   })
 
+  it('heals a closed secondary session onto its reachable sibling endpoint', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-failover',
+          name: 'Work server',
+          url: 'http://offline.synthetic',
+          token: 'pc_client_failover',
+          endpoints: ['http://offline.synthetic', 'http://online.synthetic'],
+          preferredEndpoint: 'http://offline.synthetic',
+        },
+      ],
+    }
+
+    await expect(caller().refreshEnvironmentEndpoint({ id: 'env-failover' })).resolves.toBe(
+      'http://online.synthetic',
+    )
+    expect(state.environments[0]?.url).toBe('http://online.synthetic')
+    const daemon = await import('./daemon')
+    expect(vi.mocked(daemon.setWindowRemoteEndpoint)).toHaveBeenCalledWith('env-failover', {
+      token: 'pc_client_failover',
+      url: 'http://online.synthetic',
+    })
+  })
+
   it('fans out live Hub inventories and omits offline or unauthorized Environments', async () => {
     const environment = (id: string, url: string): RemoteEnvironment => ({
       id,
@@ -443,7 +484,7 @@ describe('shell daemon requests', () => {
     expect(inventories).toHaveLength(2)
     expect(inventories.map((source) => source.environmentId)).toEqual([null, 'env-online'])
     expect(inventories.map((source) => source.current)).toEqual([true, false])
-    expect(inventories[0]?.inventory.environment.name).toBe('Local')
+    expect(inventories[0]?.inventory.environment.name).toBe('synthetic')
     expect(inventories[1]?.inventory.environment.name).toBe(
       projectsContractFixtures.hubInventory.output.environment.name,
     )
@@ -451,6 +492,91 @@ describe('shell daemon requests', () => {
     for (const entry of seen.filter((request) => request.url.includes('/trpc/hubInventory'))) {
       expectsProtocol(entry)
     }
+  })
+
+  it('keeps a previously successful remote Project directory visible and disabled while offline', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-sleeping',
+          name: 'Build box',
+          url: 'http://online.synthetic',
+          token: 'pc_client_sleeping',
+          endpoints: ['http://online.synthetic'],
+          preferredEndpoint: 'http://online.synthetic',
+        },
+      ],
+    }
+    const online = await caller().hubInventories()
+    expect(online.find((source) => source.environmentId === 'env-sleeping')).toMatchObject({
+      offline: false,
+    })
+
+    state = {
+      ...state,
+      environments: state.environments.map((environment) => ({
+        ...environment,
+        url: 'http://offline.synthetic',
+        endpoints: ['http://offline.synthetic'],
+        preferredEndpoint: 'http://offline.synthetic',
+      })),
+    }
+    const offline = await caller().hubInventories()
+    expect(offline.find((source) => source.environmentId === 'env-sleeping')).toMatchObject({
+      current: false,
+      offline: true,
+      inventory: expect.objectContaining({ projects: expect.any(Array) }),
+    })
+  })
+
+  it('does not rewrite an unchanged remote inventory snapshot', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-stable',
+          name: 'Stable',
+          url: 'http://online.synthetic',
+          token: 'pc_client_stable',
+          endpoints: ['http://online.synthetic'],
+          preferredEndpoint: 'http://online.synthetic',
+        },
+      ],
+    }
+
+    await caller().hubInventories()
+    await caller().hubInventories()
+
+    expect(hubCacheSaveCount).toBe(1)
+  })
+
+  it('returns live inventories when the disposable offline cache cannot be written', async () => {
+    state = {
+      activeId: null,
+      environments: [
+        {
+          id: 'env-live',
+          name: 'Live',
+          url: 'http://online.synthetic',
+          token: 'pc_client_live',
+          endpoints: ['http://online.synthetic'],
+          preferredEndpoint: 'http://online.synthetic',
+        },
+      ],
+    }
+    hubCacheSaveError = new Error('disk full')
+    const report = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const inventories = await caller().hubInventories()
+
+    expect(inventories.find((source) => source.environmentId === 'env-live')).toMatchObject({
+      offline: false,
+    })
+    expect(report).toHaveBeenCalledWith(
+      '[hub] could not persist the offline inventory cache:',
+      hubCacheSaveError,
+    )
   })
 
   it('reads only the current local Hub inventory without probing saved Environments', async () => {
@@ -472,7 +598,7 @@ describe('shell daemon requests', () => {
 
     expect(inventory?.environmentId).toBeNull()
     expect(inventory?.current).toBe(true)
-    expect(inventory?.inventory.environment.name).toBe('Local')
+    expect(inventory?.inventory.environment.name).toBe('synthetic')
     expect(seen.filter((entry) => entry.url.includes('/trpc/hubInventory'))).toHaveLength(1)
     expect(seen.some((entry) => entry.url.includes('offline.synthetic'))).toBe(false)
   })

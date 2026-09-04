@@ -1,4 +1,5 @@
 import { useFileFinderStore } from '@renderer/stores/file-finder'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -17,6 +18,7 @@ vi.mock('@renderer/features/actions', () => ({
 }))
 
 vi.mock('@renderer/features/git', () => ({ useGitLog: vi.fn(() => []) }))
+vi.mock('@renderer/features/projects', () => ({ useHubInventories: vi.fn(() => []) }))
 vi.mock('@renderer/hooks/mutation-error', () => ({ toastUserActionError: vi.fn() }))
 vi.mock('@shared/background', () => ({ runUserAction: vi.fn() }))
 
@@ -29,6 +31,7 @@ describe('FileFinder', () => {
     useFileFinderStore.setState({ open: false })
     usePreferencesStore.setState({ sidebarTab: 'files' })
     useProjectSelectionStore.setState({ project: { path: '/repo', name: 'repo' } })
+    useHubSelectionStore.setState({ selection: { kind: 'home' } })
   })
 
   it('shows useful actions before typing in one palette surface', async () => {
@@ -81,5 +84,72 @@ describe('FileFinder', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The target Environment is offline.')
     expect(screen.queryByText('No matches found')).not.toBeInTheDocument()
+  })
+
+  it('searches every Hub Environment and selects the matching Worktree with its owner target', async () => {
+    const { useHubInventories } = await import('@renderer/features/projects')
+    vi.mocked(useHubInventories).mockReturnValue([
+      {
+        environmentId: null,
+        current: true,
+        inventory: {
+          environment: {
+            id: 'local',
+            name: 'Local',
+            host: 'local',
+            platform: 'win32',
+            arch: 'x64',
+          },
+          projects: [],
+        },
+      },
+      {
+        environmentId: 'remote-connection',
+        current: false,
+        inventory: {
+          environment: {
+            id: 'remote',
+            name: 'Build server',
+            host: 'builder',
+            platform: 'linux',
+            arch: 'x64',
+          },
+          projects: [
+            {
+              id: 'project',
+              environmentId: 'remote',
+              name: 'Porcelain',
+              groupingKey: 'origin',
+              path: '/srv/porcelain',
+              worktrees: [
+                {
+                  id: 'review',
+                  projectId: 'project',
+                  name: 'review-ready',
+                  path: '/srv/porcelain-review',
+                  branch: 'review-ready',
+                  isPrimary: false,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ])
+    render(<FileFinder />)
+    act(() => useFileFinderStore.getState().setOpen(true))
+    fireEvent.change(
+      await screen.findByPlaceholderText('Search commands, projects, files, and commits…'),
+      { target: { value: 'review-ready' } },
+    )
+
+    fireEvent.click(await screen.findByText('Porcelain · review-ready'))
+    expect(useHubSelectionStore.getState().selection).toEqual({
+      kind: 'worktree',
+      environmentId: 'remote',
+      projectId: 'project',
+      worktreeId: 'review',
+      path: '/srv/porcelain-review',
+    })
   })
 })

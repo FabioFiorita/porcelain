@@ -11,9 +11,9 @@ import {
 } from '@porcelain/client-runtime/files'
 import type { DirEntry, FileView, RepoScope, WorktreeProfileView } from '@porcelain/contracts/files'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
+import { daemonBaseUrl } from '@renderer/lib/daemon'
 import type { DaemonScope } from '@renderer/lib/daemon-scope'
 import { daemonScopeForEnvironment, environmentClientFor } from '@renderer/lib/environment-sessions'
-import { daemonBaseUrl } from '@renderer/lib/daemon'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -161,9 +161,7 @@ export function useWorktreeProfile(): WorktreeProfileView | undefined {
 }
 
 /**
- * The profile of a named checkout, not necessarily the one currently open. Used by the
- * Personalization dialog raised from a Project row — that dialog must not silently follow
- * Hub selection.
+ * The profile of a named checkout, not necessarily the one currently open.
  */
 export function useWorktreeProfileAt(
   repoPath: string | null,

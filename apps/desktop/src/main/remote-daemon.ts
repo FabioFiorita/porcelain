@@ -3,6 +3,13 @@ import { join } from 'node:path'
 import { type EndpointKind, endpointKind, orderedEndpointUrls } from '@porcelain/contracts'
 import { app } from 'electron'
 import { z } from 'zod'
+import {
+  electronRemoteTokenProtector,
+  protectRemoteToken,
+  revealRemoteToken,
+  RemoteCredentialStoreError,
+  type RemoteTokenProtector,
+} from './remote-token-store'
 
 export { type EndpointKind, endpointKind }
 
@@ -17,9 +24,8 @@ export { type EndpointKind, endpointKind }
  * Each open window has its OWN binding in memory (daemon.ts) — so one window can
  * be on This device while another is on the Beelink.
  *
- * Device tokens are stored in plaintext in Electron's user-owned data directory.
- * Each token is individually revocable and only gates the daemon the human paired.
- * Never log them.
+ * Device tokens are individually revocable and only gate the daemon the human paired. They are
+ * encrypted with Electron safeStorage before they reach this document; do not log either form.
  */
 
 /**
@@ -52,12 +58,29 @@ const stateSchema = z
   })
   .strict()
 const persistedStateSchema = stateSchema.extend({ version: z.literal(1) }).strict()
+const encryptedEnvironmentSchema = environmentSchema
+  .omit({ token: true })
+  .extend({ tokenCiphertext: z.string().min(1) })
+  .strict()
+const encryptedPersistedStateSchema = z
+  .object({
+    version: z.literal(2),
+    activeId: z.string().nullable(),
+    environments: z.array(encryptedEnvironmentSchema),
+  })
+  .strict()
 export type RemoteEnvironmentState = z.infer<typeof stateSchema>
 
 /** The resolved daemon pair a window can be pointed at. */
 export type RemoteDaemon = { url: string; token: string }
 
 const EMPTY_STATE: RemoteEnvironmentState = { activeId: null, environments: [] }
+let tokenProtector: RemoteTokenProtector = electronRemoteTokenProtector
+
+/** Test-only seam; production always uses Electron's OS-backed safeStorage. */
+export function configureRemoteTokenProtector(protector: RemoteTokenProtector): void {
+  tokenProtector = protector
+}
 
 const filePath = (): string => join(app.getPath('userData'), 'remote-daemon.json')
 const recoveryPath = (): string => `${filePath()}.recovery`
@@ -87,9 +110,35 @@ export function parseRemoteEnvironmentState(json: unknown): RemoteEnvironmentSta
   if (current.success) {
     return { activeId: current.data.activeId, environments: current.data.environments }
   }
+  // A document that names a version must match that exact version. Without this guard the
+  // permissive historical shape would silently accept `{ version: 99, ... }` and erase the
+  // version during parsing, defeating the future-format fail-closed boundary.
+  if (typeof json === 'object' && json !== null && 'version' in json) {
+    throw new Error('Unsupported or invalid remote environment state')
+  }
   const legacy = stateSchema.safeParse(json)
   if (legacy.success) return legacy.data
   throw new Error('Unsupported or invalid remote environment state')
+}
+
+function parseStoredRemoteEnvironmentState(json: unknown): {
+  state: RemoteEnvironmentState
+  legacyPlaintext: boolean
+} {
+  const encrypted = encryptedPersistedStateSchema.safeParse(json)
+  if (encrypted.success) {
+    return {
+      state: {
+        activeId: encrypted.data.activeId,
+        environments: encrypted.data.environments.map(({ tokenCiphertext, ...environment }) => ({
+          ...environment,
+          token: revealRemoteToken(tokenCiphertext, tokenProtector),
+        })),
+      },
+      legacyPlaintext: false,
+    }
+  }
+  return { state: parseRemoteEnvironmentState(json), legacyPlaintext: true }
 }
 
 async function preserveInvalidState(raw: string): Promise<string> {
@@ -117,11 +166,29 @@ export async function loadRemoteEnvironmentState(): Promise<RemoteEnvironmentSta
       `Saved Environments could not be read at ${path}. Check its ownership and permissions.`,
     )
   }
+  let json: unknown
   try {
-    return parseRemoteEnvironmentState(JSON.parse(raw))
+    json = JSON.parse(raw)
   } catch {
     throw new RemoteEnvironmentStateError(await preserveInvalidState(raw))
   }
+  let parsed: { state: RemoteEnvironmentState; legacyPlaintext: boolean }
+  try {
+    parsed = parseStoredRemoteEnvironmentState(json)
+  } catch (error) {
+    // The document was structurally valid enough to reach safeStorage. Do not call it corrupt
+    // or move it aside: a locked keychain can recover, while a bad keychain entry needs an
+    // explicit re-pair without destroying the only record of the Environment.
+    if (error instanceof RemoteCredentialStoreError) throw error
+    throw new RemoteEnvironmentStateError(await preserveInvalidState(raw))
+  }
+  // v1 and unversioned documents used owner-only plaintext. Upgrade them on their first
+  // successful read, preserving the same atomic write discipline as every later update. An OS
+  // credential-store failure deliberately leaves the legacy document untouched for a retry.
+  if (parsed.legacyPlaintext) {
+    await saveRemoteEnvironmentState(parsed.state)
+  }
+  return parsed.state
 }
 
 /** Persist the state (owner-only atomic tmp+rename, repairing any older final mode). */
@@ -132,7 +199,15 @@ export async function saveRemoteEnvironmentState(state: RemoteEnvironmentState):
   saveCounter += 1
   const tmp = `${path}.tmp-${process.pid}-${saveCounter}`
   try {
-    await writeFile(tmp, JSON.stringify({ version: 1, ...state }, null, 2), {
+    const encrypted = {
+      version: 2,
+      activeId: state.activeId,
+      environments: state.environments.map(({ token, ...environment }) => ({
+        ...environment,
+        tokenCiphertext: protectRemoteToken(token, tokenProtector),
+      })),
+    }
+    await writeFile(tmp, JSON.stringify(encrypted, null, 2), {
       encoding: 'utf8',
       flag: 'wx',
       mode: 0o600,

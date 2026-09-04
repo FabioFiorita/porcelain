@@ -31,7 +31,6 @@ export {
   type EnvironmentStatus,
   useEnvironmentStatuses,
   useIssueManagedEnvironmentBundle,
-  useOpenWindowInEnvironment,
   usePairEnvironmentConnection,
   usePreferEnvironmentEndpoint,
   useRemoteEnvironments,

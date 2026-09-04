@@ -88,6 +88,11 @@ The macOS workflow expects `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. npm publication uses trusted publishing (OIDC),
 not a long-lived npm token.
 
+The Windows workflow expects `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`. `WIN_CSC_LINK` must point
+to, or contain the base64 form of, the PFX/PKCS#12 certificate used for Authenticode signing. The
+workflow refuses to publish an unsigned installer and verifies every produced executable with
+`Get-AuthenticodeSignature` before upload.
+
 ## Publish and retry
 
 The publish script accepts a tag and one or more asset directories:

@@ -6,6 +6,7 @@ import { TestIds } from '@shared/test-ids'
 import { useEffect, useRef, useState } from 'react'
 import { useCanvas, useMintCanvasAccessToken } from './project-data'
 import { StructuredCanvasView } from './structured-canvas-view'
+import type { ReviewTarget } from '@renderer/stores/tabs'
 
 /**
  * Message a Canvas's click-interception bootstrap posts for every non-fragment
@@ -137,12 +138,14 @@ function CanvasStructuredFrame({
   content,
   worktreePath,
   environmentId,
+  reviewTarget,
 }: {
   projectId: string
   canvasId: string
   content: string
   worktreePath: string | undefined
   environmentId: string | undefined
+  reviewTarget: ReviewTarget | undefined
 }): React.JSX.Element {
   // The same narrow token used by HTML Canvas documents also scopes real Review attachments.
   // A Review remains readable if minting fails; only its bundled evidence becomes unavailable.
@@ -150,8 +153,10 @@ function CanvasStructuredFrame({
   return (
     <StructuredCanvasView
       content={content}
+      canvasId={canvasId}
       repoPath={worktreePath}
       assetBaseUrl={src === null ? null : `${src}/assets`}
+      reviewTarget={reviewTarget}
     />
   )
 }
@@ -166,11 +171,13 @@ export function CanvasView({
   canvasId,
   worktreePath,
   environmentId,
+  reviewTarget,
 }: {
   projectId: string
   canvasId: string
   worktreePath?: string
   environmentId?: string
+  reviewTarget?: ReviewTarget
 }): React.JSX.Element {
   const { canvas, isLoading, loadError } = useCanvas(
     projectId,
@@ -196,6 +203,7 @@ export function CanvasView({
         content={canvas.content}
         worktreePath={worktreePath}
         environmentId={environmentId}
+        reviewTarget={reviewTarget}
       />
     )
   }

@@ -12,7 +12,6 @@ import { useDaemonUpdatePrompt } from '@renderer/hooks/use-daemon-update-prompt'
 import {
   DAEMON_UPDATE_DOCS_URL,
   DAEMON_UPDATE_FOREGROUND_COMMAND,
-  DAEMON_UPDATE_SYSTEMD_COMMAND,
 } from '@renderer/lib/daemon-update'
 import { cn, copyText } from '@renderer/lib/utils'
 import { settleBackground } from '@shared/background'
@@ -98,20 +97,19 @@ export function DaemonUpdateButton(): React.JSX.Element | null {
             data-testid={TestIds.daemonUpdateCommand}
             className="rounded-md bg-muted px-2 py-1.5 font-mono text-xs break-words"
           >
-            {DAEMON_UPDATE_SYSTEMD_COMMAND}
+            {DAEMON_UPDATE_FOREGROUND_COMMAND}
           </code>
           <p className="text-xs text-muted-foreground">
-            The always-on unit re-resolves{' '}
-            <code className="font-mono">@fabiofiorita/porcelain@latest</code> on start, so a restart
-            is the upgrade. Started by hand instead? Stop it and re-run{' '}
-            <code className="font-mono">{DAEMON_UPDATE_FOREGROUND_COMMAND}</code>.
+            Stop the current daemon and re-run this command on its host. It resolves{' '}
+            <code className="font-mono">@fabiofiorita/porcelain@latest</code>; it does not assume
+            the host uses systemd.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             data-testid={TestIds.daemonUpdateCopy}
-            onClick={() => copy(DAEMON_UPDATE_SYSTEMD_COMMAND)}
+            onClick={() => copy(DAEMON_UPDATE_FOREGROUND_COMMAND)}
           >
             <Copy /> {copied ? 'Copied' : 'Copy command'}
           </Button>

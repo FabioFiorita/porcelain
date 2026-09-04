@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { SURFACE_GUTTER, SURFACE_GUTTER_PX } from './surface-layout'
@@ -38,6 +38,11 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
+/** Paths in source assertions are navigation labels, not host filesystem spellings. */
+function featurePath(path: string): string {
+  return relative(FEATURES, path).replaceAll(sep, '/')
+}
+
 /** The JSX props of the element a match sits in — enough to see its sibling props. */
 function elementAround(source: string, index: number): string {
   return source.slice(Math.max(0, index - 600), Math.min(source.length, index + 600))
@@ -52,7 +57,7 @@ describe('surface layout', () => {
       for (const match of source.matchAll(/contentContainerClassName[={]/g)) {
         const element = elementAround(source, match.index)
         if (!element.includes('contentContainerStyle')) continue
-        offenders.push(path.slice(FEATURES.length + 1))
+        offenders.push(featurePath(path))
       }
     }
 
@@ -70,7 +75,7 @@ describe('surface layout', () => {
         const gutters = (match[1] ?? '').split(/\s+/).filter((token) => token.startsWith('px-'))
         if (!gutters.some((token) => token !== SURFACE_GUTTER)) continue
         if (elementAround(source, match.index).includes(ALLOW)) continue
-        offenders.push(`${path.slice(FEATURES.length + 1)}: ${gutters.join(' ')}`)
+        offenders.push(`${featurePath(path)}: ${gutters.join(' ')}`)
       }
     }
 
@@ -93,7 +98,7 @@ describe('surface layout', () => {
     const offenders: string[] = []
 
     for (const path of sourceFiles(FEATURES)) {
-      const name = path.slice(FEATURES.length + 1)
+      const name = featurePath(path)
       // The floating comment bar is anchored, not scrolled: it takes the value as a prop
       // because it has no content container to put it in.
       if (name === 'comments/selection-bar.tsx') continue
@@ -113,7 +118,7 @@ describe('surface layout', () => {
       const source = readFileSync(path, 'utf8')
       for (const match of source.matchAll(/contentContainerStyle=\{\{/g)) {
         if (elementAround(source, match.index).includes(ALLOW)) continue
-        offenders.push(path.slice(FEATURES.length + 1))
+        offenders.push(featurePath(path))
       }
     }
 
@@ -149,7 +154,7 @@ describe('surface layout', () => {
     }
 
     for (const path of sourceFiles(FEATURES)) {
-      const name = path.slice(FEATURES.length + 1)
+      const name = featurePath(path)
       // The workspace picker's rows are inside a `ShellModal`, not a surface list: there is no
       // container gutter for `SURFACE_ROW`'s negative-margin geometry to reclaim, so the token
       // would inset them for no reason. The only exception, and it states why.
@@ -202,7 +207,7 @@ describe('surface layout', () => {
       const source = readFileSync(path, 'utf8')
       for (const match of source.matchAll(/rounded-(?:2xl|xl) border border-border bg-card/g)) {
         if (elementAround(source, match.index).includes(CARD_ALLOW)) continue
-        offenders.push(`${path.slice(FEATURES.length + 1)}: ${match[0]}`)
+        offenders.push(`${featurePath(path)}: ${match[0]}`)
       }
     }
 

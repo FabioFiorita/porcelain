@@ -33,6 +33,7 @@ describe('Review Canvas bundle source', () => {
         files: [],
       },
       undefined,
+      undefined,
       sourceDir,
     )
 

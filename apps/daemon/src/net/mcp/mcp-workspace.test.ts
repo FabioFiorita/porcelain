@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { supportsFileSymlinks } from '../../testing/temporary-directory'
 import { isWorkspaceRef, resolveWorkspace, type WorkspaceInventory } from './mcp-workspace'
+
+const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 let root: string
 
@@ -55,7 +58,7 @@ describe('resolveWorkspace', () => {
     expect(result.ok && result.value.worktreeId).toBe('wt-1')
   })
 
-  it('resolves through a symlink but not a lookalike', async () => {
+  symlinkIt('resolves through a symlink but not a lookalike', async () => {
     const link = join(root, '..', `link-${Date.now()}`)
     await symlink(root, link)
     try {

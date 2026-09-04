@@ -205,22 +205,25 @@ describe('createJsonActionsStore', () => {
     })
   })
 
-  it('normalizes permission failures to actions.unavailable', async () => {
-    await withTemporaryDirectory('porcelain-actions-perm-', async (homeDir) => {
-      await seed(homeDir, serializeActionsFileV1({ version: 1, actions: [] }))
-      await chmod(projectDir(homeDir), 0o500)
+  it.runIf(process.platform !== 'win32')(
+    'normalizes permission failures to actions.unavailable',
+    async () => {
+      await withTemporaryDirectory('porcelain-actions-perm-', async (homeDir) => {
+        await seed(homeDir, serializeActionsFileV1({ version: 1, actions: [] }))
+        await chmod(projectDir(homeDir), 0o500)
 
-      const store = createJsonActionsStore({ homeDir })
-      const result = await store.transact(PROJECT, (current) => ({
-        ok: true,
-        value: {
-          kind: 'delete',
-          file: current,
-          actionId: ID,
-        },
-      }))
-      expect(result).toEqual({ ok: false, error: { code: 'actions.unavailable' } })
-      await chmod(projectDir(homeDir), 0o700)
-    })
-  })
+        const store = createJsonActionsStore({ homeDir })
+        const result = await store.transact(PROJECT, (current) => ({
+          ok: true,
+          value: {
+            kind: 'delete',
+            file: current,
+            actionId: ID,
+          },
+        }))
+        expect(result).toEqual({ ok: false, error: { code: 'actions.unavailable' } })
+        await chmod(projectDir(homeDir), 0o700)
+      })
+    },
+  )
 })

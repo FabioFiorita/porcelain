@@ -3,7 +3,7 @@ import { expectedFailure } from '../../daemon-composition/expected-failure'
 import { toTrpcError } from '../../daemon-composition/public-error'
 import { publicProcedure, t } from '../../trpc'
 import type { ReviewCommentOperationResult } from './comment-capabilities'
-import type { ReviewCommentOperations } from './comment-operations'
+import type { ReviewOperations } from './review-operations'
 
 /**
  * Review-comment feature router — six wire procedures bound to reviewProcedures.
@@ -22,7 +22,7 @@ function throwIfFailed<T>(result: ReviewCommentOperationResult<T>): T {
   throw toTrpcError(expectedFailure('review.unavailable'))
 }
 
-export function createReviewCommentRouter(operations: ReviewCommentOperations) {
+export function createReviewCommentRouter(operations: ReviewOperations) {
   return t.router({
     reviewComments: publicProcedure
       .input(procedureCatalog.reviewComments.input)
@@ -32,6 +32,11 @@ export function createReviewCommentRouter(operations: ReviewCommentOperations) {
         return throwIfFailed(result)
       }),
 
+    reviewReadiness: publicProcedure
+      .input(procedureCatalog.reviewReadiness.input)
+      .output(procedureCatalog.reviewReadiness.output)
+      .query(({ input }) => operations.reviewReadiness(input)),
+
     addReviewComment: publicProcedure
       .input(procedureCatalog.addReviewComment.input)
       .output(procedureCatalog.addReviewComment.output)
@@ -39,6 +44,7 @@ export function createReviewCommentRouter(operations: ReviewCommentOperations) {
         const result = await operations.addReviewComment({
           projectPath: input.repoPath,
           path: input.path,
+          anchor: input.anchor,
           startLine: input.startLine,
           endLine: input.endLine,
           anchorText: input.anchorText,

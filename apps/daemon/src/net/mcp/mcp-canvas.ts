@@ -27,6 +27,7 @@ export function reviewDocumentBundleSource(
   document: ReviewCanvasDocument,
   metadata: Pick<ReviewCanvasTemplateData, 'layers' | 'files'>,
   commitHash?: string,
+  workingFingerprint?: string,
   assetsDir?: string,
 ): CanvasBundleSource {
   return {
@@ -41,6 +42,7 @@ export function reviewDocumentBundleSource(
           {
             name: document.title,
             ...(commitHash === undefined ? {} : { commitHash }),
+            ...(workingFingerprint === undefined ? {} : { workingFingerprint }),
             layers: metadata.layers,
             files: metadata.files,
           },
@@ -56,8 +58,9 @@ export function reviewDocumentBundleSource(
 export function reviewBundleSource(
   data: ReviewCanvasTemplateData,
   commitHash?: string,
+  workingFingerprint?: string,
   assetsDir?: string,
 ): CanvasBundleSource {
   const document = reviewCanvasDocument(data)
-  return reviewDocumentBundleSource(document, data, commitHash, assetsDir)
+  return reviewDocumentBundleSource(document, data, commitHash, workingFingerprint, assetsDir)
 }

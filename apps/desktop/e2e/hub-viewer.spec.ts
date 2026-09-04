@@ -1,7 +1,6 @@
 import { writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, loc, selectTab, test, waitForShell } from './helpers/app'
+import { expect, loc, REPO_WORKTREES_DIR, selectTab, test, waitForShell } from './helpers/app'
 
 const DIVERTED = 'HUB-VIEWER-DIVERGED-README'
 
@@ -43,7 +42,7 @@ test('switching Worktree keeps existing tabs on their original target', async ({
   await expect(loc.hubWorktrees(page)).toHaveCount(before + 1)
 
   await writeFile(
-    join(tmpdir(), 'porcelain-e2e-fixture-worktrees', 'hub-viewer', 'README.md'),
+    join(REPO_WORKTREES_DIR, 'hub-viewer', 'README.md'),
     `# Diverted\n\n${DIVERTED}\n`,
   )
 

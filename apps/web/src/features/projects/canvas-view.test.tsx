@@ -8,6 +8,12 @@ vi.mock('./project-data', () => ({
   useCanvas: vi.fn(),
   useMintCanvasAccessToken: vi.fn(),
 }))
+vi.mock('@renderer/features/review/comments/comment-mutations', () => ({
+  useCommentActions: () => ({ add: vi.fn() }),
+}))
+vi.mock('@renderer/features/review/comments/comment-queries', () => ({
+  useReviewComments: () => [],
+}))
 
 const HTML_RECORD: ReadCanvasOutput['record'] = {
   id: 'canvas-1',

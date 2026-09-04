@@ -1,5 +1,4 @@
 import { hubInventorySchema, projectsContractFixtures } from '@porcelain/contracts/projects'
-import { usePersonalizationStore } from '@renderer/stores/personalization'
 import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { TestIds } from '@shared/test-ids'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -120,7 +119,7 @@ describe('Hub inventory tree', () => {
 
     fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
     expect(screen.getByRole('menuitem', { name: 'Copy project path' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'Personalization' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Personalization' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: 'Remove project' })).toBeInTheDocument()
     // Lifecycle scripts moved into the Actions store; the Project menu no longer owns a
     // second, browser-local copy of them.
@@ -235,29 +234,6 @@ describe('Hub inventory tree', () => {
     })
   })
 
-  it('opens Personalization of the Project the menu was raised on', () => {
-    usePersonalizationStore.setState({ target: null })
-    render(
-      <HubTreeFromInventory
-        inventory={inventory}
-        openWorktree={vi.fn()}
-        createWorktree={vi.fn(async () => createdWorktree)}
-        removeProject={vi.fn(async () => undefined)}
-        removeWorktree={vi.fn(async () => undefined)}
-      />,
-    )
-
-    fireEvent.contextMenu(screen.getByRole('button', { name: 'Collapse project alpha' }))
-    fireEvent.click(screen.getByTestId(TestIds.hubPersonalization('proj-alpha')))
-
-    expect(usePersonalizationStore.getState().target).toEqual({
-      projectId: 'proj-alpha',
-      projectName: 'alpha',
-      projectPath: inventory.projects[0]?.path,
-      environmentId: inventory.environment.id,
-    })
-  })
-
   it('collapses a Project without selecting it', () => {
     render(
       <HubTreeFromInventory
@@ -275,5 +251,48 @@ describe('Hub inventory tree', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand project alpha' }))
     expect(screen.getByTestId(TestIds.hubWorktree('wt-alpha-main'))).toBeInTheDocument()
+  })
+
+  it('restores a Project collapse choice for the same Environment after it reconnects', () => {
+    window.localStorage.clear()
+    const props = {
+      inventory,
+      openWorktree: vi.fn(),
+      createWorktree: vi.fn(async () => createdWorktree),
+      removeProject: vi.fn(async () => undefined),
+      removeWorktree: vi.fn(async () => undefined),
+    }
+    const first = render(<HubTreeFromInventory {...props} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse project alpha' }))
+    expect(screen.queryByTestId(TestIds.hubWorktree('wt-alpha-main'))).toBeNull()
+    first.unmount()
+
+    render(<HubTreeFromInventory {...props} />)
+    expect(screen.getByRole('button', { name: 'Expand project alpha' })).toBeInTheDocument()
+    expect(screen.queryByTestId(TestIds.hubWorktree('wt-alpha-main'))).toBeNull()
+  })
+
+  it('shows a cached offline Environment but disables its Project actions', () => {
+    render(
+      <HubTreeFromInventories
+        sources={[
+          {
+            environmentId: 'env-remote',
+            current: false,
+            offline: true,
+            inventory: remoteInventory,
+          },
+        ]}
+        openWorktree={vi.fn()}
+        createWorktree={vi.fn(async () => createdWorktree)}
+        removeProject={vi.fn(async () => undefined)}
+        removeWorktree={vi.fn(async () => undefined)}
+      />,
+    )
+
+    expect(screen.getAllByText('Offline').length).toBeGreaterThan(0)
+    expect(screen.getByTestId(TestIds.hubWorktree('remote-wt-alpha-main'))).toBeDisabled()
+    expect(screen.queryByTestId(TestIds.hubCreateWorktree('remote-proj-alpha'))).toBeNull()
   })
 })

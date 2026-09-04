@@ -1,13 +1,17 @@
 import { isAbsolute, relative, resolve } from 'node:path'
 import {
   decisionCanvasTemplateDataSchema,
+  reviewCanvasMetadataSchema,
   reviewCanvasTemplateDataSchema,
   structuredCanvasDocumentSchema,
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
+import { reviewCommentAnchorSchema } from '@porcelain/contracts/review'
+import { workingTreeFingerprint } from '../../git/git-fingerprints'
 import { decisionBundleSource, reviewBundleSource, reviewDocumentBundleSource } from './mcp-canvas'
 import type { McpToolHandlers, McpToolResult } from './mcp-dispatch'
 import type { McpOperations } from './mcp-operations'
+import type { SessionChange } from '@porcelain/contracts/session'
 import {
   isWorkspaceRef,
   type ResolvedWorkspace,
@@ -18,6 +22,8 @@ import {
 /** The MCP adapter calls domain operations; it never reaches into Porcelain storage. */
 export type McpToolDeps = Readonly<{
   operations: McpOperations
+  /** MCP is the Canvas writer; successful writes announce fresh daemon state. */
+  publishSessionChange?: (change: SessionChange) => void
 }>
 
 function ok(text: string): McpToolResult {
@@ -80,6 +86,14 @@ function repoRelativePaths(repoPath: string, value: unknown): string[] | null {
 
 export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
   const { operations } = deps
+  const publishCanvasChange = (place: ResolvedWorkspace): void => {
+    if (place.worktreePath === null) return
+    deps.publishSessionChange?.({
+      kind: 'review.canvas-changed',
+      projectPath: place.worktreePath,
+      projectId: place.projectId,
+    })
+  }
 
   async function resolvePlace(
     args: Record<string, unknown>,
@@ -104,6 +118,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
   async function canvasSource(
     args: Record<string, unknown>,
     reviewCommitHash?: string,
+    reviewWorkingFingerprint?: string,
   ): Promise<
     | {
         ok: true
@@ -142,26 +157,43 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
       const entryFile = 'canvas.json'
       const assetsDir = stringField(args, 'sourceDir')
+      if (parsed.data.template === 'review') {
+        const metadata = reviewCanvasMetadataSchema.safeParse(args.reviewMetadata)
+        if (!metadata.success) {
+          return {
+            ok: false,
+            result: fail(
+              `Review document requires reviewMetadata with complete layers and files: ${structuredCanvasValidationMessage(metadata.error)}.`,
+            ),
+          }
+        }
+        return {
+          ok: true,
+          title: parsed.data.title,
+          kind: 'structured',
+          entryFile,
+          template: 'review',
+          source: reviewDocumentBundleSource(
+            parsed.data,
+            metadata.data,
+            reviewCommitHash,
+            reviewWorkingFingerprint,
+            assetsDir,
+          ),
+        }
+      }
       return {
         ok: true,
         title: parsed.data.title,
         kind: 'structured',
         entryFile,
         template: parsed.data.template,
-        source:
-          parsed.data.template === 'review'
-            ? reviewDocumentBundleSource(
-                parsed.data,
-                { layers: [], files: [] },
-                reviewCommitHash,
-                assetsDir,
-              )
-            : {
-                kind: 'structured',
-                entryFile,
-                document: `${JSON.stringify(parsed.data, null, 2)}\n`,
-                ...(assetsDir === undefined ? {} : { assetsDir }),
-              },
+        source: {
+          kind: 'structured',
+          entryFile,
+          document: `${JSON.stringify(parsed.data, null, 2)}\n`,
+          ...(assetsDir === undefined ? {} : { assetsDir }),
+        },
       }
     }
 
@@ -191,6 +223,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           : reviewBundleSource(
               reviewCanvasTemplateDataSchema.parse(parsed.data),
               reviewCommitHash,
+              reviewWorkingFingerprint,
               stringField(args, 'sourceDir'),
             )
       return {
@@ -233,6 +266,62 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
     (args: Record<string, unknown>, place: ResolvedWorkspace | null) => Promise<McpToolResult>
   > = {
     async porcelain_project(args) {
+      if (args.op === 'add') {
+        const path = stringField(args, 'path')
+        if (path === undefined) return fail('path is required to add a Project.')
+        if (!isAbsolute(path))
+          return fail('path must be an absolute repository path to add a Project.')
+        const added = await operations.projects.openProject(path)
+        if (!added.ok) return fail(`Could not add the Project: ${describeError(added.error)}`)
+        deps.publishSessionChange?.({ kind: 'projects.inventory-changed' })
+        return json({ project: added.value })
+      }
+
+      const projectId =
+        stringField(args, 'projectId') ??
+        (isRecord(args.workspace) ? stringField(args.workspace, 'projectId') : undefined)
+      if (args.op === 'remove') {
+        if (projectId === undefined) return fail('projectId is required to remove a Project.')
+        const removed = await operations.projects.removeHubProject(projectId)
+        if (!removed.ok)
+          return fail(`Could not remove the Project: ${describeError(removed.error)}`)
+        deps.publishSessionChange?.({ kind: 'projects.inventory-changed' })
+        return ok(`Project ${projectId} removed from Porcelain. Its checkout was not deleted.`)
+      }
+      if (args.op === 'create-worktree') {
+        const branch = stringField(args, 'branch')
+        if (projectId === undefined || branch === undefined)
+          return fail('projectId and branch are required to create a managed Worktree.')
+        const created = await operations.projects.createHubWorktree({
+          projectId,
+          branch,
+          ...(stringField(args, 'baseRef') === undefined
+            ? {}
+            : { baseRef: stringField(args, 'baseRef') }),
+          ...(args.existing === true ? { existing: true } : {}),
+        })
+        if (!created.ok)
+          return fail(`Could not create the Worktree: ${describeError(created.error)}`)
+        deps.publishSessionChange?.({ kind: 'projects.inventory-changed' })
+        return json({ worktree: created.value })
+      }
+      if (args.op === 'remove-worktree') {
+        const worktreeId = stringField(args, 'worktreeId')
+        if (projectId === undefined)
+          return fail('projectId is required to remove a managed Worktree.')
+        if (worktreeId === undefined)
+          return fail('worktreeId is required to remove a managed Worktree.')
+        const removed = await operations.projects.removeHubWorktree({
+          projectId,
+          worktreeId,
+          ...(args.force === true ? { force: true } : {}),
+        })
+        if (!removed.ok)
+          return fail(`Could not remove the Worktree: ${describeError(removed.error)}`)
+        deps.publishSessionChange?.({ kind: 'projects.inventory-changed' })
+        return ok(`Worktree ${worktreeId} removed. Its branch was kept.`)
+      }
+
       const inventory = await operations.projects.listHubInventory()
       if (!inventory.ok) return fail(`Could not read Projects: ${describeError(inventory.error)}`)
       const projects = inventory.value.projects.map((project) => ({
@@ -248,13 +337,12 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         })),
       }))
       if (args.op === 'list') return json({ projects })
-      if (args.op !== 'get') return fail('op must be list or get.')
-      const id =
-        stringField(args, 'projectId') ??
-        (isRecord(args.workspace) ? stringField(args.workspace, 'projectId') : undefined)
-      if (id === undefined) return fail('projectId or workspace is required for project get.')
-      const project = projects.find((entry) => entry.projectId === id)
-      return project === undefined ? fail(`No Project ${id} on this daemon.`) : json(project)
+      if (args.op !== 'get')
+        return fail('op must be list, get, add, remove, create-worktree, or remove-worktree.')
+      if (projectId === undefined)
+        return fail('projectId or workspace is required for project get.')
+      const project = projects.find((entry) => entry.projectId === projectId)
+      return project === undefined ? fail(`No Project ${projectId} on this daemon.`) : json(project)
     },
 
     async porcelain_canvas(args, place) {
@@ -289,6 +377,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           canvasId: id,
           ...(place.worktreePath === null ? {} : { worktreePath: place.worktreePath }),
         })
+        if (deleted.ok) publishCanvasChange(place)
         return deleted.ok
           ? ok(`Canvas ${id} deleted.`)
           : fail(`Could not delete the Canvas: ${describeError(deleted.error)}`)
@@ -302,6 +391,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           canvasId: id,
           path: place.worktreePath,
         })
+        if (promoted.ok) publishCanvasChange(place)
         return promoted.ok
           ? ok(
               `Canvas ${id} promoted to ${promoted.value.bundlePath}. Files written; nothing staged or committed.`,
@@ -310,20 +400,32 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       }
       if (op !== 'create' && op !== 'update')
         return fail('op must be list, get, create, update, delete, or promote.')
-      const reviewCommitHash = await (async (): Promise<string | undefined> => {
+      const reviewState = await (async (): Promise<{
+        commitHash?: string
+        workingFingerprint?: string
+      }> => {
         const isReview =
           args.template === 'review' ||
           (isRecord(args.document) && args.document.template === 'review')
-        if (!isReview || place.worktreePath === null) return undefined
+        if (!isReview || place.worktreePath === null) return {}
         try {
           const status = await operations.git.statusGit(place.worktreePath)
-          if (!status.ok || status.value.length > 0) return undefined
-          return (await operations.git.logGit({ repoPath: place.worktreePath, limit: 1 }))[0]?.hash
+          if (!status.ok) return {}
+          const workingFingerprint = await workingTreeFingerprint(place.worktreePath)
+          if (status.value.length > 0) {
+            return { workingFingerprint }
+          }
+          return {
+            commitHash: (await operations.git.logGit({ repoPath: place.worktreePath, limit: 1 }))[0]
+              ?.hash,
+            workingFingerprint,
+          }
         } catch {
-          return undefined
+          return {}
         }
       })()
-      const source = await canvasSource(args, reviewCommitHash)
+      const reviewCommitHash = reviewState.commitHash
+      const source = await canvasSource(args, reviewCommitHash, reviewState.workingFingerprint)
       if (!source.ok) return source.result
       const canvasId = stringField(args, 'id')
       if (op === 'create' && canvasId !== undefined)
@@ -366,6 +468,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           path: place.worktreePath,
           ...(replacing ? { replace: true } : {}),
         })
+        if (promoted.ok) publishCanvasChange(place)
         return promoted.ok
           ? ok(
               source.template === 'review'
@@ -374,6 +477,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
             )
           : fail(`Could not update the tracked Canvas: ${describeError(promoted.error)}`)
       }
+      publishCanvasChange(place)
       return workspaceResult(
         place,
         source.template === 'review'
@@ -413,13 +517,26 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
         const comment = isRecord(args.comment) ? args.comment : args
         const path = typeof comment.path === 'string' ? comment.path : undefined
         const body = typeof comment.body === 'string' ? comment.body : undefined
-        if (path === undefined || body === undefined)
-          return fail('comment.path and comment.body are required to create a comment.')
+        const parsedAnchor =
+          comment.anchor === undefined
+            ? undefined
+            : reviewCommentAnchorSchema.safeParse(comment.anchor)
+        if (parsedAnchor !== undefined && !parsedAnchor.success) {
+          return fail(
+            `Invalid comment.anchor: ${structuredCanvasValidationMessage(parsedAnchor.error)}.`,
+          )
+        }
+        const anchor = parsedAnchor?.data
+        if (body === undefined || (path === undefined && anchor === undefined))
+          return fail(
+            'comment.body and comment.anchor (or legacy comment.path) are required to create a comment.',
+          )
         const created = await operations.review.addReviewComment({
           projectPath,
           author: 'agent',
-          path,
           body,
+          ...(path === undefined ? {} : { path }),
+          ...(anchor === undefined ? {} : { anchor }),
           ...(typeof comment.startLine === 'number' ? { startLine: comment.startLine } : {}),
           ...(typeof comment.endLine === 'number' ? { endLine: comment.endLine } : {}),
           ...(typeof comment.anchorText === 'string' ? { anchorText: comment.anchorText } : {}),

@@ -243,6 +243,8 @@ const reviewCanvasBundledAssetSchema = z
     path: canvasAssetPathSchema,
     label: z.string().min(1).max(120),
     mime: z.string().min(1).max(120).optional(),
+    /** Optional WebVTT captions for video evidence, stored in the same scoped bundle. */
+    captions: canvasAssetPathSchema.optional(),
   })
   .strict()
 

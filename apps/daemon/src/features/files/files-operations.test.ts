@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { join } from 'node:path'
 import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { createFilesOperations, type FilesOperations } from './files-operations'
 import type { FilesChangeFact, FilesChanges, FilesScope, WorkspaceFiles } from './files-ports'
@@ -100,10 +101,10 @@ describe('createFilesOperations', () => {
       hiddenPaths: new Set(['/synthetic/repo/.env']),
       pinnedPaths: ['/synthetic/repo/src'],
     })
-    expect(scope.hidePath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/.env')
-    expect(scope.unhidePath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/.env')
-    expect(scope.pinPath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/src')
-    expect(scope.unpinPath).toHaveBeenCalledWith(PROJECT, '/synthetic/repo/src')
+    expect(scope.hidePath).toHaveBeenCalledWith(PROJECT, join(PROJECT, '.env'))
+    expect(scope.unhidePath).toHaveBeenCalledWith(PROJECT, join(PROJECT, '.env'))
+    expect(scope.pinPath).toHaveBeenCalledWith(PROJECT, join(PROJECT, 'src'))
+    expect(scope.unpinPath).toHaveBeenCalledWith(PROJECT, join(PROJECT, 'src'))
     expect(scope.read).toHaveBeenCalledTimes(3)
   })
 

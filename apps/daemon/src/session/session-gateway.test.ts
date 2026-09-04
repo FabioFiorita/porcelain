@@ -1,3 +1,4 @@
+import { join, resolve, sep } from 'node:path'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import {
   type SessionChangeFrame,
@@ -19,7 +20,13 @@ import {
 } from './session-gateway'
 
 const EPOCH = 'synthetic-epoch'
-const PROJECT = '/synthetic/repo'
+const PROJECT = resolve('synthetic', 'repo')
+const WATCHES = {
+  ...sessionWatchesFixtures.watches,
+  projectPath: PROJECT,
+  files: [join(PROJECT, 'src', 'open-document.ts')],
+  dirs: [join(PROJECT, 'src')],
+}
 
 function harness({ identity = { kind: 'admin' } as SessionConnection['identity'] } = {}) {
   const publisher = createSessionChangePublisher({ epoch: EPOCH })
@@ -152,17 +159,20 @@ describe('Session gateway', () => {
   it('registers watch interests only after ready and scopes the change stream to them', () => {
     const { session, watchSink, onProjectScopeChanged, publisher, sent } = openedSession()
 
-    session.receive(JSON.stringify(sessionWatchesFixtures.watches))
+    session.receive(JSON.stringify(WATCHES))
 
     expect(watchSink.apply).toHaveBeenCalledWith({
       projectPath: PROJECT,
-      files: ['/synthetic/repo/src/open-document.ts'],
-      dirs: ['/synthetic/repo/src'],
+      files: [join(PROJECT, 'src', 'open-document.ts')],
+      dirs: [join(PROJECT, 'src')],
     })
     expect(onProjectScopeChanged).toHaveBeenLastCalledWith(PROJECT)
 
     publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
-    publisher.publish({ kind: 'files.scope-changed', projectPath: '/synthetic/other-repo' })
+    publisher.publish({
+      kind: 'files.scope-changed',
+      projectPath: resolve('synthetic', 'other-repo'),
+    })
 
     expect(changeFrames(sent)).toEqual([
       {
@@ -179,8 +189,8 @@ describe('Session gateway', () => {
 
     session.receive(
       JSON.stringify({
-        ...sessionWatchesFixtures.watches,
-        projectPath: `${PROJECT}/`,
+        ...WATCHES,
+        projectPath: `${PROJECT}${sep}`,
       }),
     )
 
@@ -190,7 +200,7 @@ describe('Session gateway', () => {
 
     session.receive(
       JSON.stringify({
-        ...sessionWatchesFixtures.watches,
+        ...WATCHES,
         projectPath: 'synthetic/repo',
       }),
     )
@@ -211,7 +221,7 @@ describe('Session gateway', () => {
 
   it('forwards terminal traffic on its own path, never through the change union', () => {
     const { session, received, sent, publisher } = openedSession()
-    session.receive(JSON.stringify(sessionWatchesFixtures.watches))
+    session.receive(JSON.stringify(WATCHES))
 
     session.receive(JSON.stringify(terminalStreamFixtures.input.write))
     publisher.publish({ kind: 'files.scope-changed', projectPath: PROJECT })
@@ -252,7 +262,7 @@ describe('Session gateway', () => {
 
   it('releases subscription, watchers, and terminals on close', () => {
     const { session, publisher, watchSink, terminal, sent } = openedSession()
-    session.receive(JSON.stringify(sessionWatchesFixtures.watches))
+    session.receive(JSON.stringify(WATCHES))
 
     session.close()
     session.close()

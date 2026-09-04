@@ -4,7 +4,8 @@ import { Toaster } from '@renderer/components/ui/sonner'
 import { useActionsNotificationSubscription } from '@renderer/features/actions'
 import { useFilesInterestBridge, useFilesNotificationSubscription } from '@renderer/features/files'
 import { useGitNotificationSubscription } from '@renderer/features/git'
-import { useEnvironmentStatuses } from '@renderer/features/remote'
+import { useCanvasNotificationSubscription } from '@renderer/features/projects'
+import { useEnvironmentStatuses, useShellEnvironmentConnections } from '@renderer/features/remote'
 import { useReviewCommentNotificationSubscription } from '@renderer/features/review'
 import {
   ContentSearch,
@@ -15,7 +16,6 @@ import { useEnvironmentTerminalStreams, useTerminalRoster } from '@renderer/feat
 import { useDocumentTitle } from '@renderer/hooks/use-document-title'
 import { useResponsiveShell } from '@renderer/hooks/use-responsive-shell'
 import { useSessionRuntime } from '@renderer/hooks/use-session-runtime'
-import { useShellEnvironmentConnections } from '@renderer/hooks/use-shell-environment-connections'
 import { useShellEvents } from '@renderer/hooks/use-shell-events'
 import { useThemeSync } from '@renderer/hooks/use-theme'
 import { fileName } from '@renderer/lib/paths'
@@ -132,6 +132,7 @@ export function AppShell(): React.JSX.Element {
   // Git workspace notifications own typed Git identities; session-runtime handles only residual
   // non-Git recovery and Canvas/Files cross-domain concerns.
   useGitNotificationSubscription()
+  useCanvasNotificationSubscription()
   useReviewCommentNotificationSubscription()
   // Files notifications + watch interests; session-runtime Files arms are no-ops.
   useFilesNotificationSubscription()

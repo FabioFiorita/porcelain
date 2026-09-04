@@ -15,6 +15,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { hostname, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { test } from 'node:test'
@@ -31,9 +32,34 @@ const worktreeScript = resolve('scripts/worktree.mjs')
 const codexEnvironment = readFileSync(resolve('.codex/environments/environment.toml'), 'utf8')
 
 function environmentCommand(section) {
-  const match = codexEnvironment.match(new RegExp(`\\[${section}\\]\\nscript = '''\\n([^\\n]+)`))
+  const match = codexEnvironment.match(
+    new RegExp(`^\\[${section}\\]\\r?\\nscript = '''\\r?\\n([^\\r\\n]+)`, 'm'),
+  )
   assert.ok(match, `missing ${section} command in Codex environment`)
   return match[1]
+}
+
+function runEnvironmentCommand(section, cwd, env) {
+  const command = environmentCommand(section)
+  const match = command.match(
+    /^node scripts\/worktree\.mjs (codex-(?:bootstrap|cleanup)) "\$\{CODEX_WORKTREE_PATH:-\$PWD\}"$/,
+  )
+  assert.ok(match, `unexpected ${section} command in Codex environment: ${command}`)
+  execFileSync(process.execPath, ['scripts/worktree.mjs', match[1], cwd], {
+    cwd,
+    env,
+    stdio: 'pipe',
+  })
+}
+
+function fixtureEnv(home) {
+  // os.homedir() uses USERPROFILE on Windows rather than HOME. Set both so a
+  // fixture can never allocate a managed profile under the developer's account.
+  return { ...process.env, HOME: home, USERPROFILE: home }
+}
+
+async function removeFixture(path) {
+  await rm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 }
 
 function git(cwd, ...args) {
@@ -210,7 +236,7 @@ test('fixture config file round-trip defaults base for old profiles', () => {
   }
 })
 
-test('selected Codex environment bootstraps and cleans up its harness working directory', () => {
+test('selected Codex environment bootstraps and cleans up its harness working directory', async () => {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
   const primary = join(home, 'repo')
   const checkout = join(home, '.codex', 'worktrees', '7f73', 'porcelain')
@@ -228,12 +254,8 @@ test('selected Codex environment bootstraps and cleans up its harness working di
     git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
     const originalHead = git(checkout, 'rev-parse', 'HEAD')
 
-    const env = { ...process.env, HOME: home }
-    execFileSync('sh', ['-c', environmentCommand('setup')], {
-      cwd: checkout,
-      env,
-      stdio: 'pipe',
-    })
+    const env = fixtureEnv(home)
+    runEnvironmentCommand('setup', checkout, env)
 
     const config = JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8'))
     assert.deepEqual(config, {
@@ -248,15 +270,11 @@ test('selected Codex environment bootstraps and cleans up its harness working di
     assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
     assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), true)
 
-    execFileSync('sh', ['-c', environmentCommand('cleanup')], {
-      cwd: checkout,
-      env,
-      stdio: 'pipe',
-    })
+    runEnvironmentCommand('cleanup', checkout, env)
     assert.equal(existsSync(checkout), false)
     assert.equal(existsSync(join(home, '.porcelain-dev-worktrees', 'codex-7f73')), false)
   } finally {
-    rmSync(home, { recursive: true, force: true })
+    await removeFixture(home)
   }
 })
 
@@ -281,7 +299,7 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
       git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
     }
 
-    const env = { ...process.env, HOME: home }
+    const env = fixtureEnv(home)
     await Promise.all(
       checkouts.map((checkout) =>
         run('node', ['scripts/worktree.mjs', 'codex-bootstrap', checkout], {
@@ -335,7 +353,7 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
     }
     assert.ok(checkouts.every((checkout) => !existsSync(checkout)))
   } finally {
-    rmSync(home, { recursive: true, force: true })
+    await removeFixture(home)
   }
 })
 
@@ -373,7 +391,7 @@ test('Codex bootstrap reclaims a lock left by a dead local owner', async () => {
     // prevent a later allocator from claiming the canonical lock.
     mkdirSync(`${lock}.reclaim-orphan`)
 
-    const env = { ...process.env, HOME: home }
+    const env = fixtureEnv(home)
     await Promise.all(
       checkouts.map((checkout) =>
         run('node', ['scripts/worktree.mjs', 'codex-bootstrap', checkout], {
@@ -391,6 +409,6 @@ test('Codex bootstrap reclaims a lock left by a dead local owner', async () => {
     assert.equal(existsSync(lock), false)
     assert.equal(existsSync(`${lock}.reclaim-orphan`), true)
   } finally {
-    rmSync(home, { recursive: true, force: true })
+    await removeFixture(home)
   }
 })

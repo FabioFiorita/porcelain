@@ -16,6 +16,10 @@ describe('normalizeProjectRoot', () => {
     expect(normalizeProjectRoot('//')).toBe('/')
     expect(normalizeProjectRoot('///')).toBe('/')
   })
+
+  it('uses slash-form identity for native Windows roots', () => {
+    expect(normalizeProjectRoot('C:\\repos\\demo\\')).toBe('C:/repos/demo')
+  })
 })
 
 describe('projectRelativeFromAbsolute', () => {
@@ -28,6 +32,14 @@ describe('projectRelativeFromAbsolute', () => {
     expect(projectRelativeFromAbsolute(REPO, REPO)).toBeNull()
     expect(projectRelativeFromAbsolute(REPO, '/other/a.ts')).toBeNull()
     expect(projectRelativeFromAbsolute(REPO, '/synthetic/repo/foo/../bar')).toBeNull()
+  })
+
+  it('contains native Windows paths with either separator spelling', () => {
+    const root = 'C:\\repos\\demo'
+    expect(projectRelativeFromAbsolute(root, root)).toBeNull()
+    expect(projectRelativeFromAbsolute(root, 'C:\\repos\\demo\\src\\index.ts')).toBe('src/index.ts')
+    expect(projectRelativeFromAbsolute(root, 'C:/repos/demo/src/index.ts')).toBe('src/index.ts')
+    expect(projectRelativeFromAbsolute(root, 'C:\\repos\\different\\index.ts')).toBeNull()
   })
 })
 
@@ -45,6 +57,11 @@ describe('treePathFromAbsolute', () => {
     expect(treePathFromAbsolute(REPO, REPO)).toBe('.')
     expect(treePathFromAbsolute(REPO, `${REPO}/src`)).toBe('src')
     expect(treePathFromAbsolute(REPO, `${REPO}/src/components`)).toBe('src/components')
+  })
+
+  it('maps native Windows tree paths to slash-form wire identities', () => {
+    expect(treePathFromAbsolute('C:\\repos\\demo', 'C:\\repos\\demo')).toBe('.')
+    expect(treePathFromAbsolute('C:\\repos\\demo', 'C:\\repos\\demo\\src')).toBe('src')
   })
 
   it('returns null outside the project', () => {

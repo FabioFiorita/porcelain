@@ -13,6 +13,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { homedir, hostname, tmpdir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -790,7 +791,7 @@ async function remove(slugArg, options = {}) {
   }
 
   await stopDaemon(worktree.path, paths.home)
-  git(root, ['worktree', 'remove', ...(options.force ? ['--force'] : []), worktree.path])
+  await removeGitWorktree(root, worktree.path, options.force)
   if (branch !== null) {
     const ancestryMerged = isAncestorOf(root, branch, base)
     git(root, ['branch', options.force || !ancestryMerged ? '-D' : '-d', branch])
@@ -805,6 +806,33 @@ async function remove(slugArg, options = {}) {
   checkout${branch === null ? '' : ', branch'}, channels, user data, and playground deleted
   deletion is permanent; Git history remains in main/the remote merge
 `)
+}
+
+/** Windows can retain a closing child process's handle briefly after a setup hook exits. */
+async function removeGitWorktree(root, path, force) {
+  const args = ['worktree', 'remove', ...(force ? ['--force'] : []), path]
+  // A cleanup hook starts inside the checkout it removes. Windows cannot remove
+  // a process's current directory, even when Git executes from the primary root.
+  if (process.platform === 'win32' && realPathOrSelf(resolve(process.cwd())) === path) {
+    process.chdir(root)
+  }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      checked(root, 'git', args)
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const transientWindowsFailure =
+        process.platform === 'win32' &&
+        /permission denied|access is denied|resource busy|device or resource busy/i.test(message)
+      if (!transientWindowsFailure || attempt === 2) fail(message)
+      if (!parseWorktrees(root).some((worktree) => worktree.path === path)) {
+        await rm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+        return
+      }
+      await delay(100 * (attempt + 1))
+    }
+  }
 }
 
 function prBody(root, branch) {

@@ -7,6 +7,8 @@ import {
   editReviewCommentInputSchema,
   repoPathInputSchema,
   resolveReviewCommentInputSchema,
+  reviewReadinessInputSchema,
+  reviewReadinessOutputSchema,
   reviewCommentSchema,
   setReviewedInputSchema,
   voidOutputSchema,
@@ -27,6 +29,12 @@ const reviewProcedureDefinitions = {
     input: repoPathInputSchema,
     output: reviewCommentSchema.array(),
     errors: ['review.unavailable'],
+  },
+  reviewReadiness: {
+    kind: 'query',
+    input: reviewReadinessInputSchema,
+    output: reviewReadinessOutputSchema,
+    errors: [],
   },
   setReviewed: {
     kind: 'mutation',

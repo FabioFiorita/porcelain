@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { supportsFileSymlinks } from '../../testing/temporary-directory'
 import { type CanvasStore, createCanvasStore, type StoredCanvas } from './canvas-store'
+
+const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 let homeDir = ''
 let store: CanvasStore
@@ -103,7 +106,7 @@ describe('Canvas store', () => {
     })
   })
 
-  it('rejects an entry file a symlink smuggles outside the bundle directory', async () => {
+  symlinkIt('rejects an entry file a symlink smuggles outside the bundle directory', async () => {
     await writeIndex('proj-1', [record])
     const bundleDir = canvasBundleDir(homeDir, 'proj-1', 'canvas-a')
     await mkdir(bundleDir, { recursive: true })

@@ -205,22 +205,21 @@ describe('RemotesSection', () => {
     expect(screen.getByTestId(TestIds.environmentName('workstation')).textContent).toBe(
       'Beelink (work)',
     )
-    // The local role stays stable; only the saved remote displays its nickname.
-    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('Local')
+    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('workstation')
   })
 
   it('falls back to the machine name, never a blank label, when nothing is nicknamed', () => {
     statusesMock.mockReturnValue(new Map([[null, { ...localStatus, name: null }]]))
     render(<RemotesSection />)
 
-    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('Local')
+    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('workstation')
   })
 
-  it('names the built-in Environment Local regardless of daemon identity', () => {
+  it('falls back to This device when the local daemon has no name or host', () => {
     statusesMock.mockReturnValue(new Map([[null, { ...localStatus, host: null, name: null }]]))
     render(<RemotesSection />)
 
-    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('Local')
+    expect(screen.getByTestId(TestIds.environmentName('local')).textContent).toBe('This device')
   })
 
   it('sends the typed nickname to the row the human edited', () => {
@@ -248,9 +247,9 @@ describe('RemotesSection', () => {
     })
   })
 
-  it('does not offer a nickname editor for Local', () => {
+  it('offers a nickname editor for the reachable local daemon', () => {
     render(<RemotesSection />)
-    expect(screen.queryByTestId(TestIds.environmentRename('local'))).toBeNull()
+    expect(screen.getByTestId(TestIds.environmentRename('local'))).toBeTruthy()
   })
 
   /**

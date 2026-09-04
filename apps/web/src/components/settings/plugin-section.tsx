@@ -127,7 +127,11 @@ export function PluginSection(): React.JSX.Element {
         </p>
         <CopyBlock label="Repository" lines={info ? [info.agentPluginRepository] : []} />
       </div>
-      <CopyBlock label="Claude Plugin" lines={info?.claudePluginCommands ?? []} />
+      <CopyBlock label="Claude Plugin — first install" lines={info?.claudePluginCommands ?? []} />
+      <CopyBlock
+        label="Claude Plugin — update and reload"
+        lines={info?.claudePluginUpdateCommands ?? []}
+      />
     </div>
   )
 }

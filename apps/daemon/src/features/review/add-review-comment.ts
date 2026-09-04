@@ -1,4 +1,5 @@
 import { planAddReviewComment } from '@porcelain/shared/comments-file'
+import type { ReviewCommentAnchor } from '@porcelain/contracts/review'
 import type {
   ReviewComment,
   ReviewCommentChanges,
@@ -11,10 +12,11 @@ import type {
 export type AddReviewCommentInput = {
   projectPath: string
   author?: 'user' | 'agent'
-  path: string
+  path?: string
   startLine?: number
   endLine?: number
   anchorText?: string
+  anchor?: ReviewCommentAnchor
   body: string
 }
 
@@ -38,6 +40,7 @@ export function createAddReviewComment(deps: {
         startLine: input.startLine,
         endLine: input.endLine,
         anchorText: input.anchorText,
+        anchor: input.anchor,
         body: input.body,
         createdAt: now,
       })

@@ -54,6 +54,7 @@ import { CommentsManageMenu } from './comments-manage-menu'
 import { DiscardFileDialog } from './discard-file-dialog'
 import { FileCommentButton } from './file-comment-button'
 import { ReviewAllToggle } from './review-all-toggle'
+import { ReviewReadiness } from './review-readiness'
 
 const statusBadge: Record<FileStatus, { label: string; className: string }> = {
   modified: { label: 'M', className: 'text-warning' },
@@ -343,6 +344,13 @@ export function ChangesList(): React.JSX.Element {
   return (
     <div data-testid={TestIds.changesList} className="flex flex-col gap-2 p-2">
       <ChangesScopeToggle />
+      <ReviewReadiness
+        scope={
+          changesScope === 'branch'
+            ? { type: 'range', ...(base === undefined ? {} : { base }) }
+            : { type: 'working' }
+        }
+      />
       <div className="flex items-center justify-between gap-1">
         <div className="flex min-w-0 items-center gap-0.5">
           <span

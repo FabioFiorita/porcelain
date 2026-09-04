@@ -4,11 +4,14 @@ import { execFileSync } from 'node:child_process'
 import { test } from 'node:test'
 
 function publicConfig(environment) {
-  const output = execFileSync(
-    'pnpm',
-    ['--dir', 'apps/mobile', 'exec', 'expo', 'config', '--type', 'public', '--json'],
-    { cwd: process.cwd(), encoding: 'utf8', env: environment },
-  )
+  const pnpmArgs = ['--dir', 'apps/mobile', 'exec', 'expo', 'config', '--type', 'public', '--json']
+  const command = process.platform === 'win32' ? 'cmd.exe' : 'pnpm'
+  const args = process.platform === 'win32' ? ['/d', '/s', '/c', 'pnpm.cmd', ...pnpmArgs] : pnpmArgs
+  const output = execFileSync(command, args, {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: environment,
+  })
   return JSON.parse(output)
 }
 

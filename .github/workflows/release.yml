@@ -62,6 +62,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
+      - name: Require macOS signing and notarization credentials
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required macOS release secret: ${name}" >&2
+              exit 1
+            fi
+          done
+
       - name: Package mac (sign + notarize, no publish)
         run: pnpm package:mac
         env:
@@ -74,6 +90,20 @@ jobs:
 
       - name: Packaging smoke
         run: node scripts/release-fuse-smoke.mjs --platform mac --dir apps/desktop/dist
+
+      - name: Verify macOS signature and notarization staple
+        run: |
+          set -euo pipefail
+          APP_PATH=$(find apps/desktop/dist -type d -name '*.app' -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            echo 'No packaged macOS app was produced.' >&2
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          for dmg in apps/desktop/dist/*.dmg; do
+            xcrun stapler validate "$dmg"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -109,13 +139,37 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Package Windows (no publish)
+      - name: Require Windows signing credentials
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK) -or [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
+            throw 'WIN_CSC_LINK and WIN_CSC_KEY_PASSWORD are required for a public Windows release.'
+          }
+
+      - name: Package signed Windows artifacts (no publish)
         run: pnpm package:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
       - name: Packaging smoke
         run: node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
+
+      - name: Verify Windows installer signature
+        shell: pwsh
+        run: |
+          $installers = Get-ChildItem apps/desktop/dist -Filter *.exe
+          if ($installers.Count -eq 0) { throw 'No Windows installer was produced.' }
+          foreach ($installer in $installers) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+            if ($signature.Status -ne 'Valid') {
+              throw "Invalid Authenticode signature on $($installer.Name): $($signature.Status)"
+            }
+          }
 
       - uses: actions/upload-artifact@v4
         with:

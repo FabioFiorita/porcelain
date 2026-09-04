@@ -1,6 +1,8 @@
 import { SidebarProvider } from '@renderer/components/ui/sidebar'
 import { useFileLog } from '@renderer/features/git'
+import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { type Tab, tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useViewerFileContextStore } from '@renderer/stores/viewer-file-context'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileTimelineGroup } from './file-timeline-group'
@@ -34,6 +36,8 @@ function renderGroup(): void {
 describe('FileTimelineGroup', () => {
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
+    useViewerFileContextStore.setState({ pathByPane: {} })
+    useProjectSelectionStore.setState({ project: null })
     vi.mocked(useFileLog).mockReturnValue(commits)
   })
 
@@ -49,6 +53,31 @@ describe('FileTimelineGroup', () => {
     expect(screen.getByText('bar.ts')).toBeInTheDocument()
     expect(screen.getByText('feat: add the widget')).toBeInTheDocument()
     expect(screen.getByText('fix: stop the leak')).toBeInTheDocument()
+  })
+
+  it('normalizes a persisted Windows file-tab path before querying its timeline', () => {
+    useProjectSelectionStore.setState({ project: { path: 'C:\\repo', name: 'repo' } })
+    openFileTab('C:\\repo\\src\\bar.ts')
+
+    renderGroup()
+
+    expect(useFileLog).toHaveBeenCalledWith('src/bar.ts')
+  })
+
+  it('follows the selected file reported by a commit or stacked changes reader', () => {
+    const tab: Tab = {
+      id: tabId('changeset', 'working'),
+      kind: 'changeset',
+      title: 'Changes',
+      path: 'working',
+    }
+    useTabsStore.setState({ panes: [{ tabs: [tab], activeTabId: tab.id }], activePaneIndex: 0 })
+    useViewerFileContextStore.getState().setPath(0, 'src/review.ts')
+
+    renderGroup()
+
+    expect(screen.getByText('review.ts')).toBeInTheDocument()
+    expect(useFileLog).toHaveBeenCalledWith('src/review.ts')
   })
 
   it('shows an empty state for a file with no history yet', () => {

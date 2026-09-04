@@ -238,7 +238,9 @@ export function createDaemonSession(
     onDaemonReady: (listener: () => void) => subscribe(readyListeners, listener),
     /** Fires after the session comes BACK (never on the first connect) — queries are stale, refetch. */
     onDaemonReconnect: (listener: () => void) => subscribe(reconnectListeners, listener),
-    onDaemonClose: (listener: () => void) => subscribe(closeListeners, listener),
+    // A close observer must not make an otherwise-unused secondary Environment live. The
+    // session owner starts it when a panel needs it; this only reacts once that session dies.
+    onDaemonClose: (listener: () => void) => subscribe(closeListeners, listener, false),
   }
 }
 

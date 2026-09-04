@@ -11,6 +11,7 @@ import type {
   DeleteReviewCommentInput,
   EditReviewCommentInput,
   ResolveReviewCommentInput,
+  ReviewCommentAnchor,
   ReviewComment,
 } from '@porcelain/contracts/review'
 import { onMutationError } from '@renderer/hooks/mutation-error'
@@ -31,10 +32,11 @@ import { reviewCommentsKeyForProject, reviewCommentsQueryKey } from './comment-q
  */
 
 export type NewComment = {
-  path: string
+  path?: string
   startLine?: number
   endLine?: number
   anchorText?: string
+  anchor?: ReviewCommentAnchor
   body: string
 }
 
@@ -310,8 +312,9 @@ export function useCommentActions(): {
       await runSerially(async () => {
         await add.mutateAsync({
           repoPath,
-          path: input.path,
           body: input.body,
+          ...(input.path === undefined ? {} : { path: input.path }),
+          ...(input.anchor === undefined ? {} : { anchor: input.anchor }),
           ...(input.startLine !== undefined ? { startLine: input.startLine } : {}),
           ...(input.endLine !== undefined ? { endLine: input.endLine } : {}),
           ...(input.anchorText !== undefined ? { anchorText: input.anchorText } : {}),

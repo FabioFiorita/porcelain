@@ -347,7 +347,7 @@ describe('readEnvironmentConnections', () => {
     state = { activeId: 'env-1', environments: [environment()] }
 
     expect(await readEnvironmentConnections('env-1')).toEqual([
-      { id: null, name: 'Local', url: 'http://127.0.0.1:43118', token: 'pc_admin_local' },
+      { id: null, name: 'This device', url: 'http://127.0.0.1:43118', token: 'pc_admin_local' },
     ])
   })
 

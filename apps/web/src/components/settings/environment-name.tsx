@@ -36,19 +36,6 @@ export function EnvironmentName(props: {
   // Measured raw, exactly as the contract measures it — the daemon trims, this does not.
   const tooLong = draft !== null && draft.length > ENVIRONMENT_NAME_MAX_LENGTH
 
-  // Local is a stable role label. Host-derived names and human nicknames belong to saved
-  // remote Environments; showing either here makes one physical computer look like a remote.
-  if (props.environmentId === null) {
-    return (
-      <p
-        className="truncate text-sm-minus font-medium"
-        data-testid={TestIds.environmentName(rowId)}
-      >
-        Local
-      </p>
-    )
-  }
-
   /**
    * Save. The editor stays open until the daemon answers: a rename crosses to ANOTHER
    * machine, and discarding the typed name on the way would leave a failed rename with

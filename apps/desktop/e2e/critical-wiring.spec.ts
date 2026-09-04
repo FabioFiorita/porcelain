@@ -95,6 +95,9 @@ test('a stale session protocol receives the exact update-required mismatch', asy
 test('an external fixture edit refreshes the open file', async ({ page, repoDir }) => {
   await waitForShell(page)
   await selectTab(page, 'Files')
+  // The shell chrome is ready before the lazy Files root fetch. Wait for the fixture's root
+  // entry before driving its descendants, so this test proves live refresh rather than a fetch race.
+  await expect(loc.treeEntry(page, 'src')).toBeVisible()
   await loc.treeEntry(page, 'src').click()
   await loc.treeEntry(page, 'components').click()
   await loc.treeEntry(page, 'Button.tsx').click()

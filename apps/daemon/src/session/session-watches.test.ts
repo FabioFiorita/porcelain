@@ -1,3 +1,4 @@
+import { join, resolve, sep } from 'node:path'
 import {
   SESSION_WATCH_INTEREST_LIMIT,
   type SessionWatchesFrame,
@@ -8,7 +9,8 @@ import { mutableFixture } from '@porcelain/contracts/testing'
 import { describe, expect, it, vi } from 'vitest'
 import { createSessionWatchInterests, resolveSessionWatchInterests } from './session-watches'
 
-const PROJECT = '/synthetic/repo'
+const PROJECT = resolve('synthetic', 'repo')
+const projectPath = (...parts: string[]): string => join(PROJECT, ...parts)
 
 function frame(overrides: Partial<SessionWatchesFrame> = {}): SessionWatchesFrame {
   return sessionWatchesFrameSchema.parse({
@@ -39,11 +41,15 @@ function watchSinkSpy() {
 }
 
 describe('Session watch interests', () => {
-  it('accepts the contract fixture as-is', () => {
-    const interests = resolved(mutableFixture(sessionWatchesFixtures.watches))
+  it('accepts the contract fixture with native absolute paths', () => {
+    const fixture = mutableFixture(sessionWatchesFixtures.watches)
+    fixture.projectPath = PROJECT
+    fixture.files = [projectPath('src', 'open-document.ts')]
+    fixture.dirs = [projectPath('src')]
+    const interests = resolved(fixture)
 
-    expect(interests.files).toEqual(['/synthetic/repo/src/open-document.ts'])
-    expect(interests.dirs).toEqual(['/synthetic/repo/src'])
+    expect(interests.files).toEqual([projectPath('src', 'open-document.ts')])
+    expect(interests.dirs).toEqual([projectPath('src')])
     expect(interests.rejected).toEqual([])
     expect(interests.droppedOverLimit).toBe(0)
   })
@@ -51,16 +57,16 @@ describe('Session watch interests', () => {
   it('canonicalizes and deduplicates equivalent paths', () => {
     const interests = resolved({
       files: [
-        `${PROJECT}/src/a.ts`,
-        `${PROJECT}/src/./a.ts`,
-        `${PROJECT}/src/nested/../a.ts`,
-        `${PROJECT}/src/b.ts`,
+        projectPath('src', 'a.ts'),
+        projectPath('src', '.', 'a.ts'),
+        projectPath('src', 'nested', '..', 'a.ts'),
+        projectPath('src', 'b.ts'),
       ],
-      dirs: [`${PROJECT}/src/`, `${PROJECT}/src`],
+      dirs: [projectPath('src') + sep, projectPath('src')],
     })
 
-    expect(interests.files).toEqual([`${PROJECT}/src/a.ts`, `${PROJECT}/src/b.ts`])
-    expect(interests.dirs).toEqual([`${PROJECT}/src`])
+    expect(interests.files).toEqual([projectPath('src', 'a.ts'), projectPath('src', 'b.ts')])
+    expect(interests.dirs).toEqual([projectPath('src')])
   })
 
   it('keeps the project root itself as a watchable directory', () => {
@@ -70,20 +76,20 @@ describe('Session watch interests', () => {
   it('keeps in-project names that begin with two dots', () => {
     expect(
       resolved({
-        files: [`${PROJECT}/..foo`],
-        dirs: [`${PROJECT}/..folder`],
+        files: [projectPath('..foo')],
+        dirs: [projectPath('..folder')],
       }),
     ).toMatchObject({
-      files: [`${PROJECT}/..foo`],
-      dirs: [`${PROJECT}/..folder`],
+      files: [projectPath('..foo')],
+      dirs: [projectPath('..folder')],
       rejected: [],
     })
   })
 
   it('rejects paths outside the declared project without expanding scope', () => {
     const interests = resolved({
-      files: [`${PROJECT}/../elsewhere/secret.ts`, '/etc/shadow'],
-      dirs: ['/synthetic/repo-other/src', `${PROJECT}/..`],
+      files: [projectPath('..', 'elsewhere', 'secret.ts'), resolve('etc', 'shadow')],
+      dirs: [resolve('synthetic', 'repo-other', 'src'), projectPath('..')],
     })
 
     expect(interests.files).toEqual([])
@@ -113,8 +119,10 @@ describe('Session watch interests', () => {
   })
 
   it('caps combined files and directories at the contract limit', () => {
-    const files = Array.from({ length: 100 }, (_unused, index) => `${PROJECT}/src/f${index}.ts`)
-    const dirs = Array.from({ length: 100 }, (_unused, index) => `${PROJECT}/src/d${index}`)
+    const files = Array.from({ length: 100 }, (_unused, index) =>
+      projectPath('src', `f${index}.ts`),
+    )
+    const dirs = Array.from({ length: 100 }, (_unused, index) => projectPath('src', `d${index}`))
 
     const interests = resolved({ files, dirs })
 
@@ -125,12 +133,11 @@ describe('Session watch interests', () => {
   })
 
   it('drops directories entirely when files alone reach the limit', () => {
-    const files = Array.from(
-      { length: SESSION_WATCH_INTEREST_LIMIT + 10 },
-      (_unused, index) => `${PROJECT}/src/f${index}.ts`,
+    const files = Array.from({ length: SESSION_WATCH_INTEREST_LIMIT + 10 }, (_unused, index) =>
+      projectPath('src', `f${index}.ts`),
     )
 
-    const interests = resolved({ files, dirs: [`${PROJECT}/src`] })
+    const interests = resolved({ files, dirs: [projectPath('src')] })
 
     expect(interests.files).toHaveLength(SESSION_WATCH_INTEREST_LIMIT)
     expect(interests.dirs).toEqual([])
@@ -141,11 +148,11 @@ describe('Session watch interests', () => {
     const sink = watchSinkSpy()
     const interests = createSessionWatchInterests(sink)
 
-    interests.register(frame({ files: [`${PROJECT}/src/a.ts`], dirs: [`${PROJECT}/src`] }))
+    interests.register(frame({ files: [projectPath('src', 'a.ts')], dirs: [projectPath('src')] }))
     expect(sink.apply).toHaveBeenLastCalledWith({
       projectPath: PROJECT,
-      files: [`${PROJECT}/src/a.ts`],
-      dirs: [`${PROJECT}/src`],
+      files: [projectPath('src', 'a.ts')],
+      dirs: [projectPath('src')],
     })
 
     interests.register(frame({ files: [], dirs: [] }))
@@ -171,7 +178,7 @@ describe('Session watch interests', () => {
   it('releases every watcher on close', () => {
     const sink = watchSinkSpy()
     const interests = createSessionWatchInterests(sink)
-    interests.register(frame({ dirs: [`${PROJECT}/src`] }))
+    interests.register(frame({ dirs: [projectPath('src')] }))
 
     interests.clear()
     interests.clear()

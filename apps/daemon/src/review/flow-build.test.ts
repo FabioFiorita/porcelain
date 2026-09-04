@@ -52,7 +52,11 @@ const fileAt = (groups: FlowGroup[], path: string): FlowGroup['files'][number] |
   flat(groups).find((file) => file.path === path)
 
 afterAll(async () => {
-  await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true })))
+  // Git can briefly retain a Windows handle after a subprocess resolves; retry only this test's
+  // exact fixture directories rather than leaking them or touching a broader temporary root.
+  await Promise.all(
+    dirs.map((dir) => rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })),
+  )
 })
 
 describe('readSourcesAndBuildFlow', () => {

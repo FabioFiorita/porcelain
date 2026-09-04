@@ -12,9 +12,7 @@ import { SETTINGS_SECTIONS, type SettingsSection } from './settings-catalog'
 /**
  * Phone Settings — a full-screen stack with a back button.
  *
- * Tablet Settings is a dialog (`settings-dialog.tsx`). The section list is the same four:
- * General, Personalization, Companion, and Remotes, plus any host status section supported by
- * the current daemon. Project-specific Personalization also opens from its Project row.
+ * Tablet Settings is a dialog (`settings-dialog.tsx`). Both surfaces offer the same sections.
  */
 export function SettingsScreen(): React.JSX.Element {
   const router = useRouter()

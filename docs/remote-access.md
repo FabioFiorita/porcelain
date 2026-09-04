@@ -92,6 +92,12 @@ the renderer or the bundle.
 
 ## Keep it running
 
+In the installed desktop app, closing the last window keeps Porcelain running in the Windows or
+Linux system tray while LAN, Tailnet, managed Cloudflare, or a custom Cloudflare route is enabled.
+This preserves access from paired devices. Use **Quit Porcelain** from the tray when you intend to
+take the host offline. With sharing disabled, closing the last window quits normally. macOS keeps
+the app active after its last window closes as usual; use **Quit Porcelain** to stop it.
+
 For an always-on Linux host, install the daemon as a user-level systemd unit and enable linger;
 both are required for survival across logout and reboot. Resolve the real `npx` path first; systemd
 does not load an interactive shell, and a Node-manager shim may not work outside one.

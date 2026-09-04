@@ -30,7 +30,7 @@ async function daemonFor(
   if (environmentId === null) {
     const local = localDaemonPair()
     if (local.url === '') throw new Error('The local daemon is not running')
-    return { ...local, name: 'Local' }
+    return { ...local, name: 'This device' }
   }
   const state = await loadRemoteEnvironmentState()
   const environment = state.environments.find((candidate) => candidate.id === environmentId)

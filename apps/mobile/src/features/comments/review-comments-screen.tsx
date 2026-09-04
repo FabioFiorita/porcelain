@@ -22,7 +22,7 @@ import {
   type CommentThread,
   commentCounts,
   commentThreads,
-  describeAnchor,
+  describeThreadAnchor,
   describeCommentCounts,
 } from './comment-threads'
 
@@ -132,7 +132,7 @@ export function ReviewCommentsScreen(): React.JSX.Element {
         }}
       />
       <CommentComposerSheet
-        anchorLabel={replyTo === null ? '' : describeAnchor(replyTo.range)}
+        anchorLabel={replyTo === null ? '' : describeThreadAnchor(replyTo.anchor, replyTo.range)}
         open={replyTo !== null}
         pending={actions.isPending}
         subject={replyTo?.path ?? ''}
@@ -147,10 +147,7 @@ export function ReviewCommentsScreen(): React.JSX.Element {
             () =>
               actions.add({
                 body,
-                path: target.path,
-                ...(target.range === null
-                  ? {}
-                  : { endLine: target.range.endLine, startLine: target.range.startLine }),
+                anchor: target.anchor,
               }),
             report('Could not add the comment'),
           )
@@ -206,7 +203,7 @@ function ThreadCard({
     <View className={cn(PANEL_CARD, 'gap-3 p-3')} testID={threadTestId(thread)}>
       <View className="gap-0.5">
         <Text className="text-xs font-semibold text-foreground">
-          {describeAnchor(thread.range)}
+          {describeThreadAnchor(thread.anchor, thread.range)}
         </Text>
         {/* Head-truncated: the tail of a path is what identifies the file. */}
         <Text
@@ -234,7 +231,7 @@ function ThreadCard({
         />
       ))}
       <Pressable
-        accessibilityLabel={`Reply on ${describeAnchor(thread.range)}`}
+        accessibilityLabel={`Reply on ${describeThreadAnchor(thread.anchor, thread.range)}`}
         accessibilityRole="button"
         className="h-9 flex-row items-center justify-center rounded-lg border border-border bg-secondary active:opacity-80"
         testID={`${threadTestId(thread)}-reply`}

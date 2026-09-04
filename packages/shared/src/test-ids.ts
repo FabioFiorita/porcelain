@@ -70,8 +70,6 @@ export const TestIds = {
   /** Worktree lifecycle scripts of one Project, raised from its row in the tree. */
   hubWorktreeScripts: (projectId: string): string => `hub-worktree-scripts-${projectId}`,
   hubWorktreeScriptsDialog: 'hub-worktree-scripts-dialog',
-  hubPersonalization: (projectId: string): string => `hub-personalization-${projectId}`,
-  hubPersonalizationDialog: 'hub-personalization-dialog',
   hubCreateWorktreeBranch: 'hub-create-worktree-branch',
   hubCreateWorktreeBase: 'hub-create-worktree-base',
   hubCreateWorktreeSubmit: 'hub-create-worktree-submit',
@@ -110,9 +108,6 @@ export const TestIds = {
   settingsCommitModel: 'settings-commit-model',
   /** Settings → Share: authorized and pending devices. */
   shareStatus: 'share-status',
-  /** Settings → Personalization: agent-authored ordering lives in each Review Canvas. */
-  personalizationAgentBuilt: 'personalization-agent-built',
-
   // --- Changes ---
   changesList: 'changes-list',
   changesSummary: 'changes-summary',
@@ -138,7 +133,6 @@ export const TestIds = {
   // --- Review ---
   reviewList: 'review-list',
   reviewOpen: 'review-open',
-  reviewOutlineEvidence: 'review-outline-evidence',
   reviewCanvas: 'review-canvas',
   /** Empty Review Canvas — no daemon-root template has been published. */
   reviewCanvasEmpty: 'review-canvas-empty',
@@ -244,7 +238,6 @@ export const TestIds = {
   intentDocTab: (label: string): string =>
     `intent-doc-tab-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
   /** One rendered document body — the same renderer serves Intent and Results. */
-  reviewDocBody: 'review-doc-body',
   evidenceDocTabs: 'evidence-doc-tabs',
   paneError: 'pane-error',
   reviewPublish: 'review-publish',

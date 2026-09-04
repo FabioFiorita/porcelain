@@ -55,7 +55,10 @@ During work:
 After implementation:
 
 1. Run the smallest relevant proof and inspect the complete diff.
-2. Create or update one Review Canvas for the coherent unit. Write an attention-first walkthrough:
+2. Create or update one Review Canvas for the coherent unit. For the full `document` MCP shape,
+   always send its sibling `reviewMetadata` object with the complete `layers` and `files` arrays;
+   never switch to a document-only Review write because that drops the Changes/History ordering.
+   Write an attention-first walkthrough:
    summary and ordered sections, sandboxed HTML/SVG where it clarifies the design, code references,
    observed checks, and useful screenshot/video/document evidence. Record failures and skipped proof
    honestly. Put local evidence assets in one source directory and pass it with the Canvas write so
@@ -64,7 +67,9 @@ After implementation:
    behavior and contracts first, integration next, and mechanical exports or low-risk support last.
    List files in the exact order a human should inspect them inside those layers. Changes includes
    any unlisted changed file safely at the end of its layer.
-4. Add focused comments on important files when the diff alone does not carry enough context.
+4. Add focused comments when the diff alone does not carry enough context. Use a file anchor for
+   local code, a Canvas anchor for the walkthrough or a named section, and a changeset anchor for
+   feedback about the coherent change as a whole.
 5. Read reviewed state as needed. Mark or unmark files only when the human asks or explicitly
    delegates review completion; never claim the human reviewed a file merely because the agent did.
 6. Preserve the Review Canvas id. A dirty Review is live-only. After committing and cleaning the

@@ -27,8 +27,7 @@ const ctx = vi.hoisted(() => ({
 
 vi.mock('@/features/remote', () => ({
   activeProjectPathOf: () => ctx.repoPath,
-  isEnabled: (environment: { enabled: boolean } | null): boolean =>
-    environment !== null && environment.enabled,
+  isEnabled: (environment: { enabled: boolean } | null): boolean => environment?.enabled ?? false,
   isPaired: (environment: { token: string | null } | null): boolean =>
     environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,
@@ -42,7 +41,9 @@ vi.mock('@/lib/daemon/procedure', async (importOriginal) => {
   return { ...actual, callDaemon: ctx.callDaemon }
 })
 
-import { useCanvasDocumentUrl, useCanvasList } from './canvas-data'
+import { listCanvasesQuery, readCanvasQuery } from '@porcelain/client-runtime/projects'
+import { projectsQueryKey } from '@/features/projects'
+import { invalidateCanvasQueries, useCanvasDocumentUrl, useCanvasList } from './canvas-data'
 
 const RECORD: CanvasRecord = {
   createdAt: '2026-08-19T10:00:00.000Z',
@@ -121,6 +122,36 @@ describe('useCanvasList', () => {
     await waitFor(() => {
       expect(result.current.loadError).toBe('canvas.unavailable')
     })
+  })
+})
+
+describe('invalidateCanvasQueries', () => {
+  it('marks open and list Canvas data stale only for the notified Project and Environment', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const listKey = projectsQueryKey(
+      ENV_ID,
+      listCanvasesQuery(PROJECT_ID, REPO_PATH, 'wt-alpha-main'),
+    )
+    const readKey = projectsQueryKey(ENV_ID, readCanvasQuery(PROJECT_ID, RECORD.id, REPO_PATH))
+    const otherProjectKey = projectsQueryKey(
+      ENV_ID,
+      listCanvasesQuery('project-other', REPO_PATH, 'wt-alpha-main'),
+    )
+    const otherEnvironmentKey = projectsQueryKey(
+      'env-other',
+      listCanvasesQuery(PROJECT_ID, REPO_PATH, 'wt-alpha-main'),
+    )
+    client.setQueryData(listKey, [RECORD])
+    client.setQueryData(readKey, { content: '# Before', record: RECORD })
+    client.setQueryData(otherProjectKey, [RECORD])
+    client.setQueryData(otherEnvironmentKey, [RECORD])
+
+    await invalidateCanvasQueries(client, ENV_ID, PROJECT_ID)
+
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(readKey)?.isInvalidated).toBe(true)
+    expect(client.getQueryState(otherProjectKey)?.isInvalidated).toBe(false)
+    expect(client.getQueryState(otherEnvironmentKey)?.isInvalidated).toBe(false)
   })
 })
 

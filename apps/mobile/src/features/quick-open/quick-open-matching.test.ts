@@ -80,7 +80,6 @@ describe('quick-open matching', () => {
         section: 'updates',
       },
     ])
-    expect(gotoRows('personalization')).toEqual([])
     expect(gotoRows('companion')).toEqual([])
     expect(gotoRows('search')).toEqual([])
   })

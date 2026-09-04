@@ -123,9 +123,7 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     }
     const worktreeId = identity?.worktreeId ?? null
     const stored = worktreeId === null ? undefined : privateDoc.worktreeProfiles[worktreeId]
-    // An override that says nothing reads as no override at all, so a cleared
-    // profile stops claiming a section in Personalization instead of showing
-    // three empty lists that look like a bug.
+    // An override that says nothing reads as no override at all.
     const override = stored !== undefined && !isEmptyWorktreeProfile(stored) ? stored : null
     return { worktreeId, base, override, resolved: resolveProfile(base, override) }
   }

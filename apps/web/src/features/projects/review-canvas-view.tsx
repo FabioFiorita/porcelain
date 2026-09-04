@@ -6,12 +6,22 @@ import type {
 } from '@porcelain/contracts/projects'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@renderer/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
+import { Textarea } from '@renderer/components/ui/textarea'
 import { HtmlView } from '@renderer/components/viewer/html-view'
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'
+import { useCommentActions } from '@renderer/features/review/comments/comment-mutations'
+import { useReviewComments } from '@renderer/features/review/comments/comment-queries'
 import { fileName } from '@renderer/lib/paths'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
-import { useTabsStore } from '@renderer/stores/tabs'
+import { type ReviewTarget, useTabsStore } from '@renderer/stores/tabs'
 import {
   CheckCircle2,
   CircleMinus,
@@ -21,6 +31,7 @@ import {
   Video,
   XCircle,
 } from 'lucide-react'
+import { useState } from 'react'
 
 function assetUrl(baseUrl: string | null, path: string): string | null {
   if (baseUrl === null) return null
@@ -69,14 +80,19 @@ function References({
 function SectionView({
   section,
   onOpen,
+  onComment,
 }: {
   section: ReviewCanvasSection
   onOpen: (reference: ReviewCanvasReference) => void
+  onComment: () => void
 }): React.JSX.Element {
   return (
     <article className="mx-auto w-full max-w-5xl space-y-6 p-5 sm:p-8">
       <header className="space-y-3">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{section.title}</h1>
+        <Button type="button" variant="outline" size="sm" onClick={onComment}>
+          Comment on this section
+        </Button>
         <References references={section.references} onOpen={onOpen} />
       </header>
       {section.prose === '' ? null : (
@@ -135,15 +151,26 @@ function AssetCard({ asset, baseUrl }: { asset: ReviewCanvasAsset; baseUrl: stri
   }
   if (asset.kind === 'video') {
     return (
-      <a
-        className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm hover:bg-muted/40"
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <Video className="size-4 shrink-0" />
-        <span className="font-medium">{asset.label}</span>
-      </a>
+      <figure className="overflow-hidden rounded-xl border bg-card">
+        {/* biome-ignore lint/a11y/useMediaCaption: evidence may be silent; optional WebVTT renders below when supplied. */}
+        <video className="max-h-[36rem] w-full bg-black" controls preload="metadata">
+          <source src={href} type={asset.mime} />
+          {asset.captions === undefined ? null : (
+            <track
+              kind="captions"
+              src={assetUrl(baseUrl, asset.captions) ?? undefined}
+              srcLang="en"
+              label="Captions"
+              default
+            />
+          )}
+          Your browser cannot play this video.
+        </video>
+        <figcaption className="flex items-center gap-2 border-t px-4 py-3 text-sm font-medium">
+          <Video className="size-4 shrink-0" />
+          {asset.label}
+        </figcaption>
+      </figure>
     )
   }
   return (
@@ -219,25 +246,94 @@ function EvidenceView({
   )
 }
 
+function CanvasDiscussion({ canvasId }: { canvasId: string }): React.JSX.Element | null {
+  const comments = useReviewComments()
+  const related = comments.filter(
+    (comment) =>
+      comment.anchor?.kind === 'changeset' ||
+      (comment.anchor?.kind === 'canvas' && comment.anchor.canvasId === canvasId),
+  )
+  if (related.length === 0) return null
+  return (
+    <section className="mx-auto w-full max-w-5xl space-y-3 border-t p-5 sm:p-8">
+      <h2 className="text-base font-semibold">Review comments</h2>
+      {related.map((comment) => (
+        <article key={comment.id} className="rounded-lg border bg-card p-3 text-sm">
+          <p className="text-xs font-medium text-muted-foreground">
+            {comment.anchor?.kind === 'changeset'
+              ? 'Whole changeset'
+              : comment.anchor?.kind !== 'canvas' || comment.anchor.section === undefined
+                ? 'Review Canvas'
+                : comment.anchor.section}
+          </p>
+          <p className="mt-1 whitespace-pre-wrap">{comment.body}</p>
+        </article>
+      ))}
+    </section>
+  )
+}
+
 export function ReviewCanvasView({
   document,
   repoPath,
   assetBaseUrl,
+  canvasId,
+  reviewTarget,
 }: {
   document: ReviewCanvasDocument
   repoPath?: string
   assetBaseUrl: string | null
+  canvasId?: string
+  reviewTarget?: ReviewTarget
 }): React.JSX.Element {
   const openTab = useTabsStore((state) => state.openTab)
+  const { add } = useCommentActions()
+  const [commentTarget, setCommentTarget] = useState<'changeset' | string | null>(null)
+  const [commentBody, setCommentBody] = useState('')
+  const openComment = (target: 'changeset' | string): void => {
+    setCommentTarget(target)
+    setCommentBody('')
+  }
   const openReference = (reference: ReviewCanvasReference): void => {
     if (repoPath === undefined) return
+    const line = reference.startLine
+    if (reviewTarget?.type === 'working' || reviewTarget?.type === 'range') {
+      openTab(
+        targetedTab(
+          'diff',
+          reference.path,
+          {
+            title: fileName(reference.path),
+            ...(reviewTarget.type === 'range' ? { base: reviewTarget.base } : {}),
+            ...(line === undefined ? {} : { line }),
+          },
+          activeTabTarget(),
+        ),
+      )
+      return
+    }
+    if (reviewTarget?.type === 'commit') {
+      openTab(
+        targetedTab(
+          'commit',
+          reviewTarget.hash,
+          {
+            title: reviewTarget.hash.slice(0, 12),
+            reviewFilePath: reference.path,
+            ...(line === undefined ? {} : { line }),
+          },
+          activeTabTarget(),
+        ),
+      )
+      return
+    }
     openTab(
       targetedTab(
         'file',
         `${repoPath}/${reference.path}`,
         {
           title: fileName(reference.path),
-          ...(reference.startLine === undefined ? {} : { line: reference.startLine }),
+          ...(line === undefined ? {} : { line }),
         },
         activeTabTarget(),
       ),
@@ -245,40 +341,94 @@ export function ReviewCanvasView({
   }
   const first = 'section-0'
   return (
-    <Tabs defaultValue={first} className="flex h-full min-h-0 flex-col gap-0">
-      <div className="shrink-0 overflow-x-auto border-b px-3 py-2 sm:px-5">
-        <TabsList
-          variant="line"
-          aria-label="Review Canvas sections"
-          className="w-max min-w-full justify-start"
-        >
-          {document.sections.map((section, index) => (
-            <TabsTrigger key={section.title} value={`section-${index}`}>
-              {section.title}
-            </TabsTrigger>
-          ))}
-          {document.evidence === undefined ? null : (
-            <TabsTrigger value="evidence">Evidence</TabsTrigger>
-          )}
-        </TabsList>
-      </div>
-      {document.sections.map((section, index) => (
-        <TabsContent
-          key={section.title}
-          value={`section-${index}`}
-          className="min-h-0 flex-1 overflow-y-auto"
-        >
-          {index !== 0 || document.summary === undefined ? null : (
-            <p className="mx-auto max-w-5xl px-5 pt-5 text-base leading-7 text-muted-foreground sm:px-8">
-              {document.summary}
-            </p>
-          )}
-          <SectionView section={section} onOpen={openReference} />
+    <>
+      <Tabs defaultValue={first} className="flex h-full min-h-0 flex-col gap-0">
+        <div className="shrink-0 overflow-x-auto border-b px-3 py-2 sm:px-5">
+          <TabsList
+            variant="line"
+            aria-label="Review Canvas sections"
+            className="w-max min-w-full justify-start"
+          >
+            {document.sections.map((section, index) => (
+              <TabsTrigger key={section.title} value={`section-${index}`}>
+                {section.title}
+              </TabsTrigger>
+            ))}
+            {document.evidence === undefined ? null : (
+              <TabsTrigger value="evidence">Evidence</TabsTrigger>
+            )}
+            <TabsTrigger value="discussion">Discussion</TabsTrigger>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => openComment('changeset')}
+            >
+              Comment on change
+            </Button>
+          </TabsList>
+        </div>
+        {document.sections.map((section, index) => (
+          <TabsContent
+            key={section.title}
+            value={`section-${index}`}
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
+            {index !== 0 || document.summary === undefined ? null : (
+              <p className="mx-auto max-w-5xl px-5 pt-5 text-base leading-7 text-muted-foreground sm:px-8">
+                {document.summary}
+              </p>
+            )}
+            <SectionView
+              section={section}
+              onOpen={openReference}
+              onComment={() => openComment(section.title)}
+            />
+          </TabsContent>
+        ))}
+        <TabsContent value="evidence" className="min-h-0 flex-1 overflow-y-auto">
+          <EvidenceView document={document} assetBaseUrl={assetBaseUrl} />
         </TabsContent>
-      ))}
-      <TabsContent value="evidence" className="min-h-0 flex-1 overflow-y-auto">
-        <EvidenceView document={document} assetBaseUrl={assetBaseUrl} />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="discussion" className="min-h-0 flex-1 overflow-y-auto">
+          <CanvasDiscussion canvasId={canvasId ?? document.title} />
+        </TabsContent>
+      </Tabs>
+      <Dialog
+        open={commentTarget !== null}
+        onOpenChange={(open) => !open && setCommentTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review comment</DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={commentBody}
+            onChange={(event) => setCommentBody(event.target.value)}
+            placeholder="What should the reviewer know?"
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => {
+                if (commentTarget === null || commentBody.trim() === '') return
+                void add({
+                  body: commentBody.trim(),
+                  anchor:
+                    commentTarget === 'changeset'
+                      ? { kind: 'changeset' }
+                      : {
+                          kind: 'canvas',
+                          canvasId: canvasId ?? document.title,
+                          section: commentTarget,
+                        },
+                }).then(() => setCommentTarget(null))
+              }}
+            >
+              Add comment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

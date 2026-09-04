@@ -92,11 +92,25 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
     case 'diff':
       // `base` isn't part of tab identity (`tab.id`), so a re-open with a new base
       // updates the same tab entry — remount on that change too, or the old diff lingers.
-      return <DiffView key={`${tab.id}:${tab.base ?? ''}`} filePath={tab.path} base={tab.base} />
+      return (
+        <DiffView
+          key={`${tab.id}:${tab.base ?? ''}`}
+          filePath={tab.path}
+          base={tab.base}
+          paneIndex={paneIndex}
+        />
+      )
     case 'commit':
-      return <CommitView key={tab.id} hash={tab.path} />
+      return (
+        <CommitView
+          key={`${tab.id}:${tab.reviewFilePath ?? ''}`}
+          hash={tab.path}
+          filePath={tab.reviewFilePath}
+          paneIndex={paneIndex}
+        />
+      )
     case 'changeset':
-      return <ChangesetView key={tab.id} path={tab.path} />
+      return <ChangesetView key={tab.id} path={tab.path} paneIndex={paneIndex} />
     case 'search':
       return <SearchView key={tab.id} query={tab.path} />
     case 'file':
@@ -122,6 +136,7 @@ function PaneContent({ tab, paneIndex }: { tab: Tab; paneIndex: number }): React
           canvasId={tab.path}
           worktreePath={tab.target.path}
           environmentId={tab.target.environmentId}
+          reviewTarget={tab.reviewTarget}
         />
       )
   }

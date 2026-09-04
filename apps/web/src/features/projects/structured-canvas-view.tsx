@@ -3,6 +3,7 @@ import {
   structuredCanvasValidationMessage,
 } from '@porcelain/contracts/projects'
 import { TestIds } from '@shared/test-ids'
+import type { ReviewTarget } from '@renderer/stores/tabs'
 import { DecisionCanvasView } from './decision-canvas-view'
 import { ReviewCanvasView } from './review-canvas-view'
 
@@ -10,10 +11,14 @@ export function StructuredCanvasView({
   content,
   repoPath,
   assetBaseUrl = null,
+  canvasId,
+  reviewTarget,
 }: {
   content: string
   repoPath?: string
   assetBaseUrl?: string | null
+  canvasId?: string
+  reviewTarget?: ReviewTarget
 }): React.JSX.Element {
   let value: unknown
   try {
@@ -36,7 +41,13 @@ export function StructuredCanvasView({
   if (parsed.data.template === 'review') {
     return (
       <div data-testid={TestIds.structuredCanvas} className="h-full min-h-0">
-        <ReviewCanvasView document={parsed.data} repoPath={repoPath} assetBaseUrl={assetBaseUrl} />
+        <ReviewCanvasView
+          document={parsed.data}
+          repoPath={repoPath}
+          assetBaseUrl={assetBaseUrl}
+          canvasId={canvasId}
+          reviewTarget={reviewTarget}
+        />
       </div>
     )
   }

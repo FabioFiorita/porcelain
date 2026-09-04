@@ -5,6 +5,7 @@ export interface PluginInfo {
   version: string
   agentPluginRepository: string
   claudePluginCommands: readonly string[]
+  claudePluginUpdateCommands: readonly string[]
 }
 
 export interface CodexPluginStatus {
@@ -20,6 +21,11 @@ const BUNDLED_PLUGIN: PluginInfo = {
   claudePluginCommands: [
     '/plugin marketplace add FabioFiorita/porcelain',
     '/plugin install porcelain@porcelain',
+  ],
+  claudePluginUpdateCommands: [
+    '/plugin marketplace update porcelain',
+    '/plugin update porcelain@porcelain',
+    '/reload-plugins',
   ],
 }
 

@@ -50,6 +50,9 @@ async function moveToCorruptBackup(sourcePath: string): Promise<string> {
 }
 
 async function fsyncPath(targetPath: string): Promise<void> {
+  // Windows cannot open directory handles through Node. The temp file has
+  // already been synced, so only the POSIX directory-entry flush is skipped.
+  if (process.platform === 'win32') return
   const handle = await open(targetPath, 'r')
   try {
     await handle.sync()

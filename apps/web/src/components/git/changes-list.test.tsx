@@ -22,6 +22,7 @@ vi.mock('@renderer/features/review', () => ({
   useCommentActions: () => ({ add: async () => {} }),
   useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
   useReviewComments: () => [],
+  useReviewReadiness: () => ({ readiness: undefined, error: null }),
 }))
 
 const files: FlowFile[] = [

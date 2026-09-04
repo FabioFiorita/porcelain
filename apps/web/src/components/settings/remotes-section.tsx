@@ -98,7 +98,7 @@ function ElectronRemotesSection(): React.JSX.Element {
   const localStatus = statuses.get(null)
   // The nickname first, then the machine name, then the role label. With two daemons on this
   // machine the middle one is the SAME string twice — that is the confusion the nickname ends.
-  const localName = 'Local'
+  const localName = firstLabel(localStatus?.name, localStatus?.host, 'This device') ?? 'This device'
 
   function showPairForm(groupId: string | null): void {
     setPairingTargetId(groupId)

@@ -20,13 +20,13 @@ describe('ensureAdminToken', () => {
   it('creates a fresh 64-hex-char token with 0600 perms when missing', async () => {
     const token = await ensureAdminToken(file)
     expect(token).toMatch(/^[0-9a-f]{64}$/)
-    expect(statSync(file).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 
   it('reads back an existing token instead of minting a new one', async () => {
     writeFileSync(file, 'preexisting-token', { mode: 0o644 })
     expect(await ensureAdminToken(file)).toBe('preexisting-token')
-    expect(statSync(file).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 
   it('trims surrounding whitespace from an existing token', async () => {

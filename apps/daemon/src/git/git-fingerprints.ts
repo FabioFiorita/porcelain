@@ -16,13 +16,13 @@ async function isUntracked(repoPath: string, path: string): Promise<boolean> {
 
 // The hash input for an untracked file (no diff vs HEAD): its bytes, tagged so it
 // can't collide with a same-content tracked diff. An oversized file falls back to
-// size+mtime rather than reading it whole into memory (precision matters less than
-// not OOMing); a vanished file hashes empty (its mark then prunes).
+// size rather than reading it whole into memory; a vanished file hashes empty (its mark then
+// prunes). Deliberately omit mtime: fingerprints are content identities, never timestamps.
 async function untrackedFingerprintInput(repoPath: string, path: string): Promise<string | Buffer> {
   const abs = join(repoPath, path)
   try {
     const info = await stat(abs)
-    if (exceedsReadLimit(info.size)) return `untracked-large:${info.size}:${info.mtimeMs}`
+    if (exceedsReadLimit(info.size)) return `untracked-large:${info.size}`
     return Buffer.concat([Buffer.from('untracked:'), await readFile(abs)])
   } catch {
     return ''
@@ -121,6 +121,32 @@ export async function reviewedFingerprints(
     )
   }
   return result
+}
+
+/**
+ * Deterministic identity of the complete working change-set. Status preserves staged vs
+ * unstaged state; per-file content fingerprints make a same-path edit stale without relying on
+ * write time. This is persisted with a live Review Canvas, not exposed to clients.
+ */
+export async function workingTreeFingerprint(repoPath: string): Promise<string> {
+  const files = parseStatus(await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z']))
+    .slice()
+    .sort((left, right) => left.path.localeCompare(right.path))
+  const fingerprints = await reviewedFingerprints(
+    repoPath,
+    files.map((file) => file.path),
+  )
+  return sha256Hex(
+    JSON.stringify(
+      files.map((file) => ({
+        path: file.path,
+        status: file.status,
+        staged: file.staged === true,
+        unstaged: file.unstaged === true,
+        content: fingerprints.get(file.path) ?? '',
+      })),
+    ),
+  )
 }
 
 /** Split a combined `git diff` into per-file chunks at each `diff --git ` header line. */

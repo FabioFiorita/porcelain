@@ -1,9 +1,9 @@
 import type { DiffHunk, DiffReadingOutput } from '@porcelain/contracts/git'
 import { useDiffReading } from '@renderer/features/git'
+import { useChangesetCollapseStore } from '@renderer/stores/changeset-collapse'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangesetView, changesetTabKey, parseChangesetTabKey } from './changeset-view'
-import { useChangesetCollapseStore } from '@renderer/stores/changeset-collapse'
 
 vi.mock('@renderer/features/git', () => ({
   useDiffReading: vi.fn(),
@@ -14,14 +14,13 @@ vi.mock('@renderer/features/git', () => ({
 vi.mock('@renderer/features/review', () => ({
   useCommentIndex: () => ({ byLine: new Map(), fileLevel: [] }),
   useCommentActions: () => ({ add: async () => {} }),
+  useReviewReadiness: () => ({ readiness: undefined, error: null }),
 }))
 vi.mock('@renderer/components/viewer/code-line', () => ({
   useHighlighter: () => null,
   CodeLine: ({ text }: { text: string }) => <span>{text}</span>,
 }))
 
-// Typed to what `useDiffReading` actually returns. It was annotated `ReviewReading`, a
-// wider shape whose `source` union the diff reading does not accept.
 const reading: DiffReadingOutput = {
   name: 'Changes',
   sections: [],

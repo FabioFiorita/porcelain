@@ -28,7 +28,12 @@ import {
   localTerminalPathKey,
   updateLocalTerminalPaths,
 } from './local-terminal-paths'
-import { agentPluginRepository, claudePluginCommands, PLUGIN_VERSION } from './plugin-assets'
+import {
+  agentPluginRepository,
+  claudePluginCommands,
+  claudePluginUpdateCommands,
+  PLUGIN_VERSION,
+} from './plugin-assets'
 import {
   type EndpointKind,
   endpointKind,
@@ -545,10 +550,12 @@ export const shellRouter = t.router({
       version: string
       agentPluginRepository: string
       claudePluginCommands: readonly string[]
+      claudePluginUpdateCommands: readonly string[]
     } => ({
       version: PLUGIN_VERSION,
       agentPluginRepository: agentPluginRepository(),
       claudePluginCommands: claudePluginCommands(),
+      claudePluginUpdateCommands: claudePluginUpdateCommands(),
     }),
   ),
 
@@ -653,6 +660,15 @@ export const shellRouter = t.router({
     readEnvironmentConnections(windowEnvironmentId(ctx.sender)),
   ),
 
+  /**
+   * A live secondary renderer session closed. Re-resolve this one Environment in its saved
+   * preference order and broadcast the changed pair so every already-open renderer session
+   * heals, instead of waiting for a settings poll or opening a new window.
+   */
+  refreshEnvironmentEndpoint: t.procedure
+    .input(z.object({ id: z.string().min(1) }))
+    .mutation(async ({ input }) => refreshActiveEndpoint(input.id)),
+
   pairEnvironmentConnection: t.procedure
     .input(
       z.object({
@@ -688,25 +704,6 @@ export const shellRouter = t.router({
         ),
       }))
       await reloadEnvironmentsCache()
-    }),
-
-  /**
-   * Open a fresh window on an environment without touching the caller's binding.
-   * `environmentId: null` = This device (local).
-   */
-  openWindowInEnvironment: t.procedure
-    .input(
-      z.object({
-        environmentId: z.string().nullable(),
-        repoPath: z.string().optional(),
-      }),
-    )
-    .mutation(({ input }) => {
-      createWindow(
-        input.repoPath
-          ? { mode: 'open', repoPath: input.repoPath, environmentId: input.environmentId }
-          : { mode: 'welcome', environmentId: input.environmentId },
-      )
     }),
 
   removeRemoteEnvironment: t.procedure

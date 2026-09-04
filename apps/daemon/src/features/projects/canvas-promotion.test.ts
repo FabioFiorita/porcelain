@@ -12,6 +12,7 @@ import {
   projectPorcelainDir,
 } from '@shared/project-porcelain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { supportsFileSymlinks } from '../../testing/temporary-directory'
 import { createCanvasAccessTokens } from './canvas-access-tokens'
 import { type CanvasOperations, createCanvasOperations } from './canvas-operations'
 import { createCanvasOverlayStore } from './canvas-overlay-store'
@@ -27,6 +28,8 @@ let homeDir = ''
 let repo = ''
 let operations: CanvasOperations
 let store: ReturnType<typeof createCanvasStore>
+
+const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 const PRIVATE_CANVAS: StoredCanvas = {
   id: 'canvas-intent',
@@ -453,7 +456,7 @@ describe('a promoted bundle stays confined to its own directory', () => {
     ).toEqual({ ok: false, error: { code: 'canvas.not-found' } })
   })
 
-  it('refuses an entry that escapes the bundle through a symlink', async () => {
+  symlinkIt('refuses an entry that escapes the bundle through a symlink', async () => {
     await writeFile(join(repo, 'secret.html'), '<p>secret</p>', 'utf8')
     const dir = await writeTrackedBundle(
       { ...PRIVATE_CANVAS, worktreeId: null, entryFile: 'link.html' },

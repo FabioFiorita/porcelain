@@ -259,23 +259,100 @@ export type EvidenceAssetBody = z.infer<typeof evidenceAssetBodySchema>
 
 /* Comments and reviewed marks */
 
+export const reviewCommentAnchorSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('file'),
+      path: z.string().min(1),
+      startLine: z.number().int().positive().optional(),
+      endLine: z.number().int().positive().optional(),
+      anchorText: z.string().optional(),
+    })
+    .strict()
+    .superRefine((anchor, context) => {
+      if (
+        anchor.startLine !== undefined &&
+        anchor.endLine !== undefined &&
+        anchor.endLine < anchor.startLine
+      ) {
+        context.addIssue({ code: 'custom', message: 'endLine must not precede startLine' })
+      }
+    }),
+  z
+    .object({
+      kind: z.literal('canvas'),
+      canvasId: z.string().min(1),
+      section: z.string().min(1).optional(),
+    })
+    .strict(),
+  z.object({ kind: z.literal('changeset') }).strict(),
+])
+export type ReviewCommentAnchor = z.infer<typeof reviewCommentAnchorSchema>
+
 export const reviewCommentSchema = z
   .object({
     id: z.string(),
     /** Absent only for comments written before authorship was recorded; clients treat those as user. */
     author: z.enum(['user', 'agent']).optional(),
-    path: z.string().min(1),
+    /** Legacy file fields remain readable while new comments use `anchor`. */
+    path: z.string().min(1).optional(),
     startLine: z.number().int().positive().optional(),
     endLine: z.number().int().positive().optional(),
     anchorText: z.string().optional(),
+    anchor: reviewCommentAnchorSchema.optional(),
     body: z.string(),
     resolved: z.boolean(),
     createdAt: z.number(),
     agentReply: z.object({ body: z.string(), createdAt: z.number() }).strict().optional(),
   })
   .strict()
+  .superRefine((comment, context) => {
+    if (comment.anchor === undefined && comment.path === undefined) {
+      context.addIssue({ code: 'custom', message: 'comment needs an anchor' })
+    }
+  })
 
 export type ReviewComment = z.infer<typeof reviewCommentSchema>
+
+/** Daemon-observed Review readiness; axes stay independent so live and History states do not blur. */
+export const reviewReadinessScopeSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('working') }).strict(),
+  z.object({ type: z.literal('range'), base: z.string().min(1).optional() }).strict(),
+  z.object({ type: z.literal('commit'), hash: z.string().regex(/^[0-9a-f]{7,64}$/) }).strict(),
+])
+export const reviewReadinessInputSchema = z
+  .object({ repoPath: z.string().min(1), scope: reviewReadinessScopeSchema })
+  .strict()
+export const reviewReadinessOutputSchema = z
+  .object({
+    freshness: z.enum(['absent', 'current', 'stale', 'unavailable']),
+    binding: z.enum(['none', 'live', 'commit', 'unbound']),
+    canvas: z
+      .object({ id: z.string().min(1), commitHash: z.string().min(1).optional() })
+      .nullable(),
+    coverage: z
+      .object({
+        changedFileCount: z.number().int().nonnegative(),
+        orderedFileCount: z.number().int().nonnegative(),
+        missingPaths: z.array(z.string()),
+        missingCount: z.number().int().nonnegative(),
+      })
+      .strict(),
+    evidence: z
+      .object({
+        checks: z.number().int().nonnegative(),
+        passed: z.number().int().nonnegative(),
+        failed: z.number().int().nonnegative(),
+        skipped: z.number().int().nonnegative(),
+        assets: z.number().int().nonnegative(),
+      })
+      .strict(),
+    /** A selected Review record existed but could not be read; never present on a truthful absence. */
+    issue: z.enum(['unavailable']).optional(),
+  })
+  .strict()
+export type ReviewReadinessInput = z.infer<typeof reviewReadinessInputSchema>
+export type ReviewReadinessOutput = z.infer<typeof reviewReadinessOutputSchema>
 
 /** Total: sets exactly `paths` to `reviewed`, so one bulk write stays one atomic call. */
 export const setReviewedInputSchema = z
@@ -290,13 +367,19 @@ export type SetReviewedInput = z.infer<typeof setReviewedInputSchema>
 export const addReviewCommentInputSchema = z
   .object({
     repoPath: z.string().min(1),
-    path: z.string().min(1),
+    path: z.string().min(1).optional(),
     startLine: z.number().int().positive().optional(),
     endLine: z.number().int().positive().optional(),
     anchorText: z.string().optional(),
+    anchor: reviewCommentAnchorSchema.optional(),
     body: z.string().min(1),
   })
   .strict()
+  .superRefine((input, context) => {
+    if (input.anchor === undefined && input.path === undefined) {
+      context.addIssue({ code: 'custom', message: 'comment needs an anchor' })
+    }
+  })
 export type AddReviewCommentInput = z.infer<typeof addReviewCommentInputSchema>
 
 export const editReviewCommentInputSchema = z

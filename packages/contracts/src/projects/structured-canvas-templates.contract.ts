@@ -39,6 +39,15 @@ export const reviewFileSchema = z
   })
   .strict()
 
+/** Persisted beside the semantic Review document; required for full-document MCP writes. */
+export const reviewCanvasMetadataSchema = z
+  .object({
+    layers: z.array(profileLayerSchema).default([]),
+    files: z.array(reviewFileSchema).default([]),
+  })
+  .strict()
+export type ReviewCanvasMetadata = z.infer<typeof reviewCanvasMetadataSchema>
+
 export const reviewCanvasTemplateDataSchema = z
   .object({
     title: z.string().min(1).max(120),

@@ -1,4 +1,6 @@
 // @vitest-environment node
+
+import { join, resolve } from 'node:path'
 import { PROJECT_FILES, projectPorcelainPath } from '@shared/project-porcelain'
 import { describe, expect, it } from 'vitest'
 import {
@@ -7,7 +9,7 @@ import {
   projectDataFilesForDomain,
 } from './project-data-ports'
 
-const REPO = '/repo'
+const REPO = resolve('porcelain-project-data-test-repo')
 
 describe('project data companion ownership', () => {
   it('lists the ten canonical domain keys in order', () => {
@@ -68,7 +70,7 @@ describe('project data companion ownership', () => {
       for (const file of domain.files) {
         const resolved = domain.path(REPO, file)
         expect(resolved).toBe(projectPorcelainPath(REPO, file))
-        expect(resolved.startsWith('/repo/.porcelain/')).toBe(true)
+        expect(resolved.startsWith(join(REPO, '.porcelain'))).toBe(true)
       }
     }
   })

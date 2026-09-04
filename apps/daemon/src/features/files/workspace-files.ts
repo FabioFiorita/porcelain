@@ -60,6 +60,16 @@ async function requireRoot(projectPath: string): Promise<string> {
   return root.projectRootReal
 }
 
+/**
+ * Keep directory-entry paths in the caller's project-path spelling. On Windows, Node's `join`
+ * would turn a slash-form `C:/repo` into `C:\\repo`, which no longer compares beneath the Web
+ * client's slash-form project root even though both name the same directory.
+ */
+function joinProjectPath(projectPath: string, relativePath: string): string {
+  if (projectPath.includes('\\')) return join(projectPath, relativePath)
+  return `${projectPath.replace(/\/+$/, '')}/${relativePath}`
+}
+
 export function createNodeWorkspaceFiles(
   hostIo: Partial<WorkspaceFilesHostIo> = {},
 ): WorkspaceFiles {
@@ -85,7 +95,7 @@ export function createNodeWorkspaceFiles(
       // itself be reached through a symlink; returning projectRootReal would make clients treat
       // every row as belonging to a different checkout even though containment was proved.
       const wireDirectory =
-        input.path === '.' ? input.projectPath : join(input.projectPath, input.path)
+        input.path === '.' ? input.projectPath : joinProjectPath(input.projectPath, input.path)
 
       let entries: Dirent<string>[]
       try {
@@ -101,7 +111,7 @@ export function createNodeWorkspaceFiles(
         value: entries
           .filter((entry) => entry.name !== '.DS_Store')
           .map((entry) => {
-            const path = join(wireDirectory, entry.name)
+            const path = joinProjectPath(wireDirectory, entry.name)
             return {
               name: entry.name,
               path,

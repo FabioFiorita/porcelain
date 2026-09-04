@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@porcelain/contracts/review'
+import type { ReviewComment, ReviewCommentAnchor } from '@porcelain/contracts/review'
 
 import { describeRange, type LineRange } from './line-range'
 
@@ -16,6 +16,7 @@ import { describeRange, type LineRange } from './line-range'
 export type CommentThread = {
   /** Stable across refetches: the anchor, not any comment's id. */
   readonly key: string
+  readonly anchor: ReviewCommentAnchor
   readonly path: string
   /** Null for a comment left on the whole file. */
   readonly range: LineRange | null
@@ -24,8 +25,21 @@ export type CommentThread = {
 
 /** The range a comment covers, or null when it is anchored to the whole file. */
 export function commentRange(comment: ReviewComment): LineRange | null {
-  if (comment.startLine === undefined) return null
-  return { endLine: comment.endLine ?? comment.startLine, startLine: comment.startLine }
+  const anchor = commentAnchor(comment)
+  if (anchor.kind !== 'file' || anchor.startLine === undefined) return null
+  return { endLine: anchor.endLine ?? anchor.startLine, startLine: anchor.startLine }
+}
+
+/** Old file comments read as file anchors; all new anchors stay in the same thread model. */
+export function commentAnchor(comment: ReviewComment): ReviewCommentAnchor {
+  if (comment.anchor !== undefined) return comment.anchor
+  return {
+    kind: 'file',
+    path: comment.path ?? '',
+    ...(comment.startLine === undefined ? {} : { startLine: comment.startLine }),
+    ...(comment.endLine === undefined ? {} : { endLine: comment.endLine }),
+    ...(comment.anchorText === undefined ? {} : { anchorText: comment.anchorText }),
+  }
 }
 
 /**
@@ -35,15 +49,25 @@ export function commentRange(comment: ReviewComment): LineRange | null {
  * that can appear inside the path would let two different anchors collide on one key.
  */
 export function commentAnchorKey(comment: ReviewComment): string {
+  const anchor = commentAnchor(comment)
+  if (anchor.kind === 'changeset') return 'changeset'
+  if (anchor.kind === 'canvas') return `canvas\u0000${anchor.canvasId}\u0000${anchor.section ?? ''}`
   const range = commentRange(comment)
   return range === null
-    ? `${comment.path}\u0000file`
-    : `${comment.path}\u0000${range.startLine}-${range.endLine}`
+    ? `${anchor.path}\u0000file`
+    : `${anchor.path}\u0000${range.startLine}-${range.endLine}`
 }
 
 /** "File comment" / "Line 12" / "Lines 12–18" — the web marker's labels, verbatim. */
 export function describeAnchor(range: LineRange | null): string {
   return range === null ? 'File comment' : describeRange(range)
+}
+
+export function describeThreadAnchor(anchor: ReviewCommentAnchor, range: LineRange | null): string {
+  if (anchor.kind === 'changeset') return 'Whole changeset'
+  if (anchor.kind === 'canvas')
+    return anchor.section ? `Canvas: ${anchor.section}` : 'Review Canvas'
+  return describeAnchor(range)
 }
 
 /**
@@ -69,10 +93,17 @@ export function commentThreads(comments: readonly ReviewComment[]): readonly Com
   return order.map((key) => {
     const members = grouped.get(key) ?? []
     const first = members[0]
+    const anchor = first === undefined ? { kind: 'changeset' as const } : commentAnchor(first)
     return {
       comments: [...members].reverse(),
       key,
-      path: first?.path ?? '',
+      anchor,
+      path:
+        anchor.kind === 'file'
+          ? anchor.path
+          : anchor.kind === 'canvas'
+            ? 'Review Canvas'
+            : 'Changes',
       range: first === undefined ? null : commentRange(first),
     }
   })

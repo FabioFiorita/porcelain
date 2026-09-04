@@ -28,6 +28,11 @@ vi.mock('@renderer/hooks/use-plugin', () => ({
     version: '1.6.20',
     agentPluginRepository: 'FabioFiorita/porcelain',
     claudePluginCommands: ['/plugin install porcelain@porcelain'],
+    claudePluginUpdateCommands: [
+      '/plugin marketplace update porcelain',
+      '/plugin update porcelain@porcelain',
+      '/reload-plugins',
+    ],
   }),
   useCodexPluginStatus: () => pluginStatus,
 }))
@@ -119,5 +124,14 @@ describe('PluginSection', () => {
 
     expect(screen.getByText('Codex CLI was not found.')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Add to Codex' })).toBeDisabled()
+  })
+
+  it('keeps Claude update and reload commands distinct from first install', () => {
+    render(<PluginSection />)
+
+    expect(screen.getByText('Claude Plugin — first install')).toBeVisible()
+    expect(screen.getByText('Claude Plugin — update and reload')).toBeVisible()
+    expect(screen.getByText(/\/plugin marketplace update porcelain/)).toBeVisible()
+    expect(screen.getByText(/\/reload-plugins/)).toBeVisible()
   })
 })

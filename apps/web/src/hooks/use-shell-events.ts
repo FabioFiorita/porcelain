@@ -43,7 +43,7 @@ export function handleShellEvent(
       // pairing/connect/disconnect/remove/endpoint healing changed the saved-environments
       // list — refetch so useShellEnvironmentConnections re-points its live sessions
       return Promise.all([
-        shellUtils.environmentDaemonPairs.invalidate(),
+        shellUtils.environmentConnections.invalidate(),
         queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
       ])
     case 'wsl-environments-changed':
@@ -51,7 +51,7 @@ export function handleShellEvent(
         shellUtils.wslDistributions.invalidate(),
         shellUtils.remoteEnvironments.invalidate(),
         shellUtils.environmentStatuses.invalidate(),
-        shellUtils.environmentDaemonPairs.invalidate(),
+        shellUtils.environmentConnections.invalidate(),
         queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
       ])
     case 'close-tab': {

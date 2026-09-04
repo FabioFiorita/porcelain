@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import { DEV_METRO_PORT, DEV_MOBILE_STATE } from './dev-env.mjs'
 import { iosNativeProjectNeedsRegeneration, mobileLaunch } from './mobile-dev.mjs'
@@ -9,7 +10,7 @@ test('Metro uses the active profile port and development variant', () => {
   assert.deepEqual(launch.args.slice(-3), ['--port', String(DEV_METRO_PORT), '--clear'])
   assert.equal(launch.env.METRO_PORT, String(DEV_METRO_PORT))
   assert.equal(launch.env.APP_VARIANT, 'development')
-  assert.equal(launch.env.TMPDIR, `${DEV_MOBILE_STATE}/tmp`)
+  assert.equal(launch.env.TMPDIR, join(DEV_MOBILE_STATE, 'tmp'))
 })
 
 test('the Android loop owns the development variant and profile state', () => {
@@ -20,7 +21,7 @@ test('the Android loop owns the development variant and profile state', () => {
   assert.deepEqual(launch.args, ['preflight'])
   assert.equal(launch.env.METRO_PORT, String(DEV_METRO_PORT))
   assert.equal(launch.env.APP_VARIANT, 'development')
-  assert.equal(launch.env.ANDROID_LOOP_STATE_DIR, `${DEV_MOBILE_STATE}/android`)
+  assert.equal(launch.env.ANDROID_LOOP_STATE_DIR, join(DEV_MOBILE_STATE, 'android'))
   assert.equal(launch.env.ANDROID_LOOP_ENV_FILE, '/tmp/machine-owned-android-loop-env.sh')
 })
 

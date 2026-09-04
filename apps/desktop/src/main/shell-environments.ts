@@ -197,7 +197,7 @@ export async function readEnvironmentConnections(
     ),
   ])
   const connections: EnvironmentConnection[] = localOnline
-    ? [{ id: null, name: 'Local', ...local }]
+    ? [{ id: null, name: 'This device', ...local }]
     : []
   for (const [index, env] of state.environments.entries()) {
     const url = remoteEndpoints[index]
@@ -279,7 +279,9 @@ export async function readEnvironmentStatuses(): Promise<EnvironmentStatus[]> {
     }
   }
   return [
-    { id: null, ...localStatus, name: 'Local' },
+    // `null` still means the daemon this desktop owns. Its display name, however, belongs to
+    // that daemon just like any other Environment and can be a friendly nickname.
+    { id: null, ...localStatus, name: localStatus.name ?? 'This device' },
     ...remoteStatuses.map((status, index) => ({
       id: state.environments[index]?.id ?? null,
       ...status,

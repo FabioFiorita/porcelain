@@ -23,7 +23,7 @@ import {
   SidebarMenuItem,
 } from '@renderer/components/ui/sidebar'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { targetedTab } from '@renderer/stores/hub-tabs'
+import { activeReviewTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -75,7 +75,14 @@ export function CanvasListRow({
           // The exact target this list was scoped to — not activeTabTarget(),
           // which resolves to the focused Viewer tab's own target first and can
           // diverge from the selected Worktree this sidebar is showing.
-          openTab(targetedTab('canvas', canvas.id, { title: canvas.title }, target))
+          openTab(
+            targetedTab(
+              'canvas',
+              canvas.id,
+              { title: canvas.title, reviewTarget: activeReviewTarget(target) },
+              target,
+            ),
+          )
         }
       >
         <div className="flex min-w-0 flex-col items-start">

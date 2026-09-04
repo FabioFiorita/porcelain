@@ -1,4 +1,4 @@
-import type { ReadingFile } from '@porcelain/contracts/review'
+import type { DiffReadingOutput } from '@porcelain/contracts/git'
 import { Button } from '@renderer/components/ui/button'
 import {
   ContextMenu,
@@ -30,6 +30,7 @@ import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useViewerFileContextStore } from '@renderer/stores/viewer-file-context'
 import { TestIds } from '@shared/test-ids'
 import {
   ChevronDown,
@@ -41,12 +42,15 @@ import {
   SquareCheck,
   UnfoldVertical,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { parseChangesetTabKey } from './changeset-tab-key'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { HunksView } from './hunks-view'
+import { ReviewReadiness } from './review-readiness'
 
 export { changesetTabKey, parseChangesetTabKey } from './changeset-tab-key'
+
+type ChangesetFile = DiffReadingOutput['groups'][number]['files'][number]
 
 function pendingLinesFor(
   anchor: CommentAnchor | null,
@@ -65,12 +69,14 @@ function ChangesetFileCard({
   reviewable,
   commentAnchor,
   onComment,
+  onSelectFile,
 }: {
-  file: ReadingFile
+  file: ChangesetFile
   collapseScope: string
   reviewable: boolean
   commentAnchor: CommentAnchor | null
   onComment: (anchor: CommentAnchor) => void
+  onSelectFile: (path: string) => void
 }): React.JSX.Element {
   const fileCollapsed = useChangesetCollapseStore((s) =>
     (s.collapsedByScope[collapseScope] ?? []).includes(file.path),
@@ -131,7 +137,9 @@ function ChangesetFileCard({
   return (
     <div
       data-testid={TestIds.changesetCard(file.path)}
+      data-review-file-path={file.path}
       className={cn(raisedCardClass, 'flex flex-col')}
+      onPointerEnter={() => onSelectFile(file.path)}
     >
       <div className="flex h-9 shrink-0 items-center gap-2 border-b px-3">
         <Button
@@ -319,19 +327,58 @@ function ChangesetFileCard({
  * Stacked-diff reading surface opened from Changes or History. Each file is its
  * own raised card; collapsed cards are header-only.
  */
-export function ChangesetView({ path }: { path: string }): React.JSX.Element {
+export function ChangesetView({
+  path,
+  paneIndex = 0,
+}: {
+  path: string
+  paneIndex?: number
+}): React.JSX.Element {
   const scope = parseChangesetTabKey(path)
   const { reading, error } = useDiffReading(scope)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const projectPath = useProjectSelectionStore((s) => s.project?.path ?? '')
+  const setViewerFilePath = useViewerFileContextStore((state) => state.setPath)
   const collapseScope = `${projectPath}\0${path}`
+
+  const files = reading?.groups.flatMap((group) => group.files) ?? []
+  const fileKey = files.map((file) => file.path).join('\u0000')
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const visibleFile = selectedFile ?? files[0]?.path ?? null
+
+  useEffect(() => {
+    setViewerFilePath(paneIndex, visibleFile)
+    return () => setViewerFilePath(paneIndex, null)
+  }, [paneIndex, setViewerFilePath, visibleFile])
+
+  // A stacked reading does not change its enclosing tab as the reader scrolls.
+  // Follow the first substantially visible card so the shared file context (and
+  // History timeline) stays with what is actually on screen; pointer entry is a
+  // useful immediate fallback in browsers without IntersectionObserver.
+  useEffect(() => {
+    const root = scrollRef.current
+    if (root === null || fileKey === '' || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0]
+        const path = first?.target.getAttribute('data-review-file-path')
+        if (path !== null && path !== undefined) setSelectedFile(path)
+      },
+      { root, threshold: 0.5 },
+    )
+    for (const card of root.querySelectorAll<HTMLElement>('[data-review-file-path]')) {
+      observer.observe(card)
+    }
+    return () => observer.disconnect()
+  }, [fileKey])
 
   if (error) return <p className="p-4 text-sm text-destructive">{error.message}</p>
   if (reading === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
-
-  const files = reading.groups.flatMap((group) => group.files)
   if (files.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -366,8 +413,22 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
         <span className="tabular-nums">
           {files.length} file{files.length === 1 ? '' : 's'}
         </span>
+        <ReviewReadiness
+          className="ml-auto"
+          scope={
+            scope.type === 'working'
+              ? { type: 'working' }
+              : scope.type === 'branch'
+                ? { type: 'range', ...(scope.base === undefined ? {} : { base: scope.base }) }
+                : { type: 'commit', hash: scope.hash }
+          }
+        />
       </div>
-      <div data-testid={TestIds.codeWell} className={cn(viewerWellClass, 'overflow-auto')}>
+      <div
+        ref={scrollRef}
+        data-testid={TestIds.codeWell}
+        className={cn(viewerWellClass, 'overflow-auto')}
+      >
         <div className="flex flex-col gap-3">
           {files.map((file) => (
             <ChangesetFileCard
@@ -377,6 +438,7 @@ export function ChangesetView({ path }: { path: string }): React.JSX.Element {
               reviewable={scope.type !== 'commit'}
               commentAnchor={commentAnchor}
               onComment={setCommentAnchor}
+              onSelectFile={setSelectedFile}
             />
           ))}
         </div>

@@ -68,7 +68,9 @@ package that owns the behavior until a second consumer makes sharing useful.
 - `packages/client-runtime` owns reusable client transport/query/session behavior; a component
   should not reach into transport internals directly.
 - Web owns browser/Electron presentation. Desktop stays a thin host rather than a second business
-  logic implementation. The menu-bar (tray) icon is shell-owned: left-click opens Porcelain.
+  logic implementation. The menu-bar (tray) icon is shell-owned: left-click opens Porcelain. On
+  Windows and Linux, closing the last window keeps the shell-owned daemon alive while any remote
+  sharing route is configured; Quit remains the explicit way to take that shared host offline.
 - Mobile owns native lifecycle and presentation. Its terminal module may render native terminal
   cells, while daemon/PTY transport remains client feature code.
 - The MCP channel adapts semantic daemon operations for agents. The daemon remains the only writer

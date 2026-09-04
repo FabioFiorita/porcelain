@@ -2,7 +2,7 @@ import { isFilesProjectRelativePath } from '@porcelain/contracts/files'
 
 /** Strip trailing slashes except root `/`. */
 export function normalizeProjectRoot(projectPath: string): string {
-  const trimmed = projectPath.replace(/\/+$/, '')
+  const trimmed = projectPath.replaceAll('\\', '/').replace(/\/+$/, '')
   return trimmed === '' ? '/' : trimmed
 }
 
@@ -16,10 +16,11 @@ export function projectRelativeFromAbsolute(
   absolutePath: string,
 ): string | null {
   const root = normalizeProjectRoot(projectPath)
-  if (absolutePath === root) return null
+  const absolute = absolutePath.replaceAll('\\', '/')
+  if (absolute === root) return null
   const prefix = root === '/' ? '/' : `${root}/`
-  if (!absolutePath.startsWith(prefix)) return null
-  const rel = absolutePath.slice(prefix.length)
+  if (!absolute.startsWith(prefix)) return null
+  const rel = absolute.slice(prefix.length)
   if (rel === '') return null
   if (!isFilesProjectRelativePath(rel)) return null
   return rel
@@ -41,6 +42,6 @@ export function projectAbsoluteFromRelative(projectPath: string, relative: strin
  */
 export function treePathFromAbsolute(projectPath: string, absolutePath: string): string | null {
   const root = normalizeProjectRoot(projectPath)
-  if (absolutePath === root) return '.'
+  if (absolutePath.replaceAll('\\', '/') === root) return '.'
   return projectRelativeFromAbsolute(projectPath, absolutePath)
 }

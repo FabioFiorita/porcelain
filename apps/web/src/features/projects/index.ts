@@ -3,6 +3,7 @@
 export type { ProjectSummary } from '@porcelain/client-runtime/projects'
 export { CanvasList } from './canvas-list'
 export { CanvasView } from './canvas-view'
+export { useCanvasNotificationSubscription } from './canvas-notifications'
 export { useOpenHubWorktree } from './hub-open'
 export { HubTree } from './hub-tree'
 export {

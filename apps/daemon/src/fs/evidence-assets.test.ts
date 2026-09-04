@@ -2,7 +2,10 @@ import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { supportsFileSymlinks } from '../testing/temporary-directory'
 import { inlineLocalAssets } from './evidence-assets'
+
+const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 describe('inlineLocalAssets', () => {
   const dir = join(tmpdir(), 'porcelain-evidence-assets-test')
@@ -93,7 +96,7 @@ describe('inlineLocalAssets', () => {
     expect(out).toMatch(/src="data:image\/png;base64,/)
   })
 
-  it('leaves image symlink escape alone but inlines contained symlink', async () => {
+  symlinkIt('leaves image symlink escape alone but inlines contained symlink', async () => {
     const outside = join(tmpdir(), 'porcelain-evidence-assets-outside')
     rmSync(outside, { recursive: true, force: true })
     mkdirSync(outside, { recursive: true })
@@ -111,17 +114,20 @@ describe('inlineLocalAssets', () => {
     rmSync(outside, { recursive: true, force: true })
   })
 
-  it('MIME identity follows lexical name when contained symlink target extension differs', async () => {
-    // Lexical entry ends in .png; real target has no image extension — MIME must stay image/png.
-    writeFileSync(join(dir, 'payload.bin'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
-    symlinkSync(join(dir, 'payload.bin'), join(dir, 'shot.png'))
-    const html = '<img src="shot.png" alt="x">'
-    const out = await inlineLocalAssets(dir, html)
-    expect(out).toMatch(/src="data:image\/png;base64,/)
-    expect(out).not.toContain('application/octet-stream')
-  })
+  symlinkIt(
+    'MIME identity follows lexical name when contained symlink target extension differs',
+    async () => {
+      // Lexical entry ends in .png; real target has no image extension — MIME must stay image/png.
+      writeFileSync(join(dir, 'payload.bin'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+      symlinkSync(join(dir, 'payload.bin'), join(dir, 'shot.png'))
+      const html = '<img src="shot.png" alt="x">'
+      const out = await inlineLocalAssets(dir, html)
+      expect(out).toMatch(/src="data:image\/png;base64,/)
+      expect(out).not.toContain('application/octet-stream')
+    },
+  )
 
-  it('leaves stylesheet symlink escape alone', async () => {
+  symlinkIt('leaves stylesheet symlink escape alone', async () => {
     const outside = join(tmpdir(), 'porcelain-evidence-assets-css-outside')
     rmSync(outside, { recursive: true, force: true })
     mkdirSync(outside, { recursive: true })
@@ -165,7 +171,7 @@ describe('inlineLocalAssets', () => {
     expect(await inlineLocalAssets(dir, html, dir, true)).toBe(html)
   })
 
-  it('leaves a script symlink escape alone', async () => {
+  symlinkIt('leaves a script symlink escape alone', async () => {
     const outside = join(tmpdir(), 'porcelain-evidence-assets-js-outside')
     rmSync(outside, { recursive: true, force: true })
     mkdirSync(outside, { recursive: true })

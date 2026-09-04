@@ -231,6 +231,8 @@ async function makeRepo(): Promise<string> {
   // plain process env still commit on runners with no global user.name/user.email.
   git(dir, 'config', 'user.name', 'Test User')
   git(dir, 'config', 'user.email', 'test@porcelain.test')
+  // Fixture bytes, not a contributor's global checkout policy, define restore expectations.
+  git(dir, 'config', 'core.autocrlf', 'false')
   git(dir, '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'root')
   await writeFile(join(dir, 'tracked.ts'), 'export const v = 1\n')
   git(dir, 'add', 'tracked.ts')

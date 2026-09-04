@@ -208,6 +208,7 @@ async function main(): Promise<void> {
   // here is per-connection.
   const mcpToolHandlers = createMcpToolHandlers({
     operations,
+    publishSessionChange,
   })
   const serveMcp = (req: IncomingMessage, res: ServerResponse): Promise<void> =>
     handleMcpRequest(req, res, {

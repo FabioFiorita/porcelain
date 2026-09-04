@@ -18,6 +18,7 @@ function harness(
   } = {},
 ) {
   const calls: { name: string; input: unknown }[] = []
+  const changes: { kind: string }[] = []
   const comments = [
     { id: 'comment-open', path: 'src/a.ts', body: 'why?', resolved: false, createdAt: 1 },
     { id: 'comment-done', path: 'src/b.ts', body: 'done', resolved: true, createdAt: 2 },
@@ -47,6 +48,32 @@ function harness(
         calls.push({ name: 'unpinPath', input: { projectPath, path } }),
     },
     projects: {
+      openProject: async (path: string) => {
+        calls.push({ name: 'openProject', input: path })
+        return { ok: true, value: { path, name: 'added-project' } }
+      },
+      removeHubProject: async (projectId: string) => {
+        calls.push({ name: 'removeHubProject', input: projectId })
+        return { ok: true, value: undefined }
+      },
+      createHubWorktree: async (input: unknown) => {
+        calls.push({ name: 'createHubWorktree', input })
+        return {
+          ok: true,
+          value: {
+            id: 'worktree-2',
+            projectId: PROJECT,
+            path: `${REPO}-worktrees/topic`,
+            name: 'topic',
+            branch: 'topic',
+            isPrimary: false,
+          },
+        }
+      },
+      removeHubWorktree: async (input: unknown) => {
+        calls.push({ name: 'removeHubWorktree', input })
+        return { ok: true, value: undefined }
+      },
       listHubInventory: async () => ({
         ok: true,
         value: {
@@ -146,8 +173,10 @@ function harness(
   } as unknown as McpOperations
   return {
     calls,
+    changes,
     tools: createMcpToolHandlers({
       operations: ops,
+      publishSessionChange: (change) => changes.push(change),
     }),
   }
 }
@@ -159,6 +188,69 @@ describe('domain MCP entry points', () => {
     expect(result.isError).toBeUndefined()
     expect(result.text).toContain(PROJECT)
     expect((await tools.call('porcelain_legacy', { workspace: REPO })).isError).toBe(true)
+  })
+
+  it('adapts only guarded project and managed Worktree operations', async () => {
+    const { tools, calls, changes } = harness()
+    const added = await tools.call('porcelain_project', { op: 'add', path: REPO })
+    const created = await tools.call('porcelain_project', {
+      op: 'create-worktree',
+      projectId: PROJECT,
+      branch: 'topic',
+      baseRef: 'main',
+    })
+    const removed = await tools.call('porcelain_project', {
+      op: 'remove-worktree',
+      projectId: PROJECT,
+      worktreeId: 'worktree-2',
+      force: true,
+    })
+    const forgotten = await tools.call('porcelain_project', { op: 'remove', projectId: PROJECT })
+
+    expect(JSON.parse(added.text)).toEqual({ project: { path: REPO, name: 'added-project' } })
+    expect(JSON.parse(created.text).worktree).toMatchObject({ id: 'worktree-2', branch: 'topic' })
+    expect(removed.text).toContain('branch was kept')
+    expect(forgotten.text).toContain('checkout was not deleted')
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        { name: 'openProject', input: REPO },
+        {
+          name: 'createHubWorktree',
+          input: { projectId: PROJECT, branch: 'topic', baseRef: 'main' },
+        },
+        {
+          name: 'removeHubWorktree',
+          input: { projectId: PROJECT, worktreeId: 'worktree-2', force: true },
+        },
+        { name: 'removeHubProject', input: PROJECT },
+      ]),
+    )
+    expect(changes).toEqual([
+      { kind: 'projects.inventory-changed' },
+      { kind: 'projects.inventory-changed' },
+      { kind: 'projects.inventory-changed' },
+      { kind: 'projects.inventory-changed' },
+    ])
+  })
+
+  it('requires identifiers for destructive project operations', async () => {
+    const { tools } = harness()
+    await expect(
+      tools.call('porcelain_project', { op: 'add', path: 'relative/repo' }),
+    ).resolves.toMatchObject({
+      isError: true,
+      text: expect.stringContaining('absolute repository path'),
+    })
+    await expect(tools.call('porcelain_project', { op: 'remove' })).resolves.toMatchObject({
+      isError: true,
+      text: expect.stringContaining('projectId is required'),
+    })
+    await expect(
+      tools.call('porcelain_project', { op: 'remove-worktree', projectId: PROJECT }),
+    ).resolves.toMatchObject({
+      isError: true,
+      text: expect.stringContaining('worktreeId is required'),
+    })
   })
 
   it('lists both open and resolved comments and routes replies/resolve/reopen through comments', async () => {
@@ -442,6 +534,43 @@ describe('domain MCP entry points', () => {
       files: [{ path: 'src/review.ts' }],
     })
     expect(JSON.parse(metadata?.content ?? '{}')).not.toHaveProperty('sections')
+  })
+
+  it('requires and preserves the complete metadata beside a full Review document', async () => {
+    const { tools, calls } = harness()
+    const document = {
+      version: 2,
+      template: 'review',
+      title: 'Full Review',
+      sections: [{ title: 'Why', prose: 'The whole shape stays together.' }],
+    }
+    const rejected = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      document,
+    })
+    expect(rejected.isError).toBe(true)
+    expect(rejected.text).toContain('reviewMetadata')
+
+    const written = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      document,
+      reviewMetadata: {
+        layers: [{ label: 'Contract', pattern: '^packages/' }],
+        files: [{ path: 'packages/contracts/src/review/review.contract.ts', layer: 'Contract' }],
+      },
+    })
+    expect(written.isError).toBeUndefined()
+    const write = calls.find((call) => call.name === 'writeCanvas')
+    if (write === undefined) throw new Error('writeCanvas was not called')
+    const source = (write.input as { source: { extraFiles: { path: string; content: string }[] } })
+      .source
+    const metadata = source.extraFiles.find((file) => file.path === 'review.json')
+    expect(JSON.parse(metadata?.content ?? '{}')).toMatchObject({
+      layers: [{ label: 'Contract' }],
+      files: [{ path: 'packages/contracts/src/review/review.contract.ts' }],
+    })
   })
 
   it('creates and updates a semantic Decision through porcelain_canvas', async () => {

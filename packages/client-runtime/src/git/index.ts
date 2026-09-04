@@ -63,6 +63,7 @@ export {
   type GitLogFamilyEffect,
   type GitQueryEffect,
   type GitRangeDiffQuery,
+  type GitReviewPresentationEffect,
   gitDiffQuery,
   gitDiffReadingQueryFamily,
   gitFileLogQueryFamily,
@@ -70,4 +71,5 @@ export {
   gitQueryEffectMatchesQuery,
   gitQueryProjectPath,
   gitRangeDiffQuery,
+  gitReviewPresentationEffect,
 } from './git-query-effects'

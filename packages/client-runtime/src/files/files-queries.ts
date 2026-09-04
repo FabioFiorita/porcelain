@@ -75,9 +75,8 @@ export const filesScopeQuerySchema = z
   .strict()
 
 /**
- * The same two levels `scope` merges, kept apart. Settings → Personalization is
- * the reader: it has to say which focus is the project baseline and which this
- * worktree added, and the merged `scope` cannot answer that.
+ * The same two levels `scope` merges, kept apart so callers can distinguish
+ * the project baseline from the current worktree's additions.
  */
 export const filesProfileQuerySchema = z
   .object({

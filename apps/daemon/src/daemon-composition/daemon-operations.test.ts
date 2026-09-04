@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { supportsFileSymlinks } from '../testing/temporary-directory'
 import { canonicalCheckoutPath } from './daemon-operations'
+
+const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 describe('canonicalCheckoutPath', () => {
   const roots: string[] = []
@@ -12,7 +15,7 @@ describe('canonicalCheckoutPath', () => {
     await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
   })
 
-  it('gives a checkout and a lexical alias the same profile ownership key', async () => {
+  symlinkIt('gives a checkout and a lexical alias the same profile ownership key', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-checkout-alias-'))
     roots.push(root)
     const checkout = join(root, 'checkout')

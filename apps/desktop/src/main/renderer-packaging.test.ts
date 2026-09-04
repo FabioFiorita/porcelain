@@ -52,6 +52,7 @@ describe('renderer packaging (file:// safe base)', () => {
     const fuseHook = readFileSync(afterPack, 'utf8')
     expect(yml).toMatch(/win:\s+[\s\S]*target:\s+[\s\S]*target: nsis/)
     expect(yml).toMatch(/arch: \[x64\]/)
+    expect(yml).toContain('signingHashAlgorithms: [sha256]')
     expect(yml).toContain('verifyUpdateCodeSignature: true')
     expect(yml).toMatch(/nsis:\s+[\s\S]*artifactName:/)
     expect(fuseHook).toContain("['darwin', 'linux', 'win32']")

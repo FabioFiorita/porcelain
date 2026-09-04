@@ -1,5 +1,6 @@
 export * from './private-document.contract'
 export * from './projects.contract'
+export * from './projects.notifications'
 export * from './projects.errors'
 export { type ProjectsProcedureName, projectsProcedures } from './projects.procedures'
 export * from './structured-canvas.contract'

@@ -28,6 +28,7 @@ import { useHubRepoPath } from '@renderer/stores/hub-repo'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useViewerFileContextStore } from '@renderer/stores/viewer-file-context'
 import { TestIds } from '@shared/test-ids'
 import {
   FileText,
@@ -37,7 +38,7 @@ import {
   SquareCheck,
   UnfoldVertical,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
 import { HunksView } from './hunks-view'
@@ -45,9 +46,11 @@ import { HunksView } from './hunks-view'
 export function DiffView({
   filePath,
   base,
+  paneIndex = 0,
 }: {
   filePath: string
   base?: string
+  paneIndex?: number
 }): React.JSX.Element {
   const prefDiffMode = usePreferencesStore((s) => s.diffMode)
   // Split needs two code columns — force unified on phone for a readable glance.
@@ -62,6 +65,12 @@ export function DiffView({
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
   const commentIndex = useCommentIndex(filePath)
+  const setViewerFilePath = useViewerFileContextStore((state) => state.setPath)
+
+  useEffect(() => {
+    setViewerFilePath(paneIndex, filePath)
+    return () => setViewerFilePath(paneIndex, null)
+  }, [filePath, paneIndex, setViewerFilePath])
 
   // The page fetches the file whole (see useDiffFile) and hides everything more
   // than DEFAULT_DIFF_CONTEXT lines from a change; `revealed` is what the reader

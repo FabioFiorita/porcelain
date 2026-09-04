@@ -16,9 +16,10 @@ import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { usePreferencesStore } from '@renderer/stores/preferences'
 import { useRevealStore } from '@renderer/stores/reveal'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useViewerFileContextStore } from '@renderer/stores/viewer-file-context'
 import { TestIds } from '@shared/test-ids'
 import { FileText, MessageSquarePlus, Rows3 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { changesetTabKey } from './changeset-tab-key'
 import { type CommentAnchor, CommentComposer } from './comment-composer'
 import { DiffModeToggle } from './diff-mode-toggle'
@@ -113,20 +114,38 @@ function CommitFileDiff({ hash, filePath }: { hash: string; filePath: string }):
   )
 }
 
-export function CommitView({ hash }: { hash: string }): React.JSX.Element {
+export function CommitView({
+  hash,
+  filePath,
+  paneIndex = 0,
+}: {
+  hash: string
+  filePath?: string
+  paneIndex?: number
+}): React.JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
   const { groups } = useCommitFlow(hash)
   const message = useCommitMessage(hash)
   const repoPath = useHubRepoPath()
   const openTab = useTabsStore((s) => s.openTab)
+  const setViewerFilePath = useViewerFileContextStore((state) => state.setPath)
+
+  const allFiles = groups?.flatMap((g) => g.files) ?? []
+  const selectedFile =
+    selected ??
+    (allFiles.some((file) => file.path === filePath) ? filePath : undefined) ??
+    allFiles[0]?.path ??
+    null
+  const selectedStatus = allFiles.find((f) => f.path === selectedFile)?.status
+
+  useEffect(() => {
+    setViewerFilePath(paneIndex, selectedFile)
+    return () => setViewerFilePath(paneIndex, null)
+  }, [paneIndex, selectedFile, setViewerFilePath])
 
   if (repoPath === null || groups === undefined) {
     return <p className="p-4 text-sm text-muted-foreground">Loading…</p>
   }
-
-  const allFiles = groups.flatMap((g) => g.files)
-  const selectedFile = selected ?? allFiles[0]?.path ?? null
-  const selectedStatus = allFiles.find((f) => f.path === selectedFile)?.status
 
   // Jump from the diff to the whole file (a preview tab, like DiffView's toolbar
   // button). Hidden for a deleted file — it no longer exists on disk.

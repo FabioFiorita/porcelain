@@ -90,6 +90,11 @@ export const reviewSetSchema = z.object({
     .string()
     .regex(/^[0-9a-f]{40,64}$/)
     .optional(),
+  /** Deterministic dirty working-tree identity captured when a live Review is written. */
+  workingFingerprint: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
   layers: z.array(profileLayerSchema).default([]),
   files: z.array(reviewSetFileSchema).default([]),
   sections: z.array(reviewSectionSchema).max(30).default([]),
@@ -101,6 +106,8 @@ export interface ReviewSet {
   thesis?: string
   /** Immutable History identity; absent while the authored checkout is dirty. */
   commitHash?: string
+  /** Captured dirty change-set identity; absent only for Reviews written by older clients. */
+  workingFingerprint?: string
   /** This Review's narrative order; it never carries into a later Review. */
   layers?: { label: string; pattern: string }[]
   files: ReviewSetFile[]

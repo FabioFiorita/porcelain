@@ -79,8 +79,13 @@ export function invalidateForChange(
       // Git identities. Handled here only so the switch stays exhaustive over SessionChange.
       return Promise.resolve()
     case 'review.changed':
+    case 'review.canvas-changed':
       // Review comments own their notification → identity mapping. Handled here only
       // so the switch stays exhaustive over SessionChange.
+      return Promise.resolve()
+    case 'projects.inventory-changed':
+      // The all-Environment Projects feature owns this notification and invalidates only the
+      // announcing daemon's Hub source.
       return Promise.resolve()
     case 'actions.changed':
       // Actions owns its notification → list-identity mapping.

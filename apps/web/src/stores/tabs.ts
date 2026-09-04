@@ -6,6 +6,12 @@ import { persist } from 'zustand/middleware'
 
 export type TabKind = 'file' | 'diff' | 'commit' | 'changeset' | 'search' | 'canvas'
 
+/** Review scope carried from Changes/History into a Canvas, then back to its references. */
+export type ReviewTarget =
+  | { type: 'working' }
+  | { type: 'range'; base: string }
+  | { type: 'commit'; hash: string }
+
 // The tabs store is the router: a tab id is its kind plus its key (file path,
 // commit hash, or search query). Every opener must build ids through this so
 // the same target always maps to the same tab.
@@ -30,6 +36,10 @@ export interface Tab {
   highlight?: { start: number; end: number }[]
   /** Diff tabs only: the range base ref. Omitted ⇒ a working-tree diff. */
   base?: string
+  /** Canvas tabs retain the Changes/History scope that opened them. */
+  reviewTarget?: ReviewTarget
+  /** Commit tabs may select the referenced file instead of their default first file. */
+  reviewFilePath?: string
   /** The Environment + Project + Worktree this tab stays bound to. */
   target?: HubTarget
   /** Preview tabs (single-click) are replaced by the next preview; double-click pins
@@ -106,6 +116,14 @@ const tabSchema = z
       )
       .optional(),
     base: z.string().min(1).optional(),
+    reviewTarget: z
+      .discriminatedUnion('type', [
+        z.object({ type: z.literal('working') }).strict(),
+        z.object({ type: z.literal('range'), base: z.string().min(1) }).strict(),
+        z.object({ type: z.literal('commit'), hash: z.string().min(1) }).strict(),
+      ])
+      .optional(),
+    reviewFilePath: z.string().min(1).optional(),
     target: hubTargetSchema.optional(),
     preview: z.boolean().optional(),
     pinned: z.boolean().optional(),
@@ -184,6 +202,8 @@ function addTab(pane: Pane, tab: Tab): Pane {
             line: tab.line ?? t.line,
             highlight: tab.highlight ?? t.highlight,
             target: tab.target ?? t.target,
+            reviewTarget: tab.reviewTarget ?? t.reviewTarget,
+            reviewFilePath: tab.reviewFilePath ?? t.reviewFilePath,
             preview: t.preview === true && tab.preview === true,
           }
         : t,

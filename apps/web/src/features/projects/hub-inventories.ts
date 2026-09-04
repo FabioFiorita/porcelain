@@ -19,6 +19,8 @@ import { hubInventoryOnDaemon } from './project-transport'
 export type HubInventoryView = Readonly<{
   environmentId: string | null
   current: boolean
+  /** Cached last-known metadata; actions must stay disabled until its daemon reconnects. */
+  offline?: boolean
   inventory: HubInventory
 }>
 
@@ -144,11 +146,18 @@ export function useHubInventoriesState(): HubInventoriesState {
   const primarySource =
     browserQuery.isError || browserQuery.data === undefined
       ? []
-      : [{ environmentId: null, current: true, inventory: browserQuery.data }]
+      : [{ environmentId: null, current: true, offline: false, inventory: browserQuery.data }]
   const secondarySources = secondaryQueries.flatMap((query) =>
-    query.isError || query.data === undefined
+    query.data === undefined
       ? []
-      : [{ environmentId: query.data.environment.id, current: false, inventory: query.data }],
+      : [
+          {
+            environmentId: query.data.environment.id,
+            current: false,
+            offline: query.isError,
+            inventory: query.data,
+          },
+        ],
   )
   const inventories = [...primarySource, ...secondarySources]
   const pending = browserQuery.isPending || secondaryQueries.some((query) => query.isPending)

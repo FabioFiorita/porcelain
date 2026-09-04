@@ -22,3 +22,12 @@ export function agentPluginRepository(): string {
 export function claudePluginCommands(): readonly string[] {
   return [`/plugin marketplace add ${PLUGIN_REPO}`, '/plugin install porcelain@porcelain']
 }
+
+/** Claude Code keeps marketplace refresh separate from first install; preserve that distinction. */
+export function claudePluginUpdateCommands(): readonly string[] {
+  return [
+    '/plugin marketplace update porcelain',
+    '/plugin update porcelain@porcelain',
+    '/reload-plugins',
+  ]
+}

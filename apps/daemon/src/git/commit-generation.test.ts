@@ -3,7 +3,7 @@
 import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -43,11 +43,13 @@ describe('commit generation', () => {
   })
 
   it('prepends user install bins so GUI/systemd daemons still find claude/codex/grok', () => {
-    const path = agentCliPath('/usr/bin:/bin', '/home/me')
-    expect(path.startsWith('/home/me/.local/bin:')).toBe(true)
-    expect(path).toContain('/home/me/.volta/bin')
-    expect(path).toContain('/home/me/.grok/bin')
-    expect(path.endsWith('/usr/bin:/bin')).toBe(true)
+    const home = join(tmpdir(), 'porcelain-agent-cli-home')
+    const inherited = [join(tmpdir(), 'bin-a'), join(tmpdir(), 'bin-b')].join(delimiter)
+    const path = agentCliPath(inherited, home)
+    expect(path.startsWith(`${join(home, '.local', 'bin')}${delimiter}`)).toBe(true)
+    expect(path).toContain(join(home, '.volta', 'bin'))
+    expect(path).toContain(join(home, '.grok', 'bin'))
+    expect(path.endsWith(inherited)).toBe(true)
   })
 
   it('builds a prompt that keeps the model read-only and makes the effort explicit', () => {

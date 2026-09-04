@@ -113,10 +113,24 @@ interface ReviewCanvasRecord {
   updatedAt?: string
 }
 
+export type StoredReviewCanvas = {
+  id: string
+  review: ReviewSet
+  evidence: {
+    checks: readonly { status: 'pass' | 'fail' | 'skip' }[]
+    assets: number
+  }
+}
+
+export type StoredReviewCanvasReadiness =
+  | { state: 'absent' }
+  | { state: 'unavailable'; id: string }
+  | { state: 'available'; canvas: StoredReviewCanvas }
+
 async function readReviewCandidate(
   projectId: string,
   record: ReviewCanvasRecord,
-): Promise<ReviewSet | null> {
+): Promise<StoredReviewCanvas | null> {
   try {
     const bundleDir = canvasBundleDir(porcelainHome(), projectId, record.id)
     const [rawMetadata, rawDocument] = await Promise.all([
@@ -147,11 +161,18 @@ async function readReviewCandidate(
             })),
           }))
     return {
-      ...metadata.data,
-      ...(metadata.data.thesis === undefined && document.data.summary !== undefined
-        ? { thesis: document.data.summary }
-        : {}),
-      sections,
+      id: record.id,
+      review: {
+        ...metadata.data,
+        ...(metadata.data.thesis === undefined && document.data.summary !== undefined
+          ? { thesis: document.data.summary }
+          : {}),
+        sections,
+      },
+      evidence: {
+        checks: document.data.evidence?.checks ?? [],
+        assets: document.data.evidence?.assets.length ?? 0,
+      },
     }
   } catch {
     return null
@@ -162,7 +183,7 @@ async function readReviewCandidate(
 async function readCanvasReviewSet(
   repoPath: string,
   commitHash?: string,
-): Promise<ReviewSet | null> {
+): Promise<StoredReviewCanvas | null> {
   const identity = projectIdentity(repoPath)
   if (identity === null) return null
   try {
@@ -184,8 +205,9 @@ async function readCanvasReviewSet(
       for (const record of reviews) {
         const review = await readReviewCandidate(identity.projectId, record)
         if (
-          review?.commitHash !== undefined &&
-          (review.commitHash === commitHash || review.commitHash.startsWith(commitHash))
+          review?.review.commitHash !== undefined &&
+          (review.review.commitHash === commitHash ||
+            review.review.commitHash.startsWith(commitHash))
         ) {
           return review
         }
@@ -203,14 +225,63 @@ async function readCanvasReviewSet(
   }
 }
 
+/**
+ * Read the selected live Review without turning a present but corrupt bundle into absence.
+ * Presentation callers retain their legacy null fallback; readiness callers need this distinction.
+ */
+export async function readStoredReviewCanvasForReadiness(
+  repoPath: string,
+): Promise<StoredReviewCanvasReadiness> {
+  const identity = projectIdentity(repoPath)
+  if (identity === null) return { state: 'absent' }
+  try {
+    const index = JSON.parse(
+      await readFile(canvasIndexPath(porcelainHome(), identity.projectId), 'utf8'),
+    ) as { value?: { canvases?: unknown[] } }
+    const reviews = (index.value?.canvases ?? [])
+      .filter(
+        (entry): entry is ReviewCanvasRecord =>
+          typeof entry === 'object' &&
+          entry !== null &&
+          typeof (entry as { id?: unknown }).id === 'string' &&
+          (entry as { template?: unknown }).template === 'review',
+      )
+      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+    const exact = reviews.filter((entry) => entry.worktreeId === identity.worktreeId)
+    const record = (
+      exact.length === 0 ? reviews.filter((entry) => entry.worktreeId == null) : exact
+    )[0]
+    if (record === undefined) return { state: 'absent' }
+    const canvas = await readReviewCandidate(identity.projectId, record)
+    return canvas === null
+      ? { state: 'unavailable', id: record.id }
+      : { state: 'available', canvas }
+  } catch {
+    return { state: 'absent' }
+  }
+}
+
 /** The Review Canvas template metadata, or null when no template is present. */
 export async function readReviewSet(
   repoPath: string,
   commitHash?: string,
 ): Promise<ReviewSet | null> {
   const canvas = await readCanvasReviewSet(repoPath, commitHash)
-  if (canvas !== null) return sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas))
+  if (canvas !== null) return sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas.review))
   return null
+}
+
+/** Selected Canvas identity and document evidence, preserving legacy review-set projection. */
+export async function readStoredReviewCanvas(
+  repoPath: string,
+  commitHash?: string,
+): Promise<StoredReviewCanvas | null> {
+  const canvas = await readCanvasReviewSet(repoPath, commitHash)
+  if (canvas === null) return null
+  return {
+    ...canvas,
+    review: sanitizeReview(repoPath, lenientReviewSetSchema.parse(canvas.review)),
+  }
 }
 
 /** Review-owned Changes presentation: declared layer order and attention-first file order. */

@@ -14,7 +14,6 @@ import { HubOverlays } from '@/features/hub/hub-overlays'
 import { ProjectDataFreshnessBridge } from '@/features/project-data'
 import { SearchNotificationBridge } from '@/features/search'
 import { AppThemeProvider, useResolvedColorScheme } from '@/features/settings/theme-provider'
-import { PersonalizationSheet } from '@/features/settings/personalization-sheet'
 import { PhoneShell } from '@/features/shell/phone-shell'
 import { TabletShell } from '@/features/shell/tablet-shell'
 import { useIsTablet } from '@/features/shell/use-app-window'
@@ -49,7 +48,6 @@ function ThemedApp(): React.JSX.Element {
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         {isTablet ? <TabletShell /> : <PhoneShell />}
         <HubOverlays />
-        <PersonalizationSheet />
         {/* The portal host has to FILL the window, and it does not by default: as a plain flex
             child next to a `flex-1` shell it lays out at zero height, and everything portalled
             into it — every sheet backdrop, every menu — positions itself against a box with no

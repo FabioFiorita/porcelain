@@ -10,6 +10,7 @@ type GitFamilyEffect =
   | { readonly domain: 'git'; readonly name: 'log-family'; readonly projectPath: string }
   | { readonly domain: 'git'; readonly name: 'file-log-family'; readonly projectPath: string }
   | { readonly domain: 'git'; readonly name: 'diff-reading-family'; readonly projectPath: string }
+  | { readonly domain: 'git'; readonly name: 'review-presentation'; readonly projectPath: string }
 
 /** Exact identities plus explicit broad families used by freshness consequences. */
 export type GitQueryEffect = GitWorkspaceQuery | GitFamilyEffect
@@ -20,6 +21,8 @@ export type GitRangeDiffQuery = GitFamilyEffect & { readonly name: 'range-diff' 
 export type GitLogFamilyEffect = GitFamilyEffect & { readonly name: 'log-family' }
 export type GitFileLogFamilyEffect = GitFamilyEffect & { readonly name: 'file-log-family' }
 export type GitDiffReadingFamilyEffect = GitFamilyEffect & { readonly name: 'diff-reading-family' }
+/** Review Canvas metadata changes the reading order for working, range, and commit views. */
+export type GitReviewPresentationEffect = GitFamilyEffect & { readonly name: 'review-presentation' }
 
 /** Semantic project family for all current working-tree file diff queries. */
 export function gitDiffQuery(projectPath: string): GitDiffQuery {
@@ -40,6 +43,10 @@ export function gitFileLogQueryFamily(projectPath: string): GitFileLogFamilyEffe
 
 export function gitDiffReadingQueryFamily(projectPath: string): GitDiffReadingFamilyEffect {
   return { domain: 'git', name: 'diff-reading-family', projectPath: gitProjectKey(projectPath) }
+}
+
+export function gitReviewPresentationEffect(projectPath: string): GitReviewPresentationEffect {
+  return { domain: 'git', name: 'review-presentation', projectPath: gitProjectKey(projectPath) }
 }
 
 /** Return the project dimension shared by all project-scoped exact identities. */
@@ -66,6 +73,14 @@ export function gitQueryEffectMatchesQuery(
       return query.domain === 'git' && query.name === 'file-log'
     case 'diff-reading-family':
       return query.domain === 'git' && query.name === 'diff-reading'
+    case 'review-presentation':
+      return (
+        query.domain === 'git' &&
+        (query.name === 'flow' ||
+          query.name === 'range-flow' ||
+          query.name === 'commit-flow' ||
+          query.name === 'diff-reading')
+      )
     default:
       return (
         baseAgnosticMatch(query, effect) || gitQueryEffectKey(query) === gitQueryEffectKey(effect)

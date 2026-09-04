@@ -6,10 +6,19 @@ const { testUserData } = vi.hoisted(() => ({
   testUserData: `/tmp/porcelain-remote-daemon-${process.pid}`,
 }))
 
-vi.mock('electron', () => ({ app: { getPath: (): string => testUserData } }))
+vi.mock('electron', () => ({
+  app: { getPath: (): string => testUserData },
+  safeStorage: {
+    isEncryptionAvailable: (): boolean => true,
+    getSelectedStorageBackend: (): string => 'gnome_libsecret',
+    encryptString: (value: string): Buffer => Buffer.from(`protected:${value}`),
+    decryptString: (value: Buffer): string => value.toString('utf8').replace(/^protected:/, ''),
+  },
+}))
 
 import {
   activeRemoteDaemon,
+  configureRemoteTokenProtector,
   endpointKind,
   loadRemoteEnvironmentState,
   normalizeDaemonUrl,
@@ -23,12 +32,18 @@ import {
   withEndpoint,
   withoutEndpoint,
 } from './remote-daemon'
+import {
+  electronRemoteTokenProtector,
+  isSecureStorageBackend,
+  RemoteCredentialStoreError,
+} from './remote-token-store'
 
 const statePath = join(testUserData, 'remote-daemon.json')
 
 beforeEach(async () => {
   await rm(testUserData, { recursive: true, force: true })
   await mkdir(testUserData, { recursive: true })
+  configureRemoteTokenProtector(electronRemoteTokenProtector)
 })
 
 describe('normalizeDaemonUrl', () => {
@@ -54,6 +69,20 @@ describe('normalizeDaemonUrl', () => {
     expect(() => normalizeDaemonUrl('beelink:43117')).toThrow(/http:\/\/ or https:\/\//)
     expect(() => normalizeDaemonUrl('ws://beelink:43117')).toThrow(/http:\/\/ or https:\/\//)
     expect(() => normalizeDaemonUrl('')).toThrow(/http:\/\/ or https:\/\//)
+  })
+})
+
+describe('remote token protection', () => {
+  it('rejects Linux backends that do not use an OS credential store', () => {
+    expect(isSecureStorageBackend('linux', 'basic_text')).toBe(false)
+    expect(isSecureStorageBackend('linux', 'unknown')).toBe(false)
+    expect(isSecureStorageBackend('linux', 'gnome_libsecret')).toBe(true)
+    expect(isSecureStorageBackend('linux', 'kwallet6')).toBe(true)
+  })
+
+  it('does not apply Linux backend names to Windows or macOS secure storage', () => {
+    expect(isSecureStorageBackend('win32', 'unknown')).toBe(true)
+    expect(isSecureStorageBackend('darwin', 'unknown')).toBe(true)
   })
 })
 
@@ -115,15 +144,83 @@ describe('remote environment persistence', () => {
     })
   })
 
-  it('writes the versioned document and enforces owner-only permissions on temp and final files', async () => {
-    await saveRemoteEnvironmentState({ activeId: null, environments: [] })
+  it('writes an OS-keychain encrypted versioned document and enforces owner-only permissions', async () => {
+    await saveRemoteEnvironmentState({
+      activeId: null,
+      environments: [env({ token: 'pc_client_secret' })],
+    })
 
     expect(JSON.parse(await readFile(statePath, 'utf8'))).toEqual({
-      version: 1,
+      version: 2,
       activeId: null,
-      environments: [],
+      environments: [
+        expect.objectContaining({
+          tokenCiphertext: Buffer.from('protected:pc_client_secret').toString('base64'),
+        }),
+      ],
     })
-    expect((await stat(statePath)).mode & 0o777).toBe(0o600)
+    expect(await readFile(statePath, 'utf8')).not.toContain('pc_client_secret')
+    if (process.platform !== 'win32') expect((await stat(statePath)).mode & 0o777).toBe(0o600)
+  })
+
+  it('reads a legacy plaintext document then migrates it to encrypted storage', async () => {
+    await writeFile(
+      statePath,
+      JSON.stringify({
+        version: 1,
+        activeId: 'e1',
+        environments: [env({ token: 'pc_client_old' })],
+      }),
+    )
+
+    await expect(loadRemoteEnvironmentState()).resolves.toEqual({
+      activeId: 'e1',
+      environments: [env({ token: 'pc_client_old' })],
+    })
+    const migrated = await readFile(statePath, 'utf8')
+    expect(migrated).toContain('"version": 2')
+    expect(migrated).not.toContain('pc_client_old')
+  })
+
+  it('preserves a valid encrypted document when the OS credential store is unavailable', async () => {
+    const protectedEnvironment = env({ token: 'pc_client_saved' })
+    await saveRemoteEnvironmentState({ activeId: 'e1', environments: [protectedEnvironment] })
+    const original = await readFile(statePath, 'utf8')
+    configureRemoteTokenProtector({
+      available: () => false,
+      encrypt: () => {
+        throw new Error('unreachable')
+      },
+      decrypt: () => {
+        throw new Error('unreachable')
+      },
+    })
+
+    await expect(loadRemoteEnvironmentState()).rejects.toBeInstanceOf(RemoteCredentialStoreError)
+    expect(await readFile(statePath, 'utf8')).toBe(original)
+    await expect(readFile(`${statePath}.recovery`, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+
+  it('leaves a legacy document intact when migration cannot reach the OS credential store', async () => {
+    const original = JSON.stringify({ version: 1, activeId: 'e1', environments: [env()] })
+    await writeFile(statePath, original)
+    configureRemoteTokenProtector({
+      available: () => false,
+      encrypt: () => {
+        throw new Error('unreachable')
+      },
+      decrypt: () => {
+        throw new Error('unreachable')
+      },
+    })
+
+    await expect(loadRemoteEnvironmentState()).rejects.toBeInstanceOf(RemoteCredentialStoreError)
+    expect(await readFile(statePath, 'utf8')).toBe(original)
+    await expect(readFile(`${statePath}.recovery`, 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
   })
 
   it('repairs an existing final file mode while loading the legacy group shape', async () => {
@@ -136,7 +233,7 @@ describe('remote environment persistence', () => {
       activeId: null,
       environments: [],
     })
-    expect((await stat(statePath)).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') expect((await stat(statePath)).mode & 0o777).toBe(0o600)
   })
 
   it('preserves corrupt state and refuses a mutation instead of overwriting it', async () => {
@@ -145,7 +242,9 @@ describe('remote environment persistence', () => {
 
     await expect(loadRemoteEnvironmentState()).rejects.toBeInstanceOf(RemoteEnvironmentStateError)
     expect(await readFile(`${statePath}.recovery`, 'utf8')).toBe(raw)
-    expect((await stat(`${statePath}.recovery`)).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') {
+      expect((await stat(`${statePath}.recovery`)).mode & 0o777).toBe(0o600)
+    }
 
     await expect(
       updateRemoteEnvironmentState(() => ({ activeId: null, environments: [] })),
@@ -154,7 +253,7 @@ describe('remote environment persistence', () => {
   })
 
   it('preserves and refuses a future document version', async () => {
-    const raw = JSON.stringify({ version: 2, activeId: null, environments: [] })
+    const raw = JSON.stringify({ version: 3, activeId: null, environments: [] })
     await writeFile(statePath, raw)
 
     await expect(loadRemoteEnvironmentState()).rejects.toBeInstanceOf(RemoteEnvironmentStateError)

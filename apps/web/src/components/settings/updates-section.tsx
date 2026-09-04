@@ -10,6 +10,7 @@ import { useEnvironmentStatuses, useRemoteEnvironments } from '@renderer/feature
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useCheckForUpdates, useInstallUpdate, useUpdateStatus } from '@renderer/hooks/use-updates'
 import { compactButtonClass } from '@renderer/lib/controls'
+import { waitForDaemonReady } from '@renderer/lib/daemon-readiness'
 import {
   compareVersions,
   DAEMON_UPDATE_FOREGROUND_COMMAND,
@@ -23,7 +24,7 @@ import { isBrowser } from '@renderer/lib/platform'
 import { trpc } from '@renderer/lib/trpc'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Loader2, RotateCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -197,6 +198,7 @@ export function DaemonUpdatesSection({
       return owner.client.restartDaemon.mutate()
     },
   })
+  const queryClient = useQueryClient()
   const [copied, setCopied] = useState(false)
   const current = check.data?.currentVersion ?? identity.data?.version ?? null
   const latest = check.data?.latestVersion ?? null
@@ -208,7 +210,9 @@ export function DaemonUpdatesSection({
   const copyRestart = (): void => {
     runUserAction(
       async () => {
-        await copyText(DAEMON_UPDATE_SYSTEMD_COMMAND)
+        await copyText(
+          restartable ? DAEMON_UPDATE_SYSTEMD_COMMAND : DAEMON_UPDATE_FOREGROUND_COMMAND,
+        )
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       },
@@ -268,7 +272,25 @@ export function DaemonUpdatesSection({
           disabled={busy || !checked || !restartable}
           onClick={() =>
             restart.mutate(undefined, {
-              onSuccess: () => toast.message('Restarting the daemon…'),
+              onSuccess: async () => {
+                // A restart mutation only proves the supervisor accepted the request. Poll the
+                // selected Environment itself, then refresh its version/session-facing cache;
+                // this works for any restartable host and never tells a Windows/macOS host to
+                // run a systemd command.
+                try {
+                  if (owner === null) throw new Error('The selected Environment is offline.')
+                  owner.session?.start()
+                  await waitForDaemonReady(() => owner.client.daemonInfo.query())
+                  await queryClient.invalidateQueries({
+                    exact: true,
+                    queryKey: ['settings', 'daemonInfo', environmentId],
+                  })
+                  check.reset()
+                  toast.success('Daemon restarted and is ready.')
+                } catch (error) {
+                  toastUserActionError('Wait for daemon restart', error)
+                }
+              },
               onError: (error) => toastUserActionError('Restart daemon', error),
             })
           }
@@ -284,7 +306,7 @@ export function DaemonUpdatesSection({
           onClick={copyRestart}
         >
           {copied ? <Check /> : <Copy />}
-          {copied ? 'Copied' : 'Copy restart command'}
+          {copied ? 'Copied' : restartable ? 'Copy restart command' : 'Copy start command'}
         </Button>
       </div>
       {checked && !restartable && (

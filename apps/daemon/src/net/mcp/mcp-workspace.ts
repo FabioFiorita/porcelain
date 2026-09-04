@@ -1,5 +1,5 @@
 import { realpath } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 /**
  * Which checkout a tool call is about.
@@ -141,7 +141,11 @@ export async function resolveWorkspace(
       if (candidate === null) continue
       // An exact match or any directory inside it: an agent stands in a subdirectory
       // as often as at the root, and refusing that would make the tool feel broken.
-      if (requested === candidate || requested.startsWith(`${candidate}/`)) {
+      const nested = relative(candidate, requested)
+      if (
+        nested === '' ||
+        (nested !== '..' && !nested.startsWith(`..${sep}`) && !isAbsolute(nested))
+      ) {
         return {
           ok: true,
           value: { projectId: project.id, worktreeId: worktree.id, worktreePath: worktree.path },

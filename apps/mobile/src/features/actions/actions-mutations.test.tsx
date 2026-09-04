@@ -29,8 +29,7 @@ const ctx = vi.hoisted(() => ({
 
 vi.mock('@/features/remote', () => ({
   // Pure identity the subject reads from the same feature index; the store half is faked below.
-  isEnabled: (environment: { enabled: boolean } | null): boolean =>
-    environment !== null && environment.enabled,
+  isEnabled: (environment: { enabled: boolean } | null): boolean => environment?.enabled ?? false,
   isPaired: (environment: { token: string | null } | null): boolean =>
     environment !== null && environment.token !== null,
   useActiveEnvironment: () => ctx.environment,

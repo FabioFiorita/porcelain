@@ -18,8 +18,9 @@ describe('porcelainHome', () => {
   })
 
   it('honours PORCELAIN_HOME for the dev stack', () => {
-    process.env.PORCELAIN_HOME = '/tmp/porcelain-dev-test'
-    expect(porcelainHome()).toBe('/tmp/porcelain-dev-test')
-    expect(porcelainHomePath('admin-token')).toBe('/tmp/porcelain-dev-test/admin-token')
+    const home = join(homedir(), 'porcelain-dev-test')
+    process.env.PORCELAIN_HOME = home
+    expect(porcelainHome()).toBe(home)
+    expect(porcelainHomePath('admin-token')).toBe(join(home, 'admin-token'))
   })
 })

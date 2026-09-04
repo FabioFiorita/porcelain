@@ -56,6 +56,9 @@ function buildChange(kind: SessionChange['kind'], projectPath: string): SessionC
       terminalId: 'terminal-1',
     }
   }
+  if (kind === 'review.canvas-changed') {
+    return { kind, projectPath, projectId: PROJECT_ID }
+  }
   return { kind, projectPath }
 }
 

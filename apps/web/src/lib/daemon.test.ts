@@ -150,6 +150,7 @@ describe('daemon session transport seam', () => {
   it('notifies generic close listeners and schedules a reconnect', () => {
     const close = vi.fn()
     daemon.onDaemonClose(close)
+    daemon.onTerminalFrame(() => undefined)
     const socket = latest()
     socket.open()
     deliverReady(socket)

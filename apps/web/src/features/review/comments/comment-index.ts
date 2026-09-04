@@ -24,13 +24,16 @@ export function buildCommentIndex(comments: readonly ReviewComment[], path: stri
   const byLine = new Map<number, ReviewComment[]>()
   const fileLevel: ReviewComment[] = []
   for (const comment of comments) {
-    if (comment.path !== path) continue
-    if (comment.startLine === undefined) {
+    const anchor = comment.anchor
+    const file =
+      anchor?.kind === 'file' ? anchor : anchor === undefined && comment.path ? comment : null
+    if (file === null || file.path !== path) continue
+    if (file.startLine === undefined) {
       fileLevel.push(comment)
       continue
     }
-    const end = comment.endLine ?? comment.startLine
-    for (let line = comment.startLine; line <= end; line++) {
+    const end = file.endLine ?? file.startLine
+    for (let line = file.startLine; line <= end; line++) {
       const list = byLine.get(line)
       if (list) list.push(comment)
       else byLine.set(line, [comment])

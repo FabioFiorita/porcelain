@@ -34,7 +34,6 @@ import {
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { cn, copyText } from '@renderer/lib/utils'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
-import { usePersonalizationStore } from '@renderer/stores/personalization'
 import { useWorktreeScriptsStore } from '@renderer/stores/worktree-scripts'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -49,6 +48,7 @@ function WorktreeRow(props: {
   mutationEnvironmentId: string | null
   projectId: string
   mutable: boolean
+  offline: boolean
   openWorktree: (worktree: HubWorktree) => void
   removeWorktree: (
     input: RemoveHubWorktreeInput & { environmentId?: string | null },
@@ -98,7 +98,7 @@ function WorktreeRow(props: {
 
   // The primary checkout is the Project itself: git refuses to remove it, and offering the
   // item anyway would only ever produce an error toast.
-  const removable = !props.worktree.isPrimary
+  const removable = !props.offline && !props.worktree.isPrimary
 
   return (
     <>
@@ -111,9 +111,12 @@ function WorktreeRow(props: {
               data-hub-environment={props.environmentId}
               data-hub-project={props.projectId}
               aria-current={selected ? 'page' : undefined}
+              aria-disabled={props.offline || undefined}
+              disabled={props.offline}
               className={cn(
                 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
                 selected && 'bg-accent/60',
+                props.offline && 'cursor-not-allowed opacity-55',
               )}
               onClick={() => props.openWorktree(props.worktree)}
             />
@@ -197,12 +200,28 @@ function WorktreeRow(props: {
   )
 }
 
+function projectExpansionStorageKey(environmentId: string, projectId: string): string {
+  return `porcelain-hub-project-expanded:${environmentId}:${projectId}`
+}
+
+function storedProjectExpansion(environmentId: string, projectId: string): boolean {
+  try {
+    return (
+      window.localStorage.getItem(projectExpansionStorageKey(environmentId, projectId)) !== 'false'
+    )
+  } catch {
+    // Storage can be unavailable in a restrictive browser profile; the Project remains usable.
+    return true
+  }
+}
+
 function ProjectBlock(props: {
   project: HubProject
   environmentId: string
   environmentName: string
   mutationEnvironmentId: string | null
   mutable: boolean
+  offline: boolean
   openWorktree: (worktree: HubWorktree) => void
   createWorktree: (
     input: CreateHubWorktreeInput & { environmentId?: string | null },
@@ -214,17 +233,34 @@ function ProjectBlock(props: {
   showEnvironment: boolean
   creating: boolean
 }): React.JSX.Element {
-  const [expanded, setExpanded] = useState(true)
+  // Collapse is a client presentation choice, keyed by the daemon's Environment identity so
+  // identically named Projects on two machines never borrow one another's state. Keeping it
+  // here means an Environment that disappears and later reconnects returns to the view the
+  // human left, rather than expanding every Project during recovery.
+  const [expanded, setExpanded] = useState(() =>
+    storedProjectExpansion(props.environmentId, props.project.id),
+  )
   const [createOpen, setCreateOpen] = useState(false)
   const selectProject = useHubSelectionStore((state) => state.selectProject)
   const openWorktreeScripts = useWorktreeScriptsStore((state) => state.open)
-  const openPersonalization = usePersonalizationStore((state) => state.open)
 
   const copyProjectPath = (): void => {
     runUserAction(
       () => copyText(props.project.path),
       (error) => toastUserActionError('Copy project path', error),
     )
+  }
+
+  const setProjectExpanded = (next: boolean): void => {
+    setExpanded(next)
+    try {
+      window.localStorage.setItem(
+        projectExpansionStorageKey(props.environmentId, props.project.id),
+        String(next),
+      )
+    } catch {
+      // Presentation persistence is best-effort and must never block navigation.
+    }
   }
 
   const removeProject = (): void => {
@@ -262,7 +298,7 @@ function ProjectBlock(props: {
     <Collapsible
       data-testid={TestIds.hubProject(props.project.id)}
       open={expanded}
-      onOpenChange={setExpanded}
+      onOpenChange={setProjectExpanded}
       className="flex flex-col"
     >
       <ContextMenu>
@@ -271,9 +307,11 @@ function ProjectBlock(props: {
             <CollapsibleTrigger
               aria-expanded={expanded}
               aria-label={`${expanded ? 'Collapse' : 'Expand'} project ${props.project.name}`}
-              onClick={() =>
-                selectProject({ environmentId: props.environmentId, projectId: props.project.id })
-              }
+              onClick={() => {
+                if (!props.offline) {
+                  selectProject({ environmentId: props.environmentId, projectId: props.project.id })
+                }
+              }}
               className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <ChevronDown
@@ -293,8 +331,16 @@ function ProjectBlock(props: {
                   {props.environmentName}
                 </Badge>
               )}
+              {props.offline && (
+                <Badge
+                  variant="outline"
+                  className="rounded-md border-warning/40 bg-warning/10 px-1.5 text-2xs font-medium text-warning"
+                >
+                  Offline
+                </Badge>
+              )}
             </CollapsibleTrigger>
-            {props.mutable && (
+            {props.mutable && !props.offline && (
               <Button
                 type="button"
                 variant="ghost"
@@ -320,27 +366,14 @@ function ProjectBlock(props: {
                 projectId: props.project.id,
                 projectName: props.project.name,
                 environmentId: props.mutationEnvironmentId,
-                editable: props.mutable,
+                editable: props.mutable && !props.offline,
               })
             }
           >
             Worktree scripts…
           </ContextMenuItem>
-          <ContextMenuItem
-            data-testid={TestIds.hubPersonalization(props.project.id)}
-            onClick={() =>
-              openPersonalization({
-                projectId: props.project.id,
-                projectName: props.project.name,
-                projectPath: props.project.path,
-                environmentId: props.environmentId,
-              })
-            }
-          >
-            Personalization
-          </ContextMenuItem>
           <ContextMenuItem onClick={copyProjectPath}>Copy project path</ContextMenuItem>
-          {props.mutable && (
+          {props.mutable && !props.offline && (
             <>
               <ContextMenuSeparator />
               <ContextMenuItem variant="destructive" onClick={removeProject}>
@@ -359,7 +392,8 @@ function ProjectBlock(props: {
             environmentId={props.environmentId}
             mutationEnvironmentId={props.mutationEnvironmentId}
             projectId={props.project.id}
-            mutable={props.mutable}
+            mutable={props.mutable && !props.offline}
+            offline={props.offline}
             openWorktree={props.openWorktree}
             removeWorktree={props.removeWorktree}
           />
@@ -443,7 +477,8 @@ export function HubTreeFromInventories(props: {
                 mutationEnvironmentId={
                   source.current ? null : (source.environmentId ?? member.environment.id)
                 }
-                mutable
+                mutable={!source.offline}
+                offline={source.offline === true}
                 openWorktree={(worktree) => props.openWorktree(source, worktree)}
                 createWorktree={props.createWorktree}
                 removeProject={props.removeProject}

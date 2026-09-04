@@ -3,6 +3,7 @@ import type { EndpointKind, WslDistribution } from '@porcelain/contracts'
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub-inventories'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import {
+  ensureEnvironmentSession,
   setShellEnvironmentConnections,
   shellConnectionId,
 } from '@renderer/lib/environment-sessions'
@@ -11,7 +12,7 @@ import { shellTrpc, trpc } from '@renderer/lib/trpc'
 import { useProjectPickerStore } from '@renderer/stores/project-picker'
 import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 /** One exact address of an environment group (one identity, many endpoints). */
 export type EnvironmentEndpoint = {
@@ -76,13 +77,6 @@ export type WebLocalRemoteAdapter = {
     >[0],
   ) => ReturnType<
     ReturnType<typeof shellTrpc.useUtils>['client']['removeEnvironmentEndpoint']['mutate']
-  >
-  readonly openWindowInEnvironment: (
-    input: Parameters<
-      ReturnType<typeof shellTrpc.useUtils>['client']['openWindowInEnvironment']['mutate']
-    >[0],
-  ) => ReturnType<
-    ReturnType<typeof shellTrpc.useUtils>['client']['openWindowInEnvironment']['mutate']
   >
   readonly renameEnvironment: (
     input: Parameters<
@@ -203,6 +197,38 @@ export function useShellEnvironmentConnections(): void {
       })),
     )
   }, [data])
+
+  const healing = useRef(new Set<string>())
+  const utils = shellTrpc.useUtils()
+  useEffect(() => {
+    if (isBrowser || data === undefined) return
+    const dispose = data.flatMap((connection) => {
+      // This device changes port through the dedicated local-daemon event. Only saved groups
+      // have a sibling endpoint to walk here.
+      if (connection.id === null) return []
+      const id = connection.id
+      const session = ensureEnvironmentSession({
+        id: shellConnectionId(id),
+        name: connection.name,
+        url: connection.url,
+        token: connection.token,
+      }).session
+      return [
+        session.onDaemonClose(() => {
+          const key = `${id}\u0000${session.endpoint().url}`
+          if (healing.current.has(key)) return
+          healing.current.add(key)
+          void utils.client.refreshEnvironmentEndpoint
+            .mutate({ id })
+            .then(() => utils.environmentConnections.invalidate())
+            .finally(() => healing.current.delete(key))
+        }),
+      ]
+    })
+    return () => {
+      for (const off of dispose) off()
+    }
+  }, [data, utils])
 }
 
 export function useEnvironmentStatuses(): Map<string | null, EnvironmentStatus> {
@@ -280,18 +306,6 @@ export function usePreferEnvironmentEndpoint(): {
   return {
     prefer: (input): void => mutation.mutate(input),
     pendingUrl: mutation.isPending ? (mutation.variables?.url ?? null) : null,
-  }
-}
-
-export function useOpenWindowInEnvironment(): {
-  open: (input: { environmentId: string | null; repoPath?: string }) => void
-} {
-  const mutation = shellTrpc.openWindowInEnvironment.useMutation({
-    onError: onMutationError('Open window in environment'),
-  })
-  return {
-    open: (input: { environmentId: string | null; repoPath?: string }): void =>
-      mutation.mutate(input),
   }
 }
 

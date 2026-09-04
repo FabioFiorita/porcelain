@@ -7,7 +7,6 @@ import { SURFACE_GUTTER } from '@/components/surface-layout'
 import { RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
 import { Text } from '@/components/ui/text'
 import type { Environment } from '@/features/remote'
-import { usePersonalizationStore } from '@/features/settings/personalization-store'
 import { copyText } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 import { useRemoveHubProject } from './hub-mutations'
@@ -16,9 +15,8 @@ import { useHubOverlayStore } from './hub-overlay-store'
 /**
  * The Project name above its Worktrees.
  *
- * A tap expands or collapses (when `onToggle` is passed). A long-press opens Personalization
- * for that Project — the same gesture the web client's context menu uses, because pins and
- * hides belong to the Project, not to Settings.
+ * A tap expands or collapses (when `onToggle` is passed). A long-press opens its Worktree
+ * actions.
  */
 export function ProjectHeading({
   collapsed,
@@ -33,7 +31,6 @@ export function ProjectHeading({
   onToggle?: () => void
   testID: string
 }): React.JSX.Element {
-  const openPersonalization = usePersonalizationStore((state) => state.open)
   const openWorktreeSetup = useHubOverlayStore((state) => state.openWorktreeSetup)
   const openWorktreeScripts = useHubOverlayStore((state) => state.openWorktreeScripts)
   const removeProject = useRemoveHubProject()
@@ -53,18 +50,6 @@ export function ProjectHeading({
         id: `worktree-scripts-${member.project.id}`,
         label: `Worktree scripts…${suffix(member.environment.name)}`,
         onPress: () => openWorktreeScripts({ environment, project: member.project }),
-      },
-      {
-        glyph: 'settings',
-        id: `personalization-${member.project.id}`,
-        label: `Personalization${suffix(member.environment.name)}`,
-        onPress: () =>
-          openPersonalization({
-            environmentId: member.environment.id,
-            projectId: member.project.id,
-            projectName: member.project.name,
-            projectPath: member.project.path,
-          }),
       },
       {
         glyph: 'copy',

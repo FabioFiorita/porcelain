@@ -46,7 +46,7 @@ describe('access store', () => {
       clients: [],
     })
     expect(await readFile(file, 'utf8')).not.toContain(grant.credential)
-    expect(statSync(file).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 
   it('consumes a grant once and authenticates only its issued client token', async () => {
@@ -109,7 +109,7 @@ describe('access store', () => {
 
   it('keeps the development credential readable only by its owner', async () => {
     await ensureDevClientToken()
-    expect(statSync(devTokenFile).mode & 0o777).toBe(0o600)
+    if (process.platform !== 'win32') expect(statSync(devTokenFile).mode & 0o777).toBe(0o600)
   })
 
   it('re-mints when the plaintext is gone but the record survives', async () => {

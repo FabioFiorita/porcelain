@@ -1,5 +1,6 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, dialog, type Session, session } from 'electron'
+import { localSharingKeepsAppRunning } from './background-sharing'
 import { startDaemon } from './daemon'
 import { isDevelopmentProfile } from './development-profile'
 import { registerTrpcHandler } from './ipc'
@@ -144,13 +145,15 @@ app.whenReady().then(async () => {
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// A shared local daemon is the host for the user's other devices, so closing the last
+// Windows/Linux window leaves the tray process and daemon alive. With no remote route we
+// retain the platform's normal quit-on-close behavior. macOS already stays active until Quit.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (process.platform === 'darwin') return
+  void localSharingKeepsAppRunning().then((keepRunning) => {
+    // A tray click or second launch may have opened a new window while status was in flight.
+    if (!keepRunning && BrowserWindow.getAllWindows().length === 0) app.quit()
+  })
 })
 
 // In this file you can include the rest of your app's specific main process

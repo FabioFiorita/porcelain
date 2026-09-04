@@ -1,3 +1,4 @@
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,5 +20,23 @@ export async function withTemporaryDirectory<T>(
     return await run(directory)
   } finally {
     await rm(directory, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Whether this host grants ordinary file symlink creation. Windows needs Developer Mode or
+ * elevation; containment tests must skip only when that host capability is unavailable.
+ */
+export function supportsFileSymlinks(): boolean {
+  const directory = mkdtempSync(join(tmpdir(), 'porcelain-symlink-probe-'))
+  try {
+    const target = join(directory, 'target')
+    writeFileSync(target, 'probe')
+    symlinkSync(target, join(directory, 'link'))
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(directory, { force: true, recursive: true })
   }
 }

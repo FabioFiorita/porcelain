@@ -11,14 +11,29 @@ export type CommentsFileAgentReply = {
   createdAt: number
 }
 
+/** One shared anchor vocabulary for file, Canvas, and whole-changeset discussions. */
+export type CommentsFileAnchor =
+  | {
+      kind: 'file'
+      path: string
+      startLine?: number
+      endLine?: number
+      anchorText?: string
+    }
+  | { kind: 'canvas'; canvasId: string; section?: string }
+  | { kind: 'changeset' }
+
 export type CommentsFileComment = {
   id: string
   /** Missing only on pre-authorship version-1 files; those comments were user-authored. */
   author?: 'user' | 'agent'
-  path: string
+  /** Present on old file comments; new writes use `anchor`. */
+  path?: string
   startLine?: number
   endLine?: number
   anchorText?: string
+  /** Canonical anchor for new comments. Missing only on legacy file comments. */
+  anchor?: CommentsFileAnchor
   body: string
   resolved: boolean
   createdAt: number
@@ -67,6 +82,52 @@ function isPositiveInt(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
 }
 
+function parseAnchor(value: unknown, index: number): CommentsFileAnchor {
+  if (!isRecord(value) || typeof value.kind !== 'string') {
+    throw new CommentsFileParseError('invalid-comment', `comments[${index}].anchor is invalid`)
+  }
+  if (value.kind === 'changeset' && Object.keys(value).length === 1) return { kind: 'changeset' }
+  if (value.kind === 'canvas') {
+    if (
+      (Object.keys(value).length !== 2 && Object.keys(value).length !== 3) ||
+      typeof value.canvasId !== 'string' ||
+      value.canvasId.length === 0 ||
+      (value.section !== undefined &&
+        (typeof value.section !== 'string' || value.section.length === 0))
+    ) {
+      throw new CommentsFileParseError('invalid-comment', `comments[${index}].anchor is invalid`)
+    }
+    return value.section === undefined
+      ? { kind: 'canvas', canvasId: value.canvasId }
+      : { kind: 'canvas', canvasId: value.canvasId, section: value.section }
+  }
+  if (value.kind === 'file') {
+    if (
+      Object.keys(value).some(
+        (key) => !['kind', 'path', 'startLine', 'endLine', 'anchorText'].includes(key),
+      ) ||
+      typeof value.path !== 'string' ||
+      value.path.length === 0 ||
+      (value.startLine !== undefined && !isPositiveInt(value.startLine)) ||
+      (value.endLine !== undefined && !isPositiveInt(value.endLine)) ||
+      (value.anchorText !== undefined && typeof value.anchorText !== 'string') ||
+      (value.startLine !== undefined &&
+        value.endLine !== undefined &&
+        value.endLine < value.startLine)
+    ) {
+      throw new CommentsFileParseError('invalid-comment', `comments[${index}].anchor is invalid`)
+    }
+    return {
+      kind: 'file',
+      path: value.path,
+      ...(value.startLine === undefined ? {} : { startLine: value.startLine }),
+      ...(value.endLine === undefined ? {} : { endLine: value.endLine }),
+      ...(value.anchorText === undefined ? {} : { anchorText: value.anchorText }),
+    }
+  }
+  throw new CommentsFileParseError('invalid-comment', `comments[${index}].anchor is invalid`)
+}
+
 export function emptyCommentsFileV1(): CommentsFileV1 {
   return { version: COMMENTS_FILE_VERSION, comments: [] }
 }
@@ -113,6 +174,7 @@ function parseComment(value: unknown, index: number): CommentsFileComment {
       key !== 'startLine' &&
       key !== 'endLine' &&
       key !== 'anchorText' &&
+      key !== 'anchor' &&
       key !== 'body' &&
       key !== 'resolved' &&
       key !== 'createdAt' &&
@@ -130,8 +192,11 @@ function parseComment(value: unknown, index: number): CommentsFileComment {
   if (value.author !== undefined && value.author !== 'user' && value.author !== 'agent') {
     throw new CommentsFileParseError('invalid-comment', `comments[${index}].author is invalid`)
   }
-  if (typeof value.path !== 'string' || value.path.length === 0) {
+  if (value.path !== undefined && (typeof value.path !== 'string' || value.path.length === 0)) {
     throw new CommentsFileParseError('invalid-comment', `comments[${index}].path is invalid`)
+  }
+  if (value.anchor === undefined && value.path === undefined) {
+    throw new CommentsFileParseError('invalid-comment', `comments[${index}] needs an anchor`)
   }
   if (typeof value.body !== 'string') {
     throw new CommentsFileParseError('invalid-comment', `comments[${index}].body is not a string`)
@@ -160,15 +225,16 @@ function parseComment(value: unknown, index: number): CommentsFileComment {
 
   const comment: CommentsFileComment = {
     id: value.id,
-    path: value.path,
     body: value.body,
     resolved: value.resolved,
     createdAt: value.createdAt,
   }
+  if (value.path !== undefined) comment.path = value.path
   if (value.author !== undefined) comment.author = value.author
   if (value.startLine !== undefined) comment.startLine = value.startLine
   if (value.endLine !== undefined) comment.endLine = value.endLine
   if (value.anchorText !== undefined) comment.anchorText = value.anchorText
+  if (value.anchor !== undefined) comment.anchor = parseAnchor(value.anchor, index)
   if (value.agentReply !== undefined) {
     comment.agentReply = parseAgentReply(value.agentReply, index)
   }
@@ -239,15 +305,16 @@ export function sortComments(comments: readonly CommentsFileComment[]): Comments
 function cloneComment(comment: CommentsFileComment): CommentsFileComment {
   const next: CommentsFileComment = {
     id: comment.id,
-    path: comment.path,
     body: comment.body,
     resolved: comment.resolved,
     createdAt: comment.createdAt,
   }
+  if (comment.path !== undefined) next.path = comment.path
   if (comment.author !== undefined) next.author = comment.author
   if (comment.startLine !== undefined) next.startLine = comment.startLine
   if (comment.endLine !== undefined) next.endLine = comment.endLine
   if (comment.anchorText !== undefined) next.anchorText = comment.anchorText
+  if (comment.anchor !== undefined) next.anchor = { ...comment.anchor }
   if (comment.agentReply !== undefined) {
     next.agentReply = { body: comment.agentReply.body, createdAt: comment.agentReply.createdAt }
   }
@@ -262,7 +329,8 @@ export function planAddReviewComment(
   file: CommentsFileV1,
   input: {
     id: string
-    path: string
+    path?: string
+    anchor?: CommentsFileAnchor
     startLine?: number
     endLine?: number
     anchorText?: string
@@ -273,6 +341,9 @@ export function planAddReviewComment(
 ):
   | { ok: true; file: CommentsFileV1; comment: CommentsFileComment }
   | { ok: false; error: CommentsRequestInvalidError } {
+  if (input.anchor === undefined && (input.path === undefined || input.path.length === 0)) {
+    return { ok: false, error: { code: 'request.invalid' } }
+  }
   if (
     input.startLine !== undefined &&
     input.endLine !== undefined &&
@@ -284,11 +355,12 @@ export function planAddReviewComment(
   const comment: CommentsFileComment = {
     id: input.id,
     author: input.author ?? 'user',
-    path: input.path,
     body: input.body,
     resolved: false,
     createdAt: input.createdAt,
   }
+  if (input.path !== undefined) comment.path = input.path
+  if (input.anchor !== undefined) comment.anchor = { ...input.anchor }
   if (input.startLine !== undefined) comment.startLine = input.startLine
   if (input.endLine !== undefined) comment.endLine = input.endLine
   if (input.anchorText !== undefined) comment.anchorText = input.anchorText

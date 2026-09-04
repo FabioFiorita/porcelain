@@ -3,6 +3,7 @@ import { ACTIONS_CHANGE_KINDS } from '../actions'
 import { FILES_CHANGE_KINDS } from '../files'
 import { GIT_CHANGE_KINDS } from '../git'
 import { PROTOCOL_VERSION } from '../protocol'
+import { PROJECTS_CHANGE_KINDS } from '../projects'
 import { REVIEW_CHANGE_KINDS } from '../review'
 import { TERMINAL_CHANGE_KINDS } from '../terminal'
 import {
@@ -19,13 +20,14 @@ const everyChangeKind = [
   ...FILES_CHANGE_KINDS,
   ...GIT_CHANGE_KINDS,
   ...REVIEW_CHANGE_KINDS,
+  ...PROJECTS_CHANGE_KINDS,
   ...ACTIONS_CHANGE_KINDS,
   ...TERMINAL_CHANGE_KINDS,
 ]
 
 /**
- * Every kind's fixture: the checkout-scoped ones keyed by `projectPath`, plus
- * `actions.changed`, which names the stable Project id instead.
+ * Every kind's fixture: checkout-scoped changes name `projectPath`; actions and
+ * worktree-script events use stable Project ids; the Hub inventory is daemon-scoped.
  */
 const changeFixtures = {
   'files.scope-changed': { kind: 'files.scope-changed', projectPath: '/synthetic/repo' },
@@ -43,6 +45,12 @@ const changeFixtures = {
     kind: 'git.working-tree-changed',
     projectPath: '/synthetic/repo',
   },
+  'review.canvas-changed': {
+    kind: 'review.canvas-changed',
+    projectPath: '/synthetic/repo',
+    projectId: 'project-1',
+  },
+  'projects.inventory-changed': { kind: 'projects.inventory-changed' },
   'actions.changed': { kind: 'actions.changed', projectId: 'proj-alpha' },
   'terminal.dev-servers-changed': {
     kind: 'terminal.dev-servers-changed',
@@ -60,15 +68,15 @@ const changeFixtures = {
   'review.changed': { kind: 'review.changed', projectPath: '/synthetic/repo' },
 } as const satisfies Record<SessionChange['kind'], SessionChange>
 
-const scopedChangeKinds = Object.keys(changeFixtures) as Array<keyof typeof changeFixtures>
+const scopedChangeKinds = everyChangeKind.filter((kind) => kind !== 'projects.inventory-changed')
 
 describe('Session change envelope', () => {
   it('composes exactly the domain change kinds', () => {
     expect(sessionChangeSchema.options.map((option) => option.shape.kind.value).sort()).toEqual(
       [...everyChangeKind].sort(),
     )
-    expect(everyChangeKind).toHaveLength(8)
-    expect(scopedChangeKinds).toHaveLength(8)
+    expect(everyChangeKind).toHaveLength(10)
+    expect(scopedChangeKinds).toHaveLength(9)
   })
 
   for (const kind of everyChangeKind) {

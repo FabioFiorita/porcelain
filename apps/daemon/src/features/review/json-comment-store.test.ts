@@ -206,30 +206,36 @@ describe('createJsonCommentStore', () => {
     })
   })
 
-  it('rejects relative project paths and normalizes permission failures', async () => {
+  it('rejects relative project paths', async () => {
     const store = createJsonCommentStore()
     expect(await store.read('relative/repo')).toEqual({
       ok: false,
       error: { code: 'review.unavailable' },
     })
-
-    await withTemporaryDirectory('porcelain-comments-perm-', async (directory) => {
-      const active = join(directory, '.porcelain', 'active-review')
-      await mkdir(active, { recursive: true })
-      const path = join(active, 'comments.json')
-      await writeFile(path, serializeCommentsFileV1({ version: 1, comments: [] }))
-      await chmod(active, 0o500)
-
-      const result = await store.transact(directory, (current) => ({
-        ok: true,
-        value: {
-          kind: 'clear',
-          file: current,
-          removedIds: [],
-        },
-      }))
-      expect(result).toEqual({ ok: false, error: { code: 'review.unavailable' } })
-      await chmod(active, 0o700)
-    })
   })
+
+  it.runIf(process.platform !== 'win32')(
+    'normalizes permission failures to review.unavailable',
+    async () => {
+      const store = createJsonCommentStore()
+      await withTemporaryDirectory('porcelain-comments-perm-', async (directory) => {
+        const active = join(directory, '.porcelain', 'active-review')
+        await mkdir(active, { recursive: true })
+        const path = join(active, 'comments.json')
+        await writeFile(path, serializeCommentsFileV1({ version: 1, comments: [] }))
+        await chmod(active, 0o500)
+
+        const result = await store.transact(directory, (current) => ({
+          ok: true,
+          value: {
+            kind: 'clear',
+            file: current,
+            removedIds: [],
+          },
+        }))
+        expect(result).toEqual({ ok: false, error: { code: 'review.unavailable' } })
+        await chmod(active, 0o700)
+      })
+    },
+  )
 })

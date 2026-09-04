@@ -8,27 +8,29 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@renderer/components/ui/sidebar'
 import { useFileLog } from '@renderer/features/git'
 import { fileName } from '@renderer/lib/paths'
+import { HubRepoProvider } from '@renderer/stores/hub-repo'
+import { useHubTarget } from '@renderer/stores/hub-selection'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { useTabsStore } from '@renderer/stores/tabs'
+import { useActiveViewerFileContext } from '@renderer/stores/viewer-file-context'
 import { History } from 'lucide-react'
 import { CommitContextMenu } from '../git/commit-context-menu'
-
-// The timeline tracks whatever file you're viewing: file and diff tabs carry a
-// file path, every other tab kind (commit/terminal/…) has nothing to time.
-function useActiveFilePath(): string | null {
-  return useTabsStore((s) => {
-    const pane = s.panes[s.activePaneIndex]
-    const tab = pane?.tabs.find((t) => t.id === pane.activeTabId)
-    return tab && (tab.kind === 'file' || tab.kind === 'diff') ? tab.path : null
-  })
-}
 
 // The History tab's file timeline: the commit history of the file open in the
 // viewer — who changed it, when, and in which commit. Clicking a row opens that
 // commit, the same as the History list, so the entry reads alongside the change.
 export function FileTimelineGroup(): React.JSX.Element {
+  const active = useActiveViewerFileContext()
+  const selectedTarget = useHubTarget()
+  return (
+    <HubRepoProvider target={active?.target ?? selectedTarget}>
+      <FileTimelineContent filePath={active?.path ?? null} />
+    </HubRepoProvider>
+  )
+}
+
+function FileTimelineContent({ filePath }: { filePath: string | null }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
-  const filePath = useActiveFilePath()
   const commits = useFileLog(filePath)
 
   if (filePath === null) {

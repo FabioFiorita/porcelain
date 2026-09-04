@@ -1,22 +1,21 @@
-import { settleBackground } from '@porcelain/shared/background'
 import {
   type HubTarget,
   listCanvasesQuery,
   readCanvasQuery,
 } from '@porcelain/client-runtime/projects'
 import type { CanvasRecord, ReadCanvasOutput } from '@porcelain/contracts/projects'
-import { useQuery } from '@tanstack/react-query'
+import { settleBackground } from '@porcelain/shared/background'
+import { type QueryClient, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 import { callProjectDaemon, projectsQueryKey, useHubTarget } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
-
+import { canvasDocumentUrl } from './canvas-document'
 import {
   listCanvasesProcedure,
   mintCanvasAccessTokenProcedure,
   readCanvasProcedure,
 } from './canvas-procedures'
-import { canvasDocumentUrl } from './canvas-document'
 
 /**
  * Mobile's Canvas reads.
@@ -46,6 +45,31 @@ function canvasListScope(target: HubTarget): {
   worktreePath: string
 } {
   return { ...canvasScope(target), worktreeId: target.worktreeId }
+}
+
+/** Refresh every list/read variant of the Canvas Project the daemon says changed. */
+export function invalidateCanvasQueries(
+  queryClient: QueryClient,
+  environmentId: string,
+  projectId: string,
+): Promise<void> {
+  return queryClient.invalidateQueries({
+    predicate: (query) => {
+      const [domain, environment, identity] = query.queryKey
+      return (
+        domain === 'daemon' &&
+        environment === environmentId &&
+        typeof identity === 'object' &&
+        identity !== null &&
+        'domain' in identity &&
+        identity.domain === 'projects' &&
+        'projectId' in identity &&
+        identity.projectId === projectId &&
+        'name' in identity &&
+        (identity.name === 'canvases' || identity.name === 'canvas')
+      )
+    },
+  })
 }
 
 /** Every Canvas the selected Worktree resolves, newest daemon order preserved. */

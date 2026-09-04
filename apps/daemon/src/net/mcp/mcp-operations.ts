@@ -1,6 +1,7 @@
 import type { ChangedFile, Commit } from '@porcelain/contracts/git'
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import type { PromoteOverridesInput } from '@porcelain/contracts/projects'
+import type { ReviewCommentAnchor } from '@porcelain/contracts/review'
 import type { CanvasBundleSource } from '../../features/projects'
 import type { ReviewComment } from '../../features/review/comment-capabilities'
 import type { WorkspaceInventory } from './mcp-workspace'
@@ -23,6 +24,28 @@ export type McpOperations = Readonly<{
     unpinPath: (projectPath: string, path: string) => Promise<void>
   }>
   projects: Readonly<{
+    openProject: (path: string) => Promise<OperationResult<{ path: string; name: string }>>
+    removeHubProject: (projectId: string) => Promise<OperationResult<void>>
+    createHubWorktree: (input: {
+      projectId: string
+      branch: string
+      baseRef?: string
+      existing?: boolean
+    }) => Promise<
+      OperationResult<{
+        id: string
+        projectId: string
+        path: string
+        name: string
+        branch: string
+        isPrimary: boolean
+      }>
+    >
+    removeHubWorktree: (input: {
+      projectId: string
+      worktreeId: string
+      force?: boolean
+    }) => Promise<OperationResult<void>>
     listHubInventory: () => Promise<OperationResult<WorkspaceInventory>>
     listCanvases: (input: {
       projectId: string
@@ -61,10 +84,11 @@ export type McpOperations = Readonly<{
     addReviewComment: (input: {
       projectPath: string
       author?: 'user' | 'agent'
-      path: string
+      path?: string
       startLine?: number
       endLine?: number
       anchorText?: string
+      anchor?: ReviewCommentAnchor
       body: string
     }) => Promise<OperationResult<ReviewComment>>
     editReviewComment: (input: {

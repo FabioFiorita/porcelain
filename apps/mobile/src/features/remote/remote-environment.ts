@@ -49,7 +49,7 @@ export function isPaired(environment: Environment | null): environment is Paired
 
 /** Whether this environment is eligible to be current and appear in Hub pickers. */
 export function isEnabled(environment: Environment | null): environment is Environment {
-  return environment !== null && environment.enabled
+  return environment?.enabled === true
 }
 
 export const EMPTY_ENVIRONMENTS_FILE: EnvironmentsFile = {

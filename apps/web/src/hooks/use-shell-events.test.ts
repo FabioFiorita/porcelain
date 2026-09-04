@@ -5,17 +5,17 @@ import { handleShellEvent } from './use-shell-events'
 
 function shellUtils(): {
   value: Parameters<typeof handleShellEvent>[1]
-  environmentPairs: ReturnType<typeof vi.fn>
+  environmentConnections: ReturnType<typeof vi.fn>
 } {
-  const environmentPairs = vi.fn(async () => undefined)
+  const environmentConnections = vi.fn(async () => undefined)
   return {
     value: {
-      environmentDaemonPairs: { invalidate: environmentPairs },
+      environmentConnections: { invalidate: environmentConnections },
       environmentStatuses: { invalidate: vi.fn(async () => undefined) },
       remoteEnvironments: { invalidate: vi.fn(async () => undefined) },
       wslDistributions: { invalidate: vi.fn(async () => undefined) },
     } as never,
-    environmentPairs,
+    environmentConnections,
   }
 }
 
@@ -29,7 +29,7 @@ describe('shell Environment lifecycle events', () => {
 
       await handleShellEvent(event, shell.value, queryClient)
 
-      expect(shell.environmentPairs).toHaveBeenCalledOnce()
+      expect(shell.environmentConnections).toHaveBeenCalledOnce()
       expect(invalidate).toHaveBeenCalledWith({
         exact: true,
         queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY,

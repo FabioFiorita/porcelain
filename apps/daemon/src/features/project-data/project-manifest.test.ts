@@ -68,7 +68,7 @@ describe('createProjectManifestDocument', () => {
       expect(path).toBe(projectPorcelainPath(repoPath, PROJECT_FILES.manifest))
       const raw = await readFile(path, 'utf8')
       expect(raw).toBe(`${JSON.stringify({ version: 1, value }, null, 2)}\n`)
-      expect((await stat(path)).mode & 0o777).toBe(0o600)
+      if (process.platform !== 'win32') expect((await stat(path)).mode & 0o777).toBe(0o600)
       const leftover = (await readdir(join(repoPath, '.porcelain'))).filter((name) =>
         name.startsWith('.tmp-'),
       )

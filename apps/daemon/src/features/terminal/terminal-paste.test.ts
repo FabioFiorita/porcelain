@@ -34,8 +34,10 @@ describe('createTerminalPasteAdapter', () => {
       expect(result.value.path).not.toContain('..')
       expect(result.value.path).toContain('Quarterly_report.pdf')
       expect(await readFile(result.value.path)).toEqual(Buffer.from(DATA_BASE64, 'base64'))
-      expect((await stat(join(root, 'terminal-1'))).mode & 0o777).toBe(0o700)
-      expect((await stat(result.value.path)).mode & 0o777).toBe(0o600)
+      if (process.platform !== 'win32') {
+        expect((await stat(join(root, 'terminal-1'))).mode & 0o777).toBe(0o700)
+        expect((await stat(result.value.path)).mode & 0o777).toBe(0o600)
+      }
     })
   })
 

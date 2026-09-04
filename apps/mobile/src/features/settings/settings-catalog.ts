@@ -2,8 +2,7 @@
  * The Settings sections this client offers, named once for the phone stack and the tablet
  * dialog.
  *
- * Personalization is not a section: it belongs to a Project and opens from that Project's
- * row. Share is host administration and stays off this client. Remotes stay — a phone pairs
+ * Share is host administration and stays off this client. Remotes stay — a phone pairs
  * daemons, it does not administer them.
  */
 export type SettingsSection = 'general' | 'remotes' | 'updates'

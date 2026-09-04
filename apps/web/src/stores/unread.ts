@@ -79,5 +79,11 @@ export function unreadTabFor(change: SessionChange): UnreadTab | null {
     case 'review.changed':
       // Comments refresh in place on the surface that owns them.
       return null
+    case 'review.canvas-changed':
+      // The Canvas changes the review walkthrough and its Changes ordering.
+      return 'changes'
+    case 'projects.inventory-changed':
+      // Hub rows refresh in place; adding or removing one is not an unread work result.
+      return null
   }
 }

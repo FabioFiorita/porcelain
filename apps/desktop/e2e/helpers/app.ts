@@ -1,13 +1,14 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
-import { realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import {
   _electron,
   type Browser,
+  type BrowserContext,
   test as baseTest,
   chromium,
   type ElectronApplication,
@@ -34,11 +35,12 @@ const ADMIN_TOKEN = randomBytes(32).toString('hex')
 /** The isolated daemon's host-administrator credential — the only way to mint a pairing link. */
 export const E2E_ADMIN_TOKEN = ADMIN_TOKEN
 
-// A fixed basename so the project switcher shows a stable repo name in
-// screenshots (mkdtemp's random suffix would change every run). workers=1 makes
-// this single-owner safe. Exported so a spec that MUTATES the repo (file ops) can
-// restore it to pristine afterward — it's shared worker-wide across spec files.
-export const REPO_DIR = join(tmpdir(), 'porcelain-e2e-fixture')
+// Keep the screenshot-visible repo leaf stable while giving each Playwright
+// invocation a separately owned parent. `workers: 1` only serializes one run;
+// it does not protect simultaneous local or CI invocations from sharing `%TEMP%`.
+const FIXTURE_PARENT = mkdtempSync(join(tmpdir(), 'porcelain-e2e-'))
+export const REPO_DIR = join(FIXTURE_PARENT, 'porcelain-e2e-fixture')
+export const REPO_WORKTREES_DIR = `${REPO_DIR}-worktrees`
 
 // For the no-repo (Welcome) case: a path that never exists. A NON-EMPTY recents
 // list stops the dev seed from auto-adding ~/code/porcelain-playground, and the
@@ -55,6 +57,15 @@ function launchEnv(extra: Record<string, string>): Record<string, string> {
     if (value !== undefined) env[key] = value
   }
   return { ...env, ...extra }
+}
+
+/** Remove only the randomized parent this Playwright worker allocated. */
+async function removeFixturePath(path: string): Promise<void> {
+  const resolved = resolve(path)
+  if (resolved !== FIXTURE_PARENT && !resolved.startsWith(`${FIXTURE_PARENT}${sep}`)) {
+    throw new Error(`refusing to remove an unowned e2e fixture path: ${path}`)
+  }
+  await rm(resolved, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 }
 
 /** Which runtime hosts the suite: the built Electron app, or headless Chromium on the daemon-served browser client. Picked per Playwright project. */
@@ -280,11 +291,13 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
   // tests — each run recreates the tree and tears worktrees down after.
   // biome-ignore lint/correctness/noEmptyPattern: Playwright requires the fixture's first arg to be a destructuring pattern.
   repoDir: async ({}, use) => {
-    await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
-    await createFixtureRepo(REPO_DIR)
-    await use(REPO_DIR)
-    await rm(REPO_DIR, { recursive: true, force: true })
-    await rm(`${REPO_DIR}-worktrees`, { recursive: true, force: true })
+    await removeFixturePath(FIXTURE_PARENT)
+    try {
+      await createFixtureRepo(REPO_DIR)
+      await use(REPO_DIR)
+    } finally {
+      await removeFixturePath(FIXTURE_PARENT)
+    }
   },
 
   sharedBrowser: [
@@ -353,8 +366,9 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
     // try/finally: a setup failure after the spawn (context/goto throwing) must
     // still kill the child — the stdin watchdog is off, so nothing else would.
     const { child, port } = await spawnDaemon(seeded)
+    let context: BrowserContext | null = null
     try {
-      const context = await sharedBrowser.newContext({
+      context = await sharedBrowser.newContext({
         // The Electron window's default size (src/main/window.ts) so layouts and
         // visual baselines frame the same way.
         viewport: { width: 1400, height: 900 },
@@ -380,12 +394,19 @@ export const test = baseTest.extend<Options & Fixtures, WorkerOptions & WorkerFi
       const page = await context.newPage()
       await page.goto(`http://127.0.0.1:${port}/`)
       await use(page)
-      await context.close()
     } finally {
-      // SIGTERM runs the daemon's shutdown path (thread flush + child reap).
-      const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
-      child.kill('SIGTERM')
-      await exited
+      // The browser must release its session/watch handles before the daemon
+      // exits, including when setup or an assertion failed before `use` returned.
+      try {
+        await context?.close()
+      } finally {
+        // SIGTERM runs the daemon's shutdown path (thread flush + child reap).
+        if (child.exitCode === null && child.signalCode === null) {
+          const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
+          child.kill('SIGTERM')
+          await exited
+        }
+      }
     }
   },
 })

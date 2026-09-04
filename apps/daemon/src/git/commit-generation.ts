@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import {
   COMMIT_MODEL_IDS,
   COMMIT_MODEL_OPTIONS,
@@ -161,12 +161,12 @@ export function agentCliPath(pathEnv: string | undefined, home: string | undefin
   ].filter((part) => part !== '')
   const seen = new Set<string>()
   const parts: string[] = []
-  for (const part of [...extras, ...(pathEnv ?? '').split(':')]) {
+  for (const part of [...extras, ...(pathEnv ?? '').split(delimiter)]) {
     if (part === '' || seen.has(part)) continue
     seen.add(part)
     parts.push(part)
   }
-  return parts.join(':')
+  return parts.join(delimiter)
 }
 
 function agentCliEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {

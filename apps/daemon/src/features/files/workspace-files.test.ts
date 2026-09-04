@@ -85,6 +85,35 @@ describe('createNodeWorkspaceFiles', () => {
     })
   })
 
+  it('preserves slash-form project paths in nested directory entries', async () => {
+    await withTemporaryDirectory('porcelain-files-slash-path-', async (dir) => {
+      const projectPath = dir.replaceAll('\\', '/')
+      await mkdir(join(dir, 'src'))
+      await writeFile(join(dir, 'src', 'entry.ts'), 'export {}\n', 'utf8')
+
+      await expect(
+        files.readDir({
+          projectPath,
+          path: 'src',
+          showHidden: false,
+          hiddenPaths: new Set(),
+          pinnedPaths: new Set(),
+        }),
+      ).resolves.toEqual({
+        ok: true,
+        value: [
+          {
+            name: 'entry.ts',
+            path: `${projectPath}/src/entry.ts`,
+            kind: 'file',
+            hidden: false,
+            pinned: false,
+          },
+        ],
+      })
+    })
+  })
+
   symlinkIt('contains directory reads and persisted pins to the declared project', async () => {
     await withTemporaryDirectory('porcelain-files-contained-tree-', async (root) => {
       await withTemporaryDirectory('porcelain-files-outside-tree-', async (outside) => {

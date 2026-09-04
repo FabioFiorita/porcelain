@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { after, test } from 'node:test'
 import {
   assertRemovable,
@@ -45,17 +45,19 @@ const status = (root) =>
 const statusLines = (root) => status(root).split('\n').filter(Boolean)
 
 test('primary and worktree profiles resolve to the same managed root', () => {
-  const primary = '/home/dev/code/porcelain-playground'
-  const worktree = '/home/dev/code/porcelain-playgrounds/fix-review'
-  assert.equal(managedPlaygroundRoot(primary), '/home/dev/code/porcelain-playgrounds')
-  assert.equal(managedPlaygroundRoot(worktree), '/home/dev/code/porcelain-playgrounds')
+  const primary = resolve('/home/dev/code/porcelain-playground')
+  const root = join(resolve('/home/dev/code'), 'porcelain-playgrounds')
+  const worktree = join(root, 'fix-review')
+  assert.equal(managedPlaygroundRoot(primary), root)
+  assert.equal(managedPlaygroundRoot(worktree), root)
 })
 
 test('profiles get separate fleet roots under a segment no worktree slug can take', () => {
-  const primary = fleetRoot('/home/dev/code/porcelain-playground', PRIMARY)
-  const worktree = fleetRoot('/home/dev/code/porcelain-playgrounds/fix-review', WORKTREE)
-  assert.equal(primary, '/home/dev/code/porcelain-playgrounds/.fleet/primary')
-  assert.equal(worktree, '/home/dev/code/porcelain-playgrounds/.fleet/fix-review')
+  const managedRoot = join(resolve('/home/dev/code'), 'porcelain-playgrounds')
+  const primary = fleetRoot(resolve('/home/dev/code/porcelain-playground'), PRIMARY)
+  const worktree = fleetRoot(join(managedRoot, 'fix-review'), WORKTREE)
+  assert.equal(primary, join(managedRoot, '.fleet', 'primary'))
+  assert.equal(worktree, join(managedRoot, '.fleet', 'fix-review'))
   assert.notEqual(primary, worktree)
   // A managed worktree slug must start with [a-z0-9], so `.fleet` can never be one.
   assert.match('.fleet', /^\./)
@@ -68,11 +70,15 @@ test('member names are validated before they become paths', () => {
 })
 
 test('removal refuses anything that is not a direct fleet member', () => {
-  const root = '/home/dev/code/porcelain-playgrounds/.fleet/primary'
-  assert.equal(assertRemovable(`${root}/dirty`, root), `${root}/dirty`)
+  const root = join(resolve('/home/dev/code'), 'porcelain-playgrounds', '.fleet', 'primary')
+  const member = join(root, 'dirty')
+  assert.equal(assertRemovable(member, root), member)
   assert.throws(() => assertRemovable(root, root), /refusing to remove/)
-  assert.throws(() => assertRemovable(`${root}/nested/deep`, root), /refusing to remove/)
-  assert.throws(() => assertRemovable('/home/dev/code/porcelain', root), /refusing to remove/)
+  assert.throws(() => assertRemovable(join(root, 'nested', 'deep'), root), /refusing to remove/)
+  assert.throws(
+    () => assertRemovable(join(resolve('/home/dev/code'), 'porcelain'), root),
+    /refusing to remove/,
+  )
 })
 
 test('clean shape commits everything it generates', () => {

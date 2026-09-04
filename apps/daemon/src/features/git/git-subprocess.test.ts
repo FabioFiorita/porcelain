@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { gitEnv } from '../../git/git-env'
 import { withTemporaryDirectory } from '../../testing/temporary-directory'
@@ -140,7 +140,9 @@ describe('Git subprocess adapter', () => {
         ok: true,
         value: undefined,
       })
-      expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(worktree)
+      expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(
+        worktree.replaceAll(sep, '/'),
+      )
     })
   })
 
@@ -157,13 +159,16 @@ describe('Git subprocess adapter', () => {
         ok: false,
         error: { code: 'git.working-tree-conflict' },
       })
-      expect(git(repo, 'worktree', 'list', '--porcelain')).toContain(worktree)
+      // Git's porcelain path records always use forward slashes, including on Windows.
+      expect(git(repo, 'worktree', 'list', '--porcelain')).toContain(worktree.replaceAll(sep, '/'))
 
       await expect(adapter.removeWorktree(repo, worktree, true)).resolves.toEqual({
         ok: true,
         value: undefined,
       })
-      expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(worktree)
+      expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(
+        worktree.replaceAll(sep, '/'),
+      )
     })
   })
 
@@ -239,7 +244,13 @@ describe('Git subprocess adapter', () => {
       },
     })
     expect(calls[1]).toMatchObject({
-      args: ['worktree', 'add', '-b', 'feature/x', '/synthetic/repo-worktrees/feature-x'],
+      args: [
+        'worktree',
+        'add',
+        '-b',
+        'feature/x',
+        join('/synthetic', 'repo-worktrees', 'feature-x'),
+      ],
     })
     expect(calls[0]?.options.env).toMatchObject({
       HOME: '/home/test',

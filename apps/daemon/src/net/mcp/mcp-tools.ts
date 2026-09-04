@@ -293,6 +293,16 @@ const REVIEW_TEMPLATE = {
   additionalProperties: false,
 } as const
 
+const REVIEW_METADATA = {
+  type: 'object',
+  properties: {
+    layers: { type: 'array', items: PROFILE_LAYER },
+    files: { type: 'array', items: REVIEW_FILE },
+  },
+  required: ['layers', 'files'],
+  additionalProperties: false,
+} as const
+
 const REVIEW_DOCUMENT = {
   type: 'object',
   properties: {
@@ -309,6 +319,40 @@ const STRUCTURED_CANVAS = { oneOf: [DECISION_DOCUMENT, REVIEW_DOCUMENT] } as con
 const COMMENT = {
   type: 'object',
   properties: {
+    anchor: {
+      oneOf: [
+        {
+          type: 'object',
+          properties: {
+            kind: { const: 'file' },
+            path: { type: 'string', description: 'Repo-relative file path' },
+            startLine: { type: 'integer' },
+            endLine: { type: 'integer' },
+            anchorText: { type: 'string' },
+          },
+          required: ['kind', 'path'],
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          properties: {
+            kind: { const: 'canvas' },
+            canvasId: { type: 'string' },
+            section: { type: 'string' },
+          },
+          required: ['kind', 'canvasId'],
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          properties: { kind: { const: 'changeset' } },
+          required: ['kind'],
+          additionalProperties: false,
+        },
+      ],
+      description:
+        'Canonical comment anchor. Use canvas for a Canvas or section, changeset for the complete change, and file for a file/range.',
+    },
     path: { type: 'string', description: 'Repo-relative file path' },
     startLine: { type: 'integer' },
     endLine: { type: 'integer' },
@@ -321,15 +365,27 @@ const COMMENT = {
 export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
   {
     name: 'porcelain_project',
-    title: 'Discover Projects and Worktrees',
+    title: 'Manage Projects and Worktrees',
     description:
-      'List the Projects and Worktrees known by this daemon, or get one Project by id. Use this when targeting a checkout other than the current workspace.',
+      'List or get Projects and Worktrees, add an existing local repository, remove a Project from Porcelain, or create/remove a managed Worktree. Removing a Project never deletes its checkout. Worktree removal never removes the primary checkout and rejects dirty files unless force is explicitly true. Use this when targeting a checkout other than the current workspace.',
     inputSchema: {
       type: 'object',
       properties: {
-        op: { enum: ['list', 'get'] },
+        op: { enum: ['list', 'get', 'add', 'remove', 'create-worktree', 'remove-worktree'] },
         workspace: WORKSPACE,
         projectId: { type: 'string' },
+        path: { type: 'string', description: 'Absolute path of an existing repository to add' },
+        branch: { type: 'string', description: 'Branch for the managed Worktree to create' },
+        baseRef: { type: 'string', description: 'Optional base ref for a new Worktree branch' },
+        existing: {
+          type: 'boolean',
+          description: 'Check out an existing branch instead of creating a branch',
+        },
+        worktreeId: { type: 'string', description: 'Managed Worktree id to remove' },
+        force: {
+          type: 'boolean',
+          description: 'Explicitly allow removing a dirty non-primary Worktree',
+        },
       },
       required: ['op'],
       additionalProperties: false,
@@ -339,7 +395,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_canvas',
     title: 'Manage a Canvas',
     description:
-      'List, read, create, update, delete, or promote an agent-authored Canvas. Decision captures an unresolved choice. Review supports ordered prose, sandboxed SVG/HTML, code references, evidence checks and assets, plus attention-ordered layers/files; clean Review writes bind History. File references never own diffs or reviewed state. Promotion writes files but never stages or commits.',
+      'List, read, create, update, delete, or promote an agent-authored Canvas. For a full Review document, also pass reviewMetadata with the complete layers and files arrays; that pair is the canonical Review write and prevents review ordering from being lost. Decision captures an unresolved choice. Review supports ordered prose, sandboxed SVG/HTML, code references, evidence checks and assets; clean Review writes bind History. File references never own diffs or reviewed state. Promotion writes files but never stages or commits.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -355,6 +411,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
         entry: { type: 'string', description: 'Bundle-relative entry file' },
         files: { type: 'array', items: CANVAS_FILE },
         document: STRUCTURED_CANVAS,
+        reviewMetadata: REVIEW_METADATA,
         tracked: {
           type: 'boolean',
           description: 'Create or update directly in the tracked checkout overlay',
@@ -370,7 +427,7 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
     name: 'porcelain_comment',
     title: 'Manage Review Comments',
     description:
-      'List, read, create, edit, delete, reply to, resolve, or reopen review comments. Use status open, resolved, or all when listing. Replies remain attached to their parent comment; resolve/reopen changes the parent status.',
+      'List, read, create, edit, delete, reply to, resolve, or reopen review comments. Create with comment.anchor: use file for a file/range, canvas for a Canvas or section, or changeset for the whole change. Replies remain attached to their parent comment; resolve/reopen changes the parent status.',
     inputSchema: {
       type: 'object',
       properties: {

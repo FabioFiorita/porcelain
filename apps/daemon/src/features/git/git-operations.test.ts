@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { join } from 'node:path'
 import type {
   BranchRef,
   ChangedFile,
@@ -308,7 +309,7 @@ describe('Git operations', () => {
 
     await operations.discardFileGit({ repoPath: REPO, path: 'new.ts' })
     expect(git.resetPath).toHaveBeenCalledWith(REPO, 'new.ts')
-    expect(trash.moveToTrash).toHaveBeenCalledWith('/synthetic/repo/new.ts')
+    expect(trash.moveToTrash).toHaveBeenCalledWith(join(REPO, 'new.ts'))
     expect(git.restoreFromHead).not.toHaveBeenCalled()
     expect(cache.clear).toHaveBeenCalledWith(REPO)
     expect(changes.publishChanged).toHaveBeenCalledWith(REPO)

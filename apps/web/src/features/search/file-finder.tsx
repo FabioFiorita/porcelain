@@ -15,11 +15,14 @@ import { Kbd, KbdGroup, Shortcut } from '@renderer/components/ui/kbd'
 import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { useActionRun, useActionRunStore, useActions } from '@renderer/features/actions'
 import { useGitLog } from '@renderer/features/git'
+import { useHubInventories } from '@renderer/features/projects'
+import type { HubInventoryView } from '@renderer/features/projects/project-data'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { commandGroupHeadingClass } from '@renderer/lib/controls'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName, fileName } from '@renderer/lib/paths'
 import { useFileFinderStore } from '@renderer/stores/file-finder'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { activeTabTarget, targetedTab } from '@renderer/stores/hub-tabs'
 import { type SidebarTab, usePreferencesStore } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -28,7 +31,16 @@ import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import type { LucideIcon } from 'lucide-react'
-import { FileDiff, FileText, GitCommitHorizontal, History, Play, Settings } from 'lucide-react'
+import {
+  FileDiff,
+  FileText,
+  FolderGit2,
+  GitBranch,
+  GitCommitHorizontal,
+  History,
+  Play,
+  Settings,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useFileSearch } from './search-queries'
@@ -55,6 +67,83 @@ function matchCommits(query: string, commits: Commit[]): Commit[] {
   return commits.filter((c) => c.hash.toLowerCase().startsWith(q)).slice(0, 5)
 }
 
+type HubMatch =
+  | Readonly<{
+      kind: 'project'
+      environmentId: string
+      environmentName: string
+      projectId: string
+      projectName: string
+      projectPath: string
+    }>
+  | Readonly<{
+      kind: 'worktree'
+      environmentId: string
+      environmentName: string
+      projectId: string
+      projectName: string
+      worktreeId: string
+      worktreeName: string
+      worktreePath: string
+      branch: string
+    }>
+
+/**
+ * Hub inventories are already the client-side, Environment-scoped source of
+ * truth for navigation. Search them locally: querying a remote filesystem here
+ * would both be slow and risk routing the resulting selection through this
+ * window's daemon instead of the Environment that owns it.
+ */
+export function matchHubInventory(
+  query: string,
+  inventories: readonly HubInventoryView[],
+): HubMatch[] {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return []
+  const matches = (value: string): boolean => value.toLowerCase().includes(needle)
+  return inventories.flatMap((source) =>
+    source.inventory.projects.flatMap((project) => {
+      const environment = source.inventory.environment
+      const projectMatches = [project.name, project.path, environment.name].some(matches)
+      const projectResult: HubMatch[] = projectMatches
+        ? [
+            {
+              kind: 'project',
+              environmentId: environment.id,
+              environmentName: environment.name,
+              projectId: project.id,
+              projectName: project.name,
+              projectPath: project.path,
+            },
+          ]
+        : []
+      const worktrees = project.worktrees.flatMap((worktree) => {
+        if (
+          ![worktree.name, worktree.branch, worktree.path, project.name, environment.name].some(
+            matches,
+          )
+        ) {
+          return []
+        }
+        return [
+          {
+            kind: 'worktree' as const,
+            environmentId: environment.id,
+            environmentName: environment.name,
+            projectId: project.id,
+            projectName: project.name,
+            worktreeId: worktree.id,
+            worktreeName: worktree.name,
+            worktreePath: worktree.path,
+            branch: worktree.branch,
+          },
+        ]
+      })
+      return [...projectResult, ...worktrees]
+    }),
+  )
+}
+
 interface FinderAction {
   id: string
   label: string
@@ -77,6 +166,8 @@ export function FileFinder(): React.JSX.Element {
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
   const openSettings = useSettingsDialogStore((s) => s.openTo)
+  const selectProject = useHubSelectionStore((s) => s.selectProject)
+  const selectWorktree = useHubSelectionStore((s) => s.selectWorktree)
   // Open state lives in a store so the navigation search trigger can raise the popup too.
   const open = useFileFinderStore((s) => s.open)
   const setOpen = useFileFinderStore((s) => s.setOpen)
@@ -117,6 +208,7 @@ export function FileFinder(): React.JSX.Element {
   // when the finder is open so the always-mounted finder doesn't fetch them on launch.
   const commands = matchCommands(query, useActions(open))
   const commits = matchCommits(query, useGitLog(200, open) ?? [])
+  const hubMatches = matchHubInventory(query, useHubInventories())
   const searching = isFetching || query !== debouncedQuery
   const closeFinder = (): void => {
     setOpen(false)
@@ -182,6 +274,7 @@ export function FileFinder(): React.JSX.Element {
     files.length === 0 &&
     commands.length === 0 &&
     commits.length === 0 &&
+    hubMatches.length === 0 &&
     paletteActions.length === 0
   // Label the groups only when more than one kind is present; a plain file search
   // (the common case) stays heading-less, as before.
@@ -189,6 +282,7 @@ export function FileFinder(): React.JSX.Element {
     (files.length > 0 ? 1 : 0) +
     (commands.length > 0 ? 1 : 0) +
     (commits.length > 0 ? 1 : 0) +
+    (hubMatches.length > 0 ? 1 : 0) +
     (paletteActions.length > 0 ? 1 : 0)
   const labelled = kinds > 1
 
@@ -244,6 +338,21 @@ export function FileFinder(): React.JSX.Element {
     openTab(
       targetedTab('commit', commit.hash, { title: commit.subject.slice(0, 32) }, activeTabTarget()),
     )
+    closeFinder()
+  }
+
+  const handleOpenHubMatch = (match: HubMatch): void => {
+    if (match.kind === 'project') {
+      selectProject({ environmentId: match.environmentId, projectId: match.projectId })
+    } else {
+      selectWorktree({
+        environmentId: match.environmentId,
+        projectId: match.projectId,
+        worktreeId: match.worktreeId,
+        path: match.worktreePath,
+        name: match.worktreeName,
+      })
+    }
     closeFinder()
   }
 
@@ -328,6 +437,37 @@ export function FileFinder(): React.JSX.Element {
                         {dir}
                       </span>
                     )}
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          )}
+          {hubMatches.length > 0 && (
+            <CommandGroup
+              heading={labelled ? 'Projects & Worktrees' : undefined}
+              className={commandGroupHeadingClass}
+            >
+              {hubMatches.map((match) => {
+                const isWorktree = match.kind === 'worktree'
+                return (
+                  <CommandItem
+                    key={`${match.kind}:${match.environmentId}:${match.projectId}:${isWorktree ? match.worktreeId : ''}`}
+                    value={`${match.kind}:${match.environmentName}:${match.projectName}:${isWorktree ? `${match.worktreeName}:${match.branch}` : ''}`}
+                    onSelect={() => handleOpenHubMatch(match)}
+                  >
+                    {isWorktree ? (
+                      <GitBranch className="shrink-0 text-muted-foreground" />
+                    ) : (
+                      <FolderGit2 className="shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-sm-minus">
+                      {isWorktree
+                        ? `${match.projectName} · ${match.worktreeName}`
+                        : match.projectName}
+                    </span>
+                    <span className="shrink-0 truncate font-mono text-xs text-muted-foreground">
+                      {isWorktree ? match.branch : match.environmentName}
+                    </span>
                   </CommandItem>
                 )
               })}

@@ -1,5 +1,6 @@
 import { type ReviewCommentsQuery, reviewCommentsQuery } from '@porcelain/client-runtime/review'
 import type { ReviewComment } from '@porcelain/contracts/review'
+import type { ReviewCommentAnchor } from '@porcelain/contracts/review'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
@@ -69,10 +70,11 @@ export type ReviewCommentActions = {
    * has no reply procedure, and `agentReply` is the daemon's to write when the agent answers.
    */
   add: (input: {
-    path: string
+    path?: string
     startLine?: number
     endLine?: number
     anchorText?: string
+    anchor?: ReviewCommentAnchor
     body: string
   }) => Promise<void>
   edit: (id: string, body: string) => Promise<void>
@@ -104,8 +106,9 @@ export function useCommentActions(): ReviewCommentActions {
       // rather than sent as undefined.
       return callReviewDaemon(environment, addReviewCommentProcedure, {
         body: input.body,
-        path: input.path,
         repoPath,
+        ...(input.path === undefined ? {} : { path: input.path }),
+        ...(input.anchor === undefined ? {} : { anchor: input.anchor }),
         ...(input.anchorText === undefined ? {} : { anchorText: input.anchorText }),
         ...(input.endLine === undefined ? {} : { endLine: input.endLine }),
         ...(input.startLine === undefined ? {} : { startLine: input.startLine }),
