@@ -4,6 +4,9 @@ Porcelain helps a human review agent work. The daemon owns repositories, Git, te
 review data, and remote access; browser, Electron, and mobile are clients. Agents use their
 harness's native tools for coding, browsing, computer use, and devices.
 
+This repository is developed with OpenAI Codex. Other agents' plugin manifests and compatibility
+code support Porcelain users; they do not require development setup for those agents in this repo.
+
 ## Product boundaries
 
 - Changes owns diffs, status, staging, History, and reviewed state. Canvases explain the larger
