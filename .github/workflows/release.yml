@@ -139,35 +139,59 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Require Windows signing credentials
+      - name: Select Windows signing mode
+        id: windows_signing
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:CSC_LINK) -or [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)) {
-            throw 'WIN_CSC_LINK and WIN_CSC_KEY_PASSWORD are required for a public Windows release.'
+          $hasLink = -not [string]::IsNullOrWhiteSpace($env:CSC_LINK)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)
+          if ($hasLink -ne $hasPassword) {
+            throw 'Configure both WIN_CSC_LINK and WIN_CSC_KEY_PASSWORD, or leave both unset for an unsigned Windows release.'
+          }
+          $enabled = $hasLink -and $hasPassword
+          "enabled=$($enabled.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if ($enabled) {
+            Write-Output 'Windows artifacts will be Authenticode signed.'
+          } else {
+            Write-Warning 'Windows signing credentials are not configured; publishing an unsigned installer.'
           }
 
       - name: Package signed Windows artifacts (no publish)
+        if: steps.windows_signing.outputs.enabled == 'true'
         run: pnpm package:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
+      - name: Package unsigned Windows artifacts (no publish)
+        if: steps.windows_signing.outputs.enabled == 'false'
+        run: pnpm package:win:unsigned
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
       - name: Packaging smoke
         run: node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
 
-      - name: Verify Windows installer signature
+      - name: Verify Windows installer signing mode
         shell: pwsh
+        env:
+          WINDOWS_SIGNING_ENABLED: ${{ steps.windows_signing.outputs.enabled }}
         run: |
           $installers = Get-ChildItem apps/desktop/dist -Filter *.exe
           if ($installers.Count -eq 0) { throw 'No Windows installer was produced.' }
           foreach ($installer in $installers) {
             $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
-            if ($signature.Status -ne 'Valid') {
-              throw "Invalid Authenticode signature on $($installer.Name): $($signature.Status)"
+            if ($env:WINDOWS_SIGNING_ENABLED -eq 'true') {
+              if ($signature.Status -ne 'Valid') {
+                throw "Invalid Authenticode signature on $($installer.Name): $($signature.Status)"
+              }
+            } elseif ($signature.Status -ne 'NotSigned') {
+              throw "Expected an unsigned Windows installer, but $($installer.Name) reported: $($signature.Status)"
             }
           }
 

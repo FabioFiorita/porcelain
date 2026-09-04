@@ -54,6 +54,40 @@ import { gitQueryKey } from './git-query-key'
 export type { DiffReadingScope }
 
 const DISABLED_PROJECT = '/__porcelain-disabled-git-reads__'
+const CHANGES_READ_TIMEOUT_MS = 15_000
+
+/**
+ * A secondary Environment can disappear after its Hub inventory was read, and Git itself can
+ * block on a damaged or unusual Worktree. Changes must still reach a terminal state: keep React
+ * Query's cancellation signal, but add a user-facing deadline around the two list reads.
+ */
+export async function changesRead<T>(
+  parentSignal: AbortSignal,
+  read: (signal: AbortSignal) => Promise<T>,
+  timeoutMs = CHANGES_READ_TIMEOUT_MS,
+): Promise<T> {
+  const controller = new AbortController()
+  const abort = (): void => controller.abort(parentSignal.reason)
+  if (parentSignal.aborted) abort()
+  else parentSignal.addEventListener('abort', abort, { once: true })
+
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      reject(
+        new Error('Changes took too long to load. Check the target Environment and try again.'),
+      )
+      controller.abort()
+    }, timeoutMs)
+  })
+
+  try {
+    return await Promise.race([read(controller.signal), deadline])
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
+    parentSignal.removeEventListener('abort', abort)
+  }
+}
 
 function projectPath(path: string | undefined): string {
   return path === undefined ? DISABLED_PROJECT : gitProjectKey(path)
@@ -82,7 +116,11 @@ function useGitDaemonScope(): DaemonScope {
 }
 
 /** Working-tree flow. Changes constantly outside the app, so it stays live at a 3s poll. */
-export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => Promise<void> } {
+export function useGitFlow(): {
+  groups: FlowGroup[] | undefined
+  error: { message: string } | null
+  refresh: () => Promise<void>
+} {
   const repoPath = useHubRepoPath()
   const daemon = useGitDaemonScope()
   const queryClient = useQueryClient()
@@ -90,13 +128,18 @@ export function useGitFlow(): { groups: FlowGroup[] | undefined; refresh: () => 
   const path = projectPath(repoPath ?? undefined)
   const query = useQuery({
     enabled: repoPath !== null,
-    queryFn: (): Promise<FlowGroup[]> => ownerClient(owner).gitFlow.query(path),
+    queryFn: ({ signal }): Promise<FlowGroup[]> =>
+      changesRead(signal, (requestSignal) =>
+        ownerClient(owner).gitFlow.query(path, { signal: requestSignal }),
+      ),
     queryKey: gitQueryKey(daemon, gitFlowQuery(path)),
     refetchInterval: repoPath === null ? false : 3000,
+    retry: false,
     staleTime: 0,
   })
 
   return {
+    error: query.error,
     groups: query.data,
     refresh: async (): Promise<void> => {
       await query.refetch()
@@ -122,6 +165,7 @@ export function useBranchFlow(
   groups: FlowGroup[] | undefined
   base: string | undefined
   defaultBase: string | undefined
+  error: { message: string } | null
   refresh: () => Promise<void>
 } {
   const repoPath = useHubRepoPath()
@@ -130,18 +174,25 @@ export function useBranchFlow(
   const owner = useGitOwner()
   const query = useQuery({
     enabled: enabled && repoPath !== null,
-    queryFn: () =>
-      ownerClient(owner).gitRangeFlow.query({
-        repoPath: path,
-        ...(requestedBase === undefined ? {} : { base: requestedBase }),
-      }),
+    queryFn: ({ signal }) =>
+      changesRead(signal, (requestSignal) =>
+        ownerClient(owner).gitRangeFlow.query(
+          {
+            repoPath: path,
+            ...(requestedBase === undefined ? {} : { base: requestedBase }),
+          },
+          { signal: requestSignal },
+        ),
+      ),
     queryKey: gitQueryKey(daemon, gitRangeFlowQuery(path, requestedBase)),
     placeholderData: keepPreviousData,
+    retry: false,
     staleTime: Number.POSITIVE_INFINITY,
   })
   return {
     base: query.data?.base,
     defaultBase: query.data?.defaultBase,
+    error: query.error,
     groups: query.data?.groups,
     refresh: async (): Promise<void> => {
       await query.refetch()

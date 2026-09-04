@@ -88,10 +88,14 @@ The macOS workflow expects `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. npm publication uses trusted publishing (OIDC),
 not a long-lived npm token.
 
-The Windows workflow expects `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`. `WIN_CSC_LINK` must point
-to, or contain the base64 form of, the PFX/PKCS#12 certificate used for Authenticode signing. The
-workflow refuses to publish an unsigned installer and verifies every produced executable with
-`Get-AuthenticodeSignature` before upload.
+Windows signing is optional. When both `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` are configured,
+`WIN_CSC_LINK` must point to, or contain the base64 form of, the PFX/PKCS#12 certificate used for
+Authenticode signing. The workflow rejects a half-configured credential pair and verifies every
+produced executable with `Get-AuthenticodeSignature`. Without either secret, it publishes an
+explicitly verified unsigned installer; Windows may show an Unknown Publisher or SmartScreen
+warning until public code signing is configured. The unsigned packaging mode explicitly disables
+certificate discovery and Authenticode verification in the NSIS updater; release metadata still
+protects downloads with its SHA-512 digest.
 
 ## Publish and retry
 

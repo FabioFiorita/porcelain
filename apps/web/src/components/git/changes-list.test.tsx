@@ -4,12 +4,12 @@ import { useGitFlow, useReviewedPaths } from '@renderer/features/git'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { TestIds } from '@shared/test-ids'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChangesList } from './changes-list'
 
 vi.mock('@renderer/features/git', () => ({
-  useBranchFlow: () => ({ groups: undefined, base: undefined }),
+  useBranchFlow: () => ({ groups: undefined, base: undefined, error: null }),
   useDiffFileHoverPrefetch: () => () => {},
   useDiscardFile: () => async () => {},
   useFileStaging: () => ({ stageFile: async () => {}, unstageFile: async () => {} }),
@@ -39,10 +39,17 @@ function renderList(): void {
 }
 
 describe('ChangesList', () => {
+  const refresh = vi.fn(async () => {})
+
   beforeEach(() => {
     useTabsStore.setState({ panes: [{ tabs: [], activeTabId: null }], activePaneIndex: 0 })
     useProjectSelectionStore.setState({ project: { name: 'repo', path: '/repo' } })
-    vi.mocked(useGitFlow).mockReturnValue({ groups: [{ layer: 'Source', files }] })
+    refresh.mockClear()
+    vi.mocked(useGitFlow).mockReturnValue({
+      error: null,
+      groups: [{ layer: 'Source', files }],
+      refresh,
+    })
     vi.mocked(useReviewedPaths).mockReturnValue(new Set<string>())
   })
 
@@ -106,5 +113,20 @@ describe('ChangesList', () => {
       'false',
     )
     expect(screen.getAllByLabelText('Reviewed')).toHaveLength(1)
+  })
+
+  it('shows a failed Environment read and lets the human retry instead of loading forever', () => {
+    vi.mocked(useGitFlow).mockReturnValue({
+      error: { message: 'The target Environment is offline.' },
+      groups: undefined,
+      refresh,
+    })
+
+    renderList()
+
+    expect(screen.getByText('The target Environment is offline.')).toBeVisible()
+    expect(screen.queryByText('Loading…')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(refresh).toHaveBeenCalledOnce()
   })
 })

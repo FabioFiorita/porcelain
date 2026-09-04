@@ -48,7 +48,8 @@ win:
   # electron-builder signs when its standard CSC_LINK / CSC_KEY_PASSWORD credentials are
   # present in the release environment. Keep the signature modern for SmartScreen and updater
   # verification without requiring a certificate for local/package-only builds.
-  signingHashAlgorithms: [sha256]
+  signtoolOptions:
+    signingHashAlgorithms: [sha256]
   verifyUpdateCodeSignature: true
 dmg:
   # Literal, not ${name}: that macro expands this package's scoped name

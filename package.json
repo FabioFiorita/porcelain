@@ -49,6 +49,7 @@
     "dist": "pnpm --dir apps/desktop dist",
     "package:mac": "pnpm --dir apps/desktop package:mac",
     "package:win": "pnpm --dir apps/desktop package:win",
+    "package:win:unsigned": "pnpm --dir apps/desktop package:win:unsigned",
     "daemon:dist": "node scripts/build-daemon-dist.mjs",
     "test:scripts": "node --test scripts/dev-daemon.test.mjs scripts/dev-env.test.mjs scripts/dev-electron.test.mjs scripts/dev-seed.test.mjs scripts/mobile-dev.test.mjs scripts/mobile-variant.test.mjs scripts/playground.test.mjs scripts/worktree-base.test.mjs",
     "verify": "pnpm check && pnpm test && pnpm build && pnpm turbo run //#test:scripts",

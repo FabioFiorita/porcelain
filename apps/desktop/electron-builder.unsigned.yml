@@ -1,0 +1,7 @@
+extends: ./electron-builder.yml
+win:
+  # Preserve executable resources while disabling every Authenticode signing pass.
+  signExecutable: false
+  # Unsigned installers cannot satisfy the NSIS publisher-certificate check.
+  # SHA-512 update metadata remains mandatory and is verified by release-fuse-smoke.
+  verifyUpdateCodeSignature: false

@@ -44,6 +44,7 @@
     "dist": "pnpm build && electron-builder --mac --publish never",
     "package:mac": "electron-builder --mac --publish never",
     "package:win": "electron-builder --win --publish never",
+    "package:win:unsigned": "electron-builder --win --publish never --config electron-builder.unsigned.yml",
     "release:prebuilt": "electron-builder --mac --publish never",
     "postinstall": "electron-builder install-app-deps"
   },

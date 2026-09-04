@@ -16,6 +16,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { gitQueryKey } from './git-query-key'
 import {
+  changesRead,
   useCommitDiff,
   useCommitFlow,
   useCommitMessage,
@@ -85,6 +86,12 @@ describe('useGitFlow / useGitSuggestions', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(callsTo(mock, 'gitFlow')).toBe(0)
     expect(callsTo(mock, 'gitSuggestions')).toBe(0)
+  })
+
+  it('ends a Git flow read that never answers instead of loading forever', async () => {
+    const pending = changesRead(new AbortController().signal, () => new Promise<never>(() => {}), 5)
+
+    await expect(pending).rejects.toThrow('Changes took too long to load')
   })
 
   it('refresh() refetches the flow AND invalidates every mounted working diff', async () => {

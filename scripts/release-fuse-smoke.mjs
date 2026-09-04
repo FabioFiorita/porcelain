@@ -11,6 +11,7 @@
  *   node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
  */
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 
@@ -68,7 +69,21 @@ if (values.platform === 'mac') {
   if (!installer) fail('missing x64 NSIS installer in dist')
   if (!blockmap) fail('missing Windows installer blockmap in dist')
   if (!fs.existsSync(unpackedBinary)) fail('missing win-unpacked/Porcelain.exe')
+  const latest = fs.readFileSync(path.join(root, latestYml), 'utf8')
+  const metadataPath = /^path:\s*['"]?([^'"\r\n]+)['"]?\s*$/mu.exec(latest)?.[1]
+  const metadataSha512 = /^sha512:\s*['"]?([^'"\s]+)['"]?\s*$/mu.exec(latest)?.[1]
+  if (metadataPath !== installer) {
+    fail(`latest.yml path does not name the shipped installer: ${metadataPath ?? 'missing'}`)
+  }
+  if (!metadataSha512) fail('latest.yml has no top-level sha512 digest')
+  const installerSha512 = createHash('sha512')
+    .update(fs.readFileSync(path.join(root, installer)))
+    .digest('base64')
+  if (metadataSha512 !== installerSha512) {
+    fail('latest.yml sha512 does not match the shipped installer')
+  }
   ok(`Windows artifacts: ${installer}, ${blockmap}, ${latestYml}`)
+  ok('Windows update metadata names and hashes the shipped installer')
   ok(`Windows unpacked binary: ${path.relative(root, unpackedBinary)}`)
 }
 

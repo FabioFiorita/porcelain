@@ -7,7 +7,11 @@ const webLogo = resolve(__dirname, '../../../web/src/assets/logo.png')
 const builtIndex = resolve(__dirname, '../../out/renderer/index.html')
 const builtAssets = resolve(__dirname, '../../out/renderer/assets')
 const electronBuilderYml = resolve(__dirname, '../../electron-builder.yml')
+const electronBuilderUnsignedYml = resolve(__dirname, '../../electron-builder.unsigned.yml')
 const afterPack = resolve(__dirname, '../../build/after-pack.js')
+const desktopPackageJson = resolve(__dirname, '../../package.json')
+const releaseWorkflow = resolve(__dirname, '../../../../.github/workflows/release.yml')
+const releaseFuseSmoke = resolve(__dirname, '../../../../scripts/release-fuse-smoke.mjs')
 
 describe('renderer packaging (file:// safe base)', () => {
   it("apps/web vite sets base: './'", () => {
@@ -57,5 +61,33 @@ describe('renderer packaging (file:// safe base)', () => {
     expect(yml).toMatch(/nsis:\s+[\s\S]*artifactName:/)
     expect(fuseHook).toContain("['darwin', 'linux', 'win32']")
     expect(fuseHook).toContain("electronPlatformName === 'win32' ? '.exe' : ''")
+  })
+
+  it('keeps macOS signing mandatory while making Windows signing an explicit two-mode release', () => {
+    const workflow = readFileSync(releaseWorkflow, 'utf8')
+    const unsignedConfig = readFileSync(electronBuilderUnsignedYml, 'utf8')
+    const desktopPackage = JSON.parse(readFileSync(desktopPackageJson, 'utf8')) as {
+      scripts: Record<string, string>
+    }
+    expect(workflow).toContain('Require macOS signing and notarization credentials')
+    expect(workflow).toContain('if ($hasLink -ne $hasPassword)')
+    expect(workflow).toContain("if: steps.windows_signing.outputs.enabled == 'true'")
+    expect(workflow).toContain("if: steps.windows_signing.outputs.enabled == 'false'")
+    expect(workflow).toContain('run: pnpm package:win:unsigned')
+    expect(workflow).toContain("CSC_IDENTITY_AUTO_DISCOVERY: 'false'")
+    expect(workflow).toContain("$signature.Status -ne 'NotSigned'")
+    expect(desktopPackage.scripts['package:win:unsigned']).toContain(
+      '--config electron-builder.unsigned.yml',
+    )
+    expect(unsignedConfig).toContain('extends: ./electron-builder.yml')
+    expect(unsignedConfig).toContain('signExecutable: false')
+    expect(unsignedConfig).toContain('verifyUpdateCodeSignature: false')
+  })
+
+  it('checks that Windows update metadata identifies and hashes the shipped installer', () => {
+    const smoke = readFileSync(releaseFuseSmoke, 'utf8')
+    expect(smoke).toContain("createHash('sha512')")
+    expect(smoke).toContain('metadataPath !== installer')
+    expect(smoke).toContain('metadataSha512 !== installerSha512')
   })
 })

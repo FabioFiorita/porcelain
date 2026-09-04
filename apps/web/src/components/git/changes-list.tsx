@@ -313,11 +313,25 @@ export function ChangesList(): React.JSX.Element {
   const branch = useBranchFlow(changesScope === 'branch', requestedBase)
 
   // Polls live (gitFlow / branch flow) — no manual refresh control.
-  const { groups } = changesScope === 'branch' ? branch : working
+  const active = changesScope === 'branch' ? branch : working
+  const { error, groups, refresh } = active
   const base = changesScope === 'branch' ? branch.base : undefined
   const reviewed = useReviewedPaths()
 
-  if (!project || groups === undefined) {
+  if (!project) {
+    return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
+  }
+  if (groups === undefined) {
+    if (error !== null) {
+      return (
+        <div className="flex flex-col items-start gap-2 p-3 text-sm">
+          <p className="text-destructive">{error.message}</p>
+          <Button size="sm" variant="outline" onClick={() => void refresh()}>
+            Try again
+          </Button>
+        </div>
+      )
+    }
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
   }
 
