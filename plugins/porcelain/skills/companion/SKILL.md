@@ -33,6 +33,21 @@ ambiguity, create one generic Markdown or HTML Canvas and keep updating that sam
 HTML or SVG when a diagram, comparison, or state flow communicates better than prose. Do not create
 a status diary or a new Canvas for every phase.
 
+When authoring HTML or SVG, choose an intentional visual direction that suits the material instead
+of relying accidentally on browser defaults. The Canvas is a self-contained document and does not
+inherit a Porcelain design system, so include the CSS, background, color, typography, spacing, and
+surfaces that the chosen direction needs. This is an outcome requirement, not a house style: decide
+the palette, density, composition, and level of decoration from the content and the human's context.
+Use color to clarify meaning rather than as ornament, and keep contrast and legibility strong.
+
+Make visual explanations responsive to the available Canvas width. For SVG, use a suitable
+`viewBox` and scalable dimensions; size or wrap labels deliberately, leave breathing room around
+nodes and connectors, and avoid geometry that depends on text fitting a fixed box by chance. Before
+reporting an authored Canvas complete, open the rendered result in Porcelain and inspect it at the
+available width. Check for clipped or overlapping text, cut-off connectors, unintended scrolling,
+weak contrast, browser-default styling, and wasted space; update the same Canvas until the rendered
+artifact communicates cleanly.
+
 ## Companion flow
 
 Before coding:
