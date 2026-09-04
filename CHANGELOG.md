@@ -1,3 +1,20 @@
+## [0.63.0](https://github.com/FabioFiorita/porcelain/compare/v0.62.0...v0.63.0) (2026-09-04)
+
+### Features
+
+* complete the companion review workflow ([05e899e](https://github.com/FabioFiorita/porcelain/commit/05e899e34fb315004898df898bbeef84a32572d1))
+* complete the Porcelain companion workflow ([fd47e13](https://github.com/FabioFiorita/porcelain/commit/fd47e132d4e645503af14d5da1eb73e53f994ca3))
+* manage secondary environments in place ([397f3ec](https://github.com/FabioFiorita/porcelain/commit/397f3eceb0a24eefc15fd5aa4d7f2a537fc8ac14))
+* **mobile:** scan pairing QR codes ([1df5537](https://github.com/FabioFiorita/porcelain/commit/1df5537291426df2b3a2d1163e2263d5f0155e1b))
+* **remote:** add custom Cloudflare hostnames ([fb45deb](https://github.com/FabioFiorita/porcelain/commit/fb45debcecdf0ff47dfcaf4a14b78df879abe861))
+
+### Bug Fixes
+
+* isolate managed WSL daemon ports ([6feed30](https://github.com/FabioFiorita/porcelain/commit/6feed3025ab9a2641730c96cafcc01e2baaa0f13))
+* **pairing:** share portable links with QR codes ([a4d659e](https://github.com/FabioFiorita/porcelain/commit/a4d659e815b3962fb16a0e726eef495bbb0c43e7))
+* resolve the Claude connector from its plugin root ([ebca2bf](https://github.com/FabioFiorita/porcelain/commit/ebca2bf1943fbc95704600fc09f27cff2fc23481))
+* **web:** contain alert dialog content ([7eb2dc2](https://github.com/FabioFiorita/porcelain/commit/7eb2dc2b32f6890e84ef260edc0a9fc4b1cc7d97))
+
 ## [0.62.0](https://github.com/FabioFiorita/porcelain/compare/v0.61.5...v0.62.0) (2026-09-03)
 
 ### Features
