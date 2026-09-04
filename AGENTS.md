@@ -4,6 +4,9 @@ Porcelain helps a human review agent work. The daemon owns repositories, Git, te
 review data, and remote access; browser, Electron, and mobile are clients. Agents use their
 harness's native tools for coding, browsing, computer use, and devices.
 
+[Product intent](docs/product.md) explains the audience, purpose, and desired experience. Use it
+for product decisions; inspect code to determine which capabilities exist today.
+
 ## Product boundaries
 
 - Changes owns diffs, status, staging, History, and reviewed state. Canvases explain the larger
@@ -38,12 +41,16 @@ Use the smallest checks that demonstrate the change. Client behavior needs evide
 relevant browser, Electron, or native mobile runtime; a build or mock alone does not prove it.
 Check each affected owner when behavior crosses surfaces, and name any surface left unverified.
 Format changed files. Use `pnpm verify` for broad changes; expand passing checks only when a new
-change, failure, or unresolved concern justifies it. Tests should protect behavior and invariants,
-not incidental implementation details or aesthetic choices.
+change, failure, or unresolved concern justifies it. Each test should catch a meaningful behavioral,
+compatibility, accessibility, safety, or invariant regression. Do not lock in incidental aesthetics
+or implementation choices: a harmless alternative should pass. Mutation scores alone do not prove
+a test is useful. Keep comments about current constraints, not the discussion that produced them.
 
-Use companion tools when shared review context helps. A Decision Canvas is for a material unresolved
-choice; a Review Canvas explains a coherent completed unit. Keep the same Review Canvas and bind it
-to the exact clean commit for History. Agents may define Actions; only the human chooses to run them.
+Canvas use and timing follow the user's needs. Reveal is an opt-in flow connecting a completed-work
+explanation, ordered Changes, focused comments, and evidence; do not require a planning Canvas.
+Use the shipped companion skill for available operations. When writing a Review Canvas, keep its
+id and bind it to the exact clean commit for History.
+Agents may define and edit Actions; only the human chooses to run them.
 
 Preserve unrelated state, remove task-owned fixtures and processes, and commit coherent work when
 ready. Report what changed, checks and observed results, and remaining uncertainty. Do not push,

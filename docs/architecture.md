@@ -1,6 +1,7 @@
 # Code map
 
 Use this page to find the owning code, then read its contracts, implementation, and nearby tests.
+[Product intent](product.md) explains why Porcelain exists and the experience it aims to provide.
 [Domain terms](glossary.md) explain the product language. [Decisions](decisions/) preserve choices
 and tradeoffs that code alone cannot explain.
 

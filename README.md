@@ -9,6 +9,10 @@ Porcelain is a daemon with browser, Electron, and mobile clients. It brings work
 review material, terminals, and remote access into one place without becoming an IDE or an
 in-app agent host. Your code stays on machines you control.
 
+Agents can move faster than people can confidently review. Porcelain helps you regain focus,
+understand the work, and spend attention where mistakes matter most. Read the
+[product intent](docs/product.md) for its audience, goals, and direction.
+
 ## What it provides
 
 - A review story for a unit of work: intent, execution, and evidence.
