@@ -1,39 +1,21 @@
 # Development
 
-This is the supported local development environment. Release work continues in
-[release.md](release.md); remote-host operation is documented in
-[remote-access.md](remote-access.md).
+Use [package.json](../package.json) and package-local scripts for available commands, and
+[the code map](architecture.md) to find implementation owners. Repository safety and proof
+expectations live in [AGENTS.md](../AGENTS.md).
 
-## Host prerequisites
+## Host setup
 
-All hosts need Node 22+, pnpm, and Git. macOS needs the Xcode command-line tools.
+Install the Node and pnpm versions declared in [package.json](../package.json), plus Git.
+macOS native builds need the Xcode command-line tools.
 
-Windows development additionally needs Visual Studio 2022 Build Tools with the
-**Desktop development with C++** workload and a current Windows SDK. `pnpm install` invokes
-Electron's native dependency rebuild; without that toolchain, `node-pty` fails before Porcelain
-can start. In **Individual components**, also select the current **MSVC v143 - VS 2022 C++
-x64/x86 Spectre-mitigated libs** matching the installed toolset. Enable Windows Developer Mode
-when running the symlink-containment tests, or run those tests from an elevated shell. Ordinary
-Porcelain use does not require elevation.
+Windows needs Visual Studio 2022 Build Tools with **Desktop development with C++**, a current
+Windows SDK, and the **MSVC v143 x64/x86 Spectre-mitigated libs** matching the installed toolset.
+The dependency install rebuilds `node-pty`. Symlink-containment tests need Windows Developer Mode
+or an elevated shell; ordinary use does not require elevation.
 
-Run Porcelain from PowerShell in the Windows checkout. A WSL checkout is a separate Linux
-Environment and must be owned by a daemon running inside that distribution; do not register a
-`\\wsl.localhost` path with the Windows daemon.
-
-The Windows app discovers installed WSL distributions and reports whether each one can host a
-daemon. The distribution itself needs WSL 2, Node 22+, `npm`/`npx`, Git, and a C toolchain for the
-first native dependency build; Windows-installed tools do not satisfy those checks. Docker
-Desktop's internal distributions are intentionally excluded. Settings → Environments → **Set up
-WSL Environment** installs the daemon version matching the desktop app inside that distribution,
-starts it on a distribution-specific loopback port, creates a normal revocable client credential,
-names it **WSL**, and opens its project browser without replacing or reloading the Windows renderer.
-Configured WSL Environments restart with the Electron app.
-
-Production WSL state remains in the Linux user's normal Porcelain directories. Development and
-e2e launches use separate Linux profiles, just as the Windows-local daemon does. The Electron
-process owns only the WSL daemon processes it launched and stops those exact children on quit.
-
-## Setup and isolation
+Use PowerShell for a Windows checkout. A WSL checkout belongs to a Linux daemon inside that
+distribution; do not register a `\\wsl.localhost` path with the Windows daemon.
 
 ```sh
 pnpm install
@@ -41,35 +23,50 @@ pnpm build
 pnpm dev:env
 ```
 
-`pnpm dev:env` is read-only. Before launching Porcelain, use its output to confirm the active
-profile, port, home, user-data directory, playground, and start commands.
+`dev:env` is read-only. Use its output for this checkout's profile, paths, ports, playground, and
+launch commands instead of copying values from another session. The profile implementation is
+[scripts/dev-env.mjs](../scripts/dev-env.mjs).
 
-| Environment | Port | Home | Repository data |
-| --- | ---: | --- | --- |
-| Production | configured listener | `~/.porcelain` | real checkouts |
-| Primary development | 43118 | `~/.porcelain-dev` | disposable playgrounds |
-| Managed Worktree | 43200–43999 | `~/.porcelain-dev-worktrees/<slug>` | per-Worktree playground |
+## Choose a client
 
-Development launchers set `PORCELAIN_DEV`, apply the matching profile, and keep authentication,
-channels, Electron user data, Metro state, and repository fixtures away from production. Never use
-production state or credentials as a test fixture.
+| Client | Start |
+| --- | --- |
+| Electron with its daemon | `pnpm dev` |
+| Browser with hot reload | `pnpm dev:daemon`, then `pnpm dev:web` in another terminal |
+| Daemon-served browser | `pnpm dev:daemon`, then open its printed browser URL |
+| Mobile Metro | `pnpm dev:daemon`, then `pnpm dev:mobile` in another terminal |
 
-Choose one client path for a profile:
+Use one daemon owner per profile. Do not combine `pnpm dev` with `pnpm dev:daemon`.
+For a new browser or mobile connection, use `pnpm dev:pair` and open its one-time link on the client.
+
+Web edits use hot reload in `dev:web`. Rebuild with `pnpm build:web` for the daemon-served client.
+For daemon edits, run `pnpm build:daemon` and restart the daemon; desktop main/preload edits need
+`pnpm build` and an Electron restart.
+
+For development MCP tools, set the plugin connector's `PORCELAIN_HOME` to the channels directory
+printed by `dev:env`. Opening a browser URL does not select the plugin's profile. The
+[connector](../plugins/porcelain/bin/porcelain-mcp.mjs) owns channel resolution; the
+[companion skill](../plugins/porcelain/skills/companion/SKILL.md) covers collaboration operations.
+If tools are unavailable, continue independent work and report any requested collaboration left
+unrecorded.
+
+## Mobile devices
+
+Devices and simulators are machine-global even when development profiles are isolated. Select the
+intended device and stop only one this task started. The
+[mobile launcher](../scripts/mobile-dev.mjs) owns profile setup.
+
+On a Mac, choose an iOS simulator explicitly:
 
 ```sh
-pnpm dev                 # Electron and its profile-scoped daemon
-pnpm dev:daemon          # daemon for a separate browser or mobile client
-pnpm dev:web             # Vite/HMR browser client beside dev:daemon
-pnpm dev:mobile          # profile-scoped Metro beside dev:daemon
+PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
 ```
 
-Use the harness's available browser tools for either browser URL printed by `dev:env`, computer
-tools for Electron, and native device tools for mobile. These are ordinary development operations
-within the task. Choose the surface that owns the behavior being changed.
+Use `PORCELAIN_IOS_SIMULATOR` rather than overriding the launcher's `--device` or `--port`.
+Stop the task's Metro process when finished.
 
-The Android helper uses Bash, Python 3, `flock`, and Android SDK tools; it is not a native PowerShell
-launcher. On a host providing those dependencies, select the intended device with
-`ANDROID_LOOP_SERIAL` or `ANDROID_LOOP_AVD`, then use:
+The [Android helper](../scripts/mobile-android-loop.sh) requires Bash, Python 3, `flock`, and Android
+SDK tools. Select `ANDROID_LOOP_SERIAL` or `ANDROID_LOOP_AVD` on a host with those dependencies:
 
 ```sh
 pnpm dev:mobile:android preflight
@@ -77,39 +74,12 @@ pnpm dev:mobile:android up
 pnpm dev:mobile:android down
 ```
 
-`up` launches an installed development client; it does not build or install the Android app.
-On Windows, use the harness's native Android tooling with an explicitly selected device and the
-profile's Metro port. Do not route a Windows checkout through WSL to run the Bash helper: WSL is
-a separate Environment. Android installation and interaction still need native runtime proof.
+`up` requires an installed development client. The script's usage lists device interaction and
+capture commands. It is not a native PowerShell launcher; use available native Android tooling
+on Windows with the intended device and the profile's Metro port. WSL is a separate Environment,
+not a workaround for launching this helper against a Windows checkout.
 
-For an iPhone simulator, use the iOS launcher rather than reopening a development client that
-remembers a previous LAN server. It requires the target to be explicit and starts Expo with this
-Worktree's Metro port and the simulator-safe loopback address:
-
-```sh
-PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
-```
-
-The launcher owns `--device` and `--port`; choose another simulator through
-`PORCELAIN_IOS_SIMULATOR`, not a CLI override. It builds or reinstalls when needed, then launches
-the non-shipping `Porcelain Dev` development client bundle. The profile-scoped Metro process it
-starts remains the task's responsibility to stop.
-
-Do not run `pnpm dev` and `pnpm dev:daemon` for the same profile simultaneously. The daemon-served
-browser uses the port printed by `pnpm dev:env`; the HMR browser uses that port plus 10000. MCP uses
-a profile-scoped local OS channel under `PORCELAIN_HOME`, not the daemon's TCP listener.
-
-For development collaboration, configure the plugin connector's `PORCELAIN_HOME` to the channels
-directory printed by `pnpm dev:env`. The connector uses a Unix socket or Windows named pipe;
-opening the browser URL does not select the plugin's profile. Use the shipped
-[companion skill](../plugins/porcelain/skills/companion/SKILL.md) when collaboration context is
-useful. If its tools are unavailable, continue independent coding and checks and report any
-requested collaboration work that could not be recorded.
-
-## Worktrees
-
-Use the primary checkout for one direct change. Use a managed Worktree when independent work needs
-isolation:
+## Isolated checkouts
 
 ```sh
 pnpm worktree create <slug>
@@ -117,63 +87,18 @@ cd <printed-path>
 pnpm dev:env
 ```
 
-Managed Worktrees carry `.porcelain-worktree.json` and receive distinct ports, homes, channels,
-playgrounds, Electron data, and Metro state. `pnpm worktree list` shows current allocations.
+Use `pnpm worktree list` for allocations. The [Codex environment](../.codex/environments/environment.toml)
+bootstraps task checkouts; [the worktree command](../scripts/worktree.mjs) owns create, adopt,
+bootstrap, and cleanup. If a linked checkout reports the primary profile, adopt or bootstrap it
+before launch. From the primary checkout, `pnpm worktree adopt <path> <slug>` adopts an external
+checkout; `pnpm worktree remove <slug>` removes an integrated, clean managed Worktree.
 
-The checked-in Codex environment bootstraps a detached task checkout before installing dependencies.
-It must create `.porcelain-worktree.json` without attaching a branch. If a Codex task instead reports
-`primary checkout`, stop before launching Porcelain and recreate the task with the checked-in
-environment selected. External harness Worktrees can be adopted from the primary checkout with
-`pnpm worktree adopt <path> <slug>`.
+## Checks
 
-Simulator ids, physical devices, and Android virtual devices remain machine-global resources even
-when Metro is isolated. Select them explicitly and stop only a device or process this task started.
+Use `pnpm run` and the owning package's scripts to choose checks. The
+[desktop scripts](../apps/desktop/package.json) expose focused Vitest and browser/Electron lanes;
+[CI](../.github/workflows/ci.yml) shows the automated gate. `pnpm verify` is the broad local gate.
+Use `:prebuilt` acceptance commands only after building the affected output.
 
-## Build and validation
-
-The root scripts and package-local scripts are the command authority; `pnpm run` lists them. Common
-entry points are:
-
-```sh
-pnpm format
-pnpm check
-pnpm test
-pnpm build
-pnpm verify
-pnpm build:web
-pnpm build:daemon
-```
-
-Web edits through `pnpm dev:web` are hot. Rebuild the web output before testing the daemon-served
-client. Daemon changes require `pnpm build:daemon` and a daemon restart. Electron main/preload work
-requires a product build and Electron restart.
-
-Use the smallest proof that demonstrates the behavior. Browser and Electron share the web client,
-but Electron separately owns preload, IPC, windows, menus, updates, and local-daemon lifecycle.
-Mobile adds native lifecycle, installation, and terminal rendering. Use the strongest native
-browser, computer, or device capability available, and name any affected client left unproved.
-
-Browser acceptance has a small CI smoke lane and a broader lane:
-
-```sh
-pnpm test:e2e:smoke
-pnpm test:e2e
-pnpm test:e2e:pairing
-```
-
-Each has a `:prebuilt` form after `pnpm build` or `pnpm verify`. Package-local commands are often the
-better inner loop. A mock or successful build does not prove a user-facing runtime path.
-
-Turborepo runs build, test, and typecheck tasks and may reuse remote-cache results in CI. Runtime
-proof, native packaging, signing, publication, and registry propagation are never established by a
-cache hit.
-
-## Handoff and cleanup
-
-Record the branch, checkout, validation, runtime evidence, and any task-owned process still running.
-Stop daemons and test servers started for the task. Remove generated evidence such as
-`test-results/`, `playwright-report/`, and `apps/desktop/e2e/.artifacts/` when it is no longer needed.
-Never kill processes by broad name pattern.
-
-After a managed Worktree's branch is integrated and clean, remove it from the primary checkout with
-`pnpm worktree remove <slug>`. Review the command's targets before confirming deletion.
+Tests and build results establish only what they exercise. Follow [AGENTS.md](../AGENTS.md) for
+runtime evidence and cleanup. Packaging and publication have a separate [release guide](release.md).

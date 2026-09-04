@@ -1,132 +1,79 @@
 # Release
 
-Release operations are intentionally separate from the day-to-day development loop. Read the
-release scripts and workflow output as the final authority if a command changes.
+Releases require explicit authorization. Use this guide to choose the operation, then inspect the
+owning script or workflow for current inputs, credentials, artifacts, and gates.
 
-## Before cutting
+## Desktop and daemon
 
-- Work from `main` with a clean working tree.
-- Make sure local `main` matches `origin/main`.
-- Run the relevant checks and affected builds for the release.
-- Confirm signing, npm, GitHub, and mobile credentials are available in the release environment.
-
-The release cut defaults to a patch bump. Minor and major bumps require an explicit choice.
-
-## Cut the version
+Work from clean `main` aligned with `origin/main`, with relevant checks and affected builds passing.
 
 ```sh
-pnpm release:cut              # patch
+pnpm release:cut              # patch, commit, tag, push, and workflow dispatch
 pnpm release:cut minor
 pnpm release:cut major
-pnpm release:cut patch --skip-push
+pnpm release:cut patch --skip-push  # local commit and tag only
 ```
 
-The cut script synchronizes workspace and shipped-skill versions from the canonical package,
-updates the changelog, commits the version, creates an annotated tag, and (unless skipped) pushes
-`main` with tags and dispatches the release workflow. It refuses a dirty or non-main checkout and
-refuses a branch that is not aligned with `origin/main`.
+The patch bump is the default; choose minor or major deliberately. Read
+[release-cut.mjs](../scripts/release-cut.mjs) before running it. Version synchronization is owned by
+[sync-versions.mjs](../scripts/sync-versions.mjs); the shipped plugin has its own version.
 
-## What the workflow publishes
+[The release workflow](../.github/workflows/release.yml) defines packaging, signing secrets, npm
+publication, and GitHub assets. It also owns the Windows signed/unsigned gate and registry readiness
+checks. Preserve artifact names. First-time WSL setup depends on the matching daemon version being
+available from npm, so desktop availability alone does not establish release completion.
 
-The release workflow packages the macOS and Windows desktop applications and the plain-Node daemon
-in parallel, publishes a GitHub Release, and publishes the prepared daemon package to npm. Linux
-ships the daemon; it is not an Electron packaging target. Desktop packaging includes the Electron
-app and native dependencies. The macOS and Windows artifact paths must preserve the configured
-artifact names. A Windows app provisions WSL with the exact desktop version from npm, so the daemon
-package must be available for that release before first-time WSL setup can succeed.
+For a failed run, retry the same tag after resolving the failure. Do not rewrite an existing tag or
+cut another version merely because registry propagation is slow. Run consumer checks outside
+`dist-daemon` so `npx` cannot select the local package.
 
-Mobile is released separately through Expo/EAS. The app keeps four profiles,
-but only the manually dispatched preview and production workflows use EAS cloud
-builds:
-
-| Profile | Build boundary | Delivery |
-| --- | --- | --- |
-| `development` | Local Mac | Development client for a physical device; Metro is required when running it |
-| `development-simulator` | Local Mac | Development client for the iOS Simulator; Metro is required when running it |
-| `preview` | EAS cloud, manually dispatched | Internal/ad-hoc iOS install link |
-| `production` | EAS cloud, manually dispatched | App Store Connect and TestFlight |
-
-Local development commands are quota-free with respect to EAS cloud builds:
-
-```sh
-pnpm --dir apps/mobile dev:device  # local debug build and install on a connected iOS device
-pnpm --dir apps/mobile dev:build   # local EAS device IPA in /tmp
-pnpm --dir apps/mobile sim:build   # local EAS Simulator archive in /tmp
-pnpm --dir apps/mobile sim:install # install and run that archive on a selected Simulator
-```
-
-The cloud workflows are manual; neither workflow has a GitHub push, pull-request, or schedule
-trigger:
-
-```sh
-cd apps/mobile
-eas workflow:run .eas/workflows/preview.yml      # ad-hoc preview delivery
-eas workflow:run .eas/workflows/production.yml   # store release
-```
-
-Preview compares the native fingerprint. If it is unchanged, the workflow publishes an EAS Update
-to the existing `preview` installation without consuming a build; if it changed, it creates an
-internal/ad-hoc iOS build. Every physical iOS device that installs that IPA must be registered with
-EAS first, and a replacement device needs to be registered before the next preview build. Preview
-is never submitted to TestFlight.
-
-Production always creates a new store-signed iOS build and submits that exact build to App Store
-Connect. Apple processing, TestFlight testing, App Review, and public release remain controlled in
-App Store Connect. A production workflow run consumes one EAS cloud build; when the cloud allowance
-is exhausted, build and submit the same production artifact locally:
-
-```sh
-cd apps/mobile
-eas build --platform ios --profile production --local --output /tmp/porcelain-production.ipa
-eas submit --platform ios --profile production --path /tmp/porcelain-production.ipa --wait
-```
-
-Local EAS builds may use Expo to resolve project metadata or managed credentials, but compilation
-happens on the Mac and does not consume an EAS cloud-build allowance.
-
-The macOS workflow expects `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
-`APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`. npm publication uses trusted publishing (OIDC),
-not a long-lived npm token.
-
-Windows signing is optional. When both `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD` are configured,
-`WIN_CSC_LINK` must point to, or contain the base64 form of, the PFX/PKCS#12 certificate used for
-Authenticode signing. The workflow rejects a half-configured credential pair and verifies every
-produced executable with `Get-AuthenticodeSignature`. Without either secret, it publishes an
-explicitly verified unsigned installer; Windows may show an Unknown Publisher or SmartScreen
-warning until public code signing is configured. The unsigned packaging mode explicitly disables
-certificate discovery and Authenticode verification in the NSIS updater; release metadata still
-protects downloads with its SHA-512 digest.
-
-## Publish and retry
-
-The publish script accepts a tag and one or more asset directories:
+For explicitly authorized manual publication or recovery:
 
 ```sh
 node scripts/release-publish.mjs --tag vX.Y.Z --assets dist-mac
 ```
 
-It creates or updates a non-draft latest GitHub Release, uploads assets, and confirms the release
-has assets. Add `--cleanup-drafts` only when old failed draft releases should be removed. A failed
-workflow job can normally be retried from GitHub Actions or rerun with the same tag; do not rewrite
-an existing Git tag.
+[The publish script](../scripts/release-publish.mjs) writes a public GitHub Release. Use
+`--cleanup-drafts` only when deleting failed drafts is intended.
 
-After npm publication, the tarball CDN and the version metadata can each lag the publish. The
-workflow waits for the tarball to return HTTP 200 and for `npm view` to report the new version,
-then runs `npx @fabiofiorita/porcelain@<version> --help` from a clean temporary directory. Retry the same
-tag when propagation times out; do not cut another version for registry lag. Never run the consumer
-smoke inside `dist-daemon`, where `npx` can select the local package instead of the published
-artifact.
+## Mobile
 
-## Smoke checks
+Mobile delivery is separate from desktop/daemon publication. Build profiles and credentials are
+configured in [eas.json](../apps/mobile/eas.json). Local build/install commands live in
+[the mobile package scripts](../apps/mobile/package.json).
 
-Use the release fuse smoke script against the packaged output when native packaging changed:
+Choose the intended delivery from the mobile directory:
+
+```sh
+cd apps/mobile
+eas workflow:run .eas/workflows/preview.yml
+eas workflow:run .eas/workflows/production.yml
+```
+
+Read [preview](../apps/mobile/.eas/workflows/preview.yml) for internal iOS delivery and
+[production](../apps/mobile/.eas/workflows/production.yml) for App Store Connect submission.
+Preview devices must be registered with EAS before installing an ad-hoc IPA. App Store processing,
+review, and public release remain separate actions in App Store Connect.
+
+When intentionally building and submitting locally on a Mac:
+
+```sh
+eas build --platform ios --profile production --local --output /tmp/porcelain-production.ipa
+eas submit --platform ios --profile production --path /tmp/porcelain-production.ipa --wait
+```
+
+Submit the exact artifact built for the intended release. Local compilation may still need Expo
+metadata and credentials.
+
+## Release evidence
+
+For native packaging changes, use [the fuse smoke script](../scripts/release-fuse-smoke.mjs):
 
 ```sh
 node scripts/release-fuse-smoke.mjs --platform mac --dir apps/desktop/dist
 node scripts/release-fuse-smoke.mjs --platform win --dir apps/desktop/dist
 ```
 
-Confirm that the desktop artifact launches, the daemon distribution contains its native terminal
-dependency, and the published daemon can serve. On a real Mac, also exercise a terminal PTY, the
-updater launch path, and `ELECTRON_RUN_AS_NODE=1 open -a Porcelain`. Treat a failed smoke check as a
-release issue, not as a reason to weaken the normal development loop.
+Confirm the packaged desktop launches and the published daemon serves with a working terminal.
+On a real Mac, exercise the updater launch path and `ELECTRON_RUN_AS_NODE=1 open -a Porcelain`.
+A workflow success or cache hit does not replace native runtime evidence.

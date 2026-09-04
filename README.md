@@ -28,8 +28,7 @@ npx @fabiofiorita/porcelain@latest serve --lan
 npx @fabiofiorita/porcelain@latest access issue --name "My phone"
 ```
 
-Open the one-time link on the device. It expires after 15 minutes and becomes a credential for
-that device. Remote exposure and always-on setup are documented in
+Open the one-time link on the device to pair it. Remote exposure and always-on setup are documented in
 [docs/remote-access.md](docs/remote-access.md).
 
 ## Agent connection
@@ -68,14 +67,13 @@ pnpm dev:env
 pnpm dev
 ```
 
-The primary development daemon uses port `43118`, `~/.porcelain-dev`, and disposable playgrounds.
-It must not be used with production state. Current package ownership is summarized in
-[docs/architecture.md](docs/architecture.md).
+Use the profile and disposable playground printed by `dev:env`, never production state.
+Find source owners in the [code map](docs/architecture.md) and product terms in the
+[glossary](docs/glossary.md).
 
 ## Contributing
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). This repository
-documents current behavior and operational facts only.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 
 ## License
 

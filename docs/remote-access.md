@@ -1,14 +1,14 @@
 # Remote access
 
 Porcelain's UI is a client of a daemon. This guide covers running the daemon on another machine
-and pairing a browser, Mac, or mobile client. Host administration remains on the host.
+and pairing a browser, desktop, or mobile client. Host administration remains on the host.
+Use [the host CLI](../scripts/porcelain-host.js) and its `--help` for current commands;
+[remote features](../apps/daemon/src/features/remote/) own implementation and tests.
 
 On Windows, a local WSL 2 distribution is a separate Linux Environment rather than a remote-host
 deployment. Once Node 22+, npm/npx, Git, and a C toolchain are installed in the distribution, use
 Settings → Environments → **Set up WSL Environment**. The Windows app installs and manages the matching
-daemon runtime, pairs it without exposing the Linux administrator token, and restores it when the
-app starts. The manual service instructions below are for independent remote hosts, not for this
-managed Windows-to-WSL path.
+daemon runtime. The manual service instructions below are for independent remote hosts.
 
 ## Start locally on the host
 
@@ -30,11 +30,8 @@ shared with a device.
 | `--tailnet` | Tailscale network | trusted personal devices anywhere |
 | `--cloudflare` | HTTPS through Cloudflare | named hostname or one-off public tunnel |
 
-`--tailnet` and `--cloudflare` are mutually exclusive. LAN can be combined with either. The
-daemon does not bind `0.0.0.0`; LAN and tailnet use specific private interfaces, and Cloudflare
-proxies to the loopback listener. Every app/API request still requires a credential. MCP is not an
-HTTP route on any of these listeners: the installed plugin reaches only the profile-scoped local
-socket owned by the daemon on the agent's machine.
+`--tailnet` and `--cloudflare` are mutually exclusive. LAN can be combined with either.
+Devices still need pairing. These routes do not expose MCP; the agent plugin connects locally.
 
 For a named Cloudflare tunnel, set the token in the environment rather than a command-line flag:
 
@@ -55,8 +52,7 @@ new pairing links; it does not stop the external `cloudflared` service.
 
 In the mobile app, open Settings → Environments → Create environment group and choose **Scan QR
 code**. The scanner accepts both an individual LAN, Tailscale, or Cloudflare pairing link and the
-combined Windows + WSL link. It validates the QR payload, places it in the protected connection-link
-field, and leaves the final pairing action for the user to confirm.
+combined Windows + WSL link. Scan it, then confirm pairing.
 
 ## Browser origins
 
@@ -82,13 +78,8 @@ npx @fabiofiorita/porcelain@latest access revoke <id>
 
 Open the issued link on the device, paste it into another Porcelain desktop, or scan its QR code
 from the Share page. It is single-use, expires after 15 minutes, and becomes an
-individually revocable credential. The administrator token is never part of pairing. Each grant
-still belongs to exactly one daemon. On Windows, the Electron Share page can create a **Windows +
-WSL link**: the main process asks each locally managed daemon to issue its own grant, then wraps
-those grants in an HTTP link based on the reachable Windows daemon. Mobile and another desktop
-import them as separate Environments in one action.
-Revocation and daemon authority remain independent, and WSL administrator credentials never enter
-the renderer or the bundle.
+individually revocable credential. On Windows, the Share page can create a **Windows + WSL link**
+to pair those Environments together. Revoke access on each daemon independently.
 
 ## Keep it running
 
@@ -146,7 +137,7 @@ directories to the unit's `PATH`. Do not copy an interactive shell's secrets int
 ## Update the daemon
 
 A browser Settings → Updates page can check the published package and, when this process is the
-always-on unit, restart it. The unit in the remote skill starts the daemon through
+always-on unit, restart it. The unit above starts the daemon through
 `npx --yes --prefer-online @fabiofiorita/porcelain@latest`, so restarting the service resolves the
 new version and is the whole upgrade.
 

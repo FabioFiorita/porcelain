@@ -1,99 +1,44 @@
-# Architecture
+# Code map
 
-This is the current runtime map. It describes ownership and seams that exist in the repository;
-it is not a proposal for future product architecture.
+Use this page to find the owning code, then read its contracts, implementation, and nearby tests.
+[Domain terms](glossary.md) explain the product language. [Decisions](decisions/) preserve choices
+and tradeoffs that code alone cannot explain.
 
-## Runtime
-
-Porcelain has one daemon and several clients:
+## Runtime and packages
 
 ```text
 browser ─┐
-Electron ├─> daemon ─> filesystem, Git, terminals, persistence, sharing
+Electron ├─> daemon ─> repositories, Git, terminals, review data
 mobile  ─┘
-agent channel ───────> daemon capabilities
+agent plugin ────────> daemon
 ```
 
-The daemon is a headless Node process with HTTP procedures and a `/session` WebSocket for live
-updates and terminal streams. The browser client is served by the daemon. Electron hosts the same
-web client and owns local process/window lifecycle. Mobile is a native client using the
-same daemon and shared contracts. Agents use the shipped plugin's stdio connector, which reaches
-the daemon through a profile-scoped local socket instead of its client-facing TCP listener.
-An Electron window keeps the local child daemon as its primary connection; Projects, Worktrees,
-and daemon-owned operations carry an explicit Environment target through renderer sessions, so
-selecting remote work never rebinds or reloads the window.
+| Concern | Start here |
+| --- | --- |
+| Daemon composition and lifecycle | [server](../apps/daemon/src/server.ts), [composition](../apps/daemon/src/daemon-composition/) |
+| Wire inputs, outputs, and errors | [procedure catalog](../packages/contracts/src/procedure-catalog.ts), [domain contracts](../packages/contracts/src/) |
+| Live protocol | [session contracts](../packages/contracts/src/session/), [daemon sessions](../apps/daemon/src/session/) |
+| Shared client behavior | [client runtime](../packages/client-runtime/src/) |
+| Browser and Electron presentation | [web client](../apps/web/src/) |
+| Native desktop lifecycle and IPC | [desktop main process](../apps/desktop/src/main/) |
+| Native mobile client | [mobile integration map](../apps/mobile/docs/daemon-api.md) |
+| Agent operations | [MCP handlers](../apps/daemon/src/net/mcp/), [shipped plugin](../plugins/porcelain/) |
+| Shared primitives | [shared utilities](../packages/shared/), [UI](../packages/ui/) |
 
-On Windows, Electron may discover WSL distributions as candidate Environments, but it does not
-turn their `\\wsl.localhost` paths into Windows repositories. Each ready distribution runs a Linux
-daemon that owns its Linux filesystem, Git state, and terminals; the Windows shell connects to it
-through the same Environment boundary used for another machine. Discovery excludes Docker Desktop
-internals. The human explicitly chooses **Set up WSL Environment**; Electron then installs the
-matching published daemon runtime in that Linux user's managed runtime directory, starts it, pairs
-a revocable client credential, names the daemon-owned Environment **WSL**, and opens its project
-browser in the existing renderer. Electron remembers the distribution-to-Environment mapping and
-restores configured WSL daemons on its next launch. It never installs Linux system prerequisites,
-shares the administrator token, or treats a WSL path as Windows-local data.
+For a behavior change, follow the relevant domain from `packages/contracts/src` to
+`apps/daemon/src/features` and `packages/client-runtime/src`, then its client consumers. Keep
+capabilities with their owner; share client semantics when more than one client needs them.
 
-Pairing authority remains daemon-local even when a client presents several Environments together.
-An all-Environments link is only a client-side envelope over independently issued, single-use
-daemon grants. Its outer URL uses the reachable Windows daemon's HTTP origin for portable paste and
-QR handoff; mobile and desktop clients redeem and store one revocable credential per Environment.
+## Focused entry points
 
-## Packages
-
-```text
-apps/daemon   daemon runtime and server
-apps/web      React/Vite client
-apps/desktop  Electron host and local-daemon lifecycle
-apps/mobile   Expo/React Native client
-packages/contracts       cross-client wire schemas and procedure types
-packages/client-runtime  shared client queries, mutations, session, and semantics
-packages/shared          low-level cross-cutting utilities
-packages/ui              shared UI primitives and tokens
-```
-
-The normal dependency direction is clients → `client-runtime`/`contracts`/`shared`, daemon →
-`contracts`/`shared`, and contracts → nothing under `apps`. Keep new dependencies local to the
-package that owns the behavior until a second consumer makes sharing useful.
-
-## Ownership
-
-- The daemon owns filesystem access, Git, worktrees, terminals, development servers, remote
-  listeners, pairing, persistence, and product procedures.
-- An externally managed Cloudflare connector remains host-owned. The daemon stores only its public
-  hostname and supplies authenticated pairing links for it; it never imports or exposes the tunnel
-  token, and disabling the UI route does not administer the host service.
-- `packages/contracts` owns data exchanged across process boundaries. A contract change must be
-  checked against every affected client.
-- `packages/client-runtime` owns reusable client transport/query/session behavior; a component
-  should not reach into transport internals directly.
-- Web owns browser/Electron presentation. Desktop stays a thin host rather than a second business
-  logic implementation. The menu-bar (tray) icon is shell-owned: left-click opens Porcelain. On
-  Windows and Linux, closing the last window keeps the shell-owned daemon alive while any remote
-  sharing route is configured; Quit remains the explicit way to take that shared host offline.
-- Mobile owns native lifecycle and presentation. Its terminal module may render native terminal
-  cells, while daemon/PTY transport remains client feature code.
-- The MCP channel adapts semantic daemon operations for agents. The daemon remains the only writer
-  of its private state; the plugin contributes a bundled stdio connector and focused procedures.
-  The connector resolves the channel from `PORCELAIN_HOME`, so concurrent local profiles remain
-  isolated and no MCP route is exposed through LAN, Tailscale, Cloudflare, or renderer HTTP.
-
-## Data boundaries
-
-The daemon's `PORCELAIN_HOME` is the default home for private project data, credentials, Canvas and
-Action data. A repository-local `.porcelain/` is optional and only holds data explicitly promoted
-into Git. Private Review Canvases are scoped to their authoring Worktree; other private Canvases
-remain project-wide unless explicitly promoted into a checkout. A clean Review write records the
-current commit so History can recover it across Worktrees; a dirty Review remains live-only until
-it is updated after committing. The daemon also owns each repository's private navigation profile:
-project-wide pins and hides.
-The client owns local presentation state such as tabs, splits, and preferences. A connected Hub may
-show several daemons, but each daemon remains authoritative for its own state.
-
-Development and production are separate environments. The development launcher sets
-`PORCELAIN_DEV`, uses disposable playgrounds, and keeps agent work away from production homes and
-real checkouts. See [development.md](development.md) and [remote-access.md](remote-access.md) for
-the operational details.
-
-Update this map when runtime ownership or package topology changes. It is not a backlog or a record
-of superseded designs.
+- Environments: [contracts](../packages/contracts/src/environment.ts),
+  [WSL management](../apps/desktop/src/main/wsl-environments.ts),
+  [mobile connections](../apps/mobile/src/features/remote/).
+- Review and persistence: [project-data contracts](../packages/contracts/src/project-data/),
+  [daemon project data](../apps/daemon/src/features/project-data/),
+  [review implementation](../apps/daemon/src/review/).
+- Terminal rendering: [browser adapter](../apps/web/src/terminal/ghostty/README.md),
+  [native module](../apps/mobile/modules/porcelain-terminal/README.md).
+- Development profiles and launchers: [development guide](development.md).
+- Host administration: [remote operations](remote-access.md).
+- Packaging and publishing: [release guide](release.md).

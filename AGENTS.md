@@ -16,8 +16,9 @@ harness's native tools for coding, browsing, computer use, and devices.
 
 ## Development
 
-Read [docs/development.md](docs/development.md) for setup and runtime work,
-[docs/architecture.md](docs/architecture.md) for cross-runtime changes,
+Use [docs/architecture.md](docs/architecture.md) to locate owning code and
+[docs/glossary.md](docs/glossary.md) for domain terms. Read contracts, implementation, and nearby
+tests to understand behavior. Read [docs/development.md](docs/development.md) for setup and runtime work,
 [docs/remote-access.md](docs/remote-access.md) for exposure or pairing, and
 [docs/release.md](docs/release.md) for releases.
 
@@ -48,6 +49,8 @@ Preserve unrelated state, remove task-owned fixtures and processes, and commit c
 ready. Report what changed, checks and observed results, and remaining uncertainty. Do not push,
 open a pull request, publish, or release without explicit authorization.
 
-Keep documentation focused on current intent, ownership, invariants, and public operations.
-Code, schemas, scripts, and tests own implementation details; remove obsolete alternatives and
-historical rationale once the current design is clear.
+Keep docs thin: domain language, source navigation, operational guidance, and consequential decisions.
+Code, schemas, scripts, and tests establish implementation behavior. Improve unclear code instead of
+mirroring it in prose. Preserve real alternatives and tradeoffs in focused decision records; remove
+session diaries and obsolete implementation descriptions. See
+[the documentation decision](docs/decisions/documentation.md).
