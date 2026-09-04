@@ -70,6 +70,9 @@ describe('renderer packaging (file:// safe base)', () => {
       scripts: Record<string, string>
     }
     expect(workflow).toContain('Require macOS signing and notarization credentials')
+    expect(workflow).toContain('xcrun notarytool submit "$dmg"')
+    expect(workflow).toContain('xcrun stapler staple "$dmg"')
+    expect(workflow).toContain('xcrun stapler validate "$dmg"')
     expect(workflow).toContain('run: node scripts/windows-signing-mode.mjs')
     expect(workflow).toContain("if: steps.windows_signing.outputs.enabled == 'true'")
     expect(workflow).toContain("if: steps.windows_signing.outputs.enabled == 'false'")
