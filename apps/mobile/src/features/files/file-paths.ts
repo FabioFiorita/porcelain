@@ -1,32 +1,22 @@
-/**
- * Paths in the Files tab come in two forms and the difference matters.
- *
- * The eight host-fs procedures (`readFile`, `previewHtml`, `writeTextFile`, `createFile`,
- * `createFolder`, `renamePath`, `duplicatePath`, `trashPath`) speak caller-nominated
- * `projectPath` + project-relative targets on the wire — this module is **not** their
- * conversion layer. `readDir`, pin/hide scope mutations, and watch registration remain
- * absolute/`repoPath` until a later unit.
- *
- * **Routes, comments and this tab's own state** speak repo-relative paths, because a deep
- * link, a review comment, and a pushed screen all have to survive the repo moving on the
- * host — and because a rest route segment cannot carry a leading slash. Conversion helpers
- * still serve tree/watch/UI absolute↔relative needs — not the eight wire inputs.
- */
+/** Convert daemon-host paths to the repository-relative paths used by Files routes and comments. */
+
+import { isFilesProjectRelativePath } from '@porcelain/contracts/files'
 
 import { REPO_ROOT } from '@/lib/path-identities'
 
 export { pathFromSegments, pathSegments, pathTestId, REPO_ROOT } from '@/lib/path-identities'
 
 function normalizedRepoPath(repoPath: string): string {
-  if (repoPath === '/') return '/'
-  return repoPath.replace(/\/+$/, '')
+  const normalized = repoPath.replaceAll('\\', '/')
+  if (normalized === '/' || /^[A-Za-z]:\/$/.test(normalized)) return normalized
+  return normalized.replace(/\/+$/, '')
 }
 
 /** Absolute host path for a repo-relative one. The root maps to the repo path itself. */
 export function absolutePath(repoPath: string, relative: string): string {
   const root = normalizedRepoPath(repoPath)
   if (relative === REPO_ROOT) return root
-  return root === '/' ? `/${relative}` : `${root}/${relative}`
+  return root.endsWith('/') ? `${root}${relative}` : `${root}/${relative}`
 }
 
 /**
@@ -38,12 +28,12 @@ export function absolutePath(repoPath: string, relative: string): string {
  */
 export function relativePath(repoPath: string, absolute: string): string | null {
   const root = normalizedRepoPath(repoPath)
-  const candidate = absolute.length > 1 ? absolute.replace(/\/+$/, '') : absolute
+  const candidate = normalizedRepoPath(absolute)
   if (candidate === root) return REPO_ROOT
-  const prefix = root === '/' ? '/' : `${root}/`
+  const prefix = root.endsWith('/') ? root : `${root}/`
   if (!candidate.startsWith(prefix)) return null
   const relative = candidate.slice(prefix.length)
-  return relative === '' || relative.startsWith('/') || relative.includes('//') ? null : relative
+  return isFilesProjectRelativePath(relative) ? relative : null
 }
 
 /** The containing directory of a repo-relative path; the root's parent is itself. */

@@ -69,6 +69,45 @@ beforeEach(() => {
 })
 
 describe('mobile Files reads', () => {
+  it('keeps Windows daemon tree entries visible with relative routes and original host paths', async () => {
+    ctx.repo = { name: 'repo', path: 'C:\\synthetic\\repo' }
+    ctx.callDaemon.mockResolvedValue([
+      {
+        name: 'main.ts',
+        kind: 'file',
+        path: 'C:\\synthetic\\repo\\src\\main.ts',
+        hidden: false,
+        pinned: true,
+      },
+      {
+        name: 'other.ts',
+        kind: 'file',
+        path: 'C:\\synthetic\\repo-other\\other.ts',
+        hidden: false,
+        pinned: false,
+      },
+    ])
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result } = renderHook(() => useDirEntries('src', true), {
+      wrapper: wrapper(queryClient),
+    })
+    await waitFor(() => expect(result.current.entries).toHaveLength(1))
+    expect(result.current.entries[0]).toMatchObject({
+      absolutePath: 'C:\\synthetic\\repo\\src\\main.ts',
+      path: 'src/main.ts',
+      pinned: true,
+    })
+    expect(ctx.callDaemon).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: 'readDir' }),
+      {
+        path: 'src',
+        projectPath: 'C:\\synthetic\\repo',
+        showHidden: false,
+      },
+    )
+  })
+
   it('uses the project-relative readDir wire model', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const { result } = renderHook(() => useDirEntries('', true), {

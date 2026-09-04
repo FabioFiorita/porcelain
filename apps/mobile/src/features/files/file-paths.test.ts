@@ -31,6 +31,29 @@ describe('absolutePath', () => {
 })
 
 describe('relativePath', () => {
+  it.each([
+    ['C:\\work\\repo\\', 'C:\\work\\repo\\src\\main.ts', 'src/main.ts'],
+    ['C:/work/repo', 'C:\\work\\repo\\src/main.ts', 'src/main.ts'],
+    ['C:\\', 'C:\\src\\main.ts', 'src/main.ts'],
+    ['\\\\host\\share\\repo', '\\\\host\\share\\repo\\main.ts', 'main.ts'],
+  ])('reads Windows host paths under %s', (root, path, expected) => {
+    expect(relativePath(root, path)).toBe(expected)
+    expect(relativePath(root, absolutePath(root, expected))).toBe(expected)
+    expect(relativePath(root, root)).toBe(REPO_ROOT)
+  })
+
+  it.each([
+    ['C:\\work\\repo', 'C:\\work\\repo-other\\main.ts'],
+    ['C:\\work\\repo', 'D:\\work\\repo\\main.ts'],
+    ['C:\\work\\repo', 'C:\\work\\repo\\..\\secret.ts'],
+    ['C:\\work\\repo', 'C:\\work\\repo\\src\\..\\main.ts'],
+    ['\\\\host\\share\\repo', '\\\\host\\other\\repo\\main.ts'],
+    [REPO, `${REPO}/../secret.ts`],
+    [REPO, `${REPO}/src/./main.ts`],
+  ])('rejects paths outside the project or invalid relative targets: %s, %s', (root, path) => {
+    expect(relativePath(root, path)).toBeNull()
+  })
+
   it('strips the repo prefix', () => {
     expect(relativePath(REPO, '/home/dev/porcelain/apps/web')).toBe('apps/web')
   })
