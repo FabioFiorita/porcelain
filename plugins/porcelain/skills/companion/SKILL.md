@@ -66,7 +66,9 @@ After implementation:
 3. Define layers by review meaning and risk rather than generic file type. Put the highest-risk
    behavior and contracts first, integration next, and mechanical exports or low-risk support last.
    List files in the exact order a human should inspect them inside those layers. Changes includes
-   any unlisted changed file safely at the end of its layer.
+   any unlisted changed file safely at the end of its layer. A layer `pattern` is JavaScript
+   regular-expression source matched against repository-relative paths, not a glob: use `.*`
+   instead of `**`, and ensure every pattern can be compiled with `new RegExp(pattern)`.
 4. Add focused comments when the diff alone does not carry enough context. Use a file anchor for
    local code, a Canvas anchor for the walkthrough or a named section, and a changeset anchor for
    feedback about the coherent change as a whole.

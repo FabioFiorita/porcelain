@@ -145,4 +145,19 @@ it('reads only Review metadata from the daemon-root Canvas', async () => {
     layers: [],
     orderedPaths: [],
   })
+
+  writeFileSync(
+    join(bundle, 'review.json'),
+    JSON.stringify({
+      name: 'Invalid layer review',
+      layers: [{ label: 'Source', pattern: 'src/**' }],
+      files: [{ path: 'src/a.ts' }],
+      sections: [],
+    }),
+  )
+  await expect(readReviewSet(repo)).resolves.toBeNull()
+  await expect(reviewFlowForRepo(repo)).resolves.toEqual({
+    layers: [],
+    orderedPaths: [],
+  })
 })

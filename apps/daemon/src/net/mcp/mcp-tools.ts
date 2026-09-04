@@ -45,7 +45,14 @@ const CANVAS_FILE = {
 
 const PROFILE_LAYER = {
   type: 'object',
-  properties: { label: { type: 'string' }, pattern: { type: 'string' } },
+  properties: {
+    label: { type: 'string' },
+    pattern: {
+      type: 'string',
+      description:
+        'JavaScript regular-expression source matched against repository-relative paths. This is not glob syntax: use .* instead of **.',
+    },
+  },
   required: ['label', 'pattern'],
   additionalProperties: false,
 } as const

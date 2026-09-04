@@ -490,6 +490,26 @@ describe('domain MCP entry points', () => {
     )
   })
 
+  it('rejects glob-shaped Review layers before they can break Changes', async () => {
+    const { tools, calls } = harness()
+    const result = await tools.call('porcelain_canvas', {
+      op: 'create',
+      workspace: REPO,
+      template: 'review',
+      templateData: {
+        title: 'Invalid layer review',
+        why: 'The layer contract must be explicit.',
+        how: 'Invalid patterns stop at the MCP boundary.',
+        layers: [{ label: 'Mobile', pattern: 'apps/mobile/**' }],
+        files: [{ path: 'apps/mobile/src/app.ts' }],
+      },
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('valid JavaScript regular expression')
+    expect(calls.some((call) => call.name === 'writeCanvas')).toBe(false)
+  })
+
   it('writes rich Review sections and copies the directory that owns declared evidence assets', async () => {
     const { tools, calls } = harness()
     const result = await tools.call('porcelain_canvas', {

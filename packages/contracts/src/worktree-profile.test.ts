@@ -8,6 +8,7 @@ import {
   isEmptyWorktreeProfile,
   type ResolvedProfile,
   resolveProfile,
+  profileLayerSchema,
   worktreeProfileSchema,
 } from './worktree-profile'
 
@@ -16,6 +17,17 @@ const base: ResolvedProfile = {
   hiddenPaths: ['dist', 'pnpm-lock.yaml'],
   layers: [{ label: 'View', pattern: 'components/' }],
 }
+
+describe('profileLayerSchema', () => {
+  it('accepts regular expressions and rejects glob syntax before it reaches Changes', () => {
+    expect(
+      profileLayerSchema.safeParse({ label: 'Mobile', pattern: '^apps/mobile/' }).success,
+    ).toBe(true)
+    expect(
+      profileLayerSchema.safeParse({ label: 'Mobile', pattern: 'apps/mobile/**' }).success,
+    ).toBe(false)
+  })
+})
 
 describe('resolveProfile', () => {
   it('returns the project baseline when a worktree has no override', () => {

@@ -33,7 +33,23 @@ import { z } from 'zod'
  * order is worse than none — it makes a reader trust a story that isn't true.
  */
 export const profileLayerSchema = z
-  .object({ label: z.string().min(1), pattern: z.string().min(1) })
+  .object({
+    label: z.string().min(1),
+    pattern: z
+      .string()
+      .min(1)
+      .refine(
+        (pattern) => {
+          try {
+            new RegExp(pattern)
+            return true
+          } catch {
+            return false
+          }
+        },
+        { message: 'Layer pattern must be a valid JavaScript regular expression.' },
+      ),
+  })
   .strict()
 export type ProfileLayer = z.infer<typeof profileLayerSchema>
 
