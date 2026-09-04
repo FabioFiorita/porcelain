@@ -167,11 +167,12 @@ export function printDevEnv() {
               pnpm dev                              # Electron + its profile daemon
   web HMR:    pnpm dev:web                       # http://127.0.0.1:${DEV_WEB_PORT}/ (proxies to the daemon)
   mobile:     pnpm dev:mobile                    # profile Metro (primary 8081; worktrees 44000+)
-              pnpm dev:mobile:android preflight  # same port + profile-owned emulator state
+              pnpm dev:mobile:android preflight  # Bash host with Android SDK; see docs/development.md
               PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
                                                  # explicit simulator + profile Metro bundle
-  CLI:        pnpm porcelain <noun> <verb>
-  agent:      the Porcelain plugin — MCP tools over POST /mcp
+  commands:   pnpm run                           # repository command inventory
+  agent:      Porcelain plugin via profile-scoped local socket / Windows named pipe
+              set the connector's PORCELAIN_HOME to the channels directory above
   browser:    http://127.0.0.1:${DEV_PORT}/
               http://<host>.local:${DEV_PORT}/   # with --host
   pair:       pnpm dev:pair                          # one-time URL; dev:daemon prints one at boot

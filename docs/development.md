@@ -63,6 +63,25 @@ pnpm dev:web             # Vite/HMR browser client beside dev:daemon
 pnpm dev:mobile          # profile-scoped Metro beside dev:daemon
 ```
 
+Use the harness's available browser tools for either browser URL printed by `dev:env`, computer
+tools for Electron, and native device tools for mobile. These are ordinary development operations
+within the task. Choose the surface that owns the behavior being changed.
+
+The Android helper uses Bash, Python 3, `flock`, and Android SDK tools; it is not a native PowerShell
+launcher. On a host providing those dependencies, select the intended device with
+`ANDROID_LOOP_SERIAL` or `ANDROID_LOOP_AVD`, then use:
+
+```sh
+pnpm dev:mobile:android preflight
+pnpm dev:mobile:android up
+pnpm dev:mobile:android down
+```
+
+`up` launches an installed development client; it does not build or install the Android app.
+On Windows, use the harness's native Android tooling with an explicitly selected device and the
+profile's Metro port. Do not route a Windows checkout through WSL to run the Bash helper: WSL is
+a separate Environment. Android installation and interaction still need native runtime proof.
+
 For an iPhone simulator, use the iOS launcher rather than reopening a development client that
 remembers a previous LAN server. It requires the target to be explicit and starts Expo with this
 Worktree's Metro port and the simulator-safe loopback address:
@@ -79,6 +98,13 @@ starts remains the task's responsibility to stop.
 Do not run `pnpm dev` and `pnpm dev:daemon` for the same profile simultaneously. The daemon-served
 browser uses the port printed by `pnpm dev:env`; the HMR browser uses that port plus 10000. MCP uses
 a profile-scoped local OS channel under `PORCELAIN_HOME`, not the daemon's TCP listener.
+
+For development collaboration, configure the plugin connector's `PORCELAIN_HOME` to the channels
+directory printed by `pnpm dev:env`. The connector uses a Unix socket or Windows named pipe;
+opening the browser URL does not select the plugin's profile. Use the shipped
+[companion skill](../plugins/porcelain/skills/companion/SKILL.md) when collaboration context is
+useful. If its tools are unavailable, continue independent coding and checks and report any
+requested collaboration work that could not be recorded.
 
 ## Worktrees
 

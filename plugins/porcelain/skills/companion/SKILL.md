@@ -6,98 +6,54 @@ license: MIT
 
 # Porcelain companion
 
-Porcelain owns collaboration state around agent-created work; it does not replace the harness's
-file, Git, terminal, browser, device, execution, or reasoning tools.
+Porcelain records collaboration around agent work. Use the harness's native tools for files,
+Git, terminals, browsers, devices, execution, and proof. Tool schemas own current operations and
+payloads; use MCP rather than private daemon storage or internal endpoints.
 
-## Choose the owner
+## Target and ownership
 
-- `porcelain_project` resolves the exact Project and Worktree.
-- `porcelain_canvas` authors Decision and Review Canvases.
-- `porcelain_comment` participates in focused review conversations.
-- `porcelain_review` reads or updates content-bound reviewed marks in Changes.
-- `porcelain_profile` reads or explicitly edits the human's navigation profile.
-- `porcelain_action` defines commands the human may choose to run.
+Resolve the intended checkout with `porcelain_project` before writing collaboration state. Use its
+absolute `workspace` path; resolve Project and Worktree ids when targeting another checkout. This
+is a tool lookup, not a request for human confirmation when the task already identifies the checkout.
 
-Tool schemas are the authority for current operations and payloads. Target the current checkout by
-its absolute `workspace` path; use Project and Worktree ids only after resolving another checkout.
+- `porcelain_canvas` owns Decision and Review Canvases.
+- `porcelain_comment` owns focused review conversations. Read relevant threads before responding.
+- `porcelain_review` owns content-bound reviewed marks. Change them only when the human asks or
+  delegates review completion; agent inspection does not mean the human reviewed a file.
+- `porcelain_profile` owns navigation choices. Read it when relevant; preserve pins and hidden paths
+  unless the human asks to change them.
+- `porcelain_action` defines commands for the human to run. Define or edit one when asked; never
+  execute, approve, or bypass its human trust gate.
 
-## Collaboration rules
+Changes remains authoritative for diffs, status, staging, reviewed state, and History. Promotion
+makes selected Canvas or profile data repository-visible; it does not stage or commit it. Keep
+secrets out of collaboration state.
 
-Confirm the intended checkout before writing collaboration state. Read comments when responding to
-review feedback and read the profile only when it affects the task. Preserve pins and hidden paths
-unless the human asks to change them.
+## Choose useful context
 
-Create one Decision Canvas only for a material unresolved choice. Keep its id, update it as evidence
-changes, and record the human's decision. When a plan or system walkthrough would materially reduce
-ambiguity, create one generic Markdown or HTML Canvas and keep updating that same Canvas; use rich
-HTML or SVG when a diagram, comparison, or state flow communicates better than prose. Do not create
-a status diary or a new Canvas for every phase.
+Create a Decision Canvas for a material unresolved choice and record the human's decision. Use a
+plan or walkthrough Canvas when it helps explain the work, and a Review Canvas when a completed
+unit benefits from a shared explanation. Update the same Canvas as the work changes. Small fixes
+do not require a Canvas or a before/during/after ceremony unless the human requests one.
 
-When authoring HTML or SVG, choose an intentional visual direction that suits the material instead
-of relying accidentally on browser defaults. The Canvas is a self-contained document and does not
-inherit a Porcelain design system, so include the CSS, background, color, typography, spacing, and
-surfaces that the chosen direction needs. This is an outcome requirement, not a house style: decide
-the palette, density, composition, and level of decoration from the content and the human's context.
-Use color to clarify meaning rather than as ornament, and keep contrast and legibility strong.
+Put focused invariants, reasons, or risks in comments anchored to the relevant file, line range,
+Canvas section, or changeset. Avoid status diaries and comments that repeat obvious code.
 
-Make visual explanations responsive to the available Canvas width. For SVG, use a suitable
-`viewBox` and scalable dimensions; size or wrap labels deliberately, leave breathing room around
-nodes and connectors, and avoid geometry that depends on text fitting a fixed box by chance. Before
-reporting an authored Canvas complete, open the rendered result in Porcelain and inspect it at the
-available width. Check for clipped or overlapping text, cut-off connectors, unintended scrolling,
-weak contrast, browser-default styling, and wasted space; update the same Canvas until the rendered
-artifact communicates cleanly.
+For HTML/SVG Canvases, include self-contained styling and responsive geometry with legible labels
+and contrast. Inspect the rendered result in Porcelain for clipping, overlap, and unintended
+scrolling before reporting it complete. Bundle local evidence assets from one source directory.
 
-## Companion flow
+## Review contract
 
-Before coding:
+Explain the change in the order a reviewer needs: consequential behavior and contracts first,
+integration next, mechanical support last. Include observed checks, failures, and unverified paths.
+A Canvas supplements the diff and runtime evidence; it does not replace them.
 
-1. Resolve the exact checkout and read open comments. Read the profile only when navigation choices
-   affect the task; never reinterpret pins or hides as agent-owned configuration.
-2. For substantial work, explain the intended shape in the existing plan/walkthrough Canvas, or
-   create one when a visual explanation is useful. Use a Decision Canvas only when a real choice is
-   unresolved.
+When using the full `document` MCP shape for a Review, include its sibling `reviewMetadata` with
+complete `layers` and `files` arrays. A document-only write drops Changes/History ordering. Layers
+represent review meaning and risk, with files ordered for inspection. A layer `pattern` is JavaScript
+regular-expression source over repository-relative paths, not a glob; use `.*` instead of `**`.
+Unlisted changed files appear at the end of their layer.
 
-During work:
-
-1. Keep the walkthrough current when the implementation meaningfully changes.
-2. Reply to human comments in their threads. Add concise agent comments to an important whole file
-   or line range when the reviewer needs a local invariant, risk, or reason that does not belong in
-   the larger Canvas. Do not narrate obvious code.
-3. Use the harness's native tools for implementation and proof. Porcelain records collaboration;
-   it does not prove behavior by itself.
-
-After implementation:
-
-1. Run the smallest relevant proof and inspect the complete diff.
-2. Create or update one Review Canvas for the coherent unit. For the full `document` MCP shape,
-   always send its sibling `reviewMetadata` object with the complete `layers` and `files` arrays;
-   never switch to a document-only Review write because that drops the Changes/History ordering.
-   Write an attention-first walkthrough:
-   summary and ordered sections, sandboxed HTML/SVG where it clarifies the design, code references,
-   observed checks, and useful screenshot/video/document evidence. Record failures and skipped proof
-   honestly. Put local evidence assets in one source directory and pass it with the Canvas write so
-   the bundle remains self-contained.
-3. Define layers by review meaning and risk rather than generic file type. Put the highest-risk
-   behavior and contracts first, integration next, and mechanical exports or low-risk support last.
-   List files in the exact order a human should inspect them inside those layers. Changes includes
-   any unlisted changed file safely at the end of its layer. A layer `pattern` is JavaScript
-   regular-expression source matched against repository-relative paths, not a glob: use `.*`
-   instead of `**`, and ensure every pattern can be compiled with `new RegExp(pattern)`.
-4. Add focused comments when the diff alone does not carry enough context. Use a file anchor for
-   local code, a Canvas anchor for the walkthrough or a named section, and a changeset anchor for
-   feedback about the coherent change as a whole.
-5. Read reviewed state as needed. Mark or unmark files only when the human asks or explicitly
-   delegates review completion; never claim the human reviewed a file merely because the agent did.
-6. Preserve the Review Canvas id. A dirty Review is live-only. After committing and cleaning the
-   checkout, update that same Review until Porcelain confirms it is bound to the exact commit for
-   History.
-
-Changes remains authoritative for diffs, status, staging, reviewed state, and History. Canvas owns
-the larger explanation; comments own focused context. A Canvas never substitutes for source
-inspection, tests, diffs, or runtime evidence.
-
-Use MCP tools rather than private daemon storage or internal endpoints. Promotion makes selected
-Canvas or profile data repository-visible but never stages or commits it. Keep secrets out of
-Porcelain collaboration state. Define or edit an Action only when asked; the agent never executes,
-approves, or works around its human trust gate.
+Keep the Review Canvas id. A dirty Review is live-only; after committing and cleaning the checkout,
+update that same Review and verify Porcelain bound it to the exact commit for History.
