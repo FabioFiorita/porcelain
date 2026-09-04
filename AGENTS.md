@@ -37,6 +37,9 @@ Work directly on `main` for one direct change, or use `pnpm worktree create <slu
 
 ## Proof and delivery
 
+For parallel worktree setup, runtime tool selection, and reusable evidence procedures, use the
+[runtime-evidence skill](.agents/skills/runtime-evidence/SKILL.md).
+
 Use the smallest checks that demonstrate the change. Client behavior needs evidence from the
 relevant browser, Electron, or native mobile runtime; a build or mock alone does not prove it.
 Check each affected owner when behavior crosses surfaces, and name any surface left unverified.

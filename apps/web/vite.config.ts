@@ -127,6 +127,7 @@ async function devServer() {
   const target = `http://127.0.0.1:${DEV_PORT}`
   const daemonRoute = { target, changeOrigin: false }
   return {
+    host: '127.0.0.1',
     port: DEV_WEB_PORT,
     strictPort: true,
     proxy: {

@@ -13,6 +13,28 @@ test('Metro uses the active profile port and development variant', () => {
   assert.equal(launch.env.TMPDIR, join(DEV_MOBILE_STATE, 'tmp'))
 })
 
+test('Metro bypasses shell-only package scripts and launches the Windows batch shim through cmd', () => {
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    const launch = mobileLaunch(['metro', '--clear'], { APP_VARIANT: 'production' }, platform)
+    const expoArgs = [
+      '--dir',
+      'apps/mobile',
+      'exec',
+      'expo',
+      'start',
+      '--port',
+      String(DEV_METRO_PORT),
+      '--clear',
+    ]
+    assert.equal(launch.command, platform === 'win32' ? 'cmd.exe' : 'pnpm')
+    assert.deepEqual(
+      launch.args,
+      platform === 'win32' ? ['/d', '/s', '/c', 'pnpm.cmd', ...expoArgs] : expoArgs,
+    )
+    assert.equal(launch.env.APP_VARIANT, 'development')
+  }
+})
+
 test('the Android loop owns the development variant and profile state', () => {
   const launch = mobileLaunch(['android', 'preflight'], {
     APP_VARIANT: 'production',
@@ -26,10 +48,14 @@ test('the Android loop owns the development variant and profile state', () => {
 })
 
 test('the iOS runner owns an explicit simulator and points its dev client at this profile', () => {
-  const launch = mobileLaunch(['ios', '--no-build-cache'], {
-    APP_VARIANT: 'production',
-    PORCELAIN_IOS_SIMULATOR: 'iPhone 17 Pro',
-  })
+  const launch = mobileLaunch(
+    ['ios', '--no-build-cache'],
+    {
+      APP_VARIANT: 'production',
+      PORCELAIN_IOS_SIMULATOR: 'iPhone 17 Pro',
+    },
+    'darwin',
+  )
 
   assert.deepEqual(launch.args, [
     '--dir',

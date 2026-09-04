@@ -357,6 +357,85 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
   }
 })
 
+test('Codex bootstrap preserves Git state and launchers resolve isolated profiles', async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-profile-')))
+  const primary = join(home, 'repo')
+  const checkouts = ['contracts', 'consumers'].map((slug) =>
+    join(home, '.codex', 'worktrees', slug, 'porcelain'),
+  )
+  try {
+    mkdirSync(primary, { recursive: true })
+    git(primary, 'init', '-b', 'main')
+    git(primary, 'config', 'user.name', 'Porcelain Test')
+    git(primary, 'config', 'user.email', 'porcelain@example.test')
+    writeFileSync(join(primary, 'README.md'), 'committed fixture\n')
+    mkdirSync(join(primary, 'scripts'))
+    for (const script of ['worktree.mjs', 'dev-env.mjs']) {
+      copyFileSync(resolve('scripts', script), join(primary, 'scripts', script))
+    }
+    git(primary, 'add', '.')
+    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
+    const originalHead = git(primary, 'rev-parse', 'HEAD')
+    for (const checkout of checkouts) {
+      mkdirSync(dirname(checkout), { recursive: true })
+      git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
+    }
+    git(checkouts[1], 'switch', '-c', 'codex/consumer-fixture')
+    writeFileSync(join(primary, 'README.md'), 'unrelated primary edits\n')
+    const primaryStatus = git(primary, 'status', '--porcelain')
+    const env = fixtureEnv(home)
+    for (const checkout of checkouts) runEnvironmentCommand('setup', checkout, env)
+
+    // Read the same environment module used by launchers from each checkout.
+    // Return only routing fields, never the generated administrator credential.
+    const probe = `
+      import { resolveDevProfile, devEnv, DEV_WEB_PORT, DEV_METRO_PORT } from './scripts/dev-env.mjs';
+      const env = devEnv();
+      console.log(JSON.stringify({
+        profile: resolveDevProfile(),
+        home: env.PORCELAIN_HOME,
+        userData: env.PORCELAIN_USER_DATA,
+        playground: env.PORCELAIN_DEV_PLAYGROUND,
+        daemonPort: Number(env.PORCELAIN_DAEMON_PORT),
+        dev: env.PORCELAIN_DEV,
+        webPort: DEV_WEB_PORT,
+        metroPort: DEV_METRO_PORT,
+      }));
+    `
+    const profiles = [primary, ...checkouts].map((cwd) =>
+      JSON.parse(
+        execFileSync(process.execPath, ['--input-type=module', '-e', probe], {
+          cwd,
+          env,
+          encoding: 'utf8',
+        }),
+      ),
+    )
+    for (const field of ['home', 'userData', 'playground', 'daemonPort', 'webPort', 'metroPort']) {
+      assert.equal(new Set(profiles.map((profile) => profile[field])).size, profiles.length, field)
+    }
+    for (const profile of profiles) {
+      assert.equal(profile.dev, '1')
+      assert.equal(profile.home, profile.profile.home)
+      assert.equal(profile.userData, profile.profile.userData)
+      assert.equal(profile.playground, profile.profile.playground)
+      assert.equal(profile.daemonPort, profile.profile.port)
+      assert.notEqual(profile.home, join(home, '.porcelain'))
+      assert.notEqual(profile.daemonPort, 43117)
+    }
+    assert.equal(git(primary, 'status', '--porcelain'), primaryStatus)
+    assert.equal(readFileSync(join(primary, 'README.md'), 'utf8'), 'unrelated primary edits\n')
+    assert.equal(git(primary, 'branch', '--show-current'), 'main')
+    assert.equal(git(checkouts[0], 'branch', '--show-current'), '')
+    assert.equal(git(checkouts[1], 'branch', '--show-current'), 'codex/consumer-fixture')
+    for (const cwd of [primary, ...checkouts]) {
+      assert.equal(git(cwd, 'rev-parse', 'HEAD'), originalHead)
+    }
+  } finally {
+    await removeFixture(home)
+  }
+})
+
 test('Codex bootstrap reclaims a lock left by a dead local owner', async () => {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-stale-lock-')))
   const primary = join(home, 'repo')

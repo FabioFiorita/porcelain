@@ -7,8 +7,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { DEV_METRO_PORT, DEV_MOBILE_STATE, DEV_PROFILE } from './dev-env.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 const developmentBundleIdentifier = 'com.fabiofiorita.porcelain.dev'
+
+function pnpmLaunch(args, platform = process.platform) {
+  // Windows batch shims must run through cmd.exe rather than Node's direct spawn.
+  return platform === 'win32'
+    ? { command: 'cmd.exe', args: ['/d', '/s', '/c', 'pnpm.cmd', ...args] }
+    : { command: 'pnpm', args }
+}
 
 export function iosNativeProjectNeedsRegeneration(projectFileContent) {
   return !projectFileContent?.includes(
@@ -16,7 +22,7 @@ export function iosNativeProjectNeedsRegeneration(projectFileContent) {
   )
 }
 
-export function mobileLaunch(argv, inheritedEnv = process.env) {
+export function mobileLaunch(argv, inheritedEnv = process.env, platform = process.platform) {
   const [surface = 'metro', ...args] = argv
   const env = {
     ...inheritedEnv,
@@ -32,8 +38,19 @@ export function mobileLaunch(argv, inheritedEnv = process.env) {
   }
   if (surface === 'metro') {
     return {
-      command: pnpm,
-      args: ['--dir', 'apps/mobile', 'start', '--port', String(DEV_METRO_PORT), ...args],
+      ...pnpmLaunch(
+        [
+          '--dir',
+          'apps/mobile',
+          'exec',
+          'expo',
+          'start',
+          '--port',
+          String(DEV_METRO_PORT),
+          ...args,
+        ],
+        platform,
+      ),
       env,
     }
   }
@@ -62,21 +79,23 @@ export function mobileLaunch(argv, inheritedEnv = process.env) {
       )
     }
     return {
-      command: pnpm,
       // A simulator can always reach the Mac through loopback. Supplying this to Expo's URL
       // creator prevents an old LAN address from becoming the development client's next source.
-      args: [
-        '--dir',
-        'apps/mobile',
-        'exec',
-        'expo',
-        'run:ios',
-        '--device',
-        device,
-        '--port',
-        String(DEV_METRO_PORT),
-        ...args,
-      ],
+      ...pnpmLaunch(
+        [
+          '--dir',
+          'apps/mobile',
+          'exec',
+          'expo',
+          'run:ios',
+          '--device',
+          device,
+          '--port',
+          String(DEV_METRO_PORT),
+          ...args,
+        ],
+        platform,
+      ),
       env: {
         ...env,
         REACT_NATIVE_PACKAGER_HOSTNAME: '127.0.0.1',
@@ -97,11 +116,20 @@ async function regenerateIosDevelopmentProject(launch) {
 
   console.log('Regenerating the ignored iOS project for Porcelain Dev…')
   await new Promise((resolvePromise, reject) => {
-    const child = spawn(
-      pnpm,
-      ['--dir', 'apps/mobile', 'exec', 'expo', 'prebuild', '--platform', 'ios'],
-      { cwd: root, env: launch.env, stdio: 'inherit' },
-    )
+    const prebuild = pnpmLaunch([
+      '--dir',
+      'apps/mobile',
+      'exec',
+      'expo',
+      'prebuild',
+      '--platform',
+      'ios',
+    ])
+    const child = spawn(prebuild.command, prebuild.args, {
+      cwd: root,
+      env: launch.env,
+      stdio: 'inherit',
+    })
     child.on('error', reject)
     child.on('exit', (code, signal) => {
       if (code === 0) return resolvePromise()

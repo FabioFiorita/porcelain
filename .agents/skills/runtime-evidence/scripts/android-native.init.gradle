@@ -1,0 +1,37 @@
+def stage = System.getenv('PORCELAIN_NATIVE_BUILD_DIR')
+def ninja = System.getenv('PORCELAIN_NINJA_PATH')
+if (!stage || !new File(stage).isAbsolute()) throw new GradleException('Set PORCELAIN_NATIVE_BUILD_DIR to an absolute task-owned directory.')
+if (ninja && !new File(ninja).isFile()) throw new GradleException('PORCELAIN_NINJA_PATH must name an existing executable.')
+
+gradle.projectsLoaded {
+  def helper = new File(gradle.rootProject.projectDir, '../../../.agents/skills/runtime-evidence/scripts/android-native-paths.mjs')
+  // Included Gradle plugin builds do not own the application's Android project.
+  if (!helper.isFile()) return
+  def runHelper = { List<String> args ->
+    def process = new ProcessBuilder(['node', helper.absolutePath] + args).redirectErrorStream(true).start()
+    def output = process.inputStream.getText('UTF-8')
+    if (process.waitFor() != 0) throw new GradleException('Native Windows path preparation failed: ' + output)
+  }
+  runHelper(['prepare', stage])
+  gradle.rootProject.allprojects { p ->
+    p.tasks.matching { it.name == 'generateAutolinkingNewArchitectureFiles' }.configureEach { t ->
+      // Regeneration must precede rewriting, including cached builds and new dependencies.
+      t.outputs.upToDateWhen { false }
+      t.doLast {
+        runHelper(['rewrite', stage, new File(p.buildDir, 'generated/autolinking/src/main/jni/Android-autolinking.cmake').absolutePath])
+      }
+    }
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+      p.plugins.withId(pluginId) {
+        p.extensions.getByName('androidComponents').finalizeDsl { android ->
+          def architectures = p.findProperty('reactNativeArchitectures')?.toString()?.split(',')
+          if (!architectures) throw new GradleException('Supply explicit -PreactNativeArchitectures for the selected device.')
+          android.externalNativeBuild.cmake.buildStagingDirectory = new File(stage, p.name)
+          android.defaultConfig.ndk.abiFilters.clear()
+          android.defaultConfig.ndk.abiFilters.addAll(architectures)
+          if (ninja) android.defaultConfig.externalNativeBuild.cmake.arguments.add('-DCMAKE_MAKE_PROGRAM=' + ninja.replace('\\', '/'))
+        }
+      }
+    }
+  }
+}
