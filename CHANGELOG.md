@@ -1,3 +1,11 @@
+## [0.63.1](https://github.com/FabioFiorita/porcelain/compare/v0.63.0...v0.63.1) (2026-09-04)
+
+### Bug Fixes
+
+* publish releases from immutable tags ([5572aaf](https://github.com/FabioFiorita/porcelain/commit/5572aaf714484cbd989416f3cde328f21536a259))
+* staple macOS release images ([f3b3485](https://github.com/FabioFiorita/porcelain/commit/f3b34859fce75f7eb1a2f6b11acde4ce21378371))
+* validate review layer patterns ([9e5a6db](https://github.com/FabioFiorita/porcelain/commit/9e5a6db8825fdda721b3b8bb5dc8a9e717de9029))
+
 ## [0.63.0](https://github.com/FabioFiorita/porcelain/compare/v0.62.0...v0.63.0) (2026-09-04)
 
 ### Features
