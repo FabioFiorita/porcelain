@@ -12,6 +12,7 @@ const afterPack = resolve(__dirname, '../../build/after-pack.js')
 const desktopPackageJson = resolve(__dirname, '../../package.json')
 const releaseWorkflow = resolve(__dirname, '../../../../.github/workflows/release.yml')
 const releaseFuseSmoke = resolve(__dirname, '../../../../scripts/release-fuse-smoke.mjs')
+const releasePublish = resolve(__dirname, '../../../../scripts/release-publish.mjs')
 
 describe('renderer packaging (file:// safe base)', () => {
   it("apps/web vite sets base: './'", () => {
@@ -92,5 +93,13 @@ describe('renderer packaging (file:// safe base)', () => {
     expect(smoke).toContain("createHash('sha512')")
     expect(smoke).toContain('metadataPath !== installer')
     expect(smoke).toContain('metadataSha512 !== installerSha512')
+  })
+
+  it('publishes from the existing immutable tag without retargeting it', () => {
+    const workflow = readFileSync(releaseWorkflow, 'utf8')
+    const publish = readFileSync(releasePublish, 'utf8')
+    expect(workflow).toMatch(/ref:\s*\$\{\{\s*github\.sha\s*\}\}/)
+    expect(publish).toContain("? ['--verify-tag']")
+    expect(publish).toContain("['--target', target]")
   })
 })

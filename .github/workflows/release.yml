@@ -376,7 +376,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ needs.prepare.outputs.tag }}
+          # Run the current publishing script while package jobs remain pinned to
+          # the immutable release tag.
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download mac artifacts

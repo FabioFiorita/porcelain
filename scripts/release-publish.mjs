@@ -65,6 +65,15 @@ function releaseExists(t) {
   }
 }
 
+function localTagExists(t) {
+  try {
+    sh('git', ['rev-parse', '--verify', `refs/tags/${t}^{commit}`])
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Collect files to upload (skip directories and empty paths). */
 function collectFiles(dirs) {
   const files = []
@@ -96,10 +105,11 @@ const notesArgs = values.notes ? ['--notes-file', values.notes] : ['--generate-n
 
 if (!releaseExists(tag)) {
   // Published immediately (not draft). electron-updater only sees non-drafts.
-  // --target pins the tag to the release commit (pending branch SHA) so we can
-  // create the release *before* merging to main; that avoids a tag-push race
-  // that would re-trigger this workflow against an empty release.
-  const targetArgs = target ? ['--target', target] : []
+  // A cut release already has an immutable remote tag. Verify and reuse it instead
+  // of passing --target: GitHub treats targeting an older commit that changed a
+  // workflow as a ref mutation and rejects the built-in Actions token because it
+  // cannot receive the separate Workflows permission.
+  const targetArgs = localTagExists(tag) ? ['--verify-tag'] : target ? ['--target', target] : []
   sh(
     'gh',
     ['release', 'create', tag, '--title', title, '--latest', ...targetArgs, ...notesArgs, ...files],
