@@ -70,6 +70,7 @@ function ChangesetFileCard({
   commentAnchor,
   onComment,
   onSelectFile,
+  reviewScope,
 }: {
   file: ChangesetFile
   collapseScope: string
@@ -77,6 +78,10 @@ function ChangesetFileCard({
   commentAnchor: CommentAnchor | null
   onComment: (anchor: CommentAnchor) => void
   onSelectFile: (path: string) => void
+  reviewScope?: Extract<
+    import('@porcelain/contracts/review').ReviewCommentAnchor,
+    { kind: 'file' }
+  >['scope']
 }): React.JSX.Element {
   const fileCollapsed = useChangesetCollapseStore((s) =>
     (s.collapsedByScope[collapseScope] ?? []).includes(file.path),
@@ -88,9 +93,9 @@ function ChangesetFileCard({
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
-  const reviewed = useReviewedPaths()
-  const { mark, unmark } = useToggleReviewed()
-  const commentIndex = useCommentIndex(file.path)
+  const reviewed = useReviewedPaths(reviewScope)
+  const { mark, unmark } = useToggleReviewed(reviewScope)
+  const commentIndex = useCommentIndex(file.path, reviewScope)
   const isReviewed = reviewed.has(file.path)
   const canOpenFile = file.status !== 'deleted'
   const pendingLines = useMemo(
@@ -192,7 +197,7 @@ function ChangesetFileCard({
               <Button
                 variant="ghost"
                 size="icon-2xs"
-                onClick={() => onComment({ path: file.path })}
+                onClick={() => onComment({ path: file.path, scope: reviewScope })}
                 className="shrink-0 text-muted-foreground hover:text-foreground"
                 aria-label="Comment on file"
               >
@@ -275,8 +280,16 @@ function ChangesetFileCard({
               const line = row
                 ? Number.parseInt(row.getAttribute('data-line') ?? '', 10)
                 : Number.NaN
+              const side = row?.getAttribute('data-side')
               setLineSel(
-                Number.isFinite(line) ? { startLine: line, endLine: line, text: '' } : null,
+                Number.isFinite(line)
+                  ? {
+                      startLine: line,
+                      endLine: line,
+                      text: '',
+                      ...(side === 'old' || side === 'new' ? { side } : {}),
+                    }
+                  : null,
               )
             }}
           >
@@ -300,13 +313,15 @@ function ChangesetFileCard({
                     startLine: lineSel.startLine,
                     endLine: lineSel.endLine,
                     anchorText: lineSel.text.slice(0, 2000),
+                    scope: reviewScope,
+                    side: lineSel.side,
                   })
                 }
               >
                 <MessageSquarePlus /> Add comment
               </ContextMenuItem>
             ) : (
-              <ContextMenuItem onClick={() => onComment({ path: file.path })}>
+              <ContextMenuItem onClick={() => onComment({ path: file.path, scope: reviewScope })}>
                 <MessageSquarePlus /> Comment on file
               </ContextMenuItem>
             )}
@@ -436,6 +451,15 @@ export function ChangesetView({
               file={file}
               collapseScope={collapseScope}
               reviewable={scope.type !== 'commit'}
+              reviewScope={
+                scope.type === 'commit'
+                  ? { type: 'commit', hash: scope.hash }
+                  : scope.type === 'working'
+                    ? { type: 'working' }
+                    : scope.base === undefined
+                      ? undefined
+                      : { type: 'branch', base: scope.base }
+              }
               commentAnchor={commentAnchor}
               onComment={setCommentAnchor}
               onSelectFile={setSelectedFile}

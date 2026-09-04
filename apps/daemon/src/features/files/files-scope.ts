@@ -20,6 +20,7 @@ export function createFilesScope(options?: ScopeStoreOptions): FilesScope {
       setWorktreeProfile: async () => undefined,
       unhidePath: async () => undefined,
       unpinPath: async () => undefined,
+      renamePath: async () => undefined,
     })
   }
   const scope = createScopeStore(options)
@@ -32,5 +33,6 @@ export function createFilesScope(options?: ScopeStoreOptions): FilesScope {
     setWorktreeProfile: scope.setWorktreeProfile,
     unhidePath: scope.unhidePath,
     unpinPath: scope.unpinPath,
+    renamePath: scope.renamePath,
   })
 }

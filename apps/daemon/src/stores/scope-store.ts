@@ -60,6 +60,7 @@ export type ScopeStore = Readonly<{
   unhidePath: (repoPath: string, path: string) => Promise<void>
   pinPath: (repoPath: string, path: string) => Promise<void>
   unpinPath: (repoPath: string, path: string) => Promise<void>
+  renamePath: (repoPath: string, from: string, to: string) => Promise<void>
 }>
 
 export type ScopeStoreOptions = Readonly<{
@@ -171,6 +172,11 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     })
   }
 
+  function renamedPath(entry: string, from: string, to: string): string {
+    if (entry === from) return to
+    return entry.startsWith(`${from}/`) ? `${to}${entry.slice(from.length)}` : entry
+  }
+
   return Object.freeze({
     readRepoScope,
     hiddenPathsForRepo: async (repoPath) => new Set((await readRepoScope(repoPath)).hiddenPaths),
@@ -208,6 +214,16 @@ export function createScopeStore(options: ScopeStoreOptions): ScopeStore {
     },
     unpinPath: async (repoPath, path) => {
       await mutate(repoPath, removeFromBase('pinnedPaths', toRelativeScopePath(repoPath, path)))
+    },
+    renamePath: async (repoPath, from, to) => {
+      const fromRel = toRelativeScopePath(repoPath, from)
+      const toRel = toRelativeScopePath(repoPath, to)
+      if (fromRel === '' || toRel === '') return
+      await mutate(repoPath, (document) => ({
+        ...document,
+        hiddenPaths: document.hiddenPaths.map((entry) => renamedPath(entry, fromRel, toRel)),
+        pinnedPaths: document.pinnedPaths.map((entry) => renamedPath(entry, fromRel, toRel)),
+      }))
     },
   })
 }

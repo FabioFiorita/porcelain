@@ -16,6 +16,7 @@ function inventory(id: string, name: string, current: boolean) {
 }
 
 let inventories = [inventory('env-mac', 'This device', true)]
+let browseFetching = false
 
 vi.mock('@renderer/features/projects', () => ({
   useHubInventories: () => inventories,
@@ -39,7 +40,7 @@ vi.mock('@renderer/features/projects', () => ({
         ],
       },
       error: null,
-      isFetching: false,
+      isFetching: browseFetching,
     }
   },
 }))
@@ -66,6 +67,7 @@ beforeEach(() => {
   openProject.mockClear()
   browsed.length = 0
   inventories = [inventory('env-mac', 'This device', true)]
+  browseFetching = false
   useProjectPickerStore.setState({ environmentId: null, open: true })
 })
 
@@ -129,5 +131,14 @@ describe('ProjectPickerDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open this folder' }))
 
     expect(openProject).toHaveBeenCalledWith('/home/mac', { environmentId: null })
+  })
+
+  it('does not allow directory actions while a retargeted browse is fetching', () => {
+    browseFetching = true
+    render(<ProjectPickerDialog />)
+
+    expect(screen.getByRole('button', { name: /porcelain/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Open this folder' })).toBeDisabled()
   })
 })

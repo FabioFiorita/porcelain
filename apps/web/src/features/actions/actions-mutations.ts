@@ -175,7 +175,9 @@ export function useActionMutations(target?: ActionMutationTarget): {
  * Accept a command this machine has not run before. Trust is recorded against the
  * command TEXT on this machine only. Rejects rather than toasting: the trust dialog owns failure.
  */
-export function useTrustAction(target?: ActionMutationTarget): (id: string) => Promise<void> {
+export function useTrustAction(
+  target?: ActionMutationTarget,
+): (id: string, override?: ActionMutationTarget) => Promise<void> {
   const selectedProjectId = useSelectedProjectId()
   const projectId = target?.projectId ?? selectedProjectId
   const daemon = useDaemonIdentity()
@@ -185,14 +187,15 @@ export function useTrustAction(target?: ActionMutationTarget): (id: string) => P
     state.selection.kind === 'home' ? null : state.selection.environmentId,
   )
   const environmentId = target === undefined ? selectedEnvironmentId : target.environmentId
-  const daemonScope = daemonScopeFromIdentity(daemonScopeForEnvironment(environmentId, daemon))
-  const owner = environmentClientFor(environmentId, client)
-
-  return async (id: string): Promise<void> => {
-    if (projectId === null) return
-    const wire = { projectId: actionsProjectKey(projectId), ids: [id] }
+  return async (id: string, override?: ActionMutationTarget): Promise<void> => {
+    const runProjectId = override?.projectId ?? projectId
+    const runEnvironmentId = override?.environmentId ?? environmentId
+    if (runProjectId === null) return
+    const daemonScope = daemonScopeFromIdentity(daemonScopeForEnvironment(runEnvironmentId, daemon))
+    const owner = environmentClientFor(runEnvironmentId, client)
+    const wire = { projectId: actionsProjectKey(runProjectId), ids: [id] }
     const ownerClient =
-      environmentId === null
+      runEnvironmentId === null
         ? client
         : (owner?.client ??
           (() => {

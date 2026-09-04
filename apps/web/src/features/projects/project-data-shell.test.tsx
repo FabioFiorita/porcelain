@@ -40,6 +40,7 @@ function handlers(overrides: DaemonMockHandlers = {}): DaemonMockHandlers {
   return {
     daemonInfo: () => ({ ok: true, value: daemonInfo }),
     openRepoPath: () => ({ ok: true, value: beta }),
+    hubInventory: () => ({ ok: true, value: projectsContractFixtures.hubInventory.output }),
     ...overrides,
   }
 }

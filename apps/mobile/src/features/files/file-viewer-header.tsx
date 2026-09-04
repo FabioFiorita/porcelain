@@ -10,6 +10,7 @@ export function FileViewerHeader({
   isPinned,
   onBack,
   onComment,
+  onOpenComments,
   onTogglePinned,
   selectedRange,
 }: {
@@ -18,6 +19,7 @@ export function FileViewerHeader({
   isPinned: boolean
   onBack?: () => void
   onComment: () => void
+  onOpenComments: () => void
   onTogglePinned: () => void
   /** The open selection the comment action would anchor to, or null for the whole file. */
   selectedRange: LineRange | null
@@ -26,6 +28,14 @@ export function FileViewerHeader({
     <ScreenHeader
       actions={
         <>
+          {commentCount === 0 ? null : (
+            <IconAction
+              accessibilityLabel={`Open ${commentCount} file comments`}
+              glyph="comment"
+              testID="porcelain-files-viewer-comments"
+              onPress={onOpenComments}
+            />
+          )}
           <IconAction
             accessibilityLabel={isPinned ? 'Unpin file' : 'Pin file'}
             glyph={isPinned ? 'pinOff' : 'pin'}

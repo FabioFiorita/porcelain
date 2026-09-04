@@ -467,6 +467,8 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = Object.freeze([
           minItems: 1,
           items: { type: 'string', description: 'Repository-relative changed-file path' },
         },
+        scope: { enum: ['working', 'branch'], description: 'Comparison whose content is reviewed' },
+        base: { type: 'string', description: 'Required comparison base for branch scope' },
       },
       required: ['op', 'workspace'],
       additionalProperties: false,

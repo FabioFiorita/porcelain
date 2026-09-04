@@ -48,7 +48,11 @@ export function CreateWorktreeDialog(props: {
   onOpenChange: (open: boolean) => void
   createWorktree: (input: CreateHubWorktreeInput) => Promise<unknown>
 }): React.JSX.Element {
-  const { branches, isFetching } = useGitBranches(props.project.path, props.open)
+  const { branches, isFetching } = useGitBranches(
+    props.project.path,
+    props.open,
+    props.project.environmentId,
+  )
   const [mode, setMode] = useState<'new' | 'existing'>('new')
   const [branch, setBranch] = useState('')
   const [baseRef, setBaseRef] = useState<string | null>(null)

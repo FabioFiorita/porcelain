@@ -1,9 +1,9 @@
-import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
 import type { ReviewComment } from '@porcelain/contracts/review'
-import { LineDecorations, commentRowClass } from '@renderer/components/git/comment-marker'
+import { commentRowClass, LineDecorations } from '@renderer/components/git/comment-marker'
+import { MarkdownPre } from '@renderer/components/viewer/markdown-code-block'
 import { cn } from '@renderer/lib/utils'
-import Markdown, { type ExtraProps } from 'react-markdown'
 import { createElement } from 'react'
+import Markdown, { type ExtraProps } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const MARKDOWN_EXTENSIONS = ['md', 'mdx', 'markdown']
@@ -19,11 +19,14 @@ export function MarkdownView({
   className,
   compact = false,
   commentsByLine,
+  assetBaseUrl,
 }: {
   content: string
   className?: string
   compact?: boolean
   commentsByLine?: Map<number, ReviewComment[]>
+  /** Token-scoped Canvas attachment root. Relative image paths stay inert when omitted. */
+  assetBaseUrl?: string | null
 }): React.JSX.Element {
   const sourceProps = (node: ExtraProps['node']): Record<string, number> => {
     const start = node?.position?.start.line
@@ -81,6 +84,16 @@ export function MarkdownView({
             }: React.JSX.IntrinsicElements['a'] & ExtraProps): React.JSX.Element => (
               <a {...props} {...sourceProps(node)} target="_blank" rel="noreferrer" />
             ),
+            img: ({ node, src, alt, ...props }) => {
+              const resolved =
+                assetBaseUrl !== null &&
+                assetBaseUrl !== undefined &&
+                src !== undefined &&
+                !/^(?:data:|https?:|\/\/|#)/i.test(src)
+                  ? `${assetBaseUrl}/${src.split('/').map(encodeURIComponent).join('/')}`
+                  : src
+              return <img {...props} {...sourceProps(node)} src={resolved} alt={alt ?? ''} />
+            },
             p: block('p'),
             h1: block('h1'),
             h2: block('h2'),

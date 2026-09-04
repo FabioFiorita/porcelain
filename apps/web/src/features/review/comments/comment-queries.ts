@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@porcelain/contracts/review'
+import type { ReviewComment, ReviewCommentAnchor } from '@porcelain/contracts/review'
 import { hubOwnerClient, useHubRepoOwner } from '@renderer/hooks/use-hub-owner'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
@@ -32,7 +32,10 @@ export function useReviewComments(): ReviewComment[] {
 }
 
 /** Memoized per-file presentation index over the live comment list. */
-export function useCommentIndex(path: string): CommentIndex {
+export function useCommentIndex(
+  path: string,
+  scope?: Extract<ReviewCommentAnchor, { kind: 'file' }>['scope'],
+): CommentIndex {
   const comments = useReviewComments()
-  return useMemo(() => buildCommentIndex(comments, path), [comments, path])
+  return useMemo(() => buildCommentIndex(comments, path, scope), [comments, path, scope])
 }

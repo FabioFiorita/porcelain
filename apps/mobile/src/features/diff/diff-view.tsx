@@ -77,32 +77,51 @@ export function DiffView({
   const file = useDiffFile(filePath, source, active)
   const preferredMode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
-  const commentIndex = useCommentIndex(comments, filePath)
+  const commentIndex = useCommentIndex(comments, filePath, commentScope)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const lineSelection = useLineSelection()
+  const commentScope =
+    source.kind === 'working'
+      ? ({ type: 'working' } as const)
+      : source.kind === 'commit'
+        ? ({ type: 'commit', hash: source.hash } as const)
+        : source.base === undefined
+          ? undefined
+          : ({ type: 'branch', base: source.base } as const)
 
   const hunks: readonly DiffHunk[] = file.hunks ?? NO_HUNKS
   const rows = useMemo(() => toDiffRows(hunks, preferredMode), [hunks, preferredMode])
   const emphasis = useMemo(() => intraLineEmphasis(hunks), [hunks])
-  const commentedLines = useMemo(() => new Set(commentIndex.byLine.keys()), [commentIndex])
+  const isCommented = useMemo(
+    () => (line: number, side: 'old' | 'new') =>
+      commentIndex.byLine
+        .get(line)
+        ?.some(
+          (comment) =>
+            comment.anchor?.kind !== 'file' ||
+            comment.anchor.side === undefined ||
+            comment.anchor.side === side,
+        ) === true,
+    [commentIndex],
+  )
   const diffTokens = useDiffTokens()
   const tokens = useMemo(() => diffTokens(filePath, hunks), [diffTokens, filePath, hunks])
   const selected = rangeForPath(lineSelection.selection, filePath)
   const { extend, start } = lineSelection
   const ctx = useMemo(
     () => ({
-      commentedLines,
+      isCommented,
       emphasis,
-      onAnchorLine: (line: number): void => {
-        start(filePath, line)
+      onAnchorLine: (line: number, side: 'old' | 'new'): void => {
+        start(filePath, line, side)
       },
-      onExtendToLine: (line: number): void => {
-        extend(filePath, line)
+      onExtendToLine: (line: number, side: 'old' | 'new'): void => {
+        extend(filePath, line, side)
       },
       selected,
       tokens,
     }),
-    [commentedLines, emphasis, extend, filePath, selected, start, tokens],
+    [emphasis, extend, filePath, isCommented, selected, start, tokens],
   )
 
   const handleCommentSelection = (): void => {
@@ -112,6 +131,8 @@ export function DiffView({
       endLine: selected.endLine,
       path: filePath,
       startLine: selected.startLine,
+      scope: commentScope,
+      side: lineSelection.selection?.side,
     })
     lineSelection.clear()
   }
@@ -128,7 +149,7 @@ export function DiffView({
         testID={testID}
         onBack={onBack}
         onComment={() => {
-          if (selected === null) setAnchor({ path: filePath })
+          if (selected === null) setAnchor({ path: filePath, scope: commentScope })
           else handleCommentSelection()
         }}
         onOpenFile={onOpenFile}

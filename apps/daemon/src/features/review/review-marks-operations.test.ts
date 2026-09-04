@@ -10,7 +10,16 @@ function memoryStore(initial: ReviewedMark[] = []) {
     read: async () => [...marks],
     write: async (_repo, next) => {
       marks.length = 0
-      marks.push(...[...new Map(next.map((m) => [m.path, m])).values()])
+      marks.push(
+        ...[
+          ...new Map(
+            next.map((m) => [
+              `${m.scope?.type ?? 'working'}\0${m.scope?.type === 'branch' ? m.scope.base : ''}\0${m.path}`,
+              m,
+            ]),
+          ).values(),
+        ],
+      )
     },
     remove: async (_repo, stale) => {
       const keys = new Set(stale.map((m) => `${m.path}\0${m.fingerprint}`))
@@ -109,5 +118,53 @@ describe('review marks operations', () => {
     await expect(
       operations.setReviewed({ projectPath: REPO, paths: ['a.ts'], reviewed: true }),
     ).rejects.toThrow('git exploded')
+  })
+
+  it('keeps reviewed marks isolated between branch comparison bases', async () => {
+    const { store, marks } = memoryStore()
+    const git: ReviewMarksGit = {
+      fingerprints: async (_repo, paths, scope) =>
+        new Map(
+          paths.map((path) => [
+            path,
+            `${scope.type}:${scope.type === 'branch' ? scope.base : ''}:${path}`,
+          ]),
+        ),
+    }
+    const operations = createReviewMarksOperations({ store, git })
+
+    await operations.setReviewed({
+      projectPath: REPO,
+      paths: ['a.ts'],
+      reviewed: true,
+      scope: { type: 'branch', base: 'main' },
+    })
+    await operations.setReviewed({
+      projectPath: REPO,
+      paths: ['a.ts'],
+      reviewed: true,
+      scope: { type: 'branch', base: 'develop' },
+    })
+
+    expect(marks).toHaveLength(2)
+    await expect(
+      operations.readReviewedPaths({ projectPath: REPO, scope: { type: 'branch', base: 'main' } }),
+    ).resolves.toEqual(['a.ts'])
+    await expect(
+      operations.readReviewedPaths({ projectPath: REPO, scope: { type: 'working' } }),
+    ).resolves.toEqual([])
+  })
+
+  it('does not leak another scope after pruning a stale mark', async () => {
+    const { store } = memoryStore([
+      { path: 'stale.ts', fingerprint: 'old', scope: { type: 'branch', base: 'main' } },
+      { path: 'other.ts', fingerprint: 'kept', scope: { type: 'branch', base: 'develop' } },
+    ])
+    const { git } = recordingGit({ 'stale.ts': 'new' })
+    const operations = createReviewMarksOperations({ store, git })
+
+    await expect(
+      operations.readReviewedPaths({ projectPath: REPO, scope: { type: 'branch', base: 'main' } }),
+    ).resolves.toEqual([])
   })
 })

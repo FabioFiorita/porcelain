@@ -31,13 +31,13 @@ export type DiffLineContext = {
   /** Syntax spans per line, keyed the same way. Empty until the highlighter loads. */
   tokens: TokenMap
   /** New-side lines that carry a comment, so the row can show its marker. */
-  commentedLines: ReadonlySet<number>
+  isCommented: (line: number, side: 'old' | 'new') => boolean
   /** The line range being selected in THIS file, or null when the selection is elsewhere. */
   selected: LineRange | null
   /** Long-press anchors a selection on this line. */
-  onAnchorLine: (line: number) => void
+  onAnchorLine: (line: number, side: 'old' | 'new') => void
   /** Tap extends the open selection to this line. */
-  onExtendToLine: (line: number) => void
+  onExtendToLine: (line: number, side: 'old' | 'new') => void
 }
 
 function LineNumber({ value }: { value: number | null }): React.JSX.Element {
@@ -112,7 +112,8 @@ function CommentMarker(): React.JSX.Element {
 
 function UnifiedRow({ ctx, line }: { ctx: DiffLineContext; line: DiffLine }): React.JSX.Element {
   const anchor = anchorLineOf(line)
-  const commented = anchor !== undefined && ctx.commentedLines.has(anchor)
+  const side = line.kind === 'del' ? 'old' : 'new'
+  const commented = anchor !== undefined && ctx.isCommented(anchor, side)
   const selected = isLineInRange(ctx.selected, anchor)
   return (
     <Pressable
@@ -126,10 +127,10 @@ function UnifiedRow({ ctx, line }: { ctx: DiffLineContext; line: DiffLine }): Re
         selected ? 'bg-primary/15' : commented ? 'bg-info/10' : LINE_CLASS[line.kind],
       )}
       onLongPress={() => {
-        if (anchor !== undefined) ctx.onAnchorLine(anchor)
+        if (anchor !== undefined) ctx.onAnchorLine(anchor, side)
       }}
       onPress={() => {
-        if (anchor !== undefined) ctx.onExtendToLine(anchor)
+        if (anchor !== undefined) ctx.onExtendToLine(anchor, side)
       }}
     >
       <LineNumber value={line.oldLine} />
@@ -150,7 +151,8 @@ function SplitCell({
   side: 'left' | 'right'
 }): React.JSX.Element {
   const anchor = line === null ? undefined : cellAnchorLine(line, side)
-  const commented = anchor !== undefined && ctx.commentedLines.has(anchor)
+  const anchorSide = side === 'left' ? 'old' : 'new'
+  const commented = anchor !== undefined && ctx.isCommented(anchor, anchorSide)
   const selected = isLineInRange(ctx.selected, anchor)
   return (
     <Pressable
@@ -166,10 +168,10 @@ function SplitCell({
               : LINE_CLASS[line.kind],
       )}
       onLongPress={() => {
-        if (anchor !== undefined) ctx.onAnchorLine(anchor)
+        if (anchor !== undefined) ctx.onAnchorLine(anchor, side === 'left' ? 'old' : 'new')
       }}
       onPress={() => {
-        if (anchor !== undefined) ctx.onExtendToLine(anchor)
+        if (anchor !== undefined) ctx.onExtendToLine(anchor, side === 'left' ? 'old' : 'new')
       }}
     >
       <LineNumber

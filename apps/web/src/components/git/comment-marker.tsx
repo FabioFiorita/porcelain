@@ -6,11 +6,12 @@ import { cn } from '@renderer/lib/utils'
 import { Check, MessageSquare, RotateCcw, Trash2 } from 'lucide-react'
 
 function anchorLabel(comment: ReviewComment): string {
-  if (comment.startLine === undefined) return 'File comment'
-  if (comment.endLine !== undefined && comment.endLine !== comment.startLine) {
-    return `Lines ${comment.startLine}–${comment.endLine}`
+  const anchor = comment.anchor?.kind === 'file' ? comment.anchor : comment
+  if (anchor.startLine === undefined) return 'File comment'
+  if (anchor.endLine !== undefined && anchor.endLine !== anchor.startLine) {
+    return `Lines ${anchor.startLine}–${anchor.endLine}`
   }
-  return `Line ${comment.startLine}`
+  return `Line ${anchor.startLine}`
 }
 
 // One comment inside the marker popover: the body, the agent's reply (mirroring the

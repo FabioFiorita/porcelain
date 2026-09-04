@@ -580,18 +580,37 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
       if (place?.worktreePath === null || place === null)
         return fail('Reviewed state needs a checkout on the daemon host.')
       const projectPath = place.worktreePath
+      if (args.scope === 'branch' && (typeof args.base !== 'string' || args.base.length === 0)) {
+        return fail('base is required when scope is branch.')
+      }
+      const scope =
+        args.scope === 'branch'
+          ? ({ type: 'branch', base: args.base as string } as const)
+          : ({ type: 'working' } as const)
       if (args.op === 'get-reviewed') {
-        return workspaceResult(place, await operations.review.readReviewedPaths({ projectPath }))
+        return workspaceResult(
+          place,
+          await operations.review.readReviewedPaths({
+            projectPath,
+            ...(scope.type === 'branch' ? { scope } : {}),
+          }),
+        )
       }
       if (args.op === 'mark' || args.op === 'unmark') {
         const paths = repoRelativePaths(projectPath, args.paths)
         if (paths === null)
           return fail('paths must be a non-empty list of repository-relative paths.')
         if (args.op === 'mark') {
-          const status = await operations.git.statusGit(projectPath)
-          if (!status.ok)
-            return fail(`Could not read changed files: ${describeError(status.error)}`)
-          const changedPaths = new Set(status.value.map((file) => file.path))
+          const changed =
+            scope.type === 'branch'
+              ? await operations.git.rangeFlowGit?.({ repoPath: projectPath, base: scope.base })
+              : await operations.git.statusGit(projectPath)
+          if (changed === undefined) return fail('Branch reviewed state is unavailable.')
+          if ('ok' in changed && !changed.ok)
+            return fail(`Could not read changed files: ${describeError(changed.error)}`)
+          const files =
+            'ok' in changed ? changed.value : changed.groups.flatMap((group) => group.files)
+          const changedPaths = new Set(files.map((file) => file.path))
           const unchanged = paths.filter((path) => !changedPaths.has(path))
           if (unchanged.length > 0) {
             return fail(`Only changed files can be marked reviewed: ${unchanged.join(', ')}.`)
@@ -601,6 +620,7 @@ export function createMcpToolHandlers(deps: McpToolDeps): McpToolHandlers {
           projectPath,
           paths,
           reviewed: args.op === 'mark',
+          ...(scope.type === 'branch' ? { scope } : {}),
         })
         return workspaceResult(place, {
           reviewed: args.op === 'mark',

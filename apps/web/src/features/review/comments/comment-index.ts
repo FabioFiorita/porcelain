@@ -1,4 +1,4 @@
-import type { ReviewComment } from '@porcelain/contracts/review'
+import type { ReviewComment, ReviewCommentAnchor } from '@porcelain/contracts/review'
 
 /**
  * Pure per-file presentation index for Review comments.
@@ -20,14 +20,30 @@ export interface CommentIndex {
  * derivation is unit-testable without a query. A range comment (`startLine..endLine`) is
  * expanded into every line it covers, so a per-row marker lookup is O(1).
  */
-export function buildCommentIndex(comments: readonly ReviewComment[], path: string): CommentIndex {
+type FileAnchor = Extract<ReviewCommentAnchor, { kind: 'file' }>
+
+function sameScope(left: FileAnchor['scope'], right: FileAnchor['scope']): boolean {
+  if (left === undefined) return true
+  if (right === undefined || left.type !== right.type) return false
+  return (
+    left.type === 'working' ||
+    (left.type === 'branch' && right.type === 'branch' && left.base === right.base) ||
+    (left.type === 'commit' && right.type === 'commit' && left.hash === right.hash)
+  )
+}
+
+export function buildCommentIndex(
+  comments: readonly ReviewComment[],
+  path: string,
+  scope?: FileAnchor['scope'],
+): CommentIndex {
   const byLine = new Map<number, ReviewComment[]>()
   const fileLevel: ReviewComment[] = []
   for (const comment of comments) {
     const anchor = comment.anchor
     const file =
       anchor?.kind === 'file' ? anchor : anchor === undefined && comment.path ? comment : null
-    if (file === null || file.path !== path) continue
+    if (file === null || file.path !== path || !sameScope(file.scope, scope)) continue
     if (file.startLine === undefined) {
       fileLevel.push(comment)
       continue

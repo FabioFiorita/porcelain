@@ -851,6 +851,36 @@ describe('reviewedFingerprints', () => {
     expect(batch.get('a.ts')).toBe(await reviewedFingerprint(dir, 'a.ts'))
     expect(batch.get('b.ts')).toBe(await reviewedFingerprint(dir, 'b.ts'))
   })
+
+  it('tracks committed branch content against the selected base', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    git(dir, 'checkout', '-b', 'feature')
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 2\n')
+    git(dir, 'add', 'tracked.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'first feature')
+    const first = await reviewedFingerprints(dir, ['tracked.ts'], {
+      type: 'branch',
+      base: 'main',
+    })
+    await writeFile(join(dir, 'tracked.ts'), 'export const v = 3\n')
+    git(dir, 'add', 'tracked.ts')
+    git(dir, '-c', 'commit.gpgsign=false', 'commit', '-m', 'second feature')
+    const second = await reviewedFingerprints(dir, ['tracked.ts'], {
+      type: 'branch',
+      base: 'main',
+    })
+
+    expect(second.get('tracked.ts')).not.toBe(first.get('tracked.ts'))
+  })
+
+  it('rejects an invalid branch comparison instead of producing an empty fingerprint', async () => {
+    const dir = await makeRepo()
+    repos.push(dir)
+    await expect(
+      reviewedFingerprints(dir, ['tracked.ts'], { type: 'branch', base: 'missing' }),
+    ).rejects.toThrow('Unable to fingerprint branch comparison missing')
+  })
 })
 
 // ---------------------------------------------------------------------------

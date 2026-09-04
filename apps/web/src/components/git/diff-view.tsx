@@ -59,12 +59,15 @@ export function DiffView({
   const repoPath = useHubRepoPath()
   const openTab = useTabsStore((s) => s.openTab)
   const { hunks, status, image, binary, error } = useDiffFile(filePath, base)
-  const reviewed = useReviewedPaths()
-  const { mark, unmark } = useToggleReviewed()
+  const reviewScope =
+    base === undefined ? { type: 'working' as const } : { type: 'branch' as const, base }
+  const reviewed = useReviewedPaths(reviewScope)
+  const { mark, unmark } = useToggleReviewed(reviewScope)
+  const commentScope = reviewScope
   const isReviewed = reviewed.has(filePath)
   const [lineSel, setLineSel] = useState<LineSelection | null>(null)
   const [commentAnchor, setCommentAnchor] = useState<CommentAnchor | null>(null)
-  const commentIndex = useCommentIndex(filePath)
+  const commentIndex = useCommentIndex(filePath, commentScope)
   const setViewerFilePath = useViewerFileContextStore((state) => state.setPath)
 
   useEffect(() => {
@@ -169,7 +172,7 @@ export function DiffView({
                     variant="ghost"
                     size="icon-xs"
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() => setCommentAnchor({ path: filePath })}
+                    onClick={() => setCommentAnchor({ path: filePath, scope: commentScope })}
                     aria-label="Comment on file"
                   >
                     <MessageSquarePlus />
@@ -271,8 +274,16 @@ export function DiffView({
                 const line = row
                   ? Number.parseInt(row.getAttribute('data-line') ?? '', 10)
                   : Number.NaN
+                const side = row?.getAttribute('data-side')
                 setLineSel(
-                  Number.isFinite(line) ? { startLine: line, endLine: line, text: '' } : null,
+                  Number.isFinite(line)
+                    ? {
+                        startLine: line,
+                        endLine: line,
+                        text: '',
+                        ...(side === 'old' || side === 'new' ? { side } : {}),
+                      }
+                    : null,
                 )
               }}
             >
@@ -295,13 +306,17 @@ export function DiffView({
                       startLine: lineSel.startLine,
                       endLine: lineSel.endLine,
                       anchorText: lineSel.text.slice(0, 2000),
+                      scope: commentScope,
+                      side: lineSel.side,
                     })
                   }
                 >
                   <MessageSquarePlus /> Add comment
                 </ContextMenuItem>
               ) : (
-                <ContextMenuItem onClick={() => setCommentAnchor({ path: filePath })}>
+                <ContextMenuItem
+                  onClick={() => setCommentAnchor({ path: filePath, scope: commentScope })}
+                >
                   <MessageSquarePlus /> Comment on file
                 </ContextMenuItem>
               )}

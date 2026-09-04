@@ -21,6 +21,7 @@ const DISABLED_PROJECT = '/__porcelain-disabled-git-workspace__'
 export function useGitBranches(
   projectPath: string | null,
   enabled = true,
+  environmentId?: string | null,
 ): {
   branches: BranchRef[]
   refreshBranches: () => Promise<void>
@@ -29,11 +30,8 @@ export function useGitBranches(
   const daemon = useDaemonIdentity()
   const utils = trpc.useUtils()
   const target = useHubRepoTarget()
-  const repoPath = useHubRepoPath()
-  const owner =
-    target === null && repoPath !== null
-      ? { client: utils.client }
-      : environmentClientFor(target?.environmentId ?? null, utils.client)
+  const targetEnvironmentId = environmentId === undefined ? target?.environmentId : environmentId
+  const owner = environmentClientFor(targetEnvironmentId ?? null, utils.client)
   const queryPath = projectPath === null ? DISABLED_PROJECT : gitProjectKey(projectPath)
   const query = useQuery({
     enabled: enabled && projectPath !== null && owner !== null,
@@ -42,7 +40,7 @@ export function useGitBranches(
       return owner.client.gitBranches.query(queryPath)
     },
     queryKey: gitQueryKey(
-      daemonScopeForEnvironment(target?.environmentId, daemon),
+      daemonScopeForEnvironment(targetEnvironmentId, daemon),
       gitBranchesQuery(queryPath),
     ),
     staleTime: 0,

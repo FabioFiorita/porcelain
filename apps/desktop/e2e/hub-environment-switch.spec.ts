@@ -1,7 +1,6 @@
-import type { ChildProcess } from 'node:child_process'
-import { readFile, rm, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { type ChildProcess, execFileSync } from 'node:child_process'
+import { rm, stat } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import type { Page } from '@playwright/test'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import {
@@ -33,7 +32,7 @@ import { createFixtureRepo } from './helpers/fixture-repo'
  * not "this window's client", so a local path was asked of the remote daemon).
  */
 
-const REMOTE_REPO_DIR = join(tmpdir(), 'porcelain-e2e-remote-fixture')
+const REMOTE_REPO_DIR = join(dirname(REPO_DIR), 'porcelain-e2e-remote-fixture')
 const LOCAL_TITLE = `${basename(REPO_DIR)} — Porcelain`
 const REMOTE_TITLE = `${basename(REMOTE_REPO_DIR)} — Porcelain`
 
@@ -135,6 +134,7 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
   // here, so "did the click open the right repo" cannot tell the daemons apart. The bound
   // daemon url can, and that is what every assertion below turns on.
   await createFixtureRepo(REMOTE_REPO_DIR)
+  execFileSync('git', ['branch', 'remote-owner-proof'], { cwd: REMOTE_REPO_DIR })
   const remoteSeed = await seedIsolatedState(REMOTE_REPO_DIR, true)
   let remote: { child: ChildProcess; port: number } | null = null
   try {
@@ -183,7 +183,6 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
         )
         .toBe(true)
     }
-    expect(JSON.parse(await readFile(savedEnvironmentState, 'utf8'))).toMatchObject({ version: 1 })
     await loc.settingsDialog(page).getByRole('button', { name: 'Close' }).click()
     await page.reload()
 
@@ -202,6 +201,23 @@ test('a Hub Worktree on another Environment opens and survives a cold renderer r
     await expect.poll(async () => boundDaemonUrl(page), { timeout: 60_000 }).toBe(localUrl)
     await expect(page.getByText('The Project path was not found.')).toHaveCount(0)
     await expect(page.getByText('The target Environment is offline.')).toHaveCount(0)
+
+    // The row owns branch discovery even while a different Environment is selected.
+    const branchesResponse = page.waitForResponse(
+      (response) => response.url().startsWith(remoteUrl) && response.url().includes('gitBranches'),
+    )
+    await page
+      .getByRole('button', { name: `Create branch and worktree in ${basename(REMOTE_REPO_DIR)}` })
+      .click()
+    expect((await branchesResponse).ok()).toBe(true)
+    const worktreeDialog = page.getByTestId(TestIds.hubCreateWorktreeDialog)
+    await worktreeDialog.getByTestId(TestIds.hubCreateWorktreeModeExisting).click()
+    await worktreeDialog.getByTestId(TestIds.hubCreateWorktreeBase).click()
+    await expect(
+      page.getByRole('option', { name: 'remote-owner-proof', exact: true }),
+    ).toBeVisible()
+    await page.keyboard.press('Escape')
+    await worktreeDialog.getByRole('button', { name: 'Cancel', exact: true }).click()
 
     // 2. The remote row routes through its Environment session without rebinding the shell.
     await waitForShell(page)

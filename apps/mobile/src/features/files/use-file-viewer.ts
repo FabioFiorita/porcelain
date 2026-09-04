@@ -1,4 +1,5 @@
 import type { FileView } from '@porcelain/contracts/files'
+import type { ReviewComment } from '@porcelain/contracts/review'
 import { useMemo, useState } from 'react'
 import type { CommentAnchor, LineRange } from '@/features/comments'
 import {
@@ -30,6 +31,9 @@ export type FileViewerState = {
   /** A pin that the daemon refused, in the reader's words. */
   actionError: string | null
   commentCount: number
+  comments: readonly ReviewComment[]
+  commentsLine: number | null
+  commentsOpen: boolean
   /** Everything a source row needs to paint itself: markers, tokens, selection, focus. */
   ctx: React.ComponentProps<typeof SourceLine>['ctx']
   error: Error | null
@@ -47,6 +51,8 @@ export type FileViewerState = {
   /** The live selection, whether or not the face on screen can anchor to it. */
   selected: LineRange | null
   clearSelection: () => void
+  closeComments: () => void
+  openComments: (line?: number) => void
   selectRendered: (selection: { startLine: number; endLine: number; text: string }) => void
   /** File a comment: on the open range if there is one, on the whole file otherwise. */
   comment: () => void
@@ -86,6 +92,8 @@ export function useFileViewer({
     text: string
   } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentsLine, setCommentsLine] = useState<number | null>(null)
   const lineSelection = useLineSelection()
   const { pin, unpin } = usePathScope()
   // Shares the companion's cache entry, so the header can offer the right half of the toggle
@@ -129,6 +137,10 @@ export function useFileViewer({
       onExtendToLine: (at: number): void => {
         extend(filePath, at)
       },
+      onOpenCommentsAt: (at: number): void => {
+        setCommentsLine(at)
+        setCommentsOpen(true)
+      },
       selected,
       testIDPrefix: pathTestId('porcelain-files-source-line', filePath),
       tokens,
@@ -149,6 +161,7 @@ export function useFileViewer({
       lineSelection.clear()
       setRenderedSelection(null)
     },
+    closeComments: () => setCommentsOpen(false),
     // One action, two anchors: with a range open it files against the range, and against the
     // file when there is none. The bar stays the deliberate route; this is the same action
     // where the reader's thumb already is.
@@ -168,6 +181,9 @@ export function useFileViewer({
       setRenderedSelection(null)
     },
     commentCount: commentIndex.fileLevel.length + commentIndex.byLine.size,
+    comments,
+    commentsLine,
+    commentsOpen,
     content,
     ctx,
     error,
@@ -177,6 +193,10 @@ export function useFileViewer({
     isLoading,
     isPinned,
     markdownMode,
+    openComments: (at) => {
+      setCommentsLine(at ?? null)
+      setCommentsOpen(true)
+    },
     rows,
     selected,
     selectRendered: setRenderedSelection,

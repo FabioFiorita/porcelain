@@ -82,6 +82,46 @@ describe('CanvasView', () => {
     expect(iframe.getAttribute('src')).toContain('/canvas/tok-123')
   })
 
+  it('remints an open HTML Canvas when the same record receives new content', async () => {
+    const mint = vi.fn().mockResolvedValueOnce('tok-v1').mockResolvedValueOnce('tok-v2')
+    vi.mocked(useMintCanvasAccessToken).mockReturnValue({ mint })
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: { record: HTML_RECORD, content: '<p>Version one</p>' },
+      isLoading: false,
+      loadError: null,
+    })
+    const rendered = render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+    expect((await screen.findByTitle('Intent')).getAttribute('src')).toContain('tok-v1')
+
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: { record: HTML_RECORD, content: '<p>Version two</p>' },
+      isLoading: false,
+      loadError: null,
+    })
+    rendered.rerender(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+
+    await waitFor(() => expect(screen.getByTitle('Intent').getAttribute('src')).toContain('tok-v2'))
+    expect(mint).toHaveBeenCalledTimes(2)
+  })
+
+  it('resolves relative Markdown images through a token-scoped Canvas asset URL', async () => {
+    vi.mocked(useCanvas).mockReturnValue({
+      canvas: { record: MARKDOWN_RECORD, content: '![Result](evidence/result.png)' },
+      isLoading: false,
+      loadError: null,
+    })
+    vi.mocked(useMintCanvasAccessToken).mockReturnValue({
+      mint: vi.fn().mockResolvedValue('tok-md'),
+    })
+    render(<CanvasView projectId="proj-1" canvasId="canvas-1" />)
+
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Result' }).getAttribute('src')).toContain(
+        '/canvas/tok-md/assets/evidence/result.png',
+      ),
+    )
+  })
+
   it('mints a token for a structured Review and resolves its bundled attachments', async () => {
     const mint = vi.fn().mockResolvedValue('tok-review')
     vi.mocked(useCanvas).mockReturnValue({

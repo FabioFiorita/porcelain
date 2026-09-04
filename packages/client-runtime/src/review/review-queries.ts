@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { reviewedScopeSchema, type ReviewedScope } from '@porcelain/contracts/review'
 import { reviewCommentsQuerySchema } from './comment-queries'
 
 /** Typed Review identities that remain after the repo-local reading surface was retired. */
@@ -19,6 +20,7 @@ export const reviewedPathsQuerySchema = z
     domain: z.literal('review'),
     name: z.literal('reviewed-paths'),
     projectPath: projectPathSchema,
+    scope: reviewedScopeSchema.optional(),
   })
   .strict()
 
@@ -30,6 +32,11 @@ export const reviewQuerySchema = z.discriminatedUnion('name', [
 export type ReviewQuery = Readonly<z.infer<typeof reviewQuerySchema>>
 export type ReviewedPathsQuery = Readonly<z.infer<typeof reviewedPathsQuerySchema>>
 
-export function reviewedPathsQuery(projectPath: string): ReviewedPathsQuery {
-  return { domain: 'review', name: 'reviewed-paths', projectPath: reviewProjectKey(projectPath) }
+export function reviewedPathsQuery(projectPath: string, scope?: ReviewedScope): ReviewedPathsQuery {
+  return {
+    domain: 'review',
+    name: 'reviewed-paths',
+    projectPath: reviewProjectKey(projectPath),
+    ...(scope === undefined ? {} : { scope }),
+  }
 }

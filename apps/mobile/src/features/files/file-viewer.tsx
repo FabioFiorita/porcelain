@@ -1,7 +1,9 @@
-import { View } from 'react-native'
+import type { ReviewComment } from '@porcelain/contracts/review'
+import { ScrollView, Text, View } from 'react-native'
 
 import { ErrorNote } from '@/components/panel-chrome'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Sheet } from '@/components/ui/sheet'
 import { CommentComposer, SelectionBar } from '@/features/comments'
 import type { HtmlMode, MarkdownMode } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
@@ -56,6 +58,7 @@ export function FileViewer({
         isPinned={viewer.isPinned}
         onBack={onBack}
         onComment={viewer.comment}
+        onOpenComments={viewer.openComments}
         onTogglePinned={viewer.togglePinned}
         selectedRange={viewer.anchorable}
       />
@@ -131,6 +134,71 @@ export function FileViewer({
         testIDPrefix="porcelain-files-comment"
         onClose={viewer.clearAnchor}
       />
+      <FileCommentsSheet
+        comments={viewer.comments}
+        filePath={filePath}
+        line={viewer.commentsLine}
+        open={viewer.commentsOpen}
+        onClose={viewer.closeComments}
+      />
     </View>
+  )
+}
+
+function FileCommentsSheet({
+  comments,
+  filePath,
+  line,
+  open,
+  onClose,
+}: {
+  comments: readonly ReviewComment[]
+  filePath: string
+  line: number | null
+  open: boolean
+  onClose: () => void
+}): React.JSX.Element {
+  const related = comments.filter((comment) => {
+    if (comment.path !== filePath) return false
+    if (line === null) return true
+    if (comment.anchor?.kind !== 'file' || comment.anchor.startLine === undefined) return false
+    return (
+      line >= comment.anchor.startLine &&
+      line <= (comment.anchor.endLine ?? comment.anchor.startLine)
+    )
+  })
+  return (
+    <Sheet
+      open={open}
+      scrollable
+      testID="porcelain-files-comments"
+      title="File comments"
+      onClose={onClose}
+    >
+      <ScrollView className="px-4 pb-6">
+        {related.map((comment) => (
+          <View
+            key={comment.id}
+            className="mb-3 rounded-lg border border-border bg-background p-3"
+            testID={`porcelain-files-comment-${comment.id}`}
+          >
+            <Text className="text-3xs font-semibold uppercase text-muted-foreground">
+              {comment.author === 'agent' ? 'Agent' : 'You'}
+            </Text>
+            <Text className="mt-1 text-sm text-foreground">{comment.body}</Text>
+            {comment.agentReply === undefined ? null : (
+              <View className="mt-2 border-l-2 border-border pl-2">
+                <Text className="text-3xs font-semibold uppercase text-muted-foreground">
+                  Agent
+                </Text>
+                <Text className="mt-1 text-sm text-muted-foreground">
+                  {comment.agentReply.body}
+                </Text>
+              </View>
+            )}
+          </View>
+        ))}
+      </ScrollView>
+    </Sheet>
   )
 }

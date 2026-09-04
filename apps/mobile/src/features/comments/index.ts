@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { commentIndex } from './comment-index'
 import {
   anchorRange,
   type CommentAnchor,
@@ -32,8 +33,8 @@ export { SelectionBar } from './selection-bar'
 
 export type LineSelectionControls = {
   selection: LineSelection | null
-  start: (path: string, line: number) => void
-  extend: (path: string, line: number) => void
+  start: (path: string, line: number, side?: 'old' | 'new') => void
+  extend: (path: string, line: number, side?: 'old' | 'new') => void
   clear: () => void
 }
 
@@ -42,12 +43,19 @@ export function useLineSelection(): LineSelectionControls {
   return useMemo(
     () => ({
       selection,
-      start: (path, line) => setSelection({ path, anchor: line, focus: line }),
-      extend: (path, line) =>
+      start: (path, line, side) =>
+        setSelection({ path, anchor: line, focus: line, ...(side === undefined ? {} : { side }) }),
+      extend: (path, line, side) =>
         setSelection((current) =>
-          current?.path === path
-            ? { ...current, focus: line }
-            : { path, anchor: line, focus: line },
+          current?.path === path &&
+          !(current.side !== undefined && side !== undefined && current.side !== side)
+            ? {
+                path,
+                anchor: current.anchor,
+                focus: line,
+                ...(current.side === side && side !== undefined ? { side } : {}),
+              }
+            : { path, anchor: line, focus: line, ...(side === undefined ? {} : { side }) },
         ),
       clear: () => setSelection(null),
     }),
@@ -64,10 +72,17 @@ export { useReviewComments } from './comment-data'
  * is the truth for those surfaces until one of them grows a gutter marker.
  */
 export function useCommentIndex(
-  _comments: readonly unknown[],
-  _path: string,
-): { byLine: Map<number, never[]>; fileLevel: readonly never[] } {
-  return { byLine: new Map(), fileLevel: [] }
+  comments: readonly import('@porcelain/contracts/review').ReviewComment[],
+  path: string,
+  scope?: Extract<
+    import('@porcelain/contracts/review').ReviewCommentAnchor,
+    { kind: 'file' }
+  >['scope'],
+): {
+  byLine: Map<number, import('@porcelain/contracts/review').ReviewComment[]>
+  fileLevel: readonly import('@porcelain/contracts/review').ReviewComment[]
+} {
+  return useMemo(() => commentIndex(comments, path, scope), [comments, path, scope])
 }
 
 export function useCommentedLinesByPath(_comments: readonly unknown[]): Map<string, Set<number>> {

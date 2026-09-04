@@ -1,5 +1,6 @@
 import { ACTIVE_FILES } from '@shared/project-porcelain'
 import { z } from 'zod'
+import { reviewedScopeSchema } from '@porcelain/contracts/review'
 import { createProjectChannel } from '../net/project-channel'
 
 /**
@@ -7,7 +8,11 @@ import { createProjectChannel } from '../net/project-channel'
  * ONE-WAY app→agent. Marks are content-fingerprinted; stale marks prune on read.
  */
 
-const reviewedMarkSchema = z.object({ path: z.string(), fingerprint: z.string() })
+const reviewedMarkSchema = z.object({
+  path: z.string(),
+  fingerprint: z.string(),
+  scope: reviewedScopeSchema.optional(),
+})
 export type ReviewedMark = z.infer<typeof reviewedMarkSchema>
 
 const reviewedSchema = z.array(reviewedMarkSchema)
@@ -18,8 +23,13 @@ const channel = createProjectChannel({
   empty: (): ReviewedMark[] => [],
 })
 
+function markKey(mark: ReviewedMark): string {
+  const scope = mark.scope ?? { type: 'working' as const }
+  return `${scope.type}\0${scope.type === 'branch' ? scope.base : ''}\0${mark.path}`
+}
+
 function dedupeByPath(marks: ReviewedMark[]): ReviewedMark[] {
-  return [...new Map(marks.map((m) => [m.path, m])).values()]
+  return [...new Map(marks.map((m) => [markKey(m), m])).values()]
 }
 
 export async function readReviewedMarks(repoPath: string): Promise<ReviewedMark[]> {
@@ -36,9 +46,9 @@ export async function removeReviewedMarks(
   marks: readonly ReviewedMark[],
 ): Promise<void> {
   if (marks.length === 0) return
-  const stale = new Set(marks.map((m) => `${m.path}\0${m.fingerprint}`))
+  const stale = new Set(marks.map((m) => `${markKey(m)}\0${m.fingerprint}`))
   await channel.mutate(repoPath, (all) =>
-    all.filter((m) => !stale.has(`${m.path}\0${m.fingerprint}`)),
+    all.filter((m) => !stale.has(`${markKey(m)}\0${m.fingerprint}`)),
   )
 }
 

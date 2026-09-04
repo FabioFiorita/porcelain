@@ -1,10 +1,17 @@
 import { render } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const ctx = vi.hoisted(() => ({ repoPath: '/synthetic/one' as string | null }))
+const ctx = vi.hoisted(() => ({
+  environmentId: 'environment-one' as string | null,
+  repoPath: '/synthetic/one' as string | null,
+}))
 
 vi.mock('@/features/projects', () => ({
   useHubRepoPath: () => ctx.repoPath,
+}))
+
+vi.mock('@/features/remote', () => ({
+  useActiveEnvironment: () => (ctx.environmentId === null ? null : { id: ctx.environmentId }),
 }))
 
 import { useChangesStore } from '@/features/changes/changes-store'
@@ -29,6 +36,7 @@ import { WorktreeResetBridge } from './worktree-reset-bridge'
 describe('WorktreeResetBridge', () => {
   beforeEach(() => {
     ctx.repoPath = '/synthetic/one'
+    ctx.environmentId = 'environment-one'
     useFilesStore.getState().openDir('apps/mobile/src')
     useFilesStore.getState().openFile('apps/mobile/src/index.ts')
     useChangesStore.getState().openFile('src/changed.ts')
@@ -56,6 +64,18 @@ describe('WorktreeResetBridge', () => {
     expect(useChangesStore.getState().selection).toBeNull()
     expect(useHistoryStore.getState().selection).toBeNull()
     expect(useHistoryStore.getState().timelinePath).toBeNull()
+    expect(useSearchStore.getState().query).toBe('')
+  })
+
+  it('drops every per-checkout cursor when the Environment changes at the same path', () => {
+    const view = render(<WorktreeResetBridge />)
+    ctx.environmentId = 'environment-two'
+    view.rerender(<WorktreeResetBridge />)
+
+    expect(useFilesStore.getState().cursor).toBe('')
+    expect(useFilesStore.getState().selection).toBeNull()
+    expect(useChangesStore.getState().selection).toBeNull()
+    expect(useHistoryStore.getState().selection).toBeNull()
     expect(useSearchStore.getState().query).toBe('')
   })
 

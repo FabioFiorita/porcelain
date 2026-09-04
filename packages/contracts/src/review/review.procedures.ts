@@ -6,6 +6,7 @@ import {
   deleteReviewCommentInputSchema,
   editReviewCommentInputSchema,
   repoPathInputSchema,
+  reviewedPathsInputSchema,
   resolveReviewCommentInputSchema,
   reviewReadinessInputSchema,
   reviewReadinessOutputSchema,
@@ -20,7 +21,7 @@ import {
 const reviewProcedureDefinitions = {
   reviewedPaths: {
     kind: 'query',
-    input: repoPathInputSchema,
+    input: reviewedPathsInputSchema,
     output: z.array(z.string()),
     errors: [],
   },

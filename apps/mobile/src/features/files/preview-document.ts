@@ -105,10 +105,17 @@ function styles(scheme: 'light' | 'dark'): string {
 }
 
 /** A rendered markdown fragment, wrapped as a document the preview can load. */
-export function readerDocument(html: string, scheme: 'light' | 'dark'): string {
+export function readerDocument(
+  html: string,
+  scheme: 'light' | 'dark',
+  allowTokenAssets = false,
+): string {
+  const policy = allowTokenAssets
+    ? READER_CSP.replace('img-src data:', 'img-src data: http: https:')
+    : READER_CSP
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="${READER_CSP}">
+<meta http-equiv="Content-Security-Policy" content="${policy}">
 <style>${styles(scheme)}</style></head><body>${html}</body></html>`
 }
 

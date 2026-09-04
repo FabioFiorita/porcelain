@@ -20,6 +20,7 @@ export type FileRowActions = {
   onStage: (path: string) => void
   onUnstage: (path: string) => void
   onDiscard: (path: string) => void
+  onToggleReviewed: (path: string, reviewed: boolean) => void
 }
 
 /** Deterministic per-path id — never an array index, so the Android tree resolves it. */
@@ -37,11 +38,13 @@ function FileRowImpl({
   selected,
   /** Branch scope: rows are committed content, so staging and discard do not apply. */
   working,
+  reviewed,
 }: {
   actions: FileRowActions
   file: FlowFile
   selected: boolean
   working: boolean
+  reviewed: boolean
 }): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -54,6 +57,12 @@ function FileRowImpl({
   const isNew = file.status === 'untracked' || file.status === 'added'
 
   const menuActions: SheetAction[] = []
+  menuActions.push({
+    glyph: reviewed ? 'squareCheck' : 'square',
+    id: 'reviewed',
+    label: reviewed ? 'Unmark reviewed' : 'Mark reviewed',
+    onPress: () => actions.onToggleReviewed(file.path, !reviewed),
+  })
   if (working && file.unstaged === true) {
     menuActions.push({
       glyph: 'plus',
@@ -133,6 +142,7 @@ function FileRowImpl({
                 −{file.deletions}
               </Text>
             )}
+            {reviewed ? <Text className="shrink-0 text-xs text-success">✓</Text> : null}
           </View>
           {directory === '' ? null : (
             // Head-truncated: the tail of a path is what identifies it, the repo root never is.

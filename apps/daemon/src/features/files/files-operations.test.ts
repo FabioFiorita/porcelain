@@ -75,6 +75,7 @@ describe('createFilesOperations', () => {
       unhidePath: vi.fn(async () => undefined),
       pinPath: vi.fn(async () => undefined),
       unpinPath: vi.fn(async () => undefined),
+      renamePath: vi.fn(async () => undefined),
     }
     const ops = createFilesOperations({
       workspaceFiles: fakeWorkspace({ readDir, pinnedEntries }),
@@ -106,6 +107,36 @@ describe('createFilesOperations', () => {
     expect(scope.pinPath).toHaveBeenCalledWith(PROJECT, join(PROJECT, 'src'))
     expect(scope.unpinPath).toHaveBeenCalledWith(PROJECT, join(PROJECT, 'src'))
     expect(scope.read).toHaveBeenCalledTimes(3)
+  })
+
+  it('moves personal pins and hides after a successful filesystem rename', async () => {
+    const renameScope = vi.fn(async () => undefined)
+    const scope: FilesScope = {
+      read: async () => ({ hiddenPaths: [], pinnedPaths: [] }),
+      readProfile: async () => ({
+        worktreeId: null,
+        base: { pinnedPaths: [], hiddenPaths: [], layers: [] },
+        override: null,
+        resolved: { pinnedPaths: [], hiddenPaths: [], layers: [] },
+      }),
+      setProjectProfile: async () => undefined,
+      setWorktreeProfile: async () => undefined,
+      hidePath: async () => undefined,
+      unhidePath: async () => undefined,
+      pinPath: async () => undefined,
+      unpinPath: async () => undefined,
+      renamePath: renameScope,
+    }
+    const ops = createFilesOperations({
+      workspaceFiles: fakeWorkspace({
+        renamePath: async () => ({ ok: true, value: undefined }),
+      }),
+      scope,
+    })
+
+    await ops.renamePath({ projectPath: PROJECT, from: 'docs', to: 'notes' })
+
+    expect(renameScope).toHaveBeenCalledWith(PROJECT, join(PROJECT, 'docs'), join(PROJECT, 'notes'))
   })
 
   it('maps already-exists, not-found, and destination-exists 1:1', async () => {

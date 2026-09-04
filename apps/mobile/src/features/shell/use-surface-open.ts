@@ -28,6 +28,7 @@ export type SurfaceOpen = {
   /** The whole change set as one continuous read. */
   changesReadAll: () => void
   commit: (hash: string) => void
+  commitFile: (hash: string, path: string) => void
   canvasDoc: (id: string) => void
   reviewComments: () => void
 }
@@ -48,6 +49,12 @@ export function useSurfaceOpen(): SurfaceOpen {
       },
       commit: (hash: string) => {
         router.push({ params: { hash }, pathname: '/changes/commit/[hash]' })
+      },
+      commitFile: (hash: string, path: string) => {
+        router.push({
+          params: { hash, path: pathSegments(path) },
+          pathname: '/changes/commit/[hash]/file/[...path]',
+        })
       },
       file: (path: string, line?: number) => {
         router.push({

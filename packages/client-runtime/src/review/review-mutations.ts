@@ -31,7 +31,7 @@ export const reviewMutations = {
     procedure: reviewProcedures.setReviewed,
     procedureName: 'setReviewed',
     affectedQueries: (input: SetReviewedInput): readonly ReviewQueryEffect[] => [
-      reviewedPathsQuery(input.repoPath),
+      reviewedPathsQuery(input.repoPath, input.scope),
     ],
     optimistic: true,
     requiresAuthoritativeRefetch: true,

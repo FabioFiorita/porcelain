@@ -39,6 +39,20 @@ describe('CreateWorktreeDialog', () => {
     })
   })
 
+  it('loads branches from the Project row Environment', () => {
+    render(
+      <CreateWorktreeDialog
+        project={project}
+        open
+        creating={false}
+        onOpenChange={vi.fn()}
+        createWorktree={vi.fn()}
+      />,
+    )
+
+    expect(useGitBranches).toHaveBeenCalledWith(project.path, true, project.environmentId)
+  })
+
   it('creates a worktree from the selected local or remote ref', async () => {
     const createWorktree = vi.fn().mockResolvedValue(undefined)
     const onOpenChange = vi.fn()

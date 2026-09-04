@@ -16,7 +16,7 @@ Resolve the intended checkout with `porcelain_project` before writing collaborat
 absolute `workspace` path; resolve Project and Worktree ids when targeting another checkout. This
 is a tool lookup, not a request for human confirmation when the task already identifies the checkout.
 
-- `porcelain_canvas` owns Decision and Review Canvases.
+- `porcelain_canvas` owns generic HTML/Markdown Canvases and structured Decision/Review Canvases.
 - `porcelain_comment` owns focused review conversations. Read relevant threads before responding.
 - `porcelain_review` owns content-bound reviewed marks. Change them only when the human asks or
   delegates review completion; agent inspection does not mean the human reviewed a file.
@@ -43,6 +43,21 @@ For HTML/SVG Canvases, include self-contained styling and responsive geometry wi
 and contrast. Inspect the rendered result in Porcelain for clipping, overlap, and unintended
 scrolling before reporting it complete. Bundle local evidence assets from one source directory.
 
+## Reveal: explain completed work
+
+Use Reveal when the human chooses it for a task or as their preferred handoff. It combines
+Porcelain's surfaces; it is not a Canvas format or a required before/during/after ceremony.
+
+Explain the task and resulting behavior in a Review Canvas. Organize Changes into meaningful
+layers and order files by the attention their actual changes need. Add focused comments where
+local context helps, and answer the human's existing questions. Include evidence, risks, and
+unverified behavior in the Canvas, with references into the relevant files and changes. Keep these
+surfaces connected so the human can move from the explanation to the diff and its discussion.
+
+Canvas remains a playground outside this flow: use HTML or Markdown for whatever the human needs
+to understand, at the time they find useful. Decision and Review are available structures, not
+the limits of Canvas.
+
 ## Review contract
 
 Explain the change in the order a reviewer needs: consequential behavior and contracts first,
@@ -50,7 +65,7 @@ integration next, mechanical support last. Include observed checks, failures, an
 A Canvas supplements the diff and runtime evidence; it does not replace them.
 
 When using the full `document` MCP shape for a Review, include its sibling `reviewMetadata` with
-complete `layers` and `files` arrays. A document-only write drops Changes/History ordering. Layers
+complete `layers` and `files` arrays; incomplete metadata is rejected. Layers
 represent review meaning and risk, with files ordered for inspection. A layer `pattern` is JavaScript
 regular-expression source over repository-relative paths, not a glob; use `.*` instead of `**`.
 Unlisted changed files appear at the end of their layer.

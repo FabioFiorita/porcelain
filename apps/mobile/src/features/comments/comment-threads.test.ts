@@ -84,6 +84,28 @@ describe('commentThreads', () => {
     expect(threads[0]?.comments.map((entry) => entry.body)).toEqual(['first', 'second'])
   })
 
+  it('keeps old and new sides and comparison scopes distinct at the same line', () => {
+    const scoped = (side: 'old' | 'new', base: string): ReviewComment => ({
+      body: side,
+      createdAt: 1,
+      id: `${side}-${base}`,
+      resolved: false,
+      anchor: {
+        kind: 'file',
+        path: 'src/a.ts',
+        startLine: 7,
+        side,
+        scope: { type: 'branch', base },
+      },
+    })
+    expect(commentAnchorKey(scoped('old', 'main'))).not.toBe(
+      commentAnchorKey(scoped('new', 'main')),
+    )
+    expect(commentAnchorKey(scoped('new', 'main'))).not.toBe(
+      commentAnchorKey(scoped('new', 'develop')),
+    )
+  })
+
   it('reads a thread oldest first, so a reply follows what it answers', () => {
     const threads = commentThreads([
       comment({ body: 'newest', createdAt: 3, id: 'c', startLine: 3 }),

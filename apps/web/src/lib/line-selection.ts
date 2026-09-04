@@ -2,6 +2,7 @@ export interface LineSelection {
   startLine: number
   endLine: number
   text: string
+  side?: 'old' | 'new'
 }
 
 /**
@@ -29,6 +30,11 @@ function lineOf(row: Element | null): number | null {
   const value = row?.getAttribute('data-line')
   const parsed = value ? Number.parseInt(value, 10) : Number.NaN
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function sideOf(row: Element | null): 'old' | 'new' | undefined {
+  const side = row?.getAttribute('data-side')
+  return side === 'old' || side === 'new' ? side : undefined
 }
 
 function sourceRangeOf(element: Element | null): { startLine: number; endLine: number } | null {
@@ -96,7 +102,15 @@ export function lineSelectionFromDom(): LineSelection | null {
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null
   const range = lineRangeFromRange(selection.getRangeAt(0))
   if (!range) return null
-  return { ...range, text: selection.toString() }
+  const domRange = selection.getRangeAt(0)
+  const startSide = sideOf(rowAt(domRange.startContainer, domRange.startOffset))
+  const endSide = sideOf(rowAt(domRange.endContainer, domRange.endOffset))
+  if (startSide !== undefined && endSide !== undefined && startSide !== endSide) return null
+  return {
+    ...range,
+    text: selection.toString(),
+    ...(startSide === endSide ? { side: startSide } : {}),
+  }
 }
 
 /**
@@ -137,9 +151,17 @@ export function fileLineRangeFromRange(
 export function lineSelectionForFile(path: string): LineSelection | null {
   const selection = window.getSelection()
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null
-  const range = fileLineRangeFromRange(selection.getRangeAt(0), path)
+  const domRange = selection.getRangeAt(0)
+  const range = fileLineRangeFromRange(domRange, path)
   if (!range) return null
-  return { ...range, text: selection.toString().slice(0, 2000) }
+  const startSide = sideOf(rowAt(domRange.startContainer, domRange.startOffset))
+  const endSide = sideOf(rowAt(domRange.endContainer, domRange.endOffset))
+  if (startSide !== undefined && endSide !== undefined && startSide !== endSide) return null
+  return {
+    ...range,
+    text: selection.toString().slice(0, 2000),
+    ...(startSide === endSide ? { side: startSide } : {}),
+  }
 }
 
 function countNewlines(text: string): number {

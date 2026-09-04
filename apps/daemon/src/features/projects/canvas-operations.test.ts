@@ -209,6 +209,25 @@ describe('Canvas operations', () => {
     })
   })
 
+  it('reads local evidence assets from a Markdown Canvas bundle', async () => {
+    await writeIndex('proj-1', [markdownRecord])
+    const bundleDir = canvasBundleDir(homeDir, 'proj-1', 'canvas-md')
+    await mkdir(join(bundleDir, 'evidence'), { recursive: true })
+    await writeFile(join(bundleDir, 'index.md'), '![Result](evidence/result.svg)', 'utf8')
+    await writeFile(join(bundleDir, 'evidence', 'result.svg'), '<svg></svg>', 'utf8')
+
+    expect(
+      await operations.readCanvasAsset({
+        projectId: 'proj-1',
+        canvasId: 'canvas-md',
+        assetPath: 'evidence/result.svg',
+      }),
+    ).toEqual({
+      ok: true,
+      value: { bytes: Buffer.from('<svg></svg>'), contentType: 'image/svg+xml' },
+    })
+  })
+
   it('appends the external-link bridge script to HTML content only', async () => {
     await writeIndex('proj-1', [htmlRecord, markdownRecord])
     await mkdir(canvasBundleDir(homeDir, 'proj-1', 'canvas-html'), { recursive: true })

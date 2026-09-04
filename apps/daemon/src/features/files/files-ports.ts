@@ -158,6 +158,8 @@ export type FilesScope = Readonly<{
   unhidePath(repoPath: string, path: string): Promise<void>
   pinPath(repoPath: string, path: string): Promise<void>
   unpinPath(repoPath: string, path: string): Promise<void>
+  /** Move exact and descendant personal curation entries after a successful filesystem rename. */
+  renamePath(repoPath: string, from: string, to: string): Promise<void>
 }>
 
 export type FilesChangeFact =

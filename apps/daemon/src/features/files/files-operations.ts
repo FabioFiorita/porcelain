@@ -137,6 +137,11 @@ export function createFilesOperations(
     async renamePath(input) {
       const result = await workspaceFiles.renamePath(input)
       if (!result.ok) return result
+      await scope.renamePath(
+        input.projectPath,
+        join(input.projectPath, input.from),
+        join(input.projectPath, input.to),
+      )
       changes.publish({
         type: 'files.tree-changed',
         projectPath: input.projectPath,

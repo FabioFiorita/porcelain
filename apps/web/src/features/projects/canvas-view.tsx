@@ -1,12 +1,12 @@
 import { MarkdownView } from '@renderer/components/viewer/markdown-view'
 import { daemonBaseUrl } from '@renderer/lib/daemon'
 import { environmentSessionFor } from '@renderer/lib/environment-sessions'
+import type { ReviewTarget } from '@renderer/stores/tabs'
 import { settleBackground } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useEffect, useRef, useState } from 'react'
 import { useCanvas, useMintCanvasAccessToken } from './project-data'
 import { StructuredCanvasView } from './structured-canvas-view'
-import type { ReviewTarget } from '@renderer/stores/tabs'
 
 /**
  * Message a Canvas's click-interception bootstrap posts for every non-fragment
@@ -35,11 +35,13 @@ function useCanvasDocumentUrl({
   canvasId,
   worktreePath,
   environmentId,
+  revision,
 }: {
   projectId: string
   canvasId: string
   worktreePath: string | undefined
   environmentId: string | undefined
+  revision: string
 }): { src: string | null; error: string | null } {
   const { mint } = useMintCanvasAccessToken()
   const environment = environmentSessionFor(environmentId ?? null)
@@ -47,6 +49,8 @@ function useCanvasDocumentUrl({
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
+    // The revision is an intentional reload signal even though it is not sent to the daemon.
+    void revision
     let cancelled = false
     setSrc(null)
     setError(null)
@@ -76,7 +80,7 @@ function useCanvasDocumentUrl({
     return () => {
       cancelled = true
     }
-  }, [projectId, canvasId, worktreePath, environmentId, environmentBaseUrl, mint])
+  }, [projectId, canvasId, worktreePath, environmentId, environmentBaseUrl, mint, revision])
 
   return { src, error }
 }
@@ -87,18 +91,21 @@ function CanvasHtmlFrame({
   title,
   worktreePath,
   environmentId,
+  revision,
 }: {
   projectId: string
   canvasId: string
   title: string
   worktreePath: string | undefined
   environmentId: string | undefined
+  revision: string
 }): React.JSX.Element {
   const { src, error } = useCanvasDocumentUrl({
     projectId,
     canvasId,
     worktreePath,
     environmentId,
+    revision,
   })
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -138,6 +145,7 @@ function CanvasStructuredFrame({
   content,
   worktreePath,
   environmentId,
+  revision,
   reviewTarget,
 }: {
   projectId: string
@@ -145,11 +153,18 @@ function CanvasStructuredFrame({
   content: string
   worktreePath: string | undefined
   environmentId: string | undefined
+  revision: string
   reviewTarget: ReviewTarget | undefined
 }): React.JSX.Element {
   // The same narrow token used by HTML Canvas documents also scopes real Review attachments.
   // A Review remains readable if minting fails; only its bundled evidence becomes unavailable.
-  const { src } = useCanvasDocumentUrl({ projectId, canvasId, worktreePath, environmentId })
+  const { src } = useCanvasDocumentUrl({
+    projectId,
+    canvasId,
+    worktreePath,
+    environmentId,
+    revision,
+  })
   return (
     <StructuredCanvasView
       content={content}
@@ -193,7 +208,16 @@ export function CanvasView({
     return <div className="p-4 text-sm text-muted-foreground">Loading…</div>
   }
   if (canvas.record.kind === 'markdown') {
-    return <MarkdownView content={canvas.content} />
+    return (
+      <CanvasMarkdownFrame
+        projectId={projectId}
+        canvasId={canvasId}
+        content={canvas.content}
+        worktreePath={worktreePath}
+        environmentId={environmentId}
+        revision={`${canvas.record.updatedAt}\u0000${canvas.content}`}
+      />
+    )
   }
   if (canvas.record.kind === 'structured') {
     return (
@@ -203,6 +227,7 @@ export function CanvasView({
         content={canvas.content}
         worktreePath={worktreePath}
         environmentId={environmentId}
+        revision={`${canvas.record.updatedAt}\u0000${canvas.content}`}
         reviewTarget={reviewTarget}
       />
     )
@@ -214,6 +239,32 @@ export function CanvasView({
       title={canvas.record.title}
       worktreePath={worktreePath}
       environmentId={environmentId}
+      revision={`${canvas.record.updatedAt}\u0000${canvas.content}`}
     />
   )
+}
+
+function CanvasMarkdownFrame({
+  projectId,
+  canvasId,
+  content,
+  worktreePath,
+  environmentId,
+  revision,
+}: {
+  projectId: string
+  canvasId: string
+  content: string
+  worktreePath: string | undefined
+  environmentId: string | undefined
+  revision: string
+}): React.JSX.Element {
+  const { src } = useCanvasDocumentUrl({
+    projectId,
+    canvasId,
+    worktreePath,
+    environmentId,
+    revision,
+  })
+  return <MarkdownView content={content} assetBaseUrl={src === null ? null : `${src}/assets`} />
 }

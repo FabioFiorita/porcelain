@@ -80,8 +80,10 @@ function FileRowImpl({
   const prefetchDiff = useDiffFileHoverPrefetch()
   const { stageFile, unstageFile } = useFileStaging()
   const discardFile = useDiscardFile()
-  const reviewed = useReviewedPaths()
-  const { mark, unmark } = useToggleReviewed()
+  const reviewScope =
+    base === undefined ? { type: 'working' as const } : { type: 'branch' as const, base }
+  const reviewed = useReviewedPaths(reviewScope)
+  const { mark, unmark } = useToggleReviewed(reviewScope)
   const isReviewed = reviewed.has(file.path)
   // The row is "open" when the Viewer shows this file's diff in the same scope:
   // a working-tree row (no base) must not light up for a branch-diff tab, and a
@@ -316,7 +318,9 @@ export function ChangesList(): React.JSX.Element {
   const active = changesScope === 'branch' ? branch : working
   const { error, groups, refresh } = active
   const base = changesScope === 'branch' ? branch.base : undefined
-  const reviewed = useReviewedPaths()
+  const reviewScope =
+    base === undefined ? { type: 'working' as const } : { type: 'branch' as const, base }
+  const reviewed = useReviewedPaths(reviewScope)
 
   if (!project) {
     return <p className="p-3 text-sm text-muted-foreground">Loading…</p>
@@ -387,7 +391,9 @@ export function ChangesList(): React.JSX.Element {
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <CommentsManageMenu />
-          {total > 0 && <ReviewAllToggle paths={paths} allReviewed={allReviewed} />}
+          {total > 0 && (
+            <ReviewAllToggle paths={paths} allReviewed={allReviewed} scope={reviewScope} />
+          )}
           {total > 0 && (
             <Tooltip>
               <TooltipTrigger

@@ -29,6 +29,8 @@ import {
 /** A stable identity for the disabled render, so the key does not churn while nothing is selected. */
 const DISABLED_LIST = listCanvasesQuery('none', null)
 const DISABLED_READ = readCanvasQuery('none', 'none', null)
+/** Best-effort session events can be missed while Android suspends or reconnects. */
+const OPEN_CANVAS_REFRESH_MS = 2_000
 
 function failureMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.length > 0 ? error.message : fallback
@@ -94,6 +96,7 @@ export function useCanvasList(active: boolean): {
       return callProjectDaemon(environment, listCanvasesProcedure, canvasListScope(target))
     },
     queryKey: projectsQueryKey(environmentId, identity),
+    refetchInterval: enabled ? OPEN_CANVAS_REFRESH_MS : false,
   })
 
   return {
@@ -132,6 +135,7 @@ export function useCanvas(
       })
     },
     queryKey: projectsQueryKey(environmentId, identity),
+    refetchInterval: enabled ? OPEN_CANVAS_REFRESH_MS : false,
   })
 
   return {
@@ -153,6 +157,7 @@ export function useCanvas(
 export function useCanvasDocumentUrl(
   canvasId: string,
   active: boolean,
+  revision?: string,
 ): { url: string | null; mintError: string | null } {
   const environment = useActiveEnvironment()
   const target = useHubTarget()
@@ -172,6 +177,8 @@ export function useCanvasDocumentUrl(
   })
 
   useEffect(() => {
+    // The revision is an intentional reload signal even though it is not sent to the daemon.
+    void revision
     if (!enabled || projectId === null || worktreePath === null || !isPaired(environment)) {
       setState({ mintError: null, url: null })
       return
@@ -204,7 +211,7 @@ export function useCanvasDocumentUrl(
     return () => {
       cancelled = true
     }
-  }, [canvasId, enabled, environment, projectId, worktreePath])
+  }, [canvasId, enabled, environment, projectId, revision, worktreePath])
 
   return state
 }

@@ -118,11 +118,19 @@ export function ReadAllView({
 
   const handleCommentSelection = (): void => {
     if (activeSelection === null) return
+    const commentScope =
+      scope.type !== 'branch'
+        ? scope
+        : scope.base === undefined
+          ? undefined
+          : { type: 'branch' as const, base: scope.base }
     setAnchor({
       anchorText: anchorTextFor(hunksByPath.get(activeSelection.path) ?? [], activeSelection.range),
       endLine: activeSelection.range.endLine,
       path: activeSelection.path,
       startLine: activeSelection.range.startLine,
+      scope: commentScope,
+      side: lineSelection.selection?.side,
     })
     lineSelection.clear()
   }
@@ -309,13 +317,13 @@ function ReadingRowView({
   return (
     <DiffRowView
       ctx={{
-        commentedLines: commentedByPath.get(row.path) ?? NO_COMMENTS,
+        isCommented: (line: number) => (commentedByPath.get(row.path) ?? NO_COMMENTS).has(line),
         emphasis,
-        onAnchorLine: (line: number): void => {
-          selection.start(row.path, line)
+        onAnchorLine: (line: number, side: 'old' | 'new'): void => {
+          selection.start(row.path, line, side)
         },
-        onExtendToLine: (line: number): void => {
-          selection.extend(row.path, line)
+        onExtendToLine: (line: number, side: 'old' | 'new'): void => {
+          selection.extend(row.path, line, side)
         },
         selected: rangeForPath(selection.selection, row.path),
         tokens: tokensFor(row.path, hunksByPath.get(row.path) ?? []),

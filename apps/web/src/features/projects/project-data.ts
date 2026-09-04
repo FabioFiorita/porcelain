@@ -26,7 +26,6 @@ import type {
   ReadCanvasOutput,
   RemoveHubWorktreeInput,
 } from '@porcelain/contracts/projects'
-import { settleBackground } from '@shared/background'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import { type DaemonScope, daemonScopeSchema } from '@renderer/lib/daemon-scope'
 import {
@@ -39,14 +38,15 @@ import { isBrowser } from '@renderer/lib/platform'
 import { trpc } from '@renderer/lib/trpc'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { settleBackground } from '@shared/background'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { z } from 'zod'
 
 import {
+  type HubInventoryView,
   refreshCurrentShellHubInventory,
   SHELL_HUB_INVENTORIES_QUERY_KEY,
-  type HubInventoryView,
 } from './hub-inventories'
 import {
   browseProjectDirectoriesOnDaemon,
@@ -168,8 +168,7 @@ export function useOpenProject(): {
           : environmentSessionFor(variables.environmentId)
       if (owner === null) throw new Error('The target Environment is offline.')
       const project = await openProjectOnDaemon(owner.client, variables.path)
-      const inventory =
-        variables.environmentId === null ? null : await hubInventoryOnDaemon(owner.client)
+      const inventory = await hubInventoryOnDaemon(owner.client)
       return { inventory, project }
     },
     onSuccess: ({ inventory, project }, variables) => {
@@ -185,6 +184,10 @@ export function useOpenProject(): {
           path: worktree.path,
           name: worktree.name,
         })
+      } else {
+        // An arbitrary workspace is not a Hub target. Drop the previous Environment owner
+        // while keeping the Project selection returned by openProject above.
+        useHubSelectionStore.setState({ selection: { kind: 'home' } })
       }
       settleBackground(
         invalidateProjectQueries(
@@ -394,7 +397,6 @@ export function useProjectDirectories(
   const identity = projectDirectoriesQuery(path)
   const query = useQuery({
     enabled: enabled && owner !== null,
-    placeholderData: keepPreviousData,
     queryFn: async (): Promise<BrowseDirsOutput> => {
       if (owner === null) throw new Error('That Environment is offline.')
       return browseProjectDirectoriesOnDaemon(owner.client, path)

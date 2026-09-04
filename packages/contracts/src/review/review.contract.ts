@@ -267,6 +267,16 @@ export const reviewCommentAnchorSchema = z.discriminatedUnion('kind', [
       startLine: z.number().int().positive().optional(),
       endLine: z.number().int().positive().optional(),
       anchorText: z.string().optional(),
+      side: z.enum(['old', 'new']).optional(),
+      scope: z
+        .discriminatedUnion('type', [
+          z.object({ type: z.literal('working') }).strict(),
+          z.object({ type: z.literal('branch'), base: z.string().min(1) }).strict(),
+          z
+            .object({ type: z.literal('commit'), hash: z.string().regex(/^[0-9a-f]{7,64}$/) })
+            .strict(),
+        ])
+        .optional(),
     })
     .strict()
     .superRefine((anchor, context) => {
@@ -355,11 +365,24 @@ export type ReviewReadinessInput = z.infer<typeof reviewReadinessInputSchema>
 export type ReviewReadinessOutput = z.infer<typeof reviewReadinessOutputSchema>
 
 /** Total: sets exactly `paths` to `reviewed`, so one bulk write stays one atomic call. */
+export const reviewedScopeSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('working') }).strict(),
+  z.object({ type: z.literal('branch'), base: z.string().min(1) }).strict(),
+])
+export type ReviewedScope = z.infer<typeof reviewedScopeSchema>
+
+export const reviewedPathsInputSchema = z.union([
+  z.string().min(1),
+  z.object({ repoPath: z.string().min(1), scope: reviewedScopeSchema }).strict(),
+])
+export type ReviewedPathsInput = z.infer<typeof reviewedPathsInputSchema>
+
 export const setReviewedInputSchema = z
   .object({
     repoPath: z.string().min(1),
     paths: z.array(z.string().min(1)).min(1),
     reviewed: z.boolean(),
+    scope: reviewedScopeSchema.optional(),
   })
   .strict()
 export type SetReviewedInput = z.infer<typeof setReviewedInputSchema>

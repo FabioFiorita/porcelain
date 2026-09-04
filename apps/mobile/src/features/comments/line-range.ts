@@ -12,6 +12,7 @@ export type LineSelection = {
   path: string
   anchor: number
   focus: number
+  side?: 'old' | 'new'
 }
 
 export type LineRange = { startLine: number; endLine: number }
@@ -22,6 +23,11 @@ export type CommentAnchor = {
   startLine?: number
   endLine?: number
   anchorText?: string
+  side?: 'old' | 'new'
+  scope?: Extract<
+    import('@porcelain/contracts/review').ReviewCommentAnchor,
+    { kind: 'file' }
+  >['scope']
 }
 
 /** An anchor's line range, or null for a whole-file comment. */

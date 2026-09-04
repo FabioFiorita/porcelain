@@ -50,9 +50,10 @@ export function invalidateProjectsInventoryNotification(
 export function invalidateCanvasNotification(
   notification: ReviewCanvasChanged,
   queryClient: QueryClient,
-  environmentId: string | null,
+  environmentIds: string | null | readonly (string | null)[],
   daemon?: DaemonScope,
 ): Promise<void> {
+  const owners = Array.isArray(environmentIds) ? environmentIds : [environmentIds]
   return queryClient
     .invalidateQueries({
       predicate: (query) => {
@@ -66,7 +67,7 @@ export function invalidateCanvasNotification(
           identity.domain === 'projects' &&
           (identity.name === 'canvases' || identity.name === 'canvas') &&
           identity.projectId === notification.projectId &&
-          query.queryKey[2] === environmentId
+          owners.includes(query.queryKey[2] as string | null)
         const readinessMatch =
           typeof identity === 'object' &&
           identity !== null &&
@@ -105,6 +106,8 @@ export function useCanvasNotificationSubscription(): void {
         { host, version },
       )
       const environmentId = entry.connectionId === null ? null : entry.environmentId
+      const canvasEnvironmentIds =
+        entry.connectionId === null ? [null, entry.environmentId] : [entry.environmentId]
       entry.session.start()
       return entry.session.onChange((change) => {
         if (change.kind === 'projects.inventory-changed') {
@@ -117,7 +120,7 @@ export function useCanvasNotificationSubscription(): void {
         if (change.kind !== 'review.canvas-changed') return
         settleBackground(
           Promise.all([
-            invalidateCanvasNotification(change, queryClient, environmentId, daemon),
+            invalidateCanvasNotification(change, queryClient, canvasEnvironmentIds, daemon),
             invalidateGitEffects(queryClient, daemon, [
               gitReviewPresentationEffect(change.projectPath),
             ]),

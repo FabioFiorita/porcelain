@@ -162,13 +162,17 @@ function DiffRowView({ row, ctx }: { row: DiffRow; ctx: RenderContext }): React.
     // selection here maps to a commentable line range; see lib/line-selection.ts.
     const anchorLine = row.line.newLine ?? row.line.oldLine ?? undefined
     const ranges = ctx.emphasis.get(row.line)
-    const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
+    const comments = commentsForSide(
+      anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined,
+      row.line.kind === 'del' ? 'old' : 'new',
+    )
     const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
     const tint = commentRowClass(comments, pending)
     return (
       <div
         data-file={ctx.filePath}
         data-line={anchorLine}
+        data-side={row.line.kind === 'del' ? 'old' : 'new'}
         className={cn('relative flex px-2', tint ?? lineClass[row.line.kind])}
       >
         <LineDecorations comments={comments} />
@@ -235,13 +239,17 @@ function SplitCell({
 }): React.JSX.Element {
   const ranges = line ? ctx.emphasis.get(line) : undefined
   const anchorLine = line ? cellAnchorLine(line, side) : undefined
-  const comments = anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined
+  const comments = commentsForSide(
+    anchorLine !== undefined ? ctx.commentsByLine.get(anchorLine) : undefined,
+    side === 'left' ? 'old' : 'new',
+  )
   const pending = anchorLine !== undefined && ctx.pendingLines.has(anchorLine)
   const tint = commentRowClass(comments, pending)
   return (
     <div
       data-file={ctx.filePath}
       data-line={anchorLine}
+      data-side={side === 'left' ? 'old' : 'new'}
       className={cn('relative flex min-w-0 flex-1', tint ?? (line ? lineClass[line.kind] : ''))}
     >
       <LineDecorations comments={comments} />
@@ -262,6 +270,19 @@ function SplitCell({
       )}
     </div>
   )
+}
+
+function commentsForSide(
+  comments: import('@porcelain/contracts/review').ReviewComment[] | undefined,
+  side: 'old' | 'new',
+): import('@porcelain/contracts/review').ReviewComment[] | undefined {
+  const matching = comments?.filter(
+    (comment) =>
+      comment.anchor?.kind !== 'file' ||
+      comment.anchor.side === undefined ||
+      comment.anchor.side === side,
+  )
+  return matching?.length ? matching : undefined
 }
 
 /**

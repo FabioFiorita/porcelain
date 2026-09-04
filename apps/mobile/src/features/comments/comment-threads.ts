@@ -53,9 +53,23 @@ export function commentAnchorKey(comment: ReviewComment): string {
   if (anchor.kind === 'changeset') return 'changeset'
   if (anchor.kind === 'canvas') return `canvas\u0000${anchor.canvasId}\u0000${anchor.section ?? ''}`
   const range = commentRange(comment)
+  const scope =
+    anchor.scope === undefined
+      ? 'file'
+      : anchor.scope.type === 'working'
+        ? 'working'
+        : anchor.scope.type === 'branch'
+          ? `branch:${anchor.scope.base}`
+          : `commit:${anchor.scope.hash}`
+  const side = anchor.side ?? 'any'
+  if (anchor.scope === undefined && anchor.side === undefined) {
+    return range === null
+      ? `${anchor.path}\u0000file`
+      : `${anchor.path}\u0000${range.startLine}-${range.endLine}`
+  }
   return range === null
-    ? `${anchor.path}\u0000file`
-    : `${anchor.path}\u0000${range.startLine}-${range.endLine}`
+    ? `${anchor.path}\u0000${scope}\u0000${side}\u0000file`
+    : `${anchor.path}\u0000${scope}\u0000${side}\u0000${range.startLine}-${range.endLine}`
 }
 
 /** "File comment" / "Line 12" / "Lines 12–18" — the web marker's labels, verbatim. */
@@ -67,7 +81,17 @@ export function describeThreadAnchor(anchor: ReviewCommentAnchor, range: LineRan
   if (anchor.kind === 'changeset') return 'Whole changeset'
   if (anchor.kind === 'canvas')
     return anchor.section ? `Canvas: ${anchor.section}` : 'Review Canvas'
-  return describeAnchor(range)
+  const location = describeAnchor(range)
+  const side = anchor.side === undefined ? '' : ` · ${anchor.side} side`
+  const scope =
+    anchor.scope === undefined
+      ? ''
+      : anchor.scope.type === 'working'
+        ? ' · Working tree'
+        : anchor.scope.type === 'branch'
+          ? ` · vs ${anchor.scope.base}`
+          : ` · Commit ${anchor.scope.hash.slice(0, 7)}`
+  return `${location}${side}${scope}`
 }
 
 /**

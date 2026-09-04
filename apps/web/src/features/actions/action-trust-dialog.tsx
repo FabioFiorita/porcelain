@@ -25,10 +25,12 @@ import { TestIds } from '@shared/test-ids'
  */
 export function ActionTrustDialog({
   action,
+  environmentName,
   onCancel,
   onTrust,
 }: {
   action: ActionView | null
+  environmentName?: string
   onCancel: () => void
   onTrust: (action: ActionView) => void
 }): React.JSX.Element | null {
@@ -40,7 +42,8 @@ export function ActionTrustDialog({
           <AlertDialogTitle>Review “{action.title}” before running?</AlertDialogTitle>
           <AlertDialogDescription>
             This exact command has not been accepted on this machine. It may have been added by an
-            agent or changed since you last reviewed it. It runs in a visible terminal as you.
+            agent or changed since you last reviewed it. It runs in a visible terminal as you
+            {environmentName === undefined ? '.' : ` on ${environmentName}.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <pre

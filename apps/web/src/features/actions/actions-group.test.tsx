@@ -7,7 +7,7 @@ import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import type { spawnLocalTerminal as spawnLocalTerminalModule } from '@renderer/lib/terminal-actions'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { TestIds } from '@shared/test-ids'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -293,6 +293,81 @@ describe('ActionsGroup', () => {
         initialInput: 'make build',
       }),
     )
+  })
+
+  it('keeps the original Project target when selection changes while trust is open', async () => {
+    const betaProject = {
+      ...project,
+      id: 'proj-beta',
+      name: 'beta',
+      worktrees: project.worktrees.map((worktree) => ({
+        ...worktree,
+        id: `beta-${worktree.id}`,
+        projectId: 'proj-beta',
+        path: `${worktree.path}-beta`,
+      })),
+    }
+    inventories = [
+      {
+        environmentId: null,
+        current: true,
+        inventory: { ...inventory, projects: [project, betaProject] },
+      },
+    ]
+    const runs: PrepareActionRunInput[] = []
+    const { wrapper } = createValidatingTrpcHarness({
+      daemonInfo: () => ({ ok: true, value: remoteContractFixtures.daemonInfo.output }),
+      actions: (input) => {
+        const { projectId } = input as { projectId: string }
+        return {
+          ok: true,
+          value:
+            projectId === project.id ? [{ ...build, trusted: false }] : (rosters[projectId] ?? []),
+        }
+      },
+      trustActions: () => ({ ok: true, value: undefined }),
+      prepareActionRun: (input) => {
+        const parsed = input as PrepareActionRunInput
+        runs.push(parsed)
+        return {
+          ok: true,
+          value: {
+            id: build.id,
+            title: build.title,
+            command: build.command,
+            where: 'primary',
+            cwd: parsed.target.path,
+          },
+        }
+      },
+    })
+    render(<ActionsGroup />, { wrapper })
+
+    await waitFor(() => expect(screen.getByTestId(TestIds.actionRun('Build'))).toBeVisible())
+    fireEvent.click(screen.getByTestId(TestIds.actionRun('Build')))
+    await waitFor(() => expect(screen.getByTestId(TestIds.actionTrustDialog)).toBeVisible())
+
+    act(() => {
+      useHubSelectionStore.getState().selectWorktree({
+        environmentId: inventory.environment.id,
+        projectId: betaProject.id,
+        worktreeId: betaProject.worktrees[0]?.id ?? 'missing',
+        path: betaProject.worktrees[0]?.path ?? 'missing',
+        name: betaProject.name,
+      })
+    })
+    fireEvent.click(screen.getByTestId(TestIds.actionTrustConfirm))
+
+    await waitFor(() => expect(screen.getByTestId(TestIds.actionsTargetPicker)).toBeVisible())
+    expect(runs).toEqual([])
+    fireEvent.click(screen.getByTestId(TestIds.actionsTargetOption(mainWorktree.id)))
+    await waitFor(() => expect(runs).toHaveLength(1))
+    expect(runs[0]?.target).toEqual({
+      environmentId: inventory.environment.id,
+      projectId: project.id,
+      worktreeId: mainWorktree.id,
+      path: mainWorktree.path,
+    })
   })
 
   it('says so and lists nothing when no Project is selected', async () => {

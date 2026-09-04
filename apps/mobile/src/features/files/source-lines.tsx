@@ -25,6 +25,7 @@ export type SourceLineContext = {
   onAnchorLine: (line: number) => void
   /** Tap extends the open selection to this line. */
   onExtendToLine: (line: number) => void
+  onOpenCommentsAt: (line: number) => void
 }
 
 /**
@@ -63,7 +64,8 @@ function SourceLineImpl({
         ctx.onAnchorLine(row.line)
       }}
       onPress={() => {
-        ctx.onExtendToLine(row.line)
+        if (commented) ctx.onOpenCommentsAt(row.line)
+        else ctx.onExtendToLine(row.line)
       }}
     >
       <Text className="w-9 shrink-0 text-right font-mono text-3xs leading-4 text-muted-foreground/60">

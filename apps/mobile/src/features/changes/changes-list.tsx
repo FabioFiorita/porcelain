@@ -21,6 +21,7 @@ import { ChangesBasePicker } from './changes-base-picker'
 import { summarizeChanges } from './changes-summary'
 import { FileRow, type FileRowActions } from './file-row'
 import { useChangesFlow } from './use-changes'
+import { useReviewed } from './reviewed-data'
 
 /**
  * The Changes list: the flow-grouped change set for the active scope, with the header that
@@ -55,6 +56,11 @@ export function ChangesList({
   const openAll = onOpenAll ?? selectAll
 
   const { base, defaultBase, error, groups, isLoading, requestedBase } = useChangesFlow(active)
+  const reviewScope =
+    scope === 'branch' && base !== undefined
+      ? { type: 'branch' as const, base }
+      : { type: 'working' as const }
+  const reviewed = useReviewed(reviewScope, active)
   const { stageFile, unstageFile } = useFileStaging()
   const { discardFile } = useDiscardFile()
   const [actionError, setActionError] = useState<string | null>(null)
@@ -85,6 +91,7 @@ export function ChangesList({
     onUnstage: (path) => {
       guard('Unstage failed', () => unstageFile(path))
     },
+    onToggleReviewed: reviewed.onToggle,
   }
 
   const selectedPath = selection?.kind === 'file' ? selection.path : null
@@ -171,6 +178,7 @@ export function ChangesList({
               actions={actions}
               file={item}
               selected={item.path === selectedPath}
+              reviewed={reviewed.paths.has(item.path)}
               working={scope === 'working'}
             />
           )}

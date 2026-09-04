@@ -1,7 +1,7 @@
 import type { ChangedFile, Commit } from '@porcelain/contracts/git'
 import type { WorktreeProfileView } from '@porcelain/contracts/files'
 import type { PromoteOverridesInput } from '@porcelain/contracts/projects'
-import type { ReviewCommentAnchor } from '@porcelain/contracts/review'
+import type { ReviewedScope, ReviewCommentAnchor } from '@porcelain/contracts/review'
 import type { CanvasBundleSource } from '../../features/projects'
 import type { ReviewComment } from '../../features/review/comment-capabilities'
 import type { WorkspaceInventory } from './mcp-workspace'
@@ -15,6 +15,11 @@ export type McpOperations = Readonly<{
   git: Readonly<{
     statusGit: (repoPath: string) => Promise<OperationResult<ChangedFile[]>>
     logGit: (input: { repoPath: string; limit: number }) => Promise<Commit[]>
+    rangeFlowGit?: (input: { repoPath: string; base?: string }) => Promise<{
+      groups: Array<{ files: ChangedFile[] }>
+      base: string
+      defaultBase: string
+    }>
   }>
   files: Readonly<{
     worktreeProfile: (repoPath: string) => Promise<WorktreeProfileView>
@@ -72,11 +77,12 @@ export type McpOperations = Readonly<{
     promoteOverrides: (input: PromoteOverridesInput) => Promise<OperationResult<unknown>>
   }>
   review: Readonly<{
-    readReviewedPaths: (input: { projectPath: string }) => Promise<string[]>
+    readReviewedPaths: (input: { projectPath: string; scope?: ReviewedScope }) => Promise<string[]>
     setReviewed: (input: {
       projectPath: string
       paths: string[]
       reviewed: boolean
+      scope?: ReviewedScope
     }) => Promise<void>
     listReviewComments: (input: {
       projectPath: string

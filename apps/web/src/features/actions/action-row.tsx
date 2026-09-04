@@ -44,6 +44,7 @@ export function ActionRow({
   readOnly = false,
   lifecycle = false,
   mutationTarget,
+  runOnly = false,
 }: {
   action: ActionView
   onEdit: (action: ActionView) => void
@@ -62,6 +63,7 @@ export function ActionRow({
    */
   lifecycle?: boolean
   mutationTarget?: ActionMutationTarget
+  runOnly?: boolean
 }): React.JSX.Element {
   const { duplicate, move, remove } = useActionMutations(mutationTarget)
   const isLocal = action.where === 'local'
@@ -121,7 +123,7 @@ export function ActionRow({
           </span>
         </span>
       </button>
-      {!readOnly && (
+      {!readOnly && !runOnly && (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

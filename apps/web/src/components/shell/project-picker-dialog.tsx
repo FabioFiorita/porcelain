@@ -180,7 +180,7 @@ function ProjectPicker({
           <div className="flex flex-col p-1">
             <button
               type="button"
-              disabled={!result || result.parent === null}
+              disabled={isFetching || !result || result.parent === null}
               onClick={() => result?.parent && setPath(result.parent)}
               className={cn(
                 'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm-minus',
@@ -202,8 +202,9 @@ function ProjectPicker({
               >
                 <button
                   type="button"
+                  disabled={isFetching}
                   onClick={() => setPath(entry.path)}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-40"
                 >
                   {entry.isRepo ? (
                     <FolderGit2 className="size-4 shrink-0 text-primary" />
@@ -223,6 +224,7 @@ function ProjectPicker({
                 {entry.isRepo && (
                   <Button
                     variant="ghost"
+                    disabled={isFetching}
                     className={cn(
                       rowActionClass,
                       'shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',

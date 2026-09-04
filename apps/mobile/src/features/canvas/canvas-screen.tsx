@@ -34,7 +34,8 @@ export function CanvasScreen({ canvasId }: { canvasId: string }): React.JSX.Elem
     structured.document.evidence?.assets.some((asset) => asset.kind !== 'link') === true
   const { url, mintError } = useCanvasDocumentUrl(
     canvasId,
-    focused && (isHtml || hasBundledReviewAssets),
+    focused && (isHtml || canvas?.record.kind === 'markdown' || hasBundledReviewAssets),
+    canvas === undefined ? undefined : `${canvas.record.updatedAt}\u0000${canvas.content}`,
   )
   const error = loadError ?? (isHtml ? mintError : null)
 
@@ -99,9 +100,17 @@ function CanvasBody({
     )
   }
   if (canvas.record.kind === 'markdown') {
+    const assetBaseUrl = documentUrl === null ? null : `${documentUrl}/assets/`
+    const html = markdownToHtml(canvas.content).replace(
+      /(<img\b[^>]*\bsrc=["'])(?!data:|https?:|\/\/|#)([^"']+)(["'])/gi,
+      (_match, prefix: string, path: string, suffix: string) =>
+        assetBaseUrl === null
+          ? `${prefix}${path}${suffix}`
+          : `${prefix}${assetBaseUrl}${path.split('/').map(encodeURIComponent).join('/')}${suffix}`,
+    )
     return (
       <PreviewView
-        document={readerDocument(markdownToHtml(canvas.content), scheme)}
+        document={readerDocument(html, scheme, assetBaseUrl !== null)}
         testID="porcelain-canvas-document-reader"
       />
     )

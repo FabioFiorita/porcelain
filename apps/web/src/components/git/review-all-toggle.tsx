@@ -2,6 +2,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useSetReviewed } from '@renderer/features/git'
 import { ListChecks, ListX } from 'lucide-react'
+import type { ReviewedScope } from '@porcelain/contracts/review'
 
 /**
  * Header toggle that marks every changed file reviewed in one write, or clears them all
@@ -11,11 +12,13 @@ import { ListChecks, ListX } from 'lucide-react'
 export function ReviewAllToggle({
   paths,
   allReviewed,
+  scope,
 }: {
   paths: string[]
   allReviewed: boolean
+  scope: ReviewedScope
 }): React.JSX.Element {
-  const setReviewed = useSetReviewed()
+  const setReviewed = useSetReviewed(scope)
   const label = allReviewed ? 'Unmark all reviewed' : 'Mark all reviewed'
   return (
     <Tooltip>

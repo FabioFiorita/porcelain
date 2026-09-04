@@ -37,12 +37,18 @@ export function CommentComposer({
         onClose()
         runUserAction(
           () =>
-            actions.add({
-              body,
-              path: anchor.path,
-              ...(anchor.anchorText === undefined ? {} : { anchorText: anchor.anchorText }),
-              ...(range === null ? {} : { endLine: range.endLine, startLine: range.startLine }),
-            }),
+            actions.add(
+              anchor.scope !== undefined || anchor.side !== undefined
+                ? { body, anchor: { kind: 'file', ...anchor } }
+                : {
+                    body,
+                    path: anchor.path,
+                    ...(anchor.anchorText === undefined ? {} : { anchorText: anchor.anchorText }),
+                    ...(range === null
+                      ? {}
+                      : { endLine: range.endLine, startLine: range.startLine }),
+                  },
+            ),
           (error: unknown) => {
             Alert.alert(
               'Could not add the comment',

@@ -4,6 +4,7 @@ import { useChangesStore } from '@/features/changes/changes-store'
 import { useFilesStore } from '@/features/files/files-store'
 import { useHistoryStore } from '@/features/history/history-store'
 import { useHubRepoPath } from '@/features/projects'
+import { useActiveEnvironment } from '@/features/remote'
 import { useSearchStore } from '@/features/search/search-store'
 
 /**
@@ -30,18 +31,20 @@ import { useSearchStore } from '@/features/search/search-store'
  */
 export function WorktreeResetBridge(): null {
   const repoPath = useHubRepoPath()
-  const seen = useRef(repoPath)
+  const environmentId = useActiveEnvironment()?.id ?? null
+  const identity = `${environmentId ?? ''}\0${repoPath ?? ''}`
+  const seen = useRef(identity)
 
   useEffect(() => {
-    if (seen.current === repoPath) return
-    seen.current = repoPath
+    if (seen.current === identity) return
+    seen.current = identity
     useFilesStore.getState().reset()
     useChangesStore.getState().reset()
     useHistoryStore.getState().clear()
     // The query is not a place, but the results on screen belong to the repo that answered
     // them; leaving it filled would show the last repo's hits under the new repo's name.
     useSearchStore.getState().setQuery('')
-  }, [repoPath])
+  }, [identity])
 
   return null
 }

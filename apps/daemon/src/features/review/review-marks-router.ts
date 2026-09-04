@@ -10,14 +10,18 @@ import type { ReviewMarksOperations } from './review-marks-operations'
  */
 export function createReviewMarksRouter(operations: ReviewMarksOperations) {
   return t.router({
-    // A mark stores a content fingerprint (sha256 of the file's diff vs HEAD) so it
-    // can be reconciled: this read re-derives each marked file's current fingerprint
-    // and prunes any mark whose content changed.
+    // A mark stores a fingerprint of the file in its working or branch comparison, so
+    // this read can prune it when that exact reviewed content changes.
     reviewedPaths: publicProcedure
       .input(procedureCatalog.reviewedPaths.input)
       .output(procedureCatalog.reviewedPaths.output)
       .query(
-        ({ input }): Promise<string[]> => operations.readReviewedPaths({ projectPath: input }),
+        ({ input }): Promise<string[]> =>
+          operations.readReviewedPaths(
+            typeof input === 'string'
+              ? { projectPath: input }
+              : { projectPath: input.repoPath, scope: input.scope },
+          ),
       ),
 
     // Total and idempotent: one bulk "mark all" or "unmark all" is one atomic write,
@@ -30,6 +34,7 @@ export function createReviewMarksRouter(operations: ReviewMarksOperations) {
           projectPath: input.repoPath,
           paths: input.paths,
           reviewed: input.reviewed,
+          scope: input.scope,
         })
       }),
   })

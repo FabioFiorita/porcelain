@@ -55,4 +55,35 @@ describe('buildCommentIndex', () => {
     expect(index.fileLevel.map((x) => x.id)).toEqual(['file'])
     expect(index.byLine.size).toBe(0)
   })
+
+  it('shows scoped comments only in their original comparison while keeping legacy comments visible', () => {
+    const legacy = comment({ id: 'legacy', path: 'src/a.ts', startLine: 7 })
+    const main = comment({
+      id: 'main',
+      path: undefined,
+      anchor: {
+        kind: 'file',
+        path: 'src/a.ts',
+        startLine: 7,
+        side: 'new',
+        scope: { type: 'branch', base: 'main' },
+      },
+    })
+    const develop = comment({
+      id: 'develop',
+      path: undefined,
+      anchor: {
+        kind: 'file',
+        path: 'src/a.ts',
+        startLine: 7,
+        side: 'new',
+        scope: { type: 'branch', base: 'develop' },
+      },
+    })
+    expect(
+      buildCommentIndex([legacy, main, develop], 'src/a.ts', { type: 'branch', base: 'main' })
+        .byLine.get(7)
+        ?.map((entry) => entry.id),
+    ).toEqual(['legacy', 'main'])
+  })
 })

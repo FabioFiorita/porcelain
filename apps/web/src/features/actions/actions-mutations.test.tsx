@@ -240,6 +240,29 @@ describe('useActionMutations', () => {
 })
 
 describe('useTrustAction', () => {
+  it('uses one explicit Project owner for trust even when another Project is selected', async () => {
+    const { mock, wrapper } = createValidatingTrpcHarness({
+      ...baseHandlers,
+      trustActions: () => ({ ok: true, value: undefined }),
+    })
+    const { result } = renderHook(() => useTrustAction(), { wrapper })
+
+    await act(async () => {
+      await result.current('action-remote', {
+        projectId: OTHER_PROJECT_ID,
+        environmentId: null,
+      })
+    })
+
+    expect(mock.requests().filter((request) => request.procedure === 'trustActions')).toEqual([
+      {
+        procedure: 'trustActions',
+        kind: 'mutation',
+        input: { projectId: OTHER_PROJECT_ID, ids: ['action-remote'] },
+      },
+    ])
+  })
+
   it('trusts by id and invalidates the project list key only', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,

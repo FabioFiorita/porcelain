@@ -4,6 +4,9 @@ import { join } from 'node:path'
 import { exceedsReadLimit } from '../fs/read-limits'
 import { parseStatus } from './diff'
 import { runGit } from './git-exec'
+import { gitMergeBase } from './git-ranges'
+import { gitResolveCompareBase } from './git-refs'
+import type { ReviewedScope } from '@porcelain/contracts/review'
 
 function sha256Hex(input: string | Buffer): string {
   return createHash('sha256').update(input).digest('hex')
@@ -38,16 +41,39 @@ async function untrackedFingerprintInput(repoPath: string, path: string): Promis
  * multi-path diff would otherwise pair a rename a single-path diff can't see.
  */
 export async function reviewedFingerprint(repoPath: string, path: string): Promise<string> {
+  return (await reviewedFingerprints(repoPath, [path])).get(path) ?? sha256Hex('')
+}
+
+async function fingerprintDiffArgs(repoPath: string, scope: ReviewedScope): Promise<string[]> {
+  if (scope.type === 'working') return ['HEAD']
+  const base = await gitResolveCompareBase(repoPath, scope.base)
+  return [`${await gitMergeBase(repoPath, base)}..HEAD`]
+}
+
+async function scopedReviewedFingerprint(
+  repoPath: string,
+  path: string,
+  scope: ReviewedScope,
+): Promise<string> {
   let diff: string | null = null
   try {
-    diff = await runGit(repoPath, ['diff', 'HEAD', '--no-renames', '--no-color', '--', path])
+    diff = await runGit(repoPath, [
+      'diff',
+      ...(await fingerprintDiffArgs(repoPath, scope)),
+      '--no-renames',
+      '--no-color',
+      '--',
+      path,
+    ])
   } catch {
+    if (scope.type === 'branch')
+      throw new Error(`Unable to fingerprint branch comparison ${scope.base}`)
     diff = null // no HEAD yet (unborn branch) — treat like an untracked file
   }
   if (diff) return sha256Hex(diff) // non-empty diff: a modified tracked file
   // Empty diff (or no HEAD): an untracked file hashes its bytes; a clean/missing
   // tracked file hashes the empty diff so its mark prunes.
-  if (diff === null || (await isUntracked(repoPath, path))) {
+  if (scope.type === 'working' && (diff === null || (await isUntracked(repoPath, path)))) {
     return sha256Hex(await untrackedFingerprintInput(repoPath, path))
   }
   return sha256Hex('')
@@ -64,6 +90,7 @@ export async function reviewedFingerprint(repoPath: string, path: string): Promi
 export async function reviewedFingerprints(
   repoPath: string,
   paths: string[],
+  scope: ReviewedScope = { type: 'working' },
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>()
   if (paths.length === 0) return result
@@ -72,16 +99,23 @@ export async function reviewedFingerprints(
   try {
     combined = await runGit(repoPath, [
       'diff',
-      'HEAD',
+      ...(await fingerprintDiffArgs(repoPath, scope)),
       '--no-renames',
       '--no-color',
       '--',
       ...paths,
     ])
   } catch {
+    if (scope.type === 'branch')
+      throw new Error(`Unable to fingerprint branch comparison ${scope.base}`)
     // No HEAD yet (unborn branch): every path fingerprints as untracked, like the single case.
     for (const path of paths) {
-      result.set(path, sha256Hex(await untrackedFingerprintInput(repoPath, path)))
+      result.set(
+        path,
+        scope.type === 'working'
+          ? sha256Hex(await untrackedFingerprintInput(repoPath, path))
+          : sha256Hex(''),
+      )
     }
     return result
   }
@@ -100,18 +134,22 @@ export async function reviewedFingerprints(
   // An unattributable chunk belongs to one of the remaining paths but we can't tell which,
   // so resolve each remaining path on its own rather than mislabel an empty-diff path.
   if (hasUnattributable) {
-    for (const path of remaining) result.set(path, await reviewedFingerprint(repoPath, path))
+    for (const path of remaining)
+      result.set(path, await scopedReviewedFingerprint(repoPath, path, scope))
     return result
   }
 
   // Every remaining path has an empty diff: untracked hashes its bytes, clean hashes ''.
-  const untracked = new Set(
-    parseStatus(
-      await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', ...remaining]),
-    )
-      .filter((entry) => entry.status === 'untracked')
-      .map((entry) => entry.path),
-  )
+  const untracked =
+    scope.type === 'working'
+      ? new Set(
+          parseStatus(
+            await runGit(repoPath, ['status', '--porcelain=v1', '-uall', '-z', '--', ...remaining]),
+          )
+            .filter((entry) => entry.status === 'untracked')
+            .map((entry) => entry.path),
+        )
+      : new Set<string>()
   for (const path of remaining) {
     result.set(
       path,

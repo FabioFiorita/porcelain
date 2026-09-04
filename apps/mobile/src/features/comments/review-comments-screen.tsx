@@ -14,6 +14,8 @@ import {
 import { PANEL_CARD } from '@/components/surface-layout'
 import { SurfaceScroll } from '@/components/surface-scroll'
 import { useHubRepoPath } from '@/features/projects'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
+import { useChangesStore } from '@/features/changes/changes-store'
 import { cn } from '@/lib/utils'
 
 import { CommentComposerSheet } from './comment-composer-sheet'
@@ -41,6 +43,9 @@ export function ReviewCommentsScreen(): React.JSX.Element {
   const repoPath = useHubRepoPath()
   const comments = useReviewComments(focused)
   const actions = useCommentActions()
+  const open = useSurfaceOpen()
+  const setScope = useChangesStore((state) => state.setScope)
+  const setCompareBase = useChangesStore((state) => state.setCompareBase)
   const [editing, setEditing] = useState<ReviewComment | null>(null)
   const [replyTo, setReplyTo] = useState<CommentThread | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
@@ -104,6 +109,18 @@ export function ReviewCommentsScreen(): React.JSX.Element {
               onEdit={setEditing}
               onReply={() => {
                 setReplyTo(thread)
+              }}
+              onOpenComparison={() => {
+                const scope = thread.anchor.kind === 'file' ? thread.anchor.scope : undefined
+                if (scope === undefined) return
+                if (scope.type === 'commit') {
+                  open.commitFile(scope.hash, thread.path)
+                  return
+                }
+                setScope(scope.type)
+                if (scope.type === 'branch' && repoPath !== null)
+                  setCompareBase(repoPath, scope.base)
+                open.changesFile(thread.path)
               }}
               onSetResolved={(id, resolved) => {
                 runUserAction(
@@ -189,6 +206,7 @@ function ThreadCard({
   onDelete,
   onEdit,
   onReply,
+  onOpenComparison,
   onSetResolved,
   thread,
 }: {
@@ -196,6 +214,7 @@ function ThreadCard({
   onDelete: (id: string) => void
   onEdit: (comment: ReviewComment) => void
   onReply: () => void
+  onOpenComparison: () => void
   onSetResolved: (id: string, resolved: boolean) => void
   thread: CommentThread
 }): React.JSX.Element {
@@ -239,6 +258,17 @@ function ThreadCard({
       >
         <Text className="text-sm font-medium text-secondary-foreground">Reply</Text>
       </Pressable>
+      {thread.anchor.kind === 'file' && thread.anchor.scope !== undefined ? (
+        <Pressable
+          accessibilityLabel={`Open comparison for ${thread.path}`}
+          accessibilityRole="button"
+          className="h-9 flex-row items-center justify-center rounded-lg border border-border bg-secondary active:opacity-80"
+          testID={`${threadTestId(thread)}-open-comparison`}
+          onPress={onOpenComparison}
+        >
+          <Text className="text-sm font-medium text-secondary-foreground">Open comparison</Text>
+        </Pressable>
+      ) : null}
     </View>
   )
 }

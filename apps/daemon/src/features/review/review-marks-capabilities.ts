@@ -13,6 +13,8 @@
 export type ReviewedMark = {
   path: string
   fingerprint: string
+  /** Absent on marks written before scoped review; those belong to the working tree. */
+  scope?: ReviewedScope
 }
 
 /** The single owner of `reviewed.json`. No caller sees a host path. */
@@ -34,5 +36,11 @@ export type ReviewMarksGit = Readonly<{
    * Content fingerprints for exactly these paths, batched at a constant spawn count
    * — the reconcile polls it every few seconds.
    */
-  fingerprints(repoPath: string, paths: readonly string[]): Promise<Map<string, string>>
+  fingerprints(
+    repoPath: string,
+    paths: readonly string[],
+    scope: ReviewedScope,
+  ): Promise<Map<string, string>>
 }>
+import type { ReviewedScope } from '@porcelain/contracts/review'
+export type { ReviewedScope } from '@porcelain/contracts/review'

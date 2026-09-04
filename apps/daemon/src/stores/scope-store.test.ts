@@ -63,6 +63,26 @@ describe('project baseline', () => {
       expect(scope.hiddenPaths).toEqual([join(repo, 'dist'), join(repo, 'vendor')])
     })
   })
+
+  it('moves exact and descendant personal curation without touching sibling prefixes or layers', async () => {
+    await withStore(async ({ store, homeDir, repo }) => {
+      await writePrivate(homeDir, {
+        hiddenPaths: ['src', 'src/generated', 'src2'],
+        pinnedPaths: ['src/readme.md', 'other.md'],
+        layers: [{ label: 'Source', pattern: '^src/' }],
+        worktreeProfiles: { [WORKTREE]: { layers: [{ label: 'App', pattern: '^app/' }] } },
+      })
+
+      await store.renamePath(repo, join(repo, 'src'), join(repo, 'packages', 'source'))
+
+      expect(await readPrivate(homeDir)).toEqual({
+        hiddenPaths: ['packages/source', 'packages/source/generated', 'src2'],
+        pinnedPaths: ['packages/source/readme.md', 'other.md'],
+        layers: [{ label: 'Source', pattern: '^src/' }],
+        worktreeProfiles: { [WORKTREE]: { layers: [{ label: 'App', pattern: '^app/' }] } },
+      })
+    })
+  })
 })
 
 describe('worktree override', () => {

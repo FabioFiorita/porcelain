@@ -23,6 +23,11 @@ export interface CommentAnchor {
   startLine?: number
   endLine?: number
   anchorText?: string
+  side?: 'old' | 'new'
+  scope?: Extract<
+    import('@porcelain/contracts/review').ReviewCommentAnchor,
+    { kind: 'file' }
+  >['scope']
 }
 
 /** Human-readable anchor: "Line N of file.ts", "Lines N–M of file.ts", or the filename. */
@@ -76,10 +81,15 @@ export function CommentComposer({
     setSaving(true)
     runUserAction(
       async () => {
-        const input: NewComment = { path: anchor.path, body: body.trim() }
-        if (anchor.startLine !== undefined) input.startLine = anchor.startLine
-        if (anchor.endLine !== undefined) input.endLine = anchor.endLine
-        if (anchor.anchorText !== undefined) input.anchorText = anchor.anchorText
+        const input: NewComment = { body: body.trim() }
+        if (anchor.scope !== undefined || anchor.side !== undefined) {
+          input.anchor = { kind: 'file', ...anchor }
+        } else {
+          input.path = anchor.path
+          if (anchor.startLine !== undefined) input.startLine = anchor.startLine
+          if (anchor.endLine !== undefined) input.endLine = anchor.endLine
+          if (anchor.anchorText !== undefined) input.anchorText = anchor.anchorText
+        }
         await add(input)
         onOpenChange(false)
       },

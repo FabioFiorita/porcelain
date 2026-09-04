@@ -56,6 +56,8 @@ export function useChangesFlow(active: boolean): ChangesFlow {
 }
 
 /** The scope the continuous "read all" surface reads — the store's scope in wire form. */
-export function readingScopeFor(scope: ChangesScope): DiffReadingScope {
-  return scope === 'branch' ? { type: 'branch' } : { type: 'working' }
+export function readingScopeFor(scope: ChangesScope, base?: string): DiffReadingScope {
+  return scope === 'branch'
+    ? { type: 'branch', ...(base === undefined ? {} : { base }) }
+    : { type: 'working' }
 }

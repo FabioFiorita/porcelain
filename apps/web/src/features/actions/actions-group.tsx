@@ -40,8 +40,14 @@ function clickable(actions: readonly ActionView[]): ActionView[] {
   return actions.filter((action) => action.kind === 'action')
 }
 
-/** One other Environment that has the same Project — listed, never run from here. */
-function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Element | null {
+/** One other Environment that has the same Project. Play targets it without changing review scope. */
+function SiblingEnvironment({
+  scope,
+  onRun,
+}: {
+  scope: ActionsScope
+  onRun: (action: ActionView, scope: ActionsScope) => void
+}): React.JSX.Element | null {
   const actions = clickable(useSiblingActions(scope))
   if (actions.length === 0) return null
   return (
@@ -56,18 +62,16 @@ function SiblingEnvironment({ scope }: { scope: ActionsScope }): React.JSX.Eleme
         <ActionRow
           key={action.id}
           action={action}
-          readOnly
+          runOnly
           onEdit={() => undefined}
-          onRun={() => undefined}
+          onRun={(selectedAction) => onRun(selectedAction, scope)}
           showWhere={false}
           isFirst={index === 0}
           isLast={index === actions.length - 1}
           rowsBelow={actions.length - index - 1}
         />
       ))}
-      <p className="px-1 text-2xs text-muted-foreground">
-        Select {scope.environmentName} to manage and run these.
-      </p>
+      <p className="px-1 text-2xs text-muted-foreground">Select it to manage these Actions.</p>
     </div>
   )
 }
@@ -91,7 +95,10 @@ export function ActionsGroup(): React.JSX.Element {
   const canSpawnLocal = localDaemon !== undefined && !localDaemon.isLocal && selected !== null
   const [draft, setDraft] = useState<ActionDraft | null>(null)
   // Held while the human answers "which checkout?" for an action with no target yet.
-  const [pendingTarget, setPendingTarget] = useState<ActionView | null>(null)
+  const [pendingTarget, setPendingTarget] = useState<{
+    action: ActionView
+    scope: ActionsScope
+  } | null>(null)
   // When a local-targeted action needs the folder map first. Also fed by the file
   // finder via useActionRunStore (compose-intent).
   const [pendingLocal, setPendingLocal] = useState<{
@@ -99,7 +106,10 @@ export function ActionsGroup(): React.JSX.Element {
     target: HubTarget
   } | null>(null)
   // Held while the human reads a command they have not run here before.
-  const [pendingTrust, setPendingTrust] = useState<ActionView | null>(null)
+  const [pendingTrust, setPendingTrust] = useState<{
+    action: ActionView
+    scope: ActionsScope
+  } | null>(null)
   const trustAction = useTrustAction()
   const [mappingMode, setMappingMode] = useState<LocalPathDialogMode | null>(null)
   const storePending = useActionRunStore((s) => s.pendingLocal)
@@ -123,13 +133,13 @@ export function ActionsGroup(): React.JSX.Element {
   useEffect(() => {
     if (storePending === null) return
     if (selectionTarget === null) {
-      setPendingTarget(storePending)
+      if (selected !== null) setPendingTarget({ action: storePending, scope: selected })
     } else {
       setPendingLocal({ action: storePending, target: selectionTarget })
       setMappingMode('run')
     }
     clearStorePending()
-  }, [storePending, clearStorePending, selectionTarget])
+  }, [storePending, clearStorePending, selected, selectionTarget])
 
   const spawn = (action: ActionView, target: HubTarget, localPath?: string | null): void => {
     runUserAction(
@@ -139,7 +149,9 @@ export function ActionsGroup(): React.JSX.Element {
           setPendingLocal({ action, target })
           setMappingMode('run')
         }
-        if (result === 'needs-target') setPendingTarget(action)
+        if (result === 'needs-target' && selected !== null) {
+          setPendingTarget({ action, scope: selected })
+        }
       },
       (error) => {
         toastUserActionError('Run command', error)
@@ -157,16 +169,23 @@ export function ActionsGroup(): React.JSX.Element {
     setDraft({ title: '', command: '', where: 'primary' })
   }
 
-  const handleRun = (action: ActionView): void => {
+  const handleRun = (action: ActionView, scope?: ActionsScope): void => {
+    const actionScope = scope ?? selected
+    if (actionScope === null) return
     if (!action.trusted) {
-      setPendingTrust(action)
+      setPendingTrust({ action, scope: actionScope })
       return
     }
-    if (selectionTarget === null) {
-      setPendingTarget(action)
+    const implicitTarget =
+      actionScope.environmentId === selectionTarget?.environmentId &&
+      actionScope.projectId === selectionTarget.projectId
+        ? selectionTarget
+        : null
+    if (implicitTarget === null) {
+      setPendingTarget({ action, scope: actionScope })
       return
     }
-    spawn(action, selectionTarget)
+    spawn(action, implicitTarget)
   }
 
   if (selected === null) {
@@ -233,38 +252,50 @@ export function ActionsGroup(): React.JSX.Element {
         </>
       )}
       {siblings.map((scope) => (
-        <SiblingEnvironment key={scope.environmentId} scope={scope} />
+        <SiblingEnvironment key={scope.environmentId} scope={scope} onRun={handleRun} />
       ))}
       <ActionTargetPicker
         open={pendingTarget !== null}
-        actionTitle={pendingTarget?.title ?? ''}
-        environmentName={selected.environmentName}
-        worktrees={selected.worktrees}
+        actionTitle={pendingTarget?.action.title ?? ''}
+        environmentName={pendingTarget?.scope.environmentName ?? ''}
+        worktrees={pendingTarget?.scope.worktrees ?? []}
         onCancel={() => setPendingTarget(null)}
         onPick={(worktree) => {
-          const action = pendingTarget
+          const pending = pendingTarget
           setPendingTarget(null)
-          if (action === null) return
-          spawn(action, {
-            environmentId: selected.environmentId,
-            projectId: selected.projectId,
+          if (pending === null) return
+          spawn(pending.action, {
+            environmentId: pending.scope.environmentId,
+            projectId: pending.scope.projectId,
             worktreeId: worktree.id,
             path: worktree.path,
           })
         }}
       />
       <ActionTrustDialog
-        action={pendingTrust}
+        action={pendingTrust?.action ?? null}
+        environmentName={pendingTrust?.scope.environmentName}
         onCancel={() => setPendingTrust(null)}
         onTrust={(action: ActionView): void => {
+          const pending = pendingTrust
+          if (pending === null) return
           setPendingTrust(null)
           runUserAction(
             async () => {
-              await trustAction(action.id)
+              const scope = pending.scope
+              await trustAction(action.id, {
+                environmentId: scope.environmentId,
+                projectId: scope.projectId,
+              })
               // List refetch is async; the run path requires trusted — pass explicit true.
               const trusted = { ...action, trusted: true }
-              if (selectionTarget === null) setPendingTarget(trusted)
-              else spawn(trusted, selectionTarget)
+              const implicitTarget =
+                scope.environmentId === selectionTarget?.environmentId &&
+                scope.projectId === selectionTarget.projectId
+                  ? selectionTarget
+                  : null
+              if (implicitTarget === null) setPendingTarget({ action: trusted, scope })
+              else spawn(trusted, implicitTarget)
             },
             (error) => {
               toastUserActionError('Accept command', error)

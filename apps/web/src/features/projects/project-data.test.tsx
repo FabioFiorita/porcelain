@@ -2,6 +2,7 @@ import { recentProjectsQuery } from '@porcelain/client-runtime/projects'
 import { publicErrorFixtures } from '@porcelain/contracts'
 import { projectsContractFixtures, projectsProcedures } from '@porcelain/contracts/projects'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
+import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -25,8 +26,7 @@ import {
   useRecentProjects,
   useRemoveRecentProject,
 } from './index'
-import { usePromoteCanvas, useRemoveHubWorktree } from './project-data'
-import { useCreateHubWorktree } from './project-data'
+import { useCreateHubWorktree, usePromoteCanvas, useRemoveHubWorktree } from './project-data'
 
 const alpha = projectsContractFixtures.openRepoPath.output
 const beta = { path: '/synthetic/projects/beta', name: 'beta' }
@@ -135,6 +135,41 @@ describe('Web Projects adapter', () => {
     expect(
       mock.requests().filter((request) => request.procedure === 'recentRepos').length,
     ).toBeGreaterThanOrEqual(2)
+  })
+
+  it('rebinds a local open away from the previously selected remote Environment', async () => {
+    const localWorktree = inventory.projects[0]?.worktrees[0]
+    if (localWorktree === undefined) throw new Error('Fixture needs a local Worktree')
+    useHubSelectionStore.setState({
+      selection: {
+        kind: 'worktree',
+        environmentId: 'environment-remote',
+        projectId: 'project-remote',
+        worktreeId: 'worktree-remote',
+        path: localWorktree.path,
+      },
+    })
+    const { wrapper } = createValidatingTrpcHarness(
+      handlers({
+        openRepoPath: () => ({
+          ok: true,
+          value: { path: localWorktree.path, name: localWorktree.name },
+        }),
+      }),
+    )
+    const hook = renderHook(() => useOpenProject(), { wrapper })
+
+    await act(async () => {
+      await hook.result.current.open(localWorktree.path, { environmentId: null })
+    })
+
+    expect(useHubSelectionStore.getState().selection).toEqual({
+      kind: 'worktree',
+      environmentId: inventory.environment.id,
+      projectId: localWorktree.projectId,
+      worktreeId: localWorktree.id,
+      path: localWorktree.path,
+    })
   })
 
   it('selects and resolves open before its background invalidations settle', async () => {

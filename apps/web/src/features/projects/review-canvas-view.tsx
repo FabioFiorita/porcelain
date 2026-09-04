@@ -267,6 +267,17 @@ function CanvasDiscussion({ canvasId }: { canvasId: string }): React.JSX.Element
                 : comment.anchor.section}
           </p>
           <p className="mt-1 whitespace-pre-wrap">{comment.body}</p>
+          {comment.agentReply === undefined ? null : (
+            <div
+              className="mt-3 border-l-2 border-border pl-3"
+              data-testid={`canvas-comment-agent-${comment.id}`}
+            >
+              <p className="text-xs font-medium text-muted-foreground">Agent</p>
+              <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                {comment.agentReply.body}
+              </p>
+            </div>
+          )}
         </article>
       ))}
     </section>
