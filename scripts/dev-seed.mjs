@@ -1,28 +1,5 @@
 #!/usr/bin/env node
-/**
- * Seed the DEV daemon with state worth looking at.
- *
- * An empty database is a bad test. Porcelain is a review layer, and until now every session
- * started with nothing to review: an agent built a Canvas and a diff by hand before
- * it could see the surface it had just changed, and threw all of it away at the end.
- *
- * Everything here is written through the **shipped CLI** — the same commands an agent runs.
- * State produced by the real commands is state the product can actually reach; direct store
- * writes would prove nothing and rot the moment a store changes. Reads go through the
- * daemon's typed procedures (dev-daemon-client.mjs), never by parsing CLI prose.
- *
- * Re-running is safe: seeded Actions and Canvases are matched by title and replaced, and a
- * Review set is a replace by definition.
- *
- * Usage:
- *   pnpm dev:seed                 # the default scenario
- *   pnpm dev:seed one-review
- *   pnpm dev:seed busy
- *   pnpm dev:seed evidence-heavy
- *   pnpm dev:seed everything      # every shape registered, every surface carrying state
- *   pnpm dev:seed empty           # strip seeded state and land on Welcome
- *   pnpm dev:seed --list
- */
+/** Create sample projects and collaboration data in the active development profile. */
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,25 +10,36 @@ import { devEnv } from './dev-env.mjs'
 import { createPlayground, fleetMemberPath, SHAPES } from './playground.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const cli = join(root, 'apps', 'desktop', 'out', 'main', 'cli', 'porcelain.js')
-
-/** Marks everything this seeder owns, so a re-run can take it back without touching anything else. */
-const SEED_TAG = 'dev-seed'
+const connector = join(root, 'plugins/porcelain/bin/porcelain-mcp.mjs')
 
 function fail(message) {
   throw new Error(message)
 }
-
-function porcelain(args) {
-  const result = spawnSync(process.execPath, [cli, ...args], {
+export function canvasCall(input, env = devEnv()) {
+  const result = spawnSync(process.execPath, [connector], {
     cwd: root,
-    env: devEnv(),
+    env,
     encoding: 'utf8',
+    timeout: 15000,
+    input: `${JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'seed',
+      method: 'tools/call',
+      params: {
+        name: 'porcelain_canvas',
+        arguments: input,
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+          'io.modelcontextprotocol/clientCapabilities': {},
+        },
+      },
+    })}\n`,
   })
-  if (result.status !== 0) {
-    fail(`porcelain ${args.join(' ')} failed:\n${result.stderr || result.stdout}`)
-  }
-  return result.stdout
+  if (result.error) throw result.error
+  if (result.status !== 0) fail(result.stderr || 'Canvas connector failed')
+  const reply = JSON.parse(result.stdout)
+  if (reply.error || reply.result?.isError || !reply.result) fail(JSON.stringify(reply))
+  return reply.result
 }
 
 /** A fleet playground for this shape, created on demand so seeding never needs a setup step. */
@@ -75,17 +63,24 @@ async function projectIdFor(path) {
   return project.id
 }
 
-/**
- * Remove what a previous run left behind. Actions are matched by the exact titles this file
- * writes, so an Action the human added by hand is never in scope.
- */
-async function purgeSeeded(titles) {
-  const inventory = await adminQuery('hubInventory', undefined)
+/** Limit cleanup to the named sample projects in this development profile. */
+export function isSeedProject(path) {
+  return Object.keys(SHAPES).some((shape) => resolve(path) === resolve(fleetMemberPath(shape)))
+}
+
+export async function purgeSeeded(titles, query = adminQuery, mutate = adminMutation) {
+  const inventory = await query('hubInventory', undefined)
   for (const project of inventory.projects) {
-    const actions = await adminQuery('actions', { projectId: project.id })
+    if (!isSeedProject(project.path)) continue
+    const actions = await query('actions', { projectId: project.id })
     for (const action of actions) {
-      if (titles.actions.has(action.title)) {
-        await adminMutation('deleteAction', { projectId: project.id, id: action.id })
+      if (
+        titles.actions.has(action.title) &&
+        SEEDED_ACTIONS.some(
+          (seed) => seed.title === action.title && seed.command === action.command,
+        )
+      ) {
+        await mutate('deleteAction', { projectId: project.id, id: action.id })
       }
     }
   }
@@ -94,29 +89,38 @@ async function purgeSeeded(titles) {
 async function seedAction(projectId, title, command) {
   await adminMutation('addAction', { projectId, title, command })
 }
+async function seedReview(repo, review) {
+  const projectId = await projectIdFor(repo)
+  const existing = await adminQuery('listCanvases', { projectId })
+  const previous = existing.find((canvas) => canvas.title === review.name)
+  canvasCall(reviewCanvasInput(repo, review, previous))
+}
 
-function seedReview(repo, review) {
-  porcelain([
-    'review',
-    'set',
-    '--repo',
-    repo,
-    '--name',
-    review.name,
-    '--thesis',
-    review.thesis,
-    '--files',
-    JSON.stringify(review.files),
-    '--sections',
-    JSON.stringify(review.sections),
-  ])
+export function reviewCanvasInput(repo, review, previous) {
+  return {
+    workspace: repo,
+    op: previous ? 'update' : 'create',
+    ...(previous ? { id: previous.id } : {}),
+    template: 'review',
+    templateData: {
+      title: review.name,
+      summary: review.thesis,
+      sections: review.sections.map(({ title, prose, anchors }) => ({
+        title,
+        prose,
+        ...(anchors ? { references: anchors } : {}),
+      })),
+      layers: [{ label: 'Sample changes', pattern: '.*' }],
+      files: review.files.map(({ path, note }) => ({ path, layer: 'Sample changes', note })),
+    },
+  }
 }
 
 /** The gallery a seeded Evidence Canvas carries — three shots so a row has something to wrap. */
 const GALLERY = [
-  { file: 'shot-wide.png', alt: 'The Review, four tabs', width: 320, height: 160 },
-  { file: 'shot-tall.png', alt: 'The Changes tab', width: 160, height: 240 },
-  { file: 'shot-square.png', alt: 'The Evidence checks', width: 200, height: 200 },
+  { file: 'shot-wide.png', alt: 'Wide placeholder image', width: 320, height: 160 },
+  { file: 'shot-tall.png', alt: 'Tall placeholder image', width: 160, height: 240 },
+  { file: 'shot-square.png', alt: 'Square placeholder image', width: 200, height: 200 },
 ]
 
 /**
@@ -146,12 +150,10 @@ async function seedEvidenceCanvas(repo, title) {
 <h1>${title}</h1>
 <h2>Checks</h2>
 <ul>
-  <li>lint — pass</li>
-  <li>unit (3107) — pass</li>
-  <li>browser e2e (32) — pass</li>
+  <li>Sample check — not executed</li>
 </ul>
 <h2>Results</h2>
-<p>The seeded run closed its loop: every check above ran against this fixture.</p>
+<p>Demonstration content only. No checks were run and the images below are placeholders.</p>
 <h2>Gallery</h2>
 ${GALLERY.map(
   (shot) =>
@@ -159,21 +161,15 @@ ${GALLERY.map(
 ).join('\n')}
 `,
     )
-    porcelain([
-      'canvas',
-      'set',
-      '--repo',
-      repo,
-      '--title',
+    canvasCall({
+      workspace: repo,
+      op: previous ? 'update' : 'create',
+      ...(previous ? { id: previous.id } : {}),
       title,
-      '--kind',
-      'html',
-      '--source-dir',
-      source,
-      '--entry',
-      'index.html',
-      ...(previous === undefined ? [] : ['--id', previous.id]),
-    ])
+      kind: 'html',
+      sourceDir: source,
+      entry: 'index.html',
+    })
   } finally {
     rmSync(source, { recursive: true, force: true })
   }
@@ -181,9 +177,7 @@ ${GALLERY.map(
 
 const REVIEW = {
   name: 'Playground review',
-  thesis:
-    'A seeded Review so the four tabs have something to render. Intent states the change, ' +
-    'Process walks the files in flow order, Execution shows the diff, Evidence carries the proof.',
+  thesis: 'Sample review of a changed greeting, with source context and a short explanation.',
   files: [
     {
       path: 'src/greeting.ts',
@@ -286,26 +280,30 @@ async function seedActionsFor(path) {
   for (const { title, command } of SEEDED_ACTIONS) await seedAction(projectId, title, command)
 }
 
+export async function clearSeededProjects(query = adminQuery, mutate = adminMutation) {
+  const recents = await query('recentRepos', undefined)
+  for (const project of recents) {
+    if (!isSeedProject(project.path)) continue
+    await mutate('removeRecentRepo', project.path)
+  }
+  const inventory = await query('hubInventory', undefined)
+  for (const project of inventory.projects) {
+    if (!isSeedProject(project.path)) continue
+    await mutate('removeHubProject', { projectId: project.id })
+  }
+}
+
 const SCENARIOS = {
   empty: {
-    summary: 'no projects — the Welcome screen',
-    run: async () => {
-      const recents = await adminQuery('recentRepos', undefined)
-      for (const project of recents) {
-        await adminMutation('removeRecentRepo', project.path)
-      }
-      const inventory = await adminQuery('hubInventory', undefined)
-      for (const project of inventory.projects) {
-        await adminMutation('removeHubProject', { projectId: project.id })
-      }
-    },
+    summary: 'remove seeded projects from navigation; preserve other projects',
+    run: clearSeededProjects,
   },
   'one-review': {
-    summary: 'one project with a dirty tree, a Review across all four tabs',
+    summary: 'one project with working changes, a sample review, and Actions',
     run: async () => {
       const repo = playground('dirty')
       await registerProject(repo)
-      seedReview(repo, REVIEW)
+      await seedReview(repo, REVIEW)
       await seedActionsFor(repo)
     },
   },
@@ -316,7 +314,7 @@ const SCENARIOS = {
         await registerProject(playground(shape))
       }
       const reviewed = playground('dirty')
-      seedReview(reviewed, REVIEW)
+      await seedReview(reviewed, REVIEW)
       await seedActionsFor(reviewed)
     },
   },
@@ -325,7 +323,7 @@ const SCENARIOS = {
     run: async () => {
       const repo = playground('dirty')
       await registerProject(repo)
-      seedReview(repo, REVIEW)
+      await seedReview(repo, REVIEW)
       await seedEvidenceCanvas(repo, 'Seeded evidence')
     },
   },
@@ -341,7 +339,7 @@ const SCENARIOS = {
       }
 
       for (const { shape, title, review } of SEEDED_REVIEWS) {
-        seedReview(repos[shape], review)
+        await seedReview(repos[shape], review)
         await seedEvidenceCanvas(repos[shape], title)
       }
       for (const shape of ACTION_SHAPES) await seedActionsFor(repos[shape])
@@ -352,7 +350,7 @@ const SCENARIOS = {
   },
 }
 
-const HELP = `Porcelain dev seeding — state worth looking at, written through the shipped CLI
+const HELP = `Porcelain dev seeding — state worth looking at, written through the daemon and shipped MCP connector
 
 Usage:
   pnpm dev:seed [scenario]
@@ -362,7 +360,7 @@ ${Object.entries(SCENARIOS)
   .map(([name, { summary }]) => `  ${name.padEnd(16)}${summary}`)
   .join('\n')}
 
-Re-running is safe: seeded Actions and Canvases are matched by title and replaced. Needs a
+Re-running replaces matching sample data only in the named seed projects. Needs a
 running dev daemon (pnpm dev:daemon).
 `
 
@@ -376,7 +374,6 @@ async function main(argv) {
   if (scenario === undefined) {
     fail(`unknown scenario: ${name} (known: ${Object.keys(SCENARIOS).join(', ')})`)
   }
-  if (!existsSync(cli)) fail(`${cli} missing — run \`pnpm build\` first`)
 
   await assertDaemonReachable()
   await purgeSeeded({ actions: SEEDED_ACTION_TITLES })
@@ -399,7 +396,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 export {
   ACTION_SHAPES,
   SCENARIOS,
-  SEED_TAG,
   SEEDED_ACTION_TITLES,
   SEEDED_ACTIONS,
   SEEDED_REVIEWS,

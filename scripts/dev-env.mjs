@@ -141,7 +141,7 @@ export function devEnv(extra = {}) {
     PORCELAIN_ADMIN_TOKEN: token,
     PORCELAIN_NO_STDIN_WATCHDOG: '1',
     // Defaults; launcher flags override via `extra`.
-    PORCELAIN_LAN_BIND: '1',
+    PORCELAIN_LAN_BIND: '',
     PORCELAIN_TAILNET_BIND: '',
     ...extra,
   }
@@ -166,7 +166,7 @@ export function printDevEnv() {
               pnpm dev                              # Electron + its profile daemon
   web HMR:    pnpm dev:web                       # http://127.0.0.1:${DEV_WEB_PORT}/ (proxies to the daemon)
   mobile:     pnpm dev:mobile                    # profile Metro (primary 8081; worktrees 44000+)
-              pnpm dev:mobile:android preflight  # Bash host with Android SDK; see docs/development.md
+              pnpm dev:mobile:android phone      # or tablet; requires Metro and daemon
               PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
                                                  # explicit simulator + profile Metro bundle
   commands:   pnpm run                           # repository command inventory

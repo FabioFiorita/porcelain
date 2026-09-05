@@ -23,6 +23,12 @@ import {
   webDevPort,
 } from './dev-env.mjs'
 
+test('shared development defaults do not enable network sharing', () => {
+  assert.equal(devEnv().PORCELAIN_LAN_BIND, '')
+  assert.equal(devEnv().PORCELAIN_TAILNET_BIND, '')
+  assert.equal(devEnv({ PORCELAIN_LAN_BIND: '1' }).PORCELAIN_LAN_BIND, '1')
+})
+
 test('the dev env arms the daemon playground boundary', () => {
   assert.equal(devEnv().PORCELAIN_DEV, '1')
 })

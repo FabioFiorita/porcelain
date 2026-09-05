@@ -144,6 +144,18 @@ test('a second member can be added and removed independently', () => {
   )
 })
 
+test('removing a fixture preserves a separately created alpha-named sibling', () => {
+  const playground = sandbox()
+  const root = createPlayground('worktrees', 'example', playground, PRIMARY)
+  const neighbor = createPlayground('dirty', 'example-alpha', playground, PRIMARY)
+  assert.equal(existsSync(join(root, '.worktrees', 'alpha', 'README.md')), true)
+  assert.equal(status(root), '')
+  removePlayground('example', playground, PRIMARY)
+  assert.equal(existsSync(root), false)
+  assert.equal(existsSync(join(neighbor, 'src/pending.ts')), true)
+  assert.match(status(neighbor), /src\/pending.ts/)
+})
+
 test('creating over an existing member fails instead of merging into it', () => {
   const playground = sandbox()
   createPlayground('clean', 'taken', playground, PRIMARY)

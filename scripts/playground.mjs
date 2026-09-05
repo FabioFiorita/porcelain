@@ -1,28 +1,5 @@
 #!/usr/bin/env node
-/**
- * Disposable playground fixtures for the Porcelain DEV stack.
- *
- * A dev daemon may only open repositories in the playground family
- * (`apps/daemon/src/dev-config.ts`), and until now that family had exactly one member per
- * profile. One repository cannot exercise adding a project, removing one, switching between
- * them, or reviewing anything with a shape — which is why those flows shipped broken.
- *
- * Fleet members live at `~/code/porcelain-playgrounds/.fleet/<profile>/<name>`:
- *   - inside the managed root the dev guard already recognizes, so no guard change and no
- *     third playground location;
- *   - under a `.fleet` segment that no managed worktree slug can take (slugs must start with
- *     `[a-z0-9]`), so a fixture can never collide with a worktree's own playground;
- *   - keyed by profile (`primary` or the worktree slug), so worktrees do not share fixtures.
- *
- * Generation is deterministic and offline: fixed authorship, fixed dates, no network.
- *
- * Usage:
- *   pnpm playground new <shape> [--name <slug>]
- *   pnpm playground list
- *   pnpm playground rm <slug>
- *   pnpm playground reset <slug>
- *   pnpm playground shapes
- */
+/** Create disposable Git fixtures isolated by development profile. */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
@@ -130,7 +107,7 @@ function baseRepo(root, slug, shape) {
     'README.md',
     `# ${slug}\n\nDisposable Porcelain fixture (shape: ${shape}). Anything here may be deleted.\n`,
   )
-  write(root, '.gitignore', 'node_modules/\n')
+  write(root, '.gitignore', 'node_modules/\n.worktrees/\n')
   write(root, 'src/greeting.ts', "export const greeting = 'hello porcelain'\n")
   commitAll(root, 'chore: initialize playground')
 }
@@ -170,15 +147,15 @@ export const SHAPES = {
       commitAll(root, 'feat: greet from main')
       try {
         git(root, ['merge', 'feature'])
-      } catch {
-        // The stopped merge IS the fixture; a clean merge here would mean the shape failed.
+      } catch (error) {
+        if (!existsSync(join(root, '.git', 'MERGE_HEAD'))) throw error
         return
       }
       fail('conflicted shape produced a clean merge — fixture generation is wrong')
     },
   },
   history: {
-    summary: 'many commits across branches — Process and Execution tabs, log-driven views',
+    summary: 'many commits across branches — History and branch comparisons',
     build: (root) => {
       for (let index = 1; index <= 12; index += 1) {
         write(root, `src/step-${index}.ts`, `export const step${index} = ${index}\n`)
@@ -210,7 +187,7 @@ export const SHAPES = {
     summary: 'a repository with its own linked worktrees — Hub Worktrees surfaces',
     build: (root) => {
       git(root, ['branch', 'work/alpha'])
-      git(root, ['worktree', 'add', join(root, '..', `${basename(root)}-alpha`), 'work/alpha'])
+      git(root, ['worktree', 'add', join(root, '.worktrees', 'alpha'), 'work/alpha'])
     },
   },
 }
@@ -246,9 +223,6 @@ export function removePlayground(slug, playground = DEV_PLAYGROUND, profile = DE
   const root = fleetRoot(playground, profile)
   const path = assertRemovable(fleetMemberPath(slug, playground, profile), root)
   if (!existsSync(path)) fail(`no playground named ${slug} in ${root}`)
-  // A `worktrees` fixture leaves a sibling checkout; it is inside the same fleet root.
-  const sibling = join(root, `${slug}-alpha`)
-  if (existsSync(sibling)) rmSync(assertRemovable(sibling, root), { recursive: true, force: true })
   rmSync(path, { recursive: true, force: true })
   return path
 }

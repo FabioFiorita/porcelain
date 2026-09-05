@@ -53,9 +53,9 @@ Usage:
 
 Options:
   --host, --lan        Bind LAN (RFC1918) so other machines can open
-                       http://<host>.local:<port>/  (default: on)
+                       http://<host>.local:<port>/  (opt-in)
   --loopback, --no-host
-                       Loopback only (127.0.0.1) — no LAN share
+                       Loopback only (127.0.0.1) — no LAN share (default)
   --tailnet            Also bind Tailscale (100.64/10) on the same port
   --no-auto-auth       Require a pairing link in the browser (default: auto)
                        Use when the pairing flow itself is what you are testing.
@@ -66,7 +66,7 @@ Notes:
   • Data: ${DEV_USER_DATA}
   • Channels / token: ${DEV_HOME}  (never prod ~/.porcelain)
   • Requires a warm build: pnpm build   (if apps/desktop/out/main/daemon/server.js is missing)
-  • Production is port 43117 / systemd — this command never touches it
+  • Uses isolated development data
   • Not the published package: use \`npx @fabiofiorita/porcelain@latest serve\` for that
 
 Examples:
@@ -75,9 +75,9 @@ Examples:
   pnpm dev:daemon --port 43119 --loopback
 `
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const opts = {
-    host: true, // LAN on by default for Mac ↔ Beelink dev
+    host: false,
     tailnet: false,
     autoAuth: true,
     port: DEV_PORT,

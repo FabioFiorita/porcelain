@@ -1,7 +1,17 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseListeningPids, portOwnerProbe } from './dev-daemon.mjs'
+import { parseArgs, parseListeningPids, portOwnerProbe } from './dev-daemon.mjs'
+
+test('development sharing is explicit and the last LAN choice wins', () => {
+  assert.equal(parseArgs([]).host, false)
+  assert.equal(parseArgs(['--lan']).host, true)
+  assert.equal(parseArgs(['--lan', '--loopback']).host, false)
+  assert.equal(parseArgs(['--loopback', '--host']).host, true)
+  const tailnet = parseArgs(['--tailnet'])
+  assert.equal(tailnet.host, false)
+  assert.equal(tailnet.tailnet, true)
+})
 
 test('the port owner probe follows the host platform', () => {
   assert.deepEqual(portOwnerProbe(43118, 'darwin'), {

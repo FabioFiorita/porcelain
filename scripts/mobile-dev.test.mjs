@@ -71,18 +71,6 @@ test('Metro bypasses shell-only package scripts and launches the Windows batch s
   }
 })
 
-test('the Android loop owns the development variant and profile state', () => {
-  const launch = mobileLaunch(['android', 'preflight'], {
-    APP_VARIANT: 'production',
-    ANDROID_LOOP_ENV_FILE: '/tmp/machine-owned-android-loop-env.sh',
-  })
-  assert.deepEqual(launch.args, ['preflight'])
-  assert.equal(launch.env.METRO_PORT, String(DEV_METRO_PORT))
-  assert.equal(launch.env.APP_VARIANT, 'development')
-  assert.equal(launch.env.ANDROID_LOOP_STATE_DIR, join(DEV_MOBILE_STATE, 'android'))
-  assert.equal(launch.env.ANDROID_LOOP_ENV_FILE, '/tmp/machine-owned-android-loop-env.sh')
-})
-
 test('the iOS runner owns an explicit simulator and points its dev client at this profile', () => {
   const launch = mobileLaunch(
     ['ios', '--no-build-cache'],
@@ -132,4 +120,15 @@ test('the iOS launcher regenerates a missing or production native project before
     ),
     false,
   )
+})
+
+test('unsupported Android commands fail clearly on every host', () => {
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    for (const command of ['up', 'tap', 'unknown']) {
+      assert.throws(
+        () => mobileLaunch(['android', command], {}, platform),
+        /use adb for device interaction/,
+      )
+    }
+  }
 })

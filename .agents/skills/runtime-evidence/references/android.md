@@ -31,9 +31,9 @@ Confirm the task's test project loads before checking its behavior.
   tasks' mappings and track mappings created here for cleanup.
 
 Resolve the development app identity and scheme from
-[app.config.ts](../../../../apps/mobile/app.config.ts). The
-[Android helper](../../../../scripts/mobile-android-loop.sh) contains dev-client launch commands;
-its Bash dependencies are not supported by native PowerShell.
+[app.config.ts](../../../../apps/mobile/app.config.ts). Use `pnpm dev:mobile:android phone` or
+`tablet` to open the selected AVD against this checkout's Metro and daemon. The
+[launcher](../../../../scripts/android/launch.mjs) supports Windows, macOS, and Linux.
 
 ### JavaScript refresh versus native rebuild
 

@@ -33,7 +33,6 @@ export function mobileLaunch(argv, inheritedEnv = process.env, platform = proces
     // Expo's iOS build and dev-client paths consult this separately from --port.
     // Keep the generated native binary and the running Metro server on the profile port.
     RCT_METRO_PORT: String(DEV_METRO_PORT),
-    ANDROID_LOOP_STATE_DIR: join(DEV_MOBILE_STATE, 'android'),
     TMPDIR: join(DEV_MOBILE_STATE, 'tmp'),
   }
   if (surface === 'metro') {
@@ -69,11 +68,9 @@ export function mobileLaunch(argv, inheritedEnv = process.env, platform = proces
         env,
       }
     }
-    return {
-      command: join(root, 'scripts', 'mobile-android-loop.sh'),
-      args,
-      env,
-    }
+    throw new Error(
+      'Choose android phone, tablet, or build --device <serial>; use adb for device interaction',
+    )
   }
   if (surface === 'ios') {
     const device = inheritedEnv.PORCELAIN_IOS_SIMULATOR

@@ -46,6 +46,12 @@ launch commands instead of copying values from another session. The profile impl
 Use one daemon owner per profile. Do not combine `pnpm dev` with `pnpm dev:daemon`.
 For a new browser or mobile connection, use `pnpm dev:pair` and open its one-time link on the client.
 
+The development daemon listens on loopback by default. Use `pnpm dev:daemon --lan` for another
+machine or a physical device on the local network, or `--tailnet` for Tailscale access.
+For Linux-to-Mac development, run Metro on the Linux checkout and use XcodeBuildMCP on the Mac
+for the simulator. Select the reachable Metro host and port for that connection; the repository
+does not assume an SSH alias or start a separate simulator-preview service.
+
 Web edits use hot reload in `dev:web`. Rebuild with `pnpm build:web` for the daemon-served client.
 For daemon edits, run `pnpm build:daemon` and restart the daemon; desktop main/preload edits need
 `pnpm build` and an Electron restart.
@@ -89,19 +95,11 @@ pnpm dev:mobile:android build --device <serial>
 This uses the checkout's Metro port and the device's architecture. It prints the APK path without
 installing it or starting Metro. Install with `adb -s <serial> install -r <apk-path>`.
 
-The [Android helper](../scripts/mobile-android-loop.sh) requires Bash, Python 3, `flock`, and Android
-SDK tools. Select `ANDROID_LOOP_SERIAL` or `ANDROID_LOOP_AVD` on a host with those dependencies:
-
-```sh
-pnpm dev:mobile:android preflight
-pnpm dev:mobile:android up
-pnpm dev:mobile:android down
-```
-
-`up` requires an installed development client. The script's usage lists device interaction and
-capture commands. It is not a native PowerShell launcher; use available native Android tooling
-on Windows with the intended device and the profile's Metro port. WSL is a separate Environment,
-not a workaround for launching this helper against a Windows checkout.
+Use Android SDK tools directly for device inspection and interaction. Select the device explicitly
+with `adb -s <serial>`; `adb devices -l` lists available targets. Logs use `logcat`, native UI
+inspection uses `shell uiautomator dump`, and screenshots use `exec-out screencap -p`.
+Keep screenshot output binary. Runtime validation guidance lives in the runtime skill's
+[Android reference](../.agents/skills/runtime-evidence/references/android.md).
 
 ## Isolated checkouts
 

@@ -1,15 +1,5 @@
 #!/usr/bin/env node
-/**
- * A minimal admin tRPC client for the DEV daemon.
- *
- * Reads go through the daemon's real procedures, which are a typed contract
- * (`packages/contracts`) and therefore safe to depend on — unlike the CLI's human-readable
- * stdout, which is an explainer, not an interface. Writes belong to the shipped CLI; this
- * module exists so a seeder can ask what already exists before writing again.
- *
- * No dependencies: tRPC's non-batched HTTP shape is a plain POST/GET, and the protocol
- * version comes from the built contracts so it can never drift into a lie.
- */
+/** Read and write the development daemon through its admin tRPC interface. */
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'

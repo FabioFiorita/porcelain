@@ -11,14 +11,39 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import {
   ACTION_SHAPES,
+  clearSeededProjects,
+  purgeSeeded,
   SCENARIOS,
-  SEED_TAG,
   SEEDED_ACTION_TITLES,
   SEEDED_ACTIONS,
   SEEDED_REVIEWS,
   SEEDED_SCOPES,
 } from './dev-seed.mjs'
-import { createPlayground, SHAPES } from './playground.mjs'
+import { createPlayground, fleetMemberPath, SHAPES } from './playground.mjs'
+
+test('seed cleanup preserves other projects and edited Actions with matching titles', async () => {
+  const seed = { id: 'seed', path: fleetMemberPath('dirty') }
+  const other = { id: 'other', path: fleetMemberPath('my-project') }
+  const sample = SEEDED_ACTIONS[0]
+  const mutations = []
+  const query = async (procedure, input) => {
+    if (procedure === 'hubInventory') return { projects: [seed, other] }
+    if (procedure === 'recentRepos') return [seed, other]
+    assert.equal(input.projectId, 'seed', 'must not inspect Actions in unrelated projects')
+    return [
+      { id: 'sample', ...sample },
+      { id: 'edited', title: sample.title, command: 'custom-command' },
+    ]
+  }
+  const mutate = async (procedure, input) => mutations.push({ procedure, input })
+  await purgeSeeded({ actions: SEEDED_ACTION_TITLES }, query, mutate)
+  await clearSeededProjects(query, mutate)
+  assert.deepEqual(mutations, [
+    { procedure: 'deleteAction', input: { projectId: 'seed', id: 'sample' } },
+    { procedure: 'removeRecentRepo', input: seed.path },
+    { procedure: 'removeHubProject', input: { projectId: 'seed' } },
+  ])
+})
 
 /** Build one shape in a throwaway fleet so a declared path can be checked against real bytes. */
 function buildShape(shape) {
@@ -96,8 +121,4 @@ test('every path the seed pins, hides or reviews exists in its fixture', () => {
       fixture.cleanup()
     }
   }
-})
-
-test('the seed tag is a single stable marker', () => {
-  assert.equal(SEED_TAG, 'dev-seed')
 })
