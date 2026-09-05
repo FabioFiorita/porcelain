@@ -13,6 +13,7 @@ import {
 import { Shortcut } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
+import { trackUnsavedFile } from '@renderer/features/files/files-editing'
 import { useWriteTextFile } from '@renderer/features/files/files-mutations'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useCanRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
@@ -22,7 +23,7 @@ import { lineInHighlightRanges } from '@renderer/lib/highlight-ranges'
 import { lineRangeFromOffsets } from '@renderer/lib/line-selection'
 import { relativeTo } from '@renderer/lib/paths'
 import { cn, copyText } from '@renderer/lib/utils'
-import { useHubRepoPath } from '@renderer/stores/hub-repo'
+import { useHubRepoPath, useHubRepoTarget } from '@renderer/stores/hub-repo'
 import { tabId, useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -84,6 +85,11 @@ export function EditorSource({
   const tokenLines = useTokenizedLines(deferredContent, lang)
   const { findReferences, copyPath, copyRelativePath, reveal } = usePathActions(path)
   const { save, isSaving, error: saveError } = useWriteTextFile(path)
+  const editingTarget = useHubRepoTarget()
+  useEffect(() => {
+    if (content === savedContent && !isSaving) return
+    return trackUnsavedFile(textareaRef, editingTarget, path)
+  }, [content, savedContent, isSaving, editingTarget, path])
   const canReveal = useCanRevealInFinder()
   const repoPath = useHubRepoPath() ?? undefined
   const relativePath = relativeTo(repoPath, path)

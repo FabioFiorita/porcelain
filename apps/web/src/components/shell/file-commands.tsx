@@ -5,7 +5,7 @@ import {
   shortcutPlatform,
   useFileBindings,
 } from '@renderer/features/commands/file-command-bindings'
-import { useFilesActions } from '@renderer/features/files'
+import { useFilesActions, useFilesCut } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName } from '@renderer/lib/paths'
@@ -20,6 +20,7 @@ import { useHotkeys } from '@tanstack/react-hotkeys'
 
 export function FileCommands(): null {
   const { duplicate, trash } = useFilesActions()
+  const { cut, paste } = useFilesCut()
   const overrides = useFileBindings((s) => s.overrides)
   const execute = (id: FileCommandId): void => {
     const prompt = useFilePromptStore.getState()
@@ -32,7 +33,13 @@ export function FileCommands(): null {
         : dirName(active.path)
       : project.path
     const targets = selected.size > 0 ? [...selected] : active ? [active.path] : []
-    if (id === 'files.create-file') prompt.newFile(newDir)
+    if (id === 'files.cut') cut(targets)
+    else if (id === 'files.paste')
+      runUserAction(
+        () => paste(newDir),
+        (error) => toastUserActionError('Move', error),
+      )
+    else if (id === 'files.create-file') prompt.newFile(newDir)
     else if (id === 'files.create-folder') prompt.newFolder(newDir)
     else
       runUserAction(

@@ -5,6 +5,7 @@
  */
 
 export type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
+export { useFilesCut, useFilesCutStore } from './files-cut'
 export { useFilesInterestBridge } from './files-interests'
 export {
   applyFilesForeignDependencies,

@@ -4,6 +4,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export const fileCommands = {
+  'files.cut': 'Cut',
+  'files.paste': 'Paste',
   'files.create-file': 'Create file',
   'files.create-folder': 'Create folder',
   'files.duplicate': 'Duplicate',
@@ -11,6 +13,8 @@ export const fileCommands = {
 } as const
 export type FileCommandId = keyof typeof fileCommands
 export const defaultFileBindings: Record<FileCommandId, Hotkey> = {
+  'files.cut': 'Mod+X',
+  'files.paste': 'Mod+V',
   'files.create-file': 'Mod+N',
   'files.create-folder': 'Mod+Shift+N',
   'files.duplicate': 'Mod+D',

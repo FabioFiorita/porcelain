@@ -18,6 +18,31 @@ interface SessionMismatch {
   received: number | null
 }
 
+test('Files cuts and pastes a folder at root and keeps its open file', async ({
+  page,
+  repoDir,
+}) => {
+  await waitForShell(page)
+  await selectTab(page, 'Files')
+  await loc.treeEntry(page, 'src').click()
+  await loc.treeEntry(page, 'components').click()
+  await loc.treeEntry(page, 'Button.tsx').click()
+  await expect(loc.fileEditor(page)).toHaveValue(/props.label/)
+  await loc.treeEntry(page, 'components').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Cut', exact: true }).click()
+  await page.getByTestId('files-paste-root').click()
+  await expect
+    .poll(async () =>
+      (await stat(join(repoDir, 'components/Button.tsx')).catch(() => null))?.isFile(),
+    )
+    .toBe(true)
+  await expect
+    .poll(async () => (await stat(join(repoDir, 'src/components')).catch(() => null)) === null)
+    .toBe(true)
+  await expect(loc.fileEditor(page)).toHaveValue(/props.label/)
+  await expect(page.getByTestId('files-paste-root')).toBeHidden()
+})
+
 test('Files shortcuts can be recorded and do not run inside the name input', async ({ page }) => {
   await waitForShell(page)
   await selectTab(page, 'Files')

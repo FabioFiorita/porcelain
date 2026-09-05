@@ -27,6 +27,7 @@ import {
   type DirEntry,
   normalizeProjectRoot,
   useFilesActions,
+  useFilesCut,
   useFilesScopeActions,
   useFilesTree,
   usePrefetchFileContent,
@@ -76,6 +77,7 @@ function EntryContextMenu({
   children: React.ReactNode
 }): React.JSX.Element {
   const scopeActions = useFilesScopeActions()
+  const { cut, paste, canPaste } = useFilesCut()
   const selected = useSelectionStore((s) => s.selected)
   const clearSelection = useSelectionStore((s) => s.clear)
   const selectionSize = selected.size
@@ -123,6 +125,15 @@ function EntryContextMenu({
       <ContextMenu>
         <ContextMenuTrigger>{children}</ContextMenuTrigger>
         <ContextMenuContent>
+          <ContextMenuItem
+            onClick={() => cut(selected.has(entry.path) ? [...selected] : [entry.path])}
+          >
+            Cut
+          </ContextMenuItem>
+          <ContextMenuItem disabled={!canPaste} onClick={() => scopeAct('Move', () => paste(dir))}>
+            Paste
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={() => newFile(dir)}>
             <FilePlus />
             New File
@@ -231,13 +242,17 @@ function TreeNodeImpl({
   const prefetchFile = usePrefetchFileContent()
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
-  const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const isRevealed = useRevealStore(
+    (s) => s.path !== null && normalizeProjectRoot(s.path) === normalizeProjectRoot(entry.path),
+  )
   const revealRevision = useRevealStore((s) => s.revision)
   const clearReveal = useRevealStore((s) => s.clear)
   // The row is "open" when the Viewer shows this file — a persistent state the
   // cmd-click multi-selection highlight composes with rather than replaces.
   const activeTab = useActiveTab()
-  const isOpen = activeTab?.kind === 'file' && activeTab.path === entry.path
+  const isOpen =
+    activeTab?.kind === 'file' &&
+    normalizeProjectRoot(activeTab.path) === normalizeProjectRoot(entry.path)
   // The tree stays mounted while other sidebar tabs show (CSS-hidden, so folder
   // expansion survives tab switches); scrollIntoView on a hidden element is a
   // no-op, so the leaf waits for the Files tab before consuming the reveal.
@@ -327,7 +342,9 @@ function DirNode({
   // turn — opening loads its children (lazy `useFilesTree`), mounting the next
   // level, which repeats the check until the leaf row mounts and scrolls itself
   // into view. Controlled `open` lets the effect drive the Collapsible.
-  const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const isRevealed = useRevealStore(
+    (s) => s.path !== null && normalizeProjectRoot(s.path) === normalizeProjectRoot(entry.path),
+  )
   const revealRevision = useRevealStore((s) => s.revision)
   const hasRevealTarget = useRevealStore(
     (s) =>

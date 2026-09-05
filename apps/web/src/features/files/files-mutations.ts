@@ -138,10 +138,11 @@ export function useFilesActions(): {
       )
     },
     rename: async (fromAbsolute: string, toAbsolute: string): Promise<void> => {
-      if (repoPath === null || owner === null) return
+      if (repoPath === null || owner === null)
+        throw new Error('Worktree connection is unavailable.')
       const fromRel = projectRelativeFromAbsolute(repoPath, fromAbsolute)
       const toRel = projectRelativeFromAbsolute(repoPath, toAbsolute)
-      if (fromRel === null || toRel === null) return
+      if (fromRel === null || toRel === null) throw new Error('Choose paths inside this worktree.')
       const input = {
         projectPath: filesProjectKey(repoPath),
         from: fromRel,

@@ -10,16 +10,20 @@ import {
 import { Shortcut } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
+import { useFilesCut } from '@renderer/features/files'
 import { CanvasList } from '@renderer/features/projects'
+import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { surfaceListInsetClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import type { SidebarTab } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
+import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import {
   ChevronsDownUp,
+  ClipboardPaste,
   Eye,
   EyeOff,
   FilePlus,
@@ -226,6 +230,7 @@ function FilesSurface({
 }
 
 function FileSurfaceActions({ rootPath }: { rootPath: string }): React.JSX.Element {
+  const { paste, canPaste } = useFilesCut()
   const newFile = useFilePromptStore((s) => s.newFile)
   const newFolder = useFilePromptStore((s) => s.newFolder)
   const showHidden = useProjectSelectionStore((s) => s.showHidden)
@@ -235,6 +240,23 @@ function FileSurfaceActions({ rootPath }: { rootPath: string }): React.JSX.Eleme
   return (
     <div className="flex shrink-0 items-center">
       <RevealActiveFile rootPath={rootPath} />
+      {canPaste && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          title="Paste at root"
+          aria-label="Paste at root"
+          data-testid="files-paste-root"
+          onClick={() =>
+            runUserAction(
+              () => paste(rootPath),
+              (error) => toastUserActionError('Move', error),
+            )
+          }
+        >
+          <ClipboardPaste />
+        </Button>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
