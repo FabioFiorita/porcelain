@@ -4,6 +4,13 @@ Use [package.json](../package.json) and package-local scripts for available comm
 [the code map](architecture.md) to find implementation owners. Repository safety and proof
 expectations live in [AGENTS.md](../AGENTS.md).
 
+## Development terms
+
+- **Promotion:** Making selected private Porcelain data repository-visible. It does not itself
+  stage or commit that data.
+- **Playground:** Disposable repository data used to exercise development behavior without
+  touching real projects.
+
 ## Host setup
 
 Install the Node and pnpm versions declared in [package.json](../package.json), plus Git.
@@ -64,6 +71,16 @@ PORCELAIN_IOS_SIMULATOR='iPhone 17 Pro' pnpm dev:mobile:ios
 
 Use `PORCELAIN_IOS_SIMULATOR` rather than overriding the launcher's `--device` or `--port`.
 Stop the task's Metro process when finished.
+
+To build an Android development APK with an installed JDK and Android SDK, select a connected
+device explicitly:
+
+```sh
+pnpm dev:mobile:android build --device <serial>
+```
+
+This uses the checkout's Metro port and the device's architecture. It prints the APK path without
+installing it or starting Metro. Install with `adb -s <serial> install -r <apk-path>`.
 
 The [Android helper](../scripts/mobile-android-loop.sh) requires Bash, Python 3, `flock`, and Android
 SDK tools. Select `ANDROID_LOOP_SERIAL` or `ANDROID_LOOP_AVD` on a host with those dependencies:

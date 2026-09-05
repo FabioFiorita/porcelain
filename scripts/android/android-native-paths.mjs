@@ -12,7 +12,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const checkout = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
+const checkout = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const [operation, suppliedRoot, generated] = process.argv.slice(2)
 if (process.platform !== 'win32') throw new Error('This helper is for native Windows builds.')
 if (!suppliedRoot || !isAbsolute(suppliedRoot))

@@ -55,6 +55,13 @@ export function mobileLaunch(argv, inheritedEnv = process.env, platform = proces
     }
   }
   if (surface === 'android') {
+    if (args[0] === 'build') {
+      return {
+        command: process.execPath,
+        args: [join(root, 'scripts/android/build.mjs'), ...args.slice(1)],
+        env,
+      }
+    }
     return {
       command: join(root, 'scripts', 'mobile-android-loop.sh'),
       args,

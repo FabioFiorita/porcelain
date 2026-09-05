@@ -4,7 +4,7 @@ if (!stage || !new File(stage).isAbsolute()) throw new GradleException('Set PORC
 if (ninja && !new File(ninja).isFile()) throw new GradleException('PORCELAIN_NINJA_PATH must name an existing executable.')
 
 gradle.projectsLoaded {
-  def helper = new File(gradle.rootProject.projectDir, '../../../.agents/skills/runtime-evidence/scripts/android-native-paths.mjs')
+  def helper = new File(gradle.rootProject.projectDir, '../../../scripts/android/android-native-paths.mjs')
   // Included Gradle plugin builds do not own the application's Android project.
   if (!helper.isFile()) return
   def runHelper = { List<String> args ->

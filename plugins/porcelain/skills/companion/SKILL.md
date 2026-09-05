@@ -43,20 +43,17 @@ For HTML/SVG Canvases, include self-contained styling and responsive geometry wi
 and contrast. Inspect the rendered result in Porcelain for clipping, overlap, and unintended
 scrolling before reporting it complete. Bundle local evidence assets from one source directory.
 
-## Reveal: explain completed work
+## Review workflow
 
-Use Reveal when the human chooses it for a task or as their preferred handoff. It combines
-Porcelain's surfaces; it is not a Canvas format or a required before/during/after ceremony.
+Use this workflow when a developer asks for help reviewing their work or has chosen it as part
+of their regular workflow. It can also serve as an example when they ask how to use Porcelain.
 
-Explain the task and resulting behavior in a Review Canvas. Organize Changes into meaningful
-layers and order files by the attention their actual changes need. Add focused comments where
-local context helps, and answer the human's existing questions. Include evidence, risks, and
-unverified behavior in the Canvas, with references into the relevant files and changes. Keep these
-surfaces connected so the human can move from the explanation to the diff and its discussion.
+1. Create a Canvas explaining what changed, why it matters, and what was checked.
+2. Organize Changes into review layers, placing consequential changes before supporting details.
+3. Add comments to files or code ranges where a focused explanation helps.
+4. Connect the Canvas explanation to the relevant changes and comments.
 
-Canvas remains a playground outside this flow: use HTML or Markdown for whatever the human needs
-to understand, at the time they find useful. Decision and Review are available structures, not
-the limits of Canvas.
+Use the available MCP tools for each operation. Adapt the workflow to the developer's request.
 
 ## Review contract
 

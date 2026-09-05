@@ -4,6 +4,29 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { DEV_METRO_PORT, DEV_MOBILE_STATE } from './dev-env.mjs'
 import { iosNativeProjectNeedsRegeneration, mobileLaunch } from './mobile-dev.mjs'
+import { buildArguments } from './android/build.mjs'
+
+test('Android build is separate from the device loop and keeps the development profile', () => {
+  const launch = mobileLaunch(['android', 'build', '--device', 'emulator-5554'], {
+    APP_VARIANT: 'production',
+  })
+  assert.equal(launch.command, process.execPath)
+  assert.deepEqual(launch.args.slice(1), ['--device', 'emulator-5554'])
+  assert.equal(launch.env.APP_VARIANT, 'development')
+  assert.equal(launch.env.METRO_PORT, String(DEV_METRO_PORT))
+})
+
+test('Android builds target one ABI and only Windows needs path preparation', () => {
+  for (const windows of [true, false]) {
+    const args = buildArguments('arm64-v8a', 44001, windows)
+    assert.ok(args.includes('-PreactNativeArchitectures=arm64-v8a'))
+    assert.ok(args.includes('-PreactNativeDevServerPort=44001'))
+    assert.equal(args.includes('-I'), windows)
+    assert.ok(!args.some((arg) => /install|clean/i.test(arg)))
+  }
+  assert.throws(() => buildArguments('unknown', 8081, true), /architecture/)
+  assert.throws(() => buildArguments('x86_64', undefined, true), /port/)
+})
 
 test('Metro uses the active profile port and development variant', () => {
   const launch = mobileLaunch(['metro', '--clear'], { APP_VARIANT: 'production' })
