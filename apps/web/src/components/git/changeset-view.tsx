@@ -93,8 +93,9 @@ function ChangesetFileCard({
   const openTab = useTabsStore((s) => s.openTab)
   const setSidebarTab = usePreferencesStore((s) => s.setSidebarTab)
   const reveal = useRevealStore((s) => s.reveal)
-  const reviewed = useReviewedPaths(reviewScope)
-  const { mark, unmark } = useToggleReviewed(reviewScope)
+  const reviewedScope = reviewScope?.type === 'commit' ? undefined : reviewScope
+  const reviewed = useReviewedPaths(reviewedScope)
+  const { mark, unmark } = useToggleReviewed(reviewedScope)
   const commentIndex = useCommentIndex(file.path, reviewScope)
   const isReviewed = reviewed.has(file.path)
   const canOpenFile = file.status !== 'deleted'

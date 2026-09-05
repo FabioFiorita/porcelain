@@ -13,7 +13,7 @@ import {
 import { Shortcut } from '@renderer/components/ui/kbd'
 import { CodeLine, useTokenizedLines } from '@renderer/components/viewer/code-line'
 import { ROW_HEIGHT } from '@renderer/components/viewer/virtual-rows'
-import { useWriteTextFile } from '@renderer/features/files'
+import { useWriteTextFile } from '@renderer/features/files/files-mutations'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { useCanRevealInFinder } from '@renderer/hooks/use-reveal-in-finder'
 import { languageFor } from '@renderer/lib/highlight'

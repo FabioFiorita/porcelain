@@ -46,7 +46,7 @@
       "outputs": []
     },
     "//#test:scripts": {
-      "env": ["CODEX_WORKTREE_PATH"],
+      "env": ["CODEX_WORKTREE_PATH", "ANDROID_HOME", "ANDROID_SDK_ROOT", "METRO_PORT"],
       "inputs": ["$TURBO_ROOT$/scripts/**", "$TURBO_ROOT$/package.json"],
       "outputs": []
     },

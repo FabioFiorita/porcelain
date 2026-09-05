@@ -1,4 +1,4 @@
-import { useFileContent, useRefreshFilesTree } from '@renderer/features/files'
+import { useFileContent, useRefreshFilesTree } from '@renderer/features/files/files-queries'
 import { useEffect } from 'react'
 import { TextFileView } from './text-file-view'
 

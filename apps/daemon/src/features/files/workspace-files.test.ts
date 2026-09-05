@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import {
   lstat,
   mkdir,
@@ -10,30 +10,15 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { withTemporaryDirectory } from '../../testing/temporary-directory'
+import { supportsFileSymlinks, withTemporaryDirectory } from '../../testing/temporary-directory'
 import { createNodeWorkspaceFiles } from './workspace-files'
 
 const trash = vi.hoisted(() => ({ moveToTrash: vi.fn(async () => undefined) }))
 vi.mock('../../fs/move-to-trash', () => trash)
 
 const files = createNodeWorkspaceFiles()
-
-function supportsFileSymlinks(): boolean {
-  const dir = mkdtempSync(join(tmpdir(), 'porcelain-symlink-probe-'))
-  try {
-    const target = join(dir, 'target')
-    writeFileSync(target, 'probe')
-    symlinkSync(target, join(dir, 'link'))
-    return true
-  } catch {
-    return false
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-}
 
 // Windows requires Developer Mode or elevation for ordinary file/directory symlinks.
 // Keep the full containment suite active wherever the host grants that capability.

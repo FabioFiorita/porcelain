@@ -542,7 +542,8 @@ describe('gitHead', () => {
   })
 })
 
-describe('gitPush', () => {
+// These integration cases create repositories and spawn several real Git processes.
+describe('gitPush', { timeout: 20_000 }, () => {
   const dirs: string[] = []
 
   afterAll(async () => {

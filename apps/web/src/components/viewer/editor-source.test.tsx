@@ -7,7 +7,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 const save = vi.fn()
 
 // Mock the write hook so tests run without IPC or real autosave.
-vi.mock('@renderer/features/files', () => ({
+vi.mock('@renderer/features/files/files-mutations', () => ({
   useWriteTextFile: () => ({ save, isSaving: false, error: null }),
 }))
 

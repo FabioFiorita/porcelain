@@ -1,9 +1,40 @@
 // @vitest-environment node
+
+import * as fs from 'node:fs'
 import { access, mkdir, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
-import { describe, expect, it } from 'vitest'
-import { withTemporaryDirectory } from './temporary-directory'
+import { dirname, isAbsolute, join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { supportsFileSymlinks, withTemporaryDirectory } from './temporary-directory'
+
+vi.mock('node:fs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs')>()),
+  symlinkSync: vi.fn(),
+}))
+
+describe('supportsFileSymlinks', () => {
+  afterEach(() => vi.resetAllMocks())
+
+  it('surfaces unexpected symlink errors and cleans up the probe', () => {
+    const error = Object.assign(new Error('I/O failure'), { code: 'EIO' })
+    let directory = ''
+    vi.mocked(fs.symlinkSync).mockImplementation((target) => {
+      directory = dirname(String(target))
+      throw error
+    })
+    expect(() => supportsFileSymlinks()).toThrow(error)
+    expect(fs.existsSync(directory)).toBe(false)
+  })
+
+  it('skips EPERM only on Windows', () => {
+    const error = Object.assign(new Error('Permission denied'), { code: 'EPERM' })
+    vi.mocked(fs.symlinkSync).mockImplementation(() => {
+      throw error
+    })
+    if (process.platform === 'win32') expect(supportsFileSymlinks()).toBe(false)
+    else expect(() => supportsFileSymlinks()).toThrow(error)
+  })
+})
 
 describe('withTemporaryDirectory', () => {
   it('provides an absolute unique path under os.tmpdir and supports nested writes', async () => {

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -5,16 +6,20 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { supportsFileSymlinks } from '../testing/temporary-directory'
 import { inlineLocalAssets } from './evidence-assets'
 
+const outsideDirectories: string[] = []
+
 const symlinkIt = supportsFileSymlinks() ? it : it.skip
 
 describe('inlineLocalAssets', () => {
-  const dir = join(tmpdir(), 'porcelain-evidence-assets-test')
+  const dir = join(tmpdir(), `porcelain-evidence-assets-test-${randomUUID()}`)
 
   beforeEach(() => {
     rmSync(dir, { recursive: true, force: true })
     mkdirSync(dir, { recursive: true })
   })
   afterEach(() => {
+    for (const outside of outsideDirectories.splice(0))
+      rmSync(outside, { recursive: true, force: true })
     rmSync(dir, { recursive: true, force: true })
   })
 
@@ -97,7 +102,8 @@ describe('inlineLocalAssets', () => {
   })
 
   symlinkIt('leaves image symlink escape alone but inlines contained symlink', async () => {
-    const outside = join(tmpdir(), 'porcelain-evidence-assets-outside')
+    const outside = join(tmpdir(), `porcelain-evidence-assets-outside-${randomUUID()}`)
+    outsideDirectories.push(outside)
     rmSync(outside, { recursive: true, force: true })
     mkdirSync(outside, { recursive: true })
     writeFileSync(join(outside, 'secret.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
@@ -128,7 +134,8 @@ describe('inlineLocalAssets', () => {
   )
 
   symlinkIt('leaves stylesheet symlink escape alone', async () => {
-    const outside = join(tmpdir(), 'porcelain-evidence-assets-css-outside')
+    const outside = join(tmpdir(), `porcelain-evidence-assets-css-outside-${randomUUID()}`)
+    outsideDirectories.push(outside)
     rmSync(outside, { recursive: true, force: true })
     mkdirSync(outside, { recursive: true })
     writeFileSync(join(outside, 'evil.css'), 'body{color:red}')
@@ -172,7 +179,8 @@ describe('inlineLocalAssets', () => {
   })
 
   symlinkIt('leaves a script symlink escape alone', async () => {
-    const outside = join(tmpdir(), 'porcelain-evidence-assets-js-outside')
+    const outside = join(tmpdir(), `porcelain-evidence-assets-js-outside-${randomUUID()}`)
+    outsideDirectories.push(outside)
     rmSync(outside, { recursive: true, force: true })
     mkdirSync(outside, { recursive: true })
     writeFileSync(join(outside, 'evil.js'), 'evil()')

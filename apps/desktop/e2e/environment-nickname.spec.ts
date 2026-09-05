@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -33,11 +34,9 @@ import { createFixtureRepo } from './helpers/fixture-repo'
  * launch returns, and every test gets its own app.
  */
 
-const REMOTE_REPO_DIR = join(tmpdir(), 'porcelain-e2e-nickname-fixture')
+const REMOTE_REPO_DIR = join(tmpdir(), `porcelain-e2e-nickname-fixture-${randomUUID()}`)
 const NICKNAME = 'Beelink (work)'
 const LOCAL_NICKNAME = 'Studio'
-// Outside Playwright's outputDir, which is wiped per run — these are the evidence.
-const SHOTS = join(tmpdir(), 'porcelain-nickname-proof')
 
 type Seeded = Awaited<ReturnType<typeof seedIsolatedState>>
 type Remote = { child: ChildProcess; port: number }
@@ -126,8 +125,12 @@ async function setName(page: Page, rowId: string, name: string): Promise<void> {
 }
 
 async function shot(page: Page, name: string): Promise<void> {
-  await mkdir(SHOTS, { recursive: true })
-  await page.screenshot({ path: join(SHOTS, name), animations: 'disabled', timeout: 30_000 })
+  await mkdir(test.info().outputDir, { recursive: true })
+  await page.screenshot({
+    path: test.info().outputPath(name),
+    animations: 'disabled',
+    timeout: 30_000,
+  })
 }
 
 async function openRemotes(page: Page): Promise<void> {

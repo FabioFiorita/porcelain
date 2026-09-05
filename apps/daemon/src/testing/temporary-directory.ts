@@ -32,10 +32,19 @@ export function supportsFileSymlinks(): boolean {
   try {
     const target = join(directory, 'target')
     writeFileSync(target, 'probe')
-    symlinkSync(target, join(directory, 'link'))
+    try {
+      symlinkSync(target, join(directory, 'link'))
+    } catch (error) {
+      if (
+        process.platform === 'win32' &&
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'EPERM'
+      )
+        return false
+      throw error
+    }
     return true
-  } catch {
-    return false
   } finally {
     rmSync(directory, { force: true, recursive: true })
   }

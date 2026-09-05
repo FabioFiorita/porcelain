@@ -35,6 +35,7 @@
     "build:daemon": "turbo run build:daemon --filter=@porcelain/desktop",
     "build:web": "turbo run build:web --filter=@porcelain/desktop",
     "build": "turbo run build --filter=@porcelain/desktop",
+    "build:e2e": "turbo run build:node build:web --filter=@porcelain/desktop",
     "test": "turbo run test --filter=@porcelain/desktop",
     "test:windows-foundation": "pnpm --dir apps/desktop test:windows-foundation",
     "test:coverage": "pnpm --dir apps/desktop test:coverage",

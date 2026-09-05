@@ -1,17 +1,18 @@
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import {
   expect,
   expectTerminalText,
   loc,
   openSettings,
   openTerminals,
-  spawnPanelTerminal,
   TestIds,
   test,
   waitForShell,
 } from './helpers/app'
 
-const WSL_REPO = '/tmp/porcelain-wsl-e2e-project'
+const WSL_NAME = `porcelain-wsl-e2e-project-${randomUUID()}`
+const WSL_REPO = `/tmp/${WSL_NAME}`
 
 function installedUserDistributions(): string[] {
   const output = execFileSync('wsl.exe', ['--list', '--quiet'])
@@ -65,7 +66,7 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
     '--exec',
     'sh',
     '-lc',
-    `set -eu; rm -rf -- '${WSL_REPO}'; mkdir -p '${WSL_REPO}'; cd '${WSL_REPO}'; git init -q; git config user.name 'Porcelain E2E'; git config user.email 'porcelain@example.test'; printf '# WSL Porcelain proof\\n' > README.md; git add README.md; git commit -qm 'Initial WSL proof'`,
+    `set -eu; mkdir '${WSL_REPO}'; cd '${WSL_REPO}'; git init -q -b master; git config user.name 'Porcelain E2E'; git config user.email 'porcelain@example.test'; printf '# WSL Porcelain proof\\n' > README.md; git add README.md; git commit -qm 'Initial WSL proof'`,
   ])
 
   try {
@@ -91,28 +92,29 @@ test('Windows provisions Ubuntu, opens a Linux project, and runs its terminal in
 
     const up = page.getByRole('button', { name: 'Up', exact: true })
     const currentPath = page.locator('[role="dialog"] p[dir="rtl"]')
-    for (let depth = 0; depth < 12 && (await up.isEnabled()); depth += 1) {
-      const previousPath = await currentPath.getAttribute('title')
+    for (let depth = 0; depth < 12; depth += 1) {
+      const previousPath = (await currentPath.innerText()).trim()
+      if (previousPath === '/') break
+      await expect(up).toBeEnabled()
       await up.click()
-      if (previousPath !== null)
-        await expect(currentPath).not.toHaveAttribute('title', previousPath)
+      await expect(currentPath).not.toHaveText(previousPath)
     }
+    await expect(currentPath).toHaveText('/')
     await page.getByRole('button', { name: 'tmp', exact: true }).click()
     await page
-      .getByRole('button', { name: /porcelain-wsl-e2e-project/ })
+      .getByRole('button', { name: new RegExp(`^${WSL_NAME}(?: project)?$`) })
       .first()
       .click()
     await page.getByRole('button', { name: 'Open this folder' }).click()
 
     await expect(loc.hubInventory(page)).toBeVisible({ timeout: 60_000 })
     await expect(loc.hubInventory(page).getByText('WSL').first()).toBeVisible()
-    await page.getByRole('button', { name: /master porcelain-wsl-e2e-project/ }).click()
+    await page.getByRole('button', { name: new RegExp(`master ${WSL_NAME}`) }).click()
     await page.getByRole('button', { name: /Files Browse the project tree/ }).click()
     await expect(loc.treeEntry(page, 'README.md')).toBeVisible({ timeout: 60_000 })
 
     await openTerminals(page)
-    await spawnPanelTerminal(page)
-    await expectTerminalText(page, 0, '/tmp/porcelain-wsl-e2e-project')
+    await expectTerminalText(page, 0, WSL_REPO)
 
     await openSettings(page)
     await page.getByTestId(TestIds.settingsSection('share')).first().click()

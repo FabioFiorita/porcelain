@@ -8,11 +8,10 @@ import { TextFileView } from './text-file-view'
 
 // EditorSource (rendered for short files) calls useWriteTextFile which reaches
 // tRPC. Mock Files feature hooks; keep path helpers real via importOriginal.
-vi.mock(import('@renderer/features/files'), async (importOriginal) => {
+vi.mock(import('@renderer/features/files/files-queries'), async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
-    useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
     useFilePreview: () => ({ html: null, error: null }),
     useFilePreviewSrc: () => null,
   }
@@ -88,3 +87,7 @@ test('offers a file-level comment control on a normal file', () => {
   render(<TextFileView path="/repo/small.ts" content={'x'} paneIndex={0} />)
   expect(screen.getByLabelText('Comment on file')).toBeInTheDocument()
 })
+
+vi.mock('@renderer/features/files/files-mutations', () => ({
+  useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
+}))

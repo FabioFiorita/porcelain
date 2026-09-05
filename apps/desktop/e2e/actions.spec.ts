@@ -1,5 +1,45 @@
+import { request } from 'node:http'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { porcelainMcpChannel } from '../../../packages/shared/src/mcp-channel'
 import { expect, expectTerminalText, loc, test, waitForShell } from './helpers/app'
+
+async function localMcpPost(
+  home: string,
+  options: { headers: Record<string, string>; data: unknown },
+) {
+  return new Promise<{
+    status: () => number
+    text: () => Promise<string>
+    json: () => Promise<unknown>
+  }>((resolve, reject) => {
+    const req = request(
+      {
+        socketPath: porcelainMcpChannel(home),
+        path: '/mcp',
+        method: 'POST',
+        headers: options.headers,
+      },
+      (res) => {
+        let body = ''
+        res.setEncoding('utf8')
+        res.on('data', (chunk: string) => {
+          body += chunk
+        })
+        res.on('error', reject)
+        res.on('end', () =>
+          resolve({
+            status: () => res.statusCode ?? 0,
+            text: async () => body,
+            json: async () => JSON.parse(body),
+          }),
+        )
+      },
+    )
+    req.setTimeout(10000, () => req.destroy(new Error('Local MCP request timed out')))
+    req.on('error', reject)
+    req.end(JSON.stringify(options.data))
+  })
+}
 
 const COMMAND = 'echo porcelain-e2e-actions'
 
@@ -66,12 +106,8 @@ async function waitForProjectAndWorktree(page: import('@playwright/test').Page):
  * Directly planting `actions.json` bypasses the daemon's `actions.changed` notification and
  * leaves an already-mounted Actions query showing its cached empty result.
  */
-async function createAgentAction(
-  page: import('@playwright/test').Page,
-  repoDir: string,
-): Promise<string> {
-  const origin = new URL(page.url()).origin
-  const response = await page.request.post(`${origin}/mcp`, {
+async function createAgentAction(home: string, repoDir: string): Promise<string> {
+  const response = await localMcpPost(home, {
     headers: {
       'content-type': 'application/json',
       'mcp-method': 'tools/call',
@@ -98,9 +134,17 @@ async function createAgentAction(
     },
   })
   expect(response.status()).toBe(200)
-  await expect(response.text()).resolves.toContain('saved')
+  const created = (await response.json()) as {
+    result?: { isError?: boolean; content?: { text?: string }[] }
+  }
+  expect(created.result?.isError).not.toBe(true)
+  const createdText = created.result?.content?.[0]?.text
+  if (createdText === undefined) throw new Error('Action creation returned no content')
+  expect(JSON.parse(createdText)).toMatchObject({
+    value: { title: 'Echo hello', command: COMMAND },
+  })
 
-  const contextResponse = await page.request.post(`${origin}/mcp`, {
+  const contextResponse = await localMcpPost(home, {
     headers: {
       'content-type': 'application/json',
       'mcp-method': 'tools/call',
@@ -169,6 +213,7 @@ async function authorizeRun(
 test('Actions: the Hub menu lists a Project roster, runs it in the selected Worktree, and refuses a foreign target', async ({
   page,
   repoDir,
+  seeded,
 }) => {
   await waitForShell(page)
   const { environmentId, projectId, worktreeId, worktreePath } =
@@ -181,7 +226,7 @@ test('Actions: the Hub menu lists a Project roster, runs it in the selected Work
   // Mount and resolve the empty list before the agent writes. This proves the subsequent
   // MCP mutation reaches the already-live query through the daemon's change notification.
   await expect(loc.actionsEmpty(page)).toBeVisible()
-  const actionId = await createAgentAction(page, repoDir)
+  const actionId = await createAgentAction(seeded.udBase, repoDir)
   await expect(loc.actionRun(page, 'Echo hello')).toBeVisible()
   await expect(loc.actionRun(page, 'Echo hello')).toContainText(COMMAND)
   await expect(loc.actionUnreviewed(page, 'Echo hello')).toBeVisible()

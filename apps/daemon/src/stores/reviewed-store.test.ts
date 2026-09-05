@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,7 +15,7 @@ import {
   setReviewedMarks,
 } from './reviewed-store'
 
-const root = join(tmpdir(), 'porcelain-reviewed-store-test')
+const root = join(tmpdir(), `porcelain-reviewed-store-test-${randomUUID()}`)
 const repo = join(root, 'repo')
 
 const paths = async (repoPath: string): Promise<string[]> =>

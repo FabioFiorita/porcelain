@@ -95,6 +95,10 @@ test('composed daemon proof: targets, Canvas, and Actions', async ({ page, seede
     )
   const other = worktreeIds.find((id) => id !== original)
   if (other === undefined) throw new Error('second Worktree did not appear')
+  await expect(loc.hubWorktree(page, other.replace('hub-worktree-', ''))).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
   const originalWorktreeId = original.replace('hub-worktree-', '')
   const otherWorktreeId = other.replace('hub-worktree-', '')
   const originalTarget = {
@@ -118,12 +122,14 @@ test('composed daemon proof: targets, Canvas, and Actions', async ({ page, seede
     projectId: project,
   })
   await loc.hubWorktree(page, originalWorktreeId).click()
+  await expect(loc.hubWorktree(page, originalWorktreeId)).toHaveAttribute('aria-current', 'page')
   await openReadme(page)
   await expect(loc.hubTabTarget(page, originalTarget)).toHaveCount(1)
   await loc.viewerTab(page, 'README.md').dblclick()
   await loc.viewerTab(page, 'README.md').click({ button: 'right' })
   await loc.viewerTabOpenToSide(page).click()
   await loc.hubWorktree(page, otherWorktreeId).click()
+  await expect(loc.hubWorktree(page, otherWorktreeId)).toHaveAttribute('aria-current', 'page')
   await openReadme(page)
   const duplicateOriginal = loc.hubTabTarget(page, originalTarget).last()
   await duplicateOriginal.locator('button[aria-label^="Close "]').click()

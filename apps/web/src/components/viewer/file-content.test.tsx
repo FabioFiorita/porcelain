@@ -9,13 +9,12 @@ import { FileContent } from './file-content'
 const refreshTree = vi.fn()
 const useFileContent = vi.fn()
 
-vi.mock(import('@renderer/features/files'), async (importOriginal) => {
+vi.mock(import('@renderer/features/files/files-queries'), async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
     useFileContent: () => useFileContent(),
     useRefreshFilesTree: () => refreshTree,
-    useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
     useFilePreview: () => ({ html: null, error: null }),
     useFilePreviewSrc: () => null,
   }
@@ -71,3 +70,7 @@ test('text FileView mounts the editable TextFileView', () => {
   render(<FileContent path="/repo/a.ts" paneIndex={0} />)
   expect(screen.getByLabelText('Edit /repo/a.ts')).toBeTruthy()
 })
+
+vi.mock('@renderer/features/files/files-mutations', () => ({
+  useWriteTextFile: () => ({ save: async () => {}, isSaving: false, error: null }),
+}))

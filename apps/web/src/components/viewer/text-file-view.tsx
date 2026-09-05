@@ -4,7 +4,7 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { HtmlDocumentFrame, isHtmlPath } from '@renderer/components/viewer/html-view'
 import { isMarkdownPath, MarkdownView } from '@renderer/components/viewer/markdown-view'
-import { useFilePreview, useFilePreviewSrc } from '@renderer/features/files'
+import { useFilePreview, useFilePreviewSrc } from '@renderer/features/files/files-queries'
 import { useCommentIndex } from '@renderer/features/review'
 import { raisedCardClass, viewerWellClass } from '@renderer/lib/controls'
 import { lineRangeForSelectedText } from '@renderer/lib/line-selection'

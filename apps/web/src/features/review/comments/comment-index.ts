@@ -43,7 +43,12 @@ export function buildCommentIndex(
     const anchor = comment.anchor
     const file =
       anchor?.kind === 'file' ? anchor : anchor === undefined && comment.path ? comment : null
-    if (file === null || file.path !== path || !sameScope(file.scope, scope)) continue
+    if (
+      file === null ||
+      file.path !== path ||
+      !sameScope(anchor?.kind === 'file' ? anchor.scope : undefined, scope)
+    )
+      continue
     if (file.startLine === undefined) {
       fileLevel.push(comment)
       continue

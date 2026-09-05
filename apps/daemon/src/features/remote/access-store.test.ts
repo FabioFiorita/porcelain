@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,7 +14,7 @@ import {
   revokePairingGrant,
 } from './access-store'
 
-const dir = join(tmpdir(), 'porcelain-access-store-test')
+const dir = join(tmpdir(), `porcelain-access-store-test-${randomUUID()}`)
 const file = join(dir, 'access.json')
 const devTokenFile = join(dir, 'dev-client-token')
 

@@ -29,7 +29,7 @@ if (existsSync(marker)) {
 } else {
   if (readdirSync(stage).length !== 0)
     throw new Error('Choose an empty task-owned staging directory.')
-  writeFileSync(marker, JSON.stringify({ checkout }, null, 2) + '\n')
+  writeFileSync(marker, `${JSON.stringify({ checkout }, null, 2)}\n`)
 }
 if (operation === 'prepare') process.exit(0)
 if (operation !== 'rewrite') throw new Error('Expected prepare or rewrite.')
@@ -71,4 +71,4 @@ for (const [, source] of entries) {
   aliases.push({ alias, target, source })
 }
 writeFileSync(expected, updated)
-writeFileSync(join(stage, 'source-aliases.json'), JSON.stringify(aliases, null, 2) + '\n')
+writeFileSync(join(stage, 'source-aliases.json'), `${JSON.stringify(aliases, null, 2)}\n`)

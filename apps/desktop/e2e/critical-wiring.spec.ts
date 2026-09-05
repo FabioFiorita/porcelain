@@ -7,7 +7,6 @@ import {
   loc,
   openTerminals,
   selectTab,
-  spawnPanelTerminal,
   test,
   waitForShell,
 } from './helpers/app'
@@ -117,13 +116,18 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
 }) => {
   await waitForShell(page)
   await openTerminals(page)
-  await spawnPanelTerminal(page)
+  await loc.terminalTabByName(page, 'Terminal 1').waitFor({ timeout: 15_000 })
 
   const input = page.locator('.porcelain-ghostty-input').first()
   await input.waitFor()
+  await expect
+    .poll(() => page.evaluate(() => window.__porcelainTerminalText?.(0)?.trim() ?? ''))
+    .not.toBe('')
   await input.focus()
-  await expectTerminalText(page, 0, '$')
-  await page.keyboard.type("python3 -c \"print('x' * 70000 + 'SCROLLBACK_TAIL_64K')\"")
+  await page.keyboard.insertText(
+    "node -e \"console.log('x'.repeat(70000) + 'SCROLLBACK_' + 'TAIL_64K')\"",
+  )
+  await expectTerminalText(page, 0, 'TAIL_64K')
   await page.keyboard.press('Enter')
   await expectTerminalText(page, 0, 'SCROLLBACK_TAIL_64K')
 
@@ -133,6 +137,7 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
   // persisted layout — so reopen it before looking for the tab.
   await page.reload()
   await waitForShell(page)
+  await expect(page.locator('[data-testid^="hub-worktree-"][aria-current="page"]')).toHaveCount(1)
   await openTerminals(page)
   const existing = loc.terminalTabByName(page, 'Terminal 1')
   await existing.waitFor({ timeout: 15_000 })

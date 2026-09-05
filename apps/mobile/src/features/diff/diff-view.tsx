@@ -77,7 +77,6 @@ export function DiffView({
   const file = useDiffFile(filePath, source, active)
   const preferredMode = usePreferencesStore((state) => state.diffMode)
   const comments = useReviewComments(active)
-  const commentIndex = useCommentIndex(comments, filePath, commentScope)
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const lineSelection = useLineSelection()
   const commentScope =
@@ -88,6 +87,8 @@ export function DiffView({
         : source.base === undefined
           ? undefined
           : ({ type: 'branch', base: source.base } as const)
+
+  const commentIndex = useCommentIndex(comments, filePath, commentScope)
 
   const hunks: readonly DiffHunk[] = file.hunks ?? NO_HUNKS
   const rows = useMemo(() => toDiffRows(hunks, preferredMode), [hunks, preferredMode])

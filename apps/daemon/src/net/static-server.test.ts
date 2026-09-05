@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import {
   createServer,
@@ -148,7 +149,7 @@ describe('isImmutableAsset', () => {
 })
 
 describe('serveStatic content types', () => {
-  const dist = join(tmpdir(), 'porcelain-static-server-test')
+  const dist = join(tmpdir(), `porcelain-static-server-test-${randomUUID()}`)
   const javascript = `const porcelain = ${JSON.stringify('trusted-work-'.repeat(8_000))};`
 
   beforeEach(() => {

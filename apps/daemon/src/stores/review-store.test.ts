@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -6,7 +7,7 @@ import { canvasBundleDir, canvasIndexPath } from '@shared/canvas-porcelain'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { isRepoContained, readReviewSet, reviewFlowForRepo } from './review-store'
 
-const root = join(tmpdir(), 'porcelain-review-store-test')
+const root = join(tmpdir(), `porcelain-review-store-test-${randomUUID()}`)
 const repo = join(root, 'repo')
 const home = join(root, 'home')
 const previousHome = process.env.PORCELAIN_HOME

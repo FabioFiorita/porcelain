@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -7,7 +8,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest'
 import { workingTreeFingerprint } from '../../git/git-fingerprints'
 import { readReviewReadiness } from './review-readiness'
 
-const root = join(tmpdir(), 'porcelain-review-readiness-test')
+const root = join(tmpdir(), `porcelain-review-readiness-test-${randomUUID()}`)
 const repo = join(root, 'repo')
 const home = join(root, 'home')
 const previousHome = process.env.PORCELAIN_HOME
