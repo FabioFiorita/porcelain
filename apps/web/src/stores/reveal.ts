@@ -9,6 +9,7 @@ interface RevealState {
    * itself too, so its contents show.
    */
   path: string | null
+  revision: number
   reveal: (path: string) => void
   /**
    * Drop the target once the leaf row has consumed it (scrolled into view and
@@ -21,6 +22,7 @@ interface RevealState {
 
 export const useRevealStore = create<RevealState>((set) => ({
   path: null,
-  reveal: (path: string) => set({ path }),
+  revision: 0,
+  reveal: (path: string) => set((s) => ({ path, revision: s.revision + 1 })),
   clear: () => set({ path: null }),
 }))

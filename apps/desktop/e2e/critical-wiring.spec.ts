@@ -18,6 +18,24 @@ interface SessionMismatch {
   received: number | null
 }
 
+test('Files reveals the active file after collapsing its ancestors', async ({ page }) => {
+  await waitForShell(page)
+  await selectTab(page, 'Files')
+  const reveal = page.getByTestId('files-reveal-active')
+  await expect(reveal).toBeDisabled()
+  await loc.treeEntry(page, 'src').click()
+  await loc.treeEntry(page, 'components').click()
+  await loc.treeEntry(page, 'Button.tsx').click()
+  await expect(loc.fileEditor(page)).toBeVisible()
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page.getByRole('button', { name: 'Collapse all folders', exact: true }).click()
+    await expect(loc.treeEntry(page, 'Button.tsx')).toBeHidden()
+    await reveal.click()
+    await expect(loc.treeEntry(page, 'Button.tsx')).toBeVisible()
+    await expect(loc.treeEntry(page, 'Button.tsx')).toHaveAttribute('data-active')
+  }
+})
+
 test('Files creates a file and folder at the root without selecting an entry', async ({
   page,
   repoDir,

@@ -25,6 +25,7 @@ import { FileTypeIcon, FolderIcon } from '@renderer/components/viewer/file-icon'
 import { usePathActions } from '@renderer/components/viewer/use-path-actions'
 import {
   type DirEntry,
+  normalizeProjectRoot,
   useFilesActions,
   useFilesScopeActions,
   useFilesTree,
@@ -231,6 +232,7 @@ function TreeNodeImpl({
   // A file opened from outside the tree (Changes → Open file) sets the reveal
   // target; the matching row scrolls into view and shows the accent highlight.
   const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const revealRevision = useRevealStore((s) => s.revision)
   const clearReveal = useRevealStore((s) => s.clear)
   // The row is "open" when the Viewer shows this file — a persistent state the
   // cmd-click multi-selection highlight composes with rather than replaces.
@@ -244,12 +246,13 @@ function TreeNodeImpl({
 
   // This file is the reveal leaf: once it scrolls into view, let the highlight
   // linger, then clear the target so a later remount doesn't re-expand the chain.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Each reveal request must restart scrolling and the highlight, including the same path.
   useEffect(() => {
     if (!isRevealed || !isTreeVisible) return
     ref.current?.scrollIntoView({ block: 'nearest' })
     const timer = setTimeout(clearReveal, REVEAL_LINGER_MS)
     return () => clearTimeout(timer)
-  }, [isRevealed, isTreeVisible, clearReveal])
+  }, [isRevealed, isTreeVisible, clearReveal, revealRevision])
 
   if (entry.kind === 'file') {
     return (
@@ -320,25 +323,31 @@ function DirNode({
   // level, which repeats the check until the leaf row mounts and scrolls itself
   // into view. Controlled `open` lets the effect drive the Collapsible.
   const isRevealed = useRevealStore((s) => s.path === entry.path)
+  const revealRevision = useRevealStore((s) => s.revision)
   const hasRevealTarget = useRevealStore(
-    (s) => s.path === entry.path || (s.path?.startsWith(`${entry.path}/`) ?? false),
+    (s) =>
+      s.path !== null &&
+      (normalizeProjectRoot(s.path) === normalizeProjectRoot(entry.path) ||
+        normalizeProjectRoot(s.path).startsWith(`${normalizeProjectRoot(entry.path)}/`)),
   )
   const clearReveal = useRevealStore((s) => s.clear)
   // Same visibility gate as the file leaf: the tree is CSS-hidden under other
   // sidebar tabs, so defer the scroll/clear until the Files tab shows it.
   const isTreeVisible = usePreferencesStore((s) => s.sidebarTab === 'files')
   const ref = useRef<HTMLButtonElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Repeated reveal requests must reopen folders collapsed since the previous request.
   useEffect(() => {
     if (hasRevealTarget) setExpanded(true)
-  }, [hasRevealTarget])
+  }, [hasRevealTarget, revealRevision])
   // When this folder IS the reveal leaf (a revealed folder), scroll it in and
   // clear the target after the highlight lingers — same as a revealed file.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Each reveal request must restart scrolling and the highlight, including the same path.
   useEffect(() => {
     if (!isRevealed || !isTreeVisible) return
     ref.current?.scrollIntoView({ block: 'nearest' })
     const timer = setTimeout(clearReveal, REVEAL_LINGER_MS)
     return () => clearTimeout(timer)
-  }, [isRevealed, isTreeVisible, clearReveal])
+  }, [isRevealed, isTreeVisible, clearReveal, revealRevision])
   // Cascade collapse: this folder's own local nonce, bumped whenever it collapses
   // (user click or its own cascade), is passed down to children so re-expanding a
   // parent shows its inner folders freshly collapsed rather than stale-expanded.

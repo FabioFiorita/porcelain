@@ -30,6 +30,7 @@ import { FileTimelineGroup } from './file-timeline-group'
 import { FileTree } from './file-tree'
 import { PinnedGroup } from './pinned-group'
 import { QuickCommandsGroup } from './quick-commands-group'
+import { RevealActiveFile } from './reveal-active-file'
 
 interface SurfaceDefinition {
   id: SidebarTab
@@ -226,6 +227,7 @@ function FileSurfaceActions({ rootPath }: { rootPath: string }): React.JSX.Eleme
 
   return (
     <div className="flex shrink-0 items-center">
+      <RevealActiveFile rootPath={rootPath} />
       <Button
         variant="ghost"
         size="icon-xs"

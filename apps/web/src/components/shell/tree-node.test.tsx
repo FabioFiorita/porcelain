@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TreeNode } from './tree-node'
 
 vi.mock('@renderer/features/files', () => ({
+  normalizeProjectRoot: (path: string) => path.replaceAll('\\', '/').replace(/\/+$/, ''),
   useFilesTree: vi.fn(),
   useFilesActions: () => ({ trash: async () => true, duplicate: async () => {} }),
   useFilesScopeActions: () => ({
