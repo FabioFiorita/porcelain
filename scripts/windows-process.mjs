@@ -10,7 +10,9 @@ export function windowsProcessIdentity(pid) {
     {
       encoding: 'utf8',
       windowsHide: true,
-      timeout: 15000,
+      // Cold PowerShell/CIM startup on hosted Windows can exceed 15 seconds.
+      // Preserve a hard bound without treating a slow identity query as a missing process.
+      timeout: 60000,
     },
   ).trim()
   return text ? JSON.parse(text) : null
