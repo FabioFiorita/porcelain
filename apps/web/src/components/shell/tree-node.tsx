@@ -269,7 +269,10 @@ function TreeNodeImpl({
               // open file, a cmd-click selection, and a reveal all read the same
               // and none of them fade under the pointer's hover tint.
               isActive={isOpen || isSelected || isRevealed}
-              className={cn('pr-8 text-sm-minus', entry.hidden && 'opacity-50')}
+              className={cn(
+                'pr-8 text-sm-minus focus-visible:ring-inset',
+                entry.hidden && 'opacity-50',
+              )}
               onMouseEnter={() => prefetchFile(entry.path)}
               onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                 setActive({ path: entry.path, kind: 'file' })
@@ -391,7 +394,10 @@ function DirNode({
                 data-tree-kind="dir"
                 data-tree-name={entry.name}
                 isActive={isSelected || isRevealed}
-                className={cn('text-sm-minus', entry.hidden && 'opacity-50')}
+                className={cn(
+                  'text-sm-minus focus-visible:ring-inset',
+                  entry.hidden && 'opacity-50',
+                )}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {
                   setActive({ path: entry.path, kind: 'dir' })
                   if (e.metaKey || e.ctrlKey) {
