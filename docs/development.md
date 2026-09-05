@@ -59,6 +59,13 @@ unrecorded.
 
 ## Mobile devices
 
+The Codex Android phone/tablet actions open `Phone` and `Tablet` AVDs using the checkout's
+Metro and daemon ports. Start **Dev daemon** and **Mobile Metro** first. The development app
+must already be installed. For different AVD names, set `PORCELAIN_ANDROID_PHONE_AVD` and
+`PORCELAIN_ANDROID_TABLET_AVD` in the host environment. The same launch commands work on
+Windows, macOS, and Linux: `pnpm dev:mobile:android phone` or `pnpm dev:mobile:android tablet`.
+Close the emulator window when finished; a reused emulator is left running.
+
 Devices and simulators are machine-global even when development profiles are isolated. Select the
 intended device and stop only one this task started. The
 [mobile launcher](../scripts/mobile-dev.mjs) owns profile setup.

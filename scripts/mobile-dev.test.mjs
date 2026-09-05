@@ -2,9 +2,22 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { buildArguments } from './android/build.mjs'
 import { DEV_METRO_PORT, DEV_MOBILE_STATE } from './dev-env.mjs'
 import { iosNativeProjectNeedsRegeneration, mobileLaunch } from './mobile-dev.mjs'
-import { buildArguments } from './android/build.mjs'
+
+test('phone and tablet use the portable launcher and preserve development isolation on every host', () => {
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    for (const form of ['phone', 'tablet']) {
+      const launch = mobileLaunch(['android', form], { APP_VARIANT: 'production' }, platform)
+      assert.equal(launch.command, process.execPath)
+      assert.ok(launch.args[0].endsWith(join('android', 'launch.mjs')))
+      assert.equal(launch.args[1], form)
+      assert.equal(launch.env.APP_VARIANT, 'development')
+      assert.equal(launch.env.METRO_PORT, String(DEV_METRO_PORT))
+    }
+  }
+})
 
 test('Android build is separate from the device loop and keeps the development profile', () => {
   const launch = mobileLaunch(['android', 'build', '--device', 'emulator-5554'], {

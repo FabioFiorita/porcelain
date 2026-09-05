@@ -41,11 +41,9 @@ function environmentCommand(section) {
 
 function runEnvironmentCommand(section, cwd, env) {
   const command = environmentCommand(section)
-  const match = command.match(
-    /^node scripts\/worktree\.mjs (codex-(?:bootstrap|cleanup)) "\$\{CODEX_WORKTREE_PATH:-\$PWD\}"$/,
-  )
+  const match = command.match(/^node scripts\/worktree\.mjs (codex-(?:bootstrap|cleanup))$/)
   assert.ok(match, `unexpected ${section} command in Codex environment: ${command}`)
-  execFileSync(process.execPath, ['scripts/worktree.mjs', match[1], cwd], {
+  execFileSync(process.execPath, ['scripts/worktree.mjs', match[1]], {
     cwd,
     env,
     stdio: 'pipe',
@@ -236,47 +234,51 @@ test('fixture config file round-trip defaults base for old profiles', () => {
   }
 })
 
-test('selected Codex environment bootstraps and cleans up its harness working directory', async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
-  const primary = join(home, 'repo')
-  const checkout = join(home, '.codex', 'worktrees', '7f73', 'porcelain')
-  try {
-    mkdirSync(primary, { recursive: true })
-    git(primary, 'init', '-b', 'main')
-    git(primary, 'config', 'user.name', 'Porcelain Test')
-    git(primary, 'config', 'user.email', 'porcelain@example.test')
-    writeFileSync(join(primary, 'README.md'), 'fixture\n')
-    mkdirSync(join(primary, 'scripts'))
-    copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
-    git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
-    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
-    mkdirSync(dirname(checkout), { recursive: true })
-    git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
-    const originalHead = git(checkout, 'rev-parse', 'HEAD')
+for (const useEnvironmentPath of [false, true])
+  test(`selected Codex environment uses ${useEnvironmentPath ? 'CODEX_WORKTREE_PATH' : 'the working directory'} for setup and cleanup`, async () => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
+    const primary = join(home, 'repo')
+    const checkout = join(home, '.codex', 'worktrees', '7f73', 'porcelain with spaces')
+    try {
+      mkdirSync(primary, { recursive: true })
+      git(primary, 'init', '-b', 'main')
+      git(primary, 'config', 'user.name', 'Porcelain Test')
+      git(primary, 'config', 'user.email', 'porcelain@example.test')
+      writeFileSync(join(primary, 'README.md'), 'fixture\n')
+      mkdirSync(join(primary, 'scripts'))
+      copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
+      git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
+      git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
+      mkdirSync(dirname(checkout), { recursive: true })
+      git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
+      const originalHead = git(checkout, 'rev-parse', 'HEAD')
 
-    const env = fixtureEnv(home)
-    runEnvironmentCommand('setup', checkout, env)
+      const env = fixtureEnv(home)
+      if (useEnvironmentPath) env.CODEX_WORKTREE_PATH = checkout
+      else delete env.CODEX_WORKTREE_PATH
+      const commandCwd = useEnvironmentPath ? primary : checkout
+      runEnvironmentCommand('setup', commandCwd, env)
 
-    const config = JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8'))
-    assert.deepEqual(config, {
-      version: 1,
-      slug: 'codex-7f73',
-      branch: null,
-      port: 43200,
-      base: 'main',
-    })
-    assert.equal(git(checkout, 'branch', '--show-current'), '')
-    assert.equal(git(checkout, 'rev-parse', 'HEAD'), originalHead)
-    assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
-    assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), true)
+      const config = JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8'))
+      assert.deepEqual(config, {
+        version: 1,
+        slug: 'codex-7f73',
+        branch: null,
+        port: 43200,
+        base: 'main',
+      })
+      assert.equal(git(checkout, 'branch', '--show-current'), '')
+      assert.equal(git(checkout, 'rev-parse', 'HEAD'), originalHead)
+      assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
+      assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), true)
 
-    runEnvironmentCommand('cleanup', checkout, env)
-    assert.equal(existsSync(checkout), false)
-    assert.equal(existsSync(join(home, '.porcelain-dev-worktrees', 'codex-7f73')), false)
-  } finally {
-    await removeFixture(home)
-  }
-})
+      runEnvironmentCommand('cleanup', commandCwd, env)
+      assert.equal(existsSync(checkout), false)
+      assert.equal(existsSync(join(home, '.porcelain-dev-worktrees', 'codex-7f73')), false)
+    } finally {
+      await removeFixture(home)
+    }
+  })
 
 test('simultaneous Codex bootstraps reserve distinct disposable profiles', async () => {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-race-')))

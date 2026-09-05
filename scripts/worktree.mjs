@@ -1233,11 +1233,11 @@ async function main() {
     return
   }
   if (verb === 'codex-bootstrap') {
-    bootstrapCodexWorktree(name)
+    bootstrapCodexWorktree(name || process.env.CODEX_WORKTREE_PATH)
     return
   }
   if (verb === 'codex-cleanup') {
-    await cleanupCodexWorktree(name)
+    await cleanupCodexWorktree(name || process.env.CODEX_WORKTREE_PATH)
     return
   }
   if (verb === 'list') {

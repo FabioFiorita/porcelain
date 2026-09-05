@@ -55,6 +55,13 @@ export function mobileLaunch(argv, inheritedEnv = process.env, platform = proces
     }
   }
   if (surface === 'android') {
+    if (['phone', 'tablet', '--help'].includes(args[0])) {
+      return {
+        command: process.execPath,
+        args: [join(root, 'scripts/android/launch.mjs'), ...args],
+        env,
+      }
+    }
     if (args[0] === 'build') {
       return {
         command: process.execPath,

@@ -4,17 +4,55 @@ name = "porcelain"
 
 [setup]
 script = '''
-node scripts/worktree.mjs codex-bootstrap "${CODEX_WORKTREE_PATH:-$PWD}"
+node scripts/worktree.mjs codex-bootstrap
+pnpm install --frozen-lockfile
+'''
+
+[setup.win32]
+script = '''
+node scripts/worktree.mjs codex-bootstrap
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+pnpm install --frozen-lockfile
+exit $LASTEXITCODE
+'''
+
+[setup.darwin]
+script = '''
+set -e
+node scripts/worktree.mjs codex-bootstrap
+pnpm install --frozen-lockfile
+'''
+
+[setup.linux]
+script = '''
+set -e
+node scripts/worktree.mjs codex-bootstrap
 pnpm install --frozen-lockfile
 '''
 
 [cleanup]
 script = '''
-node scripts/worktree.mjs codex-cleanup "${CODEX_WORKTREE_PATH:-$PWD}"
+node scripts/worktree.mjs codex-cleanup
+'''
+
+[cleanup.win32]
+script = '''
+node scripts/worktree.mjs codex-cleanup
+exit $LASTEXITCODE
+'''
+
+[cleanup.darwin]
+script = '''
+node scripts/worktree.mjs codex-cleanup
+'''
+
+[cleanup.linux]
+script = '''
+node scripts/worktree.mjs codex-cleanup
 '''
 
 [[actions]]
-name = "Check"
+name = "Static checks"
 icon = "test"
 command = "pnpm check"
 
@@ -22,3 +60,53 @@ command = "pnpm check"
 name = "Dev daemon"
 icon = "run"
 command = "pnpm dev:daemon"
+
+[[actions]]
+name = "Electron (includes daemon)"
+icon = "run"
+command = "pnpm dev"
+
+[[actions]]
+name = "Web (requires daemon)"
+icon = "run"
+command = "pnpm dev:web"
+
+[[actions]]
+name = "Mobile Metro (requires daemon)"
+icon = "run"
+command = "pnpm dev:mobile"
+
+[[actions]]
+name = "Build"
+icon = "run"
+command = "pnpm build"
+
+[[actions]]
+name = "Android phone (requires Metro + daemon)"
+icon = "run"
+command = "pnpm dev:mobile:android phone"
+
+[[actions]]
+name = "Android tablet (requires Metro + daemon)"
+icon = "run"
+command = "pnpm dev:mobile:android tablet"
+
+[[actions]]
+name = "Unit and integration tests"
+icon = "test"
+command = "pnpm test"
+
+[[actions]]
+name = "Script tests"
+icon = "test"
+command = "pnpm test:scripts"
+
+[[actions]]
+name = "Browser E2E"
+icon = "test"
+command = "pnpm test:e2e"
+
+[[actions]]
+name = "Verify (broad checks)"
+icon = "test"
+command = "pnpm verify"
