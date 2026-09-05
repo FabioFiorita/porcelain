@@ -44,7 +44,9 @@ launch commands instead of copying values from another session. The profile impl
 | Mobile Metro | `pnpm dev:daemon`, then `pnpm dev:mobile` in another terminal |
 
 Use one daemon owner per profile. Do not combine `pnpm dev` with `pnpm dev:daemon`.
-For a new browser or mobile connection, use `pnpm dev:pair` and open its one-time link on the client.
+The development daemon automatically connects local browsers by default. For mobile or a browser
+that needs pairing, use `pnpm dev:pair` and open its one-time link on the client.
+Use `pnpm dev:daemon --no-auto-auth` when testing the browser pairing flow.
 
 The development daemon listens on loopback by default. Use `pnpm dev:daemon --lan` for another
 machine or a physical device on the local network, or `--tailnet` for Tailscale access.
@@ -124,7 +126,10 @@ branches, and commits. Both setup and cleanup accept an explicit checkout path.
 
 Use `pnpm run` and the owning package's scripts to choose checks. The
 [desktop scripts](../apps/desktop/package.json) expose focused Vitest and browser/Electron lanes;
-[CI](../.github/workflows/ci.yml) shows the automated gate. `pnpm verify` is the broad local gate.
+[CI](../.github/workflows/ci.yml) shows the automated gate. `pnpm verify` runs static checks,
+unit/integration tests, the build, script tests, and browser E2E. Install Chromium once with
+`pnpm --dir apps/desktop exec playwright install chromium` before the first browser test run.
+Native Electron and mobile validation remain separate, platform-specific checks.
 Use `:prebuilt` acceptance commands only after building the affected output.
 
 Tests and build results establish only what they exercise. Follow [AGENTS.md](../AGENTS.md) for

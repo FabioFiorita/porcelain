@@ -50,9 +50,7 @@ jobs:
       - run: pnpm test
       - run: pnpm turbo run //#test:scripts
 
-  # macOS is the flagship packaged platform (release.yml builds and notarizes on
-  # macos-14), yet PTY, shell, and path-sensitive code was only ever CI-verified on
-  # Linux. This job mirrors the unit suite there; e2e stays Linux-only.
+  # Exercise host-sensitive PTY, shell, and path behavior on macOS.
   unit-macos:
     runs-on: macos-14
     timeout-minutes: 30
@@ -71,6 +69,7 @@ jobs:
           team: ${{ vars.TURBO_TEAM }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      - run: pnpm turbo run //#test:scripts
 
   # Windows owns a distinct daemon runtime: drive-rooted paths, ConPTY terminals,
   # Git for Windows, junction containment, and named-pipe agent channels must not be
@@ -96,8 +95,9 @@ jobs:
       # expectations. This set covers the supported path, persistence, MCP, terminal,
       # watcher, and packaging foundations without pretending the whole suite is green.
       - run: pnpm test:windows-foundation
+      - run: pnpm turbo run //#test:scripts
 
-  browser-smoke:
+  browser-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -114,8 +114,8 @@ jobs:
         with:
           team: ${{ vars.TURBO_TEAM }}
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Install Chromium for browser smoke
+      - run: pnpm build:e2e
+      - name: Install Chromium for browser E2E
         run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
-      - name: Run browser smoke
-        run: pnpm test:e2e:smoke:prebuilt
+      - name: Run browser E2E
+        run: pnpm test:e2e:prebuilt

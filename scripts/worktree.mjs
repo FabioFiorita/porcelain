@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import {
   existsSync,
   mkdirSync,
@@ -9,10 +9,10 @@ import {
   realpathSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from 'node:fs'
-import { homedir, hostname } from 'node:os'
+import { createServer } from 'node:net'
+import { homedir } from 'node:os'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
@@ -21,9 +21,6 @@ import { windowsProcessIdentity } from './windows-process.mjs'
 const CONFIG_FILE = '.porcelain-worktree.json'
 const PORT_MIN = 43200
 const PORT_MAX = 43999
-const ALLOCATION_LOCK_NAME = 'porcelain-managed-worktree-allocation.lock'
-const ALLOCATION_LOCK_OWNER = 'owner.json'
-const ALLOCATION_LOCK_STALE_MS = 5 * 60 * 1000
 
 /**
  * Git's repository-local variables OVERRIDE `cwd`, and git exports them to every
@@ -229,100 +226,38 @@ function allocatePort(root) {
  * Serialize the brief interval between inspecting managed profiles and writing a
  * new profile. Git worktrees make the allocation visible only after the config
  * is written, so an in-process Set alone cannot protect simultaneous Codex
- * setup commands.
+ * setup commands. An exclusive loopback listener provides a process-owned lock:
+ * the OS releases it on exit, including crashes. Hash collisions only serialize
+ * unrelated checkouts; they cannot allow simultaneous allocation.
  */
-function withAllocationLock(root, action) {
+export async function withAllocationLock(root, action) {
   const common = realpathSync(resolve(root, git(root, ['rev-parse', '--git-common-dir'])))
-  const lock = join(common, ALLOCATION_LOCK_NAME)
-  const wait = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+  const key = process.platform === 'win32' ? common.toLowerCase() : common
+  const port = 45000 + (createHash('sha256').update(key).digest().readUInt16BE(0) % 1000)
   const deadline = Date.now() + 30_000
-  const token = randomBytes(16).toString('hex')
-
   while (true) {
+    const server = createServer((socket) => socket.destroy())
     try {
-      mkdirSync(lock)
-      break
+      await new Promise((accept, reject) => {
+        server.once('error', reject)
+        server.listen({ host: '127.0.0.1', port, exclusive: true }, accept)
+      })
     } catch (error) {
-      if (error && typeof error === 'object' && error.code !== 'EEXIST') throw error
-      reclaimAllocationLock(lock, token)
-      if (Date.now() >= deadline) {
-        fail(`timed out waiting for managed worktree allocation lock: ${lock}`)
-      }
-      Atomics.wait(wait, 0, 0, 25)
+      if (error.code !== 'EADDRINUSE') throw error
+      if (Date.now() >= deadline)
+        throw new Error(`Timed out waiting for allocation on port ${port}`)
+      await delay(25)
+      continue
     }
-  }
-
-  try {
-    writeFileSync(
-      join(lock, ALLOCATION_LOCK_OWNER),
-      `${JSON.stringify({ token, pid: process.pid, hostname: hostname(), createdAt: Date.now() })}\n`,
-      { mode: 0o600 },
-    )
-    return action()
-  } finally {
-    if (readAllocationLockOwner(lock)?.token === token) {
-      rmSync(lock, { recursive: true, force: true })
-    }
-  }
-}
-
-function readAllocationLockOwner(lock) {
-  try {
-    return JSON.parse(readFileSync(join(lock, ALLOCATION_LOCK_OWNER), 'utf8'))
-  } catch {
-    return null
-  }
-}
-
-/** Never steal a live local lock. Unknown or remote locks age out only after five minutes. */
-function canReclaimAllocationLock(lock, owner = readAllocationLockOwner(lock)) {
-  let createdAt = owner?.createdAt
-  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) {
     try {
-      createdAt = statSync(lock).mtimeMs
-    } catch {
-      return false
+      return await action()
+    } finally {
+      await new Promise((accept, reject) =>
+        server.close((error) => (error ? reject(error) : accept())),
+      )
     }
   }
-  const old = Date.now() - createdAt >= ALLOCATION_LOCK_STALE_MS
-  if (!owner || owner.hostname !== hostname() || !Number.isInteger(owner.pid) || owner.pid <= 0) {
-    return old
-  }
-  try {
-    process.kill(owner.pid, 0)
-    return false
-  } catch (error) {
-    return Boolean(error && typeof error === 'object' && error.code === 'ESRCH')
-  }
 }
-
-/**
- * Atomically move the observed stale lock aside before deleting it. A quarantine
- * is deliberately not an acquisition lock: if this process crashes, its unique
- * tombstone is harmless and the canonical name remains available to allocators.
- */
-function reclaimAllocationLock(lock, token) {
-  const owner = readAllocationLockOwner(lock)
-  if (!canReclaimAllocationLock(lock, owner)) return false
-  const quarantine = `${lock}.reclaim-${token}`
-  try {
-    renameSync(lock, quarantine)
-  } catch {
-    return false
-  }
-  if (readAllocationLockOwner(quarantine)?.token === owner?.token) {
-    rmSync(quarantine, { recursive: true, force: true })
-    return true
-  }
-  try {
-    renameSync(quarantine, lock)
-  } catch {
-    // Retain the unique tombstone rather than deleting an ownership record we did
-    // not observe. It never blocks the canonical allocation path.
-  }
-  return false
-}
-
 function createPlayground(path, slug) {
   if (existsSync(path)) fail(`playground already exists: ${path}`)
   mkdirSync(join(path, 'src'), { recursive: true })
@@ -450,7 +385,7 @@ function bootstrapCodexWorktree(pathArg) {
   const entry = parseWorktrees(root).find((worktree) => worktree.path === target)
   if (!entry) fail(`not a linked worktree of this repository: ${target}`)
 
-  withAllocationLock(root, () => {
+  return withAllocationLock(root, () => {
     // Another setup process may have completed while this checkout waited.
     const profile = loadManagedWorktreeProfile(target)
     if (!profile.ok && existsSync(join(target, CONFIG_FILE))) fail(profile.error)

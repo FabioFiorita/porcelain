@@ -16,13 +16,49 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { rm } from 'node:fs/promises'
-import { hostname, tmpdir } from 'node:os'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { test } from 'node:test'
+import { pathToFileURL } from 'node:url'
 import { windowsProcessIdentity } from './windows-process.mjs'
-import { codexSlugForPath, parseWorktreeConfig } from './worktree.mjs'
+import { codexSlugForPath, parseWorktreeConfig, withAllocationLock } from './worktree.mjs'
 
 const worktreeScript = resolve('scripts/worktree.mjs')
+
+test('allocation is released by the OS when its owner crashes', async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-lock-crash-')))
+  let child
+  try {
+    git(home, 'init', '-b', 'main')
+    const code = `
+      const { withAllocationLock } = await import(${JSON.stringify(pathToFileURL(worktreeScript).href)});
+      await withAllocationLock(process.argv[1], () => {
+        process.stdout.write('locked');
+        return new Promise(() => {});
+      });
+    `
+    child = spawn(process.execPath, ['--input-type=module', '-e', code, home], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    await Promise.race([
+      once(child.stdout, 'data'),
+      once(child, 'exit').then(() => {
+        throw new Error('Lock owner exited before acquisition')
+      }),
+    ])
+    const exited = once(child, 'exit')
+    child.kill('SIGKILL')
+    await exited
+    let acquired = false
+    await withAllocationLock(home, () => {
+      acquired = true
+    })
+    assert.equal(acquired, true)
+  } finally {
+    if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    await removeFixture(home)
+  }
+})
 
 test('profiles validate runtime allocations and ignore Git policy fields', () => {
   assert.deepEqual(
@@ -409,66 +445,6 @@ test('Codex bootstrap preserves Git state and launchers resolve isolated profile
     for (const cwd of [primary, ...checkouts]) {
       assert.equal(git(cwd, 'rev-parse', 'HEAD'), originalHead)
     }
-  } finally {
-    await removeFixture(home)
-  }
-})
-
-test('Codex bootstrap reclaims a lock left by a dead local owner', async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-stale-lock-')))
-  const primary = join(home, 'repo')
-  const checkouts = ['dead-lock-a', 'dead-lock-b'].map((slug) =>
-    join(home, '.codex', 'worktrees', slug, 'porcelain'),
-  )
-  try {
-    mkdirSync(primary, { recursive: true })
-    git(primary, 'init', '-b', 'main')
-    git(primary, 'config', 'user.name', 'Porcelain Test')
-    git(primary, 'config', 'user.email', 'porcelain@example.test')
-    writeFileSync(join(primary, 'README.md'), 'fixture\n')
-    mkdirSync(join(primary, 'scripts'))
-    copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
-    copyFileSync(
-      resolve('scripts/windows-process.mjs'),
-      join(primary, 'scripts/windows-process.mjs'),
-    )
-    git(primary, 'add', 'README.md', 'scripts/worktree.mjs', 'scripts/windows-process.mjs')
-    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
-    for (const checkout of checkouts) {
-      mkdirSync(dirname(checkout), { recursive: true })
-      git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
-    }
-    const lock = join(
-      primary,
-      git(primary, 'rev-parse', '--git-common-dir'),
-      'porcelain-managed-worktree-allocation.lock',
-    )
-    mkdirSync(lock)
-    writeFileSync(
-      join(lock, 'owner.json'),
-      JSON.stringify({ pid: 999_999_999, hostname: hostname(), createdAt: Date.now() }),
-    )
-    // A reclaimer can crash after rename. Its uniquely named tombstone must not
-    // prevent a later allocator from claiming the canonical lock.
-    mkdirSync(`${lock}.reclaim-orphan`)
-
-    const env = fixtureEnv(home)
-    await Promise.all(
-      checkouts.map((checkout) =>
-        run('node', ['scripts/worktree.mjs', 'codex-bootstrap', checkout], {
-          cwd: checkout,
-          env,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        }),
-      ),
-    )
-    const ports = checkouts.map(
-      (checkout) =>
-        JSON.parse(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8')).port,
-    )
-    assert.equal(new Set(ports).size, checkouts.length)
-    assert.equal(existsSync(lock), false)
-    assert.equal(existsSync(`${lock}.reclaim-orphan`), true)
   } finally {
     await removeFixture(home)
   }
