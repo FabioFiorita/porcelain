@@ -41,6 +41,7 @@ import {
   webDevPort,
 } from './dev-env.mjs'
 import { devAccessStatus, issueDevPairingUrl, waitForDaemon } from './dev-pair.mjs'
+import { windowsProcessIdentity } from './windows-process.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const serverEntry = join(root, 'apps', 'desktop', 'out', 'main', 'daemon', 'server.js')
@@ -204,10 +205,14 @@ function assertPortFree(port) {
   })
 }
 
-function isThisProfileLauncher(pid) {
+function isThisProfileLauncher(pid, started) {
   if (!Number.isInteger(pid) || pid <= 1) return false
   try {
     process.kill(pid, 0)
+    if (process.platform === 'win32') {
+      const identity = windowsProcessIdentity(pid)
+      return identity !== null && identity.started === started
+    }
     if (process.platform === 'linux') {
       const cwd = resolve(readlinkSync(`/proc/${pid}/cwd`))
       const command = readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll('\0', ' ')
@@ -257,7 +262,7 @@ function acquireDaemonRecord(path, value) {
 
       try {
         const existing = JSON.parse(readFileSync(path, 'utf8'))
-        if (isThisProfileLauncher(existing.pid)) {
+        if (isThisProfileLauncher(existing.pid, existing.started)) {
           throw new Error(
             `profile already has a running dev daemon (pid ${existing.pid}); stop it before launching another`,
           )
@@ -372,7 +377,14 @@ async function main() {
   printBanner(opts)
 
   const daemonRecord = join(DEV_HOME, 'dev-daemon.json')
-  acquireDaemonRecord(daemonRecord, { pid: process.pid, worktreeRoot: root, port: opts.port })
+  acquireDaemonRecord(daemonRecord, {
+    pid: process.pid,
+    worktreeRoot: root,
+    port: opts.port,
+    ...(process.platform === 'win32'
+      ? { started: windowsProcessIdentity(process.pid)?.started }
+      : {}),
+  })
   const clearDaemonRecord = () => {
     try {
       const current = JSON.parse(readFileSync(daemonRecord, 'utf8'))

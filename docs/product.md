@@ -70,7 +70,7 @@ familiar access to past changes as part of everyday development.
 
 ## Canvas
 
-Canvas is a space where agents can make ideas and work tangible—through explanations, visuals,
+Canvas is a surface where agents can make ideas and work tangible—through explanations, visuals,
 and interactive content that developers can explore and refine.
 
 ## Agents and the companion skill

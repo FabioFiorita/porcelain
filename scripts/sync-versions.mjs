@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /**
- * Keep every workspace package version — and the shipped skill — identical.
+ * Keep every workspace package version identical.
  *
  * Canonical stamp: apps/desktop/package.json until apps/daemon owns the product
  * version (architecture charter). Discover every package.json under apps/ and
- * packages/ that already has a `version` field and write the same string, then
- * stamp the same version into each shipped SKILL.md's frontmatter.
+ * packages/ that already has a `version` field and write the same string.
  *
  * Usage:
  *   node scripts/sync-versions.mjs              # sync to canonical
@@ -61,40 +60,6 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-/**
- * Internal agent procedures carry the product version in their SKILL.md frontmatter: they are
- * versioned with this repo and nothing else. The *shipped* skills are not here — they live in
- * `plugins/porcelain/` under their own semver.
- */
-const SKILL_FILES = listInternalSkills(join(root, '.agents', 'skills'))
-
-/** Every internal skill, so a new one is stamped without anyone remembering this list. */
-function listInternalSkills(dir) {
-  if (!existsSync(dir)) return []
-  return readdirSync(dir)
-    .map((name) => join(dir, name, 'SKILL.md'))
-    .filter((path) => existsSync(path))
-    .sort()
-}
-
-/** Replace `version:` inside the leading `---` frontmatter block only. */
-function stampSkillVersion(path, next) {
-  const text = readFileSync(path, 'utf8')
-  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
-  if (!frontmatter) return { changed: false, current: null }
-  const current = /^version:[ \t]*(.+)$/m.exec(frontmatter[1])?.[1]?.trim() ?? null
-  if (current === next) return { changed: false, current }
-  const updated =
-    current === null
-      ? // New field: sit right after `name:` so frontmatter reads name → version → rest.
-        text.replace(/^(---\r?\n[\s\S]*?^name:.*$)/m, `$1\nversion: ${next}`)
-      : text.replace(/^---\r?\n[\s\S]*?\r?\n---/, (block) =>
-          block.replace(/^version:[ \t]*.+$/m, `version: ${next}`),
-        )
-  writeFileSync(path, updated)
-  return { changed: true, current }
-}
-
 function resolveCanonicalPath() {
   for (const path of CANONICAL_CANDIDATES) {
     if (!existsSync(path)) continue
@@ -136,23 +101,6 @@ for (const path of packageFiles) {
   console.log(`[sync-versions] ${rel} → ${version}`)
 }
 
-for (const path of SKILL_FILES) {
-  if (!existsSync(path)) continue
-  const rel = relative(root, path)
-  if (values.check) {
-    const text = readFileSync(path, 'utf8')
-    const current = /^---\r?\n[\s\S]*?^version:[ \t]*(.+)$/m.exec(text)?.[1]?.trim() ?? null
-    if (current === version) continue
-    drifted++
-    console.error(
-      `[sync-versions] drift: ${rel} has ${current ?? 'no version'}, expected ${version}`,
-    )
-    continue
-  }
-  const { changed, current } = stampSkillVersion(path, version)
-  if (changed) console.log(`[sync-versions] ${rel} ${current ?? 'unset'} → ${version}`)
-}
-
 if (values.check) {
   if (drifted > 0) {
     console.error(
@@ -160,9 +108,7 @@ if (values.check) {
     )
     process.exit(1)
   }
-  console.log(
-    `[sync-versions] ok — ${packageFiles.length} package(s) + ${SKILL_FILES.length} skill(s) at ${version}`,
-  )
+  console.log(`[sync-versions] ok — ${packageFiles.length} package(s) at ${version}`)
   process.exit(0)
 }
 

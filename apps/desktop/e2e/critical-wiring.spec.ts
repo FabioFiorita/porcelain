@@ -103,7 +103,6 @@ test('an external fixture edit refreshes the open file', async ({ page, repoDir 
 
   const editor = loc.fileEditor(page)
   await expect(editor).toHaveValue(/props\.label/, { timeout: 15_000 })
-  await page.waitForTimeout(1_000)
   await writeFile(
     join(repoDir, 'src/components/Button.tsx'),
     '// SENTINEL_REFRESHED_ON_DISK\nexport const Button = () => null\n',

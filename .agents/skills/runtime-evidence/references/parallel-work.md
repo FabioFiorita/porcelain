@@ -26,6 +26,7 @@ and report results against the integrated code.
 
 ## Remove only completed, owned resources
 
-Remove a worktree only when its work is preserved and it is no longer needed. Use the worktree
-tooling's supported removal command for that checkout. Preserve requested evidence and leave
-other tasks' resources alone. Automatic checkout-deletion hooks are not general cleanup commands.
+Remove a worktree only when its work is preserved and it is no longer needed. Run
+`pnpm worktree cleanup <checkout-path>` to release its Porcelain development resources, then use
+Git or the owning harness to remove the checkout. Preserve requested evidence and leave other
+tasks' resources alone.

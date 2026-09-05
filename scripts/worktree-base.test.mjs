@@ -5,6 +5,7 @@
  */
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
+import { once } from 'node:events'
 import {
   copyFileSync,
   existsSync,
@@ -12,23 +13,38 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
-  rmSync,
   writeFileSync,
 } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { hostname, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { test } from 'node:test'
-import {
-  codexSlugForPath,
-  DEFAULT_BASE,
-  normalizeBaseRef,
-  parseWorktreeConfig,
-  planCreateGitArgs,
-  planRemoveGuard,
-} from './worktree.mjs'
+import { windowsProcessIdentity } from './windows-process.mjs'
+import { codexSlugForPath, parseWorktreeConfig } from './worktree.mjs'
 
 const worktreeScript = resolve('scripts/worktree.mjs')
+
+test('profiles validate runtime allocations and ignore Git policy fields', () => {
+  assert.deepEqual(
+    parseWorktreeConfig({
+      version: 1,
+      slug: 'task-one',
+      port: 43200,
+      branch: 'any/branch',
+      base: '../unused',
+    }),
+    {
+      ok: true,
+      config: { version: 1, slug: 'task-one', port: 43200 },
+    },
+  )
+  for (const invalid of [
+    { slug: '../escape', port: 43200 },
+    { slug: 'task-one', port: 43117 },
+  ]) {
+    assert.equal(parseWorktreeConfig({ version: 1, ...invalid }).ok, false)
+  }
+})
 const codexEnvironment = readFileSync(resolve('.codex/environments/environment.toml'), 'utf8')
 
 function environmentCommand(section) {
@@ -84,156 +100,6 @@ test('codexSlugForPath derives a stable valid slug from the harness allocation',
   assert.equal(codexSlugForPath('/Users/fabio/.codex/worktrees/Task_42/porcelain'), 'codex-task-42')
 })
 
-test('normalizeBaseRef defaults path: main is accepted', () => {
-  assert.equal(normalizeBaseRef('main'), 'main')
-  assert.equal(normalizeBaseRef('  main  '), 'main')
-})
-
-test('normalizeBaseRef strips refs/heads/ and rejects unsafe values', () => {
-  assert.equal(normalizeBaseRef('refs/heads/work/integration'), 'work/integration')
-  const errors = []
-  const onError = (message) => {
-    errors.push(message)
-    return undefined
-  }
-  assert.equal(normalizeBaseRef('', onError), undefined)
-  assert.equal(normalizeBaseRef('-evil', onError), undefined)
-  assert.equal(normalizeBaseRef('../x', onError), undefined)
-  assert.equal(normalizeBaseRef('has space', onError), undefined)
-  assert.equal(normalizeBaseRef('foo;rm', onError), undefined)
-  assert.ok(errors.length >= 4)
-})
-
-test('parseWorktreeConfig: legacy profile without base defaults to main', () => {
-  const parsed = parseWorktreeConfig({
-    version: 1,
-    slug: 'task-one',
-    branch: 'work/task-one',
-    port: 43200,
-  })
-  assert.equal(parsed.ok, true)
-  assert.equal(parsed.config.base, DEFAULT_BASE)
-  assert.equal(parsed.config.slug, 'task-one')
-})
-
-test('parseWorktreeConfig: explicit base is stored normalized', () => {
-  const parsed = parseWorktreeConfig({
-    version: 1,
-    slug: 'arch-group',
-    branch: 'work/arch-group',
-    port: 43210,
-    base: 'refs/heads/work/integration',
-  })
-  assert.equal(parsed.ok, true)
-  assert.equal(parsed.config.base, 'work/integration')
-})
-
-test('parseWorktreeConfig: a detached runtime profile does not require a branch', () => {
-  const parsed = parseWorktreeConfig({
-    version: 1,
-    slug: 'codex-ab12',
-    branch: null,
-    port: 43211,
-    base: 'main',
-  })
-  assert.equal(parsed.ok, true)
-  assert.equal(parsed.config.branch, null)
-})
-
-test('parseWorktreeConfig: unknown fields do not break version-1 profiles', () => {
-  const parsed = parseWorktreeConfig({
-    version: 1,
-    slug: 'task-two',
-    branch: 'work/task-two',
-    port: 43201,
-    futureField: true,
-  })
-  assert.equal(parsed.ok, true)
-  assert.equal(parsed.config.base, 'main')
-})
-
-test('parseWorktreeConfig: invalid base fails closed', () => {
-  const parsed = parseWorktreeConfig({
-    version: 1,
-    slug: 'task-three',
-    branch: 'work/task-three',
-    port: 43202,
-    base: '../etc/passwd',
-  })
-  assert.equal(parsed.ok, false)
-})
-
-test('planCreateGitArgs uses base (default main)', () => {
-  assert.deepEqual(planCreateGitArgs({ branch: 'work/a', path: '/tmp/a' }), [
-    'worktree',
-    'add',
-    '-b',
-    'work/a',
-    '/tmp/a',
-    'main',
-  ])
-  assert.deepEqual(
-    planCreateGitArgs({ branch: 'work/b', path: '/tmp/b', base: 'work/integration' }),
-    ['worktree', 'add', '-b', 'work/b', '/tmp/b', 'work/integration'],
-  )
-})
-
-test('planRemoveGuard: default-main merge safety without force', () => {
-  assert.equal(
-    planRemoveGuard({ force: false, dirtyLines: [], reachableFromBase: true }).allow,
-    true,
-  )
-  const blocked = planRemoveGuard({
-    force: false,
-    dirtyLines: [],
-    reachableFromBase: false,
-    base: 'main',
-  })
-  assert.equal(blocked.allow, false)
-  assert.match(blocked.reason, /main/)
-})
-
-test('planRemoveGuard: non-main base refusal message uses that base', () => {
-  const blocked = planRemoveGuard({
-    force: false,
-    dirtyLines: [],
-    reachableFromBase: false,
-    base: 'work/integration',
-  })
-  assert.equal(blocked.allow, false)
-  assert.match(blocked.reason, /work\/integration/)
-})
-
-test('planRemoveGuard: dirty blocks; force allows without reachability', () => {
-  const dirty = planRemoveGuard({
-    force: false,
-    dirtyLines: [' M file.ts'],
-    reachableFromBase: true,
-  })
-  assert.equal(dirty.allow, false)
-  assert.equal(
-    planRemoveGuard({ force: true, dirtyLines: [' M file.ts'], reachableFromBase: false }).allow,
-    true,
-  )
-})
-
-test('fixture config file round-trip defaults base for old profiles', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'worktree-base-'))
-  try {
-    const path = join(dir, '.porcelain-worktree.json')
-    writeFileSync(
-      path,
-      JSON.stringify({ version: 1, slug: 'fixture', branch: 'work/fixture', port: 43250 }),
-    )
-    const value = JSON.parse(readFileSync(path, 'utf8'))
-    const parsed = parseWorktreeConfig(value)
-    assert.equal(parsed.ok, true)
-    assert.equal(parsed.config.base, 'main')
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})
-
 for (const useEnvironmentPath of [false, true])
   test(`selected Codex environment uses ${useEnvironmentPath ? 'CODEX_WORKTREE_PATH' : 'the working directory'} for setup and cleanup`, async () => {
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
@@ -247,7 +113,11 @@ for (const useEnvironmentPath of [false, true])
       writeFileSync(join(primary, 'README.md'), 'fixture\n')
       mkdirSync(join(primary, 'scripts'))
       copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
-      git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
+      copyFileSync(
+        resolve('scripts/windows-process.mjs'),
+        join(primary, 'scripts/windows-process.mjs'),
+      )
+      git(primary, 'add', 'README.md', 'scripts/worktree.mjs', 'scripts/windows-process.mjs')
       git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
       mkdirSync(dirname(checkout), { recursive: true })
       git(primary, 'worktree', 'add', '--detach', checkout, 'HEAD')
@@ -263,9 +133,7 @@ for (const useEnvironmentPath of [false, true])
       assert.deepEqual(config, {
         version: 1,
         slug: 'codex-7f73',
-        branch: null,
         port: 43200,
-        base: 'main',
       })
       assert.equal(git(checkout, 'branch', '--show-current'), '')
       assert.equal(git(checkout, 'rev-parse', 'HEAD'), originalHead)
@@ -293,6 +161,94 @@ for (const useEnvironmentPath of [false, true])
     }
   })
 
+test('plain Git checkout setup and cleanup preserve both checkouts and their files', async () => {
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-git-profile-')))
+  const primary = join(home, 'repo')
+  const checkout = join(home, 'feature checkout')
+  let launcher
+  let unrelated
+  try {
+    mkdirSync(join(primary, 'scripts'), { recursive: true })
+    copyFileSync(worktreeScript, join(primary, 'scripts/worktree.mjs'))
+    copyFileSync(
+      resolve('scripts/windows-process.mjs'),
+      join(primary, 'scripts/windows-process.mjs'),
+    )
+    git(primary, 'init', '-b', 'main')
+    git(primary, 'config', 'user.name', 'Porcelain Test')
+    git(primary, 'config', 'user.email', 'porcelain@example.test')
+    git(primary, 'add', '.')
+    git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
+    git(primary, 'worktree', 'add', '-b', 'feature', checkout)
+    const env = fixtureEnv(home)
+    const command = (verb) =>
+      run('node', ['scripts/worktree.mjs', verb, checkout], {
+        cwd: primary,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    await command('setup')
+    const config = readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8')
+    await command('setup')
+    assert.equal(readFileSync(join(checkout, '.porcelain-worktree.json'), 'utf8'), config)
+    writeFileSync(join(checkout, 'unfinished.txt'), 'keep my work')
+    if (process.platform === 'win32') {
+      const daemon = join(checkout, 'scripts/dev-daemon.mjs')
+      writeFileSync(
+        daemon,
+        `import { spawn } from 'node:child_process';
+const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)']);
+process.send({child: child.pid}); setInterval(()=>{},1000);`,
+      )
+      launcher = spawn(process.execPath, [daemon], {
+        cwd: checkout,
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      })
+      const [ready] = await once(launcher, 'message')
+      unrelated = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' })
+      const runtime = join(home, '.porcelain-dev-worktrees', JSON.parse(config).slug)
+      mkdirSync(runtime, { recursive: true })
+      const record = join(runtime, 'dev-daemon.json')
+      const identity = windowsProcessIdentity(launcher.pid)
+      writeFileSync(
+        record,
+        JSON.stringify({ pid: launcher.pid, worktreeRoot: checkout, started: 'wrong' }),
+      )
+      await assert.rejects(command('cleanup'))
+      assert.doesNotThrow(() => process.kill(launcher.pid, 0))
+      assert.equal(existsSync(record), true)
+      writeFileSync(
+        record,
+        JSON.stringify({ pid: launcher.pid, worktreeRoot: checkout, started: identity.started }),
+      )
+      await command('cleanup')
+      assert.throws(() => process.kill(ready.child, 0))
+      assert.throws(() => process.kill(launcher.pid, 0))
+      assert.doesNotThrow(() => process.kill(unrelated.pid, 0))
+    }
+    await command('cleanup')
+    assert.equal(readFileSync(join(checkout, 'unfinished.txt'), 'utf8'), 'keep my work')
+    assert.equal(git(checkout, 'branch', '--show-current'), 'feature')
+    assert.equal(existsSync(join(primary, 'scripts/worktree.mjs')), true)
+    assert.equal(existsSync(join(checkout, '.porcelain-worktree.json')), false)
+    assert.equal(
+      existsSync(join(home, 'code/porcelain-playgrounds', JSON.parse(config).slug)),
+      false,
+    )
+  } finally {
+    for (const child of [launcher, unrelated]) {
+      if (!child?.pid) continue
+      try {
+        execFileSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+          stdio: 'ignore',
+          windowsHide: true,
+        })
+      } catch {}
+    }
+    await removeFixture(home)
+  }
+})
+
 test('simultaneous Codex bootstraps reserve distinct disposable profiles', async () => {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-race-')))
   const primary = join(home, 'repo')
@@ -307,7 +263,11 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
     writeFileSync(join(primary, 'README.md'), 'fixture\n')
     mkdirSync(join(primary, 'scripts'))
     copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
-    git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
+    copyFileSync(
+      resolve('scripts/windows-process.mjs'),
+      join(primary, 'scripts/windows-process.mjs'),
+    )
+    git(primary, 'add', 'README.md', 'scripts/worktree.mjs', 'scripts/windows-process.mjs')
     git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
     for (const checkout of checkouts) {
       mkdirSync(dirname(checkout), { recursive: true })
@@ -352,7 +312,7 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
       "a repeated setup must retain every checkout's first allocated port",
     )
     assert.equal(new Set(configs.map((config) => config.slug)).size, checkouts.length)
-    assert.ok(configs.every((config) => config.branch === null))
+    assert.ok(configs.every((config) => !('branch' in config)))
     assert.ok(
       configs.every((config) =>
         existsSync(join(home, 'code', 'porcelain-playgrounds', config.slug)),
@@ -388,7 +348,7 @@ test('Codex bootstrap preserves Git state and launchers resolve isolated profile
     git(primary, 'config', 'user.email', 'porcelain@example.test')
     writeFileSync(join(primary, 'README.md'), 'committed fixture\n')
     mkdirSync(join(primary, 'scripts'))
-    for (const script of ['worktree.mjs', 'dev-env.mjs']) {
+    for (const script of ['worktree.mjs', 'windows-process.mjs', 'dev-env.mjs']) {
       copyFileSync(resolve('scripts', script), join(primary, 'scripts', script))
     }
     git(primary, 'add', '.')
@@ -468,7 +428,11 @@ test('Codex bootstrap reclaims a lock left by a dead local owner', async () => {
     writeFileSync(join(primary, 'README.md'), 'fixture\n')
     mkdirSync(join(primary, 'scripts'))
     copyFileSync(worktreeScript, join(primary, 'scripts', 'worktree.mjs'))
-    git(primary, 'add', 'README.md', 'scripts/worktree.mjs')
+    copyFileSync(
+      resolve('scripts/windows-process.mjs'),
+      join(primary, 'scripts/windows-process.mjs'),
+    )
+    git(primary, 'add', 'README.md', 'scripts/worktree.mjs', 'scripts/windows-process.mjs')
     git(primary, '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture')
     for (const checkout of checkouts) {
       mkdirSync(dirname(checkout), { recursive: true })

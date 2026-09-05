@@ -52,7 +52,7 @@
     "package:win": "pnpm --dir apps/desktop package:win",
     "package:win:unsigned": "pnpm --dir apps/desktop package:win:unsigned",
     "daemon:dist": "node scripts/build-daemon-dist.mjs",
-    "test:scripts": "node --test scripts/android/launch.test.mjs scripts/dev-daemon.test.mjs scripts/dev-env.test.mjs scripts/dev-electron.test.mjs scripts/dev-seed.test.mjs scripts/mobile-dev.test.mjs scripts/mobile-variant.test.mjs scripts/playground.test.mjs scripts/windows-signing-mode.test.mjs scripts/worktree-base.test.mjs",
+    "test:scripts": "node --test scripts/sync-versions.test.mjs scripts/android/launch.test.mjs scripts/dev-daemon.test.mjs scripts/dev-env.test.mjs scripts/dev-electron.test.mjs scripts/dev-seed.test.mjs scripts/mobile-dev.test.mjs scripts/mobile-variant.test.mjs scripts/playground.test.mjs scripts/windows-signing-mode.test.mjs scripts/worktree-base.test.mjs",
     "verify": "pnpm check && pnpm test && pnpm build && pnpm turbo run //#test:scripts",
     "release": "node scripts/release-cut.mjs",
     "release:cut": "node scripts/release-cut.mjs",

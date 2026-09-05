@@ -48,9 +48,6 @@ const CLEAN_ENV = {
   CLICOLOR: '0',
   CLICOLOR_FORCE: '0',
   GH_FORCE_TTY: '0',
-  // Denies the tracked hook's Claude duplicate-skip: the bump commit below is a
-  // nested git call the outer PreToolUse guard never saw, so the gate must run here.
-  PORCELAIN_RELEASE_CUT: '1',
 }
 
 function sh(cmd, args, opts = {}) {
@@ -114,7 +111,7 @@ sh('pnpm', ['changelog'], { inherit: true })
 // named children: sync-versions enumerates them, so a fixed list silently drops a stamped file —
 // v0.51.0 shipped with one dirty in the working tree that way. The shipped plugin is not here; it
 // carries its own semver under `plugins/porcelain`.
-const releasePaths = ['CHANGELOG.md', 'apps', 'packages', '.agents/skills'].filter((entry) =>
+const releasePaths = ['CHANGELOG.md', 'apps', 'packages'].filter((entry) =>
   existsSync(path.join(root, entry)),
 )
 sh('git', ['add', ...releasePaths], {

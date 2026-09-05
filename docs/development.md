@@ -106,18 +106,21 @@ not a workaround for launching this helper against a Windows checkout.
 ## Isolated checkouts
 
 ```sh
-pnpm worktree create <slug>
-cd <printed-path>
+git worktree add ../porcelain-feature -b feature
+cd ../porcelain-feature
+pnpm worktree setup
+pnpm install --frozen-lockfile
 pnpm dev:env
 ```
 
 Use `pnpm worktree list` for allocations. The [Codex environment](../.codex/environments/environment.toml)
-bootstraps task checkouts; [the worktree command](../scripts/worktree.mjs) owns create, adopt,
-bootstrap, and cleanup. The Codex cleanup hook removes Porcelain's development resources and
-profile metadata; Codex owns checkout deletion. It preserves files, branches, and commits.
-If a linked checkout reports the primary profile, adopt or bootstrap it
-before launch. From the primary checkout, `pnpm worktree adopt <path> <slug>` adopts an external
-checkout; `pnpm worktree remove <slug>` removes an integrated, clean managed Worktree.
+sets up task profiles automatically. For other Git worktrees, run `pnpm worktree setup` before
+launching. The [profile command](../scripts/worktree.mjs) allocates ports, development data,
+and a playground without changing Git state.
+
+Run `pnpm worktree cleanup` from the assigned checkout before removing it with Git or its harness.
+Cleanup removes only Porcelain development resources and profile metadata; it preserves files,
+branches, and commits. Both setup and cleanup accept an explicit checkout path.
 
 ## Checks
 

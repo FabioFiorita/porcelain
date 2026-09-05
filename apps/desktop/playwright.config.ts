@@ -25,7 +25,7 @@ export default defineConfig<{ appMode: AppMode }>({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   reporter: 'list',
   timeout: 60_000,
   outputDir: './e2e/.artifacts',
@@ -36,7 +36,7 @@ export default defineConfig<{ appMode: AppMode }>({
     // (electron keeps the legacy `-darwin` name; browser adds `-browser`).
     toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: 'disabled' },
   },
-  use: { trace: 'on-first-retry' },
+  use: { trace: 'retain-on-failure' },
   projects: [
     {
       name: 'browser',
