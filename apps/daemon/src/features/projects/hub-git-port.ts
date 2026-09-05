@@ -34,7 +34,7 @@ async function runGitDir(gitDir: string, args: string[]): Promise<string> {
   return runGit(dirname(gitDir), [`--git-dir=${gitDir}`, ...args])
 }
 
-async function resolveGitDir(worktreePath: string): Promise<string | null> {
+export async function resolveGitDir(worktreePath: string): Promise<string | null> {
   try {
     const gitPath = join(worktreePath, '.git')
     const info = await stat(gitPath)

@@ -74,19 +74,28 @@ function queryError(error: unknown): { message: string } | null {
 
 /** Directory listing for one absolute UI path (lazy tree rows). */
 export function useFilesTree(absolutePath: string, enabled = true): FilesEntriesState {
+  const queryClient = useQueryClient()
   const { daemon, owner, repoPath } = useFilesOwner()
   const showHidden = useProjectSelectionStore((s) => s.showHidden)
   const identityPath = repoPath !== null ? treePathFromAbsolute(repoPath, absolutePath) : null
   const projectKey = repoPath !== null ? filesProjectKey(repoPath) : null
-  const canRun = owner !== null && repoPath !== null && identityPath !== null && enabled
+  const canRead = owner !== null && repoPath !== null && identityPath !== null
+  const canRun = canRead && enabled
 
   const identity =
-    canRun && projectKey !== null
+    canRead && projectKey !== null
       ? filesTreeQuery(projectKey, identityPath, showHidden)
       : DISABLED_TREE
 
   const { data, error, isPending } = useQuery({
     queryKey: filesQueryKey(daemon, identity),
+    placeholderData: () => {
+      if (!canRun || projectKey === null || identityPath === null) return undefined
+      const cached = queryClient.getQueryData<DirEntry[]>(
+        filesQueryKey(daemon, filesTreeQuery(projectKey, identityPath, !showHidden)),
+      )
+      return showHidden ? cached : cached?.filter((entry) => !entry.hidden)
+    },
     queryFn: async (): Promise<DirEntry[]> => {
       if (!canRun || owner === null || projectKey === null || identityPath === null) {
         return invariantDisabledQueryFn('tree')
@@ -101,7 +110,7 @@ export function useFilesTree(absolutePath: string, enabled = true): FilesEntries
   })
 
   return {
-    entries: canRun ? data : undefined,
+    entries: canRead ? data : undefined,
     error: canRun ? queryError(error) : null,
     isLoading: canRun ? isPending : false,
   }

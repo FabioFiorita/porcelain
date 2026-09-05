@@ -11,7 +11,7 @@ import { setPrimaryEnvironmentId } from '@renderer/lib/environment-sessions'
 import { HubRepoProvider } from '@renderer/stores/hub-repo'
 import { useHubSelectionStore } from '@renderer/stores/hub-selection'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -46,6 +46,27 @@ beforeEach(() => {
 })
 
 describe('useFilesTree', () => {
+  it('keeps visible entries while the other hidden-files mode loads', async () => {
+    useProjectSelectionStore.setState({ showHidden: true })
+    const visible = {
+      name: 'visible.ts',
+      path: `${REPO}/visible.ts`,
+      kind: 'file' as const,
+      hidden: false,
+      pinned: false,
+    }
+    const hidden = { ...visible, name: 'hidden.ts', path: `${REPO}/hidden.ts`, hidden: true }
+    const { wrapper } = createValidatingTrpcHarness({
+      ...baseHandlers,
+      readDir: (input) =>
+        input.showHidden ? { ok: true, value: [visible, hidden] } : new Promise(() => {}),
+    })
+    const { result } = renderHook(() => useFilesTree(REPO), { wrapper })
+    await waitFor(() => expect(result.current.entries).toHaveLength(2))
+    act(() => useProjectSelectionStore.getState().toggleShowHidden())
+    expect(result.current.entries).toEqual([visible])
+    expect(result.current.isLoading).toBe(false)
+  })
   it('queries readDir with a project-relative wire path', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,

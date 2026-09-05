@@ -1,5 +1,4 @@
 import type { SessionChange } from '@porcelain/contracts/session'
-import { realpath } from 'node:fs/promises'
 import {
   type ActionsOperations,
   type ActionsProjects,
@@ -62,7 +61,7 @@ import {
   publishSessionChange,
 } from '../session/live-session'
 import { reviewFlowForRepo } from '../stores/review-store'
-import { createScopeStore, type RepoIdentity } from '../stores/scope-store'
+import { createScopeStore } from '../stores/scope-store'
 
 /**
  * Process-wide bound operation catalog constructed once at daemon startup.
@@ -80,11 +79,6 @@ export type DaemonOperations = Readonly<{
   projects: ProjectsOperations
   terminal: TerminalOperations
 }>
-
-/** Canonical spelling for checkout ownership (`/var` and `/private/var` are aliases on macOS). */
-export async function canonicalCheckoutPath(path: string): Promise<string> {
-  return realpath(path).catch(() => path)
-}
 
 export interface CreateDaemonRouterOptions {
   operations: DaemonOperations
@@ -125,23 +119,7 @@ export function createDaemonOperations(options: {
   const publish = options.publishSessionChange ?? publishSessionChange
   // The profile store needs BOTH halves of a checkout's Hub identity: the Project
   // owns the baseline document, the Worktree keys its optional override.
-  const identityForRepo = async (repoPath: string): Promise<RepoIdentity | null> => {
-    const inventory = await options.projects.listHubInventory()
-    if (!inventory.ok) return null
-    const canonicalRepoPath = await canonicalCheckoutPath(repoPath)
-    for (const project of inventory.value.projects) {
-      for (const worktree of project.worktrees) {
-        if (
-          worktree.path === repoPath ||
-          worktree.path === canonicalRepoPath ||
-          (await canonicalCheckoutPath(worktree.path)) === canonicalRepoPath
-        ) {
-          return { projectId: project.id, worktreeId: worktree.id }
-        }
-      }
-    }
-    return null
-  }
+  const identityForRepo = options.projects.checkoutIdentity
   const scope = createScopeStore({ homeDir: options.homeDir, identityForRepo })
   const filesScope = createFilesScope({ homeDir: options.homeDir, identityForRepo })
   return Object.freeze({

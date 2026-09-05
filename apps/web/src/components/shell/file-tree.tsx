@@ -1,10 +1,14 @@
+import { Button } from '@renderer/components/ui/button'
 import { SidebarMenu } from '@renderer/components/ui/sidebar'
 import { useFilesTree } from '@renderer/features/files'
+import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useEffect } from 'react'
 import { TreeNode } from './tree-node'
 
 export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element {
+  const newFile = useFilePromptStore((s) => s.newFile)
+  const newFolder = useFilePromptStore((s) => s.newFolder)
   const { entries, error, isLoading } = useFilesTree(rootPath)
   // Watch the project root the same way each expanded `DirNode` watches itself, so an
   // add/remove at the top level (not inside an expanded subfolder) refreshes too.
@@ -24,7 +28,19 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
   }
 
   if (entries === undefined || entries.length === 0) {
-    return <p className="p-3 text-sm text-muted-foreground">This folder is empty.</p>
+    return (
+      <div className="p-3 text-sm text-muted-foreground">
+        <p>This folder is empty.</p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          <Button variant="outline" size="sm" onClick={() => newFile(rootPath)}>
+            New File
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => newFolder(rootPath)}>
+            New Folder
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

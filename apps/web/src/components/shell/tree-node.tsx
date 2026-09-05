@@ -388,14 +388,16 @@ function DirNode({
                   }
                 }}
               >
-                <ChevronRight className="transition-transform" />
+                <ChevronRight
+                  className={cn('transition-transform duration-150', expanded && 'rotate-90')}
+                />
                 <FolderIcon open={expanded} />
                 <span className="truncate font-mono">{entry.name}</span>
               </SidebarMenuButton>
             }
           />
         </EntryContextMenu>
-        <CollapsibleContent>
+        <CollapsibleContent className="h-[var(--collapsible-panel-height)] overflow-hidden transition-[height,opacity] duration-150 ease-out data-[starting-style]:h-0 data-[starting-style]:opacity-0 data-[ending-style]:h-0 data-[ending-style]:opacity-0">
           <SidebarMenuSub className="mr-0 pr-0">
             {children.isLoading ? (
               <p className="px-2 py-1 text-2xs text-muted-foreground">Loading…</p>

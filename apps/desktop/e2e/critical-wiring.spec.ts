@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises'
+import { stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PROTOCOL_VERSION } from '@porcelain/contracts'
 import {
@@ -17,6 +17,29 @@ interface SessionMismatch {
   expected: number
   received: number | null
 }
+
+test('Files creates a file and folder at the root without selecting an entry', async ({
+  page,
+  repoDir,
+}) => {
+  await waitForShell(page)
+  await selectTab(page, 'Files')
+  for (const [kind, name] of [
+    ['file', 'root-created.txt'],
+    ['folder', 'root-created-folder'],
+  ] as const) {
+    await page.getByTestId(`files-new-root-${kind}`).click()
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await expect
+      .poll(async () => {
+        const entry = await stat(join(repoDir, name)).catch(() => null)
+        return kind === 'folder' ? entry?.isDirectory() : entry?.isFile()
+      })
+      .toBe(true)
+    await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeHidden()
+  }
+})
 
 async function readProtocolMismatch(
   page: Parameters<typeof waitForShell>[0],

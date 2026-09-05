@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-gro
 import { CanvasList } from '@renderer/features/projects'
 import { surfaceListInsetClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
+import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useFileTreeStore } from '@renderer/stores/file-tree'
 import type { SidebarTab } from '@renderer/stores/preferences'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
@@ -15,7 +16,9 @@ import {
   ChevronsDownUp,
   Eye,
   EyeOff,
+  FilePlus,
   FileText,
+  FolderPlus,
   GitCommitHorizontal,
   GitCompareArrows,
   History,
@@ -205,7 +208,7 @@ function FilesSurface({
             <SidebarGroupLabel className="h-6 min-w-0 flex-1 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
               All Files
             </SidebarGroupLabel>
-            <FileSurfaceActions />
+            <FileSurfaceActions rootPath={projectPath} />
           </div>
           <FileTree rootPath={projectPath} />
         </div>
@@ -214,7 +217,9 @@ function FilesSurface({
   )
 }
 
-function FileSurfaceActions(): React.JSX.Element {
+function FileSurfaceActions({ rootPath }: { rootPath: string }): React.JSX.Element {
+  const newFile = useFilePromptStore((s) => s.newFile)
+  const newFolder = useFilePromptStore((s) => s.newFolder)
   const showHidden = useProjectSelectionStore((s) => s.showHidden)
   const toggleShowHidden = useProjectSelectionStore((s) => s.toggleShowHidden)
   const collapseAll = useFileTreeStore((s) => s.collapseAll)
@@ -224,7 +229,28 @@ function FileSurfaceActions(): React.JSX.Element {
       <Button
         variant="ghost"
         size="icon-xs"
+        onClick={() => newFile(rootPath)}
+        aria-label="New file at root"
+        title="New file at root"
+        data-testid="files-new-root-file"
+      >
+        <FilePlus />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => newFolder(rootPath)}
+        aria-label="New folder at root"
+        title="New folder at root"
+        data-testid="files-new-root-folder"
+      >
+        <FolderPlus />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={collapseAll}
+        className="transition-transform active:scale-90"
         aria-label="Collapse all folders"
         title="Collapse all folders"
       >
@@ -234,10 +260,14 @@ function FileSurfaceActions(): React.JSX.Element {
         variant="ghost"
         size="icon-xs"
         onClick={toggleShowHidden}
+        aria-pressed={showHidden}
+        className="transition-transform active:scale-90"
         aria-label={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
         title={showHidden ? 'Conceal hidden entries' : 'Show hidden entries'}
       >
-        {showHidden ? <Eye /> : <EyeOff />}
+        <span key={String(showHidden)} className="animate-in fade-in zoom-in-75 duration-150">
+          {showHidden ? <Eye /> : <EyeOff />}
+        </span>
       </Button>
     </div>
   )

@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { BrowseDirsOutput, ProjectInfo } from '@porcelain/contracts/projects'
@@ -142,6 +143,39 @@ function harness(pathAllowed?: (path: string) => boolean) {
 }
 
 describe('Project operations', () => {
+  it('resolves checkout ownership from Git metadata without rediscovering projects', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-owner-'))
+    try {
+      const checkout = join(root, 'checkout')
+      const metadata = join(root, 'metadata')
+      await mkdir(checkout)
+      await mkdir(metadata)
+      await writeFile(join(checkout, '.git'), 'gitdir: ../metadata\n')
+      const h = harness()
+      h.inventory.readProjects.mockResolvedValue({
+        ok: true,
+        value: [
+          {
+            id: 'project-1',
+            name: 'example',
+            groupingKey: 'local:example',
+            commonGitDir: await realpath(metadata),
+            worktrees: [{ id: 'worktree-1', gitDir: await realpath(metadata) }],
+          },
+        ],
+      })
+      expect(await h.operations.checkoutIdentity(checkout)).toEqual({
+        projectId: 'project-1',
+        worktreeId: 'worktree-1',
+      })
+      expect(h.git.discoverProject).not.toHaveBeenCalled()
+      expect(h.git.listWorktrees).not.toHaveBeenCalled()
+      await writeFile(join(checkout, '.git'), 'gitdir: ../missing\n')
+      expect(await h.operations.checkoutIdentity(checkout)).toBeNull()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
   it('blocks real repositories at the development-daemon boundary', async () => {
     const h = harness((path) => path.startsWith('/playground'))
 

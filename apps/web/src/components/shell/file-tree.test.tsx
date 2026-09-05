@@ -1,5 +1,6 @@
 import { useFilesTree } from '@renderer/features/files'
-import { render, screen } from '@testing-library/react'
+import { useFilePromptStore } from '@renderer/stores/file-prompt'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { FileTree } from './file-tree'
 
@@ -29,4 +30,8 @@ it('distinguishes loading, read failure, and an empty directory', () => {
   vi.mocked(useFilesTree).mockReturnValue({ entries: [], error: null, isLoading: false })
   view.rerender(<FileTree rootPath="/repo" />)
   expect(screen.getByText('This folder is empty.')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'New File' }))
+  expect(useFilePromptStore.getState()).toMatchObject({ kind: 'new-file', dir: '/repo' })
+  fireEvent.click(screen.getByRole('button', { name: 'New Folder' }))
+  expect(useFilePromptStore.getState()).toMatchObject({ kind: 'new-folder', dir: '/repo' })
 })

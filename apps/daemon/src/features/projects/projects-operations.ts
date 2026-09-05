@@ -26,7 +26,7 @@ import {
 import type { CanvasOverlayStore } from './canvas-overlay-store'
 import type { CanvasStore } from './canvas-store'
 import type { EnvironmentIdentityStore } from './environment-identity-store'
-import type { HubGitPort } from './hub-git-port'
+import { type HubGitPort, resolveGitDir } from './hub-git-port'
 import {
   createHubInventoryOperations,
   type HubInventoryOperations,
@@ -44,6 +44,7 @@ import type { ProjectOperationResult, ProjectsOperationError } from './projects-
 export type { ProjectOperationResult, ProjectsOperationError } from './projects-results'
 
 export type ProjectsOperations = Readonly<{
+  checkoutIdentity: (path: string) => Promise<{ projectId: string; worktreeId: string } | null>
   openProject: (path: string) => Promise<ProjectOperationResult<ProjectInfo>>
   listRecentProjects: (input: {
     includeWorktrees: boolean
@@ -234,6 +235,17 @@ export function createProjectsOperations(options: {
       return { ok: true, value: browsed.value }
     },
 
+    async checkoutIdentity(path) {
+      const gitDir = await resolveGitDir(path)
+      if (gitDir === null) return null
+      const stored = await options.hub.inventory.readProjects()
+      if (!stored.ok) throw new Error('Project inventory is unavailable')
+      for (const project of stored.value) {
+        const worktree = project.worktrees.find((entry) => entry.gitDir === gitDir)
+        if (worktree) return { projectId: project.id, worktreeId: worktree.id }
+      }
+      return null
+    },
     listHubInventory: hub.listHubInventory,
     environmentIdentity: hub.environmentIdentity,
     renameEnvironment: hub.renameEnvironment,
