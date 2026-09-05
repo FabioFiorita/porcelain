@@ -1,6 +1,6 @@
 {
   "name": "@porcelain/web",
-  "version": "0.63.1",
+  "version": "0.63.2",
   "private": true,
   "description": "Porcelain React client — browser and Electron load the same build.",
   "type": "module",

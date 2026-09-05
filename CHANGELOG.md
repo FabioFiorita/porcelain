@@ -1,3 +1,14 @@
+## [0.63.2](https://github.com/FabioFiorita/porcelain/compare/v0.63.1...v0.63.2) (2026-09-05)
+
+### Bug Fixes
+
+* **dev:** align verification gates and remove allocation lock race ([7eaea67](https://github.com/FabioFiorita/porcelain/commit/7eaea670b5743341edb25bafe04c851edf2d4bb7))
+* **dev:** simplify launchers and repair sample fixtures ([c85b758](https://github.com/FabioFiorita/porcelain/commit/c85b758b08e5f46d1c9c4a95cceeda38ffab6bed))
+* **mobile:** handle Windows repository file paths ([2eda7b9](https://github.com/FabioFiorita/porcelain/commit/2eda7b9cf4c6acbef3d05958f3d35991700cf631))
+* preserve checkout state during Codex cleanup ([927b06e](https://github.com/FabioFiorita/porcelain/commit/927b06e8b6d3d0880f688df76ecc00b2d3e03438))
+* **release:** verify assets before publishing and simplify packaging ([fda1e1f](https://github.com/FabioFiorita/porcelain/commit/fda1e1f5292d31ea7491c8f35a2e5f5f64a5bb3d))
+* stabilize test fixtures and restore verification baseline ([7681764](https://github.com/FabioFiorita/porcelain/commit/76817647c42e738f8e724164922fe63a54c0a725))
+
 ## [0.63.1](https://github.com/FabioFiorita/porcelain/compare/v0.63.0...v0.63.1) (2026-09-04)
 
 ### Bug Fixes
