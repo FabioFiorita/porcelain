@@ -46,6 +46,7 @@ test('Files creates a file and folder at the root without selecting an entry', a
     ['file', 'root-created.txt'],
     ['folder', 'root-created-folder'],
   ] as const) {
+    await page.getByTestId('files-create-menu').click()
     await page.getByTestId(`files-new-root-${kind}`).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
     await page.getByRole('button', { name: 'Create', exact: true }).click()

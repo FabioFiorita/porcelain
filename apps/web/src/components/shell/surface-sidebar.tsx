@@ -1,6 +1,12 @@
 import { ChangesList } from '@renderer/components/git/changes-list'
 import { HistoryList } from '@renderer/components/git/history-list'
 import { Button } from '@renderer/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@renderer/components/ui/dropdown-menu'
 import { Shortcut } from '@renderer/components/ui/kbd'
 import { SidebarGroupLabel } from '@renderer/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@renderer/components/ui/toggle-group'
@@ -23,6 +29,7 @@ import {
   GitCompareArrows,
   History,
   LayoutPanelTop,
+  Plus,
 } from 'lucide-react'
 import { useState } from 'react'
 import { CommitGroup } from './commit-group'
@@ -228,26 +235,29 @@ function FileSurfaceActions({ rootPath }: { rootPath: string }): React.JSX.Eleme
   return (
     <div className="flex shrink-0 items-center">
       <RevealActiveFile rootPath={rootPath} />
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => newFile(rootPath)}
-        aria-label="New file at root"
-        title="New file at root"
-        data-testid="files-new-root-file"
-      >
-        <FilePlus />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => newFolder(rootPath)}
-        aria-label="New folder at root"
-        title="New folder at root"
-        data-testid="files-new-root-folder"
-      >
-        <FolderPlus />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Create at root"
+              title="Create at root"
+              data-testid="files-create-menu"
+            >
+              <Plus />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => newFile(rootPath)} data-testid="files-new-root-file">
+            <FilePlus /> Create file
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => newFolder(rootPath)} data-testid="files-new-root-folder">
+            <FolderPlus /> Create folder
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button
         variant="ghost"
         size="icon-xs"
