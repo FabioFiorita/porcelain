@@ -124,7 +124,7 @@ test('a PTY survives browser detach, reconnects, and replays its bounded tail', 
     .not.toBe('')
   await input.focus()
   await page.keyboard.insertText(
-    "node -e \"console.log('x'.repeat(70000) + 'SCROLLBACK_' + 'TAIL_64K')\"",
+    "node -e \"console.log('x'.repeat(70000)); console.log('SCROLLBACK_' + 'TAIL_64K')\"",
   )
   await expectTerminalText(page, 0, 'TAIL_64K')
   await page.keyboard.press('Enter')
