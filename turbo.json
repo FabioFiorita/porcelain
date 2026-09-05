@@ -46,6 +46,7 @@
       "outputs": []
     },
     "//#test:scripts": {
+      "env": ["CODEX_WORKTREE_PATH"],
       "inputs": ["$TURBO_ROOT$/scripts/**", "$TURBO_ROOT$/package.json"],
       "outputs": []
     },
