@@ -33,8 +33,9 @@ For explicitly authorized manual publication or recovery:
 node scripts/release-publish.mjs --tag vX.Y.Z --assets dist-mac
 ```
 
-[The publish script](../scripts/release-publish.mjs) writes a public GitHub Release. Use
-`--cleanup-drafts` only when deleting failed drafts is intended.
+[The publish script](../scripts/release-publish.mjs) requires an existing remote tag. It uploads
+and checks asset names and sizes before publishing a draft. Failed drafts remain available for
+retry; other releases are left alone.
 
 ## Mobile
 

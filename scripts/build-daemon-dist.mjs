@@ -3,15 +3,13 @@
 // Porcelain daemon that runs under PLAIN Node (no Electron, no pnpm workspace)
 // on another machine (see docs/remote-access.md for the supported deployment path).
 //
-// Primary UX (t3-style):
+// Usage:
 //   npx @fabiofiorita/porcelain@latest serve --tailnet
 //
-// It mirrors the `out/` layout exactly so the daemon's two relative resolutions
-// keep working unchanged: the shared chunk require from
-// main/daemon/server.js) and RENDERER_ROOT (`__dirname/../../renderer`, see
+// It preserves RENDERER_ROOT (`__dirname/../../renderer`, see
 // apps/daemon/src/net/static-server.ts). Externalized runtime deps are declared
 // in a generated package.json with the EXACT semver ranges read from
-// apps/desktop/package.json, so `npm install` / npx on the target pulls them (and compiles
+// apps/daemon/package.json, so `npm install` / npx on the target pulls them (and compiles
 // node-pty for that host).
 //
 // Plain-Node ESM, zero dependencies (runs before `npm install`).
@@ -43,30 +41,34 @@ if (!existsSync(daemonEntry)) {
   process.exit(1)
 }
 
-// Externalized runtime deps used by the daemon bundle. Prefer apps/daemon pins;
-// fall back to desktop (shell still ships the same natives for utilityProcess).
+// Externalized runtime dependencies used by the daemon bundle.
 // node-pty is native — `npm install` on the target compiles it for that host.
 const RUNTIME_DEPS = ['@trpc/client', '@trpc/server', 'node-pty', 'trash', 'ws', 'zod']
 
 const desktopPkg = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8'))
 const daemonPkgPath = join(root, 'apps', 'daemon', 'package.json')
-const daemonPkg = existsSync(daemonPkgPath)
-  ? JSON.parse(readFileSync(daemonPkgPath, 'utf8'))
-  : desktopPkg
+const daemonPkg = JSON.parse(readFileSync(daemonPkgPath, 'utf8'))
 
 // Read the EXACT range the repo pins so the standalone package can't drift from
 // what the bundle was built against. A missing dep is a build-config bug, not a
 // silent skip.
 const dependencies = {}
 for (const name of RUNTIME_DEPS) {
-  const range = daemonPkg.dependencies?.[name] ?? desktopPkg.dependencies?.[name]
+  const range = daemonPkg.dependencies?.[name]
   if (range === undefined) {
-    console.error(
-      `[daemon:dist] ${name} missing from apps/daemon and apps/desktop package.json dependencies`,
-    )
+    console.error(`[daemon:dist] ${name} missing from apps/daemon/package.json dependencies`)
     process.exit(1)
   }
   dependencies[name] = range
+}
+
+// Validate all inputs before replacing the previous package.
+for (const input of [
+  join(out, 'main/contracts/protocol.js'),
+  join(out, 'renderer/index.html'),
+  join(root, 'scripts/porcelain-host.js'),
+]) {
+  if (!existsSync(input)) throw new Error(`Required packaging input missing: ${input}`)
 }
 
 // Wipe and re-create fresh each run so a removed file never lingers.
@@ -91,10 +93,6 @@ for (const [from, to] of requiredCopies) {
   mkdirSync(dirname(dest), { recursive: true })
   cpSync(src, dest, { recursive: true })
 }
-const chunksSrc = join(out, 'main', 'chunks')
-if (existsSync(chunksSrc)) {
-  cpSync(chunksSrc, join(dist, 'main', 'chunks'), { recursive: true })
-}
 
 // Host launcher entry (npx @fabiofiorita/porcelain serve …). Source of truth is scripts/porcelain-host.js;
 // it resolves main/daemon/server.js relative to the installed package layout.
@@ -115,7 +113,7 @@ chmodSync(cliDest, 0o755)
 // Publish the scoped package so the executable can use the unscoped `porcelain` name.
 const distPkg = {
   name: '@fabiofiorita/porcelain',
-  version: daemonPkg.version ?? desktopPkg.version,
+  version: daemonPkg.version,
   description:
     'Headless Porcelain daemon — plain Node backend for remote machines (npx @fabiofiorita/porcelain@latest serve)',
   license: desktopPkg.license ?? 'MIT',
@@ -136,9 +134,9 @@ const distPkg = {
 }
 writeFileSync(join(dist, 'package.json'), `${JSON.stringify(distPkg, null, 2)}\n`)
 
-writeFileSync(join(dist, 'README.md'), readme(desktopPkg.version))
+writeFileSync(join(dist, 'README.md'), readme(daemonPkg.version))
 
-console.log(`[daemon:dist] assembled dist-daemon/ (@fabiofiorita/porcelain@${desktopPkg.version})`)
+console.log(`[daemon:dist] assembled dist-daemon/ (@fabiofiorita/porcelain@${daemonPkg.version})`)
 console.log(
   '[daemon:dist] try:   cd dist-daemon && npm install && npx @fabiofiorita/porcelain serve',
 )

@@ -1,173 +1,84 @@
 #!/usr/bin/env node
-/**
- * Atomic GitHub Release assemble step.
- *
- * Creates (or updates) a non-draft release for the given tag, uploads every
- * file in the provided asset directories, marks it as latest, and optionally
- * deletes other leftover draft releases from failed past attempts.
- *
- * Usage:
- *   node scripts/release-publish.mjs --tag v0.40.0 --title "Porcelain 0.40.0" \
- *     --assets dist-mac
- *   node scripts/release-publish.mjs --tag v0.40.0 --assets dist-mac --cleanup-drafts
- */
+/** Upload and verify release assets before publishing an existing tag. */
 import { execFileSync } from 'node:child_process'
-import fs from 'node:fs'
-import path from 'node:path'
+import { readdirSync, statSync } from 'node:fs'
+import { basename, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
-const { values } = parseArgs({
-  options: {
-    tag: { type: 'string' },
-    title: { type: 'string' },
-    target: { type: 'string' },
-    assets: { type: 'string', multiple: true, default: [] },
-    'cleanup-drafts': { type: 'boolean', default: false },
-    notes: { type: 'string' },
-    help: { type: 'boolean', default: false },
-  },
-  strict: true,
-})
-
-if (values.help || !values.tag) {
-  console.log(`Usage: node scripts/release-publish.mjs --tag vX.Y.Z [--title T] [--target SHA|branch] \\
-  --assets dir [--assets dir2] [--cleanup-drafts] [--notes file]`)
-  process.exit(values.help ? 0 : 1)
+function sh(cmd, args) {
+  return execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
-const tag = values.tag
-const title = values.title ?? `Porcelain ${tag.replace(/^v/, '')}`
-const target = values.target
-
-function sh(cmd, args, opts = {}) {
-  const out = execFileSync(cmd, args, {
-    encoding: 'utf8',
-    stdio: opts.inherit ? 'inherit' : ['ignore', 'pipe', 'pipe'],
-    env: {
-      ...process.env,
-      NO_COLOR: '1',
-      FORCE_COLOR: '0',
-      CLICOLOR: '0',
-      GH_FORCE_TTY: '0',
-    },
-    ...opts,
-  })
-  // inherit returns null; callers that need text always use pipe mode.
-  return typeof out === 'string' ? out.trim() : out
-}
-
-function releaseExists(t) {
-  try {
-    sh('gh', ['release', 'view', t])
-    return true
-  } catch {
-    return false
-  }
-}
-
-function localTagExists(t) {
-  try {
-    sh('git', ['rev-parse', '--verify', `refs/tags/${t}^{commit}`])
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Collect files to upload (skip directories and empty paths). */
-function collectFiles(dirs) {
-  const files = []
-  for (const dir of dirs) {
-    if (!dir || !fs.existsSync(dir)) {
-      console.error(`release:publish ✗ assets dir missing: ${dir}`)
-      process.exit(1)
-    }
-    for (const name of fs.readdirSync(dir)) {
-      const full = path.join(dir, name)
-      if (fs.statSync(full).isFile()) {
-        files.push(full)
-      }
-    }
+export function collectFiles(dirs) {
+  const files = dirs.flatMap((dir) =>
+    readdirSync(dir)
+      .map((name) => join(dir, name))
+      .filter((file) => statSync(file).isFile()),
+  )
+  if (!files.length) throw new Error('No release assets found')
+  if (new Set(files.map((file) => basename(file))).size !== files.length) {
+    throw new Error('Release asset names must be unique across directories')
   }
   return files
 }
 
-const assetDirs = values.assets ?? []
-const files = collectFiles(assetDirs)
-if (files.length === 0) {
-  console.error('release:publish ✗ no asset files found to upload')
-  process.exit(1)
-}
-
-console.log(`release:publish → ${tag} (${files.length} assets)`)
-
-const notesArgs = values.notes ? ['--notes-file', values.notes] : ['--generate-notes']
-
-if (!releaseExists(tag)) {
-  // Published immediately (not draft). electron-updater only sees non-drafts.
-  // A cut release already has an immutable remote tag. Verify and reuse it instead
-  // of passing --target: GitHub treats targeting an older commit that changed a
-  // workflow as a ref mutation and rejects the built-in Actions token because it
-  // cannot receive the separate Workflows permission.
-  const targetArgs = localTagExists(tag) ? ['--verify-tag'] : target ? ['--target', target] : []
-  sh(
-    'gh',
-    ['release', 'create', tag, '--title', title, '--latest', ...targetArgs, ...notesArgs, ...files],
-    { inherit: true },
-  )
-} else {
-  // Idempotent re-publish / retry path: undraft, mark latest, re-upload.
-  sh('gh', ['release', 'edit', tag, '--draft=false', '--latest', '--title', title], {
-    inherit: true,
-  })
-  sh('gh', ['release', 'upload', tag, ...files, '--clobber'], { inherit: true })
-}
-
-// Confirm non-draft + assets. (isLatest is not on all gh CLI versions' --json
-// field set — Actions runners often ship an older gh — so use the REST "latest"
-// endpoint instead of `gh release view --json isLatest`.)
-const meta = JSON.parse(sh('gh', ['release', 'view', tag, '--json', 'isDraft,assets,url']))
-if (meta.isDraft) {
-  console.error('release:publish ✗ release is still draft after publish')
-  process.exit(1)
-}
-if (!meta.assets?.length) {
-  console.error('release:publish ✗ release has no assets')
-  process.exit(1)
-}
-let latestTag = ''
-try {
-  latestTag = sh('gh', [
-    'api',
-    `repos/${process.env.GITHUB_REPOSITORY ?? 'FabioFiorita/porcelain'}/releases/latest`,
-    '--jq',
-    '.tag_name',
-  ])
-} catch {
-  // no "latest" release yet
-}
-if (latestTag && latestTag !== tag) {
-  console.error(`release:publish ✗ latest is ${latestTag}, expected ${tag}`)
-  process.exit(1)
-}
-console.log(
-  `release:publish ✓ ${meta.url} (${meta.assets.length} assets${latestTag === tag ? ', latest' : ''})`,
-)
-
-if (values['cleanup-drafts']) {
-  /** @type {Array<{ tagName: string, isDraft: boolean }>} */
-  const list = JSON.parse(
-    sh('gh', ['release', 'list', '--limit', '50', '--json', 'tagName,isDraft']),
-  )
-  for (const r of list) {
-    if (!r.isDraft || r.tagName === tag) continue
-    console.log(`release:publish → deleting leftover draft ${r.tagName}`)
-    try {
-      // Keep the git tag (policy: never rewrite tags); only drop the draft release.
-      sh('gh', ['release', 'delete', r.tagName, '--yes'], { inherit: true })
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.warn(`release:publish ⚠ could not delete draft ${r.tagName}: ${msg}`)
+export function publishRelease(
+  { tag, title = `Porcelain ${tag.replace(/^v/, '')}`, assets, notes },
+  run = sh,
+) {
+  const files = collectFiles(assets)
+  // Only a successful query with no matching tag permits creating a new draft.
+  const repo = run('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
+  const releases = JSON.parse(
+    run('gh', ['api', '--paginate', '--slurp', `repos/${repo}/releases`]),
+  ).flat()
+  if (!releases.some((release) => release.tag_name === tag)) {
+    run('gh', [
+      'release',
+      'create',
+      tag,
+      '--draft',
+      '--verify-tag',
+      '--title',
+      title,
+      ...(notes ? ['--notes-file', notes] : ['--generate-notes']),
+    ])
+  }
+  run('gh', ['release', 'upload', tag, ...files, '--clobber'])
+  const readRelease = () =>
+    JSON.parse(run('gh', ['release', 'view', tag, '--json', 'isDraft,assets,url']))
+  const uploaded = readRelease()
+  for (const file of files) {
+    const asset = uploaded.assets.find((entry) => entry.name === basename(file))
+    if (!asset || asset.size !== statSync(file).size) {
+      throw new Error(`Release asset missing or incomplete: ${basename(file)}`)
     }
   }
+  run('gh', ['release', 'edit', tag, '--draft=false', '--latest', '--title', title])
+  const published = readRelease()
+  if (published.isDraft) throw new Error('Release is still a draft')
+  const latest = run('gh', ['api', `repos/${repo}/releases/latest`, '--jq', '.tag_name'])
+  if (latest !== tag) throw new Error(`Latest release is ${latest}, expected ${tag}`)
+  console.log(`release:publish ✓ ${published.url} (${files.length} verified assets)`)
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const { values } = parseArgs({
+    options: {
+      tag: { type: 'string' },
+      title: { type: 'string' },
+      assets: { type: 'string', multiple: true, default: [] },
+      notes: { type: 'string' },
+      help: { type: 'boolean' },
+    },
+    strict: true,
+  })
+  if (values.help || !values.tag) {
+    console.log(
+      'Usage: node scripts/release-publish.mjs --tag vX.Y.Z --assets dir [--assets dir2] [--title T] [--notes file]',
+    )
+    process.exit(values.help ? 0 : 1)
+  }
+  publishRelease(values)
 }

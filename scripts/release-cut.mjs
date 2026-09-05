@@ -2,7 +2,7 @@
 /**
  * Cut a release: bump version on main, tag, push, dispatch packaging.
  *
- * Side-project path: no pending branches, no multi-workflow gate.
+ * Requires clean main aligned with origin/main.
  * Default bump is patch. Use minor/major only when the human asks.
  *
  * Usage:
@@ -125,27 +125,7 @@ if (!values['skip-push']) {
   sh('git', ['push', 'origin', 'main', '--follow-tags'], { inherit: true })
   console.log(`release:cut → dispatching release.yml for ${tag}`)
   sh('gh', ['workflow', 'run', 'release.yml', '-f', `tag=${tag}`], { inherit: true })
-  try {
-    execFileSync('sleep', ['2'])
-    const url = sh('gh', [
-      'run',
-      'list',
-      '--workflow',
-      'release.yml',
-      '--limit',
-      '1',
-      '--json',
-      'url',
-      '--jq',
-      '.[0].url',
-    ])
-    if (url) {
-      console.log(`release:cut → ${url}`)
-      console.log('Watch: gh run watch --exit-status')
-    }
-  } catch {
-    console.log('release:cut → dispatched (open Actions → Release)')
-  }
+  console.log('release:cut → dispatched (open Actions → Release)')
 } else {
   console.log('release:cut → skipped push (local tag only)')
 }

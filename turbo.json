@@ -14,9 +14,6 @@
     "PORCELAIN_DAEMON_PORT",
     "PORCELAIN_HOME",
     "PORCELAIN_LAN_BIND",
-    "PORCELAIN_MOBILE_MAC_SSH",
-    "PORCELAIN_MOBILE_SIM_HOST",
-    "PORCELAIN_MOBILE_SIM_PORT",
     "PORCELAIN_TAILNET_BIND",
     "PORCELAIN_USER_DATA"
   ],
@@ -47,7 +44,11 @@
     },
     "//#test:scripts": {
       "env": ["CODEX_WORKTREE_PATH", "ANDROID_HOME", "ANDROID_SDK_ROOT", "METRO_PORT"],
-      "inputs": ["$TURBO_ROOT$/scripts/**", "$TURBO_ROOT$/package.json"],
+      "inputs": [
+        "$TURBO_ROOT$/scripts/**",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/apps/daemon/package.json"
+      ],
       "outputs": []
     },
     "transit": {

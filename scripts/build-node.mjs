@@ -46,9 +46,7 @@ if (!['daemon', 'all'].includes(target)) {
 }
 
 // Product version — same stamp as release (sync-versions). Prefer daemon package.
-const versionPkg = existsSync(join(root, 'apps', 'daemon', 'package.json'))
-  ? join(root, 'apps', 'daemon', 'package.json')
-  : join(root, 'apps', 'desktop', 'package.json')
+const versionPkg = join(root, 'apps', 'daemon', 'package.json')
 const { version } = JSON.parse(readFileSync(versionPkg, 'utf8'))
 
 /** Resolve @shared/* and @porcelain/{shared,contracts}/* to TS sources. */

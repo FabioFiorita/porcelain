@@ -400,11 +400,8 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
-          TARGET=$(git rev-parse "${TAG}^{commit}" 2>/dev/null || git rev-parse "$TAG")
           node scripts/release-publish.mjs \
             --tag "$TAG" \
             --title "Porcelain ${VERSION}" \
-            --target "$TARGET" \
             --assets dist-mac \
-            --assets dist-windows \
-            --cleanup-drafts
+            --assets dist-windows

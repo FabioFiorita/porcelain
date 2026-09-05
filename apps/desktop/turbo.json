@@ -18,6 +18,7 @@
     },
     "build:electron": {
       "inputs": [
+        "$TURBO_ROOT$/plugins/porcelain/.codex-plugin/plugin.json",
         "$TURBO_ROOT$/apps/desktop/**",
         "$TURBO_ROOT$/packages/**",
         "!$TURBO_ROOT$/apps/desktop/out/**",
@@ -50,7 +51,7 @@
         "$TURBO_ROOT$/packages/shared/**",
         "$TURBO_ROOT$/scripts/build-node.mjs"
       ],
-      "outputs": ["out/main/daemon/**"]
+      "outputs": ["out/main/daemon/**", "out/main/contracts/**"]
     },
     "check-types": {
       "inputs": [
