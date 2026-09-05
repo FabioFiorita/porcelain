@@ -18,6 +18,40 @@ interface SessionMismatch {
   received: number | null
 }
 
+test('Files drags a file into a folder and back to root', async ({ page, repoDir }) => {
+  await waitForShell(page)
+  await selectTab(page, 'Files')
+  await loc.treeEntry(page, 'README.md').dragTo(loc.treeEntry(page, 'src'))
+  await expect
+    .poll(async () => (await stat(join(repoDir, 'src/README.md')).catch(() => null))?.isFile())
+    .toBe(true)
+  await expect(loc.treeEntry(page, 'README.md')).toBeVisible()
+  const source = await loc.treeEntry(page, 'README.md').boundingBox()
+  if (!source) throw new Error('Source row is not visible')
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(source.x + source.width / 2 - 15, source.y + source.height / 2, {
+    steps: 4,
+  })
+  const root = page.getByTestId('files-drop-root')
+  await expect(root).toBeVisible()
+  const destination = await root.boundingBox()
+  if (!destination) throw new Error('Root drop target is not visible')
+  await page.mouse.move(
+    destination.x + destination.width / 2,
+    destination.y + destination.height / 2,
+    { steps: 5 },
+  )
+  await page.mouse.up()
+  await expect
+    .poll(async () => (await stat(join(repoDir, 'README.md')).catch(() => null))?.isFile())
+    .toBe(true)
+  await expect
+    .poll(async () => (await stat(join(repoDir, 'src/README.md')).catch(() => null)) === null)
+    .toBe(true)
+  await expect(root).toBeHidden()
+})
+
 test('Files cuts and pastes a folder at root and keeps its open file', async ({
   page,
   repoDir,

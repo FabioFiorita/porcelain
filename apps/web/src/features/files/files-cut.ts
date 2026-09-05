@@ -45,7 +45,7 @@ export function planFileMoves(
 
 export function useFilesCut(): {
   cut: (paths: string[]) => void
-  paste: (destination: string) => Promise<void>
+  paste: (destination: string, source?: { target: HubTarget; paths: string[] }) => Promise<void>
   canPaste: boolean
 } {
   const target = useHubRepoTarget()
@@ -61,8 +61,9 @@ export function useFilesCut(): {
     cut: (paths) => {
       if (target && !useFilesCutStore.getState().busy) useFilesCutStore.setState({ target, paths })
     },
-    paste: async (destination) => {
-      const current = useFilesCutStore.getState()
+    paste: async (destination, source) => {
+      const stored = useFilesCutStore.getState()
+      const current = source ? { ...source, busy: stored.busy } : stored
       if (!target || current.busy || !sameHubTarget(target, current.target)) return
       const moves = planFileMoves(target.path, current.paths, destination)
       if (
@@ -95,15 +96,16 @@ export function useFilesCut(): {
               return { ...pane, tabs, activeTabId }
             }),
           }))
-          useFilesCutStore.setState((s) => ({
-            paths: s.paths.filter((path) => {
-              const normalized = normalizeProjectRoot(path)
-              return normalized !== from && !normalized.startsWith(`${from}/`)
-            }),
-          }))
+          if (!source)
+            useFilesCutStore.setState((s) => ({
+              paths: s.paths.filter((path) => {
+                const normalized = normalizeProjectRoot(path)
+                return normalized !== from && !normalized.startsWith(`${from}/`)
+              }),
+            }))
           useRevealStore.getState().reveal(to)
         }
-        useFilesCutStore.setState({ paths: [], target: null })
+        if (!source) useFilesCutStore.setState({ paths: [], target: null })
         useSelectionStore.getState().clear()
         useSelectionStore.getState().setActive(null)
       } finally {

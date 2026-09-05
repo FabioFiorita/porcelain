@@ -64,6 +64,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { useFileTreeDrag } from './file-tree-drag'
 
 // A reveal highlight lingers this long after the row scrolls into view, then the
 // target is cleared so a later Files-tab remount doesn't re-expand its ancestors.
@@ -235,6 +236,7 @@ function TreeNodeImpl({
   parentCollapseNonce?: number
 }): React.JSX.Element {
   const openTab = useTabsStore((s) => s.openTab)
+  const drag = useFileTreeDrag(entry.path, false)
   const pinTab = useTabsStore((s) => s.pinTab)
   const isSelected = useSelectionStore((s) => s.selected.has(entry.path))
   const toggleSelection = useSelectionStore((s) => s.toggle)
@@ -279,6 +281,8 @@ function TreeNodeImpl({
               data-testid={TestIds.treeEntry(entry.name)}
               data-path={entry.path}
               data-tree-kind="file"
+              draggable
+              {...drag.handlers}
               data-tree-name={entry.name}
               // One selected state through the primitive (`data-active`), so the
               // open file, a cmd-click selection, and a reveal all read the same
@@ -323,6 +327,7 @@ function DirNode({
   parentCollapseNonce: number
 }): React.JSX.Element {
   const [expanded, setExpanded] = useState(false)
+  const drag = useFileTreeDrag(entry.path, true)
   const children = useFilesTree(entry.path, expanded)
   // Register this dir as watched while it's open so an external add/remove inside it
   // live-refreshes the tree (see `useSessionRuntime` interests); cleanup on collapse or unmount.
@@ -409,6 +414,16 @@ function DirNode({
                 data-testid={TestIds.treeEntry(entry.name)}
                 data-path={entry.path}
                 data-tree-kind="dir"
+                draggable
+                {...drag.handlers}
+                style={
+                  drag.highlighted
+                    ? {
+                        backgroundColor: 'var(--accent)',
+                        boxShadow: 'inset 0 0 0 2px var(--primary)',
+                      }
+                    : undefined
+                }
                 data-tree-name={entry.name}
                 isActive={isSelected || isRevealed}
                 className={cn(

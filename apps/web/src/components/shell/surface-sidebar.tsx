@@ -39,6 +39,7 @@ import { useState } from 'react'
 import { CommitGroup } from './commit-group'
 import { FileTimelineGroup } from './file-timeline-group'
 import { FileTree } from './file-tree'
+import { FileTreeRootDrop } from './file-tree-drag'
 import { PinnedGroup } from './pinned-group'
 import { QuickCommandsGroup } from './quick-commands-group'
 import { RevealActiveFile } from './reveal-active-file'
@@ -215,13 +216,14 @@ function FilesSurface({
         <div className="shrink-0">
           <PinnedGroup compact />
         </div>
-        <div className="min-w-0 px-2 pb-2">
+        <div className="relative min-w-0 px-2 pb-2">
           <div className="flex h-6 items-center justify-between">
             <SidebarGroupLabel className="h-6 min-w-0 flex-1 px-1 text-2xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
               All Files
             </SidebarGroupLabel>
             <FileSurfaceActions rootPath={projectPath} />
           </div>
+          <FileTreeRootDrop rootPath={projectPath} />
           <FileTree rootPath={projectPath} />
         </div>
       </div>

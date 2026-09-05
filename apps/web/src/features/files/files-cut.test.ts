@@ -11,6 +11,19 @@ vi.mock('@renderer/stores/hub-repo', () => ({ useHubRepoTarget: () => fixture.ta
 vi.mock('./files-mutations', () => ({ useFilesActions: () => ({ rename: fixture.rename }) }))
 
 describe('file move planning', () => {
+  it('moves a dragged selection without replacing the cut clipboard', async () => {
+    fixture.rename.mockReset().mockResolvedValue(undefined)
+    useFilesCutStore.setState({ target: fixture.target, paths: ['/repo/cut.txt'], busy: false })
+    const { result } = renderHook(() => useFilesCut())
+    await act(async () => {
+      await result.current.paste('/repo/dest', {
+        target: fixture.target,
+        paths: ['/repo/drag.txt'],
+      })
+    })
+    expect(fixture.rename).toHaveBeenCalledWith('/repo/drag.txt', '/repo/dest/drag.txt')
+    expect(useFilesCutStore.getState()).toMatchObject({ paths: ['/repo/cut.txt'], busy: false })
+  })
   it('retains only unfinished cuts after a partial failure and releases the busy state', async () => {
     fixture.rename
       .mockReset()

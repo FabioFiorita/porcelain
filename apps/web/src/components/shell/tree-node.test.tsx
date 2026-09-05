@@ -24,6 +24,9 @@ vi.mock('@renderer/components/viewer/use-path-actions', () => ({
   usePathActions: () => ({ reveal: () => {}, copyPath: () => {}, copyRelativePath: () => {} }),
 }))
 vi.mock('@renderer/hooks/use-reveal-in-finder', () => ({ useCanRevealInFinder: () => false }))
+vi.mock('./file-tree-drag', () => ({
+  useFileTreeDrag: () => ({ handlers: {}, highlighted: false }),
+}))
 
 const entry: DirEntry = { name: 'app.ts', path: '/repo/src/app.ts', kind: 'file' }
 const other: DirEntry = { name: 'util.ts', path: '/repo/src/util.ts', kind: 'file' }
