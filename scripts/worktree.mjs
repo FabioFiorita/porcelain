@@ -94,13 +94,13 @@ function checked(cwd, command, args, options = {}) {
 }
 
 function repoRoot(cwd = process.cwd()) {
-  return realpathSync(git(cwd, ['rev-parse', '--show-toplevel']))
+  return realpathSync.native(git(cwd, ['rev-parse', '--show-toplevel']))
 }
 
 function primaryRoot(cwd = process.cwd()) {
   const common = git(cwd, ['rev-parse', '--git-common-dir'])
-  const commonPath = realpathSync(resolve(repoRoot(cwd), common))
-  return realpathSync(dirname(commonPath))
+  const commonPath = realpathSync.native(resolve(repoRoot(cwd), common))
+  return realpathSync.native(dirname(commonPath))
 }
 
 function validateSlug(value) {
@@ -156,10 +156,10 @@ function managedPaths(slug) {
   }
 }
 
-/** realpath when the directory still exists; the recorded path otherwise (prunable entries). */
+/** Native resolution expands Windows 8.3 aliases; retain recorded paths for prunable entries. */
 function realPathOrSelf(path) {
   try {
-    return realpathSync(path)
+    return realpathSync.native(path)
   } catch {
     return path
   }
@@ -231,7 +231,7 @@ function allocatePort(root) {
  * unrelated checkouts; they cannot allow simultaneous allocation.
  */
 export async function withAllocationLock(root, action) {
-  const common = realpathSync(resolve(root, git(root, ['rev-parse', '--git-common-dir'])))
+  const common = realpathSync.native(resolve(root, git(root, ['rev-parse', '--git-common-dir'])))
   const key = process.platform === 'win32' ? common.toLowerCase() : common
   const port = 45000 + (createHash('sha256').update(key).digest().readUInt16BE(0) % 1000)
   const deadline = Date.now() + 30_000
@@ -295,7 +295,7 @@ function recordedDaemon(worktreePath, home) {
     if (
       !Number.isInteger(value.pid) ||
       value.pid <= 1 ||
-      realpathSync(value.worktreeRoot) !== realpathSync(worktreePath)
+      realpathSync.native(value.worktreeRoot) !== realpathSync.native(worktreePath)
     ) {
       return null
     }
@@ -323,9 +323,9 @@ function processIsManagedDaemon(pid, worktreePath, started) {
 
   if (process.platform === 'linux') {
     try {
-      const cwd = realpathSync(readlinkSync(`/proc/${pid}/cwd`))
+      const cwd = realpathSync.native(readlinkSync(`/proc/${pid}/cwd`))
       const command = readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll('\0', ' ')
-      return cwd === realpathSync(worktreePath) && command.includes('scripts/dev-daemon.mjs')
+      return cwd === realpathSync.native(worktreePath) && command.includes('scripts/dev-daemon.mjs')
     } catch {
       return false
     }
@@ -516,7 +516,7 @@ function loadManagedWorktreeProfile(worktreePath) {
 function isLinkedWorktreeOf(root, worktreePath) {
   let target
   try {
-    target = realpathSync(worktreePath)
+    target = realpathSync.native(worktreePath)
   } catch {
     return false
   }

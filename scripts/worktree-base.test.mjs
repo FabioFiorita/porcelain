@@ -26,7 +26,7 @@ import { codexSlugForPath, parseWorktreeConfig, withAllocationLock } from './wor
 const worktreeScript = resolve('scripts/worktree.mjs')
 
 test('allocation is released by the OS when its owner crashes', async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-lock-crash-')))
+  const home = realpathSync.native(mkdtempSync(join(tmpdir(), 'porcelain-lock-crash-')))
   let child
   try {
     git(home, 'init', '-b', 'main')
@@ -138,7 +138,7 @@ test('codexSlugForPath derives a stable valid slug from the harness allocation',
 
 for (const useEnvironmentPath of [false, true])
   test(`selected Codex environment uses ${useEnvironmentPath ? 'CODEX_WORKTREE_PATH' : 'the working directory'} for setup and cleanup`, async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), 'porcelain-codex-hook-')))
     const primary = join(home, 'repo')
     const checkout = join(home, '.codex', 'worktrees', '7f73', 'porcelain with spaces')
     try {
@@ -198,7 +198,7 @@ for (const useEnvironmentPath of [false, true])
   })
 
 test('plain Git checkout setup and cleanup preserve both checkouts and their files', async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-git-profile-')))
+  const home = realpathSync.native(mkdtempSync(join(tmpdir(), 'porcelain-git-profile-')))
   const primary = join(home, 'repo')
   const checkout = join(home, 'feature checkout')
   let launcher
@@ -286,7 +286,7 @@ process.send({child: child.pid}); setInterval(()=>{},1000);`,
 })
 
 test('simultaneous Codex bootstraps reserve distinct disposable profiles', async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-race-')))
+  const home = realpathSync.native(mkdtempSync(join(tmpdir(), 'porcelain-codex-race-')))
   const primary = join(home, 'repo')
   const checkouts = Array.from({ length: 8 }, (_, index) =>
     join(home, '.codex', 'worktrees', `race-${index}`, 'porcelain'),
@@ -372,7 +372,7 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
 })
 
 test('Codex bootstrap preserves Git state and launchers resolve isolated profiles', async () => {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-codex-profile-')))
+  const home = realpathSync.native(mkdtempSync(join(tmpdir(), 'porcelain-codex-profile-')))
   const primary = join(home, 'repo')
   const checkouts = ['contracts', 'consumers'].map((slug) =>
     join(home, '.codex', 'worktrees', slug, 'porcelain'),
