@@ -27,6 +27,7 @@ import { CompanionSection } from './companion-section'
 import { GeneralSection } from './general-section'
 import { RemotesSection } from './remotes-section'
 import { ShareSection } from './share-section'
+import { ShortcutsSection } from './shortcuts-section'
 import { UpdatesSection } from './updates-section'
 
 /**
@@ -67,6 +68,14 @@ const ALL_SECTIONS: {
   // a browser tab is a paired client of one daemon, not the administrator of it.
   shellOnly?: boolean
 }[] = [
+  {
+    id: 'shortcuts',
+    label: 'Keyboard shortcuts',
+    icon: Settings2,
+    title: 'Keyboard shortcuts',
+    scope: 'app',
+    blurb: 'Customize keyboard commands for this app.',
+  },
   {
     id: 'general',
     label: 'General',
@@ -308,6 +317,7 @@ function SettingsSectionBody({ activeId }: { activeId: SettingsSection }): React
   return (
     <>
       {activeId === 'general' && <GeneralSection />}
+      {activeId === 'shortcuts' && <ShortcutsSection />}
       {activeId === 'share' && <ShareSection />}
       {activeId === 'remotes' && <RemotesSection />}
       {activeId === 'updates' && <UpdatesSection />}

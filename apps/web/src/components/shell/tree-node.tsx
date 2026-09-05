@@ -263,6 +263,8 @@ function TreeNodeImpl({
               ref={ref}
               data-testid={TestIds.treeEntry(entry.name)}
               data-path={entry.path}
+              data-tree-kind="file"
+              data-tree-name={entry.name}
               // One selected state through the primitive (`data-active`), so the
               // open file, a cmd-click selection, and a reveal all read the same
               // and none of them fade under the pointer's hover tint.
@@ -386,6 +388,8 @@ function DirNode({
                 ref={ref}
                 data-testid={TestIds.treeEntry(entry.name)}
                 data-path={entry.path}
+                data-tree-kind="dir"
+                data-tree-name={entry.name}
                 isActive={isSelected || isRevealed}
                 className={cn('text-sm-minus', entry.hidden && 'opacity-50')}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>): void => {

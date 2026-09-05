@@ -1,83 +1,84 @@
+import {
+  type FileCommandId,
+  fileBinding,
+  fileCommands,
+  shortcutPlatform,
+  useFileBindings,
+} from '@renderer/features/commands/file-command-bindings'
 import { useFilesActions } from '@renderer/features/files'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
-import { isTerminalTarget, isTextEntry } from '@renderer/lib/keyboard'
+import { isTerminalTarget } from '@renderer/lib/keyboard'
 import { dirName } from '@renderer/lib/paths'
 import { isFilesSurfaceFocused } from '@renderer/lib/surface-focus'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
+import { targetedTab } from '@renderer/stores/hub-tabs'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useSelectionStore } from '@renderer/stores/selection'
-import { tabId, useTabsStore } from '@renderer/stores/tabs'
+import { useTabsStore } from '@renderer/stores/tabs'
 import { runUserAction } from '@shared/background'
-import { useEffect } from 'react'
+import { useHotkeys } from '@tanstack/react-hotkeys'
 
-/**
- * Files-tab keyboard shortcuts: ⌘N new file, ⌘⇧N new folder, ⌘D duplicate, ⌘⌫ trash.
- * Lives in its own always-mounted component (next to FileFinder) rather than the global
- * shortcut hook because the fs mutations go through tRPC hooks, which only components may
- * touch. Active only while the Files tab is showing; targets the multi-selection, or the
- * last-clicked row when nothing is selected.
- */
 export function FileCommands(): null {
   const { duplicate, trash } = useFilesActions()
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent): void => {
-      if (!isFilesSurfaceFocused()) return
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return
-      if (isTextEntry(e.target) || isTerminalTarget(e.target)) return
-
-      const prompt = useFilePromptStore.getState()
-      const { selected, active } = useSelectionStore.getState()
-      const project = useProjectSelectionStore.getState().project
-      // Where a new file/folder lands: into the active folder, beside the active file,
-      // else the project root.
-      const newDir = active
-        ? active.kind === 'dir'
-          ? active.path
-          : dirName(active.path)
-        : (project?.path ?? '')
-      // What duplicate/trash act on: the multi-selection, else the active row.
-      const targets = selected.size > 0 ? [...selected] : active ? [active.path] : []
-
-      const key = e.key.toLowerCase()
-      if (key === 'n' && e.shiftKey) {
-        e.preventDefault()
-        prompt.newFolder(newDir)
-      } else if (key === 'n' && !e.shiftKey) {
-        e.preventDefault()
-        prompt.newFile(newDir)
-      } else if (key === 'd' && !e.shiftKey) {
-        if (targets.length === 0) return
-        e.preventDefault()
-        runUserAction(
-          async () => {
-            for (const path of targets) await duplicate(path)
-          },
-          (error) => {
-            toastUserActionError('Duplicate', error)
-          },
-        )
-      } else if (e.key === 'Backspace') {
-        if (targets.length === 0) return
-        e.preventDefault()
-        runUserAction(
-          async () => {
-            for (const path of targets) {
-              if (await trash(path)) {
-                useTabsStore.getState().closeTabEverywhere(tabId('file', path))
-              }
-            }
-            useSelectionStore.getState().clear()
-          },
-          (error) => {
-            toastUserActionError('Delete', error)
-          },
-        )
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [duplicate, trash])
-
+  const overrides = useFileBindings((s) => s.overrides)
+  const execute = (id: FileCommandId): void => {
+    const prompt = useFilePromptStore.getState()
+    const { selected, active } = useSelectionStore.getState()
+    const project = useProjectSelectionStore.getState().project
+    if (!project) return
+    const newDir = active
+      ? active.kind === 'dir'
+        ? active.path
+        : dirName(active.path)
+      : project.path
+    const targets = selected.size > 0 ? [...selected] : active ? [active.path] : []
+    if (id === 'files.create-file') prompt.newFile(newDir)
+    else if (id === 'files.create-folder') prompt.newFolder(newDir)
+    else
+      runUserAction(
+        async () => {
+          for (const path of targets) {
+            if (id === 'files.duplicate') await duplicate(path)
+            else if (await trash(path))
+              useTabsStore
+                .getState()
+                .closeTabEverywhere(targetedTab('file', path, { title: '' }).id)
+          }
+          if (id === 'files.trash') useSelectionStore.getState().clear()
+        },
+        (error) => toastUserActionError(fileCommands[id], error),
+      )
+  }
+  useHotkeys(
+    (Object.keys(fileCommands) as FileCommandId[]).flatMap((id) => {
+      const hotkey = fileBinding(id, overrides)
+      return hotkey === null
+        ? []
+        : [
+            {
+              hotkey,
+              callback: (event: KeyboardEvent) => {
+                if (
+                  !isFilesSurfaceFocused() ||
+                  isTerminalTarget(event.target) ||
+                  (event.target instanceof HTMLElement &&
+                    event.target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]'))
+                )
+                  return
+                event.preventDefault()
+                event.stopPropagation()
+                execute(id)
+              },
+            },
+          ]
+    }),
+    {
+      platform: shortcutPlatform,
+      ignoreInputs: true,
+      preventDefault: false,
+      stopPropagation: false,
+      conflictBehavior: 'error',
+    },
+  )
   return null
 }

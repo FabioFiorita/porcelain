@@ -4,6 +4,7 @@ import { useFilesTree } from '@renderer/features/files'
 import { useFilePromptStore } from '@renderer/stores/file-prompt'
 import { useTreeDirsStore } from '@renderer/stores/tree-dirs'
 import { useEffect } from 'react'
+import { navigateFileTree } from './file-tree-keyboard'
 import { TreeNode } from './tree-node'
 
 export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element {
@@ -44,7 +45,8 @@ export function FileTree({ rootPath }: { rootPath: string }): React.JSX.Element 
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    // biome-ignore lint/a11y/noStaticElementInteractions: Handles bubbled navigation keys from the focusable tree row buttons.
+    <div className="flex flex-col gap-1" onKeyDown={navigateFileTree}>
       <SidebarMenu>
         {entries.map((entry) => (
           <TreeNode key={entry.path} entry={entry} />
