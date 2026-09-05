@@ -1049,7 +1049,7 @@ function bootstrapCodexWorktree(pathArg) {
   })
 }
 
-/** Remove only the managed profile belonging to the exact Codex checkout being deleted. */
+/** Release Porcelain resources; Codex owns deletion of its checkout and Git state. */
 async function cleanupCodexWorktree(pathArg) {
   const target = realPathOrSelf(resolve(pathArg || process.cwd()))
   const profile = loadManagedWorktreeProfile(target)
@@ -1062,7 +1062,16 @@ async function cleanupCodexWorktree(pathArg) {
   if (managed.path !== target) {
     fail(`managed slug ${profile.config.slug} belongs to ${managed.path}, not ${target}`)
   }
-  await remove(profile.config.slug, { force: true })
+  const paths = managedPaths(profile.config.slug)
+  safeManagedTarget(paths.home, join(homedir(), '.porcelain-dev-worktrees'))
+  safeManagedTarget(paths.userData, join(homedir(), '.local', 'share', 'porcelain-dev-worktrees'))
+  safeManagedTarget(paths.playground, join(homedir(), 'code', 'porcelain-playgrounds'))
+  await stopDaemon(target, paths.home)
+  for (const path of Object.values(paths)) rmSync(path, { recursive: true, force: true })
+  rmSync(join(target, CONFIG_FILE), { force: true })
+  console.log(
+    'worktree ✓ Porcelain development resources removed; checkout and Git state preserved',
+  )
 }
 
 function list() {

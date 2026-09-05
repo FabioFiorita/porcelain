@@ -113,7 +113,9 @@ pnpm dev:env
 
 Use `pnpm worktree list` for allocations. The [Codex environment](../.codex/environments/environment.toml)
 bootstraps task checkouts; [the worktree command](../scripts/worktree.mjs) owns create, adopt,
-bootstrap, and cleanup. If a linked checkout reports the primary profile, adopt or bootstrap it
+bootstrap, and cleanup. The Codex cleanup hook removes Porcelain's development resources and
+profile metadata; Codex owns checkout deletion. It preserves files, branches, and commits.
+If a linked checkout reports the primary profile, adopt or bootstrap it
 before launch. From the primary checkout, `pnpm worktree adopt <path> <slug>` adopts an external
 checkout; `pnpm worktree remove <slug>` removes an integrated, clean managed Worktree.
 

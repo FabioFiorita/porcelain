@@ -272,9 +272,22 @@ for (const useEnvironmentPath of [false, true])
       assert.equal(git(primary, 'branch', '--list', 'work/codex-7f73'), '')
       assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), true)
 
+      git(checkout, 'switch', '-c', 'codex/preserved-work')
+      writeFileSync(join(checkout, 'README.md'), 'local commit\n')
+      git(checkout, 'add', 'README.md')
+      git(checkout, '-c', 'commit.gpgsign=false', 'commit', '-m', 'local work')
+      const localHead = git(checkout, 'rev-parse', 'HEAD')
+      writeFileSync(join(checkout, 'README.md'), 'uncommitted work\n')
+      writeFileSync(join(checkout, 'untracked.txt'), 'new work\n')
       runEnvironmentCommand('cleanup', commandCwd, env)
-      assert.equal(existsSync(checkout), false)
+      assert.equal(git(checkout, 'rev-parse', 'HEAD'), localHead)
+      assert.equal(git(checkout, 'branch', '--show-current'), 'codex/preserved-work')
+      assert.equal(readFileSync(join(checkout, 'README.md'), 'utf8'), 'uncommitted work\n')
+      assert.equal(readFileSync(join(checkout, 'untracked.txt'), 'utf8'), 'new work\n')
+      assert.equal(existsSync(join(checkout, '.porcelain-worktree.json')), false)
       assert.equal(existsSync(join(home, '.porcelain-dev-worktrees', 'codex-7f73')), false)
+      assert.equal(existsSync(join(home, 'code', 'porcelain-playgrounds', 'codex-7f73')), false)
+      runEnvironmentCommand('cleanup', commandCwd, env)
     } finally {
       await removeFixture(home)
     }
@@ -353,7 +366,10 @@ test('simultaneous Codex bootstraps reserve distinct disposable profiles', async
         stdio: 'pipe',
       })
     }
-    assert.ok(checkouts.every((checkout) => !existsSync(checkout)))
+    assert.ok(checkouts.every((checkout) => existsSync(checkout)))
+    assert.ok(
+      checkouts.every((checkout) => !existsSync(join(checkout, '.porcelain-worktree.json'))),
+    )
   } finally {
     await removeFixture(home)
   }
