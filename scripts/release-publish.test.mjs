@@ -20,7 +20,8 @@ function github({ exists = false, broken = false, failUpload = false, failQuery 
     if (args[0] === 'repo') return 'example/porcelain'
     if (args.includes('--paginate')) {
       if (failQuery) throw new Error('Network unavailable')
-      return JSON.stringify([exists ? [{ tag_name: 'v1.0.0' }] : []])
+      assert.ok(args.includes('--jq'), 'filter release metadata before buffering command output')
+      return exists ? 'v0.9.0\nv1.0.0\nv0.8.0' : 'v0.9.0'
     }
     if (args[1] === 'upload' && failUpload) throw new Error('Upload failed')
     if (args[1] === 'edit') draft = false

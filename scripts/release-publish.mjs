@@ -30,10 +30,14 @@ export function publishRelease(
   const files = collectFiles(assets)
   // Only a successful query with no matching tag permits creating a new draft.
   const repo = run('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'])
-  const releases = JSON.parse(
-    run('gh', ['api', '--paginate', '--slurp', `repos/${repo}/releases`]),
-  ).flat()
-  if (!releases.some((release) => release.tag_name === tag)) {
+  const tags = run('gh', [
+    'api',
+    '--paginate',
+    `repos/${repo}/releases`,
+    '--jq',
+    '.[].tag_name',
+  ]).split(/\r?\n/)
+  if (!tags.includes(tag)) {
     run('gh', [
       'release',
       'create',
