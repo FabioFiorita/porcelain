@@ -1,3 +1,11 @@
+## [0.63.4](https://github.com/FabioFiorita/porcelain/compare/v0.63.3...v0.63.4) (2026-09-06)
+
+### Bug Fixes
+
+* **desktop:** separate Windows hosting from WSL ([369e3ff](https://github.com/FabioFiorita/porcelain/commit/369e3fffd6161f0382b20b2e75ca6807f952cd58))
+* **remote:** clarify Cloudflare sharing mode ownership ([0f835ac](https://github.com/FabioFiorita/porcelain/commit/0f835ac377ce1f41749369d7c1ab2ea5bd178534))
+* **review:** prevent empty regex matches from hanging daemon ([#88](https://github.com/FabioFiorita/porcelain/issues/88)) ([978ce4b](https://github.com/FabioFiorita/porcelain/commit/978ce4b6da41779f52ede4cb96e1874f572f6d92))
+
 ## [0.63.3](https://github.com/FabioFiorita/porcelain/compare/v0.63.2...v0.63.3) (2026-09-06)
 
 ### Features
