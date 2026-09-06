@@ -1,3 +1,22 @@
+## [0.63.3](https://github.com/FabioFiorita/porcelain/compare/v0.63.2...v0.63.3) (2026-09-06)
+
+### Features
+
+* **files:** add keyboard navigation and customizable TanStack shortcuts ([5f51499](https://github.com/FabioFiorita/porcelain/commit/5f51499a91fad1c713da12b64033583fafc92c6d))
+* **files:** drag entries into folders or the project root ([825f42a](https://github.com/FabioFiorita/porcelain/commit/825f42abb51f392817709a5117074a420586b450))
+* **files:** move entries with worktree-scoped cut and paste ([bc1ad0f](https://github.com/FabioFiorita/porcelain/commit/bc1ad0fc264281259302ab84a5dacfbd434a72ed))
+* **files:** reveal the active file from the tree toolbar ([f8dec4e](https://github.com/FabioFiorita/porcelain/commit/f8dec4eae9f84b6607ff53c26c25f32404b86e18))
+
+### Bug Fixes
+
+* **dev:** allow bounded cold Windows process-query startup ([6ad1742](https://github.com/FabioFiorita/porcelain/commit/6ad17427cc03cc7693acf2c215d182c60c436d0a))
+* **files:** keep row focus rings inside clipped folders ([9111d5d](https://github.com/FabioFiorita/porcelain/commit/9111d5def00aecd67c750aab81d731be5ca9eb80))
+* **files:** reduce tree latency and add root creation actions ([0bbd188](https://github.com/FabioFiorita/porcelain/commit/0bbd1882dd5ffa840874868eebd3441e262daa63))
+* **mobile:** align Expo native dependencies for iOS startup ([555d37c](https://github.com/FabioFiorita/porcelain/commit/555d37c4efa8386cb0f39ab9e69cfd11162a1425))
+* **release:** bound release-history output to tag names ([bc4f9e2](https://github.com/FabioFiorita/porcelain/commit/bc4f9e2bcd687c2f40a74409f68d3027f9f1eb59))
+* **remote:** include Windows and WSL in default sharing links ([f53dc24](https://github.com/FabioFiorita/porcelain/commit/f53dc2409733dde5deedb225a8b64d5a132bbb39))
+* **worktree:** canonicalize Windows short paths with native realpath ([f6ff5ae](https://github.com/FabioFiorita/porcelain/commit/f6ff5ae7307208f489a81efef32917a4ee2d52e4))
+
 ## [0.63.2](https://github.com/FabioFiorita/porcelain/compare/v0.63.1...v0.63.2) (2026-09-05)
 
 ### Bug Fixes
