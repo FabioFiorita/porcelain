@@ -25,12 +25,6 @@ export {
   endpointKindSchema,
   isCloudflareEndpoint,
   orderedEndpointUrls,
-  type WslDistribution,
-  type WslManagedState,
-  type WslReadinessIssue,
-  wslDistributionSchema,
-  wslManagedStateSchema,
-  wslReadinessIssueSchema,
 } from './environment'
 export {
   actionsNotFoundErrorDetailsSchema,

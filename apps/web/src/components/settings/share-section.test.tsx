@@ -8,7 +8,6 @@ const setCloudflare = vi.fn()
 const saveCloudflareHostname = vi.fn()
 const openWindow = vi.fn()
 const issue = vi.fn()
-const issueBundle = vi.fn()
 const platform = vi.hoisted(() => ({ isWindowsShell: false }))
 vi.mock('@renderer/lib/platform', () => platform)
 /** Which Environment this window is bound to: null = This device, a string = a saved remote. */
@@ -36,7 +35,6 @@ vi.mock('@renderer/features/remote', () => ({
     url: null,
   }),
   useIssuePairingLink: () => ({ issue, isPending: false }),
-  useIssueManagedEnvironmentBundle: () => ({ issue: issueBundle, isPending: false }),
   useLanStatus: () => ({
     enabled: true,
     envForced: false,
@@ -58,12 +56,10 @@ vi.mock('@renderer/features/remote', () => ({
     port: 43118,
     url: 'http://workstation.example:43118',
   }),
-  useWslDistributions: () => [],
 }))
 
 beforeEach(() => {
   platform.isWindowsShell = false
-  issueBundle.mockReset()
   activeId = null
   customCloudflareUrl = null
   setLan.mockClear()
@@ -90,13 +86,12 @@ describe('ShareSection', () => {
   })
 
   it.each(['LAN', 'Cloudflare'])(
-    'includes managed environments by default in the Windows %s link',
+    'shares only the local Windows daemon through its %s link',
     async (route) => {
       platform.isWindowsShell = true
       customCloudflareUrl = 'https://remote.example.com'
-      issueBundle.mockResolvedValue({
-        url: 'https://remote.example.com/pair#token=bundle',
-        count: 2,
+      issue.mockResolvedValue({
+        url: 'https://remote.example.com/pair#token=pc_pair_example',
       })
       render(<ShareSection />)
       expect(screen.queryByRole('button', { name: 'Create Windows + WSL link' })).toBeNull()
@@ -105,8 +100,10 @@ describe('ShareSection', () => {
         target: { value: 'Phone' },
       })
       fireEvent.click(screen.getByRole('button', { name: `Create ${route} link` }))
-      expect(issueBundle).toHaveBeenCalledWith('Phone', route.toLowerCase())
-      expect(issue).not.toHaveBeenCalled()
+      expect(issue).toHaveBeenCalledExactlyOnceWith({
+        label: 'Phone',
+        baseUrl: route === 'LAN' ? 'http://192.168.1.10:43118' : customCloudflareUrl,
+      })
       expect(await screen.findByAltText('Pairing QR code')).toBeTruthy()
     },
   )

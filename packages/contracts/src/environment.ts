@@ -1,33 +1,5 @@
 import { z } from 'zod'
 
-export const wslReadinessIssueSchema = z.enum([
-  'unsupported-version',
-  'probe-failed',
-  'node-missing',
-  'node-too-old',
-  'npx-missing',
-  'git-missing',
-])
-export type WslReadinessIssue = z.infer<typeof wslReadinessIssueSchema>
-
-export const wslManagedStateSchema = z.enum(['available', 'starting', 'online', 'error'])
-export type WslManagedState = z.infer<typeof wslManagedStateSchema>
-
-/** A Windows-shell discovery result. It is a candidate Environment, not a Windows path. */
-export const wslDistributionSchema = z.object({
-  name: z.string().min(1),
-  version: z.union([z.literal(1), z.literal(2)]),
-  isDefault: z.boolean(),
-  nodeVersion: z.string().nullable(),
-  gitVersion: z.string().nullable(),
-  ready: z.boolean(),
-  issues: z.array(wslReadinessIssueSchema),
-  managedState: wslManagedStateSchema,
-  environmentId: z.string().nullable(),
-  managementError: z.string().nullable(),
-})
-export type WslDistribution = z.infer<typeof wslDistributionSchema>
-
 /** The route classes used when an environment group fails over between connections. */
 const endpointKinds = ['tailnet', 'lan', 'other'] as const
 export const endpointKindSchema = z.enum(endpointKinds)

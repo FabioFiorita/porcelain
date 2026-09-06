@@ -13,14 +13,13 @@ function shellUtils(): {
       environmentConnections: { invalidate: environmentConnections },
       environmentStatuses: { invalidate: vi.fn(async () => undefined) },
       remoteEnvironments: { invalidate: vi.fn(async () => undefined) },
-      wslDistributions: { invalidate: vi.fn(async () => undefined) },
     } as never,
     environmentConnections,
   }
 }
 
 describe('shell Environment lifecycle events', () => {
-  it.each(['remote-environments-changed', 'wsl-environments-changed'] as const)(
+  it.each(['remote-environments-changed'] as const)(
     'refreshes the Hub inventory after %s',
     async (event) => {
       const queryClient = new QueryClient()

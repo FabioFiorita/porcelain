@@ -1,7 +1,7 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
 import { actionsContractFixtures } from '@porcelain/contracts/actions'
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
-import { createPairingBundleLink, parsePairingBundleLink } from '@porcelain/contracts/remote'
+import { createPairingBundleLink } from '@porcelain/contracts/remote'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RemoteEnvironment, RemoteEnvironmentState } from './remote-daemon'
@@ -54,27 +54,6 @@ vi.mock('./updater', () => ({
   checkForUpdates: vi.fn(),
   installUpdate: vi.fn(),
   updateStatus: (): { state: 'idle' } => ({ state: 'idle' }),
-}))
-
-vi.mock('./wsl-environments', () => ({
-  forgetManagedWslEnvironment: vi.fn(),
-  managedWslAdminConnections: vi.fn(async () => []),
-  managedWslDistributions: vi.fn(async () => [
-    {
-      name: 'Ubuntu',
-      version: 2,
-      isDefault: true,
-      nodeVersion: null,
-      gitVersion: 'git version 2.53.0',
-      ready: false,
-      issues: ['node-missing', 'npx-missing'],
-      managedState: 'available',
-      environmentId: null,
-      managementError: null,
-    },
-  ]),
-  prepareWslEnvironment: vi.fn(),
-  rememberWslEnvironment: vi.fn(),
 }))
 
 vi.mock('./shell-hub-inventory-cache', () => ({
@@ -195,59 +174,6 @@ function stubDaemon(): void {
           { status: 200, headers: { 'content-type': 'application/json' } },
         )
       }
-      if (url.includes('/trpc/setLanBind')) {
-        const isWsl = url.includes(':44001')
-        return new Response(
-          JSON.stringify({
-            result: {
-              data: {
-                enabled: true,
-                url: null,
-                numericUrl: isWsl ? 'http://172.24.1.2:44001' : 'http://192.168.1.10:43118',
-                error: null,
-                envForced: false,
-                port: isWsl ? 44001 : 43118,
-              },
-            },
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        )
-      }
-      if (url.includes('/trpc/cloudflareStatus') || url.includes('/trpc/setCloudflareBind')) {
-        const isWsl = url.includes(':44001')
-        return Response.json({
-          result: {
-            data: {
-              enabled: true,
-              envForced: false,
-              managed: true,
-              error: null,
-              customUrl: null,
-              url: isWsl ? 'https://wsl.example.com' : 'https://windows.example.com',
-            },
-          },
-        })
-      }
-      if (url.includes('/trpc/issuePairingLink')) {
-        const isWsl = url.includes(':44001')
-        const id = isWsl ? 'pair-wsl' : 'pair-windows'
-        const { baseUrl } = JSON.parse(String(init?.body)) as { baseUrl: string }
-        return new Response(
-          JSON.stringify({
-            result: {
-              data: {
-                id,
-                label: 'Android emulator',
-                createdAt: '2026-08-09T12:00:00.000Z',
-                expiresAt: '2026-08-09T12:15:00.000Z',
-                credential: `pc_pair_${id}_secret`,
-                url: `${baseUrl}/pair#token=pc_pair_${id}_secret`,
-              },
-            },
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        )
-      }
       if (url.includes('/trpc/hubInventory')) {
         return new Response(JSON.stringify(HUB_INVENTORY), {
           status: 200,
@@ -306,139 +232,6 @@ afterEach(() => {
  * only in the switcher, or only while pairing.
  */
 describe('shell daemon requests', () => {
-  it('exposes Windows-discovered WSL candidates without registering repository paths', async () => {
-    await expect(caller().wslDistributions()).resolves.toEqual([
-      expect.objectContaining({
-        name: 'Ubuntu',
-        ready: false,
-        issues: ['node-missing', 'npx-missing'],
-      }),
-    ])
-  })
-
-  it('sets up WSL as a named secondary Environment without rebinding the renderer', async () => {
-    const wsl = await import('./wsl-environments')
-    vi.mocked(wsl.prepareWslEnvironment).mockResolvedValueOnce({
-      connectionLink: `http://synthetic.local:43117/pair#token=${GRANT}`,
-      port: 43119,
-      existingEnvironmentId: null,
-    })
-
-    const result = await caller().setupWslEnvironment({ distribution: 'Ubuntu' })
-
-    expect(result).toEqual({ id: expect.any(String), created: true })
-    expect(wsl.rememberWslEnvironment).toHaveBeenCalledWith('Ubuntu', 43119, result.id)
-    expect(request('/trpc/renameEnvironment').body).toBe(JSON.stringify({ name: 'WSL' }))
-    expect(state.environments.find((environment) => environment.id === result.id)?.name).toBe('WSL')
-  })
-
-  it.runIf(process.platform === 'win32').each(['lan', 'cloudflare'] as const)(
-    'issues one independently-owned grant for Windows and managed WSL over %s',
-    async (route) => {
-      const wsl = await import('./wsl-environments')
-      vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
-        {
-          distribution: 'Ubuntu',
-          environmentId: 'env-wsl',
-          token: 'pc_admin_wsl',
-          url: 'http://127.0.0.1:44001',
-        },
-      ])
-
-      const result = await caller().issueManagedEnvironmentBundle({
-        label: 'Android emulator',
-        route,
-      })
-      const bundle = parsePairingBundleLink(result.url)
-
-      expect(result.count).toBe(2)
-      expect(bundle?.environments).toEqual([
-        {
-          name: 'Windows',
-          url: `${route === 'lan' ? 'http://192.168.1.10:43118' : 'https://windows.example.com'}/pair#token=pc_pair_pair-windows_secret`,
-        },
-        {
-          name: 'WSL',
-          url: `${route === 'lan' ? 'http://172.24.1.2:44001' : 'https://wsl.example.com'}/pair#token=pc_pair_pair-wsl_secret`,
-        },
-      ])
-      expect(
-        request(
-          `127.0.0.1:43118/trpc/${route === 'lan' ? 'setLanBind' : 'cloudflareStatus'}`,
-        ).headers.get('authorization'),
-      ).toBe('Bearer pc_admin_local')
-      expect(
-        request(
-          `127.0.0.1:44001/trpc/${route === 'lan' ? 'setLanBind' : 'cloudflareStatus'}`,
-        ).headers.get('authorization'),
-      ).toBe('Bearer pc_admin_wsl')
-    },
-  )
-
-  it.runIf(process.platform === 'win32')(
-    'pairs Windows alone when no WSL environment is configured',
-    async () => {
-      const result = await caller().issueManagedEnvironmentBundle({ label: 'Phone', route: 'lan' })
-      expect(result.count).toBe(1)
-      expect(parsePairingBundleLink(result.url)?.environments[0]?.name).toBe('Windows')
-    },
-  )
-
-  it.runIf(process.platform === 'win32').each([false, true])(
-    'starts missing Cloudflare routes and revokes partial grants on failure=%s',
-    async (fail) => {
-      const wsl = await import('./wsl-environments')
-      vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
-        {
-          distribution: 'Ubuntu',
-          environmentId: 'env-wsl',
-          token: 'pc_admin_wsl',
-          url: 'http://127.0.0.1:44001',
-        },
-      ])
-      const originalFetch = globalThis.fetch
-      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input)
-        if (
-          url.includes('/trpc/cloudflareStatus') ||
-          (fail && url.includes(':44001/trpc/setCloudflareBind'))
-        ) {
-          return Response.json({
-            result: {
-              data: {
-                enabled: false,
-                envForced: false,
-                managed: false,
-                error: null,
-                customUrl: null,
-                url: null,
-              },
-            },
-          })
-        }
-        return originalFetch(input, init)
-      })
-      vi.stubGlobal('fetch', fetchMock)
-      const result = caller().issueManagedEnvironmentBundle({ label: 'Phone', route: 'cloudflare' })
-      if (fail) {
-        await expect(result).rejects.toThrow('WSL has no cloudflare address')
-        expect(
-          fetchMock.mock.calls.some(([url]) =>
-            String(url).includes(':43118/trpc/revokePairingLink'),
-          ),
-        ).toBe(true)
-      } else {
-        expect((await result).count).toBe(2)
-      }
-      expect(
-        fetchMock.mock.calls.some(([url]) => String(url).includes(':44001/trpc/setCloudflareBind')),
-      ).toBe(true)
-      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/trpc/setLanBind'))).toBe(
-        false,
-      )
-    },
-  )
-
   it('imports an HTTP Windows + WSL bundle as separate named environments', async () => {
     const connectionLink = createPairingBundleLink([
       {

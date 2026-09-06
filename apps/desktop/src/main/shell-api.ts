@@ -1,15 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import {
-  ENVIRONMENT_NAME_MAX_LENGTH,
-  environmentIdentitySchema,
-} from '@porcelain/contracts/projects'
-import {
-  createPairingBundleLink,
-  isPairingBundleLink,
-  parsePairingBundleLink,
-  remoteProcedures,
-} from '@porcelain/contracts/remote'
+import { ENVIRONMENT_NAME_MAX_LENGTH } from '@porcelain/contracts/projects'
+import { isPairingBundleLink, parsePairingBundleLink } from '@porcelain/contracts/remote'
 import { createTRPCUntypedClient, httpLink } from '@trpc/client'
 import { initTRPC } from '@trpc/server'
 import { BrowserWindow, clipboard, nativeTheme, shell, type WebContents } from 'electron'
@@ -57,13 +49,6 @@ import { readCurrentHubInventory, readHubInventories } from './shell-hub-invento
 import { exchangePairingLink } from './shell-pairing'
 import { checkForUpdates, installUpdate, type UpdateStatus, updateStatus } from './updater'
 import { createWindow, type WindowInit, windowInitFor } from './window'
-import {
-  forgetManagedWslEnvironment,
-  managedWslAdminConnections,
-  managedWslDistributions,
-  prepareWslEnvironment,
-  rememberWslEnvironment,
-} from './wsl-environments'
 
 // The Electron-side half of the router split: everything here needs the shell
 // (native dialogs, window management, the updater) or the
@@ -266,7 +251,7 @@ async function pairEnvironmentConnection(
     return pairSingleEnvironmentConnection(ctx, input)
   }
   if (input.groupId !== undefined && input.groupId !== null) {
-    throw new Error('A Windows + WSL link creates separate environments')
+    throw new Error('A pairing bundle creates separate environments')
   }
 
   let first: { id: string; merged: boolean } | null = null
@@ -299,119 +284,6 @@ async function pairEnvironmentConnection(
   }
   if (first === null) throw new Error('That pairing bundle contains no environments')
   return first
-}
-
-async function setupWslEnvironment(
-  ctx: ShellTrpcContext,
-  distribution: string,
-): Promise<{ id: string; created: boolean }> {
-  const prepared = await prepareWslEnvironment(distribution)
-  if (prepared.existingEnvironmentId !== null) {
-    const existing = (await loadRemoteEnvironmentState()).environments.find(
-      (environment) => environment.id === prepared.existingEnvironmentId,
-    )
-    if (existing !== undefined) {
-      await probeDaemon(existing.url, existing.token)
-      await renameEnvironment({ environmentId: existing.id, name: 'WSL' })
-      return { id: existing.id, created: false }
-    }
-    await forgetManagedWslEnvironment(prepared.existingEnvironmentId)
-    return setupWslEnvironment(ctx, distribution)
-  }
-
-  const paired = await pairEnvironmentConnection(ctx, {
-    connectionLink: prepared.connectionLink,
-  })
-  await rememberWslEnvironment(distribution, prepared.port, paired.id)
-  // Name the daemon-owned Environment, not just this desktop's saved connection. That keeps
-  // Windows and WSL distinct everywhere the shared Hub renders the daemon identity.
-  await renameEnvironment({ environmentId: paired.id, name: 'WSL' })
-  return { id: paired.id, created: true }
-}
-
-function adminClient(url: string, token: string): ReturnType<typeof createTRPCUntypedClient> {
-  return createTRPCUntypedClient({
-    links: [httpLink({ url: `${url}/trpc`, headers: daemonHeaders(token) })],
-  })
-}
-
-/**
- * Create one mobile import link for this Windows daemon and every Windows-managed WSL daemon.
- * Each daemon still mints its own grant; administrator credentials stay inside Electron main.
- */
-async function issueManagedEnvironmentBundle(
-  label: string,
-  route: 'lan' | 'cloudflare' | 'tailnet',
-): Promise<{
-  count: number
-  url: string
-}> {
-  if (process.platform !== 'win32') throw new Error('Environment bundles are managed on Windows')
-  const local = localDaemonPair()
-  const wsl = await managedWslAdminConnections()
-  const targets = [
-    { fallbackName: 'Windows', ...local },
-    ...wsl.map((entry) => ({
-      fallbackName: 'WSL',
-      token: entry.token,
-      url: entry.url,
-    })),
-  ]
-
-  const issued: {
-    client: ReturnType<typeof createTRPCUntypedClient>
-    id: string
-    name: string
-    url: string
-  }[] = []
-  try {
-    for (const target of targets) {
-      const client = adminClient(target.url, target.token)
-      const identity = environmentIdentitySchema.parse(await client.query('environmentIdentity'))
-      let baseUrl: string | null
-      if (route === 'cloudflare') {
-        let status = remoteProcedures.cloudflareStatus.output.parse(
-          await client.query('cloudflareStatus'),
-        )
-        if (status.customUrl === null && status.url === null) {
-          status = remoteProcedures.setCloudflareBind.output.parse(
-            await client.mutation('setCloudflareBind', true),
-          )
-        }
-        baseUrl = status.customUrl ?? status.url
-      } else if (route === 'tailnet') {
-        const status = remoteProcedures.setTailnetBind.output.parse(
-          await client.mutation('setTailnetBind', true),
-        )
-        baseUrl = status.url
-      } else {
-        const status = remoteProcedures.setLanBind.output.parse(
-          await client.mutation('setLanBind', true),
-        )
-        baseUrl = status.numericUrl ?? status.url
-      }
-      if (baseUrl === null)
-        throw new Error(`${identity.name || target.fallbackName} has no ${route} address`)
-      const grant = remoteProcedures.issuePairingLink.output.parse(
-        await client.mutation('issuePairingLink', { baseUrl, label }),
-      )
-      issued.push({
-        client,
-        id: grant.id,
-        name: identity.name || target.fallbackName,
-        url: grant.url,
-      })
-    }
-    return {
-      count: issued.length,
-      url: createPairingBundleLink(issued.map(({ name, url }) => ({ name, url }))),
-    }
-  } catch (error) {
-    await Promise.allSettled(
-      issued.map(({ client, id }) => client.mutation('revokePairingLink', id)),
-    )
-    throw error
-  }
 }
 
 export const shellRouter = t.router({
@@ -628,22 +500,6 @@ export const shellRouter = t.router({
 
   environmentStatuses: t.procedure.query(() => readEnvironmentStatuses()),
 
-  /** Candidate Linux Environments discovered through the Windows WSL host boundary. */
-  wslDistributions: t.procedure.query(() => managedWslDistributions()),
-
-  setupWslEnvironment: t.procedure
-    .input(z.object({ distribution: z.string().min(1) }))
-    .mutation(({ ctx, input }) => setupWslEnvironment(ctx, input.distribution)),
-
-  issueManagedEnvironmentBundle: t.procedure
-    .input(
-      z.object({
-        label: z.string().trim().min(1).max(80),
-        route: z.enum(['lan', 'cloudflare', 'tailnet']).default('lan'),
-      }),
-    )
-    .mutation(({ input }) => issueManagedEnvironmentBundle(input.label, input.route)),
-
   /**
    * Name one Environment — This device (`null`) or a saved group. The nickname is written on
    * the daemon that owns it; a blank name clears it back to that daemon's machine name.
@@ -732,7 +588,6 @@ export const shellRouter = t.router({
   removeRemoteEnvironment: t.procedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }): Promise<void> => {
-      await forgetManagedWslEnvironment(input.id)
       await updateRemoteEnvironmentState((state) => ({
         activeId: state.activeId === input.id ? null : state.activeId,
         environments: state.environments.filter((e) => e.id !== input.id),

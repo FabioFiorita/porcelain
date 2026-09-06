@@ -1,5 +1,5 @@
 import { parsePublicError } from '@porcelain/client-runtime/remote'
-import type { EndpointKind, WslDistribution } from '@porcelain/contracts'
+import type { EndpointKind } from '@porcelain/contracts'
 import { SHELL_HUB_INVENTORIES_QUERY_KEY } from '@renderer/features/projects/hub-inventories'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import {
@@ -7,10 +7,8 @@ import {
   setShellEnvironmentConnections,
   shellConnectionId,
 } from '@renderer/lib/environment-sessions'
-import { isBrowser, isWindowsShell } from '@renderer/lib/platform'
+import { isBrowser } from '@renderer/lib/platform'
 import { shellTrpc, trpc } from '@renderer/lib/trpc'
-import { useProjectPickerStore } from '@renderer/stores/project-picker'
-import { useSettingsDialogStore } from '@renderer/stores/settings-dialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef } from 'react'
 
@@ -49,14 +47,6 @@ export type WebLocalRemoteAdapter = {
   readonly environmentStatuses: () => ReturnType<
     ReturnType<typeof shellTrpc.useUtils>['client']['environmentStatuses']['query']
   >
-  readonly wslDistributions: () => ReturnType<
-    ReturnType<typeof shellTrpc.useUtils>['client']['wslDistributions']['query']
-  >
-  readonly setupWslEnvironment: (
-    input: Parameters<
-      ReturnType<typeof shellTrpc.useUtils>['client']['setupWslEnvironment']['mutate']
-    >[0],
-  ) => ReturnType<ReturnType<typeof shellTrpc.useUtils>['client']['setupWslEnvironment']['mutate']>
   readonly pairEnvironmentConnection: (
     input: Parameters<
       ReturnType<typeof shellTrpc.useUtils>['client']['pairEnvironmentConnection']['mutate']
@@ -111,68 +101,6 @@ export function useRemoteEnvironments():
   | undefined {
   const { data } = shellTrpc.remoteEnvironments.useQuery(undefined, { enabled: !isBrowser })
   return data
-}
-
-/** Installed WSL distributions that could host their own Linux Porcelain Environment. */
-export function useWslDistributions(): WslDistribution[] | undefined {
-  const { data } = shellTrpc.wslDistributions.useQuery(undefined, { enabled: isWindowsShell })
-  return data
-}
-
-export function useSetupWslEnvironment(): {
-  setup: (distribution: string, options?: { browseExisting?: boolean }) => void
-  pendingDistribution: string | null
-  error: string | null
-} {
-  const utils = shellTrpc.useUtils()
-  const queryClient = useQueryClient()
-  const mutation = shellTrpc.setupWslEnvironment.useMutation({
-    onSuccess: async (result): Promise<void> => {
-      await Promise.all([
-        utils.remoteEnvironments.invalidate(),
-        utils.environmentConnections.invalidate(),
-        utils.environmentStatuses.invalidate(),
-        utils.wslDistributions.invalidate(),
-        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
-      ])
-      if (result.created) {
-        useSettingsDialogStore.getState().setOpen(false)
-        useProjectPickerStore.getState().show(result.id)
-      }
-    },
-    onError: onMutationError('Set up WSL Environment'),
-  })
-  return {
-    setup: (distribution: string, options): void =>
-      mutation.mutate(
-        { distribution },
-        {
-          onSuccess: (result) => {
-            if (result.created || options?.browseExisting !== true) return
-            useSettingsDialogStore.getState().setOpen(false)
-            useProjectPickerStore.getState().show(result.id)
-          },
-        },
-      ),
-    pendingDistribution: mutation.isPending ? (mutation.variables?.distribution ?? null) : null,
-    error: pairingErrorMessage(mutation.error),
-  }
-}
-
-export function useIssueManagedEnvironmentBundle(): {
-  issue: (
-    label: string,
-    route: 'lan' | 'cloudflare' | 'tailnet',
-  ) => Promise<{ count: number; url: string }>
-  isPending: boolean
-} {
-  const mutation = shellTrpc.issueManagedEnvironmentBundle.useMutation({
-    onError: onMutationError('Create Windows + WSL link'),
-  })
-  return {
-    issue: (label, route) => mutation.mutateAsync({ label, route }),
-    isPending: mutation.isPending,
-  }
 }
 
 /**

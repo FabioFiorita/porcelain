@@ -33,7 +33,7 @@ capabilities with their owner; share client semantics when more than one client 
 ## Focused entry points
 
 - Environments: [contracts](../packages/contracts/src/environment.ts),
-  [WSL management](../apps/desktop/src/main/wsl-environments.ts),
+  [desktop connections](../apps/desktop/src/main/shell-api.ts),
   [mobile connections](../apps/mobile/src/features/remote/).
 - Review and persistence: [project-data contracts](../packages/contracts/src/project-data/),
   [daemon project data](../apps/daemon/src/features/project-data/),

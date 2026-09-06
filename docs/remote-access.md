@@ -5,10 +5,15 @@ and pairing a browser, desktop, or mobile client. Host administration remains on
 Use [the host CLI](../scripts/porcelain-host.js) and its `--help` for current commands;
 [remote features](../apps/daemon/src/features/remote/) own implementation and tests.
 
-On Windows, a local WSL 2 distribution is a separate Linux Environment rather than a remote-host
-deployment. Once Node 22+, npm/npx, Git, and a C toolchain are installed in the distribution, use
-Settings → Environments → **Set up WSL Environment**. The Windows app installs and manages the matching
-daemon runtime. The manual service instructions below are for independent remote hosts.
+The Windows Electron app owns only its Windows daemon, projects, files, MCP, and sharing.
+WSL is an independent Linux host: start the npm server below inside WSL, issue a pairing link
+with `access issue`, and paste it into Windows Settings → Environments → **Pair an environment
+group**. Choose an address reachable from Windows. Electron does not discover, install, start,
+or stop WSL servers. Configure the agent plugin inside WSL for the Linux daemon separately.
+
+Previously paired WSL connections remain saved as remote environments, but their servers are no
+longer started by Electron. Start the Linux server yourself and pair a new link if its address
+or profile changes.
 
 ## Start locally on the host
 
@@ -51,8 +56,7 @@ while this mode uses that LAN service URL. Removing the hostname stops advertisi
 new pairing links; it does not stop the external `cloudflared` service.
 
 In the mobile app, open Settings → Environments → Create environment group and choose **Scan QR
-code**. The scanner accepts both an individual LAN, Tailscale, or Cloudflare pairing link and the
-combined Windows + WSL link. Scan it, then confirm pairing.
+code**. Scan an individual LAN, Tailscale, or Cloudflare pairing link, then confirm pairing.
 
 ## Browser origins
 
@@ -78,8 +82,7 @@ npx @fabiofiorita/porcelain@latest access revoke <id>
 
 Open the issued link on the device, paste it into another Porcelain desktop, or scan its QR code
 from the Share page. It is single-use, expires after 15 minutes, and becomes an
-individually revocable credential. On Windows, the Share page can create a **Windows + WSL link**
-to pair those Environments together. Revoke access on each daemon independently.
+individually revocable credential. Sharing grants access only to the daemon that issues the link.
 
 ## Keep it running
 

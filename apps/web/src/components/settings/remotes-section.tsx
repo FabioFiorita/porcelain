@@ -1,9 +1,4 @@
-import {
-  endpointKind,
-  isCloudflareEndpoint,
-  type WslDistribution,
-  type WslReadinessIssue,
-} from '@porcelain/contracts'
+import { endpointKind, isCloudflareEndpoint } from '@porcelain/contracts'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
@@ -16,14 +11,12 @@ import {
   useRemoteEnvironments,
   useRemoveEnvironmentEndpoint,
   useRemoveRemoteEnvironment,
-  useSetupWslEnvironment,
-  useWslDistributions,
 } from '@renderer/features/remote'
 import { compactButtonClass } from '@renderer/lib/controls'
 import { cn } from '@renderer/lib/utils'
 import { platformLabel } from '@shared/platform'
 import { TestIds } from '@shared/test-ids'
-import { Check, Cloud, Monitor, Terminal, X } from 'lucide-react'
+import { Check, Cloud, Monitor, X } from 'lucide-react'
 import { useState } from 'react'
 import { EnvironmentName } from './environment-name'
 
@@ -59,20 +52,6 @@ function activeRoute(status: EnvironmentStatus | undefined): string | null {
   return endpointLabel(status.endpoint)
 }
 
-const WSL_ISSUE_LABELS: Record<WslReadinessIssue, string> = {
-  'unsupported-version': 'Upgrade this distribution to WSL 2',
-  'probe-failed': 'Could not inspect this distribution',
-  'node-missing': 'Install Node.js 22 or newer inside this distribution',
-  'node-too-old': 'Upgrade Node.js to version 22 or newer inside this distribution',
-  'npx-missing': 'Install npx inside this distribution',
-  'git-missing': 'Install Git inside this distribution',
-}
-
-function describeWslReadiness(distribution: WslDistribution): string {
-  if (distribution.ready) return 'Ready to host a Porcelain Linux Environment'
-  return distribution.issues.map((issue) => WSL_ISSUE_LABELS[issue]).join(' · ')
-}
-
 /**
  * Each saved environment is a group of verified connections. A group of one is the normal
  * starting point; pairing another link adds a route to this same card.
@@ -88,8 +67,6 @@ function ElectronRemotesSection(): React.JSX.Element {
   const { remove, pendingId: removingId } = useRemoveRemoteEnvironment()
   const { remove: removeEndpoint } = useRemoveEnvironmentEndpoint()
   const { prefer: preferEndpoint, pendingUrl: preferringUrl } = usePreferEnvironmentEndpoint()
-  const wslDistributions = useWslDistributions()
-  const { setup: setupWsl, pendingDistribution, error: wslSetupError } = useSetupWslEnvironment()
   const [connectionLink, setConnectionLink] = useState('')
   const [pairingTargetId, setPairingTargetId] = useState<string | null>(null)
   const [showPairing, setShowPairing] = useState(false)
@@ -208,93 +185,10 @@ function ElectronRemotesSection(): React.JSX.Element {
         })}
       </ul>
 
-      {wslDistributions !== undefined && wslDistributions.length > 0 && (
-        <section className="flex flex-col gap-2 pt-2" aria-labelledby="wsl-environments-heading">
-          <div>
-            <h3 id="wsl-environments-heading" className="text-sm font-medium">
-              Windows Subsystem for Linux
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Each distribution runs its own Linux daemon and owns its Linux projects. Porcelain
-              does not open them through a Windows UNC path.
-            </p>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {wslDistributions.map((distribution) => (
-              <li
-                key={distribution.name}
-                className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-card/40 p-4"
-              >
-                <div className="flex min-w-0 items-start gap-3">
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <Terminal className="size-4" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium">{distribution.name}</p>
-                      <Badge variant="outline" className="rounded-md text-2xs">
-                        WSL {distribution.version}
-                      </Badge>
-                      {distribution.isDefault && (
-                        <Badge variant="secondary" className="rounded-md text-2xs">
-                          Default
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {distribution.managedState === 'starting'
-                        ? 'Starting Porcelain inside this distribution…'
-                        : distribution.managedState === 'online'
-                          ? 'Porcelain Linux Environment is online'
-                          : (distribution.managementError ?? describeWslReadiness(distribution))}
-                    </p>
-                    {(distribution.nodeVersion !== null || distribution.gitVersion !== null) && (
-                      <p className="mt-1 font-mono text-2xs text-muted-foreground">
-                        {[
-                          distribution.nodeVersion === null
-                            ? null
-                            : `Node ${distribution.nodeVersion}`,
-                          distribution.gitVersion,
-                        ]
-                          .filter((value) => value !== null)
-                          .join(' · ')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {distribution.ready && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn('shrink-0', compactButtonClass)}
-                    disabled={
-                      distribution.managedState === 'starting' ||
-                      pendingDistribution === distribution.name
-                    }
-                    onClick={() => {
-                      if (distribution.managedState === 'online') {
-                        setupWsl(distribution.name, { browseExisting: true })
-                      } else {
-                        setupWsl(distribution.name)
-                      }
-                    }}
-                  >
-                    {distribution.managedState === 'online'
-                      ? 'Browse projects'
-                      : distribution.managedState === 'error'
-                        ? 'Try again'
-                        : pendingDistribution === distribution.name
-                          ? 'Setting up…'
-                          : 'Set up WSL Environment'}
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-          {wslSetupError !== null && <p className="text-xs text-destructive">{wslSetupError}</p>}
-        </section>
-      )}
-
+      <p className="text-xs text-muted-foreground">
+        For Linux or WSL, start Porcelain in that host’s terminal, create a pairing link, and paste
+        it here. That host owns its projects, files, MCP, and sharing.
+      </p>
       {showPairing ? (
         <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
           <p className="text-2xs font-medium tracking-wider text-muted-foreground uppercase">

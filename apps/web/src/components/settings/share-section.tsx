@@ -5,7 +5,6 @@ import { Switch } from '@renderer/components/ui/switch'
 import {
   useAccessStatus,
   useCloudflareStatus,
-  useIssueManagedEnvironmentBundle,
   useIssuePairingLink,
   useLanStatus,
   useRevokeAuthorizedClient,
@@ -106,8 +105,7 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
   const [label, setLabel] = useState('')
   const [createdUrl, setCreatedUrl] = useState('')
   const { issue, isPending } = useIssuePairingLink()
-  const managedBundle = useIssueManagedEnvironmentBundle()
-  const pending = isPending || managedBundle.isPending
+  const pending = isPending
 
   return (
     <section className="flex flex-col gap-3">
@@ -115,7 +113,6 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
         <h3 className="text-sm font-semibold tracking-tight">Pair a device</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Create a one-time link. It expires in 15 minutes and can be used once.
-          {isWindowsShell && ' Includes Windows and all configured WSL environments.'}
         </p>
       </div>
       <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
@@ -139,9 +136,7 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
               onClick={() => {
                 runUserAction(
                   async () => {
-                    const result = isWindowsShell
-                      ? await managedBundle.issue(label, endpoint.route)
-                      : await issue({ label, baseUrl: endpoint.url })
+                    const result = await issue({ label, baseUrl: endpoint.url })
                     setCreatedUrl(result.url)
                     await copyText(result.url)
                   },
@@ -277,20 +272,15 @@ function LocalShareSettings(): React.JSX.Element {
   const lanUrl =
     lan?.numericUrl != null && lan.numericUrl !== '' ? lan.numericUrl : (lan?.url ?? null)
   const cloudflareUrl = cloudflare?.customUrl ?? cloudflare?.url ?? null
-  const endpoints: ShareEndpoint[] = isWindowsShell
-    ? [
-        { label: 'LAN', url: lanUrl ?? '', route: 'lan' },
-        { label: 'Cloudflare', url: cloudflareUrl ?? '', route: 'cloudflare' },
-      ]
-    : [
-        ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl, route: 'lan' as const }]),
-        ...(!isWindowsShell && tailnet?.url != null
-          ? [{ label: 'Tailscale', url: tailnet.url, route: 'tailnet' as const }]
-          : []),
-        ...(cloudflareUrl == null
-          ? []
-          : [{ label: 'Cloudflare', url: cloudflareUrl, route: 'cloudflare' as const }]),
-      ]
+  const endpoints: ShareEndpoint[] = [
+    ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl, route: 'lan' as const }]),
+    ...(!isWindowsShell && tailnet?.url != null
+      ? [{ label: 'Tailscale', url: tailnet.url, route: 'tailnet' as const }]
+      : []),
+    ...(cloudflareUrl == null
+      ? []
+      : [{ label: 'Cloudflare', url: cloudflareUrl, route: 'cloudflare' as const }]),
+  ]
 
   return (
     <div className="flex flex-col gap-8">

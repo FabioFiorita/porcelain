@@ -46,14 +46,6 @@ export function handleShellEvent(
         shellUtils.environmentConnections.invalidate(),
         queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
       ])
-    case 'wsl-environments-changed':
-      return Promise.all([
-        shellUtils.wslDistributions.invalidate(),
-        shellUtils.remoteEnvironments.invalidate(),
-        shellUtils.environmentStatuses.invalidate(),
-        shellUtils.environmentConnections.invalidate(),
-        queryClient.invalidateQueries({ exact: true, queryKey: SHELL_HUB_INVENTORIES_QUERY_KEY }),
-      ])
     case 'close-tab': {
       // Cmd+W routed from the main process before-input-event — close the active
       // tab, or the window if it was the last one.
