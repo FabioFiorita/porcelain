@@ -3,6 +3,12 @@ import { create } from 'zustand'
 import { REPO_ROOT } from './file-paths'
 
 type FilesState = {
+  revealPath: string | null
+  revealNonce: number
+  reveal: (path: string) => void
+  selectedPaths: string[]
+  toggleSelection: (path: string) => void
+  clearSelection: () => void
   /**
    * Show entries the repo's scope hides. A monorepo's hidden list is what makes the tree
    * readable at all, so this is off by default and reads as a temporary override.
@@ -30,8 +36,19 @@ type FilesState = {
  * Search feature's unpersisted store so Files owns no Search workflow state.
  */
 export const useFilesStore = create<FilesState>()((set) => ({
+  revealPath: null,
+  revealNonce: 0,
+  reveal: (revealPath) => set((s) => ({ revealPath, revealNonce: s.revealNonce + 1 })),
+  clearSelection: () => set({ selectedPaths: [] }),
+  selectedPaths: [],
+  toggleSelection: (path) =>
+    set((s) => ({
+      selectedPaths: s.selectedPaths.includes(path)
+        ? s.selectedPaths.filter((p) => p !== path)
+        : [...s.selectedPaths, path],
+    })),
   collapseAll: () => {
-    set((state) => ({ collapseNonce: state.collapseNonce + 1 }))
+    set((state) => ({ collapseNonce: state.collapseNonce + 1, revealPath: null }))
   },
   collapseNonce: 0,
   cursor: REPO_ROOT,
@@ -46,7 +63,13 @@ export const useFilesStore = create<FilesState>()((set) => ({
   },
   reset: () => {
     // `showHidden` deliberately survives: it is the reader's override, not a place in a tree.
-    set({ cursor: REPO_ROOT, selection: null, selectionLine: null })
+    set({
+      cursor: REPO_ROOT,
+      selection: null,
+      selectionLine: null,
+      selectedPaths: [],
+      revealPath: null,
+    })
   },
   toggleHidden: () => {
     set((state) => ({ showHidden: !state.showHidden }))

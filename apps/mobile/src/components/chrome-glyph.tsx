@@ -48,6 +48,7 @@ const CHROME_SYMBOLS = {
   panelLeft: { ios: 'sidebar.left' as SFSymbol, android: 'left_panel_open' as AndroidSymbol },
   panelRight: { ios: 'sidebar.right' as SFSymbol, android: 'right_panel_open' as AndroidSymbol },
   search: { ios: 'magnifyingglass' as SFSymbol, android: 'search' as AndroidSymbol },
+  locate: { ios: 'scope' as SFSymbol, android: 'my_location' as AndroidSymbol },
   arrowUp: { ios: 'arrow.up' as SFSymbol, android: 'arrow_upward' as AndroidSymbol },
   /**
    * Reorder a row within a list. NOT `arrowDown`, which is `arrow.down.to.line` / `download`

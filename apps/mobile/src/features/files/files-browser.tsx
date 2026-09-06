@@ -1,21 +1,26 @@
-import { Pressable, ScrollView, Text, View } from 'react-native'
-
+import { useCallback, useRef } from 'react'
+import { LayoutAnimation, Pressable, ScrollView, Text, View } from 'react-native'
+import { ChromeGlyph } from '@/components/chrome-glyph'
+import type { SheetAction } from '@/components/panel-chrome'
 import {
   ActionSheet,
   ConfirmDialog,
   EmptyNote,
   ErrorNote,
+  ICON_ACTION,
   IconAction,
 } from '@/components/panel-chrome'
 import { SURFACE_TOOLBAR } from '@/components/surface-layout'
 import { SurfaceList } from '@/components/surface-scroll'
+import { AnchoredMenu } from '@/components/ui/row-context-menu'
 import { CommentComposer } from '@/features/comments'
 import { useActiveProject } from '@/features/projects'
+import { useIsTablet } from '@/features/shell/use-app-window'
 import { useTopChrome } from '@/features/shell/window-chrome'
 import { cn } from '@/lib/utils'
 import { FileEntryRow } from './file-entry-row'
 import { breadcrumbs, type Crumb, pathTestId, REPO_ROOT } from './file-paths'
-import type { FileEntry } from './files-data'
+import { type FileEntry, usePinnedEntries } from './files-data'
 import { useFilesStore } from './files-store'
 import { FilesTree } from './files-tree'
 import { NamePrompt } from './name-prompt'
@@ -40,6 +45,7 @@ export function FilesBrowser({
   onOpenFile,
   selectedPath = null,
   tree = false,
+  includePinned = false,
 }: {
   active: boolean
   /** Repo-relative directory; `''` is the project root. */
@@ -58,6 +64,7 @@ export function FilesBrowser({
   selectedPath?: string | null
   /** Persistent, lazy expansion matching the web/tablet Files rail. */
   tree?: boolean
+  includePinned?: boolean
   /** Phone folder screens: this view replaces the tab header, so it owns the status bar. */
 }): React.JSX.Element {
   const project = useActiveProject()
@@ -67,22 +74,86 @@ export function FilesBrowser({
   const collapseNonce = useFilesStore((state) => state.collapseNonce)
   const browser = useFilesBrowser({ active, dirPath, onOpenDir, onOpenFile, showHidden })
   const { pending, writes } = browser
+  const pins = usePinnedEntries(active && includePinned)
+  const scrollRef = useRef<ScrollView>(null)
+  const scrollOffset = useRef(0)
+  const selectedCount = useFilesStore((s) => s.selectedPaths.length)
+  const revealRow = useCallback((row: View) => {
+    row.measureInWindow((_x, rowY) => {
+      scrollRef.current?.getNativeScrollRef()?.measureInWindow((_sx: number, scrollY: number) => {
+        scrollRef.current?.scrollTo({
+          y: Math.max(0, scrollOffset.current + rowY - scrollY - 8),
+          animated: true,
+        })
+      })
+    })
+  }, [])
+
+  const header = (
+    <BrowserHeader
+      crumbs={breadcrumbs(project?.name ?? 'Repo', dirPath)}
+      tree={tree}
+      onCollapseAll={() => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        collapseAll()
+      }}
+      onBack={onBack}
+      onNew={() => {
+        browser.setNewMenuOpen(true)
+      }}
+      onOpenCrumb={onOpenCrumb}
+      onToggleHidden={() => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+        toggleHidden()
+      }}
+      showHidden={showHidden}
+      summary={browser.summary}
+      newActions={browser.newActions}
+      onReveal={
+        tree && selectedPath
+          ? () => {
+              useFilesStore.setState({ showHidden: true })
+              useFilesStore.getState().reveal(selectedPath)
+            }
+          : undefined
+      }
+    />
+  )
+  const loading = (
+    <Text className="px-4 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
+      Reading directory…
+    </Text>
+  )
+  const empty = (
+    <View>
+      <EmptyNote
+        body={
+          showHidden
+            ? 'This folder has nothing in it.'
+            : 'Everything here is hidden by the project’s scope, or the folder is empty.'
+        }
+        testID="porcelain-files-empty"
+        title="Nothing to show"
+      />
+      <View className="flex-row flex-wrap gap-2 px-4 pb-4">
+        {browser.newActions.map((action) => (
+          <Pressable
+            key={action.id}
+            onPress={action.onPress}
+            testID={`porcelain-files-empty-${action.id}`}
+            accessibilityRole="button"
+            className="rounded-lg border border-border px-3 py-2 active:bg-accent"
+          >
+            <Text className="text-xs text-foreground">{action.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  )
 
   return (
     <View className="flex-1" testID="porcelain-files-browser">
-      <BrowserHeader
-        crumbs={breadcrumbs(project?.name ?? 'Repo', dirPath)}
-        tree={tree}
-        onCollapseAll={collapseAll}
-        onBack={onBack}
-        onNew={() => {
-          browser.setNewMenuOpen(true)
-        }}
-        onOpenCrumb={onOpenCrumb}
-        onToggleHidden={toggleHidden}
-        showHidden={showHidden}
-        summary={browser.summary}
-      />
+      {!tree && header}
 
       {browser.actionError === null ? null : (
         <View className="px-4 pb-2">
@@ -95,31 +166,73 @@ export function FilesBrowser({
         </View>
       )}
 
-      {browser.reading ? (
-        <Text className="px-4 py-6 text-sm text-muted-foreground" testID="porcelain-files-loading">
-          Reading directory…
-        </Text>
-      ) : browser.entries.length === 0 && browser.error === null ? (
-        <EmptyNote
-          body={
-            showHidden
-              ? 'This folder has nothing in it.'
-              : 'Everything here is hidden by the project’s scope, or the folder is empty.'
-          }
-          testID="porcelain-files-empty"
-          title="Nothing to show"
-        />
-      ) : tree ? (
-        <ScrollView className="min-h-0 flex-1" contentInsetAdjustmentBehavior="never">
-          <FilesTree
-            actions={browser.actions}
-            active={active}
-            collapseNonce={collapseNonce}
-            entries={browser.entries}
-            onOpenFile={onOpenFile}
-            selectedPath={selectedPath}
-          />
+      {tree ? (
+        <ScrollView
+          ref={scrollRef}
+          onScroll={(event) => {
+            scrollOffset.current = event.nativeEvent.contentOffset.y
+          }}
+          scrollEventThrottle={16}
+          className="min-h-0 flex-1"
+          contentInsetAdjustmentBehavior="never"
+        >
+          {includePinned && (
+            <View testID="porcelain-files-pinned" className="border-b border-border pb-2 mb-2">
+              <Text className="px-4 py-2 text-2xs font-bold uppercase text-muted-foreground">
+                Pinned
+              </Text>
+              {pins.error ? (
+                <ErrorNote message={pins.error.message} testID="porcelain-files-pins-error" />
+              ) : pins.isLoading ? (
+                <Text className="px-4 text-xs text-muted-foreground">Reading pins…</Text>
+              ) : pins.entries.length === 0 ? (
+                <Text className="px-4 text-xs text-muted-foreground">
+                  Pin a file or folder from its menu.
+                </Text>
+              ) : (
+                <FilesTree
+                  actions={browser.actions}
+                  active={active}
+                  collapseNonce={collapseNonce}
+                  entries={pins.entries}
+                  onOpenFile={onOpenFile}
+                  selectedPath={selectedPath}
+                />
+              )}
+            </View>
+          )}
+          {header}
+          {selectedCount > 0 && (
+            <View className="flex-row items-center justify-between px-4">
+              <Text className="text-xs text-muted-foreground">{selectedCount} selected</Text>
+              <IconAction
+                glyph="close"
+                accessibilityLabel="Clear selection"
+                testID="porcelain-files-clear-selection"
+                onPress={() => useFilesStore.getState().clearSelection()}
+              />
+            </View>
+          )}
+          {browser.reading ? (
+            loading
+          ) : browser.entries.length === 0 && browser.error === null ? (
+            empty
+          ) : (
+            <FilesTree
+              actions={browser.actions}
+              active={active}
+              collapseNonce={collapseNonce}
+              entries={browser.entries}
+              onReveal={revealRow}
+              onOpenFile={onOpenFile}
+              selectedPath={selectedPath}
+            />
+          )}
         </ScrollView>
+      ) : browser.reading ? (
+        loading
+      ) : browser.entries.length === 0 && browser.error === null ? (
+        empty
       ) : (
         <SurfaceList
           data={browser.entries}
@@ -244,6 +357,8 @@ function BrowserHeader({
   summary,
   tree,
   onCollapseAll,
+  newActions,
+  onReveal,
 }: {
   crumbs: Crumb[]
   onBack?: () => void
@@ -255,11 +370,14 @@ function BrowserHeader({
   summary: string
   tree: boolean
   onCollapseAll: () => void
+  newActions: SheetAction[]
+  onReveal?: () => void
 }): React.JSX.Element {
   // This toolbar doubles as the screen header on the routes where the breadcrumb IS the title.
   // A non-zero inset is the shell saying "you are at the top of the window", which is also when
   // the band owes a hairline to whatever scrolls under it.
   const topInset = useTopChrome()
+  const tablet = useIsTablet()
 
   return (
     <View
@@ -296,6 +414,14 @@ function BrowserHeader({
           )}
         </View>
         <View className="-mr-2 flex-row items-center">
+          {onReveal && (
+            <IconAction
+              glyph="locate"
+              accessibilityLabel="Reveal active file"
+              testID="porcelain-files-reveal-active"
+              onPress={onReveal}
+            />
+          )}
           {tree ? (
             <IconAction
               accessibilityLabel="Collapse all folders"
@@ -304,13 +430,26 @@ function BrowserHeader({
               onPress={onCollapseAll}
             />
           ) : null}
-          <IconAction
-            accessibilityLabel="New file or folder here"
-            glyph="plus"
-            testID="porcelain-files-new"
-            tone="foreground"
-            onPress={onNew}
-          />
+          {tablet ? (
+            <AnchoredMenu actions={newActions} testID="porcelain-files-new" title="Create">
+              <Pressable
+                accessibilityLabel="Create file or folder"
+                accessibilityRole="button"
+                testID="porcelain-files-new-button"
+                className={ICON_ACTION}
+              >
+                <ChromeGlyph name="plus" size={17} tone="muted" />
+              </Pressable>
+            </AnchoredMenu>
+          ) : (
+            <IconAction
+              accessibilityLabel="New file or folder here"
+              glyph="plus"
+              testID="porcelain-files-new"
+              tone="foreground"
+              onPress={onNew}
+            />
+          )}
           <IconAction
             accessibilityLabel={showHidden ? 'Hide out-of-scope entries' : 'Show hidden entries'}
             glyph={showHidden ? 'eye' : 'eyeOff'}

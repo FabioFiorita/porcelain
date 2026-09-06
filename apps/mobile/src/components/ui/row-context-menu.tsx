@@ -2,7 +2,7 @@ import * as DropdownMenuPrimitive from '@rn-primitives/dropdown-menu'
 import * as Slot from '@rn-primitives/slot'
 import { Fragment } from 'react'
 import type { PressableProps } from 'react-native'
-import { View } from 'react-native'
+import { ScrollView, useWindowDimensions, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { Text } from '@/components/ui/text'
@@ -26,6 +26,7 @@ export type RowMenuAction = {
   /** Red label, the way the web client's `ContextMenuItem` marks a destructive verb. */
   destructive?: boolean
   disabled?: boolean
+  separatorBefore?: boolean
   onPress: () => void
 }
 
@@ -111,6 +112,7 @@ function MenuRoot({
   testID?: string
   title?: string
 }): React.JSX.Element {
+  const { height, width } = useWindowDimensions()
   return (
     <DropdownMenuPrimitive.Root>
       {children}
@@ -128,49 +130,53 @@ function MenuRoot({
           >
             <View
               className="min-w-56 rounded-xl border border-border bg-popover p-1 shadow-lg shadow-black/20"
+              style={{ maxHeight: height - 48, maxWidth: width - 24 }}
               testID={testID === undefined ? undefined : `${testID}-menu`}
             >
-              {title === undefined ? null : (
-                <Text className="px-2 py-1.5 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  {title}
-                </Text>
-              )}
-              {actions.map((action, index) => (
-                <Fragment key={action.id}>
-                  {action.destructive === true && actions[index - 1]?.destructive !== true ? (
-                    <View className="mx-2 my-1 h-px bg-border" />
-                  ) : null}
-                  <DropdownMenuPrimitive.Item
-                    asChild
-                    disabled={action.disabled === true}
-                    onPress={action.onPress}
-                  >
-                    <View
-                      className={cn(
-                        'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
-                        action.disabled === true && 'opacity-40',
-                      )}
-                      testID={`${testID ?? 'porcelain-row-menu'}-${action.id}`}
+              <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
+                {title === undefined ? null : (
+                  <Text className="px-2 py-1.5 text-3xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    {title}
+                  </Text>
+                )}
+                {actions.map((action, index) => (
+                  <Fragment key={action.id}>
+                    {action.separatorBefore ||
+                    (action.destructive === true && actions[index - 1]?.destructive !== true) ? (
+                      <View className="mx-2 my-1 h-px bg-border" />
+                    ) : null}
+                    <DropdownMenuPrimitive.Item
+                      asChild
+                      disabled={action.disabled === true}
+                      onPress={action.onPress}
                     >
-                      {action.glyph === undefined ? null : (
-                        <ChromeGlyph
-                          name={action.glyph}
-                          size={15}
-                          tone={action.destructive === true ? 'destructive' : 'foreground'}
-                        />
-                      )}
-                      <Text
+                      <View
                         className={cn(
-                          'min-w-0 flex-1 text-sm font-medium',
-                          action.destructive === true ? 'text-destructive' : 'text-foreground',
+                          'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
+                          action.disabled === true && 'opacity-40',
                         )}
+                        testID={`${testID ?? 'porcelain-row-menu'}-${action.id}`}
                       >
-                        {action.label}
-                      </Text>
-                    </View>
-                  </DropdownMenuPrimitive.Item>
-                </Fragment>
-              ))}
+                        {action.glyph === undefined ? null : (
+                          <ChromeGlyph
+                            name={action.glyph}
+                            size={15}
+                            tone={action.destructive === true ? 'destructive' : 'foreground'}
+                          />
+                        )}
+                        <Text
+                          className={cn(
+                            'min-w-0 flex-1 text-sm font-medium',
+                            action.destructive === true ? 'text-destructive' : 'text-foreground',
+                          )}
+                        >
+                          {action.label}
+                        </Text>
+                      </View>
+                    </DropdownMenuPrimitive.Item>
+                  </Fragment>
+                ))}
+              </ScrollView>
             </View>
           </DropdownMenuPrimitive.Content>
         </DropdownMenuPrimitive.Overlay>
@@ -194,8 +200,24 @@ function MenuRoot({
  * row so the menu can anchor to it.
  */
 function LongPressTrigger({ children, onPress, ...props }: PressableProps): React.JSX.Element {
+  const menu = DropdownMenuPrimitive.useRootContext()
   return (
-    <Slot.Pressable {...props} delayLongPress={350} onLongPress={onPress}>
+    <Slot.Pressable
+      {...props}
+      delayLongPress={350}
+      onLongPress={onPress}
+      onPointerDown={(event) => {
+        if (event.nativeEvent.button !== 2) return
+        event.preventDefault()
+        menu.setTriggerPosition({
+          pageX: event.nativeEvent.pageX,
+          pageY: event.nativeEvent.pageY,
+          width: 1,
+          height: 1,
+        })
+        menu.onOpenChange(true)
+      }}
+    >
       {children}
     </Slot.Pressable>
   )

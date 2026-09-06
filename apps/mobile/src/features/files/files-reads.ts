@@ -11,7 +11,8 @@ import {
   filesProcedures,
   isFilesProjectRelativePath,
 } from '@porcelain/contracts/files'
-import { type UseQueryResult, useQuery } from '@tanstack/react-query'
+import { type UseQueryResult, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useHubRepoPath } from '@/features/projects'
 import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
@@ -90,6 +91,7 @@ export function useDirEntries(
   relative: string,
   active: boolean,
 ): { entries: FileEntry[]; isLoading: boolean; error: Error | null } {
+  const queryClient = useQueryClient()
   const environment = useActiveEnvironment()
   const repoPath = useHubRepoPath()
   const showHidden = useFilesStore((state) => state.showHidden)
@@ -99,13 +101,20 @@ export function useDirEntries(
   const enabled = active && valid && isPaired(environment)
   const environmentId = environment?.id ?? 'none'
   const identity =
-    projectPath !== null && enabled
+    projectPath !== null && valid
       ? filesTreeQuery(projectPath, treePath, showHidden)
       : DISABLED_TREE
 
   useFilesDirectoryInterest(relative, enabled)
   const query = useQuery({
     enabled,
+    placeholderData: () => {
+      if (!enabled || projectPath === null) return undefined
+      const cached = queryClient.getQueryData<DirEntry[]>(
+        filesQueryKey(environmentId, filesTreeQuery(projectPath, treePath, !showHidden)),
+      )
+      return showHidden ? cached : cached?.filter((entry) => !entry.hidden)
+    },
     queryFn: async (): Promise<DirEntry[]> => {
       if (!enabled || projectPath === null || !isPaired(environment)) return disabledQuery('tree')
       return callFilesQuery(environment, readDirProcedure, {
@@ -117,9 +126,13 @@ export function useDirEntries(
     queryKey: filesQueryKey(environmentId, identity),
   })
   const state = readState(query, enabled)
+  const entries = useMemo(
+    () => toEntries(repoPath ?? '/', valid ? query.data : undefined),
+    [repoPath, valid, query.data],
+  )
 
   return {
-    entries: toEntries(repoPath ?? '/', state.data),
+    entries,
     error: state.error,
     isLoading: state.isLoading,
   }
@@ -145,9 +158,10 @@ export function usePinnedEntries(active: boolean): {
     queryKey: filesQueryKey(environmentId, identity),
   })
   const state = readState(query, enabled)
+  const entries = useMemo(() => toEntries(repoPath ?? '/', state.data), [repoPath, state.data])
 
   return {
-    entries: toEntries(repoPath ?? '/', state.data),
+    entries,
     error: state.error,
     isLoading: state.isLoading,
   }

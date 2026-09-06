@@ -107,6 +107,7 @@ async function runMutation<TInput, TOutput>(
 }
 
 export type FileWrites = {
+  move: (from: string, to: string) => Promise<void>
   createFile: (dir: string, name: string) => Promise<void>
   createFolder: (dir: string, name: string) => Promise<void>
   rename: (relative: string, name: string) => Promise<void>
@@ -215,6 +216,20 @@ export function useFileWrites(): FileWrites {
         scope.environmentId,
         filesMutations.rename.affectedEffects(input),
         filesMutations.rename.foreignDependencies(input),
+      )
+    },
+    move: async (from, to): Promise<void> => {
+      const scope = project()
+      if (scope === null) throw new Error('Connect to the worktree before moving files.')
+      if (!isFilesProjectRelativePath(from) || !isFilesProjectRelativePath(to))
+        throw new Error('Choose paths inside this worktree.')
+      await runMutation(
+        rename,
+        { from, to, projectPath: scope.projectPath },
+        queryClient,
+        scope.environmentId,
+        filesMutations.rename.affectedEffects({ from, to, projectPath: scope.projectPath }),
+        filesMutations.rename.foreignDependencies({ from, to, projectPath: scope.projectPath }),
       )
     },
     trash: async (relative): Promise<void> => {

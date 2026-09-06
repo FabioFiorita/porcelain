@@ -1,8 +1,6 @@
 import { useState } from 'react'
-
 import type { SheetAction } from '@/components/panel-chrome'
 import type { CommentAnchor } from '@/features/comments'
-
 import { directorySummary } from './directory-summary'
 import type { EntryActions } from './file-entry-row'
 import { containerFor } from './file-paths'
@@ -13,6 +11,8 @@ import {
   useFileWrites,
   usePathScope,
 } from './files-data'
+import { useFilesMoves } from './files-moves'
+import { useFilesStore } from './files-store'
 
 /**
  * The write the tree is in the middle of asking about.
@@ -77,6 +77,7 @@ export function useFilesBrowser({
   const { entries, error, isLoading } = useDirEntries(dirPath, active)
   const { hide, pin, unhide, unpin } = usePathScope()
   const writes = useFileWrites()
+  const moves = useFilesMoves()
   const [anchor, setAnchor] = useState<CommentAnchor | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingWrite | null>(null)
@@ -98,6 +99,13 @@ export function useFilesBrowser({
   }
 
   const actions: EntryActions = {
+    canPaste: moves.canPaste,
+    onCut: (entry) => {
+      const { selectedPaths, clearSelection } = useFilesStore.getState()
+      moves.cut(selectedPaths.includes(entry.path) ? selectedPaths : [entry.path])
+      clearSelection()
+    },
+    onPaste: (entry) => guard('Move failed', () => moves.paste(containerFor(entry))),
     onComment: (path) => {
       setAnchor({ path })
     },
@@ -133,6 +141,16 @@ export function useFilesBrowser({
   // The header's own "New", for the case a long press cannot reach: an empty folder has no row
   // to press, and the repo root has no parent row either.
   const newActions: SheetAction[] = [
+    ...(moves.canPaste
+      ? [
+          {
+            glyph: 'copy' as const,
+            id: 'paste',
+            label: 'Paste here',
+            onPress: () => guard('Move failed', () => moves.paste(dirPath)),
+          },
+        ]
+      : []),
     {
       glyph: 'plus',
       id: 'new-file',

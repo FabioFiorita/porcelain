@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const ctx = vi.hoisted(() => ({
+  showHidden: false,
   callDaemon: vi.fn(),
   environment: { id: 'env-files-read', token: 'paired' } as {
     id: string
@@ -35,7 +36,7 @@ vi.mock('./files-interests', () => ({
 }))
 vi.mock('./files-store', () => ({
   useFilesStore: (selector: (state: { showHidden: boolean }) => unknown) =>
-    selector({ showHidden: false }),
+    selector({ showHidden: ctx.showHidden }),
 }))
 
 import { useDirEntries, useFileContents } from './files-reads'
@@ -47,6 +48,7 @@ function wrapper(queryClient: QueryClient) {
 }
 
 beforeEach(() => {
+  ctx.showHidden = false
   ctx.callDaemon.mockReset()
   ctx.callDaemon.mockImplementation(
     async (_client: unknown, procedure: { name: string }): Promise<unknown> => {
@@ -69,6 +71,73 @@ beforeEach(() => {
 })
 
 describe('mobile Files reads', () => {
+  it('filters hidden cached rows immediately without copying them into the visible query cache', async () => {
+    ctx.showHidden = true
+    ctx.callDaemon.mockResolvedValue([
+      {
+        hidden: false,
+        kind: 'file',
+        name: 'main.ts',
+        path: '/synthetic/repo/main.ts',
+        pinned: false,
+      },
+      {
+        hidden: true,
+        kind: 'file',
+        name: 'private.ts',
+        path: '/synthetic/repo/private.ts',
+        pinned: false,
+      },
+    ])
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result, rerender } = renderHook(() => useDirEntries('', true), {
+      wrapper: wrapper(client),
+    })
+    await waitFor(() => expect(result.current.entries).toHaveLength(2))
+    ctx.callDaemon.mockImplementation(() => new Promise(() => {}))
+    ctx.showHidden = false
+    rerender()
+    expect(result.current.entries.map((entry) => entry.name)).toEqual(['main.ts'])
+    expect(result.current.isLoading).toBe(false)
+    ctx.showHidden = true
+    rerender()
+    expect(result.current.entries).toHaveLength(2)
+  })
+
+  it.each(['environment', 'worktree', 'pairing'] as const)(
+    'does not retain another owner’s rows after changing %s',
+    async (change) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      const { result, rerender } = renderHook(() => useDirEntries('', true), {
+        wrapper: wrapper(client),
+      })
+      await waitFor(() => expect(result.current.entries).toHaveLength(1))
+      ctx.callDaemon.mockImplementation(() => new Promise(() => {}))
+      ctx.showHidden = true
+      if (change === 'environment') ctx.environment = { id: 'other', token: 'paired' }
+      if (change === 'worktree') ctx.repo = { name: 'other', path: '/synthetic/other' }
+      if (change === 'pairing') ctx.environment = { id: 'env-files-read', token: null }
+      rerender()
+      expect(result.current.entries).toEqual([])
+    },
+  )
+
+  it('keeps cached rows while toggling hidden entries and deactivating a folder', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result, rerender } = renderHook(({ active }) => useDirEntries('', active), {
+      initialProps: { active: true },
+      wrapper: wrapper(client),
+    })
+    await waitFor(() => expect(result.current.entries).toHaveLength(1))
+    ctx.callDaemon.mockImplementation(() => new Promise(() => {}))
+    ctx.showHidden = true
+    rerender({ active: true })
+    expect(result.current.entries[0]?.name).toBe('main.ts')
+    expect(result.current.isLoading).toBe(false)
+    ctx.showHidden = false
+    rerender({ active: false })
+    expect(result.current.entries[0]?.name).toBe('main.ts')
+  })
   it('keeps Windows daemon tree entries visible with relative routes and original host paths', async () => {
     ctx.repo = { name: 'repo', path: 'C:\\synthetic\\repo' }
     ctx.callDaemon.mockResolvedValue([

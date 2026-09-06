@@ -4,13 +4,19 @@ import { Pressable, Text, View } from 'react-native'
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { ActionSheet, type SheetAction } from '@/components/panel-chrome'
 import { SURFACE_ROW, SURFACE_ROW_SELECTED } from '@/components/surface-layout'
+import { RowContextMenu } from '@/components/ui/row-context-menu'
+import { useIsTablet } from '@/features/shell/use-app-window'
 import { copyText } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 
 import { pathTestId } from './file-paths'
 import type { FileEntry } from './files-data'
+import { useFilesStore } from './files-store'
 
 export type EntryActions = {
+  onCut: (entry: FileEntry) => void
+  onPaste: (entry: FileEntry) => void
+  canPaste: boolean
   onOpen: (entry: FileEntry) => void
   onComment: (path: string) => void
   onSetPinned: (path: string, pinned: boolean) => void
@@ -84,12 +90,31 @@ function FileEntryRowImpl({
   onPress?: () => void
 }): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
+  const tablet = useIsTablet()
+  const multiSelected = useFilesStore((s) => s.selectedPaths.includes(entry.path))
 
   // A folder takes new entries inside it; a file's siblings go beside it. Saying so on the
   // label is cheaper than making the reader guess where the file they just made went.
   const into = entry.kind === 'dir' ? entry.name : 'this folder'
 
   const menuActions: SheetAction[] = [
+    {
+      glyph: multiSelected ? 'squareCheck' : 'square',
+      id: 'select',
+      label: multiSelected ? 'Deselect' : 'Select',
+      onPress: () => useFilesStore.getState().toggleSelection(entry.path),
+    },
+    { glyph: 'copy', id: 'cut', label: 'Cut', onPress: () => actions.onCut(entry) },
+    ...(actions.canPaste
+      ? [
+          {
+            glyph: 'copy' as const,
+            id: 'paste',
+            label: 'Paste',
+            onPress: () => actions.onPaste(entry),
+          },
+        ]
+      : []),
     {
       glyph: 'plus',
       id: 'new-file',
@@ -182,58 +207,78 @@ function FileEntryRowImpl({
     },
   })
 
+  const row = (
+    <Pressable
+      accessibilityLabel={`${entry.kind === 'dir' ? 'Folder' : 'File'} ${entry.name}${
+        entry.pinned ? ', pinned' : ''
+      }${entry.hidden ? ', hidden' : ''}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={cn(
+        compact
+          ? 'min-h-8 flex-row items-center gap-1.5 py-0.5'
+          : 'min-h-11 flex-row items-center gap-2.5',
+        SURFACE_ROW,
+        (selected || multiSelected) && SURFACE_ROW_SELECTED,
+        // A hidden row is only on screen because the scope override is on; keep it legible
+        // but obviously out of scope.
+        entry.hidden && 'opacity-50',
+      )}
+      testID={pathTestId('porcelain-files-entry', entry.path)}
+      onLongPress={() => {
+        if (!tablet) setMenuOpen(true)
+      }}
+      onPress={() => {
+        if (useFilesStore.getState().selectedPaths.length > 0) {
+          useFilesStore.getState().toggleSelection(entry.path)
+          return
+        }
+        if (onPress === undefined) actions.onOpen(entry)
+        else onPress()
+      }}
+    >
+      {multiSelected ? (
+        <ChromeGlyph name="squareCheck" size={14} tone="primary" />
+      ) : entry.kind === 'dir' && compact ? (
+        <ChromeGlyph name={expanded ? 'chevron' : 'chevronRight'} size={11} tone="muted" />
+      ) : null}
+      <ChromeGlyph
+        name={glyphFor(entry)}
+        size={16}
+        tone={entry.kind === 'dir' ? 'primary' : 'muted'}
+      />
+      <Text className="min-w-0 flex-1 font-mono text-[13px] text-foreground" numberOfLines={1}>
+        {entry.name}
+      </Text>
+      {entry.pinned ? <ChromeGlyph name="pin" size={11} tone="primary" /> : null}
+      {entry.kind === 'dir' && !compact ? <ChromeGlyph name="chevronRight" size={12} /> : null}
+    </Pressable>
+  )
   return (
     <View style={depth === 0 ? undefined : { paddingLeft: depth * 14 }}>
-      <Pressable
-        accessibilityLabel={`${entry.kind === 'dir' ? 'Folder' : 'File'} ${entry.name}${
-          entry.pinned ? ', pinned' : ''
-        }${entry.hidden ? ', hidden' : ''}`}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}
-        className={cn(
-          compact
-            ? 'min-h-8 flex-row items-center gap-1.5 py-0.5'
-            : 'min-h-11 flex-row items-center gap-2.5',
-          SURFACE_ROW,
-          selected && SURFACE_ROW_SELECTED,
-          // A hidden row is only on screen because the scope override is on; keep it legible
-          // but obviously out of scope.
-          entry.hidden && 'opacity-50',
-        )}
-        testID={pathTestId('porcelain-files-entry', entry.path)}
-        onLongPress={() => {
-          setMenuOpen(true)
-        }}
-        onPress={() => {
-          if (onPress === undefined) actions.onOpen(entry)
-          else onPress()
-        }}
-      >
-        {entry.kind === 'dir' && compact ? (
-          <ChromeGlyph name={expanded ? 'chevron' : 'chevronRight'} size={11} tone="muted" />
-        ) : null}
-        <ChromeGlyph
-          name={glyphFor(entry)}
-          size={16}
-          tone={entry.kind === 'dir' ? 'primary' : 'muted'}
+      {tablet ? (
+        <RowContextMenu
+          actions={menuActions}
+          title={entry.name}
+          testID={pathTestId('porcelain-files-menu', entry.path)}
+        >
+          {row}
+        </RowContextMenu>
+      ) : (
+        row
+      )}
+      {!tablet && (
+        <ActionSheet
+          actions={menuActions}
+          open={menuOpen}
+          subtitle={entry.path}
+          testID="porcelain-files-entry-menu"
+          title={entry.name}
+          onClose={() => {
+            setMenuOpen(false)
+          }}
         />
-        <Text className="min-w-0 flex-1 font-mono text-[13px] text-foreground" numberOfLines={1}>
-          {entry.name}
-        </Text>
-        {entry.pinned ? <ChromeGlyph name="pin" size={11} tone="primary" /> : null}
-        {entry.kind === 'dir' && !compact ? <ChromeGlyph name="chevronRight" size={12} /> : null}
-      </Pressable>
-
-      <ActionSheet
-        actions={menuActions}
-        open={menuOpen}
-        subtitle={entry.path}
-        testID="porcelain-files-entry-menu"
-        title={entry.name}
-        onClose={() => {
-          setMenuOpen(false)
-        }}
-      />
+      )}
     </View>
   )
 }
