@@ -1,5 +1,10 @@
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { createPairingBundleLink } from '@porcelain/contracts/remote'
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
+import {
+  addBrowserEnvironmentConnection,
+  setBrowserEnvironmentConnections,
+} from '@renderer/lib/environment-sessions'
 import { trpcClient } from '@renderer/lib/trpc'
 import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +14,12 @@ vi.mock('@renderer/lib/daemon', () => ({
   daemonBaseUrl: (): string => 'http://127.0.0.1:43118',
   daemonToken: (): string => '',
   setBrowserDaemonToken: vi.fn(),
+}))
+
+vi.mock('@renderer/lib/environment-sessions', () => ({
+  browserEnvironmentConnections: () => [],
+  setBrowserEnvironmentConnections: vi.fn(),
+  addBrowserEnvironmentConnection: vi.fn(async () => ({})),
 }))
 
 vi.mock('@renderer/lib/trpc', () => ({
@@ -59,6 +70,44 @@ describe('useTokenGate pairing request', () => {
     expect(headers.get('content-type')).toBe('application/json')
     expect(headers.get('authorization')).toBeNull()
   })
+
+  it.each([false, true])(
+    'imports all bundle environments, rolling back local imports on failure=%s',
+    async (fail) => {
+      const entries = [
+        { name: 'Windows', url: `${window.location.origin}/pair#token=${GRANT}` },
+        { name: 'WSL', url: `https://wsl.example.com/pair#token=${GRANT}` },
+      ]
+      const link = new URL(createPairingBundleLink(entries))
+      window.history.replaceState(null, '', link.pathname + link.hash)
+      vi.mocked(setBrowserDaemonToken).mockClear()
+      vi.mocked(addBrowserEnvironmentConnection).mockClear()
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input) => {
+          const secondary = String(input).includes('wsl.example.com')
+          return Response.json(
+            secondary && fail ? {} : { token: secondary ? 'pc_client_wsl' : 'pc_client_windows' },
+            { status: secondary && fail ? 500 : 200 },
+          )
+        }),
+      )
+      const hook = renderHook(() => useTokenGate())
+      await waitFor(() => expect(hook.result.current.status).toBe(fail ? 'locked' : 'open'))
+      if (fail) {
+        expect(setBrowserEnvironmentConnections).toHaveBeenCalledWith([])
+        expect(setBrowserDaemonToken).not.toHaveBeenCalled()
+      } else {
+        expect(addBrowserEnvironmentConnection).toHaveBeenCalledWith({
+          name: 'WSL',
+          url: 'https://wsl.example.com',
+          token: 'pc_client_wsl',
+        })
+        expect(setBrowserDaemonToken).toHaveBeenCalledWith('pc_client_windows')
+      }
+      expect(window.location.hash).toBe('')
+    },
+  )
 
   it('locks when the probe fails and the daemon serves no dev credential', async () => {
     // Production: /dev-auth does not exist, so the gate lands on the pairing form exactly

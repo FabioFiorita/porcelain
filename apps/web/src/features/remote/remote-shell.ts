@@ -160,14 +160,17 @@ export function useSetupWslEnvironment(): {
 }
 
 export function useIssueManagedEnvironmentBundle(): {
-  issue: (label: string) => Promise<{ count: number; url: string }>
+  issue: (
+    label: string,
+    route: 'lan' | 'cloudflare' | 'tailnet',
+  ) => Promise<{ count: number; url: string }>
   isPending: boolean
 } {
   const mutation = shellTrpc.issueManagedEnvironmentBundle.useMutation({
     onError: onMutationError('Create Windows + WSL link'),
   })
   return {
-    issue: (label: string) => mutation.mutateAsync({ label }),
+    issue: (label, route) => mutation.mutateAsync({ label, route }),
     isPending: mutation.isPending,
   }
 }

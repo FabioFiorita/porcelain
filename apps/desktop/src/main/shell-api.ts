@@ -339,14 +339,16 @@ function adminClient(url: string, token: string): ReturnType<typeof createTRPCUn
  * Create one mobile import link for this Windows daemon and every Windows-managed WSL daemon.
  * Each daemon still mints its own grant; administrator credentials stay inside Electron main.
  */
-async function issueManagedEnvironmentBundle(label: string): Promise<{
+async function issueManagedEnvironmentBundle(
+  label: string,
+  route: 'lan' | 'cloudflare' | 'tailnet',
+): Promise<{
   count: number
   url: string
 }> {
   if (process.platform !== 'win32') throw new Error('Environment bundles are managed on Windows')
   const local = localDaemonPair()
   const wsl = await managedWslAdminConnections()
-  if (wsl.length === 0) throw new Error('Set up a WSL Environment before pairing both Environments')
   const targets = [
     { fallbackName: 'Windows', ...local },
     ...wsl.map((entry) => ({
@@ -365,15 +367,31 @@ async function issueManagedEnvironmentBundle(label: string): Promise<{
   try {
     for (const target of targets) {
       const client = adminClient(target.url, target.token)
-      const [identity, lan] = await Promise.all([
-        client.query('environmentIdentity').then((value) => environmentIdentitySchema.parse(value)),
-        client
-          .mutation('setLanBind', true)
-          .then((value) => remoteProcedures.setLanBind.output.parse(value)),
-      ])
-      const baseUrl = lan.numericUrl ?? lan.url
+      const identity = environmentIdentitySchema.parse(await client.query('environmentIdentity'))
+      let baseUrl: string | null
+      if (route === 'cloudflare') {
+        let status = remoteProcedures.cloudflareStatus.output.parse(
+          await client.query('cloudflareStatus'),
+        )
+        if (status.customUrl === null && status.url === null) {
+          status = remoteProcedures.setCloudflareBind.output.parse(
+            await client.mutation('setCloudflareBind', true),
+          )
+        }
+        baseUrl = status.customUrl ?? status.url
+      } else if (route === 'tailnet') {
+        const status = remoteProcedures.setTailnetBind.output.parse(
+          await client.mutation('setTailnetBind', true),
+        )
+        baseUrl = status.url
+      } else {
+        const status = remoteProcedures.setLanBind.output.parse(
+          await client.mutation('setLanBind', true),
+        )
+        baseUrl = status.numericUrl ?? status.url
+      }
       if (baseUrl === null)
-        throw new Error(`${identity.name || target.fallbackName} has no LAN address`)
+        throw new Error(`${identity.name || target.fallbackName} has no ${route} address`)
       const grant = remoteProcedures.issuePairingLink.output.parse(
         await client.mutation('issuePairingLink', { baseUrl, label }),
       )
@@ -618,8 +636,13 @@ export const shellRouter = t.router({
     .mutation(({ ctx, input }) => setupWslEnvironment(ctx, input.distribution)),
 
   issueManagedEnvironmentBundle: t.procedure
-    .input(z.object({ label: z.string().trim().min(1).max(80) }))
-    .mutation(({ input }) => issueManagedEnvironmentBundle(input.label)),
+    .input(
+      z.object({
+        label: z.string().trim().min(1).max(80),
+        route: z.enum(['lan', 'cloudflare', 'tailnet']).default('lan'),
+      }),
+    )
+    .mutation(({ input }) => issueManagedEnvironmentBundle(input.label, input.route)),
 
   /**
    * Name one Environment — This device (`null`) or a saved group. The nickname is written on

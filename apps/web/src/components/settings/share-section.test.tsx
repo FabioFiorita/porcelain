@@ -8,6 +8,9 @@ const setCloudflare = vi.fn()
 const saveCloudflareHostname = vi.fn()
 const openWindow = vi.fn()
 const issue = vi.fn()
+const issueBundle = vi.fn()
+const platform = vi.hoisted(() => ({ isWindowsShell: false }))
+vi.mock('@renderer/lib/platform', () => platform)
 /** Which Environment this window is bound to: null = This device, a string = a saved remote. */
 let activeId: string | null = null
 let customCloudflareUrl: string | null = null
@@ -33,7 +36,7 @@ vi.mock('@renderer/features/remote', () => ({
     url: null,
   }),
   useIssuePairingLink: () => ({ issue, isPending: false }),
-  useIssueManagedEnvironmentBundle: () => ({ issue: vi.fn(), isPending: false }),
+  useIssueManagedEnvironmentBundle: () => ({ issue: issueBundle, isPending: false }),
   useLanStatus: () => ({
     enabled: true,
     envForced: false,
@@ -59,6 +62,8 @@ vi.mock('@renderer/features/remote', () => ({
 }))
 
 beforeEach(() => {
+  platform.isWindowsShell = false
+  issueBundle.mockReset()
   activeId = null
   customCloudflareUrl = null
   setLan.mockClear()
@@ -83,6 +88,28 @@ describe('ShareSection', () => {
     expect(screen.getByRole('button', { name: 'Create Tailscale link' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Create Cloudflare link' })).toBeNull()
   })
+
+  it.each(['LAN', 'Cloudflare'])(
+    'includes managed environments by default in the Windows %s link',
+    async (route) => {
+      platform.isWindowsShell = true
+      customCloudflareUrl = 'https://remote.example.com'
+      issueBundle.mockResolvedValue({
+        url: 'https://remote.example.com/pair#token=bundle',
+        count: 2,
+      })
+      render(<ShareSection />)
+      expect(screen.queryByRole('button', { name: 'Create Windows + WSL link' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Create Tailscale link' })).toBeNull()
+      fireEvent.change(screen.getByPlaceholderText('Device name, e.g. My iPhone'), {
+        target: { value: 'Phone' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: `Create ${route} link` }))
+      expect(issueBundle).toHaveBeenCalledWith('Phone', route.toLowerCase())
+      expect(issue).not.toHaveBeenCalled()
+      expect(await screen.findByAltText('Pairing QR code')).toBeTruthy()
+    },
+  )
 
   it('saves a custom hostname for the existing QR pairing flow', () => {
     render(<ShareSection />)

@@ -15,7 +15,6 @@ import {
   useSetLanBind,
   useSetTailnetBind,
   useTailnetStatus,
-  useWslDistributions,
 } from '@renderer/features/remote'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
@@ -25,7 +24,7 @@ import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
 import { useEffect, useState } from 'react'
 
-type ShareEndpoint = { label: string; url: string }
+type ShareEndpoint = { label: string; url: string; route: 'lan' | 'cloudflare' | 'tailnet' }
 
 /** Encode only while a live pairing link is visible; pairing secrets never leave this renderer. */
 function PairingQr({ value }: { value: string }): React.JSX.Element {
@@ -108,9 +107,7 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
   const [createdUrl, setCreatedUrl] = useState('')
   const { issue, isPending } = useIssuePairingLink()
   const managedBundle = useIssueManagedEnvironmentBundle()
-  const hasManagedWsl = (useWslDistributions() ?? []).some(
-    (distribution) => distribution.environmentId !== null,
-  )
+  const pending = isPending || managedBundle.isPending
 
   return (
     <section className="flex flex-col gap-3">
@@ -118,6 +115,7 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
         <h3 className="text-sm font-semibold tracking-tight">Pair a device</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Create a one-time link. It expires in 15 minutes and can be used once.
+          {isWindowsShell && ' Includes Windows and all configured WSL environments.'}
         </p>
       </div>
       <div className="flex flex-col gap-2 rounded-md border border-border/60 p-3">
@@ -128,7 +126,7 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
           }
           placeholder="Device name, e.g. My iPhone"
           maxLength={80}
-          disabled={isPending}
+          disabled={pending}
         />
         <div className="flex flex-wrap gap-2">
           {endpoints.map((endpoint) => (
@@ -137,11 +135,13 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
               variant="outline"
               size="sm"
               className={compactButtonClass}
-              disabled={isPending || label.trim() === ''}
+              disabled={pending || label.trim() === ''}
               onClick={() => {
                 runUserAction(
                   async () => {
-                    const result = await issue({ label, baseUrl: endpoint.url })
+                    const result = isWindowsShell
+                      ? await managedBundle.issue(label, endpoint.route)
+                      : await issue({ label, baseUrl: endpoint.url })
                     setCreatedUrl(result.url)
                     await copyText(result.url)
                   },
@@ -151,31 +151,9 @@ function PairDevice({ endpoints }: { endpoints: ShareEndpoint[] }): React.JSX.El
                 )
               }}
             >
-              {isPending ? 'Creating…' : `Create ${endpoint.label} link`}
+              {pending ? 'Creating…' : `Create ${endpoint.label} link`}
             </Button>
           ))}
-          {isWindowsShell && hasManagedWsl && (
-            <Button
-              variant="default"
-              size="sm"
-              className={compactButtonClass}
-              disabled={isPending || managedBundle.isPending || label.trim() === ''}
-              onClick={() => {
-                runUserAction(
-                  async () => {
-                    const result = await managedBundle.issue(label)
-                    setCreatedUrl(result.url)
-                    await copyText(result.url)
-                  },
-                  (error) => {
-                    toastUserActionError('Create Windows + WSL link', error)
-                  },
-                )
-              }}
-            >
-              {managedBundle.isPending ? 'Creating…' : 'Create Windows + WSL link'}
-            </Button>
-          )}
         </div>
         {endpoints.length === 0 && (
           <p className="text-xs text-muted-foreground">
@@ -299,11 +277,20 @@ function LocalShareSettings(): React.JSX.Element {
   const lanUrl =
     lan?.numericUrl != null && lan.numericUrl !== '' ? lan.numericUrl : (lan?.url ?? null)
   const cloudflareUrl = cloudflare?.customUrl ?? cloudflare?.url ?? null
-  const endpoints: ShareEndpoint[] = [
-    ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl }]),
-    ...(tailnet?.url == null ? [] : [{ label: 'Tailscale', url: tailnet.url }]),
-    ...(cloudflareUrl == null ? [] : [{ label: 'Cloudflare', url: cloudflareUrl }]),
-  ]
+  const endpoints: ShareEndpoint[] = isWindowsShell
+    ? [
+        { label: 'LAN', url: lanUrl ?? '', route: 'lan' },
+        { label: 'Cloudflare', url: cloudflareUrl ?? '', route: 'cloudflare' },
+      ]
+    : [
+        ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl, route: 'lan' as const }]),
+        ...(!isWindowsShell && tailnet?.url != null
+          ? [{ label: 'Tailscale', url: tailnet.url, route: 'tailnet' as const }]
+          : []),
+        ...(cloudflareUrl == null
+          ? []
+          : [{ label: 'Cloudflare', url: cloudflareUrl, route: 'cloudflare' as const }]),
+      ]
 
   return (
     <div className="flex flex-col gap-8">

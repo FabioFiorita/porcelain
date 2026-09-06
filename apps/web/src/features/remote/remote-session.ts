@@ -6,7 +6,13 @@ import {
   type RemoteSessionHealth,
 } from '@porcelain/client-runtime/remote'
 import { PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from '@porcelain/contracts'
+import { isPairingBundleLink, parsePairingBundleLink } from '@porcelain/contracts/remote'
 import { setBrowserDaemonToken } from '@renderer/lib/daemon'
+import {
+  addBrowserEnvironmentConnection,
+  browserEnvironmentConnections,
+  setBrowserEnvironmentConnections,
+} from '@renderer/lib/environment-sessions'
 import { isBrowser } from '@renderer/lib/platform'
 import type { SessionConnectionStatus } from '@renderer/lib/session-browser-adapter'
 import { trpcClient } from '@renderer/lib/trpc'
@@ -97,7 +103,52 @@ export function useTokenGate(): TokenGate {
       const pairingCredential = new URLSearchParams(window.location.hash.slice(1)).get('token')
       if (window.location.pathname === '/pair' && pairingCredential !== null) {
         setStatus('pairing')
+        const previousConnections = browserEnvironmentConnections()
         try {
+          const bundle = parsePairingBundleLink(window.location.href)
+          if (bundle === null && isPairingBundleLink(window.location.href))
+            throw new Error('Invalid pairing bundle')
+          if (bundle !== null) {
+            const entries = bundle.environments.map((entry) => {
+              const url = new URL(entry.url)
+              const credential = new URLSearchParams(url.hash.slice(1)).get('token')
+              if (
+                !['http:', 'https:'].includes(url.protocol) ||
+                url.pathname !== '/pair' ||
+                url.username !== '' ||
+                url.password !== '' ||
+                !credential
+              )
+                throw new Error('Invalid pairing link')
+              return { ...entry, url, credential }
+            })
+            if (!entries.some(({ url }) => url.origin === window.location.origin))
+              throw new Error('Bundle does not include this environment')
+            let primaryToken: string | null = null
+            for (const entry of entries) {
+              const { url, credential } = entry
+              const response = await fetch(`${url.origin}/pair`, {
+                method: 'POST',
+                headers: {
+                  'content-type': 'application/json',
+                  [PROTOCOL_VERSION_HEADER]: String(PROTOCOL_VERSION),
+                },
+                body: JSON.stringify({
+                  credential,
+                }),
+              })
+              const token = pairingToken(await response.json())
+              if (!response.ok || token === null) throw new Error('Pairing failed')
+              if (url.origin === window.location.origin) primaryToken = token
+              else
+                await addBrowserEnvironmentConnection({ name: entry.name, url: url.origin, token })
+            }
+            if (primaryToken === null) throw new Error('Bundle does not include this environment')
+            setBrowserDaemonToken(primaryToken)
+            window.history.replaceState(null, '', '/')
+            if (active) setStatus('open')
+            return
+          }
           const response = await fetch('/pair', {
             method: 'POST',
             headers: {
@@ -127,6 +178,7 @@ export function useTokenGate(): TokenGate {
           }
           return
         } catch {
+          setBrowserEnvironmentConnections(previousConnections)
           window.history.replaceState(null, '', '/')
           if (active) {
             setError(true)

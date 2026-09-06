@@ -213,10 +213,25 @@ function stubDaemon(): void {
           { status: 200, headers: { 'content-type': 'application/json' } },
         )
       }
+      if (url.includes('/trpc/cloudflareStatus') || url.includes('/trpc/setCloudflareBind')) {
+        const isWsl = url.includes(':44001')
+        return Response.json({
+          result: {
+            data: {
+              enabled: true,
+              envForced: false,
+              managed: true,
+              error: null,
+              customUrl: null,
+              url: isWsl ? 'https://wsl.example.com' : 'https://windows.example.com',
+            },
+          },
+        })
+      }
       if (url.includes('/trpc/issuePairingLink')) {
         const isWsl = url.includes(':44001')
         const id = isWsl ? 'pair-wsl' : 'pair-windows'
-        const baseUrl = isWsl ? 'http://172.24.1.2:44001' : 'http://192.168.1.10:43118'
+        const { baseUrl } = JSON.parse(String(init?.body)) as { baseUrl: string }
         return new Response(
           JSON.stringify({
             result: {
@@ -317,9 +332,9 @@ describe('shell daemon requests', () => {
     expect(state.environments.find((environment) => environment.id === result.id)?.name).toBe('WSL')
   })
 
-  it.runIf(process.platform === 'win32')(
-    'issues one independently-owned grant for Windows and managed WSL',
-    async () => {
+  it.runIf(process.platform === 'win32').each(['lan', 'cloudflare'] as const)(
+    'issues one independently-owned grant for Windows and managed WSL over %s',
+    async (route) => {
       const wsl = await import('./wsl-environments')
       vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
         {
@@ -330,25 +345,96 @@ describe('shell daemon requests', () => {
         },
       ])
 
-      const result = await caller().issueManagedEnvironmentBundle({ label: 'Android emulator' })
+      const result = await caller().issueManagedEnvironmentBundle({
+        label: 'Android emulator',
+        route,
+      })
       const bundle = parsePairingBundleLink(result.url)
 
       expect(result.count).toBe(2)
       expect(bundle?.environments).toEqual([
         {
           name: 'Windows',
-          url: 'http://192.168.1.10:43118/pair#token=pc_pair_pair-windows_secret',
+          url: `${route === 'lan' ? 'http://192.168.1.10:43118' : 'https://windows.example.com'}/pair#token=pc_pair_pair-windows_secret`,
         },
         {
           name: 'WSL',
-          url: 'http://172.24.1.2:44001/pair#token=pc_pair_pair-wsl_secret',
+          url: `${route === 'lan' ? 'http://172.24.1.2:44001' : 'https://wsl.example.com'}/pair#token=pc_pair_pair-wsl_secret`,
         },
       ])
-      expect(request('127.0.0.1:43118/trpc/setLanBind').headers.get('authorization')).toBe(
-        'Bearer pc_admin_local',
-      )
-      expect(request('127.0.0.1:44001/trpc/setLanBind').headers.get('authorization')).toBe(
-        'Bearer pc_admin_wsl',
+      expect(
+        request(
+          `127.0.0.1:43118/trpc/${route === 'lan' ? 'setLanBind' : 'cloudflareStatus'}`,
+        ).headers.get('authorization'),
+      ).toBe('Bearer pc_admin_local')
+      expect(
+        request(
+          `127.0.0.1:44001/trpc/${route === 'lan' ? 'setLanBind' : 'cloudflareStatus'}`,
+        ).headers.get('authorization'),
+      ).toBe('Bearer pc_admin_wsl')
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'pairs Windows alone when no WSL environment is configured',
+    async () => {
+      const result = await caller().issueManagedEnvironmentBundle({ label: 'Phone', route: 'lan' })
+      expect(result.count).toBe(1)
+      expect(parsePairingBundleLink(result.url)?.environments[0]?.name).toBe('Windows')
+    },
+  )
+
+  it.runIf(process.platform === 'win32').each([false, true])(
+    'starts missing Cloudflare routes and revokes partial grants on failure=%s',
+    async (fail) => {
+      const wsl = await import('./wsl-environments')
+      vi.mocked(wsl.managedWslAdminConnections).mockResolvedValueOnce([
+        {
+          distribution: 'Ubuntu',
+          environmentId: 'env-wsl',
+          token: 'pc_admin_wsl',
+          url: 'http://127.0.0.1:44001',
+        },
+      ])
+      const originalFetch = globalThis.fetch
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (
+          url.includes('/trpc/cloudflareStatus') ||
+          (fail && url.includes(':44001/trpc/setCloudflareBind'))
+        ) {
+          return Response.json({
+            result: {
+              data: {
+                enabled: false,
+                envForced: false,
+                managed: false,
+                error: null,
+                customUrl: null,
+                url: null,
+              },
+            },
+          })
+        }
+        return originalFetch(input, init)
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const result = caller().issueManagedEnvironmentBundle({ label: 'Phone', route: 'cloudflare' })
+      if (fail) {
+        await expect(result).rejects.toThrow('WSL has no cloudflare address')
+        expect(
+          fetchMock.mock.calls.some(([url]) =>
+            String(url).includes(':43118/trpc/revokePairingLink'),
+          ),
+        ).toBe(true)
+      } else {
+        expect((await result).count).toBe(2)
+      }
+      expect(
+        fetchMock.mock.calls.some(([url]) => String(url).includes(':44001/trpc/setCloudflareBind')),
+      ).toBe(true)
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/trpc/setLanBind'))).toBe(
+        false,
       )
     },
   )
