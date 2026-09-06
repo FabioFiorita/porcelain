@@ -2,8 +2,8 @@ import type { ReviewComment } from '@porcelain/contracts/review'
 import { ScrollView, Text, View } from 'react-native'
 
 import { ErrorNote } from '@/components/panel-chrome'
+import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Sheet } from '@/components/ui/sheet'
 import { CommentComposer, SelectionBar } from '@/features/comments'
 import type { HtmlMode, MarkdownMode } from '@/features/settings/preferences-store'
 import { useResolvedColorScheme } from '@/features/settings/theme-provider'
@@ -168,7 +168,7 @@ function FileCommentsSheet({
     )
   })
   return (
-    <Sheet
+    <AdaptiveDialog
       open={open}
       scrollable
       testID="porcelain-files-comments"
@@ -199,6 +199,6 @@ function FileCommentsSheet({
           </View>
         ))}
       </ScrollView>
-    </Sheet>
+    </AdaptiveDialog>
   )
 }

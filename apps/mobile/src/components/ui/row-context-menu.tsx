@@ -2,7 +2,7 @@ import * as DropdownMenuPrimitive from '@rn-primitives/dropdown-menu'
 import * as Slot from '@rn-primitives/slot'
 import { Fragment } from 'react'
 import type { PressableProps } from 'react-native'
-import { ScrollView, useWindowDimensions, View } from 'react-native'
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { Text } from '@/components/ui/text'
@@ -150,7 +150,7 @@ function MenuRoot({
                       disabled={action.disabled === true}
                       onPress={action.onPress}
                     >
-                      <View
+                      <Pressable
                         className={cn(
                           'min-h-11 flex-row items-center gap-3 rounded-lg px-2 active:bg-accent',
                           action.disabled === true && 'opacity-40',
@@ -172,7 +172,7 @@ function MenuRoot({
                         >
                           {action.label}
                         </Text>
-                      </View>
+                      </Pressable>
                     </DropdownMenuPrimitive.Item>
                   </Fragment>
                 ))}

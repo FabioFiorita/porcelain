@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { Sheet } from '@/components/ui/sheet'
+import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
@@ -48,7 +48,7 @@ export function CommentComposerSheet({
   const canSend = body.trim() !== '' && !pending
 
   return (
-    <Sheet
+    <AdaptiveDialog
       open={open}
       testID={testIDPrefix}
       title={mode === 'edit' ? 'Edit comment' : 'Reply'}
@@ -101,6 +101,6 @@ export function CommentComposerSheet({
           </Pressable>
         </View>
       </View>
-    </Sheet>
+    </AdaptiveDialog>
   )
 }

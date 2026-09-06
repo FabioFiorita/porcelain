@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
+import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Sheet } from '@/components/ui/sheet'
 import { Text } from '@/components/ui/text'
+import { useIsTablet } from '@/features/shell/use-app-window'
 
 import { nameError } from './entry-name'
 
@@ -39,6 +40,13 @@ export function NamePrompt({
 }): React.JSX.Element {
   const [name, setName] = useState(initialValue)
   const [error, setError] = useState<string | null>(null)
+  const tablet = useIsTablet()
+  const submitting = useRef(false)
+  const [saving, setSaving] = useState(false)
+  const pending = busy || saving
+  const close = () => {
+    if (!busy && !submitting.current) onClose()
+  }
 
   // One prompt component per action, remounted per row, so opening it is what resets the field
   // — a stale name from the last rename must never be the default for the next one.
@@ -50,27 +58,42 @@ export function NamePrompt({
   }, [initialValue, open])
 
   const submit = (): void => {
+    if (busy || submitting.current) return
     const invalid = nameError(name)
     if (invalid !== null) {
       setError(invalid)
       return
     }
     setError(null)
+    submitting.current = true
+    setSaving(true)
     onSubmit(name.trim())
       .then(onClose)
       .catch((cause: unknown) => {
         setError(cause instanceof Error ? cause.message : String(cause))
       })
+      .finally(() => {
+        submitting.current = false
+        setSaving(false)
+      })
   }
 
   return (
-    <Sheet description={description} open={open} title={title} onClose={onClose}>
+    <AdaptiveDialog
+      description={description}
+      open={open}
+      title={title}
+      onClose={close}
+      testID={`${testID}-dialog`}
+    >
       <View className="gap-3 px-5" testID={testID}>
         <Input
           accessibilityLabel={title}
           autoCapitalize="none"
           autoCorrect={false}
-          editable={!busy}
+          editable={!pending}
+          autoFocus={tablet}
+          selectTextOnFocus={tablet}
           placeholder="name"
           returnKeyType="done"
           testID={`${testID}-input`}
@@ -89,14 +112,14 @@ export function NamePrompt({
         )}
 
         <View className="flex-row justify-end gap-2">
-          <Button testID={`${testID}-cancel`} variant="ghost" onPress={onClose}>
+          <Button disabled={pending} testID={`${testID}-cancel`} variant="ghost" onPress={close}>
             <Text>Cancel</Text>
           </Button>
-          <Button disabled={busy} testID={`${testID}-confirm`} onPress={submit}>
-            <Text>{busy ? 'Working…' : confirmLabel}</Text>
+          <Button disabled={pending} testID={`${testID}-confirm`} onPress={submit}>
+            <Text>{pending ? 'Working…' : confirmLabel}</Text>
           </Button>
         </View>
       </View>
-    </Sheet>
+    </AdaptiveDialog>
   )
 }
