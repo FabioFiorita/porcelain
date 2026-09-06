@@ -20,8 +20,8 @@ The patch bump is the default; choose minor or major deliberately. Read
 
 [The release workflow](../.github/workflows/release.yml) defines packaging, signing secrets, npm
 publication, and GitHub assets. It also owns the Windows signed/unsigned gate and registry readiness
-checks. Preserve artifact names. First-time WSL setup depends on the matching daemon version being
-available from npm, so desktop availability alone does not establish release completion.
+checks. Preserve artifact names. Independent Linux/WSL hosts install the daemon from npm, so
+desktop availability alone does not establish release completion.
 
 For a failed run, retry the same tag after resolving the failure. Do not rewrite an existing tag or
 cut another version merely because registry propagation is slow. Run consumer checks outside
