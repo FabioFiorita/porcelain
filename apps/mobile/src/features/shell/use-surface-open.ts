@@ -1,24 +1,13 @@
 import { useRouter } from 'expo-router'
 import { useMemo } from 'react'
-
+import { fileTabsOwner, useFileTabsStore } from '@/features/files/file-tabs-store'
+import { useFilesStore } from '@/features/files/files-store'
+import { useHubRepoPath } from '@/features/projects'
+import { useActiveEnvironment } from '@/features/remote'
 import { pathSegments } from '@/lib/path-identities'
+import { useIsTablet } from './use-app-window'
 
-/**
- * Every route a surface opens into the viewer, in one place.
- *
- * A surface list is hosted twice — as the phone's screen and as a tab of the tablet's Surfaces
- * panel — and both hosts open the same detail into the same Hub stack. Before this, each phone
- * screen spelled its own `router.push({ params: …, pathname: '/changes/file/[...path]' })` and
- * the tablet drove a store cursor into a column instead, so the two form factors reached the
- * same file by two different mechanisms and the tablet's one had no back gesture.
- *
- * Nothing here imports a feature: these are route literals and the router, so a panel that
- * belongs to Files can use it without the shell learning what a file is.
- *
- * On tablet the push lands in the centre viewer, because that is where the Hub stack is
- * mounted; on phone it lands on the stack the list is already standing on. Same call, same
- * result, and the pop gesture and the Android back button come from the navigator either way.
- */
+/** Shared detail navigation. Tablet files activate viewer tabs; phone files use the navigation stack. */
 export type SurfaceOpen = {
   /** A working-tree file, in the tree. `line` is 1-based and only comes from a search hit. */
   file: (path: string, line?: number) => void
@@ -35,6 +24,8 @@ export type SurfaceOpen = {
 
 export function useSurfaceOpen(): SurfaceOpen {
   const router = useRouter()
+  const tablet = useIsTablet()
+  const owner = fileTabsOwner(useActiveEnvironment()?.id, useHubRepoPath())
 
   return useMemo(
     () => ({
@@ -57,7 +48,12 @@ export function useSurfaceOpen(): SurfaceOpen {
         })
       },
       file: (path: string, line?: number) => {
-        router.push({
+        if (tablet && owner) {
+          useFileTabsStore.getState().open(owner, path, line)
+          useFilesStore.getState().openFile(path, line)
+        }
+        const navigate = tablet ? router.replace : router.push
+        navigate({
           params: {
             line: line === undefined ? undefined : String(line),
             path: pathSegments(path),
@@ -72,6 +68,6 @@ export function useSurfaceOpen(): SurfaceOpen {
         router.push('/changes/comments')
       },
     }),
-    [router],
+    [router, tablet, owner],
   )
 }

@@ -9,9 +9,9 @@ import { useHistoryStore } from '@/features/history'
 import { useFileSearch, useSearchStore } from '@/features/search'
 import { shellSheetHref } from '@/features/shell/shell-sheets'
 import { useShellStore } from '@/features/shell/shell-store'
-import { useIsTablet } from '@/features/shell/use-app-window'
 import { type SurfaceId, surfaceById } from '@/features/shell/surfaces'
-import { pathSegments } from '@/lib/path-identities'
+import { useIsTablet } from '@/features/shell/use-app-window'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 
 import {
   gotoRows,
@@ -50,6 +50,7 @@ function asError(error: unknown): Error | null {
 /** Shared phone/tablet behavior for the one-line navigation surface. */
 export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel {
   const router = useRouter()
+  const openDetail = useSurfaceOpen()
   const isTablet = useIsTablet()
   const openSurface = useShellStore((state) => state.openSurface)
   const openSettings = useShellStore((state) => state.openSettings)
@@ -131,12 +132,10 @@ export function useQuickOpen(open: boolean, onClose: () => void): QuickOpenModel
   const openFile = useCallback(
     (result: QuickOpenFile): void => {
       close()
-      router.push({
-        params: { path: pathSegments(result.path) },
-        pathname: result.kind === 'dir' ? '/folder/[...path]' : '/file/[...path]',
-      })
+      if (result.kind === 'dir') openDetail.folder(result.path)
+      else openDetail.file(result.path)
     },
-    [close, router],
+    [close, openDetail],
   )
 
   /**

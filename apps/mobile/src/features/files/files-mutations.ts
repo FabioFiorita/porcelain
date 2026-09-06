@@ -28,6 +28,7 @@ import { isPaired, useActiveEnvironment } from '@/features/remote'
 import { namedContractProcedure } from '@/lib/daemon/procedure'
 
 import { parentPath } from './file-paths'
+import { fileTabsOwner, useFileTabsStore } from './file-tabs-store'
 import { applyFilesForeignDependencies } from './files-foreign'
 import { invalidateFilesEffects } from './files-query-filter'
 import { callFilesMutation } from './use-files-mutations'
@@ -203,6 +204,7 @@ export function useFileWrites(): FileWrites {
       duplicate.isPending ||
       trash.isPending,
     rename: async (relative, name): Promise<void> => {
+      const owner = fileTabsOwner(environment?.id, activeRepoPath)
       const scope = project()
       if (scope === null || !isFilesProjectRelativePath(relative)) return
       const parent = parentPath(relative)
@@ -217,8 +219,10 @@ export function useFileWrites(): FileWrites {
         filesMutations.rename.affectedEffects(input),
         filesMutations.rename.foreignDependencies(input),
       )
+      if (owner) useFileTabsStore.getState().move(owner, relative, to)
     },
     move: async (from, to): Promise<void> => {
+      const owner = fileTabsOwner(environment?.id, activeRepoPath)
       const scope = project()
       if (scope === null) throw new Error('Connect to the worktree before moving files.')
       if (!isFilesProjectRelativePath(from) || !isFilesProjectRelativePath(to))
@@ -231,8 +235,10 @@ export function useFileWrites(): FileWrites {
         filesMutations.rename.affectedEffects({ from, to, projectPath: scope.projectPath }),
         filesMutations.rename.foreignDependencies({ from, to, projectPath: scope.projectPath }),
       )
+      if (owner) useFileTabsStore.getState().move(owner, from, to)
     },
     trash: async (relative): Promise<void> => {
+      const owner = fileTabsOwner(environment?.id, activeRepoPath)
       const scope = project()
       if (scope === null || !isFilesProjectRelativePath(relative)) return
       const input = { path: relative, projectPath: scope.projectPath }
@@ -244,6 +250,7 @@ export function useFileWrites(): FileWrites {
         filesMutations.trash.affectedEffects(input),
         filesMutations.trash.foreignDependencies(input),
       )
+      if (owner) useFileTabsStore.getState().remove(owner, relative)
     },
   }
 }

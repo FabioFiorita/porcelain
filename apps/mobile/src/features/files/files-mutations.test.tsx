@@ -33,6 +33,7 @@ vi.mock('@/lib/daemon/procedure', async (importOriginal) => {
   return { ...actual, callDaemon: ctx.callDaemon }
 })
 
+import { fileTabsOwner, useFileTabsStore } from './file-tabs-store'
 import { useFileWrites } from './files-mutations'
 
 function wrapper(queryClient: QueryClient) {
@@ -42,6 +43,7 @@ function wrapper(queryClient: QueryClient) {
 }
 
 beforeEach(() => {
+  useFileTabsStore.setState({ owners: {} })
   ctx.callDaemon.mockReset()
   ctx.callDaemon.mockImplementation(
     async (_client: unknown, procedure: { name: string }): Promise<unknown> =>
@@ -52,6 +54,21 @@ beforeEach(() => {
 })
 
 describe('mobile Files mutations', () => {
+  it('updates file tabs only after an accepted rename or trash', async () => {
+    const owner = fileTabsOwner(ctx.environment?.id, ctx.repo?.path ?? null)
+    if (!owner) throw new Error('Expected worktree owner')
+    useFileTabsStore.getState().open(owner, 'src/main.ts')
+    const { result } = renderHook(() => useFileWrites(), { wrapper: wrapper(new QueryClient()) })
+    ctx.callDaemon.mockRejectedValueOnce(new Error('Destination exists'))
+    await act(async () => {
+      await expect(result.current.rename('src', 'lib')).rejects.toThrow('Destination exists')
+    })
+    expect(useFileTabsStore.getState().owners[owner].activePath).toBe('src/main.ts')
+    await act(() => result.current.rename('src', 'lib'))
+    expect(useFileTabsStore.getState().owners[owner].activePath).toBe('lib/main.ts')
+    await act(() => result.current.trash('lib'))
+    expect(useFileTabsStore.getState().owners[owner].tabs).toEqual([])
+  })
   it('sends relative mutation contracts and awaits duplicate output effects', async () => {
     const queryClient = new QueryClient()
     const { result } = renderHook(() => useFileWrites(), { wrapper: wrapper(queryClient) })

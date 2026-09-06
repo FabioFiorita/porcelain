@@ -1,13 +1,12 @@
-import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { IconAction, PanelLabel, StatusNote } from '@/components/panel-chrome'
 import { useDismissSheet } from '@/features/shell/shell-sheets'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 import { cn } from '@/lib/utils'
 
-import { pathSegments, pathTestId } from './file-paths'
+import { pathTestId } from './file-paths'
 import { type FileEntry, usePathScope, usePinnedEntries } from './files-data'
 
 /**
@@ -54,17 +53,15 @@ export function PinnedSection({
   const { entries, error } = usePinnedEntries(active)
   const { unpin } = usePathScope()
   const closeSheet = useDismissSheet()
-  const router = useRouter()
+  const openDetail = useSurfaceOpen()
   const [actionError, setActionError] = useState<string | null>(null)
 
   // One path for both hosts: get out of the way if we are covering something (the phone's
   // sheet), then open the entry in the viewer. `useDismissSheet` is inert in a panel.
   const open = (entry: FileEntry): void => {
     closeSheet()
-    router.push({
-      params: { path: pathSegments(entry.path) },
-      pathname: entry.kind === 'dir' ? '/folder/[...path]' : '/file/[...path]',
-    })
+    if (entry.kind === 'dir') openDetail.folder(entry.path)
+    else openDetail.file(entry.path)
   }
 
   return (

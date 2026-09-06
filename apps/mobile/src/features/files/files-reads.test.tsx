@@ -71,6 +71,22 @@ beforeEach(() => {
 })
 
 describe('mobile Files reads', () => {
+  it('retains inactive file contents for mounted tablet tabs, without exposing them to another owner', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { result, rerender } = renderHook(({ active }) => useFileContents('main.ts', active), {
+      initialProps: { active: true },
+      wrapper: wrapper(client),
+    })
+    await waitFor(() =>
+      expect(result.current.view).toEqual({ content: 'const main = true', type: 'text' }),
+    )
+    const view = result.current.view
+    rerender({ active: false })
+    expect(result.current.view).toBe(view)
+    ctx.environment = { id: 'another', token: 'paired' }
+    rerender({ active: false })
+    expect(result.current.view).toBeUndefined()
+  })
   it('filters hidden cached rows immediately without copying them into the visible query cache', async () => {
     ctx.showHidden = true
     ctx.callDaemon.mockResolvedValue([

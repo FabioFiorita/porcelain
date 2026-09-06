@@ -1,11 +1,13 @@
+import { useGlobalSearchParams, usePathname } from 'expo-router'
 import { TabList, TabSlot, Tabs, TabTrigger } from 'expo-router/ui'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IconAction } from '@/components/panel-chrome'
-
-import { SettingsDialog } from '@/features/settings/settings-dialog'
+import { pathFromSegments } from '@/features/files/file-paths'
+import { TabletFileViewer } from '@/features/files/tablet-file-viewer'
 import { QuickOpenDialog } from '@/features/quick-open/quick-open-dialog'
+import { SettingsDialog } from '@/features/settings/settings-dialog'
 
 import { DESTINATIONS } from './destinations'
 import { HUB_SIDEBAR_WIDTH } from './shell-layout'
@@ -15,49 +17,13 @@ import { TabletSidebar } from './tablet-sidebar'
 import { useShellLayout } from './use-app-window'
 import { ColumnChrome, ShellControls } from './window-chrome'
 
-/**
- * The tablet shell: the web client's three-pane window, as an app.
- *
- * ```
- *  ┌────────────┬───────────────────────────┬──────────────┐
- *  │ Porcelain  │  ╭─────────────────────╮  │ Files ⨯ Chg ⨯│
- *  │ Search     │  │ ScreenHeader        │  ├──────────────┤
- *  │ WORKTREES  │  │                     │  │  the active  │
- *  │  …         │  │  the routed stack   │  │  surface's   │
- *  │ Settings   │  │  (file · diff ·     │  │  list        │
- *  │            │  ╰──commit · Canvas)───╯  │              │
- *  └────────────┴───────────────────────────┴──────────────┘
- * ```
- *
- * This is `app-shell.tsx` from `apps/web`, pane for pane: a navigation sidebar, a rounded
- * `bg-card` viewer with its own header, and the Surfaces panel on the trailing edge. The iPad
- * has been handed phone layouts stretched to 1024pt for years and this product is not going to
- * be another one — the human's words were that it is time to come hard on it.
- *
- * **The trailing panel holds the surfaces, not a companion.** Files, Changes, History, Git,
- * Search and Canvas are tabs of that panel and their rows open detail into the viewer — the Mac
- * app's arrangement exactly. They used to be six rows the Worktree screen pushed INTO the
- * viewer, which spent the iPad's centre column on a menu; see `surfaces-panel.tsx`.
- *
- * **There is no tab bar here, and the tabs are still what runs it.** `Tabs` stays mounted, its
- * `TabList` is present but hidden. Settings is a dialog, not a tab. The routed screen never
- * moves between containers when the window resizes, because it was never in the sidebar's
- * container.
- *
- * **Why this is a flex row and not `UISplitViewController`.** expo-router 57 does ship the
- * platform primitive (`expo-router/unstable-split-view`, over `react-native-screens`'
- * experimental `Split.Host`), and it is the right thing when the app's ROOT is a split. It
- * cannot be this: `SplitView` throws inside any navigator, so it can only replace the tab shell
- * rather than live inside it, and `Split.Host` renders `null` on Android outright. It also owns
- * the column headers and does not let them be customised — which is precisely the trade this
- * whole pass reverses. A flex row keeps the navigator, works on both tablets, and every pixel
- * of it is a token.
- *
- * **Narrowing.** An iPad window resizes live — Stage Manager, Split View, a rotation — and the
- * panes drop in the order the web client drops them: the inspector first, then the sidebar,
- * leaving the viewer whole. `decideShellLayout` owns the width rule.
- */
+/** Three-column tablet workspace with persistent file viewers and a routed slot for other surfaces. */
 export function TabletShell(): React.JSX.Element {
+  const pathname = usePathname()
+  const params = useGlobalSearchParams<{ path?: string[]; line?: string }>()
+  const viewingFile = pathname.startsWith('/file/')
+  const filePath = viewingFile ? pathFromSegments(params.path ?? []) : ''
+  const parsedLine = Number(params.line)
   const insets = useSafeAreaInsets()
   const layout = useShellLayout()
   // Both panels are open by default and their state is the shell store's, not this component's:
@@ -127,7 +93,14 @@ export function TabletShell(): React.JSX.Element {
                   ) : null
                 }
               >
-                <TabSlot />
+                <TabletFileViewer
+                  filePath={filePath}
+                  line={Number.isInteger(parsedLine) && parsedLine > 0 ? parsedLine : undefined}
+                  focused={viewingFile}
+                />
+                <View className="flex-1" style={{ display: viewingFile ? 'none' : 'flex' }}>
+                  <TabSlot />
+                </View>
               </ShellControls>
             </ColumnChrome>
           </View>

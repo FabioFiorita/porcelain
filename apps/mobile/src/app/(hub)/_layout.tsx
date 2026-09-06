@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router/stack'
+import { useIsTablet } from '@/features/shell/use-app-window'
 
 /**
  * The Hub tab is one native stack: the Worktree list pushes a Worktree, and a Worktree pushes
@@ -36,8 +37,10 @@ const SHEET = {
 }
 
 export default function HubLayout(): React.JSX.Element {
+  const tablet = useIsTablet()
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="file/[...path]" options={{ animation: tablet ? 'none' : 'default' }} />
       {/* A form, not a list: at 0.6 the fields sit under the keyboard, so this sheet
           starts near-full instead of taking SHEET's list detents. */}
       <Stack.Screen name="new-worktree" options={{ ...SHEET, sheetAllowedDetents: [0.85, 0.99] }} />

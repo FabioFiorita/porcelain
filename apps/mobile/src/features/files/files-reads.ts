@@ -175,7 +175,7 @@ export function useFileContents(relative: string, active: boolean): FileContents
   const enabled = active && valid && isPaired(environment)
   const environmentId = environment?.id ?? 'none'
   const identity =
-    projectPath !== null && enabled ? fileContentQuery(projectPath, relative) : DISABLED_CONTENT
+    projectPath !== null && valid ? fileContentQuery(projectPath, relative) : DISABLED_CONTENT
 
   useFilesViewerInterest(relative, enabled)
   const query = useQuery({
@@ -192,7 +192,7 @@ export function useFileContents(relative: string, active: boolean): FileContents
     queryKey: filesQueryKey(environmentId, identity),
   })
   const state = readState(query, enabled)
-  return { error: state.error, isLoading: state.isLoading, view: state.data }
+  return { error: state.error, isLoading: state.isLoading, view: valid ? query.data : undefined }
 }
 
 export function useHtmlPreview(
@@ -206,7 +206,7 @@ export function useHtmlPreview(
   const enabled = active && valid && isPaired(environment)
   const environmentId = environment?.id ?? 'none'
   const identity =
-    projectPath !== null && enabled ? filePreviewQuery(projectPath, relative) : DISABLED_PREVIEW
+    projectPath !== null && valid ? filePreviewQuery(projectPath, relative) : DISABLED_PREVIEW
   const query = useQuery({
     enabled,
     queryFn: async (): Promise<string | null> => {
@@ -221,5 +221,5 @@ export function useHtmlPreview(
     queryKey: filesQueryKey(environmentId, identity),
   })
   const state = readState(query, enabled)
-  return { error: state.error, html: state.data, isLoading: state.isLoading }
+  return { error: state.error, html: valid ? query.data : undefined, isLoading: state.isLoading }
 }

@@ -1,8 +1,7 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
-
 import { ChangesDiffView } from '@/features/changes/changes-diff-view'
 import { useChangesFlow } from '@/features/changes/use-changes'
-import { pathSegments } from '@/features/files'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 
 /**
  * One file's diff, pushed over the Changes list.
@@ -14,6 +13,7 @@ export default function ChangesFileRoute(): React.JSX.Element {
   const { path } = useLocalSearchParams<{ path: string[] }>()
   const focused = useIsFocused()
   const router = useRouter()
+  const open = useSurfaceOpen()
   // The base ref identifies a branch-scope diff, and it comes from the same read the list
   // rendered before it pushed us — already cached, so this costs nothing.
   const { base } = useChangesFlow(focused)
@@ -28,9 +28,7 @@ export default function ChangesFileRoute(): React.JSX.Element {
       }}
       // Git and this route both speak repo-relative paths, and so does the Files viewer —
       // the same string identifies the file in all three.
-      onOpenFile={(next) => {
-        router.push({ params: { path: pathSegments(next) }, pathname: '/file/[...path]' })
-      }}
+      onOpenFile={open.file}
     />
   )
 }

@@ -1,8 +1,7 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
-
 import { DiffView } from '@/features/diff/diff-view'
-import { pathSegments } from '@/features/files'
 import { useHistoryFocus } from '@/features/history/use-history'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 
 /**
  * One file's diff as of a commit, pushed over that commit's file list.
@@ -14,6 +13,7 @@ export default function HistoryCommitFileRoute(): React.JSX.Element {
   const { hash, path } = useLocalSearchParams<{ hash: string; path: string[] }>()
   const focused = useIsFocused()
   const router = useRouter()
+  const open = useSurfaceOpen()
   const filePath = path.join('/')
   useHistoryFocus({ hash, kind: 'file', path: filePath })
 
@@ -28,9 +28,7 @@ export default function HistoryCommitFileRoute(): React.JSX.Element {
       onBack={() => {
         router.back()
       }}
-      onOpenFile={(next) => {
-        router.push({ params: { path: pathSegments(next) }, pathname: '/file/[...path]' })
-      }}
+      onOpenFile={open.file}
     />
   )
 }

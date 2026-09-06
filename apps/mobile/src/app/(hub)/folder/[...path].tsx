@@ -1,7 +1,7 @@
 import { useIsFocused, useLocalSearchParams, useRouter } from 'expo-router'
 import { View } from 'react-native'
-
 import { FilesBrowser, pathFromSegments, pathSegments } from '@/features/files'
+import { useSurfaceOpen } from '@/features/shell/use-surface-open'
 
 /**
  * One directory, pushed over the tree.
@@ -13,6 +13,7 @@ export default function FilesFolderRoute(): React.JSX.Element {
   const { path } = useLocalSearchParams<{ path: string[] }>()
   const focused = useIsFocused()
   const router = useRouter()
+  const open = useSurfaceOpen()
   const dirPath = pathFromSegments(path)
 
   return (
@@ -26,9 +27,7 @@ export default function FilesFolderRoute(): React.JSX.Element {
         onOpenDir={(next) => {
           router.push({ params: { path: pathSegments(next) }, pathname: '/folder/[...path]' })
         }}
-        onOpenFile={(next) => {
-          router.push({ params: { path: pathSegments(next) }, pathname: '/file/[...path]' })
-        }}
+        onOpenFile={open.file}
       />
     </View>
   )
