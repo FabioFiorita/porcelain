@@ -510,6 +510,70 @@ describe('Remote operations', () => {
     expect(await config.load()).toMatchObject({ tailnetBind: true, cloudflareBind: false })
   })
 
+  it.each(['off', 'managed', 'tailnet'] as const)(
+    'clears the custom route when switching to %s',
+    async (mode) => {
+      const { config, ops } = operations({
+        config: fakeConfig({ lanBind: true, cloudflareHostname: 'https://remote.example.com' }),
+      })
+      if (mode === 'tailnet') await ops.setTailnetBind(true)
+      else await ops.setCloudflareBind(mode === 'managed')
+      expect(await config.load()).not.toHaveProperty('cloudflareHostname')
+      expect(await config.load()).toMatchObject({
+        lanBind: true,
+        cloudflareBind: mode === 'managed',
+      })
+    },
+  )
+
+  it('preserves the external route when the managed tunnel fails to start', async () => {
+    const { config, ops } = operations({
+      config: fakeConfig({ cloudflareHostname: 'https://remote.example.com' }),
+      cloudflare: {
+        start: vi.fn(async () => {
+          throw new Error('missing cloudflared')
+        }),
+      },
+    })
+    await expect(ops.setCloudflareBind(true)).rejects.toThrow('missing cloudflared')
+    expect(await config.load()).toHaveProperty('cloudflareHostname', 'https://remote.example.com')
+  })
+
+  it('rejects a custom route without a working LAN listener before stopping the managed tunnel', async () => {
+    const { config, cloudflare, ops } = operations({
+      config: fakeConfig({ cloudflareBind: true }),
+      listeners: { lanUrl: vi.fn(() => null) },
+    })
+    await expect(ops.setCloudflareHostname('https://remote.example.com')).rejects.toThrow(
+      'Turn on Local network',
+    )
+    expect(cloudflare.stop).not.toHaveBeenCalled()
+    expect(config.update).not.toHaveBeenCalled()
+  })
+
+  it('keeps the LAN listener available until the custom route is removed', async () => {
+    const { listeners, ops } = operations({
+      config: fakeConfig({ lanBind: true, cloudflareHostname: 'https://remote.example.com' }),
+    })
+    await expect(ops.setLanBind(false)).rejects.toThrow('Remove the custom Cloudflare hostname')
+    expect(listeners.stopLanListener).not.toHaveBeenCalled()
+    await ops.setCloudflareBind(false)
+    await ops.setLanBind(false)
+    expect(listeners.stopLanListener).toHaveBeenCalledOnce()
+  })
+
+  it.each(['cloudflareBindForced', 'tailnetBindForced'] as const)(
+    'preserves startup-owned routes when %s is set',
+    async (flag) => {
+      const { cloudflare, config, ops } = operations({ env: { [flag]: vi.fn(() => true) } })
+      await expect(ops.setCloudflareHostname('https://remote.example.com')).rejects.toThrow(
+        'startup sharing mode',
+      )
+      expect(cloudflare.stop).not.toHaveBeenCalled()
+      expect(config.update).not.toHaveBeenCalled()
+    },
+  )
+
   it('skips config.update when Cloudflare start throws', async () => {
     const config = fakeConfig()
     const { ops } = operations({

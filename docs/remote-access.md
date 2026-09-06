@@ -51,9 +51,14 @@ If `cloudflared` is already managed outside Porcelain (for example as a Windows 
 Settings → Share → **Custom Cloudflare hostname**. Enter the public HTTPS hostname after adding a
 Cloudflare Published application route whose service URL is the LAN URL shown beside the field.
 Porcelain stores only the public hostname, never the tunnel token, and uses it when creating the
-same one-time HTTP(S) pairing link and QR code as its other share routes. Keep Local network enabled
-while this mode uses that LAN service URL. Removing the hostname stops advertising that route in
-new pairing links; it does not stop the external `cloudflared` service.
+same one-time HTTP(S) pairing link and QR code as its other share routes. Enable Local network
+first, then choose **Use custom hostname**. This selects the external route and stops Porcelain's
+managed tunnel; entering a hostname does not configure DNS or start an external service.
+Local network remains required while the custom route is selected. **Use managed tunnel** switches
+back to a Porcelain-owned process (a quick tunnel by default, or a named tunnel with the environment
+credentials above). Turning Cloudflare off or selecting Tailscale stops advertising the custom
+hostname; it does not stop the external `cloudflared` service. A saved hostname is not proof of
+public reachability.
 
 In the mobile app, open Settings → Environments → Create environment group and choose **Scan QR
 code**. Scan an individual LAN, Tailscale, or Cloudflare pairing link, then confirm pairing.

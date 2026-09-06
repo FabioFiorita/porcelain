@@ -180,11 +180,15 @@ export function createRemoteOperations(options: {
 
     async setTailnetBind(input: boolean): Promise<TailnetStatusOutput> {
       if (input) await options.cloudflare.stop()
-      await options.config.update((current) => ({
-        ...current,
-        tailnetBind: input,
-        cloudflareBind: input ? false : current.cloudflareBind,
-      }))
+      await options.config.update((current) => {
+        const { cloudflareHostname, ...rest } = current
+        return {
+          ...rest,
+          tailnetBind: input,
+          cloudflareBind: input ? false : current.cloudflareBind,
+          ...(!input && cloudflareHostname !== undefined ? { cloudflareHostname } : {}),
+        }
+      })
       if (input) await options.listeners.startTailnetListener()
       else await options.listeners.stopTailnetListener()
       const envForced = options.env.tailnetBindForced()
@@ -211,6 +215,9 @@ export function createRemoteOperations(options: {
     },
 
     async setLanBind(input: boolean): Promise<LanStatusOutput> {
+      if (!input && (await options.config.load()).cloudflareHostname !== undefined) {
+        throw new Error('Remove the custom Cloudflare hostname before turning off Local network.')
+      }
       await options.config.update((current) => ({ ...current, lanBind: input }))
       if (input) await options.listeners.startLanListener()
       else await options.listeners.stopLanListener()
@@ -238,11 +245,10 @@ export function createRemoteOperations(options: {
       const status = input ? await options.cloudflare.start() : await options.cloudflare.stop()
       if (input) await options.listeners.stopTailnetListener()
       const flags = await options.config.update((current) => {
-        const { cloudflareHostname, ...rest } = current
+        const { cloudflareHostname: _cloudflareHostname, ...rest } = current
         return {
           ...rest,
           cloudflareBind: input,
-          ...(input || cloudflareHostname === undefined ? {} : { cloudflareHostname }),
           tailnetBind: input ? false : current.tailnetBind,
         }
       })
@@ -257,6 +263,16 @@ export function createRemoteOperations(options: {
       input: SetCloudflareHostnameInput,
     ): Promise<CloudflareStatusOutput> {
       if (input !== null) {
+        if (options.env.cloudflareBindForced() || options.env.tailnetBindForced()) {
+          throw new Error(
+            'Change the startup sharing mode before using a custom Cloudflare hostname.',
+          )
+        }
+        if (options.listeners.lanUrl() === null || options.listeners.lanBindError() !== null) {
+          throw new Error(
+            'Turn on Local network and resolve its listener error before using a custom Cloudflare hostname.',
+          )
+        }
         await options.cloudflare.stop()
         await options.listeners.stopTailnetListener()
       }

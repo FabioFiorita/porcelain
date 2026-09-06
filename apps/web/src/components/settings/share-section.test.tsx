@@ -13,6 +13,10 @@ vi.mock('@renderer/lib/platform', () => platform)
 /** Which Environment this window is bound to: null = This device, a string = a saved remote. */
 let activeId: string | null = null
 let customCloudflareUrl: string | null = null
+let managedEnabled = false
+let managedUrl: string | null = null
+let lanAvailable = true
+let tailnetForced = false
 
 vi.mock('@renderer/features/remote', () => ({
   useEnvironmentStatuses: () =>
@@ -27,21 +31,21 @@ vi.mock('@renderer/features/remote', () => ({
   }),
   useAccessStatus: () => ({ pairings: [], clients: [], connected: 0, adminTokenPath: '' }),
   useCloudflareStatus: () => ({
-    enabled: false,
+    enabled: managedEnabled,
     envForced: false,
     error: null,
-    managed: false,
+    managed: managedEnabled,
     customUrl: customCloudflareUrl,
-    url: null,
+    url: managedUrl,
   }),
   useIssuePairingLink: () => ({ issue, isPending: false }),
   useLanStatus: () => ({
-    enabled: true,
+    enabled: lanAvailable,
     envForced: false,
     error: null,
-    numericUrl: 'http://192.168.1.10:43118',
+    numericUrl: lanAvailable ? 'http://192.168.1.10:43118' : null,
     port: 43118,
-    url: 'http://workstation.local:43118',
+    url: lanAvailable ? 'http://workstation.local:43118' : null,
   }),
   useRevokeAuthorizedClient: () => ({ revoke: vi.fn(), pendingId: null }),
   useRevokePairingLink: () => ({ revoke: vi.fn(), pendingId: null }),
@@ -51,7 +55,7 @@ vi.mock('@renderer/features/remote', () => ({
   useSetTailnetBind: () => ({ setEnabled: setTailnet, isPending: false }),
   useTailnetStatus: () => ({
     enabled: true,
-    envForced: false,
+    envForced: tailnetForced,
     error: null,
     port: 43118,
     url: 'http://workstation.example:43118',
@@ -62,6 +66,10 @@ beforeEach(() => {
   platform.isWindowsShell = false
   activeId = null
   customCloudflareUrl = null
+  managedEnabled = false
+  managedUrl = null
+  lanAvailable = true
+  tailnetForced = false
   setLan.mockClear()
   setTailnet.mockClear()
   setCloudflare.mockClear()
@@ -76,7 +84,7 @@ describe('ShareSection', () => {
     expect(screen.getByText('This daemon')).toBeTruthy()
     expect(screen.getByText('Local network')).toBeTruthy()
     expect(screen.getByText('Tailscale')).toBeTruthy()
-    expect(screen.getByText('Cloudflare quick tunnel')).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Cloudflare' })).toBeTruthy()
     expect(screen.getByText('Custom Cloudflare hostname')).toBeTruthy()
     expect(screen.queryByText('Internet')).toBeNull()
     expect(screen.queryByText(/Funnel/)).toBeNull()
@@ -114,7 +122,7 @@ describe('ShareSection', () => {
     fireEvent.change(screen.getByPlaceholderText('https://porcelain.example.com'), {
       target: { value: 'remote.example.com' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use custom hostname' }))
 
     expect(saveCloudflareHostname).toHaveBeenCalledWith('remote.example.com')
     expect(screen.getByText(/Cloudflare service URL:/)).toBeTruthy()
@@ -137,6 +145,67 @@ describe('ShareSection', () => {
       baseUrl: 'https://remote.example.com',
     })
     expect(await screen.findByAltText('Pairing QR code')).toBeTruthy()
+  })
+
+  it('shows custom sharing as on, protects its LAN listener, and can turn it off', () => {
+    customCloudflareUrl = 'https://remote.example.com'
+    render(<ShareSection />)
+    expect(screen.getByRole('switch', { name: 'Cloudflare' }).getAttribute('aria-checked')).toBe(
+      'true',
+    )
+    expect(
+      screen.getByRole('switch', { name: 'Local network' }).hasAttribute('data-disabled'),
+    ).toBe(true)
+    fireEvent.click(screen.getByRole('switch', { name: 'Cloudflare' }))
+    expect(setCloudflare).toHaveBeenCalledExactlyOnceWith(false)
+  })
+
+  it('switches back to managed sharing and drops the obsolete hostname draft after success', () => {
+    customCloudflareUrl = 'https://remote.example.com'
+    const view = render(<ShareSection />)
+    fireEvent.click(screen.getByRole('button', { name: 'Use managed tunnel' }))
+    expect(setCloudflare).toHaveBeenCalledExactlyOnceWith(true)
+    customCloudflareUrl = null
+    managedEnabled = true
+    managedUrl = 'https://example.trycloudflare.com'
+    view.rerender(<ShareSection />)
+    expect(
+      (screen.getByRole('textbox', { name: 'Custom Cloudflare hostname' }) as HTMLInputElement)
+        .value,
+    ).toBe('')
+    expect(screen.getByRole('switch', { name: 'Cloudflare' }).getAttribute('aria-checked')).toBe(
+      'true',
+    )
+  })
+
+  it('does not offer a stale URL from a stopped managed tunnel', () => {
+    managedUrl = 'https://example.trycloudflare.com'
+    render(<ShareSection />)
+    expect(screen.queryByRole('button', { name: 'Create Cloudflare link' })).toBeNull()
+  })
+
+  it('requires LAN before applying a custom hostname or pairing through it', () => {
+    lanAvailable = false
+    customCloudflareUrl = 'https://remote.example.com'
+    render(<ShareSection />)
+    expect(
+      screen.getByRole('button', { name: 'Use custom hostname' }).hasAttribute('disabled'),
+    ).toBe(true)
+    expect(screen.queryByRole('button', { name: 'Create Cloudflare link' })).toBeNull()
+    expect(
+      screen.getByRole('switch', { name: 'Local network' }).hasAttribute('data-disabled'),
+    ).toBe(false)
+  })
+
+  it('does not allow a custom hostname to override startup-owned Tailscale', () => {
+    tailnetForced = true
+    render(<ShareSection />)
+    expect(
+      screen.getByRole('textbox', { name: 'Custom Cloudflare hostname' }).hasAttribute('disabled'),
+    ).toBe(true)
+    expect(
+      screen.getByRole('button', { name: 'Use custom hostname' }).hasAttribute('disabled'),
+    ).toBe(true)
   })
 
   it('toggles Tailscale through the exclusive off-network row', () => {

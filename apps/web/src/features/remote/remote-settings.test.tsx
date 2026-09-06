@@ -77,6 +77,28 @@ describe('remote settings status shapes', () => {
 })
 
 describe('remote settings mutations', () => {
+  it('refreshes Tailscale after selecting a custom Cloudflare hostname', async () => {
+    let enabled = true
+    const { wrapper } = createValidatingTrpcHarness({
+      ...baseHandlers,
+      tailnetStatus: () => ({
+        ok: true,
+        value: { ...remoteContractFixtures.tailnetStatus.output, enabled },
+      }),
+      setCloudflareHostname: () => {
+        enabled = false
+        return { ok: true, value: remoteContractFixtures.setCloudflareHostname.output }
+      },
+    })
+    const { result } = renderHook(
+      () => ({ tailnet: useTailnetStatus(), hostname: useSetCloudflareHostname() }),
+      { wrapper },
+    )
+    await waitFor(() => expect(result.current.tailnet?.enabled).toBe(true))
+    act(() => result.current.hostname.save('remote.example.com'))
+    await waitFor(() => expect(result.current.tailnet?.enabled).toBe(false))
+  })
+
   it('bind and revoke call the daemon procedures', async () => {
     const { mock, wrapper } = createValidatingTrpcHarness({
       ...baseHandlers,

@@ -175,4 +175,5 @@ export async function setRemoteCloudflareHostname(
     await client.setCloudflareHostname.mutate(wire),
   )
   await invalidateRemoteStatus(queryClient, daemon, 'cloudflareStatus')
+  await invalidateRemoteStatus(queryClient, daemon, 'tailnetStatus')
 }
