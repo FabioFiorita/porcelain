@@ -17,9 +17,17 @@ function compileLayers(layers: readonly Layer[]): CompiledLayer[] {
 function layerForCompiled(path: string, compiled: readonly CompiledLayer[]): string {
   let best: { label: string; index: number } | null = null
   for (const { label, re } of compiled) {
-    re.lastIndex = 0 // `g` regexes are stateful — reset before each path scan
     let last: RegExpExecArray | null = null
-    for (let m = re.exec(path); m !== null; m = re.exec(path)) last = m
+    let lastEmpty: RegExpExecArray | null = null
+    // matchAll advances after zero-length matches (anchors, lookaheads, .*).
+    // An exec loop does not, and would block the entire daemon event loop.
+    for (const match of path.matchAll(re)) {
+      if (match[0].length > 0) last = match
+      else lastEmpty = match
+    }
+    // A catch-all like .* ends with an empty match: it must not outrank a
+    // deeper directory/filename match merely because it also matches EOF.
+    last ??= lastEmpty
     if (last && (best === null || last.index > best.index)) {
       best = { label, index: last.index }
     }

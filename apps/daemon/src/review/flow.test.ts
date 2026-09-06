@@ -41,6 +41,37 @@ describe('DEFAULT_LAYERS (starters)', () => {
 })
 
 describe('layerFor', () => {
+  it('keeps a catch-all behind specific layers and still includes unmatched files', () => {
+    const layers = [
+      { label: 'Code', pattern: '^src/' },
+      { label: 'Tests', pattern: '\\.spec\\.ts$' },
+      { label: 'Mechanical', pattern: '.*' },
+    ]
+    const files = [{ path: 'src/app.ts' }, { path: 'src/app.spec.ts' }, { path: 'config.json' }]
+    expect(groupByLayer(files, layers)).toEqual([
+      { layer: 'Code', files: [files[0]] },
+      { layer: 'Tests', files: [files[1]] },
+      { layer: 'Mechanical', files: [files[2]] },
+    ])
+  })
+
+  it.each(['^', '$', '.*', '(?=src/)', '^src/|$', ''])(
+    'accepts a layer with zero-length matches: %s',
+    (pattern) => {
+      expect(layerFor('src/app.ts', [{ label: 'Code', pattern }])).toBe('Code')
+    },
+  )
+
+  it('keeps the deepest match after zero-length matches and resets for each file', () => {
+    const layers = [
+      { label: 'Directory', pattern: 'src/' },
+      { label: 'File', pattern: '^|(?=app\\.ts)' },
+    ]
+    const files = [{ path: 'src/app.ts' }, { path: 'src/app.tsx' }]
+    expect(groupByLayer(files, layers)).toEqual([{ layer: 'File', files }])
+    expect(groupByLayerOrdered(files, layers)).toEqual([{ layer: 'File', files }])
+  })
+
   it('maps paths to layers on a custom set', () => {
     expect(layerFor('src/components/Widget.tsx', STORY_LAYERS)).toBe('Components')
     expect(layerFor('libs/core/services/billing.ts', STORY_LAYERS)).toBe('Services')
