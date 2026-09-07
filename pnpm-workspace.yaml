@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+minimumReleaseAge: 1440
+# dependency-cruiser uses the legacy compiler API to parse imports.
+# Application type checking remains TypeScript 7.
+packageExtensions:
+  dependency-cruiser@18.2.0:
+    dependencies:
+      typescript: 6.0.3

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": { "includes": ["**", "!!pnpm-lock.yaml"] },
+  "formatter": { "indentStyle": "space", "indentWidth": 2 },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "always" }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 15 }
+        }
+      },
+      "style": {
+        "useFilenamingConvention": {
+          "level": "error",
+          "options": { "filenameCases": ["kebab-case"] }
+        },
+        "useNodejsImportProtocol": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noTsIgnore": "error",
+        "noFocusedTests": "error",
+        "noSkippedTests": "error"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "packages/contracts/src/**",
+        "packages/client/src/**",
+        "packages/design-tokens/src/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "window": "Use a platform adapter",
+                  "document": "Use a platform adapter",
+                  "localStorage": "Use a platform adapter",
+                  "sessionStorage": "Use a platform adapter",
+                  "navigator": "Use a platform adapter",
+                  "process": "Use a platform adapter",
+                  "Buffer": "Use a platform adapter"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

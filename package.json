@@ -1,0 +1,27 @@
+{
+  "name": "porcelain",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=24.20.0 <25 || >=26.8.1 <27"
+  },
+  "scripts": {
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint --error-on-warnings . && node scripts/check-conventions.ts",
+    "typecheck": "tsc --noEmit && pnpm -r --if-present typecheck",
+    "check:boundaries": "node scripts/check-boundaries.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries && pnpm test:coverage"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@types/node": "24.13.3",
+    "@vitest/coverage-v8": "5.0.0",
+    "dependency-cruiser": "18.2.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.0"
+  }
+}
