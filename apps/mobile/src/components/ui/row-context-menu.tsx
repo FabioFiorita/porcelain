@@ -2,11 +2,19 @@ import * as DropdownMenuPrimitive from '@rn-primitives/dropdown-menu'
 import * as Slot from '@rn-primitives/slot'
 import { Fragment } from 'react'
 import type { PressableProps } from 'react-native'
-import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
+import {
+  Dimensions,
+  Platform,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 
 import { ChromeGlyph, type ChromeIconName } from '@/components/chrome-glyph'
 import { Text } from '@/components/ui/text'
 import { cn } from '@/lib/utils'
+import { menuInsets } from './menu-insets'
 
 /**
  * One item in a row's context menu.
@@ -84,15 +92,17 @@ export function AnchoredMenu({
   children,
   testID,
   title,
+  align = 'start',
 }: {
   actions: readonly RowMenuAction[]
   /** The control that opens it. */
   children: React.ReactNode
   testID?: string
   title?: string
+  align?: 'start' | 'center' | 'end'
 }): React.JSX.Element {
   return (
-    <MenuRoot actions={actions} testID={testID} title={title}>
+    <MenuRoot actions={actions} testID={testID} title={title} align={align}>
       <DropdownMenuPrimitive.Trigger asChild testID={testID}>
         <Slot.Pressable>{children}</Slot.Pressable>
       </DropdownMenuPrimitive.Trigger>
@@ -106,11 +116,13 @@ function MenuRoot({
   children,
   testID,
   title,
+  align = 'start',
 }: {
   actions: readonly RowMenuAction[]
   children: React.ReactNode
   testID?: string
   title?: string
+  align?: 'start' | 'center' | 'end'
 }): React.JSX.Element {
   const { height, width } = useWindowDimensions()
   return (
@@ -125,7 +137,11 @@ function MenuRoot({
               `node_modules` is an inert prop — see the note in `Sheet`. */}
           <DropdownMenuPrimitive.Content
             asChild
-            insets={{ bottom: 12, left: 12, right: 12, top: 12 }}
+            align={align}
+            insets={menuInsets(
+              Platform.OS === 'web' ? { width, height } : Dimensions.get('screen'),
+              { width, height },
+            )}
             sideOffset={8}
           >
             <View

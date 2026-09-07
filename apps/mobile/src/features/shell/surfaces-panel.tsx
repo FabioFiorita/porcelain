@@ -2,8 +2,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { ChromeGlyph } from '@/components/chrome-glyph'
 import { EmptyNote, ICON_ACTION } from '@/components/panel-chrome'
-import { AnchoredMenu, type RowMenuAction, RowContextMenu } from '@/components/ui/row-context-menu'
 import { SurfaceScroll } from '@/components/surface-scroll'
+import { AnchoredMenu, RowContextMenu, type RowMenuAction } from '@/components/ui/row-context-menu'
 import { useHubRepoPath } from '@/features/projects'
 import { cn } from '@/lib/utils'
 
@@ -88,6 +88,7 @@ export function SurfacesPanel(): React.JSX.Element {
         )}
         {available.length === 0 ? null : (
           <AnchoredMenu
+            align="end"
             actions={available.map(
               (surface): RowMenuAction => ({
                 glyph: surface.glyph,
