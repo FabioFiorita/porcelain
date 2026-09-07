@@ -60,11 +60,30 @@ The caller must close the application. There is no default production directory 
 Use only temporary repositories and state for development fixtures.
 
 ```sh
-pnpm exec vitest run apps/server/src/app.spec.ts
-pnpm --filter @porcelain/server typecheck
+pnpm exec vitest run apps/server/src
+pnpm --filter @porcelain/contracts --filter @porcelain/server typecheck
 pnpm exec biome check apps/server
 ```
 
 These specs exercise real Git and SQLite, including restart, moves, removal, and unavailable paths.
-They do not prove a running server, client workflow, or remote connection. CI runs them on Linux;
+Fastify specs also exercise response serialization and a disposable loopback health request. They do
+not prove client workflows or remote connections. CI runs them on Linux;
 a local macOS pass does not establish Linux behavior until that CI run is observed.
+
+## Persistence and HTTP infrastructure
+
+`apps/server/src/inventory/inventory-schema.ts` owns Drizzle table definitions. Generate migrations:
+
+```sh
+pnpm --filter @porcelain/server db:generate
+```
+
+Review and commit both SQL and snapshots under `apps/server/drizzle`. Data transformations may need
+explicit SQL. Application startup applies pending migrations; do not use `drizzle-kit push` to upgrade
+application data. The version-1 migration preserves IDs and rolls back invalid source data.
+Keep the migration directory with the server when adding build/packaging tasks.
+
+`createServer` in `apps/server/src/app.ts` returns a Fastify instance with `GET /health` and a shutdown
+hook for inventory. It does not bind a port. The health contract is exported from
+`@porcelain/contracts/health`; the server uses the Fastify Zod provider. There are no inventory routes
+or credentials. Choose authentication, binding, and connection behavior before adding those routes.

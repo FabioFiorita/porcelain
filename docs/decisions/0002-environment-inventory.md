@@ -30,9 +30,9 @@ There is no disk scan or automatic search for moved repositories.
 
 One SQLite database in an explicitly supplied absolute data directory stores the environment ID and
 project/worktree associations. Node's built-in SQLite adapter avoids a separate native dependency.
-The initial schema uses an indexed project identity plus a JSON inventory record per project; no
-cross-project worktree queries or review-data relationships exist yet. Updates replace a project record
-atomically. Versioned schema initialization runs before inventory access and rejects newer versions.
+Drizzle owns relational environment, project, and worktree tables and migration execution, as defined
+in the [persistence and transport decision](0003-drizzle-and-fastify.md). Project inventory updates
+are transactional. Versioned schema initialization runs before access and rejects newer versions.
 
 Startup and registration refresh Git state; an explicit refresh operation supports later client use.
 Operations within an application instance are serialized. One server instance owns a data directory;
@@ -44,12 +44,11 @@ cloning, migration tooling, and backup procedures are not supported workflows ye
 
 Clients may retain last-known navigator entries, visibly unavailable until refreshed. Offline or loading
 projects must not permit inspection. TanStack Query focus/reconnect behavior belongs to the future clients.
-The current slice has no client cache, transport, authentication, or UI.
+There is no client cache, inventory transport, authentication, or UI.
 
 ## Package scope
 
-Only `apps/server` has application behavior. Its composition function accepts an isolated data directory
-and an optional Git adapter. No wire contracts exist yet, so no contracts package or Zod dependency is
-introduced. Revisit Turborepo when multiple packages have actual ordering or caching needs; recursive
-pnpm type checking suffices for this single package. A contracts package must use explicit public
-subpaths when introduced.
+The server composition accepts an isolated data directory and an optional Git adapter. The health
+response schema is shared through an explicit contracts subpath. Inventory types remain server-private
+until their transport boundary is designed. Recursive pnpm type checking covers both packages; revisit
+Turborepo when build ordering or reusable task outputs justify it.

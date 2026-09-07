@@ -2,7 +2,9 @@
 
 This is the agreed layout and responsibility model. The server inventory foundation exists in `apps/server`; other
 application and package directories are added with their first behavior. The
-[inventory decision](decisions/0002-environment-inventory.md) defines identity and persistence.
+[inventory decision](decisions/0002-environment-inventory.md) defines identity.
+[Drizzle and Fastify](decisions/0003-drizzle-and-fastify.md) own persistence and HTTP infrastructure.
+The health response is the first schema in `packages/contracts`.
 
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |

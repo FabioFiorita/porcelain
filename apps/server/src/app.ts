@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { basename, dirname } from 'node:path';
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from '@fastify/type-provider-zod';
+import { healthResponseSchema } from '@porcelain/contracts/health';
+import Fastify from 'fastify';
 import { createGitInventory } from './inventory/git-inventory.ts';
 import type {
   DiscoveredRepository,
@@ -103,4 +110,22 @@ export async function openApplication(options: {
     refresh: () => serialize(refresh),
     close: () => serialize(async () => store.close()),
   };
+}
+
+export async function createServer(
+  options: Parameters<typeof openApplication>[0],
+) {
+  const application = await openApplication(options);
+  const server = Fastify().withTypeProvider<ZodTypeProvider>();
+  server.setValidatorCompiler(validatorCompiler);
+  server.setSerializerCompiler(serializerCompiler);
+  server.addHook('onClose', async () => application.close());
+  server.get(
+    '/health',
+    {
+      schema: { response: { 200: healthResponseSchema } },
+    },
+    () => ({ status: 'ok' as const }),
+  );
+  return server;
 }

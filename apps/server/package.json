@@ -3,6 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@fastify/type-provider-zod": "1.0.0",
+    "@porcelain/contracts": "workspace:*",
+    "drizzle-orm": "1.0.0-rc.4",
+    "fastify": "5.12.3",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "drizzle-kit": "1.0.0-rc.4"
   }
 }

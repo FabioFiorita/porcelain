@@ -1,11 +1,14 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { cruise } from 'dependency-cruiser';
 import { expect, test } from 'vitest';
 import { boundaryRules } from './boundary-rules.ts';
 
-async function violations(files: Record<string, string>) {
+async function violations(
+  files: Record<string, string>,
+  links: Record<string, string> = {},
+) {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-boundaries-'));
   const previousDirectory = process.cwd();
   try {
@@ -13,13 +16,20 @@ async function violations(files: Record<string, string>) {
       await mkdir(dirname(join(root, path)), { recursive: true });
       await writeFile(join(root, path), source);
     }
+    for (const [path, target] of Object.entries(links)) {
+      await mkdir(dirname(join(root, path)), { recursive: true });
+      await symlink(join(root, target), join(root, path), 'dir');
+    }
     process.chdir(root);
-    const result = await cruise(Object.keys(files), {
-      ...boundaryRules.options,
-      ruleSet: boundaryRules,
-      validate: true,
-      outputType: 'json',
-    });
+    const result = await cruise(
+      Object.keys(files).filter((path) => path.endsWith('.ts')),
+      {
+        ...boundaryRules.options,
+        ruleSet: boundaryRules,
+        validate: true,
+        outputType: 'json',
+      },
+    );
     if (typeof result.output !== 'string')
       throw new Error('Expected JSON report');
     const output = JSON.parse(result.output) as {
@@ -108,4 +118,42 @@ test('rejects Node builtins in mobile presentation', async () => {
         "import {readFile} from 'node:fs/promises'; export const read = readFile;",
     }),
   ).toContain('no-node-in-portable-code');
+});
+
+const exportedPackage = {
+  'packages/contracts/package.json': JSON.stringify({
+    name: '@porcelain/contracts',
+    type: 'module',
+    exports: { './value': './src/value.ts' },
+  }),
+  'packages/contracts/src/value.ts': 'export const value = 1;',
+};
+const workspaceLink = {
+  'node_modules/@porcelain/contracts': 'packages/contracts',
+};
+
+test('resolves a workspace public subpath through its package exports', async () => {
+  expect(
+    await violations(
+      {
+        ...exportedPackage,
+        'apps/server/src/main.ts':
+          "import { value } from '@porcelain/contracts/value'; export const result = value;",
+      },
+      workspaceLink,
+    ),
+  ).toEqual([]);
+});
+
+test('rejects a private workspace subpath even when the source file exists', async () => {
+  expect(
+    await violations(
+      {
+        ...exportedPackage,
+        'apps/server/src/main.ts':
+          "import { value } from '@porcelain/contracts/src/value.ts'; export const result = value;",
+      },
+      workspaceLink,
+    ),
+  ).toContain('no-unresolved-imports');
 });

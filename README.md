@@ -19,5 +19,7 @@ npx --yes pnpm@12.3.4 install --frozen-lockfile
 
 The server inventory foundation initializes environment identity in SQLite, registers existing Git
 repositories, and discovers their main and linked worktrees. See the [inventory decision](docs/decisions/0002-environment-inventory.md).
-There is no server process entrypoint, transport, or UI yet. Authentication, HTTP framework, styling,
+Drizzle owns persistence and migrations. A Fastify application factory provides a minimal health route;
+there is no server process entrypoint, inventory transport, or UI yet. See the
+[persistence and transport decision](docs/decisions/0003-drizzle-and-fastify.md). Authentication, styling,
 and artifact sharing details remain undecided.

@@ -77,5 +77,9 @@ export const boundaryRules: IConfiguration = {
   options: {
     doNotFollow: { path: 'node_modules' },
     tsPreCompilationDeps: true,
+    enhancedResolveOptions: {
+      exportsFields: ['exports'],
+      conditionNames: ['types', 'import', 'require', 'node', 'default'],
+    },
   },
 };
