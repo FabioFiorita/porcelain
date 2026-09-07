@@ -1,7 +1,7 @@
 import { type BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useRef, useState } from 'react'
-import { Modal, View } from 'react-native'
+import { Modal, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Button } from '@/components/ui/button'
@@ -58,11 +58,14 @@ export function PairingQrScanner({
     >
       <StatusBar style="light" />
       <View className="flex-1 bg-black" testID="porcelain-pairing-scanner">
-        {permission?.granted ? (
+        {open && permission?.granted ? (
           <CameraView
             barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             facing="back"
-            className="flex-1"
+            // nativewind-allow-style: Expo's native camera needs an explicit preview size.
+            style={StyleSheet.absoluteFill}
+            testID="porcelain-pairing-camera"
+            onMountError={({ message }) => setError(`Camera could not start: ${message}`)}
             onBarcodeScanned={paused ? undefined : scan}
           />
         ) : (

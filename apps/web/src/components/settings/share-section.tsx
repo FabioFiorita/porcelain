@@ -17,7 +17,6 @@ import {
 } from '@renderer/features/remote'
 import { toastUserActionError } from '@renderer/hooks/mutation-error'
 import { compactButtonClass, rowActionClass } from '@renderer/lib/controls'
-import { isWindowsShell } from '@renderer/lib/platform'
 import { copyText } from '@renderer/lib/utils'
 import { runUserAction } from '@shared/background'
 import { TestIds } from '@shared/test-ids'
@@ -81,6 +80,9 @@ function ShareToggleRow({
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm-minus font-medium">{label}</p>
+          <Badge variant="outline">
+            {!checked ? 'Off' : connectUrl ? 'Configured' : 'Unavailable'}
+          </Badge>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <Switch
@@ -273,6 +275,10 @@ function LocalShareSettings(): React.JSX.Element {
   const savedHostname = cloudflare?.customUrl ?? null
   const cloudflareHostname = cloudflareHostnameDraft ?? savedHostname ?? ''
   const customActive = cloudflare?.customUrl != null
+  const [lanChoice, setLanChoice] = useState<string | null>(null)
+  const [tunnelMode, setTunnelMode] = useState<'temporary' | 'hostname'>(
+    customActive ? 'hostname' : 'temporary',
+  )
   const networkPending =
     !lan ||
     !tailnet ||
@@ -285,10 +291,13 @@ function LocalShareSettings(): React.JSX.Element {
 
   useEffect(() => {
     setCloudflareHostnameDraft(savedHostname)
+    setTunnelMode(savedHostname ? 'hostname' : 'temporary')
   }, [savedHostname])
 
-  const lanUrl =
+  const suggestedLanUrl =
     lan?.numericUrl != null && lan.numericUrl !== '' ? lan.numericUrl : (lan?.url ?? null)
+  const lanUrls = lan?.urls ?? (suggestedLanUrl ? [suggestedLanUrl] : [])
+  const lanUrl = lanChoice && lanUrls.includes(lanChoice) ? lanChoice : suggestedLanUrl
   const cloudflareUrl = customActive
     ? lanUrl !== null && lan?.error == null
       ? cloudflare.customUrl
@@ -298,7 +307,7 @@ function LocalShareSettings(): React.JSX.Element {
       : null
   const endpoints: ShareEndpoint[] = [
     ...(lanUrl == null ? [] : [{ label: 'LAN', url: lanUrl, route: 'lan' as const }]),
-    ...(!isWindowsShell && tailnet?.url != null
+    ...(tailnet?.url != null
       ? [{ label: 'Tailscale', url: tailnet.url, route: 'tailnet' as const }]
       : []),
     ...(cloudflareUrl == null
@@ -310,10 +319,10 @@ function LocalShareSettings(): React.JSX.Element {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">This daemon</h3>
+          <h3 className="text-sm font-semibold tracking-tight">Connect your devices</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            LAN is the fastest route. Pick Tailscale or Cloudflare for when you leave this network.
-            Clients try LAN, then Tailscale, then Cloudflare.
+            Use Local network on the same Wi-Fi, or Tailscale or Cloudflare when away. Each link
+            connects to this environment. Pair other environments separately.
           </p>
         </div>
         <div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/60">
@@ -335,16 +344,37 @@ function LocalShareSettings(): React.JSX.Element {
                   : undefined
             }
             url={lan?.url}
-            numericUrl={lan?.numericUrl}
+            numericUrl={lanUrl}
             emptyHint={
               lan?.error === 'in-use'
                 ? `Port ${lan.port} is in use.`
                 : 'No local network interface found.'
             }
           />
+          {lanUrls.length > 1 && (
+            <label className="flex flex-col gap-2 p-3 text-xs">
+              Local network address
+              <select
+                aria-label="Local network address"
+                className="rounded-md border border-border bg-background p-2"
+                value={lanUrl ?? ''}
+                onChange={(event) => setLanChoice(event.target.value)}
+              >
+                {lanUrls.map((url) => (
+                  <option key={url} value={url}>
+                    {url}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted-foreground">
+                Choose the address on your device’s network. VPN and virtual-network addresses may
+                not be reachable from Wi-Fi.
+              </span>
+            </label>
+          )}
           <ShareToggleRow
             label="Tailscale"
-            description="Private WireGuard for your own devices. Turns Cloudflare off."
+            description="Install and connect Tailscale on both devices. Enabling it switches off Cloudflare sharing."
             checked={tailnet?.enabled ?? false}
             disabled={
               networkPending || tailnet?.envForced === true || cloudflare?.envForced === true
@@ -403,25 +433,47 @@ function LocalShareSettings(): React.JSX.Element {
                 : 'Cloudflare is not configured.'
             }
           />
-          <div className="flex flex-col gap-2 px-3 py-3">
-            <div>
-              <p className="text-sm-minus font-medium">Custom Cloudflare hostname</p>
-              <p className="text-xs text-muted-foreground">
-                Use an existing external tunnel, such as a Windows cloudflared service. Applying
-                this hostname stops Porcelain’s managed tunnel and turns Tailscale off; it does not
-                configure DNS or start the external service.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={cloudflareHostname}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>): void => {
-                  setCloudflareHostnameDraft(event.target.value)
-                }}
-                placeholder="https://porcelain.example.com"
-                aria-label="Custom Cloudflare hostname"
-                disabled={networkPending || cloudflareLocked}
-              />
+          <details className="px-3 py-3">
+            <summary className="cursor-pointer text-sm-minus font-medium">
+              Configure Cloudflare
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              <label className="flex flex-col gap-2 text-xs">
+                Connection type
+                <select
+                  aria-label="Cloudflare connection type"
+                  value={tunnelMode}
+                  disabled={networkPending || cloudflareLocked}
+                  onChange={(event) =>
+                    setTunnelMode(event.target.value as 'temporary' | 'hostname')
+                  }
+                  className="rounded-md border border-border bg-background p-2"
+                >
+                  <option value="temporary">Temporary address — managed by Porcelain</option>
+                  <option value="hostname">Existing hostname — your own tunnel</option>
+                </select>
+              </label>
+              {tunnelMode === 'hostname' && (
+                <>
+                  <div>
+                    <p className="text-sm-minus font-medium">Custom Cloudflare hostname</p>
+                    <p className="text-xs text-muted-foreground">
+                      Enter the HTTPS hostname already routed to this environment in Cloudflare.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={cloudflareHostname}
+                      onChange={(event: React.ChangeEvent<HTMLInputElement>): void => {
+                        setCloudflareHostnameDraft(event.target.value)
+                      }}
+                      placeholder="https://porcelain.example.com"
+                      aria-label="Custom Cloudflare hostname"
+                      disabled={networkPending || cloudflareLocked}
+                    />
+                  </div>
+                </>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -429,50 +481,36 @@ function LocalShareSettings(): React.JSX.Element {
                 disabled={
                   networkPending ||
                   cloudflareLocked ||
-                  lanUrl === null ||
-                  lan?.error != null ||
-                  cloudflareHostname.trim() === ''
+                  (tunnelMode === 'hostname' &&
+                    (lanUrl === null || lan?.error != null || cloudflareHostname.trim() === ''))
                 }
                 onClick={() => {
-                  const trimmed = cloudflareHostname.trim()
-                  saveCloudflareHostname(trimmed)
+                  if (tunnelMode === 'hostname') saveCloudflareHostname(cloudflareHostname.trim())
+                  else setCloudflareEnabled(true)
                 }}
               >
-                {cloudflareHostnamePending ? 'Applying…' : 'Use custom hostname'}
+                {networkPending ? 'Applying…' : 'Apply Cloudflare configuration'}
               </Button>
-              {cloudflare?.customUrl != null && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={rowActionClass}
-                  disabled={networkPending || cloudflareLocked}
-                  onClick={() => {
-                    setCloudflareEnabled(true)
-                  }}
-                >
-                  Use managed tunnel
-                </Button>
+              {lanUrl != null ? (
+                <p className="text-xs text-muted-foreground">
+                  Cloudflare service URL: <span className="font-mono">{lanUrl}</span>
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Turn on Local network to give cloudflared a service URL.
+                </p>
+              )}
+              {customActive && (
+                <p className="text-xs text-muted-foreground">
+                  Custom hostname selected: {cloudflare?.customUrl}. Public reachability is not
+                  verified.
+                  {lanUrl === null || lan?.error != null
+                    ? ' Restore Local network before creating a Cloudflare link.'
+                    : ''}
+                </p>
               )}
             </div>
-            {lanUrl != null ? (
-              <p className="text-xs text-muted-foreground">
-                Cloudflare service URL: <span className="font-mono">{lanUrl}</span>
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Turn on Local network to give cloudflared a service URL.
-              </p>
-            )}
-            {customActive && (
-              <p className="text-xs text-muted-foreground">
-                Custom hostname selected: {cloudflare?.customUrl}. Public reachability is not
-                verified.
-                {lanUrl === null || lan?.error != null
-                  ? ' Restore Local network before creating a Cloudflare link.'
-                  : ''}
-              </p>
-            )}
-          </div>
+          </details>
         </div>
       </section>
       <PairDevice endpoints={endpoints} />

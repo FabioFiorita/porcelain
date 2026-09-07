@@ -16,6 +16,7 @@ let customCloudflareUrl: string | null = null
 let managedEnabled = false
 let managedUrl: string | null = null
 let lanAvailable = true
+let lanUrls: string[] | undefined
 let tailnetForced = false
 
 vi.mock('@renderer/features/remote', () => ({
@@ -44,6 +45,7 @@ vi.mock('@renderer/features/remote', () => ({
     envForced: false,
     error: null,
     numericUrl: lanAvailable ? 'http://192.168.1.10:43118' : null,
+    urls: lanUrls,
     port: 43118,
     url: lanAvailable ? 'http://workstation.local:43118' : null,
   }),
@@ -69,6 +71,7 @@ beforeEach(() => {
   managedEnabled = false
   managedUrl = null
   lanAvailable = true
+  lanUrls = undefined
   tailnetForced = false
   setLan.mockClear()
   setTailnet.mockClear()
@@ -78,14 +81,26 @@ beforeEach(() => {
 })
 
 describe('ShareSection', () => {
+  it('uses the selected LAN adapter in the pairing link', () => {
+    lanUrls = ['http://192.168.1.10:43118', 'http://10.0.0.20:43118']
+    render(<ShareSection />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Local network address' }), {
+      target: { value: lanUrls[1] },
+    })
+    fireEvent.change(screen.getByPlaceholderText('Device name, e.g. My iPhone'), {
+      target: { value: 'Tablet' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create LAN link' }))
+    expect(issue).toHaveBeenCalledWith({ label: 'Tablet', baseUrl: lanUrls[1] })
+  })
   it('shows LAN plus exclusive Tailscale and Cloudflare, not Funnel', () => {
     render(<ShareSection />)
 
-    expect(screen.getByText('This daemon')).toBeTruthy()
+    expect(screen.getByText('Connect your devices')).toBeTruthy()
     expect(screen.getByText('Local network')).toBeTruthy()
     expect(screen.getByText('Tailscale')).toBeTruthy()
     expect(screen.getByRole('switch', { name: 'Cloudflare' })).toBeTruthy()
-    expect(screen.getByText('Custom Cloudflare hostname')).toBeTruthy()
+    expect(screen.getByText('Configure Cloudflare')).toBeTruthy()
     expect(screen.queryByText('Internet')).toBeNull()
     expect(screen.queryByText(/Funnel/)).toBeNull()
     expect(screen.getByRole('button', { name: 'Create LAN link' })).toBeTruthy()
@@ -103,7 +118,7 @@ describe('ShareSection', () => {
       })
       render(<ShareSection />)
       expect(screen.queryByRole('button', { name: 'Create Windows + WSL link' })).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Create Tailscale link' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Create Tailscale link' })).toBeTruthy()
       fireEvent.change(screen.getByPlaceholderText('Device name, e.g. My iPhone'), {
         target: { value: 'Phone' },
       })
@@ -119,10 +134,14 @@ describe('ShareSection', () => {
   it('saves a custom hostname for the existing QR pairing flow', () => {
     render(<ShareSection />)
 
+    fireEvent.click(screen.getByText('Configure Cloudflare'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Cloudflare connection type' }), {
+      target: { value: 'hostname' },
+    })
     fireEvent.change(screen.getByPlaceholderText('https://porcelain.example.com'), {
       target: { value: 'remote.example.com' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Use custom hostname' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Cloudflare configuration' }))
 
     expect(saveCloudflareHostname).toHaveBeenCalledWith('remote.example.com')
     expect(screen.getByText(/Cloudflare service URL:/)).toBeTruthy()
@@ -163,16 +182,17 @@ describe('ShareSection', () => {
   it('switches back to managed sharing and drops the obsolete hostname draft after success', () => {
     customCloudflareUrl = 'https://remote.example.com'
     const view = render(<ShareSection />)
-    fireEvent.click(screen.getByRole('button', { name: 'Use managed tunnel' }))
+    fireEvent.click(screen.getByText('Configure Cloudflare'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Cloudflare connection type' }), {
+      target: { value: 'temporary' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Cloudflare configuration' }))
     expect(setCloudflare).toHaveBeenCalledExactlyOnceWith(true)
     customCloudflareUrl = null
     managedEnabled = true
     managedUrl = 'https://example.trycloudflare.com'
     view.rerender(<ShareSection />)
-    expect(
-      (screen.getByRole('textbox', { name: 'Custom Cloudflare hostname' }) as HTMLInputElement)
-        .value,
-    ).toBe('')
+    expect(screen.queryByRole('textbox', { name: 'Custom Cloudflare hostname' })).toBeNull()
     expect(screen.getByRole('switch', { name: 'Cloudflare' }).getAttribute('aria-checked')).toBe(
       'true',
     )
@@ -188,8 +208,11 @@ describe('ShareSection', () => {
     lanAvailable = false
     customCloudflareUrl = 'https://remote.example.com'
     render(<ShareSection />)
+    fireEvent.click(screen.getByText('Configure Cloudflare'))
     expect(
-      screen.getByRole('button', { name: 'Use custom hostname' }).hasAttribute('disabled'),
+      screen
+        .getByRole('button', { name: 'Apply Cloudflare configuration' })
+        .hasAttribute('disabled'),
     ).toBe(true)
     expect(screen.queryByRole('button', { name: 'Create Cloudflare link' })).toBeNull()
     expect(
@@ -198,13 +221,18 @@ describe('ShareSection', () => {
   })
 
   it('does not allow a custom hostname to override startup-owned Tailscale', () => {
+    customCloudflareUrl = 'https://remote.example.com'
     tailnetForced = true
     render(<ShareSection />)
+    fireEvent.click(screen.getByText('Configure Cloudflare'))
     expect(
       screen.getByRole('textbox', { name: 'Custom Cloudflare hostname' }).hasAttribute('disabled'),
     ).toBe(true)
+    fireEvent.click(screen.getByText('Configure Cloudflare'))
     expect(
-      screen.getByRole('button', { name: 'Use custom hostname' }).hasAttribute('disabled'),
+      screen
+        .getByRole('button', { name: 'Apply Cloudflare configuration' })
+        .hasAttribute('disabled'),
     ).toBe(true)
   })
 

@@ -1,4 +1,4 @@
-import type { AuthorizedClient, PairingGrant } from '@porcelain/contracts/remote'
+import type { AuthorizedClient, LanStatusOutput, PairingGrant } from '@porcelain/contracts/remote'
 import { onMutationError } from '@renderer/hooks/mutation-error'
 import { useDaemonIdentity } from '@renderer/hooks/use-daemon-identity'
 import {
@@ -34,17 +34,7 @@ export interface AccessStatus {
   adminTokenPath: string
 }
 
-export interface LanStatus {
-  enabled: boolean
-  url: string | null
-  numericUrl: string | null
-  /** Why nothing bound: 'in-use' = share port squatted (likely a stale daemon). */
-  error: 'in-use' | null
-  /** True when PORCELAIN_LAN_BIND=1 force-enabled the bind at boot (not togglable). */
-  envForced: boolean
-  /** Port this daemon binds for LAN share (PORCELAIN_DAEMON_PORT or 43117). */
-  port: number
-}
+export type LanStatus = LanStatusOutput
 
 export interface TailnetStatus {
   enabled: boolean

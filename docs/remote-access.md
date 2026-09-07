@@ -48,13 +48,13 @@ npx @fabiofiorita/porcelain@latest serve --lan --cloudflare --cloudflare-hostnam
 Without a token, `--cloudflare` creates a quick `trycloudflare.com` URL that changes on restart.
 
 If `cloudflared` is already managed outside Porcelain (for example as a Windows service), use
-Settings → Share → **Custom Cloudflare hostname**. Enter the public HTTPS hostname after adding a
+Settings → Share → **Configure Cloudflare** → **Existing hostname**. Enter the public HTTPS hostname after adding a
 Cloudflare Published application route whose service URL is the LAN URL shown beside the field.
 Porcelain stores only the public hostname, never the tunnel token, and uses it when creating the
 same one-time HTTP(S) pairing link and QR code as its other share routes. Enable Local network
-first, then choose **Use custom hostname**. This selects the external route and stops Porcelain's
+first, then choose **Apply Cloudflare configuration**. This selects the external route and stops Porcelain's
 managed tunnel; entering a hostname does not configure DNS or start an external service.
-Local network remains required while the custom route is selected. **Use managed tunnel** switches
+Local network remains required while the custom route is selected. Selecting **Temporary address** and applying switches
 back to a Porcelain-owned process (a quick tunnel by default, or a named tunnel with the environment
 credentials above). Turning Cloudflare off or selecting Tailscale stops advertising the custom
 hostname; it does not stop the external `cloudflared` service. A saved hostname is not proof of

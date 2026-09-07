@@ -329,7 +329,8 @@ export function useRemoveHubWorktree(): {
             const target =
               variables.environmentId === undefined || variables.environmentId === null
                 ? source.current
-                : source.inventory.environment.id === variables.environmentId
+                : source.environmentId === variables.environmentId ||
+                  source.inventory.environment.id === variables.environmentId
             return target ? { ...source, inventory: removeFromInventory(source.inventory) } : source
           }),
         )

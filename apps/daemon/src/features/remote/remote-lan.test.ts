@@ -38,6 +38,11 @@ const v6 = (address: string): NonNullable<Interfaces[string]>[number] => ({
 })
 
 describe('findLanAddresses', () => {
+  it('suggests Wi-Fi before an unrecognized VPN adapter without dropping address choices', () => {
+    expect(
+      findLanAddresses({ 'Local connection': [v4('10.9.0.2')], 'Wi-Fi': [v4('192.168.1.20')] }),
+    ).toEqual(['192.168.1.20', '10.9.0.2'])
+  })
   it('finds RFC1918 addresses across all three ranges', () => {
     expect(findLanAddresses({ en0: [v4('10.1.2.3')] })).toEqual(['10.1.2.3'])
     expect(findLanAddresses({ en0: [v4('172.16.5.5')] })).toEqual(['172.16.5.5'])

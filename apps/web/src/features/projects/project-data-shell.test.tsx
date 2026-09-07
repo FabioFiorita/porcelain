@@ -1,5 +1,7 @@
 import { projectsContractFixtures } from '@porcelain/contracts/projects'
 import { remoteContractFixtures } from '@porcelain/contracts/remote'
+import * as environmentSessions from '@renderer/lib/environment-sessions'
+import { trpc } from '@renderer/lib/trpc'
 import { useProjectSelectionStore } from '@renderer/stores/project-selection'
 import { useQueryClient } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
@@ -101,47 +103,60 @@ describe('useOpenProject on the Electron shell', () => {
     ])
   })
 
-  it('optimistically removes a Worktree from the shell inventory while deletion is pending', async () => {
-    let finishRemove: (() => void) | undefined
-    const removePending = new Promise<void>((resolve) => {
-      finishRemove = resolve
-    })
-    const { wrapper } = createValidatingTrpcHarness(
-      handlers({
-        removeHubWorktree: async () => {
-          await removePending
-          return { ok: true, value: undefined }
-        },
-      }),
-    )
-    const hook = renderHook(
-      () => ({ remove: useRemoveHubWorktree(), queryClient: useQueryClient() }),
-      { wrapper },
-    )
-    const inventory = projectsContractFixtures.hubInventory.output
-    hook.result.current.queryClient.setQueryData(SHELL_HUB_INVENTORIES_QUERY_KEY, [
-      { environmentId: null, current: true, inventory },
-    ])
-
-    let removal: Promise<void> | undefined
-    act(() => {
-      removal = hook.result.current.remove.remove({
-        projectId: 'proj-alpha',
-        worktreeId: 'wt-alpha-topic',
-        environmentId: null,
+  it.each([null, 'saved-connection'])(
+    'removes a Worktree immediately for connection %s',
+    async (environmentId) => {
+      let finishRemove: (() => void) | undefined
+      const removePending = new Promise<void>((resolve) => {
+        finishRemove = resolve
       })
-    })
+      const { wrapper } = createValidatingTrpcHarness(
+        handlers({
+          removeHubWorktree: async () => {
+            await removePending
+            return { ok: true, value: undefined }
+          },
+        }),
+      )
+      const hook = renderHook(
+        () => ({
+          remove: useRemoveHubWorktree(),
+          queryClient: useQueryClient(),
+          client: trpc.useUtils().client,
+        }),
+        { wrapper },
+      )
+      const inventory = projectsContractFixtures.hubInventory.output
+      const session = environmentSessions.environmentSessionFor(null)
+      if (session === null) throw new Error('Missing primary session')
+      const owner = vi
+        .spyOn(environmentSessions, 'environmentSessionFor')
+        .mockReturnValue({ ...session, client: hook.result.current.client })
+      hook.result.current.queryClient.setQueryData(SHELL_HUB_INVENTORIES_QUERY_KEY, [
+        { environmentId, current: environmentId === null, inventory },
+      ])
 
-    await waitFor(() =>
-      expect(
-        hook.result.current.queryClient
-          .getQueryData<readonly { inventory: typeof inventory }[]>(
-            SHELL_HUB_INVENTORIES_QUERY_KEY,
-          )?.[0]
-          ?.inventory.projects[0]?.worktrees.map((worktree) => worktree.id),
-      ).toEqual(['wt-alpha-main']),
-    )
-    finishRemove?.()
-    await act(async () => removal)
-  })
+      let removal: Promise<void> | undefined
+      act(() => {
+        removal = hook.result.current.remove.remove({
+          projectId: 'proj-alpha',
+          worktreeId: 'wt-alpha-topic',
+          environmentId,
+        })
+      })
+
+      await waitFor(() =>
+        expect(
+          hook.result.current.queryClient
+            .getQueryData<readonly { inventory: typeof inventory }[]>(
+              SHELL_HUB_INVENTORIES_QUERY_KEY,
+            )?.[0]
+            ?.inventory.projects[0]?.worktrees.map((worktree) => worktree.id),
+        ).toEqual(['wt-alpha-main']),
+      )
+      finishRemove?.()
+      await act(async () => removal)
+      owner.mockRestore()
+    },
+  )
 })

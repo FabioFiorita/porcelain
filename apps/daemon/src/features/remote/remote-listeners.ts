@@ -311,3 +311,7 @@ export function lanNumericUrl(): string | null {
   const [first] = lan.addresses()
   return first !== undefined ? `http://${first}:${ifaceListenerPort()}` : null
 }
+
+export function lanUrls(): string[] {
+  return lan.addresses().map((address) => `http://${address}:${ifaceListenerPort()}`)
+}

@@ -55,14 +55,20 @@ function isDeniedIface(name: string): boolean {
  * listen on the home LAN behind the same token gate (see docs/remote-access.md).
  * 10/8, 172.16/12, 192.168/16 only — Tailscale's CGNAT 100.64/10 belongs to
  * `findTailscaleAddress` and never overlaps. Wi-Fi and Ethernet can both be up, so
- * ALL matches return in enumeration order rather than guessing one. Range alone is
+ * Known physical interfaces precede unrecognized adapters for the suggested URL; all
+ * eligible addresses remain available for explicit selection. Range alone is
  * NOT enough — `DENIED_IFACE_PREFIXES` above carries the interface filter and why.
  */
 export function findLanAddresses(
   interfaces: ReturnType<typeof networkInterfaces> = networkInterfaces(),
 ): string[] {
   const matches: string[] = []
-  for (const [name, addrs] of Object.entries(interfaces)) {
+  const physical = (name: string): boolean =>
+    /^(wi-?fi|ethernet|en\d|eth\d|enp|eno|ens|wlan|wlp|wls)/i.test(name)
+  const entries = Object.entries(interfaces).sort(
+    ([a], [b]) => Number(physical(b)) - Number(physical(a)),
+  )
+  for (const [name, addrs] of entries) {
     if (isDeniedIface(name)) continue
     for (const addr of addrs ?? []) {
       if (addr.internal || addr.family !== 'IPv4') continue

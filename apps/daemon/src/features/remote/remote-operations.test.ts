@@ -67,6 +67,7 @@ function fakeListeners(overrides: Partial<RemoteListeners> = {}): RemoteListener
     stopTailnetListener: vi.fn<RemoteListeners['stopTailnetListener']>(async () => undefined),
     lanUrl: vi.fn<RemoteListeners['lanUrl']>(() => 'http://workstation.local:43118'),
     lanNumericUrl: vi.fn<RemoteListeners['lanNumericUrl']>(() => 'http://192.168.1.10:43118'),
+    lanUrls: vi.fn(() => ['http://192.168.1.10:43118']),
     lanBindError: vi.fn<RemoteListeners['lanBindError']>(() => null),
     startLanListener: vi.fn<RemoteListeners['startLanListener']>(
       async () => 'http://workstation.local:43118',
@@ -328,6 +329,7 @@ describe('Remote operations', () => {
         tailnetBindError: vi.fn(() => null),
         lanUrl: vi.fn(() => null),
         lanNumericUrl: vi.fn(() => null),
+        lanUrls: vi.fn(() => []),
         lanBindError: vi.fn(() => 'in-use' as const),
       },
       env: { lanBindForced: vi.fn(() => true) },
@@ -344,6 +346,7 @@ describe('Remote operations', () => {
       enabled: true,
       url: null,
       numericUrl: null,
+      urls: [],
       error: 'in-use',
       envForced: true,
       port: 43118,

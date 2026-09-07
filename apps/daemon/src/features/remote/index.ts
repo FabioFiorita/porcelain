@@ -30,6 +30,7 @@ export {
   lanBindError,
   lanNumericUrl,
   lanUrl,
+  lanUrls,
   startLanListener,
   startTailnetListener,
   stopLanListener,

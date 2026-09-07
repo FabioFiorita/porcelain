@@ -138,6 +138,7 @@ export const lanStatusOutputSchema = z
     enabled: z.boolean(),
     url: z.string().url().nullable(),
     numericUrl: z.string().url().nullable(),
+    urls: z.array(z.string().url()).optional(),
     error: z.literal('in-use').nullable(),
     envForced: z.boolean(),
     port: z.number(),

@@ -48,6 +48,7 @@ export type RemoteListeners = {
   stopTailnetListener(): Promise<void>
   lanUrl(): string | null
   lanNumericUrl(): string | null
+  lanUrls(): string[]
   lanBindError(): 'in-use' | null
   startLanListener(): Promise<string | null>
   stopLanListener(): Promise<void>
