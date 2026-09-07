@@ -10,3 +10,13 @@ if (invalid.length > 0) {
   console.error(`Use .spec.ts or .spec.tsx for tests:\n${invalid.join('\n')}`);
   process.exitCode = 1;
 }
+
+const indexModules = files.filter((file) =>
+  /(^|\/)index\.(?:[cm]?[jt]sx?)$/i.test(file),
+);
+if (indexModules.length > 0) {
+  console.error(
+    `Use descriptive module filenames instead of index modules:\n${indexModules.join('\n')}`,
+  );
+  process.exitCode = 1;
+}

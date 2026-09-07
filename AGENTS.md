@@ -14,7 +14,10 @@ Record consequential choices in `docs/decisions`; keep task logs and temporary p
 
 ## Structure and safety
 
-Organize by feature, use explicit dependencies, and keep platform APIs behind application adapters.
+Organize server code by responsibility (`db`, `http`, `use-cases`, `repositories`, `git`), with product
+grouping inside those directories where useful. Use explicit dependencies and platform adapters.
+Do not create `index.ts` or equivalent JavaScript/TypeScript index modules; use descriptive filenames
+and explicit imports instead of directory barrels.
 Tests use `.spec.ts` or `.spec.tsx`. New packages expose explicit public subpaths.
 Do not duplicate server state in Zustand. Do not invent base classes, generic repositories, or a DI container.
 Use disposable fixtures and isolated development state. Never run against production `~/.porcelain`,

@@ -23,23 +23,33 @@ Dependencies cannot cycle. Portable packages cannot import Node, Electron, React
 platform modules. Biome also restricts direct platform globals there. This does not prove portability
 against every possible third-party library or indirect global access; review remains necessary.
 
-## Feature conventions
+## Source conventions
 
-Use product vocabulary for feature folders: `projects`, `worktrees`, `files`, `changes`, `comments`,
-`artifacts`. Use kebab-case filenames and PascalCase classes/types. Specs are colocated.
-A server feature can have `<feature>.handler.ts`, `<feature>.service.ts`, and
-`<feature>.repository.ts`, but only create the roles it needs. Git is an external adapter, not a
-Porcelain database repository. Dependency interfaces belong with their consumer.
+Server code is organized by responsibility, with product grouping inside each directory when useful:
 
-Handlers validate requests, establish authorization context, call services, and map errors.
-Services own product rules and coordinate dependencies. Repositories persist Porcelain-owned data.
-Adapters isolate filesystem, Git, database, and process details. Plain functions implement pure rules.
-Classes are useful for dependencies and lifecycle; no inheritance framework or service locator.
-Composition belongs in an application's `app.ts`, process startup/shutdown in `main.ts`.
+- `db/connection.ts` and `db/migrate.ts` own database initialization and migrations.
+- `db/schema` owns named Drizzle table modules.
+- `http/server.ts` configures Fastify; `http/routes` validates requests, establishes authorization
+  context, calls use cases, and maps results and errors to HTTP.
+- `use-cases` owns product rules and coordinates explicit dependencies independently of Fastify.
+- `repositories` owns persistence queries and transactions for Porcelain-owned data.
+- `git` owns Git execution and output parsing.
+- `app.ts` composes dependencies; `main.ts` owns process startup and shutdown when introduced.
+
+The current inventory implementation still needs to be aligned with this layout. Add directories only
+with their implementation; do not scaffold empty roles. Dependency interfaces belong with their consumer.
+Use plain functions by default. Classes may clarify dependencies or lifecycle; do not introduce base
+classes, generic repository frameworks, or service locators.
+
+Use descriptive kebab-case module filenames and PascalCase classes/types. JavaScript and TypeScript
+index modules (`index.ts`, `index.tsx`, `index.js`, and their module variants) are forbidden, including
+barrels. Import named modules directly and expose explicit package subpaths. The convention gate runs
+with lint in CI. Specs are colocated and named `.spec.ts` or `.spec.tsx`.
+
+Web/mobile features use product vocabulary with platform-specific components and navigation; the
+server's technical directories are not a required UI layout. Shared behavior does not imply a universal
+UI framework. Styling and UI primitive libraries are undecided.
 Use `async`/`await`, explicit errors, and `AbortSignal` where cancellation is required.
-
-Web/mobile features use the same vocabulary, with platform-specific components and navigation.
-Shared behavior does not imply a universal UI framework. Styling and UI primitive libraries are undecided.
 
 ## State and protocol
 
