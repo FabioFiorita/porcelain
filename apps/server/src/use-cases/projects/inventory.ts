@@ -30,3 +30,8 @@ export interface DiscoveredRepository {
 export interface GitInventory {
   discover(checkout: string): Promise<DiscoveredRepository>;
 }
+
+export interface InventoryRepository {
+  read(): Inventory;
+  save(project: Project): void;
+}

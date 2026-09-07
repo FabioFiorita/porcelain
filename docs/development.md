@@ -72,7 +72,7 @@ a local macOS pass does not establish Linux behavior until that CI run is observ
 
 ## Persistence and HTTP infrastructure
 
-`apps/server/src/inventory/inventory-schema.ts` owns Drizzle table definitions. Generate migrations:
+`apps/server/src/db/schema` owns named Drizzle table definitions. Generate migrations:
 
 ```sh
 pnpm --filter @porcelain/server db:generate
@@ -83,7 +83,7 @@ explicit SQL. Application startup applies pending migrations; do not use `drizzl
 application data. The version-1 migration preserves IDs and rolls back invalid source data.
 Keep the migration directory with the server when adding build/packaging tasks.
 
-`createServer` in `apps/server/src/app.ts` returns a Fastify instance with `GET /health` and a shutdown
+`createServer` in `apps/server/src/http/server.ts` returns a Fastify instance with `GET /health` and a shutdown
 hook for inventory. It does not bind a port. The health contract is exported from
 `@porcelain/contracts/health`; the server uses the Fastify Zod provider. There are no inventory routes
 or credentials. Choose authentication, binding, and connection behavior before adding those routes.

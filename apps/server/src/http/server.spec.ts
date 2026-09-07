@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { healthResponseSchema } from '@porcelain/contracts/health';
 import { expect, it } from 'vitest';
-import { createServer } from './app.ts';
+import { createServer } from './server.ts';
 
 it('serves a validated health response without exposing inventory or opening a listener', async () => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-http-'));

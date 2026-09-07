@@ -34,10 +34,11 @@ Server code is organized by responsibility, with product grouping inside each di
 - `use-cases` owns product rules and coordinates explicit dependencies independently of Fastify.
 - `repositories` owns persistence queries and transactions for Porcelain-owned data.
 - `git` owns Git execution and output parsing.
-- `app.ts` composes dependencies; `main.ts` owns process startup and shutdown when introduced.
+- `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
+  startup and shutdown when introduced.
 
-The current inventory implementation still needs to be aligned with this layout. Add directories only
-with their implementation; do not scaffold empty roles. Dependency interfaces belong with their consumer.
+Add directories only with their implementation; do not scaffold empty roles. Dependency interfaces
+belong with their consumer.
 Use plain functions by default. Classes may clarify dependencies or lifecycle; do not introduce base
 classes, generic repository frameworks, or service locators.
 

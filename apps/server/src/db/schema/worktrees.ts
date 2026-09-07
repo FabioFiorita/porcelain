@@ -6,32 +6,7 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
-
-export const environments = sqliteTable(
-  'environment',
-  {
-    singleton: integer().primaryKey(),
-    id: text().notNull(),
-  },
-  (table) => [check('environment_singleton', sql`${table.singleton} = 1`)],
-);
-
-export const projects = sqliteTable(
-  'inventory_projects',
-  {
-    id: text().notNull().primaryKey(),
-    name: text().notNull(),
-    commonDirectory: text('common_directory').notNull(),
-    repositoryIdentity: text('repository_identity').notNull().unique(),
-    available: integer({ mode: 'boolean' }).notNull(),
-    position: integer().notNull(),
-  },
-  // Kit's SQLite text primary keys omit NOT NULL; retain an explicit database invariant.
-  (table) => [
-    check('project_id_present', sql`${table.id} IS NOT NULL`),
-    check('project_available', sql`${table.available} IN (0, 1)`),
-  ],
-);
+import { projects } from './projects.ts';
 
 export const worktrees = sqliteTable(
   'worktrees',

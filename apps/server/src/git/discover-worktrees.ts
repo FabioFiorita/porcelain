@@ -1,7 +1,10 @@
 import { execFile } from 'node:child_process';
 import { realpath, stat } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import type { DiscoveredRepository, GitInventory } from './inventory.ts';
+import type {
+  DiscoveredRepository,
+  GitInventory,
+} from '../use-cases/projects/inventory.ts';
 
 const execute = promisify(execFile);
 

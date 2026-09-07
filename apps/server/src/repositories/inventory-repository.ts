@@ -1,40 +1,22 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import Database from 'better-sqlite3';
 import { asc, eq, max } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import type { Inventory, Project } from './inventory.ts';
-import { environments, projects, worktrees } from './inventory-schema.ts';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { environments } from '../db/schema/environments.ts';
+import { projects } from '../db/schema/projects.ts';
+import { worktrees } from '../db/schema/worktrees.ts';
+import type {
+  Inventory,
+  InventoryRepository,
+  Project,
+} from '../use-cases/projects/inventory.ts';
 
-export function openInventoryStore(dataDirectory: string) {
-  if (!isAbsolute(dataDirectory))
-    throw new Error('An absolute data directory is required');
-  mkdirSync(dataDirectory, { recursive: true, mode: 0o700 });
-  const database = new Database(join(dataDirectory, 'inventory.sqlite'));
-  const db = drizzle({ client: database });
-  try {
-    const version = database.pragma('user_version', { simple: true });
-    if (version !== 0 && version !== 1 && version !== 2)
-      throw new Error('Unsupported inventory database version');
-    database.exec(
-      'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;',
-    );
-    migrate(db, {
-      migrationsFolder: fileURLToPath(
-        new URL('../../drizzle/', import.meta.url),
-      ),
-    });
-    db.insert(environments)
-      .values({ singleton: 1, id: randomUUID() })
-      .onConflictDoNothing()
-      .run();
-  } catch (error) {
-    database.close();
-    throw error;
-  }
+export function createInventoryRepository(
+  db: BetterSQLite3Database,
+): InventoryRepository {
+  db.insert(environments)
+    .values({ singleton: 1, id: randomUUID() })
+    .onConflictDoNothing()
+    .run();
   return {
     read(): Inventory {
       return db.transaction((tx) => {
@@ -97,9 +79,6 @@ export function openInventoryStore(dataDirectory: string) {
             )
             .run();
       });
-    },
-    close(): void {
-      database.close();
     },
   };
 }

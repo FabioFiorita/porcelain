@@ -3,8 +3,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { expect, it } from 'vitest';
-import type { Project } from './inventory.ts';
-import { openInventoryStore } from './inventory-store.ts';
+import { openDatabase } from '../db/connection.ts';
+import type { Project } from '../use-cases/projects/inventory.ts';
+import { createInventoryRepository } from './inventory-repository.ts';
+
+function openInventoryStore(directory: string) {
+  const database = openDatabase(directory);
+  try {
+    return {
+      ...createInventoryRepository(database.db),
+      close: () => database.close(),
+    };
+  } catch (error) {
+    database.close();
+    throw error;
+  }
+}
 
 it('rejects a newer schema without changing its version or data', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'porcelain-schema-'));
