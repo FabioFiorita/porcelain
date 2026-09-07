@@ -2,6 +2,7 @@ packages:
   - apps/*
   - packages/*
 allowBuilds:
+  better-sqlite3: false
   esbuild: true
 minimumReleaseAge: 1440
 # dependency-cruiser uses the legacy compiler API to parse imports.

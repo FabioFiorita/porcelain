@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import Database from 'better-sqlite3';
 import { asc, eq, max } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/node-sqlite';
-import { migrate } from 'drizzle-orm/node-sqlite/migrator';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import type { Inventory, Project } from './inventory.ts';
 import { environments, projects, worktrees } from './inventory-schema.ts';
 
@@ -13,10 +13,10 @@ export function openInventoryStore(dataDirectory: string) {
   if (!isAbsolute(dataDirectory))
     throw new Error('An absolute data directory is required');
   mkdirSync(dataDirectory, { recursive: true, mode: 0o700 });
-  const database = new DatabaseSync(join(dataDirectory, 'inventory.sqlite'));
+  const database = new Database(join(dataDirectory, 'inventory.sqlite'));
   const db = drizzle({ client: database });
   try {
-    const version = database.prepare('PRAGMA user_version').get()?.user_version;
+    const version = database.pragma('user_version', { simple: true });
     if (version !== 0 && version !== 1 && version !== 2)
       throw new Error('Unsupported inventory database version');
     database.exec(

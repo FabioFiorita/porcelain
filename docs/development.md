@@ -78,7 +78,7 @@ a local macOS pass does not establish Linux behavior until that CI run is observ
 pnpm --filter @porcelain/server db:generate
 ```
 
-Review and commit both SQL and snapshots under `apps/server/drizzle`. Data transformations may need
+Review and commit SQL, snapshots, and the migration journal under `apps/server/drizzle`. Data transformations may need
 explicit SQL. Application startup applies pending migrations; do not use `drizzle-kit push` to upgrade
 application data. The version-1 migration preserves IDs and rolls back invalid source data.
 Keep the migration directory with the server when adding build/packaging tasks.
@@ -87,3 +87,7 @@ Keep the migration directory with the server when adding build/packaging tasks.
 hook for inventory. It does not bind a port. The health contract is exported from
 `@porcelain/contracts/health`; the server uses the Fastify Zod provider. There are no inventory routes
 or credentials. Choose authentication, binding, and connection behavior before adding those routes.
+
+The server uses stable Drizzle with `better-sqlite3`, which bundles native prebuilds. Its automatic
+build is disabled in pnpm; runtime tests must prove that the bundled binary loads. Validate installation
+on the pinned CI Node version and include the native driver assets in future packaging checks.

@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788819337000,
+      "tag": "0000_relational-inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788820832382,
+      "tag": "0001_stable-schema",
+      "breakpoints": true
+    }
+  ]
+}

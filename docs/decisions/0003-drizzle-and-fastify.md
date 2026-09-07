@@ -7,15 +7,20 @@ by the environment's server. Environment, project, and worktree rows have separa
 reference their project through a foreign key. Inventory replacement is transactional, including
 removal of no-longer-reported worktrees. Presentation order is stored explicitly.
 
-Drizzle ORM and Kit are pinned to the same 1.0 release candidate because its official `node:sqlite`
-adapter preserves the built-in Node driver. This is an explicit prerelease dependency; upgrades need
-focused compatibility checks on the pinned Node and TypeScript versions. No alternate native SQLite
-driver is introduced. pnpm permits esbuild's installation script for Drizzle Kit's schema loader.
+Use stable Drizzle ORM and Kit releases with the `better-sqlite3` driver. Pin exact versions in
+`apps/server/package.json`; prefer stable dependencies unless a prerelease has an explicitly agreed
+benefit. pnpm permits Drizzle Kit's esbuild loader and disables the SQLite driver's automatic build;
+`better-sqlite3` bundles native prebuilds.
+The SQLite driver is a native dependency: installation and future packaging must be validated on
+each supported server runtime and platform. The database remains server-owned, not a client dependency.
 
 TypeScript schemas own table definitions. Drizzle Kit generates checked-in SQL migrations and snapshots;
 review generated SQL before applying it. SQL remains appropriate for migration data transformations
 and SQLite pragmas. The initial Drizzle migration bridges version-1 JSON records into relational rows,
-preserving environment, project, and worktree IDs. Migration failure rolls back the data transformation.
+preserving environment, project, and worktree IDs. The stable migration journal retains the original
+applied timestamp and SQL so RC-created databases do not replay that migration. A follow-up
+transaction rebuilds the tables to align physical constraints and index names with the stable snapshot,
+preserving all rows. Migration failure rolls back the data transformation.
 The application rejects unsupported database versions before migration. Do not use schema push for
 application upgrades. Migration assets are resolved relative to the module and must accompany any
 future packaged server.
