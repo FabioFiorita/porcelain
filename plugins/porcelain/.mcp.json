@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "Porcelain": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/porcelain-mcp.mjs"],
-      "cwd": "${CLAUDE_PLUGIN_ROOT}"
-    }
-  }
-}
