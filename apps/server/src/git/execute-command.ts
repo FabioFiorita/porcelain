@@ -7,10 +7,14 @@ const execute = promisify(execFile);
 export async function executeCommand(
   checkout: string,
   args: string[],
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted();
   try {
     const { stdout } = await execute('git', ['-C', checkout, ...args], {
       encoding: 'utf8',
+      signal,
+      killSignal: 'SIGKILL',
       timeout: 10_000,
       maxBuffer: 4 * 1024 * 1024,
       env: {
@@ -23,6 +27,7 @@ export async function executeCommand(
     });
     return stdout;
   } catch (cause) {
+    signal?.throwIfAborted();
     throw new GitCommandError(checkout, args, cause);
   }
 }

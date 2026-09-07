@@ -43,7 +43,7 @@ export const boundaryRules: IConfiguration = {
       to: {
         path: '(^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
         pathNot:
-          '^apps/server/src/(use-cases/|models/|git/(interfaces|dtos)/|repositories/interfaces/)',
+          '^apps/server/src/(use-cases/|models/|git/(interfaces|dtos|errors)/|repositories/interfaces/)',
       },
     },
     {
@@ -56,12 +56,12 @@ export const boundaryRules: IConfiguration = {
       name: 'adapter-interfaces-stay-independent',
       severity: 'error',
       from: {
-        path: '^apps/server/src/(git/(interfaces|dtos)|repositories/interfaces)/',
+        path: '^apps/server/src/(git/(interfaces|dtos|errors)|repositories/interfaces)/',
       },
       to: {
         path: '^apps/server/src/',
         pathNot:
-          '^apps/server/src/(models/|git/(interfaces|dtos)/|repositories/interfaces/)',
+          '^apps/server/src/(models/|git/(interfaces|dtos|errors)/|repositories/interfaces/)',
       },
     },
     { name: 'no-cycles', severity: 'error', from: {}, to: { circular: true } },

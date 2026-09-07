@@ -6,6 +6,8 @@ import { afterEach, expect, it } from 'vitest';
 import { openApplication } from './app.ts';
 import { GitCommandError } from './git/errors/git-command-error.ts';
 import { UnsupportedRepositoryError } from './git/errors/unsupported-repository-error.ts';
+import { Git } from './git/git.ts';
+import { ApplicationClosedError } from './lifecycle/errors/application-closed-error.ts';
 
 const roots: string[] = [];
 const applications: Awaited<ReturnType<typeof openApplication>>[] = [];
@@ -118,6 +120,11 @@ it('retains unreachable repositories and missing Git-listed worktrees as unavail
   const before = await app.register(f.main);
   await rename(f.linked, join(f.root, 'hidden-feature'));
   const partial = await app.refresh();
+  expect(app.discoveryIssues()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ path: f.linked, error: expect.any(Error) }),
+    ]),
+  );
   expect(partial.projects[0]?.worktrees[1]).toMatchObject({
     id: before.worktrees[1]?.id,
     available: false,
@@ -211,4 +218,104 @@ it('marks the old project unavailable when registering a replacement at its form
       .projects.filter((p) => p.available)
       .map((p) => p.id),
   ).toEqual([replacement.id]);
+});
+
+it('registration does not inspect unrelated projects', async () => {
+  const first = await fixture();
+  const second = await fixture();
+  let firstUnavailable = false;
+  const app = await openApplication({
+    dataDirectory: first.dataDirectory,
+    git: (path) => {
+      if (firstUnavailable && [first.main, first.linked].includes(path))
+        throw new Error('Unrelated project was inspected');
+      return new Git(path);
+    },
+  });
+  applications.push(app);
+  const original = await app.register(first.main);
+  firstUnavailable = true;
+  const added = await app.register(second.main);
+  expect(app.inventory().projects).toEqual([original, added]);
+});
+
+it('propagates system discovery failures without marking healthy inventory unavailable', async () => {
+  const f = await fixture();
+  let failure: Error | undefined;
+  const app = await openApplication({
+    dataDirectory: f.dataDirectory,
+    git: (path) => ({
+      listWorktrees: (signal, reportIssue) => {
+        if (failure) return Promise.reject(failure);
+        return new Git(path).listWorktrees(signal, reportIssue);
+      },
+    }),
+  });
+  applications.push(app);
+  await app.register(f.main);
+  const before = app.inventory();
+  failure = new GitCommandError(
+    f.main,
+    ['rev-parse'],
+    Object.assign(new Error('Git unavailable'), { code: 'ENOENT' }),
+  );
+  await expect(app.refresh()).rejects.toBe(failure);
+  expect(app.inventory()).toEqual(before);
+});
+
+it('cancellation prevents a late discovery result from being persisted', async () => {
+  const f = await fixture();
+  const discovered = await new Git(f.main).listWorktrees();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const app = await openApplication({
+    dataDirectory: f.dataDirectory,
+    git: () => ({
+      listWorktrees: async () => {
+        started.resolve();
+        await release.promise;
+        return discovered;
+      },
+    }),
+  });
+  applications.push(app);
+  const controller = new AbortController();
+  const registration = app.register(f.main, controller.signal);
+  const rejected = expect(registration).rejects.toMatchObject({
+    name: 'AbortError',
+  });
+  await started.promise;
+  controller.abort();
+  await rejected;
+  release.resolve();
+  // A following operation waits for the cancelled task to finish unwinding.
+  await app.refresh();
+  expect(app.inventory().projects).toEqual([]);
+  await app.close();
+  await expect(app.register(f.main)).rejects.toBeInstanceOf(
+    ApplicationClosedError,
+  );
+  expect(() => app.inventory()).toThrow(ApplicationClosedError);
+});
+
+it('retains a registered checkout replaced by a bare repository as unavailable', async () => {
+  const f = await fixture();
+  const app = await open(f.dataDirectory);
+  const original = await app.register(f.main);
+  git(f.main, 'worktree', 'remove', f.linked);
+  const moved = join(f.root, 'original');
+  await rename(f.main, moved);
+  git(f.root, 'clone', '--bare', moved, f.main);
+  expect((await app.refresh()).projects[0]).toMatchObject({
+    id: original.id,
+    available: false,
+  });
+  expect(app.discoveryIssues()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        path: f.main,
+        error: expect.any(UnsupportedRepositoryError),
+      }),
+    ]),
+  );
 });

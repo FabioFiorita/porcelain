@@ -45,6 +45,7 @@ Nested directories describe roles, not product features: `git/commands` owns com
 `git/dtos` describes discovered data, and `git/interfaces` exposes injectable Git capabilities.
 `git/git.ts` is the public checkout-bound facade; shared execution lives in `git/execute-command.ts`.
 Use cases live directly in `use-cases`; pure state reconciliation lives in `use-cases/reconciliation`.
+Lifecycle cancellation and scheduling belong in `lifecycle`; validated runtime settings belong in `config`.
 Repository dependency interfaces live in `repositories/interfaces`, separate from Drizzle implementations.
 Errors live in their owner's `errors` directory with one class per file. Mappers belong in `mappers`
 when translating representations; do not call identity reconciliation a mapper. DTOs describe a boundary's
@@ -59,8 +60,8 @@ Keep pure reconciliation and HTTP routes as functions. Do not introduce base cla
 repository frameworks, static global services, or service locators.
 
 Named errors distinguish failures callers can handle without parsing messages. Preserve `cause` when
-wrapping external failures; leave unexpected database diagnostics intact. Git inspection failures for
-known worktrees still mark them unavailable, while initial discovery failures propagate to the caller.
+wrapping external failures; leave unexpected database diagnostics intact. Expected repository inspection failures mark affected entries unavailable and retain diagnostics.
+System failures, cancellation, and timeouts propagate without being converted to unavailable entries.
 Internal models use TypeScript types; Zod validates runtime boundaries, and Drizzle owns database
 schemas. Do not duplicate an existing boundary schema with a hand-maintained DTO.
 

@@ -1,6 +1,8 @@
 import { realpath, stat } from 'node:fs/promises';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
+import type { DiscoveryIssue } from '../dtos/discovery-issue.ts';
 import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
+import { isRepositoryUnavailable } from '../errors/is-repository-unavailable.ts';
 import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
 import { UnsupportedFilesystemIdentityError } from '../errors/unsupported-filesystem-identity-error.ts';
 import { UnsupportedRepositoryError } from '../errors/unsupported-repository-error.ts';
@@ -14,23 +16,24 @@ async function identity(path: string): Promise<string> {
 
 export async function listWorktrees(
   checkout: string,
+  signal?: AbortSignal,
+  reportIssue: (issue: DiscoveryIssue) => void = () => {},
 ): Promise<DiscoveredRepository> {
   const commonDirectory = await realpath(
     (
-      await executeCommand(checkout, [
-        'rev-parse',
-        '--path-format=absolute',
-        '--git-common-dir',
-      ])
+      await executeCommand(
+        checkout,
+        ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+        signal,
+      )
     ).slice(0, -1),
   );
   const repositoryIdentity = await identity(commonDirectory);
-  const output = await executeCommand(checkout, [
-    'worktree',
-    'list',
-    '--porcelain',
-    '-z',
-  ]);
+  const output = await executeCommand(
+    checkout,
+    ['worktree', 'list', '--porcelain', '-z'],
+    signal,
+  );
   const records = output.split('\0\0').filter(Boolean);
   const worktrees: DiscoveredRepository['worktrees'] = [];
   for (const [index, record] of records.entries()) {
@@ -44,20 +47,22 @@ export async function listWorktrees(
     let available = true;
     try {
       const directory = (
-        await executeCommand(path, ['rev-parse', '--absolute-git-dir'])
+        await executeCommand(path, ['rev-parse', '--absolute-git-dir'], signal)
       ).slice(0, -1);
       const common = (
-        await executeCommand(path, [
-          'rev-parse',
-          '--path-format=absolute',
-          '--git-common-dir',
-        ])
+        await executeCommand(
+          path,
+          ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+          signal,
+        )
       ).slice(0, -1);
       if ((await identity(common)) !== repositoryIdentity)
         throw new RepositoryIdentityMismatchError();
       metadataIdentity = await identity(directory);
-    } catch {
-      // Git still lists this checkout, but it cannot currently be inspected.
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (!isRepositoryUnavailable(error)) throw error;
+      reportIssue({ path, error });
       metadataIdentity = '';
       available = false;
     }
@@ -72,5 +77,6 @@ export async function listWorktrees(
   }
   if (worktrees.length === 0)
     throw new InvalidWorktreeInventoryError('Repository has no checkout');
+  signal?.throwIfAborted();
   return { commonDirectory, repositoryIdentity, worktrees };
 }

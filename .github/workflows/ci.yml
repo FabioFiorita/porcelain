@@ -27,9 +27,14 @@ jobs:
       - run: npx --yes pnpm@12.3.4 lint
       - run: npx --yes pnpm@12.3.4 typecheck
       - run: npx --yes pnpm@12.3.4 check:boundaries
+      - run: npx --yes pnpm@12.3.4 check:unused
   specs:
-    name: Specs and coverage
-    runs-on: ubuntu-latest
+    name: Specs and coverage (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -41,7 +46,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: coverage
+          name: coverage-${{ matrix.os }}
           path: coverage/
           if-no-files-found: warn
           retention-days: 7

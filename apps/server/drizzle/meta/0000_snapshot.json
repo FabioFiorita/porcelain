@@ -1,8 +1,8 @@
 {
+  "id": "29280bf4-889e-480f-9260-289488edcc61",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "6",
   "dialect": "sqlite",
-  "id": "65e0c277-180f-46bf-b772-f1d600ac4b65",
-  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "environment": {
       "name": "environment",
@@ -171,11 +171,11 @@
         "worktrees_project_id_inventory_projects_id_fk": {
           "name": "worktrees_project_id_inventory_projects_id_fk",
           "tableFrom": "worktrees",
-          "tableTo": "inventory_projects",
           "columnsFrom": ["project_id"],
+          "tableTo": "inventory_projects",
           "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -199,9 +199,9 @@
   "views": {},
   "enums": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
+    "tables": {}
   },
   "internal": {
     "indexes": {}

@@ -32,9 +32,10 @@ One SQLite database in an explicitly supplied absolute data directory stores the
 project/worktree associations. The stable Drizzle adapter uses `better-sqlite3`.
 Drizzle owns relational environment, project, and worktree tables and migration execution, as defined
 in the [persistence and transport decision](0003-drizzle-and-fastify.md). Project inventory updates
-are transactional. Versioned schema initialization runs before access and rejects newer versions.
+are transactional. Migration-history validation runs before access and rejects unsupported histories.
 
-Startup and registration refresh Git state; an explicit refresh operation supports later client use.
+Startup and explicit refresh inspect registered Git state. Registration inspects its target and refreshes
+only old projects with overlapping checkout paths, so unrelated repositories do not delay registration.
 Operations within an application instance are serialized. One server instance owns a data directory;
 process supervision and enforcing exclusive ownership across processes belong to server startup work.
 There is no executable server entrypoint or network listener in this slice.

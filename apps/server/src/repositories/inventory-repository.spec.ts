@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -7,6 +7,7 @@ import { openDatabase } from '../db/connection.ts';
 import { InvalidDataDirectoryError } from '../db/errors/invalid-data-directory-error.ts';
 import { UnsupportedDatabaseVersionError } from '../db/errors/unsupported-database-version-error.ts';
 import { environments } from '../db/schema/environments.ts';
+import { worktrees } from '../db/schema/worktrees.ts';
 import type { Project } from '../models/project.ts';
 import { MissingEnvironmentIdentityError } from './errors/missing-environment-identity-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
@@ -60,7 +61,7 @@ it('requires an explicit absolute data directory', () => {
   );
 });
 
-const legacyProject: Project = {
+const fixtureProject: Project = {
   id: 'project-original',
   name: 'Atlas',
   commonDirectory: '/fixture/atlas/.git',
@@ -86,99 +87,69 @@ const legacyProject: Project = {
   ],
 };
 
-function createLegacyDatabase(directory: string, data: string) {
-  const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
-  database.exec(
-    'PRAGMA user_version = 1; CREATE TABLE environment (singleton INTEGER PRIMARY KEY CHECK(singleton = 1), id TEXT NOT NULL); CREATE TABLE projects (id TEXT PRIMARY KEY, repository_identity TEXT NOT NULL UNIQUE, data TEXT NOT NULL);',
-  );
-  database
-    .prepare('INSERT INTO environment VALUES (1, ?)')
-    .run('environment-original');
-  database
-    .prepare('INSERT INTO projects VALUES (?, ?, ?)')
-    .run(legacyProject.id, legacyProject.repositoryIdentity, data);
-  database.close();
-}
-
-it('migrates version-1 JSON records without changing IDs, ordering, branches or availability', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'porcelain-upgrade-'));
+it('creates and reopens inventory preserving identities and worktree order', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'porcelain-reopen-'));
   try {
-    createLegacyDatabase(directory, JSON.stringify(legacyProject));
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const store = openInventoryStore(directory);
+    store.save(fixtureProject);
+    const inventory = store.read();
+    store.close();
+    const reopened = openInventoryStore(directory);
+    try {
+      expect(reopened.read()).toEqual(inventory);
+      expect(reopened.read().projects).toEqual([fixtureProject]);
+    } finally {
+      reopened.close();
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it.each(['future', 'divergent', 'untracked'])(
+  'rejects %s migration history without changing the database',
+  async (kind) => {
+    const directory = await mkdtemp(join(tmpdir(), 'porcelain-history-'));
+    try {
       const store = openInventoryStore(directory);
-      try {
-        expect(store.read()).toEqual({
-          environmentId: 'environment-original',
-          projects: [legacyProject],
-        });
-      } finally {
-        store.close();
-      }
-    }
-    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    try {
-      expect(database.prepare('PRAGMA user_version').get()?.user_version).toBe(
-        2,
-      );
-      expect(
-        database.prepare('SELECT COUNT(*) AS count FROM worktrees').get()
-          ?.count,
-      ).toBe(2);
-      expect(
-        database
-          .prepare("SELECT name FROM sqlite_master WHERE name = 'projects'")
-          .get(),
-      ).toBeUndefined();
-    } finally {
+      store.save(fixtureProject);
+      store.close();
+      const path = join(directory, 'inventory.sqlite');
+      const database = new DatabaseSync(path);
+      if (kind === 'future')
+        database.exec(
+          "INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('future', 9999999999999)",
+        );
+      if (kind === 'divergent')
+        database.exec("UPDATE __drizzle_migrations SET hash = 'different'");
+      if (kind === 'untracked')
+        database.exec('DROP TABLE __drizzle_migrations');
       database.close();
-    }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-it('rolls back an invalid legacy migration and leaves the source inventory recoverable', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'porcelain-upgrade-failure-'));
-  try {
-    createLegacyDatabase(directory, '{broken');
-    expect(() => openInventoryStore(directory)).toThrow();
-    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    try {
-      expect(database.prepare('PRAGMA user_version').get()?.user_version).toBe(
-        1,
+      const before = await readFile(path);
+      expect(() => openInventoryStore(directory)).toThrow(
+        UnsupportedDatabaseVersionError,
       );
-      expect(database.prepare('SELECT data FROM projects').get()?.data).toBe(
-        '{broken',
-      );
-      expect(
-        database
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE name = 'inventory_projects'",
-          )
-          .get(),
-      ).toBeUndefined();
+      expect(await readFile(path)).toEqual(before);
     } finally {
-      database.close();
+      await rm(directory, { recursive: true, force: true });
     }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
+  },
+);
 
 it('rolls back the complete project update when worktree identities conflict', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'porcelain-transaction-'));
   try {
     const store = openInventoryStore(directory);
     try {
-      store.save(legacyProject);
+      store.save(fixtureProject);
       expect(() =>
         store.save({
-          ...legacyProject,
+          ...fixtureProject,
           name: 'Rejected change',
-          worktrees: [...legacyProject.worktrees, ...legacyProject.worktrees],
+          worktrees: [...fixtureProject.worktrees, ...fixtureProject.worktrees],
         }),
       ).toThrow();
-      expect(store.read().projects).toEqual([legacyProject]);
+      expect(store.read().projects).toEqual([fixtureProject]);
     } finally {
       store.close();
     }
@@ -190,52 +161,23 @@ it('rolls back the complete project update when worktree identities conflict', a
 it('enforces worktree ownership through foreign keys', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'porcelain-relations-'));
   try {
-    const store = openInventoryStore(directory);
-    store.close();
-    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    const database = openDatabase(directory);
     try {
-      database.exec('PRAGMA foreign_keys = ON');
       expect(() =>
-        database
-          .prepare('INSERT INTO worktrees VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(
-            'orphan',
-            'missing-project',
-            '/fixture',
-            'metadata',
-            1,
-            null,
-            1,
-            0,
-          ),
+        database.db
+          .insert(worktrees)
+          .values({
+            id: 'orphan',
+            projectId: 'missing-project',
+            path: '/fixture',
+            metadataIdentity: 'metadata',
+            main: true,
+            branch: null,
+            available: true,
+            position: 0,
+          })
+          .run(),
       ).toThrow();
-    } finally {
-      database.close();
-    }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-it('rejects a legacy worktree without an ID instead of losing its identity', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'porcelain-missing-id-'));
-  try {
-    createLegacyDatabase(
-      directory,
-      JSON.stringify({
-        ...legacyProject,
-        worktrees: legacyProject.worktrees.map((worktree) => ({
-          ...worktree,
-          id: null,
-        })),
-      }),
-    );
-    expect(() => openInventoryStore(directory)).toThrow();
-    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    try {
-      expect(database.prepare('PRAGMA user_version').get()?.user_version).toBe(
-        1,
-      );
     } finally {
       database.close();
     }

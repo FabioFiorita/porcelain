@@ -9,9 +9,12 @@ export default defineConfig({
       'apps/server/src/**/*.spec.ts',
     ],
     passWithNoTests: false,
+    reporters: ['default', 'junit'],
+    outputFile: { junit: 'coverage/junit.xml' },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json-summary', 'lcov'],
+      reporter: ['text', 'json-summary', 'lcov', 'html'],
+      thresholds: { statements: 90, branches: 80, functions: 85, lines: 90 },
       include: [
         'scripts/**/*.ts',
         'packages/*/src/**/*.ts',

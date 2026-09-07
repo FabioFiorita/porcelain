@@ -14,13 +14,16 @@
     "check:boundaries": "node scripts/check-boundaries.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries && pnpm test:coverage"
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage",
+    "check:unused": "knip"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
     "@types/node": "24.13.3",
     "@vitest/coverage-v8": "5.0.0",
     "dependency-cruiser": "18.2.0",
+    "fast-check": "4.9.0",
+    "knip": "6.34.0",
     "typescript": "7.0.2",
     "vitest": "5.0.0"
   }
