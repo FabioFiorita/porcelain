@@ -29,7 +29,7 @@ There is no disk scan or automatic search for moved repositories.
 ## Persistence and refresh
 
 One SQLite database in an explicitly supplied absolute data directory stores the environment ID and
-project/worktree associations. Node's built-in SQLite adapter avoids a separate native dependency.
+project/worktree associations. The stable Drizzle adapter uses `better-sqlite3`.
 Drizzle owns relational environment, project, and worktree tables and migration execution, as defined
 in the [persistence and transport decision](0003-drizzle-and-fastify.md). Project inventory updates
 are transactional. Versioned schema initialization runs before access and rejects newer versions.

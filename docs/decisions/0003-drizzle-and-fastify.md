@@ -17,10 +17,8 @@ each supported server runtime and platform. The database remains server-owned, n
 TypeScript schemas own table definitions. Drizzle Kit generates checked-in SQL migrations and snapshots;
 review generated SQL before applying it. SQL remains appropriate for migration data transformations
 and SQLite pragmas. The initial Drizzle migration bridges version-1 JSON records into relational rows,
-preserving environment, project, and worktree IDs. The stable migration journal retains the original
-applied timestamp and SQL so RC-created databases do not replay that migration. A follow-up
-transaction rebuilds the tables to align physical constraints and index names with the stable snapshot,
-preserving all rows. Migration failure rolls back the data transformation.
+preserving environment, project, and worktree IDs. A follow-up transaction aligns table constraints and
+index names with the stable snapshot, preserving rows. Migration failure rolls back the data transformation.
 The application rejects unsupported database versions before migration. Do not use schema push for
 application upgrades. Migration assets are resolved relative to the module and must accompany any
 future packaged server.

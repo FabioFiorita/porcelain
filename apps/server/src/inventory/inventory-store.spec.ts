@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -219,65 +218,6 @@ it('rejects a legacy worktree without an ID instead of losing its identity', asy
       );
     } finally {
       database.close();
-    }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-it('reopens an RC-created database without replaying its applied migration', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'porcelain-rc-upgrade-'));
-  try {
-    createLegacyDatabase(directory, JSON.stringify(legacyProject));
-    const migration = await readFile(
-      new URL('../../drizzle/0000_relational-inventory.sql', import.meta.url),
-      'utf8',
-    );
-    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    try {
-      database.exec(migration);
-      database.exec(
-        'CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash TEXT NOT NULL, created_at NUMERIC, name TEXT, applied_at TEXT)',
-      );
-      database
-        .prepare(
-          'INSERT INTO __drizzle_migrations (hash, created_at, name, applied_at) VALUES (?, ?, ?, ?)',
-        )
-        .run(
-          createHash('sha256').update(migration).digest('hex'),
-          Date.UTC(2026, 8, 7, 22, 15, 37),
-          '20260907221537_relational-inventory',
-          '2026-09-07T22:15:37.000Z',
-        );
-    } finally {
-      database.close();
-    }
-    const store = openInventoryStore(directory);
-    try {
-      expect(store.read()).toEqual({
-        environmentId: 'environment-original',
-        projects: [legacyProject],
-      });
-      store.save({ ...legacyProject, name: 'Updated' });
-      expect(store.read().projects[0]?.name).toBe('Updated');
-      const inspected = new DatabaseSync(join(directory, 'inventory.sqlite'));
-      try {
-        const indexes = inspected
-          .prepare("PRAGMA index_list('inventory_projects')")
-          .all();
-        expect(
-          indexes.some(
-            (index) =>
-              index.name === 'inventory_projects_repository_identity_unique',
-          ),
-        ).toBe(true);
-        expect(indexes.some((index) => index.origin === 'u')).toBe(false);
-        expect(inspected.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
-      } finally {
-        inspected.close();
-      }
-    } finally {
-      store.close();
     }
   } finally {
     await rm(directory, { recursive: true, force: true });

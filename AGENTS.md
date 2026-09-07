@@ -35,10 +35,19 @@ Each behavior change needs repeatable regression protection. Add user-workflow s
 introducing a user-facing path. Browser proof does not establish Electron or native mobile behavior.
 Report what actually ran and what remains unverified. Coverage and green checks do not guarantee correctness.
 
+Tests must protect an explicit product requirement, supported contract, or concrete failure scenario.
+Assert meaningful outcomes, not incidental implementation choices or merely the absence of old behavior.
+A refactor preserving the contract should not require rewriting assertions. Assert internal details only
+when they are themselves a documented compatibility boundary. Do not add tests just to increase coverage
+or mutation scores, or preserve obsolete development iterations without a supported upgrade requirement.
+
 ## Fresh review and delivery
 
 For a coherent nontrivial change, use one fresh, read-only reviewer after focused checks pass.
 Give it the requirements, diff, relevant architecture, and check results instead of the full conversation.
+Review added and changed tests for value before committing: identify the failure each protects,
+flag implementation-mirroring assertions and unnecessary historical compatibility, and check that the
+test would fail for a plausible defect. Mutation scores alone do not establish test usefulness.
 Bound review to correctness, architecture, regressions, and affected surfaces. No sub-delegation or
 routine rerunning of successful checks. Findings must include a concrete failure scenario and location.
 Resolve actionable findings; repeat review only for substantial fixes or unresolved issues.
