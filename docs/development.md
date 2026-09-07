@@ -12,6 +12,12 @@ npx --yes pnpm@12.3.4 install --frozen-lockfile
 Use the pinned pnpm version, not an unrelated globally installed version. Commands below assume
 that version is available as `pnpm`; `npx --yes pnpm@12.3.4 <command>` is the equivalent fallback.
 
+## Codex worktrees
+
+`.codex/environments/environment.toml` installs locked dependencies when Codex creates a worktree.
+Setup does not launch servers or run the full check suite. Node must already meet the declared engine
+requirement. If setup was skipped, run the bootstrap command above from the worktree.
+
 ## Fast local loop
 
 ```sh
