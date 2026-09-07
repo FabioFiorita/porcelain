@@ -255,7 +255,10 @@ function FileEntryRowImpl({
     </Pressable>
   )
   return (
-    <View style={depth === 0 ? undefined : { paddingLeft: depth * 14 }}>
+    <View
+      className={compact ? 'pb-0.5' : undefined}
+      style={depth === 0 ? undefined : { paddingLeft: depth * 14 }}
+    >
       {tablet ? (
         <RowContextMenu
           actions={menuActions}
