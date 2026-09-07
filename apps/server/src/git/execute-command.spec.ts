@@ -36,3 +36,22 @@ it('preserves missing Git executable diagnostics instead of classifying it as mi
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('discovers the selected checkout without inherited command-scoped Git overrides', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-git-environment-'));
+  try {
+    await executeCommand(root, ['init', '-b', 'main']);
+    vi.stubEnv('GIT_CONFIG_PARAMETERS', "'core.bare=true'");
+    vi.stubEnv('GIT_CONFIG_COUNT', '1');
+    vi.stubEnv('GIT_CONFIG_KEY_0', 'core.bare');
+    vi.stubEnv('GIT_CONFIG_VALUE_0', 'true');
+    vi.stubEnv('GIT_DIR', join(root, 'unrelated'));
+    vi.stubEnv('GIT_WORK_TREE', join(root, 'unrelated'));
+    vi.stubEnv('GIT_COMMON_DIR', join(root, 'unrelated'));
+    expect(
+      await executeCommand(root, ['rev-parse', '--is-inside-work-tree']),
+    ).toBe('true\n');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -20,6 +20,8 @@ export async function executeCommand(
       env: {
         ...process.env,
         GIT_OPTIONAL_LOCKS: '0',
+        GIT_CONFIG_PARAMETERS: undefined,
+        GIT_CONFIG_COUNT: '0',
         GIT_DIR: undefined,
         GIT_WORK_TREE: undefined,
         GIT_COMMON_DIR: undefined,

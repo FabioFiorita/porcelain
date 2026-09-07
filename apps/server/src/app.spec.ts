@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, realpath, rename, rm } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, realpath, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { openApplication } from './app.ts';
 import { GitCommandError } from './git/errors/git-command-error.ts';
+import { RepositoryIdentityMismatchError } from './git/errors/repository-identity-mismatch-error.ts';
 import { UnsupportedRepositoryError } from './git/errors/unsupported-repository-error.ts';
 import { Git } from './git/git.ts';
 import { ApplicationClosedError } from './lifecycle/errors/application-closed-error.ts';
@@ -209,6 +210,10 @@ it('marks the old project unavailable when registering a replacement at its form
   git(f.root, 'clone', moved, f.main);
   const replacement = await app.register(f.main);
   expect(replacement.id).not.toBe(original.id);
+  expect(app.discoveryIssues()).toContainEqual({
+    path: f.main,
+    error: expect.any(RepositoryIdentityMismatchError),
+  });
   expect(
     app.inventory().projects.find((p) => p.id === original.id),
   ).toMatchObject({ available: false });
@@ -318,4 +323,15 @@ it('retains a registered checkout replaced by a bare repository as unavailable',
       }),
     ]),
   );
+});
+
+it('does not create persistent state when startup is already cancelled', async () => {
+  const f = await fixture();
+  const signal = AbortSignal.abort();
+  await expect(
+    openApplication({ dataDirectory: f.dataDirectory, signal }),
+  ).rejects.toBe(signal.reason);
+  await expect(access(f.dataDirectory)).rejects.toMatchObject({
+    code: 'ENOENT',
+  });
 });

@@ -1,5 +1,6 @@
 import type { DiscoveryIssue } from '../git/dtos/discovery-issue.ts';
 import { isRepositoryUnavailable } from '../git/errors/is-repository-unavailable.ts';
+import { RepositoryIdentityMismatchError } from '../git/errors/repository-identity-mismatch-error.ts';
 import type { GitFactory } from '../git/interfaces/git-factory.ts';
 import type { Project } from '../models/project.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
@@ -19,6 +20,10 @@ async function rediscover(
       );
       if (candidate.repositoryIdentity === project.repositoryIdentity)
         return candidate;
+      reportIssue({
+        path: worktree.path,
+        error: new RepositoryIdentityMismatchError(),
+      });
     } catch (error) {
       signal?.throwIfAborted();
       if (!isRepositoryUnavailable(error)) throw error;

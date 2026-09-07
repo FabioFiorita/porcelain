@@ -15,6 +15,7 @@ export async function openApplication(options: {
   operationTimeoutMs?: number;
 }) {
   const { operationTimeoutMs } = applicationSettingsSchema.parse(options);
+  options.signal?.throwIfAborted();
   const database = openDatabase(options.dataDirectory);
   const operations = new OperationRunner(
     () => database.close(),
