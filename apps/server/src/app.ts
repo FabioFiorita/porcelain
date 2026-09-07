@@ -1,18 +1,20 @@
 import { openDatabase } from './db/connection.ts';
-import { createGitInventory } from './git/discover-worktrees.ts';
-import { createInventoryRepository } from './repositories/inventory-repository.ts';
-import type { GitInventory } from './use-cases/projects/inventory.ts';
-import { refreshProjects } from './use-cases/projects/refresh-projects.ts';
-import { registerProject } from './use-cases/projects/register-project.ts';
+import { Git } from './git/git.ts';
+import type { GitFactory } from './git/worktree-inventory.ts';
+import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { RefreshProjects } from './use-cases/projects/refresh-projects.ts';
+import { RegisterProject } from './use-cases/projects/register-project.ts';
 
 export async function openApplication(options: {
   dataDirectory: string;
-  git?: GitInventory;
+  git?: GitFactory;
 }) {
   const database = openDatabase(options.dataDirectory);
   try {
-    const store = createInventoryRepository(database.db);
-    const git = options.git ?? createGitInventory();
+    const store = new InventoryRepository(database.db);
+    const git = options.git ?? ((checkout: string) => new Git(checkout));
+    const refresh = new RefreshProjects(store, git);
+    const register = new RegisterProject(store, git, refresh);
     // Serialize writes and shutdown so discovery cannot overwrite newer inventory.
     let pending: Promise<unknown> = Promise.resolve();
     function serialize<T>(operation: () => Promise<T>): Promise<T> {
@@ -20,12 +22,12 @@ export async function openApplication(options: {
       pending = result.catch(() => undefined);
       return result;
     }
-    await refreshProjects(store, git);
+    await refresh.execute();
     return {
       inventory: () => store.read(),
       register: (checkout: string) =>
-        serialize(() => registerProject(store, git, checkout)),
-      refresh: () => serialize(() => refreshProjects(store, git)),
+        serialize(() => register.execute(checkout)),
+      refresh: () => serialize(() => refresh.execute()),
       close: () =>
         serialize(async () => {
           database.close();

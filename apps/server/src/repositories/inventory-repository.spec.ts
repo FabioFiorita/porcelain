@@ -4,14 +4,18 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
-import type { Project } from '../use-cases/projects/inventory.ts';
-import { createInventoryRepository } from './inventory-repository.ts';
+import { environments } from '../db/schema/environments.ts';
+import type { Project } from '../models/project.ts';
+import { InventoryRepository } from './inventory-repository.ts';
+import { MissingEnvironmentIdentityError } from './missing-environment-identity-error.ts';
 
 function openInventoryStore(directory: string) {
   const database = openDatabase(directory);
   try {
+    const repository = new InventoryRepository(database.db);
     return {
-      ...createInventoryRepository(database.db),
+      read: () => repository.read(),
+      save: (project: Project) => repository.save(project),
       close: () => database.close(),
     };
   } catch (error) {
@@ -230,6 +234,24 @@ it('rejects a legacy worktree without an ID instead of losing its identity', asy
       expect(database.prepare('PRAGMA user_version').get()?.user_version).toBe(
         1,
       );
+    } finally {
+      database.close();
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it('reports missing persisted environment identity instead of returning invalid inventory', async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), 'porcelain-missing-environment-'),
+  );
+  try {
+    const database = openDatabase(directory);
+    try {
+      const repository = new InventoryRepository(database.db);
+      database.db.delete(environments).run();
+      expect(() => repository.read()).toThrow(MissingEnvironmentIdentityError);
     } finally {
       database.close();
     }

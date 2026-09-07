@@ -33,14 +33,24 @@ Server code is organized by responsibility, with product grouping inside each di
   context, calls use cases, and maps results and errors to HTTP.
 - `use-cases` owns product rules and coordinates explicit dependencies independently of Fastify.
 - `repositories` owns persistence queries and transactions for Porcelain-owned data.
+- `models` owns internal project, worktree, and inventory types; these are not wire DTOs.
 - `git` owns Git execution and output parsing.
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
   startup and shutdown when introduced.
 
-Add directories only with their implementation; do not scaffold empty roles. Dependency interfaces
-belong with their consumer.
-Use plain functions by default. Classes may clarify dependencies or lifecycle; do not introduce base
-classes, generic repository frameworks, or service locators.
+Add directories only with their implementation; do not scaffold empty roles. Dependency contracts
+expose the operations consumers need without requiring concrete implementations.
+Use classes for Git, repositories, and use cases, with explicit constructor dependencies and instance
+methods. Use cases expose `execute()`. Git instances bind to a checkout and own command execution,
+environment isolation, timeouts, and parsing. Add commands only with their implemented behavior.
+Keep pure reconciliation and HTTP routes as functions. Do not introduce base classes, generic
+repository frameworks, static global services, or service locators.
+
+Named errors distinguish failures callers can handle without parsing messages. Preserve `cause` when
+wrapping external failures; leave unexpected database diagnostics intact. Git inspection failures for
+known worktrees still mark them unavailable, while initial discovery failures propagate to the caller.
+Internal models use TypeScript types; Zod validates runtime boundaries, and Drizzle owns database
+schemas. Do not duplicate an existing boundary schema with a hand-maintained DTO.
 
 Use descriptive kebab-case module filenames and PascalCase classes/types. JavaScript and TypeScript
 index modules (`index.ts`, `index.tsx`, `index.js`, and their module variants) are forbidden, including

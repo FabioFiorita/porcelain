@@ -15,7 +15,8 @@ Record consequential choices in `docs/decisions`; keep task logs and temporary p
 ## Structure and safety
 
 Organize server code by responsibility (`db`, `http`, `use-cases`, `repositories`, `git`), with product
-grouping inside those directories where useful. Use explicit dependencies and platform adapters.
+grouping inside those directories where useful. Use explicit constructor dependencies for Git,
+repository, and use-case classes; keep pure rules and routes as functions. Use named errors for meaningful failure categories and preserve external causes.
 Do not create `index.ts` or equivalent JavaScript/TypeScript index modules; use descriptive filenames
 and explicit imports instead of directory barrels.
 Tests use `.spec.ts` or `.spec.tsx`. New packages expose explicit public subpaths.

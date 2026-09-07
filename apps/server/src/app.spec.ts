@@ -4,6 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { openApplication } from './app.ts';
+import {
+  GitCommandError,
+  UnsupportedRepositoryError,
+} from './git/git-errors.ts';
 
 const roots: string[] = [];
 const applications: Awaited<ReturnType<typeof openApplication>>[] = [];
@@ -138,10 +142,15 @@ it('retains unreachable repositories and missing Git-listed worktrees as unavail
 it('rejects non-repositories and bare repositories without persisting a project', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  await expect(app.register(f.root)).rejects.toThrow();
+  const failure = await app.register(f.root).catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(GitCommandError);
+  if (!(failure instanceof GitCommandError))
+    throw new Error('Expected Git failure');
+  expect(failure.cause).toBeInstanceOf(Error);
+  expect(failure.checkout).toBe(f.root);
   const bare = join(f.root, 'bare');
   git(f.root, 'clone', '--bare', f.main, bare);
-  await expect(app.register(bare)).rejects.toThrow('Bare repositories');
+  await expect(app.register(bare)).rejects.toThrow(UnsupportedRepositoryError);
   expect(app.inventory().projects).toEqual([]);
 });
 
