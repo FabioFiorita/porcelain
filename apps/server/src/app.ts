@@ -1,6 +1,6 @@
 import { openDatabase } from './db/connection.ts';
 import { Git } from './git/git.ts';
-import type { GitFactory } from './git/worktree-inventory.ts';
+import type { GitFactory } from './git/worktrees/worktree-inventory.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { RefreshProjects } from './use-cases/projects/refresh-projects.ts';
 import { RegisterProject } from './use-cases/projects/register-project.ts';

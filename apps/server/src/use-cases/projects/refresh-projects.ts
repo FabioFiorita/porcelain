@@ -1,4 +1,4 @@
-import type { GitFactory } from '../../git/worktree-inventory.ts';
+import type { GitFactory } from '../../git/worktrees/worktree-inventory.ts';
 import type { Project } from '../../models/project.ts';
 import type { InventoryStore } from '../../repositories/inventory-repository.ts';
 import { reconcileProject } from './reconcile-project.ts';

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { basename, dirname } from 'node:path';
-import type { DiscoveredRepository } from '../../git/worktree-inventory.ts';
+import type { DiscoveredRepository } from '../../git/worktrees/worktree-inventory.ts';
 import type { Project } from '../../models/project.ts';
 
 export function reconcileProject(

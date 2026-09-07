@@ -4,10 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { openApplication } from './app.ts';
-import {
-  GitCommandError,
-  UnsupportedRepositoryError,
-} from './git/git-errors.ts';
+import { GitCommandError } from './git/errors/git-command-error.ts';
+import { UnsupportedRepositoryError } from './git/errors/unsupported-repository-error.ts';
 
 const roots: string[] = [];
 const applications: Awaited<ReturnType<typeof openApplication>>[] = [];

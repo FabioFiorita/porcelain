@@ -38,6 +38,13 @@ Server code is organized by responsibility, with product grouping inside each di
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
   startup and shutdown when introduced.
 
+Top-level server directories identify technical responsibilities; nested directories group cohesive
+capabilities. For example, `git/worktrees` owns worktree discovery while `git/git.ts` is the public
+checkout-bound facade. Shared Git execution remains in `git/execute-command.ts`. Callers use `Git`
+rather than importing command implementations. Errors live in their owner's `errors` directory,
+with one named error class per file. Keep existing `http/routes` and `use-cases/projects` grouping;
+add other capability folders only when implemented code benefits from them.
+
 Add directories only with their implementation; do not scaffold empty roles. Dependency contracts
 expose the operations consumers need without requiring concrete implementations.
 Use classes for Git, repositories, and use cases, with explicit constructor dependencies and instance

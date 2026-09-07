@@ -6,7 +6,7 @@ import { projects } from '../db/schema/projects.ts';
 import { worktrees } from '../db/schema/worktrees.ts';
 import type { Inventory } from '../models/inventory.ts';
 import type { Project } from '../models/project.ts';
-import { MissingEnvironmentIdentityError } from './missing-environment-identity-error.ts';
+import { MissingEnvironmentIdentityError } from './errors/missing-environment-identity-error.ts';
 
 export interface InventoryStore {
   read(): Inventory;

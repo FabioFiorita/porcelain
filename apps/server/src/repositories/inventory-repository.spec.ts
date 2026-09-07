@@ -4,10 +4,12 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
+import { InvalidDataDirectoryError } from '../db/errors/invalid-data-directory-error.ts';
+import { UnsupportedDatabaseVersionError } from '../db/errors/unsupported-database-version-error.ts';
 import { environments } from '../db/schema/environments.ts';
 import type { Project } from '../models/project.ts';
+import { MissingEnvironmentIdentityError } from './errors/missing-environment-identity-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
-import { MissingEnvironmentIdentityError } from './missing-environment-identity-error.ts';
 
 function openInventoryStore(directory: string) {
   const database = openDatabase(directory);
@@ -34,7 +36,7 @@ it('rejects a newer schema without changing its version or data', async () => {
     );
     database.close();
     expect(() => openInventoryStore(directory)).toThrow(
-      'Unsupported inventory database version',
+      UnsupportedDatabaseVersionError,
     );
     const reopened = new DatabaseSync(path);
     try {
@@ -54,7 +56,7 @@ it('rejects a newer schema without changing its version or data', async () => {
 
 it('requires an explicit absolute data directory', () => {
   expect(() => openInventoryStore('relative')).toThrow(
-    'absolute data directory',
+    InvalidDataDirectoryError,
   );
 });
 

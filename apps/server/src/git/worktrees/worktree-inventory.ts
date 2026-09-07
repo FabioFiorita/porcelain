@@ -1,4 +1,4 @@
-import type { Worktree } from '../models/worktree.ts';
+import type { Worktree } from '../../models/worktree.ts';
 
 export interface DiscoveredRepository {
   commonDirectory: string;
