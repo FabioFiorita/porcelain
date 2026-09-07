@@ -51,3 +51,20 @@ CI when created, with no silent fallback to passing empty suites.
 pnpm workspaces currently suffice for the tooling foundation. Revisit Turborepo when multiple
 application/packages have tasks: dependency ordering and caching should earn their setup cost.
 Cached builds do not establish runtime behavior, and Turbo does not change which checks run locally.
+
+## Server inventory
+
+`openApplication` in `apps/server/src/app.ts` opens an explicitly supplied absolute data directory,
+refreshes registered repositories, and returns `inventory`, `register`, `refresh`, and `close` operations.
+The caller must close the application. There is no default production directory or network listener.
+Use only temporary repositories and state for development fixtures.
+
+```sh
+pnpm exec vitest run apps/server/src/app.spec.ts
+pnpm --filter @porcelain/server typecheck
+pnpm exec biome check apps/server
+```
+
+These specs exercise real Git and SQLite, including restart, moves, removal, and unavailable paths.
+They do not prove a running server, client workflow, or remote connection. CI runs them on Linux;
+a local macOS pass does not establish Linux behavior until that CI run is observed.

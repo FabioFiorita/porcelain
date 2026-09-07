@@ -1,7 +1,8 @@
 # Architecture
 
-This is the agreed layout and responsibility model. Only engineering tooling exists today;
-application directories are added when their first behavior is implemented.
+This is the agreed layout and responsibility model. The server inventory foundation exists in `apps/server`; other
+application and package directories are added with their first behavior. The
+[inventory decision](decisions/0002-environment-inventory.md) defines identity and persistence.
 
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |
@@ -55,5 +56,5 @@ real integration proof, not assumptions based on a local connection.
 
 Pure rules use unit specs. Git, persistence, and protocol behavior use real disposable integration
 fixtures. User paths gain CI smoke tests as their surface is introduced. Renderer specs need a
-browser/DOM test project; Expo/native checks need their own platform setup. The initial Vitest project
-covers tooling only and must not be described as application end-to-end coverage.
+browser/DOM test project; Expo/native checks need their own platform setup. The Vitest project
+covers tooling and disposable server inventory integration specs, not application end-to-end behavior.
