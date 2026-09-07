@@ -1,3 +1,19 @@
+## [0.64.0](https://github.com/FabioFiorita/porcelain/compare/v0.63.4...v0.64.0) (2026-09-07)
+
+### Features
+
+* **mobile:** align tablet Files browsing and cache behavior ([856b563](https://github.com/FabioFiorita/porcelain/commit/856b563cead5d517e7487404c7887948b9d51809))
+* **mobile:** open tablet files in persistent viewer tabs ([43d321e](https://github.com/FabioFiorita/porcelain/commit/43d321eccee07425a528852b67e65aef6419b1e2))
+
+### Bug Fixes
+
+* clarify sharing routes and repair mobile pairing preview ([5afa743](https://github.com/FabioFiorita/porcelain/commit/5afa74383fd50375112b9d1b02a293a6168c9c1b))
+* constrain native menus to the app window ([205d333](https://github.com/FabioFiorita/porcelain/commit/205d3337686af8212c99afb421e147a35ebbc951))
+* manage mobile environments without exclusive selection ([bd1e300](https://github.com/FabioFiorita/porcelain/commit/bd1e3008c37252ede8f9ed4ea3b6ec6a3c302a20))
+* **mobile:** align phone Files pins and reveal navigation ([cb327f1](https://github.com/FabioFiorita/porcelain/commit/cb327f1421c8e1da12af915a455c61f130bc73a2))
+* **mobile:** separate file row interaction highlights ([bb6d48e](https://github.com/FabioFiorita/porcelain/commit/bb6d48e5b0fa90ca00f5aa4e28c7b6b5c2cbf8a7))
+* **mobile:** use workspace dialogs for tablet file actions ([3017768](https://github.com/FabioFiorita/porcelain/commit/3017768b2449cab6988cb9c73dd8cc3fa8b707c4))
+
 ## [0.63.4](https://github.com/FabioFiorita/porcelain/compare/v0.63.3...v0.63.4) (2026-09-06)
 
 ### Bug Fixes
