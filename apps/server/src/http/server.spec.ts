@@ -5,10 +5,13 @@ import { healthResponseSchema } from '@porcelain/contracts/health';
 import { expect, it } from 'vitest';
 import { createServer } from './server.ts';
 
-it('serves a validated health response without exposing inventory or opening a listener', async () => {
+it('serves a validated health response without unauthenticated inventory access or opening a listener', async () => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-http-'));
   try {
-    const server = await createServer({ dataDirectory });
+    const server = await createServer({
+      dataDirectory,
+      token: 'fixture-token-with-at-least-32-characters',
+    });
     try {
       expect(server.server.listening).toBe(false);
       const response = await server.inject({ method: 'GET', url: '/health' });
@@ -19,12 +22,15 @@ it('serves a validated health response without exposing inventory or opening a l
       expect(response.json()).toEqual({ status: 'ok' });
       expect(
         (await server.inject({ method: 'GET', url: '/inventory' })).statusCode,
-      ).toBe(404);
+      ).toBe(401);
     } finally {
       await server.close();
     }
     // Application lifecycle releases persistence so it can be opened again.
-    const reopened = await createServer({ dataDirectory });
+    const reopened = await createServer({
+      dataDirectory,
+      token: 'fixture-token-with-at-least-32-characters',
+    });
     await reopened.close();
   } finally {
     await rm(dataDirectory, { recursive: true, force: true });
@@ -34,7 +40,10 @@ it('serves a validated health response without exposing inventory or opening a l
 it('responds over a task-owned loopback listener and shuts it down', async () => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-listener-'));
   try {
-    const server = await createServer({ dataDirectory });
+    const server = await createServer({
+      dataDirectory,
+      token: 'fixture-token-with-at-least-32-characters',
+    });
     try {
       const address = await server.listen({ host: '127.0.0.1', port: 0 });
       const response = await fetch(`${address}/health`);
@@ -52,7 +61,10 @@ it('responds over a task-owned loopback listener and shuts it down', async () =>
 it('uses the Zod response serializer to remove undeclared fields', async () => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-serializer-'));
   try {
-    const server = await createServer({ dataDirectory });
+    const server = await createServer({
+      dataDirectory,
+      token: 'fixture-token-with-at-least-32-characters',
+    });
     try {
       server.get(
         '/fixture',

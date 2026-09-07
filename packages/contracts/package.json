@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./health": "./src/health.ts"
+    "./health": "./src/health.ts",
+    "./inventory": "./src/inventory.ts",
+    "./api-error": "./src/api-error.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

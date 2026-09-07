@@ -102,10 +102,11 @@ application data. The initial relational migration is the supported baseline. Ea
 without modification; use a new disposable development directory or explicitly recover the old data.
 Keep the migration directory with the server when adding build/packaging tasks.
 
-`createServer` in `apps/server/src/http/server.ts` returns a Fastify instance with `GET /health` and a shutdown
+`createServer` in `apps/server/src/http/server.ts` requires a configured bearer token and returns a Fastify instance with public `GET /health`,
+authenticated inventory routes, and a shutdown
 hook for inventory. It does not bind a port. The health contract is exported from
-`@porcelain/contracts/health`; the server uses the Fastify Zod provider. There are no inventory routes
-or credentials. Choose authentication, binding, and connection behavior before adding those routes.
+`@porcelain/contracts/health`; the server uses the Fastify Zod provider. The [inventory HTTP decision](decisions/0004-inventory-http.md) defines routes, token requirements,
+and public errors. Binding, TLS, token provisioning, and client connection behavior remain startup work.
 
 The server uses stable Drizzle with `better-sqlite3`, which bundles native prebuilds. Its automatic
 build is disabled in pnpm; runtime tests must prove that the bundled binary loads. Validate installation

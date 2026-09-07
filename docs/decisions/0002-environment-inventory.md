@@ -45,11 +45,11 @@ cloning, migration tooling, and backup procedures are not supported workflows ye
 
 Clients may retain last-known navigator entries, visibly unavailable until refreshed. Offline or loading
 projects must not permit inspection. TanStack Query focus/reconnect behavior belongs to the future clients.
-There is no client cache, inventory transport, authentication, or UI.
+Authenticated inventory HTTP is defined in [the HTTP decision](0004-inventory-http.md). There is no client cache or UI.
 
 ## Package scope
 
 The server composition accepts an isolated data directory and an optional Git adapter. The health
-response schema is shared through an explicit contracts subpath. Inventory types remain server-private
-until their transport boundary is designed. Recursive pnpm type checking covers both packages; revisit
+and inventory response schemas are shared through explicit contracts subpaths. Internal filesystem
+identity evidence remains server-private. Recursive pnpm type checking covers both packages; revisit
 Turborepo when build ordering or reusable task outputs justify it.
