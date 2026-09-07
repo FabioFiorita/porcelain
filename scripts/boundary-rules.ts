@@ -34,6 +34,36 @@ const ownershipRules: IForbiddenRuleType[] = Object.entries(owners).map(
 export const boundaryRules: IConfiguration = {
   forbidden: [
     ...ownershipRules,
+    {
+      name: 'use-cases-depend-on-contracts',
+      severity: 'error',
+      comment:
+        'Product operations depend on internal models and adapter interfaces, not infrastructure.',
+      from: { path: '^apps/server/src/use-cases/', pathNot: '\\.spec\\.ts$' },
+      to: {
+        path: '(^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
+        pathNot:
+          '^apps/server/src/(use-cases/|models/|git/(interfaces|dtos)/|repositories/interfaces/)',
+      },
+    },
+    {
+      name: 'server-models-are-independent',
+      severity: 'error',
+      from: { path: '^apps/server/src/models/', pathNot: '\\.spec\\.ts$' },
+      to: { path: '^apps/server/src/', pathNot: '^apps/server/src/models/' },
+    },
+    {
+      name: 'adapter-interfaces-stay-independent',
+      severity: 'error',
+      from: {
+        path: '^apps/server/src/(git/(interfaces|dtos)|repositories/interfaces)/',
+      },
+      to: {
+        path: '^apps/server/src/',
+        pathNot:
+          '^apps/server/src/(models/|git/(interfaces|dtos)/|repositories/interfaces/)',
+      },
+    },
     { name: 'no-cycles', severity: 'error', from: {}, to: { circular: true } },
     {
       name: 'no-unresolved-imports',

@@ -1,9 +1,9 @@
 import { openDatabase } from './db/connection.ts';
 import { Git } from './git/git.ts';
-import type { GitFactory } from './git/worktrees/worktree-inventory.ts';
+import type { GitFactory } from './git/interfaces/git-factory.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
-import { RefreshProjects } from './use-cases/projects/refresh-projects.ts';
-import { RegisterProject } from './use-cases/projects/register-project.ts';
+import { RefreshProjects } from './use-cases/refresh-projects.ts';
+import { RegisterProject } from './use-cases/register-project.ts';
 
 export async function openApplication(options: {
   dataDirectory: string;

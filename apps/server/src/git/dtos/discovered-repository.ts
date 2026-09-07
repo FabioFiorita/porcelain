@@ -5,9 +5,3 @@ export interface DiscoveredRepository {
   repositoryIdentity: string;
   worktrees: Omit<Worktree, 'id'>[];
 }
-
-export interface WorktreeReader {
-  listWorktrees(): Promise<DiscoveredRepository>;
-}
-
-export type GitFactory = (checkout: string) => WorktreeReader;

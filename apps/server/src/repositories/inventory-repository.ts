@@ -7,11 +7,7 @@ import { worktrees } from '../db/schema/worktrees.ts';
 import type { Inventory } from '../models/inventory.ts';
 import type { Project } from '../models/project.ts';
 import { MissingEnvironmentIdentityError } from './errors/missing-environment-identity-error.ts';
-
-export interface InventoryStore {
-  read(): Inventory;
-  save(project: Project): void;
-}
+import type { InventoryStore } from './interfaces/inventory-store.ts';
 
 export class InventoryRepository implements InventoryStore {
   private readonly db: BetterSQLite3Database;

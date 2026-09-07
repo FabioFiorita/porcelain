@@ -19,13 +19,16 @@ The health response is the first schema in `packages/contracts`.
 Electron packages/launches the server and web assets; it does not import their implementation.
 Packages expose explicit subpath exports. Cross-package relative imports into source are forbidden.
 The dependency rules live in `scripts/boundary-rules.ts` and have adversarial fixture specs.
-Dependencies cannot cycle. Portable packages cannot import Node, Electron, React DOM, or native
+Dependencies cannot cycle. Server use cases import internal models and adapter interfaces, not
+infrastructure implementations. Model and adapter-interface guards reject server implementation imports; they do not classify every
+third-party dependency. Use-case guards also reject common infrastructure libraries and direct process,
+filesystem, and network APIs. Portable packages cannot import Node, Electron, React DOM, or native
 platform modules. Biome also restricts direct platform globals there. This does not prove portability
 against every possible third-party library or indirect global access; review remains necessary.
 
 ## Source conventions
 
-Server code is organized by responsibility, with product grouping inside each directory when useful:
+Server code is organized by technical responsibility at both directory levels:
 
 - `db/connection.ts` and `db/migrate.ts` own database initialization and migrations.
 - `db/schema` owns named Drizzle table modules.
@@ -38,12 +41,14 @@ Server code is organized by responsibility, with product grouping inside each di
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
   startup and shutdown when introduced.
 
-Top-level server directories identify technical responsibilities; nested directories group cohesive
-capabilities. For example, `git/worktrees` owns worktree discovery while `git/git.ts` is the public
-checkout-bound facade. Shared Git execution remains in `git/execute-command.ts`. Callers use `Git`
-rather than importing command implementations. Errors live in their owner's `errors` directory,
-with one named error class per file. Keep existing `http/routes` and `use-cases/projects` grouping;
-add other capability folders only when implemented code benefits from them.
+Nested directories describe roles, not product features: `git/commands` owns command implementations,
+`git/dtos` describes discovered data, and `git/interfaces` exposes injectable Git capabilities.
+`git/git.ts` is the public checkout-bound facade; shared execution lives in `git/execute-command.ts`.
+Use cases live directly in `use-cases`; pure state reconciliation lives in `use-cases/reconciliation`.
+Repository dependency interfaces live in `repositories/interfaces`, separate from Drizzle implementations.
+Errors live in their owner's `errors` directory with one class per file. Mappers belong in `mappers`
+when translating representations; do not call identity reconciliation a mapper. DTOs describe a boundary's
+input or output, not every internal model, and do not require a parallel Zod schema unless validated at runtime.
 
 Add directories only with their implementation; do not scaffold empty roles. Dependency contracts
 expose the operations consumers need without requiring concrete implementations.

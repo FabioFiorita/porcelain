@@ -1,10 +1,10 @@
 import { realpath, stat } from 'node:fs/promises';
+import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
 import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
 import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
 import { UnsupportedFilesystemIdentityError } from '../errors/unsupported-filesystem-identity-error.ts';
 import { UnsupportedRepositoryError } from '../errors/unsupported-repository-error.ts';
 import { executeCommand } from '../execute-command.ts';
-import type { DiscoveredRepository } from './worktree-inventory.ts';
 
 async function identity(path: string): Promise<string> {
   const info = await stat(path, { bigint: true });

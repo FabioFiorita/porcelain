@@ -157,3 +157,56 @@ test('rejects a private workspace subpath even when the source file exists', asy
     ),
   ).toContain('no-unresolved-imports');
 });
+
+test('rejects use cases reaching into persistence implementations', async () => {
+  expect(
+    await violations({
+      'apps/server/src/use-cases/register-project.ts':
+        "import { value } from '../repositories/inventory-repository.ts'; export const result = value;",
+      'apps/server/src/repositories/inventory-repository.ts':
+        'export const value = 1;',
+    }),
+  ).toContain('use-cases-depend-on-contracts');
+});
+
+test('allows use cases to depend on adapter interfaces and internal models', async () => {
+  expect(
+    await violations({
+      'apps/server/src/use-cases/register-project.ts':
+        "import type { Store } from '../repositories/interfaces/inventory-store.ts'; export type Input = Store;",
+      'apps/server/src/repositories/interfaces/inventory-store.ts':
+        "import type { Project } from '../../models/project.ts'; export interface Store { read(): Project; }",
+      'apps/server/src/models/project.ts':
+        'export interface Project { id: string; }',
+    }),
+  ).toEqual([]);
+});
+
+test('rejects internal models depending on HTTP', async () => {
+  expect(
+    await violations({
+      'apps/server/src/models/project.ts':
+        "import { value } from '../http/server.ts'; export const result = value;",
+      'apps/server/src/http/server.ts': 'export const value = 1;',
+    }),
+  ).toContain('server-models-are-independent');
+});
+
+test('rejects adapter interfaces depending on their implementations', async () => {
+  expect(
+    await violations({
+      'apps/server/src/git/interfaces/git-factory.ts':
+        "import { value } from '../git.ts'; export const result = value;",
+      'apps/server/src/git/git.ts': 'export const value = 1;',
+    }),
+  ).toContain('adapter-interfaces-stay-independent');
+});
+
+test('rejects use cases bypassing adapters with direct process execution', async () => {
+  expect(
+    await violations({
+      'apps/server/src/use-cases/register-project.ts':
+        "import { execFile } from 'node:child_process'; export const run = execFile;",
+    }),
+  ).toContain('use-cases-depend-on-contracts');
+});

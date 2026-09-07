@@ -1,6 +1,6 @@
-import type { GitFactory } from '../../git/worktrees/worktree-inventory.ts';
-import type { InventoryStore } from '../../repositories/inventory-repository.ts';
-import { reconcileProject } from './reconcile-project.ts';
+import type { GitFactory } from '../git/interfaces/git-factory.ts';
+import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
+import { reconcileProject } from './reconciliation/reconcile-project.ts';
 import type { RefreshProjects } from './refresh-projects.ts';
 
 export class RegisterProject {
