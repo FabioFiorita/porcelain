@@ -48,9 +48,9 @@ export function useSurfaceOpen(): SurfaceOpen {
         })
       },
       file: (path: string, line?: number) => {
+        useFilesStore.getState().openFile(path, line)
         if (tablet && owner) {
           useFileTabsStore.getState().open(owner, path, line)
-          useFilesStore.getState().openFile(path, line)
         }
         const navigate = tablet ? router.replace : router.push
         navigate({

@@ -60,7 +60,7 @@ export function FilesBrowser({
   onOpenCrumb?: (path: string) => void
   onOpenDir: (path: string) => void
   onOpenFile: (path: string) => void
-  /** Tablet: the file the viewer column is showing. */
+  /** The active or most recently opened file to highlight and reveal in the tree. */
   selectedPath?: string | null
   /** Persistent, lazy expansion matching the web/tablet Files rail. */
   tree?: boolean

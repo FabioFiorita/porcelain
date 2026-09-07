@@ -16,7 +16,7 @@ type FilesState = {
   showHidden: boolean
   /** Tablet: the directory the list column is showing. Repo-relative; `''` is the repo root. */
   cursor: string
-  /** Tablet: the file the viewer column holds. Repo-relative, or `null` for nothing open. */
+  /** Most recently opened file. Repo-relative, or `null` for nothing open. */
   selection: string | null
   /** The 1-based line the viewer opened at (a search hit), or `null` for the top. */
   selectionLine: number | null
@@ -32,7 +32,7 @@ type FilesState = {
 }
 
 /**
- * Files view state — scope override and tablet navigation only. Search controls live in the
+ * Files view state — scope override, selection, and tree navigation. Search controls live in the
  * Search feature's unpersisted store so Files owns no Search workflow state.
  */
 export const useFilesStore = create<FilesState>()((set) => ({

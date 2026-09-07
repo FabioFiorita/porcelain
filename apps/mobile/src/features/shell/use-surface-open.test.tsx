@@ -8,12 +8,14 @@ vi.mock('@/features/projects', () => ({ useHubRepoPath: () => '/repo' }))
 vi.mock('@/features/remote', () => ({ useActiveEnvironment: () => ({ id: 'local' }) }))
 
 import { useFileTabsStore } from '@/features/files/file-tabs-store'
+import { useFilesStore } from '@/features/files/files-store'
 import { useSurfaceOpen } from './use-surface-open'
 
 beforeEach(() => {
   ctx.push.mockReset()
   ctx.replace.mockReset()
   useFileTabsStore.setState({ owners: {} })
+  useFilesStore.getState().reset()
 })
 it.each([true, false])('uses file tabs on tablet=%s and retains phone navigation', (tablet) => {
   ctx.tablet = tablet
@@ -25,6 +27,7 @@ it.each([true, false])('uses file tabs on tablet=%s and retains phone navigation
     params: { path: ['src', 'main.ts'], line: '14' },
   })
   expect(tablet ? ctx.push : ctx.replace).not.toHaveBeenCalled()
+  expect(useFilesStore.getState()).toMatchObject({ selection: 'src/main.ts', selectionLine: 14 })
   const owners = Object.values(useFileTabsStore.getState().owners)
   expect(owners).toHaveLength(tablet ? 1 : 0)
   if (tablet) expect(owners[0].tabs).toEqual([{ path: 'src/main.ts', line: 14 }])
