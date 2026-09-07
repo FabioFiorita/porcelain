@@ -15,6 +15,5 @@ export async function openHubWorktree(
   environment: Environment,
   worktree: HubWorktree,
 ): Promise<void> {
-  await environmentActions.setActive(environment.id)
-  await environmentActions.setActiveProjectPath(environment.id, worktree.path)
+  await environmentActions.selectWorktree(environment.id, worktree.path)
 }

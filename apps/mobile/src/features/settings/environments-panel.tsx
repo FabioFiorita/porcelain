@@ -8,15 +8,13 @@ import { Text } from '@/components/ui/text'
 import {
   type Environment,
   type EnvironmentId,
-  useActiveEnvironment,
-  useConnectionState,
   useEnvironments,
   useEnvironmentsCorrupt,
 } from '@/features/remote'
 import { cn } from '@/lib/utils'
 import { AddConnectionForm, CreateGroupForm } from './environment-forms'
-import { describeConnection } from './environment-labels'
 import { GroupDetail } from './group-detail'
+import { useEnvironmentStatus } from './use-environment-status'
 import { useEnvironmentsNavigation } from './use-environments-panel'
 
 /**
@@ -88,14 +86,11 @@ function EnvironmentsList({
   onCreate: () => void
   onOpen: (id: EnvironmentId) => void
 }): React.JSX.Element {
-  const active = useActiveEnvironment()
-  const connection = useConnectionState()
-
   return (
     <View className="gap-3" testID="porcelain-settings-environments">
       <Text className="text-sm text-muted-foreground">
-        Pair this device with a daemon. Prefer LAN first; add Tailscale or Cloudflare as fallbacks.
-        Production port 43117 is never used for product work on this app.
+        Access projects from all your environments in this window. Add connections using LAN,
+        Tailscale, or Cloudflare.
       </Text>
 
       {corrupt ? (
@@ -107,53 +102,57 @@ function EnvironmentsList({
 
       {environments.length === 0 && !corrupt ? (
         <EmptyNote
-          body="Create a group with a connection link from the host Share settings."
+          body="Add an environment using a connection link from its Share settings."
           testID="porcelain-settings-environments-empty"
           title="No environments yet"
         />
       ) : null}
 
-      {environments.map((environment) => {
-        const isCurrent = environment.id === active?.id
-        const statusLabel = describeConnection(environment, isCurrent, connection)
-        return (
-          <Pressable
-            key={environment.id}
-            accessibilityLabel={`${environment.nickname}, ${statusLabel}`}
-            accessibilityRole="button"
-            className={cn(
-              PANEL_CARD,
-              'flex-row items-center gap-3 p-3 active:bg-accent',
-              isCurrent && 'border-primary/40 bg-primary/5',
-            )}
-            testID={`porcelain-settings-environment-${environment.id}`}
-            onPress={() => {
-              onOpen(environment.id)
-            }}
-          >
-            <View className="size-10 items-center justify-center rounded-lg bg-muted">
-              <ChromeGlyph name={environment.icon} size={18} tone="foreground" />
-            </View>
-            <View className="min-w-0 flex-1 gap-0.5">
-              <Text className="font-medium text-foreground" numberOfLines={1}>
-                {environment.nickname}
-              </Text>
-              <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-                {statusLabel}
-              </Text>
-            </View>
-            <Text className="text-xs font-semibold text-primary">
-              {environment.enabled ? 'Active' : 'Inactive'}
-            </Text>
-            {isCurrent ? <Text className="text-xs font-semibold text-primary">Current</Text> : null}
-            <ChromeGlyph name="chevronRight" size={14} />
-          </Pressable>
-        )
-      })}
+      {environments.map((environment) => (
+        <EnvironmentRow key={environment.id} environment={environment} onOpen={onOpen} />
+      ))}
 
       <Button testID="porcelain-settings-create-environment" variant="outline" onPress={onCreate}>
-        <Text>Create environment group</Text>
+        <Text>Add environment</Text>
       </Button>
     </View>
+  )
+}
+
+function EnvironmentRow({
+  environment,
+  onOpen,
+}: {
+  environment: Environment
+  onOpen: (id: EnvironmentId) => void
+}): React.JSX.Element {
+  const status = useEnvironmentStatus(environment)
+  const count = environment.endpoints.length
+  const statusLabel = `${count} connection${count === 1 ? '' : 's'}`
+  return (
+    <Pressable
+      key={environment.id}
+      accessibilityLabel={`${environment.nickname}, ${statusLabel}`}
+      accessibilityRole="button"
+      className={cn(PANEL_CARD, 'flex-row items-center gap-3 p-3 active:bg-accent')}
+      testID={`porcelain-settings-environment-${environment.id}`}
+      onPress={() => {
+        onOpen(environment.id)
+      }}
+    >
+      <View className="size-10 items-center justify-center rounded-lg bg-muted">
+        <ChromeGlyph name={environment.icon} size={18} tone="foreground" />
+      </View>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text className="font-medium text-foreground" numberOfLines={1}>
+          {environment.nickname}
+        </Text>
+        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+          {statusLabel}
+        </Text>
+      </View>
+      <Text className="text-xs font-semibold text-primary">{status.label}</Text>
+      <ChromeGlyph name="chevronRight" size={14} />
+    </Pressable>
   )
 }

@@ -282,6 +282,11 @@ export function configureSession(next: SessionEndpoint | null): void {
   // Only the daemon identity forces a new socket; a repo change is `selectProject` on the live
   // one, because tearing the socket down would drop the terminals.
   const changed = endpoint?.baseUrl !== next.baseUrl || endpoint?.token !== next.token
+  // Retire the old transport before selecting a path owned by another daemon.
+  if (changed) {
+    everReady = false
+    adapter.stop()
+  }
   endpoint = next
   if (next.repo !== null) {
     runtime.selectProject(next.repo)
@@ -297,10 +302,6 @@ export function configureSession(next: SessionEndpoint | null): void {
     // not change its URL or token. Retire that live socket explicitly, otherwise it keeps the
     // previous project watch until a different endpoint happens to replace it.
     stopAdapter()
-  }
-  if (changed) {
-    everReady = false
-    adapter.stop()
   }
   if (wanted && foreground) adapter.start()
 }

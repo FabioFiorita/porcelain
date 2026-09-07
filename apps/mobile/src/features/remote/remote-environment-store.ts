@@ -146,6 +146,7 @@ type EnvironmentActions = {
   setEnabled(id: EnvironmentId, enabled: boolean): Promise<void>
   rename(id: EnvironmentId, nickname: string): Promise<void>
   setActive(id: EnvironmentId): Promise<void>
+  selectWorktree(id: EnvironmentId, path: string): Promise<void>
   setActiveEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   preferEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
   removeEndpoint(id: EnvironmentId, baseUrl: string): Promise<void>
@@ -292,6 +293,20 @@ export const environmentActions: EnvironmentActions = {
     const next = environmentsStore.getState().environments.find((candidate) => candidate.id === id)
     if (next === undefined || !next.enabled) return
     environmentsStore.setState({ activeId: id, connection: connectionFor(next) })
+    await persist()
+  },
+
+  async selectWorktree(id: EnvironmentId, path: string): Promise<void> {
+    const state = environmentsStore.getState()
+    const next = state.environments.find((candidate) => candidate.id === id)
+    if (next === undefined || !next.enabled) return
+    environmentsStore.setState({
+      activeId: id,
+      connection: state.activeId === id ? state.connection : connectionFor(next),
+      environments: state.environments.map((candidate) =>
+        candidate.id === id ? { ...candidate, activeRepoPath: path } : candidate,
+      ),
+    })
     await persist()
   },
 

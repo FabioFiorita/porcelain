@@ -72,7 +72,7 @@ export type CreateGroupForm = PairForm & {
   setNickname: (nickname: string) => void
 }
 
-/** Create a group from a connection link, then make it the active environment. */
+/** Add connections without interrupting the project currently open. */
 export function useCreateGroupForm(onCreated: (id: EnvironmentId) => void): CreateGroupForm {
   const [nickname, setNickname] = useState('')
   const form = usePairSubmit(async (link) => {
@@ -80,7 +80,6 @@ export function useCreateGroupForm(onCreated: (id: EnvironmentId) => void): Crea
     if (!result.ok) return result.error
     const first = result.value[0]
     if (first === undefined) return { kind: 'mismatch', message: 'The bundle had no Environments.' }
-    await environmentActions.setActive(first.id)
     onCreated(first.id)
     return null
   })
@@ -150,7 +149,6 @@ export type GroupDetailState = {
   move: (index: number, direction: -1 | 1) => void
   setIcon: (icon: Environment['icon']) => void
   toggleEnabled: () => void
-  use: () => void
   confirmDelete: () => void
   /** Last write failure for this detail surface (pair forms use their own `error`). */
   writeError: string | null
@@ -257,9 +255,6 @@ export function useGroupDetail(environment: Environment, onDeleted: () => void):
         enabled ? 'Could not reactivate environment' : 'Could not deactivate environment',
         () => environmentActions.setEnabled(environment.id, enabled),
       )
-    },
-    use: (): void => {
-      runWrite('Could not switch environment', () => environmentActions.setActive(environment.id))
     },
     writeError,
   }

@@ -31,11 +31,10 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
   GENERAL_SECTION,
   {
     id: 'remotes',
-    label: 'Remotes',
-    title: 'Remotes',
+    label: 'Connections',
+    title: 'Connections',
     scope: 'environment',
-    blurb:
-      'Pair this device with a daemon. Prefer LAN first; add Tailscale or Cloudflare as fallbacks.',
+    blurb: 'Manage access to all your environments. Open any project from the sidebar.',
     testID: 'porcelain-settings-section-remotes',
   },
   {

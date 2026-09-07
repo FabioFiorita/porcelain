@@ -235,6 +235,18 @@ describe('Session native lifecycle — protocol (shared runtime)', () => {
 })
 
 describe('Session native lifecycle — mobile binding', () => {
+  it('never sends the next environment project to the previous daemon', () => {
+    configureSession({ baseUrl: 'http://127.0.0.1:43118', token: 'first', repo: PROJECT })
+    const runtime = sessionClientRuntime()
+    const sent: string[] = []
+    runtime.connected({ send: (payload) => sent.push(payload) })
+    runtime.receive(JSON.stringify(readyFrame()))
+    const before = [...sent]
+    configureSession({ baseUrl: 'http://127.0.0.1:43119', token: 'second', repo: '/other/project' })
+    expect(sent).toEqual(before)
+    expect(runtime.projectPath()).toBe('/other/project')
+  })
+
   it('selects the project through configureSession and exposes it on the runtime', () => {
     configureSession({
       baseUrl: 'http://127.0.0.1:43118',
@@ -300,7 +312,11 @@ describe('Session native lifecycle — mobile binding', () => {
     ])
     // The gap surfaced on a Project-scoped Actions change, which names no checkout — so the
     // requirement widens to the whole session instead of guessing a path (#24).
-    expect(requirements).toEqual([{ reason: 'sequence-gap', scope: { kind: 'session' } }])
+    // The shared module may already have connected in another lifecycle check. This test
+    // exercises the sequence gap after ready, independently of that connection history.
+    expect(requirements.filter((requirement) => requirement.reason !== 'reconnect')).toEqual([
+      { reason: 'sequence-gap', scope: { kind: 'session' } },
+    ])
     expect(sent[0]).toContain('session:hello')
     stop()
   })

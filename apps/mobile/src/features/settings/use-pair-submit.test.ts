@@ -77,5 +77,6 @@ describe('useCreateGroupForm pairing totalness', () => {
     expect(result.current.busy).toBe(false)
     expect(result.current.error).toBeNull()
     expect(onCreated).toHaveBeenCalledWith('env-new')
+    expect(setActive).not.toHaveBeenCalled()
   })
 })

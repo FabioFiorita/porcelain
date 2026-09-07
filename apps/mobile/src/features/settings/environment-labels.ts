@@ -1,6 +1,6 @@
 import { endpointKind } from '@porcelain/contracts'
 
-import { type ConnectionState, type Environment, hostOf } from '@/features/remote'
+import type { ConnectionState } from '@/features/remote'
 
 /**
  * What the environments panel says, and the endpoint orders it writes — with no React in them.
@@ -57,42 +57,6 @@ export function connectionStatusLabel(kind: ConnectionState['kind']): string {
       return 'None'
     case 'update-required':
       return 'A protocol update is required.'
-  }
-}
-
-/**
- * The list row's subtitle. Only the active group has a live connection to report; the rest are
- * described by what this device has saved about them.
- */
-export function describeConnection(
-  environment: Environment,
-  isActive: boolean,
-  connection: ConnectionState,
-): string {
-  const count = environment.endpoints.length
-  const routes = `${count} connection${count === 1 ? '' : 's'}`
-  if (!isActive) {
-    if (environment.token === null) return `Unpaired · ${routes}`
-    return `${hostOf(environment.preferredEndpoint)} · ${routes}`
-  }
-  switch (connection.kind) {
-    case 'loading':
-    case 'connecting':
-      return `Connecting… · ${routes}`
-    case 'ready':
-      return `daemon ${connection.daemonVersion} · ${routes}`
-    case 'unreachable':
-      return `Unreachable · ${routes}`
-    case 'unauthorized':
-      // cleanupError means the in-memory token is gone but secure-store deletion failed —
-      // surface the persisted-token risk in the environments list (production consumer).
-      return connection.cleanupError !== undefined
-        ? `Token rejected · credential cleanup failed · ${routes}`
-        : `Token rejected · ${routes}`
-    case 'no-environment':
-      return routes
-    case 'update-required':
-      return `A protocol update is required. · ${routes}`
   }
 }
 

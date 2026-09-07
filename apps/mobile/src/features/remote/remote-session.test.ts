@@ -113,6 +113,35 @@ beforeEach(() => {
   })
 })
 
+it('does not overwrite the selected environment with a previous connection result', async () => {
+  await pairGroup()
+  answers.set(LAN, 'ok')
+  let release: (() => void) | undefined
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  vi.mocked(createDaemonClient).mockImplementationOnce(
+    () =>
+      ({
+        query: async (name: string) => {
+          await waiting
+          return answer(LAN, name)
+        },
+        mutation: async (name: string) => answer(LAN, name),
+      }) as ReturnType<typeof createDaemonClient>,
+  )
+  const pending = retryConnection()
+  const other = await environmentActions.add({
+    baseUrl: TAILNET,
+    nickname: 'Other',
+    token: 'other',
+  })
+  await environmentActions.selectWorktree(other.id, '/other')
+  release?.()
+  await pending
+  expect(currentConnection()).toEqual({ kind: 'connecting' })
+})
+
 describe('shared endpoint order', () => {
   it('defers to the shared LAN-then-public order', () => {
     const group = { endpoints: [LAN, CLOUDFLARE], preferredEndpoint: LAN, url: CLOUDFLARE }

@@ -108,17 +108,17 @@ describe('useGroupDetail write failures', () => {
   })
 
   it('clears writeError after a later successful write', async () => {
-    setActive.mockRejectedValueOnce(new Error('first fail')).mockResolvedValueOnce(undefined)
+    setIcon.mockRejectedValueOnce(new Error('first fail')).mockResolvedValueOnce(undefined)
     const { result } = renderHook(() => useGroupDetail(environment(), vi.fn()))
 
     await act(async () => {
-      result.current.use()
+      result.current.setIcon('terminal')
       await flush()
     })
-    expect(result.current.writeError).toMatch(/Could not switch environment/)
+    expect(result.current.writeError).toMatch(/Could not update icon/)
 
     await act(async () => {
-      result.current.use()
+      result.current.setIcon('terminal')
       await flush()
     })
     expect(result.current.writeError).toBeNull()

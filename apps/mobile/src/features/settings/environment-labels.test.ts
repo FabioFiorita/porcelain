@@ -1,8 +1,6 @@
 import { publicErrorFixtures } from '@porcelain/contracts'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { ConnectionState, Environment } from '@/features/remote'
-
 // Labels need only the Remote feature's pure environment identity. The real index also carries
 // the Secure Store adapter, which reaches into a native module that has no meaning under Vitest.
 vi.mock('@/features/remote', async () => ({
@@ -13,36 +11,10 @@ vi.mock('@/features/remote', async () => ({
 
 import {
   connectionStatusLabel,
-  describeConnection,
   endpointLabel,
   movedOrder,
   promotedOrder,
 } from './environment-labels'
-
-const environment = (overrides: Partial<Environment> = {}): Environment => ({
-  activeRepoPath: null,
-  baseUrl: 'http://192.168.1.10:43118',
-  createdAt: 0,
-  enabled: true,
-  endpoints: ['http://192.168.1.10:43118'],
-  icon: 'desktop',
-  id: 'env-1',
-  nickname: 'Beelink',
-  preferredEndpoint: 'http://192.168.1.10:43118',
-  token: 'tok',
-  ...overrides,
-})
-
-const ready: ConnectionState = {
-  daemonVersion: '0.52.0',
-  kind: 'ready',
-  reachability: {
-    attempted: [],
-    consecutiveFailures: 0,
-    source: 'endpoint-walk',
-    state: 'reachable',
-  },
-}
 
 describe('endpointLabel', () => {
   it('names the three route shapes a human picks between', () => {
@@ -72,54 +44,6 @@ describe('connectionStatusLabel', () => {
     expect(connectionStatusLabel('update-required')).toBe(
       publicErrorFixtures['protocol.update-required'].message,
     )
-  })
-})
-
-describe('describeConnection', () => {
-  it('reports the live daemon version for the active group', () => {
-    expect(describeConnection(environment(), true, ready)).toBe('daemon 0.52.0 · 1 connection')
-  })
-
-  it('pluralizes the route count', () => {
-    const two = environment({
-      endpoints: ['http://a:43118', 'http://b:43118'],
-    })
-    expect(describeConnection(two, true, ready)).toBe('daemon 0.52.0 · 2 connections')
-  })
-
-  // An idle group has no connection to report, so it is described by what is saved about it.
-  it('names the preferred host for a group that is not active', () => {
-    expect(describeConnection(environment(), false, ready)).toBe('192.168.1.10 · 1 connection')
-  })
-
-  it('says unpaired when the token was revoked on the host', () => {
-    expect(describeConnection(environment({ token: null }), false, ready)).toBe(
-      'Unpaired · 1 connection',
-    )
-  })
-
-  it('reports what the active group failed with', () => {
-    expect(describeConnection(environment(), true, { kind: 'unauthorized' })).toBe(
-      'Token rejected · 1 connection',
-    )
-    expect(describeConnection(environment(), true, { kind: 'connecting' })).toBe(
-      'Connecting… · 1 connection',
-    )
-  })
-
-  it('describes a protocol refusal with the contract sentence and the route count', () => {
-    expect(describeConnection(environment(), true, { kind: 'update-required' })).toBe(
-      `${publicErrorFixtures['protocol.update-required'].message} · 1 connection`,
-    )
-  })
-
-  it('surfaces revoked-token cleanup failure in the environments list', () => {
-    expect(
-      describeConnection(environment(), true, {
-        kind: 'unauthorized',
-        cleanupError: 'secure store locked',
-      }),
-    ).toBe('Token rejected · credential cleanup failed · 1 connection')
   })
 })
 

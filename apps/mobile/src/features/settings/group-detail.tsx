@@ -12,15 +12,11 @@ import { PANEL_CARD } from '@/components/surface-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Text } from '@/components/ui/text'
-import {
-  type Environment,
-  type EnvironmentIcon,
-  useActiveEnvironment,
-  useConnectionState,
-} from '@/features/remote'
+import type { Environment, EnvironmentIcon } from '@/features/remote'
 import { cn } from '@/lib/utils'
 import { BackRow, Field, Meta } from './environment-chrome'
-import { connectionStatusLabel, endpointLabel } from './environment-labels'
+import { endpointLabel } from './environment-labels'
+import { useEnvironmentStatus } from './use-environment-status'
 import { useGroupDetail } from './use-environments-panel'
 
 const ICON_OPTIONS: { id: EnvironmentIcon; label: string; glyph: ChromeIconName }[] = [
@@ -41,11 +37,8 @@ export function GroupDetail({
   onAddConnection: () => void
   onDeleted: () => void
 }): React.JSX.Element {
-  const active = useActiveEnvironment()
-  const connection = useConnectionState()
-  const isCurrent = active?.id === environment.id
+  const status = useEnvironmentStatus(environment)
   const detail = useGroupDetail(environment, onDeleted)
-  const version = isCurrent && connection.kind === 'ready' ? connection.daemonVersion : null
   const canRemove = environment.endpoints.length > 1
 
   /**
@@ -103,30 +96,9 @@ export function GroupDetail({
         </Field>
 
         <View className="flex-row flex-wrap gap-x-4 gap-y-1">
-          <Meta
-            label="Porcelain"
-            value={
-              version ??
-              (!environment.enabled
-                ? '—'
-                : isCurrent && (connection.kind === 'connecting' || connection.kind === 'loading')
-                  ? 'Checking…'
-                  : '—')
-            }
-          />
+          <Meta label="Porcelain" value={status.version ?? '—'} />
           <Meta label="Connections" value={String(environment.endpoints.length)} />
-          <Meta
-            label="Status"
-            value={
-              !environment.enabled
-                ? 'Inactive'
-                : environment.token === null
-                  ? 'Unpaired'
-                  : isCurrent
-                    ? connectionStatusLabel(connection.kind)
-                    : 'Idle'
-            }
-          />
+          <Meta label="Status" value={status.label} />
         </View>
 
         <View className="gap-1.5">
@@ -161,27 +133,15 @@ export function GroupDetail({
           </View>
         </View>
 
-        {environment.enabled && !isCurrent && environment.token !== null ? (
-          <Button
-            testID="porcelain-settings-use-environment"
-            variant="outline"
-            onPress={() => {
-              detail.use()
-            }}
-          >
-            <Text>Use this environment</Text>
-          </Button>
-        ) : null}
-
         <Button
           accessibilityLabel={
-            environment.enabled ? 'Deactivate environment' : 'Reactivate environment'
+            environment.enabled ? 'Disconnect environment' : 'Reconnect environment'
           }
           testID="porcelain-settings-toggle-environment"
           variant="outline"
           onPress={detail.toggleEnabled}
         >
-          <Text>{environment.enabled ? 'Deactivate' : 'Reactivate'}</Text>
+          <Text>{environment.enabled ? 'Disconnect' : 'Reconnect'}</Text>
         </Button>
       </View>
 

@@ -63,7 +63,7 @@ export function UpdatesSettings(): React.JSX.Element {
   if (connection.kind !== 'ready') {
     return (
       <EmptyNote
-        body="The active environment is not reachable. Fix the connection under Remotes, then return here."
+        body="The active environment is not reachable. Fix the connection under Connections, then return here."
         testID="porcelain-settings-updates-offline"
         title="Daemon not connected"
       />

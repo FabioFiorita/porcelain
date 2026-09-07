@@ -64,6 +64,37 @@ describe('remote environment store persistence', () => {
     })
   })
 
+  it('selects a worktree atomically without exposing another checkout or disabling other environments', async () => {
+    const first = await environmentActions.add({ baseUrl: LAN, nickname: 'First', token: 'one' })
+    const second = await environmentActions.add({
+      baseUrl: 'http://192.168.1.51:43117',
+      nickname: 'Second',
+      token: 'two',
+    })
+    await environmentActions.setActiveProjectPath(second.id, '/previous')
+    const selections: unknown[] = []
+    const unsubscribe = environmentsStore.subscribe((state) => {
+      selections.push([
+        state.activeId,
+        state.environments.find((env) => env.id === state.activeId)?.activeRepoPath,
+      ])
+    })
+    await environmentActions.selectWorktree(second.id, '/chosen')
+    unsubscribe()
+    expect(selections).toEqual([[second.id, '/chosen']])
+    expect(
+      environmentsStore.getState().environments.find((env) => env.id === first.id)?.enabled,
+    ).toBe(true)
+  })
+
+  it('keeps connection state when changing worktrees within the same environment', async () => {
+    const first = await environmentActions.add({ baseUrl: LAN, nickname: 'First', token: 'one' })
+    const connection = { kind: 'update-required' } as const
+    environmentActions.setConnection(connection)
+    await environmentActions.selectWorktree(first.id, '/chosen')
+    expect(environmentsStore.getState().connection).toBe(connection)
+  })
+
   it('writes a strict version-1 index and stamps the create-time default icon', async () => {
     const environment = await environmentActions.add({
       baseUrl: LAN,

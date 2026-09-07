@@ -20,7 +20,7 @@ import {
 import type { EndpointAttempt } from './remote-connection'
 import { currentConnection } from './remote-connection'
 import { activeProjectPathOf, isPaired, type PairedEnvironment } from './remote-environment'
-import { activeEnvironment, environmentActions } from './remote-environment-store'
+import { activeEnvironment, environmentActions, getEnvironment } from './remote-environment-store'
 import { goUnauthorized } from './remote-unauthorized'
 
 const UNREACHABLE_MESSAGE = 'The daemon could not be reached.'
@@ -115,7 +115,9 @@ async function bootstrapAtEndpoint(
       ) {
         throw cause
       }
-      await environmentActions.setActiveProjectPath(environment.id, null)
+      if (activeProjectPathOf(getEnvironment(environment.id)) === projectPath) {
+        await environmentActions.setActiveProjectPath(environment.id, null)
+      }
     }
   }
   return { daemonVersion }
@@ -153,6 +155,7 @@ export async function connect(environment: PairedEnvironment): Promise<void> {
   environmentActions.setConnection({ kind: 'connecting' })
   try {
     const ready = await bootstrap(environment)
+    if (activeEnvironment()?.id !== environment.id) return
     environmentActions.setConnection({
       daemonVersion: ready.daemonVersion,
       kind: 'ready',
@@ -164,6 +167,7 @@ export async function connect(environment: PairedEnvironment): Promise<void> {
       },
     })
   } catch (error) {
+    if (activeEnvironment()?.id !== environment.id) return
     if (error instanceof RemoteWalkStop && error.stop === 'unauthorized') {
       await goUnauthorized(environment)
       return
