@@ -10,7 +10,8 @@
     "./api-error": "./src/api-error.ts",
     "./files": "./src/files.ts",
     "./commit-history": "./src/commit-history.ts",
-    "./commit-changes": "./src/commit-changes.ts"
+    "./commit-changes": "./src/commit-changes.ts",
+    "./file-preferences": "./src/file-preferences.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

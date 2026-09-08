@@ -9,6 +9,8 @@ Health and inventory HTTP schemas live in `packages/contracts`;
 [Commit history](decisions/commit-history-inspection.md) adds bounded commit listing and parent-relative
 inspection through explicit contracts and a checkout-bound `CommitGit` capability adapter.
 
+[File preferences](decisions/file-preferences.md) retain pin/hide intent separately from inventory refresh.
+
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |
 | `apps/server` | Node server, repository operations, private persistence, HTTP/MCP and live events | contracts |

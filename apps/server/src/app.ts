@@ -12,15 +12,18 @@ import type { CommitReaderFactory } from './git/interfaces/commit-reader.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
 import type { InspectionFactory } from './git/interfaces/inspection-factory.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
+import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
+import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
+import { SetFilePreference } from './use-cases/set-file-preference.ts';
 
 export async function openApplication(options: {
   dataDirectory: string;
@@ -40,6 +43,9 @@ export async function openApplication(options: {
   );
   try {
     const store = new InventoryRepository(database.db);
+    const preferences = new FilePreferenceRepository(database.db);
+    const listPreferences = new ListFilePreferences(store, preferences);
+    const setPreference = new SetFilePreference(store, preferences);
     const git = options.git ?? ((checkout: string) => new Git(checkout));
     const cursor = new CommitCursorCodec(randomBytes(32));
     const commitGit =
@@ -120,6 +126,19 @@ export async function openApplication(options: {
               submitted,
               operationSignal,
             ),
+          signal,
+        );
+      },
+      listFilePreferences: (worktreeId, signal) =>
+        operations.run(async () => listPreferences.execute(worktreeId), signal),
+      setFilePreference: (worktreeId, change, signal) => {
+        const intent = {
+          path: change.path,
+          flag: change.flag,
+          value: change.value,
+        };
+        return operations.run(
+          async () => setPreference.execute(worktreeId, intent),
           signal,
         );
       },

@@ -12,6 +12,10 @@ import type {
   GitStatusObservation,
 } from './git/dtos/git-status.ts';
 import type { DirectoryListing, TextContent } from './models/file-content.ts';
+import type {
+  FilePreference,
+  FilePreferenceChange,
+} from './models/file-preference.ts';
 import type { Inventory } from './models/inventory.ts';
 import type { Project } from './models/project.ts';
 
@@ -64,5 +68,14 @@ export interface Application {
     request: CommitChangesRequest,
     signal?: AbortSignal,
   ): Promise<CommitChanges>;
+  listFilePreferences(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<FilePreference[]>;
+  setFilePreference(
+    worktreeId: string,
+    change: FilePreferenceChange,
+    signal?: AbortSignal,
+  ): Promise<FilePreference[]>;
   close(): Promise<void>;
 }

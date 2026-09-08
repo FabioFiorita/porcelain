@@ -10,6 +10,7 @@ import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 import { toFileErrorResponse } from './file-error-response.ts';
 import { toHistoryErrorResponse } from './history-error-response.ts';
+import { toStorageErrorResponse } from './storage-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
   if (error instanceof UnsupportedGitFiltersError)
@@ -52,6 +53,8 @@ export function toErrorResponse(error: unknown) {
     };
   if (error instanceof FileInspectionError)
     return toFileErrorResponse(error.code);
+  const storage = toStorageErrorResponse(error);
+  if (storage) return storage;
   const history = toHistoryErrorResponse(error);
   if (history) return history;
   if (error instanceof UnauthorizedError) {
