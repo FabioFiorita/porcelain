@@ -5,6 +5,41 @@ import { healthResponseSchema } from '@porcelain/contracts/health';
 import { expect, it } from 'vitest';
 import { createServer } from './server.ts';
 
+it('cancels in-flight discovery before waiting for HTTP requests to finish on shutdown', async () => {
+  const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-shutdown-'));
+  const entered = Promise.withResolvers<void>();
+  const server = await createServer({
+    dataDirectory,
+    token: 'fixture-token-with-at-least-32-characters',
+    git: () => ({
+      listWorktrees: (signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+          entered.resolve();
+        }),
+    }),
+  });
+  try {
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const response = fetch(`${address}/projects`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer fixture-token-with-at-least-32-characters',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ path: dataDirectory }),
+    });
+    await entered.promise;
+    await server.close();
+    expect((await response).status).toBe(503);
+  } finally {
+    await server.close();
+    await rm(dataDirectory, { recursive: true, force: true });
+  }
+});
+
 it('serves a validated health response without unauthenticated inventory access or opening a listener', async () => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-http-'));
   try {

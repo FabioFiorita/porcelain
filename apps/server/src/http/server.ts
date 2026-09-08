@@ -23,6 +23,7 @@ export async function createServer(
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
     return reply.code(response.statusCode).send(response.body);
   });
+  server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
   server.register(inventoryRoutes, { application, token });
