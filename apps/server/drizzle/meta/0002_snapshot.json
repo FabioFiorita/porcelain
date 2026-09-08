@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f808aa57-c768-477e-8e86-ef525dcb88e5",
+  "id": "5cb381f2-d278-4bf9-bc9b-5eb645289659",
   "prevId": "00113afa-965b-4cd6-9e82-ebdcf41a23e5",
   "tables": {
     "environment": {
@@ -30,6 +30,58 @@
         "environment_singleton": {
           "name": "environment_singleton",
           "value": "\"environment\".\"singleton\" = 1"
+        }
+      }
+    },
+    "file_preferences": {
+      "name": "file_preferences",
+      "columns": {
+        "worktree_id": {
+          "name": "worktree_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pinned": {
+          "name": "pinned",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "file_preferences_worktree_id_path_pk": {
+          "columns": ["worktree_id", "path"],
+          "name": "file_preferences_worktree_id_path_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "preference_pinned": {
+          "name": "preference_pinned",
+          "value": "\"file_preferences\".\"pinned\" IN (0, 1)"
+        },
+        "preference_hidden": {
+          "name": "preference_hidden",
+          "value": "\"file_preferences\".\"hidden\" IN (0, 1)"
         }
       }
     },
@@ -99,37 +151,6 @@
           "value": "\"inventory_projects\".\"available\" IN (0, 1)"
         }
       }
-    },
-    "review_layer_sets": {
-      "name": "review_layer_sets",
-      "columns": {
-        "worktree_id": {
-          "name": "worktree_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "layers": {
-          "name": "layers",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
     },
     "worktrees": {
       "name": "worktrees",

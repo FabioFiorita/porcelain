@@ -84,7 +84,9 @@ Cached builds do not establish runtime behavior, and Turbo does not change which
 ## Server inventory
 
 `openApplication` in `apps/server/src/app.ts` opens an explicitly supplied absolute data directory,
-refreshes registered repositories, and returns the named `Application` API: `inventory`, `register`, `refresh`, and `close`.
+refreshes registered repositories, and returns the named `Application` API: `inventory`, `register`, `refresh`, `listCommits`, `inspectCommitChanges`, and `close`.
+The [history decision](decisions/commit-history-inspection.md) defines read limits, cursor lifetime, and
+parent-relative inspection.
 Registration returns `{ project, issues }`; refresh returns `{ inventory, issues }`. Diagnostics belong to each operation result; startup refresh does not retain them on the application.
 The caller must close the application. There is no default production directory or network listener.
 Use only temporary repositories and state for development fixtures.
@@ -118,7 +120,7 @@ Keep the migration directory with the server when adding build/packaging tasks.
 authenticated inventory routes, and a shutdown
 hook for inventory. It does not bind a port. The health contract is exported from
 `@porcelain/contracts/health`; the server uses the Fastify Zod provider. The [inventory HTTP decision](decisions/0004-inventory-http.md) defines routes, token requirements,
-and public errors. Binding, TLS, token provisioning, and client connection behavior remain startup work.
+and public errors. The [local startup decision](decisions/0005-local-server-startup.md) defines the executable. TLS, token provisioning, and client connection behavior remain separate work.
 
 The server uses stable Drizzle with `better-sqlite3`, which bundles native prebuilds. Its automatic
 build is disabled in pnpm; runtime tests must prove that the bundled binary loads. Validate installation
@@ -137,3 +139,31 @@ An explicit refresh or startup refresh inspects all registered projects. Expecte
 mark affected entries unavailable and return their original errors alongside that operation’s result. Missing Git executables, timeouts, cancellation, and unexpected failures propagate. These
 internal diagnostics are not a public response schema and must not be sent directly to remote clients.
 Refresh commits each project independently; cancellation does not undo already completed project updates.
+
+## Run the local inventory server
+
+Supply all three environment variables, then run the server from this checkout:
+
+```sh
+PORCELAIN_DATA_DIRECTORY="$(mktemp -d)" \
+PORCELAIN_PORT=0 \
+PORCELAIN_TOKEN="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')" \
+pnpm --filter @porcelain/server start
+```
+
+This example creates disposable state and a random token; for authenticated API calls, supply a
+caller-managed token through `PORCELAIN_TOKEN`. Never use installed application data or credentials
+as fixtures. The server binds only to `127.0.0.1`; port 0 selects an available port. Its JSON stdout
+line reports the listening address. The token is never printed. Use SIGINT/Ctrl-C or SIGTERM for
+clean shutdown, and remove your disposable directory once its server has stopped.
+
+Only one executable may own a data directory. If startup reports an ownership file after a crash,
+inspect `server.lock` in that exact directory and establish that the owner has stopped. The recorded
+PID alone does not prove process identity or liveness. Only then remove `server.lock` and retry;
+retain the database and migration data. Never remove the file while a server still owns it.
+
+Run the process smoke and startup specs with:
+
+```sh
+pnpm exec vitest run apps/server/src/main.spec.ts apps/server/src/lifecycle/start-local-server.spec.ts
+```

@@ -6,14 +6,18 @@ const pathSchema = z
   .max(4096)
   .refine(
     (path) =>
-      !/[\\:]/u.test(path) &&
-      [...path].every(
-        (character) =>
-          character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127,
-      ) &&
+      !path.includes('\\') &&
+      !path.includes('\0') &&
+      !/^[A-Za-z]:/u.test(path) &&
       path
         .split('/')
-        .every((part) => part !== '' && part !== '.' && part !== '..'),
+        .every(
+          (part) =>
+            part !== '' &&
+            part !== '.' &&
+            part !== '..' &&
+            part.toLowerCase() !== '.git',
+        ),
     'Expected a repository-relative slash-separated path',
   );
 const referenceSchema = z.strictObject({

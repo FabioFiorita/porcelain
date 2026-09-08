@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node src/main.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate"
   },

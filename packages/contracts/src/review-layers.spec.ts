@@ -39,7 +39,13 @@ it('bounds metadata and rejects duplicate identities and references without norm
       },
     ]),
   ).toBe(false);
-  expect(parse(Array.from({ length: 101 }, () => layer))).toBe(false);
+  const uniqueLayers = Array.from({ length: 101 }, (_, index) => ({
+    id: `${index.toString(16).padStart(8, '0')}-1234-4234-8234-123456789abc`,
+    title: 'Layer',
+    files: [],
+  }));
+  expect(parse(uniqueLayers.slice(0, 100))).toBe(true);
+  expect(parse(uniqueLayers)).toBe(false);
   expect(
     parse(
       Array.from({ length: 5 }, (_, i) => ({

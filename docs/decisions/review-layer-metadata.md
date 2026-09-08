@@ -17,8 +17,9 @@ caching and expose safe errors. Request bodies are limited to 1 MiB; contracts a
 100 layers, 500 references per layer, 2000 references total, 200-character trimmed titles, and
 4096-character paths. UUIDs are unique within the set. Path/scope pairs are unique across all layers;
 the same path may appear once in each scope. Paths are literal, case-sensitive, repository-relative
-slash-separated strings, with no empty, dot, parent, control-character, backslash or colon components.
-This deliberately portable grammar excludes some legal platform filenames; references are not patterns.
+slash-separated strings, with no empty, dot, parent or case-insensitive `.git` components.
+NUL, backslashes and leading drive prefixes are rejected; tabs, newlines and other colons are allowed.
+This grammar matches the other file metadata surfaces; references are not patterns.
 
 The separate persistence owner stores an ordered JSON snapshot and revision in one SQLite row.
 An immediate transaction checks the revision and replaces the row, also protecting writers on separate
