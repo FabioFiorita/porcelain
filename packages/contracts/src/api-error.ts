@@ -3,6 +3,15 @@ import { z } from 'zod';
 export const apiErrorSchema = z.object({
   code: z.enum([
     'COMMENT_LIMIT_EXCEEDED',
+    'STALE_PREPARATION',
+    'REQUEST_MISMATCH',
+    'CHECKOUT_BUSY',
+    'UNSUPPORTED_CONFIGURATION',
+    'NON_FAST_FORWARD',
+    'GIT_REJECTED',
+    'DEADLINE_EXCEEDED',
+    'OUTCOME_UNKNOWN',
+    'PROCESS_GROUP_UNCONFIRMED',
     'UNSUPPORTED_GIT_FILTERS',
     'WORKTREE_NOT_FOUND',
     'WORKTREE_CHANGED',

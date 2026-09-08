@@ -22,11 +22,79 @@ import type {
   FilePreference,
   FilePreferenceChange,
 } from './models/file-preference.ts';
+import type {
+  GitActionIntent,
+  GitActionPreparation,
+  GitActionReceipt,
+  GitActionScope,
+} from './models/git-action.ts';
 import type { Inventory } from './models/inventory.ts';
 import type { Project } from './models/project.ts';
 import type { ReviewLayer, ReviewLayers } from './models/review-layers.ts';
 
 export interface Application {
+  prepareFetch(
+    scope: GitActionScope,
+    input: Omit<Extract<GitActionIntent, { action: 'fetch' }>, 'action'>,
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executeFetch(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
+  preparePush(
+    scope: GitActionScope,
+    input: Omit<Extract<GitActionIntent, { action: 'push' }>, 'action'>,
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executePush(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
+  prepareCommit(
+    scope: GitActionScope,
+    input: Omit<Extract<GitActionIntent, { action: 'commit' }>, 'action'>,
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executeCommit(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
+  prepareStashCreate(
+    scope: GitActionScope,
+    input: Omit<Extract<GitActionIntent, { action: 'stash-create' }>, 'action'>,
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executeStashCreate(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
+  prepareStashApply(
+    scope: GitActionScope,
+    input: { stashOid: string; restoreIndex: boolean },
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executeStashApply(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
+  prepareStashPop(
+    scope: GitActionScope,
+    input: { stashOid: string; restoreIndex: boolean },
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executeStashPop(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
+  gitActionReceipt(requestId: string): GitActionReceipt;
+
   gitStatus(
     worktreeId: string,
     signal?: AbortSignal,

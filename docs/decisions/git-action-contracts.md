@@ -1,270 +1,155 @@
 # Checkout-bound Git actions
 
-Status: proposed; each approval below is independent. This document specifies future behavior;
-none of these actions, routes, schemas, or persistence tables exist yet.
+Status: accepted server boundary. Browser, Electron, mobile controls and remote deployment remain
+separate work. The [architecture](../architecture.md) and [inventory HTTP boundary](0004-inventory-http.md)
+continue to own dependency direction, authentication and environment/worktree identity.
 
-## Foundation and approval boundaries
+## Scope
 
-The baseline is `c3c5a85ba3b6140042a667dbd8e2b4235013a97f`. The owning boundaries are
-[architecture](../architecture.md), [product scope](../product.md), and
-[inventory HTTP](0004-inventory-http.md). `Git` binds to one checkout. Inventory owns stable
-project/worktree identity, while Git owns repository truth. No generic command runner API,
-terminal, staging UI, credential service, or additional Git operation is proposed.
+The server supports preparation and execution of fetch, push, commit, stash creation, stash application
+and stash pop. Preparation never contacts a remote. The developer reviews the selected action and
+pauses external writers before execution. There is no staging, amend, force push, pruning, drop-only,
+conflict resolution, automatic retry, terminal, credential provisioning or generic command API.
 
-Approve these separately, in order of dependency:
-
-| Decision | Recommended scope | Required user choice |
-| --- | --- | --- |
-| Shared write safety | Durable request receipts, explicit preparation, conservative uncertainty, existing application serialization | Accept receipt persistence and the external-writer limitation below |
-| Fetch | One configured remote and one branch; explicit tracking-ref destination | Choose remote/branch; accept bounded fetch without tags, pruning, or forced ref updates |
-| Push | One captured local branch tip to one remote branch, ordinary fast-forward rules | Choose destination and explicitly approve branch creation when absent |
-| Commit | Existing index only, normal repository hooks and signing | Supply message; accept hooks may change the index/message and working files |
-| Stash creation | All tracked staged and unstaged changes in this checkout | Choose whether to include untracked files; default false |
-| Stash application | Apply one existing stash by object ID, retain it | Choose whether to restore index state; default false |
-
-A selected upstream can prefill a form but never replaces explicit destination display. No origin
-fallback or automatic remote discovery over the network. Empty/multiple candidates require selection.
-Stash pop/drop, force push (including leases), tag push, pruning, staging, discard, amend, merge
-completion, selective commits/stashes, and stash conflict resolution remain external workflows.
-Review-layer association with externally or internally created commits remains a proposal for the
-Changes/History owners; a commit result must not imply that association has been implemented.
-
-## Public contracts
-
-Add Zod schemas in `packages/contracts/src/git-actions.ts`, with one explicit package subpath.
-Use strict objects, bounded strings, and inferred wire types. The following names describe schema
-shapes, not new hand-maintained TypeScript DTOs. Server models and metadata identities stay private.
-
-All paths are relative to the environment server. Each action has separate named preparation and
-execution routes under `/projects/:projectId/worktrees/:worktreeId/git`:
-
-| Action | Preparation path (POST) | Body beyond identity | Execution path (POST) |
-| --- | --- | --- | --- |
-| Fetch | `/fetch/prepare` | `{ remoteName, sourceRef }` | `/fetch` |
-| Push | `/push/prepare` | `{ remoteName, destinationRef, allowCreate: boolean }` | `/push` |
-| Commit | `/commit/prepare` | `{ message }` | `/commit` |
-| Stash creation | `/stash/create/prepare` | `{ message, includeUntracked: boolean }` | `/stash/create` |
-| Stash application | `/stash/apply/prepare` | `{ stashOid, restoreIndex: boolean }` | `/stash/apply` |
-
-Execution body is `{ requestId, preparationId }`. UUIDs are validated; the IDs are scoped to this
-environment and the route's project, worktree, and action. Unknown fields, raw paths, URLs, shell
-arguments, refspecs, arbitrary revisions, and credential values are rejected. Ref names must be full
-`refs/heads/...` names and pass Git's ref validation. The server derives tracking destinations under
-`refs/remotes/<remoteName>/...`; unsupported remote-name/ref combinations are rejected rather than
-normalized. Object IDs must match the repository's object format, not assume SHA-1.
-Message limit: 16 KiB UTF-8, nonempty after whitespace checking, no NUL. Commit passes the accepted
-message through stdin to `git commit --file=- --cleanup=verbatim`; no shell interpolation or editor.
-Stash message is one bounded argument. Hooks can still change a commit message.
-
-Preparation is local inspection only: no fetch, remote credential lookup, or `ls-remote`. It persists
-a random preparation ID with a five-minute expiry, requested action input, and private state evidence.
-Return `{ preparationId, expiresAt, action, preview }`, where each action has a distinct preview:
-
-- Fetch: configured remote name, source ref, derived tracking ref, currently observed tracking OID.
-- Push: current branch, captured source OID, destination ref, creation permission, and sanitized
-  destination display. Remote existence/ancestry is explicitly unknown until execution.
-- Commit: branch, nullable HEAD OID (unborn branch), staged summary/tree identity, message, and
-  a reminder that configured hooks/signing run. No implicit file selection.
-- Stash creation: HEAD OID, tracked/untracked counts, requested inclusion and message.
-- Stash application: selected stash OID, descriptive label, HEAD OID, index restoration choice,
-  and the fact that the stash will remain after application.
-
-Do not expose URLs containing passwords, query credentials, private metadata paths, or raw config.
-Destination display may use a sanitized host/path label; keep the full effective configuration private.
-There is no remote-ref listing feature in this slice. A user may enter a valid full destination ref.
-
-Immediately before launch, resolve IDs from inventory again and verify both common-directory and
-checkout metadata identities against disk. Availability flags alone are insufficient. Reject removed,
-replaced, moved-but-not-reregistered, or mismatched checkouts. Revalidate preparation evidence after
-queue wait: HEAD/ref, index, relevant worktree/untracked content, and effective action configuration.
-Evidence must include content hashes where content matters, not only file size/mtime or status text.
-Bound inspection size and reject unsupported/oversized snapshots rather than silently weakening checks.
-Configuration evidence includes effective URLs and rewrites, push URLs, refspec/mirror settings,
-hooks, signing and identity; do not put secrets in receipts or responses. Expired or stale preparation
-requires a new preview and new explicit execution request.
-
-Execution returns an action-specific receipt:
-
-```text
-{ requestId, action, state, reason?, result?, refreshRequired }
-state = running | succeeded | no-change | rejected | conflicted | indeterminate
-```
-
-`rejected` means the selected Git mutation was not launched, or an authoritative action-specific
-rejection was observed; it does not promise hooks/helpers made no side effects. `conflicted` is a
-known stash-application conflict requiring external resolution. `indeterminate` means completion or
-side effects cannot be established. Every launched operation requires authoritative UI refresh,
-including failure. Results report observations, not ownership of externally produced changes:
-fetch tracking OIDs; push acknowledged source/destination; commit resulting HEAD/tree; stash creation
-new stash OID; application selected OID plus observed conflicts. Unknown fields are omitted rather
-than inferred from exit status alone.
-
-Use 200 for known completed success/no-change, 202 for running receipts, 409 for stale preparation,
-request mismatch, busy state, known rejection or conflict, and 503 for an indeterminate receipt.
-Preserve 400/401/404/422/500 for validation/authentication/missing identity/unavailability/unexpected
-pre-launch failures through safe named error mapping. Auth runs before parsing or Git access;
-all responses disable caching. A safe reason enum includes `STALE_PREPARATION`, `REQUEST_MISMATCH`,
-`CHECKOUT_BUSY`, `UNSUPPORTED_CONFIGURATION`, `NON_FAST_FORWARD`, `GIT_REJECTED`,
-`DEADLINE_EXCEEDED`, and `OUTCOME_UNKNOWN`. Do not guess credential/hook/signing failures by
-matching localized stderr. Retain bounded private diagnostics with redaction; no raw process output
-in wire errors. Clients must never automatically retry write routes, including a 503.
-
-## Receipts, cancellation, and concurrency
-
-Propose a small action-specific receipt repository and Drizzle migration, not a generic jobs framework.
-Store request UUID, action/identity, preparation binding, accepted/start/finish timestamps, state and
-safe result. Unique request IDs are environment-wide. Atomically consume a preparation and insert
-its receipt before spawn; the same preparation cannot execute under another request ID. Same request
-and preparation returns the stored receipt; changed binding returns 409. A failed storage write before
-spawn must prevent Git execution. A failure to persist completion after Git ran is indeterminate.
-
-`GET /git-action-requests/:requestId` returns the receipt using the same bearer authentication.
-This is recovery for these five named actions, not a scheduler. A missing receipt is not permission
-to invent a new request and repeat an uncertain mutation. Retain receipts and consumed preparation
-IDs without automatic eviction in the first slice; a bounded retention policy needs its own decision.
-On restart, accepted/running receipts become indeterminate and never resume automatically. Receipts
-reduce duplicate execution; they cannot transact SQLite and Git or guarantee exactly-once effects.
-
-Keep the current application-wide queue initially, which also serializes actions on linked worktrees
-sharing refs/remotes/stashes. Reads of receipts must remain possible while a mutation runs. Admission
-returns 202 after receipt persistence; execution stays owned by the application after HTTP disconnect.
-The runner currently rejects callers as soon as its signal aborts: a write-specific lifecycle path
-must retain ownership until the child and descendants finish/are terminated, then reconcile and persist
-an outcome before allowing another mutation. Do not reuse the inventory 503 mapping as a write result.
-
-Recommend a fixed 120-second action deadline including queue wait, with a separately bounded 5-second
-local reconciliation phase after process termination. These are proposed write settings, not changes
-to inventory's 30-second deadline or its executor's 10-second cap. No public cancellation endpoint is
-needed initially. Shutdown and caller cancellation before spawn yield a rejected receipt; after spawn,
-terminate the process tree and report indeterminate unless complete evidence proves a narrower outcome.
-If descendants cannot be confirmed stopped, block subsequent mutations for that repository in the
-running server and require external inspection. Restart does not prove an orphan remote/helper stopped.
-Do not remove Git lock files or reset repositories to recover. Remote completion cannot be undone by
-killing a local process; no automatic retry, compensating rollback, or promise of atomic cancellation.
-
-Porcelain's queue cannot exclude an editor, agent, another Git process, or another server. Git's locks
-protect individual updates, not the preparation-to-execution interval or arbitrary working files.
-Pre/post checks detect many races but are not an atomic snapshot. Commit/stash are only appropriate
-when the user has paused external writers; the execution preview must say this. Hooks are also writers.
-The user must approve this limitation. If exact reviewed-byte atomicity under active writers is required,
-stop and design that separately; do not claim index fingerprints or a Porcelain mutex solve it.
-
-## Action semantics and Git adapter behavior
-
-Keep named methods on checkout-bound `Git`, small command modules in `git/commands`, private DTOs
-and narrow capability interfaces. Named use-case classes receive explicit Git factory, inventory,
-receipt store, and lifecycle dependencies. Routes call named `Application` methods and map results.
-No DI framework, command bus, barrels, new dependencies, or production const-gate exceptions.
-
-### Fetch
-
-Fetch exactly one configured remote branch, then update only its derived remote-tracking ref.
-Fetch first into a unique task-owned temporary ref under `refs/porcelain/fetch/<requestId>` with
-`--no-tags --no-prune --no-prune-tags --no-recurse-submodules --no-write-fetch-head`, automatic
-maintenance disabled, and an empty refmap override to prevent configured opportunistic mappings.
-Do not rely on absence of `+` to enforce ancestry in the remote-tracking namespace. Verify the fetched
-object is a commit and the prepared tracking OID is its ancestor (or the destination was absent),
-then use `update-ref` with the expected old OID, including the repository-format zero OID for absence.
-An ancestry failure or compare-and-swap mismatch leaves the final tracking ref unchanged. Remove only
-the task-owned temporary ref using its expected OID; record its ownership for safe startup cleanup.
-A crash between final update and receipt persistence still yields an indeterminate receipt. Reject
-shallow repositories when ancestry cannot be established; never interpret missing history as proof.
-No merge, checkout, local branch update, submodule fetch or pruning. A dirty checkout is allowed.
-Rewinds require separate approval. Downloaded objects may remain after failure. Git's namespace and
-explicit refmap rules are documented in [git-fetch](https://git-scm.com/docs/git-fetch).
-
-### Push
-
-Push the prepared source OID to one full branch destination, with porcelain output and explicit
-non-force refspec. Disable follow-tags, recursive submodule pushes and automatic upstream setup.
-Reject mirror remotes, multiple effective push destinations, remote groups and unsupported transport
-configuration before launch. Do not silently change remote config or add `--set-upstream`.
-Normal receive-side fast-forward checks decide acceptance; a preparation tracking ref is not proof
-of remote state. For `allowCreate: false`, execution checks remote existence first and rejects absence;
-a remote deletion between that check and push can still race. Approving this slice accepts that
-limitation; a strict never-create guarantee requires a separately designed conditional remote update.
-For `allowCreate: true`, creation is allowed but a non-fast-forward replacement still is not.
-Dirty files/index do not affect the captured commit being sent. Reject detached/unborn source HEAD.
-Preserve pre-push hooks and configured push signing. Git supports these explicit destination and
-porcelain-result controls; see [git-push](https://git-scm.com/docs/git-push).
-
-### Commit
-
-Commit only the current index: no `-a`, paths, `git add`, alternate index, amend, allow-empty, identity
-invention, hook bypass or signing bypass. Permit unrelated unstaged and untracked files, including
-partial staging. Reject detached HEAD, unmerged entries, sequencer/merge/rebase operations, sparse
-checkout and dirty submodules for this first slice. Permit an unborn branch with a nonempty index.
-Empty index relative to HEAD returns no-change without running hooks. Honor configured author/committer
-and signing; missing identity or unavailable signer fails without disabling policy. Hooks can alter
-staging, messages and files; return the actual resulting commit and refresh Changes/History. Do not
-attempt to undo hook effects or retry on failure. These ordinary commit/index and hook semantics are
-described in [git-commit](https://git-scm.com/docs/git-commit).
-
-### Stash creation and application
-
-Creation stashes all tracked staged/unstaged changes; `includeUntracked: true` explicitly adds `-u`.
-Never `--all`, `--keep-index`, `--staged`, or path selection. Ignored files are excluded. Reject unborn
-HEAD, unmerged entries, ongoing Git integration operations, sparse checkout, dirty submodules and
-nested repositories whose contents would make the scope misleading. Empty selected scope returns
-no-change. Creation can both write refs/stash and remove working files; failure is not rollback.
-
-Application targets an OID verified as an existing entry of this project's current stash reflog,
-not a shifting `stash@{n}` index or arbitrary commit. Revalidate membership before launch. Stashes
-are shared across linked worktrees; show project scope and do not claim an entry belongs exclusively
-to the selected worktree. Require clean index and tracked/untracked worktree before application;
-ignored-file collisions still need a real fixture and must never be cleaned automatically. Default
-ordinary `stash apply`; opt-in `--index` restores staging when possible. Retain the stash on success
-and conflict. A conflict refreshes status and blocks subsequent commit/stash until resolved externally.
-No pop, drop, auto-resolution, reset or cleanup. See [git-stash](https://git-scm.com/docs/git-stash).
-
-### Environment and process policy
-
-Use argv execution and closed stdin except commit message input. The existing executor clears only
-some Git environment overrides; write support must also prevent inherited alternate index/object,
-namespace, injected configuration and repository-redirection variables from retargeting commands.
-Keep repository/user policy for hooks, signing and credentials; do not blank global configuration in
-production as the disposable tests do. Pin locale for machine-readable parsing; prefer NUL/porcelain
-formats and explicit numeric exit/signal evidence over translated messages.
-
-No interactive terminal or credential invention: disable terminal/askpass prompts and require SSH
-batch behavior with existing host trust, without replacing established routing/identity settings.
-Permit already configured noninteractive helpers/agents. Do not create keys, log tokens, accept host
-keys automatically, open browser login, or disable signing. Arbitrary helpers/signers may still launch
-UI or hang; repository-configured executable behavior is not sandboxed. Before enabling remote actions,
-prove a supported HTTPS/SSH execution profile can enforce this policy without overriding user routing;
-reject unsupported custom helpers/transports rather than promise universal prompt suppression.
-Bound output while continuing to drain pipes, supervise descendants on macOS/Linux, and reconcile
-termination. The read executor's `execFile` buffer cap/SIGKILL alone does not establish those guarantees.
-
-## Implementation and proof gates
-
-Implement only approved actions after the shared safety decision. Each slice adds its own contracts,
-use case, Git method/command, route, typed-substitute specs and real process/HTTP fixtures. Shared edits
-are limited to `application.ts`, `app.ts`, server route registration, contracts exports and the receipt
-migration; coordinate these with startup and other feature owners before integration. No other worker's
-worktree or feature implementation is part of this proposal.
-
-| Test boundary | Required observable scenario |
+| Operation | Supported behavior |
 | --- | --- |
-| Typed use-case substitutes | Missing/unavailable/replaced identity rejects before spawn; expired/stale preparation rejects; HEAD/index/config change while queued rejects; a storage failure prevents launch |
-| Receipt persistence | Duplicate simultaneous requests launch once; changed request binding rejects; another request cannot reuse preparation; restart never replays accepted work; failure after Git success remains indeterminate |
-| Real process: isolation | Poison inherited index/worktree/config variables and verify only disposable target changes; linked worktree uses its own index but shared refs/stash; option-like names cannot inject flags |
-| Real process: fetch | Dirty checkout unchanged; only selected tracking ref updated; missing ref/rewind rejected with final tracking OID unchanged; conditional-update race rejects; temporary refs cleaned only by ownership; tags/pruning/configured extra refmaps/submodules remain untouched; failed fetch may leave objects |
-| Real process: push | Bare local remote fast-forward, divergence rejection, explicit new-branch permission, captured source despite external branch advancement; multiple push URLs/mirror rejected; no tags/upstream side effects |
-| Real process: commit | Partially staged file commits staged content only; untracked file stays out; empty/unborn cases; rejecting and index-mutating hooks; configured failing signer does not fall back unsigned |
-| Real process: stash | Tracked round trip preserves staged/unstaged content; opt-in untracked; ignored/nested/submodule cases rejected or preserved; shared reflog entry shifts do not change OID target; apply conflict retains stash and exposes unmerged paths |
-| Real process: races | Barrier-controlled external HEAD/index/file/config writer between preview and spawn; writer/hook after precheck demonstrates documented non-atomic limitation; occupied Git lock is never deleted |
-| Real process: cancellation | Abort in queue, before spawn, during hook/helper, after ref update before reply; descendant outlives parent; shutdown holds next mutation until unwind; partial effect never yields retryable no-change |
-| Real HTTP + SQLite + Git | Authenticate before launch; strict input/secret-safe serialization; preparation and 202/status recovery across socket loss; duplicate/restart behavior; cancellation receipt mapping; GET status available during long action |
-| Recovery | Successful remote update followed by lost acknowledgement gives indeterminate; a read-only inspection can show current remote state but must not retroactively prove request causality or retry automatically |
+| Fetch | One configured remote branch into its derived remote-tracking ref; no tags, pruning, submodule recursion, FETCH_HEAD update or checkout changes |
+| Push | Captured current branch tip to one explicit remote branch, ordinary fast-forward rules; creation permission is explicit |
+| Commit | Existing index only, with supplied message and normal hooks/signing; no implicit staging |
+| Stash creation | All tracked staged/unstaged changes, with explicit `includeUntracked`; ignored files remain excluded |
+| Stash application | Apply a verified stash OID, with explicit `restoreIndex`; retain the stash |
+| Stash pop | Apply a verified stash OID, then remove its revalidated reflog entry only after successful application |
 
-Use fresh temporary repositories and bare filesystem remotes, isolated HOME/config and fixture
-identity. Hooks/helpers/signers are task-owned fixture programs; no real network, credentials, or
-production data. Drive race/cancellation fixtures with barriers rather than sleep-based assumptions.
-Transport-level SSH/HTTPS behavior still needs local simulated services before enabling those profiles;
-filesystem remotes alone do not prove credentials, TLS, remote cancellation or server-side policy.
+Push requires attached, born HEAD. Commit supports an unborn branch and returns no-change for an
+empty staged scope. Detached commit, integration operations, unmerged entries and occupied index locks
+are rejected. Configured conversion filters, sparse checkout, partial clones and submodule index entries
+are unsupported in this slice. Fetch/push allow dirty files; they send/read Git commits, not working files.
+Local mutations do not associate review layers with commits; that remains the Changes/History contract.
 
-Format/lint changed files, typecheck affected packages/contracts consumers, and run the focused specs.
-Run one fresh read-only correctness/architecture/test-value review after checks; resolve actionable
-findings before a local commit. Linux/macOS CI and UI smoke belong to implementation delivery and
-must be observed before claimed. This proposal does not establish running feature behavior.
+Stash application/pop require a clean tracked/untracked checkout, an existing stash entry in the
+project's shared reflog, and no ignored-file collision with the selected stash. Stashes belong to the
+project and are shared across linked worktrees. Creation excludes nested directories reported as
+untracked repositories rather than silently misrepresenting their contents. No files or Git locks are
+cleaned automatically after conflicts or failures.
+
+## HTTP contracts
+
+Schemas live in `@porcelain/contracts/git-actions`; internal models and preparation evidence remain
+server-private. Every route is bearer-authenticated before parsing and disables response caching.
+Unknown fields, arbitrary arguments, raw URLs/checkout paths, short ref names, and NUL messages are
+rejected. IDs use UUIDs; object IDs support SHA-1 and SHA-256. Messages have a 16 KiB UTF-8 limit.
+
+The prefix is `/projects/:projectId/worktrees/:worktreeId/git`:
+
+| POST preparation route | Body | POST execution route |
+| --- | --- | --- |
+| `/fetch/prepare` | `{ remoteName, sourceRef }` | `/fetch` |
+| `/push/prepare` | `{ remoteName, destinationRef, allowCreate }` | `/push` |
+| `/commit/prepare` | `{ message }` | `/commit` |
+| `/stash/create/prepare` | `{ message, includeUntracked }` | `/stash/create` |
+| `/stash/apply/prepare` | `{ stashOid, restoreIndex }` | `/stash/apply` |
+| `/stash/pop/prepare` | `{ stashOid, restoreIndex }` | `/stash/pop` |
+
+Preparation returns `{ preparationId, expiresAt, action, preview }`. Preview includes local HEAD,
+branch, staged/dirty counts, and applicable safe destination/tracking/stash information. Remote state
+is unknown until execution. The caller retains the submitted message/options for its confirmation UI;
+preparation IDs bind those options immutably. Local destinations use a generic label to avoid exposing
+server paths; HTTPS URLs exclude credentials and queries. No raw configuration or process stderr is returned.
+
+All execution routes take `{ requestId, preparationId }`. Acceptance durably consumes the preparation
+and inserts a receipt before scheduling work. It normally returns 202. A duplicate request returns the
+same receipt without executing again, including after restart; a changed binding or reused preparation
+under another request ID returns 409. Preparations expire after five minutes, including queue wait.
+
+`GET /git-action-requests/:requestId` returns a receipt with 200 independently of the mutation queue.
+A missing receipt returns 404 and is not authorization to retry a possibly accepted write with a new ID.
+Execution responses use 200 for success/no-change, 409 for rejection/conflict, and 503 for indeterminate
+outcomes. Pre-execution failures use safe API errors. Receipt states are `running`, `succeeded`,
+`no-change`, `rejected`, `conflicted`, and `indeterminate`; `refreshRequired` tells clients to reread
+Git state after potential effects. A rejection does not promise that a hook made no side effects.
+
+## Persistence and lifecycle
+
+Migration `0006_git-actions` adds preparations, receipts and project quarantine markers without changing prior migrations or
+coupling receipt retention to inventory row deletion. Records are retained without automatic eviction.
+They contain action input, hashed state evidence, timestamps and safe outcomes, not credentials.
+SQLite and Git cannot share a transaction; the receipts prevent duplicate admission, not exactly-once
+effects. Storage failure before launch prevents mutation. Completion-storage failure is exposed as an
+indeterminate receipt for the running application and is never replayed.
+
+Writes share the existing application queue, including linked worktrees. Their 120-second deadline
+includes queue wait. The owned callback persists its final receipt before unwinding; shutdown waits
+for queued/active callbacks before closing SQLite. HTTP disconnect does not cancel accepted work.
+There is no public cancellation endpoint. Cancellation before launch rejects; cancellation after launch
+is conservative uncertainty and never triggers rollback or retry.
+
+Git runs in its own process group with closed stdin except commit message input, bounded/drained
+output and a five-second group-cleanup budget. Cancellation kills the owned group; the implementation
+waits for its disappearance. An unconfirmed group blocks further project mutations, including queued
+work. Preparation failures also persist this block even before a request receipt exists. Failed block/receipt
+persistence additionally blocks the project in memory before the queue advances. On restart, unfinished launched receipts similarly block the project because restart does not
+prove an orphan stopped; unfinished unlaunched receipts become indeterminate without replay. There
+is no automated unblock API: external inspection and a separately designed recovery workflow are needed.
+Receipts are still readable while blocked.
+
+This is process-group supervision, not a sandbox. Trusted hooks, signing agents and SSH routing
+commands can escape a group or affect external state. The server does not claim universal descendant
+containment, atomic cancellation, or rollback of a completed remote update.
+
+## State validation and external writers
+
+Preparation and prelaunch inspection verify both checkout and common-directory identities, HEAD,
+index bytes, Git configuration, hook entry files, stash reflog and applicable remote destination.
+Working-file fingerprints include content and symlink targets, with 10,000 path and 32 MiB content
+bounds. Unsupported paths/limits reject rather than weakening evidence. Symlink ancestors outside the
+checkout are rejected. Configuration and working state are checked again after queue wait.
+
+These checks are not atomic with Git. Another process can change files, refs, hook dependencies,
+credentials or SSH configuration after inspection. Normal Git locks protect individual Git updates,
+not a cross-operation transaction. External writers must remain paused; trusted hooks can still alter
+staged content or the resulting message. Commit results report the observed resulting HEAD.
+
+Fetch first downloads into an operation-specific temporary ref, checks commit ancestry and conditionally
+updates the final tracking ref against its prepared old OID. Rewinds and changed expectations do not
+replace that ref. Known temporary refs are removed conditionally; interrupted fetches can leave objects
+or temporary refs for external inspection. No uncertain ref is deleted automatically on restart.
+
+Push disables tag following, submodule pushes and upstream auto-setup. It rejects mirror/group/multiple
+push destinations. With `allowCreate: false`, execution checks that the ref exists at the inspected push destination (which can differ from the fetch URL); deletion
+between that read and push can still race. No strict atomic never-create guarantee is claimed. Remote
+failure without complete acknowledgement is indeterminate, even if it may be an ordinary rejection.
+
+Pop never enters removal after application failure/conflict. After successful apply it compares the
+complete observed reflog and resolves the selected OID to one entry immediately before `git stash drop`.
+A shift or ambiguous duplicate retains the stash and returns indeterminate. A failed/unverifiable drop
+also returns indeterminate without claiming retention. A writer can still race between revalidation
+and Git's ordinal deletion: this is ordinary Git-supported behavior under the paused-writer assumption,
+not atomic deletion by OID. No raw reflog editing or compensating cleanup is performed.
+
+## Remote and executable profiles
+
+Supported destinations are configured absolute filesystem remotes, HTTPS URLs without embedded
+credentials/query strings, and ordinary SSH URLs/scp syntax. Effective URL rewrites are inspected;
+ambiguous successive push URL rewrites, custom remote upload/receive commands and `core.sshCommand` are rejected.
+
+HTTPS permits exact `cache` and `store` credential helpers, respecting explicit empty chain resets.
+Unknown helper commands, helper arguments, shell helpers and `osxkeychain` are rejected before transport.
+Keychain access controls can prompt, so it is not classified as noninteractive. Matching is conservative
+across credential contexts; an unsupported unrelated context can also reject preparation. Existing
+Git TLS and proxy policy remains in force. No certificate/host-key acceptance or credential creation occurs.
+
+SSH uses system `ssh` with BatchMode, strict host-key checking and password prompts disabled. Existing
+SSH config routing/identities remain available; ProxyCommand/Match executables are trusted configuration,
+not universally contained or prevented from showing UI. Askpass/editor variables cannot open interactive
+prompts through Git's standard paths. Hooks/signing policy is preserved; failed signing never falls back
+to unsigned commits. Arbitrary configured signers/hooks remain subject to the same trusted-executable limit.
+
+## Proof boundary
+
+Colocated specs cover real disposable Git, SQLite and loopback HTTP: index-only commits, hook/signing
+failures, stash scope/application/pop conflicts and reflog shifts, explicit fetch/push, content/config
+changes, duplicate/restart receipts, socket loss/shutdown, and owned process-group cancellation.
+HTTPS proof uses a disposable TLS service and fixture credential store. SSH proof uses a local transport
+substitute to verify flags and Git exchange; it does not establish real SSH authentication interoperability.
+No production credentials, projects or network remotes are fixtures. UI/native workflows, real remote
+interoperability and Linux execution require their own observed proof before those claims are made.

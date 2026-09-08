@@ -12,6 +12,7 @@ import { commentRoutes } from './routes/comments.ts';
 import { commitHistoryRoutes } from './routes/commit-history.ts';
 import { filePreferenceRoutes } from './routes/file-preferences.ts';
 import { fileRoutes } from './routes/files.ts';
+import { gitActionRoutes } from './routes/git-actions.ts';
 import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
@@ -33,6 +34,7 @@ export async function createServer(
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
+  server.register(gitActionRoutes, { application, token });
   server.register(artifactRoutes, { application, token });
   server.register(reviewLayerRoutes, { application, token });
   server.register(commentRoutes, { application, token });
