@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { lstat, readFile } from 'node:fs/promises';
-import type { GitActionIntent } from '../../models/git-action.ts';
+import type { GitActionIntent } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';

@@ -1,10 +1,10 @@
-import { expect, it } from 'vitest';
 import type {
   GitOrdinaryChange,
   GitStatusObservation,
-} from '../git/dtos/git-status.ts';
-import { RepositoryIdentityMismatchError } from '../git/errors/repository-identity-mismatch-error.ts';
-import type { InspectionFactory } from '../git/interfaces/inspection-factory.ts';
+} from '@porcelain/git/dtos/git-status';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repository-identity-mismatch-error';
+import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import { expect, it } from 'vitest';
 import type { Inventory } from '../models/inventory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';

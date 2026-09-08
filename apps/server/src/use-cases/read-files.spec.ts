@@ -1,7 +1,7 @@
+import type { DiscoveryResult } from '@porcelain/git/dtos/discovery-result';
+import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import { expect, it, vi } from 'vitest';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
-import type { DiscoveryResult } from '../git/dtos/discovery-result.ts';
-import type { GitFactory } from '../git/interfaces/git-factory.ts';
 import type { Inventory } from '../models/inventory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { ListDirectory } from './list-directory.ts';

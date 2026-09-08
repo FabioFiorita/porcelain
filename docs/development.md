@@ -77,9 +77,17 @@ Tests must be named `.spec.ts`/`.spec.tsx`; current test discovery and source in
 `vitest.config.ts`. New application test projects and TypeScript configurations must be wired into
 CI when created, with no silent fallback to passing empty suites.
 
-pnpm workspaces currently suffice for the tooling foundation. Revisit Turborepo when multiple
-application/packages have tasks: dependency ordering and caching should earn their setup cost.
-Cached builds do not establish runtime behavior, and Turbo does not change which checks run locally.
+pnpm owns workspace dependencies. Turborepo caches package typechecks and separate contracts, Git, server, and tooling
+coverage tasks. Use `pnpm typecheck` and `pnpm test:coverage` so runtime fingerprinting runs first.
+Server tests depend on Git tests and dependency typechecks. Root lint, formatting, boundaries and Knip
+remain whole-repository checks. CI restores `.turbo/cache` separately by OS, architecture and toolchain lock.
+The [package and cache decision](decisions/0006-git-package-and-task-cache.md) defines invalidation.
+
+Coverage JSON uses repository-relative paths before caching. The always-run merger combines cached
+and fresh file coverage, generates `coverage/combined` reports, and enforces the same global thresholds.
+Package reports live in their own `coverage` directories; missing or empty reports fail. Contracts have their own specs and are also exercised by server integration tests; a scope-ownership spec rejects newly added specs without a task.
+No empty placeholder test tasks are created. Deployment connectivity checks must run against the live
+endpoint and must not reuse cached proof. Node, Git and OpenSSL must be installed for cached checks.
 
 ## Server inventory
 

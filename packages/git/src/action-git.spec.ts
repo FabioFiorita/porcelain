@@ -13,11 +13,8 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import type {
-  GitActionIntent,
-  GitActionPreparation,
-} from '../models/git-action.ts';
 import { ActionGit } from './action-git.ts';
+import type { GitActionCommand, GitActionIntent } from './dtos/git-action.ts';
 import { createIsolatedGit } from './fixtures/isolated-git.ts';
 import { Git } from './git.ts';
 
@@ -34,13 +31,9 @@ async function git(...args: string[]) {
 }
 async function prepare(intent: GitActionIntent) {
   const snapshot = await adapter.inspect(intent, signal());
-  const preparation: GitActionPreparation = {
+  const preparation: GitActionCommand = {
     id: randomUUID(),
-    projectId: randomUUID(),
-    worktreeId: randomUUID(),
-    expiresAt: Date.now() + 300_000,
     intent,
-    fingerprint: snapshot.fingerprint,
     preview: snapshot.preview,
   };
   return { snapshot, preparation };

@@ -1,4 +1,4 @@
-import type { GitActionOutcome } from '../../models/git-action.ts';
+import type { GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from './action-outcome.ts';
 

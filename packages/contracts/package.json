@@ -18,7 +18,8 @@
     "./git-actions": "./src/git-actions.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "node ../../scripts/run-scoped-tests.ts contracts"
   },
   "dependencies": {
     "zod": "4.5.4"

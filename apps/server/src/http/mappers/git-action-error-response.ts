@@ -1,4 +1,4 @@
-import { GitActionRejectedError } from '../../git/errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
 import { GitActionNotFoundError } from '../../use-cases/errors/git-action-not-found-error.ts';
 
 export function toGitActionErrorResponse(error: unknown) {

@@ -1,8 +1,8 @@
 import type {
+  GitActionCommand,
   GitActionIntent,
   GitActionOutcome,
-  GitActionPreparation,
-} from '../../models/git-action.ts';
+} from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 
 export interface GitActionWriter {
@@ -11,7 +11,7 @@ export interface GitActionWriter {
     signal: AbortSignal,
   ): Promise<GitActionSnapshot>;
   execute(
-    preparation: GitActionPreparation,
+    preparation: GitActionCommand,
     snapshot: GitActionSnapshot,
     signal: AbortSignal,
   ): Promise<GitActionOutcome>;

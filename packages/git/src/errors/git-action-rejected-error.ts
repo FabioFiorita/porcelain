@@ -1,4 +1,4 @@
-import type { GitActionReason } from '../../models/git-action.ts';
+import type { GitActionReason } from '../dtos/git-action.ts';
 
 export class GitActionRejectedError extends Error {
   readonly reason: GitActionReason;

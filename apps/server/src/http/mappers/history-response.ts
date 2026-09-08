@@ -3,7 +3,7 @@ import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
   CommitChanges,
   CommitPage,
-} from '../../git/dtos/commit-history.ts';
+} from '@porcelain/git/dtos/commit-history';
 
 export function toCommitPageResponse(page: CommitPage): CommitPageResponse {
   const head = page.snapshot.head;

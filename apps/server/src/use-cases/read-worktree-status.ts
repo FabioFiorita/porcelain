@@ -1,4 +1,4 @@
-import type { InspectionFactory } from '../git/interfaces/inspection-factory.ts';
+import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveInspectionWorktree } from './resolve-inspection-worktree.ts';
 

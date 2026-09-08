@@ -1,9 +1,9 @@
+import { GitInspectionTimeoutError } from '@porcelain/git/errors/git-inspection-timeout-error';
+import { InspectionLimitError } from '@porcelain/git/errors/inspection-limit-error';
+import { isRepositoryUnavailable } from '@porcelain/git/errors/is-repository-unavailable';
+import { UnsupportedGitFiltersError } from '@porcelain/git/errors/unsupported-git-filters-error';
+import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-path-encoding-error';
 import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
-import { GitInspectionTimeoutError } from '../../git/errors/git-inspection-timeout-error.ts';
-import { InspectionLimitError } from '../../git/errors/inspection-limit-error.ts';
-import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
-import { UnsupportedGitFiltersError } from '../../git/errors/unsupported-git-filters-error.ts';
-import { UnsupportedPathEncodingError } from '../../git/errors/unsupported-path-encoding-error.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
 import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';

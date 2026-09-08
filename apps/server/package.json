@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/main.ts",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test:coverage": "node ../../scripts/run-scoped-tests.ts server"
   },
   "dependencies": {
     "@fastify/type-provider-zod": "1.0.0",
@@ -13,7 +14,8 @@
     "drizzle-orm": "0.45.2",
     "fastify": "5.12.3",
     "zod": "4.5.4",
-    "better-sqlite3": "13.0.3"
+    "better-sqlite3": "13.0.3",
+    "@porcelain/git": "workspace:*"
   },
   "devDependencies": {
     "drizzle-kit": "0.31.10",

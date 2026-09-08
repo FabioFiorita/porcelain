@@ -1,7 +1,7 @@
-import type { DiscoveryIssue } from '../git/dtos/discovery-issue.ts';
-import { isRepositoryUnavailable } from '../git/errors/is-repository-unavailable.ts';
-import { RepositoryIdentityMismatchError } from '../git/errors/repository-identity-mismatch-error.ts';
-import type { GitFactory } from '../git/interfaces/git-factory.ts';
+import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
+import { isRepositoryUnavailable } from '@porcelain/git/errors/is-repository-unavailable';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repository-identity-mismatch-error';
+import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { Project } from '../models/project.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { reconcileProject } from './reconciliation/reconcile-project.ts';

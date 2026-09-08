@@ -1,14 +1,11 @@
-import type {
-  GitActionOutcome,
-  GitActionPreparation,
-} from '../../models/git-action.ts';
+import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from './action-outcome.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function createStash(
   process: GitProcessRunner,
-  preparation: GitActionPreparation,
+  preparation: GitActionCommand,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
   const intent = preparation.intent;

@@ -3,20 +3,20 @@ import {
   replaceReviewLayersSchema,
   reviewLayerParamsSchema,
 } from '@porcelain/contracts/review-layers';
+import { ActionGit } from '@porcelain/git/action-git';
+import { CommitCursorCodec } from '@porcelain/git/commit-cursor';
+import { CommitGit } from '@porcelain/git/commit-git';
+import { Git } from '@porcelain/git/git';
+import { InspectionGit } from '@porcelain/git/inspection-git';
+import type { CommitReaderFactory } from '@porcelain/git/interfaces/commit-reader';
+import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
+import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
+import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
-import { ActionGit } from './git/action-git.ts';
-import { CommitCursorCodec } from './git/commit-cursor.ts';
-import { CommitGit } from './git/commit-git.ts';
-import { Git } from './git/git.ts';
-import { InspectionGit } from './git/inspection-git.ts';
-import type { CommitReaderFactory } from './git/interfaces/commit-reader.ts';
-import type { GitActionWriterFactory } from './git/interfaces/git-action-writer.ts';
-import type { GitFactory } from './git/interfaces/git-factory.ts';
-import type { InspectionFactory } from './git/interfaces/inspection-factory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';

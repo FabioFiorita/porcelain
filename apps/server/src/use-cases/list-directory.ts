@@ -1,5 +1,5 @@
+import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
-import type { GitFactory } from '../git/interfaces/git-factory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
 import { validateFilePath } from './validate-file-path.ts';

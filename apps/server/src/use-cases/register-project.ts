@@ -1,4 +1,4 @@
-import type { GitFactory } from '../git/interfaces/git-factory.ts';
+import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { reconcileProject } from './reconciliation/reconcile-project.ts';
 import type { RefreshProjects } from './refresh-projects.ts';

@@ -1,6 +1,6 @@
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import type { GitActionWriter } from '@porcelain/git/interfaces/git-action-writer';
 import { expect, it } from 'vitest';
-import { GitActionRejectedError } from '../git/errors/git-action-rejected-error.ts';
-import type { GitActionWriter } from '../git/interfaces/git-action-writer.ts';
 import { GitActionCoordinator } from '../lifecycle/git-action-coordinator.ts';
 import { OperationRunner } from '../lifecycle/operation-runner.ts';
 import type {

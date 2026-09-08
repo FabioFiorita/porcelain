@@ -17,10 +17,11 @@ inspection through explicit contracts and a checkout-bound `CommitGit` capabilit
 
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |
-| `apps/server` | Node server, repository operations, private persistence, HTTP/MCP and live events | contracts |
+| `apps/server` | Node server, repository operations, private persistence, HTTP/MCP and live events | contracts, git |
 | `apps/desktop` | Electron lifecycle, local server supervision, OS integration | contracts |
 | `apps/web` | React presentation shared by browser and Electron | contracts, client, design-tokens |
 | `apps/mobile` | Expo presentation and native platform adapters | contracts, client, design-tokens |
+| `packages/git` | Checkout-bound Git commands, inspection and Git-owned types | none |
 | `packages/contracts` | Zod runtime schemas and inferred wire types | none |
 | `packages/client` | Transport, query definitions, connections, shared client behavior | contracts |
 | `packages/design-tokens` | Semantic visual values | none |
@@ -47,15 +48,15 @@ Server code is organized by technical responsibility at both directory levels:
 - `use-cases` owns product rules and coordinates explicit dependencies independently of Fastify.
 - `repositories` owns persistence queries and transactions for Porcelain-owned data.
 - `models` owns internal project, worktree, and inventory types; these are not wire DTOs.
-- `git` owns Git execution and output parsing.
+- `packages/git` owns Git execution, output parsing, and command-specific types. The server owns project IDs, preparations, receipts, and scheduling.
 - `filesystem` owns bounded directory/text reads and containment checks; its `interfaces` expose injectable capabilities.
   The [Files decision](decisions/files-read-boundary.md) defines limits and the trusted-local-writer assumption.
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
   startup and shutdown. The [local startup decision](decisions/0005-local-server-startup.md) defines configuration and exclusive data-directory ownership.
 
-Nested directories describe roles, not product features: `git/commands` owns command implementations,
-`git/dtos` describes discovered data, and `git/interfaces` exposes injectable Git capabilities.
-`git/git.ts` is the public checkout-bound facade; shared execution lives in `git/execute-command.ts`.
+Nested directories describe roles, not product features: `packages/git/src/commands` owns command implementations,
+`dtos` describes Git data, and `interfaces` exposes injectable Git capabilities.
+`@porcelain/git/git` is the public discovery facade; command and history adapters use explicit package subpaths. Package internals cannot import the server.
 Use cases live directly in `use-cases`; pure state reconciliation lives in `use-cases/reconciliation`.
 Lifecycle cancellation and scheduling belong in `lifecycle`; validated runtime settings belong in `config`.
 Repository dependency interfaces live in `repositories/interfaces`, separate from Drizzle implementations.

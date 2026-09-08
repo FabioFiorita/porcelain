@@ -1,4 +1,4 @@
-import type { GitActionOutcome } from '../../models/git-action.ts';
+import type { GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessResult } from '../dtos/git-process-result.ts';
 
 export function processFailure(

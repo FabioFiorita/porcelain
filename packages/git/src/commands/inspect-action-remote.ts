@@ -1,5 +1,5 @@
 import { isAbsolute } from 'node:path';
-import type { GitActionIntent } from '../../models/git-action.ts';
+import type { GitActionIntent } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { readActionCommand } from './read-action-command.ts';

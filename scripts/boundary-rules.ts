@@ -1,7 +1,7 @@
 import type { IConfiguration, IForbiddenRuleType } from 'dependency-cruiser';
 
 const owners = {
-  'apps/server': ['packages/contracts'],
+  'apps/server': ['packages/contracts', 'packages/git'],
   'apps/desktop': ['packages/contracts'],
   'apps/web': [
     'packages/contracts',
@@ -14,6 +14,7 @@ const owners = {
     'packages/design-tokens',
   ],
   'packages/contracts': [],
+  'packages/git': [],
   'packages/client': ['packages/contracts'],
   'packages/design-tokens': [],
 } as const;
@@ -41,27 +42,30 @@ export const boundaryRules: IConfiguration = {
         'Product operations depend on internal models and adapter interfaces, not infrastructure.',
       from: { path: '^apps/server/src/use-cases/', pathNot: '\\.spec\\.ts$' },
       to: {
-        path: '(^packages/contracts/|^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
+        path: '(^packages/(contracts|git)/|^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
         pathNot:
-          '^apps/server/src/(use-cases/|models/|(git|filesystem)/(interfaces|dtos|errors)/|repositories/interfaces/)',
+          '(^packages/git/src/(interfaces|dtos|errors)/|^apps/server/src/(use-cases/|models/|(git|filesystem)/(interfaces|dtos|errors)/|repositories/interfaces/))',
       },
     },
     {
       name: 'server-models-are-independent',
       severity: 'error',
       from: { path: '^apps/server/src/models/', pathNot: '\\.spec\\.ts$' },
-      to: { path: '^apps/server/src/', pathNot: '^apps/server/src/models/' },
+      to: {
+        path: '^(apps/server/src|packages/git/src)/',
+        pathNot: '^(apps/server/src/models|packages/git/src/dtos)/',
+      },
     },
     {
       name: 'adapter-interfaces-stay-independent',
       severity: 'error',
       from: {
-        path: '^apps/server/src/((git|filesystem)/(interfaces|dtos|errors)|repositories/interfaces)/',
+        path: '(^apps/server/src/((git|filesystem)/(interfaces|dtos|errors)|repositories/interfaces)/|^packages/git/src/(interfaces|dtos|errors)/)',
       },
       to: {
-        path: '^apps/server/src/',
+        path: '^(apps/server/src|packages/git/src)/',
         pathNot:
-          '^apps/server/src/(models/|(git|filesystem)/(interfaces|dtos|errors)/|repositories/interfaces/)',
+          '(^packages/git/src/(interfaces|dtos|errors)/|^apps/server/src/(models/|(git|filesystem)/(interfaces|dtos|errors)/|repositories/interfaces/))',
       },
     },
     { name: 'no-cycles', severity: 'error', from: {}, to: { circular: true } },

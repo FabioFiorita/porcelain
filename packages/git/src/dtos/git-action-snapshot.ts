@@ -1,4 +1,4 @@
-import type { GitActionPreview } from '../../models/git-action.ts';
+import type { GitActionPreview } from '../dtos/git-action.ts';
 
 export type GitActionSnapshot = {
   fingerprint: string;

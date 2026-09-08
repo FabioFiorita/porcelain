@@ -4,10 +4,10 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import type { GitActionWriter } from '@porcelain/git/interfaces/git-action-writer';
 import { expect, it } from 'vitest';
 import { openApplication } from './app.ts';
-import { GitActionRejectedError } from './git/errors/git-action-rejected-error.ts';
-import type { GitActionWriter } from './git/interfaces/git-action-writer.ts';
 
 const execute = promisify(execFile);
 it('persists unconfirmed cleanup before a second accepted action can launch', async () => {

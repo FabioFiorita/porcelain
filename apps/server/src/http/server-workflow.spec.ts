@@ -4,7 +4,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { artifactMetadataSchema } from '@porcelain/contracts/artifacts';
-import { projectResponseSchema } from '@porcelain/contracts/inventory';
+import {
+  inventoryResponseSchema,
+  projectResponseSchema,
+} from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
 import { createServer } from './server.ts';
 
@@ -27,7 +30,9 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     '-m',
     'Initial',
   ]);
-  await writeFile(join(path, 'notes.txt'), 'after\n');
+  const linked = join(root, 'linked');
+  execFileSync('git', ['-C', path, 'worktree', 'add', '-b', 'review', linked]);
+  await writeFile(join(linked, 'notes.txt'), 'after\n');
   const server = await createServer({ dataDirectory, token });
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
@@ -46,8 +51,18 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     const project = projectResponseSchema.parse(
       await request('/projects', 'POST', { path }),
     );
-    const worktreeId = project.worktrees[0]?.id;
+    const inventory = inventoryResponseSchema.parse(
+      await request('/inventory'),
+    );
+    expect(inventory.projects).toEqual([project]);
+    const worktreeId = project.worktrees.find((worktree) => !worktree.main)?.id;
+    expect(worktreeId).toBeDefined();
     const base = `/worktrees/${worktreeId}`;
+    expect(await request(`${base}/directory?path=`)).toMatchObject({
+      entries: expect.arrayContaining([
+        expect.objectContaining({ name: 'notes.txt' }),
+      ]),
+    });
     expect(await request(`${base}/text?path=notes.txt`)).toMatchObject({
       text: 'after\n',
     });
@@ -89,6 +104,13 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     const restarted = await createServer({ dataDirectory, token });
     try {
       const headers = { authorization: `Bearer ${token}` };
+      const restored = await restarted.inject({
+        method: 'GET',
+        url: '/inventory',
+        headers,
+      });
+      expect(restored.statusCode).toBe(200);
+      expect(inventoryResponseSchema.parse(restored.json())).toEqual(inventory);
       for (const [suffix, expected] of [
         ['file-preferences', preferences],
         ['review-layers', layers],

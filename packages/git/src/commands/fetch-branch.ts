@@ -1,7 +1,4 @@
-import type {
-  GitActionOutcome,
-  GitActionPreparation,
-} from '../../models/git-action.ts';
+import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
@@ -11,7 +8,7 @@ import { updateFetchTrackingRef } from './update-fetch-tracking-ref.ts';
 
 export async function fetchBranch(
   process: GitProcessRunner,
-  preparation: GitActionPreparation,
+  preparation: GitActionCommand,
   snapshot: GitActionSnapshot,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {

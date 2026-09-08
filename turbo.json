@@ -1,0 +1,46 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": [
+    "tsconfig.json",
+    "vitest.config.ts",
+    "scripts/test-configuration.ts",
+    "scripts/run-scoped-tests.ts",
+    "scripts/run-turbo.ts",
+    ".node-version",
+    "pnpm-workspace.yaml",
+    "scripts/runtime-fingerprint.ts"
+  ],
+  "globalEnv": ["PORCELAIN_RUNTIME_FINGERPRINT", "PORCELAIN_TEST_SCOPE"],
+  "globalPassThroughEnv": [
+    "HOME",
+    "PATH",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "GIT_*",
+    "SSH_*",
+    "LANG",
+    "LC_*"
+  ],
+  "tasks": {
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test:coverage": {
+      "dependsOn": ["^test:coverage", "^typecheck"],
+      "outputs": ["coverage/**"]
+    },
+    "//#test:tooling": {
+      "inputs": [
+        "scripts/**",
+        "vitest.config.ts",
+        "tsconfig.json",
+        "apps/**/*.spec.*",
+        "packages/**/*.spec.*"
+      ],
+      "outputs": ["coverage/tooling/**"]
+    }
+  },
+  "cacheDir": ".turbo/cache"
+}
