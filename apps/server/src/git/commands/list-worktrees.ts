@@ -15,6 +15,44 @@ async function identity(path: string): Promise<string> {
   return `${info.dev}:${info.ino}:${info.birthtimeNs}`;
 }
 
+async function inspectWorktree(
+  path: string,
+  repositoryIdentity: string,
+  signal?: AbortSignal,
+): Promise<{
+  metadataIdentity: string | null;
+  available: boolean;
+  issues: DiscoveryIssue[];
+}> {
+  try {
+    const directory = (
+      await executeCommand(path, ['rev-parse', '--absolute-git-dir'], signal)
+    ).slice(0, -1);
+    const common = (
+      await executeCommand(
+        path,
+        ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+        signal,
+      )
+    ).slice(0, -1);
+    if ((await identity(common)) !== repositoryIdentity)
+      throw new RepositoryIdentityMismatchError();
+    return {
+      metadataIdentity: await identity(directory),
+      available: true,
+      issues: [],
+    };
+  } catch (error) {
+    signal?.throwIfAborted();
+    if (!isRepositoryUnavailable(error)) throw error;
+    return {
+      metadataIdentity: null,
+      available: false,
+      issues: [{ path, error }],
+    };
+  }
+}
+
 export async function listWorktrees(
   checkout: string,
   signal?: AbortSignal,
@@ -44,36 +82,15 @@ export async function listWorktrees(
       ?.slice(9);
     if (fields.includes('bare')) throw new UnsupportedRepositoryError();
     if (!path) throw new InvalidWorktreeInventoryError('Missing worktree path');
-    let metadataIdentity: string | null;
-    let available = true;
-    try {
-      const directory = (
-        await executeCommand(path, ['rev-parse', '--absolute-git-dir'], signal)
-      ).slice(0, -1);
-      const common = (
-        await executeCommand(
-          path,
-          ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-          signal,
-        )
-      ).slice(0, -1);
-      if ((await identity(common)) !== repositoryIdentity)
-        throw new RepositoryIdentityMismatchError();
-      metadataIdentity = await identity(directory);
-    } catch (error) {
-      signal?.throwIfAborted();
-      if (!isRepositoryUnavailable(error)) throw error;
-      issues.push({ path, error });
-      metadataIdentity = null;
-      available = false;
-    }
+    const inspection = await inspectWorktree(path, repositoryIdentity, signal);
+    issues.push(...inspection.issues);
     worktrees.push({
       path,
-      metadataIdentity,
+      metadataIdentity: inspection.metadataIdentity,
       main: index === 0,
       branch:
         fields.find((field) => field.startsWith('branch '))?.slice(7) ?? null,
-      available,
+      available: inspection.available,
     });
   }
   if (worktrees.length === 0)

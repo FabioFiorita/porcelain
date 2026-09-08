@@ -20,6 +20,9 @@ repository, and use-case classes; keep pure rules and routes as functions. Use n
 Do not create `index.ts` or equivalent JavaScript/TypeScript index modules; use descriptive filenames
 and explicit imports instead of directory barrels.
 Tests use `.spec.ts` or `.spec.tsx`. New packages expose explicit public subpaths.
+Prefer `const` and explicit return values over mutable local variables. Return related outcomes together
+instead of initializing variables and assigning them across branches. Keep mutation limited to justified
+local collection building and lifecycle state; do not introduce abstractions merely to eliminate it.
 Do not duplicate server state in Zustand. Do not invent base classes, generic repositories, or a DI container.
 Use disposable fixtures and isolated development state. Never run against production `~/.porcelain`,
 real credentials, or real projects as development fixtures. Stop only task-owned processes.
