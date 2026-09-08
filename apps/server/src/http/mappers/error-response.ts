@@ -1,14 +1,24 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof UnauthorizedError) {
+    return {
+      statusCode: 401,
+      body: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+    };
+  }
   if (
     error instanceof Error &&
     ('validation' in error ||
-      ('statusCode' in error &&
-        typeof error.statusCode === 'number' &&
-        error.statusCode >= 400 &&
-        error.statusCode < 500))
+      ('code' in error &&
+        [
+          'FST_ERR_CTP_INVALID_JSON_BODY',
+          'FST_ERR_CTP_EMPTY_JSON_BODY',
+          'FST_ERR_CTP_INVALID_MEDIA_TYPE',
+          'FST_ERR_CTP_BODY_TOO_LARGE',
+        ].includes(String(error.code))))
   ) {
     return {
       statusCode: 400,

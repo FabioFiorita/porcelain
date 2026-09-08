@@ -1,8 +1,8 @@
+import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { Git } from './git/git.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
-import type { Application } from './interfaces/application.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
@@ -26,16 +26,12 @@ export async function openApplication(options: {
     const git = options.git ?? ((checkout: string) => new Git(checkout));
     const refresh = new RefreshProjects(store, git);
     const register = new RegisterProject(store, git, refresh);
-    const startup = await operations.run(
-      (signal) => refresh.execute(signal),
-      options.signal,
-    );
+    await operations.run((signal) => refresh.execute(signal), options.signal);
     return {
       inventory: () => {
         operations.assertOpen();
         return store.read();
       },
-      startupIssues: startup.issues,
       register: (checkout: string, signal?: AbortSignal) =>
         operations.run((operationSignal) => {
           return register.execute(checkout, operationSignal);

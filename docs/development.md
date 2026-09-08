@@ -73,9 +73,8 @@ Cached builds do not establish runtime behavior, and Turbo does not change which
 ## Server inventory
 
 `openApplication` in `apps/server/src/app.ts` opens an explicitly supplied absolute data directory,
-refreshes registered repositories, and returns the named `Application` API: `inventory`, `register`, `refresh`, and `close`, plus `startupIssues`.
-Registration returns `{ project, issues }`; refresh returns `{ inventory, issues }`. Startup diagnostics
-belong to the returned application; subsequent diagnostics belong to each operation result.
+refreshes registered repositories, and returns the named `Application` API: `inventory`, `register`, `refresh`, and `close`.
+Registration returns `{ project, issues }`; refresh returns `{ inventory, issues }`. Diagnostics belong to each operation result; startup refresh does not retain them on the application.
 The caller must close the application. There is no default production directory or network listener.
 Use only temporary repositories and state for development fixtures.
 

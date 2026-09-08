@@ -5,7 +5,7 @@ import {
   registerProjectRequestSchema,
 } from '@porcelain/contracts/inventory';
 import type { FastifyInstance } from 'fastify';
-import type { Application } from '../../interfaces/application.ts';
+import type { Application } from '../../application.ts';
 import { toProjectResponse } from '../mappers/inventory-response.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 

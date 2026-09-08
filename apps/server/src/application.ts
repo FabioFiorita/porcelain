@@ -1,9 +1,8 @@
-import type { DiscoveryIssue } from '../git/dtos/discovery-issue.ts';
-import type { Inventory } from '../models/inventory.ts';
-import type { Project } from '../models/project.ts';
+import type { DiscoveryIssue } from './git/dtos/discovery-issue.ts';
+import type { Inventory } from './models/inventory.ts';
+import type { Project } from './models/project.ts';
 
 export interface Application {
-  readonly startupIssues: readonly DiscoveryIssue[];
   inventory(): Inventory;
   register(
     checkout: string,

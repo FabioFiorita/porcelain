@@ -81,3 +81,62 @@ it('uses the Zod response serializer to remove undeclared fields', async () => {
     await rm(dataDirectory, { recursive: true, force: true });
   }
 });
+
+it('sanitizes failures outside the inventory plugin without treating arbitrary 4xx errors as validation', async () => {
+  const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-root-errors-'));
+  const server = await createServer({
+    dataDirectory,
+    token: 'fixture-token-with-at-least-32-characters',
+  });
+  try {
+    server.get('/failure', async () => {
+      throw Object.assign(new Error('private internal details'), {
+        statusCode: 401,
+      });
+    });
+    const response = await server.inject({ method: 'GET', url: '/failure' });
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toEqual({
+      code: 'INTERNAL_ERROR',
+      message: 'Operation failed',
+    });
+    const unauthorized = await server.inject({
+      method: 'GET',
+      url: '/inventory',
+    });
+    expect(unauthorized.statusCode).toBe(401);
+    expect(unauthorized.headers['www-authenticate']).toBe('Bearer');
+    expect(unauthorized.json()).toEqual({
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required',
+    });
+  } finally {
+    await server.close();
+    await rm(dataDirectory, { recursive: true, force: true });
+  }
+});
+
+it('maps malformed authenticated JSON to a safe invalid request', async () => {
+  const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-json-errors-'));
+  const token = 'fixture-token-with-at-least-32-characters';
+  const server = await createServer({ dataDirectory, token });
+  try {
+    const response = await server.inject({
+      method: 'POST',
+      url: '/projects',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'application/json',
+      },
+      payload: '{"path": private',
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      code: 'INVALID_REQUEST',
+      message: 'Invalid request',
+    });
+  } finally {
+    await server.close();
+    await rm(dataDirectory, { recursive: true, force: true });
+  }
+});

@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { Application } from '../../interfaces/application.ts';
-import { toErrorResponse } from '../mappers/error-response.ts';
+import type { Application } from '../../application.ts';
 import { authenticate } from '../middlewares/authenticate.ts';
 import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { getInventoryRoute } from './get-inventory.ts';
@@ -13,10 +12,6 @@ export async function inventoryRoutes(
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options.token));
-  server.setErrorHandler(async (error, _request, reply) => {
-    const response = toErrorResponse(error);
-    return reply.code(response.statusCode).send(response.body);
-  });
   server.register(getInventoryRoute, { application: options.application });
   server.register(registerProjectRoute, { application: options.application });
   server.register(refreshInventoryRoute, { application: options.application });

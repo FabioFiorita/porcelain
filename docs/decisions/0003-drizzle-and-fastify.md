@@ -32,9 +32,9 @@ explicit `@porcelain/contracts/health` export; the Fastify Zod provider handles 
 Database schemas stay server-private and are not transport contracts.
 
 The factory does not listen automatically. Only disposable integration tests bind an ephemeral loopback
-port. There is no executable entrypoint, deployment configuration, inventory endpoint, WebSocket,
-authentication, or client yet. Those require connection/authentication and protocol decisions before
-repository access is exposed. Health success establishes initialized application availability, not
+port. Authenticated inventory endpoints and their shared contracts follow the
+[HTTP decision](0004-inventory-http.md). There is no executable entrypoint, deployment configuration,
+WebSocket, or client yet. Health success establishes initialized application availability, not
 repository reachability or access authorization.
 
 There are now two packages with type-check tasks and no build dependency graph. Recursive pnpm tasks
