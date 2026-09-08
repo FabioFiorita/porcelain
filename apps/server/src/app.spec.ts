@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { access, mkdir, mkdtemp, realpath, rename, rm } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -369,6 +377,66 @@ it('returns diagnostics with their operation without changing earlier results', 
       (worktree) => worktree.available,
     ),
   ).toBe(true);
+});
+
+it('inspects the submitted read request when caller objects change before queued execution', async () => {
+  const f = await fixture();
+  await writeFile(join(f.main, 'notes.txt'), 'before\n');
+  git(f.main, 'add', '.');
+  git(f.main, 'commit', '-m', 'Notes');
+  const oid = git(f.main, 'rev-parse', 'HEAD').trim();
+  await writeFile(join(f.main, 'notes.txt'), 'after\n');
+  const app = await open(f.dataDirectory);
+  const { project } = await app.register(f.main);
+  const worktreeId = project.worktrees[0]?.id;
+  if (!worktreeId) throw new Error('Missing fixture worktree');
+  const { status } = await app.gitStatus(worktreeId);
+  const change = status.changes.find((entry) => entry.scope === 'unstaged');
+  if (change?.scope !== 'unstaged') throw new Error('Missing unstaged change');
+  const pageRequest = { limit: 1 };
+  const commitRequest = { oid };
+  const refreshing = app.refresh();
+  const page = app.listCommits(worktreeId, pageRequest);
+  const commit = app.inspectCommitChanges(worktreeId, commitRequest);
+  const diff = app.gitDiff(worktreeId, status.statusToken, change);
+  pageRequest.limit = 0;
+  commitRequest.oid = 'not-a-commit';
+  change.newPath = 'different.txt';
+  await refreshing;
+  expect((await page).commits.map((entry) => entry.oid)).toEqual([oid]);
+  expect(await commit).toMatchObject({
+    commitOid: oid,
+    changes: [expect.objectContaining({ newPath: 'notes.txt' })],
+  });
+  expect((await diff).content).toMatchObject({
+    kind: 'text',
+    patch: expect.stringContaining('+after'),
+  });
+});
+
+it('snapshots preference intent before queued execution', async () => {
+  const { main, dataDirectory } = await fixture();
+  const app = await open(dataDirectory);
+  const { project } = await app.register(main);
+  const worktreeId = project.worktrees[0]?.id;
+  if (!worktreeId) throw new Error('Missing fixture worktree');
+  const refreshing = app.refresh();
+  const change = {
+    path: 'original.ts',
+    flag: 'pinned' as 'pinned' | 'hidden',
+    value: true,
+  };
+  const pending = app.setFilePreference(worktreeId, change);
+  change.path = 'mutated.ts';
+  change.flag = 'hidden';
+  change.value = false;
+  await refreshing;
+  expect(await pending).toEqual([
+    { path: 'original.ts', pinned: true, hidden: false },
+  ]);
+  expect(await app.listFilePreferences(worktreeId)).toEqual([
+    { path: 'original.ts', pinned: true, hidden: false },
+  ]);
 });
 
 it('persists submitted artifact values when callers mutate input behind a blocked queue', async () => {

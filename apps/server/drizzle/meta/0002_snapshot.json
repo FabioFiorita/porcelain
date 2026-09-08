@@ -1,67 +1,9 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9bb0c6ab-51fb-4cd7-a260-b1763df1e72d",
+  "id": "5cb381f2-d278-4bf9-bc9b-5eb645289659",
   "prevId": "00113afa-965b-4cd6-9e82-ebdcf41a23e5",
   "tables": {
-    "artifacts": {
-      "name": "artifacts",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "worktree_id": {
-          "name": "worktree_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "artifacts_worktree": {
-          "name": "artifacts_worktree",
-          "columns": ["worktree_id"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "environment": {
       "name": "environment",
       "columns": {
@@ -88,6 +30,58 @@
         "environment_singleton": {
           "name": "environment_singleton",
           "value": "\"environment\".\"singleton\" = 1"
+        }
+      }
+    },
+    "file_preferences": {
+      "name": "file_preferences",
+      "columns": {
+        "worktree_id": {
+          "name": "worktree_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pinned": {
+          "name": "pinned",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "file_preferences_worktree_id_path_pk": {
+          "columns": ["worktree_id", "path"],
+          "name": "file_preferences_worktree_id_path_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "preference_pinned": {
+          "name": "preference_pinned",
+          "value": "\"file_preferences\".\"pinned\" IN (0, 1)"
+        },
+        "preference_hidden": {
+          "name": "preference_hidden",
+          "value": "\"file_preferences\".\"hidden\" IN (0, 1)"
         }
       }
     },

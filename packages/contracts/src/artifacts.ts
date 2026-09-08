@@ -13,7 +13,7 @@ export const artifactMetadataSchema = z.object({
   worktreeId: z.uuid(),
   name: z.string(),
   sizeBytes: z.number().int().positive(),
-  createdAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
 });
 export const artifactListSchema = z.array(artifactMetadataSchema);
 export const artifactContentSchema = artifactMetadataSchema.extend({

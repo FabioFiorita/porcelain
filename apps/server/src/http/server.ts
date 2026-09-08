@@ -8,8 +8,14 @@ import { openApplication } from '../app.ts';
 import { serverSettingsSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
 import { artifactRoutes } from './routes/artifacts.ts';
+import { commentRoutes } from './routes/comments.ts';
+import { commitHistoryRoutes } from './routes/commit-history.ts';
+import { filePreferenceRoutes } from './routes/file-preferences.ts';
+import { fileRoutes } from './routes/files.ts';
+import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
+import { reviewLayerRoutes } from './routes/review-layers.ts';
 
 export async function createServer(
   options: Parameters<typeof openApplication>[0] & { token: string },
@@ -24,9 +30,16 @@ export async function createServer(
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
     return reply.code(response.statusCode).send(response.body);
   });
+  server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
   server.register(artifactRoutes, { application, token });
+  server.register(reviewLayerRoutes, { application, token });
+  server.register(commentRoutes, { application, token });
+  server.register(filePreferenceRoutes, { application, token });
+  server.register(fileRoutes, { application, token });
   server.register(inventoryRoutes, { application, token });
+  server.register(commitHistoryRoutes, { application, token });
+  server.register(gitInspectionRoutes, { application, token });
   return server;
 }

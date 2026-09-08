@@ -60,7 +60,7 @@ Retrieval always uses `application/json`, including when the client requests `te
 must continue to treat `name` and `content` as untrusted data. Rendering isolation, sandbox policy,
 assets, public hosting, sharing audience and lifetime remain explicit later design work.
 
-Missing registered worktrees and missing retrieval targets return 404 `NOT_FOUND`. Deleting a missing
+Missing registered worktrees return 404 `WORKTREE_NOT_FOUND`; missing artifact retrieval targets return 404 `NOT_FOUND`. Deleting a missing
 artifact within an existing registered worktree returns `{ deleted: false }`, including an ID belonging
 to another worktree. A successful deletion returns `{ deleted: true }`; repeated calls converge on the
 same absent state. Invalid input or oversized individual content returns 400 `INVALID_REQUEST`;

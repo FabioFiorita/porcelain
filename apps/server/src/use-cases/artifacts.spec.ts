@@ -5,6 +5,7 @@ import type { InventoryStore } from '../repositories/interfaces/inventory-store.
 import { DeleteArtifact } from './delete-artifact.ts';
 import { ArtifactNotFoundError } from './errors/artifact-not-found-error.ts';
 import { InvalidArtifactError } from './errors/invalid-artifact-error.ts';
+import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 import { GetArtifact } from './get-artifact.ts';
 import { ListArtifacts } from './list-artifacts.ts';
 import { UploadArtifact } from './upload-artifact.ts';
@@ -94,7 +95,7 @@ it('requires registered scope for every operation without touching artifact stor
     () => get.execute('unknown', 'artifact'),
     () => remove.execute('unknown', 'artifact'),
   ])
-    expect(operation).toThrow(ArtifactNotFoundError);
+    expect(operation).toThrow(WorktreeNotFoundError);
   for (const method of Object.values(store))
     expect(method).not.toHaveBeenCalled();
 });
