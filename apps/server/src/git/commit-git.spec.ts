@@ -497,3 +497,57 @@ it('does not lazily fetch promised blobs during commit inspection', async () => 
   );
   await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
 });
+
+it.each(['file-to-symlink', 'symlink-to-file'] as const)(
+  'preserves both patch sections for %s changes without shifting neighboring patches',
+  async (direction) => {
+    const f = await fixture();
+    await writeFile(join(f.path, 'a-before'), 'before old\n');
+    if (direction === 'file-to-symlink')
+      await writeFile(join(f.path, 'middle'), 'regular content\n');
+    else await symlink('target', join(f.path, 'middle'));
+    await writeFile(join(f.path, 'z-after'), 'after old\n');
+    git(f.path, 'add', '.');
+    git(f.path, '-c', 'commit.gpgsign=false', 'commit', '-m', 'initial types');
+    await rm(join(f.path, 'middle'));
+    if (direction === 'file-to-symlink')
+      await symlink('target', join(f.path, 'middle'));
+    else await writeFile(join(f.path, 'middle'), 'regular content\n');
+    await writeFile(join(f.path, 'a-before'), 'before new\n');
+    await writeFile(join(f.path, 'z-after'), 'after new\n');
+    git(f.path, 'add', '.');
+    git(f.path, '-c', 'commit.gpgsign=false', 'commit', '-m', 'change types');
+    const result = await f.adapter.inspectCommitChanges({
+      oid: git(f.path, 'rev-parse', 'HEAD'),
+    });
+    expect(result.changes.map((change) => change.newPath)).toEqual([
+      'a-before',
+      'middle',
+      'z-after',
+    ]);
+    const middle = result.changes[1];
+    expect(middle).toMatchObject({
+      status: 'type-changed',
+      oldPath: 'middle',
+      newPath: 'middle',
+      oldMode: direction === 'file-to-symlink' ? '100644' : '120000',
+      newMode: direction === 'file-to-symlink' ? '120000' : '100644',
+    });
+    if (middle?.patch.kind !== 'text') throw new Error('Expected text patch');
+    expect(middle.patch.text).toContain(
+      direction === 'file-to-symlink' ? '-regular content' : '+regular content',
+    );
+    expect(middle.patch.text).toContain(
+      direction === 'file-to-symlink' ? '+target' : '-target',
+    );
+    expect(middle.patch.text.match(/^diff --git /gm)).toHaveLength(2);
+    expect(result.changes[0]?.patch).toEqual({
+      kind: 'text',
+      text: expect.stringContaining('+before new'),
+    });
+    expect(result.changes[2]?.patch).toEqual({
+      kind: 'text',
+      text: expect.stringContaining('+after new'),
+    });
+  },
+);

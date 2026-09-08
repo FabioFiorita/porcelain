@@ -47,11 +47,18 @@ function parseChanges(raw: string): CommitChange[] {
 }
 function withPatches(changes: CommitChange[], output: string): CommitChange[] {
   const patches = output.split(/(?=^diff --git )/m).filter(Boolean);
-  if (patches.length !== changes.length)
+  // Git represents a type change as a deletion and addition in patch output,
+  // while raw output retains a single T record for that path.
+  const sectionCount = (change: CommitChange) =>
+    change.status === 'type-changed' ? 2 : 1;
+  const expectedSections = changes.reduce(
+    (total, change) => total + sectionCount(change),
+    0,
+  );
+  if (patches.length !== expectedSections)
     throw new UnsupportedHistoryDataError();
-  return changes.map((change, index) => {
-    const text = patches[index];
-    if (text === undefined) throw new UnsupportedHistoryDataError();
+  return changes.map((change) => {
+    const text = patches.splice(0, sectionCount(change)).join('');
     if (change.oldMode === '160000' || change.newMode === '160000')
       return { ...change, patch: { kind: 'submodule', text } };
     if (/^Binary files .* differ$/m.test(text))
