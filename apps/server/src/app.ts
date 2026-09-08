@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
@@ -12,8 +12,10 @@ import type { CommitReaderFactory } from './git/interfaces/commit-reader.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
 import type { InspectionFactory } from './git/interfaces/inspection-factory.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
+import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { CommentThreads } from './use-cases/comment-threads.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
@@ -64,6 +66,11 @@ export async function openApplication(options: {
     const status = new ReadWorktreeStatus(store, inspection);
     const diff = new ReadWorktreeDiff(store, inspection);
     await operations.run((signal) => refresh.execute(signal), options.signal);
+    const comments = new CommentThreads(
+      new CommentRepository(database.db),
+      store,
+      randomUUID,
+    );
     return {
       gitStatus: (worktreeId, signal) =>
         operations.run(
@@ -141,6 +148,10 @@ export async function openApplication(options: {
           async () => setPreference.execute(worktreeId, intent),
           signal,
         );
+      },
+      comments: async (command, signal) => {
+        const snapshot = structuredClone(command);
+        return operations.run(async () => comments.execute(snapshot), signal);
       },
       close: () => operations.close(),
     };

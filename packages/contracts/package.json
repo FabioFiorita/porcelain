@@ -11,7 +11,8 @@
     "./files": "./src/files.ts",
     "./commit-history": "./src/commit-history.ts",
     "./commit-changes": "./src/commit-changes.ts",
-    "./file-preferences": "./src/file-preferences.ts"
+    "./file-preferences": "./src/file-preferences.ts",
+    "./comments": "./src/comments.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

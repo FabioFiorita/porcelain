@@ -11,6 +11,7 @@ import type {
   GitOrdinaryChange,
   GitStatusObservation,
 } from './git/dtos/git-status.ts';
+import type { CommentCommand, CommentThread } from './models/comment-thread.ts';
 import type { DirectoryListing, TextContent } from './models/file-content.ts';
 import type {
   FilePreference,
@@ -77,5 +78,9 @@ export interface Application {
     change: FilePreferenceChange,
     signal?: AbortSignal,
   ): Promise<FilePreference[]>;
+  comments(
+    command: CommentCommand,
+    signal?: AbortSignal,
+  ): Promise<CommentThread[]>;
   close(): Promise<void>;
 }
