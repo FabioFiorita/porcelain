@@ -1,53 +1,9 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4e9803e8-eab7-4acb-91af-3d4005d5cac7",
+  "id": "5cb381f2-d278-4bf9-bc9b-5eb645289659",
   "prevId": "00113afa-965b-4cd6-9e82-ebdcf41a23e5",
   "tables": {
-    "comment_threads": {
-      "name": "comment_threads",
-      "columns": {
-        "sequence": {
-          "name": "sequence",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "worktree_id": {
-          "name": "worktree_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "data": {
-          "name": "data",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "comment_threads_id_unique": {
-          "name": "comment_threads_id_unique",
-          "columns": ["id"],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "environment": {
       "name": "environment",
       "columns": {
@@ -74,6 +30,58 @@
         "environment_singleton": {
           "name": "environment_singleton",
           "value": "\"environment\".\"singleton\" = 1"
+        }
+      }
+    },
+    "file_preferences": {
+      "name": "file_preferences",
+      "columns": {
+        "worktree_id": {
+          "name": "worktree_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pinned": {
+          "name": "pinned",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "file_preferences_worktree_id_path_pk": {
+          "columns": ["worktree_id", "path"],
+          "name": "file_preferences_worktree_id_path_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "preference_pinned": {
+          "name": "preference_pinned",
+          "value": "\"file_preferences\".\"pinned\" IN (0, 1)"
+        },
+        "preference_hidden": {
+          "name": "preference_hidden",
+          "value": "\"file_preferences\".\"hidden\" IN (0, 1)"
         }
       }
     },

@@ -1,23 +1,25 @@
+import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
+import { GitInspectionTimeoutError } from '../../git/errors/git-inspection-timeout-error.ts';
+import { InspectionLimitError } from '../../git/errors/inspection-limit-error.ts';
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
+import { UnsupportedGitFiltersError } from '../../git/errors/unsupported-git-filters-error.ts';
+import { UnsupportedPathEncodingError } from '../../git/errors/unsupported-path-encoding-error.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
-import { CommentLimitExceededError } from '../../use-cases/errors/comment-limit-exceeded-error.ts';
-import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
-import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
+import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
+import { toFileErrorResponse } from './file-error-response.ts';
+import { toHistoryErrorResponse } from './history-error-response.ts';
+import { toStorageErrorResponse } from './storage-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
-  if (error instanceof InvalidCommentError)
+  if (error instanceof UnsupportedGitFiltersError)
     return {
-      statusCode: 400,
-      body: { code: 'INVALID_REQUEST', message: 'Invalid comment' },
-    };
-  if (error instanceof CommentLimitExceededError)
-    return {
-      statusCode: 409,
+      statusCode: 422,
       body: {
-        code: 'COMMENT_LIMIT_EXCEEDED',
-        message: 'Comment capacity exceeded',
+        code: 'UNSUPPORTED_GIT_FILTERS',
+        message:
+          'Git conversion filters are unsupported for worktree inspection',
       },
     };
   if (error instanceof WorktreeNotFoundError)
@@ -25,28 +27,43 @@ export function toErrorResponse(error: unknown) {
       statusCode: 404,
       body: { code: 'WORKTREE_NOT_FOUND', message: 'Worktree not found' },
     };
-  if (error instanceof CommentTargetNotFoundError)
+  if (error instanceof WorktreeChangedError)
     return {
-      statusCode: 404,
-      body: { code: 'NOT_FOUND', message: 'Comment target not found' },
+      statusCode: 409,
+      body: {
+        code: 'WORKTREE_CHANGED',
+        message: 'Refresh status and retry inspection',
+      },
     };
+  if (error instanceof InspectionLimitError)
+    return {
+      statusCode: 413,
+      body: {
+        code: 'INSPECTION_LIMIT',
+        message: 'Git inspection exceeds its limit',
+      },
+    };
+  if (error instanceof UnsupportedPathEncodingError)
+    return {
+      statusCode: 422,
+      body: {
+        code: 'UNSUPPORTED_PATH_ENCODING',
+        message: 'Git paths require valid UTF-8',
+      },
+    };
+  if (error instanceof FileInspectionError)
+    return toFileErrorResponse(error.code);
+  const storage = toStorageErrorResponse(error);
+  if (storage) return storage;
+  const history = toHistoryErrorResponse(error);
+  if (history) return history;
   if (error instanceof UnauthorizedError) {
     return {
       statusCode: 401,
       body: { code: 'UNAUTHORIZED', message: 'Authentication required' },
     };
   }
-  if (
-    error instanceof Error &&
-    ('validation' in error ||
-      ('code' in error &&
-        [
-          'FST_ERR_CTP_INVALID_JSON_BODY',
-          'FST_ERR_CTP_EMPTY_JSON_BODY',
-          'FST_ERR_CTP_INVALID_MEDIA_TYPE',
-          'FST_ERR_CTP_BODY_TOO_LARGE',
-        ].includes(String(error.code))))
-  ) {
+  if (isInvalidRequest(error)) {
     return {
       statusCode: 400,
       body: { code: 'INVALID_REQUEST', message: 'Invalid request' },
@@ -63,6 +80,7 @@ export function toErrorResponse(error: unknown) {
   }
   if (
     error instanceof ApplicationClosedError ||
+    error instanceof GitInspectionTimeoutError ||
     (error instanceof Error &&
       (error.name === 'TimeoutError' || error.name === 'AbortError'))
   ) {
@@ -75,4 +93,18 @@ export function toErrorResponse(error: unknown) {
     statusCode: 500,
     body: { code: 'INTERNAL_ERROR', message: 'Operation failed' },
   };
+}
+
+function isInvalidRequest(error: unknown) {
+  return (
+    error instanceof Error &&
+    ('validation' in error ||
+      ('code' in error &&
+        [
+          'FST_ERR_CTP_INVALID_JSON_BODY',
+          'FST_ERR_CTP_EMPTY_JSON_BODY',
+          'FST_ERR_CTP_INVALID_MEDIA_TYPE',
+          'FST_ERR_CTP_BODY_TOO_LARGE',
+        ].includes(String(error.code))))
+  );
 }

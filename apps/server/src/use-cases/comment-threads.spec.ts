@@ -89,6 +89,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     body: '  original\n',
   });
   if (!thread) throw new Error('Expected thread');
+  const originalMessageId = thread.messages[0]?.id;
   anchor.startLine = 99;
   comments.execute({
     kind: 'reply',
@@ -126,11 +127,12 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       contentFingerprint: 'opaque',
     },
     messages: [
-      { id: '2', body: '  original\n' },
-      { id: '3', body: 'first' },
-      { id: '4', body: 'second' },
+      { id: originalMessageId, body: '  original\n' },
+      { id: resolved[0]?.messages[1]?.id, body: 'first' },
+      { body: 'second' },
     ],
   });
+  expect(new Set(retained?.messages.map((message) => message.id)).size).toBe(3);
   expect(
     comments.execute({
       kind: 'resolve',
