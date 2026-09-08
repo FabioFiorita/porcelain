@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { asc, eq, max } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { environments } from '../db/schema/environments.ts';
+import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { projects } from '../db/schema/projects.ts';
 import { worktrees } from '../db/schema/worktrees.ts';
 import type { Inventory } from '../models/inventory.ts';
@@ -74,6 +75,11 @@ export class InventoryRepository implements InventoryStore {
         .values({ ...record, position })
         .onConflictDoUpdate({ target: projects.id, set: record })
         .run();
+      for (const worktree of checkouts)
+        tx.insert(projectWorktrees)
+          .values({ worktreeId: worktree.id, projectId: project.id })
+          .onConflictDoNothing()
+          .run();
       tx.delete(worktrees).where(eq(worktrees.projectId, project.id)).run();
       if (checkouts.length > 0)
         tx.insert(worktrees)

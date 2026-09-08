@@ -154,3 +154,6 @@ HTTPS proof uses a disposable TLS service and fixture credential store. SSH proo
 substitute to verify flags and Git exchange; it does not establish real SSH authentication interoperability.
 No production credentials, projects or network remotes are fixtures. UI/native workflows, real remote
 interoperability and Linux execution require their own observed proof before those claims are made.
+
+[Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
+including associated review data and operation recovery constraints.

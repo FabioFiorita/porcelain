@@ -71,3 +71,6 @@ Focused evidence covers typed use-case substitutes, disposable SQLite quota/abor
 authenticated HTTP with real Git inventory, a loopback upload, invalid encodings, inert malicious
 names/content, worktree isolation, and restart/refresh retention. SQLite statement-abort tests exercise
 atomic rollback; they do not simulate power loss or claim platform runtime or rendering proof.
+
+[Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
+including associated review data and operation recovery constraints.

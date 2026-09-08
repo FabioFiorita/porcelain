@@ -1,6 +1,7 @@
 import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
 import type { GitActionReceipt, GitActionScope } from '../models/git-action.ts';
+import { ProjectRemovalBlockedError } from '../repositories/errors/project-removal-blocked-error.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { AcceptGitAction } from '../use-cases/accept-git-action.ts';
 import { GitActionNotFoundError } from '../use-cases/errors/git-action-not-found-error.ts';
@@ -28,6 +29,10 @@ export class GitActionCoordinator {
     this.accept = accept;
     this.execute = execute;
     this.store = store;
+  }
+  assertProjectRemovable(projectId: string): void {
+    if (this.failedProjects.has(projectId))
+      throw new ProjectRemovalBlockedError();
   }
   prepareAction(
     scope: GitActionScope,

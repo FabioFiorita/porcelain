@@ -24,6 +24,7 @@ import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { ProjectRemovalRepository } from './repositories/project-removal-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
@@ -41,6 +42,7 @@ import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
+import { RemoveProject } from './use-cases/remove-project.ts';
 import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 import { UploadArtifact } from './use-cases/upload-artifact.ts';
@@ -66,6 +68,9 @@ export async function openApplication(options: {
     const layers = new ReviewLayerRepository(database.db);
     const replaceLayers = new ReplaceReviewLayers(layers);
     const store = new InventoryRepository(database.db);
+    const removeProject = new RemoveProject(
+      new ProjectRemovalRepository(database.db),
+    );
     const actionStore = new GitActionRepository(database.db);
     actionStore.recover();
     const actionGit =
@@ -213,6 +218,11 @@ export async function openApplication(options: {
           (operationSignal) => read.execute(id, path, operationSignal),
           signal,
         ),
+      removeProject: (projectId, signal) =>
+        operations.run(async () => {
+          actions.assertProjectRemovable(projectId);
+          return removeProject.execute(projectId);
+        }, signal),
       inventory: () => {
         operations.assertOpen();
         return store.read();

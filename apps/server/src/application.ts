@@ -115,6 +115,10 @@ export interface Application {
     change: GitOrdinaryChange;
     content: GitDiffResult;
   }>;
+  removeProject(
+    projectId: string,
+    signal?: AbortSignal,
+  ): Promise<{ deleted: boolean }>;
   inventory(): Inventory;
   listDirectory(
     worktreeId: string,

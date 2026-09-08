@@ -30,3 +30,6 @@ export const registerProjectRequestSchema = z.strictObject({
 
 export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type InventoryResponse = z.infer<typeof inventoryResponseSchema>;
+
+export const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
+export const projectDeletionSchema = z.object({ deleted: z.boolean() });

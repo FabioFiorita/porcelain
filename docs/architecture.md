@@ -11,6 +11,8 @@ inspection through explicit contracts and a checkout-bound `CommitGit` capabilit
 
 [Git actions](decisions/git-action-contracts.md) own prepared mutations and durable recovery receipts through checkout-bound `ActionGit`.
 
+[Explicit project removal](decisions/project-removal.md) owns transactional cleanup of inventory and private review data.
+
 [File preferences](decisions/file-preferences.md) retain pin/hide intent separately from inventory refresh.
 
 [Artifact storage](decisions/artifact-storage.md) owns inert HTML persistence; rendering and sharing remain deferred.

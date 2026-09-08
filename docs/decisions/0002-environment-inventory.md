@@ -52,3 +52,6 @@ Authenticated inventory HTTP is defined in [the HTTP decision](0004-inventory-ht
 The server composition accepts an isolated data directory and an optional Git adapter. The health
 and inventory response schemas are shared through explicit contracts subpaths. Internal filesystem
 identity evidence remains server-private. Workspace type checking covers package consumers; the [Git package decision](0006-git-package-and-task-cache.md) now defines cached task ordering.
+
+[Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
+including associated review data and operation recovery constraints.

@@ -31,3 +31,6 @@ unavailability must preserve intent. Removed worktree intent is retained without
 orphan cleanup, but cannot be accessed through these routes while its identity is unregistered.
 Preference operations snapshot caller intent before entering the application queue and share
 application serialization, deadlines, and shutdown behavior.
+
+[Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
+including associated review data and operation recovery constraints.

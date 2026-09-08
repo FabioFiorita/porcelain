@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const apiErrorSchema = z.object({
   code: z.enum([
+    'PROJECT_REMOVAL_BLOCKED',
     'COMMENT_LIMIT_EXCEEDED',
     'STALE_PREPARATION',
     'REQUEST_MISMATCH',
