@@ -2,6 +2,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
+import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
 import { InvalidDataDirectoryError } from '../db/errors/invalid-data-directory-error.ts';
@@ -198,6 +200,97 @@ it('reports missing persisted environment identity instead of returning invalid 
       expect(() => repository.read()).toThrow(MissingEnvironmentIdentityError);
     } finally {
       database.close();
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it('upgrades baseline inventory preserving known identities and converting missing identities to null', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'porcelain-upgrade-'));
+  try {
+    const baseline = readMigrationFiles({
+      migrationsFolder: fileURLToPath(
+        new URL('../../drizzle/', import.meta.url),
+      ),
+    })[0];
+    if (!baseline) throw new Error('Missing baseline migration fixture');
+    const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
+    try {
+      for (const statement of baseline.sql) database.exec(statement);
+      database.exec(
+        'CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)',
+      );
+      database
+        .prepare(
+          'INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)',
+        )
+        .run(baseline.hash, baseline.folderMillis);
+      database
+        .prepare('INSERT INTO environment (singleton, id) VALUES (1, ?)')
+        .run('environment-original');
+      database
+        .prepare(
+          'INSERT INTO inventory_projects (id, name, common_directory, repository_identity, available, position) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          fixtureProject.id,
+          fixtureProject.name,
+          fixtureProject.commonDirectory,
+          fixtureProject.repositoryIdentity,
+          0,
+          0,
+        );
+      for (const [position, worktree] of fixtureProject.worktrees.entries()) {
+        database
+          .prepare(
+            'INSERT INTO worktrees (id, project_id, path, metadata_identity, main, branch, available, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          )
+          .run(
+            worktree.id,
+            fixtureProject.id,
+            worktree.path,
+            position === 0 ? worktree.metadataIdentity : '',
+            Number(worktree.main),
+            worktree.branch,
+            0,
+            position,
+          );
+      }
+    } finally {
+      database.close();
+    }
+    const store = openInventoryStore(directory);
+    try {
+      expect(store.read()).toEqual({
+        environmentId: 'environment-original',
+        projects: [
+          {
+            ...fixtureProject,
+            worktrees: fixtureProject.worktrees.map((worktree, position) => ({
+              ...worktree,
+              metadataIdentity:
+                position === 0 ? worktree.metadataIdentity : null,
+            })),
+          },
+        ],
+      });
+    } finally {
+      store.close();
+    }
+    const reopened = openInventoryStore(directory);
+    try {
+      const project = {
+        ...fixtureProject,
+        worktrees: fixtureProject.worktrees.map((worktree) => ({
+          ...worktree,
+          metadataIdentity: null,
+        })),
+      };
+      reopened.save(project);
+      expect(reopened.read().projects).toEqual([project]);
+    } finally {
+      reopened.close();
     }
   } finally {
     await rm(directory, { recursive: true, force: true });

@@ -16,7 +16,7 @@ export const worktrees = sqliteTable(
       .notNull()
       .references(() => projects.id, { onDelete: 'cascade' }),
     path: text().notNull(),
-    metadataIdentity: text('metadata_identity').notNull(),
+    metadataIdentity: text('metadata_identity'),
     main: integer({ mode: 'boolean' }).notNull(),
     branch: text(),
     available: integer({ mode: 'boolean' }).notNull(),

@@ -35,13 +35,13 @@ export const boundaryRules: IConfiguration = {
   forbidden: [
     ...ownershipRules,
     {
-      name: 'use-cases-depend-on-contracts',
+      name: 'use-cases-depend-on-ports',
       severity: 'error',
       comment:
         'Product operations depend on internal models and adapter interfaces, not infrastructure.',
       from: { path: '^apps/server/src/use-cases/', pathNot: '\\.spec\\.ts$' },
       to: {
-        path: '(^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
+        path: '(^packages/contracts/|^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
         pathNot:
           '^apps/server/src/(use-cases/|models/|git/(interfaces|dtos|errors)/|repositories/interfaces/)',
       },

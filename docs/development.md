@@ -73,7 +73,9 @@ Cached builds do not establish runtime behavior, and Turbo does not change which
 ## Server inventory
 
 `openApplication` in `apps/server/src/app.ts` opens an explicitly supplied absolute data directory,
-refreshes registered repositories, and returns `inventory`, `register`, `refresh`, `discoveryIssues`, and `close` operations.
+refreshes registered repositories, and returns the named `Application` API: `inventory`, `register`, `refresh`, and `close`, plus `startupIssues`.
+Registration returns `{ project, issues }`; refresh returns `{ inventory, issues }`. Startup diagnostics
+belong to the returned application; subsequent diagnostics belong to each operation result.
 The caller must close the application. There is no default production directory or network listener.
 Use only temporary repositories and state for development fixtures.
 
@@ -122,7 +124,6 @@ synchronous SQLite transactions and filesystem calls cannot be preempted mid-cal
 
 Registration discovers its target and only refreshes existing projects with overlapping checkout paths.
 An explicit refresh or startup refresh inspects all registered projects. Expected repository failures
-mark affected entries unavailable and retain their original errors in `discoveryIssues()` for the latest
-operation. Missing Git executables, timeouts, cancellation, and unexpected failures propagate. These
+mark affected entries unavailable and return their original errors alongside that operation’s result. Missing Git executables, timeouts, cancellation, and unexpected failures propagate. These
 internal diagnostics are not a public response schema and must not be sent directly to remote clients.
 Refresh commits each project independently; cancellation does not undo already completed project updates.

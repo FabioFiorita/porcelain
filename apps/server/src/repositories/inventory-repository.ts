@@ -36,17 +36,22 @@ export class InventoryRepository implements InventoryStore {
           .from(projects)
           .orderBy(asc(projects.position))
           .all()
-          .map(({ position: _position, ...project }) => ({
-            ...project,
+          .map((project) => ({
+            id: project.id,
+            name: project.name,
+            commonDirectory: project.commonDirectory,
+            repositoryIdentity: project.repositoryIdentity,
+            available: project.available,
             worktrees: rows
               .filter((row) => row.projectId === project.id)
-              .map(
-                ({
-                  projectId: _projectId,
-                  position: _worktreePosition,
-                  ...worktree
-                }) => worktree,
-              ),
+              .map((worktree) => ({
+                id: worktree.id,
+                path: worktree.path,
+                metadataIdentity: worktree.metadataIdentity,
+                main: worktree.main,
+                branch: worktree.branch,
+                available: worktree.available,
+              })),
           })),
       };
     });

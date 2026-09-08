@@ -1,8 +1,8 @@
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
-import type { DiscoveryIssue } from './git/dtos/discovery-issue.ts';
 import { Git } from './git/git.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
+import type { Application } from './interfaces/application.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
@@ -13,7 +13,7 @@ export async function openApplication(options: {
   git?: GitFactory;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
-}) {
+}): Promise<Application> {
   const { operationTimeoutMs } = applicationSettingsSchema.parse(options);
   options.signal?.throwIfAborted();
   const database = openDatabase(options.dataDirectory);
@@ -21,15 +21,13 @@ export async function openApplication(options: {
     () => database.close(),
     operationTimeoutMs,
   );
-  let issues: DiscoveryIssue[] = [];
-  const reportIssue = (issue: DiscoveryIssue) => issues.push(issue);
   try {
     const store = new InventoryRepository(database.db);
     const git = options.git ?? ((checkout: string) => new Git(checkout));
     const refresh = new RefreshProjects(store, git);
     const register = new RegisterProject(store, git, refresh);
-    await operations.run(
-      (signal) => refresh.execute(signal, reportIssue),
+    const startup = await operations.run(
+      (signal) => refresh.execute(signal),
       options.signal,
     );
     return {
@@ -37,16 +35,14 @@ export async function openApplication(options: {
         operations.assertOpen();
         return store.read();
       },
-      discoveryIssues: () => [...issues],
+      startupIssues: startup.issues,
       register: (checkout: string, signal?: AbortSignal) =>
         operations.run((operationSignal) => {
-          issues = [];
-          return register.execute(checkout, operationSignal, reportIssue);
+          return register.execute(checkout, operationSignal);
         }, signal),
       refresh: (signal?: AbortSignal) =>
         operations.run((operationSignal) => {
-          issues = [];
-          return refresh.execute(operationSignal, reportIssue);
+          return refresh.execute(operationSignal);
         }, signal),
       close: () => operations.close(),
     };

@@ -84,7 +84,7 @@ it('retains unavailable worktree identity so a later move can reconnect it', () 
         ...original,
         worktrees: original.worktrees.map((worktree) => ({
           ...worktree,
-          metadataIdentity: '',
+          metadataIdentity: null,
           available: false,
         })),
       };

@@ -10,27 +10,27 @@ async function rediscover(
   git: GitFactory,
   project: Project,
   signal: AbortSignal | undefined,
-  reportIssue: (issue: DiscoveryIssue) => void,
 ) {
+  const issues: DiscoveryIssue[] = [];
   for (const worktree of project.worktrees) {
     try {
-      const candidate = await git(worktree.path).listWorktrees(
-        signal,
-        reportIssue,
-      );
+      const { repository: candidate, issues: discoveredIssues } = await git(
+        worktree.path,
+      ).listWorktrees(signal);
+      issues.push(...discoveredIssues);
       if (candidate.repositoryIdentity === project.repositoryIdentity)
-        return candidate;
-      reportIssue({
+        return { repository: candidate, issues };
+      issues.push({
         path: worktree.path,
         error: new RepositoryIdentityMismatchError(),
       });
     } catch (error) {
       signal?.throwIfAborted();
       if (!isRepositoryUnavailable(error)) throw error;
-      reportIssue({ path: worktree.path, error });
+      issues.push({ path: worktree.path, error });
     }
   }
-  return undefined;
+  return { repository: undefined, issues };
 }
 
 export class RefreshProjects {
@@ -42,20 +42,14 @@ export class RefreshProjects {
     this.git = git;
   }
 
-  async execute(
-    signal?: AbortSignal,
-    reportIssue: (issue: DiscoveryIssue) => void = () => {},
-    projectIds?: readonly string[],
-  ) {
+  async execute(signal?: AbortSignal, projectIds?: readonly string[]) {
+    const issues: DiscoveryIssue[] = [];
     for (const project of this.store.read().projects) {
       if (projectIds && !projectIds.includes(project.id)) continue;
       signal?.throwIfAborted();
-      const discovered = await rediscover(
-        this.git,
-        project,
-        signal,
-        reportIssue,
-      );
+      const result = await rediscover(this.git, project, signal);
+      issues.push(...result.issues);
+      const discovered = result.repository;
       signal?.throwIfAborted();
       this.store.save(
         discovered
@@ -70,6 +64,6 @@ export class RefreshProjects {
             },
       );
     }
-    return this.store.read();
+    return { inventory: this.store.read(), issues };
   }
 }

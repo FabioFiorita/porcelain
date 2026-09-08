@@ -1,4 +1,3 @@
-import type { DiscoveryIssue } from '../git/dtos/discovery-issue.ts';
 import type { GitFactory } from '../git/interfaces/git-factory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { reconcileProject } from './reconciliation/reconcile-project.ts';
@@ -19,15 +18,9 @@ export class RegisterProject {
     this.refresh = refresh;
   }
 
-  async execute(
-    checkout: string,
-    signal?: AbortSignal,
-    reportIssue: (issue: DiscoveryIssue) => void = () => {},
-  ) {
-    const discovered = await this.git(checkout).listWorktrees(
-      signal,
-      reportIssue,
-    );
+  async execute(checkout: string, signal?: AbortSignal) {
+    const { repository: discovered, issues } =
+      await this.git(checkout).listWorktrees(signal);
     signal?.throwIfAborted();
     // Only revisit old projects whose recorded checkout paths overlap this registration.
     const paths = new Set(
@@ -40,12 +33,13 @@ export class RegisterProject {
           project.repositoryIdentity !== discovered.repositoryIdentity &&
           project.worktrees.some((worktree) => paths.has(worktree.path)),
       );
-    if (conflicts.length > 0)
-      await this.refresh.execute(
+    if (conflicts.length > 0) {
+      const refreshed = await this.refresh.execute(
         signal,
-        reportIssue,
         conflicts.map((project) => project.id),
       );
+      issues.push(...refreshed.issues);
+    }
     signal?.throwIfAborted();
     const previous = this.store
       .read()
@@ -55,6 +49,6 @@ export class RegisterProject {
       );
     const project = reconcileProject(discovered, previous);
     this.store.save(project);
-    return project;
+    return { project, issues };
   }
 }

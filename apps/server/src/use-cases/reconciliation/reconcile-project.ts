@@ -23,7 +23,7 @@ export function reconcileProject(
         ...worktree,
         id: known?.id ?? randomUUID(),
         metadataIdentity:
-          worktree.metadataIdentity || known?.metadataIdentity || '',
+          worktree.metadataIdentity ?? known?.metadataIdentity ?? null,
       };
     }),
   };

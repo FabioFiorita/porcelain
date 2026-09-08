@@ -21,7 +21,7 @@ Electron packages/launches the server and web assets; it does not import their i
 Packages expose explicit subpath exports. Cross-package relative imports into source are forbidden.
 The dependency rules live in `scripts/boundary-rules.ts` and have adversarial fixture specs.
 Dependencies cannot cycle. Server use cases import internal models and adapter interfaces, not
-infrastructure implementations. Model and adapter-interface guards reject server implementation imports; they do not classify every
+infrastructure implementations or public wire contracts. Model and adapter-interface guards reject server implementation imports; they do not classify every
 third-party dependency. Use-case guards also reject common infrastructure libraries and direct process,
 filesystem, and network APIs. Portable packages cannot import Node, Electron, React DOM, or native
 platform modules. Biome also restricts direct platform globals there. This does not prove portability
@@ -33,8 +33,9 @@ Server code is organized by technical responsibility at both directory levels:
 
 - `db/connection.ts` and `db/migrate.ts` own database initialization and migrations.
 - `db/schema` owns named Drizzle table modules.
-- `http/server.ts` configures Fastify; `http/routes` validates requests, establishes authorization
-  context, calls use cases, and maps results and errors to HTTP.
+- `http/server.ts` configures Fastify; `http/routes` declares schemas and calls the named `Application` API.
+- `http/middlewares` owns scoped Fastify authentication and response-policy hooks.
+- `http/mappers` owns explicit public response and error mapping.
 - `use-cases` owns product rules and coordinates explicit dependencies independently of Fastify.
 - `repositories` owns persistence queries and transactions for Porcelain-owned data.
 - `models` owns internal project, worktree, and inventory types; these are not wire DTOs.
@@ -56,7 +57,9 @@ Add directories only with their implementation; do not scaffold empty roles. Dep
 expose the operations consumers need without requiring concrete implementations.
 Use classes for Git, repositories, and use cases, with explicit constructor dependencies and instance
 methods. Use cases expose `execute()`. Git instances bind to a checkout and own command execution,
-environment isolation, timeouts, and parsing. Add commands only with their implemented behavior.
+environment isolation, timeouts, and parsing. Discovery returns repository data and issues together;
+use cases accumulate issues in operation results without callbacks or shared diagnostic buffers.
+Add commands only with their implemented behavior.
 Keep pure reconciliation and HTTP routes as functions. Do not introduce base classes, generic
 repository frameworks, static global services, or service locators.
 

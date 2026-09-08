@@ -1,11 +1,7 @@
-import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
-import type { DiscoveryIssue } from '../dtos/discovery-issue.ts';
+import type { DiscoveryResult } from '../dtos/discovery-result.ts';
 
 export interface WorktreeReader {
-  listWorktrees(
-    signal?: AbortSignal,
-    reportIssue?: (issue: DiscoveryIssue) => void,
-  ): Promise<DiscoveredRepository>;
+  listWorktrees(signal?: AbortSignal): Promise<DiscoveryResult>;
 }
 
 export type GitFactory = (checkout: string) => WorktreeReader;

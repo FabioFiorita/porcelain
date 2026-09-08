@@ -166,7 +166,7 @@ test('rejects use cases reaching into persistence implementations', async () => 
       'apps/server/src/repositories/inventory-repository.ts':
         'export const value = 1;',
     }),
-  ).toContain('use-cases-depend-on-contracts');
+  ).toContain('use-cases-depend-on-ports');
 });
 
 test('allows use cases to depend on adapter interfaces and internal models', async () => {
@@ -208,5 +208,15 @@ test('rejects use cases bypassing adapters with direct process execution', async
       'apps/server/src/use-cases/register-project.ts':
         "import { execFile } from 'node:child_process'; export const run = execFile;",
     }),
-  ).toContain('use-cases-depend-on-contracts');
+  ).toContain('use-cases-depend-on-ports');
+});
+
+test('rejects wire contracts inside use cases', async () => {
+  expect(
+    await violations({
+      'apps/server/src/use-cases/read.ts':
+        "import { value } from '../../../../packages/contracts/src/value.ts'; export const result = value;",
+      'packages/contracts/src/value.ts': 'export const value = 1;',
+    }),
+  ).toContain('use-cases-depend-on-ports');
 });

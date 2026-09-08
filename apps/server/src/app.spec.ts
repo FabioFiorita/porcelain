@@ -54,15 +54,15 @@ afterEach(async () => {
 it('registers from any checkout, groups worktrees main-first, and keeps separate clones distinct', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const project = await app.register(f.linked);
+  const { project } = await app.register(f.linked);
   expect(project.worktrees.map((w) => [w.path, w.main])).toEqual([
     [f.main, true],
     [f.linked, false],
   ]);
-  expect((await app.register(f.main)).id).toBe(project.id);
+  expect((await app.register(f.main)).project.id).toBe(project.id);
   const clone = join(f.root, 'clone');
   git(f.root, 'clone', f.main, clone);
-  expect((await app.register(clone)).id).not.toBe(project.id);
+  expect((await app.register(clone)).project.id).not.toBe(project.id);
   expect(app.inventory().projects).toHaveLength(2);
 });
 
@@ -90,38 +90,40 @@ it('persists identities and refreshes Git on restart, with independent environme
 it('preserves a moved linked checkout and removes disposed entries without reusing their IDs', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const before = await app.register(f.main);
+  const { project: before } = await app.register(f.main);
   const moved = join(f.root, 'moved');
   git(f.main, 'worktree', 'move', f.linked, moved);
-  const after = await app.refresh();
+  const { inventory: after } = await app.refresh();
   expect(after.projects[0]?.worktrees[1]?.id).toBe(before.worktrees[1]?.id);
   expect(after.projects[0]?.worktrees[1]?.path).toBe(moved);
   git(f.main, 'worktree', 'remove', moved);
-  expect((await app.refresh()).projects[0]?.worktrees).toHaveLength(1);
-  git(f.main, 'worktree', 'add', moved, 'feature');
-  expect((await app.refresh()).projects[0]?.worktrees[1]?.id).not.toBe(
-    before.worktrees[1]?.id,
+  expect((await app.refresh()).inventory.projects[0]?.worktrees).toHaveLength(
+    1,
   );
+  git(f.main, 'worktree', 'add', moved, 'feature');
+  expect(
+    (await app.refresh()).inventory.projects[0]?.worktrees[1]?.id,
+  ).not.toBe(before.worktrees[1]?.id);
 });
 
 it('does not reuse identity when a checkout is replaced between refreshes', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const before = await app.register(f.main);
+  const { project: before } = await app.register(f.main);
   git(f.main, 'worktree', 'remove', f.linked);
   git(f.main, 'worktree', 'add', f.linked, 'feature');
-  expect((await app.refresh()).projects[0]?.worktrees[1]?.id).not.toBe(
-    before.worktrees[1]?.id,
-  );
+  expect(
+    (await app.refresh()).inventory.projects[0]?.worktrees[1]?.id,
+  ).not.toBe(before.worktrees[1]?.id);
 });
 
 it('retains unreachable repositories and missing Git-listed worktrees as unavailable', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const before = await app.register(f.main);
+  const { project: before } = await app.register(f.main);
   await rename(f.linked, join(f.root, 'hidden-feature'));
-  const partial = await app.refresh();
-  expect(app.discoveryIssues()).toEqual(
+  const { inventory: partial, issues: partialIssues } = await app.refresh();
+  expect(partialIssues).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ path: f.linked, error: expect.any(Error) }),
     ]),
@@ -131,14 +133,14 @@ it('retains unreachable repositories and missing Git-listed worktrees as unavail
     available: false,
   });
   await rename(f.main, join(f.root, 'hidden-main'));
-  expect((await app.refresh()).projects[0]).toMatchObject({
+  expect((await app.refresh()).inventory.projects[0]).toMatchObject({
     id: before.id,
     available: false,
   });
   await rename(join(f.root, 'hidden-main'), f.main);
   await rename(join(f.root, 'hidden-feature'), f.linked);
   expect(
-    (await app.refresh()).projects[0]?.worktrees.map((w) => [
+    (await app.refresh()).inventory.projects[0]?.worktrees.map((w) => [
       w.id,
       w.available,
     ]),
@@ -163,11 +165,11 @@ it('rejects non-repositories and bare repositories without persisting a project'
 it('preserves a project after moving its main checkout and registering the new path', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const before = await app.register(f.main);
+  const { project: before } = await app.register(f.main);
   const moved = join(f.root, 'new-main');
   await rename(f.main, moved);
   git(moved, 'worktree', 'repair');
-  const after = await app.register(moved);
+  const { project: after } = await app.register(moved);
   expect(after.id).toBe(before.id);
   expect(after.worktrees.map((w) => w.id)).toEqual(
     before.worktrees.map((w) => w.id),
@@ -177,10 +179,12 @@ it('preserves a project after moving its main checkout and registering the new p
 it('does not inspect a different repository substituted at a linked checkout path', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const before = await app.register(f.main);
+  const { project: before } = await app.register(f.main);
   await rename(f.linked, join(f.root, 'hidden'));
   git(f.root, 'clone', f.main, f.linked);
-  expect((await app.refresh()).projects[0]?.worktrees[1]).toMatchObject({
+  expect(
+    (await app.refresh()).inventory.projects[0]?.worktrees[1],
+  ).toMatchObject({
     id: before.worktrees[1]?.id,
     available: false,
   });
@@ -195,22 +199,26 @@ it('serializes duplicate registrations and handles checkout paths containing new
     app.register(strange),
     app.register(f.main),
   ]);
-  expect(first.id).toBe(second.id);
-  expect(first.worktrees[1]).toMatchObject({ path: strange, available: true });
+  expect(first.project.id).toBe(second.project.id);
+  expect(first.project.worktrees[1]).toMatchObject({
+    path: strange,
+    available: true,
+  });
   expect(app.inventory().projects).toHaveLength(1);
 });
 
 it('marks the old project unavailable when registering a replacement at its former path', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const original = await app.register(f.main);
+  const { project: original } = await app.register(f.main);
   git(f.main, 'worktree', 'remove', f.linked);
   const moved = join(f.root, 'original');
   await rename(f.main, moved);
   git(f.root, 'clone', moved, f.main);
-  const replacement = await app.register(f.main);
+  const { project: replacement, issues: replacementIssues } =
+    await app.register(f.main);
   expect(replacement.id).not.toBe(original.id);
-  expect(app.discoveryIssues()).toContainEqual({
+  expect(replacementIssues).toContainEqual({
     path: f.main,
     error: expect.any(RepositoryIdentityMismatchError),
   });
@@ -238,9 +246,9 @@ it('registration does not inspect unrelated projects', async () => {
     },
   });
   applications.push(app);
-  const original = await app.register(first.main);
+  const { project: original } = await app.register(first.main);
   firstUnavailable = true;
-  const added = await app.register(second.main);
+  const { project: added } = await app.register(second.main);
   expect(app.inventory().projects).toEqual([original, added]);
 });
 
@@ -250,9 +258,9 @@ it('propagates system discovery failures without marking healthy inventory unava
   const app = await openApplication({
     dataDirectory: f.dataDirectory,
     git: (path) => ({
-      listWorktrees: (signal, reportIssue) => {
+      listWorktrees: (signal) => {
         if (failure) return Promise.reject(failure);
-        return new Git(path).listWorktrees(signal, reportIssue);
+        return new Git(path).listWorktrees(signal);
       },
     }),
   });
@@ -306,16 +314,17 @@ it('cancellation prevents a late discovery result from being persisted', async (
 it('retains a registered checkout replaced by a bare repository as unavailable', async () => {
   const f = await fixture();
   const app = await open(f.dataDirectory);
-  const original = await app.register(f.main);
+  const { project: original } = await app.register(f.main);
   git(f.main, 'worktree', 'remove', f.linked);
   const moved = join(f.root, 'original');
   await rename(f.main, moved);
   git(f.root, 'clone', '--bare', moved, f.main);
-  expect((await app.refresh()).projects[0]).toMatchObject({
+  const { inventory, issues } = await app.refresh();
+  expect(inventory.projects[0]).toMatchObject({
     id: original.id,
     available: false,
   });
-  expect(app.discoveryIssues()).toEqual(
+  expect(issues).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
         path: f.main,
@@ -334,4 +343,30 @@ it('does not create persistent state when startup is already cancelled', async (
   await expect(access(f.dataDirectory)).rejects.toMatchObject({
     code: 'ENOENT',
   });
+});
+
+it('returns diagnostics with their operation without changing earlier results', async () => {
+  const f = await fixture();
+  const app = await open(f.dataDirectory);
+  await app.register(f.main);
+  await rename(f.linked, join(f.root, 'hidden'));
+  const first = await app.refresh();
+  expect(first.issues).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ path: f.linked, error: expect.any(Error) }),
+    ]),
+  );
+  await rename(join(f.root, 'hidden'), f.linked);
+  const second = await app.refresh();
+  expect(second.issues).toEqual([]);
+  expect(first.issues).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ path: f.linked, error: expect.any(Error) }),
+    ]),
+  );
+  expect(
+    second.inventory.projects[0]?.worktrees.every(
+      (worktree) => worktree.available,
+    ),
+  ).toBe(true);
 });

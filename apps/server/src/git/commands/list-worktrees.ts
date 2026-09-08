@@ -1,6 +1,7 @@
 import { realpath, stat } from 'node:fs/promises';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
 import type { DiscoveryIssue } from '../dtos/discovery-issue.ts';
+import type { DiscoveryResult } from '../dtos/discovery-result.ts';
 import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
 import { isRepositoryUnavailable } from '../errors/is-repository-unavailable.ts';
 import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
@@ -17,8 +18,8 @@ async function identity(path: string): Promise<string> {
 export async function listWorktrees(
   checkout: string,
   signal?: AbortSignal,
-  reportIssue: (issue: DiscoveryIssue) => void = () => {},
-): Promise<DiscoveredRepository> {
+): Promise<DiscoveryResult> {
+  const issues: DiscoveryIssue[] = [];
   const commonDirectory = await realpath(
     (
       await executeCommand(
@@ -43,7 +44,7 @@ export async function listWorktrees(
       ?.slice(9);
     if (fields.includes('bare')) throw new UnsupportedRepositoryError();
     if (!path) throw new InvalidWorktreeInventoryError('Missing worktree path');
-    let metadataIdentity: string;
+    let metadataIdentity: string | null;
     let available = true;
     try {
       const directory = (
@@ -62,8 +63,8 @@ export async function listWorktrees(
     } catch (error) {
       signal?.throwIfAborted();
       if (!isRepositoryUnavailable(error)) throw error;
-      reportIssue({ path, error });
-      metadataIdentity = '';
+      issues.push({ path, error });
+      metadataIdentity = null;
       available = false;
     }
     worktrees.push({
@@ -78,5 +79,8 @@ export async function listWorktrees(
   if (worktrees.length === 0)
     throw new InvalidWorktreeInventoryError('Repository has no checkout');
   signal?.throwIfAborted();
-  return { commonDirectory, repositoryIdentity, worktrees };
+  return {
+    repository: { commonDirectory, repositoryIdentity, worktrees },
+    issues,
+  };
 }
