@@ -44,6 +44,9 @@
         "noTsIgnore": "error",
         "noFocusedTests": "error",
         "noSkippedTests": "error"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "error"
       }
     }
   },
@@ -94,9 +97,6 @@
             "noDocumentCookie": "off",
             "noArrayIndexKey": "off",
             "noDoubleEquals": "off"
-          },
-          "security": {
-            "noDangerouslySetInnerHtml": "off"
           },
           "correctness": {
             "useExhaustiveDependencies": "off"

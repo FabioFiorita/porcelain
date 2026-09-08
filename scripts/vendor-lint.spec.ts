@@ -24,10 +24,14 @@ function lint(path: string, source: string) {
     const file = join(root, path);
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, source);
-    return spawnSync(resolve('node_modules/.bin/biome'), ['lint', file], {
-      cwd: root,
-      encoding: 'utf8',
-    });
+    return spawnSync(
+      resolve('node_modules/.bin/biome'),
+      ['lint', '--error-on-warnings', file],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -48,4 +52,13 @@ test('still rejects explicit any in vendored components', () => {
   );
   expect(result.status).not.toBe(0);
   expect(result.stderr).toContain('noExplicitAny');
+});
+
+test('rejects raw HTML injection in vendored components', () => {
+  const result = lint(
+    'apps/web/src/components/ui/content.tsx',
+    'export function Content({ html }: { html: string }) { return <div dangerouslySetInnerHTML={{ __html: html }} />; }',
+  );
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain('noDangerouslySetInnerHtml');
 });

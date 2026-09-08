@@ -86,7 +86,7 @@ Use `async`/`await`, explicit errors, and `AbortSignal` where cancellation is re
 ## State and protocol
 
 Zod owns boundary validation; infer types instead of maintaining parallel interfaces for the same schema.
-TanStack Query owns client caches of server data. Zustand owns shared presentation state; React owns
+TanStack Query owns client caches of server data. TanStack Store owns shared presentation state; React owns
 component-local state. Do not copy query data into a second authoritative store.
 Query identities include environment and relevant project/worktree identity.
 

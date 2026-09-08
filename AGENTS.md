@@ -24,7 +24,7 @@ Mechanical source conventions are owned by lint, TypeScript, and `scripts/check-
 see [development checks](docs/development.md). New packages expose explicit public subpaths.
 Return related outcomes together. Limit object/collection mutation to justified local construction and
 lifecycle state; do not introduce abstractions merely to eliminate it.
-Do not duplicate server state in Zustand. Do not invent base classes, generic repositories, or a DI container.
+Do not duplicate server state in TanStack Store. Do not invent base classes, generic repositories, or a DI container.
 Use disposable fixtures and isolated development state. Never run against production `~/.porcelain`,
 real credentials, or real projects as development fixtures. Stop only task-owned processes.
 
@@ -65,6 +65,6 @@ pass or a workflow file is not cloud proof.
 ## Web presentation
 
 Use the shadcn skill and compose the existing components in `apps/web/src/components/ui`.
-Keep the full official set during initial development; prune unused components and their Knip
+Keep the official set except tables and charts during initial development; prune unused components and their Knip
 exceptions after launch. Keep product behavior outside this vendor directory. Use preset tokens
 and built-in variants before custom primitives. See [the web decision](docs/decisions/web-foundation.md).
