@@ -140,10 +140,19 @@ describe('Git actions HTTP', () => {
       payload: { preparationId, requestId },
     });
     expect([200, 202]).toContain(duplicate.statusCode);
-    expect(await outcome(requestId)).toMatchObject({
+    const completed = await outcome(requestId);
+    expect(completed).toMatchObject({
       state: 'succeeded',
       refreshRequired: true,
     });
+    const replay = await server.inject({
+      method: 'POST',
+      url: `${prefix}/commit`,
+      headers,
+      payload: { preparationId, requestId },
+    });
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json()).toEqual(completed);
     expect(await git('rev-list', '--count', 'HEAD')).toBe('2');
     const reuse = await server.inject({
       method: 'POST',
@@ -170,11 +179,20 @@ describe('Git actions HTTP', () => {
       headers,
       payload: { preparationId, requestId },
     });
-    expect(await outcome(requestId)).toMatchObject({
+    const rejected = await outcome(requestId);
+    expect(rejected).toMatchObject({
       state: 'rejected',
       reason: 'STALE_PREPARATION',
       refreshRequired: false,
     });
+    const replay = await server.inject({
+      method: 'POST',
+      url: `${prefix}/commit`,
+      headers,
+      payload: { preparationId, requestId },
+    });
+    expect(replay.statusCode).toBe(409);
+    expect(replay.json()).toEqual(rejected);
     expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
   });
 
@@ -275,10 +293,19 @@ describe('Git actions HTTP', () => {
     ).toBe(202);
     await server.close();
     server = await createServer({ dataDirectory: join(root, 'data'), token });
-    expect(await outcome(requestId)).toMatchObject({
+    const interrupted = await outcome(requestId);
+    expect(interrupted).toMatchObject({
       state: 'indeterminate',
       refreshRequired: true,
     });
+    const replay = await server.inject({
+      method: 'POST',
+      url: `${prefix}/commit`,
+      headers,
+      payload: { preparationId, requestId },
+    });
+    expect(replay.statusCode).toBe(503);
+    expect(replay.json()).toEqual(interrupted);
     expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
   });
 });

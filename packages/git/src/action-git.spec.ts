@@ -202,6 +202,32 @@ describe('ActionGit', () => {
       },
     );
 
+    it('pop removes a selected middle stash while preserving newer and older entries', async () => {
+      await writeFile(join(checkout, 'file'), 'older\n');
+      await git('stash', 'push', '-m', 'older');
+      const olderOid = await git('rev-parse', 'refs/stash');
+      await writeFile(join(checkout, 'file'), 'selected\n');
+      await git('stash', 'push', '-m', 'selected');
+      const stashOid = await git('rev-parse', 'refs/stash');
+      await writeFile(join(checkout, 'file'), 'newer\n');
+      await git('stash', 'push', '-m', 'newer');
+      const newerOid = await git('rev-parse', 'refs/stash');
+      expect(
+        await act({ action: 'stash-pop', stashOid, restoreIndex: false }),
+      ).toMatchObject({
+        state: 'succeeded',
+        result: { stashOid, stashRetained: false },
+        refreshRequired: true,
+      });
+      expect(await readFile(join(checkout, 'file'), 'utf8')).toBe('selected\n');
+      expect((await git('stash', 'list', '--format=%H')).split('\n')).toEqual([
+        newerOid,
+        olderOid,
+      ]);
+      expect(await git('show', `${newerOid}:file`)).toBe('newer');
+      expect(await git('show', `${olderOid}:file`)).toBe('older');
+    });
+
     it('pop retains the selected stash on application conflicts', async () => {
       await writeFile(join(checkout, 'file'), 'stash change\n');
       await git('stash', 'push');
