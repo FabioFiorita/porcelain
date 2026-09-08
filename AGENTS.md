@@ -61,3 +61,10 @@ Skip this step for trivial documentation/formatting edits. The reviewer may repo
 Preserve unrelated state. Commit coherent completed work. Do not push, open a PR, publish, or release
 without explicit authorization. CI completion is only established by observing its actual run; a local
 pass or a workflow file is not cloud proof.
+
+## Web presentation
+
+Use the shadcn skill and compose the existing components in `apps/web/src/components/ui`.
+Keep the full official set during initial development; prune unused components and their Knip
+exceptions after launch. Keep product behavior outside this vendor directory. Use preset tokens
+and built-in variants before custom primitives. See [the web decision](docs/decisions/web-foundation.md).

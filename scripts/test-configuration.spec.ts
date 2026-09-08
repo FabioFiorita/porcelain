@@ -49,3 +49,10 @@ it('rejects a newly introduced renderer spec without an owning test task', () =>
     'Expected one test scope',
   );
 });
+
+it('recognizes the built web smoke suite without admitting unconfigured renderer specs', () => {
+  expect(() => assertTestOwnership(['apps/web/e2e/app.spec.ts'])).not.toThrow();
+  expect(() => assertTestOwnership(['apps/web/src/app.spec.tsx'])).toThrow(
+    'Expected one test scope',
+  );
+});

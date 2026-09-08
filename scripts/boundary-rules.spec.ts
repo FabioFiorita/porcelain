@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { cruise } from 'dependency-cruiser';
 import { expect, test } from 'vitest';
 import { boundaryRules } from './boundary-rules.ts';
@@ -29,6 +29,7 @@ async function violations(
         validate: true,
         outputType: 'json',
       },
+      { alias: { '@/*': `${resolve('apps/web/src')}/*` } },
     );
     if (typeof result.output !== 'string')
       throw new Error('Expected JSON report');
@@ -302,4 +303,26 @@ test('keeps models and adapter ports independent of the extracted Git implementa
         : 'adapter-interfaces-stay-independent',
     );
   }
+});
+
+test('resolves web aliases while enforcing application boundaries', async () => {
+  const configuration = JSON.stringify({
+    compilerOptions: { paths: { '@/*': ['./src/*'] } },
+  });
+  expect(
+    await violations({
+      'apps/web/tsconfig.json': configuration,
+      'apps/web/src/app.ts':
+        "import { value } from '@/value.ts'; export const result = value;",
+      'apps/web/src/value.ts': 'export const value = 1;',
+    }),
+  ).toEqual([]);
+  expect(
+    await violations({
+      'apps/web/tsconfig.json': configuration,
+      'apps/web/src/app.ts':
+        "import { value } from '@/../../server/src/value.ts'; export const result = value;",
+      'apps/server/src/value.ts': 'export const value = 1;',
+    }),
+  ).toContain('apps-web-dependencies');
 });

@@ -14,9 +14,11 @@
     "check:boundaries": "node scripts/check-boundaries.ts",
     "test": "vitest run",
     "test:coverage": "node scripts/run-turbo.ts test:coverage test:tooling && node scripts/merge-coverage.ts",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage && pnpm test:web:smoke",
     "check:unused": "knip",
-    "test:tooling": "node scripts/run-scoped-tests.ts tooling"
+    "test:tooling": "node scripts/run-scoped-tests.ts tooling",
+    "dev:web": "pnpm --filter @porcelain/web dev",
+    "test:web:smoke": "pnpm --filter @porcelain/web test:smoke"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

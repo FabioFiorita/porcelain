@@ -8,3 +8,6 @@ coverage/
 .env.*
 !.env.example
 .turbo/
+
+playwright-report/
+test-results/

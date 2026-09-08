@@ -55,3 +55,19 @@ test.each(['ts', 'tsx', 'js', 'jsx', 'mts', 'cts', 'mjs', 'cjs'])(
     ).toHaveLength(1);
   },
 );
+
+// Only upstream shadcn primitives may retain their original declarations.
+test('keeps the vendored declaration exception out of application components', () => {
+  expect(
+    mutableDeclarations(
+      'apps/web/src/components/ui/chart.tsx',
+      'let value = 1;',
+    ),
+  ).toEqual([]);
+  expect(
+    mutableDeclarations('apps/web/src/components/chart.tsx', 'let value = 1;'),
+  ).toHaveLength(1);
+  expect(
+    mutableDeclarations('apps/web/src/views/chart.tsx', 'var value = 1;'),
+  ).toHaveLength(1);
+});

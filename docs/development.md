@@ -32,9 +32,9 @@ There are no commit hooks; local checks are explicit, while CI owns comprehensiv
 
 ## CI gate
 
-`pnpm verify` runs full format, lint, types, dependency boundaries, Knip, and specs with coverage.
+`pnpm verify` runs full format, lint, types, dependency boundaries, Knip, and specs with coverage, followed by the web browser smoke.
 It is available locally for diagnosing gates and validating tooling changes; routine feature work
-uses the focused loop. CI splits static checks and coverage tests into independent jobs and cancels
+uses the focused loop. CI splits static checks, coverage tests and the web browser smoke into independent jobs and cancels
 superseded PR runs. Pull requests and pushes to `main` or `codex/porcelain-rebuild` trigger checks.
 Failures upload test/coverage evidence where produced. GitHub branch protection must separately
 require these jobs before merge; writing YAML does not configure repository protection.
@@ -43,7 +43,7 @@ require these jobs before merge; writing YAML does not configure repository prot
 
 The convention gate rejects `let` and `var` declarations in `apps/*/src` and
 `packages/*/src`, including JavaScript/TypeScript module and JSX variants. Colocated specs,
-ambient declaration files, and tooling are excluded. It parses syntax with the pinned stable
+ambient declaration files, tooling and vendored shadcn UI files are excluded. It parses syntax with the pinned stable
 TypeScript parser alias; it does not scan comments or string contents. Production exceptions
 require a reviewed gate change, not an inline bypass. This enforces declaration style, not deep
 immutability: object fields and collection mutation still require review.
@@ -69,7 +69,8 @@ CI pilot for reconciliation: measure its runtime and inspect surviving mutants b
 threshold. Neither mutation scores nor coverage replace a fresh architectural and behavioral review.
 
 Repeatable integration specs currently cover real Git/SQLite, lifecycle cancellation, and loopback HTTP.
-Browser, Electron, mobile runtime, packaging, and remote connectivity need their own smoke checks when
+The built web shell has a Chromium smoke at desktop and narrow widths.
+Electron, mobile runtime, packaging, and remote connectivity need their own smoke checks when
 introduced. The CI matrix runs server tests on Linux and macOS with the pinned Node version; writing
 that matrix is not proof that either cloud run has passed.
 
@@ -221,3 +222,18 @@ Use an outer `describe` to name the subject in larger specs. Group related cases
 under behavior names when this makes the report easier to scan, for example
 history pagination or stash creation. Keep small specs shallow. Grouping should
 not introduce shared mutable fixtures or replace independent, meaningful tests.
+
+
+## Web development
+
+Run `pnpm dev:web` for Vite on <http://127.0.0.1:5173> with React refresh.
+Run `pnpm --filter @porcelain/web build` to typecheck and produce static assets.
+The initial shell does not connect to an environment yet.
+
+Install the smoke browser once with
+`pnpm --filter @porcelain/web exec playwright install --with-deps chromium`,
+then run `pnpm test:web:smoke`. The test owns a production preview on port 4173
+and fails if that port is occupied. It builds its own assets and runs uncached.
+Browser specs live under `apps/web/e2e`; Playwright owns them, while
+`scripts/test-configuration.ts` enforces ownership alongside Vitest scopes.
+See the [web foundation decision](decisions/web-foundation.md) for the vendor policy.

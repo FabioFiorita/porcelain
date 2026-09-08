@@ -4,7 +4,8 @@ export function mutableDeclarations(file: string, source: string): string[] {
   if (
     !/^(apps|packages)\/[^/]+\/src\/.*\.[cm]?[jt]sx?$/.test(file) ||
     /\.spec\.[cm]?[jt]sx?$/.test(file) ||
-    /\.d\.[cm]?ts$/.test(file)
+    /\.d\.[cm]?ts$/.test(file) ||
+    /^apps\/web\/src\/components\/ui\/[^/]+\.tsx$/.test(file)
   )
     return [];
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);

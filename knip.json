@@ -12,6 +12,19 @@
     },
     "packages/git": {
       "project": ["src/**/*.ts"]
+    },
+    "apps/web": {
+      "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts"],
+      "ignore": ["src/components/ui/**", "src/hooks/use-mobile.ts"],
+      "ignoreDependencies": [
+        "@shadcn/react",
+        "cmdk",
+        "embla-carousel-react",
+        "input-otp",
+        "react-day-picker",
+        "react-resizable-panels",
+        "recharts"
+      ]
     }
   },
   "ignoreBinaries": ["mkfifo", "openssl"]

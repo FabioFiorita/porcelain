@@ -75,14 +75,20 @@ export function testConfiguration(scope?: string) {
   });
 }
 
+// Built-app browser smoke tests run through Playwright, outside Vitest coverage tasks.
+const browserSmokeTests = ['apps/web/e2e/**/*.spec.ts'];
+
 export function assertTestOwnership(paths: string[]): void {
   for (const path of paths) {
     const owners = Object.values(testScopes).filter((scope) =>
       scope.tests.some((pattern) => matchesGlob(path, pattern)),
     );
-    if (owners.length !== 1)
+    const browserOwner = browserSmokeTests.some((pattern) =>
+      matchesGlob(path, pattern),
+    );
+    if (owners.length + Number(browserOwner) !== 1)
       throw new Error(
-        `Expected one test scope for ${path}; found ${owners.length}`,
+        `Expected one test scope for ${path}; found ${owners.length + Number(browserOwner)}`,
       );
   }
 }

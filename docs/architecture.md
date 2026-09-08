@@ -79,7 +79,8 @@ with lint in CI. Specs are colocated and named `.spec.ts` or `.spec.tsx`.
 
 Web/mobile features use product vocabulary with platform-specific components and navigation; the
 server's technical directories are not a required UI layout. Shared behavior does not imply a universal
-UI framework. Styling and UI primitive libraries are undecided.
+UI framework. The [web foundation decision](decisions/web-foundation.md) selects Vite, Tailwind and
+shadcn for the browser/Electron renderer. Native UI primitives remain undecided.
 Use `async`/`await`, explicit errors, and `AbortSignal` where cancellation is required.
 
 ## State and protocol
