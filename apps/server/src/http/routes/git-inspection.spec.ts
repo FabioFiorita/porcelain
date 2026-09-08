@@ -12,11 +12,11 @@ import { join } from 'node:path';
 import { gitDiffResponseSchema } from '@porcelain/contracts/git-diff';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
+import { GitInspectionTimeoutError } from '@porcelain/git/errors/git-inspection-timeout-error';
+import { InspectionLimitError } from '@porcelain/git/errors/inspection-limit-error';
+import { UnsupportedGitFiltersError } from '@porcelain/git/errors/unsupported-git-filters-error';
+import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-path-encoding-error';
 import { expect, it } from 'vitest';
-import { GitInspectionTimeoutError } from '../../git/errors/git-inspection-timeout-error.ts';
-import { InspectionLimitError } from '../../git/errors/inspection-limit-error.ts';
-import { UnsupportedGitFiltersError } from '../../git/errors/unsupported-git-filters-error.ts';
-import { UnsupportedPathEncodingError } from '../../git/errors/unsupported-path-encoding-error.ts';
 import { createServer } from '../server.ts';
 
 const token = 'fixture-token-with-at-least-32-characters';

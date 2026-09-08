@@ -1,5 +1,6 @@
-import { GitActionRejectedError } from '../git/errors/git-action-rejected-error.ts';
-import type { GitActionIntent, GitActionScope } from '../models/git-action.ts';
+import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import type { GitActionScope } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 
 export class AcceptGitAction {

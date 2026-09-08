@@ -1,9 +1,9 @@
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionPreparations } from '../db/schema/git-action-preparations.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
-import { GitActionRejectedError } from '../git/errors/git-action-rejected-error.ts';
 import type {
   GitActionPreparation,
   GitActionReceipt,

@@ -1,6 +1,6 @@
+import type { DiscoveredRepository } from '@porcelain/git/dtos/discovered-repository';
 import fc from 'fast-check';
 import { expect, it } from 'vitest';
-import type { DiscoveredRepository } from '../../git/dtos/discovered-repository.ts';
 import { reconcileProject } from './reconcile-project.ts';
 
 const identities = fc.uniqueArray(fc.uuid(), { minLength: 1, maxLength: 20 });

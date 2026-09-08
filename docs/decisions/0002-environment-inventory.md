@@ -51,5 +51,4 @@ Authenticated inventory HTTP is defined in [the HTTP decision](0004-inventory-ht
 
 The server composition accepts an isolated data directory and an optional Git adapter. The health
 and inventory response schemas are shared through explicit contracts subpaths. Internal filesystem
-identity evidence remains server-private. Recursive pnpm type checking covers both packages; revisit
-Turborepo when build ordering or reusable task outputs justify it.
+identity evidence remains server-private. Workspace type checking covers package consumers; the [Git package decision](0006-git-package-and-task-cache.md) now defines cached task ordering.

@@ -1,4 +1,4 @@
-import { RepositoryIdentityMismatchError } from '../git/errors/repository-identity-mismatch-error.ts';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repository-identity-mismatch-error';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 

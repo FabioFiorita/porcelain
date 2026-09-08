@@ -9,7 +9,10 @@
     },
     "packages/contracts": {
       "project": ["src/**/*.ts"]
+    },
+    "packages/git": {
+      "project": ["src/**/*.ts"]
     }
   },
-  "ignoreBinaries": ["mkfifo"]
+  "ignoreBinaries": ["mkfifo", "openssl"]
 }

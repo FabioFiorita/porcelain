@@ -1,6 +1,6 @@
+import { isRepositoryUnavailable } from '@porcelain/git/errors/is-repository-unavailable';
+import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
-import { isRepositoryUnavailable } from '../git/errors/is-repository-unavailable.ts';
-import type { GitFactory } from '../git/interfaces/git-factory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 
 export async function resolveReadableWorktree(

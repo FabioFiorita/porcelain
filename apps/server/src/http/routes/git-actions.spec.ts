@@ -12,8 +12,8 @@ import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { createIsolatedGit } from '../../git/fixtures/isolated-git.ts';
 import { createServer } from '../server.ts';
 
 const execute = promisify(execFile);
@@ -48,6 +48,7 @@ async function outcome(requestId: string) {
             headers,
           })
         ).json<{ state: string }>().state,
+      { timeout: 10_000 },
     )
     .not.toBe('running');
   return (

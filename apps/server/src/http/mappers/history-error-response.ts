@@ -1,8 +1,8 @@
-import { HistorySnapshotUnavailableError } from '../../git/errors/history-snapshot-unavailable-error.ts';
-import { HistoryWorktreeUnavailableError } from '../../git/errors/history-worktree-unavailable-error.ts';
-import { InvalidHistoryRequestError } from '../../git/errors/invalid-history-request-error.ts';
-import { ReadLimitExceededError } from '../../git/errors/read-limit-exceeded-error.ts';
-import { UnsupportedHistoryDataError } from '../../git/errors/unsupported-history-data-error.ts';
+import { HistorySnapshotUnavailableError } from '@porcelain/git/errors/history-snapshot-unavailable-error';
+import { HistoryWorktreeUnavailableError } from '@porcelain/git/errors/history-worktree-unavailable-error';
+import { InvalidHistoryRequestError } from '@porcelain/git/errors/invalid-history-request-error';
+import { ReadLimitExceededError } from '@porcelain/git/errors/read-limit-exceeded-error';
+import { UnsupportedHistoryDataError } from '@porcelain/git/errors/unsupported-history-data-error';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 
 export function toHistoryErrorResponse(error: unknown) {

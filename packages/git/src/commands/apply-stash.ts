@@ -1,7 +1,4 @@
-import type {
-  GitActionOutcome,
-  GitActionPreparation,
-} from '../../models/git-action.ts';
+import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from './action-outcome.ts';
@@ -10,7 +7,7 @@ import { removeAppliedStash } from './remove-applied-stash.ts';
 
 export async function applyStash(
   process: GitProcessRunner,
-  preparation: GitActionPreparation,
+  preparation: GitActionCommand,
   snapshot: GitActionSnapshot,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {

@@ -250,3 +250,56 @@ test('allows filesystem interfaces but rejects filesystem implementations in use
     }),
   ).toContain('adapter-interfaces-stay-independent');
 });
+
+test('rejects Git package dependencies on server identity or persistence', async () => {
+  expect(
+    await violations({
+      'packages/git/src/git.ts':
+        "import { value } from '../../../apps/server/src/models/value.ts'; export const result = value;",
+      'apps/server/src/models/value.ts': 'export const value = 1;',
+    }),
+  ).toContain('packages-git-dependencies');
+});
+
+test('rejects Git implementation imports from server use cases', async () => {
+  expect(
+    await violations(
+      {
+        'apps/server/src/use-cases/read.ts':
+          "import { value } from '@porcelain/git/git'; export const result = value;",
+        'packages/git/package.json': JSON.stringify({
+          name: '@porcelain/git',
+          exports: { './git': './src/git.ts' },
+        }),
+        'packages/git/src/git.ts': 'export const value = 1;',
+      },
+      { 'node_modules/@porcelain/git': 'packages/git' },
+    ),
+  ).toContain('use-cases-depend-on-ports');
+});
+
+test('keeps models and adapter ports independent of the extracted Git implementation', async () => {
+  for (const source of [
+    'apps/server/src/models/model.ts',
+    'apps/server/src/repositories/interfaces/store.ts',
+    'packages/git/src/interfaces/reader.ts',
+  ]) {
+    const found = await violations(
+      {
+        [source]:
+          "import { value } from '@porcelain/git/git'; export const result = value;",
+        'packages/git/package.json': JSON.stringify({
+          name: '@porcelain/git',
+          exports: { './git': './src/git.ts' },
+        }),
+        'packages/git/src/git.ts': 'export const value = 1;',
+      },
+      { 'node_modules/@porcelain/git': 'packages/git' },
+    );
+    expect(found).toContain(
+      source.includes('/models/')
+        ? 'server-models-are-independent'
+        : 'adapter-interfaces-stay-independent',
+    );
+  }
+});

@@ -1,7 +1,7 @@
-import { GitActionRejectedError } from '../git/errors/git-action-rejected-error.ts';
-import type { GitActionWriterFactory } from '../git/interfaces/git-action-writer.ts';
+import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
 import type {
-  GitActionIntent,
   GitActionPreparation,
   GitActionScope,
 } from '../models/git-action.ts';

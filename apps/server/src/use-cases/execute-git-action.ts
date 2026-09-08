@@ -1,9 +1,7 @@
-import { GitActionRejectedError } from '../git/errors/git-action-rejected-error.ts';
-import type { GitActionWriterFactory } from '../git/interfaces/git-action-writer.ts';
-import type {
-  GitActionOutcome,
-  GitActionReceipt,
-} from '../models/git-action.ts';
+import type { GitActionOutcome } from '@porcelain/git/dtos/git-action';
+import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
+import type { GitActionReceipt } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveActionWorktree } from './resolve-action-worktree.ts';
@@ -75,6 +73,14 @@ export class ExecuteGitAction {
     signal.throwIfAborted();
     this.store.finish({ ...receipt, refreshRequired: true });
     state.launched = true;
-    return git.execute(preparation, snapshot, signal);
+    return git.execute(
+      {
+        id: preparation.id,
+        intent: preparation.intent,
+        preview: preparation.preview,
+      },
+      snapshot,
+      signal,
+    );
   }
 }

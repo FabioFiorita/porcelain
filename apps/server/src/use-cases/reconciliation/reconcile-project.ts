@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { basename, dirname } from 'node:path';
-import type { DiscoveredRepository } from '../../git/dtos/discovered-repository.ts';
+import type { DiscoveredRepository } from '@porcelain/git/dtos/discovered-repository';
 import type { Project } from '../../models/project.ts';
 
 export function reconcileProject(

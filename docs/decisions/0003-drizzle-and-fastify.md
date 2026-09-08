@@ -36,5 +36,4 @@ and disposable integration tests bind loopback ports. Authenticated inventory en
 [HTTP decision](0004-inventory-http.md). There is no deployment configuration, WebSocket, or client yet. Health success establishes initialized application availability, not
 repository reachability or access authorization.
 
-There are now two packages with type-check tasks and no build dependency graph. Recursive pnpm tasks
-suffice; Turborepo remains deferred until build ordering or reusable task outputs justify it.
+pnpm owns workspace dependency management; [the Git package decision](0006-git-package-and-task-cache.md) adds Turborepo task caching.

@@ -1,7 +1,3 @@
-import type {
-  GitActionIntent,
-  GitActionPreparation,
-} from '../models/git-action.ts';
 import { applyStash } from './commands/apply-stash.ts';
 import { commitIndex } from './commands/commit-index.ts';
 import { createStash } from './commands/create-stash.ts';
@@ -9,6 +5,7 @@ import { fetchBranch } from './commands/fetch-branch.ts';
 import { inspectActionState } from './commands/inspect-action-state.ts';
 import { pushBranch } from './commands/push-branch.ts';
 import { verifyCheckout } from './commands/verify-checkout.ts';
+import type { GitActionCommand, GitActionIntent } from './dtos/git-action.ts';
 import type { GitActionSnapshot } from './dtos/git-action-snapshot.ts';
 import { GitActionProcess } from './git-action-process.ts';
 import type { GitActionWriter } from './interfaces/git-action-writer.ts';
@@ -37,7 +34,7 @@ export class ActionGit implements GitActionWriter {
     return inspectActionState(this.checkout, this.process, intent, signal);
   }
   execute(
-    preparation: GitActionPreparation,
+    preparation: GitActionCommand,
     snapshot: GitActionSnapshot,
     signal: AbortSignal,
   ) {

@@ -10,12 +10,12 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { GitCommandError } from '@porcelain/git/errors/git-command-error';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repository-identity-mismatch-error';
+import { UnsupportedRepositoryError } from '@porcelain/git/errors/unsupported-repository-error';
+import { Git } from '@porcelain/git/git';
 import { afterEach, expect, it } from 'vitest';
 import { openApplication } from './app.ts';
-import { GitCommandError } from './git/errors/git-command-error.ts';
-import { RepositoryIdentityMismatchError } from './git/errors/repository-identity-mismatch-error.ts';
-import { UnsupportedRepositoryError } from './git/errors/unsupported-repository-error.ts';
-import { Git } from './git/git.ts';
 import { ApplicationClosedError } from './lifecycle/errors/application-closed-error.ts';
 
 const roots: string[] = [];

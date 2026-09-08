@@ -1,0 +1,45 @@
+{
+  "name": "@porcelain/git",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./action-git": "./src/action-git.ts",
+    "./commit-cursor": "./src/commit-cursor.ts",
+    "./commit-git": "./src/commit-git.ts",
+    "./dtos/commit-history": "./src/dtos/commit-history.ts",
+    "./dtos/discovered-repository": "./src/dtos/discovered-repository.ts",
+    "./dtos/discovery-issue": "./src/dtos/discovery-issue.ts",
+    "./dtos/discovery-result": "./src/dtos/discovery-result.ts",
+    "./dtos/git-action": "./src/dtos/git-action.ts",
+    "./dtos/git-diff": "./src/dtos/git-diff.ts",
+    "./dtos/git-status": "./src/dtos/git-status.ts",
+    "./errors/git-action-rejected-error": "./src/errors/git-action-rejected-error.ts",
+    "./errors/git-command-error": "./src/errors/git-command-error.ts",
+    "./errors/git-inspection-timeout-error": "./src/errors/git-inspection-timeout-error.ts",
+    "./errors/history-snapshot-unavailable-error": "./src/errors/history-snapshot-unavailable-error.ts",
+    "./errors/history-worktree-unavailable-error": "./src/errors/history-worktree-unavailable-error.ts",
+    "./errors/inspection-limit-error": "./src/errors/inspection-limit-error.ts",
+    "./errors/invalid-history-request-error": "./src/errors/invalid-history-request-error.ts",
+    "./errors/is-repository-unavailable": "./src/errors/is-repository-unavailable.ts",
+    "./errors/read-limit-exceeded-error": "./src/errors/read-limit-exceeded-error.ts",
+    "./errors/repository-identity-mismatch-error": "./src/errors/repository-identity-mismatch-error.ts",
+    "./errors/unsupported-git-filters-error": "./src/errors/unsupported-git-filters-error.ts",
+    "./errors/unsupported-history-data-error": "./src/errors/unsupported-history-data-error.ts",
+    "./errors/unsupported-path-encoding-error": "./src/errors/unsupported-path-encoding-error.ts",
+    "./errors/unsupported-repository-error": "./src/errors/unsupported-repository-error.ts",
+    "./fixtures/isolated-git": "./src/fixtures/isolated-git.ts",
+    "./git": "./src/git.ts",
+    "./inspection-git": "./src/inspection-git.ts",
+    "./interfaces/commit-reader": "./src/interfaces/commit-reader.ts",
+    "./interfaces/git-action-writer": "./src/interfaces/git-action-writer.ts",
+    "./interfaces/git-factory": "./src/interfaces/git-factory.ts",
+    "./interfaces/inspection-factory": "./src/interfaces/inspection-factory.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "node ../../scripts/run-scoped-tests.ts git"
+  },
+  "dependencies": {
+    "zod": "4.5.4"
+  }
+}

@@ -3,14 +3,15 @@ import type {
   CommitChangesRequest,
   CommitPage,
   CommitPageRequest,
-} from './git/dtos/commit-history.ts';
-import type { DiscoveryIssue } from './git/dtos/discovery-issue.ts';
-import type { GitDiffResult } from './git/dtos/git-diff.ts';
+} from '@porcelain/git/dtos/commit-history';
+import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
+import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
+import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
 import type {
   GitChangeSelection,
   GitOrdinaryChange,
   GitStatusObservation,
-} from './git/dtos/git-status.ts';
+} from '@porcelain/git/dtos/git-status';
 import type {
   Artifact,
   ArtifactMetadata,
@@ -23,7 +24,6 @@ import type {
   FilePreferenceChange,
 } from './models/file-preference.ts';
 import type {
-  GitActionIntent,
   GitActionPreparation,
   GitActionReceipt,
   GitActionScope,

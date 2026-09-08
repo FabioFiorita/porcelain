@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { GitActionPreparation } from '../../models/git-action.ts';
+import type { GitActionCommand } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 import type { GitProcessResult } from '../dtos/git-process-result.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
@@ -25,12 +25,8 @@ const snapshot: GitActionSnapshot = {
     trackingOid: 'b'.repeat(40),
   },
 };
-const preparation: GitActionPreparation = {
+const preparation: GitActionCommand = {
   id: 'preparation',
-  projectId: 'project',
-  worktreeId: 'worktree',
-  expiresAt: Date.now() + 300_000,
-  fingerprint: 'fingerprint',
   preview: snapshot.preview,
   intent: {
     action: 'fetch',

@@ -1,5 +1,5 @@
-import type { CommitPageRequest } from '../git/dtos/commit-history.ts';
-import type { CommitReaderFactory } from '../git/interfaces/commit-reader.ts';
+import type { CommitPageRequest } from '@porcelain/git/dtos/commit-history';
+import type { CommitReaderFactory } from '@porcelain/git/interfaces/commit-reader';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveHistoryCheckout } from './resolve-history-checkout.ts';
 
