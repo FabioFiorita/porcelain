@@ -1,8 +1,11 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
+import { toHistoryErrorResponse } from './history-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
+  const history = toHistoryErrorResponse(error);
+  if (history) return history;
   if (error instanceof UnauthorizedError) {
     return {
       statusCode: 401,
