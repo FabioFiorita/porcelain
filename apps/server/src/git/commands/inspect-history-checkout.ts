@@ -41,11 +41,7 @@ async function inspectCheckout(
       signal,
     )
   ).slice(0, -1);
-  const shallow = await readFile(shallowPath).catch((error: unknown) => {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return Buffer.alloc(0);
-    throw error;
-  });
+  const shallow = await readShallowBoundary(shallowPath);
   const version = await executeHistoryCommand(
     checkout.path,
     ['--version'],
@@ -67,5 +63,15 @@ export async function inspectHistoryCheckout(
     )
       throw new HistoryWorktreeUnavailableError(cause);
     throw cause;
+  }
+}
+
+async function readShallowBoundary(path: string) {
+  try {
+    return await readFile(path);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return Buffer.alloc(0);
+    throw error;
   }
 }

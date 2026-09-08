@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./git-status": "./src/git-status.ts",
+    "./git-diff": "./src/git-diff.ts",
     "./health": "./src/health.ts",
     "./inventory": "./src/inventory.ts",
     "./api-error": "./src/api-error.ts",
+    "./files": "./src/files.ts",
     "./commit-history": "./src/commit-history.ts",
     "./commit-changes": "./src/commit-changes.ts"
   },

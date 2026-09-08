@@ -8,18 +8,18 @@ export async function readHead(
   checkout: string,
   signal?: AbortSignal,
 ): Promise<HeadSnapshot> {
-  const symbolic = await executeHistoryCommand(
+  const symbolic = await readOptionalRef(
     checkout,
     ['symbolic-ref', '-q', 'HEAD'],
     signal,
-  ).catch(absentRef);
+  );
   const ref = symbolic?.trimEnd();
   if (ref) {
-    const exists = await executeHistoryCommand(
+    const exists = await readOptionalRef(
       checkout,
       ['show-ref', '--verify', '--quiet', ref],
       signal,
-    ).catch(absentRef);
+    );
     if (exists === null) return { tipOid: null, head: { kind: 'unborn', ref } };
     const oid = (
       await executeHistoryCommand(
@@ -97,4 +97,16 @@ function absentRef(error: unknown): null {
   )
     return null;
   throw error;
+}
+
+async function readOptionalRef(
+  checkout: string,
+  args: string[],
+  signal?: AbortSignal,
+) {
+  try {
+    return await executeHistoryCommand(checkout, args, signal);
+  } catch (error) {
+    return absentRef(error);
+  }
 }

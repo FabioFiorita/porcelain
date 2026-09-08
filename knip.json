@@ -5,11 +5,11 @@
       "project": ["scripts/**/*.ts"]
     },
     "apps/server": {
-      "entry": ["src/http/server.ts"],
       "project": ["src/**/*.ts"]
     },
     "packages/contracts": {
       "project": ["src/**/*.ts"]
     }
-  }
+  },
+  "ignoreBinaries": ["mkfifo"]
 }
