@@ -1,10 +1,20 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { FilePreferenceLimitError } from '../../repositories/errors/file-preference-limit-error.ts';
 import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
 import { UnknownWorktreeError } from '../../use-cases/errors/unknown-worktree-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof FilePreferenceLimitError) {
+    return {
+      statusCode: 409,
+      body: {
+        code: 'FILE_PREFERENCE_LIMIT_REACHED',
+        message: 'File preference limit reached',
+      },
+    };
+  }
   if (error instanceof UnknownWorktreeError) {
     return {
       statusCode: 404,

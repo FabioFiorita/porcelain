@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
+import { openDatabase } from '../../db/connection.ts';
+import { FilePreferenceRepository } from '../../repositories/file-preference-repository.ts';
 import { createServer } from '../server.ts';
 
 const token = 'fixture-token-with-at-least-32-characters';
@@ -218,6 +220,83 @@ it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identi
     });
   } finally {
     await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('returns a safe capacity conflict and permits clearing then adding through HTTP', async () => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), 'porcelain-preference-capacity-')),
+  );
+  const dataDirectory = join(root, 'state');
+  const path = join(root, 'project');
+  await mkdir(path);
+  execFileSync('git', ['init', '-b', 'main', path]);
+  const initial = await createServer({ dataDirectory, token });
+  try {
+    const registered = await initial.inject({
+      method: 'POST',
+      url: '/projects',
+      headers,
+      payload: { path },
+    });
+    const worktreeId = projectResponseSchema.parse(registered.json())
+      .worktrees[0]?.id;
+    if (!worktreeId) throw new Error('Missing fixture worktree');
+    await initial.close();
+    const database = openDatabase(dataDirectory);
+    try {
+      const store = new FilePreferenceRepository(database.db);
+      for (const index of Array.from({ length: 2000 }, (_, index) => index)) {
+        store.set(worktreeId, {
+          path: `file-${index}`,
+          flag: 'pinned',
+          value: true,
+        });
+      }
+    } finally {
+      database.close();
+    }
+    const server = await createServer({ dataDirectory, token });
+    try {
+      const url = `/worktrees/${worktreeId}/file-preferences`;
+      const overflow = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { path: 'overflow', flag: 'pinned', value: true },
+      });
+      expect(overflow.statusCode).toBe(409);
+      expect(overflow.json()).toEqual({
+        code: 'FILE_PREFERENCE_LIMIT_REACHED',
+        message: 'File preference limit reached',
+      });
+      const cleared = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { path: 'file-0', flag: 'pinned', value: false },
+      });
+      expect(cleared.statusCode).toBe(200);
+      expect(cleared.json().preferences).toHaveLength(1999);
+      const added = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { path: 'overflow', flag: 'pinned', value: true },
+      });
+      expect(added.statusCode).toBe(200);
+      expect(added.json().preferences).toHaveLength(2000);
+      expect(added.json().preferences).toContainEqual({
+        path: 'overflow',
+        pinned: true,
+        hidden: false,
+      });
+    } finally {
+      await server.close();
+    }
+  } finally {
+    await initial.close();
     await rm(root, { recursive: true, force: true });
   }
 });

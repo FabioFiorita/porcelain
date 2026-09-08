@@ -370,3 +370,28 @@ it('returns diagnostics with their operation without changing earlier results', 
     ),
   ).toBe(true);
 });
+
+it('snapshots preference intent before queued execution', async () => {
+  const { main, dataDirectory } = await fixture();
+  const app = await open(dataDirectory);
+  const { project } = await app.register(main);
+  const worktreeId = project.worktrees[0]?.id;
+  if (!worktreeId) throw new Error('Missing fixture worktree');
+  const refreshing = app.refresh();
+  const change = {
+    path: 'original.ts',
+    flag: 'pinned' as 'pinned' | 'hidden',
+    value: true,
+  };
+  const pending = app.setFilePreference(worktreeId, change);
+  change.path = 'mutated.ts';
+  change.flag = 'hidden';
+  change.value = false;
+  await refreshing;
+  expect(await pending).toEqual([
+    { path: 'original.ts', pinned: true, hidden: false },
+  ]);
+  expect(await app.listFilePreferences(worktreeId)).toEqual([
+    { path: 'original.ts', pinned: true, hidden: false },
+  ]);
+});

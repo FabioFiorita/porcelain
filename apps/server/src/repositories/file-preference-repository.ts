@@ -1,7 +1,8 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, count, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { filePreferences } from '../db/schema/file-preferences.ts';
 import type { FilePreferenceChange } from '../models/file-preference.ts';
+import { FilePreferenceLimitError } from './errors/file-preference-limit-error.ts';
 import type { FilePreferenceStore } from './interfaces/file-preference-store.ts';
 
 export class FilePreferenceRepository implements FilePreferenceStore {
@@ -22,30 +23,50 @@ export class FilePreferenceRepository implements FilePreferenceStore {
       .all();
   }
   set(worktreeId: string, change: FilePreferenceChange): void {
-    this.db.transaction((tx) => {
-      tx.insert(filePreferences)
-        .values({
-          worktreeId,
-          path: change.path,
-          pinned: false,
-          hidden: false,
-          [change.flag]: change.value,
-        })
-        .onConflictDoUpdate({
-          target: [filePreferences.worktreeId, filePreferences.path],
-          set: { [change.flag]: change.value },
-        })
-        .run();
-      tx.delete(filePreferences)
-        .where(
-          and(
-            eq(filePreferences.worktreeId, worktreeId),
-            eq(filePreferences.path, change.path),
-            eq(filePreferences.pinned, false),
-            eq(filePreferences.hidden, false),
-          ),
-        )
-        .run();
-    });
+    this.db.transaction(
+      (tx) => {
+        const scope = eq(filePreferences.worktreeId, worktreeId);
+        const existing = tx
+          .select({ path: filePreferences.path })
+          .from(filePreferences)
+          .where(and(scope, eq(filePreferences.path, change.path)))
+          .get();
+        if (!existing) {
+          if (!change.value) return;
+          const stored = tx
+            .select({ total: count() })
+            .from(filePreferences)
+            .where(scope)
+            .get();
+          if (stored && stored.total >= 2000)
+            throw new FilePreferenceLimitError();
+        }
+
+        tx.insert(filePreferences)
+          .values({
+            worktreeId,
+            path: change.path,
+            pinned: false,
+            hidden: false,
+            [change.flag]: change.value,
+          })
+          .onConflictDoUpdate({
+            target: [filePreferences.worktreeId, filePreferences.path],
+            set: { [change.flag]: change.value },
+          })
+          .run();
+        tx.delete(filePreferences)
+          .where(
+            and(
+              eq(filePreferences.worktreeId, worktreeId),
+              eq(filePreferences.path, change.path),
+              eq(filePreferences.pinned, false),
+              eq(filePreferences.hidden, false),
+            ),
+          )
+          .run();
+      },
+      { behavior: 'immediate' },
+    );
   }
 }

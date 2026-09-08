@@ -48,11 +48,17 @@ export async function openApplication(options: {
         }, signal),
       listFilePreferences: (worktreeId, signal) =>
         operations.run(async () => listPreferences.execute(worktreeId), signal),
-      setFilePreference: (worktreeId, change, signal) =>
-        operations.run(
-          async () => setPreference.execute(worktreeId, change),
+      setFilePreference: (worktreeId, change, signal) => {
+        const intent = {
+          path: change.path,
+          flag: change.flag,
+          value: change.value,
+        };
+        return operations.run(
+          async () => setPreference.execute(worktreeId, intent),
           signal,
-        ),
+        );
+      },
       close: () => operations.close(),
     };
   } catch (error) {
