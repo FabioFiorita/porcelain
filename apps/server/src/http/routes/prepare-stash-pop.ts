@@ -1,0 +1,30 @@
+import type { ZodTypeProvider } from '@fastify/type-provider-zod';
+import {
+  gitActionPreparationSchema,
+  gitActionScopeSchema,
+  stashApplyPreparationRequestSchema,
+} from '@porcelain/contracts/git-actions';
+import type { FastifyInstance } from 'fastify';
+import type { Application } from '../../application.ts';
+import { toGitActionPreparation } from '../mappers/git-action-response.ts';
+import { errorResponses } from '../schemas/error-responses.ts';
+
+export function prepareStashPop(
+  server: FastifyInstance,
+  options: { application: Application },
+) {
+  server.withTypeProvider<ZodTypeProvider>().post(
+    '/projects/:projectId/worktrees/:worktreeId/git/stash/pop/prepare',
+    {
+      schema: {
+        params: gitActionScopeSchema,
+        body: stashApplyPreparationRequestSchema,
+        response: { ...errorResponses, 200: gitActionPreparationSchema },
+      },
+    },
+    async (request) =>
+      toGitActionPreparation(
+        await options.application.prepareStashPop(request.params, request.body),
+      ),
+  );
+}

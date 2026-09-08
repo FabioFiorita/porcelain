@@ -14,7 +14,8 @@
     "./file-preferences": "./src/file-preferences.ts",
     "./comments": "./src/comments.ts",
     "./review-layers": "./src/review-layers.ts",
-    "./artifacts": "./src/artifacts.ts"
+    "./artifacts": "./src/artifacts.ts",
+    "./git-actions": "./src/git-actions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

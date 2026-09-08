@@ -9,6 +9,8 @@ Health and inventory HTTP schemas live in `packages/contracts`;
 [Commit history](decisions/commit-history-inspection.md) adds bounded commit listing and parent-relative
 inspection through explicit contracts and a checkout-bound `CommitGit` capability adapter.
 
+[Git actions](decisions/git-action-contracts.md) own prepared mutations and durable recovery receipts through checkout-bound `ActionGit`.
+
 [File preferences](decisions/file-preferences.md) retain pin/hide intent separately from inventory refresh.
 
 [Artifact storage](decisions/artifact-storage.md) owns inert HTML persistence; rendering and sharing remain deferred.

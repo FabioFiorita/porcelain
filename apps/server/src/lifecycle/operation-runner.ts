@@ -42,6 +42,24 @@ export class OperationRunner {
     });
   }
 
+  // The write callback owns receipt finalization, even when aborted while queued.
+  // Unlike run(), its promise settles only after cleanup and persistence unwind.
+  runOwned<T>(
+    operation: (signal: AbortSignal) => Promise<T>,
+    timeoutMs: number,
+    callerSignal?: AbortSignal,
+  ): Promise<T> {
+    this.assertOpen();
+    const signal = AbortSignal.any([
+      this.shutdown.signal,
+      AbortSignal.timeout(timeoutMs),
+      ...(callerSignal ? [callerSignal] : []),
+    ]);
+    const task = this.pending.then(() => operation(signal));
+    this.pending = task.catch(() => undefined);
+    return task;
+  }
+
   close(): Promise<void> {
     if (!this.closing) {
       this.closing = this.pending.then(() => {

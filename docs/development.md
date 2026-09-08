@@ -167,3 +167,11 @@ Run the process smoke and startup specs with:
 ```sh
 pnpm exec vitest run apps/server/src/main.spec.ts apps/server/src/lifecycle/start-local-server.spec.ts
 ```
+
+## Git action verification
+
+The [Git action decision](decisions/git-action-contracts.md) defines supported mutation profiles,
+preparation/receipt recovery, external-writer limits and explicit stash scope. Run the focused action
+Git, receipt, use-case and HTTP specs when changing this boundary. Fixtures use isolated HOME/config,
+temporary repositories and local remotes; HTTPS fixtures generate disposable certificates using OpenSSL.
+SSH transport substitutes prove invocation policy, not real authentication interoperability.

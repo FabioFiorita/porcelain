@@ -88,3 +88,26 @@ it('bounds the entire operation and remains usable after a timeout', async () =>
     await runner.close();
   }
 });
+
+it('keeps owned receipt finalization inside shutdown and the shared queue', async () => {
+  const started = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  const events: string[] = [];
+  const runner = new OperationRunner(() => events.push('closed'), 30_000);
+  const active = runner.runOwned(async (signal) => {
+    started.resolve();
+    await finish.promise;
+    expect(signal.aborted).toBe(true);
+    events.push('receipt');
+  }, 120_000);
+  await started.promise;
+  const queued = runner.runOwned(async (signal) => {
+    expect(signal.aborted).toBe(true);
+    events.push('queued-rejection-receipt');
+  }, 120_000);
+  const closing = runner.close();
+  expect(events).toEqual([]);
+  finish.resolve();
+  await Promise.all([active, queued, closing]);
+  expect(events).toEqual(['receipt', 'queued-rejection-receipt', 'closed']);
+});

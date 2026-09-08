@@ -8,27 +8,34 @@ import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
+import { ActionGit } from './git/action-git.ts';
 import { CommitCursorCodec } from './git/commit-cursor.ts';
 import { CommitGit } from './git/commit-git.ts';
 import { Git } from './git/git.ts';
 import { InspectionGit } from './git/inspection-git.ts';
 import type { CommitReaderFactory } from './git/interfaces/commit-reader.ts';
+import type { GitActionWriterFactory } from './git/interfaces/git-action-writer.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
 import type { InspectionFactory } from './git/interfaces/inspection-factory.ts';
+import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
+import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
+import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { DeleteArtifact } from './use-cases/delete-artifact.ts';
+import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
 import { GetArtifact } from './use-cases/get-artifact.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
 import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
+import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
@@ -41,6 +48,7 @@ import { UploadArtifact } from './use-cases/upload-artifact.ts';
 export async function openApplication(options: {
   dataDirectory: string;
   git?: GitFactory;
+  actionGit?: GitActionWriterFactory;
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
   files?: FileReader;
@@ -58,6 +66,20 @@ export async function openApplication(options: {
     const layers = new ReviewLayerRepository(database.db);
     const replaceLayers = new ReplaceReviewLayers(layers);
     const store = new InventoryRepository(database.db);
+    const actionStore = new GitActionRepository(database.db);
+    actionStore.recover();
+    const actionGit =
+      options.actionGit ??
+      ((checkout, identity, repositoryIdentity) =>
+        new ActionGit(checkout, identity, repositoryIdentity));
+    const actions = new GitActionCoordinator(
+      operations,
+      new PrepareGitAction(store, actionStore, actionGit, randomUUID),
+      new AcceptGitAction(actionStore),
+      new ExecuteGitAction(store, actionStore, actionGit),
+      actionStore,
+    );
+
     const preferences = new FilePreferenceRepository(database.db);
     const listPreferences = new ListFilePreferences(store, preferences);
     const setPreference = new SetFilePreference(store, preferences);
@@ -90,6 +112,75 @@ export async function openApplication(options: {
       randomUUID,
     );
     return {
+      prepareFetch: (scope, input, signal) =>
+        actions.prepareAction(scope, { ...input, action: 'fetch' }, signal),
+      executeFetch: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'fetch',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
+      preparePush: (scope, input, signal) =>
+        actions.prepareAction(scope, { ...input, action: 'push' }, signal),
+      executePush: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'push',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
+      prepareCommit: (scope, input, signal) =>
+        actions.prepareAction(scope, { ...input, action: 'commit' }, signal),
+      executeCommit: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'commit',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
+      prepareStashCreate: (scope, input, signal) =>
+        actions.prepareAction(
+          scope,
+          { ...input, action: 'stash-create' },
+          signal,
+        ),
+      executeStashCreate: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'stash-create',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
+      prepareStashApply: (scope, input, signal) =>
+        actions.prepareAction(
+          scope,
+          { ...input, action: 'stash-apply' },
+          signal,
+        ),
+      executeStashApply: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'stash-apply',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
+      prepareStashPop: (scope, input, signal) =>
+        actions.prepareAction(scope, { ...input, action: 'stash-pop' }, signal),
+      executeStashPop: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'stash-pop',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
+      gitActionReceipt: (requestId) => actions.receipt(requestId),
       gitStatus: (worktreeId, signal) =>
         operations.run(
           (operationSignal) => status.execute(worktreeId, operationSignal),
