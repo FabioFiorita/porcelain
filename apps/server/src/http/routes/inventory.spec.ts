@@ -7,7 +7,7 @@ import {
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
-import { createServer } from './server.ts';
+import { createServer } from '../server.ts';
 
 const token = 'fixture-token-with-at-least-32-characters';
 const headers = { authorization: `Bearer ${token}` };
