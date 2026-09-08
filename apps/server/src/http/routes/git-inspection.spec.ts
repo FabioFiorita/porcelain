@@ -15,6 +15,7 @@ import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
 import { GitInspectionTimeoutError } from '../../git/errors/git-inspection-timeout-error.ts';
 import { InspectionLimitError } from '../../git/errors/inspection-limit-error.ts';
+import { UnsupportedGitFiltersError } from '../../git/errors/unsupported-git-filters-error.ts';
 import { UnsupportedPathEncodingError } from '../../git/errors/unsupported-path-encoding-error.ts';
 import { createServer } from '../server.ts';
 
@@ -174,6 +175,7 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
     const url = `/worktrees/${project.worktrees[0]?.id}/git/status`;
     for (const [error, code, statusCode] of [
       [failure, 'INSPECTION_LIMIT', 413],
+      [new UnsupportedGitFiltersError(), 'UNSUPPORTED_GIT_FILTERS', 422],
       [
         new GitInspectionTimeoutError(new Error('private subprocess')),
         'SERVICE_UNAVAILABLE',

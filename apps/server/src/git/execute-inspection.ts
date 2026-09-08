@@ -11,10 +11,12 @@ export async function executeInspection(
   args: string[],
   maxBytes: number,
   signal?: AbortSignal,
+  config: string[] = [],
+  input?: Buffer,
 ): Promise<Buffer> {
   signal?.throwIfAborted();
   try {
-    const { stdout } = await execute(
+    const task = execute(
       'git',
       [
         '--no-replace-objects',
@@ -28,6 +30,7 @@ export async function executeInspection(
         'core.quotePath=true',
         '-c',
         'diff.renameLimit=2000',
+        ...config.flatMap((entry) => ['-c', entry]),
         ...args,
       ],
       {
@@ -40,6 +43,8 @@ export async function executeInspection(
           ...process.env,
           GIT_OPTIONAL_LOCKS: '0',
           GIT_NO_REPLACE_OBJECTS: '1',
+          GIT_NO_LAZY_FETCH: '1',
+          GIT_TERMINAL_PROMPT: '0',
           GIT_CONFIG_PARAMETERS: undefined,
           GIT_CONFIG_COUNT: '0',
           GIT_DIR: undefined,
@@ -57,6 +62,10 @@ export async function executeInspection(
         },
       },
     );
+    // A failed command can close its input early; execFile reports its exit.
+    task.child.stdin?.on('error', () => {});
+    task.child.stdin?.end(input);
+    const { stdout } = await task;
     return stdout;
   } catch (cause) {
     signal?.throwIfAborted();

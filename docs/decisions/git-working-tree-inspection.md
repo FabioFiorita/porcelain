@@ -30,6 +30,21 @@ optional Git locks and verifies both registered checkout and common repository m
 identities before and after reads. Exact endpoint pathspecs exclude unrelated descendants
 when a file is replaced by a directory.
 
+Inspection disables lazy fetching and terminal prompts. Missing promised objects fail locally;
+inspection does not fetch objects or run remote/credential helpers. Before status or a working-tree
+diff, effective Git configuration is inspected without converting files. Tracked paths assigned any named
+filter driver cause `422 UNSUPPORTED_GIT_FILTERS`, even if its command is not configured yet.
+Unused configured drivers do not prevent inspection. Discovered driver commands are disabled for the read, and assignments are checked again
+afterward; inspection never silently reports unconverted content as Git-normalized content. Submodule working directories
+are not inspected (`--ignore-submodules=dirty`); staged gitlinks and changed submodule commits remain
+explicitly unsupported, while dirty files inside a submodule are outside this slice.
+
+Configuration checks assume trusted local writers and remain best-effort. Known driver overrides
+prevent an attributes-only edit from launching a discovered helper. They do not isolate Git
+configuration: a hostile concurrent writer introducing both a new driver command and its attribute
+assignment between checks can bypass that protection. Inspection is not a sandbox for adversarial
+repository/configuration writers and does not claim race-proof helper suppression.
+
 Reads are best-effort observations, not snapshots. The opaque status token hashes the
 porcelain status observation, including HEAD and index information. It is not a file-content
 digest or a durable revision. Diff requests require that token and a selection present in

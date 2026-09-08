@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const apiErrorSchema = z.object({
   code: z.enum([
+    'UNSUPPORTED_GIT_FILTERS',
     'WORKTREE_NOT_FOUND',
     'WORKTREE_CHANGED',
     'INSPECTION_LIMIT',

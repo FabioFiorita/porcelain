@@ -20,6 +20,7 @@ import type {
 } from './dtos/git-status.ts';
 import { InspectionLimitError } from './errors/inspection-limit-error.ts';
 import { RepositoryIdentityMismatchError } from './errors/repository-identity-mismatch-error.ts';
+import { UnsupportedGitFiltersError } from './errors/unsupported-git-filters-error.ts';
 import { UnsupportedPathEncodingError } from './errors/unsupported-path-encoding-error.ts';
 import { InspectionGit } from './inspection-git.ts';
 
@@ -391,4 +392,143 @@ it('ignores replacement objects when comparing HEAD with staged content', async 
     patch: expect.stringContaining('-original'),
   });
   expect(JSON.stringify(diff)).not.toContain('-replacement');
+});
+
+it('rejects configured conversion drivers before status or working-tree diff can execute helpers', async () => {
+  const { root, checkout, git, reader } = await fixture();
+  await writeFile(join(checkout, 'file'), 'original\n');
+  git('add', '.');
+  git('commit', '-m', 'base');
+  await writeFile(join(checkout, 'file'), 'modified\n');
+  const change = selected(await reader.readStatus(), 'unstaged', 'file');
+  await writeFile(join(checkout, '.gitattributes'), 'file filter=probe\n');
+  await expect(reader.readStatus()).rejects.toBeInstanceOf(
+    UnsupportedGitFiltersError,
+  );
+  await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+    UnsupportedGitFiltersError,
+  );
+  const marker = join(root, 'filter-executed');
+  const helper = join(root, 'filter-helper');
+  await writeFile(helper, `#!/bin/sh\ntouch '${marker}'\ncat\n`, {
+    mode: 0o755,
+  });
+  const beforeIndex = await readFile(join(checkout, '.git/index'));
+  const beforeRefs = git('show-ref');
+  for (const driver of ['clean', 'process', 'smudge']) {
+    git('config', `filter.probe.${driver}`, helper);
+    await expect(reader.readStatus()).rejects.toBeInstanceOf(
+      UnsupportedGitFiltersError,
+    );
+    await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+      UnsupportedGitFiltersError,
+    );
+    await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await readFile(join(checkout, '.git/index'))).toEqual(beforeIndex);
+    expect(git('show-ref')).toEqual(beforeRefs);
+    expect(await readFile(join(checkout, 'file'), 'utf8')).toBe('modified\n');
+    git('config', '--unset', `filter.probe.${driver}`);
+  }
+});
+
+it('does not lazily fetch promised blobs during status or selected diff inspection', async () => {
+  const { root, checkout, git } = await fixture();
+  await writeFile(join(checkout, 'file'), 'promised content\n');
+  git('add', '.');
+  git('commit', '-m', 'base');
+  git('config', 'uploadpack.allowFilter', 'true');
+  const partial = join(root, 'partial');
+  git(
+    'clone',
+    '--filter=blob:none',
+    '--no-checkout',
+    `file://${checkout}`,
+    partial,
+  );
+  const run = (...args: string[]) =>
+    execFileSync('git', ['-C', partial, ...args], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  const metadata = await stat(join(partial, '.git'), { bigint: true });
+  const identity = `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`;
+  const reader = new InspectionGit(partial, identity, identity);
+  const missing = run('rev-list', '--objects', '--missing=print', 'HEAD');
+  expect(missing.toString()).toContain('?');
+  const marker = join(root, 'fetch-executed');
+  run('config', 'remote.origin.uploadpack', `touch '${marker}'; false`);
+  const status = await reader.readStatus();
+  await expect(
+    reader.readDiff(selected(status, 'staged', 'file')),
+  ).rejects.toThrow();
+  expect(run('rev-list', '--objects', '--missing=print', 'HEAD')).toEqual(
+    missing,
+  );
+  await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('allows unused configured filters without invoking them', async () => {
+  const { root, checkout, git, reader } = await fixture();
+  await writeFile(join(checkout, 'file'), 'base\n');
+  git('add', '.');
+  git('commit', '-m', 'base');
+  await writeFile(join(checkout, 'file'), 'working\n');
+  const marker = join(root, 'unused-filter-executed');
+  git('config', 'filter.unused.clean', `touch '${marker}'; cat`);
+  const status = await reader.readStatus();
+  expect(
+    await reader.readDiff(selected(status, 'unstaged', 'file')),
+  ).toMatchObject({ kind: 'text', patch: expect.stringContaining('+working') });
+  await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('rejects literal driver names that also spell Git attribute-state markers', async () => {
+  const { root, checkout, git, reader } = await fixture();
+  await writeFile(join(checkout, 'file'), 'base\n');
+  git('add', '.');
+  git('commit', '-m', 'base');
+  await writeFile(join(checkout, 'file'), 'working\n');
+  const change = selected(await reader.readStatus(), 'unstaged', 'file');
+  const marker = join(root, 'ambiguous-filter-executed');
+  for (const driver of ['set', 'unset', 'unspecified']) {
+    await writeFile(
+      join(checkout, '.gitattributes'),
+      `file filter=${driver}\n`,
+    );
+    git('config', `filter.${driver}.clean`, `touch '${marker}'; cat`);
+    await expect(reader.readStatus()).rejects.toBeInstanceOf(
+      UnsupportedGitFiltersError,
+    );
+    await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+      UnsupportedGitFiltersError,
+    );
+    await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
+    git('config', '--unset', `filter.${driver}.clean`);
+  }
+});
+
+it('does not inspect submodule working files or run their conversion drivers', async () => {
+  const { root, checkout, git, reader } = await fixture();
+  await writeFile(join(checkout, 'file'), 'base\n');
+  git('add', '.');
+  git('commit', '-m', 'base');
+  const source = join(root, 'source');
+  git('clone', checkout, source);
+  git('-c', 'protocol.file.allow=always', 'submodule', 'add', source, 'module');
+  git('commit', '-m', 'submodule');
+  const module = join(checkout, 'module');
+  const marker = join(root, 'submodule-filter-executed');
+  execFileSync('git', [
+    '-C',
+    module,
+    'config',
+    'filter.probe.clean',
+    `touch '${marker}'; cat`,
+  ]);
+  await writeFile(join(module, '.gitattributes'), 'file filter=probe\n');
+  await writeFile(join(module, 'file'), 'working\n');
+  const index = await readFile(join(checkout, '.git/index'));
+  expect((await reader.readStatus()).changes).toEqual([]);
+  await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
+  expect(await readFile(join(checkout, '.git/index'))).toEqual(index);
+  expect(await readFile(join(module, 'file'), 'utf8')).toBe('working\n');
 });

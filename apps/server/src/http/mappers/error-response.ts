@@ -1,6 +1,7 @@
 import { GitInspectionTimeoutError } from '../../git/errors/git-inspection-timeout-error.ts';
 import { InspectionLimitError } from '../../git/errors/inspection-limit-error.ts';
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
+import { UnsupportedGitFiltersError } from '../../git/errors/unsupported-git-filters-error.ts';
 import { UnsupportedPathEncodingError } from '../../git/errors/unsupported-path-encoding-error.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
 import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
@@ -8,6 +9,15 @@ import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof UnsupportedGitFiltersError)
+    return {
+      statusCode: 422,
+      body: {
+        code: 'UNSUPPORTED_GIT_FILTERS',
+        message:
+          'Git conversion filters are unsupported for worktree inspection',
+      },
+    };
   if (error instanceof WorktreeNotFoundError)
     return {
       statusCode: 404,

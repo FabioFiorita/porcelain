@@ -2,6 +2,7 @@ import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import { executeInspection } from '../execute-inspection.ts';
+import { checkConversionFilters } from './check-conversion-filters.ts';
 
 export async function readDiff(
   checkout: string,
@@ -10,6 +11,10 @@ export async function readDiff(
 ): Promise<GitDiffResult> {
   if (!change.supported)
     return { kind: 'omitted', reason: 'unsupported-submodule' };
+  const config =
+    change.scope === 'unstaged'
+      ? await checkConversionFilters(checkout, signal)
+      : [];
   const paths = [
     ...new Set(
       [change.oldPath, change.newPath].filter((path) => path !== null),
@@ -41,15 +46,22 @@ export async function readDiff(
       [...args, '--numstat', '-z', '--', ...pathspecs],
       1024 * 1024,
       signal,
+      config,
     );
-    if (statistics.subarray(0, 4).equals(Buffer.from('-\t-\t')))
+    if (statistics.subarray(0, 4).equals(Buffer.from('-\t-\t'))) {
+      if (change.scope === 'unstaged')
+        await checkConversionFilters(checkout, signal);
       return { kind: 'binary' };
+    }
     const output = await executeInspection(
       checkout,
       [...args, '--patch', '--', ...pathspecs],
       1024 * 1024,
       signal,
+      config,
     );
+    if (change.scope === 'unstaged')
+      await checkConversionFilters(checkout, signal);
     try {
       const patch = new TextDecoder('utf-8', { fatal: true }).decode(output);
       return { kind: /^@@ /m.test(patch) ? 'text' : 'metadata-only', patch };
