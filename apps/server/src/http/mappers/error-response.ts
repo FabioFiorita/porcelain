@@ -1,8 +1,12 @@
+import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
+import { toFileErrorResponse } from './file-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof FileInspectionError)
+    return toFileErrorResponse(error.code);
   if (error instanceof UnauthorizedError) {
     return {
       statusCode: 401,

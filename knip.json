@@ -10,5 +10,6 @@
     "packages/contracts": {
       "project": ["src/**/*.ts"]
     }
-  }
+  },
+  "ignoreBinaries": ["mkfifo"]
 }

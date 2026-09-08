@@ -1,16 +1,21 @@
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
+import { NodeFileReader } from './filesystem/file-reader.ts';
+import type { FileReader } from './filesystem/interfaces/file-reader.ts';
 import { Git } from './git/git.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { ListDirectory } from './use-cases/list-directory.ts';
+import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 
 export async function openApplication(options: {
   dataDirectory: string;
   git?: GitFactory;
+  files?: FileReader;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
 }): Promise<Application> {
@@ -24,10 +29,23 @@ export async function openApplication(options: {
   try {
     const store = new InventoryRepository(database.db);
     const git = options.git ?? ((checkout: string) => new Git(checkout));
+    const files = options.files ?? new NodeFileReader();
+    const list = new ListDirectory(store, git, files);
+    const read = new ReadTextFile(store, git, files);
     const refresh = new RefreshProjects(store, git);
     const register = new RegisterProject(store, git, refresh);
     await operations.run((signal) => refresh.execute(signal), options.signal);
     return {
+      listDirectory: (id: string, path: string, signal?: AbortSignal) =>
+        operations.run(
+          (operationSignal) => list.execute(id, path, operationSignal),
+          signal,
+        ),
+      readTextFile: (id: string, path: string, signal?: AbortSignal) =>
+        operations.run(
+          (operationSignal) => read.execute(id, path, operationSignal),
+          signal,
+        ),
       inventory: () => {
         operations.assertOpen();
         return store.read();
