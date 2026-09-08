@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const worktreeSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   path: z.string(),
   main: z.boolean(),
   branch: z.string().nullable(),
@@ -9,14 +9,14 @@ const worktreeSchema = z.object({
 });
 
 export const projectResponseSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   name: z.string(),
   available: z.boolean(),
   worktrees: z.array(worktreeSchema),
 });
 
 export const inventoryResponseSchema = z.object({
-  environmentId: z.string().uuid(),
+  environmentId: z.uuid(),
   projects: z.array(projectResponseSchema),
 });
 
