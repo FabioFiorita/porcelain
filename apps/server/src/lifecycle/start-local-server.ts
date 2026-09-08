@@ -10,14 +10,7 @@ export async function startLocalServer(
   const { dataDirectory, token, port } = startupSettingsSchema.parse(settings);
   signal?.throwIfAborted();
   const ownership = claimDataDirectory(dataDirectory);
-  const server = await createServer({
-    dataDirectory: ownership.directory,
-    token,
-    ...(signal ? { signal } : {}),
-  }).catch((error: unknown) => {
-    ownership.release();
-    throw error;
-  });
+  const server = await openOwnedServer(ownership, token, signal);
   try {
     signal?.throwIfAborted();
     const address = await server.listen({ host: '127.0.0.1', port });
@@ -25,7 +18,7 @@ export async function startLocalServer(
     return {
       address,
       close: () => {
-        state.closing ??= closeServer(server).then(() => ownership.release());
+        state.closing ??= closeOwnedServer(server, ownership.release);
         return state.closing;
       },
     };
@@ -44,4 +37,29 @@ async function closeServer(server: Awaited<ReturnType<typeof createServer>>) {
   } finally {
     clearTimeout(deadline);
   }
+}
+
+async function openOwnedServer(
+  ownership: ReturnType<typeof claimDataDirectory>,
+  token: string,
+  signal?: AbortSignal,
+) {
+  try {
+    return await createServer({
+      dataDirectory: ownership.directory,
+      token,
+      ...(signal ? { signal } : {}),
+    });
+  } catch (error) {
+    ownership.release();
+    throw error;
+  }
+}
+
+async function closeOwnedServer(
+  server: Awaited<ReturnType<typeof createServer>>,
+  release: () => void,
+) {
+  await closeServer(server);
+  release();
 }
