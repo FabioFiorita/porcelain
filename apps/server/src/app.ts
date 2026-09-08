@@ -2,15 +2,20 @@ import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { Git } from './git/git.ts';
+import { InspectionGit } from './git/inspection-git.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
+import type { InspectionFactory } from './git/interfaces/inspection-factory.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
+import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 
 export async function openApplication(options: {
   dataDirectory: string;
   git?: GitFactory;
+  inspectionGit?: InspectionFactory;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
 }): Promise<Application> {
@@ -26,8 +31,30 @@ export async function openApplication(options: {
     const git = options.git ?? ((checkout: string) => new Git(checkout));
     const refresh = new RefreshProjects(store, git);
     const register = new RegisterProject(store, git, refresh);
+    const inspection =
+      options.inspectionGit ??
+      ((checkout: string, identity: string, repositoryIdentity: string) =>
+        new InspectionGit(checkout, identity, repositoryIdentity));
+    const status = new ReadWorktreeStatus(store, inspection);
+    const diff = new ReadWorktreeDiff(store, inspection);
     await operations.run((signal) => refresh.execute(signal), options.signal);
     return {
+      gitStatus: (worktreeId, signal) =>
+        operations.run(
+          (operationSignal) => status.execute(worktreeId, operationSignal),
+          signal,
+        ),
+      gitDiff: (worktreeId, expectedStatusToken, selection, signal) =>
+        operations.run(
+          (operationSignal) =>
+            diff.execute(
+              worktreeId,
+              expectedStatusToken,
+              selection,
+              operationSignal,
+            ),
+          signal,
+        ),
       inventory: () => {
         operations.assertOpen();
         return store.read();
