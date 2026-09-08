@@ -41,7 +41,7 @@ Server code is organized by technical responsibility at both directory levels:
 - `models` owns internal project, worktree, and inventory types; these are not wire DTOs.
 - `git` owns Git execution and output parsing.
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
-  startup and shutdown when introduced.
+  startup and shutdown. The [local startup decision](decisions/0005-local-server-startup.md) defines configuration and exclusive data-directory ownership.
 
 Nested directories describe roles, not product features: `git/commands` owns command implementations,
 `git/dtos` describes discovered data, and `git/interfaces` exposes injectable Git capabilities.
