@@ -33,3 +33,19 @@ Browser smoke covers the built client through the actual proxy/API with real Git
 rejected authentication, refresh, selection and disconnect. Controlled responses cover
 empty/unavailable inventory and failures. Client specs protect request policy and schema
 validation. These checks do not establish Electron, mobile or remote deployment behavior.
+
+## Optional playground bridge
+
+The disposable launcher may opt into a Vite-only credential bridge with
+`PORCELAIN_PLAYGROUND_BRIDGE=1`. It passes its own token-file path to Vite without
+embedding credentials in browser assets. The bridge reads that single file only on
+an explicit same-origin POST with the development request header. It rejects other
+origins, non-loopback hostnames, and cross-site fetch metadata; responses are not cached.
+The filesystem serving deny list also blocks the selected token and generated playgrounds.
+
+A TanStack Devtools panel can reveal/copy credentials or connect using the existing
+authenticated inventory transport. It does not change server authentication or save
+credentials in browser storage. Both login paths share an attempt generation: the first
+successful connection or a disconnect invalidates outstanding login completions. Normal development defaults to the manual login path;
+`0` explicitly disables the panel and endpoint. Build and preview disable them regardless
+of the flag. This is local fixture tooling, not a public token-provisioning API.

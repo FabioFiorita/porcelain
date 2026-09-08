@@ -3,3 +3,18 @@ name = "porcelain"
 
 [setup]
 script = "npx --yes pnpm@12.3.4 install --frozen-lockfile"
+
+[[actions]]
+name = "Playground"
+icon = "run"
+command = "PORCELAIN_PLAYGROUND_BRIDGE=1 pnpm dev:playground"
+
+[[actions]]
+name = "Playground (manual auth)"
+icon = "run"
+command = "PORCELAIN_PLAYGROUND_BRIDGE=0 pnpm dev:playground"
+
+[[actions]]
+name = "Web only"
+icon = "run"
+command = "pnpm dev:web"

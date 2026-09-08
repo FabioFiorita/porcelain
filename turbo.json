@@ -24,7 +24,9 @@
     "LC_*",
     "PORCELAIN_PLAYGROUND_INFO",
     "PORCELAIN_PLAYGROUND_DIRECTORY",
-    "PORCELAIN_API_TARGET"
+    "PORCELAIN_API_TARGET",
+    "PORCELAIN_PLAYGROUND_BRIDGE",
+    "PORCELAIN_PLAYGROUND_TOKEN_FILE"
   ],
   "tasks": {
     "typecheck": {
@@ -50,7 +52,8 @@
         "apps/server/drizzle/**",
         "packages/git/src/**",
         "packages/contracts/src/**",
-        "apps/web/vite.config.ts"
+        "apps/web/vite.config.ts",
+        "apps/web/development/**"
       ],
       "outputs": ["coverage/tooling/**"]
     }

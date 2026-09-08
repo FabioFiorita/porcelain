@@ -56,6 +56,20 @@ test('serves a template inventory through Vite and cleans owned state on cancell
       },
       { timeout: 10000 },
     );
+    expect(
+      (await fetch(`http://127.0.0.1:${address.port}/api/inventory`)).status,
+    ).toBe(401);
+    expect(
+      (
+        await fetch(`http://127.0.0.1:${address.port}/__porcelain/playground`, {
+          method: 'POST',
+          headers: {
+            origin: `http://127.0.0.1:${address.port}`,
+            'x-porcelain-playground': '1',
+          },
+        })
+      ).status,
+    ).toBe(404);
     const secondManifest = join(parent, 'second-info.json');
     await expect(
       runWebPlayground({

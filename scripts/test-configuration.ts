@@ -36,7 +36,7 @@ export const testScopes = {
   },
   tooling: {
     tests: ['scripts/**/*.spec.ts'],
-    sources: ['scripts/**/*.ts'],
+    sources: ['scripts/**/*.ts', 'apps/web/development/**/*.ts'],
     output: 'coverage/tooling',
   },
 };

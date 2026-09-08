@@ -55,4 +55,14 @@ test('toggles the theme with the registered shortcut', async ({ page }) => {
   await expect(
     page.getByRole('button', { name: /open.*devtools/i }),
   ).toHaveCount(0);
+  expect(
+    (
+      await page.request.post('/__porcelain/playground', {
+        headers: {
+          origin: 'http://127.0.0.1:4173',
+          'x-porcelain-playground': '1',
+        },
+      })
+    ).status(),
+  ).toBe(404);
 });

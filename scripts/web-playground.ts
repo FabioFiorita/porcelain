@@ -12,6 +12,7 @@ export async function runWebPlayground(options: {
   signal: AbortSignal;
   port: number;
   manifest?: string;
+  bridge?: boolean;
 }) {
   const { preview, directory, signal, port, manifest } = options;
   await mkdir(directory, { recursive: true });
@@ -57,6 +58,9 @@ export async function runWebPlayground(options: {
         env: {
           ...process.env,
           PORCELAIN_API_TARGET: new URL(info.documentation).origin,
+          PORCELAIN_PLAYGROUND_TOKEN_FILE:
+            !preview && options.bridge ? info.tokenFile : '',
+          PORCELAIN_PLAYGROUND_BRIDGE: !preview && options.bridge ? '1' : '0',
         },
       },
     );
@@ -92,6 +96,7 @@ export async function runWebPlaygroundCli(options: {
   directory: string;
   port: number;
   manifest?: string;
+  bridge?: boolean;
 }) {
   const controller = new AbortController();
   const stop = () => controller.abort();
@@ -116,8 +121,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const preview = process.argv.includes('--preview');
   process.exitCode = await runWebPlaygroundCli({
     preview,
-    directory: preview ? tmpdir() : resolve('.playgrounds'),
-    port: preview ? 4173 : 5173,
+    directory:
+      process.env.PORCELAIN_PLAYGROUND_DIRECTORY ||
+      (preview ? tmpdir() : resolve('.playgrounds')),
+    port: Number(
+      process.argv.find((arg) => arg.startsWith('--port='))?.slice(7) ??
+        (preview ? 4173 : 5173),
+    ),
+    bridge: process.env.PORCELAIN_PLAYGROUND_BRIDGE === '1',
     ...(process.env.PORCELAIN_PLAYGROUND_INFO
       ? { manifest: process.env.PORCELAIN_PLAYGROUND_INFO }
       : {}),

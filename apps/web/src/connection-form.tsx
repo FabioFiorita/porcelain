@@ -12,15 +12,21 @@ import {
 } from './components/ui/field';
 import { Input } from './components/ui/input';
 
+export type BeginConnection = () => (
+  token: string,
+  inventory: InventoryResponse,
+) => boolean;
+
 export function ConnectionForm({
-  onConnect,
+  beginConnection,
 }: {
-  onConnect: (token: string, inventory: InventoryResponse) => void;
+  beginConnection: BeginConnection;
 }) {
   const [error, setError] = useState('');
   const form = useForm({
     defaultValues: { token: '' },
     onSubmit: async ({ value, formApi }) => {
+      const complete = beginConnection();
       setError('');
       try {
         const token = value.token.trim();
@@ -31,7 +37,7 @@ export function ConnectionForm({
           signal: AbortSignal.timeout(15_000),
         });
         formApi.reset();
-        onConnect(token, inventory);
+        complete(token, inventory);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Could not connect.');
       }
