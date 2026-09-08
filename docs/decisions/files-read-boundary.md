@@ -24,7 +24,9 @@ or unreadable-path response before a stable observation has been established.
 Text reads accept valid UTF-8 without NUL and preserve BOM and line endings. Both raw file bytes and
 serialized successful responses are limited to 1 MiB; escaping or response metadata can make a file
 below 1 MiB exceed the response limit. Directory listings contain at most 2,000 entries, sorted by
-name using JavaScript string ordering, and never recurse. An oversized listing fails completely;
+name using JavaScript string ordering, and never recurse. Names are read as raw bytes and
+decoded with fatal UTF-8 validation; an unsupported name fails the complete listing with
+`UNSUPPORTED_PATH`, rather than returning replacement characters or ambiguous paths. An oversized listing fails completely;
 there are no partial results, cursors or pagination in this slice.
 
 All responses disable caching. Errors contain fixed public codes and messages, never diagnostic

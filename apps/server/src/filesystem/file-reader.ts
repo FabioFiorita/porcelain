@@ -5,6 +5,7 @@ import type {
   FileTarget,
   TextContent,
 } from '../models/file-content.ts';
+import { decodeDirectoryName } from './decode-directory-name.ts';
 import { FileInspectionError } from './errors/file-inspection-error.ts';
 import {
   inspectPath,
@@ -36,14 +37,15 @@ export class NodeFileReader implements FileReader {
       if (!before.info.isDirectory())
         throw new FileInspectionError('PATH_NOT_READABLE');
       const entries: DirectoryListing['entries'] = [];
-      const directory = await opendir(before.path);
+      const directory = await opendir(before.path, { encoding: 'buffer' });
       for await (const entry of directory) {
         signal?.throwIfAborted();
-        if (entry.name.toLowerCase() === '.git') continue;
+        const name = decodeDirectoryName(entry.name);
+        if (name.toLowerCase() === '.git') continue;
         if (entries.length === maxEntries)
           throw new FileInspectionError('DIRECTORY_TOO_LARGE');
         entries.push({
-          name: entry.name,
+          name,
           kind: entryKind(entry),
         });
       }

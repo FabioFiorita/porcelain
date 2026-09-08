@@ -7,6 +7,7 @@ export const apiErrorSchema = z.object({
     'WORKTREE_NOT_FOUND',
     'PATH_NOT_FOUND',
     'PATH_NOT_READABLE',
+    'UNSUPPORTED_PATH',
     'UNSUPPORTED_TEXT',
     'FILE_TOO_LARGE',
     'DIRECTORY_TOO_LARGE',

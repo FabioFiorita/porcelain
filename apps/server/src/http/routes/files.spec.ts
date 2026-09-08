@@ -220,6 +220,7 @@ it('maps every file failure safely without exposing causes or paths', async () =
         ['REPOSITORY_UNAVAILABLE', 422],
         ['PATH_NOT_FOUND', 404],
         ['PATH_NOT_READABLE', 422],
+        ['UNSUPPORTED_PATH', 422],
         ['UNSUPPORTED_TEXT', 422],
         ['FILE_TOO_LARGE', 422],
         ['DIRECTORY_TOO_LARGE', 422],

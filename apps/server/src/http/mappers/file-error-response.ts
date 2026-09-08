@@ -10,6 +10,10 @@ const failures: Record<FileErrorCode, { statusCode: number; message: string }> =
     },
     PATH_NOT_FOUND: { statusCode: 404, message: 'Path not found' },
     PATH_NOT_READABLE: { statusCode: 422, message: 'Path could not be read' },
+    UNSUPPORTED_PATH: {
+      statusCode: 422,
+      message: 'Directory contains a name that is not supported UTF-8',
+    },
     UNSUPPORTED_TEXT: {
       statusCode: 422,
       message: 'File is not supported UTF-8 text',

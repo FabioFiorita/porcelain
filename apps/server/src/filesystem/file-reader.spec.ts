@@ -17,7 +17,12 @@ import { inspectPath, verifyPath } from './inspect-path.ts';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
-  return { ...actual, open: vi.fn(actual.open), lstat: vi.fn(actual.lstat) };
+  return {
+    ...actual,
+    open: vi.fn(actual.open),
+    lstat: vi.fn(actual.lstat),
+    opendir: vi.fn(actual.opendir),
+  };
 });
 
 async function fixture(
@@ -264,4 +269,60 @@ it('preserves unexpected filesystem failures during verification', async () =>
     });
     vi.mocked(filesystem.lstat).mockRejectedValueOnce(failure);
     await expect(verifyPath(before, fileTarget)).rejects.toBe(failure);
+  }));
+
+it('rejects invalid raw directory names without partial results and closes the handle', async () =>
+  fixture(async (root, reader) => {
+    await writeFile(join(root, 'valid'), 'text');
+    const originalOpen = (
+      await vi.importActual<typeof import('node:fs/promises')>(
+        'node:fs/promises',
+      )
+    ).opendir;
+    let opened: Awaited<ReturnType<typeof originalOpen>> | undefined;
+    const intercepted = vi
+      .mocked(filesystem.opendir)
+      .mockImplementationOnce(async (...args) => {
+        const directory = await originalOpen(...args);
+        opened = directory;
+        const original = {
+          [Symbol.asyncIterator]:
+            directory[Symbol.asyncIterator].bind(directory),
+        };
+        directory[Symbol.asyncIterator] = async function* () {
+          for await (const entry of original) {
+            yield entry;
+            // Inject Linux-style non-UTF8 name bytes without requiring macOS to create them.
+            Object.defineProperty(entry, 'name', {
+              value: Buffer.from([0xff]),
+            });
+            yield entry;
+          }
+          return undefined;
+        };
+        return directory;
+      });
+    try {
+      await expect(reader.list(target(root, ''))).rejects.toMatchObject({
+        code: 'UNSUPPORTED_PATH',
+      });
+      if (!opened) throw new Error('Expected a directory handle');
+      await expect(opened.read()).rejects.toMatchObject({
+        code: 'ERR_DIR_CLOSED',
+      });
+    } finally {
+      intercepted.mockRestore();
+    }
+  }));
+
+it('returns addressable Unicode names including a literal replacement character and BOM', async () =>
+  fixture(async (root, reader) => {
+    for (const name of ['olá-世界', '\ufffd', '\ufeffname'])
+      await writeFile(join(root, name), name);
+    const listing = await reader.list(target(root, ''));
+    expect(listing.entries).toHaveLength(3);
+    for (const entry of listing.entries)
+      expect((await reader.read(target(root, entry.name))).text).toBe(
+        entry.name,
+      );
   }));
