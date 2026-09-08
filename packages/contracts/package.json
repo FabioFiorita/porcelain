@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./comments": "./src/comments.ts",
     "./health": "./src/health.ts",
     "./inventory": "./src/inventory.ts",
     "./api-error": "./src/api-error.ts"
