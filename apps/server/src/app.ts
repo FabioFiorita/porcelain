@@ -16,12 +16,16 @@ import type { CommitReaderFactory } from './git/interfaces/commit-reader.ts';
 import type { GitFactory } from './git/interfaces/git-factory.ts';
 import type { InspectionFactory } from './git/interfaces/inspection-factory.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
+import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
+import { DeleteArtifact } from './use-cases/delete-artifact.ts';
+import { GetArtifact } from './use-cases/get-artifact.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
+import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
@@ -32,6 +36,7 @@ import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
+import { UploadArtifact } from './use-cases/upload-artifact.ts';
 
 export async function openApplication(options: {
   dataDirectory: string;
@@ -56,6 +61,11 @@ export async function openApplication(options: {
     const preferences = new FilePreferenceRepository(database.db);
     const listPreferences = new ListFilePreferences(store, preferences);
     const setPreference = new SetFilePreference(store, preferences);
+    const artifacts = new ArtifactRepository(database.db);
+    const uploadArtifact = new UploadArtifact(artifacts, store);
+    const listArtifacts = new ListArtifacts(artifacts, store);
+    const getArtifact = new GetArtifact(artifacts, store);
+    const deleteArtifact = new DeleteArtifact(artifacts, store);
     const git = options.git ?? ((checkout: string) => new Git(checkout));
     const cursor = new CommitCursorCodec(randomBytes(32));
     const commitGit =
@@ -181,6 +191,25 @@ export async function openApplication(options: {
           ),
         );
       },
+      uploadArtifact: (worktreeId, input, signal) => {
+        const submitted = { name: input.name, content: input.content };
+        return operations.run(
+          async () => uploadArtifact.execute(worktreeId, submitted),
+          signal,
+        );
+      },
+      listArtifacts: (worktreeId, signal) =>
+        operations.run(async () => listArtifacts.execute(worktreeId), signal),
+      getArtifact: (worktreeId, artifactId, signal) =>
+        operations.run(
+          async () => getArtifact.execute(worktreeId, artifactId),
+          signal,
+        ),
+      deleteArtifact: (worktreeId, artifactId, signal) =>
+        operations.run(
+          async () => deleteArtifact.execute(worktreeId, artifactId),
+          signal,
+        ),
       close: () => operations.close(),
     };
   } catch (error) {

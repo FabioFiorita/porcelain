@@ -11,6 +11,8 @@ inspection through explicit contracts and a checkout-bound `CommitGit` capabilit
 
 [File preferences](decisions/file-preferences.md) retain pin/hide intent separately from inventory refresh.
 
+[Artifact storage](decisions/artifact-storage.md) owns inert HTML persistence; rendering and sharing remain deferred.
+
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |
 | `apps/server` | Node server, repository operations, private persistence, HTTP/MCP and live events | contracts |

@@ -13,7 +13,8 @@
     "./commit-changes": "./src/commit-changes.ts",
     "./file-preferences": "./src/file-preferences.ts",
     "./comments": "./src/comments.ts",
-    "./review-layers": "./src/review-layers.ts"
+    "./review-layers": "./src/review-layers.ts",
+    "./artifacts": "./src/artifacts.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

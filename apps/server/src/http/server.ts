@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import { openApplication } from '../app.ts';
 import { serverSettingsSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
+import { artifactRoutes } from './routes/artifacts.ts';
 import { commentRoutes } from './routes/comments.ts';
 import { commitHistoryRoutes } from './routes/commit-history.ts';
 import { filePreferenceRoutes } from './routes/file-preferences.ts';
@@ -32,6 +33,7 @@ export async function createServer(
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
+  server.register(artifactRoutes, { application, token });
   server.register(reviewLayerRoutes, { application, token });
   server.register(commentRoutes, { application, token });
   server.register(filePreferenceRoutes, { application, token });

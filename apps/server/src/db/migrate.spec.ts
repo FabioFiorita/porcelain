@@ -8,6 +8,7 @@ import { expect, it } from 'vitest';
 import { CommentRepository } from '../repositories/comment-repository.ts';
 import { FilePreferenceRepository } from '../repositories/file-preference-repository.ts';
 import { InventoryRepository } from '../repositories/inventory-repository.ts';
+import { ReviewLayerRepository } from '../repositories/review-layer-repository.ts';
 import { openDatabase } from './connection.ts';
 
 it('adds preference storage to an existing inventory without changing its identities', async () => {
@@ -71,7 +72,7 @@ it('adds preference storage to an existing inventory without changing its identi
   }
 });
 
-it.each([3, 4])(
+it.each([3, 4, 5])(
   'preserves inventory and review metadata when upgrading from migration prefix %i',
   async (prefix) => {
     const directory = await mkdtemp(
@@ -106,7 +107,7 @@ it.each([3, 4])(
         previous.exec(
           "INSERT INTO environment (singleton, id) VALUES (1, 'environment'); INSERT INTO inventory_projects VALUES ('project', 'Project', '/fixture/.git', 'repo-identity', 0, 0); INSERT INTO worktrees VALUES ('worktree', 'project', '/fixture', 'checkout-identity', 1, NULL, 0, 0); INSERT INTO file_preferences VALUES ('worktree', 'notes.txt', 1, 1)",
         );
-        if (prefix === 4)
+        if (prefix >= 4)
           previous
             .prepare(
               'INSERT INTO comment_threads (id, worktree_id, data) VALUES (?, ?, ?)',
@@ -115,6 +116,22 @@ it.each([3, 4])(
               discussion.id,
               discussion.worktreeId,
               JSON.stringify(discussion),
+            );
+        if (prefix === 5)
+          previous
+            .prepare(
+              'INSERT INTO review_layer_sets (worktree_id, revision, layers) VALUES (?, ?, ?)',
+            )
+            .run(
+              'worktree',
+              7,
+              JSON.stringify([
+                {
+                  id: 'layer',
+                  title: 'Retained order',
+                  files: [{ path: 'notes.txt', scope: 'unstaged' }],
+                },
+              ]),
             );
       } finally {
         previous.close();
@@ -135,10 +152,24 @@ it.each([3, 4])(
         expect(
           new FilePreferenceRepository(upgraded.db).list('worktree'),
         ).toEqual([{ path: 'notes.txt', pinned: true, hidden: true }]);
-        if (prefix === 4)
+        if (prefix >= 4)
           expect(new CommentRepository(upgraded.db).list('worktree')).toEqual([
             discussion,
           ]);
+        if (prefix === 5)
+          expect(
+            new ReviewLayerRepository(upgraded.db).read('worktree'),
+          ).toEqual({
+            worktreeId: 'worktree',
+            revision: 7,
+            layers: [
+              {
+                id: 'layer',
+                title: 'Retained order',
+                files: [{ path: 'notes.txt', scope: 'unstaged' }],
+              },
+            ],
+          });
       } finally {
         upgraded.close();
       }

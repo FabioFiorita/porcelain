@@ -11,6 +11,11 @@ import type {
   GitOrdinaryChange,
   GitStatusObservation,
 } from './git/dtos/git-status.ts';
+import type {
+  Artifact,
+  ArtifactMetadata,
+  ArtifactUpload,
+} from './models/artifact.ts';
 import type { CommentCommand, CommentThread } from './models/comment-thread.ts';
 import type { DirectoryListing, TextContent } from './models/file-content.ts';
 import type {
@@ -89,5 +94,24 @@ export interface Application {
     expectedRevision: number,
     layers: ReviewLayer[],
   ): Promise<ReviewLayers>;
+  uploadArtifact(
+    worktreeId: string,
+    input: ArtifactUpload,
+    signal?: AbortSignal,
+  ): Promise<ArtifactMetadata>;
+  listArtifacts(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<ArtifactMetadata[]>;
+  getArtifact(
+    worktreeId: string,
+    artifactId: string,
+    signal?: AbortSignal,
+  ): Promise<Artifact>;
+  deleteArtifact(
+    worktreeId: string,
+    artifactId: string,
+    signal?: AbortSignal,
+  ): Promise<{ deleted: boolean }>;
   close(): Promise<void>;
 }
