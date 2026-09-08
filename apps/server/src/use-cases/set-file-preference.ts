@@ -14,9 +14,10 @@ export class SetFilePreference {
   execute(worktreeId: string, change: FilePreferenceChange) {
     if (
       !change.path ||
+      change.path.length > 4096 ||
       change.path.includes('\\') ||
       change.path.includes('\0') ||
-      change.path.includes(':') ||
+      /^[A-Za-z]:/.test(change.path) ||
       !change.path
         .split('/')
         .every(

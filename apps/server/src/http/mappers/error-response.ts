@@ -5,10 +5,13 @@ import { UnknownWorktreeError } from '../../use-cases/errors/unknown-worktree-er
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
-  if (
-    error instanceof InvalidFilePreferenceError ||
-    error instanceof UnknownWorktreeError
-  ) {
+  if (error instanceof UnknownWorktreeError) {
+    return {
+      statusCode: 404,
+      body: { code: 'WORKTREE_NOT_FOUND', message: 'Worktree not found' },
+    };
+  }
+  if (error instanceof InvalidFilePreferenceError) {
     return {
       statusCode: 400,
       body: { code: 'INVALID_REQUEST', message: 'Invalid request' },

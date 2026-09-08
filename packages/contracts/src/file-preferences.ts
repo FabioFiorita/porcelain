@@ -4,11 +4,12 @@ import { z } from 'zod';
 export const preferencePathSchema = z
   .string()
   .min(1)
+  .max(4096)
   .refine(
     (path) =>
       !path.includes('\\') &&
       !path.includes('\0') &&
-      !path.includes(':') &&
+      !/^[A-Za-z]:/.test(path) &&
       path
         .split('/')
         .every(

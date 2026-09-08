@@ -64,6 +64,8 @@ it('requires known identity but permits unavailable inventory and missing paths 
     'x/.GIT',
     'x\0y',
     'C:/file',
+    'c:relative',
+    'x'.repeat(4097),
     'a\\b',
   ]) {
     expect(() =>
@@ -78,5 +80,14 @@ it('requires known identity but permits unavailable inventory and missing paths 
       value: true,
     }),
   ).toEqual([{ path: 'absent/file.ts', pinned: true, hidden: false }]);
+  for (const path of [
+    'notes:today.txt',
+    'folder/notes:today.txt',
+    'x'.repeat(4096),
+  ]) {
+    expect(
+      set.execute('known', { path, flag: 'pinned', value: true }),
+    ).toContainEqual({ path, pinned: true, hidden: false });
+  }
   expect(list.execute('known')).toEqual(rows);
 });

@@ -72,6 +72,19 @@ it('persists independent file and folder intent through retry, refresh, unavaila
     expect(
       (await server.inject({ method: 'GET', url, headers })).json(),
     ).toEqual(expected);
+    for (const accepted of [
+      'notes:today.txt',
+      'folder/notes:today.txt',
+      'x'.repeat(4096),
+    ]) {
+      expect(await set(accepted, 'pinned', true)).toEqual({
+        preferences: [
+          ...expected.preferences,
+          { path: accepted, pinned: true, hidden: false },
+        ].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)),
+      });
+      expect(await set(accepted, 'pinned', false)).toEqual(expected);
+    }
     await rename(path, join(root, 'moved'));
     expect(
       (
@@ -155,6 +168,8 @@ it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identi
       'x//y',
       'x/',
       'C:/file',
+      'c:relative',
+      'x'.repeat(4097),
       '\\file',
       'x\0y',
       '.git',
@@ -184,16 +199,17 @@ it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identi
       ).toBe(400);
     }
     for (const method of ['GET', 'PUT'] as const) {
-      expect(
-        (
-          await server.inject({
-            method,
-            url: '/worktrees/00000000-0000-4000-8000-000000000000/file-preferences',
-            headers,
-            ...(method === 'PUT' ? { payload } : {}),
-          })
-        ).statusCode,
-      ).toBe(400);
+      const response = await server.inject({
+        method,
+        url: '/worktrees/00000000-0000-4000-8000-000000000000/file-preferences',
+        headers,
+        ...(method === 'PUT' ? { payload } : {}),
+      });
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({
+        code: 'WORKTREE_NOT_FOUND',
+        message: 'Worktree not found',
+      });
     }
     expect(
       (await server.inject({ method: 'GET', url, headers })).json(),
