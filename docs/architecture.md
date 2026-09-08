@@ -43,7 +43,7 @@ Server code is organized by technical responsibility at both directory levels:
 - `filesystem` owns bounded directory/text reads and containment checks; its `interfaces` expose injectable capabilities.
   The [Files decision](decisions/files-read-boundary.md) defines limits and the trusted-local-writer assumption.
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
-  startup and shutdown when introduced.
+  startup and shutdown. The [local startup decision](decisions/0005-local-server-startup.md) defines configuration and exclusive data-directory ownership.
 
 Nested directories describe roles, not product features: `git/commands` owns command implementations,
 `git/dtos` describes discovered data, and `git/interfaces` exposes injectable Git capabilities.
