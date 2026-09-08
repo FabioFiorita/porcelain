@@ -370,3 +370,46 @@ it('returns diagnostics with their operation without changing earlier results', 
     ),
   ).toBe(true);
 });
+
+it('persists submitted artifact values when callers mutate input behind a blocked queue', async () => {
+  const f = await fixture();
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let block = false;
+  const app = await openApplication({
+    dataDirectory: f.dataDirectory,
+    git: (path) => ({
+      listWorktrees: async (signal) => {
+        if (block) {
+          started.resolve();
+          await release.promise;
+        }
+        return new Git(path).listWorktrees(signal);
+      },
+    }),
+  });
+  applications.push(app);
+  const { project } = await app.register(f.main);
+  const worktree = project.worktrees[0];
+  if (!worktree) throw new Error('Missing fixture worktree');
+  block = true;
+  const refresh = app.refresh();
+  try {
+    await started.promise;
+    const input = { name: 'submitted.html', content: '<p>Submitted 😀</p>' };
+    const submitted = { ...input };
+    const upload = app.uploadArtifact(worktree.id, input);
+    input.name = 'mutated.html';
+    input.content = '<script>mutated()</script>';
+    release.resolve();
+    await refresh;
+    const artifact = await upload;
+    expect(await app.getArtifact(worktree.id, artifact.id)).toMatchObject({
+      ...submitted,
+      sizeBytes: Buffer.byteLength(submitted.content),
+    });
+  } finally {
+    release.resolve();
+    await refresh;
+  }
+});

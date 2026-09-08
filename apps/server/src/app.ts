@@ -50,11 +50,13 @@ export async function openApplication(options: {
         operations.run((operationSignal) => {
           return refresh.execute(operationSignal);
         }, signal),
-      uploadArtifact: (worktreeId, input, signal) =>
-        operations.run(
-          async () => uploadArtifact.execute(worktreeId, input),
+      uploadArtifact: (worktreeId, input, signal) => {
+        const submitted = { name: input.name, content: input.content };
+        return operations.run(
+          async () => uploadArtifact.execute(worktreeId, submitted),
           signal,
-        ),
+        );
+      },
       listArtifacts: (worktreeId, signal) =>
         operations.run(async () => listArtifacts.execute(worktreeId), signal),
       getArtifact: (worktreeId, artifactId, signal) =>
