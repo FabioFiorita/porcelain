@@ -29,6 +29,9 @@ it('persists authenticated discussion across refresh, unavailability and restart
     );
     const worktreeId = project.worktrees[0]?.id;
     const url = `/worktrees/${worktreeId}/comments`;
+    expect(
+      (await server.inject({ method: 'GET', url, headers })).json(),
+    ).toEqual([]);
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     const created = await fetch(`${address}${url}`, {
       method: 'POST',
@@ -36,7 +39,7 @@ it('persists authenticated discussion across refresh, unavailability and restart
       body: JSON.stringify({
         anchor: {
           kind: 'codeRange',
-          filePath: 'missing.ts',
+          filePath: 'notes:today.txt',
           startLine: 1,
           endLine: 3,
           revision: 'opaque-revision',
@@ -117,11 +120,30 @@ it('authenticates every operation and rejects malformed anchors, bodies and cros
         401,
       );
     }
+    const unknown = await server.inject({ method: 'GET', url, headers });
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json()).toEqual({
+      code: 'WORKTREE_NOT_FOUND',
+      message: 'Worktree not found',
+    });
     const valid = { anchor: { kind: 'file', filePath: 'a.ts' }, body: 'hello' };
     for (const payload of [
-      ...['/a', '../a', 'a//b', './a', 'a/../b', 'a\\b', 'C:a', 'a\0'].map(
-        (filePath) => ({ ...valid, anchor: { kind: 'file', filePath } }),
-      ),
+      ...[
+        '/a',
+        '.git',
+        'nested/.git/config',
+        '.GIT/config',
+        'C:/a',
+        'z:relative',
+        'x'.repeat(4097),
+        '../a',
+        'a//b',
+        './a',
+        'a/../b',
+        'a\\b',
+        'C:a',
+        'a\0',
+      ].map((filePath) => ({ ...valid, anchor: { kind: 'file', filePath } })),
       ...['', ' ', 'x'.repeat(16001), 'a\0'].map((body) => ({
         ...valid,
         body,

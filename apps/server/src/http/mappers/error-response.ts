@@ -1,9 +1,15 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
 import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
+import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof WorktreeNotFoundError)
+    return {
+      statusCode: 404,
+      body: { code: 'WORKTREE_NOT_FOUND', message: 'Worktree not found' },
+    };
   if (error instanceof CommentTargetNotFoundError)
     return {
       statusCode: 404,

@@ -6,6 +6,8 @@ import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { CommentTargetNotFoundError } from './errors/comment-target-not-found-error.ts';
 
+import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+
 export class CommentThreads {
   private readonly store: CommentStore;
   private readonly inventory: InventoryStore;
@@ -19,19 +21,22 @@ export class CommentThreads {
     this.inventory = inventory;
     this.newId = newId;
   }
+  private hasWorktree(worktreeId: string): boolean {
+    return this.inventory
+      .read()
+      .projects.some((project) =>
+        project.worktrees.some((worktree) => worktree.id === worktreeId),
+      );
+  }
   execute(command: CommentCommand): CommentThread[] {
     const threads = this.store.list(command.worktreeId);
-    if (command.kind === 'list') return threads;
+    if (command.kind === 'list') {
+      if (threads.length === 0 && !this.hasWorktree(command.worktreeId))
+        throw new WorktreeNotFoundError();
+      return threads;
+    }
     if (command.kind === 'create') {
-      if (
-        !this.inventory
-          .read()
-          .projects.some((project) =>
-            project.worktrees.some(
-              (worktree) => worktree.id === command.worktreeId,
-            ),
-          )
-      )
+      if (!this.hasWorktree(command.worktreeId))
         throw new CommentTargetNotFoundError();
       const thread: CommentThread = {
         id: this.newId(),

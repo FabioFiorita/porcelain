@@ -8,10 +8,16 @@ const filePath = z
     (value) =>
       !value.includes('\\') &&
       !value.includes('\0') &&
-      !value.includes(':') &&
+      !/^[a-z]:/i.test(value) &&
       value
         .split('/')
-        .every((part) => part !== '' && part !== '.' && part !== '..'),
+        .every(
+          (part) =>
+            part !== '' &&
+            part !== '.' &&
+            part !== '..' &&
+            part.toLowerCase() !== '.git',
+        ),
     'Expected a normalized relative file path',
   );
 const evidence = {

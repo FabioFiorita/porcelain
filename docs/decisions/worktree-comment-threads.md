@@ -10,7 +10,7 @@ human, agent, account, or authorship claims. Bodies are plain text, preserved ve
 There are no edit, delete, nested-reply, or audit-history workflows.
 
 Anchors use a normalized relative file path (forward slashes, no empty, dot, parent, backslash,
-colon or NUL components). File paths are limited to 4,096 characters. Whole-file anchors have
+`.git` (case-insensitive) or NUL components, and no drive prefix). Colons within names such as `notes:today.txt` are allowed. File paths are limited to 4,096 characters. Whole-file anchors have
 `kind: file`; `kind: codeRange` adds inclusive, one-based `startLine` and `endLine` with end at
 or after start. Lines are positive signed 32-bit integers. Optional `revision` and
 `contentFingerprint` strings are opaque caller-supplied evidence, limited to 256 characters each.
@@ -26,8 +26,8 @@ The independent `comment_threads` table deliberately has no inventory worktree f
 inventory refresh may delete worktree rows. Threads and their messages persist through refresh,
 temporary unavailability, disappearance from active inventory, and application restart. Creation
 requires a worktree in the current inventory, including an unavailable entry. Existing threads
-remain readable and writable by their original scope ID after inventory removal. Listing an
-unknown worktree returns an empty array. Discovering retained discussions in a future client is
+remain readable and writable by their original scope ID after inventory removal. Listing a worktree absent from inventory with no retained discussions returns 404
+`WORKTREE_NOT_FOUND`; a known worktree with no discussions returns an empty array. Discovering retained discussions in a future client is
 not implemented; a recreated worktree with a new identity does not inherit them.
 
 Threads are listed in creation order using a database sequence. Messages are stored in ordered

@@ -5,6 +5,7 @@ import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { CommentThreads } from './comment-threads.ts';
 import { CommentTargetNotFoundError } from './errors/comment-target-not-found-error.ts';
+import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 
 class MemoryComments implements CommentStore {
   readonly rows = new Map<string, CommentThread>();
@@ -53,6 +54,9 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
   let sequence = 0;
   const comments = new CommentThreads(store, inventory, () =>
     String(++sequence),
+  );
+  expect(comments.execute({ kind: 'list', worktreeId: 'worktree' })).toEqual(
+    [],
   );
   const anchor = {
     kind: 'codeRange' as const,
@@ -119,7 +123,9 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       resolved: false,
     })[0]?.resolved,
   ).toBe(false);
-  expect(comments.execute({ kind: 'list', worktreeId: 'other' })).toEqual([]);
+  expect(() => comments.execute({ kind: 'list', worktreeId: 'other' })).toThrow(
+    WorktreeNotFoundError,
+  );
   expect(() =>
     comments.execute({
       kind: 'reply',
