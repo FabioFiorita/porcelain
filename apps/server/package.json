@@ -6,8 +6,7 @@
     "start": "node src/main.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "test:coverage": "node ../../scripts/run-scoped-tests.ts server",
-    "playground": "node src/development/playground.ts"
+    "test:coverage": "node ../../scripts/run-scoped-tests.ts server"
   },
   "dependencies": {
     "@fastify/swagger": "9.8.1",

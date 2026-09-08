@@ -16,8 +16,7 @@
     "test:coverage": "node scripts/run-turbo.ts test:coverage test:tooling && node scripts/merge-coverage.ts",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage",
     "check:unused": "knip",
-    "test:tooling": "node scripts/run-scoped-tests.ts tooling",
-    "api:playground": "pnpm --filter @porcelain/server playground"
+    "test:tooling": "node scripts/run-scoped-tests.ts tooling"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

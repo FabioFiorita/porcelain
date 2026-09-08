@@ -176,7 +176,14 @@ SSH transport substitutes prove invocation policy, not real authentication inter
 
 ## Interactive API playground
 
-Run `pnpm api:playground` and open the printed `documentation` URL. This starts
+From the repository root, run:
+
+```sh
+node apps/server/src/development/playground.ts
+```
+
+Run Node directly so it receives terminal signals and can finish cleanup before exiting.
+Open the printed `documentation` URL. This starts
 Swagger UI and a loopback server with a temporary database, a sample repository,
 a linked `review` worktree, two commits, staged and unstaged changes, an untracked
 file, and a local bare remote. No external Git account is required.
