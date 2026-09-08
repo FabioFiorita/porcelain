@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
+import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type { CommentThread } from '../models/comment-thread.ts';
 import type { Project } from '../models/project.ts';
 import { CommentRepository } from './comment-repository.ts';
@@ -37,12 +38,22 @@ it('retains creation order and discussions after inventory removes their worktre
       worktreeId: 'worktree',
       anchor: { kind: 'file', filePath: 'a.ts' },
       resolved: false,
-      messages: [{ id: 'message', body: 'initial' }],
+      messages: [{ id: 'message', body: 'initial 界\n"quoted"' }],
     };
     const second = { ...first, id: 'a-second' };
     store.save(first);
     store.save(second);
     store.save({ ...first, resolved: true });
+    expect(store.find('worktree', first.id)).toEqual({
+      ...first,
+      resolved: true,
+    });
+    expect(store.find('other', first.id)).toBeUndefined();
+    expect(store.usage('worktree')).toEqual({
+      threads: 2,
+      bytes: commentStorageSize(first) + commentStorageSize(second),
+    });
+    expect(store.usage('other')).toEqual({ threads: 0, bytes: 0 });
     inventory.save({ ...project, worktrees: [] });
     expect(inventory.read().projects[0]?.worktrees).toEqual([]);
     expect(store.list('worktree')).toEqual([

@@ -36,8 +36,10 @@ export async function openApplication(options: {
       randomUUID,
     );
     return {
-      comments: (command, signal) =>
-        operations.run(async () => comments.execute(command), signal),
+      comments: async (command, signal) => {
+        const snapshot = structuredClone(command);
+        return operations.run(async () => comments.execute(snapshot), signal);
+      },
       inventory: () => {
         operations.assertOpen();
         return store.read();

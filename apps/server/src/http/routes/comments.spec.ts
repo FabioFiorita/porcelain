@@ -51,6 +51,32 @@ it('persists authenticated discussion across refresh, unavailability and restart
     expect(created.status).toBe(200);
     const [thread] = commentThreadsSchema.parse(await created.json());
     if (!thread) throw new Error('Missing thread');
+    for (let count = 1; count < 100; count++) {
+      expect(
+        (
+          await server.inject({
+            method: 'POST',
+            url,
+            headers,
+            payload: {
+              anchor: { kind: 'file', filePath: 'a' },
+              body: 'bounded',
+            },
+          })
+        ).statusCode,
+      ).toBe(200);
+    }
+    const overflow = await server.inject({
+      method: 'POST',
+      url,
+      headers,
+      payload: { anchor: { kind: 'file', filePath: 'a' }, body: 'overflow' },
+    });
+    expect(overflow.statusCode).toBe(409);
+    expect(overflow.json()).toEqual({
+      code: 'COMMENT_LIMIT_EXCEEDED',
+      message: 'Comment capacity exceeded',
+    });
     const replyUrl = `${url}/${thread.id}/replies`;
     const resolutionUrl = `${url}/${thread.id}/resolution`;
     const replies = await Promise.all(
@@ -90,7 +116,10 @@ it('persists authenticated discussion across refresh, unavailability and restart
       const result = await restarted.inject({ method: 'GET', url, headers });
       expect(result.statusCode).toBe(200);
       expect(result.headers['cache-control']).toBe('no-store');
-      expect(result.json()).toEqual(resolved.json());
+      expect(commentThreadsSchema.parse(result.json())[0]).toEqual(
+        commentThreadsSchema.parse(resolved.json())[0],
+      );
+      expect(commentThreadsSchema.parse(result.json())).toHaveLength(100);
       expect(
         commentThreadsSchema
           .parse(result.json())[0]

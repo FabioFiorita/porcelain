@@ -1,10 +1,25 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { CommentLimitExceededError } from '../../use-cases/errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
+import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof InvalidCommentError)
+    return {
+      statusCode: 400,
+      body: { code: 'INVALID_REQUEST', message: 'Invalid comment' },
+    };
+  if (error instanceof CommentLimitExceededError)
+    return {
+      statusCode: 409,
+      body: {
+        code: 'COMMENT_LIMIT_EXCEEDED',
+        message: 'Comment capacity exceeded',
+      },
+    };
   if (error instanceof WorktreeNotFoundError)
     return {
       statusCode: 404,

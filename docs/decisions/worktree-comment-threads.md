@@ -38,6 +38,16 @@ idempotent: retrying after an uncertain response can create duplicates. Request 
 cross-process concurrent writing remain deferred; the existing single application owner and
 operation queue apply.
 
+The initial limits are 100 threads per worktree, 100 messages per thread (including the initial
+message), and 1 MiB of serialized UTF-8 thread data per worktree. Byte accounting includes IDs,
+anchors and JSON overhead, reserving the longer `resolved: false` representation so reopening
+remains possible at capacity. Additions exceeding a limit return 409 `COMMENT_LIMIT_EXCEEDED`
+without changing stored data. Resolution is permitted at capacity. Mutations fetch their scoped
+target directly; an aggregate database query supplies thread count and byte usage without
+loading every thread. Application input is copied before queueing, and domain validation rejects
+invalid bodies and anchors before persistence with a named error (safe 400 `INVALID_REQUEST`).
+
+
 ## Authenticated HTTP
 
 | Method and path | Body | Result |
