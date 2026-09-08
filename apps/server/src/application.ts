@@ -1,3 +1,9 @@
+import type {
+  CommitChanges,
+  CommitChangesRequest,
+  CommitPage,
+  CommitPageRequest,
+} from './git/dtos/commit-history.ts';
 import type { DiscoveryIssue } from './git/dtos/discovery-issue.ts';
 import type { GitDiffResult } from './git/dtos/git-diff.ts';
 import type {
@@ -48,5 +54,15 @@ export interface Application {
   refresh(
     signal?: AbortSignal,
   ): Promise<{ inventory: Inventory; issues: DiscoveryIssue[] }>;
+  listCommits(
+    worktreeId: string,
+    request: CommitPageRequest,
+    signal?: AbortSignal,
+  ): Promise<CommitPage>;
+  inspectCommitChanges(
+    worktreeId: string,
+    request: CommitChangesRequest,
+    signal?: AbortSignal,
+  ): Promise<CommitChanges>;
   close(): Promise<void>;
 }

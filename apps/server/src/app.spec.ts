@@ -384,6 +384,7 @@ it('inspects the submitted read request when caller objects change before queued
   await writeFile(join(f.main, 'notes.txt'), 'before\n');
   git(f.main, 'add', '.');
   git(f.main, 'commit', '-m', 'Notes');
+  const oid = git(f.main, 'rev-parse', 'HEAD').trim();
   await writeFile(join(f.main, 'notes.txt'), 'after\n');
   const app = await open(f.dataDirectory);
   const { project } = await app.register(f.main);
@@ -392,10 +393,21 @@ it('inspects the submitted read request when caller objects change before queued
   const { status } = await app.gitStatus(worktreeId);
   const change = status.changes.find((entry) => entry.scope === 'unstaged');
   if (change?.scope !== 'unstaged') throw new Error('Missing unstaged change');
+  const pageRequest = { limit: 1 };
+  const commitRequest = { oid };
   const refreshing = app.refresh();
+  const page = app.listCommits(worktreeId, pageRequest);
+  const commit = app.inspectCommitChanges(worktreeId, commitRequest);
   const diff = app.gitDiff(worktreeId, status.statusToken, change);
+  pageRequest.limit = 0;
+  commitRequest.oid = 'not-a-commit';
   change.newPath = 'different.txt';
   await refreshing;
+  expect((await page).commits.map((entry) => entry.oid)).toEqual([oid]);
+  expect(await commit).toMatchObject({
+    commitOid: oid,
+    changes: [expect.objectContaining({ newPath: 'notes.txt' })],
+  });
   expect((await diff).content).toMatchObject({
     kind: 'text',
     patch: expect.stringContaining('+after'),

@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import { openApplication } from '../app.ts';
 import { serverSettingsSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
+import { commitHistoryRoutes } from './routes/commit-history.ts';
 import { fileRoutes } from './routes/files.ts';
 import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
@@ -30,6 +31,7 @@ export async function createServer(
   server.register(healthRoute);
   server.register(fileRoutes, { application, token });
   server.register(inventoryRoutes, { application, token });
+  server.register(commitHistoryRoutes, { application, token });
   server.register(gitInspectionRoutes, { application, token });
   return server;
 }

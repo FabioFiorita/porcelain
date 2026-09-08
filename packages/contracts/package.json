@@ -8,7 +8,9 @@
     "./health": "./src/health.ts",
     "./inventory": "./src/inventory.ts",
     "./api-error": "./src/api-error.ts",
-    "./files": "./src/files.ts"
+    "./files": "./src/files.ts",
+    "./commit-history": "./src/commit-history.ts",
+    "./commit-changes": "./src/commit-changes.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

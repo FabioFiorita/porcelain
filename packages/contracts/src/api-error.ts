@@ -8,6 +8,7 @@ export const apiErrorSchema = z.object({
     'INSPECTION_LIMIT',
     'UNSUPPORTED_PATH_ENCODING',
     'UNAUTHORIZED',
+    'WORKTREE_NOT_FOUND',
     'INVALID_REQUEST',
     'WORKTREE_NOT_FOUND',
     'PATH_NOT_FOUND',
@@ -20,6 +21,9 @@ export const apiErrorSchema = z.object({
     'REPOSITORY_UNAVAILABLE',
     'SERVICE_UNAVAILABLE',
     'INTERNAL_ERROR',
+    'HISTORY_SNAPSHOT_UNAVAILABLE',
+    'READ_LIMIT_EXCEEDED',
+    'UNSUPPORTED_HISTORY_DATA',
   ]),
   message: z.string(),
 });
