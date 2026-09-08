@@ -12,7 +12,8 @@
     "./commit-history": "./src/commit-history.ts",
     "./commit-changes": "./src/commit-changes.ts",
     "./file-preferences": "./src/file-preferences.ts",
-    "./comments": "./src/comments.ts"
+    "./comments": "./src/comments.ts",
+    "./review-layers": "./src/review-layers.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

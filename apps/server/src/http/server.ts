@@ -14,6 +14,7 @@ import { fileRoutes } from './routes/files.ts';
 import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
+import { reviewLayerRoutes } from './routes/review-layers.ts';
 
 export async function createServer(
   options: Parameters<typeof openApplication>[0] & { token: string },
@@ -31,6 +32,7 @@ export async function createServer(
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
+  server.register(reviewLayerRoutes, { application, token });
   server.register(commentRoutes, { application, token });
   server.register(filePreferenceRoutes, { application, token });
   server.register(fileRoutes, { application, token });

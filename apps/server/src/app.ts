@@ -1,4 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import {
+  replaceReviewLayersSchema,
+  reviewLayerParamsSchema,
+} from '@porcelain/contracts/review-layers';
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
@@ -15,6 +19,7 @@ import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
@@ -25,6 +30,7 @@ import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
+import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 
 export async function openApplication(options: {
@@ -44,6 +50,8 @@ export async function openApplication(options: {
     operationTimeoutMs,
   );
   try {
+    const layers = new ReviewLayerRepository(database.db);
+    const replaceLayers = new ReplaceReviewLayers(layers);
     const store = new InventoryRepository(database.db);
     const preferences = new FilePreferenceRepository(database.db);
     const listPreferences = new ListFilePreferences(store, preferences);
@@ -152,6 +160,26 @@ export async function openApplication(options: {
       comments: async (command, signal) => {
         const snapshot = structuredClone(command);
         return operations.run(async () => comments.execute(snapshot), signal);
+      },
+      reviewLayers: (worktreeId) => {
+        operations.assertOpen();
+        return layers.read(
+          reviewLayerParamsSchema.parse({ worktreeId }).worktreeId,
+        );
+      },
+      replaceReviewLayers: async (worktreeId, revision, value) => {
+        const params = reviewLayerParamsSchema.parse({ worktreeId });
+        const input = replaceReviewLayersSchema.parse({
+          expectedRevision: revision,
+          layers: value,
+        });
+        return operations.run(async () =>
+          replaceLayers.execute(
+            params.worktreeId,
+            input.expectedRevision,
+            input.layers,
+          ),
+        );
       },
       close: () => operations.close(),
     };

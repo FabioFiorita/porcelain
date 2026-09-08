@@ -19,6 +19,7 @@ import type {
 } from './models/file-preference.ts';
 import type { Inventory } from './models/inventory.ts';
 import type { Project } from './models/project.ts';
+import type { ReviewLayer, ReviewLayers } from './models/review-layers.ts';
 
 export interface Application {
   gitStatus(
@@ -82,5 +83,11 @@ export interface Application {
     command: CommentCommand,
     signal?: AbortSignal,
   ): Promise<CommentThread[]>;
+  reviewLayers(worktreeId: string): ReviewLayers;
+  replaceReviewLayers(
+    worktreeId: string,
+    expectedRevision: number,
+    layers: ReviewLayer[],
+  ): Promise<ReviewLayers>;
   close(): Promise<void>;
 }

@@ -1,4 +1,6 @@
 import { FilePreferenceLimitError } from '../../repositories/errors/file-preference-limit-error.ts';
+import { ReviewLayerConflictError } from '../../repositories/errors/review-layer-conflict-error.ts';
+import { UnknownWorktreeError } from '../../repositories/errors/unknown-worktree-error.ts';
 import { CommentLimitExceededError } from '../../use-cases/errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
 import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
@@ -32,6 +34,19 @@ export function toStorageErrorResponse(error: unknown) {
     return {
       statusCode: 400,
       body: { code: 'INVALID_REQUEST', message: 'Invalid request' },
+    };
+  if (error instanceof ReviewLayerConflictError)
+    return {
+      statusCode: 409,
+      body: {
+        code: 'REVISION_CONFLICT',
+        message: 'Review layers changed; reload before retrying',
+      },
+    };
+  if (error instanceof UnknownWorktreeError)
+    return {
+      statusCode: 404,
+      body: { code: 'WORKTREE_NOT_FOUND', message: 'Unknown worktree' },
     };
   return undefined;
 }
