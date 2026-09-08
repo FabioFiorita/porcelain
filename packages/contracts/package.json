@@ -5,7 +5,8 @@
   "exports": {
     "./health": "./src/health.ts",
     "./inventory": "./src/inventory.ts",
-    "./api-error": "./src/api-error.ts"
+    "./api-error": "./src/api-error.ts",
+    "./review-layers": "./src/review-layers.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

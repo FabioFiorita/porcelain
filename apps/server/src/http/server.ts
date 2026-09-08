@@ -9,6 +9,7 @@ import { serverSettingsSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
+import { reviewLayerRoutes } from './routes/review-layers.ts';
 
 export async function createServer(
   options: Parameters<typeof openApplication>[0] & { token: string },
@@ -25,6 +26,7 @@ export async function createServer(
   });
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
+  server.register(reviewLayerRoutes, { application, token });
   server.register(inventoryRoutes, { application, token });
   return server;
 }

@@ -15,6 +15,13 @@
       "when": 1788825542829,
       "tag": "0001_nullable-worktree-identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788828589153,
+      "tag": "0002_amazing_shadowcat",
+      "breakpoints": true
     }
   ]
 }
