@@ -37,8 +37,8 @@ are transactional. Migration-history validation runs before access and rejects u
 Startup and explicit refresh inspect registered Git state. Registration inspects its target and refreshes
 only old projects with overlapping checkout paths, so unrelated repositories do not delay registration.
 Operations within an application instance are serialized. One server instance owns a data directory;
-process supervision and enforcing exclusive ownership across processes belong to server startup work.
-There is no executable server entrypoint or network listener in this slice.
+the [local startup decision](0005-local-server-startup.md) defines executable ownership enforcement
+and loopback listening. Process supervision remains separate work.
 
 A restored environment data directory retains its ID. Running an active clone requires a new identity;
 cloning, migration tooling, and backup procedures are not supported workflows yet.

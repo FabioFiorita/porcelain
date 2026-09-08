@@ -1,3 +1,4 @@
+import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
 import { GitInspectionTimeoutError } from '../../git/errors/git-inspection-timeout-error.ts';
 import { InspectionLimitError } from '../../git/errors/inspection-limit-error.ts';
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
@@ -7,6 +8,7 @@ import { ApplicationClosedError } from '../../lifecycle/errors/application-close
 import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
+import { toFileErrorResponse } from './file-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
   if (error instanceof UnsupportedGitFiltersError)
@@ -47,23 +49,15 @@ export function toErrorResponse(error: unknown) {
         message: 'Git paths require valid UTF-8',
       },
     };
+  if (error instanceof FileInspectionError)
+    return toFileErrorResponse(error.code);
   if (error instanceof UnauthorizedError) {
     return {
       statusCode: 401,
       body: { code: 'UNAUTHORIZED', message: 'Authentication required' },
     };
   }
-  if (
-    error instanceof Error &&
-    ('validation' in error ||
-      ('code' in error &&
-        [
-          'FST_ERR_CTP_INVALID_JSON_BODY',
-          'FST_ERR_CTP_EMPTY_JSON_BODY',
-          'FST_ERR_CTP_INVALID_MEDIA_TYPE',
-          'FST_ERR_CTP_BODY_TOO_LARGE',
-        ].includes(String(error.code))))
-  ) {
+  if (isInvalidRequest(error)) {
     return {
       statusCode: 400,
       body: { code: 'INVALID_REQUEST', message: 'Invalid request' },
@@ -93,4 +87,18 @@ export function toErrorResponse(error: unknown) {
     statusCode: 500,
     body: { code: 'INTERNAL_ERROR', message: 'Operation failed' },
   };
+}
+
+function isInvalidRequest(error: unknown) {
+  return (
+    error instanceof Error &&
+    ('validation' in error ||
+      ('code' in error &&
+        [
+          'FST_ERR_CTP_INVALID_JSON_BODY',
+          'FST_ERR_CTP_EMPTY_JSON_BODY',
+          'FST_ERR_CTP_INVALID_MEDIA_TYPE',
+          'FST_ERR_CTP_BODY_TOO_LARGE',
+        ].includes(String(error.code))))
+  );
 }

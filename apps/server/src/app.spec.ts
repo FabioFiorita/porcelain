@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { access, mkdir, mkdtemp, realpath, rename, rm } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -369,4 +377,27 @@ it('returns diagnostics with their operation without changing earlier results', 
       (worktree) => worktree.available,
     ),
   ).toBe(true);
+});
+
+it('inspects the submitted read request when caller objects change before queued execution', async () => {
+  const f = await fixture();
+  await writeFile(join(f.main, 'notes.txt'), 'before\n');
+  git(f.main, 'add', '.');
+  git(f.main, 'commit', '-m', 'Notes');
+  await writeFile(join(f.main, 'notes.txt'), 'after\n');
+  const app = await open(f.dataDirectory);
+  const { project } = await app.register(f.main);
+  const worktreeId = project.worktrees[0]?.id;
+  if (!worktreeId) throw new Error('Missing fixture worktree');
+  const { status } = await app.gitStatus(worktreeId);
+  const change = status.changes.find((entry) => entry.scope === 'unstaged');
+  if (change?.scope !== 'unstaged') throw new Error('Missing unstaged change');
+  const refreshing = app.refresh();
+  const diff = app.gitDiff(worktreeId, status.statusToken, change);
+  change.newPath = 'different.txt';
+  await refreshing;
+  expect((await diff).content).toMatchObject({
+    kind: 'text',
+    patch: expect.stringContaining('+after'),
+  });
 });
