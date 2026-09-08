@@ -28,11 +28,16 @@ pnpm exec tsc --noEmit
 
 As packages appear, run their focused specs and typecheck scripts. Contract changes include affected
 consumers. Do not run repository-wide checks after every edit. Fix failures with focused reproductions.
-There are no commit hooks; local checks are explicit, while CI owns comprehensive verification.
+Husky runs React Doctor against staged web source before commits and blocks warnings or errors.
+Run `pnpm check:react` for the full React scan; CI runs the same pinned check.
+`pnpm install` installs the hook through the prepare script. Other local checks remain explicit.
+React Doctor runs locally with telemetry and remote supply-chain scoring disabled; pnpm owns
+dependency policy. Vendored shadcn components and its generated mobile hook are excluded,
+matching the vendor policy. Application React rules are not suppressed.
 
 ## CI gate
 
-`pnpm verify` runs full format, lint, types, dependency boundaries, Knip, and specs with coverage, followed by the web browser smoke.
+`pnpm verify` runs full format, lint, types, dependency boundaries, Knip, React Doctor, and specs with coverage, followed by the web browser smoke.
 It is available locally for diagnosing gates and validating tooling changes; routine feature work
 uses the focused loop. CI splits static checks, coverage tests and the web browser smoke into independent jobs and cancels
 superseded PR runs. Pull requests and pushes to `main` or `codex/porcelain-rebuild` trigger checks.

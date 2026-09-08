@@ -34,6 +34,7 @@ jobs:
 
       - run: npx --yes pnpm@12.3.4 format:check
       - run: npx --yes pnpm@12.3.4 lint
+      - run: npx --yes pnpm@12.3.4 check:react
       - run: npx --yes pnpm@12.3.4 typecheck
       - run: npx --yes pnpm@12.3.4 check:boundaries
       - run: npx --yes pnpm@12.3.4 check:unused

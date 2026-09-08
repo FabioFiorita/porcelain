@@ -1,3 +1,4 @@
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { FolderGit2Icon, MoonIcon, SunIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 export function App() {
   const [dark, setDark] = useState(false);
+  useHotkey('Alt+Shift+D', () => setDark((current) => !current));
   return (
     <div
       className={cn('min-h-svh bg-background text-foreground', dark && 'dark')}
@@ -20,10 +22,12 @@ export function App() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <h1 className="font-medium">Porcelain</h1>
         <Button
+          aria-keyshortcuts="Alt+Shift+D"
+          title="Toggle theme (Alt+Shift+D)"
           variant="ghost"
           size="icon"
           aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-          onClick={() => setDark(!dark)}
+          onClick={() => setDark((current) => !current)}
         >
           {dark ? <SunIcon /> : <MoonIcon />}
         </Button>

@@ -41,3 +41,18 @@ test('opens the built workspace and switches the preset theme with the keyboard'
   ).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('toggles the theme with the registered shortcut', async ({ page }) => {
+  await page.goto('/');
+  await page.keyboard.press('Alt+Shift+d');
+  await expect(
+    page.getByRole('button', { name: 'Switch to light theme' }),
+  ).toBeVisible();
+  await page.keyboard.press('Alt+Shift+d');
+  await expect(
+    page.getByRole('button', { name: 'Switch to dark theme' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /open.*devtools/i }),
+  ).toHaveCount(0);
+});

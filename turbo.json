@@ -35,6 +35,9 @@
       "inputs": [
         "scripts/**",
         "biome.json",
+        "doctor.config.json",
+        ".husky/pre-commit",
+        "package.json",
         "vitest.config.ts",
         "tsconfig.json",
         "apps/**/*.spec.*",

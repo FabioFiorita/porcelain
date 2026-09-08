@@ -1,0 +1,7 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "projects": ["apps/web"],
+  "ignore": {
+    "files": ["src/components/ui/**", "src/hooks/use-mobile.ts"]
+  }
+}

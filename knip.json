@@ -23,7 +23,9 @@
         "input-otp",
         "react-day-picker",
         "react-resizable-panels",
-        "recharts"
+        "recharts",
+        "@tanstack/react-form",
+        "@tanstack/markdown"
       ]
     }
   },
