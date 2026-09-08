@@ -30,6 +30,8 @@ const rootRoute = createRootRoute({ component: RootLayout });
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
+  validateSearch: (search: Record<string, unknown>): { worktree?: string } =>
+    typeof search.worktree === 'string' ? { worktree: search.worktree } : {},
   component: App,
 });
 

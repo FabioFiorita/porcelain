@@ -1,13 +1,14 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
 
-export async function createPlayground() {
-  const root = await mkdtemp(join(tmpdir(), 'porcelain-playground-'));
+export async function createPlayground(parentDirectory = tmpdir()) {
+  await mkdir(parentDirectory, { recursive: true });
+  const root = await mkdtemp(join(parentDirectory, 'porcelain-playground-'));
   try {
     const bin = await createIsolatedGit(root);
     const environment = {
@@ -36,7 +37,11 @@ export async function createPlayground() {
       'user.email',
       'playground@example.invalid',
     );
-    await writeFile(join(project, 'README.md'), '# Example project\n');
+    await cp(
+      new URL('../../../../playgrounds/review-project/', import.meta.url),
+      project,
+      { recursive: true },
+    );
     await writeFile(join(project, '.gitignore'), '.cache/\n');
     await git('-C', project, 'add', '.');
     await git('-C', project, 'commit', '-m', 'Create example project');

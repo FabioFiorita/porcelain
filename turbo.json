@@ -8,7 +8,8 @@
     "scripts/run-turbo.ts",
     ".node-version",
     "pnpm-workspace.yaml",
-    "scripts/runtime-fingerprint.ts"
+    "scripts/runtime-fingerprint.ts",
+    "playgrounds/**"
   ],
   "globalEnv": ["PORCELAIN_RUNTIME_FINGERPRINT", "PORCELAIN_TEST_SCOPE"],
   "globalPassThroughEnv": [
@@ -20,7 +21,10 @@
     "GIT_*",
     "SSH_*",
     "LANG",
-    "LC_*"
+    "LC_*",
+    "PORCELAIN_PLAYGROUND_INFO",
+    "PORCELAIN_PLAYGROUND_DIRECTORY",
+    "PORCELAIN_API_TARGET"
   ],
   "tasks": {
     "typecheck": {
@@ -41,7 +45,12 @@
         "vitest.config.ts",
         "tsconfig.json",
         "apps/**/*.spec.*",
-        "packages/**/*.spec.*"
+        "packages/**/*.spec.*",
+        "apps/server/src/**",
+        "apps/server/drizzle/**",
+        "packages/git/src/**",
+        "packages/contracts/src/**",
+        "apps/web/vite.config.ts"
       ],
       "outputs": ["coverage/tooling/**"]
     }

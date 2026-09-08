@@ -8,7 +8,9 @@ const stop = () => shutdown.abort();
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 try {
-  const fixture = await createPlayground();
+  const fixture = await createPlayground(
+    process.env.PORCELAIN_PLAYGROUND_DIRECTORY,
+  );
   try {
     // This dedicated development process starts with an isolated Git environment.
     for (const key of Object.keys(process.env))

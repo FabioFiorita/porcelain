@@ -233,11 +233,15 @@ not introduce shared mutable fixtures or replace independent, meaningful tests.
 
 Run `pnpm dev:web` for Vite on <http://127.0.0.1:5173> with React refresh.
 Run `pnpm --filter @porcelain/web build` to typecheck and produce static assets.
-The initial shell does not connect to an environment yet.
+Run `pnpm dev:playground` for the connected development workflow described in
+[playgrounds](../playgrounds/README.md). It starts a disposable API and Vite together;
+use the printed token-file contents to connect. Stop an existing Vite process first if it owns port 5173.
+For a separately managed local API, set `PORCELAIN_API_TARGET=http://127.0.0.1:PORT`
+when starting Vite. This target is server-side proxy configuration, not a browser credential.
 
 Install the smoke browser once with
 `pnpm --filter @porcelain/web exec playwright install --with-deps chromium`,
-then run `pnpm test:web:smoke`. The test owns a production preview on port 4173
+then run `pnpm test:web:smoke`. The test owns a disposable Git/SQLite API and production preview on port 4173
 and fails if that port is occupied. It builds its own assets and runs uncached.
 Browser specs live under `apps/web/e2e`; Playwright owns them, while
 `scripts/test-configuration.ts` enforces ownership alongside Vitest scopes.

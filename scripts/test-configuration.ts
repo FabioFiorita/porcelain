@@ -10,6 +10,11 @@ export const coverageThresholds = {
   lines: 90,
 };
 export const testScopes = {
+  client: {
+    tests: ['packages/client/src/**/*.spec.ts'],
+    sources: ['packages/client/src/**/*.ts'],
+    output: 'packages/client/coverage',
+  },
   contracts: {
     tests: ['packages/contracts/src/**/*.spec.ts'],
     sources: ['packages/contracts/src/**/*.ts'],

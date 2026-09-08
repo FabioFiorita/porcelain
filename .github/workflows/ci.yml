@@ -70,6 +70,7 @@ jobs:
             coverage/
             packages/git/coverage/
             packages/contracts/coverage/
+            packages/client/coverage/
             apps/server/coverage/
           if-no-files-found: warn
           retention-days: 7

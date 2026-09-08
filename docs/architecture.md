@@ -96,6 +96,8 @@ all events arrived. Request idempotency, event envelopes, credentials, and proto
 must be designed before implementation. Browser hosting/authentication and remote routes require
 real integration proof, not assumptions based on a local connection.
 
+[The browser inventory decision](decisions/browser-inventory.md) defines the first connection and navigator slice.
+
 ## Test ownership
 
 Pure rules use unit specs. Git, persistence, and protocol behavior use real disposable integration

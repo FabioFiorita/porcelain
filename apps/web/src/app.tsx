@@ -1,18 +1,16 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { FolderGit2Icon, MoonIcon, SunIcon } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { MoonIcon, SunIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { ConnectedWorkspace, type Connection } from './connected-workspace';
+import { ConnectionForm } from './connection-form';
 
 export function App() {
+  const queryClient = useQueryClient();
+  const [connection, setConnection] = useState<Connection | null>(null);
   const [dark, setDark] = useState(false);
   useHotkey('Alt+Shift+D', () => setDark((current) => !current));
   return (
@@ -33,18 +31,23 @@ export function App() {
         </Button>
       </header>
       <Separator />
-      <main className="mx-auto flex min-h-[70svh] max-w-6xl items-center justify-center px-6">
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FolderGit2Icon />
-            </EmptyMedia>
-            <EmptyTitle>No environment connected</EmptyTitle>
-            <EmptyDescription>
-              Your projects, worktrees, and reviews will appear here.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+      <main className="mx-auto flex min-h-[70svh] max-w-6xl items-start px-6 py-10">
+        {connection ? (
+          <ConnectedWorkspace
+            connection={connection}
+            onDisconnect={() => setConnection(null)}
+          />
+        ) : (
+          <ConnectionForm
+            onConnect={(token, inventory) => {
+              queryClient.setQueryData(
+                ['inventory', inventory.environmentId],
+                inventory,
+              );
+              setConnection({ token, environmentId: inventory.environmentId });
+            }}
+          />
+        )}
       </main>
     </div>
   );

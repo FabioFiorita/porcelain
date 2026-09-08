@@ -107,6 +107,9 @@ it('reuses outputs and invalidates consumers for Git, server, configuration and 
     expect(server['@porcelain/server#test:coverage']?.hash).not.toBe(
       initial['@porcelain/server#test:coverage']?.hash,
     );
+    expect(server['//#test:tooling']?.hash).not.toBe(
+      initial['//#test:tooling']?.hash,
+    );
     write('packages/git/src/proof.ts', 'export const proof = 2;');
     const git = hashes();
     expect(git['@porcelain/git#test:coverage']?.hash).not.toBe(
@@ -114,6 +117,9 @@ it('reuses outputs and invalidates consumers for Git, server, configuration and 
     );
     expect(git['@porcelain/server#test:coverage']?.hash).not.toBe(
       server['@porcelain/server#test:coverage']?.hash,
+    );
+    expect(git['//#test:tooling']?.hash).not.toBe(
+      server['//#test:tooling']?.hash,
     );
     write(
       'tsconfig.json',

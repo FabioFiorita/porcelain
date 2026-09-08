@@ -23,12 +23,14 @@
         "input-otp",
         "react-day-picker",
         "react-resizable-panels",
-        "@tanstack/react-form",
         "@tanstack/markdown",
         "@tanstack/react-store",
         "@tanstack/react-virtual",
         "@tanstack/highlight"
       ]
+    },
+    "packages/client": {
+      "project": ["src/**/*.ts"]
     }
   },
   "ignoreBinaries": ["mkfifo", "openssl"]

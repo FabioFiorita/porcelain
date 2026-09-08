@@ -211,6 +211,12 @@ importers:
       '@fontsource-variable/geist':
         specifier: 5.3.0
         version: 5.3.0
+      '@porcelain/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@shadcn/react':
         specifier: 0.3.1
         version: 0.3.1(@types/react@19.2.18)(react@19.2.8)
@@ -311,6 +317,12 @@ importers:
       vite:
         specifier: 8.2.2
         version: 8.2.2(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
+
+  packages/client:
+    dependencies:
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/contracts:
     dependencies:

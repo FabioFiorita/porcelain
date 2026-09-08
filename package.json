@@ -21,7 +21,8 @@
     "test:web:smoke": "pnpm --filter @porcelain/web test:smoke",
     "prepare": "husky",
     "check:react": "react-doctor --blocking warning --no-telemetry --no-supply-chain",
-    "doctor:staged": "react-doctor --staged --blocking warning --no-telemetry --no-supply-chain"
+    "doctor:staged": "react-doctor --staged --blocking warning --no-telemetry --no-supply-chain",
+    "dev:playground": "node scripts/web-playground.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

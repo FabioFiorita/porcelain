@@ -1,0 +1,16 @@
+{
+  "name": "@porcelain/client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./inventory": "./src/inventory.ts",
+    "./errors/connection-error": "./src/errors/connection-error.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "node ../../scripts/run-scoped-tests.ts client"
+  },
+  "dependencies": {
+    "@porcelain/contracts": "workspace:*"
+  }
+}
