@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import { openApplication } from '../app.ts';
 import { serverSettingsSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
+import { artifactRoutes } from './routes/artifacts.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
 
@@ -25,6 +26,7 @@ export async function createServer(
   });
   server.addHook('onClose', async () => application.close());
   server.register(healthRoute);
+  server.register(artifactRoutes, { application, token });
   server.register(inventoryRoutes, { application, token });
   return server;
 }

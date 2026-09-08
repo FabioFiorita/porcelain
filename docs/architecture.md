@@ -5,7 +5,8 @@ application and package directories are added with their first behavior. The
 [inventory decision](decisions/0002-environment-inventory.md) defines identity.
 [Drizzle and Fastify](decisions/0003-drizzle-and-fastify.md) own persistence and HTTP infrastructure.
 Health and inventory HTTP schemas live in `packages/contracts`;
-[the HTTP decision](decisions/0004-inventory-http.md) defines the current public boundary.
+[the HTTP decision](decisions/0004-inventory-http.md) defines the inventory public boundary.
+[Artifact storage](decisions/artifact-storage.md) adds authenticated inert JSON storage in a separate SQLite table; rendering and sharing remain deferred.
 
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |

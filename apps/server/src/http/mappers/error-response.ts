@@ -1,8 +1,32 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { ArtifactQuotaError } from '../../repositories/errors/artifact-quota-error.ts';
+import { ArtifactNotFoundError } from '../../use-cases/errors/artifact-not-found-error.ts';
+import { InvalidArtifactError } from '../../use-cases/errors/invalid-artifact-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof ArtifactNotFoundError)
+    return {
+      statusCode: 404,
+      body: {
+        code: 'NOT_FOUND',
+        message: 'Artifact or registered worktree not found',
+      },
+    };
+  if (error instanceof ArtifactQuotaError)
+    return {
+      statusCode: 409,
+      body: {
+        code: 'ARTIFACT_QUOTA_EXCEEDED',
+        message: 'Artifact storage quota exceeded',
+      },
+    };
+  if (error instanceof InvalidArtifactError)
+    return {
+      statusCode: 400,
+      body: { code: 'INVALID_REQUEST', message: 'Invalid request' },
+    };
   if (error instanceof UnauthorizedError) {
     return {
       statusCode: 401,
