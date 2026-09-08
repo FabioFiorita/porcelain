@@ -1,8 +1,19 @@
 import { isRepositoryUnavailable } from '../../git/errors/is-repository-unavailable.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
+import { UnknownWorktreeError } from '../../use-cases/errors/unknown-worktree-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (
+    error instanceof InvalidFilePreferenceError ||
+    error instanceof UnknownWorktreeError
+  ) {
+    return {
+      statusCode: 400,
+      body: { code: 'INVALID_REQUEST', message: 'Invalid request' },
+    };
+  }
   if (error instanceof UnauthorizedError) {
     return {
       statusCode: 401,
