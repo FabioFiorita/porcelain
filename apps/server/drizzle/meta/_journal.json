@@ -15,6 +15,34 @@
       "when": 1788825542829,
       "tag": "0001_nullable-worktree-identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788828090042,
+      "tag": "0002_file-preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788829996753,
+      "tag": "0003_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788830014127,
+      "tag": "0004_review-layers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788830038065,
+      "tag": "0005_artifacts",
+      "breakpoints": true
     }
   ]
 }

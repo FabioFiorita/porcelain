@@ -5,7 +5,13 @@ application and package directories are added with their first behavior. The
 [inventory decision](decisions/0002-environment-inventory.md) defines identity.
 [Drizzle and Fastify](decisions/0003-drizzle-and-fastify.md) own persistence and HTTP infrastructure.
 Health and inventory HTTP schemas live in `packages/contracts`;
-[the HTTP decision](decisions/0004-inventory-http.md) defines the current public boundary.
+[the HTTP decision](decisions/0004-inventory-http.md) defines the inventory public boundary.
+[Commit history](decisions/commit-history-inspection.md) adds bounded commit listing and parent-relative
+inspection through explicit contracts and a checkout-bound `CommitGit` capability adapter.
+
+[File preferences](decisions/file-preferences.md) retain pin/hide intent separately from inventory refresh.
+
+[Artifact storage](decisions/artifact-storage.md) owns inert HTML persistence; rendering and sharing remain deferred.
 
 | Owner | Responsibility | Allowed workspace dependencies |
 | --- | --- | --- |
@@ -40,8 +46,10 @@ Server code is organized by technical responsibility at both directory levels:
 - `repositories` owns persistence queries and transactions for Porcelain-owned data.
 - `models` owns internal project, worktree, and inventory types; these are not wire DTOs.
 - `git` owns Git execution and output parsing.
+- `filesystem` owns bounded directory/text reads and containment checks; its `interfaces` expose injectable capabilities.
+  The [Files decision](decisions/files-read-boundary.md) defines limits and the trusted-local-writer assumption.
 - `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
-  startup and shutdown when introduced.
+  startup and shutdown. The [local startup decision](decisions/0005-local-server-startup.md) defines configuration and exclusive data-directory ownership.
 
 Nested directories describe roles, not product features: `git/commands` owns command implementations,
 `git/dtos` describes discovered data, and `git/interfaces` exposes injectable Git capabilities.

@@ -18,7 +18,8 @@ Selecting a worktree establishes context for Files, Changes, History, comments, 
 Each environment remains authoritative for its own repositories and private data.
 
 Files supports reading project files, pinning files/folders, hiding distracting paths, and useful
-file conveniences. The exact file-management operations and preference scope remain to be decided.
+file conveniences. [File preferences](decisions/file-preferences.md) are private to a worktree;
+exact file-management operations remain to be decided.
 
 Changes presents diffs in agent-authored review layers with explicit group and file order.
 Unassigned changes remain visible. Review order must remain available in History when changes are
