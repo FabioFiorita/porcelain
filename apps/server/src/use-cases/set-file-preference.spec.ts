@@ -3,7 +3,7 @@ import type { FilePreference } from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { InvalidFilePreferenceError } from './errors/invalid-file-preference-error.ts';
-import { UnknownWorktreeError } from './errors/unknown-worktree-error.ts';
+import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 import { ListFilePreferences } from './list-file-preferences.ts';
 import { SetFilePreference } from './set-file-preference.ts';
 
@@ -50,8 +50,8 @@ it('requires known identity but permits unavailable inventory and missing paths 
   const list = new ListFilePreferences(inventory, preferences);
   expect(() =>
     set.execute('unknown', { path: 'file', flag: 'pinned', value: true }),
-  ).toThrow(UnknownWorktreeError);
-  expect(() => list.execute('unknown')).toThrow(UnknownWorktreeError);
+  ).toThrow(WorktreeNotFoundError);
+  expect(() => list.execute('unknown')).toThrow(WorktreeNotFoundError);
   expect(rows).toEqual([]);
   for (const path of [
     '',

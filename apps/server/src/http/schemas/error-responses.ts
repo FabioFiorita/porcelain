@@ -5,6 +5,7 @@ export const errorResponses = {
   401: apiErrorSchema,
   404: apiErrorSchema,
   409: apiErrorSchema,
+  413: apiErrorSchema,
   422: apiErrorSchema,
   503: apiErrorSchema,
   500: apiErrorSchema,

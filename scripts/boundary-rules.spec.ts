@@ -220,3 +220,33 @@ test('rejects wire contracts inside use cases', async () => {
     }),
   ).toContain('use-cases-depend-on-ports');
 });
+
+test('allows filesystem interfaces but rejects filesystem implementations in use cases', async () => {
+  const files = {
+    'apps/server/src/filesystem/interfaces/file-reader.ts':
+      'export interface FileReader { read(): string }',
+    'apps/server/src/filesystem/file-reader.ts':
+      'export const read = () => "text";',
+  };
+  expect(
+    await violations({
+      ...files,
+      'apps/server/src/use-cases/read.ts':
+        "import type { FileReader } from '../filesystem/interfaces/file-reader.ts'; export const read = (files: FileReader) => files.read();",
+    }),
+  ).toEqual([]);
+  expect(
+    await violations({
+      ...files,
+      'apps/server/src/use-cases/read.ts':
+        "import { read } from '../filesystem/file-reader.ts'; export const execute = read;",
+    }),
+  ).toContain('use-cases-depend-on-ports');
+  expect(
+    await violations({
+      ...files,
+      'apps/server/src/filesystem/interfaces/file-reader.ts':
+        "import { read } from '../file-reader.ts'; export const implementation = read;",
+    }),
+  ).toContain('adapter-interfaces-stay-independent');
+});

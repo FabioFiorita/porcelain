@@ -2,7 +2,7 @@ import type { FilePreferenceChange } from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { InvalidFilePreferenceError } from './errors/invalid-file-preference-error.ts';
-import { UnknownWorktreeError } from './errors/unknown-worktree-error.ts';
+import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 
 export class SetFilePreference {
   private readonly inventory: InventoryStore;
@@ -38,7 +38,7 @@ export class SetFilePreference {
           project.worktrees.some((worktree) => worktree.id === worktreeId),
         )
     )
-      throw new UnknownWorktreeError();
+      throw new WorktreeNotFoundError();
     this.preferences.set(worktreeId, change);
     return this.preferences.list(worktreeId);
   }
