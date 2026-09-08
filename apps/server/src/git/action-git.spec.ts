@@ -18,6 +18,7 @@ import type {
   GitActionPreparation,
 } from '../models/git-action.ts';
 import { ActionGit } from './action-git.ts';
+import { createIsolatedGit } from './fixtures/isolated-git.ts';
 import { Git } from './git.ts';
 
 const execute = promisify(execFile);
@@ -52,6 +53,7 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'porcelain-write-git-'));
   vi.stubEnv('HOME', root);
   vi.stubEnv('XDG_CONFIG_HOME', root);
+  vi.stubEnv('PATH', `${await createIsolatedGit(root)}:${process.env.PATH}`);
   checkout = join(root, 'checkout');
   await mkdir(checkout);
   await git('init', '-b', 'main');
@@ -586,4 +588,12 @@ it('rejects a second URL rewrite instead of checking a third repository for push
       ])
     ).stdout,
   ).toBe('');
+});
+
+it('continues to reject configured conversion filters before mutation', async () => {
+  await git('config', 'filter.fixture.clean', 'fixture-filter-not-executed');
+  await expect(
+    prepare({ action: 'commit', message: 'unsupported filter' }),
+  ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
+  expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
 });

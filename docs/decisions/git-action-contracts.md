@@ -23,7 +23,8 @@ conflict resolution, automatic retry, terminal, credential provisioning or gener
 Push requires attached, born HEAD. Commit supports an unborn branch and returns no-change for an
 empty staged scope. Detached commit, integration operations, unmerged entries and occupied index locks
 are rejected. Configured conversion filters, sparse checkout, partial clones and submodule index entries
-are unsupported in this slice. Fetch/push allow dirty files; they send/read Git commits, not working files.
+are unsupported in this slice. Unused system/global conversion-filter definitions also reject;
+production does not disable that configuration policy. Fetch/push allow dirty files; they send/read Git commits, not working files.
 Local mutations do not associate review layers with commits; that remains the Changes/History contract.
 
 Stash application/pop require a clean tracked/untracked checkout, an existing stash entry in the

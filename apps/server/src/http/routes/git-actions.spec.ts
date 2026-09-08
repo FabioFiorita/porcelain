@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { createIsolatedGit } from '../../git/fixtures/isolated-git.ts';
 import { createServer } from '../server.ts';
 
 const execute = promisify(execFile);
@@ -61,6 +62,7 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'porcelain-action-http-'));
   vi.stubEnv('HOME', root);
   vi.stubEnv('XDG_CONFIG_HOME', root);
+  vi.stubEnv('PATH', `${await createIsolatedGit(root)}:${process.env.PATH}`);
   checkout = join(root, 'checkout');
   await mkdir(checkout);
   await git('init', '-b', 'main');
