@@ -38,21 +38,11 @@ against every possible third-party library or indirect global access; review rem
 
 ## Source conventions
 
-Server code is organized by technical responsibility at both directory levels:
-
-- `db/connection.ts` and `db/migrate.ts` own database initialization and migrations.
-- `db/schema` owns named Drizzle table modules.
-- `http/server.ts` configures Fastify; `http/routes` declares schemas and calls the named `Application` API.
-- `http/middlewares` owns scoped Fastify authentication and response-policy hooks.
-- `http/mappers` owns explicit public response and error mapping.
-- `use-cases` owns product rules and coordinates explicit dependencies independently of Fastify.
-- `repositories` owns persistence queries and transactions for Porcelain-owned data.
-- `models` owns internal project, worktree, and inventory types; these are not wire DTOs.
-- `packages/git` owns Git execution, output parsing, and command-specific types. The server owns project IDs, preparations, receipts, and scheduling.
-- `filesystem` owns bounded directory/text reads and containment checks; its `interfaces` expose injectable capabilities.
-  The [Files decision](decisions/files-read-boundary.md) defines limits and the trusted-local-writer assumption.
-- `app.ts` composes dependencies and coordinates operation/shutdown ordering; `main.ts` owns process
-  startup and shutdown. The [local startup decision](decisions/0005-local-server-startup.md) defines configuration and exclusive data-directory ownership.
+Server code is organized by technical responsibility. HTTP owns validation and public mapping;
+use cases coordinate product rules through explicit adapter interfaces; repositories own persistence;
+Git and filesystem adapters own external access. Composition owns wiring and lifecycle ordering.
+The [application composition](../apps/server/src/app.ts) is the entry point for tracing those
+relationships. Read the owning modules for their current files, types, and methods.
 
 Nested directories describe roles, not product features: `packages/git/src/commands` owns command implementations,
 `dtos` describes Git data, and `interfaces` exposes injectable Git capabilities.

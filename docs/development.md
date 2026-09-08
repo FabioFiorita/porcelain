@@ -89,26 +89,17 @@ Package reports live in their own `coverage` directories; missing or empty repor
 No empty placeholder test tasks are created. Deployment connectivity checks must run against the live
 endpoint and must not reuse cached proof. Node, Git and OpenSSL must be installed for cached checks.
 
-## Server inventory
+## Server development
 
-`openApplication` in `apps/server/src/app.ts` opens an explicitly supplied absolute data directory,
-refreshes registered repositories, and returns the named `Application` API: `inventory`, `register`, `refresh`, `listCommits`, `inspectCommitChanges`, and `close`.
-The [history decision](decisions/commit-history-inspection.md) defines read limits, cursor lifetime, and
-parent-relative inspection.
-Registration returns `{ project, issues }`; refresh returns `{ inventory, issues }`. Diagnostics belong to each operation result; startup refresh does not retain them on the application.
-The caller must close the application. There is no default production directory or network listener.
-Use only temporary repositories and state for development fixtures.
+The [application port](../apps/server/src/application.ts) defines the current operations;
+[composition](../apps/server/src/app.ts) shows how dependencies and lifecycle are wired.
+Use the interactive API playground below for the generated HTTP schemas and executable examples.
+These sources own the API inventory; this guide does not repeat their method lists.
 
-```sh
-pnpm exec vitest run apps/server/src
-pnpm --filter @porcelain/contracts --filter @porcelain/server typecheck
-pnpm exec biome check apps/server
-```
-
-These specs exercise real Git and SQLite, including restart, moves, removal, and unavailable paths.
-Fastify specs also exercise response serialization and a disposable loopback health request. They do
-not prove client workflows or remote connections. CI runs them on Linux and macOS;
-a local macOS pass does not establish Linux behavior until that CI run is observed.
+Use temporary repositories and explicitly supplied disposable state. Callers opening an application
+or server are responsible for closing it. Choose colocated specs for the behavior being changed;
+include affected contract consumers in type checks. Local integration checks do not establish browser,
+Electron, mobile, or remote deployment behavior.
 
 ## Persistence and HTTP infrastructure
 
@@ -124,11 +115,10 @@ application data. The initial relational migration is the supported baseline. Ea
 without modification; use a new disposable development directory or explicitly recover the old data.
 Keep the migration directory with the server when adding build/packaging tasks.
 
-`createServer` in `apps/server/src/http/server.ts` requires a configured bearer token and returns a Fastify instance with public `GET /health`,
-authenticated inventory routes, and a shutdown
-hook for inventory. It does not bind a port. The health contract is exported from
-`@porcelain/contracts/health`; the server uses the Fastify Zod provider. The [inventory HTTP decision](decisions/0004-inventory-http.md) defines routes, token requirements,
-and public errors. The [local startup decision](decisions/0005-local-server-startup.md) defines the executable. TLS, token provisioning, and client connection behavior remain separate work.
+The [server factory](../apps/server/src/http/server.ts) owns HTTP composition and shutdown hooks.
+Use its route schemas and generated OpenAPI document for requests, responses, and authentication
+requirements. The [local startup decision](decisions/0005-local-server-startup.md) explains the
+executable lifecycle. TLS, token provisioning, and client connections require separate integration proof.
 
 The server uses stable Drizzle with `better-sqlite3`, which bundles native prebuilds. Its automatic
 build is disabled in pnpm; runtime tests must prove that the bundled binary loads. Validate installation
@@ -148,7 +138,7 @@ mark affected entries unavailable and return their original errors alongside tha
 internal diagnostics are not a public response schema and must not be sent directly to remote clients.
 Refresh commits each project independently; cancellation does not undo already completed project updates.
 
-## Run the local inventory server
+## Run the local server
 
 Supply all three environment variables, then run the server from this checkout:
 

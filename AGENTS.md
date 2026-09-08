@@ -11,6 +11,9 @@ Implement the requested scope in small, explainable changes. Discuss new archite
 product capabilities, or programming models before implementing them. Use plain TypeScript.
 Follow owning code and configuration; do not introduce a competing pattern for convenience.
 Record consequential choices in `docs/decisions`; keep task logs and temporary plans out of docs.
+Documentation explains intent, constraints, decisions, and contributor workflows. Link to owning code
+or generated API documentation for implementation details; do not maintain method lists, exhaustive
+file maps, or copies of schemas and mechanical rules in Markdown.
 
 ## Structure and safety
 
