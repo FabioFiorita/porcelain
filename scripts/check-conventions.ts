@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { mutableDeclarations } from './source-conventions.ts';
 
 const files = execFileSync(
   'git',
@@ -18,5 +20,13 @@ if (indexModules.length > 0) {
   console.error(
     `Use descriptive module filenames instead of index modules:\n${indexModules.join('\n')}`,
   );
+  process.exitCode = 1;
+}
+
+const declarations = [...new Set(files)]
+  .filter((file) => file && existsSync(file) && /\.[cm]?[jt]sx?$/.test(file))
+  .flatMap((file) => mutableDeclarations(file, readFileSync(file, 'utf8')));
+if (declarations.length > 0) {
+  console.error(declarations.join('\n'));
   process.exitCode = 1;
 }

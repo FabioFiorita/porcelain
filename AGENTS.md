@@ -17,12 +17,10 @@ Record consequential choices in `docs/decisions`; keep task logs and temporary p
 Organize server code by responsibility (`db`, `http`, `use-cases`, `repositories`, `git`). Nested
 folders describe roles (`errors`, `interfaces`, `dtos`, `mappers`, `commands`), not product features. Use explicit constructor dependencies for Git,
 repository, and use-case classes; keep pure rules and routes as functions. Use named errors for meaningful failure categories and preserve external causes.
-Do not create `index.ts` or equivalent JavaScript/TypeScript index modules; use descriptive filenames
-and explicit imports instead of directory barrels.
-Tests use `.spec.ts` or `.spec.tsx`. New packages expose explicit public subpaths.
-Prefer `const` and explicit return values over mutable local variables. Return related outcomes together
-instead of initializing variables and assigning them across branches. Keep mutation limited to justified
-local collection building and lifecycle state; do not introduce abstractions merely to eliminate it.
+Mechanical source conventions are owned by lint, TypeScript, and `scripts/check-conventions.ts`;
+see [development checks](docs/development.md). New packages expose explicit public subpaths.
+Return related outcomes together. Limit object/collection mutation to justified local construction and
+lifecycle state; do not introduce abstractions merely to eliminate it.
 Do not duplicate server state in Zustand. Do not invent base classes, generic repositories, or a DI container.
 Use disposable fixtures and isolated development state. Never run against production `~/.porcelain`,
 real credentials, or real projects as development fixtures. Stop only task-owned processes.
@@ -33,7 +31,7 @@ Run focused specs and changed-file lint/format checks locally, plus type checkin
 and consumers of changed contracts. CI owns full verification; do not run the whole suite repeatedly.
 A new/changed quality gate must be exercised locally, including proving it rejects a known violation.
 Fix CI failures with the smallest reproduction. Never weaken a check merely to obtain green results.
-Suppressions need a specific reason; skipped tests and unbounded `any` are not acceptable substitutes.
+Suppressions need a specific reason.
 
 Each behavior change needs repeatable regression protection. Add user-workflow smoke coverage when
 introducing a user-facing path. Browser proof does not establish Electron or native mobile behavior.

@@ -25,6 +25,7 @@
     "fast-check": "4.9.0",
     "knip": "6.34.0",
     "typescript": "7.0.2",
+    "typescript-parser": "npm:typescript@6.0.3",
     "vitest": "5.0.0"
   }
 }

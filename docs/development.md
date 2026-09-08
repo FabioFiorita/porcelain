@@ -41,6 +41,17 @@ require these jobs before merge; writing YAML does not configure repository prot
 
 ## Quality standards
 
+The convention gate rejects `let` and `var` declarations in `apps/*/src` and
+`packages/*/src`, including JavaScript/TypeScript module and JSX variants. Colocated specs,
+ambient declaration files, and tooling are excluded. It parses syntax with the pinned stable
+TypeScript parser alias; it does not scan comments or string contents. Production exceptions
+require a reviewed gate change, not an inline bypass. This enforces declaration style, not deep
+immutability: object fields and collection mutation still require review.
+
+Index modules and `.test.*` filenames are rejected by the same gate. Biome owns explicit-any,
+ignored TypeScript errors, focused/skipped tests, and naming checks; TypeScript owns unused locals,
+unused parameters, and type correctness. Keep these mechanical details in the owning checks.
+
 Required checks have zero type, lint, dependency-boundary, convention, and Knip findings. Biome limits
 cognitive complexity to 15; dependency-cruiser rejects cycles and forbidden dependencies. Cognitive
 complexity measures understandability of control flow, not coupling. Do not add overlapping complexity
