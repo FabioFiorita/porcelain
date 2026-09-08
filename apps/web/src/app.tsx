@@ -2,7 +2,7 @@ import type { InventoryResponse } from '@porcelain/contracts/inventory';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { MoonIcon, SunIcon } from 'lucide-react';
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -15,13 +15,22 @@ const Devtools = import.meta.env.DEV
     )
   : null;
 
+const PlaygroundAutoConnect =
+  import.meta.env.DEV && import.meta.env.PORCELAIN_PLAYGROUND_AUTO_CONNECT
+    ? lazy(() =>
+        import('./playground-auto-connect').then((module) => ({
+          default: module.PlaygroundAutoConnect,
+        })),
+      )
+    : null;
+
 export function App() {
   const queryClient = useQueryClient();
   const [connection, setConnection] = useState<Connection | null>(null);
   const connectionGeneration = useRef(0);
   const [dark, setDark] = useState(false);
   useHotkey('Alt+Shift+D', () => setDark((current) => !current));
-  function beginConnection() {
+  const beginConnection = useCallback(() => {
     const generation = connectionGeneration.current;
     return (token: string, inventory: InventoryResponse) => {
       if (generation !== connectionGeneration.current) return false;
@@ -33,7 +42,11 @@ export function App() {
       setConnection({ token, environmentId: inventory.environmentId });
       return true;
     };
-  }
+  }, [queryClient]);
+  const beginAutomaticConnection = useCallback(
+    () => (connectionGeneration.current === 0 ? beginConnection() : null),
+    [beginConnection],
+  );
   return (
     <div
       className={cn('min-h-svh bg-background text-foreground', dark && 'dark')}
@@ -52,7 +65,15 @@ export function App() {
         </Button>
       </header>
       <Separator />
-      <main className="mx-auto flex min-h-[70svh] max-w-6xl items-start px-6 py-10">
+      <main className="mx-auto flex min-h-[70svh] max-w-6xl flex-col items-start gap-6 px-6 py-10">
+        {PlaygroundAutoConnect && (
+          <Suspense fallback={null}>
+            <PlaygroundAutoConnect
+              beginConnection={beginAutomaticConnection}
+              connected={connection !== null}
+            />
+          </Suspense>
+        )}
         {connection ? (
           <ConnectedWorkspace
             connection={connection}

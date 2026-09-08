@@ -18,17 +18,22 @@ export default defineConfig({
     {
       name: 'desktop',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/playground.spec.ts',
+      testIgnore: ['**/playground.spec.ts', '**/playground-auto.spec.ts'],
     },
     {
       name: 'narrow',
       use: { ...devices['Pixel 7'] },
-      testIgnore: '**/playground.spec.ts',
+      testIgnore: ['**/playground.spec.ts', '**/playground-auto.spec.ts'],
     },
     {
       name: 'development',
       testMatch: '**/playground.spec.ts',
       use: { ...devices['Desktop Chrome'], baseURL: 'http://127.0.0.1:4174' },
+    },
+    {
+      name: 'automatic',
+      testMatch: '**/playground-auto.spec.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: 'http://127.0.0.1:4175' },
     },
   ],
   webServer: [
@@ -41,14 +46,23 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: 'cd ../.. && node scripts/web-playground.ts --port=4174',
+      command: 'cd ../.. && pnpm dev:playground --manual --port=4174',
       env: {
-        PORCELAIN_PLAYGROUND_BRIDGE: '1',
         PORCELAIN_PLAYGROUND_INFO: '',
         PORCELAIN_PLAYGROUND_DIRECTORY: tmpdir(),
       },
       gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
       url: 'http://127.0.0.1:4174',
+      reuseExistingServer: false,
+    },
+    {
+      command: 'cd ../.. && pnpm dev:playground --port=4175',
+      env: {
+        PORCELAIN_PLAYGROUND_INFO: '',
+        PORCELAIN_PLAYGROUND_DIRECTORY: tmpdir(),
+      },
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
+      url: 'http://127.0.0.1:4175',
       reuseExistingServer: false,
     },
   ],

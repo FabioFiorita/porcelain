@@ -24,6 +24,9 @@ export default defineConfig(({ command, isPreview }) => {
   return {
     define: {
       'import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE': JSON.stringify(bridge),
+      'import.meta.env.PORCELAIN_PLAYGROUND_AUTO_CONNECT': JSON.stringify(
+        bridge && process.env.PORCELAIN_PLAYGROUND_AUTO_CONNECT === '1',
+      ),
     },
     plugins: [
       react(),

@@ -12,7 +12,7 @@ export async function runWebPlayground(options: {
   signal: AbortSignal;
   port: number;
   manifest?: string;
-  bridge?: boolean;
+  manual?: boolean;
 }) {
   const { preview, directory, signal, port, manifest } = options;
   await mkdir(directory, { recursive: true });
@@ -58,9 +58,10 @@ export async function runWebPlayground(options: {
         env: {
           ...process.env,
           PORCELAIN_API_TARGET: new URL(info.documentation).origin,
-          PORCELAIN_PLAYGROUND_TOKEN_FILE:
-            !preview && options.bridge ? info.tokenFile : '',
-          PORCELAIN_PLAYGROUND_BRIDGE: !preview && options.bridge ? '1' : '0',
+          PORCELAIN_PLAYGROUND_TOKEN_FILE: !preview ? info.tokenFile : '',
+          PORCELAIN_PLAYGROUND_BRIDGE: !preview ? '1' : '0',
+          PORCELAIN_PLAYGROUND_AUTO_CONNECT:
+            !preview && !options.manual ? '1' : '0',
         },
       },
     );
@@ -96,7 +97,7 @@ export async function runWebPlaygroundCli(options: {
   directory: string;
   port: number;
   manifest?: string;
-  bridge?: boolean;
+  manual?: boolean;
 }) {
   const controller = new AbortController();
   const stop = () => controller.abort();
@@ -128,7 +129,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       process.argv.find((arg) => arg.startsWith('--port='))?.slice(7) ??
         (preview ? 4173 : 5173),
     ),
-    bridge: process.env.PORCELAIN_PLAYGROUND_BRIDGE === '1',
+    manual: process.argv.includes('--manual'),
     ...(process.env.PORCELAIN_PLAYGROUND_INFO
       ? { manifest: process.env.PORCELAIN_PLAYGROUND_INFO }
       : {}),

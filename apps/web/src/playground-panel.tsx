@@ -6,28 +6,7 @@ import { Field, FieldGroup, FieldLabel } from './components/ui/field';
 import { Input } from './components/ui/input';
 import type { BeginConnection } from './connection-form';
 
-async function readCredentials() {
-  const response = await fetch('/__porcelain/playground', {
-    method: 'POST',
-    headers: { 'x-porcelain-playground': '1' },
-    cache: 'no-store',
-    credentials: 'omit',
-    redirect: 'error',
-    signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok) throw new Error('Playground credentials are unavailable.');
-  const value: unknown = await response.json();
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    !('token' in value) ||
-    typeof value.token !== 'string' ||
-    !('tokenFile' in value) ||
-    typeof value.tokenFile !== 'string'
-  )
-    throw new Error('Invalid playground credentials.');
-  return { token: value.token, tokenFile: value.tokenFile };
-}
+import { readPlaygroundCredentials } from './playground-credentials';
 
 export function PlaygroundPanel({
   connected,
@@ -45,7 +24,7 @@ export function PlaygroundPanel({
     setPending(true);
     setMessage('');
     try {
-      const credentials = await readCredentials();
+      const credentials = await readPlaygroundCredentials();
       setTokenFile(credentials.tokenFile);
       if (action === 'reveal') setToken(credentials.token);
       if (action === 'copy') {

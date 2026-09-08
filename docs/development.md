@@ -33,7 +33,7 @@ Run `pnpm check:react` for the full React scan; CI runs the same pinned check.
 `pnpm install` installs the hook through the prepare script. Other local checks remain explicit.
 React Doctor runs locally with telemetry and remote supply-chain scoring disabled; pnpm owns
 dependency policy. Vendored shadcn components and its generated mobile hook are excluded,
-matching the vendor policy. Application React rules are not suppressed.
+matching the vendor policy.
 
 ## CI gate
 
@@ -235,15 +235,17 @@ Run `pnpm dev:web` for Vite on <http://127.0.0.1:5173> with React refresh.
 Run `pnpm --filter @porcelain/web build` to typecheck and produce static assets.
 Run `pnpm dev:playground` for the connected development workflow described in
 [playgrounds](../playgrounds/README.md). It starts a disposable API and Vite together;
-use the printed token-file contents to connect, or choose the Codex **Playground** action
-to enable the optional Devtools connection panel. **Playground (manual auth)** keeps the bridge disabled. Stop an existing Vite process first if it owns port 5173.
+the client authenticates automatically. Use `pnpm dev:playground --manual` to connect
+yourself through Devtools or the token form. Both modes include Playground Devtools.
+The Codex **Playground** and **Playground (manual auth)** actions run these commands. Stop an existing Vite process first if it owns port 5173.
 For a separately managed local API, set `PORCELAIN_API_TARGET=http://127.0.0.1:PORT`
 when starting Vite. This target is server-side proxy configuration, not a browser credential.
 
 Install the smoke browser once with
 `pnpm --filter @porcelain/web exec playwright install --with-deps chromium`,
-then run `pnpm test:web:smoke`. The test owns a disposable Git/SQLite API and production preview on port 4173
-and fails if that port is occupied. It builds its own assets and runs uncached.
+then run `pnpm test:web:smoke`. The tests own disposable Git/SQLite APIs, production preview
+on port 4173, manual development on 4174 and automatic development on 4175. They fail
+if those ports are occupied, build their own assets and run uncached.
 Browser specs live under `apps/web/e2e`; Playwright owns them, while
 `scripts/test-configuration.ts` enforces ownership alongside Vitest scopes.
 See the [web foundation decision](decisions/web-foundation.md) for the vendor policy.

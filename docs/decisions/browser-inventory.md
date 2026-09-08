@@ -34,18 +34,23 @@ rejected authentication, refresh, selection and disconnect. Controlled responses
 empty/unavailable inventory and failures. Client specs protect request policy and schema
 validation. These checks do not establish Electron, mobile or remote deployment behavior.
 
-## Optional playground bridge
+## Development playground connection
 
-The disposable launcher may opt into a Vite-only credential bridge with
-`PORCELAIN_PLAYGROUND_BRIDGE=1`. It passes its own token-file path to Vite without
-embedding credentials in browser assets. The bridge reads that single file only on
-an explicit same-origin POST with the development request header. It rejects other
-origins, non-loopback hostnames, and cross-site fetch metadata; responses are not cached.
-The filesystem serving deny list also blocks the selected token and generated playgrounds.
+The disposable launcher enables a Vite-only credential bridge for both automatic and
+manual development modes. It passes its own token-file path to Vite without embedding
+credentials in browser assets. The bridge reads that single file only on a same-origin
+POST with the development request header. It rejects other origins, non-loopback hostnames,
+and cross-site fetch metadata; responses are not cached. The filesystem serving deny list
+also blocks the selected token and generated playgrounds.
 
-A TanStack Devtools panel can reveal/copy credentials or connect using the existing
-authenticated inventory transport. It does not change server authentication or save
-credentials in browser storage. Both login paths share an attempt generation: the first
-successful connection or a disconnect invalidates outstanding login completions. Normal development defaults to the manual login path;
-`0` explicitly disables the panel and endpoint. Build and preview disable them regardless
-of the flag. This is local fixture tooling, not a public token-provisioning API.
+`pnpm dev:playground` authenticates once on page load. `--manual` waits for a user action.
+Both modes include a TanStack Devtools panel for reveal/copy/connect and retain manual
+token entry. All paths use the existing authenticated inventory transport without saving
+credentials in browser storage. Login paths share an attempt generation: the first successful
+connection or a disconnect invalidates outstanding login completions. Disconnect does not
+trigger another automatic attempt; a reload does. Failed automatic attempts leave manual
+connection available.
+
+The launcher supplies the internal bridge and automatic-connection flags to Vite.
+Standalone Vite has neither enabled by default; build and preview disable both regardless
+of those flags. This is local fixture tooling, not a public token-provisioning API.

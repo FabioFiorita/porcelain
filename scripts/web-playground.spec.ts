@@ -69,7 +69,7 @@ test('serves a template inventory through Vite and cleans owned state on cancell
           },
         })
       ).status,
-    ).toBe(404);
+    ).toBe(200);
     const secondManifest = join(parent, 'second-info.json');
     await expect(
       runWebPlayground({
