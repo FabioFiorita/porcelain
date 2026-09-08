@@ -17,8 +17,17 @@ export function createCommentThread(
     '/worktrees/:worktreeId/comments',
     {
       schema: {
+        tags: ['Comments'],
+        summary: 'Start a discussion on a file or code range',
         params: commentScopeSchema,
-        body: createCommentThreadSchema,
+        body: createCommentThreadSchema.meta({
+          examples: [
+            {
+              anchor: { kind: 'file', filePath: 'README.md' },
+              body: 'What motivated this change?',
+            },
+          ],
+        }),
         response: { ...errorResponses, 200: commentThreadsSchema },
       },
     },

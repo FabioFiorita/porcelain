@@ -17,8 +17,10 @@ export function resolveCommentThread(
     '/worktrees/:worktreeId/comments/:threadId/resolution',
     {
       schema: {
+        tags: ['Comments'],
+        summary: 'Resolve or reopen a discussion',
         params: commentThreadScopeSchema,
-        body: resolveCommentSchema,
+        body: resolveCommentSchema.meta({ examples: [{ resolved: true }] }),
         response: { ...errorResponses, 200: commentThreadsSchema },
       },
     },

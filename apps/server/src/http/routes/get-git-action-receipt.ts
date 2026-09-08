@@ -15,6 +15,8 @@ export function getGitActionReceipt(
     '/git-action-requests/:requestId',
     {
       schema: {
+        tags: ['Git actions'],
+        summary: 'Read the outcome of a submitted Git action',
         params: gitActionRequestParamsSchema,
         response: { ...errorResponses, 200: gitActionReceiptSchema },
       },

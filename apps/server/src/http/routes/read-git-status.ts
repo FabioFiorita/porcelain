@@ -17,6 +17,8 @@ export function readGitStatus(
     '/worktrees/:worktreeId/git/status',
     {
       schema: {
+        tags: ['Changes'],
+        summary: 'Inspect staged and unstaged changes',
         params: gitWorktreeParamsSchema,
         response: { ...errorResponses, 200: gitStatusResponseSchema },
       },

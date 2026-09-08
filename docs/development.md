@@ -183,3 +183,44 @@ preparation/receipt recovery, external-writer limits and explicit stash scope. R
 Git, receipt, use-case and HTTP specs when changing this boundary. Fixtures use isolated HOME/config,
 temporary repositories and local remotes; HTTPS fixtures generate disposable certificates using OpenSSL.
 SSH transport substitutes prove invocation policy, not real authentication interoperability.
+
+## Interactive API playground
+
+Run `pnpm api:playground` and open the printed `documentation` URL. This starts
+Swagger UI and a loopback server with a temporary database, a sample repository,
+a linked `review` worktree, two commits, staged and unstaged changes, an untracked
+file, and a local bare remote. No external Git account is required.
+
+Read the printed `tokenFile`, click **Authorize**, and paste its contents without
+the `Bearer` prefix. Swagger adds that prefix. Authorization is not persisted
+across page reloads. Expand an operation, click **Try it out**, fill its inputs,
+and click **Execute** to see the actual response.
+
+A useful first walkthrough:
+
+1. Execute `GET /inventory`. The printed `worktreeId` identifies the review worktree.
+2. Use that ID in Files, Changes and History to inspect the seeded repository.
+3. In Comments, execute the example POST body, then GET to read the discussion.
+   Copy the returned thread ID to reply or resolve it.
+4. Try a file preference to pin or hide `README.md`, or upload the example artifact.
+5. For a Git write, prepare the action, use its returned preparation ID in the
+   corresponding execute request with a fresh UUID request ID, then poll its receipt.
+   Stash creation supports `includeUntracked: true` for the sample `notes.txt`.
+
+These are real API operations. The playground is disposable, not a filesystem
+sandbox: keep its registered projects limited to the generated examples.
+Project registration discovers existing worktrees; there is no API to create a
+worktree. Press Ctrl+C to close the server and remove its temporary data. A new
+run starts with fresh IDs and a fresh token.
+
+For another development server, set `PORCELAIN_API_DOCUMENTATION=1` to enable
+`/documentation/` and `/documentation/json`. Documentation is disabled by default;
+`0` explicitly disables it. When enabled, the explorer and schema are public,
+while application operations still require the server's bearer token.
+
+## Spec organization
+
+Use an outer `describe` to name the subject in larger specs. Group related cases
+under behavior names when this makes the report easier to scan, for example
+history pagination or stash creation. Keep small specs shallow. Grouping should
+not introduce shared mutable fixtures or replace independent, meaningful tests.

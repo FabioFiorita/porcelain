@@ -17,6 +17,8 @@ export function prepareStashPop(
     '/projects/:projectId/worktrees/:worktreeId/git/stash/pop/prepare',
     {
       schema: {
+        tags: ['Git actions'],
+        summary: 'Prepare stash pop',
         params: gitActionScopeSchema,
         body: stashApplyPreparationRequestSchema,
         response: { ...errorResponses, 200: gitActionPreparationSchema },

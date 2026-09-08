@@ -18,6 +18,8 @@ export function listCommits(
     '/worktrees/:worktreeId/commits',
     {
       schema: {
+        tags: ['History'],
+        summary: 'List commits or a file timeline',
         params: historyParamsSchema,
         querystring: commitPageQuerySchema,
         response: { ...errorResponses, 200: commitPageResponseSchema },

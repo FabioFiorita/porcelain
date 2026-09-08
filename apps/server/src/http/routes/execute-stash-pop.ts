@@ -18,6 +18,8 @@ export function executeStashPop(
     '/projects/:projectId/worktrees/:worktreeId/git/stash/pop',
     {
       schema: {
+        tags: ['Git actions'],
+        summary: 'Submit prepared stash pop',
         params: gitActionScopeSchema,
         body: gitActionExecutionRequestSchema,
         response: {

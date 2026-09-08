@@ -17,8 +17,12 @@ export function prepareFetch(
     '/projects/:projectId/worktrees/:worktreeId/git/fetch/prepare',
     {
       schema: {
+        tags: ['Git actions'],
+        summary: 'Prepare fetch',
         params: gitActionScopeSchema,
-        body: fetchPreparationRequestSchema,
+        body: fetchPreparationRequestSchema.meta({
+          examples: [{ remoteName: 'origin', sourceRef: 'refs/heads/main' }],
+        }),
         response: { ...errorResponses, 200: gitActionPreparationSchema },
       },
     },

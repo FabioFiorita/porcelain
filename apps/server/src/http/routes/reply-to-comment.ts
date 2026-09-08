@@ -17,8 +17,12 @@ export function replyToComment(
     '/worktrees/:worktreeId/comments/:threadId/replies',
     {
       schema: {
+        tags: ['Comments'],
+        summary: 'Reply to a discussion',
         params: commentThreadScopeSchema,
-        body: replyToCommentSchema,
+        body: replyToCommentSchema.meta({
+          examples: [{ body: 'This makes the intended behavior explicit.' }],
+        }),
         response: { ...errorResponses, 200: commentThreadsSchema },
       },
     },

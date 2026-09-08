@@ -3,11 +3,16 @@ import { healthResponseSchema } from '@porcelain/contracts/health';
 import type { FastifyInstance } from 'fastify';
 
 export async function healthRoute(server: FastifyInstance) {
-  server
-    .withTypeProvider<ZodTypeProvider>()
-    .get(
-      '/health',
-      { schema: { response: { 200: healthResponseSchema } } },
-      () => ({ status: 'ok' as const }),
-    );
+  server.withTypeProvider<ZodTypeProvider>().get(
+    '/health',
+    {
+      schema: {
+        tags: ['Health'],
+        summary: 'Check server availability',
+        security: [],
+        response: { 200: healthResponseSchema },
+      },
+    },
+    () => ({ status: 'ok' as const }),
+  );
 }

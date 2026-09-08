@@ -16,6 +16,8 @@ export function listCommentThreads(
     '/worktrees/:worktreeId/comments',
     {
       schema: {
+        tags: ['Comments'],
+        summary: 'List discussions for a worktree',
         params: commentScopeSchema,
         response: { ...errorResponses, 200: commentThreadsSchema },
       },

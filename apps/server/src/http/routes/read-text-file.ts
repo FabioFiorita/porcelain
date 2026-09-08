@@ -18,6 +18,8 @@ export function readTextFile(
     '/worktrees/:worktreeId/text',
     {
       schema: {
+        tags: ['Files'],
+        summary: 'Read a text file',
         params: worktreeParamsSchema,
         querystring: fileQuerySchema,
         response: { ...errorResponses, 200: textResponseSchema },

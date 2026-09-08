@@ -18,6 +18,8 @@ export function listDirectory(
     '/worktrees/:worktreeId/directory',
     {
       schema: {
+        tags: ['Files'],
+        summary: 'List a directory in a worktree',
         params: worktreeParamsSchema,
         querystring: fileQuerySchema,
         response: { ...errorResponses, 200: directoryResponseSchema },

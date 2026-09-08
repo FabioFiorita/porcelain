@@ -12,7 +12,11 @@ export async function refreshInventoryRoute(
   server.withTypeProvider<ZodTypeProvider>().post(
     '/inventory/refresh',
     {
-      schema: { response: { ...errorResponses, 200: inventoryResponseSchema } },
+      schema: {
+        tags: ['Inventory'],
+        summary: 'Refresh worktrees from Git',
+        response: { ...errorResponses, 200: inventoryResponseSchema },
+      },
     },
     async () => {
       const { inventory } = await options.application.refresh();

@@ -17,6 +17,8 @@ export async function registerProjectRoute(
     '/projects',
     {
       schema: {
+        tags: ['Inventory'],
+        summary: 'Register an existing repository',
         body: registerProjectRequestSchema.refine((input) =>
           isAbsolute(input.path),
         ),

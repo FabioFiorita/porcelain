@@ -17,6 +17,8 @@ export function listArtifacts(
     '/worktrees/:worktreeId/artifacts',
     {
       schema: {
+        tags: ['Artifacts'],
+        summary: 'List stored HTML artifacts',
         params: artifactScopeSchema,
         response: { ...errorResponses, 200: artifactListSchema },
       },

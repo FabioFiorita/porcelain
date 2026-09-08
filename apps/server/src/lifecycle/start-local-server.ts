@@ -7,10 +7,16 @@ export async function startLocalServer(
   settings: z.infer<typeof startupSettingsSchema>,
   signal?: AbortSignal,
 ) {
-  const { dataDirectory, token, port } = startupSettingsSchema.parse(settings);
+  const { dataDirectory, token, port, apiDocumentation } =
+    startupSettingsSchema.parse(settings);
   signal?.throwIfAborted();
   const ownership = claimDataDirectory(dataDirectory);
-  const server = await openOwnedServer(ownership, token, signal);
+  const server = await openOwnedServer(
+    ownership,
+    token,
+    signal,
+    apiDocumentation,
+  );
   try {
     signal?.throwIfAborted();
     const address = await server.listen({ host: '127.0.0.1', port });
@@ -43,11 +49,13 @@ async function openOwnedServer(
   ownership: ReturnType<typeof claimDataDirectory>,
   token: string,
   signal?: AbortSignal,
+  apiDocumentation?: boolean,
 ) {
   try {
     return await createServer({
       dataDirectory: ownership.directory,
       token,
+      ...(apiDocumentation === undefined ? {} : { apiDocumentation }),
       ...(signal ? { signal } : {}),
     });
   } catch (error) {

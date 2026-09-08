@@ -17,8 +17,12 @@ export function setFilePreference(
     '/worktrees/:worktreeId/file-preferences',
     {
       schema: {
+        tags: ['File preferences'],
+        summary: 'Pin, hide, or clear a path preference',
         params: filePreferenceScopeSchema,
-        body: setFilePreferenceRequestSchema,
+        body: setFilePreferenceRequestSchema.meta({
+          examples: [{ path: 'README.md', flag: 'pinned', value: true }],
+        }),
         response: { ...errorResponses, 200: filePreferencesResponseSchema },
       },
     },

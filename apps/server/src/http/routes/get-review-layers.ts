@@ -16,6 +16,8 @@ export function getReviewLayers(
     '/worktrees/:worktreeId/review-layers',
     {
       schema: {
+        tags: ['Review layers'],
+        summary: 'Read ordered review layers',
         params: reviewLayerParamsSchema,
         response: { ...errorResponses, 200: reviewLayersResponseSchema },
       },

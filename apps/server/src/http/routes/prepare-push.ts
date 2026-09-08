@@ -17,8 +17,18 @@ export function preparePush(
     '/projects/:projectId/worktrees/:worktreeId/git/push/prepare',
     {
       schema: {
+        tags: ['Git actions'],
+        summary: 'Prepare push',
         params: gitActionScopeSchema,
-        body: pushPreparationRequestSchema,
+        body: pushPreparationRequestSchema.meta({
+          examples: [
+            {
+              remoteName: 'origin',
+              destinationRef: 'refs/heads/review',
+              allowCreate: false,
+            },
+          ],
+        }),
         response: { ...errorResponses, 200: gitActionPreparationSchema },
       },
     },

@@ -18,6 +18,8 @@ export function executeFetch(
     '/projects/:projectId/worktrees/:worktreeId/git/fetch',
     {
       schema: {
+        tags: ['Git actions'],
+        summary: 'Submit prepared fetch',
         params: gitActionScopeSchema,
         body: gitActionExecutionRequestSchema,
         response: {

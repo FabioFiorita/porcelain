@@ -18,6 +18,8 @@ export function replaceReviewLayers(
     {
       bodyLimit: 1024 * 1024,
       schema: {
+        tags: ['Review layers'],
+        summary: 'Replace layers using the current revision',
         params: reviewLayerParamsSchema,
         body: replaceReviewLayersSchema,
         response: { ...errorResponses, 200: reviewLayersResponseSchema },

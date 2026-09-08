@@ -12,7 +12,11 @@ export async function getInventoryRoute(
   server.withTypeProvider<ZodTypeProvider>().get(
     '/inventory',
     {
-      schema: { response: { ...errorResponses, 200: inventoryResponseSchema } },
+      schema: {
+        tags: ['Inventory'],
+        summary: 'List registered projects and discovered worktrees',
+        response: { ...errorResponses, 200: inventoryResponseSchema },
+      },
     },
     async () => toInventoryResponse(options.application.inventory()),
   );
