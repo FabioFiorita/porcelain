@@ -1,6 +1,6 @@
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
 export class ListFilePreferences {
   private readonly inventory: InventoryStore;
   private readonly preferences: FilePreferenceStore;
@@ -8,15 +8,13 @@ export class ListFilePreferences {
     this.inventory = inventory;
     this.preferences = preferences;
   }
-  execute(worktreeId: string) {
+  execute(projectId: string) {
     if (
       !this.inventory
         .read()
-        .projects.some((project) =>
-          project.worktrees.some((worktree) => worktree.id === worktreeId),
-        )
+        .projects.some((project) => project.id === projectId)
     )
-      throw new WorktreeNotFoundError();
-    return this.preferences.list(worktreeId);
+      throw new ProjectNotFoundError();
+    return this.preferences.list(projectId);
   }
 }

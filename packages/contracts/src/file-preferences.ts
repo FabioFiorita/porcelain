@@ -21,7 +21,7 @@ export const preferencePathSchema = z
         ),
   );
 export const filePreferenceScopeSchema = z.strictObject({
-  worktreeId: z.uuid(),
+  projectId: z.uuid(),
 });
 export const setFilePreferenceRequestSchema = z.strictObject({
   path: preferencePathSchema,

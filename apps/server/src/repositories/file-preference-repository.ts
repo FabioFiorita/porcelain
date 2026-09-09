@@ -10,7 +10,7 @@ export class FilePreferenceRepository implements FilePreferenceStore {
   constructor(db: BetterSQLite3Database) {
     this.db = db;
   }
-  list(worktreeId: string) {
+  list(projectId: string) {
     return this.db
       .select({
         path: filePreferences.path,
@@ -18,14 +18,14 @@ export class FilePreferenceRepository implements FilePreferenceStore {
         hidden: filePreferences.hidden,
       })
       .from(filePreferences)
-      .where(eq(filePreferences.worktreeId, worktreeId))
+      .where(eq(filePreferences.projectId, projectId))
       .orderBy(asc(filePreferences.path))
       .all();
   }
-  set(worktreeId: string, change: FilePreferenceChange): void {
+  set(projectId: string, change: FilePreferenceChange): void {
     this.db.transaction(
       (tx) => {
-        const scope = eq(filePreferences.worktreeId, worktreeId);
+        const scope = eq(filePreferences.projectId, projectId);
         const existing = tx
           .select({ path: filePreferences.path })
           .from(filePreferences)
@@ -44,21 +44,21 @@ export class FilePreferenceRepository implements FilePreferenceStore {
 
         tx.insert(filePreferences)
           .values({
-            worktreeId,
+            projectId,
             path: change.path,
             pinned: false,
             hidden: false,
             [change.flag]: change.value,
           })
           .onConflictDoUpdate({
-            target: [filePreferences.worktreeId, filePreferences.path],
+            target: [filePreferences.projectId, filePreferences.path],
             set: { [change.flag]: change.value },
           })
           .run();
         tx.delete(filePreferences)
           .where(
             and(
-              eq(filePreferences.worktreeId, worktreeId),
+              eq(filePreferences.projectId, projectId),
               eq(filePreferences.path, change.path),
               eq(filePreferences.pinned, false),
               eq(filePreferences.hidden, false),

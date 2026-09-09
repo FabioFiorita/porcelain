@@ -8,6 +8,7 @@ import { gitActionPreparations } from '../db/schema/git-action-preparations.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
 import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { projects } from '../db/schema/projects.ts';
+import { retainedWorktreePreferences } from '../db/schema/retained-worktree-preferences.ts';
 import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
 import { ProjectRemovalBlockedError } from './errors/project-removal-blocked-error.ts';
 import type { ProjectRemovalStore } from './interfaces/project-removal-store.ts';
@@ -49,7 +50,10 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
           .where(inArray(commentThreads.worktreeId, owned))
           .run();
         tx.delete(filePreferences)
-          .where(inArray(filePreferences.worktreeId, owned))
+          .where(eq(filePreferences.projectId, projectId))
+          .run();
+        tx.delete(retainedWorktreePreferences)
+          .where(inArray(retainedWorktreePreferences.worktreeId, owned))
           .run();
         tx.delete(reviewLayerSets)
           .where(inArray(reviewLayerSets.worktreeId, owned))

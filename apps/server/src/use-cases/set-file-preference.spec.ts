@@ -3,7 +3,7 @@ import type { FilePreference } from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { InvalidFilePreferenceError } from './errors/invalid-file-preference-error.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
 import { ListFilePreferences } from './list-file-preferences.ts';
 import { SetFilePreference } from './set-file-preference.ts';
 
@@ -50,8 +50,8 @@ it('requires known identity but permits unavailable inventory and missing paths 
   const list = new ListFilePreferences(inventory, preferences);
   expect(() =>
     set.execute('unknown', { path: 'file', flag: 'pinned', value: true }),
-  ).toThrow(WorktreeNotFoundError);
-  expect(() => list.execute('unknown')).toThrow(WorktreeNotFoundError);
+  ).toThrow(ProjectNotFoundError);
+  expect(() => list.execute('unknown')).toThrow(ProjectNotFoundError);
   expect(rows).toEqual([]);
   for (const path of [
     '',
@@ -69,12 +69,12 @@ it('requires known identity but permits unavailable inventory and missing paths 
     'a\\b',
   ]) {
     expect(() =>
-      set.execute('known', { path, flag: 'hidden', value: true }),
+      set.execute('project', { path, flag: 'hidden', value: true }),
     ).toThrow(InvalidFilePreferenceError);
   }
   expect(rows).toEqual([]);
   expect(
-    set.execute('known', {
+    set.execute('project', {
       path: 'absent/file.ts',
       flag: 'pinned',
       value: true,
@@ -86,8 +86,8 @@ it('requires known identity but permits unavailable inventory and missing paths 
     'x'.repeat(4096),
   ]) {
     expect(
-      set.execute('known', { path, flag: 'pinned', value: true }),
+      set.execute('project', { path, flag: 'pinned', value: true }),
     ).toContainEqual({ path, pinned: true, hidden: false });
   }
-  expect(list.execute('known')).toEqual(rows);
+  expect(list.execute('project')).toEqual(rows);
 });

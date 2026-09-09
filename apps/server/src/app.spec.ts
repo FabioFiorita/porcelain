@@ -428,15 +428,13 @@ describe('Application', () => {
       const { main, dataDirectory } = await fixture();
       const app = await open(dataDirectory);
       const { project } = await app.register(main);
-      const worktreeId = project.worktrees[0]?.id;
-      if (!worktreeId) throw new Error('Missing fixture worktree');
       const refreshing = app.refresh();
       const change = {
         path: 'original.ts',
         flag: 'pinned' as 'pinned' | 'hidden',
         value: true,
       };
-      const pending = app.setFilePreference(worktreeId, change);
+      const pending = app.setFilePreference(project.id, change);
       change.path = 'mutated.ts';
       change.flag = 'hidden';
       change.value = false;
@@ -444,7 +442,7 @@ describe('Application', () => {
       expect(await pending).toEqual([
         { path: 'original.ts', pinned: true, hidden: false },
       ]);
-      expect(await app.listFilePreferences(worktreeId)).toEqual([
+      expect(await app.listFilePreferences(project.id)).toEqual([
         { path: 'original.ts', pinned: true, hidden: false },
       ]);
     });

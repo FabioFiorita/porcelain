@@ -2,7 +2,7 @@ import type { FilePreferenceChange } from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { InvalidFilePreferenceError } from './errors/invalid-file-preference-error.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
 
 export class SetFilePreference {
   private readonly inventory: InventoryStore;
@@ -11,7 +11,7 @@ export class SetFilePreference {
     this.inventory = inventory;
     this.preferences = preferences;
   }
-  execute(worktreeId: string, change: FilePreferenceChange) {
+  execute(projectId: string, change: FilePreferenceChange) {
     if (
       !change.path ||
       change.path.length > 4096 ||
@@ -34,12 +34,10 @@ export class SetFilePreference {
     if (
       !this.inventory
         .read()
-        .projects.some((project) =>
-          project.worktrees.some((worktree) => worktree.id === worktreeId),
-        )
+        .projects.some((project) => project.id === projectId)
     )
-      throw new WorktreeNotFoundError();
-    this.preferences.set(worktreeId, change);
-    return this.preferences.list(worktreeId);
+      throw new ProjectNotFoundError();
+    this.preferences.set(projectId, change);
+    return this.preferences.list(projectId);
   }
 }

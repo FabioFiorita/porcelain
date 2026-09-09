@@ -205,7 +205,8 @@ A useful first walkthrough:
 2. Use that ID in Files, Changes and History to inspect the seeded repository.
 3. In Comments, execute the example POST body, then GET to read the discussion.
    Copy the returned thread ID to reply or resolve it.
-4. Try a file preference to pin or hide `README.md`, or upload the example artifact.
+4. Use the project ID from inventory to pin or hide `README.md` in File preferences,
+   or use the worktree ID to upload the example artifact.
 5. For a Git write, prepare the action, use its returned preparation ID in the
    corresponding execute request with a fresh UUID request ID, then poll its receipt.
    Stash creation supports `includeUntracked: true` for the sample `notes.txt`.

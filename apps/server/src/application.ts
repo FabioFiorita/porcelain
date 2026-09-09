@@ -148,11 +148,11 @@ export interface Application {
     signal?: AbortSignal,
   ): Promise<CommitChanges>;
   listFilePreferences(
-    worktreeId: string,
+    projectId: string,
     signal?: AbortSignal,
   ): Promise<FilePreference[]>;
   setFilePreference(
-    worktreeId: string,
+    projectId: string,
     change: FilePreferenceChange,
     signal?: AbortSignal,
   ): Promise<FilePreference[]>;

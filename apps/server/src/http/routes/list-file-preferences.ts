@@ -13,7 +13,7 @@ export function listFilePreferences(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
-    '/worktrees/:worktreeId/file-preferences',
+    '/projects/:projectId/file-preferences',
     {
       schema: {
         tags: ['File preferences'],
@@ -24,7 +24,7 @@ export function listFilePreferences(
     },
     async (request) => ({
       preferences: await options.application.listFilePreferences(
-        request.params.worktreeId,
+        request.params.projectId,
       ),
     }),
   );

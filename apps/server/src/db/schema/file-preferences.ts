@@ -8,16 +8,16 @@ import {
 } from 'drizzle-orm/sqlite-core';
 
 export const filePreferences = sqliteTable(
-  'file_preferences',
+  'project_file_preferences',
   {
-    worktreeId: text('worktree_id').notNull(),
+    projectId: text('project_id').notNull(),
     path: text().notNull(),
     pinned: integer({ mode: 'boolean' }).notNull(),
     hidden: integer({ mode: 'boolean' }).notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.worktreeId, table.path] }),
-    check('preference_pinned', sql`${table.pinned} IN (0, 1)`),
-    check('preference_hidden', sql`${table.hidden} IN (0, 1)`),
+    primaryKey({ columns: [table.projectId, table.path] }),
+    check('project_preference_pinned', sql`${table.pinned} IN (0, 1)`),
+    check('project_preference_hidden', sql`${table.hidden} IN (0, 1)`),
   ],
 );

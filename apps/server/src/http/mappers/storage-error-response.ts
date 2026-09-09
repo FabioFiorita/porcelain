@@ -9,7 +9,13 @@ import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-targe
 import { InvalidArtifactError } from '../../use-cases/errors/invalid-artifact-error.ts';
 import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
 import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
+import { ProjectNotFoundError } from '../../use-cases/errors/project-not-found-error.ts';
 export function toStorageErrorResponse(error: unknown) {
+  if (error instanceof ProjectNotFoundError)
+    return {
+      statusCode: 404,
+      body: { code: 'PROJECT_NOT_FOUND', message: 'Project not found' },
+    };
   if (error instanceof ProjectRemovalBlockedError)
     return {
       statusCode: 409,

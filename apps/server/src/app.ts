@@ -255,16 +255,16 @@ export async function openApplication(options: {
           signal,
         );
       },
-      listFilePreferences: (worktreeId, signal) =>
-        operations.run(async () => listPreferences.execute(worktreeId), signal),
-      setFilePreference: (worktreeId, change, signal) => {
+      listFilePreferences: (projectId, signal) =>
+        operations.run(async () => listPreferences.execute(projectId), signal),
+      setFilePreference: (projectId, change, signal) => {
         const intent = {
           path: change.path,
           flag: change.flag,
           value: change.value,
         };
         return operations.run(
-          async () => setPreference.execute(worktreeId, intent),
+          async () => setPreference.execute(projectId, intent),
           signal,
         );
       },

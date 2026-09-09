@@ -95,7 +95,9 @@ describe('Project removal HTTP workflow', () => {
           name: 'Review',
           content: '<h1>Review</h1>',
         });
-        await request(`${base}/file-preferences`, 'PUT', {
+      }
+      for (const owner of [project, other]) {
+        await request(`/projects/${owner.id}/file-preferences`, 'PUT', {
           path: 'notes.txt',
           flag: 'pinned',
           value: true,
@@ -104,6 +106,9 @@ describe('Project removal HTTP workflow', () => {
       // External worktree removal must not make its retained data escape project deletion.
       git(path, ['worktree', 'remove', linked]);
       await request('/inventory/refresh', 'POST');
+      expect(await request(`/projects/${project.id}/file-preferences`)).toEqual(
+        { preferences: [{ path: 'notes.txt', pinned: true, hidden: false }] },
+      );
       const head = git(path, ['rev-parse', 'HEAD']);
       const index = await readFile(join(path, '.git', 'index'));
       const worktrees = git(path, ['worktree', 'list', '--porcelain']);
@@ -142,13 +147,15 @@ describe('Project removal HTTP workflow', () => {
           'review_layer_sets',
           'comment_threads',
           'artifacts',
-          'file_preferences',
           'project_worktrees',
         ]) {
           expect(db.prepare(`SELECT worktree_id FROM ${table}`).all()).toEqual([
             { worktree_id: other.worktrees[0]?.id },
           ]);
         }
+        expect(
+          db.prepare('SELECT project_id FROM project_file_preferences').all(),
+        ).toEqual([{ project_id: other.id }]);
         expect(db.prepare('SELECT * FROM git_action_receipts').all()).toEqual(
           [],
         );
@@ -198,7 +205,10 @@ describe('Project removal HTTP workflow', () => {
             (
               await restarted.inject({
                 method: 'GET',
-                url: `${base}/${suffix}`,
+                url:
+                  suffix === 'file-preferences'
+                    ? `/projects/${registered.id}/${suffix}`
+                    : `${base}/${suffix}`,
                 headers,
               })
             ).json(),

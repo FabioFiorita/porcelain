@@ -6,7 +6,7 @@ import { openDatabase } from '../db/connection.ts';
 import { FilePreferenceLimitError } from './errors/file-preference-limit-error.ts';
 import { FilePreferenceRepository } from './file-preference-repository.ts';
 
-it('bounds each worktree to 2000 paths while permitting retries, independent updates, and clearing to free capacity', async () => {
+it('bounds each project to 2000 paths while permitting retries, independent updates, and clearing to free capacity', async () => {
   const directory = await mkdtemp(
     join(tmpdir(), 'porcelain-preference-limit-'),
   );

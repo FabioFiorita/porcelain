@@ -74,11 +74,23 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     expect(await request(`${base}/commits`)).toMatchObject({
       commits: [expect.objectContaining({ subject: 'Initial' })],
     });
-    const preferences = await request(`${base}/file-preferences`, 'PUT', {
-      path: 'notes.txt',
-      flag: 'pinned',
-      value: true,
-    });
+    const preferences = await request(
+      `/projects/${project.id}/file-preferences`,
+      'PUT',
+      {
+        path: 'notes.txt',
+        flag: 'pinned',
+        value: true,
+      },
+    );
+    // Registering through either checkout resolves to the same project preferences.
+    const linkedProject = projectResponseSchema.parse(
+      await request('/projects', 'POST', { path: linked }),
+    );
+    expect(linkedProject.id).toBe(project.id);
+    expect(
+      await request(`/projects/${linkedProject.id}/file-preferences`),
+    ).toEqual(preferences);
     const layers = await request(`${base}/review-layers`, 'PUT', {
       expectedRevision: 0,
       layers: [
@@ -118,7 +130,10 @@ it('keeps review metadata together across Git inspection, refresh and a server r
       ] as const) {
         const response = await restarted.inject({
           method: 'GET',
-          url: `${base}/${suffix}`,
+          url:
+            suffix === 'file-preferences'
+              ? `/projects/${project.id}/${suffix}`
+              : `${base}/${suffix}`,
           headers,
         });
         expect(response.statusCode).toBe(200);

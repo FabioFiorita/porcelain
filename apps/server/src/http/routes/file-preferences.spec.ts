@@ -28,8 +28,8 @@ it('persists independent file and folder intent through retry, refresh, unavaila
       payload: { path },
     });
     const project = projectResponseSchema.parse(registered.json());
-    const id = project.worktrees[0]?.id;
-    const url = `/worktrees/${id}/file-preferences`;
+    const id = project.id;
+    const url = `/projects/${id}/file-preferences`;
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     const set = async (
       filePath: string,
@@ -118,7 +118,7 @@ it('persists independent file and folder intent through retry, refresh, unavaila
   }
 });
 
-it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identity and bulk requests safely', async () => {
+it('isolates projects and rejects unauthenticated, noncanonical, unknown identity and bulk requests safely', async () => {
   const root = await realpath(
     await mkdtemp(join(tmpdir(), 'porcelain-preference-input-')),
   );
@@ -139,9 +139,9 @@ it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identi
         payload: { path },
       });
       const project = projectResponseSchema.parse(response.json());
-      ids.push(project.worktrees[0]?.id ?? '');
+      ids.push(project.id);
     }
-    const url = `/worktrees/${ids[0]}/file-preferences`;
+    const url = `/projects/${ids[0]}/file-preferences`;
     const payload = { path: 'file.ts', flag: 'pinned', value: true };
     expect(
       (await server.inject({ method: 'PUT', url, payload: { invalid: true } }))
@@ -156,7 +156,7 @@ it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identi
       (
         await server.inject({
           method: 'GET',
-          url: `/worktrees/${ids[1]}/file-preferences`,
+          url: `/projects/${ids[1]}/file-preferences`,
           headers,
         })
       ).json(),
@@ -203,14 +203,14 @@ it('isolates worktrees and rejects unauthenticated, noncanonical, unknown identi
     for (const method of ['GET', 'PUT'] as const) {
       const response = await server.inject({
         method,
-        url: '/worktrees/00000000-0000-4000-8000-000000000000/file-preferences',
+        url: '/projects/00000000-0000-4000-8000-000000000000/file-preferences',
         headers,
         ...(method === 'PUT' ? { payload } : {}),
       });
       expect(response.statusCode).toBe(404);
       expect(response.json()).toEqual({
-        code: 'WORKTREE_NOT_FOUND',
-        message: 'Worktree not found',
+        code: 'PROJECT_NOT_FOUND',
+        message: 'Project not found',
       });
     }
     expect(
@@ -240,15 +240,14 @@ it('returns a safe capacity conflict and permits clearing then adding through HT
       headers,
       payload: { path },
     });
-    const worktreeId = projectResponseSchema.parse(registered.json())
-      .worktrees[0]?.id;
-    if (!worktreeId) throw new Error('Missing fixture worktree');
+    const projectId = projectResponseSchema.parse(registered.json()).id;
+    if (!projectId) throw new Error('Missing fixture worktree');
     await initial.close();
     const database = openDatabase(dataDirectory);
     try {
       const store = new FilePreferenceRepository(database.db);
       for (const index of Array.from({ length: 2000 }, (_, index) => index)) {
-        store.set(worktreeId, {
+        store.set(projectId, {
           path: `file-${index}`,
           flag: 'pinned',
           value: true,
@@ -259,7 +258,7 @@ it('returns a safe capacity conflict and permits clearing then adding through HT
     }
     const server = await createServer({ dataDirectory, token });
     try {
-      const url = `/worktrees/${worktreeId}/file-preferences`;
+      const url = `/projects/${projectId}/file-preferences`;
       const overflow = await server.inject({
         method: 'PUT',
         url,

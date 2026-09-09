@@ -52,13 +52,13 @@ it('adds preference storage to an existing inventory without changing its identi
         ],
       });
       const preferences = new FilePreferenceRepository(upgraded.db);
-      expect(preferences.list('worktree')).toEqual([]);
-      preferences.set('worktree', {
+      expect(preferences.list('project')).toEqual([]);
+      preferences.set('project', {
         path: 'notes.txt',
         flag: 'pinned',
         value: true,
       });
-      expect(preferences.list('worktree')).toEqual([
+      expect(preferences.list('project')).toEqual([
         { path: 'notes.txt', pinned: true, hidden: false },
       ]);
     } finally {
@@ -150,7 +150,7 @@ it.each([3, 4, 5])(
           ],
         });
         expect(
-          new FilePreferenceRepository(upgraded.db).list('worktree'),
+          new FilePreferenceRepository(upgraded.db).list('project'),
         ).toEqual([{ path: 'notes.txt', pinned: true, hidden: true }]);
         if (prefix >= 4)
           expect(new CommentRepository(upgraded.db).list('worktree')).toEqual([
