@@ -32,12 +32,5 @@ Refresh, worktree removal, branch changes, and transient unavailability preserve
 Preference operations snapshot caller intent before entering the application queue and share
 application serialization, deadlines, and shutdown behavior.
 
-The migration merges existing worktree preferences through durable project ownership. Each flag is
-combined with logical OR, preserving every saved pin and hide. Merged projects may exceed the normal
-2000-path admission limit: all existing paths remain editable and removable, but additions wait until
-there is capacity. Historical rows without recorded ownership remain in the old table, inaccessible
-through the API; no project is inferred from paths and no unknown intent is deleted. Mapped rows are
-removed from the old table so there is only one active preference source.
-
 [Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
 including associated review data and operation recovery constraints.

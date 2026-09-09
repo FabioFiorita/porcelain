@@ -115,10 +115,13 @@ Electron, mobile, or remote deployment behavior.
 pnpm --filter @porcelain/server db:generate
 ```
 
-Review and commit SQL, snapshots, and the migration journal under `apps/server/drizzle`. Data transformations may need
-explicit SQL. Application startup applies pending migrations; do not use `drizzle-kit push` to upgrade
-application data. The initial relational migration is the supported baseline. Earlier development schemas are rejected
-without modification; use a new disposable development directory or explicitly recover the old data.
+Review and commit SQL, snapshots, and the migration journal under `apps/server/drizzle`.
+The rebuild is unreleased: schema changes do not need to preserve data from earlier development
+iterations. The current schema starts from one generated baseline; it may be regenerated before
+release. Do not add backfills, legacy storage, or compatibility tests without a supported upgrade
+requirement. Use a fresh disposable data directory after a baseline change. Startup rejects
+incompatible migration histories without modifying them; it does not reset existing databases.
+Application startup applies migrations; do not use `drizzle-kit push` for application data.
 Keep the migration directory with the server when adding build/packaging tasks.
 
 The [server factory](../apps/server/src/http/server.ts) owns HTTP composition and shutdown hooks.

@@ -29,9 +29,6 @@ physical erasure are not promised.
 This explicit removal overrides retention on inventory disappearance in the
 [file preference](file-preferences.md), [artifact](artifact-storage.md), and
 [Git action](git-action-contracts.md) decisions. Ordinary refresh still preserves retained data.
-The migration backfills ownership for currently registered worktrees. Older orphan rows whose
-worktrees disappeared before ownership was recorded cannot be assigned safely and remain untouched;
-there is no inference from paths or deletion of another project's data to reclaim them.
 
 ## Git operation coordination
 
@@ -48,5 +45,5 @@ completed receipts; receipt retries after removal no longer recover the deleted 
 Disposable loopback HTTP coverage exercises registration, stored review data, external worktree
 removal, refresh, project removal, restart, and fresh registration. It checks other-project isolation
 and unchanged checkout content, Git HEAD, index, and worktree listing. Focused persistence and
-application specs cover migration backfill, transaction rollback, unresolved operations, queued
+application specs cover transaction rollback, unresolved operations, queued
 acceptance, and a recovery-block persistence failure. These checks do not establish client UI behavior.

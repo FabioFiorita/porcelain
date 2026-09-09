@@ -15,9 +15,10 @@ The SQLite driver is a native dependency: installation and future packaging must
 each supported server runtime and platform. The database remains server-owned, not a client dependency.
 
 TypeScript schemas own table definitions. Drizzle Kit generates checked-in SQL migrations and snapshots;
-review generated SQL before applying it. SQL remains appropriate for migration data transformations
-and SQLite pragmas. The unreleased foundation starts with one relational schema migration;
-previous development JSON and prerelease schemas are unsupported. Startup verifies the complete
+review generated SQL before applying it. The unreleased rebuild uses a generated baseline for the
+current schema, without data backfills or legacy storage for earlier development iterations. The
+baseline may be regenerated until there is a released upgrade contract. Previous development
+databases are unsupported; use fresh disposable state after a baseline change. Startup verifies the complete
 applied migration history against the shipped migration prefix before changing the database,
 rejecting unknown, newer, or divergent history. Migration history owns schema compatibility;
 there is no independent application schema version. Unsupported development data must be retained

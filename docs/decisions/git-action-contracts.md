@@ -71,7 +71,7 @@ Git state after potential effects. A rejection does not promise that a hook made
 
 ## Persistence and lifecycle
 
-Migration `0006_git-actions` adds preparations, receipts and project quarantine markers without changing prior migrations or
+Dedicated tables store preparations, receipts and project quarantine markers without
 coupling receipt retention to inventory row deletion. Records are retained without automatic eviction.
 They contain action input, hashed state evidence, timestamps and safe outcomes, not credentials.
 SQLite and Git cannot share a transaction; the receipts prevent duplicate admission, not exactly-once
