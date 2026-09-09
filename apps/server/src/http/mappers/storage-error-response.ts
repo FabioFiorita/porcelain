@@ -6,11 +6,22 @@ import { UnknownWorktreeError } from '../../repositories/errors/unknown-worktree
 import { ArtifactNotFoundError } from '../../use-cases/errors/artifact-not-found-error.ts';
 import { CommentLimitExceededError } from '../../use-cases/errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
+import { CommitReviewLayerConflictError } from '../../use-cases/errors/commit-review-layer-conflict-error.ts';
 import { InvalidArtifactError } from '../../use-cases/errors/invalid-artifact-error.ts';
 import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
+import { InvalidCommitReviewLayersError } from '../../use-cases/errors/invalid-commit-review-layers-error.ts';
 import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
 import { ProjectNotFoundError } from '../../use-cases/errors/project-not-found-error.ts';
+import { StaleReviewLayerSourceError } from '../../use-cases/errors/stale-review-layer-source-error.ts';
 export function toStorageErrorResponse(error: unknown) {
+  if (error instanceof CommitReviewLayerConflictError)
+    return {
+      statusCode: 409,
+      body: {
+        code: 'COMMIT_REVIEW_LAYER_CONFLICT',
+        message: 'Commit review layers are already associated',
+      },
+    };
   if (error instanceof ProjectNotFoundError)
     return {
       statusCode: 404,
@@ -48,6 +59,7 @@ export function toStorageErrorResponse(error: unknown) {
     };
   if (
     error instanceof InvalidFilePreferenceError ||
+    error instanceof InvalidCommitReviewLayersError ||
     error instanceof InvalidCommentError ||
     error instanceof InvalidArtifactError
   )
@@ -55,7 +67,10 @@ export function toStorageErrorResponse(error: unknown) {
       statusCode: 400,
       body: { code: 'INVALID_REQUEST', message: 'Invalid request' },
     };
-  if (error instanceof ReviewLayerConflictError)
+  if (
+    error instanceof ReviewLayerConflictError ||
+    error instanceof StaleReviewLayerSourceError
+  )
     return {
       statusCode: 409,
       body: {

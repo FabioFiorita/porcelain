@@ -18,6 +18,10 @@ import type {
   ArtifactUpload,
 } from './models/artifact.ts';
 import type { CommentCommand, CommentThread } from './models/comment-thread.ts';
+import type {
+  CommitReviewLayerRequest,
+  CommitReviewLayers,
+} from './models/commit-review-layers.ts';
 import type { DirectoryListing, TextContent } from './models/file-content.ts';
 import type {
   FilePreference,
@@ -160,6 +164,17 @@ export interface Application {
     command: CommentCommand,
     signal?: AbortSignal,
   ): Promise<CommentThread[]>;
+  commitReviewLayers(
+    projectId: string,
+    commitOid: string,
+    signal?: AbortSignal,
+  ): Promise<CommitReviewLayers | null>;
+  associateCommitReviewLayers(
+    projectId: string,
+    commitOid: string,
+    request: CommitReviewLayerRequest,
+    signal?: AbortSignal,
+  ): Promise<CommitReviewLayers>;
   reviewLayers(worktreeId: string): ReviewLayers;
   replaceReviewLayers(
     worktreeId: string,

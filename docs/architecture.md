@@ -13,7 +13,9 @@ inspection through explicit contracts and a checkout-bound `CommitGit` capabilit
 
 [Explicit project removal](decisions/project-removal.md) owns transactional cleanup of inventory and private review data.
 
-[File preferences](decisions/file-preferences.md) retain pin/hide intent separately from inventory refresh.
+[File preferences](decisions/file-preferences.md) retain project-wide pin/hide intent separately from inventory refresh.
+
+[Review layers](decisions/review-layer-metadata.md) separate live worktree order from immutable project/commit snapshots.
 
 [Artifact storage](decisions/artifact-storage.md) owns inert HTML persistence; rendering and sharing remain deferred.
 

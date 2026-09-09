@@ -1,5 +1,9 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
+  associateCommitReviewLayersSchema,
+  commitReviewLayerParamsSchema,
+} from '@porcelain/contracts/commit-review-layers';
+import {
   replaceReviewLayersSchema,
   reviewLayerParamsSchema,
 } from '@porcelain/contracts/review-layers';
@@ -21,16 +25,19 @@ import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
+import { CommitReviewLayerRepository } from './repositories/commit-review-layer-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { ProjectRemovalRepository } from './repositories/project-removal-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
+import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { DeleteArtifact } from './use-cases/delete-artifact.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
 import { GetArtifact } from './use-cases/get-artifact.ts';
+import { GetCommitReviewLayers } from './use-cases/get-commit-review-layers.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
 import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
@@ -97,6 +104,14 @@ export async function openApplication(options: {
     const cursor = new CommitCursorCodec(randomBytes(32));
     const commitGit =
       options.commitGit ?? ((checkout) => new CommitGit(checkout, cursor));
+    const commitLayers = new CommitReviewLayerRepository(database.db);
+    const associateLayers = new AssociateCommitReviewLayers(
+      store,
+      layers,
+      commitLayers,
+      commitGit,
+    );
+    const getCommitLayers = new GetCommitReviewLayers(store, commitLayers);
     const listCommits = new ListCommits(store, commitGit);
     const inspectCommitChanges = new InspectCommitChanges(store, commitGit);
     const files = options.files ?? new NodeFileReader();
@@ -271,6 +286,33 @@ export async function openApplication(options: {
       comments: async (command, signal) => {
         const snapshot = structuredClone(command);
         return operations.run(async () => comments.execute(snapshot), signal);
+      },
+      commitReviewLayers: (projectId, commitOid, signal) => {
+        const params = commitReviewLayerParamsSchema.parse({
+          projectId,
+          oid: commitOid,
+        });
+        return operations.run(
+          async () => getCommitLayers.execute(params.projectId, params.oid),
+          signal,
+        );
+      },
+      associateCommitReviewLayers: (projectId, commitOid, request, signal) => {
+        const params = commitReviewLayerParamsSchema.parse({
+          projectId,
+          oid: commitOid,
+        });
+        const input = associateCommitReviewLayersSchema.parse(request);
+        return operations.run(
+          async (operationSignal) =>
+            associateLayers.execute(
+              params.projectId,
+              params.oid,
+              input,
+              operationSignal,
+            ),
+          signal,
+        );
       },
       reviewLayers: (worktreeId) => {
         operations.assertOpen();

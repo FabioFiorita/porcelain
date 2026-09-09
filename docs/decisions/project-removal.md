@@ -21,7 +21,7 @@ association in the same transaction as inventory updates. This is cleanup owners
 inventory or a promise to restore disappeared worktree identities.
 
 The [removal repository](../../apps/server/src/repositories/project-removal-repository.ts) deletes
-owned review layers, comments, artifacts, project preferences, Git preparations and completed receipts,
+owned live and commit review layers, comments, artifacts, project preferences, Git preparations and completed receipts,
 then inventory and ownership records in one SQLite transaction. Other projects and the environment
 identity survive. Artifact deletion releases logical quota; SQLite file shrinkage and secure
 physical erasure are not promised.

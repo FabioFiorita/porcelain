@@ -1,6 +1,6 @@
 # Ordered review-layer metadata
 
-Status: implemented storage boundary; commit association below is a proposal.
+Status: implemented live storage and explicit commit association boundaries.
 
 A worktree has one layer set with a monotonically increasing revision. Layer UUIDs are
 caller-generated stable identities; titles describe intent. JSON array positions explicitly define
@@ -32,21 +32,49 @@ unavailability, and removal from active inventory retain existing sets. Retained
 and editable by their ID; a new set requires a currently registered worktree. No garbage collection is
 introduced. Re-registration with a different identity does not inherit a previous worktree's metadata.
 
-## Proposed commit association — agreement required
+## Explicit commit association
 
-Introduce immutable association records keyed by environment, project, full commit OID, source worktree
-ID and source layer revision. Snapshot layer IDs, titles and order, plus the exact subset of references
-matched to each commit. Preserve the live set independently. Never bind by clean-worktree state alone.
+A project may store one immutable review-layer snapshot per full commit OID. Linked worktrees
+read the same snapshot; separate clones and environments do not share it. The snapshot records
+the source worktree ID, source layer revision and the chosen one-based comparison parent.
+Parent one is the default; a root uses the empty tree. A different parent interpretation requires
+a different design rather than silently replacing the existing snapshot.
 
-For commits created outside Porcelain, a future Git reconciliation owner compares parent-to-commit
-changes against captured source content identities. A unique match can be proposed for association;
-ambiguous matches remain pending explicit confirmation. Renames require explicit source/target evidence.
-For split commits, associate only matched references and retain the remaining references for later
-commits. Partial-file commits require hunk/content identities beyond this path-level schema; do not
-silently attach the entire file or layer. Concurrent layer revisions must never rewrite an existing
-commit snapshot. Amend/rebase produces distinct OIDs and requires new association evidence; retain old
-records rather than silently moving them. Merge commits require an agreed parent interpretation.
+Association is an explicit caller assertion of review order for selected committed file diffs.
+The caller supplies a current source revision and a nonempty subset of its path/scope references.
+The server copies the selected layers, titles and references in source order, omitting empty layers.
+Request selection order never changes review order. A committed path may be selected only once,
+even when the live set references both staged and unstaged changes. Saved scope flags describe the
+source selection, not a staging state of the commit.
 
-Agreement is still needed on automatic versus confirmed matching, hunk identity, ambiguous/external
-commit recovery, and retention. None of this association, Git discovery, UI, MCP, or agent execution is
-implemented by this metadata slice.
+Before saving, the server inspects the immutable commit against the chosen parent in the source
+worktree's project. Selected paths must occur in that comparison. Renames use their destination
+path, deletions their old path. This verifies committed-path membership, not content equivalence
+with the source worktree. For a partial-file commit the ordering applies only to that commit's diff;
+it makes no claim that all source-file edits were committed. Unassigned committed changes remain
+available through the existing commit inspection API.
+
+The live layer set is retained independently. An explicit subset can be associated with each split
+commit, and one source revision can describe multiple commits. A later layer edit cannot rewrite
+a saved snapshot. Source revision and project ownership are checked again in the same immediate
+SQLite transaction that inserts the snapshot, rejecting concurrent source changes or project removal.
+
+Identical association retries return the saved snapshot even if the live revision changed, the
+source worktree disappeared, or the checkout became unavailable. Changed source, revision, parent
+or reference selection returns a conflict. The snapshot has no edit/delete operation beyond explicit
+project removal. Refresh, worktree disappearance, restart and Git garbage collection retain metadata;
+retention does not keep Git objects alive or guarantee the commit diff remains inspectable.
+
+The authenticated routes are owned by
+[association](../../apps/server/src/http/routes/associate-commit-review-layers.ts) and
+[retrieval](../../apps/server/src/http/routes/get-commit-review-layers.ts), with generated API documentation.
+Retrieval requires a registered project but no available checkout; an unassociated commit returns
+null without asserting that the Git object exists. New associations require an available registered
+source worktree. Requests and snapshots use bounded contracts; at most 500 unique committed paths
+can be selected, within the existing live-layer and Git inspection limits.
+
+This slice supports explicit association of commits created inside or outside Porcelain. Automatic
+association during commit execution or external Git reconciliation is deferred: it needs captured
+content/hunk identities and an agreed ambiguity policy. Amend and rebase create distinct OIDs with
+no inherited association. There is no content matching, automatic consumption of live references,
+UI, MCP, or agent execution in this boundary.

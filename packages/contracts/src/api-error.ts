@@ -23,6 +23,7 @@ export const apiErrorSchema = z.object({
     'ARTIFACT_QUOTA_EXCEEDED',
     'UNAUTHORIZED',
     'REVISION_CONFLICT',
+    'COMMIT_REVIEW_LAYER_CONFLICT',
     'INVALID_REQUEST',
     'PATH_NOT_FOUND',
     'PATH_NOT_READABLE',

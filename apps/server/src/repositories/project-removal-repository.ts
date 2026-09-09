@@ -2,6 +2,7 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { artifacts } from '../db/schema/artifacts.ts';
 import { commentThreads } from '../db/schema/comment-threads.ts';
+import { commitReviewLayerSets } from '../db/schema/commit-review-layer-sets.ts';
 import { filePreferences } from '../db/schema/file-preferences.ts';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionPreparations } from '../db/schema/git-action-preparations.ts';
@@ -54,6 +55,9 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
           .run();
         tx.delete(retainedWorktreePreferences)
           .where(inArray(retainedWorktreePreferences.worktreeId, owned))
+          .run();
+        tx.delete(commitReviewLayerSets)
+          .where(eq(commitReviewLayerSets.projectId, projectId))
           .run();
         tx.delete(reviewLayerSets)
           .where(inArray(reviewLayerSets.worktreeId, owned))
