@@ -117,22 +117,3 @@
     @apply font-sans;
   }
 }
-
-@layer components {
-  .review-token.comment,
-  .review-token.meta {
-    color: var(--muted-foreground);
-  }
-  .review-token.keyword,
-  .review-token.type,
-  .review-token.tag {
-    font-weight: 600;
-  }
-  .review-token.string,
-  .review-token.inserted {
-    background: var(--accent);
-  }
-  .review-token.deleted {
-    color: var(--destructive);
-  }
-}

@@ -1,6 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMemo, useRef } from 'react';
 import { highlightedLines } from '../../lib/code-highlight';
+import { codeThemeCss } from '../../lib/code-theme';
 export function CodePreview({
   text,
   language,
@@ -25,8 +26,11 @@ export function CodePreview({
       // biome-ignore lint/a11y/noNoninteractiveTabindex: Virtual code viewport must support keyboard scrolling.
       tabIndex={0}
       aria-label="Read-only code"
-      className="h-[min(65svh,48rem)] overflow-auto border-y bg-background font-mono text-xs leading-6 focus-visible:outline-2 focus-visible:outline-ring"
+      className="review-code h-[min(65svh,48rem)] overflow-auto border-y bg-background font-mono text-xs leading-6 focus-visible:outline-2 focus-visible:outline-ring"
     >
+      <style href="porcelain-code-theme" precedence="default">
+        {codeThemeCss}
+      </style>
       <div
         className="relative min-w-full"
         style={{ height: virtual.getTotalSize() }}
@@ -47,7 +51,7 @@ export function CodePreview({
               {lines[row.index]?.map((token) => (
                 <span
                   key={token.offset}
-                  className={`review-token ${token.className}`}
+                  className={`th-${token.className || 'token'}`}
                 >
                   {token.value}
                 </span>

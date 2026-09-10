@@ -174,6 +174,26 @@ test('reviews files, changes, commits and artifact metadata across responsive wo
   await expect(
     page.getByRole('region', { name: 'Read-only code' }),
   ).toContainText('ReviewPanelProps');
+  const keyword = page
+    .getByRole('region', { name: 'Read-only code' })
+    .locator('.th-keyword')
+    .first();
+  const plain = page
+    .getByRole('region', { name: 'Read-only code' })
+    .locator('.th-token')
+    .first();
+  const lightColor = await keyword.evaluate(
+    (element) => getComputedStyle(element).color,
+  );
+  expect(lightColor).not.toBe(
+    await plain.evaluate((element) => getComputedStyle(element).color),
+  );
+  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await expect
+    .poll(() => keyword.evaluate((element) => getComputedStyle(element).color))
+    .not.toBe(lightColor);
+  await page.getByRole('button', { name: 'Switch to light theme' }).click();
+
   await openReview();
   await page.getByRole('tab', { name: 'History' }).click();
   await page
