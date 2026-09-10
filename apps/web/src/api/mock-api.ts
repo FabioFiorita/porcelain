@@ -1,9 +1,11 @@
 import type { Api } from './api';
+import { createGitActionsMock } from './git-actions/mock';
 import {
   createInventoryMock,
   createMockStore,
   type MockScenario,
 } from './inventory/mock';
+import { createReviewMock } from './review/mock';
 
 declare global {
   interface Window {
@@ -13,7 +15,11 @@ declare global {
 }
 
 export function createMockApi(store: ReturnType<typeof createMockStore>): Api {
-  return { inventory: createInventoryMock(store) };
+  return {
+    inventory: createInventoryMock(store),
+    review: createReviewMock(store),
+    gitActions: createGitActionsMock(store),
+  };
 }
 
 export function createBootMockApi(): Api {

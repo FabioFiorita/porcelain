@@ -1,10 +1,16 @@
 import type { Api } from './api';
+import { createGitActionsLive } from './git-actions/live';
 import { createInventoryLive } from './inventory/live';
+import { createReviewLive } from './review/live';
 
 export async function createBootApi(): Promise<Api> {
   if (import.meta.env.VITE_API_MODE === 'mock') {
     const { createBootMockApi } = await import('./mock-api');
     return createBootMockApi();
   }
-  return { inventory: createInventoryLive(fetch) };
+  return {
+    inventory: createInventoryLive(fetch),
+    review: createReviewLive(fetch),
+    gitActions: createGitActionsLive(fetch),
+  };
 }

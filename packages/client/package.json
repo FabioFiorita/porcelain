@@ -4,7 +4,9 @@
   "type": "module",
   "exports": {
     "./inventory": "./src/inventory.ts",
-    "./errors/connection-error": "./src/errors/connection-error.ts"
+    "./errors/connection-error": "./src/errors/connection-error.ts",
+    "./review": "./src/review.ts",
+    "./git-actions": "./src/git-actions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

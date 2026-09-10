@@ -1,5 +1,6 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { Inventory } from '../../domain/inventory';
+import { reviewFixture } from '../review/fixtures';
 import type { InventoryPort } from './port';
 
 export type MockScenario =
@@ -8,7 +9,9 @@ export type MockScenario =
   | 'unavailable'
   | 'slow'
   | 'rejected'
-  | 'refresh-failed';
+  | 'refresh-failed'
+  | 'review-empty'
+  | 'review-failed';
 
 const additionalProjects = [
   [
@@ -96,8 +99,34 @@ function seed(scenario: MockScenario): Inventory {
 }
 
 export function createMockStore(scenario: MockScenario = 'populated') {
+  const inventory = seed(scenario);
+  const review = Object.fromEntries(
+    inventory.projects.flatMap((project) =>
+      project.worktrees.map((worktree) => {
+        const fixture = reviewFixture(
+          worktree.id,
+          inventory.environmentId,
+          worktree.branch,
+        );
+        if (scenario === 'review-empty' || worktree.main) {
+          fixture.status.changes = [];
+          fixture.layers.layers = [];
+          fixture.artifacts = [];
+        }
+        if (scenario === 'review-empty') {
+          fixture.files = {};
+          fixture.history.commits = [];
+        }
+        return [worktree.id, fixture];
+      }),
+    ),
+  );
   return {
-    inventory: seed(scenario),
+    actionCount: 0,
+    loseActionResponse: false,
+    inventory,
+    review,
+    reviewFailed: scenario === 'review-failed',
     delayMs: scenario === 'slow' ? 1500 : 0,
     rejected: scenario === 'rejected',
     refreshFailed: scenario === 'refresh-failed',

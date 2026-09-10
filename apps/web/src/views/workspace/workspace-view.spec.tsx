@@ -16,6 +16,17 @@ import { renderWorkspace } from '../../test/render';
 // The development overlay has its own browser smoke; it is not supported by jsdom.
 vi.mock('../../development/devtools', () => ({ Devtools: () => null }));
 beforeAll(() => {
+  // jsdom has no native top-layer states. Its selector engine recursively delegates
+  // :fullscreen/:modal back to Element.matches; Base UI checks these when focusing.
+  const nativeMatches = Element.prototype.matches;
+  vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
+    this: Element,
+    selector,
+  ) {
+    if ([':fullscreen', ':modal', ':popover-open'].includes(selector))
+      return false;
+    return nativeMatches.call(this, selector);
+  });
   Object.defineProperty(Element.prototype, 'getAnimations', {
     configurable: true,
     value: () => [],
@@ -109,3 +120,114 @@ describe('workspace through the inventory port', () => {
     expect(queryClient.getQueryCache().getAll()).toEqual([]);
   });
 });
+
+describe('worktree review navigation', () => {
+  it('scopes selection to each worktree and clears private review data on disconnect', async () => {
+    const { queryClient } = renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
+    );
+    await screen.findByRole('heading', {
+      name: 'src/components/review-panel.tsx',
+    });
+    await user.click(
+      screen.getByRole('button', {
+        name: /main.*sample-project.*Main worktree/,
+      }),
+    );
+    await screen.findByText('All caught up');
+    expect(
+      screen.queryByRole('heading', {
+        name: 'src/components/review-panel.tsx',
+      }),
+    ).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await screen.findByLabelText('Access token');
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+  });
+  it('recovers failed review reads and loads artifacts even for an unavailable checkout', async () => {
+    const store = createMockStore('review-failed');
+    renderReview(store);
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await screen.findByRole('button', { name: 'Try again' });
+    store.reviewFailed = false;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByText('A clearer review experience');
+    await user.click(
+      screen.getByRole('button', { name: /archive\/initial-prototype/ }),
+    );
+    await user.click(screen.getByRole('tab', { name: 'Artifacts' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Keyboard accessibility audit/,
+      }),
+    );
+    await screen.findByRole('heading', {
+      name: 'Keyboard accessibility audit',
+    });
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+  });
+  it('prepares an index-only mock commit, requires confirmation and refreshes authoritative changes', async () => {
+    const { store } = renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(screen.getByRole('tab', { name: 'Git' }));
+    await user.click(
+      screen.getByRole('button', { name: /^Commit Commit the existing index/ }),
+    );
+    await user.type(
+      screen.getByLabelText('Message'),
+      'Review sidebar foundation',
+    );
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    const confirm = await screen.findByRole('button', {
+      name: 'Confirm commit',
+    });
+    expect(confirm.hasAttribute('disabled')).toBe(true);
+    expect(store.actionCount).toBe(0);
+    await user.click(
+      screen.getByLabelText(
+        'I have reviewed the scope and paused external writers.',
+      ),
+    );
+    await user.click(confirm);
+    await screen.findByRole('heading', { name: 'succeeded' });
+    expect(store.actionCount).toBe(1);
+    const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+    expect(
+      data?.status.changes.some((change) => change.scope === 'staged'),
+    ).toBe(false);
+    expect(
+      data?.status.changes.some((change) => change.scope === 'unstaged'),
+    ).toBe(true);
+    await user.click(screen.getByRole('button', { name: 'Check receipt' }));
+    expect(store.actionCount).toBe(1);
+    await user.click(screen.getByRole('tab', { name: 'History' }));
+    await screen.findByRole('button', { name: /Review sidebar foundation/ });
+  });
+  it('does not repopulate a disconnected session when a slow review read finishes', async () => {
+    const { store, queryClient } = renderReview();
+    const user = await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    store.delayMs = 100;
+    await user.click(screen.getByRole('button', { name: /agent\/review/ }));
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+    expect(screen.queryByText('A clearer review experience')).toBeNull();
+  });
+});
+
+function renderReview(store = createMockStore()) {
+  store.inventory.projects = store.inventory.projects.slice(0, 1);
+  return renderWorkspace(store);
+}

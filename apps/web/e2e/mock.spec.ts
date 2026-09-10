@@ -147,3 +147,114 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
     page.getByRole('button', { name: 'Disconnect', exact: true }),
   ).toBeVisible();
 });
+
+test('reviews files, changes, commits and artifact metadata across responsive worktree navigation', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await loadMockScenario(page);
+  await openNavigation(page);
+  await page.getByRole('button', { name: /agent\/review/ }).click();
+  const openReview = async () => {
+    const trigger = page.getByRole('button', { name: 'Review', exact: true });
+    if (await trigger.isVisible()) await trigger.click();
+  };
+  await openReview();
+  await page.getByRole('button', { name: /review-panel.tsx.*staged/ }).click();
+  await expect(
+    page.getByRole('region', { name: 'Read-only code' }),
+  ).toContainText('Choose a file');
+  await openReview();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page.getByRole('button', { name: 'src', exact: true }).click();
+  await page.getByRole('button', { name: 'components', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'review-panel.tsx', exact: true })
+    .click();
+  await expect(
+    page.getByRole('region', { name: 'Read-only code' }),
+  ).toContainText('ReviewPanelProps');
+  await openReview();
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page
+    .getByRole('button', { name: /Keep review context scoped/ })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Commit aaaaaaa' }),
+  ).toBeVisible();
+  await openReview();
+  await page.getByRole('tab', { name: 'Artifacts' }).click();
+  await page
+    .getByRole('button', { name: /Keyboard accessibility audit/ })
+    .click();
+  await expect(page.getByText('Safely stored')).toBeVisible();
+  await openNavigation(page);
+  await page
+    .getByRole('button', { name: /main.*Main worktree/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Keyboard accessibility audit' }),
+  ).toHaveCount(0);
+  await openReview();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Changes' }).getByText('All caught up'),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test('recovers a lost Git response without repeating the in-memory commit', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await loadMockScenario(page);
+  await openNavigation(page);
+  await page.getByRole('button', { name: /agent\/review/ }).click();
+  const trigger = page.getByRole('button', { name: 'Review', exact: true });
+  if (await trigger.isVisible()) await trigger.click();
+  await page.getByRole('tab', { name: 'Git', exact: true }).click();
+  await page.getByRole('button', { name: /^Commit Commit/ }).click();
+  await page
+    .getByLabel('Message', { exact: true })
+    .fill('A recoverable mock commit');
+  await page.getByRole('button', { name: 'Prepare action' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Confirm commit' }),
+  ).toBeDisabled();
+  await page
+    .getByLabel('I have reviewed the scope and paused external writers.')
+    .check();
+  await page.evaluate(() => {
+    if (window.__PORCELAIN_MOCK__)
+      window.__PORCELAIN_MOCK__.loseActionResponse = true;
+  });
+  await page.getByRole('button', { name: 'Confirm commit' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Outcome not yet confirmed' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Prepare another action' }),
+  ).toHaveCount(0);
+  await page.clock.install();
+  const openReview = async () => {
+    const button = page.getByRole('button', { name: 'Review', exact: true });
+    if (await button.isVisible()) await button.click();
+  };
+  await openReview();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page.clock.fastForward(360_000);
+  await page.getByRole('tab', { name: 'Git', exact: true }).click();
+  await page.getByRole('button', { name: /^Commit Commit/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Outcome not yet confirmed' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Check receipt' }).click();
+  await expect(page.getByRole('heading', { name: 'succeeded' })).toBeVisible();
+  expect(
+    await page.evaluate(() => window.__PORCELAIN_MOCK__?.actionCount),
+  ).toBe(1);
+});

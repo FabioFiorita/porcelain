@@ -24,9 +24,7 @@
         "react-day-picker",
         "react-resizable-panels",
         "@tanstack/markdown",
-        "@tanstack/react-store",
-        "@tanstack/react-virtual",
-        "@tanstack/highlight"
+        "@tanstack/react-store"
       ]
     },
     "packages/client": {

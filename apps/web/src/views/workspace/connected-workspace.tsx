@@ -1,13 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import {
-  BoxIcon,
-  GitBranchIcon,
-  LogOutIcon,
-  RefreshCwIcon,
-  ServerIcon,
-} from 'lucide-react';
+import { BoxIcon, LogOutIcon, RefreshCwIcon, ServerIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -28,9 +21,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { selectedWorktree, worktreeLabel } from '../../domain/inventory';
+import { selectedWorktree } from '../../domain/inventory';
 import { connectionErrorMessage, useConnection } from '../../query/connection';
 import { useInventory, useRefreshInventory } from '../../query/inventory';
+import { ReviewWorkspace } from '../review/review-workspace';
 import { ProjectNavigator } from './project-navigator';
 
 export function ConnectedWorkspace() {
@@ -146,29 +140,23 @@ function WorkspaceNavigation() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="min-w-0">
-        <header className="flex h-16 items-center gap-3 border-b px-5">
+      <SidebarInset className="h-svh min-w-0 overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center gap-3 border-b px-5">
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-4" />
           <span className="text-xs text-muted-foreground">Workspace</span>
         </header>
-        <div className="min-w-0 flex-1 p-6 md:p-12">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {worktree ? (
-            <div className="flex flex-col gap-3">
-              <GitBranchIcon className="size-6 text-muted-foreground" />
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                Selected worktree
-              </p>
-              <h2 className="break-all text-2xl font-medium tracking-tight">
-                {worktreeLabel(worktree.branch)}
-              </h2>
-              <p className="break-all text-sm text-muted-foreground">
-                {worktree.path}
-              </p>
-              <Badge variant="outline">
-                {worktree.available ? 'Available' : 'Unavailable'}
-              </Badge>
-            </div>
+            <ReviewWorkspace
+              key={worktree.id}
+              worktree={worktree}
+              projectId={
+                inventory.projects.find((project) =>
+                  project.worktrees.some((item) => item.id === worktree.id),
+                )?.id ?? ''
+              }
+            />
           ) : (
             <Empty>
               <EmptyHeader>

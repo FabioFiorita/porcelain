@@ -36,6 +36,8 @@ export function MockTools() {
             'slow',
             'rejected',
             'refresh-failed',
+            'review-empty',
+            'review-failed',
           ] as const
         ).map((value) => (
           <NativeSelectOption key={value} value={value}>
