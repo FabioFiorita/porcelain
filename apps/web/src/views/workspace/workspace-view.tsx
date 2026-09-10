@@ -1,8 +1,7 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { MoonIcon, SunIcon } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useConnection } from '../../query/connection';
 import { ConnectionForm } from '../connection/connection-form';
@@ -38,13 +37,17 @@ const PlaygroundAutoConnect =
 export function WorkspaceView() {
   const { connected } = useConnection();
   const [dark, setDark] = useState(false);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    return () => document.documentElement.classList.remove('dark');
+  }, [dark]);
   useHotkey('Alt+Shift+D', () => setDark((current) => !current));
   return (
     <div
       className={cn('min-h-svh bg-background text-foreground', dark && 'dark')}
     >
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <h1 className="font-medium">Porcelain</h1>
+      <header className="absolute right-4 top-3 z-20 flex items-center gap-3">
+        {!connected && <h1 className="font-medium">Porcelain</h1>}
         <Button
           aria-keyshortcuts="Alt+Shift+D"
           title="Toggle theme (Alt+Shift+D)"
@@ -56,13 +59,19 @@ export function WorkspaceView() {
           {dark ? <SunIcon /> : <MoonIcon />}
         </Button>
       </header>
-      <Separator />
+
       {MockTools ? (
         <Suspense fallback={null}>
           <MockTools />
         </Suspense>
       ) : null}
-      <main className="mx-auto flex min-h-[70svh] max-w-6xl flex-col items-start gap-6 px-6 py-10">
+      <div
+        role={connected ? undefined : 'main'}
+        className={cn(
+          !connected &&
+            'mx-auto flex min-h-svh max-w-6xl flex-col items-start gap-6 px-6 py-24',
+        )}
+      >
         {PlaygroundAutoConnect && (
           <Suspense fallback={null}>
             <PlaygroundAutoConnect />
@@ -71,7 +80,7 @@ export function WorkspaceView() {
         <Suspense fallback={<WorkspacePending />}>
           {connected ? <ConnectedWorkspace /> : <ConnectionForm />}
         </Suspense>
-      </main>
+      </div>
       {Devtools && (
         <Suspense fallback={null}>
           <Devtools />

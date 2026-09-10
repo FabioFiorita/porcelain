@@ -12,7 +12,7 @@ describe('mock inventory', () => {
     });
     expect(inventoryResponseSchema.safeParse(result).success).toBe(true);
     result.projects.length = 0;
-    expect(store.inventory.projects.length).toBe(1);
+    expect(store.inventory.projects.length).toBeGreaterThan(0);
   });
 
   it('aborts delayed refresh without recording a completed operation', async () => {

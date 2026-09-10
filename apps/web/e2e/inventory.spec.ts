@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
+import { openNavigation } from './workspace-navigation';
 
 test('connects to real Git inventory, refreshes and clears the session', async ({
   page,
@@ -24,6 +25,7 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   );
   await page.getByLabel('Access token').fill(token);
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await openNavigation(page);
   const navigator = page.getByRole('navigation', {
     name: 'Projects and worktrees',
   });
@@ -42,6 +44,7 @@ test('connects to real Git inventory, refreshes and clears the session', async (
     (entry: { main: boolean }) => !entry.main,
   );
   await navigator.getByRole('button').filter({ hasText: review.path }).click();
+  await openNavigation(page);
   await expect(
     navigator.getByRole('button').filter({ hasText: review.path }),
   ).toHaveAttribute('aria-pressed', 'true');
@@ -83,6 +86,7 @@ test('shows empty and unavailable inventory and recovers from a failed refresh',
   await page.goto('/');
   await page.getByLabel('Access token').fill('fixture-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await openNavigation(page);
   await expect(page.getByText('No projects registered')).toBeVisible();
   await page.route('**/api/inventory/refresh', (route) =>
     route.fulfill({ status: 503, body: '{}' }),
@@ -134,6 +138,7 @@ test('disconnect prevents a late refresh from restoring private inventory', asyn
   await page.goto('/');
   await page.getByLabel('Access token').fill('fixture-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await openNavigation(page);
   await expect(page.getByText('No projects registered')).toBeVisible();
   let release: () => void = () => undefined;
   const pending = new Promise<void>((resolve) => {
@@ -180,6 +185,7 @@ test('disconnect prevents a late refresh from restoring private inventory', asyn
   );
   await page.getByLabel('Access token').fill('new-fixture-token');
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await openNavigation(page);
   await expect(page.getByText('Current session project')).toBeVisible();
   release();
   const oldResponse = await oldRequest.response();
@@ -190,6 +196,7 @@ test('disconnect prevents a late refresh from restoring private inventory', asyn
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       }),
   );
+  await openNavigation(page);
   await expect(page.getByText('Current session project')).toBeVisible();
   await expect(page.getByText('Old session project')).toHaveCount(0);
 });

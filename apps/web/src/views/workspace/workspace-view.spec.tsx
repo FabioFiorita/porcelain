@@ -16,10 +16,30 @@ import { renderWorkspace } from '../../test/render';
 // The development overlay has its own browser smoke; it is not supported by jsdom.
 vi.mock('../../development/devtools', () => ({ Devtools: () => null }));
 beforeAll(() => {
+  Object.defineProperty(Element.prototype, 'getAnimations', {
+    configurable: true,
+    value: () => [],
+  });
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
 afterEach(cleanup);
-afterAll(() => vi.restoreAllMocks());
+afterAll(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 async function connect() {
   const user = userEvent.setup();
@@ -35,7 +55,7 @@ describe('workspace through the inventory port', () => {
   it('refreshes authoritative inventory and clears cached data on disconnect', async () => {
     const { store, queryClient } = renderWorkspace();
     const user = await connect();
-    await screen.findByRole('heading', { name: 'Sample project' });
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     const project = store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     project.name = 'Renamed project';
@@ -52,13 +72,13 @@ describe('workspace through the inventory port', () => {
     const store = createMockStore('refresh-failed');
     renderWorkspace(store);
     const user = await connect();
-    await screen.findByRole('heading', { name: 'Sample project' });
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     await user.click(screen.getByRole('button', { name: 'Refresh' }));
     expect((await screen.findByRole('alert')).textContent).toContain(
       'out of date',
     );
     expect(
-      screen.getByRole('heading', { name: 'Sample project' }),
+      screen.getByRole('heading', { name: 'Porcelain', level: 3 }),
     ).toBeTruthy();
     store.refreshFailed = false;
     await user.click(screen.getByRole('button', { name: 'Refresh' }));
@@ -68,7 +88,7 @@ describe('workspace through the inventory port', () => {
   it('rejects inventory from a different environment without replacing current data', async () => {
     const { store } = renderWorkspace();
     const user = await connect();
-    await screen.findByRole('heading', { name: 'Sample project' });
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     store.inventory.environmentId = '641a8628-1cd6-4562-81a2-9c05fba76b4a';
     store.inventory.projects = [];
     await user.click(screen.getByRole('button', { name: 'Refresh' }));
@@ -76,7 +96,7 @@ describe('workspace through the inventory port', () => {
       'environment changed',
     );
     expect(
-      screen.getByRole('heading', { name: 'Sample project' }),
+      screen.getByRole('heading', { name: 'Porcelain', level: 3 }),
     ).toBeTruthy();
   });
 

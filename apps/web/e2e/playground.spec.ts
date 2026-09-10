@@ -27,7 +27,7 @@ test('uses playground Devtools to inspect credentials and connect through normal
     `Bearer ${token}`,
   );
   await expect(
-    page.getByRole('button', { name: /main · main worktree/ }),
+    page.getByRole('button', { name: /main.*Main worktree/ }),
   ).toBeVisible();
   expect(
     await page.evaluate(

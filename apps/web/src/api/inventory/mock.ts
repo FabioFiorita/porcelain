@@ -10,6 +10,31 @@ export type MockScenario =
   | 'rejected'
   | 'refresh-failed';
 
+const additionalProjects = [
+  [
+    'Design system',
+    'design-system',
+    ['main', 'feat/accessible-navigation', 'fix/focus-rings'],
+  ],
+  [
+    'Platform & developer experience',
+    'platform',
+    [
+      'main',
+      'agent/streaming-review-events-and-reconnection',
+      null,
+      'chore/update-dependencies',
+    ],
+  ],
+  ['Documentation', 'docs', ['main', 'docs/worktree-review-guide']],
+  [
+    'API gateway',
+    'api-gateway',
+    ['main', 'fix/session-cancellation', 'feat/request-tracing'],
+  ],
+  ['Archived experiments', 'experiments', ['main', null]],
+] as const;
+
 function seed(scenario: MockScenario): Inventory {
   return {
     environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
@@ -19,7 +44,7 @@ function seed(scenario: MockScenario): Inventory {
         : [
             {
               id: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
-              name: 'Sample project',
+              name: 'Porcelain',
               available: scenario !== 'unavailable',
               worktrees: [
                 {
@@ -36,8 +61,36 @@ function seed(scenario: MockScenario): Inventory {
                   main: false,
                   available: true,
                 },
+                {
+                  id: '629a8628-1cd6-4562-81a2-9c05fba76b4c',
+                  path: '/fixtures/porcelain/detached-review',
+                  branch: null,
+                  main: false,
+                  available: true,
+                },
+                {
+                  id: '629a8628-1cd6-4562-81a2-9c05fba76b4d',
+                  path: '/fixtures/porcelain/worktrees/archived-prototype',
+                  branch: 'refs/heads/archive/initial-prototype',
+                  main: false,
+                  available: false,
+                },
               ],
             },
+            ...additionalProjects.map(
+              ([name, directory, branches], projectIndex) => ({
+                id: `fac0e50f-b019-4e46-9dd1-efcb6af7dc${10 + projectIndex}`,
+                name,
+                available: projectIndex !== 4,
+                worktrees: branches.map((branch, worktreeIndex) => ({
+                  id: `801a8628-1cd6-4562-81a2-9c05fba76${projectIndex}${worktreeIndex}a`,
+                  path: `/fixtures/${directory}/${worktreeIndex === 0 ? 'repository' : `worktrees/${branch ?? 'detached-review'}`}`,
+                  branch: branch === null ? null : `refs/heads/${branch}`,
+                  main: worktreeIndex === 0,
+                  available: projectIndex !== 4,
+                })),
+              }),
+            ),
           ],
   };
 }

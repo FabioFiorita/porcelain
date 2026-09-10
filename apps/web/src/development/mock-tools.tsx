@@ -20,7 +20,7 @@ export function MockTools() {
   return (
     <aside
       aria-label="Mock development"
-      className="flex flex-wrap items-center gap-3 border-b px-6 py-3"
+      className="fixed bottom-20 right-3 z-30 flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 rounded-xl border bg-background p-3 shadow-sm"
     >
       <span className="text-sm text-muted-foreground">Mock environment</span>
       <NativeSelect
