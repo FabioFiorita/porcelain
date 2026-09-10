@@ -74,7 +74,10 @@ function FileDiscussion({ scope, path }: { scope: ReviewScope; path: string }) {
         )}
       </div>
       {open && (
-        <div id={id} className="flex max-h-96 flex-col gap-4 overflow-auto">
+        <div
+          id={id}
+          className="-m-1 flex max-h-96 flex-col gap-4 overflow-auto p-1"
+        >
           {discussion.error && (
             <Alert variant="destructive">
               <AlertDescription>

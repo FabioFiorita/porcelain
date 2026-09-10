@@ -178,6 +178,30 @@ test('reviews files, changes, commits and artifact metadata across responsive wo
   await page
     .getByLabel('Comment', { exact: true })
     .fill('Could we clarify the empty state?');
+  // The textarea's 3px focus ring must fit inside every clipping ancestor.
+  const focusRingFits = await page
+    .getByLabel('Comment', { exact: true })
+    .evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      for (const ancestor of ancestorElements(element)) {
+        const style = getComputedStyle(ancestor);
+        if (!['auto', 'scroll', 'hidden', 'clip'].includes(style.overflowX))
+          continue;
+        const clip = ancestor.getBoundingClientRect();
+        if (bounds.left - 3 < clip.left || bounds.right + 3 > clip.right)
+          return false;
+      }
+      return true;
+      function* ancestorElements(node: Element): Generator<Element> {
+        for (
+          let parent = node.parentElement;
+          parent;
+          parent = parent.parentElement
+        )
+          yield parent;
+      }
+    });
+  expect(focusRingFits).toBe(true);
   await page.getByRole('button', { name: 'Post comment' }).click();
   await expect(
     page.getByText('Could we clarify the empty state?', { exact: true }),
