@@ -1,4 +1,4 @@
-import { FileIcon } from 'lucide-react';
+import { FileIcon } from '@react-symbols/icons/utils';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 export function ReviewRow({
@@ -24,7 +24,14 @@ export function ReviewRow({
       title={detail ? `${label}\n${detail}` : label}
       onClick={onSelect}
     >
-      {icon ?? <FileIcon />}
+      {icon ?? (
+        <FileIcon
+          fileName={label}
+          autoAssign
+          aria-hidden="true"
+          focusable="false"
+        />
+      )}
       <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
         <span className="w-full truncate text-left">{label}</span>
         {detail && (

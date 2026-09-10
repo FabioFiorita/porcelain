@@ -17,6 +17,7 @@
     "@fontsource-variable/geist": "5.3.0",
     "@porcelain/client": "workspace:*",
     "@porcelain/contracts": "workspace:*",
+    "@react-symbols/icons": "1.4.1",
     "@shadcn/react": "0.3.1",
     "@tanstack/highlight": "0.0.10",
     "@tanstack/markdown": "0.0.13",

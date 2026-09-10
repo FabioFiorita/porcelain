@@ -1,4 +1,5 @@
-import { ChevronRightIcon, FolderIcon } from 'lucide-react';
+import { FolderIcon } from '@react-symbols/icons/utils';
+import { ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,7 +76,11 @@ function Folder(props: Props & { name: string }) {
         className="w-full justify-start gap-2"
       >
         <ChevronRightIcon className="transition-transform group-data-open/folder:rotate-90 motion-reduce:transition-none" />
-        <FolderIcon />
+        <FolderIcon
+          folderName={props.name}
+          aria-hidden="true"
+          focusable="false"
+        />
         <span className="truncate">{props.name}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
