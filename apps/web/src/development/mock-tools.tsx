@@ -18,9 +18,9 @@ export function MockTools() {
   const connect = useConnect();
   const { disconnect } = useConnection();
   return (
-    <aside
+    <section
       aria-label="Mock development"
-      className="fixed bottom-20 right-3 z-30 flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 rounded-xl border bg-background p-3 shadow-sm"
+      className="flex h-full flex-wrap content-start items-center gap-2 overflow-auto bg-background p-4 text-foreground"
     >
       <span className="text-sm text-muted-foreground">Mock environment</span>
       <NativeSelect
@@ -59,6 +59,6 @@ export function MockTools() {
       {connect.error ? (
         <p role="alert">{connectionErrorMessage(connect.error)}</p>
       ) : null}
-    </aside>
+    </section>
   );
 }

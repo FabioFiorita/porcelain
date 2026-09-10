@@ -217,7 +217,7 @@ not introduce shared mutable fixtures or replace independent, meaningful tests.
 ## Web development
 
 Run `pnpm dev:mock` for client work without an API, Git fixtures or SQLite. Use the
-**Mock development** controls to load a scenario; refreshing reads the in-memory fixture again.
+**Mock environment** tab in TanStack Devtools to load a scenario; refreshing reads the in-memory fixture again.
 The fixture resets on reload, and any nonempty token works unless the rejection scenario is selected.
 Normal builds remain live; `VITE_API_MODE=mock` explicitly selects the mock adapter at build time.
 

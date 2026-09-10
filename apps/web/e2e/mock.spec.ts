@@ -1,5 +1,17 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+
+async function loadMockScenario(page: Page, scenario?: string) {
+  await page.getByRole('button', { name: /open.*devtools/i }).click();
+  await page
+    .getByRole('button', { name: 'Mock environment', exact: true })
+    .click();
+  const panel = page.getByRole('region', { name: 'Mock development' });
+  if (scenario) await panel.getByLabel('Mock scenario').selectOption(scenario);
+  await panel.getByRole('button', { name: 'Load mock scenario' }).click();
+  await page.getByRole('button', { name: /close.*devtools/i }).click();
+  await expect(panel).toBeHidden();
+}
 
 test('develops inventory without a backend, refreshes changed fixtures and clears selection', async ({
   page,
@@ -9,7 +21,7 @@ test('develops inventory without a backend, refreshes changed fixtures and clear
     if (request.url().includes('/api/')) requests.push(request.url());
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Load mock scenario' }).click();
+  await loadMockScenario(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /agent\/review/ }).click();
   await expect(page).toHaveURL(/worktree=/);
@@ -36,14 +48,12 @@ test('switches scenarios and preserves stale inventory on refresh failure', asyn
   page,
 }) => {
   await page.goto('/');
-  await page.getByLabel('Mock scenario').selectOption('empty');
-  await page.getByRole('button', { name: 'Load mock scenario' }).click();
+  await loadMockScenario(page, 'empty');
   await openNavigation(page);
   await expect(page.getByText('No projects registered')).toBeVisible();
   if (await page.getByRole('dialog').isVisible())
     await page.keyboard.press('Escape');
-  await page.getByLabel('Mock scenario').selectOption('refresh-failed');
-  await page.getByRole('button', { name: 'Load mock scenario' }).click();
+  await loadMockScenario(page, 'refresh-failed');
   await openNavigation(page);
   await openNavigation(page);
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
@@ -53,8 +63,7 @@ test('switches scenarios and preserves stale inventory on refresh failure', asyn
   ).toBeVisible();
   if (await page.getByRole('dialog').isVisible())
     await page.keyboard.press('Escape');
-  await page.getByLabel('Mock scenario').selectOption('unavailable');
-  await page.getByRole('button', { name: 'Load mock scenario' }).click();
+  await loadMockScenario(page, 'unavailable');
   await openNavigation(page);
   await expect(
     page.getByRole('button', { name: /main.*Main worktree/ }).first(),
@@ -65,7 +74,7 @@ test('navigates project groups with the keyboard, preserves URL context and scro
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Load mock scenario' }).click();
+  await loadMockScenario(page);
   await openNavigation(page);
   const project = page.getByRole('button', { name: 'Porcelain', exact: true });
   await project.focus();
@@ -124,7 +133,7 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Load mock scenario' }).click();
+  await loadMockScenario(page);
   await openNavigation(page);
   const toggle = page.getByRole('button', {
     name: 'Toggle Sidebar',

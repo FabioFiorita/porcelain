@@ -8,22 +8,14 @@ import { ConnectionForm } from '../connection/connection-form';
 import { ConnectedWorkspace } from './connected-workspace';
 import { WorkspacePending } from './workspace-pending';
 
-const MockTools =
-  import.meta.env.VITE_API_MODE === 'mock'
+const Devtools =
+  import.meta.env.DEV || import.meta.env.VITE_API_MODE === 'mock'
     ? lazy(() =>
-        import('../../development/mock-tools').then((module) => ({
-          default: module.MockTools,
+        import('../../development/devtools').then((module) => ({
+          default: module.Devtools,
         })),
       )
     : null;
-
-const Devtools = import.meta.env.DEV
-  ? lazy(() =>
-      import('../../development/devtools').then((module) => ({
-        default: module.Devtools,
-      })),
-    )
-  : null;
 
 const PlaygroundAutoConnect =
   import.meta.env.DEV && import.meta.env.PORCELAIN_PLAYGROUND_AUTO_CONNECT
@@ -60,11 +52,6 @@ export function WorkspaceView() {
         </Button>
       </header>
 
-      {MockTools ? (
-        <Suspense fallback={null}>
-          <MockTools />
-        </Suspense>
-      ) : null}
       <div
         role={connected ? undefined : 'main'}
         className={cn(
