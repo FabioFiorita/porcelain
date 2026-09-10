@@ -54,9 +54,25 @@
         "packages/git/src/**",
         "packages/contracts/src/**",
         "apps/web/vite.config.ts",
-        "apps/web/development/**"
+        "apps/web/development/**",
+        "apps/site/e2e/**",
+        "apps/site/tsconfig.json"
       ],
       "outputs": ["coverage/tooling/**"]
+    },
+    "@porcelain/site#build": {
+      "outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
+      "env": ["PORCELAIN_SITE_URL"]
+    },
+    "@porcelain/site#typecheck": {
+      "outputs": [".next/types/**", "next-env.d.ts"]
+    },
+    "@porcelain/site#dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@porcelain/site#test:smoke": {
+      "cache": false
     }
   },
   "cacheDir": ".turbo/cache"

@@ -12,7 +12,12 @@ const result = await cruise(
     validate: true,
     outputType: process.argv.includes('--json') ? 'json' : 'err-long',
   },
-  { alias: { '@/*': `${resolve('apps/web/src')}/*` } },
+  {
+    alias: {
+      '@/*': `${resolve('apps/web/src')}/*`,
+      '@site/*': `${resolve('apps/site/src')}/*`,
+    },
+  },
 );
 if (typeof result.output === 'string') process.stdout.write(result.output);
 process.exitCode = result.exitCode;

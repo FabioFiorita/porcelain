@@ -1,0 +1,26 @@
+---
+title: The review workspace
+description: Context first, then a deliberate path through the changes.
+---
+
+## Projects and worktrees
+
+A persistent navigator is intended to bring together projects and worktrees from local and remote environments. The current browser foundation connects to a local environment and lets you select a worktree. Remote connectivity still needs its own integration work and verification.
+
+## Files, changes, and history
+
+The planned Files experience includes reading project files and pinning or hiding paths. Changes will present diffs in agent-authored review layers with explicit group and file order. Unassigned changes must remain visible.
+
+Review order is intended to remain available in History after commits, including commits made outside Porcelain. The server already has review-layer metadata and commit-history inspection foundations; the complete browser experience is still planned.
+
+## Feedback to the agent
+
+Comments are planned for files, code ranges, and diffs. Agents will read and respond through MCP, then apply fixes in their own tools. Comment anchoring and discussion behavior still require design.
+
+## Artifacts
+
+Artifacts are intended to let agents provide isolated HTML alongside a review. Inert HTML storage exists on the server. Rendering, sharing audiences, lifetimes, assets, and hosting behavior remain deferred.
+
+## Deliberate boundaries
+
+Porcelain is not an agent runner or an IDE. It does not need to own your editor or agent process to help you review their output. Artifacts are independent of review layers and are not promoted into Git.

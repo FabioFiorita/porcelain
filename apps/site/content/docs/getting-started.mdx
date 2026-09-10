@@ -1,0 +1,36 @@
+---
+title: Development preview
+description: Understand what you can explore before a packaged release exists.
+---
+
+## Release availability
+
+There is no verified installable release available on this website. See [Download](/download) for the current availability statement.
+
+## Explore from source
+
+The current preview is for developers with a repository checkout. Use the repository's development guide for the pinned Node and pnpm versions and installation instructions. Contributor setup remains in the repository so it stays beside the code that owns it.
+
+From a prepared checkout, run:
+
+```sh
+pnpm dev:playground
+```
+
+This starts a disposable local API and browser interface with sample projects. The automatic workflow connects the browser to the sample environment. Stop it with Ctrl+C when finished.
+
+Use the generated fixtures for exploration. Do not use production Porcelain state, real credentials, or your own projects as development fixtures.
+
+## What you can try
+
+- Connect to the sample environment.
+- Browse projects and linked worktrees.
+- Select a worktree to establish context.
+- Refresh inventory and see availability information.
+- Disconnect from the environment.
+
+## What to expect
+
+The browser is a foundation for review, not the complete planned interface. Full file, change, and history screens are still planned. Server-side capabilities do not imply that a corresponding browser screen is available.
+
+The preview does not establish packaged Electron, native mobile, or remote deployment behavior. Read [current status](/docs/status) for the distinction.

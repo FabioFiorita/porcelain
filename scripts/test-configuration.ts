@@ -81,7 +81,10 @@ export function testConfiguration(scope?: string) {
 }
 
 // Built-app browser smoke tests run through Playwright, outside Vitest coverage tasks.
-const browserSmokeTests = ['apps/web/e2e/**/*.spec.ts'];
+const browserSmokeTests = [
+  'apps/web/e2e/**/*.spec.ts',
+  'apps/site/e2e/**/*.spec.ts',
+];
 
 export function assertTestOwnership(paths: string[]): void {
   for (const path of paths) {

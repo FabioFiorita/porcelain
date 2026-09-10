@@ -56,3 +56,12 @@ it('recognizes the built web smoke suite without admitting unconfigured renderer
     'Expected one test scope',
   );
 });
+
+it('assigns site smoke tests to Playwright and rejects unowned site unit tests', () => {
+  expect(() =>
+    assertTestOwnership(['apps/site/e2e/site.spec.ts']),
+  ).not.toThrow();
+  expect(() => assertTestOwnership(['apps/site/src/page.spec.tsx'])).toThrow(
+    'Expected one test scope',
+  );
+});
