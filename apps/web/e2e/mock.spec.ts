@@ -164,6 +164,24 @@ test('reviews files, changes, commits and artifact metadata across responsive wo
   await expect(
     page.getByRole('region', { name: 'Read-only code' }),
   ).toContainText('Choose a file');
+  const diffView = page.getByRole('region', { name: 'Read-only code' });
+  await expect(diffView).not.toContainText('@@');
+  await expect(diffView.getByText('Old', { exact: true })).toBeVisible();
+  await expect(diffView.getByText('New', { exact: true })).toBeVisible();
+  await expect(
+    diffView.locator('[data-change="inserted"] .th-keyword').first(),
+  ).toBeVisible();
+  const addedBackground = await diffView
+    .locator('[data-change="inserted"]')
+    .first()
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(addedBackground).not.toBe(
+    await diffView
+      .locator('[data-change="deleted"]')
+      .first()
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
+  );
+
   await openReview();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('button', { name: 'src', exact: true }).click();

@@ -2,22 +2,35 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMemo, useRef } from 'react';
 import { highlightedLines } from '../../lib/code-highlight';
 import { codeThemeCss } from '../../lib/code-theme';
+import { highlightedDiffLines } from '../../lib/diff-highlight';
 export function CodePreview({
   text,
   language,
+  format = 'code',
 }: {
   text: string;
   language: string;
+  format?: 'code' | 'diff';
 }) {
   const scroll = useRef<HTMLElement>(null);
   const lines = useMemo(
-    () => highlightedLines(text, language),
-    [text, language],
+    () =>
+      format === 'diff'
+        ? highlightedDiffLines(text, language)
+        : highlightedLines(text, language).map((tokens, index) => ({
+            tokens,
+            kind: 'context',
+            oldNumber: null,
+            newNumber: index + 1,
+            marker: '',
+          })),
+    [text, language, format],
   );
   const virtual = useVirtualizer({
     count: lines.length,
     getScrollElement: () => scroll.current,
     estimateSize: () => 24,
+    scrollMargin: format === 'diff' ? 28 : 0,
     overscan: 12,
   });
   return (
@@ -31,6 +44,23 @@ export function CodePreview({
       <style href="porcelain-code-theme" precedence="default">
         {codeThemeCss}
       </style>
+      {format === 'diff' && (
+        <div className="sticky left-0 top-0 z-10 flex h-7 min-w-full items-center border-b bg-background font-sans text-[10px] text-muted-foreground">
+          <span
+            className="w-10 shrink-0 pr-2 text-right"
+            title="Original file line"
+          >
+            Old
+          </span>
+          <span
+            className="w-10 shrink-0 border-r pr-2 text-right"
+            title="Updated file line"
+          >
+            New
+          </span>
+          <span className="pl-4">Changes</span>
+        </div>
+      )}
       <div
         className="relative min-w-full"
         style={{ height: virtual.getTotalSize() }}
@@ -38,17 +68,35 @@ export function CodePreview({
         {virtual.getVirtualItems().map((row) => (
           <div
             key={row.key}
-            className="absolute left-0 flex min-w-full whitespace-pre"
-            style={{ top: row.start, height: row.size }}
+            data-change={lines[row.index]?.kind}
+            className="review-code-line absolute left-0 flex min-w-full whitespace-pre"
+            style={{
+              top: row.start - (format === 'diff' ? 28 : 0),
+              height: row.size,
+            }}
           >
             <span
               aria-hidden="true"
-              className="sticky left-0 mr-5 w-12 shrink-0 select-none border-r bg-background pr-3 text-right text-muted-foreground"
+              className="review-code-gutter sticky left-0 mr-4 flex shrink-0 select-none border-r bg-background text-right text-muted-foreground"
             >
-              {row.index + 1}
+              {format === 'diff' && (
+                <span className="w-10 pr-2">{lines[row.index]?.oldNumber}</span>
+              )}
+              <span className="w-10 pr-2">{lines[row.index]?.newNumber}</span>
             </span>
-            <code className="pr-8">
-              {lines[row.index]?.map((token) => (
+            {format === 'diff' && (
+              <span aria-hidden="true" className="w-5 shrink-0 select-none">
+                {lines[row.index]?.marker}
+              </span>
+            )}
+            <code
+              className={
+                lines[row.index]?.kind === 'meta'
+                  ? 'pr-8 font-sans text-xs'
+                  : 'pr-8'
+              }
+            >
+              {lines[row.index]?.tokens.map((token) => (
                 <span
                   key={token.offset}
                   className={`th-${token.className || 'token'}`}

@@ -122,7 +122,11 @@ function DiffInspection({
         detail={`${change.kind} · ${change.scope}`}
       />
       {'patch' in diff.content ? (
-        <CodePreview text={diff.content.patch} language="diff" />
+        <CodePreview
+          text={diff.content.patch}
+          language={changePath(change).split('.').at(-1) ?? 'text'}
+          format="diff"
+        />
       ) : (
         <ReviewEmpty
           title="Preview unavailable"
@@ -157,7 +161,14 @@ function CommitInspection({ scope, oid }: { scope: ReviewScope; oid: string }) {
             <Badge variant="outline">{change.status}</Badge>
           </div>
           {'text' in change.patch ? (
-            <CodePreview text={change.patch.text} language="diff" />
+            <CodePreview
+              text={change.patch.text}
+              language={
+                (change.newPath ?? change.oldPath ?? '').split('.').at(-1) ??
+                'text'
+              }
+              format="diff"
+            />
           ) : (
             <ReviewEmpty
               title="Binary change"
