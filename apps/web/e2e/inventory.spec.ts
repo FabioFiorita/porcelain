@@ -88,15 +88,19 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   await expect(
     page.getByRole('button', { name: 'Refresh', exact: true }),
   ).toBeEnabled();
-  const storage = await page.evaluate(() =>
-    JSON.stringify([
-      localStorage,
-      sessionStorage,
-      document.cookie,
-      location.href,
-    ]),
-  );
-  expect(storage).not.toContain(token);
+  const cookies = await page.context().cookies();
+  const session = cookies.find((cookie) => cookie.name === 'porcelain_session');
+  expect(session?.httpOnly).toBe(true);
+  expect(session?.expires).toBeGreaterThan(Date.now() / 1000);
+  expect(
+    await page.evaluate(() =>
+      JSON.stringify([localStorage, sessionStorage, document.cookie]),
+    ),
+  ).not.toContain(token);
+  await page.reload();
+  await expect(page.getByLabel('Access token')).toHaveCount(0);
+  await openNavigation(page);
+  await expect(navigator).toBeVisible();
   await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
   await expect(navigator).toHaveCount(0);
   await expect(page.getByLabel('Access token')).toHaveValue('');
@@ -229,4 +233,38 @@ test('disconnect prevents a late refresh from restoring private inventory', asyn
   await openNavigation(page);
   await expect(page.getByText('Current session project')).toBeVisible();
   await expect(page.getByText('Old session project')).toHaveCount(0);
+});
+
+test('logout in another tab prevents an existing tab from continuing with a bearer token', async ({
+  page,
+  context,
+}) => {
+  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
+  if (!manifest) throw new Error('Missing playground manifest');
+  const info = JSON.parse(await readFile(manifest, 'utf8')) as {
+    tokenFile: string;
+  };
+  const token = (await readFile(info.tokenFile, 'utf8')).trim();
+  await page.goto('/');
+  await page.getByLabel('Access token').fill(token);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.getByLabel('Access token')).toHaveCount(0);
+  const other = await context.newPage();
+  await other.goto('/');
+  await expect(other.getByLabel('Access token')).toHaveCount(0);
+  await openNavigation(other);
+  await other.getByRole('button', { name: 'Disconnect', exact: true }).click();
+  await expect(other.getByLabel('Access token')).toBeVisible();
+  await openNavigation(page);
+  const response = page.waitForResponse('**/api/inventory/refresh');
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  expect((await response).status()).toBe(401);
+  await page.reload();
+  await expect(page.getByLabel('Access token')).toBeVisible();
+  expect(
+    (await context.cookies()).some(
+      (cookie) => cookie.name === 'porcelain_session',
+    ),
+  ).toBe(false);
+  await other.close();
 });

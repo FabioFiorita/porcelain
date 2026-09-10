@@ -46,7 +46,9 @@ beforeAll(() => {
   );
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+});
 afterAll(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -63,6 +65,68 @@ async function connect() {
 }
 
 describe('workspace through the inventory port', () => {
+  it('restores an authenticated connection after remount and forgets it on disconnect', async () => {
+    const first = renderWorkspace();
+    const user = await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    first.unmount();
+    const second = renderWorkspace(first.store);
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    second.unmount();
+    renderWorkspace(first.store);
+    await screen.findByLabelText('Access token');
+    expect(
+      screen.queryByRole('heading', { name: 'Porcelain', level: 3 }),
+    ).toBeNull();
+  });
+
+  it('reports failed logout and lets the user retry before forgetting the session', async () => {
+    const { store } = renderWorkspace();
+    const user = await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    store.disconnectFailed = true;
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Could not disconnect',
+    );
+    expect(store.sessionToken).toBe('fixture-token');
+    store.disconnectFailed = false;
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await screen.findByLabelText('Access token');
+    expect(store.sessionToken).toBe('');
+  });
+
+  it('keeps manual login available when the saved token is rejected', async () => {
+    const first = renderWorkspace();
+    await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    first.unmount();
+    const store = createMockStore('rejected');
+    store.sessionToken = 'fixture-token';
+    const second = renderWorkspace(store);
+    await connect();
+    await screen.findByRole('alert');
+    expect(second.queryClient.getQueryCache().getAll()).toEqual([]);
+    store.rejected = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+  });
+
+  it('does not restore a saved session after its provider unmounts', async () => {
+    const first = renderWorkspace();
+    await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    first.unmount();
+    const store = createMockStore();
+    store.sessionToken = 'fixture-token';
+    store.delayMs = 50;
+    const restoring = renderWorkspace(store);
+    restoring.unmount();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(restoring.queryClient.getQueryCache().getAll()).toEqual([]);
+  });
+
   it('refreshes authoritative inventory and clears cached data on disconnect', async () => {
     const { store, queryClient } = renderWorkspace();
     const user = await connect();

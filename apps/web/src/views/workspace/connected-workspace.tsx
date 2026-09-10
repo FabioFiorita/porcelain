@@ -48,13 +48,13 @@ export function ConnectedWorkspace({
 function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const { setOpenMobile, isMobile, open } = useSidebar();
-  const { disconnect } = useConnection();
+  const { disconnect, disconnectError, disconnectPending } = useConnection();
   const { worktree: selected } = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
   const inventory = useInventory();
   const refresh = useRefreshInventory();
   const worktree = selectedWorktree(inventory, selected);
-  const error = refresh.error;
+  const error = disconnectError ?? refresh.error;
   return (
     <>
       <Sidebar
@@ -113,8 +113,8 @@ function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
         {error && (
           <Alert variant="destructive">
             <AlertDescription>
-              {connectionErrorMessage(error)} Displayed inventory may be out of
-              date.
+              {connectionErrorMessage(error)}
+              {refresh.error && ' Displayed inventory may be out of date.'}
             </AlertDescription>
           </Alert>
         )}
@@ -144,8 +144,9 @@ function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
               size="icon-sm"
               aria-label="Disconnect"
               title="Disconnect environment"
+              disabled={disconnectPending}
               onClick={() => {
-                disconnect();
+                void disconnect();
                 void navigate({ search: {} });
               }}
             >

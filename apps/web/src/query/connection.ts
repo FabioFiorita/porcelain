@@ -10,8 +10,14 @@ export function connectionErrorMessage(error: unknown) {
 }
 
 export function useConnection() {
-  const { connection, disconnect } = useWorkspaceContext();
-  return { connected: connection !== null, disconnect };
+  const { connection, disconnect, disconnectError, disconnectPending } =
+    useWorkspaceContext();
+  return {
+    connected: connection !== null,
+    disconnect,
+    disconnectError,
+    disconnectPending,
+  };
 }
 
 export function useConnect() {
@@ -27,7 +33,14 @@ export function useConnect() {
           token,
           signal: AbortSignal.timeout(15_000),
         });
-        return complete?.(token, inventory) ?? false;
+        return (
+          complete?.(
+            import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE
+              ? token
+              : 'browser-session',
+            inventory,
+          ) ?? false
+        );
       },
     }),
   );

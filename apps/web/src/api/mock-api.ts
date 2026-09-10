@@ -7,6 +7,7 @@ import {
   type MockScenario,
 } from './inventory/mock';
 import { createReviewMock } from './review/mock';
+import { createSessionMock } from './session/mock';
 
 declare global {
   interface Window {
@@ -17,6 +18,7 @@ declare global {
 
 export function createMockApi(store: ReturnType<typeof createMockStore>): Api {
   return {
+    session: createSessionMock(store),
     comments: createCommentsMock(store),
     inventory: createInventoryMock(store),
     review: createReviewMock(store),

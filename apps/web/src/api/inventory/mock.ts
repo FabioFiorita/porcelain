@@ -123,6 +123,8 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     ),
   );
   return {
+    sessionToken: '',
+    disconnectFailed: false,
     comments: {} as Record<string, CommentThread[]>,
     commentsFailed: false,
     actionCount: 0,
@@ -156,7 +158,11 @@ export function createInventoryMock(
           signal.addEventListener('abort', onAbort, { once: true });
         });
       signal.throwIfAborted();
-      if (!token.trim() || store.rejected)
+      if (
+        !token.trim() ||
+        store.rejected ||
+        (token === 'browser-session' && !store.sessionToken)
+      )
         throw new ConnectionError(
           'Access token was rejected. Check it and try again.',
         );
@@ -165,6 +171,7 @@ export function createInventoryMock(
           'The environment could not complete the request. Try again.',
         );
       if (refresh) store.refreshCount += 1;
+      if (token !== 'browser-session') store.sessionToken = token;
       return structuredClone(store.inventory);
     },
   };

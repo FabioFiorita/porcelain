@@ -6,17 +6,29 @@ contracts; registering projects, file viewing and live updates remain later user
 
 The web development server proxies same-origin `/api` requests to a configured local API.
 The browser never chooses a proxy target. This establishes the local browser path without
-adding permissive CORS or a second authentication protocol. Production asset hosting,
+adding permissive CORS. Production asset hosting,
 arbitrary remote connections and Electron transport still require separate integration.
 
-The access token is entered in a password field, held only in memory, and excluded from
-URLs, query keys and persistent browser storage. Disconnect aborts active requests, clears
-the query cache and drops the connection. Reload requires a new connection. This is
-session access, not token provisioning or durable credential management.
+Browser login validates the entered bearer token and issues a signed, 30-day HttpOnly,
+SameSite=Strict cookie scoped to `/api`. The credential is not saved in localStorage or
+sessionStorage. Reload validates the cookie before restoring inventory. Failed restoration
+leaves manual login available. Disconnect clears the cookie before dropping the connection;
+a failed logout reports an error and permits retry. Disposable playground credentials stay
+memory-only. Bearer authentication remains available to agents and portable clients.
+
+Cookie authentication and logout require a custom browser header. No CORS permission is
+provided, preventing other origins from sending that header with cookies. SameSite is an
+additional defense, not the sole CSRF boundary. The signature is derived from the configured
+server token and expires on the server, so sessions survive restarts and token rotation
+invalidates them. Logout removes the browser cookie; it does not revoke copied cookies.
+The current LAN deployment uses HTTP; Secure cookies and trusted proxy configuration must
+be established when introducing HTTPS. Cookies are host-scoped, not port-isolated, so other
+services on this LAN hostname must also be trusted.
 
 The portable client package owns authenticated inventory requests and contract validation.
 Its transport is injected so browser globals stay at the application boundary. Redirects,
-ambient cookies and HTTP caching are disabled. Transport failures preserve their cause;
+HTTP caching and ambient cookies are disabled by default. The browser session adapter
+explicitly opts into same-origin cookies and supplies the required browser header. Transport failures preserve their cause;
 the UI displays safe messages rather than server response bodies.
 TanStack Form owns connection input, Query owns inventory, and Router owns the selected
 worktree ID. Inventory keys include environment identity. A response from a different

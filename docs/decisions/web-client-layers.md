@@ -14,8 +14,8 @@ Routes own URL validation and route pending/error handling. Bootstrap owns adapt
 
 The workspace provider owns session credentials and cancellation, independently of view lifetimes.
 Every completed login or disconnect invalidates older login attempts. Disconnect aborts the connected
-session, clears Query state and removes selection through Router. Tokens never appear in query keys
-or persistent browser storage. The existing automatic/manual playground login follows the same lifecycle.
+session, clears Query state and removes selection through Router. Tokens never appear in query keys. The browser uses a server-issued HttpOnly session cookie and validates it on reload;
+disconnect clears the cookie before dropping the local connection. The existing automatic/manual playground login follows the same lifecycle.
 
 Mock mode is explicit through `VITE_API_MODE=mock`; normal builds and the real playground use live
 transport. Mock builds dynamically include disposable inventory fixtures and development controls.

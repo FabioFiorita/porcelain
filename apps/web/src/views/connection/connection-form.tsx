@@ -45,8 +45,8 @@ export function ConnectionForm() {
                   onChange={(event) => field.handleChange(event.target.value)}
                 />
                 <FieldDescription>
-                  Use the token for the configured environment. It is kept only
-                  for this session.
+                  Use the token for the configured environment. This browser
+                  stays connected until you disconnect or the session expires.
                 </FieldDescription>
               </Field>
             )}

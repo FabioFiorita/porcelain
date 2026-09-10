@@ -8,6 +8,7 @@ import { openApplication } from '../app.ts';
 import { serverSettingsSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
 import { artifactRoutes } from './routes/artifacts.ts';
+import { browserSessionRoutes } from './routes/browser-session.ts';
 import { commentRoutes } from './routes/comments.ts';
 import { commitHistoryRoutes } from './routes/commit-history.ts';
 import { filePreferenceRoutes } from './routes/file-preferences.ts';
@@ -35,6 +36,7 @@ export async function createServer(
   const application = await openApplication(options);
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
+  server.register(browserSessionRoutes, { application, token });
   server.register(healthRoute);
   server.register(gitActionRoutes, { application, token });
   server.register(artifactRoutes, { application, token });
