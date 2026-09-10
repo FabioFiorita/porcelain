@@ -15,7 +15,7 @@ or sharing surface.
 The first read-only viewers use TanStack Highlight’s token API with selective language imports.
 React renders tokens as text, without inserting generated HTML. TanStack Virtual bounds mounted
 code lines; tokenization retains whole-document context for multiline syntax. Unknown languages
-fall back to plaintext. Editing, annotations, file timelines and alternate merge-parent selection
+fall back to plaintext. Editing, line annotations, file timelines and alternate merge-parent selection
 remain separate work.
 
 Git forms use the existing preparation and confirmation contract. Execution captures a request ID
@@ -34,3 +34,17 @@ The implementations are owned by the [review view](../../apps/web/src/views/revi
 [review queries](../../apps/web/src/query/review.ts), [Git lifecycle](../../apps/web/src/query/git-actions.ts),
 and the portable [review](../../packages/client/src/review.ts) and
 [Git-action](../../packages/client/src/git-actions.ts) clients.
+
+## File discussion in the inspection header
+
+Files and Changes expose a collapsed file discussion below the filename, with a count and
+an explicit composer. The existing worktree comment contract remains authoritative; the
+client uses a separate comments port and TanStack Query cache within the review scope.
+Messages render as plain text. Existing replies and resolved state are readable; reply and
+resolution controls, line anchors, and commit-specific discussions remain deferred.
+
+New comments use exact file-path anchors without revision evidence. Files and Changes share
+these discussions within a worktree; renames do not silently migrate anchors. Revision-bound
+threads are excluded from this current-file discussion. Drafts remain local to the selected
+file and survive submission failures, but navigation discards them. Writes are never retried
+automatically; uncertain responses direct the reader to refresh before resubmitting.

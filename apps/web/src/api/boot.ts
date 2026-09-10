@@ -1,4 +1,5 @@
 import type { Api } from './api';
+import { createCommentsLive } from './comments/live';
 import { createGitActionsLive } from './git-actions/live';
 import { createInventoryLive } from './inventory/live';
 import { createReviewLive } from './review/live';
@@ -9,6 +10,7 @@ export async function createBootApi(): Promise<Api> {
     return createBootMockApi();
   }
   return {
+    comments: createCommentsLive(fetch),
     inventory: createInventoryLive(fetch),
     review: createReviewLive(fetch),
     gitActions: createGitActionsLive(fetch),

@@ -164,6 +164,18 @@ test('reviews files, changes, commits and artifact metadata across responsive wo
   await expect(
     page.getByRole('region', { name: 'Read-only code' }),
   ).toContainText('Choose a file');
+  await page.getByRole('button', { name: 'Add comment' }).click();
+  await page
+    .getByLabel('Comment', { exact: true })
+    .fill('Could we clarify the empty state?');
+  await page.getByRole('button', { name: 'Post comment' }).click();
+  await expect(
+    page.getByText('Could we clarify the empty state?', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '1 comment', exact: true }).click();
+  await expect(
+    page.getByText('Could we clarify the empty state?', { exact: true }),
+  ).toBeHidden();
   const diffView = page.getByRole('region', { name: 'Read-only code' });
   await expect(diffView).not.toContainText('@@');
   await expect(diffView.getByText('Old', { exact: true })).toBeVisible();

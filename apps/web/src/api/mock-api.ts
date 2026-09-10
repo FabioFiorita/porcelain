@@ -1,4 +1,5 @@
 import type { Api } from './api';
+import { createCommentsMock } from './comments/mock';
 import { createGitActionsMock } from './git-actions/mock';
 import {
   createInventoryMock,
@@ -16,6 +17,7 @@ declare global {
 
 export function createMockApi(store: ReturnType<typeof createMockStore>): Api {
   return {
+    comments: createCommentsMock(store),
     inventory: createInventoryMock(store),
     review: createReviewMock(store),
     gitActions: createGitActionsMock(store),

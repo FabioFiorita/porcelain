@@ -231,3 +231,54 @@ function renderReview(store = createMockStore()) {
   store.inventory.projects = store.inventory.projects.slice(0, 1);
   return renderWorkspace(store);
 }
+
+describe('file discussion', () => {
+  it('preserves failed drafts, saves to the selected file and hides the discussion on other files', async () => {
+    const { store } = renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: 'Add comment' }),
+    );
+    await user.type(
+      screen.getByLabelText('Comment'),
+      'Please explain this component.',
+    );
+    store.commentsFailed = true;
+    await user.click(screen.getByRole('button', { name: 'Post comment' }));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Comments are unavailable',
+    );
+    expect(screen.getByLabelText('Comment')).toHaveProperty(
+      'value',
+      'Please explain this component.',
+    );
+    expect(Object.values(store.comments).flat()).toHaveLength(0);
+    store.commentsFailed = false;
+    await user.click(screen.getByRole('button', { name: 'Post comment' }));
+    await screen.findByText('Please explain this component.');
+    store.commentsFailed = true;
+    await user.click(
+      screen.getByRole('button', { name: 'Refresh discussion' }),
+    );
+    await screen.findByText(/Comments shown may be out of date/);
+    expect(screen.getByText('Please explain this component.')).toBeTruthy();
+    store.commentsFailed = false;
+    expect(Object.values(store.comments).flat()[0]?.anchor).toEqual({
+      kind: 'file',
+      filePath: 'src/components/review-panel.tsx',
+    });
+    await user.click(screen.getByRole('button', { name: '1 comment' }));
+    expect(screen.queryByText('Please explain this component.')).toBeNull();
+    await user.click(
+      screen.getByRole('button', { name: /empty-state.tsx.*added/ }),
+    );
+    await screen.findByRole('button', { name: '0 comments' });
+    expect(screen.queryByText('Please explain this component.')).toBeNull();
+  });
+});

@@ -25,6 +25,7 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   );
   await page.getByLabel('Access token').fill(token);
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.getByLabel('Access token')).toBeHidden();
   await openNavigation(page);
   const navigator = page.getByRole('navigation', {
     name: 'Projects and worktrees',
@@ -51,6 +52,28 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   await expect(
     page.getByRole('region', { name: 'Read-only code' }),
   ).toContainText('Porcelain');
+  const feedback = `File feedback ${crypto.randomUUID()}`;
+  await page.getByRole('button', { name: 'Add comment' }).click();
+  await page.getByLabel('Comment', { exact: true }).fill(feedback);
+  await page.getByRole('button', { name: 'Post comment' }).click();
+  await expect(page.getByText(feedback, { exact: true })).toBeVisible();
+  const commentsResponse = await request.get(
+    `/api/worktrees/${review.id}/comments`,
+    {
+      headers: { authorization: `Bearer ${token}` },
+    },
+  );
+  expect(commentsResponse.ok()).toBe(true);
+  expect(await commentsResponse.json()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        anchor: { kind: 'file', filePath: 'README.md' },
+        messages: expect.arrayContaining([
+          expect.objectContaining({ body: feedback }),
+        ]),
+      }),
+    ]),
+  );
   await openNavigation(page);
   await expect(
     navigator.getByRole('button').filter({ hasText: review.path }),

@@ -14,6 +14,7 @@ import {
   useTextFile,
 } from '../../query/review';
 import { CodePreview } from './code-preview';
+import { FileComments } from './file-comments';
 import { GitActionInspection } from './git-action-inspection';
 import { ReviewEmpty } from './review-empty';
 export function ReviewInspection({
@@ -59,6 +60,7 @@ function FileInspection({ scope, path }: { scope: ReviewScope; path: string }) {
   return (
     <article>
       <InspectionHeading
+        scope={scope}
         title={path}
         detail={`${file.byteLength.toLocaleString()} bytes · Read only`}
       />
@@ -118,6 +120,7 @@ function DiffInspection({
   return (
     <article>
       <InspectionHeading
+        scope={scope}
         title={changePath(change)}
         detail={`${change.kind} · ${change.scope}`}
       />
@@ -206,9 +209,11 @@ function ArtifactInspection({ scope, id }: { scope: ReviewScope; id: string }) {
   );
 }
 function InspectionHeading({
+  scope,
   title,
   detail,
 }: {
+  scope?: ReviewScope;
   title: string;
   detail: string;
 }) {
@@ -216,6 +221,7 @@ function InspectionHeading({
     <header className="flex flex-col gap-2 px-6 py-7">
       <p className="text-xs text-muted-foreground">{detail}</p>
       <h3 className="break-all text-lg font-medium tracking-tight">{title}</h3>
+      {scope && <FileComments scope={scope} path={title} />}
     </header>
   );
 }

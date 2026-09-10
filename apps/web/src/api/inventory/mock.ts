@@ -1,4 +1,5 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
+import type { CommentThread } from '../../domain/comments';
 import type { Inventory } from '../../domain/inventory';
 import { reviewFixture } from '../review/fixtures';
 import type { InventoryPort } from './port';
@@ -122,6 +123,8 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     ),
   );
   return {
+    comments: {} as Record<string, CommentThread[]>,
+    commentsFailed: false,
     actionCount: 0,
     loseActionResponse: false,
     inventory,
