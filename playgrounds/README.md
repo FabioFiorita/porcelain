@@ -2,7 +2,32 @@
 
 These committed templates are inputs, not working Git repositories.
 The review-project template becomes a disposable repository with a local bare remote,
-main and review worktrees, two commits, staged and unstaged edits, and an untracked file.
+main and review worktrees, and a runnable Fieldnotes task-board application.
+The template needs no dependency installation: run `node server.mjs` inside a generated
+worktree to open the sample app, or `node --test tests/task-store.spec.mjs` for its domain tests.
+Porcelain starts only its own API and web client; the sample app is optional.
+
+The generated history tells the story of planning, task modeling, an HTTP endpoint,
+and a responsive board. Main and review then advance independently. Review has an
+unpushed commit and a saved filtering experiment available through stash actions.
+Its pending review includes a staged document rename and addition, staged and
+unstaged README edits, a stylesheet diff, a deleted obsolete plan, untracked notes
+and a PNG, and ignored preview cache. These scenarios exercise file browsing,
+text/binary inspection, commit history, diffs, branch comparison and Git actions
+without network accounts. The local bare remote supports fetch and push.
+
+Startup also seeds two live review layers aligned with the pending changes, a
+code-range comment and reply on `src/task-store.mjs`, a pinned `src` directory,
+hidden `.cache` directory, and a stored HTML launch-review report. The review-guide
+commit has an explicitly associated immutable review layer; later live ordering
+changes leave its history snapshot intact. Deleted and untracked files remain
+unassigned so the review can show both grouped and unassigned changes.
+
+Use the authenticated API for these server features as the client grows. Artifact
+storage is available; isolated artifact rendering and sharing are not implemented.
+Git actions mutate this disposable state: prepare, execute with a fresh request ID,
+and inspect the receipt. Restart the playground to restore every example, branch,
+stash and private record. No remote account, external project or manual reset is needed.
 
 Run `pnpm dev:playground` from the repository root. It creates a unique run under
 `.playgrounds/`, starts the API and Vite, and prints the token-file path.

@@ -99,7 +99,7 @@ endpoint and must not reuse cached proof. Node, Git and OpenSSL must be installe
 
 The [application port](../apps/server/src/application.ts) defines the current operations;
 [composition](../apps/server/src/app.ts) shows how dependencies and lifecycle are wired.
-Use the interactive API playground below for the generated HTTP schemas and executable examples.
+Use the disposable development playground below to exercise operations against a sample project.
 These sources own the API inventory; this guide does not repeat their method lists.
 
 Use temporary repositories and explicitly supplied disposable state. Callers opening an application
@@ -125,7 +125,7 @@ Application startup applies migrations; do not use `drizzle-kit push` for applic
 Keep the migration directory with the server when adding build/packaging tasks.
 
 The [server factory](../apps/server/src/http/server.ts) owns HTTP composition and shutdown hooks.
-Use its route schemas and generated OpenAPI document for requests, responses, and authentication
+Use its route schemas for requests, responses, and authentication
 requirements. The [local startup decision](decisions/0005-local-server-startup.md) explains the
 executable lifecycle. TLS, token provisioning, and client connections require separate integration proof.
 
@@ -183,7 +183,7 @@ Git, receipt, use-case and HTTP specs when changing this boundary. Fixtures use 
 temporary repositories and local remotes; HTTPS fixtures generate disposable certificates using OpenSSL.
 SSH transport substitutes prove invocation policy, not real authentication interoperability.
 
-## Interactive API playground
+## Disposable API playground
 
 From the repository root, run:
 
@@ -192,38 +192,19 @@ node apps/server/src/development/playground.ts
 ```
 
 Run Node directly so it receives terminal signals and can finish cleanup before exiting.
-Open the printed `documentation` URL. This starts
-Swagger UI and a loopback server with a temporary database, a sample repository,
-a linked `review` worktree, two commits, staged and unstaged changes, an untracked
-file, and a local bare remote. No external Git account is required.
+This creates an isolated sample application repository, linked worktree, local bare remote,
+and private review data. The [playground guide](../playgrounds/README.md) explains the
+available review scenarios and the combined browser development workflow.
 
-Read the printed `tokenFile`, click **Authorize**, and paste its contents without
-the `Bearer` prefix. Swagger adds that prefix. Authorization is not persisted
-across page reloads. Expand an operation, click **Try it out**, fill its inputs,
-and click **Execute** to see the actual response.
-
-A useful first walkthrough:
-
-1. Execute `GET /inventory`. The printed `worktreeId` identifies the review worktree.
-2. Use that ID in Files, Changes and History to inspect the seeded repository.
-3. In Comments, execute the example POST body, then GET to read the discussion.
-   Copy the returned thread ID to reply or resolve it.
-4. Use the project ID from inventory to pin or hide `README.md` in File preferences,
-   or use the worktree ID to upload the example artifact.
-5. For a Git write, prepare the action, use its returned preparation ID in the
-   corresponding execute request with a fresh UUID request ID, then poll its receipt.
-   Stash creation supports `includeUntracked: true` for the sample `notes.txt`.
+The process prints the server `address`, `tokenFile`, and project/worktree identifiers.
+Use the token file's contents as a bearer token when calling the application routes.
+The [HTTP handlers](../apps/server/src/http/routes) and their schemas own request and
+response definitions. There is no bundled API explorer.
 
 These are real API operations. The playground is disposable, not a filesystem
 sandbox: keep its registered projects limited to the generated examples.
-Project registration discovers existing worktrees; there is no API to create a
-worktree. Press Ctrl+C to close the server and remove its temporary data. A new
-run starts with fresh IDs and a fresh token.
-
-For another development server, set `PORCELAIN_API_DOCUMENTATION=1` to enable
-`/documentation/` and `/documentation/json`. Documentation is disabled by default;
-`0` explicitly disables it. When enabled, the explorer and schema are public,
-while application operations still require the server's bearer token.
+Press Ctrl+C to close the server and remove its temporary data. A new run starts
+with fresh identifiers and a newly generated token.
 
 ## Spec organization
 

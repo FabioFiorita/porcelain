@@ -3,15 +3,17 @@ import type {
   CommitReviewLayerRequest,
   CommitReviewLayers,
 } from '../models/commit-review-layers.ts';
-import type { ReviewLayer } from '../models/review-layers.ts';
 import type { CommitReviewLayerStore } from '../repositories/interfaces/commit-review-layer-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { ReviewLayerStore } from '../repositories/interfaces/review-layer-store.ts';
-import { CommitReviewLayerConflictError } from './errors/commit-review-layer-conflict-error.ts';
 import { InvalidCommitReviewLayersError } from './errors/invalid-commit-review-layers-error.ts';
 import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
 import { StaleReviewLayerSourceError } from './errors/stale-review-layer-source-error.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import {
+  retryAssociation,
+  selectLayers,
+} from './helpers/commit-review-layer-association.ts';
 import { resolveHistoryCheckout } from './resolve-history-checkout.ts';
 
 export class AssociateCommitReviewLayers {
@@ -78,48 +80,4 @@ export class AssociateCommitReviewLayers {
       layers,
     });
   }
-}
-
-function referenceKey(reference: ReviewLayer['files'][number]) {
-  return JSON.stringify([reference.path, reference.scope]);
-}
-function selectLayers(layers: ReviewLayer[], references: ReviewLayer['files']) {
-  const selected = new Set(references.map(referenceKey));
-  if (
-    references.length === 0 ||
-    references.length > 500 ||
-    new Set(references.map((reference) => reference.path)).size !==
-      references.length
-  )
-    throw new InvalidCommitReviewLayersError();
-  const result = layers
-    .map((layer) => ({
-      ...layer,
-      files: layer.files.filter((file) => selected.has(referenceKey(file))),
-    }))
-    .filter((layer) => layer.files.length > 0);
-  if (
-    result.reduce((count, layer) => count + layer.files.length, 0) !==
-    selected.size
-  )
-    throw new InvalidCommitReviewLayersError();
-  return result;
-}
-function retryAssociation(
-  existing: CommitReviewLayers,
-  request: CommitReviewLayerRequest,
-) {
-  const saved = existing.layers
-    .flatMap((layer) => layer.files)
-    .map(referenceKey)
-    .sort();
-  const requested = request.references.map(referenceKey).sort();
-  if (
-    existing.sourceWorktreeId !== request.sourceWorktreeId ||
-    existing.sourceRevision !== request.sourceRevision ||
-    existing.parentNumber !== request.parentNumber ||
-    JSON.stringify(saved) !== JSON.stringify(requested)
-  )
-    throw new CommitReviewLayerConflictError();
-  return existing;
 }

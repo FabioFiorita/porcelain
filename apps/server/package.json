@@ -9,8 +9,6 @@
     "test:coverage": "node ../../scripts/run-scoped-tests.ts server"
   },
   "dependencies": {
-    "@fastify/swagger": "9.8.1",
-    "@fastify/swagger-ui": "6.1.1",
     "@fastify/type-provider-zod": "1.0.0",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/git": "workspace:*",

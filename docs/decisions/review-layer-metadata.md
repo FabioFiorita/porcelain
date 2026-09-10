@@ -67,7 +67,7 @@ retention does not keep Git objects alive or guarantee the commit diff remains i
 
 The authenticated routes are owned by
 [association](../../apps/server/src/http/routes/associate-commit-review-layers.ts) and
-[retrieval](../../apps/server/src/http/routes/get-commit-review-layers.ts), with generated API documentation.
+[retrieval](../../apps/server/src/http/routes/get-commit-review-layers.ts).
 Retrieval requires a registered project but no available checkout; an unassociated commit returns
 null without asserting that the Git object exists. New associations require an available registered
 source worktree. Requests and snapshots use bounded contracts; at most 500 unique committed paths

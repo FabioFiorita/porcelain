@@ -21,17 +21,8 @@ export function uploadArtifact(
       // Worst-case JSON Unicode escaping plus bounded display-name/envelope overhead.
       bodyLimit: artifactLimits.contentBytes * 6 + 4096,
       schema: {
-        tags: ['Artifacts'],
-        summary: 'Store an HTML artifact outside Git',
         params: artifactScopeSchema,
-        body: uploadArtifactRequestSchema.meta({
-          examples: [
-            {
-              name: 'Review notes',
-              content: '<h1>Review</h1><p>Explain the change here.</p>',
-            },
-          ],
-        }),
+        body: uploadArtifactRequestSchema,
         response: { ...errorResponses, 201: artifactMetadataSchema },
       },
     },

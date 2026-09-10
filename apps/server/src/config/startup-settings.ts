@@ -11,16 +11,6 @@ export const startupSettingsSchema = serverSettingsSchema.extend({
 
 export function readStartupSettings(environment: NodeJS.ProcessEnv) {
   return startupSettingsSchema.parse({
-    ...(environment.PORCELAIN_API_DOCUMENTATION === undefined
-      ? {}
-      : {
-          apiDocumentation:
-            environment.PORCELAIN_API_DOCUMENTATION === '1'
-              ? true
-              : environment.PORCELAIN_API_DOCUMENTATION === '0'
-                ? false
-                : environment.PORCELAIN_API_DOCUMENTATION,
-        }),
     dataDirectory: environment.PORCELAIN_DATA_DIRECTORY,
     token: environment.PORCELAIN_TOKEN,
     port: /^\d+$/.test(environment.PORCELAIN_PORT ?? '')

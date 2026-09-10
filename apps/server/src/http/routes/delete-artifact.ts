@@ -16,8 +16,6 @@ export function deleteArtifact(
     '/worktrees/:worktreeId/artifacts/:artifactId',
     {
       schema: {
-        tags: ['Artifacts'],
-        summary: 'Delete a stored artifact',
         params: artifactAddressSchema,
         response: { ...errorResponses, 200: artifactDeletionSchema },
       },

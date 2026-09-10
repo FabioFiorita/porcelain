@@ -16,9 +16,6 @@ export function removeProject(
     '/projects/:projectId',
     {
       schema: {
-        tags: ['Inventory'],
-        summary:
-          'Remove a project and its stored review data without changing Git or files',
         params: projectParamsSchema,
         response: { ...errorResponses, 200: projectDeletionSchema },
       },

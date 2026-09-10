@@ -2,6 +2,7 @@ import { rm } from 'node:fs/promises';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { startLocalServer } from '../lifecycle/start-local-server.ts';
 import { createPlayground } from './create-playground.ts';
+import { seedPlaygroundReview } from './helpers/seed-playground-review.ts';
 
 const shutdown = new AbortController();
 const stop = () => shutdown.abort();
@@ -21,7 +22,6 @@ try {
         dataDirectory: fixture.dataDirectory,
         token: fixture.token,
         port: 0,
-        apiDocumentation: true,
       },
       shutdown.signal,
     );
@@ -38,12 +38,26 @@ try {
       if (!response.ok)
         throw new Error('Could not register playground repository');
       const project = projectResponseSchema.parse(await response.json());
+      const worktreeId = project.worktrees.find(
+        (worktree) => !worktree.main,
+      )?.id;
+      if (!worktreeId)
+        throw new Error('Playground review worktree was not registered');
+      await seedPlaygroundReview(
+        server.address,
+        fixture.token,
+        project.id,
+        worktreeId,
+        fixture.reviewCommitOid,
+        shutdown.signal,
+      );
       process.stdout.write(
         `${JSON.stringify({
-          documentation: `${server.address}/documentation/`,
+          address: server.address,
           tokenFile: fixture.tokenFile,
           projectId: project.id,
-          worktreeId: project.worktrees.find((worktree) => !worktree.main)?.id,
+          worktreeId,
+          reviewCommitOid: fixture.reviewCommitOid,
           projectPath: fixture.project,
           worktreePath: fixture.worktree,
           cleanup:

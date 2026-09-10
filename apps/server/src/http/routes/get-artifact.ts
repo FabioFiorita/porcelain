@@ -17,8 +17,6 @@ export function getArtifact(
     '/worktrees/:worktreeId/artifacts/:artifactId',
     {
       schema: {
-        tags: ['Artifacts'],
-        summary: 'Read an HTML artifact as data',
         params: artifactAddressSchema,
         response: { ...errorResponses, 200: artifactContentSchema },
       },

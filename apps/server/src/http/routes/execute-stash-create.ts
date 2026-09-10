@@ -18,8 +18,6 @@ export function executeStashCreate(
     '/projects/:projectId/worktrees/:worktreeId/git/stash/create',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Submit prepared stash creation',
         params: gitActionScopeSchema,
         body: gitActionExecutionRequestSchema,
         response: {

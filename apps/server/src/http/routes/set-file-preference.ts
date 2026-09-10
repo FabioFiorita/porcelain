@@ -17,12 +17,8 @@ export function setFilePreference(
     '/projects/:projectId/file-preferences',
     {
       schema: {
-        tags: ['File preferences'],
-        summary: 'Pin, hide, or clear a path preference',
         params: filePreferenceScopeSchema,
-        body: setFilePreferenceRequestSchema.meta({
-          examples: [{ path: 'README.md', flag: 'pinned', value: true }],
-        }),
+        body: setFilePreferenceRequestSchema,
         response: { ...errorResponses, 200: filePreferencesResponseSchema },
       },
     },

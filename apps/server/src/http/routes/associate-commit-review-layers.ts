@@ -17,8 +17,6 @@ export function associateCommitReviewLayers(
     {
       bodyLimit: 1024 * 1024,
       schema: {
-        tags: ['Review layers'],
-        summary: 'Confirm an immutable layer association for a commit',
         params: commitReviewLayerParamsSchema,
         body: associateCommitReviewLayersSchema,
         response: { ...errorResponses, 200: commitReviewLayersResponseSchema },

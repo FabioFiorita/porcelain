@@ -17,8 +17,6 @@ export function prepareStashApply(
     '/projects/:projectId/worktrees/:worktreeId/git/stash/apply/prepare',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Prepare stash application',
         params: gitActionScopeSchema,
         body: stashApplyPreparationRequestSchema,
         response: { ...errorResponses, 200: gitActionPreparationSchema },

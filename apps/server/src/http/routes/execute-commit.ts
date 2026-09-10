@@ -18,8 +18,6 @@ export function executeCommit(
     '/projects/:projectId/worktrees/:worktreeId/git/commit',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Submit prepared staged commit',
         params: gitActionScopeSchema,
         body: gitActionExecutionRequestSchema,
         response: {

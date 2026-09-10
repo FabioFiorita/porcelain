@@ -7,6 +7,8 @@ import type {
 } from '../models/file-content.ts';
 import { decodeDirectoryName } from './decode-directory-name.ts';
 import { FileInspectionError } from './errors/file-inspection-error.ts';
+import { checkResponseSize } from './helpers/check-response-size.ts';
+import { decodeText } from './helpers/decode-text.ts';
 import {
   inspectPath,
   sameFile,
@@ -18,14 +20,6 @@ import { mapFilesystemError } from './map-filesystem-error.ts';
 
 const maxBytes = 1024 * 1024;
 const maxEntries = 2000;
-
-function checkResponse(
-  value: DirectoryListing | TextContent,
-  code: 'DIRECTORY_TOO_LARGE' | 'FILE_TOO_LARGE',
-) {
-  if (Buffer.byteLength(JSON.stringify(value)) > maxBytes)
-    throw new FileInspectionError(code);
-}
 
 export class NodeFileReader implements FileReader {
   async list(
@@ -57,7 +51,7 @@ export class NodeFileReader implements FileReader {
         path: target.path,
         entries,
       };
-      checkResponse(result, 'DIRECTORY_TOO_LARGE');
+      checkResponseSize(result, 'DIRECTORY_TOO_LARGE', maxBytes);
       await verifyPath(before, target, signal);
       return result;
     } catch (error) {
@@ -106,7 +100,7 @@ export class NodeFileReader implements FileReader {
           byteLength: progress.bytes,
           text,
         };
-        checkResponse(result, 'FILE_TOO_LARGE');
+        checkResponseSize(result, 'FILE_TOO_LARGE', maxBytes);
         return result;
       } finally {
         await handle.close();
@@ -116,17 +110,6 @@ export class NodeFileReader implements FileReader {
     }
   }
 }
-function decodeText(bytes: Buffer) {
-  if (bytes.includes(0)) throw new FileInspectionError('UNSUPPORTED_TEXT');
-  try {
-    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-      bytes,
-    );
-  } catch (error) {
-    throw new FileInspectionError('UNSUPPORTED_TEXT', { cause: error });
-  }
-}
-
 function entryKind(entry: Dirent): DirectoryListing['entries'][number]['kind'] {
   if (entry.isSymbolicLink()) return 'symlink';
   if (entry.isDirectory()) return 'directory';

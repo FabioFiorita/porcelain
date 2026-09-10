@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto';
-import { lstat, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import type { GitActionIntent } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { readOptionalActionOid } from '../helpers/read-optional-action-oid.ts';
+import { rejectBusyCheckout } from '../helpers/reject-busy-checkout.ts';
+import { validateActionState } from '../helpers/validate-action-state.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from './action-outcome.ts';
 import { checkStashCollisions } from './check-stash-collisions.ts';
@@ -11,65 +14,15 @@ import { hashActionFiles } from './inspect-action-files.ts';
 import { inspectActionRemote } from './inspect-action-remote.ts';
 import { readActionCommand } from './read-action-command.ts';
 
-async function optionalOid(
-  process: GitProcessRunner,
-  ref: string,
-  signal: AbortSignal,
-): Promise<string | null> {
-  const result = await process.execute(
-    ['rev-parse', '--verify', '--quiet', ref],
-    signal,
-  );
-  const failure = processFailure(result);
-  if (failure?.state === 'indeterminate')
-    throw new GitActionRejectedError(failure.reason ?? 'GIT_REJECTED');
-  signal.throwIfAborted();
-  if (result.exitCode === 1) return null;
-  if (result.exitCode !== 0 || result.interrupted)
-    throw new GitActionRejectedError('GIT_REJECTED');
-  return result.stdout.toString('utf8').trimEnd();
-}
-
-async function rejectBusy(
-  process: GitProcessRunner,
-  signal: AbortSignal,
-): Promise<void> {
-  for (const name of [
-    'MERGE_HEAD',
-    'CHERRY_PICK_HEAD',
-    'REVERT_HEAD',
-    'rebase-merge',
-    'rebase-apply',
-    'sequencer',
-    'index.lock',
-  ]) {
-    const path = (
-      await readActionCommand(
-        process,
-        ['rev-parse', '--path-format=absolute', '--git-path', name],
-        signal,
-      )
-    ).trimEnd();
-    try {
-      await lstat(path);
-    } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        continue;
-      throw error;
-    }
-    throw new GitActionRejectedError('CHECKOUT_BUSY');
-  }
-}
-
 export async function inspectActionState(
   checkout: string,
   process: GitProcessRunner,
   intent: GitActionIntent,
   signal: AbortSignal,
 ): Promise<GitActionSnapshot> {
-  await rejectBusy(process, signal);
+  await rejectBusyCheckout(process, signal);
   const config = await inspectActionConfig(process, signal);
-  const headOid = await optionalOid(process, 'HEAD', signal);
+  const headOid = await readOptionalActionOid(process, 'HEAD', signal);
   const branchResult = await process.execute(
     ['symbolic-ref', '--quiet', 'HEAD'],
     signal,
@@ -156,7 +109,7 @@ export async function inspectActionState(
       ? await inspectActionRemote(process, intent, signal)
       : undefined;
   const trackingOid = remote
-    ? await optionalOid(process, remote.trackingRef, signal)
+    ? await readOptionalActionOid(process, remote.trackingRef, signal)
     : null;
   validateActionState(
     intent,
@@ -194,33 +147,4 @@ export async function inspectActionState(
       ...('stashOid' in intent ? { stashOid: intent.stashOid } : {}),
     },
   };
-}
-
-function validateActionState(
-  intent: GitActionIntent,
-  state: {
-    headOid: string | null;
-    branch: string | null;
-    trackedChanges: boolean;
-    untrackedCount: number;
-  },
-  stashLog: string,
-): void {
-  const { headOid, branch, trackedChanges, untrackedCount } = state;
-  if (intent.action === 'commit' && !branch)
-    throw new GitActionRejectedError('CHECKOUT_BUSY');
-  if (intent.action === 'push' && (!branch || !headOid))
-    throw new GitActionRejectedError('CHECKOUT_BUSY');
-  if (intent.action.startsWith('stash-') && !headOid)
-    throw new GitActionRejectedError('CHECKOUT_BUSY');
-  if (intent.action === 'stash-apply' || intent.action === 'stash-pop') {
-    if (
-      trackedChanges ||
-      untrackedCount ||
-      !stashLog
-        .split('\n')
-        .some((line) => line.split('\0')[0] === intent.stashOid)
-    )
-      throw new GitActionRejectedError('CHECKOUT_BUSY');
-  }
 }

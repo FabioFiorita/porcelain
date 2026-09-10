@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
+import { seedPlaygroundProject } from './helpers/seed-playground-project.ts';
 
 export async function createPlayground(parentDirectory = tmpdir()) {
   await mkdir(parentDirectory, { recursive: true });
@@ -27,51 +28,7 @@ export async function createPlayground(parentDirectory = tmpdir()) {
     const execute = promisify(execFile);
     const git = async (...args: string[]) =>
       execute('git', args, { env: environment });
-    await git('init', '--bare', remote);
-    await git('init', '-b', 'main', project);
-    await git('-C', project, 'config', 'user.name', 'Playground');
-    await git(
-      '-C',
-      project,
-      'config',
-      'user.email',
-      'playground@example.invalid',
-    );
-    await cp(
-      new URL('../../../../playgrounds/review-project/', import.meta.url),
-      project,
-      { recursive: true },
-    );
-    await writeFile(join(project, '.gitignore'), '.cache/\n');
-    await git('-C', project, 'add', '.');
-    await git('-C', project, 'commit', '-m', 'Create example project');
-    await writeFile(
-      join(project, 'README.md'),
-      '# Example project\n\nReady for review.\n',
-    );
-    await git('-C', project, 'commit', '-am', 'Explain the example');
-    await git('-C', project, 'remote', 'add', 'origin', remote);
-    await git('-C', project, 'push', '-u', 'origin', 'main');
-    await git('-C', project, 'worktree', 'add', '-b', 'review', worktree);
-    await git('-C', worktree, 'push', '-u', 'origin', 'review');
-    await writeFile(
-      join(worktree, 'README.md'),
-      '# Example project\n\nA staged change.\n',
-    );
-    await git('-C', worktree, 'add', 'README.md');
-    await writeFile(
-      join(worktree, 'README.md'),
-      '# Example project\n\nA staged change.\nAn unstaged addition.\n',
-    );
-    await writeFile(
-      join(worktree, 'notes.txt'),
-      'A new file for includeUntracked stash.\n',
-    );
-    await mkdir(join(worktree, '.cache'));
-    await writeFile(
-      join(worktree, '.cache/local.txt'),
-      'Ignored files stay outside the stash.\n',
-    );
+    await seedPlaygroundProject(project, worktree, remote, git);
     const token = randomBytes(32).toString('base64url');
     const tokenFile = join(root, 'token.txt');
     await writeFile(tokenFile, token, { mode: 0o600 });
@@ -80,6 +37,9 @@ export async function createPlayground(parentDirectory = tmpdir()) {
       project,
       worktree,
       remote,
+      reviewCommitOid: (
+        await git('-C', worktree, 'rev-parse', 'HEAD')
+      ).stdout.trim(),
       token,
       tokenFile,
       environment,

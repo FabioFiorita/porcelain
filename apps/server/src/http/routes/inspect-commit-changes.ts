@@ -18,8 +18,6 @@ export function inspectCommitChanges(
     '/worktrees/:worktreeId/commits/:oid/changes',
     {
       schema: {
-        tags: ['History'],
-        summary: 'Inspect changes in a commit',
         params: commitChangesParamsSchema,
         querystring: commitChangesQuerySchema,
         response: { ...errorResponses, 200: commitChangesResponseSchema },

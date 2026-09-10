@@ -13,8 +13,6 @@ export async function refreshInventoryRoute(
     '/inventory/refresh',
     {
       schema: {
-        tags: ['Inventory'],
-        summary: 'Refresh worktrees from Git',
         response: { ...errorResponses, 200: inventoryResponseSchema },
       },
     },

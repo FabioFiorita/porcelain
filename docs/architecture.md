@@ -55,7 +55,11 @@ Use cases live directly in `use-cases`; pure state reconciliation lives in `use-
 Lifecycle cancellation and scheduling belong in `lifecycle`; validated runtime settings belong in `config`.
 Repository dependency interfaces live in `repositories/interfaces`, separate from Drizzle implementations.
 Errors live in their owner's `errors` directory with one class per file. Mappers belong in `mappers`
-when translating representations; do not call identity reconciliation a mapper. DTOs describe a boundary's
+when translating representations; do not call identity reconciliation a mapper.
+Supporting operations may live in an owning package or responsibility’s `helpers` directory,
+using descriptive named modules. Keep cohesive private details with their caller; extract rules
+and parsing when that makes the operation easier to trace. Helpers do not become package public
+exports merely because multiple internal modules use them. DTOs describe a boundary's
 input or output, not every internal model, and do not require a parallel Zod schema unless validated at runtime.
 
 Add directories only with their implementation; do not scaffold empty roles. Dependency contracts

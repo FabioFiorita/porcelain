@@ -34,7 +34,7 @@ export async function runWebPlayground(options: {
       }),
     ]);
     const info = JSON.parse(line as string) as {
-      documentation: string;
+      address: string;
       tokenFile: string;
     };
     if (signal.aborted) throw new Error('Startup cancelled');
@@ -57,7 +57,7 @@ export async function runWebPlayground(options: {
         stdio: 'inherit',
         env: {
           ...process.env,
-          PORCELAIN_API_TARGET: new URL(info.documentation).origin,
+          PORCELAIN_API_TARGET: info.address,
           PORCELAIN_PLAYGROUND_TOKEN_FILE: !preview ? info.tokenFile : '',
           PORCELAIN_PLAYGROUND_BRIDGE: !preview ? '1' : '0',
           PORCELAIN_PLAYGROUND_AUTO_CONNECT:

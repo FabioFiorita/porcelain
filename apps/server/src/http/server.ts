@@ -6,7 +6,6 @@ import {
 import Fastify from 'fastify';
 import { openApplication } from '../app.ts';
 import { serverSettingsSchema } from '../config/server-settings.ts';
-import { registerApiDocumentation } from './api-documentation.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
 import { artifactRoutes } from './routes/artifacts.ts';
 import { commentRoutes } from './routes/comments.ts';
@@ -22,10 +21,9 @@ import { reviewLayerRoutes } from './routes/review-layers.ts';
 export async function createServer(
   options: Parameters<typeof openApplication>[0] & {
     token: string;
-    apiDocumentation?: boolean;
   },
 ) {
-  const { token, apiDocumentation } = serverSettingsSchema.parse(options);
+  const { token } = serverSettingsSchema.parse(options);
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
@@ -34,7 +32,6 @@ export async function createServer(
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
     return reply.code(response.statusCode).send(response.body);
   });
-  if (apiDocumentation) await registerApiDocumentation(server);
   const application = await openApplication(options);
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());

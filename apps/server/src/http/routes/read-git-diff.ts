@@ -18,8 +18,6 @@ export function readGitDiff(
     '/worktrees/:worktreeId/git/diff',
     {
       schema: {
-        tags: ['Changes'],
-        summary: 'Read a selected diff',
         params: gitWorktreeParamsSchema,
         body: gitDiffRequestSchema,
         response: { ...errorResponses, 200: gitDiffResponseSchema },

@@ -8,7 +8,7 @@ Unavailable projects can be removed. Registering the checkout again creates fres
 and empty review state; removal is not an archive or undo operation.
 
 The authenticated inventory route is defined in
-[the HTTP handler](../../apps/server/src/http/routes/remove-project.ts) and generated API documentation.
+[the HTTP handler](../../apps/server/src/http/routes/remove-project.ts).
 Deletion is safe to retry: the response reports whether a registered project was deleted.
 Malformed identities are rejected before application access. Existing authentication, non-cacheable
 responses, operation deadlines, cancellation, and sanitized failures apply.

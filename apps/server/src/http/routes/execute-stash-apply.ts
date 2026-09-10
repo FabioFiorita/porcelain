@@ -18,8 +18,6 @@ export function executeStashApply(
     '/projects/:projectId/worktrees/:worktreeId/git/stash/apply',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Submit prepared stash application',
         params: gitActionScopeSchema,
         body: gitActionExecutionRequestSchema,
         response: {

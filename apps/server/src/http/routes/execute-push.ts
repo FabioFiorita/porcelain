@@ -18,8 +18,6 @@ export function executePush(
     '/projects/:projectId/worktrees/:worktreeId/git/push',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Submit prepared push',
         params: gitActionScopeSchema,
         body: gitActionExecutionRequestSchema,
         response: {

@@ -17,12 +17,8 @@ export function prepareStashCreate(
     '/projects/:projectId/worktrees/:worktreeId/git/stash/create/prepare',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Prepare stash creation',
         params: gitActionScopeSchema,
-        body: stashCreatePreparationRequestSchema.meta({
-          examples: [{ message: 'Review later', includeUntracked: true }],
-        }),
+        body: stashCreatePreparationRequestSchema,
         response: { ...errorResponses, 200: gitActionPreparationSchema },
       },
     },

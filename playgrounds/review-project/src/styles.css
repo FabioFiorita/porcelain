@@ -1,0 +1,32 @@
+body {
+  margin: 0;
+  background: #f3f1eb;
+  color: #253c32;
+  font: 16px system-ui;
+}
+main {
+  max-width: 960px;
+  margin: 64px auto;
+  padding: 24px;
+}
+header p {
+  letter-spacing: 0.15em;
+  font-size: 12px;
+}
+h1 {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+#tasks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+article {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+}
+h2 {
+  font-size: 20px;
+}

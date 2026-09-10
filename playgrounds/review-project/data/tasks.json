@@ -1,0 +1,20 @@
+[
+  {
+    "id": "design",
+    "title": "Review navigation",
+    "owner": "Maya",
+    "status": "done"
+  },
+  {
+    "id": "docs",
+    "title": "Write onboarding guide",
+    "owner": "Leo",
+    "status": "active"
+  },
+  {
+    "id": "release",
+    "title": "Prepare release checklist",
+    "owner": "Sam",
+    "status": "todo"
+  }
+]

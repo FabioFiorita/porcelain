@@ -15,8 +15,6 @@ export function getCommitReviewLayers(
     '/projects/:projectId/commits/:oid/review-layers',
     {
       schema: {
-        tags: ['Review layers'],
-        summary: 'Read immutable commit review order',
         params: commitReviewLayerParamsSchema,
         response: {
           ...errorResponses,

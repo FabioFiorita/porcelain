@@ -7,11 +7,10 @@ import {
 } from '@porcelain/contracts/comments';
 import { inventoryResponseSchema } from '@porcelain/contracts/inventory';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { z } from 'zod';
 
 describe('Playground workflow', () => {
   it.each(['SIGINT', 'SIGTERM'] as const)(
-    'starts an explorable server, accepts a documented comment and removes its data on %s',
+    'starts a review server, accepts a file comment and removes its data on %s',
     async (signal) => {
       const child = spawn(
         process.execPath,
@@ -49,43 +48,87 @@ describe('Playground workflow', () => {
         { timeout: 10000 },
       );
       const info = JSON.parse(output.stdout.trim()) as {
-        documentation: string;
+        address: string;
         tokenFile: string;
         worktreeId: string;
+        projectId: string;
+        reviewCommitOid: string;
       };
-      const address = new URL(info.documentation).origin;
+      const address = info.address;
       const token = await readFile(info.tokenFile, 'utf8');
       expect(output.stdout).not.toContain(token);
       const headers = {
         authorization: `Bearer ${token}`,
         'content-type': 'application/json',
       };
-      expect((await fetch(info.documentation)).status).toBe(200);
-      const document = z
-        .object({
-          paths: z.object({
-            '/worktrees/{worktreeId}/comments': z.object({
-              post: z.object({
-                requestBody: z.object({
-                  content: z.object({
-                    'application/json': z.object({
-                      example: createCommentThreadSchema,
-                    }),
-                  }),
-                }),
-              }),
-            }),
-          }),
-        })
-        .parse(await (await fetch(`${address}/documentation/json`)).json());
       const inventory = inventoryResponseSchema.parse(
         await (await fetch(`${address}/inventory`, { headers })).json(),
       );
       expect(inventory.projects[0]?.worktrees).toHaveLength(2);
+      const base = `${address}/worktrees/${info.worktreeId}`;
+      const seededThreads = commentThreadsSchema.parse(
+        await (await fetch(`${base}/comments`, { headers })).json(),
+      );
+      expect(seededThreads[0]?.messages).toHaveLength(2);
+      expect(seededThreads[0]?.anchor.filePath).toBe('src/task-store.mjs');
+      expect(
+        await (await fetch(`${base}/review-layers`, { headers })).json(),
+      ).toMatchObject({
+        layers: [
+          {
+            title: 'Prepare release documentation',
+            files: [
+              { path: 'docs/release-checklist.md' },
+              { path: 'docs/accessibility.md' },
+              { path: 'README.md' },
+            ],
+          },
+          {
+            title: 'Polish the board',
+            files: [{ path: 'src/styles.css' }, { path: 'README.md' }],
+          },
+        ],
+      });
+      expect(
+        await (
+          await fetch(
+            `${address}/projects/${info.projectId}/commits/${info.reviewCommitOid}/review-layers`,
+            { headers },
+          )
+        ).json(),
+      ).toMatchObject({
+        commitOid: info.reviewCommitOid,
+        layers: [{ files: [{ path: 'docs/review-guide.md' }] }],
+      });
+      expect(
+        await (
+          await fetch(
+            `${address}/projects/${info.projectId}/file-preferences`,
+            { headers },
+          )
+        ).json(),
+      ).toMatchObject({
+        preferences: expect.arrayContaining([
+          { path: 'src', pinned: true, hidden: false },
+          { path: '.cache', pinned: false, hidden: true },
+        ]),
+      });
+      const artifacts = (await (
+        await fetch(`${base}/artifacts`, { headers })
+      ).json()) as { id: string; name: string }[];
+      expect(artifacts[0]?.name).toBe('Launch review report');
+      expect(
+        await (
+          await fetch(`${base}/artifacts/${artifacts[0]?.id}`, { headers })
+        ).json(),
+      ).toMatchObject({
+        content: expect.stringContaining('Fieldnotes launch review'),
+      });
       const route = '/worktrees/{worktreeId}/comments';
-      const example =
-        document.paths[route].post.requestBody.content['application/json']
-          .example;
+      const example = createCommentThreadSchema.parse({
+        anchor: { kind: 'file', filePath: 'src/task-store.mjs' },
+        body: 'Check the completion count when the board is empty.',
+      });
       const url = `${address}${route.replace('{worktreeId}', info.worktreeId)}`;
       expect(
         (
@@ -102,13 +145,14 @@ describe('Playground workflow', () => {
         body: JSON.stringify(example),
       });
       expect(created.status).toBe(200);
-      const [thread] = commentThreadsSchema.parse(await created.json());
+      const threads = commentThreadsSchema.parse(await created.json());
+      const thread = threads.find((entry) => entry.id !== seededThreads[0]?.id);
       expect(thread?.messages[0]?.body).toBe(example.body);
       expect(
         commentThreadsSchema.parse(
           await (await fetch(url, { headers })).json(),
         ),
-      ).toEqual([thread]);
+      ).toEqual([...seededThreads, ...threads]);
       child.kill(signal);
       await vi.waitFor(() => expect(child.exitCode).toBe(0), { timeout: 5000 });
       expect(await exited).toBe(0);

@@ -16,8 +16,6 @@ export function listFilePreferences(
     '/projects/:projectId/file-preferences',
     {
       schema: {
-        tags: ['File preferences'],
-        summary: 'List pinned and hidden paths',
         params: filePreferenceScopeSchema,
         response: { ...errorResponses, 200: filePreferencesResponseSchema },
       },

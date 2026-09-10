@@ -13,8 +13,6 @@ export async function getInventoryRoute(
     '/inventory',
     {
       schema: {
-        tags: ['Inventory'],
-        summary: 'List registered projects and discovered worktrees',
         response: { ...errorResponses, 200: inventoryResponseSchema },
       },
     },

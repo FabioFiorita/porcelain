@@ -17,12 +17,8 @@ export function prepareCommit(
     '/projects/:projectId/worktrees/:worktreeId/git/commit/prepare',
     {
       schema: {
-        tags: ['Git actions'],
-        summary: 'Prepare staged commit',
         params: gitActionScopeSchema,
-        body: commitPreparationRequestSchema.meta({
-          examples: [{ message: 'Update example documentation' }],
-        }),
+        body: commitPreparationRequestSchema,
         response: { ...errorResponses, 200: gitActionPreparationSchema },
       },
     },
