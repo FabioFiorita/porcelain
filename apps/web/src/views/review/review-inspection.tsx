@@ -218,7 +218,7 @@ function InspectionHeading({
   detail: string;
 }) {
   return (
-    <header className="flex flex-col gap-2 px-6 py-7">
+    <header className="flex flex-col gap-2 px-4 py-4">
       <p className="text-xs text-muted-foreground">{detail}</p>
       <h3 className="break-all text-lg font-medium tracking-tight">{title}</h3>
       {scope && <FileComments scope={scope} path={title} />}

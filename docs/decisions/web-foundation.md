@@ -43,7 +43,12 @@ HTTP hosting with SPA fallback. An Electron host may supply a different history 
 if its asset scheme requires it; the renderer imports no Electron or Node APIs.
 
 TanStack Hotkeys owns in-window shortcuts. Alt+Shift+D toggles the current theme.
-OS-wide shortcuts remain Electron's responsibility and require platform testing.
+The workspace registers the project sidebar's existing Mod+B binding through Hotkeys instead
+of the vendor SidebarProvider's raw key listener, so editable content is excluded consistently.
+Alt+Shift+R toggles worktree review navigation. Closing a panel returns keyboard focus to its
+visible control; the vendor Sidebar exposes a mobile final-focus target so the view can
+keep that target stable across worktree navigation; review tabs retain their native arrow-key navigation. OS-wide shortcuts remain
+Electron's responsibility and require platform testing.
 The unified TanStack DevTools includes Query, Router and Hotkeys panels and is imported
 only in development. It is not a production route or an application capability.
 

@@ -55,7 +55,7 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.52 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -134,4 +134,58 @@
   .review-code-line[data-change="deleted"] > .review-code-gutter {
     color: var(--th-deleted);
   }
+}
+
+/* A single material for workspace chrome; reading surfaces stay opaque. */
+:root {
+  --workspace-stage: var(--muted);
+  --workspace-selected: var(--background);
+  --workspace-glass: var(--sidebar);
+  --workspace-glass-tint: color-mix(in oklch, var(--sidebar) 88%, transparent);
+  --workspace-edge: color-mix(in oklch, var(--foreground) 7%, transparent);
+}
+
+.workspace-shell {
+  background: var(--workspace-stage);
+}
+
+.workspace-glass,
+.workspace-sidebar [data-slot="sidebar-inner"] {
+  background: var(--workspace-glass);
+  box-shadow: 0 0 0 1px var(--workspace-edge);
+}
+
+.workspace-sidebar [data-slot="sidebar-inner"] {
+  border-radius: var(--radius-xl);
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+@supports (
+    (backdrop-filter: blur(12px)) or
+    (-webkit-backdrop-filter: blur(12px))
+  ) {
+  .workspace-glass,
+  .workspace-sidebar [data-slot="sidebar-inner"] {
+    background: var(--workspace-glass-tint);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell [data-slot="sidebar-container"],
+  .workspace-shell [data-slot="sidebar-gap"] {
+    transition: none;
+  }
+}
+
+.dark {
+  --workspace-selected: var(--accent);
+}
+
+.workspace-choice[aria-pressed="true"] {
+  background: var(--workspace-selected);
+  box-shadow:
+    inset 0 0 0 1px var(--workspace-edge),
+    0 1px 2px var(--workspace-edge);
 }

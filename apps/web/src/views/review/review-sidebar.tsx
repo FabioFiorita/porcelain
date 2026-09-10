@@ -46,14 +46,11 @@ export function ReviewSidebar({
   return (
     <aside
       aria-label="Worktree review"
-      className="flex h-full min-h-0 flex-col bg-sidebar"
+      className="flex h-full min-h-0 flex-col"
     >
-      <div className="flex items-center justify-between px-5 py-4">
+      <div className="flex items-center justify-between px-3 py-2">
         <div>
           <h2 className="text-sm font-medium">Review</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Explore this worktree
-          </p>
         </div>
         <Button
           variant="ghost"
@@ -69,15 +66,15 @@ export function ReviewSidebar({
         onValueChange={(value) => onSurface(value as Surface)}
         className="min-h-0 flex-1 gap-0"
       >
-        <TabsList className="mx-3 h-auto! w-auto! gap-0">
+        <TabsList className="mx-2 h-auto! w-auto! gap-0 rounded-lg">
           {surfaceItems.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
-              className="flex-col gap-1 px-2 py-2"
+              className="flex-col gap-1 rounded-md px-2 py-1.5"
             >
               <Icon />
-              <span className="text-[10px]">{label}</span>
+              <span className="text-xs">{label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -88,7 +85,7 @@ export function ReviewSidebar({
             className="min-h-0 overflow-hidden"
           >
             <ScrollArea className="h-full">
-              <div className="px-3 py-5">
+              <div className="px-2 py-3">
                 <ReviewBoundary key={`${scope.worktreeId}:${value}`}>
                   {!available && value !== 'artifacts' ? (
                     <ReviewEmpty
@@ -109,7 +106,7 @@ export function ReviewSidebar({
           </TabsContent>
         ))}
       </Tabs>
-      <div className="border-t px-5 py-3 text-xs text-muted-foreground">
+      <div className="px-3 py-2 text-xs text-muted-foreground">
         {available
           ? 'Scoped to selected worktree'
           : 'Stored artifacts remain accessible'}

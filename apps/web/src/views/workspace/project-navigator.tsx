@@ -51,15 +51,15 @@ export function ProjectNavigator({
       </Empty>
     );
   return (
-    <nav aria-label="Projects and worktrees" className="min-w-0 px-3 pb-6">
-      <SidebarMenu className="gap-4">
+    <nav aria-label="Projects and worktrees" className="min-w-0 px-2 pb-2">
+      <SidebarMenu className="gap-2">
         {projects.map((project) => (
           <SidebarMenuItem key={project.id}>
             <Collapsible defaultOpen className="group/project">
               <h3 aria-label={project.name}>
                 <CollapsibleTrigger
                   render={<SidebarMenuButton />}
-                  className="h-10"
+                  className="h-8"
                   title={project.name}
                   aria-label={project.name}
                 >
@@ -81,7 +81,7 @@ export function ProjectNavigator({
                 </CollapsibleTrigger>
               </h3>
               <CollapsibleContent>
-                <SidebarMenu className="mt-1 border-l border-sidebar-border pl-2 ml-4 w-[calc(100%-1rem)]">
+                <SidebarMenu className="gap-0.5 pl-2 ml-2 w-[calc(100%-0.5rem)]">
                   {!project.worktrees.length && (
                     <li className="px-3 py-3 text-xs text-muted-foreground">
                       No worktrees found.
@@ -99,20 +99,20 @@ export function ProjectNavigator({
                           <TooltipTrigger
                             render={
                               <SidebarMenuButton
-                                size="lg"
+                                size="default"
                                 isActive={selected === worktree.id}
                               />
                             }
                             aria-pressed={selected === worktree.id}
                             onClick={() => onSelect(worktree.id)}
-                            className="relative h-auto min-h-12 gap-2 py-2.5"
+                            className="workspace-choice relative h-auto min-h-11 gap-2 rounded-lg py-1.5"
                           >
                             <Icon aria-hidden="true" />
-                            <span className="flex min-w-0 flex-1 flex-col gap-1">
-                              <span className="truncate text-xs">
+                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="truncate text-sm">
                                 {worktreeLabel(worktree.branch)}
                               </span>
-                              <span className="truncate font-mono text-[10px] text-muted-foreground">
+                              <span className="truncate text-xs text-muted-foreground">
                                 {worktree.path}
                               </span>
                               {!worktree.available && (
@@ -123,7 +123,7 @@ export function ProjectNavigator({
                               )}
                             </span>
                             {worktree.main && (
-                              <Badge variant="outline" className="shrink-0">
+                              <Badge variant="secondary" className="shrink-0">
                                 Main<span className="sr-only"> worktree</span>
                               </Badge>
                             )}

@@ -19,7 +19,7 @@ export function ReviewRow({
   return (
     <Button
       variant={selected ? 'secondary' : 'ghost'}
-      className="h-auto min-h-10 w-full justify-start gap-2 px-3 py-2"
+      className="workspace-choice h-auto min-h-10 w-full justify-start gap-2 rounded-lg px-2 py-1.5"
       aria-pressed={selected}
       title={detail ? `${label}\n${detail}` : label}
       onClick={onSelect}
@@ -32,7 +32,7 @@ export function ReviewRow({
           focusable="false"
         />
       )}
-      <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
         <span className="w-full truncate text-left">{label}</span>
         {detail && (
           <span className="w-full truncate text-left text-xs text-muted-foreground">

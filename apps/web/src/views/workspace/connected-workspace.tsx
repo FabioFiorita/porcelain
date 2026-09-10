@@ -1,5 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { BoxIcon, LogOutIcon, RefreshCwIcon, ServerIcon } from 'lucide-react';
+import { type ReactNode, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +10,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Sidebar,
   SidebarContent,
@@ -26,20 +26,27 @@ import { connectionErrorMessage, useConnection } from '../../query/connection';
 import { useInventory, useRefreshInventory } from '../../query/inventory';
 import { ReviewWorkspace } from '../review/review-workspace';
 import { ProjectNavigator } from './project-navigator';
+import { WorkspaceControls } from './workspace-controls';
 
-export function ConnectedWorkspace() {
+export function ConnectedWorkspace({
+  themeControl,
+}: {
+  themeControl: ReactNode;
+}) {
   return (
     <TooltipProvider delay={400}>
       <SidebarProvider
-        style={{ '--sidebar-width': '20rem' } as React.CSSProperties}
+        className="workspace-shell"
+        style={{ '--sidebar-width': '17.5rem' } as React.CSSProperties}
       >
-        <WorkspaceNavigation />
+        <WorkspaceNavigation themeControl={themeControl} />
       </SidebarProvider>
     </TooltipProvider>
   );
 }
 
-function WorkspaceNavigation() {
+function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
+  const navigationTrigger = useRef<HTMLButtonElement>(null);
   const { setOpenMobile, isMobile, open } = useSidebar();
   const { disconnect } = useConnection();
   const { worktree: selected } = useSearch({ from: '/' });
@@ -50,23 +57,31 @@ function WorkspaceNavigation() {
   const error = refresh.error;
   return (
     <>
-      <Sidebar inert={!isMobile && !open}>
-        <SidebarHeader className="gap-6 px-5 pb-5 pt-6">
+      <Sidebar
+        variant="floating"
+        mobileFinalFocus={navigationTrigger}
+        className="workspace-sidebar"
+        inert={!isMobile && !open}
+      >
+        <SidebarHeader className="gap-3 px-3 pb-3 pt-3">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-foreground text-background">
-              <BoxIcon className="size-5" />
+            <span className="flex size-7 items-center justify-center rounded-xl bg-foreground text-background">
+              <BoxIcon className="size-4" />
             </span>
             <div>
-              <h1 className="text-lg font-semibold tracking-tight">
+              <h1 className="text-sm font-semibold tracking-tight">
                 Porcelain
               </h1>
               <p className="text-xs text-muted-foreground">
                 A place for review
               </p>
             </div>
-            <SidebarTrigger className="ml-auto md:hidden" />
+            <SidebarTrigger
+              aria-label="Close projects sidebar"
+              className="ml-auto md:hidden"
+            />
           </div>
-          <div className="flex items-center gap-3 rounded-xl border bg-background px-3 py-3">
+          <div className="flex items-center gap-2 rounded-lg bg-sidebar-accent/50 px-2 py-2">
             <ServerIcon className="size-4 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <h2 className="text-sm font-medium">Environment</h2>
@@ -103,7 +118,7 @@ function WorkspaceNavigation() {
             </AlertDescription>
           </Alert>
         )}
-        <div className="flex items-center justify-between px-6 pb-3 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        <div className="flex items-center justify-between px-4 pb-1 text-xs font-medium text-muted-foreground">
           <span>Projects</span>
           <span>{inventory.projects.length}</span>
         </div>
@@ -119,9 +134,8 @@ function WorkspaceNavigation() {
             />
           </ScrollArea>
         </SidebarContent>
-        <SidebarFooter className="p-4">
-          <Separator />
-          <div className="flex items-center justify-between pt-2">
+        <SidebarFooter className="p-2">
+          <div className="flex items-center justify-between px-2">
             <span className="text-xs text-muted-foreground">
               Your review workspace
             </span>
@@ -140,16 +154,13 @@ function WorkspaceNavigation() {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="h-svh min-w-0 overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-3 border-b px-5">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="h-4" />
-          <span className="text-xs text-muted-foreground">Workspace</span>
-        </header>
+      <SidebarInset className="h-svh min-w-0 overflow-hidden bg-transparent p-2 md:pl-0">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {worktree ? (
             <ReviewWorkspace
               key={worktree.id}
+              themeControl={themeControl}
+              navigationTrigger={navigationTrigger}
               worktree={worktree}
               projectId={
                 inventory.projects.find((project) =>
@@ -158,14 +169,24 @@ function WorkspaceNavigation() {
               }
             />
           ) : (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>Select a worktree</EmptyTitle>
-                <EmptyDescription>
-                  Choose a worktree to establish your review context.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+            <>
+              <WorkspaceControls
+                themeControl={themeControl}
+                navigationTrigger={navigationTrigger}
+              >
+                <span className="min-w-0 flex-1 text-sm text-muted-foreground">
+                  Workspace
+                </span>
+              </WorkspaceControls>
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>Select a worktree</EmptyTitle>
+                  <EmptyDescription>
+                    Choose a worktree to establish your review context.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            </>
           )}
         </div>
       </SidebarInset>

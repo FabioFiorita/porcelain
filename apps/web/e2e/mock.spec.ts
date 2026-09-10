@@ -140,8 +140,18 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
     exact: true,
   });
   await toggle.click();
+  // Reverse tabbing must never reach the preceding, offscreen project panel.
   await page.keyboard.press('Shift+Tab');
-  await expect(page.locator(':focus')).toBeInViewport();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees' })
+      .locator(':focus'),
+  ).toHaveCount(0);
+  await toggle.focus();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Switch to dark theme' }),
+  ).toBeFocused();
   await toggle.click();
   await expect(
     page.getByRole('button', { name: 'Disconnect', exact: true }),
@@ -307,4 +317,120 @@ test('recovers a lost Git response without repeating the in-memory commit', asyn
   expect(
     await page.evaluate(() => window.__PORCELAIN_MOCK__?.actionCount),
   ).toBe(1);
+});
+
+test('keeps both sidebar controls reachable and ignores workspace shortcuts while editing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await page.getByLabel('Access token').fill('Session draft');
+  await page.keyboard.press('Alt+Shift+d');
+  await expect(page.getByLabel('Access token')).toHaveValue('Session draft');
+  await expect(page.locator('html')).not.toHaveClass('dark');
+  await loadMockScenario(page);
+  await page.getByRole('button', { name: /agent\/review/ }).click();
+  const left = page.getByRole('button', {
+    name: 'Toggle Sidebar',
+    exact: true,
+  });
+  const right = page.getByRole('button', {
+    name: /^(Hide|Show) review sidebar$/,
+  });
+  const navigator = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+  });
+  const review = page.getByRole('complementary', { name: 'Worktree review' });
+  const leftBox = await left.boundingBox();
+  const rightBox = await right.boundingBox();
+  expect(leftBox?.y).toBe(rightBox?.y);
+  await page.getByRole('button', { name: 'Porcelain', exact: true }).focus();
+  await page.keyboard.press('ControlOrMeta+b');
+  await expect(left).toBeFocused();
+  await expect(left).toHaveAttribute('aria-expanded', 'false');
+  await expect(navigator).not.toBeInViewport();
+  await page.keyboard.press('Alt+Shift+r');
+  await expect(review).toBeHidden();
+  await expect(left).toBeInViewport();
+  await expect(right).toBeInViewport();
+  await page.keyboard.press('Alt+Shift+r');
+  await expect(review).toBeVisible();
+  await page.keyboard.press('ControlOrMeta+b');
+  await expect(navigator).toBeVisible();
+  await page.getByRole('button', { name: /review-panel.tsx.*staged/ }).click();
+  await page.getByRole('button', { name: 'Add comment', exact: true }).click();
+  const comment = page.getByLabel('Comment', { exact: true });
+  await comment.fill('Keep my review draft');
+  for (const shortcut of ['ControlOrMeta+b', 'Alt+Shift+r', 'Alt+Shift+d']) {
+    await page.keyboard.press(shortcut);
+  }
+  await expect(comment).toHaveValue('Keep my review draft');
+  await expect(navigator).toBeVisible();
+  await expect(review).toBeVisible();
+  await expect(page.locator('html')).not.toHaveClass('dark');
+  // Contenteditable descendants are another typing surface supported by Hotkeys.
+  await page.evaluate(() => {
+    const editor = document.createElement('div');
+    editor.contentEditable = 'true';
+    editor.setAttribute('aria-label', 'Editable fixture');
+    editor.textContent = 'Draft';
+    document.body.append(editor);
+    editor.focus();
+  });
+  await page.keyboard.press('ControlOrMeta+b');
+  await page.keyboard.press('Alt+Shift+r');
+  await expect(navigator).toBeVisible();
+  await expect(review).toBeVisible();
+  await page
+    .getByLabel('Editable fixture')
+    .evaluate((element) => element.remove());
+  await right.focus();
+  await page.keyboard.press('Alt+Shift+d');
+  await expect(page.locator('html')).toHaveClass('dark');
+  await page.getByRole('button', { name: 'Close review sidebar' }).click();
+  await expect(right).toBeFocused();
+});
+
+test('opens responsive drawers with shortcuts and returns to the review canvas', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await loadMockScenario(page);
+  await page.keyboard.press('ControlOrMeta+b');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Toggle Sidebar', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('ControlOrMeta+b');
+  await page.getByRole('button', { name: /agent\/review/ }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Toggle Sidebar', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Alt+Shift+r');
+  await expect(
+    page.getByRole('dialog', { name: 'Worktree review' }),
+  ).toBeVisible();
+  await page.getByRole('tab', { name: 'Changes', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(
+    page.getByRole('tab', { name: 'Files', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/surface=files/);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Review', exact: true }),
+  ).toBeFocused();
+  await expect(
+    page.getByRole('button', { name: 'Toggle Sidebar', exact: true }),
+  ).toBeInViewport();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

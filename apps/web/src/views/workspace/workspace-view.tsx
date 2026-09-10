@@ -1,4 +1,4 @@
-import { useHotkey } from '@tanstack/react-hotkeys';
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { MoonIcon, SunIcon } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -33,24 +33,31 @@ export function WorkspaceView() {
     document.documentElement.classList.toggle('dark', dark);
     return () => document.documentElement.classList.remove('dark');
   }, [dark]);
-  useHotkey('Alt+Shift+D', () => setDark((current) => !current));
+  useHotkey('Alt+Shift+D', () => setDark((current) => !current), {
+    ignoreInputs: true,
+  });
+  const themeControl = (
+    <Button
+      aria-keyshortcuts="Alt+Shift+D"
+      title={`Toggle theme (${formatForDisplay('Alt+Shift+D')})`}
+      variant="ghost"
+      size="icon-sm"
+      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      onClick={() => setDark((current) => !current)}
+    >
+      {dark ? <SunIcon /> : <MoonIcon />}
+    </Button>
+  );
   return (
     <div
       className={cn('min-h-svh bg-background text-foreground', dark && 'dark')}
     >
-      <header className="absolute right-4 top-3 z-20 flex items-center gap-3">
-        {!connected && <h1 className="font-medium">Porcelain</h1>}
-        <Button
-          aria-keyshortcuts="Alt+Shift+D"
-          title="Toggle theme (Alt+Shift+D)"
-          variant="ghost"
-          size="icon"
-          aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-          onClick={() => setDark((current) => !current)}
-        >
-          {dark ? <SunIcon /> : <MoonIcon />}
-        </Button>
-      </header>
+      {!connected && (
+        <div className="absolute right-4 top-3 flex items-center gap-3">
+          <h1 className="font-medium">Porcelain</h1>
+          {themeControl}
+        </div>
+      )}
 
       <div
         role={connected ? undefined : 'main'}
@@ -65,7 +72,11 @@ export function WorkspaceView() {
           </Suspense>
         )}
         <Suspense fallback={<WorkspacePending />}>
-          {connected ? <ConnectedWorkspace /> : <ConnectionForm />}
+          {connected ? (
+            <ConnectedWorkspace themeControl={themeControl} />
+          ) : (
+            <ConnectionForm />
+          )}
         </Suspense>
       </div>
       {Devtools && (

@@ -26,10 +26,10 @@ export function ChangeNavigation({
       />
     );
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3">
       {groupChanges(status, layers).map((group, index) => (
         <section key={group.id}>
-          <div className="mb-2 flex items-center gap-2 px-3">
+          <div className="mb-1 flex items-center gap-2 px-2">
             <span className="text-xs tabular-nums text-muted-foreground">
               {String(index + 1).padStart(2, '0')}
             </span>
@@ -51,7 +51,7 @@ export function ChangeNavigation({
               selected={selected === changeKey(change)}
               onSelect={() => onSelect(changeKey(change))}
               badge={
-                <Badge variant="outline">
+                <Badge variant="secondary">
                   {'kind' in change ? change.kind : change.scope}
                 </Badge>
               }
@@ -59,7 +59,7 @@ export function ChangeNavigation({
           ))}
         </section>
       ))}
-      <p className="px-3 text-xs leading-relaxed text-muted-foreground">
+      <p className="px-2 text-xs leading-relaxed text-muted-foreground">
         Review layers preserve the author’s order. Unassigned changes remain
         visible.
       </p>
