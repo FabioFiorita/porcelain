@@ -37,6 +37,38 @@ export const boundaryRules: IConfiguration = {
   forbidden: [
     ...ownershipRules,
     {
+      name: 'web-views-use-query-hooks',
+      severity: 'error',
+      comment:
+        'Views use domain types and query hooks, not ports, wire contracts or cache infrastructure.',
+      from: { path: '^apps/web/src/views/', pathNot: '\\.spec\\.tsx?$' },
+      to: {
+        path: '(^apps/web/src/api/|^apps/web/src/query/workspace-provider\\.|^packages/(client|contracts)/|(^|/)@tanstack/react-query(/|$))',
+      },
+    },
+    {
+      name: 'web-domain-is-independent',
+      severity: 'error',
+      from: { path: '^apps/web/src/domain/', pathNot: '\\.spec\\.tsx?$' },
+      to: {
+        path: '(^apps/web/src/(api|query|routes|views|development|components)/|^packages/client/|(^|/)(react|react-dom|@tanstack)(/|$))',
+      },
+    },
+    {
+      name: 'web-api-is-independent-of-react',
+      severity: 'error',
+      from: { path: '^apps/web/src/api/', pathNot: '\\.spec\\.tsx?$' },
+      to: {
+        path: '(^apps/web/src/(query|routes|views|development|components)/|(^|/)(react|react-dom|@tanstack)(/|$))',
+      },
+    },
+    {
+      name: 'web-query-does-not-import-presentation',
+      severity: 'error',
+      from: { path: '^apps/web/src/query/', pathNot: '\\.spec\\.tsx?$' },
+      to: { path: '^apps/web/src/(routes|views|development|components)/' },
+    },
+    {
       name: 'use-cases-depend-on-ports',
       severity: 'error',
       comment:

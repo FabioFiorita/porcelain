@@ -1,55 +1,37 @@
-import { readInventory } from '@porcelain/client/inventory';
 import { useState } from 'react';
-import { Alert, AlertDescription } from './components/ui/alert';
-import { Button } from './components/ui/button';
-import { Field, FieldGroup, FieldLabel } from './components/ui/field';
-import { Input } from './components/ui/input';
-import type { BeginConnection } from './connection-form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { useConnection } from '../query/connection';
 
-import { readPlaygroundCredentials } from './playground-credentials';
+import { usePlaygroundAction } from '../query/playground';
 
-export function PlaygroundPanel({
-  connected,
-  beginConnection,
-}: {
-  connected: boolean;
-  beginConnection: BeginConnection;
-}) {
+export function PlaygroundPanel() {
+  const { connected } = useConnection();
+  const actionMutation = usePlaygroundAction();
+  const pending = actionMutation.isPending;
   const [token, setToken] = useState('');
   const [tokenFile, setTokenFile] = useState('');
-  const [pending, setPending] = useState(false);
   const [message, setMessage] = useState('');
   async function perform(action: 'reveal' | 'copy' | 'connect') {
-    const complete = action === 'connect' ? beginConnection() : undefined;
-    setPending(true);
     setMessage('');
     try {
-      const credentials = await readPlaygroundCredentials();
-      setTokenFile(credentials.tokenFile);
-      if (action === 'reveal') setToken(credentials.token);
-      if (action === 'copy') {
-        await navigator.clipboard.writeText(credentials.token);
-        setMessage('Token copied.');
-      }
+      const result = await actionMutation.submit(action);
+      setTokenFile(result.tokenFile);
+      if (action === 'reveal') setToken(result.token);
+      if (action === 'copy') setMessage('Token copied.');
       if (action === 'connect') {
-        const inventory = await readInventory({
-          endpoint: '/api',
-          token: credentials.token,
-          fetch,
-          signal: AbortSignal.timeout(15000),
-        });
         setToken('');
-        if (complete?.(credentials.token, inventory))
-          setMessage('Connected to playground.');
+        if (result.connected) setMessage('Connected to playground.');
       }
     } catch {
       setMessage(
         'Could not complete the action. Check that the playground is running and clipboard access is allowed when copying.',
       );
-    } finally {
-      setPending(false);
     }
   }
+
   return (
     <section
       aria-label="Playground tools"

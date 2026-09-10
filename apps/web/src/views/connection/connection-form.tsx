@@ -1,46 +1,23 @@
-import { readInventory } from '@porcelain/client/inventory';
-import type { InventoryResponse } from '@porcelain/contracts/inventory';
 import { useForm } from '@tanstack/react-form';
-import { useState } from 'react';
-import { Alert, AlertDescription } from './components/ui/alert';
-import { Button } from './components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from './components/ui/field';
-import { Input } from './components/ui/input';
+} from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { submitForm } from '../../lib/submit-form';
+import { connectionErrorMessage, useConnect } from '../../query/connection';
 
-export type BeginConnection = () => (
-  token: string,
-  inventory: InventoryResponse,
-) => boolean;
-
-export function ConnectionForm({
-  beginConnection,
-}: {
-  beginConnection: BeginConnection;
-}) {
-  const [error, setError] = useState('');
+export function ConnectionForm() {
+  const connect = useConnect();
   const form = useForm({
     defaultValues: { token: '' },
     onSubmit: async ({ value, formApi }) => {
-      const complete = beginConnection();
-      setError('');
-      try {
-        const token = value.token.trim();
-        const inventory = await readInventory({
-          endpoint: '/api',
-          token,
-          fetch,
-          signal: AbortSignal.timeout(15_000),
-        });
-        formApi.reset();
-        complete(token, inventory);
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Could not connect.');
-      }
+      await connect.submit(value.token);
+      formApi.reset();
     },
   });
   return (
@@ -51,12 +28,7 @@ export function ConnectionForm({
           Connect to see your projects and worktrees.
         </p>
       </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void form.handleSubmit();
-        }}
-      >
+      <form onSubmit={(event) => submitForm(event, form.handleSubmit)}>
         <FieldGroup>
           <form.Field name="token">
             {(field) => (
@@ -79,9 +51,11 @@ export function ConnectionForm({
               </Field>
             )}
           </form.Field>
-          {error && (
+          {connect.error && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {connectionErrorMessage(connect.error)}
+              </AlertDescription>
             </Alert>
           )}
           <form.Subscribe

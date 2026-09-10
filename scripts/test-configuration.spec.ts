@@ -6,6 +6,7 @@ import {
   assertTestOwnership,
   repositoryRoot,
   testConfiguration,
+  testScopes,
 } from './test-configuration.ts';
 
 it('assigns every current spec to exactly one cached test scope', () => {
@@ -42,17 +43,20 @@ it('keeps standalone verification thresholds and rejects unknown scoped selectio
     passWithNoTests: false,
   });
   expect(() => testConfiguration('missing')).toThrow('Unknown test scope');
-});
-
-it('rejects a newly introduced renderer spec without an owning test task', () => {
-  expect(() => assertTestOwnership(['apps/web/src/view.spec.tsx'])).toThrow(
-    'Expected one test scope',
+  expect(testConfiguration().test?.coverage?.include).toEqual(
+    expect.arrayContaining(testScopes.web.sources),
   );
 });
 
-it('recognizes the built web smoke suite without admitting unconfigured renderer specs', () => {
+it('assigns renderer specs to the web scope and keeps browser smoke separate', () => {
+  expect(() =>
+    assertTestOwnership(['apps/web/src/views/workspace.spec.tsx']),
+  ).not.toThrow();
+  expect(testConfiguration('web').test?.include).toContain(
+    'apps/web/src/**/*.spec.tsx',
+  );
   expect(() => assertTestOwnership(['apps/web/e2e/app.spec.ts'])).not.toThrow();
-  expect(() => assertTestOwnership(['apps/web/src/app.spec.tsx'])).toThrow(
+  expect(() => assertTestOwnership(['apps/mobile/src/view.spec.tsx'])).toThrow(
     'Expected one test scope',
   );
 });

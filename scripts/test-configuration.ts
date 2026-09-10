@@ -10,6 +10,17 @@ export const coverageThresholds = {
   lines: 90,
 };
 export const testScopes = {
+  web: {
+    tests: ['apps/web/src/**/*.spec.ts', 'apps/web/src/**/*.spec.tsx'],
+    sources: [
+      'apps/web/src/domain/**/*.ts',
+      'apps/web/src/api/**/*.ts',
+      'apps/web/src/query/**/*.{ts,tsx}',
+      'apps/web/src/lib/**/*.ts',
+      'apps/web/src/views/**/*.tsx',
+    ],
+    output: 'apps/web/coverage',
+  },
   client: {
     tests: ['packages/client/src/**/*.spec.ts'],
     sources: ['packages/client/src/**/*.ts'],
@@ -56,6 +67,8 @@ export function testConfiguration(scope?: string) {
         'scripts/**/*.spec.ts',
         'packages/*/src/**/*.spec.ts',
         'apps/server/src/**/*.spec.ts',
+        'apps/web/src/**/*.spec.ts',
+        'apps/web/src/**/*.spec.tsx',
       ],
       passWithNoTests: false,
       reporters: ['default', 'junit'],
@@ -69,9 +82,16 @@ export function testConfiguration(scope?: string) {
           'scripts/**/*.ts',
           'packages/*/src/**/*.ts',
           'apps/server/src/**/*.ts',
+          ...testScopes.web.sources,
         ],
         exclude: [
           '**/*.spec.ts',
+          '**/*.spec.tsx',
+          'apps/web/src/api/boot.ts',
+          'apps/web/src/api/mock-api.ts',
+          'apps/web/src/api/playground-credentials.ts',
+          'apps/web/src/query/playground.ts',
+          'apps/web/src/lib/utils.ts',
           'scripts/check-boundaries.ts',
           'scripts/check-conventions.ts',
         ],

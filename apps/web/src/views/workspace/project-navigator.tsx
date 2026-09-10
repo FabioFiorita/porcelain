@@ -1,19 +1,19 @@
-import type { ProjectResponse } from '@porcelain/contracts/inventory';
-import { Badge } from './components/ui/badge';
-import { Button } from './components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-} from './components/ui/empty';
+} from '@/components/ui/empty';
+import { type Project, worktreeLabel } from '../../domain/inventory';
 
 export function ProjectNavigator({
   projects,
   selected,
   onSelect,
 }: {
-  projects: ProjectResponse[];
+  projects: Project[];
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -52,8 +52,7 @@ export function ProjectNavigator({
             >
               <span className="flex min-w-0 flex-col gap-1">
                 <span className="break-all">
-                  {worktree.branch?.replace(/^refs\/heads\//, '') ??
-                    'Detached HEAD'}
+                  {worktreeLabel(worktree.branch)}
                   {worktree.main ? ' · main worktree' : ''}
                 </span>
                 <span className="break-all text-xs">{worktree.path}</span>

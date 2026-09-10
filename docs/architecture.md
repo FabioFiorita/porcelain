@@ -28,7 +28,7 @@ inspection through explicit contracts and a checkout-bound `CommitGit` capabilit
 | `apps/mobile` | Expo presentation and native platform adapters | contracts, client, design-tokens |
 | `packages/git` | Checkout-bound Git commands, inspection and Git-owned types | none |
 | `packages/contracts` | Zod runtime schemas and inferred wire types | none |
-| `packages/client` | Transport, query definitions, connections, shared client behavior | contracts |
+| `packages/client` | Portable transport, contract validation, shared client behavior | contracts |
 | `packages/design-tokens` | Semantic visual values | none |
 
 Electron packages/launches the server and web assets; it does not import their implementation.
@@ -105,11 +105,12 @@ real integration proof, not assumptions based on a local connection.
 
 [The browser inventory decision](decisions/browser-inventory.md) defines the first connection and navigator slice.
 
+[Web client layers](decisions/web-client-layers.md) define presentation, query and API ownership,
+explicit mock development, and regression protection through the real client providers.
+
 ## Test ownership
 
 Pure rules use unit specs. Git, persistence, and protocol behavior use real disposable integration
-fixtures. User paths gain CI smoke tests as their surface is introduced. Renderer specs need a
-browser/DOM test project; Expo/native checks need their own platform setup. The Vitest project
-covers tooling and disposable server inventory integration specs, not application end-to-end behavior.
+fixtures. User paths gain CI smoke tests as their surface is introduced. Renderer specs use the web DOM test project; Expo/native checks need their own platform setup. Vitest covers pure rules, renderer workflows, tooling and disposable server integration specs; browser end-to-end behavior remains in Playwright.
 
 The [public website decision](decisions/public-website.md) separates marketing and public MDX from application and contributor documentation.

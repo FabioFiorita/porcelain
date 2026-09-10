@@ -37,7 +37,7 @@ matching the vendor policy.
 
 ## CI gate
 
-`pnpm verify` runs full format, lint, types, dependency boundaries, Knip, React Doctor, and specs with coverage, followed by the web browser smoke.
+`pnpm verify` runs full format, lint, types, dependency boundaries, Knip, React Doctor, and specs with coverage, followed by live and mock web browser smoke.
 It is available locally for diagnosing gates and validating tooling changes; routine feature work
 uses the focused loop. CI splits static checks, coverage tests and the web browser smoke into independent jobs and cancels
 superseded PR runs. Pull requests and pushes to `main` or `codex/porcelain-rebuild` trigger checks.
@@ -215,6 +215,17 @@ not introduce shared mutable fixtures or replace independent, meaningful tests.
 
 
 ## Web development
+
+Run `pnpm dev:mock` for client work without an API, Git fixtures or SQLite. Use the
+**Mock development** controls to load a scenario; refreshing reads the in-memory fixture again.
+The fixture resets on reload, and any nonempty token works unless the rejection scenario is selected.
+Normal builds remain live; `VITE_API_MODE=mock` explicitly selects the mock adapter at build time.
+
+Run focused renderer specs from the root with `pnpm exec vitest run apps/web/src/views/workspace/workspace-view.spec.tsx`.
+The web coverage task is `pnpm --filter @porcelain/web test:coverage`; its report joins the existing
+combined coverage gate. Tests use jsdom, the real query/router providers and a mock-backed API.
+Playground-only IO remains covered by the real browser smoke rather than DOM coverage.
+Run `pnpm test:web:mock` for the isolated mock build at port 4176. It needs Chromium but no backend.
 
 Run `pnpm dev:web` for Vite on <http://127.0.0.1:5173> with React refresh.
 Run `pnpm --filter @porcelain/web build` to typecheck and produce static assets.

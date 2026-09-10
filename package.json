@@ -14,7 +14,7 @@
     "check:boundaries": "node scripts/check-boundaries.ts",
     "test": "vitest run",
     "test:coverage": "node scripts/run-turbo.ts test:coverage test:tooling && node scripts/merge-coverage.ts",
-    "verify": "pnpm format:check && pnpm lint && pnpm check:react && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage && pnpm test:web:smoke && pnpm test:site:smoke",
+    "verify": "pnpm format:check && pnpm lint && pnpm check:react && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage && pnpm test:web:smoke && pnpm test:site:smoke && pnpm test:web:mock",
     "check:unused": "knip",
     "test:tooling": "node scripts/run-scoped-tests.ts tooling",
     "dev:web": "pnpm --filter @porcelain/web dev",
@@ -25,7 +25,9 @@
     "dev:playground": "node scripts/web-playground.ts",
     "dev:site": "node scripts/run-turbo.ts dev --filter=@porcelain/site",
     "build:site": "node scripts/run-turbo.ts build --filter=@porcelain/site",
-    "test:site:smoke": "node scripts/run-turbo.ts test:smoke --filter=@porcelain/site"
+    "test:site:smoke": "node scripts/run-turbo.ts test:smoke --filter=@porcelain/site",
+    "dev:mock": "pnpm --filter @porcelain/web dev:mock",
+    "test:web:mock": "pnpm --filter @porcelain/web test:mock"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

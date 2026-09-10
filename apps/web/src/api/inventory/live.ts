@@ -1,0 +1,9 @@
+import { readInventory } from '@porcelain/client/inventory';
+import type { InventoryPort } from './port';
+
+export function createInventoryLive(transport: typeof fetch): InventoryPort {
+  return {
+    read: (options) =>
+      readInventory({ ...options, endpoint: '/api', fetch: transport }),
+  };
+}

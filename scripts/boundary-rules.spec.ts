@@ -350,3 +350,37 @@ test('keeps the independently deployed site separate from application data and U
     }),
   ).toEqual([]);
 });
+
+test('keeps web views behind query hooks, including type-only API imports', async () => {
+  expect(
+    await violations({
+      'apps/web/src/views/workspace.ts':
+        "import type { Inventory } from '../api/port.ts'; export type Value = Inventory;",
+      'apps/web/src/api/port.ts': 'export type Inventory = { id: string };',
+    }),
+  ).toContain('web-views-use-query-hooks');
+  expect(
+    await violations({
+      'apps/web/src/views/workspace.ts':
+        "import { useInventory } from '../query/inventory.ts'; export const useValue = useInventory;",
+      'apps/web/src/query/inventory.ts':
+        "import { value } from '../api/inventory.ts'; export const useInventory = () => value;",
+      'apps/web/src/api/inventory.ts': 'export const value = 1;',
+    }),
+  ).toEqual([]);
+});
+
+test('rejects upward imports from web domain, API and query layers', async () => {
+  for (const [source, target, rule] of [
+    ['domain', 'api', 'web-domain-is-independent'],
+    ['api', 'query', 'web-api-is-independent-of-react'],
+    ['query', 'views', 'web-query-does-not-import-presentation'],
+  ]) {
+    expect(
+      await violations({
+        [`apps/web/src/${source}/source.ts`]: `import { value } from '../${target}/target.ts'; export const result = value;`,
+        [`apps/web/src/${target}/target.ts`]: 'export const value = 1;',
+      }),
+    ).toContain(rule);
+  }
+});

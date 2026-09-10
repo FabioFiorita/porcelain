@@ -100,12 +100,17 @@ test('a slow automatic connector module cannot reconnect after manual disconnect
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route('**/src/playground-auto-connect.tsx*', async (route) => {
-    const response = await route.fetch();
-    await pending;
-    await route.fulfill({ response });
-  });
-  const started = page.waitForRequest('**/src/playground-auto-connect.tsx*');
+  await page.route(
+    '**/src/development/playground-auto-connect.tsx*',
+    async (route) => {
+      const response = await route.fetch();
+      await pending;
+      await route.fulfill({ response });
+    },
+  );
+  const started = page.waitForRequest(
+    '**/src/development/playground-auto-connect.tsx*',
+  );
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   const moduleRequest = await started;
   const credentials = await page.request.post('/__porcelain/playground', {

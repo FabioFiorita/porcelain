@@ -1,3 +1,7 @@
+export async function copyPlaygroundToken(token: string) {
+  await navigator.clipboard.writeText(token);
+}
+
 export async function readPlaygroundCredentials(
   signal = AbortSignal.timeout(5000),
 ) {

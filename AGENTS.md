@@ -64,6 +64,20 @@ pass or a workflow file is not cloud proof.
 
 ## Web presentation
 
+Follow [web client layers](docs/decisions/web-client-layers.md). `routes/` owns navigation and route
+states; `views/` renders and owns drafts; `query/` owns API calls, cache changes and mutation hooks;
+`domain/` owns pure rules and view-facing types; `api/` owns resource ports and their live/mock adapters.
+Grow a resource with one `port.ts`, `live.ts` and `mock.ts`; retain descriptive module names and no barrels.
+Views import domain types and query hooks, never transport, contracts, API errors or QueryClient.
+Required-data hooks return data through `useSuspenseQuery`; optional data may use `useQuery` when
+the screen should render without it. Mutation hooks expose `{ submit, isPending, isSuccess, error }`.
+Keep error classification and cache consequences in query code. Use memoization and refs only for
+required identity or lifecycle stability, not by default.
+
+Develop client states with `pnpm dev:mock`; use the real playground for integration proof. View tests
+use the real providers and a mock-backed API, never mocked query hooks. Assert rendered outcomes and
+authoritative fixture changes. Add regression scenarios for failures and session cancellation when relevant.
+
 Use the shadcn skill and compose the existing components in `apps/web/src/components/ui`.
 Keep the official set except tables and charts during initial development; prune unused components and their Knip
 exceptions after launch. Keep product behavior outside this vendor directory. Use preset tokens
