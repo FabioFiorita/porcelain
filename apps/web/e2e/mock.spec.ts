@@ -458,3 +458,52 @@ test('opens responsive drawers with shortcuts and returns to the review canvas',
     ),
   ).toBe(true);
 });
+
+test('selected diff rows match worktree selection in both themes', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByLabel('Access token').fill('fixture-token');
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await openNavigation(page);
+  const worktree = page.getByRole('button', { name: /agent\/review/ });
+  await worktree.click();
+  const diff = page.getByRole('button', { name: /review-panel.tsx.*staged/ });
+  const appearance = (element: HTMLElement | SVGElement) => {
+    const style = getComputedStyle(element);
+    return {
+      background: style.backgroundColor,
+      border: style.borderWidth,
+      radius: style.borderRadius,
+      shadow: style.boxShadow,
+      weight: style.fontWeight,
+    };
+  };
+  for (const theme of ['light', 'dark']) {
+    if (await page.getByRole('dialog').isVisible()) {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
+    await page.evaluate(
+      (value) =>
+        document.documentElement.classList.toggle('dark', value === 'dark'),
+      theme,
+    );
+    await openNavigation(page);
+    await expect(worktree).toHaveAttribute('aria-pressed', 'true');
+    const expected = await worktree.evaluate(appearance);
+    if (await page.getByRole('dialog').isVisible()) {
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+    }
+    const trigger = page.getByRole('button', { name: 'Review', exact: true });
+    if (await trigger.isVisible()) await trigger.click();
+    await diff.click();
+    if (await trigger.isVisible()) {
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await trigger.click();
+    }
+    await expect(diff).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(async () => diff.evaluate(appearance)).toEqual(expected);
+  }
+});

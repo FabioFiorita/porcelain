@@ -1,6 +1,6 @@
 import { FileIcon } from '@react-symbols/icons/utils';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
+import { SidebarMenuButton } from '@/components/ui/sidebar';
 export function ReviewRow({
   label,
   detail,
@@ -17,9 +17,9 @@ export function ReviewRow({
   badge?: ReactNode;
 }) {
   return (
-    <Button
-      variant={selected ? 'secondary' : 'ghost'}
-      className="workspace-choice h-auto min-h-10 w-full justify-start gap-2 rounded-lg px-2 py-1.5"
+    <SidebarMenuButton
+      isActive={selected}
+      className="workspace-choice h-auto min-h-10 w-full justify-start gap-2 px-2 py-1.5"
       aria-pressed={selected}
       title={detail ? `${label}\n${detail}` : label}
       onClick={onSelect}
@@ -41,6 +41,6 @@ export function ReviewRow({
         )}
       </span>
       {badge}
-    </Button>
+    </SidebarMenuButton>
   );
 }
