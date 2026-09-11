@@ -8,14 +8,13 @@ import { ConnectionForm } from '../connection/connection-form';
 import { ConnectedWorkspace } from './connected-workspace';
 import { WorkspacePending } from './workspace-pending';
 
-const Devtools =
-  import.meta.env.DEV || import.meta.env.VITE_API_MODE === 'mock'
-    ? lazy(() =>
-        import('../../development/devtools').then((module) => ({
-          default: module.Devtools,
-        })),
-      )
-    : null;
+const Devtools = import.meta.env.DEV
+  ? lazy(() =>
+      import('../../development/devtools').then((module) => ({
+        default: module.Devtools,
+      })),
+    )
+  : null;
 
 const PlaygroundAutoConnect =
   import.meta.env.DEV && import.meta.env.PORCELAIN_PLAYGROUND_AUTO_CONNECT

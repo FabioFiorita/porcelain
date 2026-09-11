@@ -52,27 +52,19 @@ Electron's responsibility and require platform testing.
 The unified TanStack DevTools includes Query, Router and Hotkeys panels and is imported
 only in development. It is not a production route or an application capability.
 
-Form, Markdown, Store, Virtual and Highlight are installed for upcoming client features.
-Their explicit Knip dependency exceptions last until their first consumers; do not add
-placeholder product screens to exercise unused dependencies. Markdown is imported from
-`@tanstack/markdown` (including its React subpath), not a separate react-markdown package.
-Markdown and unified DevTools are currently alpha; exact versions are locked.
-Rendered Markdown will need content-policy and malicious-input tests when introduced.
+Dependencies are added with their first use. The unused Markdown and Store packages were removed
+during the server/web cleanup; rendered Markdown and shared presentation state can be considered
+when product behavior requires them.
 
-Husky now runs the pinned React Doctor against the Git index, blocking warnings and errors.
-CI also scans the full web project so local hook bypass does not bypass the repository check.
-The vendored UI and generated mobile hook use the existing vendor exclusion policy.
-React Doctor complements type checking, browser smoke and Biome; a score is not a shipping
-guarantee. The hook regression test uses an isolated Git index and an actual conditional-hook
-violation to prove rejection without modifying the developer's staged work.
+React Doctor runs explicitly and in CI. We removed the blocking commit hook to keep local
+iteration focused. Vendor exclusions remain in its configuration; the score is not a shipping
+guarantee.
 
 
 ## Presentation state and content libraries
 
-TanStack Store replaces the planned Zustand choice for shared presentation state.
-Component-local state stays in React, URL state stays in Router, and server data stays in
-Query. Installing Store does not justify moving the shell's local theme toggle into a
-global store.
+Component-local state stays in React, URL state stays in Router, and server data stays in Query.
+A separate presentation store is deferred until a concrete shared-state requirement exists.
 
 Virtual is selected for large file trees and histories when those views are introduced.
 Highlight is selected for syntax highlighting, with selective language imports. Its first

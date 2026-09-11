@@ -55,6 +55,30 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   const feedback = `File feedback ${crypto.randomUUID()}`;
   await page.getByRole('button', { name: 'Add comment' }).click();
   await page.getByLabel('Comment', { exact: true }).fill(feedback);
+  // The textarea's 3px focus ring must fit inside every clipping ancestor.
+  const focusRingFits = await page
+    .getByLabel('Comment', { exact: true })
+    .evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      for (const ancestor of ancestorElements(element)) {
+        const style = getComputedStyle(ancestor);
+        if (!['auto', 'scroll', 'hidden', 'clip'].includes(style.overflowX))
+          continue;
+        const clip = ancestor.getBoundingClientRect();
+        if (bounds.left - 3 < clip.left || bounds.right + 3 > clip.right)
+          return false;
+      }
+      return true;
+      function* ancestorElements(node: Element): Generator<Element> {
+        for (
+          let parent = node.parentElement;
+          parent;
+          parent = parent.parentElement
+        )
+          yield parent;
+      }
+    });
+  expect(focusRingFits).toBe(true);
   await page.getByRole('button', { name: 'Post comment' }).click();
   await expect(page.getByText(feedback, { exact: true })).toBeVisible();
   const commentsResponse = await request.get(

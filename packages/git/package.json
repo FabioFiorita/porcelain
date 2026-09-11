@@ -36,8 +36,7 @@
     "./interfaces/inspection-factory": "./src/interfaces/inspection-factory.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test:coverage": "node ../../scripts/run-scoped-tests.ts git"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "4.5.4"

@@ -1,4 +1,4 @@
-# Web client layers and mock development
+# Web client layers
 
 The web client separates presentation from its environment connection and data lifecycle.
 Views compose shadcn components, keep drafts and selection interactions, and call query hooks.
@@ -17,16 +17,10 @@ Every completed login or disconnect invalidates older login attempts. Disconnect
 session, clears Query state and removes selection through Router. Tokens never appear in query keys. The browser uses a server-issued HttpOnly session cookie and validates it on reload;
 disconnect clears the cookie before dropping the local connection. The existing automatic/manual playground login follows the same lifecycle.
 
-Mock mode is explicit through `VITE_API_MODE=mock`; normal builds and the real playground use live
-transport. Mock builds dynamically include disposable inventory fixtures and development controls.
-Fixtures implement the same port, return independent snapshots, support cancellation and let developers
-reproduce empty, unavailable, delayed and failed operations. They reset on reload. They establish client
-behavior, not Git, HTTP, authentication or persistence correctness. Real-backend smoke remains required.
-
-View specs mount the real router, query cache, session provider and mock-backed API. They do not replace
-query hooks. Assertions cover rendered outcomes and fixture changes. Mock browser smoke runs separately
-from live smoke and has no backend process. Production modules remain checked by Knip and dependency
-boundaries; generated builds and vendored components retain their existing exclusions.
+Development runs against the real disposable server. API mocks remain controlled test fixtures for
+empty, delayed, cancelled and failed operations. View specs mount the real router, query cache and
+session provider, asserting rendered outcomes and fixture changes. These specs complement real
+Git/HTTP/browser tests; they do not establish persistence or authentication correctness.
 
 Import boundaries are enforced by the existing dependency gate. Views cannot import API modules,
 wire contracts, the transport package or Query infrastructure. Domain and API code cannot import React

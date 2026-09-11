@@ -5,16 +5,6 @@ name = "porcelain"
 script = "npx --yes pnpm@12.3.4 install --frozen-lockfile"
 
 [[actions]]
-name = "Playground"
+name = "Run Porcelain"
 icon = "run"
-command = "pnpm dev:playground"
-
-[[actions]]
-name = "Playground (manual auth)"
-icon = "run"
-command = "pnpm dev:playground --manual"
-
-[[actions]]
-name = "Web only"
-icon = "run"
-command = "pnpm dev:web"
+command = "pnpm dev"

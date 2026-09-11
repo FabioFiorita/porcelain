@@ -25,10 +25,8 @@ including linked worktrees. Request identity currently survives navigation withi
 not page reload or disconnect; durable client-side recovery across those boundaries remains deferred.
 The server continues to own its durable receipts and mutation safety.
 
-Live adapters implement the existing read and Git-action HTTP routes. Explicit mock mode uses
-in-memory fixtures; mock commit and stash creation update fixture state. Fetch/push simulate receipts
-without contacting a remote. Stash apply/pop forms have live adapters but deliberately report an
-unavailable simulation in the mock. Mock data proves presentation behavior, not Git correctness.
+Live adapters implement the existing read and Git-action HTTP routes. In-memory API fixtures
+remain for controlled renderer tests; they do not establish Git correctness.
 
 The implementations are owned by the [review view](../../apps/web/src/views/review/review-workspace.tsx),
 [review queries](../../apps/web/src/query/review.ts), [Git lifecycle](../../apps/web/src/query/git-actions.ts),

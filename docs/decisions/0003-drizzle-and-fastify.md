@@ -37,4 +37,4 @@ and disposable integration tests bind loopback ports. Authenticated inventory en
 [HTTP decision](0004-inventory-http.md). There is no deployment configuration, WebSocket, or client yet. Health success establishes initialized application availability, not
 repository reachability or access authorization.
 
-pnpm owns workspace dependency management; [the Git package decision](0006-git-package-and-task-cache.md) adds Turborepo task caching.
+pnpm owns workspace dependency management; [the Git package decision](0006-git-package-and-task-cache.md) explains direct task execution.

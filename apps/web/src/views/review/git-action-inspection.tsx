@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -64,11 +63,7 @@ function GitActionForm({
           {gitActions.find((item) => item.id === action)?.label}
         </h3>
       </header>
-      {import.meta.env.VITE_API_MODE === 'mock' && (
-        <Badge variant="outline">
-          Mock environment · in-memory actions only
-        </Badge>
-      )}
+
       <form
         onSubmit={(event) => {
           event.preventDefault();

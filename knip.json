@@ -15,21 +15,19 @@
     },
     "apps/web": {
       "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts"],
-      "ignore": ["src/components/ui/**", "src/hooks/use-mobile.ts"],
+      "ignore": ["src/components/ui/**"],
       "ignoreDependencies": [
         "@shadcn/react",
         "cmdk",
         "embla-carousel-react",
         "input-otp",
         "react-day-picker",
-        "react-resizable-panels",
-        "@tanstack/markdown",
-        "@tanstack/react-store"
+        "react-resizable-panels"
       ]
     },
     "packages/client": {
       "project": ["src/**/*.ts"]
     }
   },
-  "ignoreBinaries": ["mkfifo", "openssl"]
+  "ignoreBinaries": ["mkfifo"]
 }

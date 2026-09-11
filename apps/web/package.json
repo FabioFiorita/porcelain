@@ -7,10 +7,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test:smoke": "playwright test",
-    "dev:mock": "VITE_API_MODE=mock vite --host 127.0.0.1",
-    "test:mock": "playwright test --config playwright.mock.config.ts",
-    "test:coverage": "node ../../scripts/run-scoped-tests.ts web"
+    "test:smoke": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
@@ -20,7 +17,6 @@
     "@react-symbols/icons": "1.4.1",
     "@shadcn/react": "0.3.1",
     "@tanstack/highlight": "0.0.10",
-    "@tanstack/markdown": "0.0.13",
     "@tanstack/react-devtools": "0.10.12",
     "@tanstack/react-form": "1.33.5",
     "@tanstack/react-hotkeys": "0.10.0",
@@ -29,7 +25,6 @@
     "@tanstack/react-query-devtools": "5.102.8",
     "@tanstack/react-router": "1.170.33",
     "@tanstack/react-router-devtools": "1.167.1",
-    "@tanstack/react-store": "0.11.1",
     "@tanstack/react-virtual": "3.14.11",
     "class-variance-authority": "0.7.1",
     "cmdk": "1.1.1",

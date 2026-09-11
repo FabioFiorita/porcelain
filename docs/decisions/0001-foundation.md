@@ -7,9 +7,8 @@ Use plain TypeScript with explicit dependencies rather than Rust or Effect. Keep
 separate while sharing contracts and client behavior across web and Expo. Electron hosts the web UI.
 
 TypeScript 7 passed a bounded compatibility fixture. Use Node LTS for CI, pinned dependencies and
-lockfile installs for reproducibility. Biome provides formatting, linting, cognitive-complexity and
+lockfile installs for reproducibility. Biome provides formatting, linting and
 naming checks; dependency-cruiser checks module boundaries/cycles; Vitest provides specs/coverage.
-Cognitive complexity bounds control-flow difficulty, not responsibility count or proof of correctness.
 
 Keep local iteration focused. Comprehensive CI and one bounded fresh review complement each other.
 Do not install UI, server, persistence, or mutation libraries before their owning behavior needs them.

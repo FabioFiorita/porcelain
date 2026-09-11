@@ -6,10 +6,6 @@ import { createReviewLive } from './review/live';
 import { browserTransport, createSessionLive } from './session/live';
 
 export async function createBootApi(): Promise<Api> {
-  if (import.meta.env.VITE_API_MODE === 'mock') {
-    const { createBootMockApi } = await import('./mock-api');
-    return createBootMockApi();
-  }
   const transport = import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE
     ? fetch
     : browserTransport(fetch);

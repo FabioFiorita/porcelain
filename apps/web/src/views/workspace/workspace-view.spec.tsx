@@ -238,46 +238,69 @@ describe('worktree review navigation', () => {
     });
     expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   });
-  it('prepares an index-only mock commit, requires confirmation and refreshes authoritative changes', async () => {
-    const { store } = renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(screen.getByRole('tab', { name: 'Git' }));
-    await user.click(
-      screen.getByRole('button', { name: /^Commit Commit the existing index/ }),
-    );
-    await user.type(
-      screen.getByLabelText('Message'),
-      'Review sidebar foundation',
-    );
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-    const confirm = await screen.findByRole('button', {
-      name: 'Confirm commit',
-    });
-    expect(confirm.hasAttribute('disabled')).toBe(true);
-    expect(store.actionCount).toBe(0);
-    await user.click(
-      screen.getByLabelText(
-        'I have reviewed the scope and paused external writers.',
-      ),
-    );
-    await user.click(confirm);
-    await screen.findByRole('heading', { name: 'succeeded' });
-    expect(store.actionCount).toBe(1);
-    const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
-    expect(
-      data?.status.changes.some((change) => change.scope === 'staged'),
-    ).toBe(false);
-    expect(
-      data?.status.changes.some((change) => change.scope === 'unstaged'),
-    ).toBe(true);
-    await user.click(screen.getByRole('button', { name: 'Check receipt' }));
-    expect(store.actionCount).toBe(1);
-    await user.click(screen.getByRole('tab', { name: 'History' }));
-    await screen.findByRole('button', { name: /Review sidebar foundation/ });
-  });
+  it.each([false, true])(
+    'commits only staged changes and recovers without repeating the action (lost response: %s)',
+    async (loseResponse) => {
+      const { store } = renderReview();
+      const user = await connect();
+      await user.click(
+        await screen.findByRole('button', { name: /agent\/review/ }),
+      );
+      await user.click(screen.getByRole('tab', { name: 'Git' }));
+      await user.click(
+        screen.getByRole('button', {
+          name: /^Commit Commit the existing index/,
+        }),
+      );
+      await user.type(
+        screen.getByLabelText('Message'),
+        'Review sidebar foundation',
+      );
+      await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+      const confirm = await screen.findByRole('button', {
+        name: 'Confirm commit',
+      });
+      expect(confirm.hasAttribute('disabled')).toBe(true);
+      expect(store.actionCount).toBe(0);
+      await user.click(
+        screen.getByLabelText(
+          'I have reviewed the scope and paused external writers.',
+        ),
+      );
+      store.loseActionResponse = loseResponse;
+      await user.click(confirm);
+      if (loseResponse) {
+        await screen.findByRole('heading', {
+          name: 'Outcome not yet confirmed',
+        });
+        expect(
+          screen.queryByRole('button', { name: 'Prepare another action' }),
+        ).toBeNull();
+        await user.click(screen.getByRole('tab', { name: 'Files' }));
+        await user.click(screen.getByRole('tab', { name: 'Git' }));
+        await user.click(
+          screen.getByRole('button', { name: /^Commit Commit/ }),
+        );
+        await screen.findByRole('heading', {
+          name: 'Outcome not yet confirmed',
+        });
+        await user.click(screen.getByRole('button', { name: 'Check receipt' }));
+      }
+      await screen.findByRole('heading', { name: 'succeeded' });
+      expect(store.actionCount).toBe(1);
+      const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+      expect(
+        data?.status.changes.some((change) => change.scope === 'staged'),
+      ).toBe(false);
+      expect(
+        data?.status.changes.some((change) => change.scope === 'unstaged'),
+      ).toBe(true);
+      await user.click(screen.getByRole('button', { name: 'Check receipt' }));
+      expect(store.actionCount).toBe(1);
+      await user.click(screen.getByRole('tab', { name: 'History' }));
+      await screen.findByRole('button', { name: /Review sidebar foundation/ });
+    },
+  );
   it('does not repopulate a disconnected session when a slow review read finishes', async () => {
     const { store, queryClient } = renderReview();
     const user = await connect();

@@ -11,7 +11,6 @@ process.env.PORCELAIN_PLAYGROUND_INFO ??= join(
 export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.spec.ts',
-  testIgnore: '**/mock.spec.ts',
   forbidOnly: true,
   retries: 0,
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure' },
@@ -19,20 +18,12 @@ export default defineConfig({
     {
       name: 'desktop',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: [
-        '**/playground.spec.ts',
-        '**/playground-auto.spec.ts',
-        '**/mock.spec.ts',
-      ],
+      testIgnore: ['**/playground.spec.ts', '**/playground-auto.spec.ts'],
     },
     {
       name: 'narrow',
       use: { ...devices['Pixel 7'] },
-      testIgnore: [
-        '**/playground.spec.ts',
-        '**/playground-auto.spec.ts',
-        '**/mock.spec.ts',
-      ],
+      testIgnore: ['**/playground.spec.ts', '**/playground-auto.spec.ts'],
     },
     {
       name: 'development',
@@ -55,7 +46,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: 'cd ../.. && pnpm dev:playground --manual --port=4174',
+      command: 'cd ../.. && pnpm dev --manual --port=4174',
       env: {
         PORCELAIN_PLAYGROUND_INFO: '',
         PORCELAIN_PLAYGROUND_DIRECTORY: tmpdir(),
@@ -65,7 +56,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: 'cd ../.. && pnpm dev:playground --port=4175',
+      command: 'cd ../.. && pnpm dev --port=4175',
       env: {
         PORCELAIN_PLAYGROUND_INFO: '',
         PORCELAIN_PLAYGROUND_DIRECTORY: tmpdir(),

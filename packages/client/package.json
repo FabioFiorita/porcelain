@@ -10,8 +10,7 @@
     "./git-actions": "./src/git-actions.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test:coverage": "node ../../scripts/run-scoped-tests.ts client"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*"

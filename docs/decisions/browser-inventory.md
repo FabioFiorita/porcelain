@@ -55,7 +55,7 @@ POST with the development request header. It rejects other origins, non-loopback
 and cross-site fetch metadata; responses are not cached. The filesystem serving deny list
 also blocks the selected token and generated playgrounds.
 
-`pnpm dev:playground` authenticates once on page load. `--manual` waits for a user action.
+`pnpm dev` authenticates once on page load. `--manual` waits for a user action.
 Both modes include a TanStack Devtools panel for reveal/copy/connect and retain manual
 token entry. All paths use the existing authenticated inventory transport without saving
 credentials in browser storage. Login paths share an attempt generation: the first successful

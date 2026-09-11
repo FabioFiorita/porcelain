@@ -22,14 +22,6 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "complexity": {
-        "noExcessiveCognitiveComplexity": {
-          "level": "error",
-          "options": {
-            "maxAllowedComplexity": 15
-          }
-        }
-      },
       "style": {
         "useFilenamingConvention": {
           "level": "error",
@@ -52,11 +44,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "packages/contracts/src/**",
-        "packages/client/src/**",
-        "packages/design-tokens/src/**"
-      ],
+      "includes": ["packages/contracts/src/**", "packages/client/src/**"],
       "linter": {
         "rules": {
           "style": {

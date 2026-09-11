@@ -112,10 +112,10 @@ test('rejects runtime imports into repository tooling', async () => {
   ).toContain('apps-server-dependencies');
 });
 
-test('rejects Node builtins in mobile presentation', async () => {
+test('rejects Node builtins in web presentation', async () => {
   expect(
     await violations({
-      'apps/mobile/src/main.ts':
+      'apps/web/src/main.ts':
         "import {readFile} from 'node:fs/promises'; export const read = readFile;",
     }),
   ).toContain('no-node-in-portable-code');

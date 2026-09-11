@@ -2,21 +2,10 @@ import type { IConfiguration, IForbiddenRuleType } from 'dependency-cruiser';
 
 const owners = {
   'apps/server': ['packages/contracts', 'packages/git'],
-  'apps/desktop': ['packages/contracts'],
-  'apps/web': [
-    'packages/contracts',
-    'packages/client',
-    'packages/design-tokens',
-  ],
-  'apps/mobile': [
-    'packages/contracts',
-    'packages/client',
-    'packages/design-tokens',
-  ],
+  'apps/web': ['packages/contracts', 'packages/client'],
   'packages/contracts': [],
   'packages/git': [],
   'packages/client': ['packages/contracts'],
-  'packages/design-tokens': [],
 } as const;
 
 const ownershipRules: IForbiddenRuleType[] = Object.entries(owners).map(
@@ -110,7 +99,7 @@ export const boundaryRules: IConfiguration = {
     {
       name: 'portable-packages',
       severity: 'error',
-      from: { path: '^packages/(contracts|client|design-tokens)/' },
+      from: { path: '^packages/(contracts|client)/' },
       to: {
         path: '(^node:|(^|/)(electron|react-dom|react-native|expo)(/|$))',
       },
@@ -119,14 +108,14 @@ export const boundaryRules: IConfiguration = {
       name: 'no-node-in-portable-code',
       severity: 'error',
       from: {
-        path: '^(packages/(contracts|client|design-tokens)|apps/(web|mobile)/src)/',
+        path: '^(packages/(contracts|client)|apps/web/src)/',
       },
       to: { dependencyTypes: ['core'] },
     },
     {
       name: 'no-platform-ui-in-contracts',
       severity: 'error',
-      from: { path: '^packages/(contracts|design-tokens)/' },
+      from: { path: '^packages/contracts/' },
       to: { path: '(^|/)(react|zustand|@tanstack)(/|$)' },
     },
     {

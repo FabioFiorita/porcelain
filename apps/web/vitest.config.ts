@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// Shared by the root runner so web specs retain their scoped coverage ownership.
+// React transform and aliases are shared with the root test runner.
 export const webTestConfiguration = defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
