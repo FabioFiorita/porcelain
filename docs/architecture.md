@@ -23,7 +23,6 @@ inspection through explicit contracts and a checkout-bound `CommitGit` capabilit
 | --- | --- | --- |
 | `apps/server` | Node server, repository operations, private persistence, HTTP/MCP and live events | contracts, git |
 | `apps/desktop` | Electron lifecycle, local server supervision, OS integration | contracts |
-| `apps/site` | Public Next.js website and Fumadocs; independently deployable | none |
 | `apps/web` | React presentation shared by browser and Electron | contracts, client, design-tokens |
 | `apps/mobile` | Expo presentation and native platform adapters | contracts, client, design-tokens |
 | `packages/git` | Checkout-bound Git commands, inspection and Git-owned types | none |
@@ -112,5 +111,3 @@ explicit mock development, and regression protection through the real client pro
 
 Pure rules use unit specs. Git, persistence, and protocol behavior use real disposable integration
 fixtures. User paths gain CI smoke tests as their surface is introduced. Renderer specs use the web DOM test project; Expo/native checks need their own platform setup. Vitest covers pure rules, renderer workflows, tooling and disposable server integration specs; browser end-to-end behavior remains in Playwright.
-
-The [public website decision](decisions/public-website.md) separates marketing and public MDX from application and contributor documentation.

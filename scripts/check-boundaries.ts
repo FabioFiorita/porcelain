@@ -15,7 +15,6 @@ const result = await cruise(
   {
     alias: {
       '@/*': `${resolve('apps/web/src')}/*`,
-      '@site/*': `${resolve('apps/site/src')}/*`,
     },
   },
 );

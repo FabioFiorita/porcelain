@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
-test.each(['web', 'site'])(
+test.each(['web'])(
   'the commit hook checks %s and rejects a staged hook violation',
   (app) => {
     const root = mkdtempSync(join(tmpdir(), 'porcelain-doctor-'));
@@ -39,7 +39,7 @@ test.each(['web', 'site'])(
           },
         }),
       );
-      for (const owner of ['web', 'site']) {
+      for (const owner of ['web']) {
         mkdirSync(join(root, `apps/${owner}/src`), { recursive: true });
         writeFileSync(
           join(root, `apps/${owner}/package.json`),

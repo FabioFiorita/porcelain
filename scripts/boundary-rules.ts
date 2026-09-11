@@ -1,7 +1,6 @@
 import type { IConfiguration, IForbiddenRuleType } from 'dependency-cruiser';
 
 const owners = {
-  'apps/site': [],
   'apps/server': ['packages/contracts', 'packages/git'],
   'apps/desktop': ['packages/contracts'],
   'apps/web': [

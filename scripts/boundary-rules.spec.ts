@@ -327,30 +327,6 @@ test('resolves web aliases while enforcing application boundaries', async () => 
   ).toContain('apps-web-dependencies');
 });
 
-test('keeps the independently deployed site separate from application data and UI', async () => {
-  expect(
-    await violations({
-      'apps/site/src/page.ts':
-        "import { value } from '../../server/src/value.ts'; export const result = value;",
-      'apps/server/src/value.ts': 'export const value = 1;',
-    }),
-  ).toContain('apps-site-dependencies');
-  expect(
-    await violations({
-      'apps/site/src/page.ts':
-        "import { value } from '../../web/src/value.ts'; export const result = value;",
-      'apps/web/src/value.ts': 'export const value = 1;',
-    }),
-  ).toContain('apps-site-dependencies');
-  expect(
-    await violations({
-      'apps/site/src/page.ts':
-        "import { value } from './value.ts'; export const result = value;",
-      'apps/site/src/value.ts': 'export const value = 1;',
-    }),
-  ).toEqual([]);
-});
-
 test('keeps web views behind query hooks, including type-only API imports', async () => {
   expect(
     await violations({

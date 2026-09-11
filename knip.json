@@ -29,15 +29,6 @@
     },
     "packages/client": {
       "project": ["src/**/*.ts"]
-    },
-    "apps/site": {
-      "project": [
-        "src/**/*.{ts,tsx,css}",
-        "e2e/**/*.ts",
-        "content/docs/**/*.mdx"
-      ],
-      "entry": ["src/components/mdx.tsx"],
-      "ignore": ["src/components/ui/**"]
     }
   },
   "ignoreBinaries": ["mkfifo", "openssl"]

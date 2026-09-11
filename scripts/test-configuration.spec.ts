@@ -60,12 +60,3 @@ it('assigns renderer specs to the web scope and keeps browser smoke separate', (
     'Expected one test scope',
   );
 });
-
-it('assigns site smoke tests to Playwright and rejects unowned site unit tests', () => {
-  expect(() =>
-    assertTestOwnership(['apps/site/e2e/site.spec.ts']),
-  ).not.toThrow();
-  expect(() => assertTestOwnership(['apps/site/src/page.spec.tsx'])).toThrow(
-    'Expected one test scope',
-  );
-});

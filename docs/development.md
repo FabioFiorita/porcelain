@@ -245,30 +245,3 @@ if those ports are occupied, build their own assets and run uncached.
 Browser specs live under `apps/web/e2e`; Playwright owns them, while
 `scripts/test-configuration.ts` enforces ownership alongside Vitest scopes.
 See the [web foundation decision](decisions/web-foundation.md) for the vendor policy.
-
-
-## Public website
-
-Run `pnpm dev:site` for the independent Next.js site on <http://127.0.0.1:3000>.
-`pnpm build:site` produces its production build. `pnpm --filter @porcelain/site start`
-serves that output with Next's Node server; hosting and the public domain remain unselected.
-The site requires no application server, credentials, or private repository state.
-Run these commands from the workspace root after the pinned frozen install.
-
-Write public MDX in `apps/site/content/docs`; keep contributor instructions here.
-Do not edit generated `.source` or `.next` outputs. Search, LLM exports, and documentation
-OG images are generated from that content. The current setup vendors its font locally,
-so builds do not fetch Google Fonts.
-
-Install Chromium with `pnpm --filter @porcelain/site exec playwright install --with-deps chromium`.
-Run `pnpm test:site:smoke` for the production build and browser workflow checks on port 4310.
-For the development server, run
-`PORCELAIN_SITE_SMOKE_MODE=development pnpm --filter @porcelain/site test:smoke` (port 4311).
-Both modes reject an occupied port and own their server lifecycle. Do not run build and dev
-checks simultaneously in the same app output directory.
-
-Deployment should use the repository root for the frozen workspace install, build only
-`@porcelain/site`, and run its production server. No provider config or deployment is committed.
-Set `PORCELAIN_SITE_URL` to the confirmed public origin at build time (see the site `.env.example`).
-Before publishing, verify metadata behavior on that host, replace the
-privacy draft with factually reviewed details, and publish download links only for verified releases.
