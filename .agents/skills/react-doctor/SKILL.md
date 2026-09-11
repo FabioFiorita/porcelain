@@ -1,60 +1,30 @@
 ---
 name: react-doctor
-description: Use when the user types `/doctor`, asks to scan, triage, or clean up React diagnostics. Covers lint, accessibility, bundle size, architecture. CI already runs React Doctor; do not scan after every edit. Includes a full local-triage workflow that fetches the canonical playbook.
-version: "1.2.0"
+description: Scan, investigate, or configure React Doctor diagnostics when requested, including `/doctor`.
 ---
 
 # React Doctor
 
-Scans React codebases for security, performance, correctness, and architecture issues. Outputs a 0–100 health score.
+Use the repository's installed version and configured scan policy:
 
-## After making React code changes:
-
-CI runs React Doctor on every push. Do not scan after every edit. Run a local scan when the user asks, or when you are about to land a large UI change and want the report before CI.
-
-## For general cleanup or code improvement:
-
-Run `npx react-doctor@latest --verbose` (the default `--scope full`) to scan the full codebase. Fix issues by severity — errors first, then warnings.
-
-## For a focused UI design audit:
-
-Run `npx react-doctor@latest design --verbose`. This selects only design-tagged UI composition, typography, interaction, accessibility, and motion rules, including focused rules that remain opt-in during a general health scan.
-
-## For runtime performance problems:
-
-Run `npx react-doctor@latest scan <url> --format json` in an interactive terminal. React Doctor opens an isolated system Chrome profile, records a DevTools trace while the user reproduces the slow interaction, and flashes purple outlines with component names as React renders. It stops when they press Enter. Read the structured summary first, then inspect the returned local `.json.gz` trace for CPU, browser, and React component evidence.
-
-If the user needs their authenticated browser state, use `--cdp <remote-debugging-url>`. This requires Chrome to already be running with remote debugging. Never ask for cookies or copy the user's browser profile. Treat the trace as sensitive local application data and never upload it without explicit permission.
-
-## /doctor — full local triage workflow
-
-When the user types `/doctor`, says "run react doctor", or asks for a full triage / cleanup pass (not just a regression check), fetch the canonical local-triage playbook and follow every step in it:
-
-```bash
-curl --fail --silent --show-error \
-  --header 'Cache-Control: no-cache' \
-  https://www.react.doctor/prompts/react-doctor-agent.md
+```sh
+pnpm check:react
 ```
 
-The playbook is the single source of truth — a scan → filter → triage → fix → validate loop that edits the working tree directly (never commits, never opens PRs). Updating the prompt at its source updates every agent on its next fetch — no skill reinstall needed.
+Choose the scope that answers the request. Use `pnpm exec react-doctor --help` for
+supported options and specialized commands; avoid fetching `@latest` for routine scans.
+CI already runs React Doctor, so local scans should serve the task rather than follow every edit.
 
-Pair it with the matching per-rule prompts at `https://www.react.doctor/prompts/rules/<plugin>/<rule>.md` (fetched on demand inside the playbook) so each fix uses the canonical, reviewer-tested recipe.
+Treat findings as hypotheses: inspect the affected code, fix confirmed problems, and
+validate affected behavior. Do not suppress a rule just to clear a report. A clean result
+requires completed analysis with no unexpected skipped checks; an empty diagnostic list
+or successful exit alone is insufficient. Use `--json` for details and `--no-cache` when
+investigating stale or incomplete results. Keep rescans proportional to the changes.
 
-## Configuring or explaining rules
+For explaining or tuning a rule, read [rule guidance](references/explain.md).
+For an explicitly requested design audit or runtime investigation, inspect the installed
+`design --help` or `scan --help`. Runtime traces may contain private data; use an isolated
+browser profile and keep traces local unless sharing is authorized. Use an explicitly
+supplied CDP connection when existing browser state is needed; never copy a browser profile.
 
-When the user wants to understand a rule, disagrees with one, or wants to disable / tune which rules run (not fix code), read [references/explain.md](references/explain.md) and follow it. Start with `npx react-doctor@latest rules explain <rule>`, then apply the narrowest control via `npx react-doctor@latest rules disable|set|category|ignore-tag …`, which edits your `doctor.config.*` (or `package.json#reactDoctor`).
-
-## Command
-
-```bash
-npx react-doctor@latest --verbose --scope changed
-```
-
-| Flag              | Purpose                                                          |
-| ----------------- | ---------------------------------------------------------------- |
-| `.`               | Scan current directory                                           |
-| `--verbose`       | Show affected files and line numbers per rule                    |
-| `--scope changed` | Only report issues introduced vs the base branch (default: full) |
-| `--scope lines`   | Only report issues on the changed lines                          |
-| `--score`         | Output only the numeric score                                    |
-| `design`          | Run only the focused UI design diagnostics                       |
+Repository instructions and the user's request determine delivery and authorization.
