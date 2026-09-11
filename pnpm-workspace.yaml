@@ -5,6 +5,8 @@ allowBuilds:
   better-sqlite3: false
   esbuild: true
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@tanstack/highlight@0.0.11"
 # dependency-cruiser uses the legacy compiler API to parse imports.
 # Application type checking remains TypeScript 7.
 packageExtensions:

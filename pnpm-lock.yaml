@@ -191,8 +191,8 @@ importers:
         specifier: 0.3.1
         version: 0.3.1(@types/react@19.2.18)(react@19.2.8)
       '@tanstack/highlight':
-        specifier: 0.0.10
-        version: 0.0.10
+        specifier: 0.0.11
+        version: 0.0.11
       '@tanstack/react-devtools':
         specifier: 0.10.12
         version: 0.10.12(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(csstype@3.2.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(solid-js@1.9.15)
@@ -2263,8 +2263,8 @@ packages:
   '@tanstack/form-core@1.33.5':
     resolution: {integrity: sha512-3dfx9MBP0aq5sXKteikG629X9oviptrQj0IFRk9YGcb+lB7Kv5x8S17oOSk1wUWgjQZ4xVJEMbKwOAODymocgA==}
 
-  '@tanstack/highlight@0.0.10':
-    resolution: {integrity: sha512-RNWn4BYgroDnHSdWduHVUN3hXM5OZUVwynuY2Fwh4el2hVy0woe9XZBZ5IIxC50h1y8SEYkBipS+cPgdzRc7Zg==}
+  '@tanstack/highlight@0.0.11':
+    resolution: {integrity: sha512-1JJ5KRD+cc2oKyvV4qcQTWocTIoB1+c5jqh0LnVDd400mQHYwgLtUMEJeMDhnl6MswvdNtkwCrdi1Q42Sb0gfg==}
     engines: {node: '>=18'}
 
   '@tanstack/history@1.162.2':
@@ -6536,7 +6536,7 @@ snapshots:
       '@tanstack/pacer-lite': 0.1.1
       '@tanstack/store': 0.11.1
 
-  '@tanstack/highlight@0.0.10': {}
+  '@tanstack/highlight@0.0.11': {}
 
   '@tanstack/history@1.162.2': {}
 
