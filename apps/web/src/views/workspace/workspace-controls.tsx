@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-hotkeys';
 import type { ReactNode, RefObject } from 'react';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { ThemeToggle } from './theme';
 import {
   Tooltip,
   TooltipContent,
@@ -13,11 +14,9 @@ import {
 
 export function WorkspaceControls({
   children,
-  themeControl,
   navigationTrigger,
 }: {
   children: ReactNode;
-  themeControl: ReactNode;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
 }) {
   const { isMobile, openMobile, open, toggleSidebar } = useSidebar();
@@ -45,7 +44,7 @@ export function WorkspaceControls({
         </TooltipContent>
       </Tooltip>
       {children}
-      {themeControl}
+      <ThemeToggle />
     </div>
   );
 }

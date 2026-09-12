@@ -1,7 +1,7 @@
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { GitBranchIcon, PanelRightIcon, RefreshCwIcon } from 'lucide-react';
-import { type ReactNode, type RefObject, useRef, useState } from 'react';
+import { type RefObject, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/ui/sidebar';
+import { discardRejection } from '../../lib/submit-form';
 import { type Project, worktreeLabel } from '../../domain/inventory';
 import type { Surface } from '../../domain/review';
 import { useRefreshReview } from '../../query/review';
@@ -25,12 +26,10 @@ type Worktree = Project['worktrees'][number];
 export function ReviewWorkspace({
   worktree,
   projectId,
-  themeControl,
   navigationTrigger,
 }: {
   worktree: Worktree;
   projectId: string;
-  themeControl: ReactNode;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
 }) {
   const search = useSearch({ from: '/' });
@@ -74,10 +73,7 @@ export function ReviewWorkspace({
         aria-label="Review content"
         className="flex min-w-0 flex-1 flex-col gap-2"
       >
-        <WorkspaceControls
-          themeControl={themeControl}
-          navigationTrigger={navigationTrigger}
-        >
+        <WorkspaceControls navigationTrigger={navigationTrigger}>
           <GitBranchIcon className="mx-1 hidden size-4 shrink-0 text-muted-foreground sm:block" />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-sm font-medium">
@@ -95,7 +91,7 @@ export function ReviewWorkspace({
             size="icon-sm"
             aria-label="Refresh review"
             disabled={refresh.isPending}
-            onClick={() => void refresh.submit().catch(() => undefined)}
+            onClick={() => discardRejection(refresh.submit())}
           >
             <RefreshCwIcon />
           </Button>

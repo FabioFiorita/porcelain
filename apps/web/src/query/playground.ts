@@ -5,6 +5,7 @@ import {
   readPlaygroundCredentials,
 } from '../api/playground-credentials';
 import { asMutation } from './mutation';
+import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
 import { useWorkspaceContext } from './workspace-provider';
 
 export function usePlaygroundAction() {
@@ -20,7 +21,7 @@ export function usePlaygroundAction() {
         if (!complete) return { ...credentials, connected: false };
         const inventory = await api.inventory.read({
           token: credentials.token,
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
         return {
           token: '',
@@ -43,7 +44,7 @@ export function useAutomaticPlaygroundConnection() {
     const controller = new AbortController();
     const signal = AbortSignal.any([
       controller.signal,
-      AbortSignal.timeout(15_000),
+      AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     ]);
     const connect = async () => {
       try {

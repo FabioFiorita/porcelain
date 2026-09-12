@@ -1,6 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { BoxIcon, LogOutIcon, RefreshCwIcon, ServerIcon } from 'lucide-react';
-import { type ReactNode, useRef } from 'react';
+import { useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,31 +21,28 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { selectedWorktree } from '../../domain/inventory';
+import { selectedWorktreeInProject } from '../../domain/inventory';
+import { discardRejection } from '../../lib/submit-form';
 import { connectionErrorMessage, useConnection } from '../../query/connection';
 import { useInventory, useRefreshInventory } from '../../query/inventory';
 import { ReviewWorkspace } from '../review/review-workspace';
 import { ProjectNavigator } from './project-navigator';
 import { WorkspaceControls } from './workspace-controls';
 
-export function ConnectedWorkspace({
-  themeControl,
-}: {
-  themeControl: ReactNode;
-}) {
+export function ConnectedWorkspace() {
   return (
     <TooltipProvider delay={400}>
       <SidebarProvider
         className="workspace-shell"
         style={{ '--sidebar-width': '17.5rem' } as React.CSSProperties}
       >
-        <WorkspaceNavigation themeControl={themeControl} />
+        <WorkspaceNavigation />
       </SidebarProvider>
     </TooltipProvider>
   );
 }
 
-function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
+function WorkspaceNavigation() {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const { setOpenMobile, isMobile, open } = useSidebar();
   const { disconnect, disconnectError, disconnectPending } = useConnection();
@@ -53,7 +50,7 @@ function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
   const navigate = useNavigate({ from: '/' });
   const inventory = useInventory();
   const refresh = useRefreshInventory();
-  const worktree = selectedWorktree(inventory, selected);
+  const selection = selectedWorktreeInProject(inventory, selected);
   const error = disconnectError ?? refresh.error;
   return (
     <>
@@ -95,7 +92,7 @@ function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
               aria-label="Refresh"
               title="Refresh inventory"
               disabled={refresh.isPending}
-              onClick={() => void refresh.submit().catch(() => undefined)}
+              onClick={() => discardRejection(refresh.submit())}
             >
               <RefreshCwIcon
                 className={
@@ -157,24 +154,16 @@ function WorkspaceNavigation({ themeControl }: { themeControl: ReactNode }) {
       </Sidebar>
       <SidebarInset className="h-svh min-w-0 overflow-hidden bg-transparent p-2 md:pl-0">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {worktree ? (
+          {selection ? (
             <ReviewWorkspace
-              key={worktree.id}
-              themeControl={themeControl}
+              key={selection.worktree.id}
               navigationTrigger={navigationTrigger}
-              worktree={worktree}
-              projectId={
-                inventory.projects.find((project) =>
-                  project.worktrees.some((item) => item.id === worktree.id),
-                )?.id ?? ''
-              }
+              worktree={selection.worktree}
+              projectId={selection.projectId}
             />
           ) : (
             <>
-              <WorkspaceControls
-                themeControl={themeControl}
-                navigationTrigger={navigationTrigger}
-              >
+              <WorkspaceControls navigationTrigger={navigationTrigger}>
                 <span className="min-w-0 flex-1 text-sm text-muted-foreground">
                   Workspace
                 </span>

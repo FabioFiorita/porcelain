@@ -369,3 +369,244 @@ describe('file discussion', () => {
     expect(screen.queryByText('Please explain this component.')).toBeNull();
   });
 });
+
+describe('git actions', () => {
+  async function openAction(name: RegExp) {
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(screen.getByRole('tab', { name: 'Git' }));
+    await user.click(screen.getByRole('button', { name }));
+    return user;
+  }
+
+  async function confirmPrepared(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      await screen.findByLabelText(
+        'I have reviewed the scope and paused external writers.',
+      ),
+    );
+  }
+
+  it('prepares a push with its remote destination and confirms it', async () => {
+    const { store } = renderReview();
+    const user = await openAction(/^Push Send committed changes/);
+    expect(screen.getByLabelText('Configured remote')).toHaveProperty(
+      'value',
+      'origin',
+    );
+    await user.click(screen.getByLabelText('Allow creating the remote branch'));
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    await screen.findByText('Destination');
+    expect(screen.getByText('Mock origin')).toBeTruthy();
+    await confirmPrepared(user);
+    await user.click(screen.getByRole('button', { name: 'Confirm push' }));
+    await screen.findByRole('heading', { name: 'succeeded' });
+    expect(store.actionCount).toBe(1);
+  });
+
+  it('reports a preparation the environment refuses without starting an operation', async () => {
+    const { store } = renderReview();
+    const user = await openAction(/^Apply stash Restore a stash and keep it/);
+    await user.type(
+      screen.getByLabelText('Full stash object ID'),
+      'a'.repeat(40),
+    );
+    await user.click(screen.getByLabelText('Restore index'));
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'not simulated in this mock',
+    );
+    expect(screen.queryByRole('button', { name: /^Confirm/ })).toBeNull();
+    expect(store.actionCount).toBe(0);
+  });
+
+  it('returns a prepared action to editing without executing it', async () => {
+    const { store } = renderReview();
+    const user = await openAction(/^Commit Commit the existing index/);
+    await user.type(screen.getByLabelText('Message'), 'Prepared then edited');
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    await confirmPrepared(user);
+    await user.click(screen.getByRole('button', { name: 'Edit preparation' }));
+    await screen.findByRole('button', { name: 'Prepare action' });
+    expect(screen.queryByRole('button', { name: 'Confirm commit' })).toBeNull();
+    expect(screen.getByLabelText('Message')).toHaveProperty(
+      'value',
+      'Prepared then edited',
+    );
+    expect(store.actionCount).toBe(0);
+  });
+
+  it('blocks confirmation once the preparation has expired', async () => {
+    renderReview();
+    const user = await openAction(/^Commit Commit the existing index/);
+    await user.type(screen.getByLabelText('Message'), 'Too late');
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    const confirm = await screen.findByRole('button', {
+      name: 'Confirm commit',
+    });
+    const realNow = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(realNow + 600_000);
+    try {
+      await confirmPrepared(user);
+      expect(confirm.hasAttribute('disabled')).toBe(true);
+    } finally {
+      vi.mocked(Date.now).mockRestore();
+    }
+  });
+
+  it('reports a commit with nothing staged and allows preparing another action', async () => {
+    const { store } = renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', {
+        name: /main.*sample-project.*Main worktree/,
+      }),
+    );
+    await user.click(screen.getByRole('tab', { name: 'Git' }));
+    await user.click(
+      screen.getByRole('button', { name: /^Commit Commit the existing index/ }),
+    );
+    await user.type(screen.getByLabelText('Message'), 'Nothing staged');
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    await confirmPrepared(user);
+    await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
+    await screen.findByRole('heading', { name: 'no-change' });
+    expect(store.actionCount).toBe(1);
+    await user.click(
+      screen.getByRole('button', { name: 'Prepare another action' }),
+    );
+    await screen.findByRole('button', { name: 'Prepare action' });
+    expect(screen.queryByRole('heading', { name: 'no-change' })).toBeNull();
+  });
+
+  it('forgets an uncertain operation when the connection is replaced', async () => {
+    const { store } = renderReview();
+    const user = await openAction(/^Commit Commit the existing index/);
+    await user.type(screen.getByLabelText('Message'), 'Uncertain outcome');
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    await confirmPrepared(user);
+    store.loseActionResponse = true;
+    await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
+    await screen.findByRole('heading', { name: 'Outcome not yet confirmed' });
+    store.loseActionResponse = false;
+    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+    await screen.findByLabelText('Access token');
+    await openAction(/^Commit Commit the existing index/);
+    await screen.findByRole('button', { name: 'Prepare action' });
+    expect(
+      screen.queryByRole('heading', { name: 'Outcome not yet confirmed' }),
+    ).toBeNull();
+  });
+});
+
+describe('workspace theme', () => {
+  it('toggles the theme from the disconnected shell and from the connected controls', async () => {
+    renderReview();
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Switch to dark theme' }),
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    await user.click(
+      screen.getByRole('button', { name: 'Switch to light theme' }),
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    await user.click(
+      screen.getByRole('button', { name: 'Switch to dark theme' }),
+    );
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    await screen.findByRole('button', { name: 'Switch to light theme' });
+  });
+});
+
+describe('review surfaces', () => {
+  it('inspects a tracked file and a commit from their navigation surfaces', async () => {
+    renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(screen.getByRole('tab', { name: 'Files' }));
+    await user.click(await screen.findByRole('button', { name: /README\.md/ }));
+    await screen.findByRole('heading', { name: 'README.md' });
+    expect(screen.getByText(/bytes · Read only/)).toBeTruthy();
+
+    await user.click(screen.getByRole('tab', { name: 'History' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Keep review context scoped to the worktree/,
+      }),
+    );
+    await screen.findByRole('heading', { name: /^Commit / });
+    expect(screen.getByText(/Compared with parent/)).toBeTruthy();
+  });
+
+  it('reports a change that is no longer present in the current status', async () => {
+    const { store } = renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
+    );
+    await screen.findByRole('heading', {
+      name: 'src/components/review-panel.tsx',
+    });
+    const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+    if (!data) throw new Error('Missing fixture worktree');
+    data.status.changes = data.status.changes.filter(
+      (change) =>
+        !('newPath' in change && change.newPath?.includes('review-panel')),
+    );
+    await user.click(screen.getByRole('button', { name: 'Refresh review' }));
+    await screen.findByText('Change no longer present');
+  });
+});
+
+describe('git action cache consequences', () => {
+  it('refreshes the rendered review surfaces after an action reports a Git change', async () => {
+    const { store, queryClient } = renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    // Render the Changes surface so its cache entry exists before the commit.
+    const staged = await screen.findByRole('button', {
+      name: /review-panel.tsx.*staged/,
+    });
+    expect(staged).toBeTruthy();
+
+    await user.click(screen.getByRole('tab', { name: 'Git' }));
+    await user.click(
+      screen.getByRole('button', { name: /^Commit Commit the existing index/ }),
+    );
+    await user.type(screen.getByLabelText('Message'), 'Commit staged work');
+    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    await user.click(
+      await screen.findByLabelText(
+        'I have reviewed the scope and paused external writers.',
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
+    await screen.findByRole('heading', { name: 'succeeded' });
+    expect(store.actionCount).toBe(1);
+
+    // The receipt required a refresh, so the project-level invalidation must have
+    // reached the already-cached review surfaces. Asserting on rendered rows cannot
+    // detect this: the mock mutates its fixture in place, so the list updates even
+    // when nothing was invalidated.
+    const reviewQueries = queryClient
+      .getQueryCache()
+      .getAll()
+      .filter((query) => query.queryKey[0] === 'review');
+    expect(reviewQueries.length).toBeGreaterThan(0);
+    expect(reviewQueries.every((query) => query.state.isInvalidated)).toBe(
+      true,
+    );
+  });
+});

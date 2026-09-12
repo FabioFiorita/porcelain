@@ -1,4 +1,5 @@
 import { inventoryResponseSchema } from '@porcelain/contracts/inventory';
+import { REQUEST_TIMEOUT_MS } from '../../lib/request-timeout';
 import type { SessionPort } from './port';
 
 export function browserTransport(transport: typeof fetch): typeof fetch {
@@ -27,7 +28,7 @@ export function createSessionLive(transport: typeof fetch): SessionPort {
         method: 'DELETE',
         redirect: 'error',
         cache: 'no-store',
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       if (!response.ok) throw new Error('Could not end the browser session');
     },

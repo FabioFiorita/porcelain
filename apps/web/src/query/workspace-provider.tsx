@@ -13,12 +13,39 @@ import {
 import type { Api } from '../api/api';
 import type { Inventory } from '../domain/inventory';
 import { queryKeys } from './keys';
+import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
+import { createOperationStore, type OperationStore } from './operation-store';
 
+type ConnectedRequest = { token: string; signal: AbortSignal };
 type Connection = {
   token: string;
   environmentId: string;
   controller: AbortController;
+  operations: OperationStore;
+  // Every connected read carries the session credential, the connection's own
+  // cancellation and a request deadline. Binding them here keeps that envelope
+  // out of each query hook.
+  request: (signal?: AbortSignal) => ConnectedRequest;
 };
+
+function createConnection(token: string, environmentId: string): Connection {
+  const controller = new AbortController();
+  return {
+    token,
+    environmentId,
+    controller,
+    operations: createOperationStore(),
+    request: (signal) => ({
+      token,
+      signal: AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        ...(signal ? [signal] : []),
+      ]),
+    }),
+  };
+}
+
 type WorkspaceContext = {
   api: Api;
   connection: Connection | null;
@@ -56,11 +83,7 @@ export function WorkspaceProvider({
           queryKeys.inventory(inventory.environmentId),
           inventory,
         );
-        setConnection({
-          token,
-          environmentId: inventory.environmentId,
-          controller: new AbortController(),
-        });
+        setConnection(createConnection(token, inventory.environmentId));
         return true;
       };
     },
@@ -95,7 +118,7 @@ export function WorkspaceProvider({
     const controller = new AbortController();
     const signal = AbortSignal.any([
       controller.signal,
-      AbortSignal.timeout(15_000),
+      AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     ]);
     const restore = async () => {
       try {
@@ -135,4 +158,10 @@ export function useWorkspaceContext() {
   const context = useContext(Context);
   if (!context) throw new Error('WorkspaceProvider is required');
   return context;
+}
+
+export function useConnectedContext() {
+  const { api, connection } = useWorkspaceContext();
+  if (!connection) throw new Error('A connected environment is required');
+  return { api, connection };
 }

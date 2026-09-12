@@ -31,7 +31,7 @@ export const boundaryRules: IConfiguration = {
         'Views use domain types and query hooks, not ports, wire contracts or cache infrastructure.',
       from: { path: '^apps/web/src/views/', pathNot: '\\.spec\\.tsx?$' },
       to: {
-        path: '(^apps/web/src/api/|^apps/web/src/query/workspace-provider\\.|^packages/(client|contracts)/|(^|/)@tanstack/react-query(/|$))',
+        path: '(^apps/web/src/api/|^apps/web/src/query/(workspace-provider|operation-store|keys)\\.|^packages/(client|contracts)/|(^|/)@tanstack/react-query(/|$))',
       },
     },
     {

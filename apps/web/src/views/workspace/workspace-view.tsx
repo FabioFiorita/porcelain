@@ -1,11 +1,9 @@
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
-import { MoonIcon, SunIcon } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { useConnection } from '../../query/connection';
 import { ConnectionForm } from '../connection/connection-form';
 import { ConnectedWorkspace } from './connected-workspace';
+import { ThemeProvider, ThemeToggle } from './theme';
 import { WorkspacePending } from './workspace-pending';
 
 const Devtools = import.meta.env.DEV
@@ -27,34 +25,12 @@ const PlaygroundAutoConnect =
 
 export function WorkspaceView() {
   const { connected } = useConnection();
-  const [dark, setDark] = useState(false);
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    return () => document.documentElement.classList.remove('dark');
-  }, [dark]);
-  useHotkey('Alt+Shift+D', () => setDark((current) => !current), {
-    ignoreInputs: true,
-  });
-  const themeControl = (
-    <Button
-      aria-keyshortcuts="Alt+Shift+D"
-      title={`Toggle theme (${formatForDisplay('Alt+Shift+D')})`}
-      variant="ghost"
-      size="icon-sm"
-      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-      onClick={() => setDark((current) => !current)}
-    >
-      {dark ? <SunIcon /> : <MoonIcon />}
-    </Button>
-  );
   return (
-    <div
-      className={cn('min-h-svh bg-background text-foreground', dark && 'dark')}
-    >
+    <ThemeProvider>
       {!connected && (
         <div className="absolute right-4 top-3 flex items-center gap-3">
           <h1 className="font-medium">Porcelain</h1>
-          {themeControl}
+          <ThemeToggle />
         </div>
       )}
 
@@ -71,11 +47,7 @@ export function WorkspaceView() {
           </Suspense>
         )}
         <Suspense fallback={<WorkspacePending />}>
-          {connected ? (
-            <ConnectedWorkspace themeControl={themeControl} />
-          ) : (
-            <ConnectionForm />
-          )}
+          {connected ? <ConnectedWorkspace /> : <ConnectionForm />}
         </Suspense>
       </div>
       {Devtools && (
@@ -83,6 +55,6 @@ export function WorkspaceView() {
           <Devtools />
         </Suspense>
       )}
-    </div>
+    </ThemeProvider>
   );
 }

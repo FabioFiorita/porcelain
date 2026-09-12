@@ -5,29 +5,18 @@ import {
 } from '@tanstack/react-query';
 import type { NewComment } from '../domain/comments';
 import type { ReviewScope } from '../domain/review';
+import { queryKeys } from './keys';
 import { asMutation } from './mutation';
-import { useWorkspaceContext } from './workspace-provider';
+import { useConnectedContext } from './workspace-provider';
 
 function useCommentContext(scope: ReviewScope) {
-  const { api, connection } = useWorkspaceContext();
-  if (!connection) throw new Error('A connected environment is required');
+  const { api, connection } = useConnectedContext();
   return {
     api: api.comments,
-    key: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'comments',
-    ],
+    key: queryKeys.comments(connection.environmentId, scope),
     request: (signal?: AbortSignal) => ({
       ...scope,
-      token: connection.token,
-      signal: AbortSignal.any([
-        connection.controller.signal,
-        AbortSignal.timeout(15_000),
-        ...(signal ? [signal] : []),
-      ]),
+      ...connection.request(signal),
     }),
   };
 }

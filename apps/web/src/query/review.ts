@@ -6,37 +6,23 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { ReviewPort, ReviewRequest } from '../api/review/port';
-import type { ReviewScope } from '../domain/review';
+import type { DiffRequest, ReviewScope } from '../domain/review';
+import { queryKeys } from './keys';
 import { asMutation } from './mutation';
-import { useWorkspaceContext } from './workspace-provider';
+import { useConnectedContext } from './workspace-provider';
 
 function useReviewData<T>(
   scope: ReviewScope,
   key: readonly unknown[],
   read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
 ) {
-  const { api, connection } = useWorkspaceContext();
-  if (!connection) throw new Error('A connected environment is required');
+  const { api, connection } = useConnectedContext();
   return useSuspenseQuery({
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      ...key,
-    ],
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, key),
     queryFn: async ({ signal }) => {
-      const combined = AbortSignal.any([
-        signal,
-        connection.controller.signal,
-        AbortSignal.timeout(15_000),
-      ]);
-      const data = await read(api.review, {
-        ...scope,
-        token: connection.token,
-        signal: combined,
-      });
-      combined.throwIfAborted();
+      const request = connection.request(signal);
+      const data = await read(api.review, { ...scope, ...request });
+      request.signal.throwIfAborted();
       return data;
     },
   }).data;
@@ -47,11 +33,11 @@ export function useDirectory(scope: ReviewScope, path: string) {
   );
 }
 export function useChanges(scope: ReviewScope) {
-  const { connection } = useWorkspaceContext();
+  const { connection } = useConnectedContext();
   return useReviewData(scope, ['changes'], async (api, request) => {
     const data = await api.changes(request);
     if (
-      data.status.environmentId !== connection?.environmentId ||
+      data.status.environmentId !== connection.environmentId ||
       data.status.worktreeId !== scope.worktreeId ||
       data.layers.worktreeId !== scope.worktreeId
     )
@@ -90,28 +76,20 @@ export function useCommit(scope: ReviewScope, oid: string) {
     api.commit({ ...request, oid }),
   );
 }
-export function useDiff(
-  scope: ReviewScope,
-  input: import('../domain/review').DiffRequest,
-) {
+export function useDiff(scope: ReviewScope, input: DiffRequest) {
   return useReviewData(scope, ['diff', input], (api, request) =>
     api.diff({ ...request, input }),
   );
 }
 
 export function useRefreshReview(scope: ReviewScope) {
-  const { connection } = useWorkspaceContext();
+  const { connection } = useConnectedContext();
   const client = useQueryClient();
   return asMutation(
     useMutation({
       mutationFn: async () => {
         await client.invalidateQueries({
-          queryKey: [
-            'review',
-            connection?.environmentId,
-            scope.projectId,
-            scope.worktreeId,
-          ],
+          queryKey: queryKeys.review(connection.environmentId, scope),
         });
       },
     }),

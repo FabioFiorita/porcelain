@@ -13,6 +13,12 @@ React integration stays in the web app until another actual client needs shared 
 Routes own URL validation and route pending/error handling. Bootstrap owns adapter selection and providers.
 
 The workspace provider owns session credentials and cancellation, independently of view lifetimes.
+A connection binds its credential, its cancellation and the request deadline into one request
+envelope, so query hooks never assemble credentials themselves. Query keys have a single owner;
+review keys share a project-level prefix because Git actions invalidate whole projects.
+An uncertain Git operation is connection state rather than server data: it lives in a store owned
+by the connection so a request ID survives navigation and disappears with the connection that
+produced it, instead of being parked in the Query cache.
 Every completed login or disconnect invalidates older login attempts. Disconnect aborts the connected
 session, clears Query state and removes selection through Router. Tokens never appear in query keys. The browser uses a server-issued HttpOnly session cookie and validates it on reload;
 disconnect clears the cookie before dropping the local connection. The existing automatic/manual playground login follows the same lifecycle.

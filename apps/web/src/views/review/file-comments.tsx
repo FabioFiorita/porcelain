@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import type { ReviewScope } from '../../domain/review';
+import { discardRejection } from '../../lib/submit-form';
 import { useComments, useCreateComment } from '../../query/comments';
 import { reviewErrorMessage, useRefreshReview } from '../../query/review';
 import { ReviewBoundary } from './review-boundary';
@@ -65,9 +66,7 @@ function FileDiscussion({ scope, path }: { scope: ReviewScope; path: string }) {
             aria-label="Refresh discussion"
             title="Refresh discussion"
             disabled={refresh.isPending}
-            onClick={() => {
-              void refresh.submit();
-            }}
+            onClick={() => discardRejection(refresh.submit())}
           >
             <RefreshCw />
           </Button>

@@ -10,6 +10,7 @@ import type {
   Preparation,
 } from '../../domain/git-action';
 import type { ReviewScope } from '../../domain/review';
+import { discardRejection, submitForm } from '../../lib/submit-form';
 import { useGitAction } from '../../query/git-actions';
 import { reviewErrorMessage } from '../../query/review';
 import { gitActions } from './git-action-options';
@@ -65,10 +66,7 @@ function GitActionForm({
       </header>
 
       <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void git.prepare.submit(input).catch(() => undefined);
-        }}
+        onSubmit={(event) => submitForm(event, () => git.prepare.submit(input))}
       >
         <FieldGroup>
           <fieldset
@@ -282,7 +280,7 @@ function OperationReceipt({
       <Button
         variant="outline"
         disabled={busy}
-        onClick={() => void git.recover.submit().catch(() => undefined)}
+        onClick={() => discardRejection(git.recover.submit())}
       >
         Check receipt
       </Button>
@@ -345,9 +343,7 @@ function ConfirmAction({
         disabled={!confirmed || busy || Date.now() > git.preparation.expiresAt}
         onClick={() => {
           if (git.preparation)
-            void git.execute
-              .submit(git.preparation.preparationId)
-              .catch(() => undefined);
+            discardRejection(git.execute.submit(git.preparation.preparationId));
         }}
       >
         Confirm {action.replaceAll('-', ' ')}
