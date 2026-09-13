@@ -11,8 +11,9 @@ by the caller, never returned by the API, and remain outside the inventory datab
 There is one trusted principal per server in this slice: possession of the token grants access to
 register any checkout the server process can inspect. Tokens do not identify individual users.
 Pairing, token provisioning and rotation UX, TLS, CORS for separately hosted browser clients, and
-remote listeners remain separate work. The [local executable](0005-local-server-startup.md) binds loopback only. Bearer tokens require a protected transport outside
-disposable loopback tests. The factory does not open a listener.
+remote listener supervision remain separate work. The [local executable](0005-local-server-startup.md)
+defaults to loopback; an explicit validated host can opt into LAN access. Bearer tokens require a
+protected transport outside disposable loopback tests. The factory does not open a listener.
 
 ## Operations
 

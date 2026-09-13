@@ -6,8 +6,9 @@ contracts; registering projects, file viewing and live updates remain later user
 
 The web development server proxies same-origin `/api` requests to a configured local API.
 The browser never chooses a proxy target. This establishes the local browser path without
-adding permissive CORS. Production asset hosting,
-arbitrary remote connections and Electron transport still require separate integration.
+adding permissive CORS. The standalone server can host a built web root and the same `/api`
+routes from one origin; arbitrary remote connections and Electron transport still require
+separate integration.
 
 Browser login validates the entered bearer token and issues a signed, 30-day HttpOnly,
 SameSite=Strict cookie scoped to `/api`. The credential is not saved in localStorage or

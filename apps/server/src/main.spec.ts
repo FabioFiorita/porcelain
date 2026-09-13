@@ -1,5 +1,13 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtemp, readFile, realpath, rm, unlink } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -112,6 +120,50 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   expect(await second.exited).toBe(0);
   expect(first.output.stderr + second.output.stderr).toBe('');
   expect(first.output.stdout + second.output.stdout).not.toContain(token);
+});
+
+it('serves the configured SPA and the /api namespace from one process', async () => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), 'porcelain-process-web-')),
+  );
+  onTestFinished(() => rm(root, { recursive: true, force: true }));
+  const webRoot = join(root, 'web');
+  await mkdir(join(webRoot, 'assets'), { recursive: true });
+  await writeFile(join(webRoot, 'index.html'), '<html>production shell</html>');
+  await writeFile(join(webRoot, 'assets', 'main-AbCd1234.js'), 'asset');
+
+  const server = launch(join(root, 'state'), {
+    PORCELAIN_WEB_ROOT: webRoot,
+  });
+  const address = await server.address();
+  try {
+    const shell = await fetch(`${address}/`);
+    expect(shell.status).toBe(200);
+    expect(await shell.text()).toBe('<html>production shell</html>');
+    expect(shell.headers.get('cache-control')).toBe('no-cache');
+
+    const route = await fetch(`${address}/workspace/project`);
+    expect(route.status).toBe(200);
+    expect(await route.text()).toBe('<html>production shell</html>');
+
+    const asset = await fetch(`${address}/assets/main-AbCd1234.js`);
+    expect(asset.status).toBe(200);
+    expect(await asset.text()).toBe('asset');
+    expect(asset.headers.get('cache-control')).toBe(
+      'public, max-age=31536000, immutable',
+    );
+
+    const api = await fetch(`${address}/api/health`);
+    expect(api.status).toBe(200);
+    expect(await api.json()).toEqual({ status: 'ok' });
+
+    const unknownApi = await fetch(`${address}/api/not-a-route`);
+    expect(unknownApi.status).toBe(404);
+    expect(await unknownApi.text()).not.toContain('production shell');
+  } finally {
+    server.child.kill('SIGTERM');
+    expect(await server.exited).toBe(0);
+  }
 });
 
 it('retains a crash ownership file until explicit operator recovery', async () => {

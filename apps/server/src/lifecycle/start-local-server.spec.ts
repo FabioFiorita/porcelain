@@ -59,6 +59,8 @@ describe('Local server lifecycle', () => {
         { PORCELAIN_PORT: '' },
         { PORCELAIN_PORT: '1.5' },
         { PORCELAIN_PORT: '65536' },
+        { PORCELAIN_HOST: '0.0.0.0/unsafe' },
+        { PORCELAIN_WEB_ROOT: 'relative/web' },
         { PORCELAIN_DATA_DIRECTORY: 'relative' },
         { PORCELAIN_TOKEN: 'short' },
       ]) {
@@ -82,6 +84,19 @@ describe('Local server lifecycle', () => {
       await expect(
         readFile(join(dataDirectory, 'inventory.sqlite')),
       ).rejects.toMatchObject({ code: 'ENOENT' });
+
+      expect(
+        readStartupSettings({
+          PORCELAIN_DATA_DIRECTORY: dataDirectory,
+          PORCELAIN_TOKEN: token,
+          PORCELAIN_PORT: '0',
+          PORCELAIN_HOST: '0.0.0.0',
+          PORCELAIN_WEB_ROOT: '/srv/porcelain/web',
+        }),
+      ).toMatchObject({
+        host: '0.0.0.0',
+        webRoot: '/srv/porcelain/web',
+      });
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -109,6 +124,26 @@ describe('Local server lifecycle', () => {
         port: 0,
       });
       await restarted.close();
+    } finally {
+      await server.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('binds an explicitly configured host without changing the default', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-start-host-'));
+    const server = await startLocalServer({
+      dataDirectory: join(root, 'state'),
+      token,
+      host: '127.0.0.2',
+      port: 0,
+    });
+    try {
+      const address = new URL(server.address);
+      expect(address.hostname).toBe('127.0.0.2');
+      expect(await (await fetch(`${server.address}/health`)).json()).toEqual({
+        status: 'ok',
+      });
     } finally {
       await server.close();
       await rm(root, { recursive: true, force: true });

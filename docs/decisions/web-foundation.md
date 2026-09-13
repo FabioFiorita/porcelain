@@ -2,8 +2,9 @@
 
 The browser and future Electron renderer share a React application built with Vite.
 Vite provides development refresh and produces static assets without coupling presentation
-to the Node server or Electron APIs. Integrating authenticated server connections, server
-asset hosting and Electron packaging remains separate work requiring its own runtime proof.
+to the Node server or Electron APIs. The standalone Node server can now opt into hosting the
+built assets from an explicit `PORCELAIN_WEB_ROOT`; it serves them on the same origin as the
+`/api` browser endpoints, while development still uses Vite's proxy.
 
 The web app lives in the existing pnpm workspace. Its shadcn configuration was generated
 with preset `b27Gcu70`, Base UI and pointer cursors: Rhea, neutral tokens, Geist and Lucide.

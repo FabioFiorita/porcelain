@@ -4,16 +4,17 @@ import { createServer } from '../http/server.ts';
 import { claimDataDirectory } from './claim-data-directory.ts';
 
 export async function startLocalServer(
-  settings: z.infer<typeof startupSettingsSchema>,
+  settings: z.input<typeof startupSettingsSchema>,
   signal?: AbortSignal,
 ) {
-  const { dataDirectory, token, port } = startupSettingsSchema.parse(settings);
+  const { dataDirectory, token, port, host, webRoot } =
+    startupSettingsSchema.parse(settings);
   signal?.throwIfAborted();
   const ownership = claimDataDirectory(dataDirectory);
-  const server = await openOwnedServer(ownership, token, signal);
+  const server = await openOwnedServer(ownership, token, webRoot, signal);
   try {
     signal?.throwIfAborted();
-    const address = await server.listen({ host: '127.0.0.1', port });
+    const address = await server.listen({ host, port });
     const state: { closing?: Promise<void> } = {};
     return {
       address,
@@ -42,12 +43,14 @@ async function closeServer(server: Awaited<ReturnType<typeof createServer>>) {
 async function openOwnedServer(
   ownership: ReturnType<typeof claimDataDirectory>,
   token: string,
+  webRoot: string | undefined,
   signal?: AbortSignal,
 ) {
   try {
     return await createServer({
       dataDirectory: ownership.directory,
       token,
+      ...(webRoot === undefined ? {} : { webRoot }),
       ...(signal ? { signal } : {}),
     });
   } catch (error) {

@@ -2,11 +2,14 @@
 
 Status: accepted.
 
-The server executable binds only to `127.0.0.1`. `PORCELAIN_DATA_DIRECTORY` must be an
-absolute path, `PORCELAIN_PORT` an explicit integer from 0 to 65535 (0 requests an available
-port), and `PORCELAIN_TOKEN` a caller-provided token satisfying the existing HTTP contract.
-There is no default data directory. Token generation, pairing, remote listeners, and service
-installation remain separate work. Tokens must be generated cryptographically and never logged.
+The server executable defaults to `127.0.0.1`; `PORCELAIN_HOST` is an explicit, validated opt-in
+for another listener address, including a LAN bind such as `0.0.0.0`. `PORCELAIN_DATA_DIRECTORY`
+must be an absolute path, `PORCELAIN_PORT` an explicit integer from 0 to 65535 (0 requests an
+available port), and `PORCELAIN_TOKEN` a caller-provided token satisfying the existing HTTP
+contract. There is no default data directory. `PORCELAIN_WEB_ROOT`, when supplied, must be an
+absolute path and enables GET/HEAD hosting of a built web app; it never defaults to a user or
+working directory. Token generation, pairing, remote listeners, and service installation remain
+separate work. Tokens must be generated cryptographically and never logged.
 
 Startup validates configuration, claims the data directory, initializes inventory, and then
 listens. A JSON line containing `address` on stdout indicates readiness. Failure exits nonzero

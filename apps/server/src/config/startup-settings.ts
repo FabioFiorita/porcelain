@@ -1,12 +1,15 @@
-import { isAbsolute } from 'node:path';
 import { z } from 'zod';
-import { serverSettingsSchema } from './server-settings.ts';
+import {
+  absolutePathSchema,
+  listenHostSchema,
+  serverSettingsSchema,
+} from './server-settings.ts';
 
 export const startupSettingsSchema = serverSettingsSchema.extend({
-  dataDirectory: z
-    .string()
-    .refine((path) => isAbsolute(path) && !path.includes('\0')),
+  dataDirectory: absolutePathSchema,
   port: z.number().int().min(0).max(65535),
+  host: listenHostSchema.default('127.0.0.1'),
+  webRoot: absolutePathSchema.optional(),
 });
 
 export function readStartupSettings(environment: NodeJS.ProcessEnv) {
@@ -16,5 +19,7 @@ export function readStartupSettings(environment: NodeJS.ProcessEnv) {
     port: /^\d+$/.test(environment.PORCELAIN_PORT ?? '')
       ? Number(environment.PORCELAIN_PORT)
       : undefined,
+    host: environment.PORCELAIN_HOST,
+    webRoot: environment.PORCELAIN_WEB_ROOT,
   });
 }

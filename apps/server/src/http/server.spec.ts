@@ -95,6 +95,60 @@ describe('HTTP server', () => {
     }
   });
 
+  it('keeps the browser API under /api while retaining root API compatibility', async () => {
+    const dataDirectory = await mkdtemp(
+      join(tmpdir(), 'porcelain-api-prefix-'),
+    );
+    const token = 'fixture-token-with-at-least-32-characters';
+    const server = await createServer({ dataDirectory, token });
+    try {
+      expect(
+        (await server.inject({ method: 'GET', url: '/api/health' })).json(),
+      ).toEqual({ status: 'ok' });
+      expect(
+        (await server.inject({ method: 'GET', url: '/api/inventory' }))
+          .statusCode,
+      ).toBe(401);
+
+      const inventory = await server.inject({
+        method: 'GET',
+        url: '/api/inventory',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'x-porcelain-browser': '1',
+        },
+      });
+      expect(inventory.statusCode).toBe(200);
+      const cookie = inventory.headers['set-cookie'];
+      const setCookie = Array.isArray(cookie) ? cookie[0] : cookie;
+      expect(setCookie).toContain('Path=/api');
+
+      const session = await server.inject({
+        method: 'GET',
+        url: '/api/session',
+        headers: {
+          cookie: setCookie?.split(';', 1)[0],
+          'x-porcelain-browser': '1',
+        },
+      });
+      expect(session.statusCode).toBe(200);
+      expect(session.json()).toEqual(inventory.json());
+
+      expect(
+        (
+          await server.inject({
+            method: 'GET',
+            url: '/inventory',
+            headers: { authorization: `Bearer ${token}` },
+          })
+        ).statusCode,
+      ).toBe(200);
+    } finally {
+      await server.close();
+      await rm(dataDirectory, { recursive: true, force: true });
+    }
+  });
+
   it('uses the Zod response serializer to remove undeclared fields', async () => {
     const dataDirectory = await mkdtemp(
       join(tmpdir(), 'porcelain-serializer-'),

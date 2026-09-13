@@ -15,9 +15,10 @@ export function authenticate(token: string) {
     ) {
       throw new UnauthorizedError();
     }
+    const path = request.url.split('?', 1)[0];
     if (
       request.method === 'GET' &&
-      request.url === '/inventory' &&
+      (path === '/inventory' || path === '/api/inventory') &&
       request.headers['x-porcelain-browser'] === '1'
     ) {
       setBrowserSession(reply, token, request.protocol === 'https');
