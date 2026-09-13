@@ -92,7 +92,7 @@ export function createReviewMock(
             newMode: '100644',
             patch: {
               kind: 'text',
-              text: '@@ -1 +1,4 @@\n-export type Context = string;\n+export type ReviewScope = {\n+  projectId: string;\n+  worktreeId: string;\n+};\n',
+              text: '--- a/src/domain/review.ts\n+++ b/src/domain/review.ts\n@@ -1 +1,4 @@\n-export type Context = string;\n+export type ReviewScope = {\n+  projectId: string;\n+  worktreeId: string;\n+};\n',
             },
           },
         ],
@@ -143,5 +143,6 @@ function mockPatch(
     return `--- a/${path}\n+++ /dev/null\n@@ -1 +0,0 @@\n-export const legacyPanel = true;\n`;
   const contents = files[path] ?? '';
   const lines = contents.trimEnd().split('\n');
-  return `--- ${change.oldPath ? `a/${change.oldPath}` : '/dev/null'}\n+++ b/${path}\n@@ -1 +1,${lines.length} @@\n${change.oldPath ? '-// Previous implementation\n' : ''}${lines.map((line) => `+${line}`).join('\n')}\n`;
+  const oldRange = change.oldPath ? '-1' : '-0,0';
+  return `--- ${change.oldPath ? `a/${change.oldPath}` : '/dev/null'}\n+++ b/${path}\n@@ ${oldRange} +1,${lines.length} @@\n${change.oldPath ? '-// Previous implementation\n' : ''}${lines.map((line) => `+${line}`).join('\n')}\n`;
 }

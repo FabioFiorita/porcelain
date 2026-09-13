@@ -224,11 +224,11 @@ test('inspects staged changes, commit history and artifact metadata from the rea
   };
   await openReview();
   await page.getByRole('button', { name: /README\.md.* · staged/ }).click();
-  const code = page.getByRole('region', { name: 'Read-only code' });
+  const code = page.getByRole('region', { name: 'Read-only diff' });
   await expect(code).toContainText('Review focus: release readiness.');
-  await expect(code.getByText('Old', { exact: true })).toBeVisible();
-  await expect(code.getByText('New', { exact: true })).toBeVisible();
-  await expect(code.locator('[data-change="inserted"]').first()).toBeVisible();
+  await expect(
+    code.locator('[data-line-type="change-addition"]').first(),
+  ).toBeVisible();
   await openReview();
   await page.getByRole('tab', { name: 'History', exact: true }).click();
   await page

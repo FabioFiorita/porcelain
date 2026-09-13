@@ -118,22 +118,26 @@
   }
 }
 
-@layer components {
-  .review-code-line[data-change="inserted"] {
-    background: color-mix(in srgb, var(--th-inserted) 10%, transparent);
-  }
-  .review-code-line[data-change="deleted"] {
-    background: color-mix(in srgb, var(--th-deleted) 10%, transparent);
-  }
-  .review-code-line[data-change="meta"] {
-    background: var(--muted);
-  }
-  .review-code-line[data-change="inserted"] > .review-code-gutter {
-    color: var(--th-inserted);
-  }
-  .review-code-line[data-change="deleted"] > .review-code-gutter {
-    color: var(--th-deleted);
-  }
+.pierre-preview {
+  display: block;
+  border-block: 1px solid var(--border);
+  background: var(--card);
+}
+
+.pierre-preview-scroll {
+  max-height: min(65svh, 48rem);
+  overflow: auto;
+}
+
+.pierre-preview-scroll > * {
+  min-width: 100%;
+}
+
+.pierre-preview-empty {
+  border-block: 1px solid var(--border);
+  padding: 2rem 1.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
 }
 
 /* A single material for workspace chrome; reading surfaces stay opaque. */

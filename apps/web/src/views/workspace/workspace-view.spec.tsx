@@ -16,6 +16,15 @@ import { renderWorkspace } from '../../test/render';
 
 // The development overlay has its own browser smoke; it is not supported by jsdom.
 vi.mock('../../development/devtools', () => ({ Devtools: () => null }));
+// Pierre owns a browser custom element and worker-backed highlighting. Its
+// adapter behavior is covered separately; workspace tests exercise navigation.
+vi.mock('@pierre/diffs/react', () => ({
+  File: ({ file }: { file: { contents: string } }) => (
+    <pre>{file.contents}</pre>
+  ),
+  PatchDiff: ({ patch }: { patch: string }) => <pre>{patch}</pre>,
+  Virtualizer: ({ children }: { children: React.ReactNode }) => children,
+}));
 beforeAll(() => {
   // jsdom has no native top-layer states. Its selector engine recursively delegates
   // :fullscreen/:modal back to Element.matches; Base UI checks these when focusing.

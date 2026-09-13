@@ -41,7 +41,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function useTheme() {
+export function useTheme() {
   const context = useContext(Context);
   if (!context) throw new Error('ThemeProvider is required');
   return context;

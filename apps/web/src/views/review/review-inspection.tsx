@@ -13,9 +13,9 @@ import {
   useDiff,
   useTextFile,
 } from '../../query/review';
-import { CodePreview } from './code-preview';
 import { FileComments } from './file-comments';
 import { GitActionInspection } from './git-action-inspection';
+import { DiffPreview, SourcePreview } from './pierre-preview';
 import { ReviewEmpty } from './review-empty';
 export function ReviewInspection({
   scope,
@@ -64,10 +64,7 @@ function FileInspection({ scope, path }: { scope: ReviewScope; path: string }) {
         title={path}
         detail={`${file.byteLength.toLocaleString()} bytes · Read only`}
       />
-      <CodePreview
-        text={file.text}
-        language={path.split('.').at(-1) ?? 'text'}
-      />
+      <SourcePreview path={path} contents={file.text} />
     </article>
   );
 }
@@ -125,11 +122,7 @@ function DiffInspection({
         detail={`${change.kind} · ${change.scope}`}
       />
       {'patch' in diff.content ? (
-        <CodePreview
-          text={diff.content.patch}
-          language={changePath(change).split('.').at(-1) ?? 'text'}
-          format="diff"
-        />
+        <DiffPreview patch={diff.content.patch} />
       ) : (
         <ReviewEmpty
           title="Preview unavailable"
@@ -164,14 +157,7 @@ function CommitInspection({ scope, oid }: { scope: ReviewScope; oid: string }) {
             <Badge variant="outline">{change.status}</Badge>
           </div>
           {'text' in change.patch ? (
-            <CodePreview
-              text={change.patch.text}
-              language={
-                (change.newPath ?? change.oldPath ?? '').split('.').at(-1) ??
-                'text'
-              }
-              format="diff"
-            />
+            <DiffPreview patch={change.patch.text} />
           ) : (
             <ReviewEmpty
               title="Binary change"
