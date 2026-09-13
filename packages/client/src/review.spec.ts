@@ -48,6 +48,35 @@ describe('review transport', () => {
       createReviewClient(failure, '/api').artifacts(scope),
     ).rejects.toThrow('This review surface could not be loaded');
   });
+  it('loads artifact content through the scoped artifact endpoint', async () => {
+    const artifactId = '901a8628-1cd6-4562-81a2-9c05fba76b4a';
+    const transport: typeof fetch = async (input, init) => {
+      expect(String(input)).toBe(
+        `/api/worktrees/${scope.worktreeId}/artifacts/${artifactId}`,
+      );
+      expect(init?.method).toBeUndefined();
+      expect(init?.headers).toMatchObject({
+        authorization: 'Bearer disposable-token',
+      });
+      return Response.json({
+        id: artifactId,
+        worktreeId: scope.worktreeId,
+        name: 'handoff.html',
+        sizeBytes: 24,
+        createdAt: '2026-09-13T10:00:00.000Z',
+        content: '<h1>Ready</h1>',
+      });
+    };
+    await expect(
+      createReviewClient(transport, '/api').artifact({
+        ...scope,
+        artifactId,
+      }),
+    ).resolves.toMatchObject({
+      id: artifactId,
+      content: '<h1>Ready</h1>',
+    });
+  });
   it('preserves a conflict receipt and its request identity instead of treating it as a retryable write failure', async () => {
     const requestId = '801a8628-1cd6-4562-81a2-9c05fba76b4b';
     const preparationId = '801a8628-1cd6-4562-81a2-9c05fba76b4c';

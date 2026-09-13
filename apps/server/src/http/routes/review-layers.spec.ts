@@ -30,14 +30,26 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
       {
         id: randomUUID(),
         title: 'First',
-        files: [{ path: 'unknown/file.ts', scope: 'unstaged' }],
+        summary: 'The first focused review layer.',
+        files: [
+          {
+            path: 'unknown/file.ts',
+            scope: 'unstaged',
+            note: 'This note survives the server round-trip.',
+          },
+        ],
       },
       {
         id: randomUUID(),
         title: 'Second',
+        summary: 'The second focused review layer.',
         files: [
           { path: 'unknown/file.ts', scope: 'staged' },
-          { path: 'deleted.ts', scope: 'unstaged' },
+          {
+            path: 'deleted.ts',
+            scope: 'unstaged',
+            note: 'Keep the scope attached to the path.',
+          },
         ],
       },
     ];

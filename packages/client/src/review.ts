@@ -1,4 +1,7 @@
-import { artifactListSchema } from '@porcelain/contracts/artifacts';
+import {
+  artifactContentSchema,
+  artifactListSchema,
+} from '@porcelain/contracts/artifacts';
 import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes';
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import {
@@ -88,5 +91,11 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ),
     artifacts: (request: Request) =>
       read(request, 'artifacts', artifactListSchema),
+    artifact: (request: Request & { artifactId: string }) =>
+      read(
+        request,
+        `artifacts/${encodeURIComponent(request.artifactId)}`,
+        artifactContentSchema,
+      ),
   };
 }

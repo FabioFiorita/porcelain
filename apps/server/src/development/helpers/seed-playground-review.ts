@@ -37,7 +37,14 @@ export async function seedPlaygroundReview(
         {
           id: randomUUID(),
           title: 'Explain the review workflow',
-          files: [committedFile],
+          summary:
+            'The committed guide establishes the order for the release handoff.',
+          files: [
+            {
+              ...committedFile,
+              note: 'The guide is the committed review entry point.',
+            },
+          ],
         },
       ],
     }),
@@ -53,17 +60,33 @@ export async function seedPlaygroundReview(
       {
         id: randomUUID(),
         title: 'Prepare release documentation',
+        summary:
+          'Release documents collect the reviewer-facing checklist and accessibility notes.',
         files: [
-          { path: 'docs/release-checklist.md', scope: 'staged' },
-          { path: 'docs/accessibility.md', scope: 'staged' },
+          {
+            path: 'docs/release-checklist.md',
+            scope: 'staged',
+            note: 'The renamed checklist is the release entry point.',
+          },
+          {
+            path: 'docs/accessibility.md',
+            scope: 'staged',
+            note: 'Captures the keyboard and narrow-screen checks.',
+          },
           { path: 'README.md', scope: 'staged' },
         ],
       },
       {
         id: randomUUID(),
         title: 'Polish the board',
+        summary:
+          'Keep the board readable while the release changes are reviewed.',
         files: [
-          { path: 'src/styles.css', scope: 'unstaged' },
+          {
+            path: 'src/styles.css',
+            scope: 'unstaged',
+            note: 'Adds the review surface border treatment.',
+          },
           { path: 'README.md', scope: 'unstaged' },
         ],
       },

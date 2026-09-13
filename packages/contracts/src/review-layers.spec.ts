@@ -5,7 +5,8 @@ const id = '12345678-1234-4234-8234-123456789abc';
 const layer = {
   id,
   title: 'Layer',
-  files: [{ path: 'file.ts', scope: 'staged' }],
+  summary: 'A short explanation of this layer.',
+  files: [{ path: 'file.ts', scope: 'staged', note: 'The focused change.' }],
 };
 it('bounds metadata and rejects duplicate identities and references without normalizing paths', () => {
   const parse = (layers: unknown, expectedRevision = 0) =>
@@ -25,6 +26,15 @@ it('bounds metadata and rejects duplicate identities and references without norm
   expect(parse([layer, { ...layer, files: [] }])).toBe(false);
   expect(parse([{ ...layer, title: ' ' }])).toBe(false);
   expect(parse([{ ...layer, title: 'x'.repeat(201) }])).toBe(false);
+  expect(parse([{ ...layer, summary: 'x'.repeat(16_001) }])).toBe(false);
+  expect(
+    parse([
+      {
+        ...layer,
+        files: [{ ...layer.files[0], note: 'x'.repeat(2_001) }],
+      },
+    ]),
+  ).toBe(false);
   expect(
     parse([{ ...layer, files: [{ path: 'x'.repeat(4097), scope: 'staged' }] }]),
   ).toBe(false);

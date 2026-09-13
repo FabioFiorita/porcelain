@@ -77,14 +77,24 @@ describe('Playground workflow', () => {
         layers: [
           {
             title: 'Prepare release documentation',
+            summary:
+              'Release documents collect the reviewer-facing checklist and accessibility notes.',
             files: [
-              { path: 'docs/release-checklist.md' },
-              { path: 'docs/accessibility.md' },
+              {
+                path: 'docs/release-checklist.md',
+                note: 'The renamed checklist is the release entry point.',
+              },
+              {
+                path: 'docs/accessibility.md',
+                note: 'Captures the keyboard and narrow-screen checks.',
+              },
               { path: 'README.md' },
             ],
           },
           {
             title: 'Polish the board',
+            summary:
+              'Keep the board readable while the release changes are reviewed.',
             files: [{ path: 'src/styles.css' }, { path: 'README.md' }],
           },
         ],
@@ -98,7 +108,18 @@ describe('Playground workflow', () => {
         ).json(),
       ).toMatchObject({
         commitOid: info.reviewCommitOid,
-        layers: [{ files: [{ path: 'docs/review-guide.md' }] }],
+        layers: [
+          {
+            summary:
+              'The committed guide establishes the order for the release handoff.',
+            files: [
+              {
+                path: 'docs/review-guide.md',
+                note: 'The guide is the committed review entry point.',
+              },
+            ],
+          },
+        ],
       });
       expect(
         await (

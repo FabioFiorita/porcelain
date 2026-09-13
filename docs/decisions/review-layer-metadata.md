@@ -11,11 +11,13 @@ This API does not identify authors: the configured bearer token is the existing 
 
 Authenticated GET and PUT `/worktrees/:worktreeId/review-layers` return
 `{ worktreeId, revision, layers }`. PUT accepts `{ expectedRevision, layers }`.
-Each layer has `{ id, title, files }`; each reference has `{ path, scope }`, where scope is
-`staged` or `unstaged`. Unknown worktrees without stored metadata return 404. Responses disable
-caching and expose safe errors. Request bodies are limited to 1 MiB; contracts additionally bound
-100 layers, 500 references per layer, 2000 references total, 200-character trimmed titles, and
-4096-character paths. UUIDs are unique within the set. Path/scope pairs are unique across all layers;
+Each layer has `{ id, title, summary?, files }`; `summary`, when present, is Markdown limited to
+16,000 characters. Each reference has `{ path, scope, note? }`, where scope is `staged` or
+`unstaged`; `note`, when present, is limited to 2,000 characters. Unknown worktrees without stored
+metadata return 404. Responses disable caching and expose safe errors. Request bodies are limited to
+1 MiB; contracts additionally bound 100 layers, 500 references per layer, 2000 references total,
+200-character trimmed titles, and 4096-character paths. UUIDs are unique within the set.
+Path/scope pairs are unique across all layers;
 the same path may appear once in each scope. Paths are literal, case-sensitive, repository-relative
 slash-separated strings, with no empty, dot, parent or case-insensitive `.git` components.
 NUL, backslashes and leading drive prefixes are rejected; tabs, newlines and other colons are allowed.

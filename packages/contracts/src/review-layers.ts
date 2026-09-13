@@ -23,10 +23,14 @@ const pathSchema = z
 const referenceSchema = z.strictObject({
   path: pathSchema,
   scope: z.enum(['staged', 'unstaged']),
+  /** One short, file-specific explanation from the agent. */
+  note: z.string().max(2_000).optional(),
 });
 const layerSchema = z.strictObject({
   id: z.uuid(),
   title: z.string().trim().min(1).max(200),
+  /** Markdown explanation of the layer's intent. */
+  summary: z.string().max(16_000).optional(),
   files: z.array(referenceSchema).max(500),
 });
 // Array indexes are the explicit, canonical layer and reference positions.
