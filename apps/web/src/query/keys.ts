@@ -1,7 +1,5 @@
 import type { ReviewScope } from '../domain/review';
 
-// One owner for the review key space: `useRefreshReview` and Git action
-// invalidation both depend on these prefixes matching keys built elsewhere.
 export const queryKeys = {
   inventory: (environmentId: string) => ['inventory', environmentId] as const,
   reviewProject: (environmentId: string, projectId: string) =>

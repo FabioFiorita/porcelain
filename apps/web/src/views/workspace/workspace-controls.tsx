@@ -5,12 +5,12 @@ import {
 } from '@tanstack/react-hotkeys';
 import type { ReactNode, RefObject } from 'react';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { ThemeToggle } from './theme';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ThemeToggle } from './theme';
 
 export function WorkspaceControls({
   children,

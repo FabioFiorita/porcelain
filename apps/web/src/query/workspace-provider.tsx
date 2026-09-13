@@ -12,8 +12,8 @@ import {
 } from 'react';
 import type { Api } from '../api/api';
 import type { Inventory } from '../domain/inventory';
-import { queryKeys } from './keys';
 import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
+import { queryKeys } from './keys';
 import { createOperationStore, type OperationStore } from './operation-store';
 
 type ConnectedRequest = { token: string; signal: AbortSignal };
@@ -22,9 +22,6 @@ type Connection = {
   environmentId: string;
   controller: AbortController;
   operations: OperationStore;
-  // Every connected read carries the session credential, the connection's own
-  // cancellation and a request deadline. Binding them here keeps that envelope
-  // out of each query hook.
   request: (signal?: AbortSignal) => ConnectedRequest;
 };
 

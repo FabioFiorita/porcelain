@@ -1,7 +1,7 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import { useMutation } from '@tanstack/react-query';
-import { asMutation } from './mutation';
 import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
+import { asMutation } from './mutation';
 import { useWorkspaceContext } from './workspace-provider';
 
 export function connectionErrorMessage(error: unknown) {

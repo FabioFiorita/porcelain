@@ -11,6 +11,7 @@ import {
   vi,
 } from 'vitest';
 import { createMockStore } from '../../api/inventory/mock';
+import { queryKeys } from '../../query/keys';
 import { renderWorkspace } from '../../test/render';
 
 // The development overlay has its own browser smoke; it is not supported by jsdom.
@@ -569,17 +570,33 @@ describe('review surfaces', () => {
 });
 
 describe('git action cache consequences', () => {
-  it('refreshes the rendered review surfaces after an action reports a Git change', async () => {
-    const { store, queryClient } = renderReview();
+  it('invalidates cached review surfaces for the affected project only', async () => {
+    const { store, queryClient } = renderWorkspace();
+    const [project, otherProject] = store.inventory.projects;
+    const worktree = project?.worktrees[1];
+    const sibling = project?.worktrees[2];
+    const unrelated = otherProject?.worktrees[0];
+    if (!project || !otherProject || !worktree || !sibling || !unrelated)
+      throw new Error('Missing fixture review scopes');
+    const siblingKey = queryKeys.reviewSurface(
+      store.inventory.environmentId,
+      { projectId: project.id, worktreeId: sibling.id },
+      ['probe'],
+    );
+    const unrelatedKey = queryKeys.reviewSurface(
+      store.inventory.environmentId,
+      { projectId: otherProject.id, worktreeId: unrelated.id },
+      ['probe'],
+    );
     const user = await connect();
+    queryClient.setQueryData(siblingKey, {});
+    queryClient.setQueryData(unrelatedKey, {});
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
-    // Render the Changes surface so its cache entry exists before the commit.
-    const staged = await screen.findByRole('button', {
+    await screen.findByRole('button', {
       name: /review-panel.tsx.*staged/,
     });
-    expect(staged).toBeTruthy();
 
     await user.click(screen.getByRole('tab', { name: 'Git' }));
     await user.click(
@@ -596,17 +613,7 @@ describe('git action cache consequences', () => {
     await screen.findByRole('heading', { name: 'succeeded' });
     expect(store.actionCount).toBe(1);
 
-    // The receipt required a refresh, so the project-level invalidation must have
-    // reached the already-cached review surfaces. Asserting on rendered rows cannot
-    // detect this: the mock mutates its fixture in place, so the list updates even
-    // when nothing was invalidated.
-    const reviewQueries = queryClient
-      .getQueryCache()
-      .getAll()
-      .filter((query) => query.queryKey[0] === 'review');
-    expect(reviewQueries.length).toBeGreaterThan(0);
-    expect(reviewQueries.every((query) => query.state.isInvalidated)).toBe(
-      true,
-    );
+    expect(queryClient.getQueryState(siblingKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(false);
   });
 });

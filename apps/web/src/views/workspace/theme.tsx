@@ -16,12 +16,8 @@ const Context = createContext<{ dark: boolean; toggle: () => void } | null>(
   null,
 );
 
-// The theme owns its own DOM surface so the control can be rendered wherever the
-// layout needs it instead of being threaded through the workspace as an element.
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(false);
-  // Kept stable only because the context value must not be a fresh object each
-  // render; the provider has no other state, so this saves no renders by itself.
   const theme = useMemo(
     () => ({ dark, toggle: () => setDark((current) => !current) }),
     [dark],

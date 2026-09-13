@@ -13,9 +13,9 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/ui/sidebar';
-import { discardRejection } from '../../lib/submit-form';
 import { type Project, worktreeLabel } from '../../domain/inventory';
 import type { Surface } from '../../domain/review';
+import { discardRejection } from '../../lib/submit-form';
 import { useRefreshReview } from '../../query/review';
 import { WorkspaceControls } from '../workspace/workspace-controls';
 import { ReviewBoundary } from './review-boundary';
