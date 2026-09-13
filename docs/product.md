@@ -22,9 +22,9 @@ file conveniences. [File preferences](decisions/file-preferences.md) are private
 exact file-management operations remain to be decided.
 
 Changes presents diffs in agent-authored review layers with explicit group and file order.
-Unassigned changes remain visible. Review order must remain available in History when changes are
-committed, including commits created outside Porcelain. Split commits and concurrent edits require
-explicit association rules; a post-commit HTML update must not be required for this behavior.
+Unassigned changes remain visible. Preserving that review order in History after changes are committed
+is intended follow-on work, including for commits created outside Porcelain. Split commits and
+concurrent edits require explicit association rules; a post-commit HTML update must not be required.
 
 Git controls include fetch, push, stash, and commit; staging and other operations are introduced only
 as needed for the agreed workflow. History includes commit diffs and file timelines.
@@ -36,6 +36,7 @@ and apply fixes in their own tools. Discussion depth and anchor behavior require
 
 ## Boundaries
 
-Porcelain does not host agents or act as an IDE. Generic terminals, shell Actions, AI commit generation,
-structured Canvas templates, and promotion of artifacts into Git are not part of the agreed rebuild.
-No additional product scope or infrastructure should be inferred from the old implementation.
+Porcelain does not host agents or act as an IDE. Generic terminals, shell Actions, structured Canvas
+templates, and promotion of artifacts into Git are not part of the agreed rebuild. AI-assisted commit
+messages and grouping are desired follow-on work, not part of the first usable web slice. No additional
+product scope or infrastructure should be inferred from the old implementation.
