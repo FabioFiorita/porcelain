@@ -140,6 +140,17 @@
   font-size: 0.875rem;
 }
 
+[data-slot="file-tree"] {
+  --trees-bg-override: transparent;
+  --trees-fg-override: var(--foreground);
+  --trees-fg-muted-override: var(--muted-foreground);
+  --trees-bg-muted-override: var(--muted);
+  --trees-accent-override: var(--accent);
+  --trees-border-color-override: var(--border);
+  --trees-border-radius-override: var(--radius-md);
+  display: block;
+}
+
 /* A single material for workspace chrome; reading surfaces stay opaque. */
 :root {
   --workspace-stage: var(--muted);

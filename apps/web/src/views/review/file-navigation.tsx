@@ -1,97 +1,113 @@
-import { FolderIcon } from '@react-symbols/icons/utils';
-import { ChevronRightIcon } from 'lucide-react';
-import { useState } from 'react';
+import type { GitStatusEntry } from '@pierre/trees';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import type { ReviewScope } from '../../domain/review';
-import { useDirectory } from '../../query/review';
-import { ReviewBoundary } from './review-boundary';
-import { ReviewEmpty } from './review-empty';
-import { ReviewRow } from './review-row';
+  fileTreeAncestors,
+  mergeFileTreeEntries,
+} from '../../domain/file-tree';
+import { changePath, type ReviewScope } from '../../domain/review';
+import { useChanges, useDirectories, useDirectory } from '../../query/review';
+import { PierreFileTree } from './pierre-file-tree';
 
 type Props = {
   scope: ReviewScope;
-  path: string;
   selected: string;
   onSelect: (path: string) => void;
 };
-export function FileNavigation(props: Props) {
-  const directory = useDirectory(props.scope, props.path);
-  const [limit, setLimit] = useState(100);
-  if (!directory.entries.length)
-    return (
-      <ReviewEmpty
-        title="Empty folder"
-        description="There are no files in this folder."
-      />
-    );
+
+export function FileNavigation({ scope, selected, onSelect }: Props) {
+  const scopeKey = `${scope.projectId}:${scope.worktreeId}`;
   return (
-    <ul aria-label={props.path || 'Worktree files'} className="min-w-0">
-      {directory.entries.slice(0, limit).map((entry) => {
-        const path = props.path ? `${props.path}/${entry.name}` : entry.name;
-        return (
-          <li key={entry.name}>
-            {entry.kind === 'directory' ? (
-              <Folder {...props} path={path} name={entry.name} />
-            ) : (
-              <ReviewRow
-                label={entry.name}
-                selected={props.selected === path}
-                onSelect={() => props.onSelect(path)}
-                detail={
-                  entry.kind !== 'file'
-                    ? `${entry.kind} · preview may be unavailable`
-                    : undefined
-                }
-              />
-            )}
-          </li>
-        );
-      })}
-      {directory.entries.length > limit && (
-        <li>
-          <Button
-            variant="outline"
-            size="sm"
-            className="my-3"
-            onClick={() => setLimit(limit + 100)}
-          >
-            Show more files ({directory.entries.length - limit} remaining)
-          </Button>
-        </li>
-      )}
-    </ul>
+    <ScopedFileNavigation
+      key={scopeKey}
+      scope={scope}
+      selected={selected}
+      onSelect={onSelect}
+    />
   );
 }
-function Folder(props: Props & { name: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Collapsible open={open} onOpenChange={setOpen} className="group/folder">
-      <CollapsibleTrigger
-        render={<Button variant="ghost" />}
-        className="w-full justify-start gap-2"
-      >
-        <ChevronRightIcon className="transition-transform group-data-open/folder:rotate-90 motion-reduce:transition-none" />
-        <FolderIcon
-          folderName={props.name}
-          aria-hidden="true"
-          focusable="false"
-        />
-        <span className="truncate">{props.name}</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="ml-3 border-l pl-2">
-          {open && (
-            <ReviewBoundary>
-              <FileNavigation {...props} />
-            </ReviewBoundary>
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+
+function ScopedFileNavigation({ scope, selected, onSelect }: Props) {
+  const root = useDirectory(scope, '');
+  const { status } = useChanges(scope);
+  const [requested, setRequested] = useState<readonly string[]>(() =>
+    fileTreeAncestors(selected),
   );
+  useEffect(() => {
+    setRequested((current) => union(current, fileTreeAncestors(selected)));
+  }, [selected]);
+
+  const queries = useDirectories(scope, requested);
+  const directories = [
+    root,
+    ...queries.flatMap((query) => (query.data ? [query.data] : [])),
+  ];
+  const entries = mergeFileTreeEntries(directories);
+  const paths = useStableList(entries.map((entry) => entry.path));
+  const kinds = useMemo(
+    () => new Map(entries.map((entry) => [entry.path, entry.kind])),
+    [entries],
+  );
+  const failed = queries.filter((query) => query.isError);
+  const gitStatus = useMemo<GitStatusEntry[]>(
+    () =>
+      status.changes.map((change) => ({
+        path: changePath(change),
+        status:
+          change.scope === 'untracked'
+            ? 'untracked'
+            : change.scope === 'unmerged' || change.kind === 'type-changed'
+              ? 'modified'
+              : change.kind,
+      })),
+    [status.changes],
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <PierreFileTree
+        paths={paths}
+        gitStatus={gitStatus}
+        selected={selected}
+        onExpand={(paths) => setRequested((current) => union(current, paths))}
+        onSelect={(path) => {
+          if (kinds.get(path) === 'file') onSelect(path);
+        }}
+      />
+      {failed.length > 0 && (
+        <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1">
+            Some folders could not be loaded.
+          </span>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => {
+              for (const query of failed) void query.refetch();
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function union(left: readonly string[], right: readonly string[]) {
+  const merged = [...new Set([...left, ...right])].sort();
+  return merged.length === left.length &&
+    merged.every((entry, index) => entry === left[index])
+    ? left
+    : merged;
+}
+
+function useStableList(value: readonly string[]) {
+  const stable = useRef(value);
+  if (
+    value.length !== stable.current.length ||
+    value.some((entry, index) => entry !== stable.current[index])
+  )
+    stable.current = value;
+  return stable.current;
 }

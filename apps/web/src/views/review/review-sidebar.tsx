@@ -125,26 +125,29 @@ function SidebarSurface({
   available: boolean;
   onSelect: (entry: string) => void;
 }) {
-  return (
-    <ScrollArea className="h-full">
-      <div className="px-2 py-3">
-        <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
-          {!available && surface !== 'artifacts' ? (
-            <ReviewEmpty
-              title="Worktree unavailable"
-              description="Reconnect the checkout and refresh the environment to review its files and Git state."
-            />
-          ) : (
-            <SurfaceNavigation
-              scope={scope}
-              surface={surface}
-              entry={entry}
-              onSelect={onSelect}
-            />
-          )}
-        </ReviewBoundary>
-      </div>
-    </ScrollArea>
+  const content = (
+    <div className={surface === 'files' ? 'h-full' : 'px-2 py-3'}>
+      <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
+        {!available && surface !== 'artifacts' ? (
+          <ReviewEmpty
+            title="Worktree unavailable"
+            description="Reconnect the checkout and refresh the environment to review its files and Git state."
+          />
+        ) : (
+          <SurfaceNavigation
+            scope={scope}
+            surface={surface}
+            entry={entry}
+            onSelect={onSelect}
+          />
+        )}
+      </ReviewBoundary>
+    </div>
+  );
+  return surface === 'files' ? (
+    content
+  ) : (
+    <ScrollArea className="h-full">{content}</ScrollArea>
   );
 }
 function SurfaceNavigation({
@@ -161,7 +164,7 @@ function SurfaceNavigation({
   const props = { scope, selected: entry, onSelect };
   switch (surface) {
     case 'files':
-      return <FileNavigation {...props} path="" />;
+      return <FileNavigation {...props} />;
     case 'changes':
       return <ChangeNavigation {...props} />;
     case 'history':

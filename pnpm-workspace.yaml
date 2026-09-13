@@ -7,6 +7,10 @@ allowBuilds:
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - "@tanstack/highlight@0.0.11"
+# beta.6 pins theming 1.0.0, whose theme peer excludes the 2.x version used by
+# current Pierre packages. The compatible patch release widens that peer.
+overrides:
+  "@pierre/trees>@pierre/theming": 1.0.1
 # dependency-cruiser uses the legacy compiler API to parse imports.
 # Application type checking remains TypeScript 7.
 packageExtensions:

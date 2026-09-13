@@ -25,6 +25,59 @@ vi.mock('@pierre/diffs/react', () => ({
   PatchDiff: ({ patch }: { patch: string }) => <pre>{patch}</pre>,
   Virtualizer: ({ children }: { children: React.ReactNode }) => children,
 }));
+vi.mock('@pierre/trees/react', async () => {
+  const { useRef } = await import('react');
+  type TreeModel = {
+    paths: readonly string[];
+    select: (path: string) => void;
+    getItem: (path: string) => {
+      isDirectory: () => boolean;
+      isExpanded: () => boolean;
+      expand: () => void;
+      select: () => void;
+    } | null;
+    resetPaths: (paths: readonly string[]) => void;
+    setGitStatus: () => void;
+    subscribe: () => () => void;
+  };
+  return {
+    useFileTree: (options: {
+      paths: readonly string[];
+      onSelectionChange: (paths: readonly string[]) => void;
+    }) => {
+      const model = useRef<TreeModel>(null);
+      model.current ??= {
+        paths: options.paths,
+        select: (path) => options.onSelectionChange([path]),
+        getItem: (path) => ({
+          isDirectory: () => path.endsWith('/'),
+          isExpanded: () => false,
+          expand() {},
+          select() {},
+        }),
+        resetPaths(paths) {
+          this.paths = paths;
+        },
+        setGitStatus() {},
+        subscribe: () => () => {},
+      };
+      model.current.paths = options.paths;
+      model.current.select = (path) => options.onSelectionChange([path]);
+      return { model: model.current };
+    },
+    FileTree: ({ model }: { model: TreeModel }) => (
+      <nav aria-label="Worktree files">
+        {model.paths
+          .filter((path) => !path.endsWith('/'))
+          .map((path) => (
+            <button key={path} type="button" onClick={() => model.select(path)}>
+              {path}
+            </button>
+          ))}
+      </nav>
+    ),
+  };
+});
 // Layout behavior is covered in the browser. Keep review navigation interactive
 // without depending on panel measurements that jsdom cannot provide.
 vi.mock('@/components/ui/resizable', () => ({

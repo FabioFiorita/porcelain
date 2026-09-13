@@ -232,6 +232,37 @@ test('inspects staged changes, commit history and artifact metadata from the rea
     if (await trigger.isVisible()) await trigger.click();
   };
   await openReview();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await expect(page).toHaveURL(/surface=files/);
+  const docs = page.getByRole('treeitem', { name: 'docs', exact: true });
+  await docs.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(docs).toHaveAttribute('aria-expanded', 'true');
+  await page
+    .getByRole('treeitem', { name: 'review-guide.md', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'docs/review-guide.md' }),
+  ).toBeVisible();
+  await openReview();
+  const reopenedDocs = page.getByRole('treeitem', {
+    name: 'docs',
+    exact: true,
+  });
+  await reopenedDocs.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(reopenedDocs).toHaveAttribute('aria-expanded', 'false');
+  const assets = page.getByRole('treeitem', { name: 'assets', exact: true });
+  const assetsLoaded = page.waitForResponse((response) =>
+    response.url().includes('/directory?path=assets'),
+  );
+  await assets.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(assets).toHaveAttribute('aria-expanded', 'true');
+  await assetsLoaded;
+  await expect(reopenedDocs).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await expect(page).toHaveURL(/surface=changes/);
   await page.getByRole('button', { name: /README\.md.* · staged/ }).click();
   const code = page.getByRole('region', { name: 'Read-only diff' });
   await expect(code).toContainText('Review focus: release readiness.');

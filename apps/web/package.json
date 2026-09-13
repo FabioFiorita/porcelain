@@ -13,6 +13,7 @@
     "@base-ui/react": "1.8.0",
     "@fontsource-variable/geist": "5.3.0",
     "@pierre/diffs": "1.4.2",
+    "@pierre/trees": "1.0.0-beta.6",
     "@porcelain/client": "workspace:*",
     "@porcelain/contracts": "workspace:*",
     "@react-symbols/icons": "1.4.1",

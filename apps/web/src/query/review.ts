@@ -1,6 +1,7 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import {
   useMutation,
+  useQueries,
   useQueryClient,
   useQueryErrorResetBoundary,
   useSuspenseQuery,
@@ -31,6 +32,23 @@ export function useDirectory(scope: ReviewScope, path: string) {
   return useReviewData(scope, ['directory', path], (api, request) =>
     api.directory({ ...request, path }),
   );
+}
+export function useDirectories(scope: ReviewScope, paths: readonly string[]) {
+  const { api, connection } = useConnectedContext();
+  return useQueries({
+    queries: paths.map((path) => ({
+      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+        'directory',
+        path,
+      ]),
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const request = connection.request(signal);
+        const data = await api.review.directory({ ...scope, ...request, path });
+        request.signal.throwIfAborted();
+        return data;
+      },
+    })),
+  });
 }
 export function useChanges(scope: ReviewScope) {
   const { connection } = useConnectedContext();
