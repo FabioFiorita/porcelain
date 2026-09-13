@@ -35,7 +35,7 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
   await toggle.focus();
   await page.keyboard.press('Tab');
   await expect(
-    page.getByRole('button', { name: 'Switch to dark theme' }),
+    page.getByRole('button', { name: 'Refresh review' }),
   ).toBeFocused();
   await toggle.click();
   await expect(
@@ -64,7 +64,7 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
   const navigator = page.getByRole('navigation', {
     name: 'Projects and worktrees',
   });
-  const review = page.getByRole('complementary', { name: 'Worktree review' });
+  const review = page.getByRole('complementary', { name: 'Review sidebar' });
   const divider = page.locator('[data-slot="resizable-handle"]');
   const leftBox = await left.boundingBox();
   const rightBox = await right.boundingBox();
@@ -93,7 +93,10 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
   await expect(review).toBeVisible();
   await page.keyboard.press('ControlOrMeta+b');
   await expect(navigator).toBeVisible();
-  await page.getByRole('button', { name: /README\.md.* · staged/ }).click();
+  await page
+    .getByRole('button', { name: /README\.md.*staged/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Add comment', exact: true }).click();
   const comment = page.getByLabel('Comment', { exact: true });
   await comment.fill('Keep my review draft');
@@ -127,6 +130,38 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
   await expect(right).toBeFocused();
 });
 
+test('keyboard focus selects which split pane receives document shortcuts', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await connect(page);
+  await page.getByRole('button', { name: /^review / }).click();
+  await page
+    .getByRole('button', { name: /README\.md.*staged/ })
+    .first()
+    .click();
+  const unsplitTab = page.getByRole('tab', { name: /README\.md/ });
+  await unsplitTab.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Open to the side' }).click();
+
+  const leftTabs = page.getByRole('tablist', {
+    name: 'Open documents, left pane',
+  });
+  const rightTabs = page.getByRole('tablist', {
+    name: 'Open documents, right pane',
+  });
+  await leftTabs.getByRole('tab', { name: /Handoff/ }).focus();
+  await page.keyboard.press('Alt+w');
+
+  await expect(leftTabs.getByRole('tab', { name: /README\.md/ })).toHaveCount(
+    0,
+  );
+  await expect(
+    rightTabs.getByRole('tab', { name: /README\.md/ }),
+  ).toHaveCount(1);
+});
+
 test('opens responsive drawers with shortcuts and returns to the review canvas', async ({
   page,
 }) => {
@@ -149,7 +184,9 @@ test('opens responsive drawers with shortcuts and returns to the review canvas',
   await expect(
     page.getByRole('dialog', { name: 'Worktree review' }),
   ).toBeVisible();
-  await page.getByRole('tab', { name: 'Changes', exact: true }).focus();
+  await page
+    .getByRole('tab', { name: /^(Review|Changes)$/, exact: true })
+    .focus();
   await page.keyboard.press('ArrowRight');
   await expect(
     page.getByRole('tab', { name: 'Files', exact: true }),
@@ -180,7 +217,7 @@ test('selected diff rows match worktree selection in both themes', async ({
   await openNavigation(page);
   const worktree = page.getByRole('button', { name: /^review / });
   await worktree.click();
-  const diff = page.getByRole('button', { name: /README\.md.* · staged/ });
+  const diff = page.getByRole('button', { name: /README\.md.*staged/ }).first();
   const appearance = (element: HTMLElement | SVGElement) => {
     const style = getComputedStyle(element);
     return {
@@ -261,10 +298,19 @@ test('inspects staged changes, commit history and artifact metadata from the rea
   await expect(assets).toHaveAttribute('aria-expanded', 'true');
   await assetsLoaded;
   await expect(reopenedDocs).toHaveAttribute('aria-expanded', 'false');
-  await page.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await page
+    .getByRole('tab', { name: /^(Review|Changes)$/, exact: true })
+    .click();
   await expect(page).toHaveURL(/surface=changes/);
-  await page.getByRole('button', { name: /README\.md.* · staged/ }).click();
-  const code = page.getByRole('region', { name: 'Read-only diff' });
+  await page
+    .getByRole('button', { name: /README\.md.*staged/ })
+    .first()
+    .click();
+  const diffs = page.getByRole('region', { name: 'Read-only diff' });
+  await expect(diffs).toHaveCount(2);
+  const code = diffs
+    .filter({ hasText: 'Review focus: release readiness.' })
+    .first();
   await expect(code).toContainText('Review focus: release readiness.');
   await expect(
     code.locator('[data-line-type="change-addition"]').first(),
@@ -276,10 +322,16 @@ test('inspects staged changes, commit history and artifact metadata from the rea
     .click();
   await expect(page.getByRole('main')).toContainText('docs/review-guide.md');
   await openReview();
-  await page.getByRole('tab', { name: 'Artifacts', exact: true }).click();
-  await page.getByRole('button', { name: /Launch review report/ }).click();
+  await page
+    .getByRole('tab', { name: /^(Review|Changes)$/, exact: true })
+    .click();
+  await page.getByRole('button', { name: /The whole handoff/ }).click();
+  await page
+    .getByTestId('review-document')
+    .getByRole('button', { name: /Launch review report/ })
+    .click();
   await expect(
     page.getByRole('heading', { name: 'Launch review report' }),
   ).toBeVisible();
-  await expect(page.getByRole('main')).toContainText('Stored HTML artifact');
+  await expect(page.getByRole('main')).toContainText('Stored artifact');
 });

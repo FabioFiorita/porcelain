@@ -123,6 +123,10 @@ export function createReviewMock(
     },
     async changes(request) {
       const { status, layers } = await context(request);
+      if (store.changesFailed)
+        throw new ConnectionError(
+          'This review surface could not be loaded. Refresh and try again.',
+        );
       return { status, layers };
     },
     async history(request) {

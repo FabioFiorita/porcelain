@@ -2,6 +2,7 @@ import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import {
   useMutation,
   useQueries,
+  useQuery,
   useQueryClient,
   useQueryErrorResetBoundary,
   useSuspenseQuery,
@@ -51,20 +52,36 @@ export function useDirectories(scope: ReviewScope, paths: readonly string[]) {
   });
 }
 export function useChanges(scope: ReviewScope) {
-  const { connection } = useConnectedContext();
-  return useReviewData(scope, ['changes'], async (api, request) => {
-    const data = await api.changes(request);
-    if (
-      data.status.environmentId !== connection.environmentId ||
-      data.status.worktreeId !== scope.worktreeId ||
-      data.layers.worktreeId !== scope.worktreeId
-    )
-      throw new ConnectionError(
-        'The review context changed. Disconnect and connect again.',
-      );
-    return data;
-  });
+  return useSuspenseQuery(useChangesOptions(scope)).data;
 }
+
+export function useReviewOverview(scope: ReviewScope) {
+  return useQuery({ ...useChangesOptions(scope), throwOnError: false }).data;
+}
+
+function useChangesOptions(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  return {
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'changes',
+    ]),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const request = connection.request(signal);
+      const data = await api.review.changes({ ...scope, ...request });
+      request.signal.throwIfAborted();
+      if (
+        data.status.environmentId !== connection.environmentId ||
+        data.status.worktreeId !== scope.worktreeId ||
+        data.layers.worktreeId !== scope.worktreeId
+      )
+        throw new ConnectionError(
+          'The review context changed. Disconnect and connect again.',
+        );
+      return data;
+    },
+  };
+}
+
 export function useHistory(scope: ReviewScope, cursor?: string) {
   return useReviewData(scope, ['history', cursor ?? ''], (api, request) =>
     api.history({ ...request, ...(cursor ? { cursor } : {}) }),

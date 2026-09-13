@@ -132,6 +132,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     inventory,
     review,
     reviewFailed: scenario === 'review-failed',
+    changesFailed: false,
     delayMs: scenario === 'slow' ? 1500 : 0,
     rejected: scenario === 'rejected',
     refreshFailed: scenario === 'refresh-failed',

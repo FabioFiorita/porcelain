@@ -1,6 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { BoxIcon, LogOutIcon, RefreshCwIcon, ServerIcon } from 'lucide-react';
-import { useRef } from 'react';
+import { BoxIcon, LogOutIcon, RefreshCwIcon } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +21,10 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { selectedWorktreeInProject } from '../../domain/inventory';
+import {
+  firstAvailableWorktree,
+  selectedWorktreeInProject,
+} from '../../domain/inventory';
 import { discardRejection } from '../../lib/submit-form';
 import { connectionErrorMessage, useConnection } from '../../query/connection';
 import { useInventory, useRefreshInventory } from '../../query/inventory';
@@ -34,7 +37,7 @@ export function ConnectedWorkspace() {
     <TooltipProvider delay={400}>
       <SidebarProvider
         className="workspace-shell"
-        style={{ '--sidebar-width': '17.5rem' } as React.CSSProperties}
+        style={{ '--sidebar-width': '16.5rem' } as React.CSSProperties}
       >
         <WorkspaceNavigation />
       </SidebarProvider>
@@ -51,7 +54,12 @@ function WorkspaceNavigation() {
   const inventory = useInventory();
   const refresh = useRefreshInventory();
   const selection = selectedWorktreeInProject(inventory, selected);
+  const fallback = firstAvailableWorktree(inventory);
   const error = disconnectError ?? refresh.error;
+  useEffect(() => {
+    if (selection || !fallback) return;
+    void navigate({ search: { worktree: fallback.id }, replace: true });
+  }, [fallback, navigate, selection]);
   return (
     <>
       <Sidebar
@@ -60,37 +68,19 @@ function WorkspaceNavigation() {
         className="workspace-sidebar"
         inert={!isMobile && !open}
       >
-        <SidebarHeader className="gap-3 px-3 pb-3 pt-3">
-          <div className="flex items-center gap-3">
-            <span className="flex size-7 items-center justify-center rounded-xl bg-foreground text-background">
+        <SidebarHeader className="border-b px-2 py-2">
+          <div className="flex h-8 items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-md bg-foreground text-background">
               <BoxIcon className="size-4" />
             </span>
-            <div>
-              <h1 className="text-sm font-semibold tracking-tight">
-                Porcelain
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                A place for review
-              </p>
-            </div>
-            <SidebarTrigger
-              aria-label="Close projects sidebar"
-              className="ml-auto md:hidden"
-            />
-          </div>
-          <div className="flex items-center gap-2 rounded-lg bg-sidebar-accent/50 px-2 py-2">
-            <ServerIcon className="size-4 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-medium">Environment</h2>
-              <p role="status" className="text-xs text-muted-foreground">
-                {error ? 'Needs attention' : 'Connected'}
-              </p>
-            </div>
+            <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+              Porcelain
+            </h1>
             <Button
               variant="ghost"
               size="icon-sm"
               aria-label="Refresh"
-              title="Refresh inventory"
+              title="Refresh projects"
               disabled={refresh.isPending}
               onClick={() => discardRejection(refresh.submit())}
             >
@@ -101,24 +91,21 @@ function WorkspaceNavigation() {
                     : ''
                 }
               />
-              <span className="sr-only">
-                {refresh.isPending ? 'Refreshing…' : 'Refresh'}
-              </span>
             </Button>
+            <SidebarTrigger
+              aria-label="Close projects sidebar"
+              className="md:hidden"
+            />
           </div>
         </SidebarHeader>
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="mx-2 mb-2 py-2 text-xs">
             <AlertDescription>
               {connectionErrorMessage(error)}
               {refresh.error && ' Displayed inventory may be out of date.'}
             </AlertDescription>
           </Alert>
         )}
-        <div className="flex items-center justify-between px-4 pb-1 text-xs font-medium text-muted-foreground">
-          <span>Projects</span>
-          <span>{inventory.projects.length}</span>
-        </div>
         <SidebarContent className="overflow-hidden">
           <ScrollArea className="h-full min-h-0 flex-1">
             <ProjectNavigator
@@ -131,10 +118,13 @@ function WorkspaceNavigation() {
             />
           </ScrollArea>
         </SidebarContent>
-        <SidebarFooter className="p-2">
-          <div className="flex items-center justify-between px-2">
-            <span className="text-xs text-muted-foreground">
-              Your review workspace
+        <SidebarFooter className="border-t p-2">
+          <div className="flex items-center gap-1">
+            <span
+              role="status"
+              className="min-w-0 flex-1 truncate px-2 text-xs text-muted-foreground"
+            >
+              {error ? 'Connection needs attention' : 'Connected'}
             </span>
             <Button
               variant="ghost"

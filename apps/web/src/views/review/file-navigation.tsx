@@ -6,7 +6,11 @@ import {
   mergeFileTreeEntries,
 } from '../../domain/file-tree';
 import { changePath, type ReviewScope } from '../../domain/review';
-import { useChanges, useDirectories, useDirectory } from '../../query/review';
+import {
+  useDirectories,
+  useDirectory,
+  useReviewOverview,
+} from '../../query/review';
 import { PierreFileTree } from './pierre-file-tree';
 
 type Props = {
@@ -29,7 +33,7 @@ export function FileNavigation({ scope, selected, onSelect }: Props) {
 
 function ScopedFileNavigation({ scope, selected, onSelect }: Props) {
   const root = useDirectory(scope, '');
-  const { status } = useChanges(scope);
+  const overview = useReviewOverview(scope);
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),
   );
@@ -51,7 +55,7 @@ function ScopedFileNavigation({ scope, selected, onSelect }: Props) {
   const failed = queries.filter((query) => query.isError);
   const gitStatus = useMemo<GitStatusEntry[]>(
     () =>
-      status.changes.map((change) => ({
+      (overview?.status.changes ?? []).map((change) => ({
         path: changePath(change),
         status:
           change.scope === 'untracked'
@@ -60,7 +64,7 @@ function ScopedFileNavigation({ scope, selected, onSelect }: Props) {
               ? 'modified'
               : change.kind,
       })),
-    [status.changes],
+    [overview?.status.changes],
   );
 
   return (

@@ -1,54 +1,49 @@
 import {
-  FileBoxIcon,
+  FileDiffIcon,
   FilesIcon,
-  GitCompareArrowsIcon,
   HistoryIcon,
+  ListChecksIcon,
   PanelRightCloseIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { DocumentRef } from '../../domain/documents';
 import type { ReviewScope, Surface } from '../../domain/review';
-import { ArtifactNavigation } from './artifact-navigation';
-import { ChangeNavigation } from './change-navigation';
+import { useArtifacts, useReviewOverview } from '../../query/review';
 import { FileNavigation } from './file-navigation';
-import { gitActions } from './git-action-options';
 import { HistoryNavigation } from './history-navigation';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewEmpty } from './review-empty';
-import { ReviewRow } from './review-row';
+import { ReviewIndex } from './review-index';
 
-const navigationItems = [
-  { value: 'changes', label: 'Changes', icon: GitCompareArrowsIcon },
-  { value: 'files', label: 'Files', icon: FilesIcon },
-  { value: 'history', label: 'History', icon: HistoryIcon },
-  { value: 'artifacts', label: 'Artifacts', icon: FileBoxIcon },
-] as const;
 export function ReviewSidebar({
   scope,
   surface,
-  entry,
+  activeEntry,
   available,
   onSurface,
-  onSelect,
+  onOpen,
   onClose,
 }: {
   scope: ReviewScope;
   surface: Surface;
-  entry: string;
+  activeEntry: string | undefined;
   available: boolean;
   onSurface: (surface: Surface) => void;
-  onSelect: (entry: string) => void;
+  onOpen: (ref: DocumentRef) => void;
   onClose: () => void;
 }) {
   return (
     <aside
-      aria-label="Worktree review"
-      className="flex h-full min-h-0 flex-col"
+      aria-label="Review sidebar"
+      data-testid="review-sidebar"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
-      <div className="flex items-center justify-between px-3 py-2">
-        <div>
-          <h2 className="text-sm font-medium">Review</h2>
+      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">Worktree</p>
+          <h2 className="truncate text-sm font-medium">Review navigator</h2>
         </div>
         <Button
           variant="ghost"
@@ -64,131 +59,165 @@ export function ReviewSidebar({
         onValueChange={(value) => onSurface(value as Surface)}
         className="min-h-0 flex-1 gap-0"
       >
-        <TabsList className="mx-2 h-auto! w-auto! gap-0 rounded-lg">
-          {navigationItems.map(({ value, label, icon: Icon }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="flex-col gap-1 rounded-md px-2 py-1.5"
-            >
-              <Icon />
-              <span className="text-xs">{label}</span>
-            </TabsTrigger>
-          ))}
+        <TabsList className="mx-2 mt-2 h-8 w-auto gap-0 rounded-lg">
+          <TabsTrigger value="changes" className="min-w-0 flex-1 gap-1 px-2">
+            <ChangesSurfaceLabel scope={scope} />
+          </TabsTrigger>
+          <TabsTrigger value="files" className="min-w-0 flex-1 gap-1 px-2">
+            <FilesIcon />
+            <span>Files</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="min-w-0 flex-1 gap-1 px-2">
+            <HistoryIcon />
+            <span>History</span>
+          </TabsTrigger>
         </TabsList>
-        {surface === 'git' ? (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <SidebarSurface
-              scope={scope}
-              surface="git"
-              entry={entry}
-              available={available}
-              onSelect={onSelect}
-            />
-          </div>
-        ) : (
-          navigationItems.map(({ value }) => (
-            <TabsContent
-              key={value}
-              value={value}
-              className="min-h-0 overflow-hidden"
-            >
-              <SidebarSurface
-                scope={scope}
-                surface={value}
-                entry={entry}
-                available={available}
-                onSelect={onSelect}
-              />
-            </TabsContent>
-          ))
-        )}
+        <TabsContent value="changes" className="min-h-0 overflow-hidden">
+          <SidebarSurface
+            scope={scope}
+            surface="changes"
+            activeEntry={activeEntry}
+            available={available}
+            onOpen={onOpen}
+          />
+        </TabsContent>
+        <TabsContent value="files" className="min-h-0 overflow-hidden">
+          <SidebarSurface
+            scope={scope}
+            surface="files"
+            activeEntry={activeEntry}
+            available={available}
+            onOpen={onOpen}
+          />
+        </TabsContent>
+        <TabsContent value="history" className="min-h-0 overflow-hidden">
+          <SidebarSurface
+            scope={scope}
+            surface="history"
+            activeEntry={activeEntry}
+            available={available}
+            onOpen={onOpen}
+          />
+        </TabsContent>
       </Tabs>
-      <div className="px-3 py-2 text-xs text-muted-foreground">
-        {available
-          ? 'Scoped to selected worktree'
-          : 'Stored artifacts remain accessible'}
-      </div>
+      <p className="shrink-0 border-t px-3 py-2 text-xs text-muted-foreground">
+        {available ? 'Scoped to selected worktree' : 'Worktree unavailable'}
+      </p>
     </aside>
   );
 }
+
+function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
+  const overview = useReviewOverview(scope);
+  const review = (overview?.layers.layers.length ?? 0) > 0;
+  const Icon = review ? ListChecksIcon : FileDiffIcon;
+  return (
+    <>
+      <Icon />
+      <span>{review ? 'Review' : 'Changes'}</span>
+    </>
+  );
+}
+
 function SidebarSurface({
   scope,
   surface,
-  entry,
+  activeEntry,
   available,
-  onSelect,
+  onOpen,
 }: {
   scope: ReviewScope;
   surface: Surface;
-  entry: string;
+  activeEntry: string | undefined;
   available: boolean;
-  onSelect: (entry: string) => void;
+  onOpen: (ref: DocumentRef) => void;
 }) {
+  if (!available && surface === 'changes')
+    return (
+      <ScrollArea className="h-full">
+        <ReviewBoundary>
+          <ArchivedArtifacts scope={scope} onOpen={onOpen} />
+        </ReviewBoundary>
+      </ScrollArea>
+    );
+
+  if (!available)
+    return (
+      <div className="p-3">
+        <ReviewEmpty
+          title="Worktree unavailable"
+          description="Reconnect the checkout and refresh the environment to browse its files and Git state."
+        />
+      </div>
+    );
+
   const content = (
-    <div className={surface === 'files' ? 'h-full' : 'px-2 py-3'}>
-      <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
-        {!available && surface !== 'artifacts' ? (
-          <ReviewEmpty
-            title="Worktree unavailable"
-            description="Reconnect the checkout and refresh the environment to review its files and Git state."
-          />
-        ) : (
-          <SurfaceNavigation
-            scope={scope}
-            surface={surface}
-            entry={entry}
-            onSelect={onSelect}
-          />
-        )}
-      </ReviewBoundary>
-    </div>
+    <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
+      {surface === 'changes' && (
+        <ReviewIndex scope={scope} activeEntry={activeEntry} onOpen={onOpen} />
+      )}
+      {surface === 'files' && (
+        <FileNavigation
+          scope={scope}
+          selected={
+            activeEntry?.startsWith('file:') ? activeEntry.slice(5) : ''
+          }
+          onSelect={(path) => onOpen({ kind: 'file', path })}
+        />
+      )}
+      {surface === 'history' && (
+        <HistoryNavigation
+          scope={scope}
+          selected={
+            activeEntry?.startsWith('commit:') ? activeEntry.slice(7) : ''
+          }
+          onSelect={(oid) => onOpen({ kind: 'commit', oid })}
+        />
+      )}
+    </ReviewBoundary>
   );
   return surface === 'files' ? (
-    content
+    <div className="h-full">{content}</div>
   ) : (
     <ScrollArea className="h-full">{content}</ScrollArea>
   );
 }
-function SurfaceNavigation({
+
+function ArchivedArtifacts({
   scope,
-  surface,
-  entry,
-  onSelect,
+  onOpen,
 }: {
   scope: ReviewScope;
-  surface: Surface;
-  entry: string;
-  onSelect: (entry: string) => void;
+  onOpen: (ref: DocumentRef) => void;
 }) {
-  const props = { scope, selected: entry, onSelect };
-  switch (surface) {
-    case 'files':
-      return <FileNavigation {...props} />;
-    case 'changes':
-      return <ChangeNavigation {...props} />;
-    case 'history':
-      return <HistoryNavigation {...props} />;
-    case 'artifacts':
-      return <ArtifactNavigation {...props} />;
-    case 'git':
-      return (
-        <div className="flex flex-col gap-2">
-          {gitActions.map((action) => (
-            <ReviewRow
-              key={action.id}
-              label={action.label}
-              detail={action.description}
-              selected={entry === action.id}
-              onSelect={() => onSelect(action.id)}
-              icon={<action.icon />}
-            />
-          ))}
-          <p className="px-3 pt-3 text-xs leading-relaxed text-muted-foreground">
-            Each action starts with preparation. Review its scope before
-            confirming.
-          </p>
-        </div>
-      );
-  }
+  const artifacts = useArtifacts(scope);
+  if (artifacts.length === 0)
+    return (
+      <div className="p-3">
+        <ReviewEmpty
+          title="Worktree unavailable"
+          description="No stored agent reports are available for this checkout."
+        />
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-1 p-2">
+      <p className="px-2 py-1 text-xs text-muted-foreground">
+        Stored agent reports
+      </p>
+      {artifacts.map((artifact) => (
+        <button
+          key={artifact.id}
+          type="button"
+          className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-accent"
+          onClick={() => onOpen({ kind: 'artifact', name: artifact.name })}
+        >
+          <span className="min-w-0 flex-1 truncate">{artifact.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {artifact.sizeBytes.toLocaleString()} bytes
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 }

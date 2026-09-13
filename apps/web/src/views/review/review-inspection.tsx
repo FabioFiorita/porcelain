@@ -7,14 +7,12 @@ import {
   type Surface,
 } from '../../domain/review';
 import {
-  useArtifacts,
   useChanges,
   useCommit,
   useDiff,
   useTextFile,
 } from '../../query/review';
 import { FileComments } from './file-comments';
-import { GitActionInspection } from './git-action-inspection';
 import { DiffPreview, SourcePreview } from './pierre-preview';
 import { ReviewEmpty } from './review-empty';
 export function ReviewInspection({
@@ -28,7 +26,7 @@ export function ReviewInspection({
   entry: string;
   available: boolean;
 }) {
-  if (!available && surface !== 'artifacts')
+  if (!available)
     return (
       <ReviewEmpty
         title="Worktree unavailable"
@@ -49,10 +47,6 @@ export function ReviewInspection({
       return <ChangeInspection scope={scope} entry={entry} />;
     case 'history':
       return <CommitInspection scope={scope} oid={entry} />;
-    case 'artifacts':
-      return <ArtifactInspection scope={scope} id={entry} />;
-    case 'git':
-      return <GitActionInspection scope={scope} entry={entry} />;
   }
 }
 function FileInspection({ scope, path }: { scope: ReviewScope; path: string }) {
@@ -166,31 +160,6 @@ function CommitInspection({ scope, oid }: { scope: ReviewScope; oid: string }) {
           )}
         </section>
       ))}
-    </article>
-  );
-}
-function ArtifactInspection({ scope, id }: { scope: ReviewScope; id: string }) {
-  const artifact = useArtifacts(scope).find((item) => item.id === id);
-  if (!artifact)
-    return (
-      <ReviewEmpty
-        title="Artifact unavailable"
-        description="Choose an artifact from the current list."
-      />
-    );
-  return (
-    <article>
-      <InspectionHeading title={artifact.name} detail="Stored HTML artifact" />
-      <dl className="grid grid-cols-[auto_1fr] gap-4 px-6 py-6 text-sm">
-        <dt className="text-muted-foreground">Created</dt>
-        <dd>{artifact.createdAt.replace('T', ' ').replace('Z', ' UTC')}</dd>
-        <dt className="text-muted-foreground">Size</dt>
-        <dd>{artifact.sizeBytes.toLocaleString()} bytes</dd>
-      </dl>
-      <ReviewEmpty
-        title="Safely stored"
-        description="Artifact rendering and sharing are not available yet. This view shows metadata only."
-      />
     </article>
   );
 }

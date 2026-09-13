@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   afterAll,
@@ -272,6 +272,24 @@ describe('workspace through the inventory port', () => {
 });
 
 describe('worktree review navigation', () => {
+  it('opens the initial handoff when tab storage is unavailable', async () => {
+    const originalGetItem = Storage.prototype.getItem;
+    const getItem = vi
+      .spyOn(Storage.prototype, 'getItem')
+      .mockImplementation(function (this: Storage, key: string) {
+        if (key.startsWith('porcelain.tabs.'))
+          throw new DOMException('Storage denied', 'SecurityError');
+        return originalGetItem.call(this, key);
+      });
+    renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await screen.findByRole('heading', { name: 'Review handoff' });
+    getItem.mockRestore();
+  });
+
   it('scopes selection to each worktree and clears private review data on disconnect', async () => {
     const { queryClient } = renderReview();
     const user = await connect();
@@ -289,7 +307,7 @@ describe('worktree review navigation', () => {
         name: /main.*sample-project.*Main worktree/,
       }),
     );
-    await screen.findByText('All caught up');
+    await screen.findByText('No changes to review');
     expect(
       screen.queryByRole('heading', {
         name: 'src/components/review-panel.tsx',
@@ -299,30 +317,66 @@ describe('worktree review navigation', () => {
     await screen.findByLabelText('Access token');
     expect(queryClient.getQueryCache().getAll()).toEqual([]);
   });
-  it('recovers failed review reads and loads artifacts even for an unavailable checkout', async () => {
-    const store = createMockStore('review-failed');
+  it('recovers failed review reads without adding unsupported navigation surfaces', async () => {
+    const store = createMockStore();
+    store.changesFailed = true;
     renderReview(store);
     const user = await connect();
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
-    await screen.findByRole('button', { name: 'Try again' });
-    store.reviewFailed = false;
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await screen.findByText('A clearer review experience');
+    const sidebar = screen.getByTestId('review-sidebar');
+    expect(
+      within(sidebar).getAllByRole('tab', {
+        name: /^(Changes|Files|History)$/,
+      }),
+    ).toHaveLength(3);
+    await user.click(within(sidebar).getByRole('tab', { name: 'Files' }));
+    await screen.findByRole('button', { name: /README\.md/ });
+    await user.click(within(sidebar).getByRole('tab', { name: 'Changes' }));
+    const failedReviewRetries = await screen.findAllByRole('button', {
+      name: 'Try again',
+    });
+    expect(failedReviewRetries.length).toBeGreaterThan(0);
+    store.changesFailed = false;
+    const firstFailedReviewRetry = failedReviewRetries[0];
+    if (!firstFailedReviewRetry) throw new Error('Missing review retry');
+    await user.click(firstFailedReviewRetry);
+    const remainingReviewRetries = screen.queryAllByRole('button', {
+      name: 'Try again',
+    });
+    if (remainingReviewRetries[0]) {
+      await user.click(remainingReviewRetries[0]);
+    }
+    expect(
+      (
+        await screen.findAllByRole('button', {
+          name: /A clearer review experience/,
+        })
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole('tab', { name: 'Artifacts' })).toBeNull();
+    expect(
+      within(sidebar).getAllByRole('tab', {
+        name: /^(Review|Files|History)$/,
+      }),
+    ).toHaveLength(3);
+  });
+  it('keeps stored artifacts reachable for an unavailable worktree', async () => {
+    renderReview();
+    const user = await connect();
     await user.click(
-      screen.getByRole('button', { name: /archive\/initial-prototype/ }),
+      await screen.findByRole('button', { name: /archive\/initial-prototype/ }),
     );
-    await user.click(screen.getByRole('tab', { name: 'Artifacts' }));
+    await screen.findByText('Stored agent reports');
     await user.click(
-      await screen.findByRole('button', {
+      within(screen.getByTestId('review-sidebar')).getByRole('button', {
         name: /Keyboard accessibility audit/,
       }),
     );
     await screen.findByRole('heading', {
       name: 'Keyboard accessibility audit',
     });
-    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
   });
   it.each([false, true])(
     'commits only staged changes and recovers without repeating the action (lost response: %s)',
@@ -332,9 +386,11 @@ describe('worktree review navigation', () => {
       await user.click(
         await screen.findByRole('button', { name: /agent\/review/ }),
       );
-      await user.click(screen.getByRole('button', { name: 'Git actions' }));
       await user.click(
-        await screen.findByRole('button', {
+        await screen.findByRole('button', { name: 'Git actions' }),
+      );
+      await user.click(
+        await screen.findByRole('menuitem', {
           name: /^Commit Commit the existing index/,
         }),
       );
@@ -359,13 +415,16 @@ describe('worktree review navigation', () => {
         await screen.findByRole('heading', {
           name: 'Outcome not yet confirmed',
         });
+        await user.click(screen.getByRole('button', { name: 'Close' }));
         expect(
           screen.queryByRole('button', { name: 'Prepare another action' }),
         ).toBeNull();
-        await user.click(screen.getByRole('tab', { name: 'Files' }));
-        await user.click(screen.getByRole('button', { name: 'Git actions' }));
+        await user.click(await screen.findByRole('tab', { name: 'Files' }));
         await user.click(
-          screen.getByRole('button', { name: /^Commit Commit/ }),
+          await screen.findByRole('button', { name: 'Git actions' }),
+        );
+        await user.click(
+          await screen.findByRole('menuitem', { name: /^Commit Commit/ }),
         );
         await screen.findByRole('heading', {
           name: 'Outcome not yet confirmed',
@@ -383,7 +442,10 @@ describe('worktree review navigation', () => {
       ).toBe(true);
       await user.click(screen.getByRole('button', { name: 'Check receipt' }));
       expect(store.actionCount).toBe(1);
-      await user.click(screen.getByRole('tab', { name: 'History' }));
+      if (screen.queryByRole('button', { name: 'Close' })) {
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+      }
+      await user.click(await screen.findByRole('tab', { name: 'History' }));
       await screen.findByRole('button', { name: /Review sidebar foundation/ });
     },
   );
@@ -449,7 +511,7 @@ describe('file discussion', () => {
     await user.click(screen.getByRole('button', { name: '1 comment' }));
     expect(screen.queryByText('Please explain this component.')).toBeNull();
     await user.click(
-      screen.getByRole('button', { name: /empty-state.tsx.*added/ }),
+      screen.getByRole('button', { name: /empty-state.tsx.*staged/ }),
     );
     await screen.findByRole('button', { name: '0 comments' });
     expect(screen.queryByText('Please explain this component.')).toBeNull();
@@ -462,8 +524,10 @@ describe('git actions', () => {
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
-    await user.click(screen.getByRole('button', { name: 'Git actions' }));
-    await user.click(await screen.findByRole('button', { name }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Git actions' }),
+    );
+    await user.click(await screen.findByRole('menuitem', { name }));
     return user;
   }
 
@@ -550,9 +614,11 @@ describe('git actions', () => {
         name: /main.*sample-project.*Main worktree/,
       }),
     );
-    await user.click(screen.getByRole('button', { name: 'Git actions' }));
     await user.click(
-      await screen.findByRole('button', {
+      await screen.findByRole('button', { name: 'Git actions' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', {
         name: /^Commit Commit the existing index/,
       }),
     );
@@ -579,6 +645,7 @@ describe('git actions', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
     await screen.findByRole('heading', { name: 'Outcome not yet confirmed' });
     store.loseActionResponse = false;
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     await user.click(screen.getByRole('button', { name: 'Disconnect' }));
     await screen.findByLabelText('Access token');
     await openAction(/^Commit Commit the existing index/);
@@ -618,12 +685,12 @@ describe('review surfaces', () => {
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
-    await user.click(screen.getByRole('tab', { name: 'Files' }));
+    await user.click(await screen.findByRole('tab', { name: 'Files' }));
     await user.click(await screen.findByRole('button', { name: /README\.md/ }));
     await screen.findByRole('heading', { name: 'README.md' });
     expect(screen.getByText(/bytes · Read only/)).toBeTruthy();
 
-    await user.click(screen.getByRole('tab', { name: 'History' }));
+    await user.click(await screen.findByRole('tab', { name: 'History' }));
     await user.click(
       await screen.findByRole('button', {
         name: /Keep review context scoped to the worktree/,
@@ -685,9 +752,11 @@ describe('git action cache consequences', () => {
       name: /review-panel.tsx.*staged/,
     });
 
-    await user.click(screen.getByRole('button', { name: 'Git actions' }));
     await user.click(
-      await screen.findByRole('button', {
+      await screen.findByRole('button', { name: 'Git actions' }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', {
         name: /^Commit Commit the existing index/,
       }),
     );

@@ -19,10 +19,15 @@ export type Status = GitStatusResponse;
 export type Layers = ReturnType<typeof reviewLayersResponseSchema.parse>;
 export type Change = Status['changes'][number];
 export type ReviewScope = { projectId: string; worktreeId: string };
-const surfaces = ['changes', 'files', 'history', 'git', 'artifacts'] as const;
-export type Surface = (typeof surfaces)[number];
+export const SURFACES = ['changes', 'files', 'history'] as const;
+export type Surface = (typeof SURFACES)[number];
+export const SURFACE_LABELS: Record<Surface, string> = {
+  changes: 'Changes',
+  files: 'Files',
+  history: 'History',
+};
 export function isSurface(value: unknown): value is Surface {
-  return surfaces.some((surface) => surface === value);
+  return SURFACES.some((surface) => surface === value);
 }
 export function changePath(change: Change) {
   return 'path' in change
@@ -31,6 +36,14 @@ export function changePath(change: Change) {
 }
 export function changeKey(change: Change) {
   return JSON.stringify([change.scope, changePath(change)]);
+}
+
+export function basename(path: string) {
+  return path.split('/').at(-1) ?? path;
+}
+
+export function shortOid(oid: string) {
+  return oid.slice(0, 7);
 }
 export function groupChanges(status: Status, layers: Layers) {
   const assigned = new Set(

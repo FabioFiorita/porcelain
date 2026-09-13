@@ -17,13 +17,21 @@ export function createAppRouter(history?: RouterHistory) {
     path: '/',
     validateSearch: (
       search: Record<string, unknown>,
-    ): { worktree?: string; surface?: Surface; entry?: string } => ({
+    ): {
+      worktree?: string;
+      surface?: Surface;
+      entry?: string;
+      side?: string;
+    } => ({
       ...(typeof search.worktree === 'string'
         ? { worktree: search.worktree }
         : {}),
       ...(isSurface(search.surface) ? { surface: search.surface } : {}),
       ...(typeof search.entry === 'string' && search.entry.length <= 8192
         ? { entry: search.entry }
+        : {}),
+      ...(typeof search.side === 'string' && search.side.length <= 8192
+        ? { side: search.side }
         : {}),
     }),
     component: WorkspaceView,

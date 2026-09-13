@@ -48,7 +48,7 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   const openReview = page.getByRole('button', { name: 'Review', exact: true });
   if (await openReview.isVisible()) await openReview.click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
-  await page.getByRole('button', { name: 'README.md', exact: true }).click();
+  await page.getByRole('treeitem', { name: 'README.md', exact: true }).click();
   await expect(
     page.getByRole('region', { name: 'Read-only code' }),
   ).toContainText('Porcelain');
