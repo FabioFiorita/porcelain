@@ -25,6 +25,29 @@ vi.mock('@pierre/diffs/react', () => ({
   PatchDiff: ({ patch }: { patch: string }) => <pre>{patch}</pre>,
   Virtualizer: ({ children }: { children: React.ReactNode }) => children,
 }));
+// Layout behavior is covered in the browser. Keep review navigation interactive
+// without depending on panel measurements that jsdom cannot provide.
+vi.mock('@/components/ui/resizable', () => ({
+  ResizablePanelGroup: ({
+    children,
+    orientation: _orientation,
+    ...props
+  }: React.ComponentProps<'div'> & { orientation?: string }) => (
+    <div {...props}>{children}</div>
+  ),
+  ResizablePanel: ({
+    children,
+    defaultSize: _defaultSize,
+    minSize: _minSize,
+    maxSize: _maxSize,
+    ...props
+  }: React.ComponentProps<'div'> & {
+    defaultSize?: number;
+    minSize?: number;
+    maxSize?: number;
+  }) => <div {...props}>{children}</div>,
+  ResizableHandle: (props: React.ComponentProps<'div'>) => <div {...props} />,
+}));
 beforeAll(() => {
   // jsdom has no native top-layer states. Its selector engine recursively delegates
   // :fullscreen/:modal back to Element.matches; Base UI checks these when focusing.
@@ -41,8 +64,8 @@ beforeAll(() => {
     configurable: true,
     value: () => [],
   });
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('min-width: 1280px'),
     addEventListener() {},
     removeEventListener() {},
   }));
@@ -256,14 +279,14 @@ describe('worktree review navigation', () => {
       await user.click(
         await screen.findByRole('button', { name: /agent\/review/ }),
       );
-      await user.click(screen.getByRole('tab', { name: 'Git' }));
+      await user.click(screen.getByRole('button', { name: 'Git actions' }));
       await user.click(
-        screen.getByRole('button', {
+        await screen.findByRole('button', {
           name: /^Commit Commit the existing index/,
         }),
       );
       await user.type(
-        screen.getByLabelText('Message'),
+        await screen.findByLabelText('Message'),
         'Review sidebar foundation',
       );
       await user.click(screen.getByRole('button', { name: 'Prepare action' }));
@@ -287,7 +310,7 @@ describe('worktree review navigation', () => {
           screen.queryByRole('button', { name: 'Prepare another action' }),
         ).toBeNull();
         await user.click(screen.getByRole('tab', { name: 'Files' }));
-        await user.click(screen.getByRole('tab', { name: 'Git' }));
+        await user.click(screen.getByRole('button', { name: 'Git actions' }));
         await user.click(
           screen.getByRole('button', { name: /^Commit Commit/ }),
         );
@@ -386,8 +409,8 @@ describe('git actions', () => {
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
-    await user.click(screen.getByRole('tab', { name: 'Git' }));
-    await user.click(screen.getByRole('button', { name }));
+    await user.click(screen.getByRole('button', { name: 'Git actions' }));
+    await user.click(await screen.findByRole('button', { name }));
     return user;
   }
 
@@ -474,11 +497,13 @@ describe('git actions', () => {
         name: /main.*sample-project.*Main worktree/,
       }),
     );
-    await user.click(screen.getByRole('tab', { name: 'Git' }));
+    await user.click(screen.getByRole('button', { name: 'Git actions' }));
     await user.click(
-      screen.getByRole('button', { name: /^Commit Commit the existing index/ }),
+      await screen.findByRole('button', {
+        name: /^Commit Commit the existing index/,
+      }),
     );
-    await user.type(screen.getByLabelText('Message'), 'Nothing staged');
+    await user.type(await screen.findByLabelText('Message'), 'Nothing staged');
     await user.click(screen.getByRole('button', { name: 'Prepare action' }));
     await confirmPrepared(user);
     await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
@@ -607,11 +632,16 @@ describe('git action cache consequences', () => {
       name: /review-panel.tsx.*staged/,
     });
 
-    await user.click(screen.getByRole('tab', { name: 'Git' }));
+    await user.click(screen.getByRole('button', { name: 'Git actions' }));
     await user.click(
-      screen.getByRole('button', { name: /^Commit Commit the existing index/ }),
+      await screen.findByRole('button', {
+        name: /^Commit Commit the existing index/,
+      }),
     );
-    await user.type(screen.getByLabelText('Message'), 'Commit staged work');
+    await user.type(
+      await screen.findByLabelText('Message'),
+      'Commit staged work',
+    );
     await user.click(screen.getByRole('button', { name: 'Prepare action' }));
     await user.click(
       await screen.findByLabelText(

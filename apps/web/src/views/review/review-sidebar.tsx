@@ -1,7 +1,6 @@
 import {
   FileBoxIcon,
   FilesIcon,
-  GitBranchIcon,
   GitCompareArrowsIcon,
   HistoryIcon,
   PanelRightCloseIcon,
@@ -19,11 +18,10 @@ import { ReviewBoundary } from './review-boundary';
 import { ReviewEmpty } from './review-empty';
 import { ReviewRow } from './review-row';
 
-const surfaceItems = [
+const navigationItems = [
   { value: 'changes', label: 'Changes', icon: GitCompareArrowsIcon },
   { value: 'files', label: 'Files', icon: FilesIcon },
   { value: 'history', label: 'History', icon: HistoryIcon },
-  { value: 'git', label: 'Git', icon: GitBranchIcon },
   { value: 'artifacts', label: 'Artifacts', icon: FileBoxIcon },
 ] as const;
 export function ReviewSidebar({
@@ -67,7 +65,7 @@ export function ReviewSidebar({
         className="min-h-0 flex-1 gap-0"
       >
         <TabsList className="mx-2 h-auto! w-auto! gap-0 rounded-lg">
-          {surfaceItems.map(({ value, label, icon: Icon }) => (
+          {navigationItems.map(({ value, label, icon: Icon }) => (
             <TabsTrigger
               key={value}
               value={value}
@@ -78,33 +76,33 @@ export function ReviewSidebar({
             </TabsTrigger>
           ))}
         </TabsList>
-        {surfaceItems.map(({ value }) => (
-          <TabsContent
-            key={value}
-            value={value}
-            className="min-h-0 overflow-hidden"
-          >
-            <ScrollArea className="h-full">
-              <div className="px-2 py-3">
-                <ReviewBoundary key={`${scope.worktreeId}:${value}`}>
-                  {!available && value !== 'artifacts' ? (
-                    <ReviewEmpty
-                      title="Worktree unavailable"
-                      description="Reconnect the checkout and refresh the environment to review its files and Git state."
-                    />
-                  ) : (
-                    <SurfaceNavigation
-                      scope={scope}
-                      surface={value}
-                      entry={entry}
-                      onSelect={onSelect}
-                    />
-                  )}
-                </ReviewBoundary>
-              </div>
-            </ScrollArea>
-          </TabsContent>
-        ))}
+        {surface === 'git' ? (
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <SidebarSurface
+              scope={scope}
+              surface="git"
+              entry={entry}
+              available={available}
+              onSelect={onSelect}
+            />
+          </div>
+        ) : (
+          navigationItems.map(({ value }) => (
+            <TabsContent
+              key={value}
+              value={value}
+              className="min-h-0 overflow-hidden"
+            >
+              <SidebarSurface
+                scope={scope}
+                surface={value}
+                entry={entry}
+                available={available}
+                onSelect={onSelect}
+              />
+            </TabsContent>
+          ))
+        )}
       </Tabs>
       <div className="px-3 py-2 text-xs text-muted-foreground">
         {available
@@ -112,6 +110,41 @@ export function ReviewSidebar({
           : 'Stored artifacts remain accessible'}
       </div>
     </aside>
+  );
+}
+function SidebarSurface({
+  scope,
+  surface,
+  entry,
+  available,
+  onSelect,
+}: {
+  scope: ReviewScope;
+  surface: Surface;
+  entry: string;
+  available: boolean;
+  onSelect: (entry: string) => void;
+}) {
+  return (
+    <ScrollArea className="h-full">
+      <div className="px-2 py-3">
+        <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
+          {!available && surface !== 'artifacts' ? (
+            <ReviewEmpty
+              title="Worktree unavailable"
+              description="Reconnect the checkout and refresh the environment to review its files and Git state."
+            />
+          ) : (
+            <SurfaceNavigation
+              scope={scope}
+              surface={surface}
+              entry={entry}
+              onSelect={onSelect}
+            />
+          )}
+        </ReviewBoundary>
+      </div>
+    </ScrollArea>
   );
 }
 function SurfaceNavigation({

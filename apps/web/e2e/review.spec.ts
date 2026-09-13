@@ -65,9 +65,17 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
     name: 'Projects and worktrees',
   });
   const review = page.getByRole('complementary', { name: 'Worktree review' });
+  const divider = page.locator('[data-slot="resizable-handle"]');
   const leftBox = await left.boundingBox();
   const rightBox = await right.boundingBox();
   expect(leftBox?.y).toBe(rightBox?.y);
+  await expect(divider).toBeVisible();
+  const reviewWidth = (await review.boundingBox())?.width;
+  await divider.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect
+    .poll(async () => (await review.boundingBox())?.width)
+    .not.toBe(reviewWidth);
   await page
     .getByRole('navigation', { name: 'Projects and worktrees' })
     .getByRole('button')
@@ -156,6 +164,7 @@ test('opens responsive drawers with shortcuts and returns to the review canvas',
   await expect(
     page.getByRole('button', { name: 'Toggle Sidebar', exact: true }),
   ).toBeInViewport();
+  await expect(page.locator('[data-slot="resizable-handle"]')).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
