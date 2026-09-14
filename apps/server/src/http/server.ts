@@ -20,7 +20,9 @@ import { gitActionRoutes } from './routes/git-actions.ts';
 import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
+import { reviewEvidenceRoutes } from './routes/review-evidence.ts';
 import { reviewLayerRoutes } from './routes/review-layers.ts';
+import { reviewedFileRoutes } from './routes/reviewed-files.ts';
 import { registerStaticFiles } from './static-files.ts';
 
 type ServerOptions = Parameters<typeof openApplication>[0] & {
@@ -40,6 +42,8 @@ function registerApiRoutes(
   server.register(gitActionRoutes, options);
   server.register(artifactRoutes, options);
   server.register(reviewLayerRoutes, options);
+  server.register(reviewEvidenceRoutes, options);
+  server.register(reviewedFileRoutes, options);
   server.register(commentRoutes, options);
   server.register(filePreferenceRoutes, options);
   server.register(fileRoutes, options);

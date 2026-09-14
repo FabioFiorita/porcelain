@@ -16,7 +16,9 @@
     "./review-layers": "./src/review-layers.ts",
     "./artifacts": "./src/artifacts.ts",
     "./git-actions": "./src/git-actions.ts",
-    "./commit-review-layers": "./src/commit-review-layers.ts"
+    "./commit-review-layers": "./src/commit-review-layers.ts",
+    "./reviewed-files": "./src/reviewed-files.ts",
+    "./evidence": "./src/evidence.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -7,6 +7,7 @@ import { openDatabase } from '../db/connection.ts';
 import { artifacts } from '../db/schema/artifacts.ts';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
+import { reviewedFiles } from '../db/schema/reviewed-files.ts';
 import type { Project } from '../models/project.ts';
 import { ProjectRemovalBlockedError } from './errors/project-removal-blocked-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
@@ -48,6 +49,15 @@ async function fixture() {
       content: 'data',
       sizeBytes: 4,
       createdAt: '2026-01-01',
+    })
+    .run();
+  database.db
+    .insert(reviewedFiles)
+    .values({
+      worktreeId: 'worktree',
+      path: 'notes.txt',
+      fingerprint: 'a'.repeat(64),
+      reviewedAt: '2026-01-01T00:00:00.000Z',
     })
     .run();
   return {
@@ -92,6 +102,7 @@ describe('Project removal persistence', () => {
       expect(database.db.select().from(artifacts).all()).toMatchObject([
         { content: 'data' },
       ]);
+      expect(database.db.select().from(reviewedFiles).all()).toHaveLength(1);
     },
   );
 
@@ -107,9 +118,11 @@ describe('Project removal persistence', () => {
       expect(database.db.select().from(artifacts).all()).toMatchObject([
         { content: 'data' },
       ]);
+      expect(database.db.select().from(reviewedFiles).all()).toHaveLength(1);
       connection.exec('DROP TRIGGER reject_removal');
       expect(store.remove(project.id)).toEqual({ deleted: true });
       expect(database.db.select().from(artifacts).all()).toEqual([]);
+      expect(database.db.select().from(reviewedFiles).all()).toEqual([]);
     } finally {
       connection.close();
     }

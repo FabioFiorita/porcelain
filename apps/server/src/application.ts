@@ -34,7 +34,12 @@ import type {
 } from './models/git-action.ts';
 import type { Inventory } from './models/inventory.ts';
 import type { Project } from './models/project.ts';
+import type { ReviewEvidence } from './models/review-evidence.ts';
 import type { ReviewLayer, ReviewLayers } from './models/review-layers.ts';
+import type {
+  ReviewedMark,
+  SetReviewedFileInput,
+} from './models/reviewed-file.ts';
 
 export interface Application {
   prepareFetch(
@@ -119,6 +124,29 @@ export interface Application {
     change: GitOrdinaryChange;
     content: GitDiffResult;
   }>;
+  reviewEvidence(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<{
+    environmentId: string;
+    worktreeId: string;
+    statusToken: string;
+    evidence: ReviewEvidence[];
+  }>;
+  listReviewedFiles(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; marks: ReviewedMark[] }>;
+  setReviewedFile(
+    worktreeId: string,
+    input: SetReviewedFileInput,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; marks: ReviewedMark[] }>;
+  removeReviewedFile(
+    worktreeId: string,
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; marks: ReviewedMark[] }>;
   removeProject(
     projectId: string,
     signal?: AbortSignal,

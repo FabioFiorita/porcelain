@@ -8,6 +8,13 @@
       "when": 1788921607579,
       "tag": "0000_current-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789345784383,
+      "tag": "0001_light_iceman",
+      "breakpoints": true
     }
   ]
 }

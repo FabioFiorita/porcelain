@@ -10,6 +10,7 @@ import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
 import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { projects } from '../db/schema/projects.ts';
 import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
+import { reviewedFiles } from '../db/schema/reviewed-files.ts';
 import { ProjectRemovalBlockedError } from './errors/project-removal-blocked-error.ts';
 import type { ProjectRemovalStore } from './interfaces/project-removal-store.ts';
 
@@ -57,6 +58,9 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
           .run();
         tx.delete(reviewLayerSets)
           .where(inArray(reviewLayerSets.worktreeId, owned))
+          .run();
+        tx.delete(reviewedFiles)
+          .where(inArray(reviewedFiles.worktreeId, owned))
           .run();
         tx.delete(gitActionPreparations)
           .where(

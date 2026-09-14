@@ -12,8 +12,17 @@ import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-erro
 import { InvalidCommitReviewLayersError } from '../../use-cases/errors/invalid-commit-review-layers-error.ts';
 import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
 import { ProjectNotFoundError } from '../../use-cases/errors/project-not-found-error.ts';
+import { ReviewedMarkConflictError } from '../../use-cases/errors/reviewed-mark-conflict-error.ts';
 import { StaleReviewLayerSourceError } from '../../use-cases/errors/stale-review-layer-source-error.ts';
 export function toStorageErrorResponse(error: unknown) {
+  if (error instanceof ReviewedMarkConflictError)
+    return {
+      statusCode: 409,
+      body: {
+        code: 'REVIEWED_MARK_STALE',
+        message: 'The reviewed mark is based on stale evidence',
+      },
+    };
   if (error instanceof CommitReviewLayerConflictError)
     return {
       statusCode: 409,

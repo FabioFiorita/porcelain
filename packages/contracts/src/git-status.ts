@@ -24,7 +24,7 @@ export const gitChangeSelectionSchema = z
   })
   .refine((change) => change.oldPath !== null || change.newPath !== null);
 
-const ordinaryChangeSchema = z.object({
+export const ordinaryChangeSchema = z.object({
   scope: z.enum(['staged', 'unstaged']),
   kind: z.enum(['added', 'modified', 'deleted', 'renamed', 'type-changed']),
   oldPath: gitPathSchema.nullable(),
@@ -33,6 +33,23 @@ const ordinaryChangeSchema = z.object({
   newMode: z.string().regex(/^[0-7]{6}$/),
   supported: z.boolean(),
 });
+
+export const untrackedChangeSchema = z.object({
+  scope: z.literal('untracked'),
+  path: gitPathSchema,
+});
+
+export const unmergedChangeSchema = z.object({
+  scope: z.literal('unmerged'),
+  path: gitPathSchema,
+  conflict: z.enum(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
+});
+
+export const gitChangeSchema = z.union([
+  ordinaryChangeSchema,
+  untrackedChangeSchema,
+  unmergedChangeSchema,
+]);
 
 export const gitStatusResponseSchema = z.object({
   environmentId: z.uuid(),
@@ -43,19 +60,7 @@ export const gitStatusResponseSchema = z.object({
     .string()
     .regex(/^[a-f0-9]{40,64}$/)
     .nullable(),
-  changes: z
-    .array(
-      z.union([
-        ordinaryChangeSchema,
-        z.object({ scope: z.literal('untracked'), path: gitPathSchema }),
-        z.object({
-          scope: z.literal('unmerged'),
-          path: gitPathSchema,
-          conflict: z.enum(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
-        }),
-      ]),
-    )
-    .max(2000),
+  changes: z.array(gitChangeSchema).max(2000),
 });
 
 export const gitWorktreeParamsSchema = z.strictObject({ worktreeId: z.uuid() });

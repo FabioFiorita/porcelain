@@ -4,6 +4,7 @@ import {
 } from '@porcelain/contracts/artifacts';
 import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes';
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
+import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
 import {
   directoryResponseSchema,
   textResponseSchema,
@@ -14,6 +15,10 @@ import {
 } from '@porcelain/contracts/git-diff';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
+import {
+  reviewedMarksResponseSchema,
+  setReviewedRequestSchema,
+} from '@porcelain/contracts/reviewed-files';
 import { ConnectionError } from './errors/connection-error.ts';
 
 type Request = { token: string; signal: AbortSignal; worktreeId: string };
@@ -23,12 +28,18 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     path: string,
     schema: { parse: (value: unknown) => T },
     body?: unknown,
+    method = body === undefined ? 'GET' : 'POST',
   ): Promise<T> {
     try {
       const response = await transport(
         `${endpoint}/worktrees/${encodeURIComponent(request.worktreeId)}/${path}`,
         {
-          ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}),
+          ...(body === undefined && method === 'GET'
+            ? {}
+            : {
+                method,
+                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+              }),
           headers: {
             'content-type': 'application/json',
             authorization: `Bearer ${request.token}`,
@@ -91,6 +102,32 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ),
     artifacts: (request: Request) =>
       read(request, 'artifacts', artifactListSchema),
+    evidence: (request: Request) =>
+      read(request, 'evidence', evidenceResponseSchema),
+    reviewed: {
+      list: (request: Request) =>
+        read(request, 'reviewed', reviewedMarksResponseSchema),
+      set: (
+        request: Request & {
+          input: Parameters<typeof setReviewedRequestSchema.parse>[0];
+        },
+      ) =>
+        read(
+          request,
+          'reviewed',
+          reviewedMarksResponseSchema,
+          setReviewedRequestSchema.parse(request.input),
+          'PUT',
+        ),
+      remove: (request: Request & { path: string }) =>
+        read(
+          request,
+          `reviewed?${new URLSearchParams({ path: request.path })}`,
+          reviewedMarksResponseSchema,
+          undefined,
+          'DELETE',
+        ),
+    },
     artifact: (request: Request & { artifactId: string }) =>
       read(
         request,

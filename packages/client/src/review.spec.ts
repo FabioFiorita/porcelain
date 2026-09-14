@@ -77,6 +77,58 @@ describe('review transport', () => {
       content: '<h1>Ready</h1>',
     });
   });
+  it('loads complete review evidence and durable reviewed marks through scoped routes', async () => {
+    const fingerprint = 'a'.repeat(64);
+    const calls: string[] = [];
+    const transport: typeof fetch = async (input, init) => {
+      calls.push(String(input));
+      if (String(input).endsWith('/evidence'))
+        return Response.json({
+          environmentId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
+          worktreeId: scope.worktreeId,
+          statusToken: 'b'.repeat(64),
+          consistency: 'best-effort',
+          evidence: [],
+        });
+      if (String(input).includes('/reviewed?path=')) {
+        expect(init?.method).toBe('DELETE');
+        return Response.json({ worktreeId: scope.worktreeId, marks: [] });
+      }
+      expect(String(input)).toBe(`/api/worktrees/${scope.worktreeId}/reviewed`);
+      if (init?.method === 'PUT') {
+        expect(JSON.parse(String(init.body))).toEqual({
+          path: 'src/review.ts',
+          reviewed: true,
+          fingerprint,
+        });
+      }
+      return Response.json({ worktreeId: scope.worktreeId, marks: [] });
+    };
+    const client = createReviewClient(transport, '/api');
+    await expect(client.evidence(scope)).resolves.toMatchObject({
+      worktreeId: scope.worktreeId,
+      evidence: [],
+    });
+    await expect(client.reviewed.list(scope)).resolves.toEqual({
+      worktreeId: scope.worktreeId,
+      marks: [],
+    });
+    await expect(
+      client.reviewed.set({
+        ...scope,
+        input: { path: 'src/review.ts', reviewed: true, fingerprint },
+      }),
+    ).resolves.toEqual({ worktreeId: scope.worktreeId, marks: [] });
+    await expect(
+      client.reviewed.remove({ ...scope, path: 'src/review.ts' }),
+    ).resolves.toEqual({ worktreeId: scope.worktreeId, marks: [] });
+    expect(calls).toEqual([
+      `/api/worktrees/${scope.worktreeId}/evidence`,
+      `/api/worktrees/${scope.worktreeId}/reviewed`,
+      `/api/worktrees/${scope.worktreeId}/reviewed`,
+      `/api/worktrees/${scope.worktreeId}/reviewed?path=src%2Freview.ts`,
+    ]);
+  });
   it('preserves a conflict receipt and its request identity instead of treating it as a retryable write failure', async () => {
     const requestId = '801a8628-1cd6-4562-81a2-9c05fba76b4b';
     const preparationId = '801a8628-1cd6-4562-81a2-9c05fba76b4c';

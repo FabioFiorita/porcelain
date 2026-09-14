@@ -31,6 +31,7 @@ import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { ProjectRemovalRepository } from './repositories/project-removal-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
+import { ReviewedFileRepository } from './repositories/reviewed-file-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
@@ -43,15 +44,19 @@ import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
+import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
+import { ReadWorktreeEvidence } from './use-cases/read-worktree-evidence.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
+import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
 import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
+import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
 import { UploadArtifact } from './use-cases/upload-artifact.ts';
 
 export async function openApplication(options: {
@@ -125,6 +130,18 @@ export async function openApplication(options: {
         new InspectionGit(checkout, identity, repositoryIdentity));
     const status = new ReadWorktreeStatus(store, inspection);
     const diff = new ReadWorktreeDiff(store, inspection);
+    const evidence = new ReadWorktreeEvidence(store, inspection, git, files);
+    const reviewed = new ReviewedFileRepository(database.db);
+    const listReviewedFiles = new ListReviewedFiles(reviewed);
+    const setReviewedFile = new SetReviewedFile(
+      reviewed,
+      evidence,
+      listReviewedFiles,
+    );
+    const removeReviewedFile = new RemoveReviewedFile(
+      reviewed,
+      listReviewedFiles,
+    );
     await operations.run((signal) => refresh.execute(signal), options.signal);
     const comments = new CommentThreads(
       new CommentRepository(database.db),
@@ -223,6 +240,29 @@ export async function openApplication(options: {
           signal,
         );
       },
+      reviewEvidence: (worktreeId, signal) =>
+        operations.run(
+          (operationSignal) => evidence.execute(worktreeId, operationSignal),
+          signal,
+        ),
+      listReviewedFiles: (worktreeId, signal) =>
+        operations.run(
+          async () => listReviewedFiles.execute(worktreeId),
+          signal,
+        ),
+      setReviewedFile: (worktreeId, input, signal) => {
+        const submitted = { ...input };
+        return operations.run(
+          (operationSignal) =>
+            setReviewedFile.execute(worktreeId, submitted, operationSignal),
+          signal,
+        );
+      },
+      removeReviewedFile: (worktreeId, path, signal) =>
+        operations.run(
+          async () => removeReviewedFile.execute(worktreeId, path),
+          signal,
+        ),
       listDirectory: (id: string, path: string, signal?: AbortSignal) =>
         operations.run(
           (operationSignal) => list.execute(id, path, operationSignal),

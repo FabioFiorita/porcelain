@@ -1,6 +1,20 @@
 import { z } from 'zod';
 import { gitChangeSelectionSchema } from './git-status.ts';
 
+export const gitDiffContentSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('text'), patch: z.string() }),
+  z.object({ kind: z.literal('binary') }),
+  z.object({ kind: z.literal('metadata-only'), patch: z.string() }),
+  z.object({
+    kind: z.literal('omitted'),
+    reason: z.enum([
+      'size-limit',
+      'unsupported-encoding',
+      'unsupported-submodule',
+    ]),
+  }),
+]);
+
 export const gitDiffRequestSchema = z.strictObject({
   expectedStatusToken: z.string().regex(/^[a-f0-9]{64}$/),
   change: gitChangeSelectionSchema,
@@ -14,19 +28,7 @@ export const gitDiffResponseSchema = z.object({
   change: gitChangeSelectionSchema,
   oldMode: z.string().regex(/^[0-7]{6}$/),
   newMode: z.string().regex(/^[0-7]{6}$/),
-  content: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('text'), patch: z.string() }),
-    z.object({ kind: z.literal('binary') }),
-    z.object({ kind: z.literal('metadata-only'), patch: z.string() }),
-    z.object({
-      kind: z.literal('omitted'),
-      reason: z.enum([
-        'size-limit',
-        'unsupported-encoding',
-        'unsupported-submodule',
-      ]),
-    }),
-  ]),
+  content: gitDiffContentSchema,
 });
 
 export type GitDiffRequest = z.infer<typeof gitDiffRequestSchema>;
