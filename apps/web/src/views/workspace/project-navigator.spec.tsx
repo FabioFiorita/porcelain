@@ -73,6 +73,19 @@ afterEach(() => cleanup());
 afterAll(() => vi.unstubAllGlobals());
 
 describe('ProjectNavigator', () => {
+  it('uses the compact prototype brand treatment', () => {
+    renderNavigator();
+
+    const logo = screen.getByAltText('');
+    expect(logo.tagName).toBe('IMG');
+    expect(logo.getAttribute('src')).toContain('logo');
+    expect(logo.className).toContain('size-6');
+    expect(
+      screen.getByRole('navigation').querySelector('header > span')
+        ?.textContent,
+    ).toBe('Porcelain');
+  });
+
   it('shows compact project context and branch rows', () => {
     renderNavigator('worktree-review');
 
