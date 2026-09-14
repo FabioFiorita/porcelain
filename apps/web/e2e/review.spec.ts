@@ -306,9 +306,19 @@ test('inspects staged changes, commit history and artifact metadata from the rea
     .getByRole('button', { name: /README\.md.*staged/ })
     .first()
     .click();
-  const diffs = page.getByRole('region', { name: 'Read-only diff' });
-  await expect(diffs).toHaveCount(2);
-  const code = diffs
+  const documents = page.locator('diffs-container');
+  await expect(documents).toHaveCount(2);
+  await expect(
+    page.getByRole('button', { name: 'Collapse README.md', exact: true }),
+  ).toHaveCount(2);
+  const scopes = documents.locator('[slot="header-filename-suffix"]');
+  await expect(scopes).toHaveCount(2);
+  await expect(scopes.nth(0)).toContainText('staged · modified');
+  await expect(scopes.nth(1)).toContainText('unstaged · modified');
+  await expect(documents.locator('pre[data-diff] code[data-code]')).toHaveCount(
+    2,
+  );
+  const code = documents
     .filter({ hasText: 'Review focus: release readiness.' })
     .first();
   await expect(code).toContainText('Review focus: release readiness.');

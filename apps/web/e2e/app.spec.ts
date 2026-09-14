@@ -11,7 +11,7 @@ test('opens the built workspace and switches the preset theme with the keyboard'
     page.getByRole('heading', { name: 'Porcelain', exact: true }),
   ).toBeVisible();
   await expect(page.getByText('No environment connected')).toBeVisible();
-  const surface = page.locator('#root > div');
+  const surface = page.getByRole('main').locator('..');
   const light = await surface.evaluate(
     (element) => getComputedStyle(element).backgroundColor,
   );
