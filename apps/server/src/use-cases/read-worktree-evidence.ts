@@ -50,7 +50,11 @@ export class ReadWorktreeEvidence {
     this.files = files;
   }
 
-  async execute(worktreeId: string, signal?: AbortSignal) {
+  async execute(
+    worktreeId: string,
+    signal?: AbortSignal,
+    paths?: ReadonlySet<string>,
+  ) {
     signal?.throwIfAborted();
     const { environmentId, worktree, metadataIdentity, repositoryIdentity } =
       resolveInspectionWorktree(this.store, worktreeId);
@@ -62,7 +66,10 @@ export class ReadWorktreeEvidence {
     const before = await reader.readStatus(signal);
     signal?.throwIfAborted();
 
-    const hasUntracked = before.changes.some(
+    const selected = paths
+      ? before.changes.filter((change) => paths.has(logicalPath(change)))
+      : before.changes;
+    const hasUntracked = selected.some(
       (change) => change.scope === 'untracked',
     );
     if (hasUntracked)
@@ -70,9 +77,9 @@ export class ReadWorktreeEvidence {
 
     const byPath = new Map<string, EvidenceComparison[]>();
     let evidenceBytes = 0;
-    for (let offset = 0; offset < before.changes.length; offset += 4) {
+    for (let offset = 0; offset < selected.length; offset += 4) {
       signal?.throwIfAborted();
-      const changes = before.changes.slice(offset, offset + 4);
+      const changes = selected.slice(offset, offset + 4);
       const loaded = await Promise.allSettled(
         changes.map((change) =>
           this.readContent(change, worktreeId, worktree.path, reader, signal),

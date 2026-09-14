@@ -173,6 +173,54 @@ describe('Git actions HTTP', () => {
     }
   });
 
+  it('validates only the marked file, including both comparisons, and preserves badge counts', async () => {
+    await writeFile(join(checkout, 'other'), 'base\n');
+    await git('add', 'other');
+    await git('commit', '-m', 'other fixture');
+    await writeFile(join(checkout, 'file'), 'staged\n');
+    await git('add', 'file');
+    await writeFile(join(checkout, 'file'), 'unstaged\n');
+    await writeFile(join(checkout, 'other'), 'unreviewed change\n');
+    const url = `/worktrees/${prefix.split('/')[4]}`;
+    const evidence = (
+      await server.inject({ url: `${url}/evidence`, headers })
+    ).json();
+    const fingerprint = evidence.evidence.find(
+      (entry: { path: string }) => entry.path === 'file',
+    ).fingerprint;
+    const diff = vi.spyOn(InspectionGit.prototype, 'readDiff');
+    const mark = () =>
+      server.inject({
+        method: 'PUT',
+        url: `${url}/reviewed`,
+        headers,
+        payload: { path: 'file', reviewed: true, fingerprint },
+      });
+    try {
+      expect((await mark()).statusCode).toBe(200);
+      expect(
+        diff.mock.calls.map(([change]) => [change.newPath, change.scope]),
+      ).toEqual([
+        ['file', 'staged'],
+        ['file', 'unstaged'],
+      ]);
+      diff.mockClear();
+      const summary = await server.inject({
+        url: `${url}/review-summary`,
+        headers,
+      });
+      expect(summary.statusCode).toBe(200);
+      expect(summary.json()).toMatchObject({ pendingFiles: 1 });
+      await writeFile(join(checkout, 'file'), 'edited after review\n');
+      expect((await mark()).statusCode).toBe(409);
+      expect(
+        (await server.inject({ url: `${url}/review-summary`, headers })).json(),
+      ).toMatchObject({ pendingFiles: 2 });
+    } finally {
+      diff.mockRestore();
+    }
+  });
+
   it('counts current unreviewed files and unresolved comments in the review summary', async () => {
     const worktreeId = prefix.split('/')[4];
     const url = `/worktrees/${worktreeId}`;

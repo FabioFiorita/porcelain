@@ -400,8 +400,21 @@ describe('review evidence queries', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Mark one' }));
     await markStartedPromise;
+    const reviewedKey = queryKeys.reviewSurface(
+      store.inventory.environmentId,
+      scope,
+      ['reviewed'],
+    );
+    expect(
+      queryClient.getQueryData<ReviewedMarksResponse>(reviewedKey)?.marks,
+    ).toContainEqual(expect.objectContaining({ path }));
     await user.click(screen.getByRole('button', { name: 'Unmark one' }));
     expect(removeCalls).toBe(0);
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryData<ReviewedMarksResponse>(reviewedKey)?.marks,
+      ).not.toContainEqual(expect.objectContaining({ path })),
+    );
 
     releaseMark();
     await waitFor(() => expect(removeCalls).toBe(1));

@@ -30,7 +30,11 @@ export class SetReviewedFile {
   ) {
     this.assertKnownWorktree(worktreeId);
 
-    const current = await this.evidence.execute(worktreeId, signal);
+    const current = await this.evidence.execute(
+      worktreeId,
+      signal,
+      new Set([input.path]),
+    );
     const entry = current.evidence.find(
       (candidate) => candidate.path === input.path,
     );

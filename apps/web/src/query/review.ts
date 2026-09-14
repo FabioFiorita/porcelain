@@ -27,6 +27,7 @@ import {
 } from '../domain/review';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
+import { enqueueReviewed } from './reviewed-queue';
 import { useConnectedContext } from './workspace-provider';
 
 function useReviewData<T>(
@@ -267,43 +268,6 @@ function useReviewedContext(scope: ReviewScope) {
   };
 }
 
-type ReviewedQueue = { tail: Promise<void> };
-const reviewedQueues = new WeakMap<object, Map<string, ReviewedQueue>>();
-
-/**
- * Reviewed mutations share a queue for one connection and query key. The API
- * returns full snapshots, so serializing intent is what makes a delayed mark
- * unable to overwrite a later unmark (and keeps bulk and single-file actions
- * consistent).
- */
-function enqueueReviewed<T>(
-  context: ReturnType<typeof useReviewedContext>,
-  operation: () => Promise<T>,
-) {
-  const queryHash = JSON.stringify(context.key) ?? '';
-  let queues = reviewedQueues.get(context.connection);
-  if (!queues) {
-    queues = new Map();
-    reviewedQueues.set(context.connection, queues);
-  }
-  let queue = queues.get(queryHash);
-  if (!queue) {
-    queue = { tail: Promise.resolve() };
-    queues.set(queryHash, queue);
-  }
-
-  const result = queue.tail.then(operation, operation);
-  const tail = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  queue.tail = tail;
-  void tail.then(() => {
-    if (queue?.tail === tail) queues?.delete(queryHash);
-  });
-  return result;
-}
-
 export type MarkReviewedInput = Pick<
   SetReviewedRequest,
   'path' | 'fingerprint'
@@ -315,19 +279,13 @@ export function useMarkReviewed(scope: ReviewScope) {
   return asMutation(
     useMutation({
       mutationFn: (input: MarkReviewedInput) =>
-        enqueueReviewed(context, async () => {
+        enqueueReviewed(context, client, input, async () => {
           const request = context.request();
           const result = await context.api.set({
             ...request,
             input: { ...input, reviewed: true },
           });
           request.signal.throwIfAborted();
-          await client.cancelQueries({ queryKey: context.key });
-          client.setQueryData(context.key, result);
-          void client.invalidateQueries({
-            queryKey: [...context.key.slice(0, -1), 'summary'],
-            exact: true,
-          });
           return result;
         }),
     }),
@@ -340,16 +298,10 @@ export function useUnmarkReviewed(scope: ReviewScope) {
   return asMutation(
     useMutation({
       mutationFn: (path: string) =>
-        enqueueReviewed(context, async () => {
+        enqueueReviewed(context, client, { path }, async () => {
           const request = context.request();
           const result = await context.api.remove({ ...request, path });
           request.signal.throwIfAborted();
-          await client.cancelQueries({ queryKey: context.key });
-          client.setQueryData(context.key, result);
-          void client.invalidateQueries({
-            queryKey: [...context.key.slice(0, -1), 'summary'],
-            exact: true,
-          });
           return result;
         }),
     }),
@@ -397,28 +349,24 @@ export function useMarkAllReviewed(scope: ReviewScope) {
             continue;
           }
           try {
-            await enqueueReviewed(context, async () => {
-              const request = context.request();
-              const result = await context.api.set({
-                ...request,
-                input: {
-                  path: entry.path,
-                  reviewed: true,
-                  fingerprint: entry.fingerprint,
-                },
-              });
-              request.signal.throwIfAborted();
-              await client.cancelQueries({ queryKey: context.key });
-              // Every response is an authoritative server snapshot. The
-              // shared queue keeps newer mutation intent ahead of delayed
-              // responses from older operations.
-              client.setQueryData(context.key, result);
-              void client.invalidateQueries({
-                queryKey: [...context.key.slice(0, -1), 'summary'],
-                exact: true,
-              });
-              return result;
-            });
+            await enqueueReviewed(
+              context,
+              client,
+              { path: entry.path, fingerprint: entry.fingerprint },
+              async () => {
+                const request = context.request();
+                const result = await context.api.set({
+                  ...request,
+                  input: {
+                    path: entry.path,
+                    reviewed: true,
+                    fingerprint: entry.fingerprint,
+                  },
+                });
+                request.signal.throwIfAborted();
+                return result;
+              },
+            );
             report.marked.push(entry.path);
           } catch (error) {
             // The connection controller represents user cancellation. A

@@ -387,3 +387,42 @@ it('bounds concurrent evidence reads and drains them before reporting a failure'
   await rejected;
   expect(started).toHaveLength(4);
 });
+
+it('selects logical paths without reading unrelated changes or dropping comparison scopes', async () => {
+  const changes = [staged, unstaged, untracked, binary];
+  const reads: string[] = [];
+  const operation = new ReadWorktreeEvidence(
+    store(),
+    () => ({
+      readStatus: async () => status(changes),
+      readDiff: async (change) => {
+        reads.push(`${change.scope}:${change.newPath}`);
+        if (change.newPath !== 'src/review.ts')
+          throw new Error('Unrelated diff read');
+        return { kind: 'text', patch: `${change.scope} patch` };
+      },
+    }),
+    readableGit,
+    {
+      read: async () => {
+        throw new Error('Unrelated untracked file read');
+      },
+      list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
+    },
+  );
+  const response = await operation.execute(
+    'worktree',
+    undefined,
+    new Set(['src/review.ts']),
+  );
+  expect(reads).toEqual(['staged:src/review.ts', 'unstaged:src/review.ts']);
+  expect(response.evidence).toHaveLength(1);
+  expect(response.evidence[0]?.comparisons).toHaveLength(2);
+  expect(response.evidence[0]?.fingerprint).toMatch(/^[a-f0-9]{64}$/);
+  reads.length = 0;
+  expect(
+    (await operation.execute('worktree', undefined, new Set(['gone.ts'])))
+      .evidence,
+  ).toEqual([]);
+  expect(reads).toEqual([]);
+});
