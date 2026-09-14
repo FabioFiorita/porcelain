@@ -153,6 +153,7 @@ export function ReviewWorkspace({
 
   const tabControls = (
     <>
+      <GitButton scope={scope} />
       <Button
         ref={desktopTrigger}
         className="hidden xl:inline-flex"
@@ -196,7 +197,6 @@ export function ReviewWorkspace({
           {sidebar}
         </SheetContent>
       </Sheet>
-      <GitButton scope={scope} />
     </>
   );
 
