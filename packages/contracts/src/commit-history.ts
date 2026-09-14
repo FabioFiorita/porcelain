@@ -23,6 +23,9 @@ export const commitPageResponseSchema = z.object({
         author: z.object({ name: z.string(), timestamp: z.string() }),
         subject: z.string(),
         subjectTruncated: z.boolean(),
+        body: z.string().nullable(),
+        bodyTruncated: z.boolean(),
+        refs: z.array(z.string()),
       }),
     )
     .max(100),

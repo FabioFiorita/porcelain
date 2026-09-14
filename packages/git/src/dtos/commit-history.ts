@@ -11,6 +11,9 @@ export interface CommitSummary {
   author: { name: string; timestamp: string };
   subject: string;
   subjectTruncated: boolean;
+  body: string | null;
+  bodyTruncated: boolean;
+  refs: string[];
 }
 export interface CommitPageRequest {
   limit?: number;

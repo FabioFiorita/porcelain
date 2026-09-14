@@ -88,6 +88,23 @@ export function reviewMark(
   return marks.find((candidate) => candidate.path === evidence.path);
 }
 
+export function reviewProgress(
+  paths: readonly string[],
+  evidence: readonly Pick<ReviewEvidenceItem, 'path' | 'reviewStatus'>[],
+) {
+  const uniquePaths = new Set(paths.filter(Boolean));
+  const reviewedPaths = new Set(
+    evidence
+      .filter((entry) => entry.reviewStatus === 'reviewed')
+      .map((entry) => entry.path),
+  );
+  let done = 0;
+  for (const path of uniquePaths) {
+    if (reviewedPaths.has(path)) done += 1;
+  }
+  return { done, total: uniquePaths.size };
+}
+
 export function isFingerprintable(
   evidence: Pick<Evidence, 'fingerprint'>,
 ): evidence is Pick<Evidence, 'fingerprint'> & { fingerprint: string } {

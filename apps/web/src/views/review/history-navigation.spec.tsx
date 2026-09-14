@@ -22,6 +22,9 @@ const commits = [
     },
     subject: 'Merge review branch',
     subjectTruncated: false,
+    body: null,
+    bodyTruncated: false,
+    refs: ['refs/heads/feature/review', 'refs/tags/v1.0.0'],
   },
   {
     oid: oid('b'),
@@ -32,6 +35,9 @@ const commits = [
     },
     subject: 'Add review navigation',
     subjectTruncated: false,
+    body: null,
+    bodyTruncated: false,
+    refs: [],
   },
 ];
 const [tipCommit] = commits;
@@ -79,13 +85,17 @@ describe('HistoryNavigation', () => {
       />,
     );
 
-    expect(screen.getByText('feature/review')).toBeTruthy();
+    expect(screen.getAllByText('feature/review')).toHaveLength(2);
     const selected = screen.getByRole('button', {
       name: /Merge review branch/,
     });
     expect(selected.getAttribute('aria-pressed')).toBe('true');
     expect(selected.textContent).toContain('Alex Morgan');
     expect(selected.textContent).toMatch(/ago/);
+    expect(selected.textContent).toContain('feature/review');
+    expect(selected.textContent).toContain('v1.0.0');
+    expect(selected.textContent).not.toContain('refs/heads/feature/review');
+    expect(screen.getByTitle('refs/heads/feature/review')).toBeTruthy();
     expect(
       container
         .querySelector('[data-testid="history-graph"]')

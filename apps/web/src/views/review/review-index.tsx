@@ -36,6 +36,7 @@ import {
   type ReviewEvidenceItem,
   type ReviewScope,
   type ReviewStatus,
+  reviewProgress,
   type Status,
 } from '../../domain/review';
 import { useComments } from '../../query/comments';
@@ -146,7 +147,7 @@ function LayersView({
     if (!scopes.includes(change.scope)) scopes.push(change.scope);
     scopesByPath.set(path, scopes);
   }
-  const progress = reviewProgress(paths, evidenceByPath);
+  const progress = reviewProgress(paths, evidence);
   const isActive = (ref: DocumentRef) => activeEntry === entryKey(ref);
   const reviewBuilt = layers.layers.length > 0;
 
@@ -228,7 +229,7 @@ function LayersView({
       {layers.layers.map((layer, index) => {
         const ref: DocumentRef = { kind: 'layer', layerId: layer.id };
         const layerPaths = uniquePaths(layer.files.map((file) => file.path));
-        const layerProgress = reviewProgress(layerPaths, evidenceByPath);
+        const layerProgress = reviewProgress(layerPaths, evidence);
         const commentCount = layerPaths.reduce(
           (total, path) => total + openThreads(path),
           0,
@@ -506,17 +507,4 @@ function lastActivity(thread: CommentThread) {
 
 function uniquePaths(paths: readonly string[]) {
   return [...new Set(paths.filter(Boolean))];
-}
-
-function reviewProgress(
-  paths: readonly string[],
-  evidenceByPath: ReadonlyMap<string, ReviewEvidenceItem>,
-) {
-  const unique = uniquePaths(paths);
-  return {
-    done: unique.filter(
-      (path) => evidenceByPath.get(path)?.reviewStatus === 'reviewed',
-    ).length,
-    total: unique.length,
-  };
 }

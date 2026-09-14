@@ -103,6 +103,33 @@ describe('CommitGit', () => {
   }
 
   describe('History traversal and pagination', () => {
+    it('maps lightweight and annotated refs once per page without leaking refs from other commits', async () => {
+      const f = await fixture();
+      const root = await commit(f.path, 'root');
+      const tip = await commit(f.path, 'tip');
+      git(f.path, 'branch', 'feature');
+      git(f.path, 'update-ref', 'refs/remotes/origin/feature', tip);
+      git(f.path, 'tag', 'lightweight', tip);
+      git(f.path, 'tag', '-a', 'annotated', '-m', 'annotated', tip);
+      git(f.path, 'checkout', '-b', 'outside', root);
+      await commit(f.path, 'outside');
+      git(f.path, 'checkout', 'main');
+
+      const first = await f.adapter.listCommits({ limit: 1 });
+      expect(first.commits[0]?.oid).toBe(tip);
+      expect(first.commits[0]?.refs).toEqual([
+        'refs/heads/feature',
+        'refs/heads/main',
+        'refs/remotes/origin/feature',
+        'refs/tags/annotated',
+        'refs/tags/lightweight',
+      ]);
+      if (!first.nextCursor) throw new Error('Missing cursor');
+      const second = await f.adapter.listCommits({ cursor: first.nextCursor });
+      expect(second.commits[0]?.oid).toBe(root);
+      expect(second.commits[0]?.refs).toEqual([]);
+    });
+
     it('keeps all ancestors in topological order across ref movement, reset and deletion', async () => {
       const f = await fixture();
       const root = await commit(f.path, 'root');

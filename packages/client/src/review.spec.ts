@@ -102,6 +102,46 @@ describe('review transport', () => {
       comparison: { parentNumber: parent, baseOid: 'c'.repeat(40) },
     });
   });
+  it('validates commit body truncation metadata and full refs from history', async () => {
+    const oid = 'a'.repeat(40);
+    const transport: typeof fetch = async (input) => {
+      expect(String(input)).toBe(
+        `/api/worktrees/${scope.worktreeId}/commits?limit=50`,
+      );
+      return Response.json({
+        snapshot: {
+          tipOid: oid,
+          head: { kind: 'attached', ref: 'refs/heads/main' },
+        },
+        commits: [
+          {
+            oid,
+            parentOids: [],
+            author: { name: 'Ada', timestamp: '2026-09-14T00:00:00Z' },
+            subject: 'Subject',
+            subjectTruncated: false,
+            body: 'line one\nline two',
+            bodyTruncated: false,
+            refs: ['refs/heads/main', 'refs/tags/v1'],
+          },
+        ],
+        nextCursor: null,
+        boundary: null,
+      });
+    };
+
+    await expect(
+      createReviewClient(transport, '/api').history(scope),
+    ).resolves.toMatchObject({
+      commits: [
+        {
+          body: 'line one\nline two',
+          bodyTruncated: false,
+          refs: ['refs/heads/main', 'refs/tags/v1'],
+        },
+      ],
+    });
+  });
   it('loads complete review evidence and durable reviewed marks through scoped routes', async () => {
     const fingerprint = 'a'.repeat(64);
     const calls: string[] = [];

@@ -53,6 +53,11 @@ export function shortOid(oid: string) {
   return oid.slice(0, 7);
 }
 
+/** Remove transport-only ref prefixes while retaining remote ownership. */
+export function historyRefLabel(ref: string) {
+  return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
+}
+
 /** Format a one-based parent number for merge comparisons. */
 export function ordinal(n: number) {
   const tens = n % 100;

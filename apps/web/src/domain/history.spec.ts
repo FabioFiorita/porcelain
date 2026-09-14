@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { historyFollows, layoutGraph, ordinal, shortOid } from './history';
+import {
+  historyFollows,
+  historyRefLabel,
+  layoutGraph,
+  ordinal,
+  shortOid,
+} from './history';
 
 const oid = (value: string) => value.repeat(40);
 const commit = (value: string, parentOids: string[] = []) => ({
@@ -8,6 +14,9 @@ const commit = (value: string, parentOids: string[] = []) => ({
   author: { name: 'Author', timestamp: '2026-09-13T00:00:00.000Z' },
   subject: value,
   subjectTruncated: false,
+  body: null,
+  bodyTruncated: false,
+  refs: [],
 });
 
 describe('history domain', () => {
@@ -40,6 +49,14 @@ describe('history domain', () => {
 
   it('shortens commit IDs for compact rows', () => {
     expect(shortOid(oid('a'))).toBe('aaaaaaa');
+  });
+
+  it('formats full branch, remote and tag refs for compact labels', () => {
+    expect([
+      historyRefLabel('refs/heads/feature/review'),
+      historyRefLabel('refs/remotes/origin/feature/review'),
+      historyRefLabel('refs/tags/v1.2.3'),
+    ]).toEqual(['feature/review', 'origin/feature/review', 'v1.2.3']);
   });
 
   it('formats merge parent numbers without teen suffix mistakes', () => {

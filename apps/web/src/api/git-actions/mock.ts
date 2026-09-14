@@ -121,6 +121,9 @@ function applyMockAction(
 ) {
   if (action === 'commit') {
     const oid = createId().replaceAll('-', '').padEnd(40, '0');
+    const message = 'message' in input ? input.message : 'Mock commit';
+    const [subject = '', ...bodyLines] = message.split('\n');
+    const bodyText = bodyLines.join('\n').trim();
     data.history.commits.unshift({
       oid,
       parentOids: data.status.headOid ? [data.status.headOid] : [],
@@ -128,8 +131,11 @@ function applyMockAction(
         name: 'Mock developer',
         timestamp: new Date().toISOString(),
       },
-      subject: 'message' in input ? input.message : 'Mock commit',
+      subject,
       subjectTruncated: false,
+      body: bodyText || null,
+      bodyTruncated: false,
+      refs: [],
     });
     data.status.headOid = oid;
     data.history.snapshot.tipOid = oid;

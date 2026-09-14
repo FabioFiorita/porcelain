@@ -43,6 +43,9 @@ const historyState = vi.hoisted(() => ({
       author: { name: 'Fabio Fiorita', timestamp: '2026-09-14T12:00:00Z' },
       subject: 'Keep commit review compact',
       subjectTruncated: false,
+      body: 'First line\n\n  Second line',
+      bodyTruncated: false,
+      refs: ['refs/heads/main', 'refs/remotes/origin/main', 'refs/tags/v1'],
     },
   ],
 }));
@@ -127,7 +130,10 @@ afterEach(() => {
     },
   ];
   const firstCommit = historyState.commits[0];
-  if (firstCommit) firstCommit.subject = 'Keep commit review compact';
+  if (firstCommit) {
+    firstCommit.subject = 'Keep commit review compact';
+    firstCommit.bodyTruncated = false;
+  }
 });
 
 describe('file document display defaults', () => {
@@ -168,6 +174,12 @@ describe('file document display defaults', () => {
     );
 
     expect(screen.getByText('Keep commit review compact')).toBeTruthy();
+    const body = screen.getByText(/First line/u);
+    expect(body.textContent).toBe('First line\n\n  Second line');
+    expect(screen.getByText('main')).toBeTruthy();
+    expect(screen.getByText('origin/main')).toBeTruthy();
+    expect(screen.getByText('v1')).toBeTruthy();
+    expect(screen.getByTitle('refs/heads/main')).toBeTruthy();
     expect(screen.getByText(/Fabio Fiorita/u)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Copy id' })).toBeTruthy();
     expect(screen.getByTestId('code-document')).toBeTruthy();
@@ -176,6 +188,22 @@ describe('file document display defaults', () => {
     });
     await user.click(secondParent);
     expect(secondParent.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('discloses when the displayed commit body is truncated', () => {
+    const firstCommit = historyState.commits[0];
+    if (!firstCommit) throw new Error('Missing history fixture');
+    firstCommit.bodyTruncated = true;
+
+    render(
+      <DocumentView
+        scope={scope}
+        document={{ kind: 'commit', oid: commitState.commitOid }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Commit message truncated')).toBeTruthy();
   });
 
   it('identifies binary and submodule changes that have no code preview', () => {

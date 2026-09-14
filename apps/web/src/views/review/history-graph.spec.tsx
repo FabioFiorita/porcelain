@@ -9,6 +9,9 @@ const commit = (value: string, parentOids: string[] = []) => ({
   author: { name: 'Author', timestamp: '2026-09-13T00:00:00.000Z' },
   subject: value,
   subjectTruncated: false,
+  body: null,
+  bodyTruncated: false,
+  refs: [],
 });
 
 describe('historyGraphWidth', () => {

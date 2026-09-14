@@ -1,17 +1,14 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CopyIcon, FileDiffIcon, MessageSquarePlusIcon } from 'lucide-react';
 import { useMemo, useState, useTransition } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DocumentRef } from '../../domain/documents';
-import { ordinal } from '../../domain/history';
-import type {
-  CommitChanges,
-  ReviewEvidenceItem,
-  ReviewScope,
-} from '../../domain/review';
-import { changePath, shortOid } from '../../domain/review';
+import { historyRefLabel, ordinal } from '../../domain/history';
+import type { CommitChanges, ReviewScope } from '../../domain/review';
+import { changePath, reviewProgress, shortOid } from '../../domain/review';
 import { useHistory } from '../../query/history';
 import {
   useChanges,
@@ -36,6 +33,21 @@ import { ReviewEmpty } from './review-empty';
 import { MarkAllReviewed } from './reviewed-control';
 
 export type OpenDocument = (ref: DocumentRef) => void;
+
+function ProgressPill({ done, total }: { done: number; total: number }) {
+  return (
+    <div className="hidden items-center gap-2 text-[11px] text-muted-foreground md:flex">
+      <Progress
+        value={total === 0 ? 0 : (done / total) * 100}
+        className="w-20"
+        aria-label={`${done} of ${total} files reviewed`}
+      />
+      <span className="tabular-nums">
+        {done}/{total}
+      </span>
+    </div>
+  );
+}
 
 export function DocumentView({
   scope,
@@ -92,18 +104,7 @@ function HandoffDocument({
             : `${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
         }
       >
-        <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
-          <Progress
-            value={
-              progress.total === 0 ? 0 : (progress.done / progress.total) * 100
-            }
-            className="w-20"
-            aria-label={`${progress.done} of ${progress.total} files reviewed`}
-          />
-          <span className="tabular-nums">
-            {progress.done}/{progress.total}
-          </span>
-        </div>
+        <ProgressPill {...progress} />
         <MarkAllReviewed scope={scope} entries={evidence} />
       </DocumentToolbar>
       <ReviewCodeDocument
@@ -139,6 +140,15 @@ function LayerDocument({
 }) {
   const { status, layers } = useChanges(scope);
   const layer = layers.layers.find((candidate) => candidate.id === layerId);
+  const layerPaths = uniquePaths(layer?.files.map((file) => file.path) ?? []);
+  const layerPathSet = new Set(layerPaths);
+  const changes = status.changes.filter((change) =>
+    layerPathSet.has(changePath(change)),
+  );
+  const evidence = useReviewEvidence(scope, changes).filter((entry) =>
+    layerPathSet.has(entry.path),
+  );
+
   if (!layer)
     return (
       <ReviewEmpty
@@ -147,33 +157,29 @@ function LayerDocument({
       />
     );
 
-  // A layer names a logical path. Include every current comparison for that
-  // path so staged and unstaged evidence cannot disappear from the layer.
-  const layerPaths = new Set(layer.files.map((file) => file.path));
-  const changes = status.changes.filter((change) =>
-    layerPaths.has(changePath(change)),
-  );
-  const paths = [...new Set(changes.map(changePath))];
+  const progress = reviewProgress(layerPaths, evidence);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <DocumentToolbar
+        title={`${layers.layers.indexOf(layer) + 1}. ${layer.title}`}
+        subtitle={`Layer · ${layerPaths.length} ${layerPaths.length === 1 ? 'file' : 'files'}`}
+      >
+        <ProgressPill {...progress} />
+        <MarkAllReviewed scope={scope} entries={evidence} />
+      </DocumentToolbar>
       <ReviewCodeDocument
         scope={scope}
         changes={changes}
-        header={() => (
-          <div className="mx-4 mt-3 rounded-xl border bg-muted/30 px-4 py-3">
-            <p className="text-xs text-muted-foreground">
-              Layer {layers.layers.indexOf(layer) + 1} · {paths.length}{' '}
-              {paths.length === 1 ? 'file' : 'files'}
-            </p>
-            <h1 className="mt-1 text-base font-medium">{layer.title}</h1>
-            {layer.summary && (
+        header={() =>
+          layer.summary == null ? null : (
+            <div className="mx-4 mt-3 rounded-xl border bg-muted/30 px-4 py-3">
               <MarkdownView
                 text={layer.summary}
                 className="mt-1 max-w-[78ch] text-muted-foreground"
               />
-            )}
-          </div>
-        )}
+            </div>
+          )
+        }
       />
     </div>
   );
@@ -481,6 +487,16 @@ function CommitHeader({
       <h2 className="text-sm font-semibold">
         {historyEntry?.subject ?? 'Commit'}
       </h2>
+      {historyEntry?.body != null && (
+        <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
+          {historyEntry.body}
+        </p>
+      )}
+      {historyEntry?.bodyTruncated && (
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Commit message truncated
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
         {historyEntry != null && (
           <span>
@@ -504,6 +520,16 @@ function CommitHeader({
         ) : (
           <span>root commit</span>
         )}
+        {historyEntry?.refs.map((ref) => (
+          <Badge
+            key={ref}
+            title={ref}
+            variant="secondary"
+            className="h-4 px-1.5 text-[10px] font-normal"
+          >
+            {historyRefLabel(ref)}
+          </Badge>
+        ))}
       </div>
       {omitted.length > 0 && <OmittedCommitChanges changes={omitted} />}
     </section>
@@ -550,18 +576,4 @@ function OmittedCommitChanges({
 
 function uniquePaths(paths: readonly string[]) {
   return [...new Set(paths.filter(Boolean))];
-}
-
-function reviewProgress(
-  paths: readonly string[],
-  evidence: readonly ReviewEvidenceItem[],
-) {
-  const evidenceByPath = new Map(evidence.map((item) => [item.path, item]));
-  const unique = uniquePaths(paths);
-  return {
-    done: unique.filter(
-      (path) => evidenceByPath.get(path)?.reviewStatus === 'reviewed',
-    ).length,
-    total: unique.length,
-  };
 }

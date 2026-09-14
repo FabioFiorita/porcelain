@@ -146,6 +146,9 @@ export function reviewFixture(
       },
       subject,
       subjectTruncated: false,
+      body: null,
+      bodyTruncated: false,
+      refs: [],
     })),
   };
   const artifacts: ArtifactContent[] = [

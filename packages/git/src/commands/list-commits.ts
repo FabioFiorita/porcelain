@@ -46,6 +46,8 @@ export async function listCommits(
   const commits = [];
   for (const oid of oids.slice(0, limit))
     commits.push(await readCommit(checkout.path, oid, signal));
+  const refs = await readCommitRefs(checkout.path, signal);
+  for (const commit of commits) commit.refs = refs.get(commit.oid) ?? [];
   const more = oids.length > limit;
   const shallow =
     (
@@ -75,6 +77,34 @@ export async function listCommits(
   if (Buffer.byteLength(JSON.stringify(result)) > 1024 * 1024)
     throw new ReadLimitExceededError();
   return result;
+}
+
+async function readCommitRefs(
+  checkout: string,
+  signal?: AbortSignal,
+): Promise<Map<string, string[]>> {
+  const output = await executeHistoryCommand(
+    checkout,
+    [
+      'for-each-ref',
+      '--format=%(refname)%00%(objectname)%00%(*objectname)',
+      'refs/heads',
+      'refs/remotes',
+      'refs/tags',
+    ],
+    signal,
+  );
+  const refs = new Map<string, string[]>();
+  for (const line of output.split('\n')) {
+    if (!line) continue;
+    const [name, object, peeled] = line.split('\0');
+    if (!name || !object) continue;
+    const target = peeled || object;
+    const names = refs.get(target) ?? [];
+    names.push(name);
+    refs.set(target, names);
+  }
+  return refs;
 }
 
 function validatePage(

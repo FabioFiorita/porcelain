@@ -5,6 +5,7 @@ import {
   changePath,
   groupChanges,
   reviewMark,
+  reviewProgress,
   reviewStatus,
 } from './review';
 
@@ -77,5 +78,32 @@ describe('reviewed evidence state', () => {
       'unreviewed',
     );
     expect(reviewMark(entry, [mark])).toEqual(mark);
+  });
+});
+
+describe('review progress', () => {
+  it('counts each logical path once across duplicate scopes', () => {
+    expect(
+      reviewProgress(
+        ['README.md', 'README.md', 'src/app.tsx'],
+        [
+          { path: 'README.md', reviewStatus: 'reviewed' },
+          { path: 'src/app.tsx', reviewStatus: 'unreviewed' },
+        ],
+      ),
+    ).toEqual({ done: 1, total: 2 });
+  });
+
+  it('keeps stale and missing evidence incomplete', () => {
+    expect(
+      reviewProgress(
+        ['README.md', 'missing.ts'],
+        [{ path: 'README.md', reviewStatus: 'stale' }],
+      ),
+    ).toEqual({ done: 0, total: 2 });
+  });
+
+  it('reports an empty layer as empty rather than complete', () => {
+    expect(reviewProgress([], [])).toEqual({ done: 0, total: 0 });
   });
 });

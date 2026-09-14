@@ -1,10 +1,16 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { GitBranchIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
-import { historyFollows, layoutGraph, shortOid } from '../../domain/history';
+import {
+  historyFollows,
+  historyRefLabel,
+  layoutGraph,
+  shortOid,
+} from '../../domain/history';
 import type { ReviewScope } from '../../domain/review';
 import { discardRejection } from '../../lib/submit-form';
 import { useHistory } from '../../query/history';
@@ -117,6 +123,20 @@ function HistoryPage({
                       )}
                     </span>
                   </span>
+                  {commit.refs.length > 0 && (
+                    <span className="flex gap-1 overflow-hidden">
+                      {commit.refs.map((ref) => (
+                        <Badge
+                          key={ref}
+                          title={ref}
+                          variant="secondary"
+                          className="h-4 shrink-0 px-1.5 text-[9.5px] font-normal"
+                        >
+                          {historyRefLabel(ref)}
+                        </Badge>
+                      ))}
+                    </span>
+                  )}
                 </button>
               );
             })}
