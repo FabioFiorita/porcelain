@@ -1,20 +1,14 @@
+import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { LogOutIcon, PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
@@ -31,7 +25,9 @@ import { useInventory, useRefreshInventory } from '../../query/inventory';
 import { ReviewWorkspace } from '../review/review-workspace';
 import { OpenProjectDialog } from './open-project-dialog';
 import { ProjectNavigator } from './project-navigator';
-import { WorkspaceControls } from './workspace-controls';
+import { SettingsDialog } from './settings-dialog';
+import { SHORTCUTS } from './shortcuts';
+import { ShortcutsDialog } from './shortcuts-dialog';
 
 export function ConnectedWorkspace() {
   return (
@@ -48,20 +44,45 @@ export function ConnectedWorkspace() {
 
 function WorkspaceNavigation() {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const refreshReviewTrigger = useRef<HTMLButtonElement>(null);
   const [openProject, setOpenProject] = useState(false);
-  const { setOpenMobile, isMobile, open } = useSidebar();
+  const [settings, setSettings] = useState(false);
+  const [shortcuts, setShortcuts] = useState(false);
+  const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
+    useSidebar();
   const { disconnect, disconnectError, disconnectPending } = useConnection();
   const { worktree: selected } = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
   const inventory = useInventory();
   const refresh = useRefreshInventory();
   const selection = selectedWorktreeInProject(inventory, selected);
-  const fallback = firstAvailableWorktree(inventory);
+  const fallback = firstWaitingWorktree(inventory);
   const error = disconnectError ?? refresh.error;
+  const errorMessage =
+    error == null
+      ? undefined
+      : `${connectionErrorMessage(error)}${refresh.error ? ' Displayed inventory may be out of date.' : ''}`;
+
   useEffect(() => {
     if (selection || !fallback) return;
     void navigate({ search: { worktree: fallback.id }, replace: true });
   }, [fallback, navigate, selection]);
+
+  useHotkey(
+    SHORTCUTS.toggleNavigator,
+    () => {
+      if (!isMobile && open) refreshReviewTrigger.current?.focus();
+      toggleSidebar();
+    },
+    { ignoreInputs: true },
+  );
+  useHotkey(SHORTCUTS.openSettings, () => setSettings(true), {
+    ignoreInputs: true,
+  });
+  useHotkey(SHORTCUTS.openShortcuts, () => setShortcuts(true), {
+    ignoreInputs: true,
+  });
+
   return (
     <>
       <Sidebar
@@ -70,105 +91,51 @@ function WorkspaceNavigation() {
         className="workspace-sidebar"
         inert={!isMobile && !open}
       >
-        <SidebarHeader className="border-b px-3 py-2">
-          <div className="flex h-8 items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-md bg-foreground text-xs font-semibold text-background">
-              P
-            </span>
-            <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
-              Porcelain
-            </h1>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Open project"
-              title="Open project"
-              onClick={() => setOpenProject(true)}
-            >
-              <PlusIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Refresh"
-              title="Refresh projects"
-              disabled={refresh.isPending}
-              onClick={() => discardRejection(refresh.submit())}
-            >
-              <RefreshCwIcon
-                className={
-                  refresh.isPending
-                    ? 'animate-spin motion-reduce:animate-none'
-                    : ''
-                }
-              />
-            </Button>
-            <SidebarTrigger
-              aria-label="Close projects sidebar"
-              className="md:hidden"
-            />
-          </div>
-        </SidebarHeader>
-        {error && (
-          <Alert variant="destructive" className="mx-2 mb-2 py-2 text-xs">
-            <AlertDescription>
-              {connectionErrorMessage(error)}
-              {refresh.error && ' Displayed inventory may be out of date.'}
-            </AlertDescription>
-          </Alert>
-        )}
-        <SidebarContent className="overflow-hidden px-0">
-          <ScrollArea className="h-full min-h-0 flex-1">
-            <ProjectNavigator
-              projects={inventory.projects}
-              selected={selected ?? null}
-              onSelect={(id) => {
-                void navigate({ search: { worktree: id } });
-                setOpenMobile(false);
-              }}
-            />
-          </ScrollArea>
-        </SidebarContent>
-        <SidebarFooter className="border-t p-2">
-          <div className="flex items-center gap-1">
-            <span
-              role="status"
-              className="min-w-0 flex-1 truncate px-2 text-xs text-muted-foreground"
-            >
-              {error ? 'Connection needs attention' : 'Connected'}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Disconnect"
-              title="Disconnect environment"
-              disabled={disconnectPending}
-              onClick={() => {
-                void disconnect();
-                void navigate({ search: {} });
-              }}
-            >
-              <LogOutIcon />
-            </Button>
-          </div>
-        </SidebarFooter>
+        <ProjectNavigator
+          inventory={inventory}
+          selectedWorktreeId={selected}
+          onOpenProject={() => setOpenProject(true)}
+          onOpenSettings={() => setSettings(true)}
+          onOpenShortcuts={() => setShortcuts(true)}
+          onRefresh={() => discardRejection(refresh.submit())}
+          refreshPending={refresh.isPending}
+          error={errorMessage}
+          status={error ? 'Connection needs attention' : 'Connected'}
+          onDisconnect={() => {
+            void disconnect();
+            void navigate({ search: {} });
+          }}
+          disconnectPending={disconnectPending}
+          showThemeToggle
+          onSelect={(id) => {
+            void navigate({ search: { worktree: id } });
+            setOpenMobile(false);
+          }}
+        />
       </Sidebar>
+
       <SidebarInset className="h-svh min-w-0 overflow-hidden bg-transparent p-2 md:pl-0">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {selection ? (
             <ReviewWorkspace
               key={selection.worktree.id}
               navigationTrigger={navigationTrigger}
+              refreshTrigger={refreshReviewTrigger}
               worktree={selection.worktree}
               projectId={selection.projectId}
             />
           ) : (
-            <>
-              <WorkspaceControls navigationTrigger={navigationTrigger}>
-                <span className="min-w-0 flex-1 text-sm text-muted-foreground">
-                  Workspace
-                </span>
-              </WorkspaceControls>
+            <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
+              <SidebarTrigger
+                ref={navigationTrigger}
+                className="absolute top-3 left-3"
+                aria-label="Toggle Sidebar"
+                aria-expanded={isMobile ? openMobile : open}
+                aria-keyshortcuts={
+                  detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                }
+                title={`Toggle projects (${SHORTCUTS.toggleNavigator})`}
+              />
               <Empty>
                 <EmptyHeader>
                   <EmptyTitle>Select a worktree</EmptyTitle>
@@ -177,11 +144,27 @@ function WorkspaceNavigation() {
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
-            </>
+            </div>
           )}
         </div>
       </SidebarInset>
+
       <OpenProjectDialog open={openProject} onOpenChange={setOpenProject} />
+      <SettingsDialog open={settings} onOpenChange={setSettings} />
+      <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />
     </>
   );
+}
+
+function firstWaitingWorktree(inventory: ReturnType<typeof useInventory>) {
+  const worktrees = inventory.projects.flatMap((project) => project.worktrees);
+  const waiting = worktrees.find((worktree) => {
+    const summary = (
+      worktree as typeof worktree & {
+        reviewSummary?: { pendingFiles?: number };
+      }
+    ).reviewSummary;
+    return worktree.available && (summary?.pendingFiles ?? 0) > 0;
+  });
+  return waiting ?? firstAvailableWorktree(inventory);
 }

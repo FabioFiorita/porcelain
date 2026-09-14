@@ -2,9 +2,14 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DocumentRef } from '../../domain/documents';
+import type { CommentThread } from '../../domain/comments';
+import { type DocumentRef, entryKey } from '../../domain/documents';
 import type { Status } from '../../domain/review';
 import { ReviewIndex } from './review-index';
+
+const commentState = vi.hoisted(() => ({
+  threads: [] as CommentThread[],
+}));
 
 const status: Status = {
   environmentId: '641a8628-1cd6-4562-81a2-9c05fba76b4a',
@@ -77,8 +82,24 @@ vi.mock('../../query/review', () => ({
     reset: vi.fn(),
   }),
 }));
+vi.mock('../../query/comments', () => ({
+  useComments: () => ({ threads: commentState.threads, error: null }),
+  useReplyComment: () => ({
+    submit: vi.fn(),
+    isPending: false,
+    error: null,
+  }),
+  useResolveComment: () => ({
+    submit: vi.fn(),
+    isPending: false,
+    error: null,
+  }),
+}));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  commentState.threads = [];
+});
 
 describe('review index', () => {
   it('keeps staged and unstaged evidence in one compact file row', async () => {
@@ -110,6 +131,28 @@ describe('review index', () => {
     });
   });
 
+  it('keeps the selected change row on the review surface accent only', () => {
+    render(
+      <ReviewIndex
+        scope={{
+          projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
+          worktreeId: status.worktreeId,
+        }}
+        activeEntry={entryKey({
+          kind: 'change',
+          path: 'src/components/review-panel.tsx',
+        })}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByRole('button', {
+      name: 'review-panel.tsx · staged + unstaged',
+    });
+    expect(row.className).toContain('bg-accent');
+    expect(row.className).not.toContain('workspace-choice');
+  });
+
   it('keeps layer order and compact file counts visible', () => {
     render(
       <ReviewIndex
@@ -127,5 +170,72 @@ describe('review index', () => {
     ).toBeTruthy();
     expect(screen.getByText('2')).toBeTruthy();
     expect(screen.getByText('The whole handoff')).toBeTruthy();
+  });
+
+  it('filters comment threads and routes an anchor to its current document', async () => {
+    commentState.threads = [
+      {
+        id: '00000000-0000-4000-8000-000000000001',
+        worktreeId: status.worktreeId,
+        anchor: {
+          kind: 'codeRange',
+          filePath: 'src/components/review-panel.tsx',
+          startLine: 4,
+          endLine: 5,
+          side: 'additions',
+        },
+        resolved: false,
+        messages: [
+          {
+            id: '00000000-0000-4000-8000-000000000002',
+            body: 'Please check this branch.',
+            author: 'reviewer',
+            createdAt: '2026-09-12T10:00:00Z',
+          },
+        ],
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000003',
+        worktreeId: status.worktreeId,
+        anchor: { kind: 'file', filePath: 'src/components/empty-state.tsx' },
+        resolved: true,
+        messages: [
+          {
+            id: '00000000-0000-4000-8000-000000000004',
+            body: 'Looks good now.',
+            author: 'agent',
+            createdAt: '2026-09-12T11:00:00Z',
+          },
+        ],
+      },
+    ];
+    const onOpen = vi.fn<(ref: DocumentRef) => void>();
+    const user = userEvent.setup();
+
+    render(
+      <ReviewIndex
+        scope={{
+          projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
+          worktreeId: status.worktreeId,
+        }}
+        activeEntry={undefined}
+        onOpen={onOpen}
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: /Comments/ }));
+    expect(screen.getByRole('button', { name: 'open 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'resolved 1' })).toBeTruthy();
+    expect(screen.getByText('Please check this branch.')).toBeTruthy();
+    expect(document.querySelector('[data-slot="bubble"]')).toBeTruthy();
+
+    await user.click(screen.getByTitle('Show in the code'));
+    expect(onOpen).toHaveBeenCalledWith({
+      kind: 'change',
+      path: 'src/components/review-panel.tsx',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'resolved 1' }));
+    expect(screen.getByText('Looks good now.')).toBeTruthy();
   });
 });

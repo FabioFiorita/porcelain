@@ -1,180 +1,388 @@
+import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   ChevronRightIcon,
   CircleAlertIcon,
+  CopyIcon,
   FolderGit2Icon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
   HouseIcon,
+  KeyboardIcon,
+  LogOutIcon,
+  MessageSquareIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SettingsIcon,
 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  type Project,
-  projectPath,
-  worktreeLabel,
-} from '../../domain/inventory';
+import { Spinner } from '@/components/ui/spinner';
+import { cn } from '@/lib/utils';
+import type { Inventory, Project } from '../../domain/inventory';
+import { projectPath, worktreeLabel } from '../../domain/inventory';
+import { copyText } from './copy';
+import { SHORTCUTS } from './shortcuts';
+import { ThemeToggle } from './theme';
 
+type Worktree = Project['worktrees'][number];
+type WorktreeSummary = { pendingFiles?: number; openThreads?: number };
+
+function worktreeDisplayLabel(worktree: Worktree) {
+  return worktreeLabel(worktree.branch);
+}
+
+/**
+ * The legacy props stay available for focused navigator tests and embedders;
+ * the connected workspace passes `inventory` and the device-local controls.
+ */
+type Props = {
+  inventory?: Inventory;
+  projects?: Project[];
+  selectedWorktreeId?: string | undefined;
+  selected?: string | null;
+  onSelect?: (id: string) => void;
+  onOpenProject?: () => void;
+  onOpenSettings?: () => void;
+  onOpenShortcuts?: () => void;
+  onRefresh?: () => void;
+  refreshPending?: boolean;
+  status?: string;
+  error?: string | undefined;
+  onDisconnect?: () => void;
+  disconnectPending?: boolean;
+  showThemeToggle?: boolean;
+};
+
+/** Projects and their worktrees. Navigation only; it never edits git. */
 export function ProjectNavigator({
-  projects,
-  selected,
+  inventory,
+  projects: legacyProjects,
+  selectedWorktreeId,
+  selected: legacySelected,
   onSelect,
-}: {
-  projects: Project[];
-  selected: string | null;
-  onSelect: (id: string) => void;
-}) {
-  if (!projects.length)
-    return (
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>No projects registered</EmptyTitle>
-          <EmptyDescription>
-            This environment has no projects yet.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
+  onOpenProject,
+  onOpenSettings,
+  onOpenShortcuts,
+  onRefresh,
+  refreshPending = false,
+  status,
+  error,
+  onDisconnect,
+  disconnectPending = false,
+  showThemeToggle = false,
+}: Props) {
+  const projects = inventory?.projects ?? legacyProjects ?? [];
+  const selected = selectedWorktreeId ?? legacySelected ?? null;
+  const select = onSelect ?? (() => undefined);
+  const openProject = onOpenProject ?? (() => undefined);
+  const openSettings = onOpenSettings ?? (() => undefined);
+  const openShortcuts = onOpenShortcuts ?? (() => undefined);
+
   return (
     <nav
       aria-label="Projects and worktrees"
-      className="min-w-0 px-2 pb-2 text-[13px]"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-[13px]"
     >
-      <SidebarMenu className="gap-0">
-        {projects.map((project) => {
-          const path = projectPath(project);
-          return (
-            <SidebarMenuItem key={project.id}>
-              <Collapsible defaultOpen className="group/project mb-2">
-                <h3 aria-label={project.name}>
-                  <CollapsibleTrigger
-                    render={<SidebarMenuButton />}
-                    className="h-7 gap-1.5 rounded-md px-1.5 py-1 text-left"
-                    title={project.name}
-                    aria-label={project.name}
-                  >
-                    <ChevronRightIcon
-                      aria-hidden="true"
-                      className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-data-open/project:rotate-90"
-                    />
-                    <FolderGit2Icon
-                      aria-hidden="true"
-                      className="size-3.5 shrink-0 text-muted-foreground"
-                    />
-                    <span className="min-w-0 flex-1 truncate font-medium">
-                      {project.name}
-                    </span>
-                    {!project.available && (
-                      <CircleAlertIcon
-                        aria-label="Project unavailable"
-                        className="size-3.5"
-                      />
-                    )}
-                  </CollapsibleTrigger>
-                </h3>
-                <CollapsibleContent>
-                  {path && (
-                    <p
-                      className="truncate pb-1 pl-8 font-mono text-[10px] text-muted-foreground"
-                      title={path}
-                    >
-                      {path}
-                    </p>
-                  )}
-                  <SidebarMenu className="ml-2 w-[calc(100%-0.5rem)] gap-0 border-l pl-2">
-                    {!project.worktrees.length && (
-                      <li className="px-2 py-2 text-[11px] text-muted-foreground">
-                        No worktrees found.
-                      </li>
-                    )}
-                    {project.worktrees.map((worktree) => {
-                      const Icon = worktree.main
-                        ? HouseIcon
-                        : worktree.branch === null
-                          ? GitCommitHorizontalIcon
-                          : GitBranchIcon;
-                      return (
-                        <SidebarMenuItem key={worktree.id}>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <SidebarMenuButton
-                                  size="sm"
-                                  isActive={selected === worktree.id}
-                                />
-                              }
-                              aria-pressed={selected === worktree.id}
-                              aria-current={
-                                selected === worktree.id ? 'page' : undefined
-                              }
-                              onClick={() => onSelect(worktree.id)}
-                              className="workspace-choice relative h-auto min-h-7 gap-1.5 rounded-lg py-1.5 pr-2 pl-2 text-left text-[12.5px]"
-                            >
-                              <Icon
-                                aria-hidden="true"
-                                className="size-3.5 shrink-0"
-                              />
-                              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                <span className="truncate text-xs">
-                                  {worktreeLabel(worktree.branch)}
-                                </span>
-                                <span className="sr-only">{worktree.path}</span>
-                                {!worktree.available && (
-                                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                    <CircleAlertIcon className="size-3" />
-                                    Unavailable
-                                  </span>
-                                )}
-                              </span>
-                              {worktree.main && (
-                                <Badge
-                                  variant="secondary"
-                                  className="h-4 min-w-4 shrink-0 justify-center px-1 text-[10px]"
-                                >
-                                  Main<span className="sr-only"> worktree</span>
-                                </Badge>
-                              )}
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="right"
-                              className="max-w-80 break-all"
-                            >
-                              <span>
-                                {worktreeLabel(worktree.branch)}
-                                <br />
-                                {worktree.path}
-                              </span>
-                            </TooltipContent>
-                          </Tooltip>
-                        </SidebarMenuItem>
-                      );
-                    })}
-                  </SidebarMenu>
-                </CollapsibleContent>
-              </Collapsible>
-            </SidebarMenuItem>
-          );
-        })}
-      </SidebarMenu>
+      <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+        <span
+          aria-hidden="true"
+          className="grid size-6 shrink-0 place-items-center rounded-md bg-foreground text-xs font-semibold text-background"
+        >
+          P
+        </span>
+        <span className="min-w-0 truncate text-sm font-semibold">
+          Porcelain
+        </span>
+        <div className="ml-auto flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Open project"
+            title="Open project"
+            onClick={openProject}
+          >
+            <PlusIcon />
+          </Button>
+          {onRefresh != null && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Refresh"
+              title="Refresh projects"
+              disabled={refreshPending}
+              onClick={onRefresh}
+            >
+              {refreshPending ? <Spinner /> : <RefreshCwIcon />}
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {error != null && (
+        <Alert variant="destructive" className="mx-2 mt-2 py-2 text-xs">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
+        {projects.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>No projects registered</EmptyTitle>
+              <EmptyDescription>
+                This environment has no projects yet.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          projects.map((project) => (
+            <ProjectSection
+              key={project.id}
+              project={project}
+              selected={selected}
+              onSelect={select}
+            />
+          ))
+        )}
+      </div>
+
+      <footer className="flex shrink-0 flex-col gap-1 border-t p-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            className="h-8 min-w-0 flex-1 justify-start gap-2 px-2 text-xs text-muted-foreground"
+            aria-keyshortcuts={SHORTCUTS.openSettings}
+            title={`Settings (${formatForDisplay(SHORTCUTS.openSettings)})`}
+            onClick={openSettings}
+          >
+            <SettingsIcon />
+            Settings
+          </Button>
+          {showThemeToggle && <ThemeToggle />}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            aria-label="Keyboard shortcuts"
+            aria-keyshortcuts={SHORTCUTS.openShortcuts}
+            title={`Keyboard shortcuts (${formatForDisplay(SHORTCUTS.openShortcuts)})`}
+            onClick={openShortcuts}
+          >
+            <KeyboardIcon />
+          </Button>
+        </div>
+        {(status != null || onDisconnect != null) && (
+          <div className="flex items-center gap-1">
+            {status != null && (
+              <span
+                role="status"
+                className="min-w-0 flex-1 truncate px-2 text-[11px] text-muted-foreground"
+              >
+                {status}
+              </span>
+            )}
+            {onDisconnect != null && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground"
+                aria-label="Disconnect"
+                title="Disconnect environment"
+                disabled={disconnectPending}
+                onClick={onDisconnect}
+              >
+                <LogOutIcon />
+              </Button>
+            )}
+          </div>
+        )}
+      </footer>
     </nav>
+  );
+}
+
+function ProjectSection({
+  project,
+  selected,
+  onSelect,
+}: {
+  project: Project;
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const path = projectPath(project);
+  return (
+    <Collapsible defaultOpen className="group/project mb-2">
+      <ContextMenu>
+        <ContextMenuTrigger render={<div className="rounded-md" />}>
+          <CollapsibleTrigger
+            render={
+              <button
+                type="button"
+                title={project.name}
+                aria-label={project.name}
+                className="flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left hover:bg-accent"
+              />
+            }
+          >
+            <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-data-open/project:rotate-90" />
+            <FolderGit2Icon className="size-3.5 shrink-0 text-muted-foreground" />
+            <h3 className="min-w-0 flex-1 truncate text-left font-medium">
+              {project.name}
+            </h3>
+            {!project.available && (
+              <CircleAlertIcon
+                aria-label="Project unavailable"
+                className="size-3.5 shrink-0 text-muted-foreground"
+              />
+            )}
+          </CollapsibleTrigger>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="min-w-44">
+          <ContextMenuItem onClick={() => copyText(path, 'project path')}>
+            <CopyIcon />
+            Copy path
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <CollapsibleContent>
+        {path && (
+          <p
+            className="truncate pb-1 pl-8 font-mono text-[10.5px] text-muted-foreground"
+            title={path}
+          >
+            {path}
+          </p>
+        )}
+        {project.worktrees.length === 0 ? (
+          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+            No worktrees found.
+          </p>
+        ) : (
+          project.worktrees.map((worktree) => (
+            <WorktreeRow
+              key={worktree.id}
+              worktree={worktree}
+              projectName={project.name}
+              selected={selected === worktree.id}
+              onSelect={onSelect}
+            />
+          ))
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function WorktreeRow({
+  worktree,
+  projectName,
+  selected,
+  onSelect,
+}: {
+  worktree: Worktree;
+  projectName: string;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const Icon = worktree.main
+    ? HouseIcon
+    : worktree.branch === null
+      ? GitCommitHorizontalIcon
+      : GitBranchIcon;
+  const summary = (worktree as Worktree & { reviewSummary?: WorktreeSummary })
+    .reviewSummary;
+  const pending = summary?.pendingFiles ?? 0;
+  const openThreads = summary?.openThreads ?? 0;
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <button
+            type="button"
+            aria-pressed={selected}
+            aria-current={selected ? 'page' : undefined}
+            data-unavailable={!worktree.available || undefined}
+            onClick={() => onSelect(worktree.id)}
+            className={cn(
+              'flex w-full min-w-0 items-center gap-1.5 rounded-lg py-1.5 pr-2 pl-7 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+              selected && 'bg-accent font-medium text-foreground',
+              !worktree.available && 'opacity-60',
+            )}
+          />
+        }
+      >
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate">{worktreeDisplayLabel(worktree)}</span>
+          <span className="sr-only">{worktree.path}</span>
+          <span className="sr-only">{projectName}</span>
+          {!worktree.available && (
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <CircleAlertIcon className="size-3" aria-hidden="true" />
+              Unavailable
+            </span>
+          )}
+        </span>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {openThreads > 0 && (
+            <span
+              className="flex items-center gap-0.5 text-[10.5px]"
+              role="img"
+              aria-label={`${openThreads} open review ${openThreads === 1 ? 'thread' : 'threads'}`}
+            >
+              <MessageSquareIcon className="size-3" aria-hidden="true" />
+              {openThreads}
+            </span>
+          )}
+          {pending > 0 && (
+            <Badge
+              className="h-4 min-w-4 justify-center px-1 text-[10px]"
+              aria-label={`${pending} pending ${pending === 1 ? 'file' : 'files'}`}
+            >
+              {pending}
+            </Badge>
+          )}
+          {worktree.main && <span className="sr-only">Main worktree</span>}
+        </span>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="min-w-44">
+        <ContextMenuItem
+          onClick={() =>
+            copyText(worktreeDisplayLabel(worktree), 'branch name')
+          }
+          disabled={worktree.branch == null}
+        >
+          <GitBranchIcon />
+          Copy name
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => copyText(worktree.path, 'worktree path')}
+        >
+          <CopyIcon />
+          Copy path
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

@@ -47,7 +47,12 @@ function CodeBlock(props: ComponentProps<'pre'> & { 'data-lang'?: string }) {
     <div className="my-3 overflow-hidden rounded-lg border">
       <File
         file={{ name: `snippet.${EXTENSION[lang] ?? 'txt'}`, contents }}
-        options={createPierreFileOptions(dark ? 'dark' : 'light')}
+        options={createPierreFileOptions(dark ? 'dark' : 'light', {
+          // Markdown code blocks stay readable at their natural width in the
+          // prototype; the document-level overflow preference applies to
+          // source files and diffs instead.
+          overflow: 'wrap',
+        })}
       />
     </div>
   );

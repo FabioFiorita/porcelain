@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DiffPreview, SourcePreview } from './pierre-preview';
 
 const themeState = vi.hoisted(() => ({ dark: false }));
+const preferenceState = vi.hoisted(() => ({
+  diffStyle: 'unified' as 'unified' | 'split',
+  lineOverflow: 'scroll' as 'scroll' | 'wrap',
+}));
 
 vi.mock('@pierre/diffs/react', () => ({
   File: ({
@@ -11,14 +15,30 @@ vi.mock('@pierre/diffs/react', () => ({
     options,
   }: {
     file: { name: string; contents: string };
-    options: { themeType: string };
+    options: { themeType: string; overflow?: string };
   }) => (
-    <pre data-testid="pierre-file" data-theme={options.themeType}>
+    <pre
+      data-testid="pierre-file"
+      data-theme={options.themeType}
+      data-overflow={options.overflow}
+    >
       {`${file.name}\n${file.contents}`}
     </pre>
   ),
-  PatchDiff: ({ patch }: { patch: string }) => (
-    <pre data-testid="pierre-diff">{patch}</pre>
+  PatchDiff: ({
+    patch,
+    options,
+  }: {
+    patch: string;
+    options: { overflow?: string; diffStyle?: string };
+  }) => (
+    <pre
+      data-testid="pierre-diff"
+      data-overflow={options.overflow}
+      data-diff-style={options.diffStyle}
+    >
+      {patch}
+    </pre>
   ),
   Virtualizer: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="pierre-virtualizer">{children}</div>
@@ -27,10 +47,15 @@ vi.mock('@pierre/diffs/react', () => ({
 vi.mock('../workspace/theme', () => ({
   useTheme: () => ({ dark: themeState.dark, toggle: vi.fn() }),
 }));
+vi.mock('../workspace/preferences', () => ({
+  usePreferences: () => ({ preferences: preferenceState }),
+}));
 
 afterEach(() => {
   cleanup();
   themeState.dark = false;
+  preferenceState.diffStyle = 'unified';
+  preferenceState.lineOverflow = 'scroll';
 });
 
 describe('Pierre previews', () => {
@@ -82,5 +107,22 @@ describe('Pierre previews', () => {
     );
 
     expect(screen.getByTestId('pierre-file').dataset.theme).toBe('dark');
+  });
+
+  it('passes the persisted line overflow preference to source files', () => {
+    preferenceState.lineOverflow = 'wrap';
+    render(<SourcePreview path="src/example.ts" contents="export {};" />);
+
+    expect(screen.getByTestId('pierre-file').dataset.overflow).toBe('wrap');
+  });
+
+  it('passes the persisted diff layout and line overflow preferences to diffs', () => {
+    preferenceState.diffStyle = 'split';
+    preferenceState.lineOverflow = 'wrap';
+    render(<DiffPreview patch={'-old\n+new'} />);
+
+    const diff = screen.getByTestId('pierre-diff');
+    expect(diff.dataset.diffStyle).toBe('split');
+    expect(diff.dataset.overflow).toBe('wrap');
   });
 });

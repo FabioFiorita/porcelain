@@ -83,7 +83,7 @@ describe('ProjectNavigator', () => {
         .getByRole('button', { name: /agent\/review/ })
         .getAttribute('aria-current'),
     ).toBe('page');
-    expect(screen.getByText('Main')).toBeTruthy();
+    expect(screen.getByText('main')).toBeTruthy();
   });
 
   it('keeps unavailable worktrees selectable for archived review data', async () => {

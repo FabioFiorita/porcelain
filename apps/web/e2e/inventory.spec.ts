@@ -49,9 +49,7 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   if (await openReview.isVisible()) await openReview.click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: 'README.md', exact: true }).click();
-  await expect(
-    page.getByRole('region', { name: 'Read-only code' }),
-  ).toContainText('Porcelain');
+  await expect(page.getByRole('article')).toContainText('Porcelain');
   const feedback = `File feedback ${crypto.randomUUID()}`;
   await page.getByRole('button', { name: 'Add comment' }).click();
   await page.getByLabel('Comment', { exact: true }).fill(feedback);
@@ -181,9 +179,8 @@ test('shows empty and unavailable inventory and recovers from a failed refresh',
   await expect(worktree).toContainText('Unavailable');
   await worktree.click();
   await expect(page).toHaveURL(/worktree=801a8628/);
-  await expect(
-    page.getByRole('heading', { name: 'Detached HEAD', exact: true }),
-  ).toBeVisible();
+  await expect(worktree).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('No changes to review')).toBeVisible();
 });
 
 test('disconnect prevents a late refresh from restoring private inventory', async ({

@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CodeDocument, type CodeEntry } from './code-document';
 
+const preferenceState = vi.hoisted(() => ({
+  diffStyle: 'unified' as 'unified' | 'split',
+  lineOverflow: 'scroll' as 'scroll' | 'wrap',
+}));
+
 vi.mock('@pierre/diffs/react', () => ({
   CodeView: ({
     items,
@@ -11,10 +16,19 @@ vi.mock('@pierre/diffs/react', () => ({
     renderHeaderPrefix,
   }: {
     items: Array<{ id: string; collapsed?: boolean }>;
-    options: { themeType: string };
+    options: {
+      themeType: string;
+      overflow?: string;
+      diffStyle?: string;
+    };
     renderHeaderPrefix: (item: { id: string }) => React.ReactNode;
   }) => (
-    <div data-testid="code-view" data-theme={options.themeType}>
+    <div
+      data-testid="code-view"
+      data-theme={options.themeType}
+      data-overflow={options.overflow}
+      data-diff-style={options.diffStyle}
+    >
       {items.map((item) => (
         <section
           key={item.id}
@@ -30,8 +44,15 @@ vi.mock('@pierre/diffs/react', () => ({
 vi.mock('../workspace/theme', () => ({
   useTheme: () => ({ dark: false, toggle: vi.fn() }),
 }));
+vi.mock('../workspace/preferences', () => ({
+  usePreferences: () => ({ preferences: preferenceState }),
+}));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  preferenceState.diffStyle = 'unified';
+  preferenceState.lineOverflow = 'scroll';
+});
 
 describe('continuous code document', () => {
   const entries: CodeEntry[] = [
@@ -85,5 +106,15 @@ describe('continuous code document', () => {
     expect(
       entries.map((entry) => screen.getByTestId(entry.id).dataset.collapsed),
     ).toEqual(['false', 'false']);
+  });
+
+  it('passes the persisted code display preferences to Pierre', () => {
+    preferenceState.diffStyle = 'split';
+    preferenceState.lineOverflow = 'wrap';
+    render(<CodeDocument entries={entries} />);
+
+    const codeView = screen.getByTestId('code-view');
+    expect(codeView.dataset.diffStyle).toBe('split');
+    expect(codeView.dataset.overflow).toBe('wrap');
   });
 });

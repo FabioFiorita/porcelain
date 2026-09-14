@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
 import type {
   Change,
   Diff,
@@ -159,11 +160,16 @@ function OmittedEvidence({
   return (
     <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
       <p className="text-xs font-medium">Not shown in the code preview</p>
-      <ul className="mt-2 space-y-2 text-xs text-muted-foreground">
+      <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
         {evidence.map(({ item, reasons }) => (
           <li key={item.path} className="flex min-w-0 items-center gap-2">
             <span className="min-w-0 flex-1 truncate">{item.path}</span>
-            <span className="shrink-0">{reasons.join(', ')}</span>
+            <Badge
+              variant="outline"
+              className="shrink-0 text-[10px] font-normal"
+            >
+              {reasons.join(', ')}
+            </Badge>
             {!renderedPaths.has(item.path) && (
               <ReviewedControl
                 scope={scope}

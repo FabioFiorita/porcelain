@@ -5,6 +5,7 @@ import {
   createPierreDiffOptions,
   createPierreFileOptions,
 } from '../../lib/pierre';
+import { usePreferences } from '../workspace/preferences';
 import { useTheme } from '../workspace/theme';
 
 export function SourcePreview({
@@ -15,13 +16,17 @@ export function SourcePreview({
   contents: string;
 }) {
   const { dark } = useTheme();
+  const { preferences } = usePreferences();
   const file = useMemo<FileContents>(
     () => ({ name: path, contents }),
     [path, contents],
   );
   const options = useMemo(
-    () => createPierreFileOptions(dark ? 'dark' : 'light'),
-    [dark],
+    () =>
+      createPierreFileOptions(dark ? 'dark' : 'light', {
+        overflow: preferences.lineOverflow,
+      }),
+    [dark, preferences.lineOverflow],
   );
 
   return (
@@ -35,9 +40,14 @@ export function SourcePreview({
 
 export function DiffPreview({ patch }: { patch: string }) {
   const { dark } = useTheme();
+  const { preferences } = usePreferences();
   const options = useMemo(
-    () => createPierreDiffOptions(dark ? 'dark' : 'light'),
-    [dark],
+    () =>
+      createPierreDiffOptions(dark ? 'dark' : 'light', {
+        diffStyle: preferences.diffStyle,
+        overflow: preferences.lineOverflow,
+      }),
+    [dark, preferences.diffStyle, preferences.lineOverflow],
   );
 
   if (!patch.trim())

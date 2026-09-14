@@ -1,19 +1,22 @@
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
+import {
+  detectPlatform,
+  formatForDisplay,
+  useHotkey,
+} from '@tanstack/react-hotkeys';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
-  GitBranchIcon,
   PanelRightIcon,
   RefreshCwIcon,
   LayersIcon as ReviewLayersIcon,
 } from 'lucide-react';
 import {
+  type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -35,9 +38,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { entryKey, parseEntry } from '../../domain/documents';
-import { type Project, worktreeLabel } from '../../domain/inventory';
+import type { Project } from '../../domain/inventory';
 import type { Artifact, Layers, Surface } from '../../domain/review';
 import { discardRejection } from '../../lib/submit-form';
 import {
@@ -45,7 +49,7 @@ import {
   useRefreshReview,
   useReviewOverview,
 } from '../../query/review';
-import { WorkspaceControls } from '../workspace/workspace-controls';
+import { SHORTCUTS } from '../workspace/shortcuts';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView, type OpenDocument } from './documents';
 import { GitButton } from './git-button';
@@ -60,10 +64,12 @@ export function ReviewWorkspace({
   worktree,
   projectId,
   navigationTrigger,
+  refreshTrigger,
 }: {
   worktree: Worktree;
   projectId: string;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
+  refreshTrigger: RefObject<HTMLButtonElement | null>;
 }) {
   const search = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
@@ -75,6 +81,11 @@ export function ReviewWorkspace({
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const desktopTrigger = useRef<HTMLButtonElement>(null);
   const mobileTrigger = useRef<HTMLButtonElement>(null);
+  const {
+    isMobile: navigatorIsMobile,
+    open: navigatorOpen,
+    openMobile: navigatorOpenMobile,
+  } = useSidebar();
   const surface = search.surface ?? 'changes';
   const scope = { projectId, worktreeId: worktree.id };
 
@@ -90,7 +101,7 @@ export function ReviewWorkspace({
     setSidebarOpen((open) => !open);
   };
   useHotkey(
-    'Alt+Shift+R',
+    SHORTCUTS.toggleSidebar,
     () => {
       if (desktop) toggleSidebar();
       else setMobileOpen((open) => !open);
@@ -137,6 +148,69 @@ export function ReviewWorkspace({
     />
   );
 
+  const tabControls = (
+    <>
+      <Button
+        ref={refreshTrigger}
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Refresh review"
+        disabled={refresh.isPending}
+        onClick={() => discardRejection(refresh.submit())}
+      >
+        {refresh.isPending ? (
+          <RefreshCwIcon className="animate-spin motion-reduce:animate-none" />
+        ) : (
+          <RefreshCwIcon />
+        )}
+      </Button>
+      <Button
+        ref={desktopTrigger}
+        className="hidden xl:inline-flex"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'}
+        aria-expanded={sidebarOpen}
+        aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+        title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
+        onClick={toggleSidebar}
+      >
+        <PanelRightIcon />
+      </Button>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              ref={mobileTrigger}
+              className="xl:hidden"
+              aria-label="Review"
+              aria-keyshortcuts={SHORTCUTS.toggleSidebar}
+              title={`Toggle review sidebar (${formatForDisplay(SHORTCUTS.toggleSidebar)})`}
+            />
+          }
+        >
+          <PanelRightIcon />
+        </SheetTrigger>
+        <SheetContent
+          finalFocus={mobileTrigger}
+          className="w-[min(90vw,22rem)]! gap-0"
+          showCloseButton={false}
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Worktree review</SheetTitle>
+            <SheetDescription>
+              Choose a review surface and open a document.
+            </SheetDescription>
+          </SheetHeader>
+          {sidebar}
+        </SheetContent>
+      </Sheet>
+      <GitButton scope={scope} />
+    </>
+  );
+
   return (
     <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
       <ResizablePanel id="review-document" minSize={480}>
@@ -144,77 +218,6 @@ export function ReviewWorkspace({
           aria-label="Review content"
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
         >
-          <WorkspaceControls navigationTrigger={navigationTrigger}>
-            <GitBranchIcon className="mx-1 hidden size-4 shrink-0 text-muted-foreground sm:block" />
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-sm font-medium">
-                {worktreeLabel(worktree.branch)}
-              </h2>
-              <p
-                className="truncate text-xs text-muted-foreground"
-                title={worktree.path}
-              >
-                {worktree.path}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Refresh review"
-              disabled={refresh.isPending}
-              onClick={() => discardRejection(refresh.submit())}
-            >
-              <RefreshCwIcon />
-            </Button>
-            <Badge variant="secondary" className="hidden sm:inline-flex">
-              {worktree.available ? 'Available' : 'Unavailable'}
-            </Badge>
-            <Button
-              ref={desktopTrigger}
-              className="hidden xl:inline-flex"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={
-                sidebarOpen ? 'Hide review sidebar' : 'Show review sidebar'
-              }
-              aria-expanded={sidebarOpen}
-              aria-keyshortcuts="Alt+Shift+R"
-              title={`Toggle review sidebar (${formatForDisplay('Alt+Shift+R')})`}
-              onClick={toggleSidebar}
-            >
-              <PanelRightIcon />
-            </Button>
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    ref={mobileTrigger}
-                    className="xl:hidden"
-                    aria-label="Review"
-                    aria-keyshortcuts="Alt+Shift+R"
-                    title={`Toggle review sidebar (${formatForDisplay('Alt+Shift+R')})`}
-                  />
-                }
-              >
-                <PanelRightIcon />
-              </SheetTrigger>
-              <SheetContent
-                finalFocus={mobileTrigger}
-                className="w-[min(90vw,22rem)]! gap-0"
-                showCloseButton={false}
-              >
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Worktree review</SheetTitle>
-                  <SheetDescription>
-                    Choose a review surface and open a document.
-                  </SheetDescription>
-                </SheetHeader>
-                {sidebar}
-              </SheetContent>
-            </Sheet>
-          </WorkspaceControls>
           <ReviewBoundary>
             <DocumentArea
               scope={scope}
@@ -224,6 +227,12 @@ export function ReviewWorkspace({
               focused={focusedPane}
               setFocused={setFocusedPane}
               onOpen={open}
+              navigationTrigger={navigationTrigger}
+              navigatorIsMobile={navigatorIsMobile}
+              navigatorOpen={navigatorOpen}
+              navigatorOpenMobile={navigatorOpenMobile}
+              refreshTrigger={refreshTrigger}
+              tabControls={tabControls}
             />
           </ReviewBoundary>
         </section>
@@ -253,6 +262,12 @@ function DocumentArea({
   focused,
   setFocused,
   onOpen,
+  navigationTrigger,
+  navigatorIsMobile,
+  navigatorOpen,
+  navigatorOpenMobile,
+  refreshTrigger,
+  tabControls,
 }: {
   scope: { projectId: string; worktreeId: string };
   worktreeId: string;
@@ -261,6 +276,12 @@ function DocumentArea({
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
   onOpen: OpenDocument;
+  navigationTrigger: RefObject<HTMLButtonElement | null>;
+  navigatorIsMobile: boolean;
+  navigatorOpen: boolean;
+  navigatorOpenMobile: boolean;
+  refreshTrigger: RefObject<HTMLButtonElement | null>;
+  tabControls: ReactNode;
 }) {
   const overview = useReviewOverview(scope);
   const artifacts = useArtifactsOverview(scope);
@@ -288,6 +309,12 @@ function DocumentArea({
     artifacts,
     hasHandoff,
     onOpen,
+    navigationTrigger,
+    navigatorIsMobile,
+    navigatorOpen,
+    navigatorOpenMobile,
+    refreshTrigger,
+    tabControls,
   });
 
   if (!layout.split) return <PaneView {...paneProps(0)} />;
@@ -315,6 +342,12 @@ function PaneView({
   artifacts,
   hasHandoff,
   onOpen,
+  navigationTrigger,
+  navigatorIsMobile,
+  navigatorOpen,
+  navigatorOpenMobile,
+  refreshTrigger,
+  tabControls,
 }: {
   index: PaneIndex;
   layout: ReturnType<typeof useTabLayout>;
@@ -326,24 +359,30 @@ function PaneView({
   artifacts: readonly Artifact[];
   hasHandoff: boolean;
   onOpen: OpenDocument;
+  navigationTrigger: RefObject<HTMLButtonElement | null>;
+  navigatorIsMobile: boolean;
+  navigatorOpen: boolean;
+  navigatorOpenMobile: boolean;
+  refreshTrigger: RefObject<HTMLButtonElement | null>;
+  tabControls: ReactNode;
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);
-  useHotkey('Alt+ArrowRight', () => layout.step(index, 1), {
+  useHotkey(SHORTCUTS.nextTab, () => layout.step(index, 1), {
     ignoreInputs: true,
     enabled: focused,
   });
-  useHotkey('Alt+ArrowLeft', () => layout.step(index, -1), {
+  useHotkey(SHORTCUTS.previousTab, () => layout.step(index, -1), {
     ignoreInputs: true,
     enabled: focused,
   });
   useHotkey(
-    'Alt+W',
+    SHORTCUTS.closeTab,
     () => pane.active != null && layout.close(index, pane.active),
     { ignoreInputs: true, enabled: focused },
   );
   useHotkey(
-    'Alt+\\',
+    SHORTCUTS.openToSide,
     () => pane.active != null && layout.openToSide(index, pane.active),
     { ignoreInputs: true, enabled: focused },
   );
@@ -360,6 +399,26 @@ function PaneView({
       )}
     >
       <DocumentTabs
+        leading={
+          index === 0 ? (
+            <SidebarTrigger
+              ref={navigationTrigger}
+              aria-label="Toggle Sidebar"
+              aria-expanded={
+                navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
+              }
+              aria-keyshortcuts={
+                detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+              }
+              title={`Toggle projects (${formatForDisplay(SHORTCUTS.toggleNavigator)})`}
+              onClick={() => {
+                if (!navigatorIsMobile && navigatorOpen) {
+                  requestAnimationFrame(() => refreshTrigger.current?.focus());
+                }
+              }}
+            />
+          ) : undefined
+        }
         tabs={pane.tabs}
         pinned={pane.pinned}
         active={pane.active}
@@ -373,9 +432,7 @@ function PaneView({
         onCloseUnpinned={() => layout.closeUnpinned(index)}
         onTogglePin={(key) => layout.togglePin(index, key)}
         onOpenToSide={(key) => layout.openToSide(index, key)}
-        trailing={
-          !split || index === 1 ? <GitButton scope={scope} /> : undefined
-        }
+        trailing={!split || index === 1 ? tabControls : undefined}
       />
       {document == null ? (
         <EmptyDocument hasHandoff={hasHandoff} onOpen={onOpen} />

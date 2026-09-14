@@ -25,6 +25,9 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
     exact: true,
   });
   await toggle.click();
+  await expect(
+    page.getByRole('button', { name: 'Refresh review' }),
+  ).toBeFocused();
   // Reverse tabbing must never reach the preceding, offscreen project panel.
   await page.keyboard.press('Shift+Tab');
   await expect(
@@ -32,11 +35,6 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
       .getByRole('navigation', { name: 'Projects and worktrees' })
       .locator(':focus'),
   ).toHaveCount(0);
-  await toggle.focus();
-  await page.keyboard.press('Tab');
-  await expect(
-    page.getByRole('button', { name: 'Refresh review' }),
-  ).toBeFocused();
   await toggle.click();
   await expect(
     page.getByRole('button', { name: 'Disconnect', exact: true }),
@@ -82,7 +80,9 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
     .first()
     .focus();
   await page.keyboard.press('ControlOrMeta+b');
-  await expect(left).toBeFocused();
+  await expect(
+    page.getByRole('button', { name: 'Refresh review' }),
+  ).toBeFocused();
   await expect(left).toHaveAttribute('aria-expanded', 'false');
   await expect(navigator).not.toBeInViewport();
   await page.keyboard.press('Alt+Shift+r');
@@ -124,6 +124,7 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
     .getByLabel('Editable fixture')
     .evaluate((element) => element.remove());
   await right.focus();
+  await page.keyboard.press('Alt+Shift+d');
   await page.keyboard.press('Alt+Shift+d');
   await expect(page.locator('html')).toHaveClass('dark');
   await page.getByRole('button', { name: 'Close review sidebar' }).click();
@@ -238,6 +239,9 @@ test('selected diff rows match worktree selection in both themes', async ({
         document.documentElement.classList.toggle('dark', value === 'dark'),
       theme,
     );
+    // Let the shared transition-colors utility settle before comparing the
+    // two selected rows' computed appearance.
+    await page.waitForTimeout(200);
     await openNavigation(page);
     await expect(worktree).toHaveAttribute('aria-pressed', 'true');
     const expected = await worktree.evaluate(appearance);

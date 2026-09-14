@@ -44,14 +44,22 @@ test('opens the built workspace and switches the preset theme with the keyboard'
 
 test('toggles the theme with the registered shortcut', async ({ page }) => {
   await page.goto('/');
+  const lightControl = page.getByRole('button', {
+    name: 'Switch to dark theme',
+  });
+  const darkControl = page.getByRole('button', {
+    name: 'Switch to light theme',
+  });
+
+  // The prototype cycles system -> light -> dark. On the test browser the
+  // system preference is light, so the first step keeps the resolved theme.
+  await expect(lightControl).toBeVisible();
   await page.keyboard.press('Alt+Shift+d');
-  await expect(
-    page.getByRole('button', { name: 'Switch to light theme' }),
-  ).toBeVisible();
+  await expect(lightControl).toBeVisible();
   await page.keyboard.press('Alt+Shift+d');
-  await expect(
-    page.getByRole('button', { name: 'Switch to dark theme' }),
-  ).toBeVisible();
+  await expect(darkControl).toBeVisible();
+  await page.keyboard.press('Alt+Shift+d');
+  await expect(lightControl).toBeVisible();
   await expect(
     page.getByRole('button', { name: /open.*devtools/i }),
   ).toHaveCount(0);

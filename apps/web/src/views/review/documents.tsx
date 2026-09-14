@@ -1,30 +1,34 @@
-import { FileTextIcon } from 'lucide-react';
+import { formatDistanceToNowStrict } from 'date-fns';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DocumentRef } from '../../domain/documents';
 import type {
   Artifact,
   ArtifactContent,
+  ReviewEvidenceItem,
   ReviewScope,
 } from '../../domain/review';
-import {
-  artifactKind,
-  changePath,
-  type Layers,
-  shortOid,
-} from '../../domain/review';
+import { artifactKind, changePath, shortOid } from '../../domain/review';
 import {
   useArtifactContents,
   useArtifacts,
   useChanges,
   useCommit,
+  useReviewEvidence,
   useTextFile,
 } from '../../query/review';
+import { usePreferences } from '../workspace/preferences';
+import { DocumentToolbar } from './document-toolbar';
 import { FileComments } from './file-comments';
+import { HandoffSummary } from './handoff-artifact';
 import { HtmlFrame } from './html-frame';
 import { MarkdownView } from './markdown-view';
 import { DiffPreview, SourcePreview } from './pierre-preview';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
+import { MarkAllReviewed } from './reviewed-control';
 
 export type OpenDocument = (ref: DocumentRef) => void;
 
@@ -63,134 +67,59 @@ function HandoffDocument({
   onOpen: OpenDocument;
 }) {
   const { status, layers } = useChanges(scope);
-  const artifacts = useArtifacts(scope);
-  const paths = [...new Set(status.changes.map(changePath))];
+  const evidence = useReviewEvidence(scope);
+  const paths = uniquePaths([
+    ...status.changes.map(changePath),
+    ...layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
+  ]);
+  const reviewBuilt = layers.layers.length > 0;
+  const progress = reviewProgress(paths, evidence);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {paths.length === 0 ? (
-        <ReviewEmpty
-          title="No changes"
-          description="This worktree matches its last commit."
-        />
-      ) : (
-        <ReviewCodeDocument
-          scope={scope}
-          allowBulkReview
-          header={() => (
-            <HandoffHeader
-              artifacts={artifacts}
+      <DocumentToolbar
+        title={reviewBuilt ? 'Handoff' : 'Changes'}
+        subtitle={
+          reviewBuilt
+            ? `${layers.layers.length} ${layers.layers.length === 1 ? 'layer' : 'layers'} · ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
+            : `${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
+        }
+      >
+        <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
+          <Progress
+            value={
+              progress.total === 0 ? 0 : (progress.done / progress.total) * 100
+            }
+            className="w-20"
+            aria-label={`${progress.done} of ${progress.total} files reviewed`}
+          />
+          <span className="tabular-nums">
+            {progress.done}/{progress.total}
+          </span>
+        </div>
+        <MarkAllReviewed scope={scope} entries={evidence} />
+      </DocumentToolbar>
+      <ReviewCodeDocument
+        scope={scope}
+        header={() => (
+          <>
+            {paths.length === 0 && (
+              <div className="grid min-h-48 place-items-center p-6">
+                <ReviewEmpty
+                  title="No changes"
+                  description="This worktree matches its last commit."
+                />
+              </div>
+            )}
+            <HandoffSummary
+              scope={scope}
               layers={layers.layers}
-              fileCount={paths.length}
               onOpen={onOpen}
             />
-          )}
-        />
-      )}
-    </div>
-  );
-}
-
-function HandoffHeader({
-  artifacts,
-  layers,
-  fileCount,
-  onOpen,
-}: {
-  artifacts: readonly Artifact[];
-  layers: Layers['layers'];
-  fileCount: number;
-  onOpen: OpenDocument;
-}) {
-  return (
-    <div className="px-4 pt-3">
-      <div className="flex items-end gap-3 px-1 pb-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">
-            {layers.length > 0 ? 'Handoff' : 'Changes'}
-          </p>
-          <h1 className="text-base font-medium tracking-tight">
-            {layers.length > 0 ? 'Review handoff' : 'All changes'}
-          </h1>
-        </div>
-        <span className="text-xs text-muted-foreground">
-          {fileCount} {fileCount === 1 ? 'file' : 'files'}
-        </span>
-      </div>
-      {(artifacts.length > 0 || layers.length > 0) && (
-        <section className="overflow-hidden rounded-xl border bg-card">
-          {artifacts.length > 0 && (
-            <div className="flex min-h-10 flex-wrap items-center gap-1 border-b bg-muted/40 px-3 py-1.5">
-              <span className="mr-auto text-xs font-medium">
-                From the agent
-              </span>
-              {artifacts.map((artifact) => (
-                <button
-                  key={artifact.id}
-                  type="button"
-                  className="flex h-7 min-w-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-                  onClick={() =>
-                    onOpen({ kind: 'artifact', artifactId: artifact.id })
-                  }
-                >
-                  <FileTextIcon className="size-3.5 shrink-0" />
-                  <span className="max-w-48 truncate">{artifact.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {layers.length > 0 && (
-            <div className="px-2 py-2">
-              <p className="px-2 pb-1 text-[11px] font-medium text-muted-foreground">
-                Read in this order
-              </p>
-              {layers.map((layer, index) => (
-                <LayerLink
-                  key={layer.id}
-                  layer={layer}
-                  index={index}
-                  onOpen={onOpen}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
-function LayerLink({
-  layer,
-  index,
-  onOpen,
-}: {
-  layer: Layers['layers'][number];
-  index: number;
-  onOpen: OpenDocument;
-}) {
-  return (
-    <button
-      type="button"
-      className="flex w-full min-w-0 items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
-      onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
-    >
-      <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded bg-muted text-[10.5px] text-muted-foreground">
-        {index + 1}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="text-[12.5px] font-medium">{layer.title}</span>
-        {layer.summary && (
-          <MarkdownView
-            text={layer.summary}
-            className="text-xs text-muted-foreground [&_p]:my-0.5"
-          />
+          </>
         )}
-      </span>
-      <span className="mt-0.5 shrink-0 text-[11px] text-muted-foreground">
-        {layer.files.length} {layer.files.length === 1 ? 'file' : 'files'}
-      </span>
-    </button>
+      />
+    </div>
   );
 }
 
@@ -281,18 +210,99 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
 function FileDocument({ scope, path }: { scope: ReviewScope; path: string }) {
   const file = useTextFile(scope, path);
   return (
+    <ReadableFileDocument
+      scope={scope}
+      path={path}
+      text={file.text}
+      byteLength={file.byteLength}
+    />
+  );
+}
+
+type ReadableFileKind = 'markdown' | 'html' | 'code';
+type FileDisplayMode = 'rendered' | 'source';
+
+function ReadableFileDocument({
+  scope,
+  path,
+  text,
+  byteLength,
+}: {
+  scope: ReviewScope;
+  path: string;
+  text: string;
+  byteLength: number;
+}) {
+  const { preferences } = usePreferences();
+  const kind = fileKind(path);
+  const [mode, setMode] = useState<FileDisplayMode>(() =>
+    defaultFileDisplayMode(kind, preferences),
+  );
+
+  return (
     <DocumentFrame>
       <DocumentHeading
         eyebrow="File"
         title={path}
-        detail={`${file.byteLength.toLocaleString()} bytes · Read only`}
-      />
+        detail={`${byteLength.toLocaleString()} bytes · Read only`}
+      >
+        {kind !== 'code' && (
+          <Tabs
+            value={mode}
+            onValueChange={(value) => setMode(value as FileDisplayMode)}
+          >
+            <TabsList className="h-7">
+              <TabsTrigger value="rendered" className="px-2 text-xs">
+                {kind === 'markdown' ? 'Reader' : 'Preview'}
+              </TabsTrigger>
+              <TabsTrigger value="source" className="px-2 text-xs">
+                Source
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+      </DocumentHeading>
       <div className="border-b px-6 py-4">
         <FileComments scope={scope} path={path} />
       </div>
-      <SourcePreview path={path} contents={file.text} />
+      {mode === 'rendered' && kind === 'markdown' ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <MarkdownView
+            text={text}
+            className="mx-auto max-w-[78ch] px-6 py-6"
+          />
+        </div>
+      ) : mode === 'rendered' && kind === 'html' ? (
+        <div className="flex min-h-0 flex-1 flex-col bg-background">
+          <p className="border-b bg-muted/40 px-3.5 py-1.5 text-[11px] text-muted-foreground">
+            Sandboxed preview: scripts run, but the page cannot reach Porcelain,
+            your cookies or the network origin.
+          </p>
+          <HtmlFrame html={text} title={path} className="min-h-0 flex-1" />
+        </div>
+      ) : (
+        <SourcePreview path={path} contents={text} />
+      )}
     </DocumentFrame>
   );
+}
+
+function fileKind(path: string): ReadableFileKind {
+  const lower = path.toLowerCase();
+  if (lower.endsWith('.md') || lower.endsWith('.mdx')) return 'markdown';
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
+  return 'code';
+}
+
+function defaultFileDisplayMode(
+  kind: ReadableFileKind,
+  preferences: ReturnType<typeof usePreferences>['preferences'],
+): FileDisplayMode {
+  if (kind === 'markdown')
+    return preferences.markdownDefault === 'reader' ? 'rendered' : 'source';
+  if (kind === 'html')
+    return preferences.htmlDefault === 'preview' ? 'rendered' : 'source';
+  return 'source';
 }
 
 function CommitDocument({ scope, oid }: { scope: ReviewScope; oid: string }) {
@@ -369,10 +379,9 @@ function ArtifactDetails({
   const kind = artifactKind(artifact.name, content.content);
   return (
     <DocumentFrame>
-      <DocumentHeading
-        eyebrow="From the agent"
+      <DocumentToolbar
         title={artifact.name}
-        detail={`Stored artifact · ${artifact.sizeBytes.toLocaleString()} bytes`}
+        subtitle={`From the agent · Stored artifact · ${formatDistanceToNowStrict(new Date(artifact.createdAt), { addSuffix: true })}`}
       />
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 border-b px-6 py-4 text-sm">
         <dt className="text-muted-foreground">Created</dt>
@@ -417,16 +426,41 @@ function DocumentHeading({
   eyebrow,
   title,
   detail,
+  children,
 }: {
   eyebrow: string;
   title: string;
   detail: string;
+  children?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-1 border-b px-6 py-5">
-      <p className="text-xs text-muted-foreground">{eyebrow}</p>
-      <h1 className="break-all text-lg font-medium tracking-tight">{title}</h1>
-      <p className="text-xs text-muted-foreground">{detail}</p>
+    <header className="flex items-start gap-4 border-b px-6 py-5">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-muted-foreground">{eyebrow}</p>
+        <h1 className="break-all text-lg font-medium tracking-tight">
+          {title}
+        </h1>
+        <p className="text-xs text-muted-foreground">{detail}</p>
+      </div>
+      {children != null && <div className="shrink-0">{children}</div>}
     </header>
   );
+}
+
+function uniquePaths(paths: readonly string[]) {
+  return [...new Set(paths.filter(Boolean))];
+}
+
+function reviewProgress(
+  paths: readonly string[],
+  evidence: readonly ReviewEvidenceItem[],
+) {
+  const evidenceByPath = new Map(evidence.map((item) => [item.path, item]));
+  const unique = uniquePaths(paths);
+  return {
+    done: unique.filter(
+      (path) => evidenceByPath.get(path)?.reviewStatus === 'reviewed',
+    ).length,
+    total: unique.length,
+  };
 }

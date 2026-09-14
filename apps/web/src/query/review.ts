@@ -75,6 +75,18 @@ export function useReviewOverview(scope: ReviewScope) {
   return useQuery({ ...useChangesOptions(scope), throwOnError: false }).data;
 }
 
+/**
+ * A published layer turns the Changes surface into a review. Keep the plain
+ * Changes label while this shared query is loading or has failed.
+ */
+export function useHasReviewLayers(scope: ReviewScope) {
+  return useQuery({
+    ...useChangesOptions(scope),
+    select: (data) => data.layers.layers.length > 0,
+    throwOnError: false,
+  }).data;
+}
+
 function useChangesOptions(scope: ReviewScope) {
   const { api, connection } = useConnectedContext();
   return {

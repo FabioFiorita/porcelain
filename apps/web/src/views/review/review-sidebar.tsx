@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DocumentRef } from '../../domain/documents';
 import type { ReviewScope, Surface } from '../../domain/review';
-import { useArtifacts, useReviewOverview } from '../../query/review';
+import { useArtifacts, useHasReviewLayers } from '../../query/review';
 import { FileNavigation } from './file-navigation';
 import { HistoryNavigation } from './history-navigation';
 import { ReviewBoundary } from './review-boundary';
@@ -102,13 +102,12 @@ export function ReviewSidebar({
 }
 
 function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
-  const overview = useReviewOverview(scope);
-  const review = (overview?.layers.layers.length ?? 0) > 0;
-  const Icon = review ? ListChecksIcon : FileDiffIcon;
+  const hasReview = useHasReviewLayers(scope) === true;
+  const Icon = hasReview ? ListChecksIcon : FileDiffIcon;
   return (
     <>
       <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{review ? 'Review' : 'Changes'}</span>
+      <span className="truncate">{hasReview ? 'Review' : 'Changes'}</span>
     </>
   );
 }

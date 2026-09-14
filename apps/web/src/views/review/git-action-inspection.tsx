@@ -13,15 +13,21 @@ import type { ReviewScope } from '../../domain/review';
 import { discardRejection, submitForm } from '../../lib/submit-form';
 import { useGitAction } from '../../query/git-actions';
 import { reviewErrorMessage } from '../../query/review';
-import { gitActions } from './git-action-options';
+import {
+  branchStatus,
+  type GitActionStatus,
+  gitActions,
+} from './git-action-options';
 import { ReviewEmpty } from './review-empty';
 
 export function GitActionInspection({
   scope,
   entry,
+  status,
 }: {
   scope: ReviewScope;
   entry: string;
+  status?: GitActionStatus;
 }) {
   const action = gitActions.find((item) => item.id === entry);
   if (!action)
@@ -31,14 +37,23 @@ export function GitActionInspection({
         description="Prepare an action from the review sidebar."
       />
     );
-  return <GitActionForm key={entry} scope={scope} action={action.id} />;
+  return (
+    <GitActionForm
+      key={entry}
+      scope={scope}
+      action={action.id}
+      {...(status ? { status } : {})}
+    />
+  );
 }
 function GitActionForm({
   scope,
   action,
+  status,
 }: {
   scope: ReviewScope;
   action: GitAction;
+  status?: GitActionStatus;
 }) {
   const git = useGitAction(scope, action);
   const [draft, setDraft] = useState({
@@ -55,20 +70,30 @@ function GitActionForm({
   const locked = Boolean(git.preparation || git.operation);
   const error = git.prepare.error || git.execute.error || git.recover.error;
   return (
-    <article className="mx-auto flex max-w-xl flex-col gap-6 px-6 py-8">
-      <header>
+    <article className="mx-auto flex max-w-xl flex-col gap-5 px-2 py-2">
+      <header className="flex flex-col gap-1">
         <p className="text-xs text-muted-foreground">
-          Prepare · Review · Confirm
+          {action === 'commit'
+            ? 'Commit changes'
+            : 'Prepare · Review · Confirm'}
         </p>
         <h3 className="mt-2 text-xl font-medium">
           {gitActions.find((item) => item.id === action)?.label}
         </h3>
+        <p className="text-sm text-muted-foreground">
+          {action === 'commit'
+            ? 'Only files already in the existing index are committed.'
+            : 'Review the captured scope before confirming this operation.'}
+        </p>
       </header>
 
+      {status && <GitActionStatusSummary action={action} status={status} />}
+
       <form
+        className="flex flex-col gap-4"
         onSubmit={(event) => submitForm(event, () => git.prepare.submit(input))}
       >
-        <FieldGroup>
+        <FieldGroup className="rounded-xl border bg-card/50 p-4">
           <fieldset
             disabled={locked || busy}
             className="flex min-w-0 flex-col gap-5"
@@ -106,6 +131,67 @@ function GitActionForm({
     </article>
   );
 }
+
+function GitActionStatusSummary({
+  action,
+  status,
+}: {
+  action: GitAction;
+  status: GitActionStatus;
+}) {
+  if (action !== 'commit') return null;
+  const branch = branchStatus(status);
+  const staged = status.changes.filter(
+    (change) => change.scope === 'staged',
+  ).length;
+  const working = status.changes.filter(
+    (change) => change.scope === 'unstaged',
+  ).length;
+  const untracked = status.changes.filter(
+    (change) => change.scope === 'untracked',
+  ).length;
+  const conflicts = status.changes.filter(
+    (change) => change.scope === 'unmerged',
+  ).length;
+
+  return (
+    <section
+      aria-label="Current Git status"
+      className="flex flex-col gap-2 rounded-xl bg-muted/50 px-3 py-2.5 text-[12.5px]"
+    >
+      {branch && (
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-muted-foreground">Branch</span>
+          <span className="truncate font-medium">
+            {branch.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}
+          </span>
+          <span className="ml-auto shrink-0 text-muted-foreground tabular-nums">
+            {branch.ahead} ahead · {branch.behind} behind
+          </span>
+        </div>
+      )}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+        <dt className="text-muted-foreground">Staged files</dt>
+        <dd className="tabular-nums">{staged}</dd>
+        <dt className="text-muted-foreground">Working changes</dt>
+        <dd className="tabular-nums">{working}</dd>
+        <dt className="text-muted-foreground">Untracked files</dt>
+        <dd className="tabular-nums">{untracked}</dd>
+        {conflicts > 0 && (
+          <>
+            <dt className="text-muted-foreground">Conflicts</dt>
+            <dd className="tabular-nums">{conflicts}</dd>
+          </>
+        )}
+      </dl>
+      <p className="text-xs text-muted-foreground">
+        Committing uses the existing index; unstaged and untracked files stay in
+        the worktree.
+      </p>
+    </section>
+  );
+}
+
 type Draft = {
   message: string;
   remoteName: string;
@@ -224,22 +310,21 @@ function ActionFields({
 
 function PreparationDetails({ preparation }: { preparation: Preparation }) {
   return (
-    <>
-      {' '}
-      <dl className="grid grid-cols-2 gap-2 text-sm">
-        <dt>Branch</dt>
+    <div className="flex flex-col gap-2 rounded-xl bg-muted/50 px-3 py-2.5">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+        <dt className="text-muted-foreground">Branch</dt>
         <dd className="break-all">
           {preparation.preview.branch ?? 'Detached HEAD'}
         </dd>
-        <dt>Staged changes</dt>
+        <dt className="text-muted-foreground">Staged changes</dt>
         <dd>{preparation.preview.staged ? 'Yes' : 'No'}</dd>
-        <dt>Tracked changes</dt>
+        <dt className="text-muted-foreground">Tracked changes</dt>
         <dd>{preparation.preview.trackedChanges ? 'Yes' : 'No'}</dd>
-        <dt>Untracked files</dt>
+        <dt className="text-muted-foreground">Untracked files</dt>
         <dd>{preparation.preview.untrackedCount}</dd>
         {preparation.preview.destination && (
           <>
-            <dt>Destination</dt>
+            <dt className="text-muted-foreground">Destination</dt>
             <dd className="break-all">{preparation.preview.destination}</dd>
           </>
         )}
@@ -249,7 +334,7 @@ function PreparationDetails({ preparation }: { preparation: Preparation }) {
         {new Date(preparation.expiresAt).toLocaleTimeString()}. Remote state is
         checked during execution.
       </p>
-    </>
+    </div>
   );
 }
 
@@ -264,7 +349,10 @@ function OperationReceipt({
 }) {
   if (!git.operation) return null;
   return (
-    <section className="flex flex-col gap-3" aria-label="Git operation receipt">
+    <section
+      className="flex flex-col gap-3 rounded-xl border p-4"
+      aria-label="Git operation receipt"
+    >
       <h4 className="font-medium">
         {git.operation.receipt?.state ?? 'Outcome not yet confirmed'}
       </h4>
@@ -314,7 +402,7 @@ function ConfirmAction({
 }) {
   if (!git.preparation) return null;
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4 rounded-xl border p-4">
       <h4 className="font-medium">Review prepared action</h4>
       <Button
         variant="outline"

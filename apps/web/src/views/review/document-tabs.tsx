@@ -1,7 +1,8 @@
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
+import { formatForDisplay } from '@tanstack/react-hotkeys';
+import type { LucideIcon } from 'lucide-react';
 import {
   Columns2Icon,
-  FileCode2Icon,
   FileDiffIcon,
   FileTextIcon,
   GitCommitHorizontalIcon,
@@ -12,12 +13,14 @@ import {
   SquareXIcon,
   XIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode, SVGProps } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ScrollBar } from '@/components/ui/scroll-area';
@@ -29,8 +32,20 @@ import {
   type Layers,
   shortOid,
 } from '../../domain/review';
+import { SHORTCUTS } from '../workspace/shortcuts';
+import { FileTypeIcon } from './file-type-icon';
 
 type Layer = Layers['layers'][number];
+type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
+
+const fileTypeIcon = (path: string): TabIcon =>
+  function TabFileIcon(props: SVGProps<SVGSVGElement>) {
+    return props.className == null ? (
+      <FileTypeIcon path={path} />
+    ) : (
+      <FileTypeIcon path={path} className={props.className} />
+    );
+  };
 
 function describeTab(
   key: string,
@@ -54,13 +69,13 @@ function describeTab(
     }
     case 'change':
       return {
-        Icon: FileCode2Icon,
+        Icon: fileTypeIcon(ref.path),
         title: basename(ref.path),
         hint: `${ref.path} · changes`,
       };
     case 'file':
       return {
-        Icon: FileTextIcon,
+        Icon: fileTypeIcon(ref.path),
         title: basename(ref.path),
         hint: `${ref.path} · file`,
       };
@@ -101,6 +116,7 @@ export function DocumentTabs({
   artifacts = [],
   side,
   focused,
+  leading,
   trailing,
   ...actions
 }: TabActions & {
@@ -111,6 +127,7 @@ export function DocumentTabs({
   artifacts?: readonly Artifact[];
   side: 'left' | 'right' | null;
   focused: boolean;
+  leading?: ReactNode;
   trailing?: ReactNode;
 }) {
   return (
@@ -120,6 +137,9 @@ export function DocumentTabs({
         side != null && focused && 'bg-muted/40',
       )}
     >
+      {leading != null && (
+        <div className="flex shrink-0 items-center pl-1">{leading}</div>
+      )}
       <ScrollAreaPrimitive.Root className="relative h-full min-w-0 flex-1">
         <ScrollAreaPrimitive.Viewport className="size-full overflow-y-hidden">
           <div
@@ -169,7 +189,9 @@ export function DocumentTabs({
         />
       </ScrollAreaPrimitive.Root>
       {trailing != null && (
-        <div className="flex shrink-0 items-center px-1.5">{trailing}</div>
+        <div className="flex shrink-0 items-center gap-0.5 px-1.5">
+          {trailing}
+        </div>
       )}
     </div>
   );
@@ -199,6 +221,7 @@ function DocumentTab({
   side: 'left' | 'right' | null;
 }) {
   const { Icon, title, hint } = describeTab(tabKey, layers, artifacts);
+  const tabRef = useRef<HTMLDivElement>(null);
   const openToSideLabel =
     side == null
       ? 'Open to the side'
@@ -206,11 +229,21 @@ function DocumentTab({
         ? 'Open in the right pane'
         : 'Open in the left pane';
 
+  useEffect(() => {
+    if (active) {
+      tabRef.current?.scrollIntoView?.({
+        block: 'nearest',
+        inline: 'nearest',
+      });
+    }
+  }, [active]);
+
   return (
     <ContextMenu>
       <ContextMenuTrigger
         render={
           <div
+            ref={tabRef}
             role="tab"
             tabIndex={0}
             aria-selected={active}
@@ -223,6 +256,12 @@ function DocumentTab({
                 : 'text-muted-foreground hover:bg-accent/50',
             )}
             onClick={() => onActivate(tabKey)}
+            onAuxClick={(event) => {
+              if (event.button === 1 && !pinned) {
+                event.preventDefault();
+                onClose(tabKey);
+              }
+            }}
             onKeyDown={(event) => {
               if (event.target !== event.currentTarget) return;
               if (event.key === 'Enter' || event.key === ' ') {
@@ -281,11 +320,17 @@ function DocumentTab({
         <ContextMenuItem onClick={() => onOpenToSide(tabKey)}>
           <Columns2Icon />
           {openToSideLabel}
+          <ContextMenuShortcut>
+            {formatForDisplay(SHORTCUTS.openToSide)}
+          </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onClose(tabKey)}>
           <XIcon />
           Close
+          <ContextMenuShortcut>
+            {formatForDisplay(SHORTCUTS.closeTab)}
+          </ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
           <SquareXIcon />

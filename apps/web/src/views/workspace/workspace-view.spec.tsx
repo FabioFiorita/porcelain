@@ -358,7 +358,7 @@ describe('worktree review navigation', () => {
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
-    await screen.findByRole('heading', { name: 'Review handoff' });
+    await screen.findByRole('heading', { name: 'Handoff' });
     getItem.mockRestore();
   });
 

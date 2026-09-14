@@ -26,13 +26,19 @@ export const PIERRE_SURFACE_CSS = `
 }
 `;
 
+export type PierreDisplayOptions = {
+  overflow?: 'scroll' | 'wrap';
+  diffStyle?: 'unified' | 'split';
+};
+
 export function createPierreFileOptions(
   themeType: 'light' | 'dark',
+  display: Pick<PierreDisplayOptions, 'overflow'> = {},
 ): FileOptions<undefined, undefined> {
   return {
     theme: PIERRE_THEME,
     themeType,
-    overflow: 'scroll',
+    overflow: display.overflow ?? 'scroll',
     disableFileHeader: true,
     unsafeCSS: PIERRE_SURFACE_CSS,
   };
@@ -40,12 +46,13 @@ export function createPierreFileOptions(
 
 export function createPierreDiffOptions(
   themeType: 'light' | 'dark',
+  display: PierreDisplayOptions = {},
 ): FileDiffOptions<undefined, undefined> {
   return {
     theme: PIERRE_THEME,
     themeType,
-    overflow: 'scroll',
-    diffStyle: 'unified',
+    overflow: display.overflow ?? 'scroll',
+    diffStyle: display.diffStyle ?? 'unified',
     diffIndicators: 'classic',
     hunkSeparators: 'line-info',
     disableFileHeader: true,

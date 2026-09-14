@@ -1,58 +1,63 @@
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { MoonIcon, SunIcon } from 'lucide-react';
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { PreferencesProvider, usePreferences } from './preferences';
+import { SHORTCUTS } from './shortcuts';
 
-const THEME_SHORTCUT = 'Alt+Shift+D';
-const Context = createContext<{ dark: boolean; toggle: () => void } | null>(
-  null,
-);
-
+/** Keep the old provider name for callers while preferences remain device-local. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [dark, setDark] = useState(false);
-  const theme = useMemo(
-    () => ({ dark, toggle: () => setDark((current) => !current) }),
-    [dark],
-  );
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-    return () => document.documentElement.classList.remove('dark');
-  }, [dark]);
-  useHotkey(THEME_SHORTCUT, theme.toggle, { ignoreInputs: true });
   return (
-    <Context value={theme}>
-      <div
-        className={cn(
-          'min-h-svh bg-background text-foreground',
-          dark && 'dark',
-        )}
-      >
-        {children}
-      </div>
-    </Context>
+    <PreferencesProvider>
+      <ThemeSurface>{children}</ThemeSurface>
+    </PreferencesProvider>
   );
 }
 
+function ThemeSurface({ children }: { children: ReactNode }) {
+  const { preferences, resolvedTheme, setPreference } = usePreferences();
+  useHotkey(
+    SHORTCUTS.cycleAppearance,
+    () => {
+      const order = ['system', 'light', 'dark'] as const;
+      const index = order.indexOf(preferences.appearance);
+      setPreference(
+        'appearance',
+        order[(index + 1) % order.length] ?? 'system',
+      );
+    },
+    { ignoreInputs: true },
+  );
+  return (
+    <div
+      className={cn(
+        'min-h-svh bg-background text-foreground',
+        resolvedTheme === 'dark' && 'dark',
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Compatibility adapter for review surfaces that only need the resolved mode. */
 export function useTheme() {
-  const context = useContext(Context);
-  if (!context) throw new Error('ThemeProvider is required');
-  return context;
+  const { preferences, resolvedTheme, setPreference } = usePreferences();
+  return {
+    dark: resolvedTheme === 'dark',
+    toggle: () =>
+      setPreference('appearance', resolvedTheme === 'dark' ? 'light' : 'dark'),
+    appearance: preferences.appearance,
+  };
 }
 
 export function ThemeToggle() {
   const { dark, toggle } = useTheme();
   return (
     <Button
-      aria-keyshortcuts={THEME_SHORTCUT}
-      title={`Toggle theme (${formatForDisplay(THEME_SHORTCUT)})`}
+      aria-keyshortcuts={SHORTCUTS.cycleAppearance}
+      title={`Toggle theme (${formatForDisplay(SHORTCUTS.cycleAppearance)})`}
       variant="ghost"
       size="icon-sm"
       aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}

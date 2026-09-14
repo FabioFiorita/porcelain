@@ -4,6 +4,7 @@ import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 import { type ReactNode, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { PIERRE_SURFACE_CSS, PIERRE_THEME } from '../../lib/pierre';
+import { usePreferences } from '../workspace/preferences';
 import { useTheme } from '../workspace/theme';
 
 export type CodeEntry =
@@ -36,6 +37,7 @@ export function CodeDocument({
   toolbar?: () => ReactNode;
 }) {
   const { dark } = useTheme();
+  const { preferences } = usePreferences();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -73,15 +75,15 @@ export function CodeDocument({
     () => ({
       theme: PIERRE_THEME,
       themeType: dark ? 'dark' : 'light',
-      overflow: 'scroll',
-      diffStyle: 'unified',
+      overflow: preferences.lineOverflow,
+      diffStyle: preferences.diffStyle,
       diffIndicators: 'classic',
       hunkSeparators: 'line-info',
       stickyHeaders: true,
       unsafeCSS: PIERRE_SURFACE_CSS,
       layout: { paddingTop: 12, paddingBottom: 96, gap: 12 },
     }),
-    [dark],
+    [dark, preferences.diffStyle, preferences.lineOverflow],
   );
   const allCollapsed =
     entries.length > 0 && entries.every((entry) => collapsed.has(entry.id));

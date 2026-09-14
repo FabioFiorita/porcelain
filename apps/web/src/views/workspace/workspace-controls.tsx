@@ -10,6 +10,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { SHORTCUTS } from './shortcuts';
 import { ThemeToggle } from './theme';
 
 export function WorkspaceControls({
@@ -21,7 +22,7 @@ export function WorkspaceControls({
 }) {
   const { isMobile, openMobile, open, toggleSidebar } = useSidebar();
   useHotkey(
-    'Mod+B',
+    SHORTCUTS.toggleNavigator,
     () => {
       if (!isMobile && open) navigationTrigger.current?.focus();
       toggleSidebar();
@@ -40,7 +41,8 @@ export function WorkspaceControls({
           }
         />
         <TooltipContent>
-          Toggle projects <span>{formatForDisplay('Mod+B')}</span>
+          Toggle projects{' '}
+          <span>{formatForDisplay(SHORTCUTS.toggleNavigator)}</span>
         </TooltipContent>
       </Tooltip>
       {children}
