@@ -24,9 +24,15 @@ function validAnchor(anchor: CommentThread['anchor']): boolean {
   const validEvidence = [anchor.revision, anchor.contentFingerprint].every(
     (value) => value === undefined || (value.length > 0 && value.length <= 256),
   );
+  const validSide =
+    anchor.kind === 'file' ||
+    anchor.side === undefined ||
+    anchor.side === 'additions' ||
+    anchor.side === 'deletions';
   return (
     validPath &&
     validEvidence &&
+    validSide &&
     (anchor.kind === 'file' ||
       (Number.isInteger(anchor.startLine) &&
         Number.isInteger(anchor.endLine) &&
@@ -37,6 +43,8 @@ function validAnchor(anchor: CommentThread['anchor']): boolean {
 }
 export function validateCommentCommand(command: CommentCommand): void {
   if (command.kind === 'create' || command.kind === 'reply') {
+    if (command.author !== 'reviewer' && command.author !== 'agent')
+      throw new InvalidCommentError();
     if (
       command.body.length > 16000 ||
       command.body.trim().length === 0 ||

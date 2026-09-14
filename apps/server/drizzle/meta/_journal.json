@@ -15,6 +15,13 @@
       "when": 1789345784383,
       "tag": "0001_light_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789347169518,
+      "tag": "0002_backfill_comment_authors",
+      "breakpoints": true
     }
   ]
 }

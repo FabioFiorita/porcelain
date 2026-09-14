@@ -14,14 +14,17 @@ export class CommentThreads {
   private readonly store: CommentStore;
   private readonly inventory: InventoryStore;
   private readonly newId: () => string;
+  private readonly now: () => string;
   constructor(
     store: CommentStore,
     inventory: InventoryStore,
     newId: () => string,
+    now: () => string = () => new Date().toISOString(),
   ) {
     this.store = store;
     this.inventory = inventory;
     this.newId = newId;
+    this.now = now;
   }
   private hasWorktree(worktreeId: string): boolean {
     return this.inventory
@@ -58,7 +61,14 @@ export class CommentThreads {
         worktreeId: command.worktreeId,
         anchor: structuredClone(command.anchor),
         resolved: false,
-        messages: [{ id: this.newId(), body: command.body }],
+        messages: [
+          {
+            id: this.newId(),
+            body: command.body,
+            author: command.author,
+            createdAt: this.now(),
+          },
+        ],
       };
       this.assertCapacity(thread);
       this.store.save(thread);
@@ -72,7 +82,12 @@ export class CommentThreads {
             ...thread,
             messages: [
               ...thread.messages,
-              { id: this.newId(), body: command.body },
+              {
+                id: this.newId(),
+                body: command.body,
+                author: command.author,
+                createdAt: this.now(),
+              },
             ],
           }
         : { ...thread, resolved: command.resolved };

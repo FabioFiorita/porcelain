@@ -25,6 +25,7 @@ export function createCommentThread(
     async (request) =>
       options.application.comments({
         kind: 'create',
+        author: 'reviewer',
         ...request.params,
         ...request.body,
       }),

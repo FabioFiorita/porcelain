@@ -24,6 +24,8 @@ const evidence = {
   revision: z.string().min(1).max(256).optional(),
   contentFingerprint: z.string().min(1).max(256).optional(),
 };
+export const commentAuthorSchema = z.enum(['reviewer', 'agent']);
+const commentTimestampSchema = z.string().datetime().optional();
 export const commentAnchorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('file'), filePath, ...evidence }),
   z
@@ -32,6 +34,7 @@ export const commentAnchorSchema = z.discriminatedUnion('kind', [
       filePath,
       startLine: z.number().int().min(1).max(2147483647),
       endLine: z.number().int().min(1).max(2147483647),
+      side: z.enum(['additions', 'deletions']).optional(),
       ...evidence,
     })
     .refine((value) => value.endLine >= value.startLine),
@@ -52,7 +55,13 @@ export const commentThreadScopeSchema = z.strictObject({
   worktreeId: z.uuid(),
   threadId: z.uuid(),
 });
-const message = z.strictObject({ id: z.uuid(), body });
+const message = z.strictObject({
+  id: z.uuid(),
+  body,
+  author: commentAuthorSchema,
+  // Legacy messages have no timestamp. New messages are stamped by the server.
+  createdAt: commentTimestampSchema,
+});
 export const commentThreadSchema = z.strictObject({
   id: z.uuid(),
   worktreeId: z.uuid(),
@@ -61,3 +70,8 @@ export const commentThreadSchema = z.strictObject({
   messages: z.array(message).min(1),
 });
 export const commentThreadsSchema = z.array(commentThreadSchema);
+
+export type CommentAuthor = z.infer<typeof commentAuthorSchema>;
+export type CommentAnchor = z.infer<typeof commentAnchorSchema>;
+export type CommentMessage = z.infer<typeof message>;
+export type CommentThread = z.infer<typeof commentThreadSchema>;

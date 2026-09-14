@@ -38,7 +38,14 @@ it('retains creation order and discussions after inventory removes their worktre
       worktreeId: 'worktree',
       anchor: { kind: 'file', filePath: 'a.ts' },
       resolved: false,
-      messages: [{ id: 'message', body: 'initial 界\n"quoted"' }],
+      messages: [
+        {
+          id: 'message',
+          body: 'initial 界\n"quoted"',
+          author: 'reviewer',
+          createdAt: '2026-09-14T00:00:00.000Z',
+        },
+      ],
     };
     const second = { ...first, id: 'a-second' };
     store.save(first);

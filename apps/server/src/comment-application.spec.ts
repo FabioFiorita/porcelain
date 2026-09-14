@@ -20,6 +20,7 @@ it('rejects invalid application input without persistence and captures command i
     const create = {
       kind: 'create' as const,
       worktreeId,
+      author: 'reviewer' as const,
       anchor: {
         kind: 'codeRange' as const,
         filePath: 'a.ts',
@@ -55,7 +56,13 @@ it('rejects invalid application input without persistence and captures command i
         }),
       ),
       { ...create, anchor: { kind: 'file', filePath: 'a', revision: '' } },
-      { kind: 'reply', worktreeId, threadId: created.id, body: ' ' },
+      {
+        kind: 'reply',
+        worktreeId,
+        threadId: created.id,
+        author: 'reviewer',
+        body: ' ',
+      },
     ];
     for (const command of invalid)
       await expect(app.comments(command)).rejects.toBeInstanceOf(

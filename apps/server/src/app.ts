@@ -66,6 +66,7 @@ export async function openApplication(options: {
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
   files?: FileReader;
+  now?: () => string;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
 }): Promise<Application> {
@@ -147,6 +148,7 @@ export async function openApplication(options: {
       new CommentRepository(database.db),
       store,
       randomUUID,
+      options.now,
     );
     return {
       prepareFetch: (scope, input, signal) =>

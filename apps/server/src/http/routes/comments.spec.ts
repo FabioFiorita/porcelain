@@ -222,3 +222,96 @@ it('authenticates every operation and rejects malformed anchors, bodies and cros
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('assigns reviewer authorship and the application clock without trusting public author or timestamp fields', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-comments-authorship-'));
+  const path = join(root, 'repo');
+  await mkdir(path);
+  execFileSync('git', ['init', '-b', 'main', path]);
+  const timestamp = '2026-09-14T02:03:04.000Z';
+  const server = await createServer({
+    dataDirectory: join(root, 'state'),
+    token,
+    now: () => timestamp,
+  });
+  try {
+    const project = projectResponseSchema.parse(
+      (
+        await server.inject({
+          method: 'POST',
+          url: '/projects',
+          headers,
+          payload: { path },
+        })
+      ).json(),
+    );
+    const worktreeId = project.worktrees[0]?.id;
+    if (!worktreeId) throw new Error('Missing worktree');
+    const url = `/worktrees/${worktreeId}/comments`;
+    for (const payload of [
+      {
+        anchor: { kind: 'file', filePath: 'a.ts' },
+        body: 'forged author',
+        author: 'agent',
+      },
+      {
+        anchor: { kind: 'file', filePath: 'a.ts' },
+        body: 'forged timestamp',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]) {
+      const rejected = await server.inject({
+        method: 'POST',
+        url,
+        headers,
+        payload,
+      });
+      expect(rejected.statusCode).toBe(400);
+    }
+    const created = await server.inject({
+      method: 'POST',
+      url,
+      headers,
+      payload: {
+        anchor: {
+          kind: 'codeRange',
+          filePath: 'a.ts',
+          startLine: 2,
+          endLine: 4,
+          side: 'deletions',
+        },
+        body: 'assigned by server',
+      },
+    });
+    expect(created.statusCode).toBe(200);
+    const [thread] = commentThreadsSchema.parse(created.json());
+    expect(thread).toMatchObject({
+      anchor: { side: 'deletions' },
+      messages: [{ author: 'reviewer', createdAt: timestamp }],
+    });
+    if (!thread) throw new Error('Missing thread');
+    const reply = await server.inject({
+      method: 'POST',
+      url: `${url}/${thread.id}/replies`,
+      headers,
+      payload: { body: 'reply', author: 'agent' },
+    });
+    expect(reply.statusCode).toBe(400);
+    const acceptedReply = await server.inject({
+      method: 'POST',
+      url: `${url}/${thread.id}/replies`,
+      headers,
+      payload: { body: 'reviewer reply' },
+    });
+    expect(acceptedReply.statusCode).toBe(200);
+    expect(commentThreadsSchema.parse(acceptedReply.json())[0]).toMatchObject({
+      messages: [
+        { author: 'reviewer', createdAt: timestamp },
+        { author: 'reviewer', createdAt: timestamp },
+      ],
+    });
+  } finally {
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

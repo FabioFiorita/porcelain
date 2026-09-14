@@ -81,12 +81,14 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     endLine: 5,
     revision: 'immutable',
     contentFingerprint: 'opaque',
+    side: 'deletions' as const,
   };
   const [thread] = comments.execute({
     kind: 'create',
     worktreeId: 'worktree',
     anchor,
     body: '  original\n',
+    author: 'agent',
   });
   if (!thread) throw new Error('Expected thread');
   const originalMessageId = thread.messages[0]?.id;
@@ -96,6 +98,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     worktreeId: 'worktree',
     threadId: thread.id,
     body: 'first',
+    author: 'reviewer',
   });
   const resolved = comments.execute({
     kind: 'resolve',
@@ -116,6 +119,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     worktreeId: 'worktree',
     threadId: thread.id,
     body: 'second',
+    author: 'agent',
   });
   inventory.state.projects = [];
   const [retained] = comments.execute({ kind: 'list', worktreeId: 'worktree' });
@@ -150,6 +154,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       worktreeId: 'other',
       threadId: thread.id,
       body: 'no',
+      author: 'reviewer',
     }),
   ).toThrow(CommentTargetNotFoundError);
   expect(() =>
@@ -158,6 +163,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       worktreeId: 'worktree',
       anchor: { ...anchor, startLine: 2 },
       body: 'no',
+      author: 'reviewer',
     }),
   ).toThrow(CommentTargetNotFoundError);
 });
@@ -172,6 +178,7 @@ it('bounds thread and message additions without blocking resolution at capacity 
     worktreeId: 'worktree',
     anchor: { kind: 'file' as const, filePath: 'a' },
     body: 'text',
+    author: 'reviewer' as const,
   };
   const [first] = comments.execute(create);
   if (!first) throw new Error('Missing thread');
@@ -186,6 +193,7 @@ it('bounds thread and message additions without blocking resolution at capacity 
       worktreeId: 'worktree',
       threadId: first.id,
       body: 'reply',
+      author: 'reviewer',
     });
   const before = structuredClone(store.rows);
   expect(() =>
@@ -194,6 +202,7 @@ it('bounds thread and message additions without blocking resolution at capacity 
       worktreeId: 'worktree',
       threadId: first.id,
       body: 'overflow',
+      author: 'reviewer',
     }),
   ).toThrow('Comment capacity exceeded');
   expect(store.rows).toEqual(before);
@@ -220,7 +229,11 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
   };
   // Build a valid retained thread at the exact byte limit, including JSON overhead.
   while (commentStorageSize(thread) < 1048576) {
-    const message = { id: String(thread.messages.length), body: '' };
+    const message = {
+      id: String(thread.messages.length),
+      body: '',
+      author: 'reviewer' as const,
+    };
     thread.messages.push(message);
     const remaining = 1048576 - commentStorageSize(thread);
     message.body = 'x'.repeat(Math.min(16000, remaining));
@@ -235,6 +248,7 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       worktreeId: 'worktree',
       threadId: thread.id,
       body: '界',
+      author: 'reviewer',
     }),
   ).toThrow('Comment capacity exceeded');
   expect(() =>
@@ -243,6 +257,7 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       worktreeId: 'worktree',
       anchor: { kind: 'file', filePath: 'b' },
       body: 'x',
+      author: 'reviewer',
     }),
   ).toThrow('Comment capacity exceeded');
   expect(store.find('worktree', thread.id)).toEqual(thread);
@@ -255,7 +270,13 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
     });
   expect(store.find('worktree', thread.id)).toEqual(thread);
   expect(
-    commentStorageSize({ ...thread, messages: [{ id: '1', body: '界' }] }) -
-      commentStorageSize({ ...thread, messages: [{ id: '1', body: 'x' }] }),
+    commentStorageSize({
+      ...thread,
+      messages: [{ id: '1', body: '界', author: 'reviewer' }],
+    }) -
+      commentStorageSize({
+        ...thread,
+        messages: [{ id: '1', body: 'x', author: 'reviewer' }],
+      }),
   ).toBe(2);
 });

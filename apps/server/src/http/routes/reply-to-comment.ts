@@ -25,6 +25,7 @@ export function replyToComment(
     async (request) =>
       options.application.comments({
         kind: 'reply',
+        author: 'reviewer',
         ...request.params,
         ...request.body,
       }),
