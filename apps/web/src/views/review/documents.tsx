@@ -4,7 +4,6 @@ import type { DocumentRef } from '../../domain/documents';
 import type {
   Artifact,
   ArtifactContent,
-  Change,
   ReviewScope,
 } from '../../domain/review';
 import {
@@ -18,7 +17,6 @@ import {
   useArtifacts,
   useChanges,
   useCommit,
-  useDiff,
   useTextFile,
 } from '../../query/review';
 import { FileComments } from './file-comments';
@@ -78,7 +76,7 @@ function HandoffDocument({
       ) : (
         <ReviewCodeDocument
           scope={scope}
-          status={status}
+          allowBulkReview
           header={() => (
             <HandoffHeader
               artifacts={artifacts}
@@ -213,18 +211,17 @@ function LayerDocument({
       />
     );
 
-  const changes = layer.files.flatMap((file) =>
-    status.changes.filter(
-      (change) =>
-        change.scope === file.scope && changePath(change) === file.path,
-    ),
+  // A layer names a logical path. Include every current comparison for that
+  // path so staged and unstaged evidence cannot disappear from the layer.
+  const layerPaths = new Set(layer.files.map((file) => file.path));
+  const changes = status.changes.filter((change) =>
+    layerPaths.has(changePath(change)),
   );
   const paths = [...new Set(changes.map(changePath))];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
         scope={scope}
-        status={status}
         changes={changes}
         header={() => (
           <div className="mx-4 mt-3 rounded-xl border bg-muted/30 px-4 py-3">
@@ -259,112 +256,25 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
       />
     );
 
-  const untracked = changes.find((change) => change.scope === 'untracked');
-  if (untracked && changes.length === 1)
-    return <FileDocument scope={scope} path={path} />;
-
   return (
-    <DocumentFrame>
-      <DocumentHeading
-        eyebrow="Change"
-        title={path}
-        detail={`${changes.length} comparison${changes.length === 1 ? '' : 's'} · staged and unstaged evidence remain visible`}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ReviewCodeDocument
+        scope={scope}
+        changes={changes}
+        header={() => (
+          <>
+            <DocumentHeading
+              eyebrow="Change"
+              title={path}
+              detail={`${changes.length} comparison${changes.length === 1 ? '' : 's'} · staged and unstaged evidence remain visible`}
+            />
+            <div className="border-b px-6 py-4">
+              <FileComments scope={scope} path={path} />
+            </div>
+          </>
+        )}
       />
-      <div className="border-b px-6 py-4">
-        <FileComments scope={scope} path={path} />
-      </div>
-      {changes.map((change) => (
-        <ChangeEvidence
-          key={`${change.scope}:${changePath(change)}:${'kind' in change ? change.kind : 'untracked'}`}
-          scope={scope}
-          change={change}
-          statusToken={status.statusToken}
-        />
-      ))}
-    </DocumentFrame>
-  );
-}
-
-function ChangeEvidence({
-  scope,
-  change,
-  statusToken,
-}: {
-  scope: ReviewScope;
-  change: Change;
-  statusToken: string;
-}) {
-  if (change.scope === 'untracked')
-    return <UntrackedEvidence scope={scope} path={change.path} />;
-  if (change.scope === 'unmerged' || !change.supported)
-    return (
-      <section className="border-t px-6 py-5">
-        <ReviewEmpty
-          title={`${changePath(change)} · ${change.scope}`}
-          description="This change requires external inspection. Conflict resolution and submodule inspection are not supported here."
-        />
-      </section>
-    );
-
-  return (
-    <TrackedEvidence scope={scope} change={change} statusToken={statusToken} />
-  );
-}
-
-function TrackedEvidence({
-  scope,
-  change,
-  statusToken,
-}: {
-  scope: ReviewScope;
-  change: Extract<Change, { kind: string }>;
-  statusToken: string;
-}) {
-  const diff = useDiff(scope, {
-    expectedStatusToken: statusToken,
-    change: {
-      scope: change.scope,
-      oldPath: change.oldPath,
-      newPath: change.newPath,
-    },
-  });
-
-  return (
-    <section className="border-t">
-      <div className="flex items-center gap-3 px-6 py-3">
-        <span className="min-w-0 flex-1 text-xs text-muted-foreground">
-          {change.scope} · {change.kind}
-        </span>
-      </div>
-      {'patch' in diff.content ? (
-        <DiffPreview patch={diff.content.patch} />
-      ) : (
-        <ReviewEmpty
-          title="Preview unavailable"
-          description={
-            diff.content.kind === 'binary'
-              ? 'This is a binary change.'
-              : `Content omitted: ${diff.content.reason}.`
-          }
-        />
-      )}
-    </section>
-  );
-}
-
-function UntrackedEvidence({
-  scope,
-  path,
-}: {
-  scope: ReviewScope;
-  path: string;
-}) {
-  const file = useTextFile(scope, path);
-  return (
-    <section className="border-t px-6 py-5">
-      <p className="mb-3 text-xs text-muted-foreground">Untracked file</p>
-      <SourcePreview path={path} contents={file.text} />
-    </section>
+    </div>
   );
 }
 

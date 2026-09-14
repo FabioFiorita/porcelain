@@ -14,6 +14,7 @@ export type CodeEntry =
       fileDiff: FileDiffMetadata;
       version: number;
       note?: string;
+      review?: { path: string; control: ReactNode };
     }
   | {
       id: string;
@@ -22,14 +23,17 @@ export type CodeEntry =
       contents: string;
       version: number;
       note?: string;
+      review?: { path: string; control: ReactNode };
     };
 
 export function CodeDocument({
   entries,
   header,
+  toolbar,
 }: {
   entries: readonly CodeEntry[];
   header?: () => ReactNode;
+  toolbar?: () => ReactNode;
 }) {
   const { dark } = useTheme();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
@@ -57,6 +61,14 @@ export function CodeDocument({
       }),
     [collapsed, entries],
   );
+  const firstReviewEntryByPath = useMemo(() => {
+    const result = new Map<string, string>();
+    for (const entry of entries) {
+      if (entry.review && !result.has(entry.review.path))
+        result.set(entry.review.path, entry.id);
+    }
+    return result;
+  }, [entries]);
   const options = useMemo<CodeViewReactOptions<undefined, undefined>>(
     () => ({
       theme: PIERRE_THEME,
@@ -86,6 +98,8 @@ export function CodeDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {toolbar?.()}
+      {entries.length === 0 && header?.()}
       {entries.length > 1 && (
         <div className="flex shrink-0 justify-end border-b px-3 py-1.5">
           <Button
@@ -101,7 +115,9 @@ export function CodeDocument({
         items={items}
         options={options}
         className="min-h-0 flex-1 overflow-auto"
-        {...(header ? { renderCodeViewHeader: header } : {})}
+        {...(header && entries.length > 0
+          ? { renderCodeViewHeader: header }
+          : {})}
         renderHeaderPrefix={(item) => {
           if (entries.length < 2) return null;
           const entry = byId.get(item.id);
@@ -124,12 +140,23 @@ export function CodeDocument({
           );
         }}
         renderHeaderFilenameSuffix={(item) => {
-          const note = byId.get(item.id)?.note;
-          return note ? (
-            <span className="ml-2 truncate font-sans text-xs text-muted-foreground">
-              {note}
+          const entry = byId.get(item.id);
+          if (!entry) return null;
+          const review = entry.review;
+          const showControl =
+            review != null &&
+            firstReviewEntryByPath.get(review.path) === entry.id;
+          if (!entry.note && !showControl) return null;
+          return (
+            <span className="ml-2 inline-flex min-w-0 items-center gap-2 font-sans">
+              {entry.note && (
+                <span className="truncate text-xs text-muted-foreground">
+                  {entry.note}
+                </span>
+              )}
+              {showControl && review.control}
             </span>
-          ) : null;
+          );
         }}
       />
     </div>

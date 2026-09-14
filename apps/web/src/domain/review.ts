@@ -5,6 +5,12 @@ import type {
 import type { CommitChangesResponse } from '@porcelain/contracts/commit-changes';
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
+  EvidenceComparison as EvidenceComparisonResponse,
+  EvidenceContent as EvidenceContentResponse,
+  EvidenceResponse as EvidenceResponseContract,
+  ReviewEvidence as ReviewEvidenceResponse,
+} from '@porcelain/contracts/evidence';
+import type {
   DirectoryResponse,
   TextResponse,
 } from '@porcelain/contracts/files';
@@ -14,6 +20,11 @@ import type {
 } from '@porcelain/contracts/git-diff';
 import type { GitStatusResponse } from '@porcelain/contracts/git-status';
 import type { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
+import type {
+  ReviewedMark as ReviewedMarkResponse,
+  ReviewedMarksResponse as ReviewedMarksResponseContract,
+  SetReviewedRequest as SetReviewedRequestContract,
+} from '@porcelain/contracts/reviewed-files';
 
 export type Directory = DirectoryResponse;
 export type History = CommitPageResponse;
@@ -23,14 +34,23 @@ export type Status = GitStatusResponse;
 export type Layers = ReturnType<typeof reviewLayersResponseSchema.parse>;
 export type Change = Status['changes'][number];
 export type OrdinaryChange = Extract<Change, { kind: string }>;
-export type ReviewEvidence =
-  | { kind: 'diff'; change: OrdinaryChange; response: GitDiffResponse }
-  | {
-      kind: 'file';
-      change: Extract<Change, { scope: 'untracked' }>;
-      text: string;
-    }
-  | { kind: 'omitted'; change: Change; reason: string };
+export type EvidenceResponse = EvidenceResponseContract;
+export type Evidence = ReviewEvidenceResponse;
+export type ReviewEvidence = Evidence;
+export type EvidenceComparison = EvidenceComparisonResponse;
+export type EvidenceContent = EvidenceContentResponse;
+export type ReviewedMark = ReviewedMarkResponse;
+export type ReviewedMarksResponse = ReviewedMarksResponseContract;
+export type SetReviewedRequest = SetReviewedRequestContract;
+export type ReviewStatus = 'unreviewed' | 'reviewed' | 'stale';
+export type ReviewEvidenceItem = Evidence & {
+  environmentId: string;
+  worktreeId: string;
+  statusToken: string;
+  consistency: 'best-effort';
+  reviewStatus: ReviewStatus;
+  mark?: ReviewedMark;
+};
 export type ReviewScope = { projectId: string; worktreeId: string };
 export const SURFACES = ['changes', 'files', 'history'] as const;
 export type Surface = (typeof SURFACES)[number];
@@ -49,6 +69,29 @@ export function changePath(change: Change) {
 }
 export function changeKey(change: Change) {
   return JSON.stringify([change.scope, changePath(change)]);
+}
+
+export function reviewStatus(
+  evidence: Pick<Evidence, 'path' | 'fingerprint'>,
+  marks: readonly ReviewedMark[],
+): ReviewStatus {
+  if (evidence.fingerprint == null) return 'unreviewed';
+  const mark = marks.find((candidate) => candidate.path === evidence.path);
+  if (!mark) return 'unreviewed';
+  return mark.fingerprint === evidence.fingerprint ? 'reviewed' : 'stale';
+}
+
+export function reviewMark(
+  evidence: Pick<Evidence, 'path'>,
+  marks: readonly ReviewedMark[],
+) {
+  return marks.find((candidate) => candidate.path === evidence.path);
+}
+
+export function isFingerprintable(
+  evidence: Pick<Evidence, 'fingerprint'>,
+): evidence is Pick<Evidence, 'fingerprint'> & { fingerprint: string } {
+  return evidence.fingerprint != null;
 }
 
 export function basename(path: string) {

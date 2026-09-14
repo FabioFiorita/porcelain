@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Change, Diff } from '../../domain/review';
-import { diffEntry, evidenceId, fileEntry } from './diff-entries';
+import {
+  diffEntry,
+  evidenceId,
+  fileEntry,
+  MAX_PARSED_DIFFS,
+} from './diff-entries';
 
 const staged: Change = {
   scope: 'staged',
@@ -13,11 +18,14 @@ const staged: Change = {
 };
 const unstaged: Change = { ...staged, scope: 'unstaged' };
 
-function response(change: Extract<Change, { kind: string }>): Diff {
+function response(
+  change: Extract<Change, { kind: string }>,
+  statusToken = 'a'.repeat(64),
+): Diff {
   return {
     environmentId: '641a8628-1cd6-4562-81a2-9c05fba76b4a',
     worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
-    statusToken: 'a'.repeat(64),
+    statusToken,
     consistency: 'best-effort',
     change: {
       scope: change.scope,
@@ -60,5 +68,19 @@ describe('continuous diff entries', () => {
         '--- a/one.md\n+++ b/one.md\n@@ -1 +1 @@\n-old\n+new\n--- a/two.md\n+++ b/two.md\n@@ -1 +1 @@\n-old\n+new\n',
     };
     expect(diffEntry(staged, multiple)).toBeNull();
+  });
+
+  it('evicts the oldest parsed patch when the cache reaches its bound', () => {
+    const firstToken = '0'.repeat(64);
+    const first = diffEntry(staged, response(staged, firstToken));
+    for (let index = 1; index <= MAX_PARSED_DIFFS; index += 1) {
+      const token = index.toString(16).padStart(64, '0');
+      diffEntry(staged, response(staged, token));
+    }
+
+    const parsedAgain = diffEntry(staged, response(staged, firstToken));
+    if (parsedAgain?.kind !== 'diff' || first?.kind !== 'diff')
+      throw new Error('Expected textual patches to produce diff entries');
+    expect(parsedAgain.fileDiff).not.toBe(first.fileDiff);
   });
 });

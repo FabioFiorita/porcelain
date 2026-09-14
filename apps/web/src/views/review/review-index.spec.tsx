@@ -68,6 +68,14 @@ vi.mock('../../query/review', () => ({
     },
   }),
   useArtifacts: () => [],
+  useReviewEvidence: () => [],
+  useMarkAllReviewed: () => ({
+    submit: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    error: null,
+    reset: vi.fn(),
+  }),
 }));
 
 afterEach(cleanup);

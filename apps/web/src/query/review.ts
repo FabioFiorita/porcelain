@@ -13,10 +13,18 @@ import type {
   ArtifactContent,
   Change,
   DiffRequest,
-  ReviewEvidence,
+  EvidenceResponse,
+  ReviewEvidenceItem,
+  ReviewedMarksResponse,
   ReviewScope,
+  SetReviewedRequest,
 } from '../domain/review';
-import { changeKey } from '../domain/review';
+import {
+  changePath,
+  isFingerprintable,
+  reviewMark,
+  reviewStatus,
+} from '../domain/review';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
 import { useConnectedContext } from './workspace-provider';
@@ -117,6 +125,20 @@ export function useArtifactsOverview(scope: ReviewScope) {
     }).data ?? []
   );
 }
+
+export function useEvidence(scope: ReviewScope) {
+  return useReviewData<EvidenceResponse>(scope, ['evidence'], (api, request) =>
+    api.evidence(request),
+  );
+}
+
+export function useReviewed(scope: ReviewScope) {
+  return useReviewData<ReviewedMarksResponse>(
+    scope,
+    ['reviewed'],
+    (api, request) => api.reviewed.list(request),
+  );
+}
 export function useArtifact(scope: ReviewScope, artifactId: string) {
   return useReviewData<ArtifactContent>(
     scope,
@@ -177,69 +199,205 @@ export function useDiff(scope: ReviewScope, input: DiffRequest) {
 
 export function useReviewEvidence(
   scope: ReviewScope,
-  statusToken: string,
-  changes: readonly Change[],
-) {
+  changes?: readonly Change[],
+): ReviewEvidenceItem[] {
+  const evidence = useEvidence(scope);
+  const reviewed = useReviewed(scope);
+  return mergeReviewEvidence(evidence, reviewed, changes);
+}
+
+export function mergeReviewEvidence(
+  evidence: EvidenceResponse,
+  reviewed: ReviewedMarksResponse,
+  changes?: readonly Change[],
+): ReviewEvidenceItem[] {
+  const selected =
+    changes == null
+      ? null
+      : new Set(changes.map((change) => changePath(change)));
+  return evidence.evidence.flatMap((entry) => {
+    // Selection is by logical file path. Once a path is selected, retain every
+    // comparison for it so staged and unstaged evidence cannot disappear from
+    // the review surface or from the fingerprint being marked.
+    if (selected && !selected.has(entry.path)) return [];
+    const mark = reviewMark(entry, reviewed.marks);
+    return [
+      {
+        ...entry,
+        environmentId: evidence.environmentId,
+        worktreeId: evidence.worktreeId,
+        statusToken: evidence.statusToken,
+        consistency: evidence.consistency,
+        reviewStatus: reviewStatus(entry, reviewed.marks),
+        ...(mark ? { mark } : {}),
+      },
+    ];
+  });
+}
+
+function useReviewedContext(scope: ReviewScope) {
   const { api, connection } = useConnectedContext();
-  return useSuspenseQuery({
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'continuous-evidence',
-      statusToken,
-      changes.map(changeKey),
-    ]),
-    queryFn: async ({ signal }) => {
-      const load = async (change: Change): Promise<ReviewEvidence> => {
-        if (change.scope === 'unmerged')
-          return { kind: 'omitted', change, reason: 'Merge conflict' };
-        if (change.scope === 'untracked') {
-          try {
-            const request = connection.request(signal);
-            const file = await api.review.text({
-              ...scope,
-              ...request,
-              path: change.path,
-            });
-            request.signal.throwIfAborted();
-            return { kind: 'file', change, text: file.text };
-          } catch {
-            signal.throwIfAborted();
-            return { kind: 'omitted', change, reason: 'Not readable as text' };
-          }
-        }
-        if (!change.supported)
-          return { kind: 'omitted', change, reason: 'Unsupported Git entry' };
-        try {
-          const request = connection.request(signal);
-          const response = await api.review.diff({
-            ...scope,
+  return {
+    api: api.review.reviewed,
+    key: queryKeys.reviewSurface(connection.environmentId, scope, ['reviewed']),
+    connection,
+    request: (signal?: AbortSignal) => ({
+      ...scope,
+      ...connection.request(signal),
+    }),
+  };
+}
+
+type ReviewedQueue = { tail: Promise<void> };
+const reviewedQueues = new WeakMap<object, Map<string, ReviewedQueue>>();
+
+/**
+ * Reviewed mutations share a queue for one connection and query key. The API
+ * returns full snapshots, so serializing intent is what makes a delayed mark
+ * unable to overwrite a later unmark (and keeps bulk and single-file actions
+ * consistent).
+ */
+function enqueueReviewed<T>(
+  context: ReturnType<typeof useReviewedContext>,
+  operation: () => Promise<T>,
+) {
+  const queryHash = JSON.stringify(context.key) ?? '';
+  let queues = reviewedQueues.get(context.connection);
+  if (!queues) {
+    queues = new Map();
+    reviewedQueues.set(context.connection, queues);
+  }
+  let queue = queues.get(queryHash);
+  if (!queue) {
+    queue = { tail: Promise.resolve() };
+    queues.set(queryHash, queue);
+  }
+
+  const result = queue.tail.then(operation, operation);
+  const tail = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  queue.tail = tail;
+  void tail.then(() => {
+    if (queue?.tail === tail) queues?.delete(queryHash);
+  });
+  return result;
+}
+
+export type MarkReviewedInput = Pick<
+  SetReviewedRequest,
+  'path' | 'fingerprint'
+>;
+
+export function useMarkReviewed(scope: ReviewScope) {
+  const context = useReviewedContext(scope);
+  const client = useQueryClient();
+  return asMutation(
+    useMutation({
+      mutationFn: (input: MarkReviewedInput) =>
+        enqueueReviewed(context, async () => {
+          const request = context.request();
+          const result = await context.api.set({
             ...request,
-            input: {
-              expectedStatusToken: statusToken,
-              change: {
-                scope: change.scope,
-                oldPath: change.oldPath,
-                newPath: change.newPath,
-              },
-            },
+            input: { ...input, reviewed: true },
           });
           request.signal.throwIfAborted();
-          if (response.content.kind === 'binary')
-            return { kind: 'omitted', change, reason: 'Binary change' };
-          if (response.content.kind === 'omitted')
-            return {
-              kind: 'omitted',
-              change,
-              reason: `Content omitted: ${response.content.reason}`,
-            };
-          return { kind: 'diff', change, response };
-        } catch {
-          signal.throwIfAborted();
-          return { kind: 'omitted', change, reason: 'Preview unavailable' };
+          client.setQueryData(context.key, result);
+          return result;
+        }),
+    }),
+  );
+}
+
+export function useUnmarkReviewed(scope: ReviewScope) {
+  const context = useReviewedContext(scope);
+  const client = useQueryClient();
+  return asMutation(
+    useMutation({
+      mutationFn: (path: string) =>
+        enqueueReviewed(context, async () => {
+          const request = context.request();
+          const result = await context.api.remove({ ...request, path });
+          request.signal.throwIfAborted();
+          client.setQueryData(context.key, result);
+          return result;
+        }),
+    }),
+  );
+}
+
+export type BulkReviewReport = {
+  marked: string[];
+  skipped: Array<{
+    path: string;
+    reason: 'not-fingerprintable' | 'already-reviewed';
+  }>;
+  failed: Array<{ path: string; error: unknown }>;
+};
+
+export function useMarkAllReviewed(scope: ReviewScope) {
+  const context = useReviewedContext(scope);
+  const client = useQueryClient();
+  return asMutation(
+    useMutation({
+      mutationFn: async (
+        entries: readonly ReviewEvidenceItem[],
+      ): Promise<BulkReviewReport> => {
+        const report: BulkReviewReport = {
+          marked: [],
+          skipped: [],
+          failed: [],
+        };
+        const uniqueEntries = [
+          ...new Map(entries.map((entry) => [entry.path, entry])).values(),
+        ];
+        for (const entry of uniqueEntries) {
+          if (entry.reviewStatus === 'reviewed') {
+            report.skipped.push({
+              path: entry.path,
+              reason: 'already-reviewed',
+            });
+            continue;
+          }
+          if (!isFingerprintable(entry)) {
+            report.skipped.push({
+              path: entry.path,
+              reason: 'not-fingerprintable',
+            });
+            continue;
+          }
+          try {
+            await enqueueReviewed(context, async () => {
+              const request = context.request();
+              const result = await context.api.set({
+                ...request,
+                input: {
+                  path: entry.path,
+                  reviewed: true,
+                  fingerprint: entry.fingerprint,
+                },
+              });
+              request.signal.throwIfAborted();
+              // Every response is an authoritative server snapshot. The
+              // shared queue keeps newer mutation intent ahead of delayed
+              // responses from older operations.
+              client.setQueryData(context.key, result);
+              return result;
+            });
+            report.marked.push(entry.path);
+          } catch (error) {
+            // The connection controller represents user cancellation. A
+            // request-local timeout should be reported for this path and let
+            // the remaining paths continue, preserving earlier snapshots.
+            if (context.connection.controller.signal.aborted) throw error;
+            report.failed.push({ path: entry.path, error });
+          }
         }
-      };
-      return Promise.all(changes.map(load));
-    },
-  }).data;
+        return report;
+      },
+    }),
+  );
 }
 
 export function useRefreshReview(scope: ReviewScope) {

@@ -1,4 +1,9 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
+import type {
+  Change,
+  EvidenceResponse,
+  ReviewedMark,
+} from '../../domain/review';
 import type { createMockStore } from '../inventory/mock';
 import type { ReviewPort, ReviewRequest } from './port';
 
@@ -140,6 +145,71 @@ export function createReviewMock(
         );
       return artifacts.map(({ content: _content, ...metadata }) => metadata);
     },
+    async evidence(request) {
+      const data = await context(request);
+      if (store.evidenceFailed)
+        throw new ConnectionError(
+          'This review surface could not be loaded. Refresh and try again.',
+        );
+      return mockEvidence(request.worktreeId, data);
+    },
+    reviewed: {
+      async list(request) {
+        await context(request);
+        if (store.reviewedFailed)
+          throw new ConnectionError(
+            'Reviewed files could not be loaded. Refresh and try again.',
+          );
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(store.reviewed[request.worktreeId] ?? []),
+        };
+      },
+      async set(request) {
+        const data = await context(request);
+        if (store.reviewedSetFailed)
+          throw new ConnectionError(
+            'The file could not be marked as reviewed. Try again.',
+          );
+        const current = mockEvidence(request.worktreeId, data).evidence.find(
+          (entry) => entry.path === request.input.path,
+        );
+        if (!current || current.fingerprint !== request.input.fingerprint)
+          throw new ConnectionError(
+            'Reviewed mark is based on stale evidence.',
+          );
+        const marks = store.reviewed[request.worktreeId] ?? [];
+        store.reviewed[request.worktreeId] = marks;
+        const mark: ReviewedMark = {
+          path: request.input.path,
+          fingerprint: request.input.fingerprint,
+          reviewedAt: new Date().toISOString(),
+        };
+        const index = marks.findIndex((item) => item.path === mark.path);
+        if (index === -1) marks.push(mark);
+        else marks[index] = mark;
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(marks),
+        };
+      },
+      async remove(request) {
+        await context(request);
+        if (store.reviewedRemoveFailed)
+          throw new ConnectionError(
+            'The reviewed mark could not be removed. Try again.',
+          );
+        const marks = store.reviewed[request.worktreeId] ?? [];
+        store.reviewed[request.worktreeId] = marks.filter(
+          (item) => item.path !== request.path,
+        );
+        const nextMarks = store.reviewed[request.worktreeId] ?? [];
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(nextMarks),
+        };
+      },
+    },
     async artifact(request) {
       const { artifacts } = await context(request);
       const artifact = artifacts.find((item) => item.id === request.artifactId);
@@ -148,6 +218,106 @@ export function createReviewMock(
       return artifact;
     },
   };
+}
+
+type ReviewFixture = ReturnType<typeof createMockStore>['review'][string];
+
+function mockEvidence(
+  worktreeId: string,
+  data: ReviewFixture,
+): EvidenceResponse {
+  const byPath = new Map<
+    string,
+    EvidenceResponse['evidence'][number]['comparisons']
+  >();
+  for (const change of data.status.changes) {
+    const path = changePath(change);
+    const comparisons = byPath.get(path) ?? [];
+    comparisons.push({ change, content: mockContent(change, data.files) });
+    byPath.set(path, comparisons);
+  }
+  const evidence = [...byPath.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([path, comparisons]) => {
+      const ordered = comparisons.toSorted((left, right) => {
+        const scopeOrder = {
+          staged: 0,
+          unstaged: 1,
+          untracked: 2,
+          unmerged: 3,
+        } as const;
+        return (
+          scopeOrder[left.change.scope] - scopeOrder[right.change.scope] ||
+          changePath(left.change).localeCompare(changePath(right.change))
+        );
+      });
+      const fingerprintable = ordered.every(
+        (comparison) =>
+          comparison.content.kind === 'file' ||
+          (comparison.content.kind === 'diff' &&
+            (comparison.content.content.kind === 'text' ||
+              comparison.content.content.kind === 'metadata-only')),
+      );
+      return {
+        path,
+        fingerprint: fingerprintable ? mockFingerprint(path, ordered) : null,
+        comparisons: ordered,
+      };
+    });
+  return {
+    environmentId: data.status.environmentId,
+    worktreeId,
+    statusToken: data.status.statusToken,
+    consistency: 'best-effort',
+    evidence,
+  };
+}
+
+function mockContent(change: Change, files: Record<string, string>) {
+  if (change.scope === 'unmerged')
+    return { kind: 'omitted' as const, reason: 'conflict' as const };
+  if (change.scope === 'untracked') {
+    const text = files[change.path];
+    return text === undefined
+      ? { kind: 'omitted' as const, reason: 'unreadable' as const }
+      : {
+          kind: 'file' as const,
+          encoding: 'utf-8' as const,
+          byteLength: new TextEncoder().encode(text).byteLength,
+          text,
+        };
+  }
+  if (!change.supported)
+    return {
+      kind: 'omitted' as const,
+      reason: 'unsupported-git-entry' as const,
+    };
+  return {
+    kind: 'diff' as const,
+    content: { kind: 'text' as const, patch: mockPatch(change, files) },
+  };
+}
+
+function mockFingerprint(
+  path: string,
+  comparisons: ReadonlyArray<
+    EvidenceResponse['evidence'][number]['comparisons'][number]
+  >,
+) {
+  const input = JSON.stringify({ path, comparisons });
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  const seed = (hash >>> 0).toString(16).padStart(8, '0');
+  return seed.repeat(8);
+}
+
+function changePath(change: Change) {
+  return 'path' in change
+    ? change.path
+    : (change.newPath ?? change.oldPath ?? '');
 }
 
 function mockPatch(

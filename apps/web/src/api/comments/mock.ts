@@ -44,7 +44,7 @@ export function createCommentsMock(
           worktreeId: request.worktreeId,
           anchor: input.anchor,
           resolved: false,
-          messages: [{ id: createId(), body: input.body }],
+          messages: [{ id: createId(), body: input.body, author: 'reviewer' }],
         },
       ];
       return structuredClone(store.comments[request.worktreeId] ?? []);

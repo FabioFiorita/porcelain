@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { reviewFixture } from '../api/review/fixtures';
-import { artifactKind, changePath, groupChanges } from './review';
+import {
+  artifactKind,
+  changePath,
+  groupChanges,
+  reviewMark,
+  reviewStatus,
+} from './review';
 
 it('uses layer/file order and keeps unassigned and stale metadata from hiding real changes', () => {
   const { status, layers } = reviewFixture(
@@ -32,5 +38,44 @@ describe('artifact format selection', () => {
     );
     expect(artifactKind('Keyboard audit', '# Keyboard audit')).toBe('markdown');
     expect(artifactKind('Design study', 'Ordinary notes')).toBe('text');
+  });
+});
+
+describe('reviewed evidence state', () => {
+  const fingerprint = 'a'.repeat(64);
+  const entry = { path: 'src/app.tsx', fingerprint };
+
+  it('distinguishes unreviewed, reviewed, and stale fingerprints', () => {
+    expect(reviewStatus(entry, [])).toBe('unreviewed');
+    expect(
+      reviewStatus(entry, [
+        {
+          path: entry.path,
+          fingerprint,
+          reviewedAt: '2026-09-13T00:00:00.000Z',
+        },
+      ]),
+    ).toBe('reviewed');
+    expect(
+      reviewStatus({ ...entry, fingerprint: 'b'.repeat(64) }, [
+        {
+          path: entry.path,
+          fingerprint,
+          reviewedAt: '2026-09-13T00:00:00.000Z',
+        },
+      ]),
+    ).toBe('stale');
+  });
+
+  it('keeps unreviewable evidence visible without treating it as reviewed', () => {
+    const mark = {
+      path: entry.path,
+      fingerprint,
+      reviewedAt: '2026-09-13T00:00:00.000Z',
+    };
+    expect(reviewStatus({ path: entry.path, fingerprint: null }, [mark])).toBe(
+      'unreviewed',
+    );
+    expect(reviewMark(entry, [mark])).toEqual(mark);
   });
 });

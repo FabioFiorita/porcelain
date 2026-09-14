@@ -1,6 +1,7 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { CommentThread } from '../../domain/comments';
 import type { Inventory } from '../../domain/inventory';
+import type { ReviewedMark } from '../../domain/review';
 import { createId } from '../../lib/id';
 import { reviewFixture } from '../review/fixtures';
 import type { InventoryPort } from './port';
@@ -123,6 +124,11 @@ export function createMockStore(scenario: MockScenario = 'populated') {
       }),
     ),
   );
+  const reviewed: Record<string, ReviewedMark[]> = Object.fromEntries(
+    inventory.projects.flatMap((project) =>
+      project.worktrees.map((worktree) => [worktree.id, [] as ReviewedMark[]]),
+    ),
+  );
   return {
     sessionToken: '',
     disconnectFailed: false,
@@ -132,9 +138,14 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     loseActionResponse: false,
     inventory,
     review,
+    reviewed,
     reviewFailed: scenario === 'review-failed',
     changesFailed: false,
     artifactsFailed: false,
+    evidenceFailed: false,
+    reviewedFailed: false,
+    reviewedSetFailed: false,
+    reviewedRemoveFailed: false,
     registerFailed: false,
     delayMs: scenario === 'slow' ? 1500 : 0,
     rejected: scenario === 'rejected',

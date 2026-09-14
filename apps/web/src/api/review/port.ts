@@ -5,9 +5,12 @@ import type {
   Diff,
   DiffRequest,
   Directory,
+  EvidenceResponse,
   History,
   Layers,
+  ReviewedMarksResponse,
   ReviewScope,
+  SetReviewedRequest,
   Status,
   TextFile,
 } from '../../domain/review';
@@ -25,6 +28,16 @@ export type ReviewPort = {
   ) => Promise<{ status: Status; layers: Layers }>;
   history: (request: ReviewRequest & { cursor?: string }) => Promise<History>;
   artifacts: (request: ReviewRequest) => Promise<Artifact[]>;
+  evidence: (request: ReviewRequest) => Promise<EvidenceResponse>;
+  reviewed: {
+    list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
+    set: (
+      request: ReviewRequest & { input: SetReviewedRequest },
+    ) => Promise<ReviewedMarksResponse>;
+    remove: (
+      request: ReviewRequest & { path: string },
+    ) => Promise<ReviewedMarksResponse>;
+  };
   artifact: (
     request: ReviewRequest & { artifactId: string },
   ) => Promise<ArtifactContent>;

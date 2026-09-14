@@ -1,0 +1,208 @@
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  EyeOffIcon,
+  LoaderCircleIcon,
+  RotateCcwIcon,
+} from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import type {
+  ReviewEvidenceItem,
+  ReviewScope,
+  ReviewStatus,
+} from '../../domain/review';
+import { isFingerprintable } from '../../domain/review';
+import {
+  type BulkReviewReport,
+  reviewErrorMessage,
+  useMarkAllReviewed,
+  useMarkReviewed,
+  useUnmarkReviewed,
+} from '../../query/review';
+
+export function ReviewedControl({
+  scope,
+  path,
+  fingerprint,
+  status,
+  compact = false,
+}: {
+  scope: ReviewScope;
+  path: string;
+  fingerprint: string | null;
+  status: ReviewStatus;
+  compact?: boolean;
+}) {
+  const mark = useMarkReviewed(scope);
+  const unmark = useUnmarkReviewed(scope);
+  const pending = mark.isPending || unmark.isPending;
+  const error = mark.error ?? unmark.error;
+
+  if (fingerprint == null)
+    return (
+      <span
+        title={`${path} cannot be marked as reviewed because its evidence is incomplete`}
+        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+      >
+        <EyeOffIcon className="size-3" aria-hidden="true" />
+        <span className={cn(compact && 'sr-only')}>Not reviewable</span>
+      </span>
+    );
+
+  const reviewed = status === 'reviewed';
+  const submit = async () => {
+    try {
+      if (reviewed) await unmark.submit(path);
+      else await mark.submit({ path, fingerprint });
+    } catch {
+      // The mutation owns the error state rendered below. Contain the
+      // rejected mutateAsync promise so a failed click is not an unhandled
+      // rejection in the browser.
+    }
+  };
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1">
+      <Button
+        type="button"
+        size={compact ? 'icon-xs' : 'xs'}
+        variant={reviewed ? 'ghost' : 'outline'}
+        disabled={pending}
+        aria-label={`${reviewed ? 'Unmark' : 'Mark'} ${path} ${reviewed ? 'as unreviewed' : 'as reviewed'}`}
+        title={
+          reviewed
+            ? `Unmark ${path} as reviewed`
+            : status === 'stale'
+              ? `Mark changed ${path} as reviewed`
+              : `Mark ${path} as reviewed`
+        }
+        onClick={() => void submit()}
+      >
+        {pending ? (
+          <LoaderCircleIcon className="animate-spin" />
+        ) : reviewed ? (
+          <CheckIcon />
+        ) : status === 'stale' ? (
+          <RotateCcwIcon />
+        ) : (
+          <CheckIcon />
+        )}
+        {!compact && (reviewed ? 'Reviewed' : 'Mark reviewed')}
+      </Button>
+      {error && (
+        <span
+          role="alert"
+          className="max-w-52 truncate text-[11px] text-destructive"
+        >
+          {reviewErrorMessage(error)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+export function MarkAllReviewed({
+  scope,
+  entries,
+  compact = false,
+}: {
+  scope: ReviewScope;
+  entries: readonly ReviewEvidenceItem[];
+  compact?: boolean;
+}) {
+  const bulk = useMarkAllReviewed(scope);
+  const [report, setReport] = useState<BulkReviewReport | null>(null);
+  const uniqueEntries = [
+    ...new Map(entries.map((entry) => [entry.path, entry])).values(),
+  ];
+  const fingerprintable = uniqueEntries.filter(isFingerprintable);
+  const eligible = fingerprintable.filter(
+    (entry) => entry.fingerprint != null && entry.reviewStatus !== 'reviewed',
+  );
+  const disabled = eligible.length === 0 || bulk.isPending;
+  const buttonLabel =
+    fingerprintable.length === 0
+      ? 'No files can be marked reviewed'
+      : eligible.length === 0
+        ? 'All fingerprintable files are reviewed'
+        : `Mark all ${eligible.length} files reviewed`;
+
+  const submit = () => {
+    if (disabled) return;
+    if (
+      !globalThis.confirm(
+        `Mark ${eligible.length} ${eligible.length === 1 ? 'file' : 'files'} as reviewed?`,
+      )
+    )
+      return;
+    setReport(null);
+    void bulk
+      .submit(uniqueEntries)
+      .then(setReport)
+      .catch(() => undefined);
+  };
+
+  return (
+    <span className="inline-flex min-w-0 flex-col items-end gap-1">
+      <Button
+        type="button"
+        size={compact ? 'icon-xs' : 'xs'}
+        variant="outline"
+        disabled={disabled}
+        aria-label={buttonLabel}
+        title={buttonLabel}
+        onClick={submit}
+      >
+        {bulk.isPending ? (
+          <LoaderCircleIcon className="animate-spin" />
+        ) : (
+          <CheckIcon />
+        )}
+        {!compact &&
+          (bulk.isPending
+            ? 'Marking…'
+            : fingerprintable.length === 0
+              ? 'No reviewable files'
+              : eligible.length === 0
+                ? 'All reviewed'
+                : 'Mark all reviewed')}
+      </Button>
+      {report && <BulkReport report={report} />}
+      {bulk.error && (
+        <span
+          role="alert"
+          className="max-w-64 text-right text-[11px] text-destructive"
+        >
+          {reviewErrorMessage(bulk.error)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function BulkReport({ report }: { report: BulkReviewReport }) {
+  const failed = report.failed.length;
+  const skipped = report.skipped.length;
+  const result = [
+    report.marked.length > 0
+      ? `Marked ${report.marked.length} ${report.marked.length === 1 ? 'file' : 'files'}.`
+      : 'No files marked.',
+    skipped > 0 ? `Skipped ${skipped}.` : '',
+    failed > 0 ? `${failed} failed.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <span
+      role={failed > 0 ? 'alert' : 'status'}
+      className={cn(
+        'max-w-64 text-right text-[11px] leading-tight',
+        failed > 0 ? 'text-destructive' : 'text-muted-foreground',
+      )}
+    >
+      {failed > 0 && <CircleAlertIcon className="mr-1 inline size-3" />}
+      {result}
+    </span>
+  );
+}
