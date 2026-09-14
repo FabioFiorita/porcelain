@@ -5,6 +5,7 @@
       "project": ["scripts/**/*.ts"]
     },
     "apps/server": {
+      "entry": ["src/cli/main.ts"],
       "project": ["src/**/*.ts"]
     },
     "packages/contracts": {

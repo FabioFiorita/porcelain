@@ -21,3 +21,6 @@ For a persistent server that serves the built web app and can be opened from ano
 the LAN, run `pnpm serve --lan`. It keeps projects and the access token under
 `~/.porcelain/`; the command prints the local address and token-file path without printing the
 token. Use `pnpm serve` for loopback-only access.
+
+To assemble the plain-Node package used by `npx @fabiofiorita/porcelain serve`, run
+`pnpm build:package`; it writes the ignored publishable package to `dist-porcelain/`.
