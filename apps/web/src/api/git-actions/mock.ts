@@ -1,5 +1,6 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { Preparation, Receipt } from '../../domain/git-action';
+import { createId } from '../../lib/id';
 import type { createMockStore } from '../inventory/mock';
 import type { GitActionsPort } from './port';
 export function createGitActionsMock(
@@ -26,7 +27,7 @@ export function createGitActionsMock(
           'Stash apply and pop are not simulated in this mock. The live adapter supports preparing these actions with a known stash object ID.',
         );
       const preparation: Preparation = {
-        preparationId: crypto.randomUUID(),
+        preparationId: createId(),
         expiresAt: Date.now() + 300_000,
         action: request.action,
         preview: {
@@ -119,7 +120,7 @@ function applyMockAction(
   action: Preparation['action'],
 ) {
   if (action === 'commit') {
-    const oid = crypto.randomUUID().replaceAll('-', '').padEnd(40, '0');
+    const oid = createId().replaceAll('-', '').padEnd(40, '0');
     data.history.commits.unshift({
       oid,
       parentOids: data.status.headOid ? [data.status.headOid] : [],

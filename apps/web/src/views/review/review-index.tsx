@@ -1,15 +1,15 @@
-import { CheckIcon, FileTextIcon, LayersIcon } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { CheckIcon, FileTextIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import type { DocumentRef } from '../../domain/documents';
 import { entryKey } from '../../domain/documents';
 import { basename, changePath, type ReviewScope } from '../../domain/review';
 import { useArtifacts, useChanges } from '../../query/review';
+import { FileTypeIcon } from './file-type-icon';
 import { ReviewEmpty } from './review-empty';
 
 const rowClass =
-  'flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] transition-colors hover:bg-accent';
+  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
 
 export function ReviewIndex({
   scope,
@@ -76,14 +76,15 @@ export function ReviewIndex({
               )}
               onClick={() => onOpen(ref)}
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded bg-muted text-[10px] text-muted-foreground">
+              <span className="grid size-4.5 shrink-0 place-items-center rounded bg-muted text-[10px] text-muted-foreground">
                 {index + 1}
               </span>
-              <LayersIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate font-medium">
                 {layer.title}
               </span>
-              <Badge variant="secondary">{layerPaths.length}</Badge>
+              <span className="shrink-0 text-[10.5px] tabular-nums text-muted-foreground">
+                {layerPaths.length}
+              </span>
             </button>
             {layerPaths.map((path) => (
               <ChangeRow
@@ -164,11 +165,12 @@ function ChangeRow({
     <button
       type="button"
       aria-pressed={active}
+      aria-label={`${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`}
       title={path}
       className={cn(
         rowClass,
         'text-muted-foreground',
-        indented && 'pl-8',
+        indented && 'pl-6',
         active && 'workspace-choice bg-accent font-medium text-foreground',
       )}
       onClick={() => onOpen({ kind: 'change', path })}
@@ -180,13 +182,8 @@ function ChangeRow({
           <span className="size-1.5 rounded-full bg-foreground" />
         )}
       </span>
+      <FileTypeIcon path={path} className="size-3.5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">{basename(path)}</span>
-      <span className="shrink-0 text-[10.5px] text-muted-foreground">
-        {scopes.join(' + ')}
-      </span>
-      <span className="max-w-28 truncate text-[10.5px] text-muted-foreground">
-        {path}
-      </span>
     </button>
   );
 }

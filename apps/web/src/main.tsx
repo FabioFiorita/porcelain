@@ -8,6 +8,8 @@ import './app.css';
 import { createBootApi } from './api/boot';
 import { createQueryClient } from './query/client';
 import { WorkspaceProvider } from './query/workspace-provider';
+import { PierreIconSprite } from './views/review/file-type-icon';
+import './pierre.css';
 
 const queryClient = createQueryClient();
 const api = await createBootApi();
@@ -20,6 +22,7 @@ createRoot(root).render(
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
         <WorkspaceProvider api={api}>
+          <PierreIconSprite />
           <RouterProvider router={router} />
         </WorkspaceProvider>
       </QueryClientProvider>

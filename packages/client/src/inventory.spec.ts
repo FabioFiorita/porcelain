@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { readInventory } from './inventory.ts';
+import { readInventory, registerProject } from './inventory.ts';
 
 const inventory = {
   environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
@@ -89,3 +89,70 @@ test('preserves transport causes and aborts without exposing response bodies', a
     }),
   ).rejects.toBe(cause);
 });
+
+test('registers an absolute server-side project without caching or redirects', async () => {
+  const project = {
+    id: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
+    name: 'Porcelain',
+    available: true,
+    worktrees: [
+      {
+        id: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
+        path: '/srv/porcelain',
+        branch: 'refs/heads/main',
+        main: true,
+        available: true,
+      },
+    ],
+  };
+  const transport = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response(JSON.stringify(project)));
+
+  await expect(
+    registerProject({
+      endpoint: '/api',
+      token: 'secret',
+      fetch: transport,
+      signal,
+      path: '/srv/porcelain',
+    }),
+  ).resolves.toEqual(project);
+  expect(transport).toHaveBeenCalledWith(
+    '/api/projects',
+    expect.objectContaining({
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer secret',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ path: '/srv/porcelain' }),
+      signal,
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'error',
+    }),
+  );
+});
+
+test.each([
+  [401, 'Access token was rejected'],
+  [400, 'absolute path on the Porcelain server'],
+  [422, 'accessible Git repository on the Porcelain server'],
+  [500, 'could not open that project'],
+])(
+  'reports an actionable registration error for status %i',
+  async (status, message) => {
+    await expect(
+      registerProject({
+        endpoint: '/api',
+        token: 'secret',
+        fetch: vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(new Response('{}', { status })),
+        signal,
+        path: '/srv/porcelain',
+      }),
+    ).rejects.toThrow(message);
+  },
+);

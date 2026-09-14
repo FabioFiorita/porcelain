@@ -40,38 +40,35 @@ export function ReviewSidebar({
       data-testid="review-sidebar"
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card"
     >
-      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground">Worktree</p>
-          <h2 className="truncate text-sm font-medium">Review navigator</h2>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Close review sidebar"
-          onClick={onClose}
-        >
-          <PanelRightCloseIcon />
-        </Button>
-      </div>
       <Tabs
         value={surface}
         onValueChange={(value) => onSurface(value as Surface)}
         className="min-h-0 flex-1 gap-0"
       >
-        <TabsList className="mx-2 mt-2 h-8 w-auto gap-0 rounded-lg">
-          <TabsTrigger value="changes" className="min-w-0 flex-1 gap-1 px-2">
-            <ChangesSurfaceLabel scope={scope} />
-          </TabsTrigger>
-          <TabsTrigger value="files" className="min-w-0 flex-1 gap-1 px-2">
-            <FilesIcon />
-            <span>Files</span>
-          </TabsTrigger>
-          <TabsTrigger value="history" className="min-w-0 flex-1 gap-1 px-2">
-            <HistoryIcon />
-            <span>History</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="relative shrink-0 border-b p-1.5">
+          <TabsList className="h-8 w-[calc(100%-2.25rem)] gap-0">
+            <TabsTrigger value="changes" className="min-w-0 gap-1 px-1.5">
+              <ChangesSurfaceLabel scope={scope} />
+            </TabsTrigger>
+            <TabsTrigger value="files" className="min-w-0 gap-1 px-1.5">
+              <FilesIcon className="size-3.5" />
+              <span className="truncate">Files</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="min-w-0 gap-1 px-1.5">
+              <HistoryIcon className="size-3.5" />
+              <span className="truncate">History</span>
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-1.5 top-1.5"
+            aria-label="Close review sidebar"
+            onClick={onClose}
+          >
+            <PanelRightCloseIcon />
+          </Button>
+        </div>
         <TabsContent value="changes" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
@@ -100,9 +97,6 @@ export function ReviewSidebar({
           />
         </TabsContent>
       </Tabs>
-      <p className="shrink-0 border-t px-3 py-2 text-xs text-muted-foreground">
-        {available ? 'Scoped to selected worktree' : 'Worktree unavailable'}
-      </p>
     </aside>
   );
 }
@@ -113,8 +107,8 @@ function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
   const Icon = review ? ListChecksIcon : FileDiffIcon;
   return (
     <>
-      <Icon />
-      <span>{review ? 'Review' : 'Changes'}</span>
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{review ? 'Review' : 'Changes'}</span>
     </>
   );
 }

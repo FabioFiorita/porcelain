@@ -1,6 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { LogOutIcon, RefreshCwIcon } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { LogOutIcon, PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,7 @@ import { discardRejection } from '../../lib/submit-form';
 import { connectionErrorMessage, useConnection } from '../../query/connection';
 import { useInventory, useRefreshInventory } from '../../query/inventory';
 import { ReviewWorkspace } from '../review/review-workspace';
+import { OpenProjectDialog } from './open-project-dialog';
 import { ProjectNavigator } from './project-navigator';
 import { WorkspaceControls } from './workspace-controls';
 
@@ -47,6 +48,7 @@ export function ConnectedWorkspace() {
 
 function WorkspaceNavigation() {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const [openProject, setOpenProject] = useState(false);
   const { setOpenMobile, isMobile, open } = useSidebar();
   const { disconnect, disconnectError, disconnectPending } = useConnection();
   const { worktree: selected } = useSearch({ from: '/' });
@@ -76,6 +78,15 @@ function WorkspaceNavigation() {
             <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
               Porcelain
             </h1>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Open project"
+              title="Open project"
+              onClick={() => setOpenProject(true)}
+            >
+              <PlusIcon />
+            </Button>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -170,6 +181,7 @@ function WorkspaceNavigation() {
           )}
         </div>
       </SidebarInset>
+      <OpenProjectDialog open={openProject} onOpenChange={setOpenProject} />
     </>
   );
 }

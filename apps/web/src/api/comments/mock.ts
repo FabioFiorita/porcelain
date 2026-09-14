@@ -1,5 +1,6 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import { createCommentThreadSchema } from '@porcelain/contracts/comments';
+import { createId } from '../../lib/id';
 import type { createMockStore } from '../inventory/mock';
 import { createInventoryMock } from '../inventory/mock';
 import type { ReviewRequest } from '../review/port';
@@ -39,11 +40,11 @@ export function createCommentsMock(
       store.comments[request.worktreeId] = [
         ...threads,
         {
-          id: crypto.randomUUID(),
+          id: createId(),
           worktreeId: request.worktreeId,
           anchor: input.anchor,
           resolved: false,
-          messages: [{ id: crypto.randomUUID(), body: input.body }],
+          messages: [{ id: createId(), body: input.body }],
         },
       ];
       return structuredClone(store.comments[request.worktreeId] ?? []);

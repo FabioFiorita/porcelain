@@ -1,6 +1,7 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { CommentThread } from '../../domain/comments';
 import type { Inventory } from '../../domain/inventory';
+import { createId } from '../../lib/id';
 import { reviewFixture } from '../review/fixtures';
 import type { InventoryPort } from './port';
 
@@ -134,6 +135,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     reviewFailed: scenario === 'review-failed',
     changesFailed: false,
     artifactsFailed: false,
+    registerFailed: false,
     delayMs: scenario === 'slow' ? 1500 : 0,
     rejected: scenario === 'rejected',
     refreshFailed: scenario === 'refresh-failed',
@@ -141,33 +143,43 @@ export function createMockStore(scenario: MockScenario = 'populated') {
   };
 }
 
+type MockStore = ReturnType<typeof createMockStore>;
+
+async function prepareInventoryRequest(
+  store: MockStore,
+  token: string,
+  signal: AbortSignal,
+) {
+  signal.throwIfAborted();
+  if (store.delayMs > 0)
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      };
+      const timer = setTimeout(() => {
+        signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, store.delayMs);
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
+  signal.throwIfAborted();
+  if (
+    !token.trim() ||
+    store.rejected ||
+    (token === 'browser-session' && !store.sessionToken)
+  )
+    throw new ConnectionError(
+      'Access token was rejected. Check it and try again.',
+    );
+}
+
 export function createInventoryMock(
   store: ReturnType<typeof createMockStore>,
 ): InventoryPort {
   return {
     async read({ token, signal, refresh }) {
-      signal.throwIfAborted();
-      if (store.delayMs > 0)
-        await new Promise<void>((resolve, reject) => {
-          const onAbort = () => {
-            clearTimeout(timer);
-            reject(signal.reason);
-          };
-          const timer = setTimeout(() => {
-            signal.removeEventListener('abort', onAbort);
-            resolve();
-          }, store.delayMs);
-          signal.addEventListener('abort', onAbort, { once: true });
-        });
-      signal.throwIfAborted();
-      if (
-        !token.trim() ||
-        store.rejected ||
-        (token === 'browser-session' && !store.sessionToken)
-      )
-        throw new ConnectionError(
-          'Access token was rejected. Check it and try again.',
-        );
+      await prepareInventoryRequest(store, token, signal);
       if (refresh && store.refreshFailed)
         throw new ConnectionError(
           'The environment could not complete the request. Try again.',
@@ -175,6 +187,42 @@ export function createInventoryMock(
       if (refresh) store.refreshCount += 1;
       if (token !== 'browser-session') store.sessionToken = token;
       return structuredClone(store.inventory);
+    },
+    async register({ token, signal, path }) {
+      await prepareInventoryRequest(store, token, signal);
+      if (store.registerFailed)
+        throw new ConnectionError(
+          'That project could not be opened on the Porcelain server. Check the path and try again.',
+        );
+      if (token !== 'browser-session') store.sessionToken = token;
+      const existing = store.inventory.projects.find((project) =>
+        project.worktrees.some((worktree) => worktree.path === path),
+      );
+      if (existing) return structuredClone(existing);
+      const projectId = createId();
+      const worktreeId = createId();
+      const name = path.split('/').filter(Boolean).at(-1) || 'project';
+      const project = {
+        id: projectId,
+        name,
+        available: true,
+        worktrees: [
+          {
+            id: worktreeId,
+            path,
+            branch: 'refs/heads/main',
+            main: true,
+            available: true,
+          },
+        ],
+      };
+      store.inventory.projects.push(project);
+      store.review[worktreeId] = reviewFixture(
+        worktreeId,
+        store.inventory.environmentId,
+        'refs/heads/main',
+      );
+      return structuredClone(project);
     },
   };
 }

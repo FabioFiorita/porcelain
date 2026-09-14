@@ -1,11 +1,21 @@
-import { inventoryResponseSchema } from '@porcelain/contracts/inventory';
+import {
+  inventoryResponseSchema,
+  projectResponseSchema,
+} from '@porcelain/contracts/inventory';
 import { ConnectionError } from './errors/connection-error.ts';
 
-export async function readInventory(options: {
+type InventoryRequest = {
   endpoint: string;
   token: string;
   fetch: typeof fetch;
   signal: AbortSignal;
+};
+
+export async function readInventory(options: {
+  endpoint: InventoryRequest['endpoint'];
+  token: InventoryRequest['token'];
+  fetch: InventoryRequest['fetch'];
+  signal: InventoryRequest['signal'];
   refresh?: boolean;
 }) {
   const transport = options.fetch;
@@ -41,6 +51,53 @@ export async function readInventory(options: {
     if (error instanceof ConnectionError) throw error;
     throw new ConnectionError(
       'Could not reach the environment. Check that the server is running.',
+      { cause: error },
+    );
+  }
+}
+
+/** Register a repository path on the machine running the Porcelain server. */
+export async function registerProject(
+  options: InventoryRequest & { path: string },
+) {
+  try {
+    const response = await options.fetch(`${options.endpoint}/projects`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${options.token}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ path: options.path }),
+      signal: options.signal,
+      redirect: 'error',
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    if (response.status === 401)
+      throw new ConnectionError(
+        'Access token was rejected. Disconnect and connect again.',
+      );
+    if (response.status === 400)
+      throw new ConnectionError(
+        'Enter an absolute path on the Porcelain server.',
+      );
+    if (response.status === 422)
+      throw new ConnectionError(
+        'That path is not an accessible Git repository on the Porcelain server.',
+      );
+    if (!response.ok)
+      throw new ConnectionError(
+        'The Porcelain server could not open that project. Check the path and try again.',
+      );
+    const parsed = projectResponseSchema.safeParse(await response.json());
+    if (!parsed.success)
+      throw new ConnectionError('The server returned an incompatible project.');
+    return parsed.data;
+  } catch (error) {
+    if (options.signal.aborted) throw error;
+    if (error instanceof ConnectionError) throw error;
+    throw new ConnectionError(
+      'Could not reach the Porcelain server. Check that it is running.',
       { cause: error },
     );
   }

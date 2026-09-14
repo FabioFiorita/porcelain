@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useSyncExternalStore } from 'react';
 import type { ActionInput, GitAction, Receipt } from '../domain/git-action';
 import type { ReviewScope } from '../domain/review';
+import { createId } from '../lib/id';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
 import { useConnectedContext } from './workspace-provider';
@@ -63,7 +64,7 @@ export function useGitAction(scope: ReviewScope, action: GitAction) {
         throw new Error(
           'Check the existing receipt before starting another operation.',
         );
-      const requestId = crypto.randomUUID();
+      const requestId = createId();
       operations.set(key, { requestId, preparationId });
       return api.gitActions.execute({
         ...request(),

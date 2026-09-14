@@ -11,6 +11,7 @@ import {
   vi,
 } from 'vitest';
 import { createMockStore } from '../../api/inventory/mock';
+import type { Inventory } from '../../domain/inventory';
 import { queryKeys } from '../../query/keys';
 import { renderWorkspace } from '../../test/render';
 
@@ -286,6 +287,59 @@ describe('workspace through the inventory port', () => {
       'rejected',
     );
     expect(queryClient.getQueryCache().getAll()).toEqual([]);
+  });
+
+  it('opens a server-side project, updates inventory, and selects its first available worktree', async () => {
+    const { store, queryClient } = renderWorkspace();
+    const user = await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    await user.click(screen.getByRole('button', { name: 'Open project' }));
+    await user.type(
+      await screen.findByLabelText('Repository path'),
+      '/srv/work/new-project',
+    );
+    await user.click(screen.getByRole('button', { name: 'Open project' }));
+
+    const project = await waitFor(() =>
+      store.inventory.projects.find(
+        (entry) => entry.worktrees[0]?.path === '/srv/work/new-project',
+      ),
+    );
+    const worktree = project?.worktrees.find((entry) => entry.available);
+    expect(worktree).toBeDefined();
+    expect(
+      queryClient.getQueryData<Inventory>(
+        queryKeys.inventory(store.inventory.environmentId),
+      )?.projects,
+    ).toContainEqual(project);
+    expect(
+      (
+        await screen.findByRole('button', { name: /main.*new-project/ })
+      ).getAttribute('aria-current'),
+    ).toBe('page');
+  });
+
+  it('keeps the server path in the form after registration fails', async () => {
+    const store = createMockStore();
+    store.registerFailed = true;
+    renderWorkspace(store);
+    const user = await connect();
+    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    await user.click(screen.getByRole('button', { name: 'Open project' }));
+    const path = '/srv/work/missing-repository';
+    const input = await screen.findByLabelText('Repository path');
+    await user.type(input, path);
+    await user.click(screen.getByRole('button', { name: 'Open project' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'could not be opened on the Porcelain server',
+    );
+    expect(input).toHaveProperty('value', path);
+    expect(
+      store.inventory.projects.some((project) =>
+        project.worktrees.some((worktree) => worktree.path === path),
+      ),
+    ).toBe(false);
   });
 });
 
