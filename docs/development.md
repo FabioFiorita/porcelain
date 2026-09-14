@@ -42,9 +42,33 @@ Tests own their sample repositories and processes. Existing server specs exercis
 SQLite and HTTP; renderer specs use real providers with controlled API fixtures. Browser proof
 covers the browser only. Electron, mobile and remote connectivity need verification when introduced.
 
+## Persistent server
+
+`pnpm serve` is the normal persistent launcher for a Linux or macOS machine. It builds the web
+app, starts the API and serves that build from one origin. It keeps the SQLite state in
+`~/.porcelain/` and creates or reuses `~/.porcelain/admin-token` with mode `0600`; the token is
+never printed. The launcher defaults to loopback:
+
+```sh
+pnpm serve
+```
+
+For access from another device on the same network:
+
+```sh
+pnpm serve --lan
+```
+
+The command prints the listening address and token-file path. Enter the token from that file in
+the browser once; the browser session is then persisted by the server. `--host <host>` and
+`--port <port>` are also available. `--lan` is shorthand for `--host 0.0.0.0`; it cannot be
+combined with `--host`. Use `--data-directory <absolute-path>` or `--token-file <absolute-path>`
+when a different persistent location is required. The existing `pnpm dev` command remains the
+disposable sample-project workflow.
+
 ## Standalone server
 
-The standalone server can host a built browser client and its API from one origin. Build the
+The underlying server can host a built browser client and its API from one origin. Build the
 web app first, then supply an explicit data directory, port, token and absolute web root:
 
 ```sh

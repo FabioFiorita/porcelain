@@ -8,3 +8,8 @@ script = "npx --yes pnpm@12.3.4 install --frozen-lockfile"
 name = "Run Porcelain"
 icon = "run"
 command = "pnpm dev"
+
+[[actions]]
+name = "Run Porcelain (persistent LAN server)"
+icon = "run"
+command = "pnpm serve --lan"

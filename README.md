@@ -16,3 +16,8 @@ Ctrl+C stops the processes and removes the sample state.
 - [Product intent](docs/product.md)
 - [Development](docs/development.md)
 - [Architecture](docs/architecture.md)
+
+For a persistent server that serves the built web app and can be opened from another device on
+the LAN, run `pnpm serve --lan`. It keeps projects and the access token under
+`~/.porcelain/`; the command prints the local address and token-file path without printing the
+token. Use `pnpm serve` for loopback-only access.
