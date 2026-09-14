@@ -11,7 +11,7 @@ export class NodeFileTree implements FileTreeReader {
     listed: { paths: string[]; ignored: string[] },
     signal?: AbortSignal,
   ): Promise<FileTree> {
-    if (listed.paths.length > 20000)
+    if (listed.paths.length > 50000)
       throw new FileInspectionError('DIRECTORY_TOO_LARGE');
     const ignored = new Set(
       listed.ignored.map((path) => path.replace(/\/$/, '')),
@@ -69,7 +69,7 @@ export class NodeFileTree implements FileTreeReader {
       }
     }
     const result = { worktreeId, entries };
-    if (Buffer.byteLength(JSON.stringify(result)) > 2 * 1024 * 1024)
+    if (Buffer.byteLength(JSON.stringify(result)) > 8 * 1024 * 1024)
       throw new FileInspectionError('DIRECTORY_TOO_LARGE');
     return result;
   }

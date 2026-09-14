@@ -6,7 +6,7 @@ export async function readTreePaths(checkout: string, signal?: AbortSignal) {
     const raw = await executeInspection(
       checkout,
       ['ls-files', '-z', ...args],
-      2 * 1024 * 1024,
+      8 * 1024 * 1024,
       signal,
     );
     try {
