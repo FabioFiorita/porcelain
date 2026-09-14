@@ -82,11 +82,18 @@ export function createReviewMock(
         (item) => item.oid === request.oid,
       );
       if (!commit) throw new ConnectionError('This commit is unavailable.');
+      const parentNumber = request.parent ?? 1;
+      const baseOid = commit.parentOids[parentNumber - 1];
+      if (
+        (commit.parentOids.length === 0 && request.parent !== undefined) ||
+        (commit.parentOids.length > 0 && baseOid == null)
+      )
+        throw new ConnectionError(`This commit has no parent ${parentNumber}.`);
       return {
         commitOid: commit.oid,
         parentOids: commit.parentOids,
-        comparison: commit.parentOids[0]
-          ? { kind: 'parent', parentNumber: 1, baseOid: commit.parentOids[0] }
+        comparison: baseOid
+          ? { kind: 'parent', parentNumber, baseOid }
           : { kind: 'empty-tree' },
         changes: [
           {

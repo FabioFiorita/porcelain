@@ -101,7 +101,14 @@ export function CodeDocument({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {toolbar?.()}
-      {entries.length === 0 && header?.()}
+      {entries.length === 0 && header && (
+        <div
+          className="min-h-0 flex-1 overflow-auto"
+          data-testid="empty-code-document"
+        >
+          {header()}
+        </div>
+      )}
       {entries.length > 1 && (
         <div className="flex shrink-0 justify-end border-b px-3 py-1.5">
           <Button
@@ -113,54 +120,54 @@ export function CodeDocument({
           </Button>
         </div>
       )}
-      <CodeView
-        items={items}
-        options={options}
-        className="min-h-0 flex-1 overflow-auto"
-        {...(header && entries.length > 0
-          ? { renderCodeViewHeader: header }
-          : {})}
-        renderHeaderPrefix={(item) => {
-          if (entries.length < 2) return null;
-          const entry = byId.get(item.id);
-          if (!entry) return null;
-          const isCollapsed = collapsed.has(item.id);
-          return (
-            <button
-              type="button"
-              aria-expanded={!isCollapsed}
-              aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
-              onClick={() => toggle(item.id)}
-              className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              {isCollapsed ? (
-                <ChevronRightIcon className="size-3.5" />
-              ) : (
-                <ChevronDownIcon className="size-3.5" />
-              )}
-            </button>
-          );
-        }}
-        renderHeaderFilenameSuffix={(item) => {
-          const entry = byId.get(item.id);
-          if (!entry) return null;
-          const review = entry.review;
-          const showControl =
-            review != null &&
-            firstReviewEntryByPath.get(review.path) === entry.id;
-          if (!entry.note && !showControl) return null;
-          return (
-            <span className="ml-2 inline-flex min-w-0 items-center gap-2 font-sans">
-              {entry.note && (
-                <span className="truncate text-xs text-muted-foreground">
-                  {entry.note}
-                </span>
-              )}
-              {showControl && review.control}
-            </span>
-          );
-        }}
-      />
+      {entries.length > 0 && (
+        <CodeView
+          items={items}
+          options={options}
+          className="min-h-0 flex-1 overflow-auto"
+          {...(header ? { renderCodeViewHeader: header } : {})}
+          renderHeaderPrefix={(item) => {
+            if (entries.length < 2) return null;
+            const entry = byId.get(item.id);
+            if (!entry) return null;
+            const isCollapsed = collapsed.has(item.id);
+            return (
+              <button
+                type="button"
+                aria-expanded={!isCollapsed}
+                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
+                onClick={() => toggle(item.id)}
+                className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                {isCollapsed ? (
+                  <ChevronRightIcon className="size-3.5" />
+                ) : (
+                  <ChevronDownIcon className="size-3.5" />
+                )}
+              </button>
+            );
+          }}
+          renderHeaderFilenameSuffix={(item) => {
+            const entry = byId.get(item.id);
+            if (!entry) return null;
+            const review = entry.review;
+            const showControl =
+              review != null &&
+              firstReviewEntryByPath.get(review.path) === entry.id;
+            if (!entry.note && !showControl) return null;
+            return (
+              <span className="ml-2 inline-flex min-w-0 items-center gap-2 font-sans">
+                {entry.note && (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {entry.note}
+                  </span>
+                )}
+                {showControl && review.control}
+              </span>
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

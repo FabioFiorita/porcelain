@@ -1,10 +1,11 @@
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs';
-import type { Change, Diff } from '../../domain/review';
+import type { Change, CommitChanges, Diff } from '../../domain/review';
 import { changePath } from '../../domain/review';
 import type { CodeEntry } from './code-document';
 
 export const MAX_PARSED_DIFFS = 128;
 const parsedDiffs = new Map<string, FileDiffMetadata | null>();
+const parsedCommits = new WeakMap<object, FileDiffMetadata | null>();
 type OrdinaryChange = Extract<Change, { kind: string }>;
 
 function contentVersion(value: string) {
@@ -71,5 +72,33 @@ export function fileEntry(
     contents,
     version: contentVersion(contents),
     ...(note ? { note } : {}),
+  };
+}
+
+/** Turn a textual commit patch into the same Pierre entry used by review diffs. */
+export function commitEntry(
+  oid: string,
+  change: CommitChanges['changes'][number],
+): CodeEntry | null {
+  if (change.patch.kind !== 'text') return null;
+  const path = change.newPath ?? change.oldPath ?? '';
+  if (path === '') return null;
+  if (!parsedCommits.has(change)) {
+    const patchVersion = contentVersion(change.patch.text);
+    parsedCommits.set(
+      change,
+      parsePatchFiles(change.patch.text, `${oid}:${path}:${patchVersion}`)[0]
+        ?.files[0] ?? null,
+    );
+  }
+  const fileDiff = parsedCommits.get(change);
+  if (!fileDiff) return null;
+  return {
+    id: `commit:${oid}:${path}`,
+    kind: 'diff',
+    path,
+    fileDiff,
+    version: contentVersion(change.patch.text),
+    note: change.status,
   };
 }

@@ -1,21 +1,19 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CopyIcon, FileDiffIcon, MessageSquarePlusIcon } from 'lucide-react';
-import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DocumentRef } from '../../domain/documents';
+import { ordinal } from '../../domain/history';
 import type {
-  Artifact,
-  ArtifactContent,
+  CommitChanges,
   ReviewEvidenceItem,
   ReviewScope,
 } from '../../domain/review';
-import { artifactKind, changePath, shortOid } from '../../domain/review';
+import { changePath, shortOid } from '../../domain/review';
+import { useHistory } from '../../query/history';
 import {
-  useArtifactContents,
-  useArtifacts,
   useChanges,
   useCommit,
   useReviewEvidence,
@@ -23,13 +21,16 @@ import {
 } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
+import { ArtifactDocument } from './artifact-document';
+import { CodeDocument } from './code-document';
+import { commitEntry } from './diff-entries';
 import { DocumentToolbar } from './document-toolbar';
 import { FileComments } from './file-comments';
 import { FileTypeIcon } from './file-type-icon';
 import { HandoffSummary } from './handoff-artifact';
 import { HtmlFrame } from './html-frame';
 import { MarkdownView } from './markdown-view';
-import { DiffPreview, SourcePreview } from './pierre-preview';
+import { SourcePreview } from './pierre-preview';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 import { MarkAllReviewed } from './reviewed-control';
@@ -385,18 +386,61 @@ function defaultFileDisplayMode(
   return 'source';
 }
 
-function CommitDocument({ scope, oid }: { scope: ReviewScope; oid: string }) {
-  const commit = useCommit(scope, oid);
+export function CommitDocument({
+  scope,
+  oid,
+}: {
+  scope: ReviewScope;
+  oid: string;
+}) {
+  // A merge can be read against any of its parents; all other commits only
+  // have the first parent (or the empty tree for a root commit).
+  const [parent, setParent] = useState(1);
+  const [, startTransition] = useTransition();
+  const commit = useCommit(scope, oid, parent);
+  const history = useHistory(scope);
+  const entries = useMemo(
+    () =>
+      commit.changes.flatMap((change) => {
+        const entry = commitEntry(oid, change);
+        return entry == null ? [] : [entry];
+      }),
+    [commit, oid],
+  );
+  const omitted = useMemo(
+    () => commit.changes.filter((change) => commitEntry(oid, change) == null),
+    [commit, oid],
+  );
+  const historyEntry = history.commits.find((item) => item.oid === oid);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-card">
+    <div className="flex min-h-0 flex-1 flex-col">
       <DocumentToolbar
-        title={<span className="font-mono">Commit {shortOid(oid)}</span>}
-        subtitle={
-          commit.comparison.kind === 'parent'
-            ? `Compared with parent ${commit.comparison.parentNumber}`
-            : 'Initial commit · compared with empty tree'
-        }
+        title={<span className="font-mono">{shortOid(oid)}</span>}
+        subtitle={`${commit.changes.length} file${commit.changes.length === 1 ? '' : 's'} changed`}
       >
+        {commit.parentOids.length > 1 && (
+          // Keep the current diff visible while the other parent is loading.
+          <Tabs
+            value={String(parent)}
+            onValueChange={(value) =>
+              startTransition(() => setParent(Number(value)))
+            }
+          >
+            <TabsList className="h-7">
+              {commit.parentOids.map((parentOid, index) => (
+                <TabsTrigger
+                  key={parentOid}
+                  value={String(index + 1)}
+                  className="px-2 text-xs"
+                >
+                  {ordinal(index + 1)} parent ·{' '}
+                  <span className="font-mono">{shortOid(parentOid)}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
         <Button
           size="sm"
           variant="ghost"
@@ -406,109 +450,101 @@ function CommitDocument({ scope, oid }: { scope: ReviewScope; oid: string }) {
           Copy id
         </Button>
       </DocumentToolbar>
-      <div className="min-h-0 flex-1 overflow-auto">
-        {commit.changes.map((change) => (
-          <section key={change.newPath ?? change.oldPath} className="border-b">
-            <div className="flex items-center gap-3 px-4 py-2.5">
-              <h3 className="min-w-0 flex-1 break-all text-sm">
-                {change.newPath ?? change.oldPath}
-              </h3>
-              <Badge variant="outline">{change.status}</Badge>
-            </div>
-            {change.patch.kind === 'text' ? (
-              <DiffPreview patch={change.patch.text} />
-            ) : (
-              <ReviewEmpty
-                title="Binary change"
-                description="Binary contents are not displayed."
-              />
-            )}
-          </section>
-        ))}
-      </div>
+      <CodeDocument
+        entries={entries}
+        header={() => (
+          <CommitHeader
+            commit={commit}
+            historyEntry={historyEntry}
+            oid={oid}
+            omitted={omitted}
+          />
+        )}
+      />
     </div>
   );
 }
 
-export function ArtifactDocument({
-  scope,
-  artifactId,
+function CommitHeader({
+  commit,
+  historyEntry,
+  oid,
+  omitted,
 }: {
-  scope: ReviewScope;
-  artifactId: string;
+  commit: CommitChanges;
+  historyEntry?: ReturnType<typeof useHistory>['commits'][number] | undefined;
+  oid: string;
+  omitted: readonly CommitChanges['changes'][number][];
 }) {
-  const artifact = useArtifacts(scope).find((item) => item.id === artifactId);
-  const [content] = useArtifactContents(
-    scope,
-    artifact == null ? [] : [artifact.id],
-  );
-  if (!artifact)
-    return (
-      <ReviewEmpty
-        title="Artifact unavailable"
-        description="This upload is no longer available for the selected worktree."
-      />
-    );
-  if (!content)
-    return (
-      <ReviewEmpty
-        title="Artifact content unavailable"
-        description="This upload no longer has readable content for the selected worktree."
-      />
-    );
-  return <ArtifactDetails artifact={artifact} content={content} />;
-}
-
-function ArtifactDetails({
-  artifact,
-  content,
-}: {
-  artifact: Artifact;
-  content: ArtifactContent;
-}) {
-  const kind = artifactKind(artifact.name, content.content);
   return (
-    <DocumentFrame>
-      <DocumentToolbar
-        title={artifact.name}
-        subtitle={`From the agent · Stored artifact · ${formatDistanceToNowStrict(new Date(artifact.createdAt), { addSuffix: true })}`}
-      />
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 border-b px-6 py-4 text-sm">
-        <dt className="text-muted-foreground">Created</dt>
-        <dd>{artifact.createdAt.replace('T', ' ').replace('Z', ' UTC')}</dd>
-        <dt className="text-muted-foreground">Format</dt>
-        <dd>
-          {kind === 'html'
-            ? 'HTML preview'
-            : kind === 'markdown'
-              ? 'Markdown'
-              : 'Text'}
-        </dd>
-      </dl>
-      {kind === 'html' ? (
-        <HtmlFrame
-          html={content.content}
-          title={artifact.name}
-          className="h-[min(70svh,56rem)]"
-        />
-      ) : kind === 'markdown' ? (
-        <div className="mx-auto max-w-[78ch] px-6 py-4">
-          <MarkdownView text={content.content} />
-        </div>
-      ) : (
-        <pre className="whitespace-pre-wrap break-words px-6 py-5 font-mono text-xs leading-relaxed">
-          {content.content}
-        </pre>
-      )}
-    </DocumentFrame>
+    <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
+      <h2 className="text-sm font-semibold">
+        {historyEntry?.subject ?? 'Commit'}
+      </h2>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
+        {historyEntry != null && (
+          <span>
+            {historyEntry.author.name} ·{' '}
+            {formatDistanceToNowStrict(
+              new Date(historyEntry.author.timestamp),
+              { addSuffix: true },
+            )}
+          </span>
+        )}
+        <span className="font-mono">{oid}</span>
+        {commit.comparison.kind === 'parent' ? (
+          <span>
+            against{' '}
+            <span className="font-mono">
+              {shortOid(commit.comparison.baseOid)}
+            </span>
+            {commit.parentOids.length > 1 &&
+              ` (${ordinal(commit.comparison.parentNumber)} parent of a merge)`}
+          </span>
+        ) : (
+          <span>root commit</span>
+        )}
+      </div>
+      {omitted.length > 0 && <OmittedCommitChanges changes={omitted} />}
+    </section>
   );
 }
 
-function DocumentFrame({ children }: { children: React.ReactNode }) {
+function OmittedCommitChanges({
+  changes,
+}: {
+  changes: readonly CommitChanges['changes'][number][];
+}) {
   return (
-    <article className="min-h-0 flex-1 overflow-auto bg-card">
-      {children}
-    </article>
+    <ul className="mt-3 space-y-1.5" aria-label="Changes without code preview">
+      {changes.map((change) => {
+        const path = change.newPath ?? change.oldPath ?? 'Unknown path';
+        const reason =
+          change.patch.kind === 'binary'
+            ? 'Binary change'
+            : change.patch.kind === 'submodule'
+              ? 'Submodule change'
+              : 'Patch could not be displayed';
+        return (
+          <li
+            key={`${change.oldPath}->${change.newPath}:${change.status}`}
+            className="rounded-lg border bg-muted/25 px-3 py-2 text-xs"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate font-mono font-medium">{path}</span>
+              <span className="shrink-0 text-muted-foreground">
+                {change.status} · {reason}
+              </span>
+            </div>
+            {change.patch.kind === 'submodule' && (
+              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
+                {change.patch.text}
+              </pre>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

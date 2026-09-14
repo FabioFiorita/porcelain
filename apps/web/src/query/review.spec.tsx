@@ -16,6 +16,7 @@ import { createQueryClient } from './client';
 import { queryKeys } from './keys';
 import {
   mergeReviewEvidence,
+  useCommit,
   useMarkAllReviewed,
   useMarkReviewed,
   useReviewEvidence,
@@ -119,6 +120,17 @@ function MutationHarness() {
   );
 }
 
+function CommitHarness({ oid, parent }: { oid: string; parent?: number }) {
+  const commit = useCommit(scope, oid, parent);
+  return (
+    <output aria-label="commit comparison">
+      {commit.comparison.kind === 'parent'
+        ? `${commit.comparison.parentNumber}:${commit.comparison.baseOid}`
+        : 'empty-tree'}
+    </output>
+  );
+}
+
 function renderReview(
   store = createMockStore(),
   api = createMockApi(store),
@@ -144,6 +156,47 @@ afterEach(() => {
 });
 
 describe('review evidence queries', () => {
+  it('keeps a selected merge parent in the query identity and request', async () => {
+    const store = createMockStore();
+    const fixture = store.review[scope.worktreeId];
+    const firstCommit = fixture?.history.commits[0];
+    if (!firstCommit) throw new Error('Missing fixture commit');
+    firstCommit.parentOids.push('c'.repeat(40));
+
+    const baseApi = createMockApi(store);
+    const parentCalls: Array<number | undefined> = [];
+    const api: Api = {
+      ...baseApi,
+      review: {
+        ...baseApi.review,
+        async commit(request) {
+          parentCalls.push(request.parent);
+          return baseApi.review.commit(request);
+        },
+      },
+    };
+
+    const { queryClient } = renderReview(
+      store,
+      api,
+      <CommitHarness oid={firstCommit.oid} parent={2} />,
+    );
+
+    expect(
+      (await screen.findByLabelText('commit comparison')).textContent,
+    ).toBe(`2:${'c'.repeat(40)}`);
+    expect(parentCalls).toEqual([2]);
+    expect(
+      queryClient.getQueryData(
+        queryKeys.reviewSurface(store.inventory.environmentId, scope, [
+          'commit',
+          firstCommit.oid,
+          2,
+        ]),
+      ),
+    ).toBeTruthy();
+  });
+
   it('selects a logical path without dropping its staged and unstaged comparisons', () => {
     const staged: Extract<Change, { kind: string }> = {
       scope: 'staged',

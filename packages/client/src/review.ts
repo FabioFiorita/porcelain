@@ -75,10 +75,14 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ),
     diff: (request: Request & { input: GitDiffRequest }) =>
       read(request, 'git/diff', gitDiffResponseSchema, request.input),
-    commit: (request: Request & { oid: string }) =>
+    commit: (request: Request & { oid: string; parent?: number }) =>
       read(
         request,
-        `commits/${encodeURIComponent(request.oid)}/changes`,
+        `commits/${encodeURIComponent(request.oid)}/changes${
+          request.parent === undefined
+            ? ''
+            : `?${new URLSearchParams({ parent: String(request.parent) })}`
+        }`,
         commitChangesResponseSchema,
       ),
     directory: (request: Request & { path: string }) =>

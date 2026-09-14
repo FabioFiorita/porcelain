@@ -77,6 +77,9 @@ describe('ProjectNavigator', () => {
     renderNavigator('worktree-review');
 
     expect(screen.getByRole('navigation').className).toContain('text-[13px]');
+    expect(
+      screen.getByRole('heading', { name: 'Porcelain' }).className,
+    ).toContain('text-[12.5px]');
     expect(screen.getByTitle('/home/dev/code/porcelain')).toBeTruthy();
     expect(
       screen

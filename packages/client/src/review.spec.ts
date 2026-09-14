@@ -77,6 +77,31 @@ describe('review transport', () => {
       content: '<h1>Ready</h1>',
     });
   });
+  it('adds a selected merge parent to the commit changes request', async () => {
+    const oid = 'a'.repeat(40);
+    const parent = 2;
+    const transport: typeof fetch = async (input) => {
+      expect(String(input)).toBe(
+        `/api/worktrees/${scope.worktreeId}/commits/${oid}/changes?parent=${parent}`,
+      );
+      return Response.json({
+        commitOid: oid,
+        parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+        comparison: {
+          kind: 'parent',
+          parentNumber: parent,
+          baseOid: 'c'.repeat(40),
+        },
+        changes: [],
+      });
+    };
+
+    await expect(
+      createReviewClient(transport, '/api').commit({ ...scope, oid, parent }),
+    ).resolves.toMatchObject({
+      comparison: { parentNumber: parent, baseOid: 'c'.repeat(40) },
+    });
+  });
   it('loads complete review evidence and durable reviewed marks through scoped routes', async () => {
     const fingerprint = 'a'.repeat(64);
     const calls: string[] = [];

@@ -8,8 +8,10 @@ import {
   GitCommitHorizontalIcon,
   LayersIcon,
   ListXIcon,
+  NewspaperIcon,
   PinIcon,
   PinOffIcon,
+  SquareStackIcon,
   SquareXIcon,
   XIcon,
 } from 'lucide-react';
@@ -34,6 +36,7 @@ import {
 } from '../../domain/review';
 import { SHORTCUTS } from '../workspace/shortcuts';
 import { FileTypeIcon } from './file-type-icon';
+import { HANDOFF_ARTIFACT_NAMES } from './handoff-artifact';
 
 type Layer = Layers['layers'][number];
 type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
@@ -62,7 +65,7 @@ function describeTab(
       const index = layers.findIndex((layer) => layer.id === ref.layerId);
       const title = layers[index]?.title ?? 'Layer';
       return {
-        Icon: LayersIcon,
+        Icon: SquareStackIcon,
         title: `${index >= 0 ? `${index + 1}. ` : ''}${title}`,
         hint: title,
       };
@@ -89,8 +92,9 @@ function describeTab(
       const artifact = artifacts.find((item) => item.id === ref.artifactId);
       const name = artifact?.name ?? 'Artifact';
       return {
-        Icon: FileTextIcon,
-        title: name,
+        Icon:
+          name === HANDOFF_ARTIFACT_NAMES.html ? NewspaperIcon : FileTextIcon,
+        title: name === HANDOFF_ARTIFACT_NAMES.html ? 'Report' : name,
         hint: `${name} · from the agent`,
       };
     }

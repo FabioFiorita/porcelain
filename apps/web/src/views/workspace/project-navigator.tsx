@@ -182,7 +182,7 @@ function ProjectSection({
           >
             <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-data-open/project:rotate-90" />
             <FolderGit2Icon className="size-3.5 shrink-0 text-muted-foreground" />
-            <h3 className="min-w-0 flex-1 truncate text-left font-medium">
+            <h3 className="min-w-0 flex-1 truncate text-left text-[12.5px] font-medium">
               {project.name}
             </h3>
             {!project.available && (

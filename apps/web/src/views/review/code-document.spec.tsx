@@ -117,4 +117,15 @@ describe('continuous code document', () => {
     expect(codeView.dataset.diffStyle).toBe('split');
     expect(codeView.dataset.overflow).toBe('wrap');
   });
+
+  it('keeps an empty document header scrollable without mounting CodeView', () => {
+    render(
+      <CodeDocument entries={[]} header={() => <div>Binary changes</div>} />,
+    );
+
+    const surface = screen.getByTestId('empty-code-document');
+    expect(surface.className).toContain('overflow-auto');
+    expect(screen.getByText('Binary changes')).toBeTruthy();
+    expect(screen.queryByTestId('code-view')).toBeNull();
+  });
 });

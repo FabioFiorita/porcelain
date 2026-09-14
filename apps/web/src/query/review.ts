@@ -198,9 +198,9 @@ export function useTextFile(scope: ReviewScope, path: string) {
     api.text({ ...request, path }),
   );
 }
-export function useCommit(scope: ReviewScope, oid: string) {
-  return useReviewData(scope, ['commit', oid], (api, request) =>
-    api.commit({ ...request, oid }),
+export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
+  return useReviewData(scope, ['commit', oid, parent], (api, request) =>
+    api.commit({ ...request, oid, ...(parent === 1 ? {} : { parent }) }),
   );
 }
 export function useDiff(scope: ReviewScope, input: DiffRequest) {

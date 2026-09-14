@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { focusManager } from '@tanstack/react-query';
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   afterAll,
@@ -16,6 +16,8 @@ import { createMockStore } from '../../api/inventory/mock';
 import type { Inventory } from '../../domain/inventory';
 import { queryKeys } from '../../query/keys';
 import { renderWorkspace } from '../../test/render';
+
+const mediaListeners = new Set<(event: MediaQueryListEvent) => void>();
 
 // The development overlay has its own browser smoke; it is not supported by jsdom.
 vi.mock('../../development/devtools', () => ({ Devtools: () => null }));
@@ -136,8 +138,14 @@ beforeAll(() => {
   });
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('min-width: 1280px'),
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener: (
+      _type: string,
+      listener: (event: MediaQueryListEvent) => void,
+    ) => mediaListeners.add(listener),
+    removeEventListener: (
+      _type: string,
+      listener: (event: MediaQueryListEvent) => void,
+    ) => mediaListeners.delete(listener),
   }));
   vi.stubGlobal(
     'ResizeObserver',
@@ -151,6 +159,7 @@ beforeAll(() => {
 });
 afterEach(() => {
   cleanup();
+  window.innerWidth = 1024;
   focusManager.setFocused(undefined);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
@@ -175,6 +184,12 @@ async function connect() {
 function refocusWindow() {
   focusManager.setFocused(false);
   focusManager.setFocused(true);
+}
+
+function setViewportWidth(width: number) {
+  window.innerWidth = width;
+  const event = { matches: width < 768 } as MediaQueryListEvent;
+  for (const listener of mediaListeners) listener(event);
 }
 
 describe('workspace through the inventory port', () => {
@@ -342,6 +357,76 @@ describe('workspace through the inventory port', () => {
 });
 
 describe('worktree review navigation', () => {
+  it('keeps the review workspace mounted while desktop navigation is toggled', async () => {
+    renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+
+    const reviewContent = await screen.findByRole('region', {
+      name: 'Review content',
+    });
+    const navigationToggle = screen.getByRole('button', {
+      name: /^Toggle Sidebar$/,
+    });
+
+    await user.click(navigationToggle);
+    expect(
+      screen.queryByRole('navigation', { name: 'Projects and worktrees' }),
+    ).toBeNull();
+    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
+      reviewContent,
+    );
+    expect(navigationToggle.getAttribute('aria-expanded')).toBe('false');
+
+    await user.click(navigationToggle);
+    expect(
+      screen.getByRole('navigation', { name: 'Projects and worktrees' }),
+    ).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
+      reviewContent,
+    );
+  });
+
+  it('keeps the review workspace and an unsent draft across the mobile breakpoint', async () => {
+    renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: /review-panel\.tsx.*staged/ }),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Comment' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Add comment' }),
+    );
+    await user.type(screen.getByLabelText('Comment'), 'Keep this draft');
+    const reviewContent = screen.getByRole('region', {
+      name: 'Review content',
+    });
+
+    act(() => setViewportWidth(640));
+
+    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
+      reviewContent,
+    );
+    expect(screen.getByLabelText('Comment')).toHaveProperty(
+      'value',
+      'Keep this draft',
+    );
+
+    act(() => setViewportWidth(1024));
+    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
+      reviewContent,
+    );
+    expect(screen.getByLabelText('Comment')).toHaveProperty(
+      'value',
+      'Keep this draft',
+    );
+  });
+
   it('opens the initial handoff when tab storage is unavailable', async () => {
     const originalGetItem = Storage.prototype.getItem;
     const getItem = vi
@@ -770,8 +855,8 @@ describe('review surfaces', () => {
         name: /Keep review context scoped to the worktree/,
       }),
     );
-    await screen.findByRole('heading', { name: /^Commit / });
-    expect(screen.getByText(/Compared with parent/)).toBeTruthy();
+    await screen.findByRole('heading', { name: /^[0-9a-f]{7}$/ });
+    expect(screen.getByText(/against/)).toBeTruthy();
   });
 
   it('reports a change that is no longer present in the current status', async () => {

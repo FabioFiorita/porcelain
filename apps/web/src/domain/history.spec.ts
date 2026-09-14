@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { historyFollows, layoutGraph, shortOid } from './history';
+import { historyFollows, layoutGraph, ordinal, shortOid } from './history';
 
 const oid = (value: string) => value.repeat(40);
 const commit = (value: string, parentOids: string[] = []) => ({
@@ -40,5 +40,15 @@ describe('history domain', () => {
 
   it('shortens commit IDs for compact rows', () => {
     expect(shortOid(oid('a'))).toBe('aaaaaaa');
+  });
+
+  it('formats merge parent numbers without teen suffix mistakes', () => {
+    expect([
+      ordinal(1),
+      ordinal(2),
+      ordinal(3),
+      ordinal(11),
+      ordinal(12),
+    ]).toEqual(['1st', '2nd', '3rd', '11th', '12th']);
   });
 });

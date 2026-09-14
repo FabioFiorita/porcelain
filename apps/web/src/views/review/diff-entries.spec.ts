@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Change, Diff } from '../../domain/review';
+import type { Change, CommitChanges, Diff } from '../../domain/review';
 import {
+  commitEntry,
   diffEntry,
   evidenceId,
   fileEntry,
@@ -68,6 +69,53 @@ describe('continuous diff entries', () => {
         '--- a/one.md\n+++ b/one.md\n@@ -1 +1 @@\n-old\n+new\n--- a/two.md\n+++ b/two.md\n@@ -1 +1 @@\n-old\n+new\n',
     };
     expect(diffEntry(staged, multiple)).toBeNull();
+  });
+
+  it('turns a commit patch into the shared Pierre entry shape', () => {
+    const change: CommitChanges['changes'][number] = {
+      oldPath: 'README.md',
+      newPath: 'README.md',
+      status: 'modified',
+      oldMode: '100644',
+      newMode: '100644',
+      patch: {
+        kind: 'text',
+        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
+      },
+    };
+
+    expect(commitEntry('b'.repeat(40), change)).toMatchObject({
+      id: `commit:${'b'.repeat(40)}:README.md`,
+      kind: 'diff',
+      path: 'README.md',
+      note: 'modified',
+    });
+  });
+
+  it('uses distinct Pierre cache identities for different parent patches', () => {
+    const base: CommitChanges['changes'][number] = {
+      oldPath: 'README.md',
+      newPath: 'README.md',
+      status: 'modified',
+      oldMode: '100644',
+      newMode: '100644',
+      patch: {
+        kind: 'text',
+        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+first\n',
+      },
+    };
+    const first = commitEntry('b'.repeat(40), base);
+    const second = commitEntry('b'.repeat(40), {
+      ...base,
+      patch: {
+        kind: 'text',
+        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+second\n',
+      },
+    });
+
+    if (first?.kind !== 'diff' || second?.kind !== 'diff')
+      throw new Error('Expected textual patches to produce diff entries');
+    expect(first.fileDiff.cacheKey).not.toBe(second.fileDiff.cacheKey);
   });
 
   it('evicts the oldest parsed patch when the cache reaches its bound', () => {

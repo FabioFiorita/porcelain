@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { CommitChanges } from '../../domain/review';
 import { DocumentView } from './documents';
 
 const fileState = vi.hoisted(() => ({
@@ -12,10 +13,47 @@ const preferenceState = vi.hoisted(() => ({
   markdownDefault: 'reader' as 'reader' | 'source',
   htmlDefault: 'preview' as 'preview' | 'source',
 }));
+const commitState = vi.hoisted(() => ({
+  commitOid: 'a'.repeat(40),
+  parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+  comparison: {
+    kind: 'parent' as const,
+    parentNumber: 1,
+    baseOid: 'b'.repeat(40),
+  },
+  changes: [
+    {
+      oldPath: 'README.md',
+      newPath: 'README.md',
+      status: 'modified' as const,
+      oldMode: '100644',
+      newMode: '100644',
+      patch: {
+        kind: 'text' as const,
+        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
+      },
+    },
+  ] as CommitChanges['changes'],
+}));
+const historyState = vi.hoisted(() => ({
+  commits: [
+    {
+      oid: 'a'.repeat(40),
+      parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+      author: { name: 'Fabio Fiorita', timestamp: '2026-09-14T12:00:00Z' },
+      subject: 'Keep commit review compact',
+      subjectTruncated: false,
+    },
+  ],
+}));
 
 vi.mock('../../query/review', () => ({
   useTextFile: () => fileState,
   useChanges: () => ({ status: { changes: [] } }),
+  useCommit: () => commitState,
+}));
+vi.mock('../../query/history', () => ({
+  useHistory: () => historyState,
 }));
 vi.mock('../workspace/preferences', () => ({
   usePreferences: () => ({ preferences: preferenceState }),
@@ -38,6 +76,22 @@ vi.mock('./html-frame', () => ({
     <div data-testid="html-preview">{html}</div>
   ),
 }));
+vi.mock('./code-document', () => ({
+  CodeDocument: ({
+    entries,
+    header,
+  }: {
+    entries: Array<{ path: string }>;
+    header?: () => React.ReactNode;
+  }) => (
+    <div data-testid="code-document">
+      {entries.map((entry) => (
+        <span key={entry.path}>{entry.path}</span>
+      ))}
+      {header?.()}
+    </div>
+  ),
+}));
 
 const scope = {
   projectId: 'project',
@@ -58,6 +112,22 @@ afterEach(() => {
   cleanup();
   preferenceState.markdownDefault = 'reader';
   preferenceState.htmlDefault = 'preview';
+  commitState.comparison.parentNumber = 1;
+  commitState.changes = [
+    {
+      oldPath: 'README.md',
+      newPath: 'README.md',
+      status: 'modified',
+      oldMode: '100644',
+      newMode: '100644',
+      patch: {
+        kind: 'text',
+        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
+      },
+    },
+  ];
+  const firstCommit = historyState.commits[0];
+  if (firstCommit) firstCommit.subject = 'Keep commit review compact';
 });
 
 describe('file document display defaults', () => {
@@ -85,5 +155,91 @@ describe('file document display defaults', () => {
     await user.click(screen.getByRole('tab', { name: 'Source' }));
     expect(screen.getByTestId('source-view')).toBeTruthy();
     expect(screen.queryByTestId('markdown-reader')).toBeNull();
+  });
+
+  it('renders merge parent choices and commit metadata through the shared code document', async () => {
+    const user = userEvent.setup();
+    render(
+      <DocumentView
+        scope={scope}
+        document={{ kind: 'commit', oid: commitState.commitOid }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Keep commit review compact')).toBeTruthy();
+    expect(screen.getByText(/Fabio Fiorita/u)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy id' })).toBeTruthy();
+    expect(screen.getByTestId('code-document')).toBeTruthy();
+    const secondParent = screen.getByRole('tab', {
+      name: /2nd parent.*ccccccc/u,
+    });
+    await user.click(secondParent);
+    expect(secondParent.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('identifies binary and submodule changes that have no code preview', () => {
+    commitState.changes = [
+      {
+        oldPath: 'assets/logo.png',
+        newPath: 'assets/logo.png',
+        status: 'modified',
+        oldMode: '100644',
+        newMode: '100644',
+        patch: { kind: 'binary' },
+      },
+      {
+        oldPath: 'vendor/tool',
+        newPath: 'vendor/tool',
+        status: 'modified',
+        oldMode: '160000',
+        newMode: '160000',
+        patch: {
+          kind: 'submodule',
+          text: 'Subproject commit 1111111..2222222',
+        },
+      },
+    ];
+
+    render(
+      <DocumentView
+        scope={scope}
+        document={{ kind: 'commit', oid: commitState.commitOid }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const fallback = screen.getByLabelText('Changes without code preview');
+    expect(fallback.textContent).toContain('assets/logo.png');
+    expect(fallback.textContent).toContain('modified · Binary change');
+    expect(fallback.textContent).toContain('vendor/tool');
+    expect(fallback.textContent).toContain('modified · Submodule change');
+    expect(fallback.textContent).toContain(
+      'Subproject commit 1111111..2222222',
+    );
+  });
+
+  it('keeps binary-only commits navigable without a code entry', () => {
+    commitState.changes = [
+      {
+        oldPath: null,
+        newPath: 'assets/new-logo.png',
+        status: 'added',
+        oldMode: '000000',
+        newMode: '100644',
+        patch: { kind: 'binary' },
+      },
+    ];
+
+    render(
+      <DocumentView
+        scope={scope}
+        document={{ kind: 'commit', oid: commitState.commitOid }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('assets/new-logo.png')).toBeTruthy();
+    expect(screen.getByText(/added · Binary change/u)).toBeTruthy();
   });
 });

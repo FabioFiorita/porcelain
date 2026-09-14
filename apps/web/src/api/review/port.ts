@@ -21,7 +21,9 @@ export type ReviewRequest = ReviewScope & {
 export type ReviewPort = {
   text: (request: ReviewRequest & { path: string }) => Promise<TextFile>;
   diff: (request: ReviewRequest & { input: DiffRequest }) => Promise<Diff>;
-  commit: (request: ReviewRequest & { oid: string }) => Promise<CommitChanges>;
+  commit: (
+    request: ReviewRequest & { oid: string; parent?: number },
+  ) => Promise<CommitChanges>;
   directory: (request: ReviewRequest & { path: string }) => Promise<Directory>;
   changes: (
     request: ReviewRequest,

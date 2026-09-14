@@ -53,6 +53,16 @@ export function shortOid(oid: string) {
   return oid.slice(0, 7);
 }
 
+/** Format a one-based parent number for merge comparisons. */
+export function ordinal(n: number) {
+  const tens = n % 100;
+  const suffix =
+    tens >= 11 && tens <= 13
+      ? 'th'
+      : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+  return `${n}${suffix}`;
+}
+
 /** The history endpoint follows the checked-out branch in its snapshot. */
 export function historyFollows(
   head: CommitPageResponse['snapshot']['head'],
