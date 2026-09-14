@@ -23,7 +23,13 @@ it('posts a literal file anchor and validates the returned discussion', async ()
         worktreeId: request.worktreeId,
         anchor: input.anchor,
         resolved: false,
-        messages: [{ id: crypto.randomUUID(), body: input.body }],
+        messages: [
+          {
+            id: crypto.randomUUID(),
+            body: input.body,
+            author: 'reviewer',
+          },
+        ],
       },
     ]);
   };
@@ -69,4 +75,54 @@ it('reports a timed-out write as uncertain rather than inviting an immediate ret
       input: { anchor: { kind: 'file', filePath: 'a.ts' }, body: 'Feedback' },
     }),
   ).rejects.toThrow('your comment may have been saved');
+});
+
+it('posts replies and resolution changes to the encoded thread routes', async () => {
+  const threadId = '00000000-0000-4000-8000-000000000099';
+  const calls: Array<{ url: string; method: string; body: unknown }> = [];
+  const transport: typeof fetch = async (url, init) => {
+    calls.push({
+      url: String(url),
+      method: String(init?.method),
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    return Response.json([
+      {
+        id: threadId,
+        worktreeId: request.worktreeId,
+        anchor: { kind: 'file', filePath: 'a.ts' },
+        resolved: calls.length > 1,
+        messages: [
+          {
+            id: '00000000-0000-4000-8000-000000000098',
+            body: 'feedback',
+            author: 'reviewer',
+          },
+        ],
+      },
+    ]);
+  };
+  const client = createCommentsClient(transport, '/api');
+  await client.reply({
+    ...request,
+    threadId,
+    input: { body: 'reply' },
+  });
+  await client.resolve({
+    ...request,
+    threadId,
+    input: { resolved: true },
+  });
+  expect(calls).toEqual([
+    {
+      url: `/api/worktrees/${request.worktreeId}/comments/${threadId}/replies`,
+      method: 'POST',
+      body: { body: 'reply' },
+    },
+    {
+      url: `/api/worktrees/${request.worktreeId}/comments/${threadId}/resolution`,
+      method: 'PUT',
+      body: { resolved: true },
+    },
+  ]);
 });

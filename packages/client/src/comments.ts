@@ -1,6 +1,8 @@
 import {
   commentThreadsSchema,
   createCommentThreadSchema,
+  replyToCommentSchema,
+  resolveCommentSchema,
 } from '@porcelain/contracts/comments';
 import { ConnectionError } from './errors/connection-error.ts';
 
@@ -9,25 +11,32 @@ export function createCommentsClient(
   transport: typeof fetch,
   endpoint: string,
 ) {
-  async function request(input: Request, body?: unknown) {
+  const commentsPath = (input: Request) =>
+    `${endpoint}/worktrees/${encodeURIComponent(input.worktreeId)}/comments`;
+  async function request(
+    input: Request,
+    path = commentsPath(input),
+    body?: unknown,
+    bodySchema: {
+      parse: (value: unknown) => unknown;
+    } = createCommentThreadSchema,
+    method = body === undefined ? 'GET' : 'POST',
+  ) {
     try {
-      const response = await transport(
-        `${endpoint}/worktrees/${encodeURIComponent(input.worktreeId)}/comments`,
-        {
-          method: body === undefined ? 'GET' : 'POST',
-          ...(body === undefined
-            ? {}
-            : { body: JSON.stringify(createCommentThreadSchema.parse(body)) }),
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${input.token}`,
-          },
-          signal: input.signal,
-          redirect: 'error',
-          credentials: 'omit',
-          cache: 'no-store',
+      const response = await transport(path, {
+        method,
+        ...(body === undefined
+          ? {}
+          : { body: JSON.stringify(bodySchema.parse(body)) }),
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${input.token}`,
         },
-      );
+        signal: input.signal,
+        redirect: 'error',
+        credentials: 'omit',
+        cache: 'no-store',
+      });
       if (!response.ok)
         throw new ConnectionError(
           'Comments could not be saved or loaded. Refresh the discussion before trying again.',
@@ -52,6 +61,31 @@ export function createCommentsClient(
       input: Request & {
         input: Parameters<typeof createCommentThreadSchema.parse>[0];
       },
-    ) => request(input, input.input),
+    ) => request(input, commentsPath(input), input.input),
+    reply: (
+      input: Request & {
+        threadId: string;
+        input: Parameters<typeof replyToCommentSchema.parse>[0];
+      },
+    ) =>
+      request(
+        input,
+        `${commentsPath(input)}/${encodeURIComponent(input.threadId)}/replies`,
+        input.input,
+        replyToCommentSchema,
+      ),
+    resolve: (
+      input: Request & {
+        threadId: string;
+        input: Parameters<typeof resolveCommentSchema.parse>[0];
+      },
+    ) =>
+      request(
+        input,
+        `${commentsPath(input)}/${encodeURIComponent(input.threadId)}/resolution`,
+        input.input,
+        resolveCommentSchema,
+        'PUT',
+      ),
   };
 }

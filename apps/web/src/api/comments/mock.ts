@@ -1,5 +1,9 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
-import { createCommentThreadSchema } from '@porcelain/contracts/comments';
+import {
+  createCommentThreadSchema,
+  replyToCommentSchema,
+  resolveCommentSchema,
+} from '@porcelain/contracts/comments';
 import { createId } from '../../lib/id';
 import type { createMockStore } from '../inventory/mock';
 import { createInventoryMock } from '../inventory/mock';
@@ -37,17 +41,67 @@ export function createCommentsMock(
       const threads = await context(request);
       const input = createCommentThreadSchema.parse(request.input);
       request.signal.throwIfAborted();
-      store.comments[request.worktreeId] = [
-        ...threads,
-        {
-          id: createId(),
-          worktreeId: request.worktreeId,
-          anchor: input.anchor,
-          resolved: false,
-          messages: [{ id: createId(), body: input.body, author: 'reviewer' }],
-        },
-      ];
-      return structuredClone(store.comments[request.worktreeId] ?? []);
+      const thread = {
+        id: createId(),
+        worktreeId: request.worktreeId,
+        anchor: input.anchor,
+        resolved: false,
+        messages: [
+          {
+            id: createId(),
+            body: input.body,
+            author: 'reviewer' as const,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      };
+      store.comments[request.worktreeId] = [...threads, thread];
+      return structuredClone([thread]);
+    },
+    async reply(request) {
+      const threads = await context(request);
+      const input = replyToCommentSchema.parse(request.input);
+      request.signal.throwIfAborted();
+      const thread = threads.find(
+        (candidate) => candidate.id === request.threadId,
+      );
+      if (!thread)
+        throw new ConnectionError(
+          'That comment thread is no longer available. Refresh the discussion.',
+        );
+      const updated = {
+        ...thread,
+        messages: [
+          ...thread.messages,
+          {
+            id: createId(),
+            body: input.body,
+            author: 'reviewer' as const,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      };
+      store.comments[request.worktreeId] = threads.map((candidate) =>
+        candidate.id === updated.id ? updated : candidate,
+      );
+      return structuredClone([updated]);
+    },
+    async resolve(request) {
+      const threads = await context(request);
+      const input = resolveCommentSchema.parse(request.input);
+      request.signal.throwIfAborted();
+      const thread = threads.find(
+        (candidate) => candidate.id === request.threadId,
+      );
+      if (!thread)
+        throw new ConnectionError(
+          'That comment thread is no longer available. Refresh the discussion.',
+        );
+      const updated = { ...thread, resolved: input.resolved };
+      store.comments[request.worktreeId] = threads.map((candidate) =>
+        candidate.id === updated.id ? updated : candidate,
+      );
+      return structuredClone([updated]);
     },
   };
 }
