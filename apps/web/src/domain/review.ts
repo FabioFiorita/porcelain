@@ -182,3 +182,9 @@ export type TextFile = TextResponse;
 export type DiffRequest = GitDiffRequest;
 export type Diff = GitDiffResponse;
 export type CommitChanges = CommitChangesResponse;
+
+export type {
+  FileEdit,
+  FileEditResult,
+  FileTree,
+} from '@porcelain/contracts/files';

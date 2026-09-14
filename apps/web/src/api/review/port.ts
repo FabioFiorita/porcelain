@@ -6,6 +6,9 @@ import type {
   DiffRequest,
   Directory,
   EvidenceResponse,
+  FileEdit,
+  FileEditResult,
+  FileTree,
   History,
   Layers,
   ReviewedMarksResponse,
@@ -19,6 +22,10 @@ export type ReviewRequest = ReviewScope & {
   signal: AbortSignal;
 };
 export type ReviewPort = {
+  fileTree: (request: ReviewRequest) => Promise<FileTree>;
+  editFile: (
+    request: ReviewRequest & { input: FileEdit },
+  ) => Promise<FileEditResult>;
   text: (request: ReviewRequest & { path: string }) => Promise<TextFile>;
   diff: (request: ReviewRequest & { input: DiffRequest }) => Promise<Diff>;
   commit: (

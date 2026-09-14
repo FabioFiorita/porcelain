@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import { startupSettingsSchema } from '../config/startup-settings.ts';
+import type { FileWriter } from '../filesystem/interfaces/file-writer.ts';
 import { createServer } from '../http/server.ts';
 import { claimDataDirectory } from '../lifecycle/claim-data-directory.ts';
 
@@ -11,12 +12,19 @@ import { claimDataDirectory } from '../lifecycle/claim-data-directory.ts';
 export async function startLocalServer(
   settings: z.input<typeof startupSettingsSchema>,
   signal?: AbortSignal,
+  dependencies: { fileWriter?: FileWriter } = {},
 ) {
   const { dataDirectory, token, port, host, webRoot } =
     startupSettingsSchema.parse(settings);
   signal?.throwIfAborted();
   const ownership = claimDataDirectory(dataDirectory);
-  const server = await openOwnedServer(ownership, token, webRoot, signal);
+  const server = await openOwnedServer(
+    ownership,
+    token,
+    webRoot,
+    signal,
+    dependencies,
+  );
   try {
     signal?.throwIfAborted();
     const address = await server.listen({ host, port });
@@ -50,9 +58,11 @@ async function openOwnedServer(
   token: string,
   webRoot: string | undefined,
   signal?: AbortSignal,
+  dependencies: { fileWriter?: FileWriter } = {},
 ) {
   try {
     return await createServer({
+      ...dependencies,
       dataDirectory: ownership.directory,
       token,
       ...(webRoot === undefined ? {} : { webRoot }),

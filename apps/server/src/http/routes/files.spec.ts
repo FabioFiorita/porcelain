@@ -1,7 +1,9 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdir,
   mkdtemp,
+  readFile,
   realpath,
   rename,
   rm,
@@ -95,6 +97,9 @@ describe('Files HTTP', () => {
         byteLength: 6,
         encoding: 'utf-8',
         text: 'olá\r\n',
+        contentFingerprint: createHash('sha256')
+          .update('olá\r\n')
+          .digest('hex'),
       });
     }));
 
@@ -324,6 +329,75 @@ describe('Files HTTP', () => {
         });
         expect(response.statusCode).toBe(200);
         expect(response.json().text).toBe(text);
+      }
+    }));
+  it('writes only the expected text version and lists searchable paths including ignored and linked entries', async () =>
+    fixture(async (server, _root, path, id) => {
+      await mkdir(join(path, 'src'));
+      await writeFile(join(path, 'src/a.ts'), 'original');
+      await writeFile(join(path, '.gitignore'), 'ignored/\n');
+      await mkdir(join(path, 'ignored'));
+      await writeFile(join(path, 'ignored/large.txt'), 'ignored contents');
+      await symlink('src/a.ts', join(path, 'link'));
+      const tree = await server.inject({
+        method: 'GET',
+        url: `/worktrees/${id}/file-tree`,
+        headers,
+      });
+      expect(tree.statusCode).toBe(200);
+      expect(tree.json().entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: 'src/a.ts',
+            kind: 'file',
+            ignored: false,
+          }),
+          expect.objectContaining({
+            path: 'ignored/',
+            kind: 'directory',
+            ignored: true,
+          }),
+          expect.objectContaining({
+            path: 'link',
+            kind: 'symlink',
+            target: 'src/a.ts',
+          }),
+        ]),
+      );
+      const payload = {
+        kind: 'write',
+        path: 'src/a.ts',
+        text: 'saved',
+        expectedFingerprint: createHash('sha256')
+          .update('original')
+          .digest('hex'),
+      };
+      const saved = await server.inject({
+        method: 'POST',
+        url: `/worktrees/${id}/files`,
+        headers,
+        payload,
+      });
+      expect(saved.statusCode).toBe(200);
+      expect(saved.json().contentFingerprint).toBe(
+        createHash('sha256').update('saved').digest('hex'),
+      );
+      const stale = await server.inject({
+        method: 'POST',
+        url: `/worktrees/${id}/files`,
+        headers,
+        payload: { ...payload, text: 'stale overwrite' },
+      });
+      expect(stale.statusCode).toBe(409);
+      expect(await readFile(join(path, 'src/a.ts'), 'utf8')).toBe('saved');
+      for (const invalid of ['../outside', '.git/config', '/tmp/outside']) {
+        const response = await server.inject({
+          method: 'POST',
+          url: `/worktrees/${id}/files`,
+          headers,
+          payload: { kind: 'create', path: invalid, entryKind: 'file' },
+        });
+        expect(response.statusCode).toBeGreaterThanOrEqual(400);
       }
     }));
 });

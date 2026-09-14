@@ -432,3 +432,9 @@ export function useMarkAllReviewed(scope: ReviewScope) {
     }),
   );
 }
+
+export function useFileTree(scope: ReviewScope) {
+  return useReviewData(scope, ['file-tree'], (api, request) =>
+    api.fileTree(request),
+  );
+}

@@ -16,11 +16,15 @@ import type { CommitReaderFactory } from '@porcelain/git/interfaces/commit-reade
 import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import { readTreePaths } from '@porcelain/git/tree-paths';
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
+import { NodeFileTree } from './filesystem/file-tree.ts';
+import { NodeFileWriter } from './filesystem/file-writer.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
+import type { FileWriter } from './filesystem/interfaces/file-writer.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
@@ -36,6 +40,7 @@ import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { DeleteArtifact } from './use-cases/delete-artifact.ts';
+import { EditFile } from './use-cases/edit-file.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
 import { GetArtifact } from './use-cases/get-artifact.ts';
 import { GetCommitReviewLayers } from './use-cases/get-commit-review-layers.ts';
@@ -44,6 +49,7 @@ import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
+import { ListFileTree } from './use-cases/list-file-tree.ts';
 import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
@@ -66,6 +72,7 @@ export async function openApplication(options: {
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
   files?: FileReader;
+  fileWriter?: FileWriter;
   now?: () => string;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
@@ -123,6 +130,17 @@ export async function openApplication(options: {
     const files = options.files ?? new NodeFileReader();
     const list = new ListDirectory(store, git, files);
     const read = new ReadTextFile(store, git, files);
+    const fileTree = new ListFileTree(
+      store,
+      git,
+      new NodeFileTree(),
+      readTreePaths,
+    );
+    const editFile = new EditFile(
+      store,
+      git,
+      options.fileWriter ?? new NodeFileWriter(),
+    );
     const refresh = new RefreshProjects(store, git);
     const register = new RegisterProject(store, git, refresh);
     const inspection =
@@ -265,6 +283,20 @@ export async function openApplication(options: {
           async () => removeReviewedFile.execute(worktreeId, path),
           signal,
         ),
+      fileTree: (worktreeId, signal) =>
+        operations.run(
+          (operationSignal) => fileTree.execute(worktreeId, operationSignal),
+          signal,
+        ),
+      editFile: (worktreeId, command, signal) => {
+        const submitted = { ...command };
+        return operations.runOwned(
+          (operationSignal) =>
+            editFile.execute(worktreeId, submitted, operationSignal),
+          operationTimeoutMs,
+          signal,
+        );
+      },
       listDirectory: (id: string, path: string, signal?: AbortSignal) =>
         operations.run(
           (operationSignal) => list.execute(id, path, operationSignal),

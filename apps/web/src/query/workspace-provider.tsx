@@ -13,6 +13,7 @@ import {
 import type { Api } from '../api/api';
 import type { Inventory } from '../domain/inventory';
 import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
+import { retainedFileDrafts } from './file-drafts';
 import { queryKeys } from './keys';
 import { createOperationStore, type OperationStore } from './operation-store';
 
@@ -66,6 +67,22 @@ export function WorkspaceProvider({
   const [disconnectError, setDisconnectError] = useState<Error | null>(null);
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
+  useEffect(() => {
+    if (!connection) return;
+    const leaving = (event: BeforeUnloadEvent) => {
+      if (
+        [...retainedFileDrafts(connection).values()].some((draft) => {
+          const state = draft.snapshot();
+          return state.saving || state.text !== state.savedText;
+        })
+      ) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', leaving);
+    return () => window.removeEventListener('beforeunload', leaving);
+  }, [connection]);
   // Lifecycle identity: every successful connection/disconnect invalidates older attempts.
   const generation = useRef(0);
   const beginConnection = useCallback(
@@ -91,17 +108,25 @@ export function WorkspaceProvider({
     setDisconnectPending(true);
     setDisconnectError(null);
     try {
+      if (connection)
+        for (const draft of retainedFileDrafts(connection).values())
+          if (!(await draft.save()))
+            throw new ConnectionError(
+              'Save or discard unsaved file drafts before disconnecting.',
+            );
       if (!import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE)
         await api.session.disconnect();
       connection?.controller.abort();
       void queryClient.cancelQueries();
       queryClient.clear();
       setConnection(null);
-    } catch {
+    } catch (error) {
       setDisconnectError(
-        new ConnectionError(
-          'Could not disconnect. Check the connection and try again.',
-        ),
+        error instanceof ConnectionError
+          ? error
+          : new ConnectionError(
+              'Could not disconnect. Check the connection and try again.',
+            ),
       );
     } finally {
       setDisconnectPending(false);

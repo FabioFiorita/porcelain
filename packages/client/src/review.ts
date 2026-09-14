@@ -8,6 +8,9 @@ import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
 import {
   directoryResponseSchema,
+  type FileEdit,
+  fileEditResultSchema,
+  fileTreeSchema,
   textResponseSchema,
 } from '@porcelain/contracts/files';
 import {
@@ -79,6 +82,9 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     }
   }
   return {
+    fileTree: (request: Request) => read(request, 'file-tree', fileTreeSchema),
+    editFile: (request: Request & { input: FileEdit }) =>
+      read(request, 'files', fileEditResultSchema, request.input),
     text: (request: Request & { path: string }) =>
       read(
         request,

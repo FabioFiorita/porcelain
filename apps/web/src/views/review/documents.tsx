@@ -1,6 +1,11 @@
 import { formatDistanceToNowStrict } from 'date-fns';
-import { CopyIcon, FileDiffIcon, MessageSquarePlusIcon } from 'lucide-react';
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import {
+  CopyIcon,
+  FileDiffIcon,
+  MessageSquarePlusIcon,
+  PencilIcon,
+} from 'lucide-react';
+import { useEffect, useId, useMemo, useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,6 +16,7 @@ import { entryKey } from '../../domain/documents';
 import { historyRefLabel, ordinal } from '../../domain/history';
 import type { CommitChanges, ReviewScope } from '../../domain/review';
 import { changePath, reviewProgress, shortOid } from '../../domain/review';
+import { useFileDraft } from '../../query/files';
 import { useHistory } from '../../query/history';
 import {
   useChanges,
@@ -28,6 +34,7 @@ import {
   useDocumentInteraction,
 } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
+import { FileEditor } from './file-editor';
 import { FileTypeIcon } from './file-type-icon';
 import { HandoffSummary } from './handoff-artifact';
 import { HtmlFrame } from './html-frame';
@@ -324,11 +331,59 @@ function ReadableFileDocument({
     )
       setMode('source');
   }, [reveal, path]);
+  const [editing, setEditing] = useState(false);
+  const editorId = useId();
+  const { draft, state: draftState } = useFileDraft(
+    scope,
+    path,
+    text,
+    contentFingerprint ?? '',
+  );
+  const { active } = useDocumentInteraction();
+  if (editing)
+    return (
+      <FileEditor
+        owner={editorId}
+        path={path}
+        draft={draft}
+        state={draftState}
+        active={active}
+        changed={changed}
+        onDone={() => setEditing(false)}
+        onDiscard={() => {
+          draft.reset(text, contentFingerprint ?? '');
+          setEditing(false);
+        }}
+        toolbar={(controls) => (
+          <FileToolbar path={path}>{controls}</FileToolbar>
+        )}
+      />
+    );
   const showingSource = kind === 'code' || mode === 'source';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
       <FileToolbar path={path}>
+        {contentFingerprint && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={
+              draftState.owner !== null && draftState.owner !== editorId
+            }
+            title={
+              draftState.owner && draftState.owner !== editorId
+                ? 'Editing in another pane'
+                : undefined
+            }
+            onClick={() => {
+              if (draft.claim(editorId)) setEditing(true);
+            }}
+          >
+            <PencilIcon className="size-3.5" />
+            {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
+          </Button>
+        )}
         {kind !== 'code' && (
           <Tabs
             value={mode}

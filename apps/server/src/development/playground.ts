@@ -1,5 +1,8 @@
-import { rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename, rm } from 'node:fs/promises';
+import { basename, join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
+import { NodeFileWriter } from '../filesystem/file-writer.ts';
 import { startLocalServer } from '../lifecycle/start-local-server.ts';
 import { createPlayground } from './create-playground.ts';
 import { seedPlaygroundReview } from './helpers/seed-playground-review.ts';
@@ -24,6 +27,17 @@ try {
         port: 0,
       },
       shutdown.signal,
+      {
+        fileWriter: new NodeFileWriter(async (paths) => {
+          const directory = join(fixture.root, 'trash');
+          await mkdir(directory, { recursive: true });
+          for (const path of paths)
+            await rename(
+              path,
+              join(directory, `${randomUUID()}-${basename(path)}`),
+            );
+        }),
+      },
     );
     try {
       const response = await fetch(`${server.address}/projects`, {

@@ -24,6 +24,7 @@ export const apiErrorSchema = z.object({
     'UNAUTHORIZED',
     'REVISION_CONFLICT',
     'COMMIT_REVIEW_LAYER_CONFLICT',
+    'ENTRY_EXISTS',
     'INVALID_REQUEST',
     'PATH_NOT_FOUND',
     'PATH_NOT_READABLE',

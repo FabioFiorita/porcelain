@@ -2,6 +2,10 @@ import type { FileErrorCode } from '../../filesystem/errors/file-inspection-erro
 
 const failures: Record<FileErrorCode, { statusCode: number; message: string }> =
   {
+    ENTRY_EXISTS: {
+      statusCode: 409,
+      message: 'An entry already exists at that path',
+    },
     INVALID_REQUEST: { statusCode: 400, message: 'Invalid request' },
     WORKTREE_NOT_FOUND: { statusCode: 404, message: 'Worktree not found' },
     REPOSITORY_UNAVAILABLE: {

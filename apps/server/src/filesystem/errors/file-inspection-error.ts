@@ -1,4 +1,5 @@
 export type FileErrorCode =
+  | 'ENTRY_EXISTS'
   | 'INVALID_REQUEST'
   | 'WORKTREE_NOT_FOUND'
   | 'REPOSITORY_UNAVAILABLE'

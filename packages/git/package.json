@@ -33,7 +33,8 @@
     "./interfaces/commit-reader": "./src/interfaces/commit-reader.ts",
     "./interfaces/git-action-writer": "./src/interfaces/git-action-writer.ts",
     "./interfaces/git-factory": "./src/interfaces/git-factory.ts",
-    "./interfaces/inspection-factory": "./src/interfaces/inspection-factory.ts"
+    "./interfaces/inspection-factory": "./src/interfaces/inspection-factory.ts",
+    "./tree-paths": "./src/tree-paths.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

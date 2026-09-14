@@ -43,6 +43,45 @@ export function createReviewMock(
     return structuredClone(fixture);
   }
   return {
+    async fileTree(request) {
+      const data = await context(request);
+      return {
+        worktreeId: request.worktreeId,
+        entries: Object.keys(data.files).map((path) => ({
+          path,
+          kind: 'file' as const,
+          ignored: false,
+        })),
+      };
+    },
+    async editFile(request) {
+      await context(request);
+      const fixture = store.review[request.worktreeId];
+      if (!fixture) throw new ConnectionError('This worktree is unavailable.');
+      const input = request.input;
+      if (input.kind === 'write') fixture.files[input.path] = input.text;
+      if (input.kind === 'create' && input.entryKind === 'file')
+        fixture.files[input.path] = '';
+      if (input.kind === 'move') {
+        const value = fixture.files[input.path];
+        if (value !== undefined) {
+          fixture.files[input.destination] = value;
+          delete fixture.files[input.path];
+        }
+      }
+      if (input.kind === 'trash') delete fixture.files[input.path];
+      const text = input.kind === 'write' ? input.text : '';
+      const digest = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(text),
+      );
+      return {
+        path: input.kind === 'move' ? input.destination : input.path,
+        contentFingerprint: [...new Uint8Array(digest)]
+          .map((byte) => byte.toString(16).padStart(2, '0'))
+          .join(''),
+      };
+    },
     async text(request) {
       const data = await context(request);
       const text = data.files[request.path];

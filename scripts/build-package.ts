@@ -18,6 +18,7 @@ export const packageOutput = join(repositoryRoot, 'dist-porcelain');
 const runtimeDependencies = [
   '@fastify/type-provider-zod',
   'better-sqlite3',
+  'trash',
   'drizzle-orm',
   'fastify',
   'zod',

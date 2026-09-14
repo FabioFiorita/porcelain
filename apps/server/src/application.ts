@@ -23,10 +23,12 @@ import type {
   CommitReviewLayers,
 } from './models/commit-review-layers.ts';
 import type { DirectoryListing, TextContent } from './models/file-content.ts';
+import type { FileEdit, FileEditResult } from './models/file-edit.ts';
 import type {
   FilePreference,
   FilePreferenceChange,
 } from './models/file-preference.ts';
+import type { FileTree } from './models/file-tree.ts';
 import type {
   GitActionPreparation,
   GitActionReceipt,
@@ -42,6 +44,12 @@ import type {
 } from './models/reviewed-file.ts';
 
 export interface Application {
+  fileTree(worktreeId: string, signal?: AbortSignal): Promise<FileTree>;
+  editFile(
+    worktreeId: string,
+    command: FileEdit,
+    signal?: AbortSignal,
+  ): Promise<FileEditResult>;
   prepareFetch(
     scope: GitActionScope,
     input: Omit<Extract<GitActionIntent, { action: 'fetch' }>, 'action'>,
