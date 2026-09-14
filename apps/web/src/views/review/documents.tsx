@@ -136,7 +136,7 @@ function LayerDocument({
     return (
       <ReviewEmpty
         title="Layer no longer present"
-        description="Refresh the review and choose a current layer."
+        description="Choose a layer that is still present in the current review."
       />
     );
 
@@ -181,7 +181,7 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
     return (
       <ReviewEmpty
         title="Change no longer present"
-        description="Refresh the review and choose a current change."
+        description="Choose a change that is still present in the current review."
       />
     );
 

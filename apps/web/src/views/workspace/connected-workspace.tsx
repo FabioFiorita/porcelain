@@ -19,9 +19,7 @@ import {
   firstAvailableWorktree,
   selectedWorktreeInProject,
 } from '../../domain/inventory';
-import { discardRejection } from '../../lib/submit-form';
-import { connectionErrorMessage, useConnection } from '../../query/connection';
-import { useInventory, useRefreshInventory } from '../../query/inventory';
+import { useInventory } from '../../query/inventory';
 import { ReviewWorkspace } from '../review/review-workspace';
 import { OpenProjectDialog } from './open-project-dialog';
 import { ProjectNavigator } from './project-navigator';
@@ -44,24 +42,16 @@ export function ConnectedWorkspace() {
 
 function WorkspaceNavigation() {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
-  const refreshReviewTrigger = useRef<HTMLButtonElement>(null);
   const [openProject, setOpenProject] = useState(false);
   const [settings, setSettings] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
     useSidebar();
-  const { disconnect, disconnectError, disconnectPending } = useConnection();
   const { worktree: selected } = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
   const inventory = useInventory();
-  const refresh = useRefreshInventory();
   const selection = selectedWorktreeInProject(inventory, selected);
   const fallback = firstWaitingWorktree(inventory);
-  const error = disconnectError ?? refresh.error;
-  const errorMessage =
-    error == null
-      ? undefined
-      : `${connectionErrorMessage(error)}${refresh.error ? ' Displayed inventory may be out of date.' : ''}`;
 
   useEffect(() => {
     if (selection || !fallback) return;
@@ -71,7 +61,8 @@ function WorkspaceNavigation() {
   useHotkey(
     SHORTCUTS.toggleNavigator,
     () => {
-      if (!isMobile && open) refreshReviewTrigger.current?.focus();
+      if (!isMobile && open)
+        requestAnimationFrame(() => navigationTrigger.current?.focus());
       toggleSidebar();
     },
     { ignoreInputs: true },
@@ -97,15 +88,6 @@ function WorkspaceNavigation() {
           onOpenProject={() => setOpenProject(true)}
           onOpenSettings={() => setSettings(true)}
           onOpenShortcuts={() => setShortcuts(true)}
-          onRefresh={() => discardRejection(refresh.submit())}
-          refreshPending={refresh.isPending}
-          error={errorMessage}
-          status={error ? 'Connection needs attention' : 'Connected'}
-          onDisconnect={() => {
-            void disconnect();
-            void navigate({ search: {} });
-          }}
-          disconnectPending={disconnectPending}
           showThemeToggle
           onSelect={(id) => {
             void navigate({ search: { worktree: id } });
@@ -120,7 +102,6 @@ function WorkspaceNavigation() {
             <ReviewWorkspace
               key={selection.worktree.id}
               navigationTrigger={navigationTrigger}
-              refreshTrigger={refreshReviewTrigger}
               worktree={selection.worktree}
               projectId={selection.projectId}
             />

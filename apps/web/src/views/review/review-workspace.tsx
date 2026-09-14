@@ -4,11 +4,7 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import {
-  PanelRightIcon,
-  RefreshCwIcon,
-  LayersIcon as ReviewLayersIcon,
-} from 'lucide-react';
+import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
 import {
   type ReactNode,
   type RefObject,
@@ -43,12 +39,7 @@ import { cn } from '@/lib/utils';
 import { entryKey, parseEntry } from '../../domain/documents';
 import type { Project } from '../../domain/inventory';
 import type { Artifact, Layers, Surface } from '../../domain/review';
-import { discardRejection } from '../../lib/submit-form';
-import {
-  useArtifactsOverview,
-  useRefreshReview,
-  useReviewOverview,
-} from '../../query/review';
+import { useArtifactsOverview, useReviewOverview } from '../../query/review';
 import { SHORTCUTS } from '../workspace/shortcuts';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView, type OpenDocument } from './documents';
@@ -64,12 +55,10 @@ export function ReviewWorkspace({
   worktree,
   projectId,
   navigationTrigger,
-  refreshTrigger,
 }: {
   worktree: Worktree;
   projectId: string;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
-  refreshTrigger: RefObject<HTMLButtonElement | null>;
 }) {
   const search = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
@@ -131,8 +120,6 @@ export function ReviewWorkspace({
     },
     [navigate],
   );
-  const refresh = useRefreshReview(scope);
-
   const sidebar = (
     <ReviewSidebar
       scope={scope}
@@ -141,29 +128,11 @@ export function ReviewWorkspace({
       available={worktree.available}
       onSurface={setSurface}
       onOpen={open}
-      onClose={() => {
-        if (desktop) toggleSidebar();
-        else setMobileOpen(false);
-      }}
     />
   );
 
   const tabControls = (
     <>
-      <Button
-        ref={refreshTrigger}
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Refresh review"
-        disabled={refresh.isPending}
-        onClick={() => discardRejection(refresh.submit())}
-      >
-        {refresh.isPending ? (
-          <RefreshCwIcon className="animate-spin motion-reduce:animate-none" />
-        ) : (
-          <RefreshCwIcon />
-        )}
-      </Button>
       <Button
         ref={desktopTrigger}
         className="hidden xl:inline-flex"
@@ -231,7 +200,6 @@ export function ReviewWorkspace({
               navigatorIsMobile={navigatorIsMobile}
               navigatorOpen={navigatorOpen}
               navigatorOpenMobile={navigatorOpenMobile}
-              refreshTrigger={refreshTrigger}
               tabControls={tabControls}
             />
           </ReviewBoundary>
@@ -266,7 +234,6 @@ function DocumentArea({
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
-  refreshTrigger,
   tabControls,
 }: {
   scope: { projectId: string; worktreeId: string };
@@ -280,7 +247,6 @@ function DocumentArea({
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
-  refreshTrigger: RefObject<HTMLButtonElement | null>;
   tabControls: ReactNode;
 }) {
   const overview = useReviewOverview(scope);
@@ -313,7 +279,6 @@ function DocumentArea({
     navigatorIsMobile,
     navigatorOpen,
     navigatorOpenMobile,
-    refreshTrigger,
     tabControls,
   });
 
@@ -346,7 +311,6 @@ function PaneView({
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
-  refreshTrigger,
   tabControls,
 }: {
   index: PaneIndex;
@@ -363,7 +327,6 @@ function PaneView({
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
-  refreshTrigger: RefObject<HTMLButtonElement | null>;
   tabControls: ReactNode;
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
@@ -413,7 +376,9 @@ function PaneView({
               title={`Toggle projects (${formatForDisplay(SHORTCUTS.toggleNavigator)})`}
               onClick={() => {
                 if (!navigatorIsMobile && navigatorOpen) {
-                  requestAnimationFrame(() => refreshTrigger.current?.focus());
+                  requestAnimationFrame(() =>
+                    navigationTrigger.current?.focus(),
+                  );
                 }
               }}
             />

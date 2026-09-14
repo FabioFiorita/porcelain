@@ -103,7 +103,7 @@ function useChangesOptions(scope: ReviewScope) {
         data.layers.worktreeId !== scope.worktreeId
       )
         throw new ConnectionError(
-          'The review context changed. Disconnect and connect again.',
+          'The review context changed. Reopen Porcelain to continue safely.',
         );
       return data;
     },
@@ -315,6 +315,7 @@ export function useMarkReviewed(scope: ReviewScope) {
             input: { ...input, reviewed: true },
           });
           request.signal.throwIfAborted();
+          await client.cancelQueries({ queryKey: context.key });
           client.setQueryData(context.key, result);
           return result;
         }),
@@ -332,6 +333,7 @@ export function useUnmarkReviewed(scope: ReviewScope) {
           const request = context.request();
           const result = await context.api.remove({ ...request, path });
           request.signal.throwIfAborted();
+          await client.cancelQueries({ queryKey: context.key });
           client.setQueryData(context.key, result);
           return result;
         }),
@@ -391,6 +393,7 @@ export function useMarkAllReviewed(scope: ReviewScope) {
                 },
               });
               request.signal.throwIfAborted();
+              await client.cancelQueries({ queryKey: context.key });
               // Every response is an authoritative server snapshot. The
               // shared queue keeps newer mutation intent ahead of delayed
               // responses from older operations.
@@ -407,20 +410,6 @@ export function useMarkAllReviewed(scope: ReviewScope) {
           }
         }
         return report;
-      },
-    }),
-  );
-}
-
-export function useRefreshReview(scope: ReviewScope) {
-  const { connection } = useConnectedContext();
-  const client = useQueryClient();
-  return asMutation(
-    useMutation({
-      mutationFn: async () => {
-        await client.invalidateQueries({
-          queryKey: queryKeys.review(connection.environmentId, scope),
-        });
       },
     }),
   );

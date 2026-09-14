@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it } from 'vitest';
@@ -9,11 +9,7 @@ import { createMockApi } from '../api/mock-api';
 import type { Inventory, Project } from '../domain/inventory';
 import { ConnectionForm } from '../views/connection/connection-form';
 import { createQueryClient } from './client';
-import {
-  useInventory,
-  useRefreshInventory,
-  useRegisterProject,
-} from './inventory';
+import { useInventory, useRegisterProject } from './inventory';
 import { useWorkspaceContext, WorkspaceProvider } from './workspace-provider';
 
 type Deferred<T> = {
@@ -31,17 +27,9 @@ function deferred<T>(): Deferred<T> {
 
 function InventoryControls() {
   const inventory = useInventory();
-  const refresh = useRefreshInventory();
   const register = useRegisterProject();
   return (
     <>
-      <button
-        type="button"
-        aria-busy={refresh.isPending}
-        onClick={() => void refresh.submit()}
-      >
-        Refresh inventory
-      </button>
       <button
         type="button"
         onClick={() => void register.submit('/srv/registered-project')}
@@ -60,13 +48,18 @@ function Harness() {
   return connection ? <InventoryControls /> : <ConnectionForm />;
 }
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  focusManager.setFocused(undefined);
+});
 
-it('keeps a registered project when an older refresh response resolves last', async () => {
+it('keeps a registered project when an older focus refresh resolves last', async () => {
   const store = createMockStore('empty');
   const base = createMockApi(store);
   const refreshResponse = deferred<Inventory>();
+  const refreshStarted = deferred<void>();
   const registerResponse = deferred<Project>();
+  const registerStarted = deferred<void>();
   const staleInventory = structuredClone(store.inventory);
   const registeredProject: Project = {
     id: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc11',
@@ -85,11 +78,15 @@ it('keeps a registered project when an older refresh response resolves last', as
   const api: Api = {
     ...base,
     inventory: {
-      read: (options) =>
-        options.refresh
-          ? refreshResponse.promise
-          : base.inventory.read(options),
-      register: () => registerResponse.promise,
+      read: (options) => {
+        if (!options.refresh) return base.inventory.read(options);
+        refreshStarted.resolve();
+        return refreshResponse.promise;
+      },
+      register: () => {
+        registerStarted.resolve();
+        return registerResponse.promise;
+      },
     },
   };
   const queryClient = createQueryClient();
@@ -106,12 +103,12 @@ it('keeps a registered project when an older refresh response resolves last', as
     'fixture-token',
   );
   await user.click(screen.getByRole('button', { name: 'Connect' }));
-  await screen.findByRole('button', { name: 'Refresh inventory' });
-
-  const refresh = screen.getByRole('button', { name: 'Refresh inventory' });
-  await user.click(refresh);
-  await waitFor(() => expect(refresh.getAttribute('aria-busy')).toBe('true'));
+  await screen.findByRole('button', { name: 'Register project' });
   await user.click(screen.getByRole('button', { name: 'Register project' }));
+  await registerStarted.promise;
+  focusManager.setFocused(false);
+  focusManager.setFocused(true);
+  await refreshStarted.promise;
   registerResponse.resolve(registeredProject);
 
   const projects = screen.getByLabelText('Projects');
@@ -120,6 +117,6 @@ it('keeps a registered project when an older refresh response resolves last', as
   );
 
   refreshResponse.resolve(staleInventory);
-  await waitFor(() => expect(refresh.getAttribute('aria-busy')).toBe('false'));
+  await Promise.resolve();
   expect(projects.textContent).toContain('registered-project');
 });

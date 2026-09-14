@@ -34,7 +34,7 @@ function assertCommentScope(
 ): CommentThread[] {
   if (threads.some((thread) => thread.worktreeId !== worktreeId))
     throw new ConnectionError(
-      'The comment context changed. Refresh the discussion.',
+      'The comment context changed. Porcelain will update the discussion.',
     );
   return threads;
 }

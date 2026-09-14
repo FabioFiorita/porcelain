@@ -1,23 +1,31 @@
-import { useRouter } from '@tanstack/react-router';
-import { Button } from '../../components/ui/button';
-import { useConnection } from '../../query/connection';
+import type { ErrorComponentProps } from '@tanstack/react-router';
+import { useEffect } from 'react';
+import { useResetQueryErrors } from '../../query/client';
 
-export function WorkspaceError() {
-  const { disconnect, disconnectError, disconnectPending } = useConnection();
-  const router = useRouter();
+export function WorkspaceError({ reset }: ErrorComponentProps) {
+  const resetQueries = useResetQueryErrors();
+  useEffect(() => {
+    const retry = () => {
+      resetQueries();
+      reset();
+    };
+    window.addEventListener('focus', retry);
+    window.addEventListener('online', retry);
+    window.addEventListener('visibilitychange', retry);
+    return () => {
+      window.removeEventListener('focus', retry);
+      window.removeEventListener('online', retry);
+      window.removeEventListener('visibilitychange', retry);
+    };
+  }, [reset, resetQueries]);
+
   return (
     <section role="alert" className="flex flex-col gap-3 p-6">
-      <p>Could not display the workspace. Reconnect to try again.</p>
-      {disconnectError && <p>{disconnectError.message}</p>}
-      <Button
-        disabled={disconnectPending}
-        onClick={() => {
-          void disconnect();
-          void router.invalidate();
-        }}
-      >
-        Reconnect
-      </Button>
+      <p>Could not display the workspace.</p>
+      <p className="text-muted-foreground">
+        Porcelain will retry when the connection returns or this window becomes
+        active again.
+      </p>
     </section>
   );
 }

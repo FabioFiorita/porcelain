@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Suspense, useEffect, useState } from 'react';
@@ -139,6 +139,7 @@ function renderReview(
 
 afterEach(() => {
   cleanup();
+  focusManager.setFocused(undefined);
   vi.restoreAllMocks();
 });
 
@@ -362,6 +363,63 @@ describe('review evidence queries', () => {
       );
     });
     expect(setCalls).toBe(1);
+  });
+
+  it('keeps a reviewed mutation when an older focus read resolves last', async () => {
+    const store = createMockStore();
+    const baseApi = createMockApi(store);
+    let listCalls = 0;
+    let readStarted!: () => void;
+    let releaseRead!: () => void;
+    const readStartedPromise = new Promise<void>((resolve) => {
+      readStarted = resolve;
+    });
+    const delayedRead = new Promise<void>((resolve) => {
+      releaseRead = resolve;
+    });
+    const staleSnapshot: ReviewedMarksResponse = {
+      worktreeId: scope.worktreeId,
+      marks: [],
+    };
+    const api: Api = {
+      ...baseApi,
+      review: {
+        ...baseApi.review,
+        reviewed: {
+          ...baseApi.review.reviewed,
+          async list(request) {
+            listCalls += 1;
+            if (listCalls === 1) return baseApi.review.reviewed.list(request);
+            readStarted();
+            await delayedRead;
+            return staleSnapshot;
+          },
+        },
+      },
+    };
+
+    const { queryClient } = renderReview(store, api, <MutationHarness />);
+    const path = (await screen.findByLabelText('Mutation path')).textContent;
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await readStartedPromise;
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Mark one' }));
+
+    const key = queryKeys.reviewSurface(store.inventory.environmentId, scope, [
+      'reviewed',
+    ]);
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryData<ReviewedMarksResponse>(key)?.marks,
+      ).toContainEqual(expect.objectContaining({ path })),
+    );
+    releaseRead();
+    await Promise.resolve();
+    expect(
+      queryClient.getQueryData<ReviewedMarksResponse>(key)?.marks,
+    ).toContainEqual(expect.objectContaining({ path }));
   });
 
   it('reports a request timeout after earlier successes and keeps their cache snapshot', async () => {

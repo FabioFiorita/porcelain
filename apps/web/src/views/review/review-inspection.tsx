@@ -30,7 +30,7 @@ export function ReviewInspection({
     return (
       <ReviewEmpty
         title="Worktree unavailable"
-        description="Refresh the environment after restoring the checkout."
+        description="Restore the checkout and return to Porcelain to continue."
       />
     );
   if (!entry)

@@ -3,9 +3,7 @@ import {
   FilesIcon,
   HistoryIcon,
   ListChecksIcon,
-  PanelRightCloseIcon,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DocumentRef } from '../../domain/documents';
@@ -24,7 +22,6 @@ export function ReviewSidebar({
   available,
   onSurface,
   onOpen,
-  onClose,
 }: {
   scope: ReviewScope;
   surface: Surface;
@@ -32,7 +29,6 @@ export function ReviewSidebar({
   available: boolean;
   onSurface: (surface: Surface) => void;
   onOpen: (ref: DocumentRef) => void;
-  onClose: () => void;
 }) {
   return (
     <aside
@@ -45,8 +41,8 @@ export function ReviewSidebar({
         onValueChange={(value) => onSurface(value as Surface)}
         className="min-h-0 flex-1 gap-0"
       >
-        <div className="relative shrink-0 border-b p-1.5">
-          <TabsList className="h-8 w-[calc(100%-2.25rem)] gap-0">
+        <div className="shrink-0 border-b p-1.5">
+          <TabsList className="h-8 w-full gap-0">
             <TabsTrigger value="changes" className="min-w-0 gap-1 px-1.5">
               <ChangesSurfaceLabel scope={scope} />
             </TabsTrigger>
@@ -59,15 +55,6 @@ export function ReviewSidebar({
               <span className="truncate">History</span>
             </TabsTrigger>
           </TabsList>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-1.5 top-1.5"
-            aria-label="Close review sidebar"
-            onClick={onClose}
-          >
-            <PanelRightCloseIcon />
-          </Button>
         </div>
         <TabsContent value="changes" className="min-h-0 overflow-hidden">
           <SidebarSurface
@@ -139,7 +126,7 @@ function SidebarSurface({
       <div className="p-3">
         <ReviewEmpty
           title="Worktree unavailable"
-          description="Reconnect the checkout and refresh the environment to browse its files and Git state."
+          description="Restore the checkout and return to Porcelain to browse its files and Git state."
         />
       </div>
     );

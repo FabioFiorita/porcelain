@@ -51,7 +51,7 @@ async function read(
   request.signal.throwIfAborted();
   if (result.environmentId !== connection.environmentId)
     throw new ConnectionError(
-      'The environment changed. Disconnect and connect again.',
+      'The connected environment changed. Reopen Porcelain to continue safely.',
     );
   return result;
 }
@@ -59,32 +59,16 @@ async function read(
 function inventoryQueryOptions(api: Api, connection: Connection) {
   return queryOptions({
     queryKey: queryKeys.inventory(connection.environmentId),
-    queryFn: ({ signal }) => read(api, connection, signal),
+    // Login seeds the first snapshot. Every later query execution is a natural
+    // refresh boundary (focus, reconnect, or explicit cache invalidation), so
+    // ask the server to rescan the repositories before returning inventory.
+    queryFn: ({ signal }) => read(api, connection, signal, true),
   });
 }
 
 export function useInventory() {
   const { api, connection } = useConnectedContext();
   return useSuspenseQuery(inventoryQueryOptions(api, connection)).data;
-}
-
-export function useRefreshInventory() {
-  const { api, connection } = useConnectedContext();
-  const client = useQueryClient();
-  const queryKey = queryKeys.inventory(connection.environmentId);
-  return asMutation(
-    useMutation<Inventory, Error, void, InventoryWriteContext>({
-      onMutate: () => ({ version: beginInventoryWrite(connection) }),
-      mutationFn: async () => {
-        await client.cancelQueries({ queryKey });
-        return read(api, connection, undefined, true);
-      },
-      onSuccess: (inventory, _variables, context) => {
-        if (context && canApplyInventoryWrite(connection, context.version))
-          client.setQueryData(queryKey, inventory);
-      },
-    }),
-  );
 }
 
 export function useRegisterProject() {
@@ -95,14 +79,20 @@ export function useRegisterProject() {
     useMutation<Project, Error, string, InventoryWriteContext>({
       onMutate: () => ({ version: beginInventoryWrite(connection) }),
       mutationFn: async (path: string) => {
+        // A focus refresh may still be reading the old inventory. Cancel it
+        // before the write so its response cannot replace the new project.
+        await client.cancelQueries({ queryKey });
         const request = connection.request();
         const project = await api.inventory.register({ ...request, path });
         request.signal.throwIfAborted();
         return project;
       },
-      onSuccess: (project, _path, context) => {
+      onSuccess: async (project, _path, context) => {
         if (!context || !canApplyInventoryWrite(connection, context.version))
           return;
+        // A focus refresh can begin while registration is in flight. Cancel
+        // once more at the commit point before applying the new snapshot.
+        await client.cancelQueries({ queryKey });
         client.setQueryData<Inventory>(queryKey, (inventory) => {
           if (
             !inventory ||

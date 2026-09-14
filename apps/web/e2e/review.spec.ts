@@ -25,9 +25,7 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
     exact: true,
   });
   await toggle.click();
-  await expect(
-    page.getByRole('button', { name: 'Refresh review' }),
-  ).toBeFocused();
+  await expect(toggle).toBeFocused();
   // Reverse tabbing must never reach the preceding, offscreen project panel.
   await page.keyboard.press('Shift+Tab');
   await expect(
@@ -37,7 +35,7 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
   ).toHaveCount(0);
   await toggle.click();
   await expect(
-    page.getByRole('button', { name: 'Disconnect', exact: true }),
+    page.getByRole('navigation', { name: 'Projects and worktrees' }),
   ).toBeVisible();
 });
 
@@ -80,9 +78,7 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
     .first()
     .focus();
   await page.keyboard.press('ControlOrMeta+b');
-  await expect(
-    page.getByRole('button', { name: 'Refresh review' }),
-  ).toBeFocused();
+  await expect(left).toBeFocused();
   await expect(left).toHaveAttribute('aria-expanded', 'false');
   await expect(navigator).not.toBeInViewport();
   await page.keyboard.press('Alt+Shift+r');
@@ -127,7 +123,7 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
   await page.keyboard.press('Alt+Shift+d');
   await page.keyboard.press('Alt+Shift+d');
   await expect(page.locator('html')).toHaveClass('dark');
-  await page.getByRole('button', { name: 'Close review sidebar' }).click();
+  await right.click();
   await expect(right).toBeFocused();
 });
 

@@ -5,11 +5,13 @@ export async function openNavigation(page: Page) {
   await expect(page.locator('[role="dialog"][data-ending-style]')).toHaveCount(
     0,
   );
-  const refresh = page.getByRole('button', { name: 'Refresh', exact: true });
-  if (!(await refresh.isVisible())) {
+  const navigation = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+  });
+  if (!(await navigation.isVisible())) {
     await page
       .getByRole('button', { name: 'Toggle Sidebar', exact: true })
       .click();
   }
-  await expect(refresh).toBeVisible();
+  await expect(navigation).toBeVisible();
 }

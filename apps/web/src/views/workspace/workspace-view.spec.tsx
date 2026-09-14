@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import { focusManager } from '@tanstack/react-query';
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -149,6 +151,7 @@ beforeAll(() => {
 });
 afterEach(() => {
   cleanup();
+  focusManager.setFocused(undefined);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
     if (key?.startsWith('porcelain.tabs.')) localStorage.removeItem(key);
@@ -169,37 +172,22 @@ async function connect() {
   return user;
 }
 
+function refocusWindow() {
+  focusManager.setFocused(false);
+  focusManager.setFocused(true);
+}
+
 describe('workspace through the inventory port', () => {
-  it('restores an authenticated connection after remount and forgets it on disconnect', async () => {
+  it('restores an authenticated connection without manual session or reload controls', async () => {
     const first = renderWorkspace();
-    const user = await connect();
+    await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     first.unmount();
-    const second = renderWorkspace(first.store);
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    second.unmount();
     renderWorkspace(first.store);
-    await screen.findByLabelText('Access token');
-    expect(
-      screen.queryByRole('heading', { name: 'Porcelain', level: 3 }),
-    ).toBeNull();
-  });
-
-  it('reports failed logout and lets the user retry before forgetting the session', async () => {
-    const { store } = renderWorkspace();
-    const user = await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    store.disconnectFailed = true;
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'Could not disconnect',
-    );
-    expect(store.sessionToken).toBe('fixture-token');
-    store.disconnectFailed = false;
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    await screen.findByLabelText('Access token');
-    expect(store.sessionToken).toBe('');
+    for (const name of ['Disconnect', 'Exit', 'Reload', 'Refresh']) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
   });
 
   it('keeps manual login available when the saved token is rejected', async () => {
@@ -232,48 +220,58 @@ describe('workspace through the inventory port', () => {
     expect(restoring.queryClient.getQueryCache().getAll()).toEqual([]);
   });
 
-  it('refreshes authoritative inventory and clears cached data on disconnect', async () => {
-    const { store, queryClient } = renderWorkspace();
-    const user = await connect();
+  it('refreshes authoritative inventory when the window regains focus', async () => {
+    const { store } = renderWorkspace();
+    await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     const project = store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     project.name = 'Renamed project';
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
+    refocusWindow();
     await screen.findByRole('heading', { name: 'Renamed project' });
     expect(store.refreshCount).toBe(1);
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    await screen.findByLabelText('Access token');
-    expect(queryClient.getQueryCache().getAll()).toEqual([]);
-    expect(screen.queryByText('Renamed project')).toBeNull();
   });
 
-  it('retains inventory after failed refresh and recovers on retry', async () => {
+  it('retains inventory after a failed focus refresh and recovers on the next focus', async () => {
     const store = createMockStore('refresh-failed');
-    renderWorkspace(store);
-    const user = await connect();
+    const { queryClient } = renderWorkspace(store);
+    await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'out of date',
+    refocusWindow();
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(
+          queryKeys.inventory(store.inventory.environmentId),
+        )?.error,
+      ).toBeTruthy(),
     );
     expect(
       screen.getByRole('heading', { name: 'Porcelain', level: 3 }),
     ).toBeTruthy();
     store.refreshFailed = false;
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
-    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    refocusWindow();
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(
+          queryKeys.inventory(store.inventory.environmentId),
+        )?.error,
+      ).toBeNull(),
+    );
   });
 
   it('rejects inventory from a different environment without replacing current data', async () => {
-    const { store } = renderWorkspace();
-    const user = await connect();
+    const { store, queryClient } = renderWorkspace();
+    await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    const connectedEnvironmentId = store.inventory.environmentId;
     store.inventory.environmentId = '641a8628-1cd6-4562-81a2-9c05fba76b4a';
     store.inventory.projects = [];
-    await user.click(screen.getByRole('button', { name: 'Refresh' }));
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'environment changed',
+    refocusWindow();
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(queryKeys.inventory(connectedEnvironmentId))
+          ?.error,
+      ).toBeTruthy(),
     );
     expect(
       screen.getByRole('heading', { name: 'Porcelain', level: 3 }),
@@ -362,8 +360,8 @@ describe('worktree review navigation', () => {
     getItem.mockRestore();
   });
 
-  it('scopes selection to each worktree and clears private review data on disconnect', async () => {
-    const { queryClient } = renderReview();
+  it('scopes selection to each worktree', async () => {
+    renderReview();
     const user = await connect();
     await user.click(
       await screen.findByRole('button', { name: /agent\/review/ }),
@@ -385,9 +383,6 @@ describe('worktree review navigation', () => {
         name: 'src/components/review-panel.tsx',
       }),
     ).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    await screen.findByLabelText('Access token');
-    expect(queryClient.getQueryCache().getAll()).toEqual([]);
   });
   it('recovers failed review reads without adding unsupported navigation surfaces', async () => {
     const store = createMockStore();
@@ -561,17 +556,6 @@ describe('worktree review navigation', () => {
       await screen.findByRole('button', { name: /Review sidebar foundation/ });
     },
   );
-  it('does not repopulate a disconnected session when a slow review read finishes', async () => {
-    const { store, queryClient } = renderReview();
-    const user = await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    store.delayMs = 100;
-    await user.click(screen.getByRole('button', { name: /agent\/review/ }));
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(queryClient.getQueryCache().getAll()).toEqual([]);
-    expect(screen.queryByText('A clearer review experience')).toBeNull();
-  });
 });
 
 function renderReview(store = createMockStore()) {
@@ -610,9 +594,7 @@ describe('file discussion', () => {
     await user.click(screen.getByRole('button', { name: 'Post comment' }));
     await screen.findByText('Please explain this component.');
     store.commentsFailed = true;
-    await user.click(
-      screen.getByRole('button', { name: 'Refresh discussion' }),
-    );
+    refocusWindow();
     await screen.findByText(/Comments shown may be out of date/);
     expect(screen.getByText('Please explain this component.')).toBeTruthy();
     store.commentsFailed = false;
@@ -746,26 +728,6 @@ describe('git actions', () => {
     await screen.findByRole('button', { name: 'Prepare action' });
     expect(screen.queryByRole('heading', { name: 'no-change' })).toBeNull();
   });
-
-  it('forgets an uncertain operation when the connection is replaced', async () => {
-    const { store } = renderReview();
-    const user = await openAction(/^Commit Commit the existing index/);
-    await user.type(screen.getByLabelText('Message'), 'Uncertain outcome');
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-    await confirmPrepared(user);
-    store.loseActionResponse = true;
-    await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
-    await screen.findByRole('heading', { name: 'Outcome not yet confirmed' });
-    store.loseActionResponse = false;
-    await user.click(screen.getByRole('button', { name: 'Close' }));
-    await user.click(screen.getByRole('button', { name: 'Disconnect' }));
-    await screen.findByLabelText('Access token');
-    await openAction(/^Commit Commit the existing index/);
-    await screen.findByRole('button', { name: 'Prepare action' });
-    expect(
-      screen.queryByRole('heading', { name: 'Outcome not yet confirmed' }),
-    ).toBeNull();
-  });
 });
 
 describe('workspace theme', () => {
@@ -830,7 +792,7 @@ describe('review surfaces', () => {
       (change) =>
         !('newPath' in change && change.newPath?.includes('review-panel')),
     );
-    await user.click(screen.getByRole('button', { name: 'Refresh review' }));
+    refocusWindow();
     await screen.findByText('Change no longer present');
   });
 });

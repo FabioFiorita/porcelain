@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, RefreshCw } from 'lucide-react';
+import { MessageSquare, Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,7 @@ import {
   useReplyComment,
   useResolveComment,
 } from '../../query/comments';
-import { reviewErrorMessage, useRefreshReview } from '../../query/review';
+import { reviewErrorMessage } from '../../query/review';
 import { ReviewBoundary } from './review-boundary';
 
 export function FileComments({
@@ -42,7 +42,6 @@ function FileDiscussion({ scope, path }: { scope: ReviewScope; path: string }) {
       // are also hidden until staged/unstaged comparison identity is explicit.
       !thread.anchor.revision,
   );
-  const refresh = useRefreshReview(scope);
   const [open, setOpen] = useState(false);
   const [compose, setCompose] = useState(false);
   const id = useId();
@@ -70,18 +69,6 @@ function FileDiscussion({ scope, path }: { scope: ReviewScope; path: string }) {
           <Plus />
           Add comment
         </Button>
-        {open && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Refresh discussion"
-            title="Refresh discussion"
-            disabled={refresh.isPending}
-            onClick={() => discardRejection(refresh.submit())}
-          >
-            <RefreshCw />
-          </Button>
-        )}
       </div>
       {open && (
         <div
@@ -91,8 +78,8 @@ function FileDiscussion({ scope, path }: { scope: ReviewScope; path: string }) {
           {discussion.error && (
             <Alert variant="destructive">
               <AlertDescription>
-                Discussion could not be refreshed. Comments shown may be out of
-                date. Refresh successfully before posting again.
+                Discussion could not be updated. Comments shown may be out of
+                date; Porcelain will retry when this window becomes active.
               </AlertDescription>
             </Alert>
           )}

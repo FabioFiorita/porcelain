@@ -2,7 +2,13 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
 
-test('connects to real Git inventory, refreshes and clears the session', async ({
+async function refocusWindow(page: import('@playwright/test').Page) {
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+test('connects to real Git inventory and refreshes on focus', async ({
   page,
   request,
 }) => {
@@ -105,11 +111,13 @@ test('connects to real Git inventory, refreshes and clears the session', async (
       response.url().endsWith('/api/inventory/refresh') &&
       response.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await refocusWindow(page);
   expect((await refreshed).ok()).toBe(true);
-  await expect(
-    page.getByRole('button', { name: 'Refresh', exact: true }),
-  ).toBeEnabled();
+  for (const name of ['Disconnect', 'Exit', 'Reload', 'Refresh']) {
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
+      0,
+    );
+  }
   const cookies = await page.context().cookies();
   const session = cookies.find((cookie) => cookie.name === 'porcelain_session');
   expect(session?.httpOnly).toBe(true);
@@ -123,14 +131,9 @@ test('connects to real Git inventory, refreshes and clears the session', async (
   await expect(page.getByLabel('Access token')).toHaveCount(0);
   await openNavigation(page);
   await expect(navigator).toBeVisible();
-  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-  await expect(navigator).toHaveCount(0);
-  await expect(page.getByLabel('Access token')).toHaveValue('');
-  await page.reload();
-  await expect(page.getByLabel('Access token')).toHaveValue('');
 });
 
-test('shows empty and unavailable inventory and recovers from a failed refresh', async ({
+test('shows empty and unavailable inventory and recovers on a later focus', async ({
   page,
 }) => {
   const environmentId = '7fe18f78-1477-4c19-a42b-cdd42f862151';
@@ -147,8 +150,10 @@ test('shows empty and unavailable inventory and recovers from a failed refresh',
   await page.route('**/api/inventory/refresh', (route) =>
     route.fulfill({ status: 503, body: '{}' }),
   );
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('could not complete');
+  const failedRefresh = page.waitForResponse('**/api/inventory/refresh');
+  await refocusWindow(page);
+  expect((await failedRefresh).status()).toBe(503);
+  await expect(page.getByText('No projects registered')).toBeVisible();
   await page.unroute('**/api/inventory/refresh');
   await page.route('**/api/inventory/refresh', (route) =>
     route.fulfill({
@@ -173,87 +178,13 @@ test('shows empty and unavailable inventory and recovers from a failed refresh',
       },
     }),
   );
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await expect(page.getByRole('alert')).toHaveCount(0);
+  await refocusWindow(page);
   const worktree = page.getByRole('button', { name: /Detached HEAD/ });
   await expect(worktree).toContainText('Unavailable');
   await worktree.click();
   await expect(page).toHaveURL(/worktree=801a8628/);
   await expect(worktree).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('No changes to review')).toBeVisible();
-});
-
-test('disconnect prevents a late refresh from restoring private inventory', async ({
-  page,
-}) => {
-  const environmentId = '7fe18f78-1477-4c19-a42b-cdd42f862151';
-  await page.route('**/api/inventory', (route) =>
-    route.fulfill({ json: { environmentId, projects: [] } }),
-  );
-  await page.goto('/');
-  await page.getByLabel('Access token').fill('fixture-token');
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await openNavigation(page);
-  await expect(page.getByText('No projects registered')).toBeVisible();
-  let release: () => void = () => undefined;
-  const pending = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/api/inventory/refresh', async (route) => {
-    await pending;
-    await route
-      .fulfill({
-        json: {
-          environmentId,
-          projects: [
-            {
-              id: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
-              name: 'Old session project',
-              available: true,
-              worktrees: [],
-            },
-          ],
-        },
-      })
-      .catch(() => {});
-  });
-  const started = page.waitForRequest('**/api/inventory/refresh');
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  const oldRequest = await started;
-  await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-  await expect(page.getByLabel('Access token')).toHaveValue('');
-  await page.unroute('**/api/inventory');
-  await page.route('**/api/inventory', (route) =>
-    route.fulfill({
-      json: {
-        environmentId,
-        projects: [
-          {
-            id: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
-            name: 'Current session project',
-            available: true,
-            worktrees: [],
-          },
-        ],
-      },
-    }),
-  );
-  await page.getByLabel('Access token').fill('new-fixture-token');
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await openNavigation(page);
-  await expect(page.getByText('Current session project')).toBeVisible();
-  release();
-  const oldResponse = await oldRequest.response();
-  await oldResponse?.finished();
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      }),
-  );
-  await openNavigation(page);
-  await expect(page.getByText('Current session project')).toBeVisible();
-  await expect(page.getByText('Old session project')).toHaveCount(0);
 });
 
 test('logout in another tab prevents an existing tab from continuing with a bearer token', async ({
@@ -273,12 +204,13 @@ test('logout in another tab prevents an existing tab from continuing with a bear
   const other = await context.newPage();
   await other.goto('/');
   await expect(other.getByLabel('Access token')).toHaveCount(0);
-  await openNavigation(other);
-  await other.getByRole('button', { name: 'Disconnect', exact: true }).click();
-  await expect(other.getByLabel('Access token')).toBeVisible();
+  const logout = await other.request.delete('/api/session', {
+    headers: { 'x-porcelain-browser': '1' },
+  });
+  expect(logout.ok()).toBe(true);
   await openNavigation(page);
   const response = page.waitForResponse('**/api/inventory/refresh');
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await refocusWindow(page);
   expect((await response).status()).toBe(401);
   await page.reload();
   await expect(page.getByLabel('Access token')).toBeVisible();

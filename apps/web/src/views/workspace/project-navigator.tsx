@@ -8,13 +8,10 @@ import {
   GitCommitHorizontalIcon,
   HouseIcon,
   KeyboardIcon,
-  LogOutIcon,
   MessageSquareIcon,
   PlusIcon,
-  RefreshCwIcon,
   SettingsIcon,
 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,7 +31,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import type { Inventory, Project } from '../../domain/inventory';
 import { projectPath, worktreeLabel } from '../../domain/inventory';
@@ -62,12 +58,6 @@ type Props = {
   onOpenProject?: () => void;
   onOpenSettings?: () => void;
   onOpenShortcuts?: () => void;
-  onRefresh?: () => void;
-  refreshPending?: boolean;
-  status?: string;
-  error?: string | undefined;
-  onDisconnect?: () => void;
-  disconnectPending?: boolean;
   showThemeToggle?: boolean;
 };
 
@@ -81,12 +71,6 @@ export function ProjectNavigator({
   onOpenProject,
   onOpenSettings,
   onOpenShortcuts,
-  onRefresh,
-  refreshPending = false,
-  status,
-  error,
-  onDisconnect,
-  disconnectPending = false,
   showThemeToggle = false,
 }: Props) {
   const projects = inventory?.projects ?? legacyProjects ?? [];
@@ -121,26 +105,8 @@ export function ProjectNavigator({
           >
             <PlusIcon />
           </Button>
-          {onRefresh != null && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Refresh"
-              title="Refresh projects"
-              disabled={refreshPending}
-              onClick={onRefresh}
-            >
-              {refreshPending ? <Spinner /> : <RefreshCwIcon />}
-            </Button>
-          )}
         </div>
       </header>
-
-      {error != null && (
-        <Alert variant="destructive" className="mx-2 mt-2 py-2 text-xs">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
 
       <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
         {projects.length === 0 ? (
@@ -189,31 +155,6 @@ export function ProjectNavigator({
             <KeyboardIcon />
           </Button>
         </div>
-        {(status != null || onDisconnect != null) && (
-          <div className="flex items-center gap-1">
-            {status != null && (
-              <span
-                role="status"
-                className="min-w-0 flex-1 truncate px-2 text-[11px] text-muted-foreground"
-              >
-                {status}
-              </span>
-            )}
-            {onDisconnect != null && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground"
-                aria-label="Disconnect"
-                title="Disconnect environment"
-                disabled={disconnectPending}
-                onClick={onDisconnect}
-              >
-                <LogOutIcon />
-              </Button>
-            )}
-          </div>
-        )}
       </footer>
     </nav>
   );
