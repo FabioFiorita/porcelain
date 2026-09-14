@@ -120,22 +120,21 @@ export function MarkAllReviewed({
   const eligible = fingerprintable.filter(
     (entry) => entry.fingerprint != null && entry.reviewStatus !== 'reviewed',
   );
+  const unavailable = uniqueEntries.length - fingerprintable.length;
+  const completeLabel =
+    unavailable > 0
+      ? `${fingerprintable.length} reviewed · ${unavailable} unavailable`
+      : 'All reviewed';
   const disabled = eligible.length === 0 || bulk.isPending;
   const buttonLabel =
     fingerprintable.length === 0
       ? 'No files can be marked reviewed'
       : eligible.length === 0
-        ? 'All fingerprintable files are reviewed'
+        ? completeLabel
         : `Mark all ${eligible.length} files reviewed`;
 
   const submit = () => {
     if (disabled) return;
-    if (
-      !globalThis.confirm(
-        `Mark ${eligible.length} ${eligible.length === 1 ? 'file' : 'files'} as reviewed?`,
-      )
-    )
-      return;
     setReport(null);
     void bulk
       .submit(uniqueEntries)
@@ -165,7 +164,7 @@ export function MarkAllReviewed({
             : fingerprintable.length === 0
               ? 'No reviewable files'
               : eligible.length === 0
-                ? 'All reviewed'
+                ? completeLabel
                 : 'Mark all reviewed')}
       </Button>
       {report && <BulkReport report={report} />}

@@ -77,7 +77,7 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
         >
           <TabsList className="h-8 w-full">
             <TabsTrigger value="layers" className="flex-1 text-xs">
-              Layers
+              {layers.layers.length > 0 ? 'Layers' : 'Changed files'}
             </TabsTrigger>
             <TabsTrigger value="comments" className="flex-1 gap-1.5 text-xs">
               Comments

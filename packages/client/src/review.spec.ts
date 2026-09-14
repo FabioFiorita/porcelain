@@ -228,3 +228,21 @@ describe('review transport', () => {
     expect(receipt.requestId).toBe(requestId);
   });
 });
+
+it('preserves typed file refusal codes without accepting malformed errors', async () => {
+  const transport: typeof fetch = async () =>
+    Response.json(
+      {
+        code: 'UNSUPPORTED_TEXT',
+        message: 'Not UTF-8 text',
+      },
+      { status: 422 },
+    );
+  await expect(
+    createReviewClient(transport, '/api').text({ ...scope, path: 'image.png' }),
+  ).rejects.toMatchObject({
+    name: 'RequestError',
+    code: 'UNSUPPORTED_TEXT',
+    status: 422,
+  });
+});

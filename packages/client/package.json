@@ -5,6 +5,7 @@
   "exports": {
     "./inventory": "./src/inventory.ts",
     "./errors/connection-error": "./src/errors/connection-error.ts",
+    "./errors/request-error": "./src/errors/request-error.ts",
     "./comments": "./src/comments.ts",
     "./review": "./src/review.ts",
     "./git-actions": "./src/git-actions.ts"

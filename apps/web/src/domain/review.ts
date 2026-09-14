@@ -71,6 +71,21 @@ export function changeKey(change: Change) {
   return JSON.stringify([change.scope, changePath(change)]);
 }
 
+export function orderReviewEvidence<T extends { path: string }>(
+  evidence: readonly T[],
+  files: readonly { path: string }[],
+): T[] {
+  const remaining = new Map(evidence.map((entry) => [entry.path, entry]));
+  const ordered: T[] = [];
+  for (const file of files) {
+    const entry = remaining.get(file.path);
+    if (!entry) continue;
+    ordered.push(entry);
+    remaining.delete(file.path);
+  }
+  return [...ordered, ...remaining.values()];
+}
+
 export function reviewStatus(
   evidence: Pick<Evidence, 'path' | 'fingerprint'>,
   marks: readonly ReviewedMark[],

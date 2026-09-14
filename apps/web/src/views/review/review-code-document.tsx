@@ -6,6 +6,7 @@ import type {
   ReviewEvidenceItem,
   ReviewScope,
 } from '../../domain/review';
+import { type Layers, orderReviewEvidence } from '../../domain/review';
 import { useReviewEvidence } from '../../query/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { diffEntry, evidenceId, fileEntry } from './diff-entries';
@@ -14,18 +15,24 @@ import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 export function ReviewCodeDocument({
   scope,
   changes,
+  files = [],
   header,
   allowBulkReview = false,
 }: {
   scope: ReviewScope;
   changes?: readonly Change[];
+  files?: Layers['layers'][number]['files'];
   header?: () => ReactNode;
   allowBulkReview?: boolean;
 }) {
   // An omitted selection means the complete handoff. Selected views filter by
   // logical path, while the evidence query retains every comparison for that
   // path (including staged and unstaged changes).
-  const evidence = useReviewEvidence(scope, changes);
+  const evidence = orderReviewEvidence(
+    useReviewEvidence(scope, changes),
+    files,
+  );
+  const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = evidence.flatMap((item) => {
     const reasons = item.comparisons.flatMap((comparison) => {
       if (comparison.content.kind === 'omitted')
@@ -53,7 +60,7 @@ export function ReviewCodeDocument({
               evidenceId(comparison.change),
               item.path,
               comparison.content.text,
-              `${comparison.change.scope} · untracked`,
+              notes.get(item.path) ?? `${comparison.change.scope} · untracked`,
             ),
             review,
           },
@@ -64,7 +71,8 @@ export function ReviewCodeDocument({
         comparison.change,
         toDiff(item, comparison.change, comparison.content),
       );
-      return entry ? [{ ...entry, review }] : [];
+      const note = notes.get(item.path);
+      return entry ? [{ ...entry, ...(note ? { note } : {}), review }] : [];
     }),
   );
   const renderedPaths = new Set(entries.map((entry) => entry.path));

@@ -338,10 +338,8 @@ test('inspects staged changes, commit history and artifact metadata from the rea
   await page.getByRole('button', { name: /The whole handoff/ }).click();
   await page
     .getByTestId('review-document')
-    .getByRole('button', { name: /Launch review report/ })
+    .getByRole('button', { name: 'Open report' })
     .click();
-  await expect(
-    page.getByRole('heading', { name: 'Launch review report' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Report' })).toBeVisible();
   await expect(page.getByRole('main')).toContainText('Stored artifact');
 });

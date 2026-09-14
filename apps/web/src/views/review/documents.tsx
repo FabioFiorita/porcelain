@@ -109,6 +109,7 @@ function HandoffDocument({
       </DocumentToolbar>
       <ReviewCodeDocument
         scope={scope}
+        files={layers.layers.flatMap((layer) => layer.files)}
         header={() => (
           <>
             {paths.length === 0 && (
@@ -119,11 +120,13 @@ function HandoffDocument({
                 />
               </div>
             )}
-            <HandoffSummary
-              scope={scope}
-              layers={layers.layers}
-              onOpen={onOpen}
-            />
+            {reviewBuilt && (
+              <HandoffSummary
+                scope={scope}
+                layers={layers.layers}
+                onOpen={onOpen}
+              />
+            )}
           </>
         )}
       />
@@ -170,6 +173,7 @@ function LayerDocument({
       <ReviewCodeDocument
         scope={scope}
         changes={changes}
+        files={layer.files}
         header={() =>
           layer.summary == null ? null : (
             <div className="mx-4 mt-3 rounded-xl border bg-muted/30 px-4 py-3">
@@ -235,6 +239,15 @@ function FileDocument({
   onOpen: OpenDocument;
 }) {
   const file = useTextFile(scope, path);
+  if ('kind' in file)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <FileToolbar path={path} />
+        <div className="grid min-h-48 flex-1 place-items-center p-6">
+          <ReviewEmpty title="Not shown" description={file.reason} />
+        </div>
+      </div>
+    );
   return (
     <ReadableFileDocument
       scope={scope}

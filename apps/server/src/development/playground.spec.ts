@@ -137,10 +137,15 @@ describe('Playground workflow', () => {
       const artifacts = (await (
         await fetch(`${base}/artifacts`, { headers })
       ).json()) as { id: string; name: string }[];
-      expect(artifacts[0]?.name).toBe('Launch review report');
+      expect(artifacts.map((artifact) => artifact.name)).toEqual(
+        expect.arrayContaining(['handoff.html', 'handoff.md']),
+      );
+      const report = artifacts.find(
+        (artifact) => artifact.name === 'handoff.html',
+      );
       expect(
         await (
-          await fetch(`${base}/artifacts/${artifacts[0]?.id}`, { headers })
+          await fetch(`${base}/artifacts/${report?.id}`, { headers })
         ).json(),
       ).toMatchObject({
         content: expect.stringContaining('Fieldnotes launch review'),

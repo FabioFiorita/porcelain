@@ -51,8 +51,11 @@ function renderNavigator(selected: string | null = null) {
     <TooltipProvider>
       <SidebarProvider>
         <ProjectNavigator
-          projects={projects}
-          selected={selected}
+          inventory={{ environmentId: 'environment', projects }}
+          selectedWorktreeId={selected ?? undefined}
+          onOpenProject={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onOpenShortcuts={vi.fn()}
           onSelect={onSelect}
         />
       </SidebarProvider>

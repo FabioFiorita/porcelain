@@ -84,7 +84,7 @@ it('shows author identity, replies to a thread, and toggles resolution accessibl
   renderComments(store);
 
   await user.click(await screen.findByRole('button', { name: '1 comment' }));
-  expect(screen.getByText('Agent')).toBeTruthy();
+  expect(screen.getAllByText('Agent').length).toBeGreaterThan(0);
   expect(screen.getByText('Agent context for this file')).toBeTruthy();
 
   await user.click(screen.getByRole('button', { name: 'Reply' }));
@@ -96,10 +96,12 @@ it('shows author identity, replies to a thread, and toggles resolution accessibl
     expect.objectContaining({ author: 'reviewer', body: 'Reviewer follow-up' }),
   ]);
 
-  await user.click(screen.getByRole('button', { name: 'Resolve comment' }));
-  await screen.findByText('Resolved');
-  await user.click(screen.getByRole('button', { name: 'Unresolve comment' }));
-  await waitFor(() => expect(screen.queryByText('Resolved')).toBeNull());
+  await user.click(screen.getByRole('button', { name: 'Resolve' }));
+  await screen.findByRole('button', { name: 'Reopen' });
+  await user.click(screen.getByRole('button', { name: 'Reopen' }));
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull(),
+  );
 });
 
 it('preserves a failed reply draft and leaves resolution unchanged', async () => {
@@ -120,7 +122,8 @@ it('preserves a failed reply draft and leaves resolution unchanged', async () =>
     'value',
     'Retry this reply',
   );
-  await user.click(screen.getByRole('button', { name: 'Resolve comment' }));
+  await user.click(screen.getByRole('button', { name: 'Cancel' }));
+  await user.click(screen.getByRole('button', { name: 'Resolve' }));
   expect((await screen.findAllByRole('alert')).at(-1)?.textContent).toContain(
     'Comments are unavailable',
   );

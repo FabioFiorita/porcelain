@@ -45,38 +45,24 @@ function worktreeDisplayLabel(worktree: Worktree) {
   return worktreeLabel(worktree.branch);
 }
 
-/**
- * The legacy props stay available for focused navigator tests and embedders;
- * the connected workspace passes `inventory` and the device-local controls.
- */
 type Props = {
-  inventory?: Inventory;
-  projects?: Project[];
-  selectedWorktreeId?: string | undefined;
-  selected?: string | null;
-  onSelect?: (id: string) => void;
-  onOpenProject?: () => void;
-  onOpenSettings?: () => void;
-  onOpenShortcuts?: () => void;
+  inventory: Inventory;
+  selectedWorktreeId: string | undefined;
+  onSelect: (id: string) => void;
+  onOpenProject: () => void;
+  onOpenSettings: () => void;
+  onOpenShortcuts: () => void;
 };
 
-/** Projects and their worktrees. Navigation only; it never edits git. */
 export function ProjectNavigator({
   inventory,
-  projects: legacyProjects,
-  selectedWorktreeId,
-  selected: legacySelected,
-  onSelect,
-  onOpenProject,
-  onOpenSettings,
-  onOpenShortcuts,
+  selectedWorktreeId: selected,
+  onSelect: select,
+  onOpenProject: openProject,
+  onOpenSettings: openSettings,
+  onOpenShortcuts: openShortcuts,
 }: Props) {
-  const projects = inventory?.projects ?? legacyProjects ?? [];
-  const selected = selectedWorktreeId ?? legacySelected ?? null;
-  const select = onSelect ?? (() => undefined);
-  const openProject = onOpenProject ?? (() => undefined);
-  const openSettings = onOpenSettings ?? (() => undefined);
-  const openShortcuts = onOpenShortcuts ?? (() => undefined);
+  const projects = inventory.projects;
 
   return (
     <nav
@@ -158,7 +144,7 @@ function ProjectSection({
   onSelect,
 }: {
   project: Project;
-  selected: string | null;
+  selected: string | null | undefined;
   onSelect: (id: string) => void;
 }) {
   const path = projectPath(project);

@@ -1,4 +1,5 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
+import { RequestError } from '@porcelain/client/errors/request-error';
 import {
   useMutation,
   useQueries,
@@ -18,6 +19,7 @@ import type {
   ReviewedMarksResponse,
   ReviewScope,
   SetReviewedRequest,
+  TextFile,
 } from '../domain/review';
 import {
   changePath,
@@ -110,11 +112,6 @@ function useChangesOptions(scope: ReviewScope) {
   };
 }
 
-export function useHistory(scope: ReviewScope, cursor?: string) {
-  return useReviewData(scope, ['history', cursor ?? ''], (api, request) =>
-    api.history({ ...request, ...(cursor ? { cursor } : {}) }),
-  );
-}
 export function useArtifacts(scope: ReviewScope) {
   return useReviewData(scope, ['artifacts'], (api, request) =>
     api.artifacts(request),
@@ -194,8 +191,29 @@ export function useReviewReset() {
   return useQueryErrorResetBoundary();
 }
 export function useTextFile(scope: ReviewScope, path: string) {
-  return useReviewData(scope, ['text', path], (api, request) =>
-    api.text({ ...request, path }),
+  return useReviewData<TextFile | { kind: 'unreadable'; reason: string }>(
+    scope,
+    ['text', path],
+    async (api, request) => {
+      try {
+        return await api.text({ ...request, path });
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 422) {
+          if (error.code === 'UNSUPPORTED_TEXT')
+            return {
+              kind: 'unreadable',
+              reason:
+                'This file is binary or uses an unsupported text encoding.',
+            };
+          if (error.code === 'FILE_TOO_LARGE')
+            return {
+              kind: 'unreadable',
+              reason: 'This file is too large to display as text.',
+            };
+        }
+        throw error;
+      }
+    },
   );
 }
 export function useCommit(scope: ReviewScope, oid: string, parent = 1) {

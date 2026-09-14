@@ -8,6 +8,7 @@ import { DocumentView } from './documents';
 const fileState = vi.hoisted(() => ({
   text: '# A document',
   byteLength: 12,
+  unreadable: false,
 }));
 const preferenceState = vi.hoisted(() => ({
   markdownDefault: 'reader' as 'reader' | 'source',
@@ -51,7 +52,10 @@ const historyState = vi.hoisted(() => ({
 }));
 
 vi.mock('../../query/review', () => ({
-  useTextFile: () => fileState,
+  useTextFile: () =>
+    fileState.unreadable
+      ? { kind: 'unreadable', reason: 'This file is binary.' }
+      : fileState,
   useChanges: () => ({ status: { changes: [] } }),
   useCommit: () => commitState,
 }));
@@ -113,6 +117,7 @@ function renderFile(path: string) {
 
 afterEach(() => {
   cleanup();
+  fileState.unreadable = false;
   preferenceState.markdownDefault = 'reader';
   preferenceState.htmlDefault = 'preview';
   commitState.comparison.parentNumber = 1;
@@ -270,4 +275,14 @@ describe('file document display defaults', () => {
     expect(screen.getByText('assets/new-logo.png')).toBeTruthy();
     expect(screen.getByText(/added · Binary change/u)).toBeTruthy();
   });
+});
+
+it('keeps the file header and copy action when text cannot be displayed', () => {
+  fileState.unreadable = true;
+  renderFile('assets/image.png');
+  expect(screen.getByText('image.png')).toBeTruthy();
+  expect(screen.getByText('This file is binary.')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  expect(screen.queryByTestId('source-view')).toBeNull();
 });

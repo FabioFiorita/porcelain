@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ReviewedControl } from './reviewed-control';
+import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 
 const mocks = vi.hoisted(() => ({
   markSubmit: vi.fn(),
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../query/review', () => ({
   reviewErrorMessage: (error: unknown) =>
     error instanceof Error ? error.message : 'mutation failed',
+  useMarkAllReviewed: () => useMockMutation(mocks.markSubmit),
   useMarkReviewed: () => useMockMutation(mocks.markSubmit),
   useUnmarkReviewed: () => useMockMutation(mocks.unmarkSubmit),
 }));
@@ -89,4 +90,38 @@ describe('ReviewedControl', () => {
     );
     expect(mocks.unmarkSubmit).toHaveBeenCalledWith('README.md');
   });
+});
+
+it('does not claim the whole review is complete when a file cannot be reviewed', () => {
+  render(
+    <MarkAllReviewed
+      scope={scope}
+      entries={[
+        {
+          path: 'a.ts',
+          fingerprint: 'a'.repeat(64),
+          reviewStatus: 'reviewed',
+          comparisons: [],
+          ...scope,
+          environmentId: 'environment',
+          statusToken: 'b'.repeat(64),
+          consistency: 'best-effort',
+        },
+        {
+          path: 'image.png',
+          fingerprint: null,
+          reviewStatus: 'unreviewed',
+          comparisons: [],
+          ...scope,
+          environmentId: 'environment',
+          statusToken: 'b'.repeat(64),
+          consistency: 'best-effort',
+        },
+      ]}
+    />,
+  );
+  expect(
+    screen.getByRole('button', { name: '1 reviewed · 1 unavailable' }),
+  ).toBeTruthy();
+  expect(screen.queryByText('All reviewed')).toBeNull();
 });

@@ -53,8 +53,19 @@ vi.mock('../../query/review', () => ({
   }),
 }));
 vi.mock('./code-document', () => ({
-  CodeDocument: ({ header }: { header?: () => React.ReactNode }) => (
-    <div>{header?.()}</div>
+  CodeDocument: ({
+    header,
+    entries,
+  }: {
+    header?: () => React.ReactNode;
+    entries: { id: string; note?: string }[];
+  }) => (
+    <div>
+      {header?.()}
+      {entries.map((entry) => (
+        <span key={entry.id}>{entry.note}</span>
+      ))}
+    </div>
   ),
 }));
 
@@ -74,4 +85,36 @@ describe('continuous review document', () => {
     expect(screen.getByText('README.md')).toBeTruthy();
     expect(screen.getByText('No single-file textual patch')).toBeTruthy();
   });
+});
+
+it('shows the agent note on an untracked file, not only on Git patches', () => {
+  const original = evidence[0];
+  if (!original) throw new Error('Missing fixture');
+  evidence[0] = {
+    ...original,
+    comparisons: [
+      {
+        change: { scope: 'untracked', path: 'README.md' },
+        content: {
+          kind: 'file',
+          text: 'New documentation',
+          encoding: 'utf-8',
+          byteLength: 17,
+        },
+      },
+    ],
+  };
+  try {
+    render(
+      <ReviewCodeDocument
+        scope={{ projectId: 'project', worktreeId: 'worktree' }}
+        files={[
+          { path: 'README.md', scope: 'unstaged', note: 'Read this first.' },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Read this first.')).toBeTruthy();
+  } finally {
+    evidence[0] = original;
+  }
 });

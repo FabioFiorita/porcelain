@@ -118,8 +118,13 @@ export async function seedPlaygroundReview(
     value: true,
   });
   await send('POST', `${worktree}/artifacts`, {
-    name: 'Launch review report',
+    name: 'handoff.html',
     content:
       '<!doctype html><html lang="en"><title>Launch review</title><h1>Fieldnotes launch review</h1><p>Three launch tasks; one completed.</p><ul><li>Verify narrow screen layout</li><li>Review staged release documents</li><li>Confirm empty-board task summaries</li></ul></html>',
+  });
+  await send('POST', `${worktree}/artifacts`, {
+    name: 'handoff.md',
+    content:
+      'Prepared the release checklist and keyboard accessibility notes, then polished the board. Review the documents first, followed by the visual changes.\n\n### Verification\n\n- ✓ Task summaries have isolated domain tests.\n- ✓ Staged and unstaged changes remain visible together.\n- ✗ The image preview needs external inspection.\n',
   });
 }

@@ -4,6 +4,7 @@ import {
   artifactKind,
   changePath,
   groupChanges,
+  orderReviewEvidence,
   reviewMark,
   reviewProgress,
   reviewStatus,
@@ -106,4 +107,21 @@ describe('review progress', () => {
   it('reports an empty layer as empty rather than complete', () => {
     expect(reviewProgress([], [])).toEqual({ done: 0, total: 0 });
   });
+});
+
+it('orders whole-file evidence by the agent story without dropping comparisons or unassigned files', () => {
+  const evidence = [
+    { path: 'a.ts', comparisons: ['staged', 'unstaged'] },
+    { path: 'b.ts', comparisons: ['unstaged'] },
+    { path: 'z.ts', comparisons: ['staged'] },
+  ];
+  const ordered = orderReviewEvidence(evidence, [
+    { path: 'z.ts' },
+    { path: 'missing.ts' },
+    { path: 'a.ts' },
+    { path: 'a.ts' },
+  ]);
+  expect(ordered.map((entry) => entry.path)).toEqual(['z.ts', 'a.ts', 'b.ts']);
+  expect(ordered[1]).toBe(evidence[0]);
+  expect(ordered[1]?.comparisons).toEqual(['staged', 'unstaged']);
 });
