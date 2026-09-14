@@ -60,6 +60,16 @@ export interface Application {
     input: { requestId: string; preparationId: string },
     signal?: AbortSignal,
   ): GitActionReceipt;
+  preparePull(
+    scope: GitActionScope,
+    input: Omit<Extract<GitActionIntent, { action: 'pull' }>, 'action'>,
+    signal?: AbortSignal,
+  ): Promise<GitActionPreparation>;
+  executePull(
+    scope: GitActionScope,
+    input: { requestId: string; preparationId: string },
+    signal?: AbortSignal,
+  ): GitActionReceipt;
   preparePush(
     scope: GitActionScope,
     input: Omit<Extract<GitActionIntent, { action: 'push' }>, 'action'>,

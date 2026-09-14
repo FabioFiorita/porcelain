@@ -1,4 +1,5 @@
 export type GitActionIntent =
+  | { action: 'pull'; remoteName: string; sourceRef: string }
   | { action: 'fetch'; remoteName: string; sourceRef: string }
   | {
       action: 'push';
@@ -6,7 +7,7 @@ export type GitActionIntent =
       destinationRef: string;
       allowCreate: boolean;
     }
-  | { action: 'commit'; message: string }
+  | { action: 'commit'; message: string; paths?: string[] | undefined }
   | { action: 'stash-create'; message: string; includeUntracked: boolean }
   | {
       action: 'stash-apply' | 'stash-pop';

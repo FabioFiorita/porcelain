@@ -55,6 +55,24 @@ export const gitStatusResponseSchema = z.object({
   environmentId: z.uuid(),
   worktreeId: z.uuid(),
   statusToken: z.string().regex(/^[a-f0-9]{64}$/),
+  branch: z
+    .object({
+      name: z.string().nullable(),
+      upstream: z.string().nullable(),
+      ahead: z.number().int().nonnegative(),
+      behind: z.number().int().nonnegative(),
+      remoteName: z.string().nullable().optional(),
+      sourceRef: z.string().nullable().optional(),
+      stashes: z
+        .array(
+          z.object({
+            oid: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
+            message: z.string(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
   consistency: z.literal('best-effort'),
   headOid: z
     .string()

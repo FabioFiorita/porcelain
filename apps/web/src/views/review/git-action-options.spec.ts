@@ -30,6 +30,7 @@ describe('Git action options', () => {
     expect(gitActions.map((action) => action.id)).toEqual([
       'commit',
       'push',
+      'pull',
       'fetch',
       'stash-create',
       'stash-apply',
@@ -42,7 +43,7 @@ describe('Git action options', () => {
       ]),
     ).toEqual([
       ['Commit', ['commit']],
-      ['Sync', ['push', 'fetch']],
+      ['Sync', ['push', 'pull', 'fetch']],
       ['Stash', ['stash-create', 'stash-apply', 'stash-pop']],
     ]);
   });
@@ -76,9 +77,7 @@ describe('Git action options', () => {
     const behind = baseStatus();
     behind.branch = branch({ behind: 1 });
     const primary = primaryGitAction(behind);
-    expect(primary.kind).toBe('hint');
-    if (primary.kind === 'hint')
-      expect(primary.hint).toContain('Pull is not available');
+    expect(primary).toEqual({ kind: 'run', action: 'pull', label: 'Pull' });
   });
 
   it('reports status blockers while leaving missing optional status to prepare', () => {
@@ -88,7 +87,7 @@ describe('Git action options', () => {
 
     const clean = baseStatus();
     expect(gitActionBlocker('push', clean)).toBeNull();
-    expect(gitActionReason('commit', clean)).toContain('Nothing staged');
+    expect(gitActionReason('commit', clean)).toContain('Nothing to commit');
 
     const conflicted = baseStatus();
     conflicted.changes = [

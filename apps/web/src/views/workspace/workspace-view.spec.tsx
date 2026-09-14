@@ -571,7 +571,7 @@ describe('worktree review navigation', () => {
     expect(frame.getAttribute('srcdoc')).toContain('Fieldnotes launch review');
   });
   it.each([false, true])(
-    'commits only staged changes and recovers without repeating the action (lost response: %s)',
+    'commits selected files and recovers without repeating the action (lost response: %s)',
     async (loseResponse) => {
       const { store } = renderReview();
       const user = await connect();
@@ -583,30 +583,21 @@ describe('worktree review navigation', () => {
       );
       await user.click(
         await screen.findByRole('menuitem', {
-          name: /^Commit Commit the existing index/,
+          name: /^Commit Commit selected files/,
         }),
       );
       await user.type(
         await screen.findByLabelText('Message'),
         'Review sidebar foundation',
       );
-      await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-      const confirm = await screen.findByRole('button', {
-        name: 'Confirm commit',
-      });
-      expect(confirm.hasAttribute('disabled')).toBe(true);
       expect(store.actionCount).toBe(0);
-      await user.click(
-        screen.getByLabelText(
-          'I have reviewed the scope and paused external writers.',
-        ),
-      );
+      const confirm = screen.getByRole('button', {
+        name: 'Commit selected files',
+      });
       store.loseActionResponse = loseResponse;
       await user.click(confirm);
       if (loseResponse) {
-        await screen.findByRole('heading', {
-          name: 'Outcome not yet confirmed',
-        });
+        await screen.findByText('Outcome not yet confirmed');
         await user.click(screen.getByRole('button', { name: 'Close' }));
         expect(
           screen.queryByRole('button', { name: 'Prepare another action' }),
@@ -618,12 +609,10 @@ describe('worktree review navigation', () => {
         await user.click(
           await screen.findByRole('menuitem', { name: /^Commit Commit/ }),
         );
-        await screen.findByRole('heading', {
-          name: 'Outcome not yet confirmed',
-        });
-        await user.click(screen.getByRole('button', { name: 'Check receipt' }));
+        await screen.findByText('Outcome not yet confirmed');
+        await user.click(screen.getByRole('button', { name: 'Check outcome' }));
       }
-      await screen.findByRole('heading', { name: 'succeeded' });
+      await screen.findByText('succeeded', { selector: '[role="status"]' });
       expect(store.actionCount).toBe(1);
       const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
       expect(
@@ -631,8 +620,8 @@ describe('worktree review navigation', () => {
       ).toBe(false);
       expect(
         data?.status.changes.some((change) => change.scope === 'unstaged'),
-      ).toBe(true);
-      await user.click(screen.getByRole('button', { name: 'Check receipt' }));
+      ).toBe(false);
+      await user.click(screen.getByRole('button', { name: 'Check outcome' }));
       expect(store.actionCount).toBe(1);
       if (screen.queryByRole('button', { name: 'Close' })) {
         await user.click(screen.getByRole('button', { name: 'Close' }));
@@ -712,28 +701,15 @@ describe('git actions', () => {
     return user;
   }
 
-  async function confirmPrepared(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(
-      await screen.findByLabelText(
-        'I have reviewed the scope and paused external writers.',
-      ),
-    );
-  }
-
-  it('prepares a push with its remote destination and confirms it', async () => {
+  it('uses the remote destination and executes a push once', async () => {
     const { store } = renderReview();
     const user = await openAction(/^Push Send committed changes/);
-    expect(screen.getByLabelText('Configured remote')).toHaveProperty(
-      'value',
-      'origin',
+    expect(screen.getByLabelText('Remote')).toHaveProperty('value', 'origin');
+    await user.click(
+      screen.getByLabelText('Create the remote branch if needed'),
     );
-    await user.click(screen.getByLabelText('Allow creating the remote branch'));
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-    await screen.findByText('Destination');
-    expect(screen.getByText('Mock origin')).toBeTruthy();
-    await confirmPrepared(user);
-    await user.click(screen.getByRole('button', { name: 'Confirm push' }));
-    await screen.findByRole('heading', { name: 'succeeded' });
+    await user.click(screen.getByRole('button', { name: 'Push' }));
+    await screen.findByText('succeeded', { selector: '[role="status"]' });
     expect(store.actionCount).toBe(1);
   });
 
@@ -741,11 +717,11 @@ describe('git actions', () => {
     const { store } = renderReview();
     const user = await openAction(/^Apply stash Restore a stash and keep it/);
     await user.type(
-      screen.getByLabelText('Full stash object ID'),
+      screen.getByRole('textbox', { name: 'Stash' }),
       'a'.repeat(40),
     );
-    await user.click(screen.getByLabelText('Restore index'));
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
+    await user.click(screen.getByLabelText('Restore staged changes'));
+    await user.click(screen.getByRole('button', { name: 'Apply stash' }));
     expect((await screen.findByRole('alert')).textContent).toContain(
       'not simulated in this mock',
     );
@@ -753,41 +729,21 @@ describe('git actions', () => {
     expect(store.actionCount).toBe(0);
   });
 
-  it('returns a prepared action to editing without executing it', async () => {
+  it('keeps file selection editable before submitting', async () => {
     const { store } = renderReview();
-    const user = await openAction(/^Commit Commit the existing index/);
-    await user.type(screen.getByLabelText('Message'), 'Prepared then edited');
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-    await confirmPrepared(user);
-    await user.click(screen.getByRole('button', { name: 'Edit preparation' }));
-    await screen.findByRole('button', { name: 'Prepare action' });
-    expect(screen.queryByRole('button', { name: 'Confirm commit' })).toBeNull();
-    expect(screen.getByLabelText('Message')).toHaveProperty(
-      'value',
-      'Prepared then edited',
-    );
+    const user = await openAction(/^Commit Commit selected files/);
+    await user.type(screen.getByLabelText('Message'), 'Selected files');
+    const files = screen.getAllByRole('checkbox');
+    for (const file of files) await user.click(file);
+    expect(
+      screen
+        .getByRole('button', { name: 'Commit selected files' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
     expect(store.actionCount).toBe(0);
   });
 
-  it('blocks confirmation once the preparation has expired', async () => {
-    renderReview();
-    const user = await openAction(/^Commit Commit the existing index/);
-    await user.type(screen.getByLabelText('Message'), 'Too late');
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-    const confirm = await screen.findByRole('button', {
-      name: 'Confirm commit',
-    });
-    const realNow = Date.now();
-    vi.spyOn(Date, 'now').mockReturnValue(realNow + 600_000);
-    try {
-      await confirmPrepared(user);
-      expect(confirm.hasAttribute('disabled')).toBe(true);
-    } finally {
-      vi.mocked(Date.now).mockRestore();
-    }
-  });
-
-  it('reports a commit with nothing staged and allows preparing another action', async () => {
+  it('does not submit a commit when there are no changed files', async () => {
     const { store } = renderReview();
     const user = await connect();
     await user.click(
@@ -800,20 +756,16 @@ describe('git actions', () => {
     );
     await user.click(
       await screen.findByRole('menuitem', {
-        name: /^Commit Commit the existing index/,
+        name: /^Commit Commit selected files/,
       }),
     );
-    await user.type(await screen.findByLabelText('Message'), 'Nothing staged');
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
-    await confirmPrepared(user);
-    await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
-    await screen.findByRole('heading', { name: 'no-change' });
-    expect(store.actionCount).toBe(1);
-    await user.click(
-      screen.getByRole('button', { name: 'Prepare another action' }),
-    );
-    await screen.findByRole('button', { name: 'Prepare action' });
-    expect(screen.queryByRole('heading', { name: 'no-change' })).toBeNull();
+    await user.type(await screen.findByLabelText('Message'), 'Nothing changed');
+    expect(
+      screen
+        .getByRole('button', { name: 'Commit selected files' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(store.actionCount).toBe(0);
   });
 });
 
@@ -916,21 +868,17 @@ describe('git action cache consequences', () => {
     );
     await user.click(
       await screen.findByRole('menuitem', {
-        name: /^Commit Commit the existing index/,
+        name: /^Commit Commit selected files/,
       }),
     );
     await user.type(
       await screen.findByLabelText('Message'),
       'Commit staged work',
     );
-    await user.click(screen.getByRole('button', { name: 'Prepare action' }));
     await user.click(
-      await screen.findByLabelText(
-        'I have reviewed the scope and paused external writers.',
-      ),
+      screen.getByRole('button', { name: 'Commit selected files' }),
     );
-    await user.click(screen.getByRole('button', { name: 'Confirm commit' }));
-    await screen.findByRole('heading', { name: 'succeeded' });
+    await screen.findByText('succeeded', { selector: '[role="status"]' });
     expect(store.actionCount).toBe(1);
 
     expect(queryClient.getQueryState(siblingKey)?.isInvalidated).toBe(true);

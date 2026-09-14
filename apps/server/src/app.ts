@@ -179,6 +179,16 @@ export async function openApplication(options: {
           input.preparationId,
           signal,
         ),
+      preparePull: (scope, input, signal) =>
+        actions.prepareAction(scope, { ...input, action: 'pull' }, signal),
+      executePull: (scope, input, signal) =>
+        actions.submit(
+          scope,
+          'pull',
+          input.requestId,
+          input.preparationId,
+          signal,
+        ),
       preparePush: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'push' }, signal),
       executePush: (scope, input, signal) =>

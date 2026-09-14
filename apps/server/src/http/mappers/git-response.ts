@@ -10,6 +10,7 @@ export function toGitStatusResponse(
     worktreeId: result.worktreeId,
     statusToken: result.status.statusToken,
     headOid: result.status.headOid,
+    ...(result.status.branch ? { branch: result.status.branch } : {}),
     consistency: 'best-effort',
     changes: result.status.changes.map((change) => {
       if (change.scope === 'untracked')

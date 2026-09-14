@@ -1,24 +1,14 @@
 import { useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type {
-  ActionInput,
-  GitAction,
-  Preparation,
-} from '../../domain/git-action';
-import type { ReviewScope } from '../../domain/review';
-import { discardRejection, submitForm } from '../../lib/submit-form';
+import { commitFiles } from '../../domain/commit-files';
+import type { ActionInput, GitAction } from '../../domain/git-action';
+import type { ReviewScope, Status } from '../../domain/review';
 import { useGitAction } from '../../query/git-actions';
 import { reviewErrorMessage } from '../../query/review';
-import {
-  branchStatus,
-  type GitActionStatus,
-  gitActions,
-} from './git-action-options';
-import { ReviewEmpty } from './review-empty';
+import { gitActions } from './git-action-options';
 
 export function GitActionInspection({
   scope,
@@ -27,415 +17,250 @@ export function GitActionInspection({
 }: {
   scope: ReviewScope;
   entry: string;
-  status?: GitActionStatus;
+  status?: Status;
 }) {
-  const action = gitActions.find((item) => item.id === entry);
-  if (!action)
-    return (
-      <ReviewEmpty
-        title="Choose a Git action"
-        description="Prepare an action from the review sidebar."
-      />
-    );
   return (
-    <GitActionForm
+    <ActionForm
       key={entry}
       scope={scope}
-      action={action.id}
-      {...(status ? { status } : {})}
+      action={entry as GitAction}
+      status={status}
     />
   );
 }
-function GitActionForm({
+
+function ActionForm({
   scope,
   action,
   status,
 }: {
   scope: ReviewScope;
   action: GitAction;
-  status?: GitActionStatus;
+  status: Status | undefined;
 }) {
   const git = useGitAction(scope, action);
-  const [draft, setDraft] = useState({
-    message: '',
-    remoteName: 'origin',
-    ref: 'refs/heads/main',
-    stashOid: '',
-    option: false,
-  });
-  const [confirmed, setConfirmed] = useState(false);
-  const input = actionInput(action, draft);
-  const busy =
-    git.prepare.isPending || git.execute.isPending || git.recover.isPending;
-  const locked = Boolean(git.preparation || git.operation);
-  const error = git.prepare.error || git.execute.error || git.recover.error;
-  return (
-    <article className="mx-auto flex max-w-xl flex-col gap-5 px-2 py-2">
-      <header className="flex flex-col gap-1">
-        <p className="text-xs text-muted-foreground">
-          {action === 'commit'
-            ? 'Commit changes'
-            : 'Prepare · Review · Confirm'}
-        </p>
-        <h3 className="mt-2 text-xl font-medium">
-          {gitActions.find((item) => item.id === action)?.label}
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          {action === 'commit'
-            ? 'Only files already in the existing index are committed.'
-            : 'Review the captured scope before confirming this operation.'}
-        </p>
-      </header>
-
-      {status && <GitActionStatusSummary action={action} status={status} />}
-
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(event) => submitForm(event, () => git.prepare.submit(input))}
-      >
-        <FieldGroup className="rounded-xl border bg-card/50 p-4">
-          <fieldset
-            disabled={locked || busy}
-            className="flex min-w-0 flex-col gap-5"
-          >
-            <ActionFields action={action} draft={draft} onChange={setDraft} />
-          </fieldset>
-          {!locked && (
-            <Button type="submit" disabled={busy}>
-              {git.prepare.isPending ? 'Preparing…' : 'Prepare action'}
-            </Button>
-          )}
-        </FieldGroup>
-      </form>
-      {git.preparation && !git.operation && (
-        <ConfirmAction
-          git={git}
-          action={action}
-          busy={busy}
-          confirmed={confirmed}
-          onConfirm={setConfirmed}
-        />
-      )}
-      {git.operation && (
-        <OperationReceipt
-          git={git}
-          busy={busy}
-          onReset={() => setConfirmed(false)}
-        />
-      )}
-      {error && (
-        <Alert>
-          <AlertDescription>{reviewErrorMessage(error)}</AlertDescription>
-        </Alert>
-      )}
-    </article>
+  const branch = status?.branch;
+  const [message, setMessage] = useState(
+    action === 'stash-create' ? 'Porcelain review' : '',
   );
-}
-
-function GitActionStatusSummary({
-  action,
-  status,
-}: {
-  action: GitAction;
-  status: GitActionStatus;
-}) {
-  if (action !== 'commit') return null;
-  const branch = branchStatus(status);
-  const staged = status.changes.filter(
-    (change) => change.scope === 'staged',
-  ).length;
-  const working = status.changes.filter(
-    (change) => change.scope === 'unstaged',
-  ).length;
-  const untracked = status.changes.filter(
-    (change) => change.scope === 'untracked',
-  ).length;
-  const conflicts = status.changes.filter(
-    (change) => change.scope === 'unmerged',
-  ).length;
-
+  const [remoteName, setRemote] = useState(branch?.remoteName ?? 'origin');
+  const [ref, setRef] = useState(
+    branch?.sourceRef ??
+      `refs/heads/${branch?.name?.replace(/^refs\/heads\//, '') ?? 'main'}`,
+  );
+  const [stashOid, setStash] = useState(branch?.stashes?.[0]?.oid ?? '');
+  const [option, setOption] = useState(false);
+  const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const files = commitFiles(status?.changes ?? []);
+  const paths = [
+    ...new Set(
+      files
+        .filter((file) => !excluded.has(file.path))
+        .flatMap((file) => file.paths),
+    ),
+  ];
+  const outcome = git.operation?.receipt;
+  const uncertain = Boolean(git.operation && !git.canStartNew);
+  const remote = action === 'push' || action === 'pull' || action === 'fetch';
+  function input(): ActionInput {
+    switch (action) {
+      case 'commit':
+        return { message, paths };
+      case 'push':
+        return { remoteName, destinationRef: ref, allowCreate: option };
+      case 'pull':
+      case 'fetch':
+        return { remoteName, sourceRef: ref };
+      case 'stash-create':
+        return { message, includeUntracked: option };
+      default:
+        return { stashOid, restoreIndex: option };
+    }
+  }
   return (
-    <section
-      aria-label="Current Git status"
-      className="flex flex-col gap-2 rounded-xl bg-muted/50 px-3 py-2.5 text-[12.5px]"
+    <form
+      className="flex min-w-0 flex-col gap-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (busy || uncertain) return;
+        setBusy(true);
+        setError(null);
+        void git
+          .run(input())
+          .catch(setError)
+          .finally(() => setBusy(false));
+      }}
     >
-      {branch && (
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-muted-foreground">Branch</span>
-          <span className="truncate font-medium">
-            {branch.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}
-          </span>
-          <span className="ml-auto shrink-0 text-muted-foreground tabular-nums">
-            {branch.ahead} ahead · {branch.behind} behind
-          </span>
-        </div>
-      )}
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-        <dt className="text-muted-foreground">Staged files</dt>
-        <dd className="tabular-nums">{staged}</dd>
-        <dt className="text-muted-foreground">Working changes</dt>
-        <dd className="tabular-nums">{working}</dd>
-        <dt className="text-muted-foreground">Untracked files</dt>
-        <dd className="tabular-nums">{untracked}</dd>
-        {conflicts > 0 && (
+      <fieldset
+        disabled={busy || uncertain}
+        className="flex min-w-0 flex-col gap-4"
+      >
+        {action === 'commit' && (
           <>
-            <dt className="text-muted-foreground">Conflicts</dt>
-            <dd className="tabular-nums">{conflicts}</dd>
+            <p className="text-xs text-muted-foreground">
+              {branch?.name ?? 'Current branch'} · {paths.length} selected files
+            </p>
+            <div className="max-h-44 overflow-auto rounded-lg border p-2">
+              {files.map(({ path }) => {
+                return (
+                  <label
+                    key={path}
+                    className="flex min-w-0 items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!excluded.has(path)}
+                      onChange={(event) =>
+                        setExcluded((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.delete(path);
+                          else next.add(path);
+                          return next;
+                        })
+                      }
+                    />{' '}
+                    <span className="truncate">{path}</span>
+                  </label>
+                );
+              })}
+            </div>
           </>
         )}
-      </dl>
-      <p className="text-xs text-muted-foreground">
-        Committing uses the existing index; unstaged and untracked files stay in
-        the worktree.
-      </p>
-    </section>
-  );
-}
-
-type Draft = {
-  message: string;
-  remoteName: string;
-  ref: string;
-  stashOid: string;
-  option: boolean;
-};
-function actionInput(action: GitAction, draft: Draft): ActionInput {
-  switch (action) {
-    case 'fetch':
-      return { remoteName: draft.remoteName, sourceRef: draft.ref };
-    case 'push':
-      return {
-        remoteName: draft.remoteName,
-        destinationRef: draft.ref,
-        allowCreate: draft.option,
-      };
-    case 'commit':
-      return { message: draft.message };
-    case 'stash-create':
-      return { message: draft.message, includeUntracked: draft.option };
-    default:
-      return { stashOid: draft.stashOid, restoreIndex: draft.option };
-  }
-}
-function ActionFields({
-  action,
-  draft,
-  onChange,
-}: {
-  action: GitAction;
-  draft: Draft;
-  onChange: (draft: Draft) => void;
-}) {
-  return (
-    <>
-      {action === 'fetch' || action === 'push' ? (
-        <>
+        {(action === 'commit' || action === 'stash-create') && (
           <Field>
-            <FieldLabel htmlFor="remote-name">Configured remote</FieldLabel>
-            <Input
-              id="remote-name"
-              value={draft.remoteName}
-              onChange={(e) =>
-                onChange({ ...draft, remoteName: e.target.value })
-              }
+            <FieldLabel htmlFor="git-message">Message</FieldLabel>
+            <Textarea
+              id="git-message"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
               required
+              maxLength={16384}
+              rows={4}
+              placeholder="Describe what changed and why"
             />
           </Field>
+        )}
+        {remote && (
+          <>
+            <Field>
+              <FieldLabel htmlFor="git-remote">Remote</FieldLabel>
+              <Input
+                id="git-remote"
+                value={remoteName}
+                onChange={(event) => setRemote(event.target.value)}
+                required
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="git-ref">Branch ref</FieldLabel>
+              <Input
+                id="git-ref"
+                value={ref}
+                onChange={(event) => setRef(event.target.value)}
+                pattern="refs/heads/.+"
+                required
+              />
+            </Field>
+          </>
+        )}
+        {(action === 'stash-apply' || action === 'stash-pop') && (
           <Field>
-            <FieldLabel htmlFor="remote-ref">Full branch ref</FieldLabel>
-            <Input
-              id="remote-ref"
-              value={draft.ref}
-              onChange={(e) => onChange({ ...draft, ref: e.target.value })}
-              required
-              pattern="refs/heads/.+"
-            />
+            <FieldLabel htmlFor="git-stash">Stash</FieldLabel>
+            {branch?.stashes?.length ? (
+              <select
+                id="git-stash"
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={stashOid}
+                onChange={(event) => setStash(event.target.value)}
+              >
+                {branch.stashes.map((stash) => (
+                  <option key={stash.oid} value={stash.oid}>
+                    {stash.message} · {stash.oid.slice(0, 7)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id="git-stash"
+                value={stashOid}
+                onChange={(event) => setStash(event.target.value)}
+                required
+                pattern="([a-f0-9]{40}|[a-f0-9]{64})"
+              />
+            )}
           </Field>
-        </>
-      ) : action === 'commit' || action === 'stash-create' ? (
-        <Field>
-          <FieldLabel htmlFor="git-message">Message</FieldLabel>
-          <Textarea
-            id="git-message"
-            value={draft.message}
-            onChange={(e) => onChange({ ...draft, message: e.target.value })}
-            required
-            maxLength={16384}
-          />
-          <p className="text-xs text-muted-foreground">
-            {action === 'commit'
-              ? 'Only the existing index is committed. Files are not automatically staged.'
-              : 'Tracked staged and unstaged changes are included. Ignored files remain excluded.'}
-          </p>
-        </Field>
-      ) : (
-        <Field>
-          <FieldLabel htmlFor="stash-oid">Full stash object ID</FieldLabel>
-          <Input
-            id="stash-oid"
-            value={draft.stashOid}
-            onChange={(e) => onChange({ ...draft, stashOid: e.target.value })}
-            required
-            pattern="([a-f0-9]{40}|[a-f0-9]{64})"
-          />
-        </Field>
-      )}
-      {action !== 'fetch' && action !== 'commit' && (
-        <Field orientation="horizontal">
-          <input
-            id="git-option"
-            aria-label={
-              action === 'push'
-                ? 'Allow creating the remote branch'
-                : action === 'stash-create'
-                  ? 'Include untracked files'
-                  : 'Restore index'
-            }
-            type="checkbox"
-            checked={draft.option}
-            onChange={(e) => onChange({ ...draft, option: e.target.checked })}
-          />
-          <FieldLabel htmlFor="git-option">
+        )}
+        {!['commit', 'fetch', 'pull'].includes(action) && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={option}
+              onChange={(event) => setOption(event.target.checked)}
+            />
             {action === 'push'
-              ? 'Allow creating the remote branch'
+              ? 'Create the remote branch if needed'
               : action === 'stash-create'
                 ? 'Include untracked files'
-                : 'Restore index'}
-          </FieldLabel>
-        </Field>
-      )}
-    </>
-  );
-}
-
-function PreparationDetails({ preparation }: { preparation: Preparation }) {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl bg-muted/50 px-3 py-2.5">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-        <dt className="text-muted-foreground">Branch</dt>
-        <dd className="break-all">
-          {preparation.preview.branch ?? 'Detached HEAD'}
-        </dd>
-        <dt className="text-muted-foreground">Staged changes</dt>
-        <dd>{preparation.preview.staged ? 'Yes' : 'No'}</dd>
-        <dt className="text-muted-foreground">Tracked changes</dt>
-        <dd>{preparation.preview.trackedChanges ? 'Yes' : 'No'}</dd>
-        <dt className="text-muted-foreground">Untracked files</dt>
-        <dd>{preparation.preview.untrackedCount}</dd>
-        {preparation.preview.destination && (
-          <>
-            <dt className="text-muted-foreground">Destination</dt>
-            <dd className="break-all">{preparation.preview.destination}</dd>
-          </>
+                : 'Restore staged changes'}
+          </label>
         )}
-      </dl>
-      <p className="text-xs text-muted-foreground">
-        Preparation expires at{' '}
-        {new Date(preparation.expiresAt).toLocaleTimeString()}. Remote state is
-        checked during execution.
-      </p>
-    </div>
-  );
-}
-
-function OperationReceipt({
-  git,
-  busy,
-  onReset,
-}: {
-  git: ReturnType<typeof useGitAction>;
-  busy: boolean;
-  onReset: () => void;
-}) {
-  if (!git.operation) return null;
-  return (
-    <section
-      className="flex flex-col gap-3 rounded-xl border p-4"
-      aria-label="Git operation receipt"
-    >
-      <h4 className="font-medium">
-        {git.operation.receipt?.state ?? 'Outcome not yet confirmed'}
-      </h4>
-      <p className="break-all font-mono text-xs">
-        Request {git.operation.requestId}
-      </p>
-      {git.operation.receipt?.reason && <p>{git.operation.receipt.reason}</p>}
-      <p className="text-sm text-muted-foreground">
-        {git.canStartNew
-          ? 'Review refreshed Git state before continuing.'
-          : 'Check this receipt to recover the outcome. Do not repeat an uncertain action with a new request ID.'}
-      </p>
-      <Button
-        variant="outline"
-        disabled={busy}
-        onClick={() => discardRejection(git.recover.submit())}
-      >
-        Check receipt
-      </Button>
-      {git.canStartNew && (
+      </fieldset>
+      {action === 'commit' && (
+        <p className="text-xs text-muted-foreground">
+          Selected files use their current contents. Other staged files stay
+          staged. Pause other writers while committing.
+        </p>
+      )}
+      {action === 'pull' && (
+        <p className="text-xs text-muted-foreground">
+          Pull fast-forwards this branch. Diverged branches need to be
+          reconciled first.
+        </p>
+      )}
+      {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
+      {outcome && (
+        <p role="status" className="text-sm">
+          {outcome.state.replaceAll('-', ' ')}
+          {outcome.reason
+            ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
+            : ''}
+        </p>
+      )}
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {reviewErrorMessage(error)}
+        </p>
+      ) : null}
+      {git.operation && !busy && (
         <Button
+          type="button"
           variant="outline"
           onClick={() => {
-            git.startNew();
-            onReset();
+            setError(null);
+            void git.recover.submit().catch(setError);
           }}
         >
-          Prepare another action
+          Check outcome
         </Button>
       )}
-    </section>
-  );
-}
-
-function ConfirmAction({
-  git,
-  action,
-  busy,
-  confirmed,
-  onConfirm,
-}: {
-  git: ReturnType<typeof useGitAction>;
-  action: GitAction;
-  busy: boolean;
-  confirmed: boolean;
-  onConfirm: (value: boolean) => void;
-}) {
-  if (!git.preparation) return null;
-  return (
-    <section className="flex flex-col gap-4 rounded-xl border p-4">
-      <h4 className="font-medium">Review prepared action</h4>
       <Button
-        variant="outline"
-        disabled={busy}
-        onClick={() => {
-          git.cancelPreparation();
-          onConfirm(false);
-        }}
+        type="submit"
+        disabled={
+          busy ||
+          uncertain ||
+          (action === 'commit' &&
+            (!paths.length ||
+              status?.changes.some((change) => change.scope === 'unmerged')))
+        }
       >
-        Edit preparation
+        {busy
+          ? 'Working…'
+          : action === 'commit'
+            ? 'Commit selected files'
+            : gitActions.find((entry) => entry.id === action)?.label}
       </Button>
-      <PreparationDetails preparation={git.preparation} />
-      <Field orientation="horizontal">
-        <input
-          type="checkbox"
-          id="paused-writers"
-          aria-label="I have reviewed the scope and paused external writers."
-          checked={confirmed}
-          onChange={(event) => onConfirm(event.target.checked)}
-        />
-        <FieldLabel htmlFor="paused-writers">
-          I have reviewed the scope and paused external writers.
-        </FieldLabel>
-      </Field>
-      <Button
-        disabled={!confirmed || busy || Date.now() > git.preparation.expiresAt}
-        onClick={() => {
-          if (git.preparation)
-            discardRejection(git.execute.submit(git.preparation.preparationId));
-        }}
-      >
-        Confirm {action.replaceAll('-', ' ')}
-      </Button>
-    </section>
+    </form>
   );
 }

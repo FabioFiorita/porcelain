@@ -180,7 +180,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
               </DialogTitle>
               <DialogDescription>
                 {selected?.id === 'commit'
-                  ? 'Commit only the files already in the index.'
+                  ? 'Choose the files and message for this commit.'
                   : 'Prepare and review the operation before confirming it.'}
               </DialogDescription>
             </DialogHeader>
@@ -201,5 +201,6 @@ function primaryTooltip(
     return `Commit ${plural(status.changes.length, 'changed file')}`;
   const branch = branchStatus(status);
   const upstream = branch?.upstream ?? 'the configured remote';
+  if (primary.action === 'pull') return `Pull from ${upstream}`;
   return `Push ${plural(branch?.ahead ?? 0, 'commit')} to ${upstream}`;
 }

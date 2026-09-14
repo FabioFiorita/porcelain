@@ -5,5 +5,6 @@ export interface GitProcessRunner {
     args: string[],
     signal: AbortSignal,
     input?: string,
+    options?: { indexFile?: string },
   ): Promise<GitProcessResult>;
 }

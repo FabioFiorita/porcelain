@@ -8,7 +8,7 @@ export type GitAction = Preparation['action'];
 export type ActionInput =
   | { remoteName: string; sourceRef: string }
   | { remoteName: string; destinationRef: string; allowCreate: boolean }
-  | { message: string }
+  | { message: string; paths?: string[] }
   | { message: string; includeUntracked: boolean }
   | { stashOid: string; restoreIndex: boolean };
 export type Operation = {

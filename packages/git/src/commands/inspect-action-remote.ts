@@ -7,13 +7,13 @@ import { readActionCommand } from './read-action-command.ts';
 
 export async function inspectActionRemote(
   process: GitProcessRunner,
-  intent: Extract<GitActionIntent, { action: 'fetch' | 'push' }>,
+  intent: Extract<GitActionIntent, { action: 'fetch' | 'pull' | 'push' }>,
   signal: AbortSignal,
 ) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(intent.remoteName))
     throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
   const ref =
-    intent.action === 'fetch' ? intent.sourceRef : intent.destinationRef;
+    intent.action === 'push' ? intent.destinationRef : intent.sourceRef;
   if (!ref.startsWith('refs/heads/'))
     throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
   await readActionCommand(process, ['check-ref-format', ref], signal);

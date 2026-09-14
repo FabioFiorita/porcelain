@@ -105,7 +105,9 @@ export async function inspectActionState(
     signal,
   );
   const remote =
-    intent.action === 'fetch' || intent.action === 'push'
+    intent.action === 'fetch' ||
+    intent.action === 'pull' ||
+    intent.action === 'push'
       ? await inspectActionRemote(process, intent, signal)
       : undefined;
   const trackingOid = remote

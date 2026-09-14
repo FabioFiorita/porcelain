@@ -12,6 +12,11 @@ export function validateActionState(
   stashLog: string,
 ): void {
   const { headOid, branch, trackedChanges, untrackedCount } = state;
+  if (
+    intent.action === 'pull' &&
+    (!branch || !headOid || trackedChanges || untrackedCount)
+  )
+    throw new GitActionRejectedError('CHECKOUT_BUSY');
   if (intent.action === 'commit' && !branch)
     throw new GitActionRejectedError('CHECKOUT_BUSY');
   if (intent.action === 'push' && (!branch || !headOid))

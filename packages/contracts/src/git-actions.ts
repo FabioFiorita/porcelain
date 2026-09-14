@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { gitPathSchema } from './git-status.ts';
 
 const messageSchema = z
   .string()
@@ -33,6 +34,7 @@ export const pushPreparationRequestSchema = z.strictObject({
 });
 export const commitPreparationRequestSchema = z.strictObject({
   message: messageSchema,
+  paths: z.array(gitPathSchema).min(1).max(2000).optional(),
 });
 export const stashCreatePreparationRequestSchema = z.strictObject({
   message: messageSchema,
@@ -51,6 +53,7 @@ export const gitActionRequestParamsSchema = z.strictObject({
 });
 const actionSchema = z.enum([
   'fetch',
+  'pull',
   'push',
   'commit',
   'stash-create',

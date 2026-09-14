@@ -6,16 +6,17 @@ continue to own dependency direction, authentication and environment/worktree id
 
 ## Scope
 
-The server supports preparation and execution of fetch, push, commit, stash creation, stash application
+The server supports preparation and execution of fetch, fast-forward pull, push, commit, stash creation, stash application
 and stash pop. Preparation never contacts a remote. The developer reviews the selected action and
-pauses external writers before execution. There is no staging, amend, force push, pruning, drop-only,
+pauses external writers before execution. There is no standalone staging, amend, force push, pruning, drop-only,
 conflict resolution, automatic retry, terminal, credential provisioning or generic command API.
 
 | Operation | Supported behavior |
 | --- | --- |
 | Fetch | One configured remote branch into its derived remote-tracking ref; no tags, pruning, submodule recursion, FETCH_HEAD update or checkout changes |
 | Push | Captured current branch tip to one explicit remote branch, ordinary fast-forward rules; creation permission is explicit |
-| Commit | Existing index only, with supplied message and normal hooks/signing; no implicit staging |
+| Commit | Existing index, or explicit selected paths using current file contents; normal hooks/signing and unrelated staged content are preserved |
+| Pull | Fetch the selected remote branch, then fast-forward a clean checkout; reject divergence |
 | Stash creation | All tracked staged/unstaged changes, with explicit `includeUntracked`; ignored files remain excluded |
 | Stash application | Apply a verified stash OID, with explicit `restoreIndex`; retain the stash |
 | Stash pop | Apply a verified stash OID, then remove its revalidated reflog entry only after successful application |
@@ -26,6 +27,11 @@ are rejected. Configured conversion filters, sparse checkout, partial clones and
 are unsupported in this slice. Unused system/global conversion-filter definitions also reject;
 production does not disable that configuration policy. Fetch/push allow dirty files; they send/read Git commits, not working files.
 Local mutations do not associate review layers with commits; that remains the Changes/History contract.
+
+Selected-path commits hold the real index lock and use a temporary index for Git's
+`commit --only`. New files enter that temporary index first. Rejected hooks leave the
+real index unchanged; a completed commit publishes the resulting index, including
+unrelated staged entries. Interrupted outcomes remain receipt-driven and are never retried.
 
 Stash application/pop require a clean tracked/untracked checkout, an existing stash entry in the
 project's shared reflog, and no ignored-file collision with the selected stash. Stashes belong to the

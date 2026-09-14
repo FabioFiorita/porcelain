@@ -1,5 +1,6 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { Preparation, Receipt } from '../../domain/git-action';
+import { changePath } from '../../domain/review';
 import { createId } from '../../lib/id';
 import type { createMockStore } from '../inventory/mock';
 import type { GitActionsPort } from './port';
@@ -80,7 +81,11 @@ export function createGitActionsMock(
       const stale = saved.preparation.expiresAt < Date.now();
       const noChange =
         request.action === 'commit' &&
-        !data.status.changes.some((change) => change.scope === 'staged');
+        !data.status.changes.some((change) =>
+          'paths' in saved.input && saved.input.paths
+            ? saved.input.paths.includes(changePath(change))
+            : change.scope === 'staged',
+        );
       const receipt: Receipt = {
         requestId: request.requestId,
         preparationId: request.preparationId,
@@ -139,8 +144,10 @@ function applyMockAction(
     });
     data.status.headOid = oid;
     data.history.snapshot.tipOid = oid;
-    data.status.changes = data.status.changes.filter(
-      (change) => change.scope !== 'staged',
+    data.status.changes = data.status.changes.filter((change) =>
+      'paths' in input && input.paths
+        ? !input.paths.includes(changePath(change))
+        : change.scope !== 'staged',
     );
   }
   if (action === 'stash-create')

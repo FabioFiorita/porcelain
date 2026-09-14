@@ -81,6 +81,62 @@ describe('ActionGit', () => {
       expect(await git('status', '--porcelain')).toContain('?? new');
     });
 
+    it('commits selected working files including new files while retaining unrelated staged content', async () => {
+      await writeFile(join(checkout, 'file'), 'unrelated staged\n');
+      await git('add', 'file');
+      await writeFile(join(checkout, 'file'), 'unrelated working\n');
+      await writeFile(join(checkout, 'new [literal]'), 'new file\n');
+      expect(
+        await act({
+          action: 'commit',
+          message: 'selected new file',
+          paths: ['new [literal]'],
+        }),
+      ).toMatchObject({ state: 'succeeded' });
+      expect(await git('show', 'HEAD:file')).toBe('base');
+      expect(await git('show', ':file')).toBe('unrelated staged');
+      expect(await git('show', 'HEAD:new [literal]')).toBe('new file');
+      expect(await readFile(join(checkout, 'file'), 'utf8')).toBe(
+        'unrelated working\n',
+      );
+    });
+
+    it('leaves the actual index unchanged when a selected commit hook rejects it', async () => {
+      await writeFile(join(checkout, 'new'), 'new file\n');
+      const original = await readFile(join(checkout, '.git/index'));
+      const head = await git('rev-parse', 'HEAD');
+      const hook = join(checkout, '.git/hooks/pre-commit');
+      await writeFile(hook, '#!/bin/sh\nexit 1\n');
+      await chmod(hook, 0o700);
+      expect(
+        await act({
+          action: 'commit',
+          message: 'rejected new file',
+          paths: ['new'],
+        }),
+      ).toMatchObject({ state: 'rejected' });
+      expect(await readFile(join(checkout, '.git/index'))).toEqual(original);
+      expect(await git('rev-parse', 'HEAD')).toBe(head);
+    });
+
+    it.each([false, true])(
+      'commits selected deletions and both sides of a rename (staged: %s)',
+      async (staged) => {
+        await rm(join(checkout, 'file'));
+        await writeFile(join(checkout, 'renamed'), 'base\n');
+        if (staged) await git('add', '--all');
+        expect(
+          await act({
+            action: 'commit',
+            message: 'rename',
+            paths: ['file', 'renamed'],
+          }),
+        ).toMatchObject({ state: 'succeeded' });
+        expect(await git('status', '--porcelain')).toBe('');
+        expect(await git('ls-tree', '--name-only', 'HEAD')).toBe('renamed');
+      },
+    );
+
     it('does not bypass a rejecting hook or its side effects', async () => {
       await writeFile(join(checkout, 'file'), 'staged\n');
       await git('add', 'file');
@@ -321,6 +377,59 @@ describe('ActionGit', () => {
           'refs/porcelain/fetch',
         ),
       ).toBe('');
+    });
+
+    it('pulls a clean branch by fast-forward and rejects divergence or local changes', async () => {
+      const remote = join(root, 'pull-remote.git');
+      await git('init', '--bare', remote);
+      await git('remote', 'add', 'origin', remote);
+      await git('push', '-u', 'origin', 'main');
+      const base = await git('rev-parse', 'HEAD');
+      await writeFile(join(checkout, 'file'), 'remote change\n');
+      await git('commit', '-am', 'remote advance');
+      const tip = await git('rev-parse', 'HEAD');
+      await git('push', 'origin', 'main');
+      await git('reset', '--hard', base);
+      expect(
+        await act({
+          action: 'pull',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+        }),
+      ).toMatchObject({ state: 'succeeded', result: { headOid: tip } });
+      expect(await readFile(join(checkout, 'file'), 'utf8')).toBe(
+        'remote change\n',
+      );
+      await writeFile(join(checkout, 'file'), 'local change\n');
+      await expect(
+        prepare({
+          action: 'pull',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+        }),
+      ).rejects.toMatchObject({ reason: 'CHECKOUT_BUSY' });
+      await git('reset', '--hard', base);
+      await writeFile(join(checkout, 'file'), 'diverged\n');
+      await git('commit', '-am', 'diverge');
+      const local = await git('rev-parse', 'HEAD');
+      expect(
+        await act({
+          action: 'pull',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+        }),
+      ).toMatchObject({ state: 'rejected', reason: 'NON_FAST_FORWARD' });
+      expect(await git('rev-parse', 'HEAD')).toBe(local);
+    });
+
+    it('commits selected new files before the first commit', async () => {
+      await git('checkout', '--orphan', 'new-history');
+      await git('rm', '-rf', '.');
+      await writeFile(join(checkout, 'first'), 'first\n');
+      expect(
+        await act({ action: 'commit', message: 'first', paths: ['first'] }),
+      ).toMatchObject({ state: 'succeeded' });
+      expect(await git('show', 'HEAD:first')).toBe('first');
     });
 
     it('uses SSH batch and existing host-key policy with a disposable transport substitute', async () => {

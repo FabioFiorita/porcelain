@@ -141,6 +141,34 @@ export function parseGitStatus(output: Buffer): GitStatusObservation {
   return {
     statusToken: createHash('sha256').update(output).digest('hex'),
     headOid: head,
+    ...(records.some((record) => record.startsWith('# branch.head '))
+      ? {
+          branch: {
+            name:
+              records
+                .find((record) => record.startsWith('# branch.head '))
+                ?.slice(14) === '(detached)'
+                ? null
+                : (records
+                    .find((record) => record.startsWith('# branch.head '))
+                    ?.slice(14) ?? null),
+            upstream:
+              records
+                .find((record) => record.startsWith('# branch.upstream '))
+                ?.slice(18) ?? null,
+            ahead: Number(
+              records
+                .find((record) => record.startsWith('# branch.ab '))
+                ?.match(/\+(\d+)/)?.[1] ?? 0,
+            ),
+            behind: Number(
+              records
+                .find((record) => record.startsWith('# branch.ab '))
+                ?.match(/-(\d+)/)?.[1] ?? 0,
+            ),
+          },
+        }
+      : {}),
     changes,
   };
 }

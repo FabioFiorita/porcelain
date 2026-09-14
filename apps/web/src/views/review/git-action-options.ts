@@ -9,23 +9,8 @@ import {
 import type { GitAction } from '../../domain/git-action';
 import type { Status } from '../../domain/review';
 
-/** The branch details newer review status responses may expose. */
-export type GitBranchStatus = {
-  name: string | null;
-  upstream: string | null;
-  ahead: number;
-  behind: number;
-  stashes?: readonly { oid: string; message: string }[];
-};
-
-/**
- * The server contract currently omits branch tracking. Keeping this optional
- * lets the control take advantage of it when a compatible status is supplied,
- * without widening or changing the shared response schema.
- */
-export type GitActionStatus = Status & {
-  branch?: GitBranchStatus | null;
-};
+export type GitBranchStatus = NonNullable<Status['branch']>;
+export type GitActionStatus = Status;
 
 export type GitActionGroupId = 'commit' | 'sync' | 'stash';
 
@@ -42,7 +27,7 @@ export const gitActions = [
   {
     id: 'commit',
     label: 'Commit',
-    description: 'Commit the existing index',
+    description: 'Commit selected files',
     icon: GitCommitHorizontalIcon,
     group: 'commit',
   },
@@ -51,6 +36,13 @@ export const gitActions = [
     label: 'Push',
     description: 'Send committed changes',
     icon: ArrowUpIcon,
+    group: 'sync',
+  },
+  {
+    id: 'pull',
+    label: 'Pull',
+    description: 'Fast-forward from upstream',
+    icon: ArrowDownIcon,
     group: 'sync',
   },
   {
@@ -95,21 +87,17 @@ export const gitActionGroups = [
   {
     id: 'sync',
     label: 'Sync',
-    actions: [gitActions[1], gitActions[2]],
+    actions: [gitActions[1], gitActions[2], gitActions[3]],
   },
   {
     id: 'stash',
     label: 'Stash',
-    actions: [gitActions[3], gitActions[4], gitActions[5]],
+    actions: [gitActions[4], gitActions[5], gitActions[6]],
   },
 ] as const satisfies readonly GitActionGroup[];
 
 export function branchStatus(status: GitActionStatus): GitBranchStatus | null {
   return status.branch ?? null;
-}
-
-function hasStagedChanges(status: GitActionStatus) {
-  return status.changes.some((change) => change.scope === 'staged');
 }
 
 function hasConflicts(status: GitActionStatus) {
@@ -135,11 +123,16 @@ export function gitActionBlocker(
       if (!branch) return null;
       if (branch.name == null)
         return 'Detached HEAD: check out a branch before pushing.';
-      if (branch.behind > 0)
-        return 'The branch is behind upstream. Pull is not available in this API.';
+      if (branch.behind > 0) return 'Pull the upstream changes before pushing.';
       return branch.ahead > 0 || branch.upstream == null
         ? null
         : 'No local commits to push.';
+    case 'pull':
+      if (status.changes.length)
+        return 'Commit or stash local changes before pulling.';
+      if (branch?.name === null)
+        return 'Detached HEAD: check out a branch before pulling.';
+      return null;
     case 'fetch':
       return null;
     case 'stash-create':
@@ -163,13 +156,12 @@ export function gitActionReason(
   const branch = branchStatus(status);
   switch (action) {
     case 'commit':
-      return hasStagedChanges(status)
-        ? null
-        : 'Nothing staged; the server will report no change.';
+      return status.changes.length ? null : 'Nothing to commit.';
     case 'push':
       return branch == null
         ? 'Enter the configured remote and full branch ref.'
         : null;
+    case 'pull':
     case 'fetch':
       return branch == null
         ? 'Enter the configured remote and full branch ref.'
@@ -186,13 +178,12 @@ export function gitActionReason(
 
 export type PrimaryGitAction =
   | { kind: 'commit'; label: string }
-  | { kind: 'run'; action: 'push'; label: string }
+  | { kind: 'run'; action: 'push' | 'pull'; label: string }
   | { kind: 'hint'; label: string; hint: string };
 
 /**
  * Pick the contextual half of the split control. Commit comes first; when
- * branch tracking is available, an ahead branch can be pushed. Pull is
- * intentionally absent because the current API has no pull action.
+ * branch tracking selects pull or push when the worktree is clean.
  */
 export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
   if (status.changes.length > 0) return { kind: 'commit', label: 'Commit' };
@@ -212,9 +203,9 @@ export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
     };
   if (branch.behind > 0)
     return {
-      kind: 'hint',
-      label: 'Commit',
-      hint: 'The branch is behind upstream. Pull is not available in this API.',
+      kind: 'run',
+      action: 'pull',
+      label: 'Pull',
     };
   if (branch.ahead > 0) return { kind: 'run', action: 'push', label: 'Push' };
   return {

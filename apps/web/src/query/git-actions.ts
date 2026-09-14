@@ -87,7 +87,31 @@ export function useGitAction(scope: ReviewScope, action: GitAction) {
   });
   const terminal =
     operation?.receipt && terminalStates.includes(operation.receipt.state);
+  async function run(input: ActionInput): Promise<Receipt> {
+    const previous = operations.get(key);
+    if (
+      previous &&
+      (!previous.receipt || !terminalStates.includes(previous.receipt.state))
+    )
+      throw new Error(
+        'Check the existing receipt before starting another operation.',
+      );
+    if (previous) operations.set(key, null);
+    const prepared = await preparation.mutateAsync(input);
+    let receipt = await execution.mutateAsync(prepared.preparationId);
+    while (receipt.state === 'running') {
+      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+      connection.controller.signal.throwIfAborted();
+      receipt = await api.gitActions.receipt({
+        ...request(),
+        requestId: receipt.requestId,
+      });
+      await accept(receipt);
+    }
+    return receipt;
+  }
   return {
+    run,
     cancelPreparation: () => preparation.reset(),
     prepare: asMutation(preparation),
     preparation: preparation.data,

@@ -3,6 +3,7 @@ import { commitIndex } from './commands/commit-index.ts';
 import { createStash } from './commands/create-stash.ts';
 import { fetchBranch } from './commands/fetch-branch.ts';
 import { inspectActionState } from './commands/inspect-action-state.ts';
+import { pullBranch } from './commands/pull-branch.ts';
 import { pushBranch } from './commands/push-branch.ts';
 import { verifyCheckout } from './commands/verify-checkout.ts';
 import type { GitActionCommand, GitActionIntent } from './dtos/git-action.ts';
@@ -43,6 +44,8 @@ export class ActionGit implements GitActionWriter {
         return commitIndex(this.process, preparation, signal);
       case 'fetch':
         return fetchBranch(this.process, preparation, snapshot, signal);
+      case 'pull':
+        return pullBranch(this.process, preparation, snapshot, signal);
       case 'push':
         return pushBranch(this.process, preparation, snapshot, signal);
       case 'stash-create':

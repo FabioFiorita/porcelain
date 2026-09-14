@@ -20,7 +20,18 @@ export type GitChange =
       conflict: 'DD' | 'AU' | 'UD' | 'UA' | 'DU' | 'AA' | 'UU';
     };
 
+export type GitBranchStatus = {
+  name: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  remoteName?: string | null;
+  sourceRef?: string | null;
+  stashes?: { oid: string; message: string }[];
+};
+
 export interface GitStatusObservation {
+  branch?: GitBranchStatus;
   statusToken: string;
   headOid: string | null;
   changes: GitChange[];

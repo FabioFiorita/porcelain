@@ -44,6 +44,7 @@ export class GitActionProcess {
     args: string[],
     signal: AbortSignal,
     input?: string,
+    options?: { indexFile?: string },
   ): Promise<GitProcessResult> {
     if (this.unconfirmed)
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
@@ -65,7 +66,10 @@ export class GitActionProcess {
         ...args,
       ],
       {
-        env: gitActionEnvironment(),
+        env: {
+          ...gitActionEnvironment(),
+          ...(options?.indexFile ? { GIT_INDEX_FILE: options.indexFile } : {}),
+        },
         detached: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       },
