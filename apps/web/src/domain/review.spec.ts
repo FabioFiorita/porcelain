@@ -1,6 +1,6 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { reviewFixture } from '../api/review/fixtures';
-import { changePath, groupChanges } from './review';
+import { artifactKind, changePath, groupChanges } from './review';
 
 it('uses layer/file order and keeps unassigned and stale metadata from hiding real changes', () => {
   const { status, layers } = reviewFixture(
@@ -22,4 +22,15 @@ it('uses layer/file order and keeps unassigned and stale metadata from hiding re
   expect(groups.flatMap((group) => group.changes)).toHaveLength(
     status.changes.length,
   );
+});
+
+describe('artifact format selection', () => {
+  it('uses extensions and recognizable content when artifact names are titles', () => {
+    expect(artifactKind('notes.md', 'plain')).toBe('markdown');
+    expect(artifactKind('Launch report', '<!doctype html><html />')).toBe(
+      'html',
+    );
+    expect(artifactKind('Keyboard audit', '# Keyboard audit')).toBe('markdown');
+    expect(artifactKind('Design study', 'Ordinary notes')).toBe('text');
+  });
 });

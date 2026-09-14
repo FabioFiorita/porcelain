@@ -1,4 +1,53 @@
-import type { Artifact, History, Layers, Status } from '../../domain/review';
+import type {
+  ArtifactContent,
+  History,
+  Layers,
+  Status,
+} from '../../domain/review';
+
+/** Keep the mock's artifact bytes stable so content reads are reproducible. */
+const LAUNCH_REVIEW_REPORT = `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Launch review</title></head>
+<body>
+  <h1>Fieldnotes launch review</h1>
+  <p>Three launch tasks; one completed.</p>
+  <ul>
+    <li>Verify narrow screen layout</li>
+    <li>Review staged release documents</li>
+    <li>Confirm empty-board task summaries</li>
+  </ul>
+</body>
+</html>
+`;
+
+const ACCESSIBILITY_AUDIT = `# Keyboard accessibility audit
+
+The review workspace keeps keyboard focus visible while moving between the
+sidebar and document tabs.
+
+## Verification
+
+- ✓ Tab order follows the visible review structure.
+- ✓ Narrow layouts keep the review navigator reachable.
+`;
+
+const DESIGN_STUDY = `Review workspace design study
+
+The artifact reader keeps agent-authored notes outside the repository and
+shows the original bytes without rewriting them.
+`;
+
+function artifactContent(
+  id: string,
+  worktreeId: string,
+  name: string,
+  content: string,
+  sizeBytes: number,
+  createdAt: string,
+): ArtifactContent {
+  return { id, worktreeId, name, content, sizeBytes, createdAt };
+}
 
 export function reviewFixture(
   worktreeId: string,
@@ -99,21 +148,31 @@ export function reviewFixture(
       subjectTruncated: false,
     })),
   };
-  const artifacts: Artifact[] = [
-    {
-      id: 'afa08127-5c27-46bf-9d06-e8401f2aa101',
+  const artifacts: ArtifactContent[] = [
+    artifactContent(
+      'afa08127-5c27-46bf-9d06-e8401f2aa101',
       worktreeId,
-      name: 'Review workspace · design study',
-      sizeBytes: 18432,
-      createdAt: '2026-09-09T15:20:00Z',
-    },
-    {
-      id: 'afa08127-5c27-46bf-9d06-e8401f2aa102',
+      'Launch review report',
+      LAUNCH_REVIEW_REPORT,
+      new TextEncoder().encode(LAUNCH_REVIEW_REPORT).byteLength,
+      '2026-09-09T15:20:00Z',
+    ),
+    artifactContent(
+      'afa08127-5c27-46bf-9d06-e8401f2aa102',
       worktreeId,
-      name: 'Keyboard accessibility audit',
-      sizeBytes: 8192,
-      createdAt: '2026-09-10T09:10:00Z',
-    },
+      'Keyboard accessibility audit',
+      ACCESSIBILITY_AUDIT,
+      new TextEncoder().encode(ACCESSIBILITY_AUDIT).byteLength,
+      '2026-09-10T09:10:00Z',
+    ),
+    artifactContent(
+      'afa08127-5c27-46bf-9d06-e8401f2aa103',
+      worktreeId,
+      'Review workspace · design study',
+      DESIGN_STUDY,
+      new TextEncoder().encode(DESIGN_STUDY).byteLength,
+      '2026-09-11T11:45:00Z',
+    ),
   ];
   return { files, status, layers, history, artifacts };
 }

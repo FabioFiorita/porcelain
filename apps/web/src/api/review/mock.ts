@@ -133,7 +133,19 @@ export function createReviewMock(
       return (await context(request)).history;
     },
     async artifacts(request) {
-      return (await context(request)).artifacts;
+      const { artifacts } = await context(request);
+      if (store.artifactsFailed)
+        throw new ConnectionError(
+          'This review surface could not be loaded. Refresh and try again.',
+        );
+      return artifacts.map(({ content: _content, ...metadata }) => metadata);
+    },
+    async artifact(request) {
+      const { artifacts } = await context(request);
+      const artifact = artifacts.find((item) => item.id === request.artifactId);
+      if (!artifact)
+        throw new ConnectionError('This artifact is no longer available.');
+      return artifact;
     },
   };
 }

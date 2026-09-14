@@ -1,11 +1,20 @@
 import { FileTextIcon } from 'lucide-react';
-import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import type { DocumentRef } from '../../domain/documents';
-import type { Artifact, Change, ReviewScope } from '../../domain/review';
-import { changePath, type Layers, shortOid } from '../../domain/review';
+import type {
+  Artifact,
+  ArtifactContent,
+  Change,
+  ReviewScope,
+} from '../../domain/review';
 import {
+  artifactKind,
+  changePath,
+  type Layers,
+  shortOid,
+} from '../../domain/review';
+import {
+  useArtifactContents,
   useArtifacts,
   useChanges,
   useCommit,
@@ -13,7 +22,10 @@ import {
   useTextFile,
 } from '../../query/review';
 import { FileComments } from './file-comments';
+import { HtmlFrame } from './html-frame';
+import { MarkdownView } from './markdown-view';
 import { DiffPreview, SourcePreview } from './pierre-preview';
+import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 
 export type OpenDocument = (ref: DocumentRef) => void;
@@ -31,13 +43,7 @@ export function DocumentView({
     case 'handoff':
       return <HandoffDocument scope={scope} onOpen={onOpen} />;
     case 'layer':
-      return (
-        <LayerDocument
-          scope={scope}
-          layerId={document.layerId}
-          onOpen={onOpen}
-        />
-      );
+      return <LayerDocument scope={scope} layerId={document.layerId} />;
     case 'change':
       return <ChangeDocument scope={scope} path={document.path} />;
     case 'file':
@@ -45,7 +51,9 @@ export function DocumentView({
     case 'commit':
       return <CommitDocument scope={scope} oid={document.oid} />;
     case 'artifact':
-      return <ArtifactDocument scope={scope} name={document.name} />;
+      return (
+        <ArtifactDocument scope={scope} artifactId={document.artifactId} />
+      );
   }
 }
 
@@ -58,84 +66,99 @@ function HandoffDocument({
 }) {
   const { status, layers } = useChanges(scope);
   const artifacts = useArtifacts(scope);
-  const paths = useMemo(
-    () => [...new Set(status.changes.map(changePath))],
-    [status.changes],
-  );
+  const paths = [...new Set(status.changes.map(changePath))];
 
   return (
-    <DocumentFrame>
-      <DocumentHeading
-        eyebrow={layers.layers.length > 0 ? 'From the agent' : 'Changes'}
-        title={layers.layers.length > 0 ? 'Review handoff' : 'All changes'}
-        detail={`${paths.length} changed ${paths.length === 1 ? 'file' : 'files'}`}
-      />
-      {artifacts.length > 0 && (
-        <section className="flex flex-col gap-2 border-b px-6 py-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            From the agent
-          </p>
-          {artifacts.map((artifact) => (
-            <button
-              key={artifact.id}
-              type="button"
-              className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-              onClick={() => onOpen({ kind: 'artifact', name: artifact.name })}
-            >
-              <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate">{artifact.name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {artifact.sizeBytes.toLocaleString()} bytes
-              </span>
-            </button>
-          ))}
-        </section>
-      )}
-      {layers.layers.length > 0 && (
-        <section className="flex flex-col gap-2 border-b px-6 py-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Read in this order
-          </p>
-          {layers.layers.map((layer, index) => (
-            <LayerLink
-              key={layer.id}
-              layer={layer}
-              index={index}
+    <div className="flex min-h-0 flex-1 flex-col">
+      {paths.length === 0 ? (
+        <ReviewEmpty
+          title="No changes"
+          description="This worktree matches its last commit."
+        />
+      ) : (
+        <ReviewCodeDocument
+          scope={scope}
+          status={status}
+          header={() => (
+            <HandoffHeader
+              artifacts={artifacts}
+              layers={layers.layers}
+              fileCount={paths.length}
               onOpen={onOpen}
             />
-          ))}
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+function HandoffHeader({
+  artifacts,
+  layers,
+  fileCount,
+  onOpen,
+}: {
+  artifacts: readonly Artifact[];
+  layers: Layers['layers'];
+  fileCount: number;
+  onOpen: OpenDocument;
+}) {
+  return (
+    <div className="px-4 pt-3">
+      <div className="flex items-end gap-3 px-1 pb-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">
+            {layers.length > 0 ? 'Handoff' : 'Changes'}
+          </p>
+          <h1 className="text-base font-medium tracking-tight">
+            {layers.length > 0 ? 'Review handoff' : 'All changes'}
+          </h1>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {fileCount} {fileCount === 1 ? 'file' : 'files'}
+        </span>
+      </div>
+      {(artifacts.length > 0 || layers.length > 0) && (
+        <section className="overflow-hidden rounded-xl border bg-card">
+          {artifacts.length > 0 && (
+            <div className="flex min-h-10 flex-wrap items-center gap-1 border-b bg-muted/40 px-3 py-1.5">
+              <span className="mr-auto text-xs font-medium">
+                From the agent
+              </span>
+              {artifacts.map((artifact) => (
+                <button
+                  key={artifact.id}
+                  type="button"
+                  className="flex h-7 min-w-0 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                  onClick={() =>
+                    onOpen({ kind: 'artifact', artifactId: artifact.id })
+                  }
+                >
+                  <FileTextIcon className="size-3.5 shrink-0" />
+                  <span className="max-w-48 truncate">{artifact.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {layers.length > 0 && (
+            <div className="px-2 py-2">
+              <p className="px-2 pb-1 text-[11px] font-medium text-muted-foreground">
+                Read in this order
+              </p>
+              {layers.map((layer, index) => (
+                <LayerLink
+                  key={layer.id}
+                  layer={layer}
+                  index={index}
+                  onOpen={onOpen}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
-      <section className="flex flex-col gap-2 px-6 py-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Changed files
-          </p>
-          <Progress value={0} className="w-24" aria-label="Review progress" />
-        </div>
-        {paths.length === 0 ? (
-          <ReviewEmpty
-            title="No changes"
-            description="This worktree matches its last commit."
-          />
-        ) : (
-          paths.map((path) => (
-            <button
-              key={path}
-              type="button"
-              className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-              onClick={() => onOpen({ kind: 'change', path })}
-            >
-              <span className="size-1.5 shrink-0 rounded-full bg-foreground" />
-              <span className="min-w-0 flex-1 truncate">{path}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                Open diff
-              </span>
-            </button>
-          ))
-        )}
-      </section>
-    </DocumentFrame>
+    </div>
   );
 }
 
@@ -151,16 +174,22 @@ function LayerLink({
   return (
     <button
       type="button"
-      className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent"
+      className="flex w-full min-w-0 items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
       onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
     >
-      <span className="grid size-6 shrink-0 place-items-center rounded bg-muted text-xs text-muted-foreground">
+      <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded bg-muted text-[10.5px] text-muted-foreground">
         {index + 1}
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm font-medium">
-        {layer.title}
+      <span className="min-w-0 flex-1">
+        <span className="text-[12.5px] font-medium">{layer.title}</span>
+        {layer.summary && (
+          <MarkdownView
+            text={layer.summary}
+            className="text-xs text-muted-foreground [&_p]:my-0.5"
+          />
+        )}
       </span>
-      <span className="shrink-0 text-xs text-muted-foreground">
+      <span className="mt-0.5 shrink-0 text-[11px] text-muted-foreground">
         {layer.files.length} {layer.files.length === 1 ? 'file' : 'files'}
       </span>
     </button>
@@ -170,11 +199,9 @@ function LayerLink({
 function LayerDocument({
   scope,
   layerId,
-  onOpen,
 }: {
   scope: ReviewScope;
   layerId: string;
-  onOpen: OpenDocument;
 }) {
   const { status, layers } = useChanges(scope);
   const layer = layers.layers.find((candidate) => candidate.id === layerId);
@@ -186,32 +213,36 @@ function LayerDocument({
       />
     );
 
-  const available = new Set(status.changes.map(changePath));
-  const paths = [...new Set(layer.files.map((file) => file.path))];
+  const changes = layer.files.flatMap((file) =>
+    status.changes.filter(
+      (change) =>
+        change.scope === file.scope && changePath(change) === file.path,
+    ),
+  );
+  const paths = [...new Set(changes.map(changePath))];
   return (
-    <DocumentFrame>
-      <DocumentHeading
-        eyebrow={`Layer ${layers.layers.indexOf(layer) + 1}`}
-        title={layer.title}
-        detail={`${paths.length} ${paths.length === 1 ? 'file' : 'files'} in this layer`}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ReviewCodeDocument
+        scope={scope}
+        status={status}
+        changes={changes}
+        header={() => (
+          <div className="mx-4 mt-3 rounded-xl border bg-muted/30 px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              Layer {layers.layers.indexOf(layer) + 1} · {paths.length}{' '}
+              {paths.length === 1 ? 'file' : 'files'}
+            </p>
+            <h1 className="mt-1 text-base font-medium">{layer.title}</h1>
+            {layer.summary && (
+              <MarkdownView
+                text={layer.summary}
+                className="mt-1 max-w-[78ch] text-muted-foreground"
+              />
+            )}
+          </div>
+        )}
       />
-      <section className="flex flex-col gap-2 px-6 py-5">
-        {paths.map((path) => (
-          <button
-            type="button"
-            key={path}
-            disabled={!available.has(path)}
-            className="flex min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => onOpen({ kind: 'change', path })}
-          >
-            <span className="min-w-0 flex-1 truncate">{path}</span>
-            <Badge variant="outline">
-              {available.has(path) ? 'Changed' : 'No longer changed'}
-            </Badge>
-          </button>
-        ))}
-      </section>
-    </DocumentFrame>
+    </div>
   );
 }
 
@@ -389,14 +420,18 @@ function CommitDocument({ scope, oid }: { scope: ReviewScope; oid: string }) {
   );
 }
 
-function ArtifactDocument({
+export function ArtifactDocument({
   scope,
-  name,
+  artifactId,
 }: {
   scope: ReviewScope;
-  name: string;
+  artifactId: string;
 }) {
-  const artifact = useArtifacts(scope).find((item) => item.name === name);
+  const artifact = useArtifacts(scope).find((item) => item.id === artifactId);
+  const [content] = useArtifactContents(
+    scope,
+    artifact == null ? [] : [artifact.id],
+  );
   if (!artifact)
     return (
       <ReviewEmpty
@@ -404,33 +439,68 @@ function ArtifactDocument({
         description="This upload is no longer available for the selected worktree."
       />
     );
-  return <ArtifactDetails artifact={artifact} />;
+  if (!content)
+    return (
+      <ReviewEmpty
+        title="Artifact content unavailable"
+        description="This upload no longer has readable content for the selected worktree."
+      />
+    );
+  return <ArtifactDetails artifact={artifact} content={content} />;
 }
 
-function ArtifactDetails({ artifact }: { artifact: Artifact }) {
+function ArtifactDetails({
+  artifact,
+  content,
+}: {
+  artifact: Artifact;
+  content: ArtifactContent;
+}) {
+  const kind = artifactKind(artifact.name, content.content);
   return (
     <DocumentFrame>
       <DocumentHeading
         eyebrow="From the agent"
         title={artifact.name}
-        detail="Stored artifact"
+        detail={`Stored artifact · ${artifact.sizeBytes.toLocaleString()} bytes`}
       />
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 px-6 py-6 text-sm">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 border-b px-6 py-4 text-sm">
         <dt className="text-muted-foreground">Created</dt>
         <dd>{artifact.createdAt.replace('T', ' ').replace('Z', ' UTC')}</dd>
-        <dt className="text-muted-foreground">Size</dt>
-        <dd>{artifact.sizeBytes.toLocaleString()} bytes</dd>
+        <dt className="text-muted-foreground">Format</dt>
+        <dd>
+          {kind === 'html'
+            ? 'HTML preview'
+            : kind === 'markdown'
+              ? 'Markdown'
+              : 'Text'}
+        </dd>
       </dl>
-      <ReviewEmpty
-        title="Content endpoint not connected"
-        description="The live review client currently exposes artifact metadata only."
-      />
+      {kind === 'html' ? (
+        <HtmlFrame
+          html={content.content}
+          title={artifact.name}
+          className="h-[min(70svh,56rem)]"
+        />
+      ) : kind === 'markdown' ? (
+        <div className="mx-auto max-w-[78ch] px-6 py-4">
+          <MarkdownView text={content.content} />
+        </div>
+      ) : (
+        <pre className="whitespace-pre-wrap break-words px-6 py-5 font-mono text-xs leading-relaxed">
+          {content.content}
+        </pre>
+      )}
     </DocumentFrame>
   );
 }
 
 function DocumentFrame({ children }: { children: React.ReactNode }) {
-  return <article className="min-h-full bg-card">{children}</article>;
+  return (
+    <article className="min-h-0 flex-1 overflow-auto bg-card">
+      {children}
+    </article>
+  );
 }
 
 function DocumentHeading({

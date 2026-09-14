@@ -1,5 +1,5 @@
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { BoxIcon, LogOutIcon, RefreshCwIcon } from 'lucide-react';
+import { LogOutIcon, RefreshCwIcon } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -68,10 +68,10 @@ function WorkspaceNavigation() {
         className="workspace-sidebar"
         inert={!isMobile && !open}
       >
-        <SidebarHeader className="border-b px-2 py-2">
+        <SidebarHeader className="border-b px-3 py-2">
           <div className="flex h-8 items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-md bg-foreground text-background">
-              <BoxIcon className="size-4" />
+            <span className="flex size-6 items-center justify-center rounded-md bg-foreground text-xs font-semibold text-background">
+              P
             </span>
             <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
               Porcelain
@@ -106,7 +106,7 @@ function WorkspaceNavigation() {
             </AlertDescription>
           </Alert>
         )}
-        <SidebarContent className="overflow-hidden">
+        <SidebarContent className="overflow-hidden px-0">
           <ScrollArea className="h-full min-h-0 flex-1">
             <ProjectNavigator
               projects={inventory.projects}

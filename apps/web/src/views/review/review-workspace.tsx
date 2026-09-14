@@ -38,9 +38,13 @@ import {
 import { cn } from '@/lib/utils';
 import { entryKey, parseEntry } from '../../domain/documents';
 import { type Project, worktreeLabel } from '../../domain/inventory';
-import type { Layers, Surface } from '../../domain/review';
+import type { Artifact, Layers, Surface } from '../../domain/review';
 import { discardRejection } from '../../lib/submit-form';
-import { useRefreshReview, useReviewOverview } from '../../query/review';
+import {
+  useArtifactsOverview,
+  useRefreshReview,
+  useReviewOverview,
+} from '../../query/review';
 import { WorkspaceControls } from '../workspace/workspace-controls';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView, type OpenDocument } from './documents';
@@ -259,6 +263,7 @@ function DocumentArea({
   onOpen: OpenDocument;
 }) {
   const overview = useReviewOverview(scope);
+  const artifacts = useArtifactsOverview(scope);
   const layers = overview?.layers.layers ?? [];
   const hasHandoff =
     overview != null &&
@@ -280,6 +285,7 @@ function DocumentArea({
     setFocused,
     scope,
     layers,
+    artifacts,
     hasHandoff,
     onOpen,
   });
@@ -306,6 +312,7 @@ function PaneView({
   setFocused,
   scope,
   layers,
+  artifacts,
   hasHandoff,
   onOpen,
 }: {
@@ -316,6 +323,7 @@ function PaneView({
   setFocused: (pane: PaneIndex) => void;
   scope: { projectId: string; worktreeId: string };
   layers: Layers['layers'];
+  artifacts: readonly Artifact[];
   hasHandoff: boolean;
   onOpen: OpenDocument;
 }) {
@@ -356,6 +364,7 @@ function PaneView({
         pinned={pane.pinned}
         active={pane.active}
         layers={layers}
+        artifacts={artifacts}
         side={split ? (index === 0 ? 'left' : 'right') : null}
         focused={focused}
         onActivate={(key) => layout.activate(index, key)}
@@ -371,7 +380,7 @@ function PaneView({
       {document == null ? (
         <EmptyDocument hasHandoff={hasHandoff} onOpen={onOpen} />
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ReviewBoundary key={pane.active}>
             <DocumentView scope={scope} document={document} onOpen={onOpen} />
           </ReviewBoundary>

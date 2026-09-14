@@ -1,5 +1,6 @@
 import type {
   Artifact,
+  ArtifactContent,
   CommitChanges,
   Diff,
   DiffRequest,
@@ -24,4 +25,7 @@ export type ReviewPort = {
   ) => Promise<{ status: Status; layers: Layers }>;
   history: (request: ReviewRequest & { cursor?: string }) => Promise<History>;
   artifacts: (request: ReviewRequest) => Promise<Artifact[]>;
+  artifact: (
+    request: ReviewRequest & { artifactId: string },
+  ) => Promise<ArtifactContent>;
 };

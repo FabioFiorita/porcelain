@@ -23,11 +23,20 @@ import {
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { parseEntry } from '../../domain/documents';
-import { basename, type Layers, shortOid } from '../../domain/review';
+import {
+  type Artifact,
+  basename,
+  type Layers,
+  shortOid,
+} from '../../domain/review';
 
 type Layer = Layers['layers'][number];
 
-function describeTab(key: string, layers: readonly Layer[]) {
+function describeTab(
+  key: string,
+  layers: readonly Layer[],
+  artifacts: readonly Artifact[],
+) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
     case 'handoff':
@@ -61,12 +70,15 @@ function describeTab(key: string, layers: readonly Layer[]) {
         title: shortOid(ref.oid),
         hint: `Commit ${ref.oid}`,
       };
-    case 'artifact':
+    case 'artifact': {
+      const artifact = artifacts.find((item) => item.id === ref.artifactId);
+      const name = artifact?.name ?? 'Artifact';
       return {
         Icon: FileTextIcon,
-        title: ref.name === 'handoff.html' ? 'Report' : ref.name,
-        hint: `${ref.name} · from the agent`,
+        title: name,
+        hint: `${name} · from the agent`,
       };
+    }
     default:
       return { Icon: FileTextIcon, title: key, hint: key };
   }
@@ -86,6 +98,7 @@ export function DocumentTabs({
   pinned,
   active,
   layers,
+  artifacts = [],
   side,
   focused,
   trailing,
@@ -95,6 +108,7 @@ export function DocumentTabs({
   pinned: readonly string[];
   active: string | null;
   layers: readonly Layer[];
+  artifacts?: readonly Artifact[];
   side: 'left' | 'right' | null;
   focused: boolean;
   trailing?: ReactNode;
@@ -134,6 +148,7 @@ export function DocumentTabs({
                     pinned={isPinned}
                     hasUnpinned={tabs.some((item) => !pinned.includes(item))}
                     layers={layers}
+                    artifacts={artifacts}
                     side={side}
                     {...actions}
                   />
@@ -166,6 +181,7 @@ function DocumentTab({
   pinned,
   hasUnpinned,
   layers,
+  artifacts,
   side,
   onActivate,
   onClose,
@@ -179,9 +195,10 @@ function DocumentTab({
   pinned: boolean;
   hasUnpinned: boolean;
   layers: readonly Layer[];
+  artifacts: readonly Artifact[];
   side: 'left' | 'right' | null;
 }) {
-  const { Icon, title, hint } = describeTab(tabKey, layers);
+  const { Icon, title, hint } = describeTab(tabKey, layers, artifacts);
   const openToSideLabel =
     side == null
       ? 'Open to the side'

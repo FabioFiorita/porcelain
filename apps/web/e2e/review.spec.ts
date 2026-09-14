@@ -157,9 +157,9 @@ test('keyboard focus selects which split pane receives document shortcuts', asyn
   await expect(leftTabs.getByRole('tab', { name: /README\.md/ })).toHaveCount(
     0,
   );
-  await expect(
-    rightTabs.getByRole('tab', { name: /README\.md/ }),
-  ).toHaveCount(1);
+  await expect(rightTabs.getByRole('tab', { name: /README\.md/ })).toHaveCount(
+    1,
+  );
 });
 
 test('opens responsive drawers with shortcuts and returns to the review canvas', async ({

@@ -210,7 +210,7 @@ function ArchivedArtifacts({
           key={artifact.id}
           type="button"
           className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-accent"
-          onClick={() => onOpen({ kind: 'artifact', name: artifact.name })}
+          onClick={() => onOpen({ kind: 'artifact', artifactId: artifact.id })}
         >
           <span className="min-w-0 flex-1 truncate">{artifact.name}</span>
           <span className="text-xs text-muted-foreground">

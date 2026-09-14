@@ -199,6 +199,9 @@ importers:
       '@shadcn/react':
         specifier: 0.3.1
         version: 0.3.1(@types/react@19.2.18)(react@19.2.8)
+      '@tanstack/markdown':
+        specifier: 0.0.14
+        version: 0.0.14(react@19.2.8)
       '@tanstack/react-devtools':
         specifier: 0.10.12
         version: 0.10.12(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(csstype@3.2.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(solid-js@1.9.15)
@@ -2355,6 +2358,17 @@ packages:
   '@tanstack/hotkeys@0.8.0':
     resolution: {integrity: sha512-vqH7X9nb0MTJ/O08++dB5bP9jgj4+BIPOUu/U+6myG86lDsirZSVSobpq5UQpE7nBuk62i8eIYeOhd+OMl/UrA==}
     engines: {node: '>=18'}
+
+  '@tanstack/markdown@0.0.14':
+    resolution: {integrity: sha512-NNjOoA7Zbmh3LG6MTxTBX3zM8sGe5bMfH3xxX5oCt1zh75TiCiaQFoQ4FKSNNhVKqpD0zzNd+qNdmA+sXR5XTw==}
+    peerDependencies:
+      octane: '>=0.1.12'
+      react: '>=18'
+    peerDependenciesMeta:
+      octane:
+        optional: true
+      react:
+        optional: true
 
   '@tanstack/pacer-lite@0.1.1':
     resolution: {integrity: sha512-y/xtNPNt/YeyoVxE/JCx+T7yjEzpezmbb+toK8DDD1P4m7Kzs5YR956+7OKexG3f8aXgC3rLZl7b1V+yNUSy5w==}
@@ -6830,6 +6844,10 @@ snapshots:
   '@tanstack/hotkeys@0.8.0':
     dependencies:
       '@tanstack/store': 0.11.1
+
+  '@tanstack/markdown@0.0.14(react@19.2.8)':
+    optionalDependencies:
+      react: 19.2.8
 
   '@tanstack/pacer-lite@0.1.1': {}
 

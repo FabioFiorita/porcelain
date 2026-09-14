@@ -1,7 +1,7 @@
 import {
   ChevronRightIcon,
   CircleAlertIcon,
-  FolderIcon,
+  FolderGit2Icon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
   HouseIcon,
@@ -55,38 +55,40 @@ export function ProjectNavigator({
       </Empty>
     );
   return (
-    <nav aria-label="Projects and worktrees" className="min-w-0 px-2 pb-2">
-      <SidebarMenu className="gap-1">
+    <nav
+      aria-label="Projects and worktrees"
+      className="min-w-0 px-2 pb-2 text-[13px]"
+    >
+      <SidebarMenu className="gap-0">
         {projects.map((project) => {
           const path = projectPath(project);
           return (
             <SidebarMenuItem key={project.id}>
-              <Collapsible defaultOpen className="group/project">
+              <Collapsible defaultOpen className="group/project mb-2">
                 <h3 aria-label={project.name}>
                   <CollapsibleTrigger
                     render={<SidebarMenuButton />}
-                    className="h-7 gap-1.5 rounded-md px-1.5"
+                    className="h-7 gap-1.5 rounded-md px-1.5 py-1 text-left"
                     title={project.name}
                     aria-label={project.name}
                   >
-                    <FolderIcon aria-hidden="true" className="size-3.5" />
+                    <ChevronRightIcon
+                      aria-hidden="true"
+                      className="size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none group-data-open/project:rotate-90"
+                    />
+                    <FolderGit2Icon
+                      aria-hidden="true"
+                      className="size-3.5 shrink-0 text-muted-foreground"
+                    />
                     <span className="min-w-0 flex-1 truncate font-medium">
                       {project.name}
                     </span>
-                    {!project.available ? (
+                    {!project.available && (
                       <CircleAlertIcon
                         aria-label="Project unavailable"
                         className="size-3.5"
                       />
-                    ) : (
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {project.worktrees.length}
-                      </span>
                     )}
-                    <ChevronRightIcon
-                      aria-hidden="true"
-                      className="size-3.5 transition-transform motion-reduce:transition-none group-data-open/project:rotate-90"
-                    />
                   </CollapsibleTrigger>
                 </h3>
                 <CollapsibleContent>
@@ -98,7 +100,7 @@ export function ProjectNavigator({
                       {path}
                     </p>
                   )}
-                  <SidebarMenu className="ml-2 w-[calc(100%-0.5rem)] gap-0.5 border-l pl-2">
+                  <SidebarMenu className="ml-2 w-[calc(100%-0.5rem)] gap-0 border-l pl-2">
                     {!project.worktrees.length && (
                       <li className="px-2 py-2 text-[11px] text-muted-foreground">
                         No worktrees found.
@@ -121,10 +123,16 @@ export function ProjectNavigator({
                                 />
                               }
                               aria-pressed={selected === worktree.id}
+                              aria-current={
+                                selected === worktree.id ? 'page' : undefined
+                              }
                               onClick={() => onSelect(worktree.id)}
-                              className="workspace-choice relative h-auto min-h-8 gap-1.5 rounded-md py-1"
+                              className="workspace-choice relative h-auto min-h-7 gap-1.5 rounded-lg py-1.5 pr-2 pl-2 text-left text-[12.5px]"
                             >
-                              <Icon aria-hidden="true" className="size-3.5" />
+                              <Icon
+                                aria-hidden="true"
+                                className="size-3.5 shrink-0"
+                              />
                               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                                 <span className="truncate text-xs">
                                   {worktreeLabel(worktree.branch)}

@@ -1,4 +1,7 @@
-import type { ArtifactMetadataResponse } from '@porcelain/contracts/artifacts';
+import type {
+  ArtifactContentResponse,
+  ArtifactMetadataResponse,
+} from '@porcelain/contracts/artifacts';
 import type { CommitChangesResponse } from '@porcelain/contracts/commit-changes';
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
@@ -15,9 +18,19 @@ import type { reviewLayersResponseSchema } from '@porcelain/contracts/review-lay
 export type Directory = DirectoryResponse;
 export type History = CommitPageResponse;
 export type Artifact = ArtifactMetadataResponse;
+export type ArtifactContent = ArtifactContentResponse;
 export type Status = GitStatusResponse;
 export type Layers = ReturnType<typeof reviewLayersResponseSchema.parse>;
 export type Change = Status['changes'][number];
+export type OrdinaryChange = Extract<Change, { kind: string }>;
+export type ReviewEvidence =
+  | { kind: 'diff'; change: OrdinaryChange; response: GitDiffResponse }
+  | {
+      kind: 'file';
+      change: Extract<Change, { scope: 'untracked' }>;
+      text: string;
+    }
+  | { kind: 'omitted'; change: Change; reason: string };
 export type ReviewScope = { projectId: string; worktreeId: string };
 export const SURFACES = ['changes', 'files', 'history'] as const;
 export type Surface = (typeof SURFACES)[number];
@@ -44,6 +57,23 @@ export function basename(path: string) {
 
 export function shortOid(oid: string) {
   return oid.slice(0, 7);
+}
+
+export type ArtifactKind = 'html' | 'markdown' | 'text';
+
+export function artifactKind(name: string, content = ''): ArtifactKind {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
+  if (lower.endsWith('.md') || lower.endsWith('.mdx')) return 'markdown';
+  const leading = content.trimStart();
+  const lowerLeading = leading.toLowerCase();
+  if (
+    lowerLeading.startsWith('<!doctype html') ||
+    lowerLeading.startsWith('<html')
+  )
+    return 'html';
+  if (/^#{1,6}\s/u.test(leading)) return 'markdown';
+  return 'text';
 }
 export function groupChanges(status: Status, layers: Layers) {
   const assigned = new Set(

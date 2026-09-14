@@ -5,10 +5,18 @@ import {
   useQuery,
   useQueryClient,
   useQueryErrorResetBoundary,
+  useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { ReviewPort, ReviewRequest } from '../api/review/port';
-import type { DiffRequest, ReviewScope } from '../domain/review';
+import type {
+  ArtifactContent,
+  Change,
+  DiffRequest,
+  ReviewEvidence,
+  ReviewScope,
+} from '../domain/review';
+import { changeKey } from '../domain/review';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
 import { useConnectedContext } from './workspace-provider';
@@ -92,6 +100,56 @@ export function useArtifacts(scope: ReviewScope) {
     api.artifacts(request),
   );
 }
+export function useArtifactsOverview(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  return (
+    useQuery({
+      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+        'artifacts',
+      ]),
+      queryFn: async ({ signal }) => {
+        const request = connection.request(signal);
+        const data = await api.review.artifacts({ ...scope, ...request });
+        request.signal.throwIfAborted();
+        return data;
+      },
+      throwOnError: false,
+    }).data ?? []
+  );
+}
+export function useArtifact(scope: ReviewScope, artifactId: string) {
+  return useReviewData<ArtifactContent>(
+    scope,
+    ['artifact', artifactId],
+    (api, request) => api.artifact({ ...request, artifactId }),
+  );
+}
+
+/** Fetch only the content for the currently available artifact tabs. */
+export function useArtifactContents(
+  scope: ReviewScope,
+  artifactIds: readonly string[],
+) {
+  const { api, connection } = useConnectedContext();
+  return useSuspenseQueries({
+    queries: artifactIds.map((artifactId) => ({
+      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+        'artifact',
+        artifactId,
+      ]),
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const request = connection.request(signal);
+        const data = await api.review.artifact({
+          ...scope,
+          ...request,
+          artifactId,
+        });
+        request.signal.throwIfAborted();
+        return data;
+      },
+    })),
+  }).map((result) => result.data);
+}
 export function reviewErrorMessage(error: unknown) {
   return error instanceof ConnectionError
     ? error.message
@@ -115,6 +173,73 @@ export function useDiff(scope: ReviewScope, input: DiffRequest) {
   return useReviewData(scope, ['diff', input], (api, request) =>
     api.diff({ ...request, input }),
   );
+}
+
+export function useReviewEvidence(
+  scope: ReviewScope,
+  statusToken: string,
+  changes: readonly Change[],
+) {
+  const { api, connection } = useConnectedContext();
+  return useSuspenseQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'continuous-evidence',
+      statusToken,
+      changes.map(changeKey),
+    ]),
+    queryFn: async ({ signal }) => {
+      const load = async (change: Change): Promise<ReviewEvidence> => {
+        if (change.scope === 'unmerged')
+          return { kind: 'omitted', change, reason: 'Merge conflict' };
+        if (change.scope === 'untracked') {
+          try {
+            const request = connection.request(signal);
+            const file = await api.review.text({
+              ...scope,
+              ...request,
+              path: change.path,
+            });
+            request.signal.throwIfAborted();
+            return { kind: 'file', change, text: file.text };
+          } catch {
+            signal.throwIfAborted();
+            return { kind: 'omitted', change, reason: 'Not readable as text' };
+          }
+        }
+        if (!change.supported)
+          return { kind: 'omitted', change, reason: 'Unsupported Git entry' };
+        try {
+          const request = connection.request(signal);
+          const response = await api.review.diff({
+            ...scope,
+            ...request,
+            input: {
+              expectedStatusToken: statusToken,
+              change: {
+                scope: change.scope,
+                oldPath: change.oldPath,
+                newPath: change.newPath,
+              },
+            },
+          });
+          request.signal.throwIfAborted();
+          if (response.content.kind === 'binary')
+            return { kind: 'omitted', change, reason: 'Binary change' };
+          if (response.content.kind === 'omitted')
+            return {
+              kind: 'omitted',
+              change,
+              reason: `Content omitted: ${response.content.reason}`,
+            };
+          return { kind: 'diff', change, response };
+        } catch {
+          signal.throwIfAborted();
+          return { kind: 'omitted', change, reason: 'Preview unavailable' };
+        }
+      };
+      return Promise.all(changes.map(load));
+    },
+  }).data;
 }
 
 export function useRefreshReview(scope: ReviewScope) {

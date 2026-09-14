@@ -19,6 +19,20 @@ vi.mock('../../development/devtools', () => ({ Devtools: () => null }));
 // Pierre owns a browser custom element and worker-backed highlighting. Its
 // adapter behavior is covered separately; workspace tests exercise navigation.
 vi.mock('@pierre/diffs/react', () => ({
+  CodeView: ({
+    items,
+    renderCodeViewHeader,
+  }: {
+    items: Array<{ id: string }>;
+    renderCodeViewHeader?: () => React.ReactNode;
+  }) => (
+    <div data-testid="code-view">
+      {renderCodeViewHeader?.()}
+      {items.map((item) => (
+        <div key={item.id} data-code-item={item.id} />
+      ))}
+    </div>
+  ),
   File: ({ file }: { file: { contents: string } }) => (
     <pre>{file.contents}</pre>
   ),
@@ -134,6 +148,10 @@ beforeAll(() => {
 });
 afterEach(() => {
   cleanup();
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith('porcelain.tabs.')) localStorage.removeItem(key);
+  }
 });
 afterAll(() => {
   vi.restoreAllMocks();
@@ -362,6 +380,23 @@ describe('worktree review navigation', () => {
       }),
     ).toHaveLength(3);
   });
+  it('keeps file documents and Git controls available when artifacts fail', async () => {
+    const store = createMockStore();
+    store.artifactsFailed = true;
+    renderReview(store);
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    const sidebar = screen.getByTestId('review-sidebar');
+    await user.click(within(sidebar).getByRole('tab', { name: 'Files' }));
+    await user.click(
+      await within(sidebar).findByRole('button', { name: /README\.md/ }),
+    );
+
+    await screen.findByRole('heading', { name: 'README.md' });
+    expect(screen.getByRole('button', { name: 'Git actions' })).toBeTruthy();
+  });
   it('keeps stored artifacts reachable for an unavailable worktree', async () => {
     renderReview();
     const user = await connect();
@@ -374,9 +409,32 @@ describe('worktree review navigation', () => {
         name: /Keyboard accessibility audit/,
       }),
     );
-    await screen.findByRole('heading', {
-      name: 'Keyboard accessibility audit',
+    expect(
+      await screen.findAllByRole('heading', {
+        name: 'Keyboard accessibility audit',
+      }),
+    ).toHaveLength(2);
+  });
+  it('renders the report in an opaque-origin sandboxed frame', async () => {
+    renderReview();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: /agent\/review/ }),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: /The whole handoff/ }),
+    );
+    const reportButtons = await screen.findAllByRole('button', {
+      name: /Launch review report/,
     });
+    await user.click(reportButtons[0] as HTMLButtonElement);
+
+    await screen.findByRole('heading', { name: 'Launch review report' });
+    const frame = await screen.findByTitle('Launch review report');
+    expect(frame.tagName).toBe('IFRAME');
+    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(frame.getAttribute('referrerpolicy')).toBe('no-referrer');
+    expect(frame.getAttribute('srcdoc')).toContain('Fieldnotes launch review');
   });
   it.each([false, true])(
     'commits only staged changes and recovers without repeating the action (lost response: %s)',

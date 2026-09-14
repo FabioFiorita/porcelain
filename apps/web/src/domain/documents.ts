@@ -8,7 +8,7 @@ export type DocumentRef =
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
   | { kind: 'commit'; oid: string }
-  | { kind: 'artifact'; name: string };
+  | { kind: 'artifact'; artifactId: string };
 
 export const HANDOFF: DocumentRef = { kind: 'handoff' };
 
@@ -25,7 +25,7 @@ export function entryKey(ref: DocumentRef): string {
     case 'commit':
       return `commit:${ref.oid}`;
     case 'artifact':
-      return `artifact:${ref.name}`;
+      return `artifact:${ref.artifactId}`;
   }
 }
 
@@ -49,11 +49,15 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
     case 'commit':
       return /^[0-9a-f]{4,64}$/.test(value) ? { kind, oid: value } : null;
     case 'artifact':
-      return { kind, name: value };
+      // Artifact tabs used to persist display names. Reject those stale keys
+      // rather than sending a name to an ID-addressed endpoint.
+      return UUID.test(value) ? { kind, artifactId: value } : null;
     default:
       return null;
   }
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function withDocument(
   open: readonly string[],

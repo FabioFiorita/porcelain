@@ -9,7 +9,7 @@ import { useArtifacts, useChanges } from '../../query/review';
 import { ReviewEmpty } from './review-empty';
 
 const rowClass =
-  'flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors hover:bg-accent';
+  'flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] transition-colors hover:bg-accent';
 
 export function ReviewIndex({
   scope,
@@ -124,7 +124,7 @@ export function ReviewIndex({
           {artifacts.map((artifact) => {
             const ref: DocumentRef = {
               kind: 'artifact',
-              name: artifact.name,
+              artifactId: artifact.id,
             };
             return (
               <button
