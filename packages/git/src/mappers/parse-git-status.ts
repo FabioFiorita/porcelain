@@ -133,7 +133,11 @@ export function parseGitStatus(output: Buffer): GitStatusObservation {
     else if (record.startsWith('2 '))
       changes.push(...tracked(record, path(iterator.next().value)));
     else if (record.startsWith('? '))
-      changes.push({ scope: 'untracked', path: path(record.slice(2)) });
+      // Git keeps a trailing directory marker for untracked nested repositories.
+      changes.push({
+        scope: 'untracked',
+        path: path(record.slice(2).replace(/\/$/, '')),
+      });
     else if (record.startsWith('u ')) changes.push(conflict(record));
     else throw new InvalidGitStatusError();
     if (changes.length > 2000) throw new InspectionLimitError();

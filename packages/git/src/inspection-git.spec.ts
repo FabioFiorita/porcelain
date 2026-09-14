@@ -146,6 +146,21 @@ describe('InspectionGit', () => {
       if (diff.kind === 'text') expect(diff.patch).not.toContain('+other');
     });
 
+    it('reports untracked nested repositories without rejecting their directory marker', async () => {
+      const { checkout, reader } = await fixture();
+      const nested = join(checkout, 'apps', 'web');
+      await mkdir(nested, { recursive: true });
+      execFileSync('git', ['-C', nested, 'init', '-b', 'main']);
+      await writeFile(join(nested, 'index.ts'), 'export {};\n');
+      await writeFile(join(checkout, 'notes.txt'), 'notes\n');
+
+      const status = await reader.readStatus();
+      expect(status.changes).toEqual([
+        { scope: 'untracked', path: 'apps/web' },
+        { scope: 'untracked', path: 'notes.txt' },
+      ]);
+    });
+
     it('reports deletions, binary files, executable changes and symlink targets without reading target content', async () => {
       const { root, checkout, git, reader } = await fixture();
       await writeFile(join(checkout, 'deleted'), 'remove me\n');

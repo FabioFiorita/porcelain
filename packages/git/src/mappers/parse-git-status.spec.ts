@@ -25,3 +25,15 @@ it('preserves unusual path bytes and rejects malformed records instead of produc
     ),
   ).toThrow(UnsupportedPathEncodingError);
 });
+
+it('normalizes only the final untracked directory marker and still rejects unsafe paths', () => {
+  const header = '# branch.oid (initial)\0';
+  expect(parseGitStatus(Buffer.from(`${header}? apps/web/\0`)).changes).toEqual(
+    [{ scope: 'untracked', path: 'apps/web' }],
+  );
+  for (const name of ['/', '../web/', 'apps//web/', 'apps/web//']) {
+    expect(() => parseGitStatus(Buffer.from(`${header}? ${name}\0`))).toThrow(
+      UnsupportedPathEncodingError,
+    );
+  }
+});
