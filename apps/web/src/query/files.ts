@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
 import { FileDraft } from '../domain/file-draft';
 import type { FileEdit, ReviewScope } from '../domain/review';
+import { createId } from '../lib/id';
 import { retainedFileDrafts } from './file-drafts';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
@@ -27,7 +28,7 @@ function useFileWriter(scope: ReviewScope) {
       throw new ConnectionError(
         'Finish editing this file or its open children before moving this entry.',
       );
-    const owner = crypto.randomUUID();
+    const owner = createId();
     for (const draft of moving) draft.claim(owner);
     const request = connection.request();
     try {
