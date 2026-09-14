@@ -9,6 +9,7 @@ export interface DirectoryListing {
   entries: { name: string; kind: 'file' | 'directory' | 'symlink' | 'other' }[];
 }
 export interface TextContent {
+  contentFingerprint?: string;
   worktreeId: string;
   path: string;
   encoding: 'utf-8';

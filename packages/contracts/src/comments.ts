@@ -20,25 +20,44 @@ const filePath = z
         ),
     'Expected a normalized relative file path',
   );
+const comparison = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('worktree'),
+    scope: z.enum(['staged', 'unstaged', 'untracked']),
+  }),
+  z.strictObject({ kind: z.literal('file') }),
+  z.strictObject({
+    kind: z.literal('commit'),
+    parent: z.number().int().min(1).max(1000),
+  }),
+]);
 const evidence = {
+  comparison: comparison.optional(),
   revision: z.string().min(1).max(256).optional(),
   contentFingerprint: z.string().min(1).max(256).optional(),
 };
 export const commentAuthorSchema = z.enum(['reviewer', 'agent']);
 const commentTimestampSchema = z.string().datetime().optional();
-export const commentAnchorSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('file'), filePath, ...evidence }),
-  z
-    .strictObject({
-      kind: z.literal('codeRange'),
-      filePath,
-      startLine: z.number().int().min(1).max(2147483647),
-      endLine: z.number().int().min(1).max(2147483647),
-      side: z.enum(['additions', 'deletions']).optional(),
-      ...evidence,
-    })
-    .refine((value) => value.endLine >= value.startLine),
-]);
+export const commentAnchorSchema = z
+  .discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('file'), filePath, ...evidence }),
+    z
+      .strictObject({
+        kind: z.literal('codeRange'),
+        filePath,
+        startLine: z.number().int().min(1).max(2147483647),
+        endLine: z.number().int().min(1).max(2147483647),
+        side: z.enum(['additions', 'deletions']).optional(),
+        ...evidence,
+      })
+      .refine((value) => value.endLine >= value.startLine),
+  ])
+  .refine((anchor) => {
+    if (!anchor.comparison) return true;
+    return anchor.comparison.kind === 'commit'
+      ? /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(anchor.revision ?? '')
+      : anchor.revision === undefined;
+  }, 'The comparison must identify the revision it belongs to');
 const body = z
   .string()
   .min(1)

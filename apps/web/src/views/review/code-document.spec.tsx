@@ -20,6 +20,7 @@ vi.mock('@pierre/diffs/react', () => ({
       themeType: string;
       overflow?: string;
       diffStyle?: string;
+      onLineClick?: (line: unknown, context: { item: { id: string } }) => void;
     };
     renderHeaderPrefix: (item: { id: string }) => React.ReactNode;
   }) => (
@@ -36,6 +37,12 @@ vi.mock('@pierre/diffs/react', () => ({
           data-collapsed={String(item.collapsed)}
         >
           {renderHeaderPrefix(item)}
+          <button
+            type="button"
+            onClick={() => options.onLineClick?.({}, { item })}
+          >
+            Line in {item.id}
+          </button>
         </section>
       ))}
     </div>
@@ -128,4 +135,75 @@ describe('continuous code document', () => {
     expect(screen.getByText('Binary changes')).toBeTruthy();
     expect(screen.queryByTestId('code-view')).toBeNull();
   });
+});
+
+describe('remembered review folds', () => {
+  it('restores manual expansion of reviewed files and isolates documents', async () => {
+    const { DocumentInteraction } = await import('./document-interaction');
+    localStorage.clear();
+    const entries: CodeEntry[] = ['a', 'b'].map((path) => ({
+      id: path,
+      kind: 'file',
+      path,
+      contents: path,
+      version: 1,
+      review: { path, control: null, reviewed: true },
+    }));
+    const ui = (key: string) => (
+      <DocumentInteraction value={{ active: false, storageKey: key }}>
+        <CodeDocument entries={entries} />
+      </DocumentInteraction>
+    );
+    const view = render(ui('folds-one'));
+    expect(screen.getByTestId('a').dataset.collapsed).toBe('true');
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Expand a' }));
+    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
+    view.rerender(ui('folds-two'));
+    expect(screen.getByTestId('a').dataset.collapsed).toBe('true');
+    view.rerender(ui('folds-one'));
+    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
+    view.unmount();
+    render(ui('folds-one'));
+    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
+  });
+  it('ignores malformed saved folds', async () => {
+    const { DocumentInteraction } = await import('./document-interaction');
+    localStorage.setItem(
+      'bad-folds',
+      JSON.stringify({ folded: ['a', 1], expanded: null }),
+    );
+    render(
+      <DocumentInteraction value={{ active: false, storageKey: 'bad-folds' }}>
+        <CodeDocument
+          entries={[
+            { id: 'a', kind: 'file', path: 'a', contents: '', version: 0 },
+          ]}
+        />
+      </DocumentInteraction>,
+    );
+    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
+  });
+});
+
+it('reviews the file clicked in the code instead of the first file', async () => {
+  const { DocumentInteraction } = await import('./document-interaction');
+  const toggle = vi.fn();
+  const entries: CodeEntry[] = ['first', 'second'].map((path) => ({
+    id: path,
+    path,
+    kind: 'file',
+    contents: path,
+    version: 1,
+  }));
+  render(
+    <DocumentInteraction value={{ active: true }}>
+      <CodeDocument entries={entries} onToggleReviewed={toggle} />
+    </DocumentInteraction>,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Line in second' }));
+  await user.keyboard('r');
+  expect(toggle).toHaveBeenCalledWith(entries[1]);
 });

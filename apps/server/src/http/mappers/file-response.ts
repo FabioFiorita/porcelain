@@ -22,5 +22,8 @@ export function toTextResponse(value: TextContent): TextResponse {
     encoding: value.encoding,
     byteLength: value.byteLength,
     text: value.text,
+    ...(value.contentFingerprint
+      ? { contentFingerprint: value.contentFingerprint }
+      : {}),
   };
 }

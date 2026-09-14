@@ -6,9 +6,9 @@ import {
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { DocumentRef } from '../../domain/documents';
 import type { ReviewScope, Surface } from '../../domain/review';
 import { useArtifacts, useHasReviewLayers } from '../../query/review';
+import type { OpenDocument } from './documents';
 import { FileNavigation } from './file-navigation';
 import { HistoryNavigation } from './history-navigation';
 import { ReviewBoundary } from './review-boundary';
@@ -30,7 +30,7 @@ export function ReviewSidebar({
   activeEntry: string | undefined;
   available: boolean;
   onSurface: (surface: Surface) => void;
-  onOpen: (ref: DocumentRef) => void;
+  onOpen: OpenDocument;
 }) {
   return (
     <aside
@@ -117,7 +117,7 @@ function SidebarSurface({
   surface: Surface;
   activeEntry: string | undefined;
   available: boolean;
-  onOpen: (ref: DocumentRef) => void;
+  onOpen: OpenDocument;
 }) {
   if (!available && surface === 'changes')
     return (
@@ -176,7 +176,7 @@ function ArchivedArtifacts({
   onOpen,
 }: {
   scope: ReviewScope;
-  onOpen: (ref: DocumentRef) => void;
+  onOpen: OpenDocument;
 }) {
   const artifacts = useArtifacts(scope);
   if (artifacts.length === 0)

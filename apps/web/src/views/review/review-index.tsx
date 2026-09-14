@@ -48,7 +48,7 @@ import {
 import { FileTypeIcon } from './file-type-icon';
 import { ThreadCard } from './thread-card';
 
-type OpenDocument = (ref: DocumentRef) => void;
+type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
 type Props = {
   scope: ReviewScope;
   activeEntry: string | undefined;
@@ -438,10 +438,10 @@ function CommentsView({
     const ref: DocumentRef =
       anchor.revision != null
         ? { kind: 'commit', oid: anchor.revision }
-        : changed.has(anchor.filePath)
+        : anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)
           ? { kind: 'change', path: anchor.filePath }
           : { kind: 'file', path: anchor.filePath };
-    onOpen(ref);
+    onOpen(ref, anchor);
   };
 
   return (

@@ -1,11 +1,53 @@
-import type { CodeViewItem, FileDiffMetadata } from '@pierre/diffs';
-import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
-import { ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import type {
+  CodeViewItem,
+  CodeViewLineSelection,
+  DiffLineAnnotation,
+  FileDiffMetadata,
+} from '@pierre/diffs';
+import {
+  CodeView,
+  type CodeViewHandle,
+  type CodeViewReactOptions,
+} from '@pierre/diffs/react';
+import { useHotkey } from '@tanstack/react-hotkeys';
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  MessageSquarePlusIcon,
+} from 'lucide-react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PIERRE_SURFACE_CSS, PIERRE_THEME } from '../../lib/pierre';
+import { toast } from '@/components/ui/toast';
+import type {
+  CommentAnchor,
+  CommentTarget,
+  CommentThread,
+} from '../../domain/comments';
+import {
+  commentIsStale,
+  matchesCommentTarget,
+  rangeAnchor,
+} from '../../domain/comments';
+import type { ReviewScope } from '../../domain/review';
+import {
+  contentVersion,
+  PIERRE_COMMENT_CSS,
+  PIERRE_SURFACE_CSS,
+  PIERRE_THEME,
+} from '../../lib/pierre';
+import { useComments } from '../../query/comments';
+import {
+  reviewErrorMessage,
+  useMarkReviewed,
+  useUnmarkReviewed,
+} from '../../query/review';
 import { usePreferences } from '../workspace/preferences';
+import { SHORTCUTS } from '../workspace/shortcuts';
 import { useTheme } from '../workspace/theme';
+import { useDocumentInteraction } from './document-interaction';
+import { InlineComposer } from './inline-composer';
+import { ThreadCard } from './thread-card';
+import { useCodeFolds } from './use-code-folds';
 
 export type CodeEntry =
   | {
@@ -15,7 +57,13 @@ export type CodeEntry =
       fileDiff: FileDiffMetadata;
       version: number;
       note?: string;
-      review?: { path: string; control: ReactNode };
+      comment?: CommentTarget;
+      review?: {
+        path: string;
+        control: ReactNode;
+        reviewed?: boolean;
+        fingerprint?: string | null;
+      };
     }
   | {
       id: string;
@@ -24,45 +72,242 @@ export type CodeEntry =
       contents: string;
       version: number;
       note?: string;
-      review?: { path: string; control: ReactNode };
+      comment?: CommentTarget;
+      review?: {
+        path: string;
+        control: ReactNode;
+        reviewed?: boolean;
+        fingerprint?: string | null;
+      };
     };
 
-export function CodeDocument({
+type Note =
+  | { kind: 'thread'; thread: CommentThread; stale: boolean }
+  | { kind: 'composer'; anchor: CommentAnchor };
+type Props = {
+  entries: readonly CodeEntry[];
+  scope?: ReviewScope;
+  header?: () => ReactNode;
+  toolbar?: (collapseControl: ReactNode) => ReactNode;
+  commentRequest?: number;
+  disableFileHeader?: boolean;
+  onToggleReviewed?: (entry: CodeEntry) => void;
+};
+export function CodeDocument(props: Props) {
+  return props.scope ? (
+    <ConnectedCodeDocument {...props} scope={props.scope} />
+  ) : (
+    <CodeSurface {...props} threads={[]} />
+  );
+}
+function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
+  const { threads, error } = useComments(props.scope);
+  const mark = useMarkReviewed(props.scope);
+  const unmark = useUnmarkReviewed(props.scope);
+  const toggle = (entry: CodeEntry) => {
+    const review = entry.review;
+    if (!review?.fingerprint || mark.isPending || unmark.isPending) return;
+    const operation = review.reviewed
+      ? unmark.submit(review.path)
+      : mark.submit({ path: review.path, fingerprint: review.fingerprint });
+    void operation.catch((error: unknown) =>
+      toast.add({
+        title: 'Could not update review',
+        description: reviewErrorMessage(error),
+        type: 'error',
+      }),
+    );
+  };
+  return (
+    <>
+      {error && (
+        <p role="alert" className="px-3 text-xs text-destructive">
+          Comments could not be refreshed.
+        </p>
+      )}
+      <CodeSurface {...props} threads={threads} onToggleReviewed={toggle} />
+    </>
+  );
+}
+function CodeSurface({
   entries,
+  scope,
   header,
   toolbar,
-}: {
-  entries: readonly CodeEntry[];
-  header?: () => ReactNode;
-  toolbar?: () => ReactNode;
-}) {
+  threads,
+  commentRequest,
+  disableFileHeader = false,
+  onToggleReviewed,
+}: Props & { threads: readonly CommentThread[] }) {
   const { dark } = useTheme();
   const { preferences } = usePreferences();
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
-    () => new Set(),
+  const interaction = useDocumentInteraction();
+  const folds = useCodeFolds(interaction.storageKey);
+  const viewer = useRef<CodeViewHandle<Note, undefined>>(null);
+  const [composer, setComposer] = useState<{
+    id: string;
+    anchor: CommentAnchor;
+  } | null>(null);
+  const [selection, setSelection] = useState<CodeViewLineSelection | null>(
+    null,
+  );
+  const [focused, setFocused] = useState(0);
+  const [rangeError, setRangeError] = useState<string | null>(null);
+  const collapsed = new Set(
+    entries
+      .filter(
+        (entry) =>
+          composer?.id !== entry.id &&
+          folds.isCollapsed(
+            entry.id,
+            entries.length > 1 && entry.review?.reviewed,
+          ),
+      )
+      .map((entry) => entry.id),
+  );
+  const openFileComment = (entry: CodeEntry | undefined) => {
+    if (!entry?.comment || !scope) return;
+    setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
+    setComposer({ id: entry.id, anchor: { ...entry.comment, kind: 'file' } });
+    setSelection(null);
+  };
+  const closeComposer = () => {
+    setComposer(null);
+    setSelection(null);
+  };
+  const handledComment = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (
+      commentRequest === undefined ||
+      handledComment.current === commentRequest
+    )
+      return;
+    handledComment.current = commentRequest;
+    openFileComment(entries[0]);
+  });
+  const handledReveal = useRef<number | undefined>(undefined);
+  const reveal = interaction.reveal;
+  const revealEntry =
+    reveal &&
+    entries.find(
+      (entry) =>
+        entry.comment && matchesCommentTarget(reveal.anchor, entry.comment),
+    );
+  useEffect(() => {
+    if (!reveal || !revealEntry || handledReveal.current === reveal.nonce)
+      return;
+    if (collapsed.has(revealEntry.id)) {
+      folds.setCollapsed([revealEntry.id], false);
+      return;
+    }
+    const timer = requestAnimationFrame(() => {
+      const anchor = reveal.anchor;
+      const stale =
+        revealEntry.comment && commentIsStale(anchor, revealEntry.comment);
+      viewer.current?.scrollTo(
+        anchor.kind === 'codeRange' && !stale
+          ? {
+              type: 'line',
+              id: revealEntry.id,
+              lineNumber: anchor.startLine,
+              ...(revealEntry.kind === 'diff'
+                ? { side: anchor.side ?? 'additions' }
+                : {}),
+              align: 'center',
+            }
+          : { type: 'item', id: revealEntry.id, align: 'start' },
+      );
+      setFocused(entries.findIndex((entry) => entry.id === revealEntry.id));
+      handledReveal.current = reveal.nonce;
+    });
+    return () => cancelAnimationFrame(timer);
+  });
+  const focusEntry = (index: number) => {
+    const entry = entries[index];
+    if (!entry) return;
+    setFocused(index);
+    viewer.current?.scrollTo({ type: 'item', id: entry.id, align: 'start' });
+  };
+  const hotkeys = { enabled: interaction.active, ignoreInputs: true };
+  useHotkey(
+    SHORTCUTS.nextFile,
+    () => focusEntry(Math.min(focused + 1, entries.length - 1)),
+    hotkeys,
+  );
+  useHotkey(
+    SHORTCUTS.previousFile,
+    () => focusEntry(Math.max(focused - 1, 0)),
+    hotkeys,
+  );
+  useHotkey(
+    SHORTCUTS.commentOnFile,
+    () => openFileComment(entries[focused]),
+    hotkeys,
+  );
+  useHotkey(
+    SHORTCUTS.toggleReviewed,
+    () => {
+      const entry = entries[focused];
+      if (entry) onToggleReviewed?.(entry);
+    },
+    hotkeys,
   );
   const byId = useMemo(
     () => new Map(entries.map((entry) => [entry.id, entry])),
     [entries],
   );
-  const items = useMemo<CodeViewItem<undefined>[]>(
-    () =>
-      entries.map((entry) => {
-        const shared = {
-          id: entry.id,
-          collapsed: collapsed.has(entry.id),
-          version: entry.version * 2 + (collapsed.has(entry.id) ? 1 : 0),
+  const items: CodeViewItem<Note>[] = entries.map((entry) => {
+    const target = entry.comment;
+    const notes: Note[] = target
+      ? threads
+          .filter(
+            (thread) =>
+              matchesCommentTarget(thread.anchor, target) &&
+              (thread.anchor.comparison ||
+                entries.find(
+                  (candidate) =>
+                    candidate.comment &&
+                    matchesCommentTarget(thread.anchor, candidate.comment),
+                )?.id === entry.id),
+          )
+          .map((thread) => ({
+            kind: 'thread',
+            thread,
+            stale: commentIsStale(thread.anchor, target),
+          }))
+      : [];
+    if (composer?.id === entry.id)
+      notes.push({ kind: 'composer', anchor: composer.anchor });
+    const annotations = notes.map((note): DiffLineAnnotation<Note> => {
+      const anchor = note.kind === 'thread' ? note.thread.anchor : note.anchor;
+      const lineNumber =
+        anchor.kind === 'codeRange' && !(note.kind === 'thread' && note.stale)
+          ? anchor.endLine
+          : 0;
+      const side =
+        anchor.kind === 'codeRange'
+          ? (anchor.side ?? 'additions')
+          : 'additions';
+      return note.kind === 'thread'
+        ? { lineNumber, side, metadata: note }
+        : { lineNumber, side, metadata: note };
+    });
+    const shared = {
+      id: entry.id,
+      collapsed: collapsed.has(entry.id),
+      version: contentVersion(
+        JSON.stringify([entry.version, collapsed.has(entry.id), notes]),
+      ),
+      annotations,
+    };
+    return entry.kind === 'diff'
+      ? { ...shared, type: 'diff', fileDiff: entry.fileDiff }
+      : {
+          ...shared,
+          type: 'file',
+          file: { name: entry.path, contents: entry.contents },
         };
-        return entry.kind === 'diff'
-          ? { ...shared, type: 'diff' as const, fileDiff: entry.fileDiff }
-          : {
-              ...shared,
-              type: 'file' as const,
-              file: { name: entry.path, contents: entry.contents },
-            };
-      }),
-    [collapsed, entries],
-  );
+  });
   const firstReviewEntryByPath = useMemo(() => {
     const result = new Map<string, string>();
     for (const entry of entries) {
@@ -71,7 +316,7 @@ export function CodeDocument({
     }
     return result;
   }, [entries]);
-  const options = useMemo<CodeViewReactOptions<undefined, undefined>>(
+  const options = useMemo<CodeViewReactOptions<Note, undefined>>(
     () => ({
       theme: PIERRE_THEME,
       themeType: dark ? 'dark' : 'light',
@@ -79,28 +324,87 @@ export function CodeDocument({
       diffStyle: preferences.diffStyle,
       diffIndicators: 'classic',
       hunkSeparators: 'line-info',
-      stickyHeaders: true,
-      unsafeCSS: PIERRE_SURFACE_CSS,
-      layout: { paddingTop: 12, paddingBottom: 96, gap: 12 },
+      stickyHeaders: !disableFileHeader,
+      disableFileHeader,
+      enableLineSelection: true,
+      enableGutterUtility: scope !== undefined,
+      onLineClick: (_, context) =>
+        setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
+      onLineNumberClick: (_, context) =>
+        setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
+      onGutterUtilityClick: (range, context) => {
+        const entry = byId.get(context.item.id);
+        if (!entry?.comment || !scope) return;
+        const anchor = rangeAnchor(entry.comment, range);
+        if (!anchor) {
+          setRangeError('Select lines on one side of the comparison.');
+          return;
+        }
+        setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
+        setRangeError(null);
+        setComposer({ id: entry.id, anchor });
+        setSelection({ id: entry.id, range });
+      },
+      lineHoverHighlight: 'number',
+      unsafeCSS: `${PIERRE_SURFACE_CSS}${scope ? PIERRE_COMMENT_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : ''}`,
+      ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
+      layout: {
+        paddingTop: disableFileHeader ? 0 : 12,
+        paddingBottom: 160,
+        gap: 12,
+      },
     }),
-    [dark, preferences.diffStyle, preferences.lineOverflow],
+    [
+      dark,
+      preferences.diffStyle,
+      preferences.lineOverflow,
+      disableFileHeader,
+      scope,
+      byId,
+      entries,
+    ],
   );
   const allCollapsed =
     entries.length > 0 && entries.every((entry) => collapsed.has(entry.id));
 
   const setAllCollapsed = (next: boolean) =>
-    setCollapsed(next ? new Set(entries.map((entry) => entry.id)) : new Set());
-  const toggle = (id: string) =>
-    setCollapsed((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    folds.setCollapsed(
+      entries.map((entry) => entry.id),
+      next,
+    );
+  const toggle = (id: string) => {
+    setFocused(entries.findIndex((entry) => entry.id === id));
+    folds.setCollapsed([id], !collapsed.has(id));
+  };
+
+  const collapseControl =
+    entries.length > 1 ? (
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => setAllCollapsed(!allCollapsed)}
+      >
+        {allCollapsed ? 'Expand all' : 'Collapse all'}
+      </Button>
+    ) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {toolbar?.()}
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {rangeError && (
+        <p
+          role="status"
+          className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2 text-xs"
+        >
+          {rangeError}
+        </p>
+      )}
+      {toolbar
+        ? toolbar(collapseControl)
+        : collapseControl && (
+            <div className="flex shrink-0 justify-end px-3">
+              {collapseControl}
+            </div>
+          )}
       {entries.length === 0 && header && (
         <div
           className="min-h-0 flex-1 overflow-auto"
@@ -109,20 +413,53 @@ export function CodeDocument({
           {header()}
         </div>
       )}
-      {entries.length > 1 && (
-        <div className="flex shrink-0 justify-end border-b px-3 py-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setAllCollapsed(!allCollapsed)}
-          >
-            {allCollapsed ? 'Expand all' : 'Collapse all'}
-          </Button>
-        </div>
-      )}
       {entries.length > 0 && (
         <CodeView
+          ref={viewer}
           items={items}
+          selectedLines={selection}
+          onSelectedLinesChange={(next) => {
+            if (!composer) {
+              setSelection(next);
+              if (next)
+                setFocused(entries.findIndex((entry) => entry.id === next.id));
+            }
+          }}
+          renderAnnotation={(annotation) => {
+            const note = annotation.metadata;
+            if (!scope) return null;
+            return note.kind === 'composer' ? (
+              <InlineComposer
+                key={JSON.stringify(note.anchor)}
+                scope={scope}
+                anchor={note.anchor}
+                onClose={closeComposer}
+              />
+            ) : (
+              <div className="m-3 font-sans">
+                {note.stale && (
+                  <p className="mb-2 text-xs text-amber-700 dark:text-amber-300">
+                    Code changed since this comment
+                  </p>
+                )}
+                <ThreadCard scope={scope} thread={note.thread} />
+              </div>
+            );
+          }}
+          renderHeaderMetadata={(item) => {
+            const entry = byId.get(item.id);
+            return entry?.comment && scope ? (
+              <button
+                type="button"
+                aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-sans text-xs text-muted-foreground hover:bg-accent"
+                onClick={() => openFileComment(entry)}
+              >
+                <MessageSquarePlusIcon className="size-3.5" />
+                Comment
+              </button>
+            ) : null;
+          }}
           options={options}
           className="min-h-0 flex-1 overflow-auto"
           {...(header ? { renderCodeViewHeader: header } : {})}

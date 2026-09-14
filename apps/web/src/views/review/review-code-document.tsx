@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type {
   Change,
   Diff,
@@ -7,23 +8,28 @@ import type {
   ReviewScope,
 } from '../../domain/review';
 import { type Layers, orderReviewEvidence } from '../../domain/review';
+import { useComments } from '../../query/comments';
 import { useReviewEvidence } from '../../query/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { diffEntry, evidenceId, fileEntry } from './diff-entries';
-import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
+import { InlineComposer } from './inline-composer';
+import { ReviewedControl } from './reviewed-control';
+import { ThreadCard } from './thread-card';
 
 export function ReviewCodeDocument({
   scope,
   changes,
   files = [],
   header,
-  allowBulkReview = false,
+  commentRequest,
+  toolbar,
 }: {
   scope: ReviewScope;
   changes?: readonly Change[];
   files?: Layers['layers'][number]['files'];
   header?: () => ReactNode;
-  allowBulkReview?: boolean;
+  commentRequest?: number;
+  toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   // An omitted selection means the complete handoff. Selected views filter by
   // logical path, while the evidence query retains every comparison for that
@@ -51,7 +57,7 @@ export function ReviewCodeDocument({
     return reasons.length > 0 ? [{ item, reasons }] : [];
   });
   const entries = evidence.flatMap((item): CodeEntry[] =>
-    item.comparisons.flatMap((comparison) => {
+    item.comparisons.flatMap((comparison): CodeEntry[] => {
       const review = reviewControl(scope, item);
       if (comparison.content.kind === 'file')
         return [
@@ -63,6 +69,13 @@ export function ReviewCodeDocument({
               notes.get(item.path) ?? `${comparison.change.scope} · untracked`,
             ),
             review,
+            comment: {
+              filePath: item.path,
+              comparison: { kind: 'worktree', scope: 'untracked' },
+              ...(item.fingerprint
+                ? { contentFingerprint: item.fingerprint }
+                : {}),
+            },
           },
         ];
       if (comparison.content.kind !== 'diff') return [];
@@ -72,7 +85,25 @@ export function ReviewCodeDocument({
         toDiff(item, comparison.change, comparison.content),
       );
       const note = notes.get(item.path);
-      return entry ? [{ ...entry, ...(note ? { note } : {}), review }] : [];
+      return entry
+        ? [
+            {
+              ...entry,
+              ...(note ? { note } : {}),
+              review,
+              comment: {
+                filePath: item.path,
+                comparison: {
+                  kind: 'worktree',
+                  scope: comparison.change.scope,
+                },
+                ...(item.fingerprint
+                  ? { contentFingerprint: item.fingerprint }
+                  : {}),
+              },
+            },
+          ]
+        : [];
     }),
   );
   const renderedPaths = new Set(entries.map((entry) => entry.path));
@@ -86,6 +117,9 @@ export function ReviewCodeDocument({
                 evidence={unrenderable}
                 renderedPaths={renderedPaths}
                 scope={scope}
+                {...(entries.length === 0 && commentRequest !== undefined
+                  ? { commentRequest }
+                  : {})}
               />
             )}
           </>
@@ -94,17 +128,11 @@ export function ReviewCodeDocument({
 
   return (
     <CodeDocument
+      scope={scope}
+      {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
       {...(documentHeader ? { header: documentHeader } : {})}
-      {...(allowBulkReview
-        ? {
-            toolbar: () => (
-              <div className="flex shrink-0 justify-end border-b px-4 py-2">
-                <MarkAllReviewed scope={scope} entries={evidence} />
-              </div>
-            ),
-          }
-        : {})}
+      {...(toolbar ? { toolbar } : {})}
     />
   );
 }
@@ -112,6 +140,8 @@ export function ReviewCodeDocument({
 function reviewControl(scope: ReviewScope, item: ReviewEvidenceItem) {
   return {
     path: item.path,
+    fingerprint: item.fingerprint,
+    reviewed: item.reviewStatus === 'reviewed',
     control: (
       <ReviewedControl
         key={`review:${item.path}`}
@@ -157,11 +187,13 @@ function OmittedEvidence({
   evidence,
   renderedPaths,
   scope,
+  commentRequest,
 }: {
   evidence: ReadonlyArray<{
     item: ReviewEvidenceItem;
     reasons: readonly string[];
   }>;
+  commentRequest?: number;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
 }) {
@@ -170,7 +202,10 @@ function OmittedEvidence({
       <p className="text-xs font-medium">Not shown in the code preview</p>
       <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
         {evidence.map(({ item, reasons }) => (
-          <li key={item.path} className="flex min-w-0 items-center gap-2">
+          <li
+            key={item.path}
+            className="flex min-w-0 flex-wrap items-center gap-2"
+          >
             <span className="min-w-0 flex-1 truncate">{item.path}</span>
             <Badge
               variant="outline"
@@ -187,9 +222,63 @@ function OmittedEvidence({
                 compact
               />
             )}
+            {!renderedPaths.has(item.path) && (
+              <OmittedDiscussion
+                scope={scope}
+                path={item.path}
+                {...(commentRequest !== undefined ? { commentRequest } : {})}
+              />
+            )}
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+function OmittedDiscussion({
+  scope,
+  path,
+  commentRequest,
+}: {
+  scope: ReviewScope;
+  path: string;
+  commentRequest?: number;
+}) {
+  const { threads } = useComments(scope);
+  const [compose, setCompose] = useState(false);
+  const handled = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (commentRequest !== undefined && handled.current !== commentRequest) {
+      handled.current = commentRequest;
+      setCompose(true);
+    }
+  }, [commentRequest]);
+  const visible = threads.filter(
+    (thread) =>
+      thread.anchor.kind === 'file' &&
+      thread.anchor.filePath === path &&
+      !thread.anchor.revision,
+  );
+  return (
+    <>
+      <Button size="xs" variant="ghost" onClick={() => setCompose(true)}>
+        Comment on {path}
+      </Button>
+      {(visible.length > 0 || compose) && (
+        <div className="w-full space-y-2">
+          {visible.map((thread) => (
+            <ThreadCard key={thread.id} scope={scope} thread={thread} />
+          ))}
+          {compose && (
+            <InlineComposer
+              scope={scope}
+              anchor={{ kind: 'file', filePath: path }}
+              onClose={() => setCompose(false)}
+            />
+          )}
+        </div>
+      )}
+    </>
   );
 }

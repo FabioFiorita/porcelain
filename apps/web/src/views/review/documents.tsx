@@ -1,11 +1,13 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CopyIcon, FileDiffIcon, MessageSquarePlusIcon } from 'lucide-react';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { CommentAnchor, RevealComment } from '../../domain/comments';
 import type { DocumentRef } from '../../domain/documents';
+import { entryKey } from '../../domain/documents';
 import { historyRefLabel, ordinal } from '../../domain/history';
 import type { CommitChanges, ReviewScope } from '../../domain/review';
 import { changePath, reviewProgress, shortOid } from '../../domain/review';
@@ -20,19 +22,21 @@ import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
 import { ArtifactDocument } from './artifact-document';
 import { CodeDocument } from './code-document';
-import { commitEntry } from './diff-entries';
+import { commitEntry, fileEntry } from './diff-entries';
+import {
+  DocumentInteraction,
+  useDocumentInteraction,
+} from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
-import { FileComments } from './file-comments';
 import { FileTypeIcon } from './file-type-icon';
 import { HandoffSummary } from './handoff-artifact';
 import { HtmlFrame } from './html-frame';
 import { MarkdownView } from './markdown-view';
-import { SourcePreview } from './pierre-preview';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 import { MarkAllReviewed } from './reviewed-control';
 
-export type OpenDocument = (ref: DocumentRef) => void;
+export type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
 
 function ProgressPill({ done, total }: { done: number; total: number }) {
   return (
@@ -50,6 +54,31 @@ function ProgressPill({ done, total }: { done: number; total: number }) {
 }
 
 export function DocumentView({
+  scope,
+  document,
+  onOpen,
+  active = false,
+  reveal,
+}: {
+  scope: ReviewScope;
+  document: DocumentRef;
+  onOpen: OpenDocument;
+  active?: boolean;
+  reveal?: RevealComment | undefined;
+}) {
+  return (
+    <DocumentInteraction
+      value={{
+        active,
+        storageKey: `porcelain.folds.${scope.worktreeId}.${entryKey(document)}`,
+        reveal,
+      }}
+    >
+      <DocumentContent scope={scope} document={document} onOpen={onOpen} />
+    </DocumentInteraction>
+  );
+}
+function DocumentContent({
   scope,
   document,
   onOpen,
@@ -96,18 +125,21 @@ function HandoffDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DocumentToolbar
-        title={reviewBuilt ? 'Handoff' : 'Changes'}
-        subtitle={
-          reviewBuilt
-            ? `${layers.layers.length} ${layers.layers.length === 1 ? 'layer' : 'layers'} · ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
-            : `${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
-        }
-      >
-        <ProgressPill {...progress} />
-        <MarkAllReviewed scope={scope} entries={evidence} />
-      </DocumentToolbar>
       <ReviewCodeDocument
+        toolbar={(collapseControl) => (
+          <DocumentToolbar
+            title={reviewBuilt ? 'Handoff' : 'Changes'}
+            subtitle={
+              reviewBuilt
+                ? `${layers.layers.length} ${layers.layers.length === 1 ? 'layer' : 'layers'} · ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
+                : `${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
+            }
+          >
+            <ProgressPill {...progress} />
+            <MarkAllReviewed scope={scope} entries={evidence} />
+            {collapseControl}
+          </DocumentToolbar>
+        )}
         scope={scope}
         files={layers.layers.flatMap((layer) => layer.files)}
         header={() => (
@@ -163,14 +195,17 @@ function LayerDocument({
   const progress = reviewProgress(layerPaths, evidence);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DocumentToolbar
-        title={`${layers.layers.indexOf(layer) + 1}. ${layer.title}`}
-        subtitle={`Layer · ${layerPaths.length} ${layerPaths.length === 1 ? 'file' : 'files'}`}
-      >
-        <ProgressPill {...progress} />
-        <MarkAllReviewed scope={scope} entries={evidence} />
-      </DocumentToolbar>
       <ReviewCodeDocument
+        toolbar={(collapseControl) => (
+          <DocumentToolbar
+            title={`${layers.layers.indexOf(layer) + 1}. ${layer.title}`}
+            subtitle={`Layer · ${layerPaths.length} ${layerPaths.length === 1 ? 'file' : 'files'}`}
+          >
+            <ProgressPill {...progress} />
+            <MarkAllReviewed scope={scope} entries={evidence} />
+            {collapseControl}
+          </DocumentToolbar>
+        )}
         scope={scope}
         changes={changes}
         files={layer.files}
@@ -191,7 +226,7 @@ function LayerDocument({
 
 function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
   const { status } = useChanges(scope);
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentRequest, setCommentRequest] = useState<number>();
   const changes = status.changes.filter(
     (change) => changePath(change) === path,
   );
@@ -212,19 +247,17 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
         <Button
           size="sm"
           variant="ghost"
-          aria-expanded={commentsOpen}
-          onClick={() => setCommentsOpen((open) => !open)}
+          onClick={() => setCommentRequest(Date.now())}
         >
           <MessageSquarePlusIcon className="size-3.5" />
           Comment
         </Button>
       </DocumentToolbar>
-      {commentsOpen && (
-        <div className="shrink-0 border-b px-3.5 py-2">
-          <FileComments scope={scope} path={path} />
-        </div>
-      )}
-      <ReviewCodeDocument scope={scope} changes={changes} />
+      <ReviewCodeDocument
+        scope={scope}
+        changes={changes}
+        {...(commentRequest !== undefined ? { commentRequest } : {})}
+      />
     </div>
   );
 }
@@ -253,6 +286,7 @@ function FileDocument({
       scope={scope}
       path={path}
       text={file.text}
+      contentFingerprint={file.contentFingerprint}
       onOpen={onOpen}
     />
   );
@@ -265,11 +299,13 @@ function ReadableFileDocument({
   scope,
   path,
   text,
+  contentFingerprint,
   onOpen,
 }: {
   scope: ReviewScope;
   path: string;
   text: string;
+  contentFingerprint?: string | undefined;
   onOpen: OpenDocument;
 }) {
   const { preferences } = usePreferences();
@@ -279,7 +315,15 @@ function ReadableFileDocument({
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
   );
-  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentRequest, setCommentRequest] = useState<number>();
+  const { reveal } = useDocumentInteraction();
+  useEffect(() => {
+    if (
+      reveal?.anchor.comparison?.kind === 'file' &&
+      reveal.anchor.filePath === path
+    )
+      setMode('source');
+  }, [reveal, path]);
   const showingSource = kind === 'code' || mode === 'source';
 
   return (
@@ -304,8 +348,7 @@ function ReadableFileDocument({
           <Button
             size="sm"
             variant="ghost"
-            aria-expanded={commentsOpen}
-            onClick={() => setCommentsOpen((open) => !open)}
+            onClick={() => setCommentRequest(Date.now())}
           >
             <MessageSquarePlusIcon className="size-3.5" />
             Comment
@@ -322,11 +365,6 @@ function ReadableFileDocument({
           </Button>
         )}
       </FileToolbar>
-      {commentsOpen && showingSource && (
-        <div className="shrink-0 border-b px-3.5 py-2">
-          <FileComments scope={scope} path={path} />
-        </div>
-      )}
       {mode === 'rendered' && kind === 'markdown' ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <MarkdownView
@@ -343,7 +381,21 @@ function ReadableFileDocument({
           <HtmlFrame html={text} title={path} className="min-h-0 flex-1" />
         </div>
       ) : (
-        <SourcePreview path={path} contents={text} />
+        <CodeDocument
+          scope={scope}
+          disableFileHeader
+          entries={[
+            {
+              ...fileEntry(`file:${path}`, path, text),
+              comment: {
+                filePath: path,
+                comparison: { kind: 'file' },
+                ...(contentFingerprint ? { contentFingerprint } : {}),
+              },
+            },
+          ]}
+          {...(commentRequest !== undefined ? { commentRequest } : {})}
+        />
       )}
     </div>
   );
@@ -414,7 +466,19 @@ export function CommitDocument({
 }) {
   // A merge can be read against any of its parents; all other commits only
   // have the first parent (or the empty tree for a root commit).
-  const [parent, setParent] = useState(1);
+  const { reveal } = useDocumentInteraction();
+  const requestedParent =
+    reveal?.anchor.comparison?.kind === 'commit'
+      ? reveal.anchor.comparison.parent
+      : 1;
+  const [parentChoice, setParentChoice] = useState({
+    nonce: reveal?.nonce,
+    parent: requestedParent,
+  });
+  const parent =
+    parentChoice.nonce === reveal?.nonce
+      ? parentChoice.parent
+      : requestedParent;
   const [, startTransition] = useTransition();
   const commit = useCommit(scope, oid, parent);
   const history = useHistory(scope);
@@ -422,9 +486,21 @@ export function CommitDocument({
     () =>
       commit.changes.flatMap((change) => {
         const entry = commitEntry(oid, change);
-        return entry == null ? [] : [entry];
+        return entry == null
+          ? []
+          : [
+              {
+                ...entry,
+                id: `${entry.id}:${parent}`,
+                comment: {
+                  filePath: entry.path,
+                  revision: oid,
+                  comparison: { kind: 'commit' as const, parent },
+                },
+              },
+            ];
       }),
-    [commit, oid],
+    [commit, oid, parent],
   );
   const omitted = useMemo(
     () => commit.changes.filter((change) => commitEntry(oid, change) == null),
@@ -434,42 +510,51 @@ export function CommitDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DocumentToolbar
-        title={<span className="font-mono">{shortOid(oid)}</span>}
-        subtitle={`${commit.changes.length} file${commit.changes.length === 1 ? '' : 's'} changed`}
-      >
-        {commit.parentOids.length > 1 && (
-          // Keep the current diff visible while the other parent is loading.
-          <Tabs
-            value={String(parent)}
-            onValueChange={(value) =>
-              startTransition(() => setParent(Number(value)))
-            }
-          >
-            <TabsList className="h-7">
-              {commit.parentOids.map((parentOid, index) => (
-                <TabsTrigger
-                  key={parentOid}
-                  value={String(index + 1)}
-                  className="px-2 text-xs"
-                >
-                  {ordinal(index + 1)} parent ·{' '}
-                  <span className="font-mono">{shortOid(parentOid)}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => copyText(oid, 'commit id')}
-        >
-          <CopyIcon className="size-3.5" />
-          Copy id
-        </Button>
-      </DocumentToolbar>
       <CodeDocument
+        toolbar={(collapseControl) => (
+          <DocumentToolbar
+            title={<span className="font-mono">{shortOid(oid)}</span>}
+            subtitle={`${commit.changes.length} file${commit.changes.length === 1 ? '' : 's'} changed`}
+          >
+            {commit.parentOids.length > 1 && (
+              // Keep the current diff visible while the other parent is loading.
+              <Tabs
+                value={String(parent)}
+                onValueChange={(value) =>
+                  startTransition(() =>
+                    setParentChoice({
+                      nonce: reveal?.nonce,
+                      parent: Number(value),
+                    }),
+                  )
+                }
+              >
+                <TabsList className="h-7">
+                  {commit.parentOids.map((parentOid, index) => (
+                    <TabsTrigger
+                      key={parentOid}
+                      value={String(index + 1)}
+                      className="px-2 text-xs"
+                    >
+                      {ordinal(index + 1)} parent ·{' '}
+                      <span className="font-mono">{shortOid(parentOid)}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => copyText(oid, 'commit id')}
+            >
+              <CopyIcon className="size-3.5" />
+              Copy id
+            </Button>
+            {collapseControl}
+          </DocumentToolbar>
+        )}
+        scope={scope}
         entries={entries}
         header={() => (
           <CommitHeader

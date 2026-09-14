@@ -65,17 +65,9 @@ vi.mock('../../query/history', () => ({
 vi.mock('../workspace/preferences', () => ({
   usePreferences: () => ({ preferences: preferenceState }),
 }));
-vi.mock('./file-comments', () => ({
-  FileComments: () => null,
-}));
 vi.mock('./markdown-view', () => ({
   MarkdownView: ({ text }: { text: string }) => (
     <div data-testid="markdown-reader">{text}</div>
-  ),
-}));
-vi.mock('./pierre-preview', () => ({
-  SourcePreview: ({ path, contents }: { path: string; contents: string }) => (
-    <pre data-testid="source-view">{`${path}\n${contents}`}</pre>
   ),
 }));
 vi.mock('./html-frame', () => ({
@@ -87,13 +79,19 @@ vi.mock('./code-document', () => ({
   CodeDocument: ({
     entries,
     header,
+    toolbar,
   }: {
-    entries: Array<{ path: string }>;
+    entries: Array<{ path: string; contents?: string }>;
     header?: () => React.ReactNode;
+    toolbar?: (control: React.ReactNode) => React.ReactNode;
   }) => (
     <div data-testid="code-document">
+      {toolbar?.(null)}
       {entries.map((entry) => (
-        <span key={entry.path}>{entry.path}</span>
+        <span key={entry.path}>
+          {entry.path}
+          {entry.contents}
+        </span>
       ))}
       {header?.()}
     </div>
@@ -146,7 +144,7 @@ describe('file document display defaults', () => {
     preferenceState.markdownDefault = 'source';
     renderFile('README.md');
 
-    expect(screen.getByTestId('source-view')).toBeTruthy();
+    expect(screen.getByTestId('code-document')).toBeTruthy();
     expect(screen.queryByTestId('markdown-reader')).toBeNull();
   });
 
@@ -155,7 +153,7 @@ describe('file document display defaults', () => {
     renderFile('docs/index.html');
 
     expect(screen.getByTestId('html-preview')).toBeTruthy();
-    expect(screen.queryByTestId('source-view')).toBeNull();
+    expect(screen.queryByTestId('code-document')).toBeNull();
   });
 
   it('lets the reader switch to source without changing the default', async () => {
@@ -164,7 +162,7 @@ describe('file document display defaults', () => {
 
     expect(screen.getByTestId('markdown-reader')).toBeTruthy();
     await user.click(screen.getByRole('tab', { name: 'Source' }));
-    expect(screen.getByTestId('source-view')).toBeTruthy();
+    expect(screen.getByTestId('code-document')).toBeTruthy();
     expect(screen.queryByTestId('markdown-reader')).toBeNull();
   });
 
@@ -284,5 +282,5 @@ it('keeps the file header and copy action when text cannot be displayed', () => 
   expect(screen.getByText('This file is binary.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
-  expect(screen.queryByTestId('source-view')).toBeNull();
+  expect(screen.queryByTestId('code-document')).toBeNull();
 });

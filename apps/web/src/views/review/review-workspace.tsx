@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
+import type { RevealComment } from '../../domain/comments';
 import { entryKey, parseEntry } from '../../domain/documents';
 import type { Project } from '../../domain/inventory';
 import type { Artifact, Layers, Surface } from '../../domain/review';
@@ -98,9 +99,17 @@ export function ReviewWorkspace({
     { ignoreInputs: true },
   );
 
+  const [reveal, setReveal] = useState<
+    (RevealComment & { pane: PaneIndex; key: string }) | undefined
+  >();
   const open = useCallback<OpenDocument>(
-    (ref) => {
+    (ref, anchor) => {
       const key = entryKey(ref);
+      setReveal(
+        anchor
+          ? { anchor, nonce: Date.now(), pane: focusedPane, key }
+          : undefined,
+      );
       void navigate({
         search: (previous) =>
           focusedPane === 1
@@ -199,6 +208,7 @@ export function ReviewWorkspace({
         >
           <ReviewBoundary>
             <DocumentArea
+              reveal={reveal}
               scope={scope}
               worktreeId={worktree.id}
               entry={search.entry}
@@ -233,6 +243,7 @@ export function ReviewWorkspace({
 }
 
 function DocumentArea({
+  reveal,
   scope,
   worktreeId,
   entry,
@@ -253,6 +264,7 @@ function DocumentArea({
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
   onOpen: OpenDocument;
+  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
@@ -275,6 +287,7 @@ function DocumentArea({
   });
 
   const paneProps = (index: PaneIndex) => ({
+    reveal,
     index,
     layout,
     split: layout.split,
@@ -307,6 +320,7 @@ function DocumentArea({
 }
 
 function PaneView({
+  reveal,
   index,
   layout,
   split,
@@ -333,6 +347,7 @@ function PaneView({
   artifacts: readonly Artifact[];
   hasHandoff: boolean;
   onOpen: OpenDocument;
+  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
@@ -414,7 +429,17 @@ function PaneView({
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ReviewBoundary key={pane.active}>
-            <DocumentView scope={scope} document={document} onOpen={onOpen} />
+            <DocumentView
+              scope={scope}
+              document={document}
+              onOpen={onOpen}
+              active={focused}
+              reveal={
+                reveal?.pane === index && reveal.key === pane.active
+                  ? reveal
+                  : undefined
+              }
+            />
           </ReviewBoundary>
         </div>
       )}
@@ -428,6 +453,7 @@ function EmptyDocument({
 }: {
   hasHandoff: boolean;
   onOpen: OpenDocument;
+  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
 }) {
   return (
     <div className="grid min-h-0 flex-1 place-items-center p-8">

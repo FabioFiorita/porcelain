@@ -280,3 +280,41 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       }),
   ).toBe(2);
 });
+
+it('preserves comparison targets through storage and rejects mutable commit anchors', () => {
+  const store = new MemoryComments();
+  const comments = new CommentThreads(
+    store,
+    new MemoryInventory(),
+    () => 'new-id',
+  );
+  const anchor = {
+    kind: 'codeRange' as const,
+    filePath: 'a.ts',
+    startLine: 2,
+    endLine: 5,
+    side: 'deletions' as const,
+    comparison: { kind: 'commit' as const, parent: 2 },
+    revision: 'a'.repeat(40),
+  };
+  comments.execute({
+    kind: 'create',
+    worktreeId: 'worktree',
+    author: 'reviewer',
+    body: 'Second parent',
+    anchor,
+  });
+  expect(
+    comments.execute({ kind: 'list', worktreeId: 'worktree' })[0]?.anchor,
+  ).toEqual(anchor);
+  expect(() =>
+    comments.execute({
+      kind: 'create',
+      worktreeId: 'worktree',
+      author: 'reviewer',
+      body: 'Invalid',
+      anchor: { ...anchor, revision: 'HEAD' },
+    }),
+  ).toThrow();
+  expect(store.list('worktree')).toHaveLength(1);
+});

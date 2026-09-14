@@ -35,6 +35,9 @@ const evidence: ReviewEvidenceItem[] = [
   },
 ];
 
+vi.mock('../../query/comments', () => ({
+  useComments: () => ({ threads: [] }),
+}));
 vi.mock('../../query/review', () => ({
   useReviewEvidence: () => evidence,
   useMarkReviewed: () => ({

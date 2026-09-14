@@ -8,11 +8,27 @@ import { createMockStore } from '../../api/inventory/mock';
 import { createMockApi } from '../../api/mock-api';
 import type { CommentThread } from '../../domain/comments';
 import { createQueryClient } from '../../query/client';
+import { useComments } from '../../query/comments';
 import {
   useWorkspaceContext,
   WorkspaceProvider,
 } from '../../query/workspace-provider';
-import { FileComments } from './file-comments';
+import { ThreadCard } from './thread-card';
+
+function Discussion({
+  scope,
+}: {
+  scope: { projectId: string; worktreeId: string };
+}) {
+  const { threads } = useComments(scope);
+  return (
+    <section aria-label={scope.worktreeId}>
+      {threads.map((thread) => (
+        <ThreadCard key={thread.id} scope={scope} thread={thread} />
+      ))}
+    </section>
+  );
+}
 
 const scope = {
   projectId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
@@ -60,9 +76,7 @@ function seededThread(worktreeId = scope.worktreeId): CommentThread {
 
 function renderComments(
   store = createMockStore(),
-  children: ReactNode = (
-    <FileComments scope={scope} path="src/components/review-panel.tsx" />
-  ),
+  children: ReactNode = <Discussion scope={scope} />,
 ) {
   const queryClient = createQueryClient();
   render(
@@ -83,7 +97,7 @@ it('shows author identity, replies to a thread, and toggles resolution accessibl
   const user = userEvent.setup();
   renderComments(store);
 
-  await user.click(await screen.findByRole('button', { name: '1 comment' }));
+  await screen.findByText('Agent context for this file');
   expect(screen.getAllByText('Agent').length).toBeGreaterThan(0);
   expect(screen.getByText('Agent context for this file')).toBeTruthy();
 
@@ -110,7 +124,7 @@ it('preserves a failed reply draft and leaves resolution unchanged', async () =>
   const user = userEvent.setup();
   renderComments(store);
 
-  await user.click(await screen.findByRole('button', { name: '1 comment' }));
+  await screen.findByText('Agent context for this file');
   await user.click(screen.getByRole('button', { name: 'Reply' }));
   await user.type(screen.getByLabelText('Reply'), 'Retry this reply');
   store.commentsFailed = true;
@@ -137,51 +151,18 @@ it('keeps comment counts and cache updates isolated by worktree', async () => {
   renderComments(
     store,
     <>
-      <FileComments scope={scope} path="src/components/review-panel.tsx" />
-      <FileComments scope={otherScope} path="src/components/review-panel.tsx" />
+      <Discussion scope={scope} />
+      <Discussion scope={otherScope} />
     </>,
   );
 
-  expect(await screen.findByRole('button', { name: '1 comment' })).toBeTruthy();
-  expect(screen.getByRole('button', { name: '0 comments' })).toBeTruthy();
-  const commentButtons = screen.getAllByRole('button', { name: '1 comment' });
-  const firstCommentButton = commentButtons[0];
-  if (!firstCommentButton) throw new Error('Missing first comment button');
-  await user.click(firstCommentButton);
+  await screen.findByText('Agent context for this file');
   await user.click(screen.getByRole('button', { name: 'Reply' }));
   await user.type(screen.getByLabelText('Reply'), 'Only the first worktree');
   await user.click(screen.getByRole('button', { name: 'Post reply' }));
   await screen.findByText('Only the first worktree');
-  expect(screen.getByRole('button', { name: '0 comments' })).toBeTruthy();
+  expect(
+    screen.getByRole('region', { name: otherScope.worktreeId }).textContent,
+  ).toBe('');
   expect(store.comments[otherScope.worktreeId]).toBeUndefined();
-});
-
-it('does not show revisionless range comments without comparison identity', async () => {
-  const store = createMockStore();
-  store.comments[scope.worktreeId] = [
-    seededThread(),
-    {
-      ...seededThread(),
-      id: '00000000-0000-4000-8000-000000000003',
-      anchor: {
-        kind: 'codeRange',
-        filePath: 'src/components/review-panel.tsx',
-        startLine: 3,
-        endLine: 4,
-      },
-      messages: [
-        {
-          id: '00000000-0000-4000-8000-000000000004',
-          body: 'Ambiguous range comment',
-          author: 'agent',
-        },
-      ],
-    },
-  ];
-  const user = userEvent.setup();
-  renderComments(store);
-
-  await user.click(await screen.findByRole('button', { name: '1 comment' }));
-  expect(screen.getByText('Agent context for this file')).toBeTruthy();
-  expect(screen.queryByText('Ambiguous range comment')).toBeNull();
 });

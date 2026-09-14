@@ -230,10 +230,13 @@ describe('review index', () => {
     expect(document.querySelector('[data-slot="bubble"]')).toBeTruthy();
 
     await user.click(screen.getByTitle('Show in the code'));
-    expect(onOpen).toHaveBeenCalledWith({
-      kind: 'change',
-      path: 'src/components/review-panel.tsx',
-    });
+    expect(onOpen).toHaveBeenCalledWith(
+      {
+        kind: 'change',
+        path: 'src/components/review-panel.tsx',
+      },
+      commentState.threads[0]?.anchor,
+    );
 
     await user.click(screen.getByRole('button', { name: 'resolved 1' }));
     expect(screen.getByText('Looks good now.')).toBeTruthy();

@@ -8,6 +8,10 @@ export const SHORTCUTS = {
   surfaceReview: 'Alt+1',
   surfaceFiles: 'Alt+2',
   surfaceHistory: 'Alt+3',
+  nextFile: 'J',
+  previousFile: 'K',
+  toggleReviewed: 'R',
+  commentOnFile: 'C',
   nextTab: 'Alt+ArrowRight',
   previousTab: 'Alt+ArrowLeft',
   closeTab: 'Alt+W',
@@ -32,6 +36,15 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.openSettings, label: 'Settings' },
       { keys: SHORTCUTS.cycleAppearance, label: 'Cycle appearance' },
       { keys: SHORTCUTS.openShortcuts, label: 'Keyboard shortcuts' },
+    ],
+  },
+  {
+    title: 'Code review',
+    items: [
+      { keys: SHORTCUTS.nextFile, label: 'Next file' },
+      { keys: SHORTCUTS.previousFile, label: 'Previous file' },
+      { keys: SHORTCUTS.toggleReviewed, label: 'Toggle reviewed' },
+      { keys: SHORTCUTS.commentOnFile, label: 'Comment on file' },
     ],
   },
   {

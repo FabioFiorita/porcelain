@@ -1,21 +1,13 @@
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs';
 import type { Change, CommitChanges, Diff } from '../../domain/review';
 import { changePath } from '../../domain/review';
+import { contentVersion } from '../../lib/pierre';
 import type { CodeEntry } from './code-document';
 
 export const MAX_PARSED_DIFFS = 128;
 const parsedDiffs = new Map<string, FileDiffMetadata | null>();
 const parsedCommits = new WeakMap<object, FileDiffMetadata | null>();
 type OrdinaryChange = Extract<Change, { kind: string }>;
-
-function contentVersion(value: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 1;
-}
 
 export function evidenceId(change: Change) {
   return `change:${change.scope}:${changePath(change)}`;

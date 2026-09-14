@@ -72,3 +72,43 @@ it('requires message authors, keeps legacy timestamps optional, and accepts diff
     }).success,
   ).toBe(false);
 });
+
+it('keeps comparison identity and requires immutable revisions for commit comments', () => {
+  const anchor = {
+    kind: 'codeRange',
+    filePath: 'a.ts',
+    startLine: 2,
+    endLine: 4,
+    side: 'deletions',
+  };
+  const commit = {
+    ...anchor,
+    comparison: { kind: 'commit', parent: 2 },
+    revision: 'a'.repeat(40),
+  };
+  expect(commentAnchorSchema.parse(commit)).toEqual(commit);
+  for (const revision of [undefined, 'HEAD', 'main', 'a'.repeat(7)])
+    expect(commentAnchorSchema.safeParse({ ...commit, revision }).success).toBe(
+      false,
+    );
+  for (const parent of [0, -1, 1.5, 1001])
+    expect(
+      commentAnchorSchema.safeParse({
+        ...commit,
+        comparison: { kind: 'commit', parent },
+      }).success,
+    ).toBe(false);
+  expect(
+    commentAnchorSchema.safeParse({
+      ...commit,
+      comparison: { kind: 'worktree', scope: 'staged' },
+    }).success,
+  ).toBe(false);
+  for (const scope of ['staged', 'unstaged', 'untracked'])
+    expect(
+      commentAnchorSchema.safeParse({
+        ...anchor,
+        comparison: { kind: 'worktree', scope },
+      }).success,
+    ).toBe(true);
+});

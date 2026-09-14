@@ -18,6 +18,10 @@ export const textResponseSchema = z.object({
   encoding: z.literal('utf-8'),
   byteLength: z.number().int().nonnegative(),
   text: z.string(),
+  contentFingerprint: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
 });
 export type DirectoryResponse = z.infer<typeof directoryResponseSchema>;
 export type TextResponse = z.infer<typeof textResponseSchema>;

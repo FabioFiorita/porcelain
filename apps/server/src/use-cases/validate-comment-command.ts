@@ -29,7 +29,22 @@ function validAnchor(anchor: CommentThread['anchor']): boolean {
     anchor.side === undefined ||
     anchor.side === 'additions' ||
     anchor.side === 'deletions';
+  const comparison = anchor.comparison;
+  const validComparison =
+    comparison === undefined ||
+    (comparison.kind === 'commit'
+      ? Number.isInteger(comparison.parent) &&
+        comparison.parent >= 1 &&
+        comparison.parent <= 1000 &&
+        /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(anchor.revision ?? '')
+      : anchor.revision === undefined &&
+        (comparison.kind === 'file' ||
+          (comparison.kind === 'worktree' &&
+            (comparison.scope === 'staged' ||
+              comparison.scope === 'unstaged' ||
+              comparison.scope === 'untracked'))));
   return (
+    validComparison &&
     validPath &&
     validEvidence &&
     validSide &&

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
@@ -27,6 +28,11 @@ export class ReadTextFile {
     );
     await resolveReadableWorktree(this.store, this.git, worktreeId, signal);
     signal?.throwIfAborted();
-    return result;
+    return {
+      ...result,
+      contentFingerprint: createHash('sha256')
+        .update(result.text)
+        .digest('hex'),
+    };
   }
 }
