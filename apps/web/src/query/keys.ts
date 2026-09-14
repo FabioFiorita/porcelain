@@ -1,6 +1,8 @@
 import type { ReviewScope } from '../domain/review';
 
 export const queryKeys = {
+  commitModels: (environmentId: string) =>
+    ['commit-models', environmentId] as const,
   inventory: (environmentId: string) => ['inventory', environmentId] as const,
   reviewProject: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId] as const,

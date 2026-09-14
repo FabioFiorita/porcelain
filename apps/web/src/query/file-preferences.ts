@@ -28,7 +28,7 @@ function useFilePreferencesContext(projectId: string) {
   };
 }
 
-export function useFilePreferences(projectId: string) {
+function useFilePreferences(projectId: string) {
   const context = useFilePreferencesContext(projectId);
   return useSuspenseQuery({
     queryKey: context.key,
@@ -51,7 +51,7 @@ export function useHiddenPaths(projectId: string): ReadonlySet<string> {
 }
 
 /** Project-scoped writes are serialized so full server snapshots stay ordered. */
-export function useSetFilePreference(projectId: string) {
+function useSetFilePreference(projectId: string) {
   const context = useFilePreferencesContext(projectId);
   const client = useQueryClient();
   return asMutation(

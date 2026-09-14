@@ -12,7 +12,7 @@ import type { Status } from '../../domain/review';
 export type GitBranchStatus = NonNullable<Status['branch']>;
 export type GitActionStatus = Status;
 
-export type GitActionGroupId = 'commit' | 'sync' | 'stash';
+type GitActionGroupId = 'commit' | 'sync' | 'stash';
 
 export type GitActionOption = {
   readonly id: GitAction;

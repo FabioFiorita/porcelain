@@ -1,5 +1,6 @@
 /** One source for registered hotkeys and the list shown in the dialog. */
 export const SHORTCUTS = {
+  saveFile: 'Mod+S',
   toggleNavigator: 'Mod+B',
   toggleSidebar: 'Alt+Shift+R',
   cycleAppearance: 'Alt+Shift+D',
@@ -45,6 +46,7 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.previousFile, label: 'Previous file' },
       { keys: SHORTCUTS.toggleReviewed, label: 'Toggle reviewed' },
       { keys: SHORTCUTS.commentOnFile, label: 'Comment on file' },
+      { keys: SHORTCUTS.saveFile, label: 'Save file edits' },
     ],
   },
   {

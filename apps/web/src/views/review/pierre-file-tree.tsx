@@ -96,6 +96,7 @@ export function PierreFileTree({
     onSetHidden,
   };
   const modelRef = useRef<ReturnType<typeof useFileTree>['model'] | null>(null);
+  const syncing = useRef(false);
   const pendingCreate = useRef<{
     path: string;
     kind: 'file' | 'directory';
@@ -172,6 +173,7 @@ export function PierreFileTree({
     },
     onSelectionChange: ([path]) => {
       if (
+        !syncing.current &&
         path &&
         pendingCreate.current?.path.replace(/\/$/, '') !==
           path.replace(/\/$/, '') &&
@@ -213,18 +215,23 @@ export function PierreFileTree({
       if (!item?.isDirectory()) return false;
       return (item as FileTreeDirectoryHandle).isExpanded();
     });
-    model.resetPaths(paths);
-    const revealPaths = reveal.current.complete
-      ? []
-      : selectedDirectories(selected);
-    for (const path of [...expanded, ...revealPaths]) {
-      const item = model.getItem(path);
-      if (item?.isDirectory()) (item as FileTreeDirectoryHandle).expand();
-    }
-    const selectedItem = model.getItem(selected);
-    if (selectedItem && !selectedItem.isDirectory()) {
-      selectedItem.select();
-      reveal.current.complete = true;
+    syncing.current = true;
+    try {
+      model.resetPaths(paths);
+      const revealPaths = reveal.current.complete
+        ? []
+        : selectedDirectories(selected);
+      for (const path of [...expanded, ...revealPaths]) {
+        const item = model.getItem(path);
+        if (item?.isDirectory()) (item as FileTreeDirectoryHandle).expand();
+      }
+      const selectedItem = model.getItem(selected);
+      if (selectedItem && !selectedItem.isDirectory()) {
+        selectedItem.select();
+        reveal.current.complete = true;
+      }
+    } finally {
+      syncing.current = false;
     }
   }, [model, paths, selected]);
 

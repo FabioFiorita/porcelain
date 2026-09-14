@@ -39,20 +39,20 @@ export function anchorLabel(anchor: CommentAnchor): string {
     : `${sign}${anchor.startLine} to ${sign}${anchor.endLine}`;
 }
 
-export function threadStarter(thread: CommentThread): CommentAuthor {
+function threadStarter(thread: CommentThread): CommentAuthor {
   return thread.messages[0]?.author ?? 'reviewer';
 }
 
 export type ThreadState = 'agent-replied' | 'awaiting-agent' | 'resolved';
 
-export function threadState(thread: CommentThread): ThreadState {
+function threadState(thread: CommentThread): ThreadState {
   if (thread.resolved) return 'resolved';
   return thread.messages.at(-1)?.author === 'agent'
     ? 'agent-replied'
     : 'awaiting-agent';
 }
 
-export function threadStateLabel(thread: CommentThread): string {
+function threadStateLabel(thread: CommentThread): string {
   switch (threadState(thread)) {
     case 'resolved':
       return 'Resolved';
@@ -105,7 +105,7 @@ function ThreadStarter({ thread }: { thread: CommentThread }) {
 }
 
 /** One message rendered with the project's shadcn message and bubble primitives. */
-export function ThreadMessage({
+function ThreadMessage({
   message,
   wide = false,
 }: {

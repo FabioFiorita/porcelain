@@ -19,4 +19,5 @@ export type GitActionReceipt = GitActionScope &
     state: GitActionOutcome['state'] | 'running';
     acceptedAt: number;
     finishedAt?: number;
+    reviewLayersUpdated?: boolean;
   };

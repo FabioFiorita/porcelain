@@ -27,3 +27,10 @@ export const setReviewedRequestSchema = z.strictObject({
 export type ReviewedMark = z.infer<typeof reviewedMarkSchema>;
 export type ReviewedMarksResponse = z.infer<typeof reviewedMarksResponseSchema>;
 export type SetReviewedRequest = z.infer<typeof setReviewedRequestSchema>;
+
+export const reviewSummarySchema = z.strictObject({
+  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
+  pendingFiles: z.number().int().nonnegative(),
+  openThreads: z.number().int().nonnegative(),
+});
+export type ReviewSummary = z.infer<typeof reviewSummarySchema>;

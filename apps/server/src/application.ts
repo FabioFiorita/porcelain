@@ -19,6 +19,11 @@ import type {
 } from './models/artifact.ts';
 import type { CommentCommand, CommentThread } from './models/comment-thread.ts';
 import type {
+  CommitDraft,
+  CommitDraftInput,
+  CommitModel,
+} from './models/commit-draft.ts';
+import type {
   CommitReviewLayerRequest,
   CommitReviewLayers,
 } from './models/commit-review-layers.ts';
@@ -50,6 +55,12 @@ export interface Application {
     command: FileEdit,
     signal?: AbortSignal,
   ): Promise<FileEditResult>;
+  commitModels(signal?: AbortSignal): Promise<CommitModel[]>;
+  draftCommits(
+    scope: GitActionScope,
+    input: CommitDraftInput,
+    signal?: AbortSignal,
+  ): Promise<CommitDraft>;
   prepareFetch(
     scope: GitActionScope,
     input: Omit<Extract<GitActionIntent, { action: 'fetch' }>, 'action'>,
@@ -221,6 +232,10 @@ export interface Application {
     request: CommitReviewLayerRequest,
     signal?: AbortSignal,
   ): Promise<CommitReviewLayers>;
+  reviewSummary(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; pendingFiles: number; openThreads: number }>;
   reviewLayers(worktreeId: string): ReviewLayers;
   replaceReviewLayers(
     worktreeId: string,

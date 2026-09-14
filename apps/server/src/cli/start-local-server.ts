@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { CommitGenerator } from '../agents/interfaces/commit-generator.ts';
 import { startupSettingsSchema } from '../config/startup-settings.ts';
 import type { FileWriter } from '../filesystem/interfaces/file-writer.ts';
 import { createServer } from '../http/server.ts';
@@ -12,7 +13,10 @@ import { claimDataDirectory } from '../lifecycle/claim-data-directory.ts';
 export async function startLocalServer(
   settings: z.input<typeof startupSettingsSchema>,
   signal?: AbortSignal,
-  dependencies: { fileWriter?: FileWriter } = {},
+  dependencies: {
+    fileWriter?: FileWriter;
+    commitGenerator?: CommitGenerator;
+  } = {},
 ) {
   const { dataDirectory, token, port, host, webRoot } =
     startupSettingsSchema.parse(settings);
@@ -58,7 +62,10 @@ async function openOwnedServer(
   token: string,
   webRoot: string | undefined,
   signal?: AbortSignal,
-  dependencies: { fileWriter?: FileWriter } = {},
+  dependencies: {
+    fileWriter?: FileWriter;
+    commitGenerator?: CommitGenerator;
+  } = {},
 ) {
   try {
     return await createServer({

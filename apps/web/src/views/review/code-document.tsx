@@ -389,7 +389,7 @@ function CodeSurface({
     ) : null;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="@container/code relative flex min-h-0 flex-1 flex-col">
       {rangeError && (
         <p
           role="status"
@@ -464,44 +464,46 @@ function CodeSurface({
           className="min-h-0 flex-1 overflow-auto"
           {...(header ? { renderCodeViewHeader: header } : {})}
           renderHeaderPrefix={(item) => {
-            if (entries.length < 2) return null;
             const entry = byId.get(item.id);
             if (!entry) return null;
             const isCollapsed = collapsed.has(item.id);
+            const review = entry.review;
+            const control =
+              review && firstReviewEntryByPath.get(review.path) === entry.id
+                ? review.control
+                : null;
             return (
-              <button
-                type="button"
-                aria-expanded={!isCollapsed}
-                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
-                onClick={() => toggle(item.id)}
-                className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                {isCollapsed ? (
-                  <ChevronRightIcon className="size-3.5" />
-                ) : (
-                  <ChevronDownIcon className="size-3.5" />
+              <span className="flex items-center gap-1">
+                {entries.length > 1 && (
+                  <button
+                    type="button"
+                    aria-expanded={!isCollapsed}
+                    aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${entry.path}`}
+                    onClick={() => toggle(item.id)}
+                    className="-ml-1 grid size-5 place-items-center rounded-md font-sans text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRightIcon className="size-3.5" />
+                    ) : (
+                      <ChevronDownIcon className="size-3.5" />
+                    )}
+                  </button>
                 )}
-              </button>
+                {control}
+              </span>
             );
           }}
           renderHeaderFilenameSuffix={(item) => {
             const entry = byId.get(item.id);
             if (!entry) return null;
-            const review = entry.review;
-            const showControl =
-              review != null &&
-              firstReviewEntryByPath.get(review.path) === entry.id;
-            if (!entry.note && !showControl) return null;
-            return (
-              <span className="ml-2 inline-flex min-w-0 items-center gap-2 font-sans">
-                {entry.note && (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {entry.note}
-                  </span>
-                )}
-                {showControl && review.control}
+            return entry.note ? (
+              <span
+                className="ml-2 hidden max-w-48 truncate font-sans text-xs text-muted-foreground @min-[640px]/code:block"
+                title={entry.note}
+              >
+                {entry.note}
               </span>
-            );
+            ) : null;
           }}
         />
       )}

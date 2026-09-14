@@ -35,11 +35,11 @@ import { cn } from '@/lib/utils';
 import logo from '../../assets/logo.png';
 import type { Inventory, Project } from '../../domain/inventory';
 import { projectPath, worktreeLabel } from '../../domain/inventory';
+import type { ReviewSummary } from '../../domain/review';
 import { copyText } from './copy';
 import { SHORTCUTS } from './shortcuts';
 
 type Worktree = Project['worktrees'][number];
-type WorktreeSummary = { pendingFiles?: number; openThreads?: number };
 
 function worktreeDisplayLabel(worktree: Worktree) {
   return worktreeLabel(worktree.branch);
@@ -47,6 +47,7 @@ function worktreeDisplayLabel(worktree: Worktree) {
 
 type Props = {
   inventory: Inventory;
+  summaries?: ReadonlyMap<string, ReviewSummary>;
   selectedWorktreeId: string | undefined;
   onSelect: (id: string) => void;
   onOpenProject: () => void;
@@ -56,6 +57,7 @@ type Props = {
 
 export function ProjectNavigator({
   inventory,
+  summaries,
   selectedWorktreeId: selected,
   onSelect: select,
   onOpenProject: openProject,
@@ -104,6 +106,7 @@ export function ProjectNavigator({
             <ProjectSection
               key={project.id}
               project={project}
+              summaries={summaries}
               selected={selected}
               onSelect={select}
             />
@@ -140,10 +143,12 @@ export function ProjectNavigator({
 
 function ProjectSection({
   project,
+  summaries,
   selected,
   onSelect,
 }: {
   project: Project;
+  summaries: ReadonlyMap<string, ReviewSummary> | undefined;
   selected: string | null | undefined;
   onSelect: (id: string) => void;
 }) {
@@ -201,6 +206,7 @@ function ProjectSection({
             <WorktreeRow
               key={worktree.id}
               worktree={worktree}
+              summary={summaries?.get(worktree.id)}
               projectName={project.name}
               selected={selected === worktree.id}
               onSelect={onSelect}
@@ -214,11 +220,13 @@ function ProjectSection({
 
 function WorktreeRow({
   worktree,
+  summary,
   projectName,
   selected,
   onSelect,
 }: {
   worktree: Worktree;
+  summary: ReviewSummary | undefined;
   projectName: string;
   selected: boolean;
   onSelect: (id: string) => void;
@@ -228,8 +236,6 @@ function WorktreeRow({
     : worktree.branch === null
       ? GitCommitHorizontalIcon
       : GitBranchIcon;
-  const summary = (worktree as Worktree & { reviewSummary?: WorktreeSummary })
-    .reviewSummary;
   const pending = summary?.pendingFiles ?? 0;
   const openThreads = summary?.openThreads ?? 0;
 

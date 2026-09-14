@@ -166,6 +166,7 @@ function ScopedFileNavigation({
           size="icon-sm"
           variant="ghost"
           aria-label="New file"
+          disabled={edit.isPending}
           onClick={() =>
             setCreating({ kind: 'file', folder: '', nonce: Date.now() })
           }
@@ -176,6 +177,7 @@ function ScopedFileNavigation({
           size="icon-sm"
           variant="ghost"
           aria-label="New folder"
+          disabled={edit.isPending}
           onClick={() =>
             setCreating({ kind: 'directory', folder: '', nonce: Date.now() })
           }
@@ -189,9 +191,9 @@ function ScopedFileNavigation({
           (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
         )}
         creating={creating}
-        onStartCreate={(kind, folder) =>
-          setCreating({ kind, folder, nonce: Date.now() })
-        }
+        onStartCreate={(kind, folder) => {
+          if (!edit.isPending) setCreating({ kind, folder, nonce: Date.now() });
+        }}
         onCreate={async (path, entryKind) => {
           await edit.submit({
             kind: 'create',

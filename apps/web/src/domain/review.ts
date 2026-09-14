@@ -5,8 +5,6 @@ import type {
 import type { CommitChangesResponse } from '@porcelain/contracts/commit-changes';
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
-  EvidenceComparison as EvidenceComparisonResponse,
-  EvidenceContent as EvidenceContentResponse,
   EvidenceResponse as EvidenceResponseContract,
   ReviewEvidence as ReviewEvidenceResponse,
 } from '@porcelain/contracts/evidence';
@@ -33,12 +31,8 @@ export type ArtifactContent = ArtifactContentResponse;
 export type Status = GitStatusResponse;
 export type Layers = ReturnType<typeof reviewLayersResponseSchema.parse>;
 export type Change = Status['changes'][number];
-export type OrdinaryChange = Extract<Change, { kind: string }>;
 export type EvidenceResponse = EvidenceResponseContract;
 export type Evidence = ReviewEvidenceResponse;
-export type ReviewEvidence = Evidence;
-export type EvidenceComparison = EvidenceComparisonResponse;
-export type EvidenceContent = EvidenceContentResponse;
 export type ReviewedMark = ReviewedMarkResponse;
 export type ReviewedMarksResponse = ReviewedMarksResponseContract;
 export type SetReviewedRequest = SetReviewedRequestContract;
@@ -52,13 +46,8 @@ export type ReviewEvidenceItem = Evidence & {
   mark?: ReviewedMark;
 };
 export type ReviewScope = { projectId: string; worktreeId: string };
-export const SURFACES = ['changes', 'files', 'history'] as const;
+const SURFACES = ['changes', 'files', 'history'] as const;
 export type Surface = (typeof SURFACES)[number];
-export const SURFACE_LABELS: Record<Surface, string> = {
-  changes: 'Changes',
-  files: 'Files',
-  history: 'History',
-};
 export function isSurface(value: unknown): value is Surface {
   return SURFACES.some((surface) => surface === value);
 }
@@ -67,7 +56,7 @@ export function changePath(change: Change) {
     ? change.path
     : (change.newPath ?? change.oldPath ?? '');
 }
-export function changeKey(change: Change) {
+function changeKey(change: Change) {
   return JSON.stringify([change.scope, changePath(change)]);
 }
 
@@ -183,8 +172,10 @@ export type DiffRequest = GitDiffRequest;
 export type Diff = GitDiffResponse;
 export type CommitChanges = CommitChangesResponse;
 
+export type { CommitReviewLayersResponse as CommitReviewLayers } from '@porcelain/contracts/commit-review-layers';
 export type {
   FileEdit,
   FileEditResult,
   FileTree,
 } from '@porcelain/contracts/files';
+export type { ReviewSummary } from '@porcelain/contracts/reviewed-files';

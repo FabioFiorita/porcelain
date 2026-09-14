@@ -14,6 +14,7 @@ import { PIERRE_SURFACE_CSS, PIERRE_THEME } from '../../lib/pierre';
 import { reviewErrorMessage } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
+import { SHORTCUTS } from '../workspace/shortcuts';
 import { useTheme } from '../workspace/theme';
 
 const createEditor: EditorFactory<undefined, undefined> = (
@@ -47,7 +48,7 @@ export function FileEditor({
   const [file] = useState(() => ({ name: path, contents: state.text }));
   const dirty = state.text !== state.savedText;
   const save = () => void draft.save();
-  useHotkey('Mod+S', save, { enabled: active, ignoreInputs: false });
+  useHotkey(SHORTCUTS.saveFile, save, { enabled: active, ignoreInputs: false });
   useEffect(() => {
     if (state.text === state.savedText || state.error || state.saving) return;
     const timer = setTimeout(() => void draft.save(), 3000);

@@ -11,9 +11,7 @@ import {
 } from '@tanstack/react-query';
 import type { ReviewPort, ReviewRequest } from '../api/review/port';
 import type {
-  ArtifactContent,
   Change,
-  DiffRequest,
   EvidenceResponse,
   ReviewEvidenceItem,
   ReviewedMarksResponse,
@@ -35,10 +33,12 @@ function useReviewData<T>(
   scope: ReviewScope,
   key: readonly unknown[],
   read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
+  refetchInterval: number | false = false,
 ) {
   const { api, connection } = useConnectedContext();
   return useSuspenseQuery({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, key),
+    refetchInterval,
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
       const data = await read(api.review, { ...scope, ...request });
@@ -135,24 +135,17 @@ export function useArtifactsOverview(scope: ReviewScope) {
   );
 }
 
-export function useEvidence(scope: ReviewScope) {
+function useEvidence(scope: ReviewScope) {
   return useReviewData<EvidenceResponse>(scope, ['evidence'], (api, request) =>
     api.evidence(request),
   );
 }
 
-export function useReviewed(scope: ReviewScope) {
+function useReviewed(scope: ReviewScope) {
   return useReviewData<ReviewedMarksResponse>(
     scope,
     ['reviewed'],
     (api, request) => api.reviewed.list(request),
-  );
-}
-export function useArtifact(scope: ReviewScope, artifactId: string) {
-  return useReviewData<ArtifactContent>(
-    scope,
-    ['artifact', artifactId],
-    (api, request) => api.artifact({ ...request, artifactId }),
   );
 }
 
@@ -190,7 +183,7 @@ export function reviewErrorMessage(error: unknown) {
 export function useReviewReset() {
   return useQueryErrorResetBoundary();
 }
-export function useTextFile(scope: ReviewScope, path: string) {
+export function useTextFile(scope: ReviewScope, path: string, active: boolean) {
   return useReviewData<TextFile | { kind: 'unreadable'; reason: string }>(
     scope,
     ['text', path],
@@ -214,16 +207,12 @@ export function useTextFile(scope: ReviewScope, path: string) {
         throw error;
       }
     },
+    active ? 3000 : false,
   );
 }
 export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
   return useReviewData(scope, ['commit', oid, parent], (api, request) =>
     api.commit({ ...request, oid, ...(parent === 1 ? {} : { parent }) }),
-  );
-}
-export function useDiff(scope: ReviewScope, input: DiffRequest) {
-  return useReviewData(scope, ['diff', input], (api, request) =>
-    api.diff({ ...request, input }),
   );
 }
 
@@ -335,6 +324,10 @@ export function useMarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           await client.cancelQueries({ queryKey: context.key });
           client.setQueryData(context.key, result);
+          void client.invalidateQueries({
+            queryKey: [...context.key.slice(0, -1), 'summary'],
+            exact: true,
+          });
           return result;
         }),
     }),
@@ -353,6 +346,10 @@ export function useUnmarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           await client.cancelQueries({ queryKey: context.key });
           client.setQueryData(context.key, result);
+          void client.invalidateQueries({
+            queryKey: [...context.key.slice(0, -1), 'summary'],
+            exact: true,
+          });
           return result;
         }),
     }),
@@ -416,6 +413,10 @@ export function useMarkAllReviewed(scope: ReviewScope) {
               // shared queue keeps newer mutation intent ahead of delayed
               // responses from older operations.
               client.setQueryData(context.key, result);
+              void client.invalidateQueries({
+                queryKey: [...context.key.slice(0, -1), 'summary'],
+                exact: true,
+              });
               return result;
             });
             report.marked.push(entry.path);
@@ -436,5 +437,11 @@ export function useMarkAllReviewed(scope: ReviewScope) {
 export function useFileTree(scope: ReviewScope) {
   return useReviewData(scope, ['file-tree'], (api, request) =>
     api.fileTree(request),
+  );
+}
+
+export function useCommitLayers(scope: ReviewScope, oid: string) {
+  return useReviewData(scope, ['commit-layers', oid], (api, request) =>
+    api.commitLayers({ ...request, oid }),
   );
 }

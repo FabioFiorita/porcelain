@@ -1,4 +1,9 @@
 import {
+  type commitDraftRequestSchema,
+  commitDraftResponseSchema,
+  commitModelsSchema,
+} from '@porcelain/contracts/commit-draft';
+import {
   gitActionPreparationSchema,
   gitActionReceiptSchema,
 } from '@porcelain/contracts/git-actions';
@@ -19,7 +24,7 @@ export function createGitActionsClient(
   endpoint: string,
 ) {
   async function send<T>(
-    request: Request,
+    request: Pick<Request, 'token' | 'signal'>,
     path: string,
     schema: { parse: (value: unknown) => T },
     body?: unknown,
@@ -45,7 +50,12 @@ export function createGitActionsClient(
       )
         return schema.parse(value);
       throw new ConnectionError(
-        'Git could not complete this request. Check the current state before continuing.',
+        typeof value === 'object' &&
+          value !== null &&
+          'message' in value &&
+          typeof value.message === 'string'
+          ? value.message
+          : 'Git could not complete this request. Check the current state before continuing.',
       );
     } catch (error) {
       if (request.signal.aborted || error instanceof ConnectionError)
@@ -59,6 +69,19 @@ export function createGitActionsClient(
   const prefix = (request: Request) =>
     `/projects/${encodeURIComponent(request.projectId)}/worktrees/${encodeURIComponent(request.worktreeId)}/git`;
   return {
+    models: (request: Pick<Request, 'token' | 'signal'>) =>
+      send(request, '/git/commit-models', commitModelsSchema),
+    draft: (
+      request: Request & {
+        input: ReturnType<typeof commitDraftRequestSchema.parse>;
+      },
+    ) =>
+      send(
+        request,
+        `${prefix(request)}/commit-draft`,
+        commitDraftResponseSchema,
+        request.input,
+      ),
     prepare: (request: Request & { action: Action; input: unknown }) =>
       send(
         request,

@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 export type Preferences = {
+  commitModel: string;
   appearance: 'system' | 'light' | 'dark';
   diffStyle: 'unified' | 'split';
   lineOverflow: 'scroll' | 'wrap';
@@ -18,9 +19,10 @@ export type Preferences = {
 };
 
 /** Preferences are deliberately device-local until the server exposes a contract. */
-export const PREFERENCES_STORAGE_KEY = 'porcelain.prototype.preferences';
+const PREFERENCES_STORAGE_KEY = 'porcelain.prototype.preferences';
 
-export const DEFAULT_PREFERENCES: Preferences = {
+const DEFAULT_PREFERENCES: Preferences = {
+  commitModel: '',
   appearance: 'system',
   diffStyle: 'unified',
   lineOverflow: 'scroll',
@@ -53,6 +55,11 @@ function readPreferences(): Preferences {
     if (value == null || typeof value !== 'object') return DEFAULT_PREFERENCES;
     const stored = value as Record<string, unknown>;
     return {
+      commitModel:
+        typeof stored.commitModel === 'string' &&
+        stored.commitModel.length <= 160
+          ? stored.commitModel
+          : '',
       appearance: appearanceValues.has(
         stored.appearance as Preferences['appearance'],
       )

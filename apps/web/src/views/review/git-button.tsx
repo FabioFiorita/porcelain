@@ -48,6 +48,7 @@ const plural = (count: number, noun: string) =>
  */
 export function GitButton({ scope }: { scope: ReviewScope }) {
   const overview = useReviewOverview(scope);
+  const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
   if (overview == null) return null;
   const { status } = overview;
@@ -167,11 +168,15 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
       {action != null && (
         <Dialog
           open
+          disablePointerDismissal
           onOpenChange={(open) => {
-            if (!open) setAction(null);
+            if (!open && !busy) setAction(null);
           }}
         >
-          <DialogContent className="max-h-[min(90svh,48rem)] overflow-y-auto sm:max-w-2xl">
+          <DialogContent
+            aria-busy={busy}
+            className="max-h-[min(90svh,48rem)] overflow-y-auto sm:max-w-2xl"
+          >
             <DialogHeader>
               <DialogTitle>
                 {selected?.id === 'commit'
@@ -184,7 +189,12 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
                   : 'Prepare and review the operation before confirming it.'}
               </DialogDescription>
             </DialogHeader>
-            <GitActionInspection scope={scope} entry={action} status={status} />
+            <GitActionInspection
+              scope={scope}
+              entry={action}
+              status={status}
+              onBusy={setBusy}
+            />
           </DialogContent>
         </Dialog>
       )}

@@ -5,6 +5,7 @@ import { UnsupportedGitFiltersError } from '@porcelain/git/errors/unsupported-gi
 import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-path-encoding-error';
 import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { CommitDraftError } from '../../use-cases/errors/commit-draft-error.ts';
 import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
@@ -14,6 +15,11 @@ import { toHistoryErrorResponse } from './history-error-response.ts';
 import { toStorageErrorResponse } from './storage-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof CommitDraftError)
+    return {
+      statusCode: 422,
+      body: { code: 'COMMIT_DRAFT_UNAVAILABLE', message: error.message },
+    };
   if (error instanceof UnsupportedGitFiltersError)
     return {
       statusCode: 422,

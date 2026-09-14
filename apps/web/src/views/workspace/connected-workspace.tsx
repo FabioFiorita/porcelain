@@ -23,7 +23,9 @@ import {
   firstAvailableWorktree,
   selectedWorktreeInProject,
 } from '../../domain/inventory';
+import type { ReviewSummary } from '../../domain/review';
 import { useInventory } from '../../query/inventory';
+import { useReviewSummaries } from '../../query/review-summaries';
 import { ReviewWorkspace } from '../review/review-workspace';
 import { OpenProjectDialog } from './open-project-dialog';
 import { ProjectNavigator } from './project-navigator';
@@ -60,7 +62,11 @@ function WorkspaceNavigation() {
   const navigate = useNavigate({ from: '/' });
   const inventory = useInventory();
   const selection = selectedWorktreeInProject(inventory, selected);
-  const fallback = firstWaitingWorktree(inventory);
+  const { summaries, pending: summariesPending } =
+    useReviewSummaries(inventory);
+  const fallback = summariesPending
+    ? undefined
+    : firstWaitingWorktree(inventory, summaries);
 
   useEffect(() => {
     if (selection || !fallback) return;
@@ -90,6 +96,7 @@ function WorkspaceNavigation() {
           navigationTrigger={navigationTrigger}
           selectedWorktreeId={selected}
           inventory={inventory}
+          summaries={summaries}
           setOpenMobile={setOpenMobile}
           onSelectWorktree={(id) => {
             void navigate({ search: { worktree: id } });
@@ -104,6 +111,7 @@ function WorkspaceNavigation() {
         selection={selection}
         selectedWorktreeId={selected}
         inventory={inventory}
+        summaries={summaries}
         isMobile={isMobile}
         open={open}
         openMobile={openMobile}
@@ -128,6 +136,7 @@ type NavigationProps = {
   selection: Selection;
   selectedWorktreeId: string | undefined;
   inventory: ReturnType<typeof useInventory>;
+  summaries: ReadonlyMap<string, ReviewSummary>;
   isMobile: boolean;
   open: boolean;
   openMobile: boolean;
@@ -141,6 +150,7 @@ function MobileNavigation({
   navigationTrigger,
   selectedWorktreeId,
   inventory,
+  summaries,
   setOpenMobile,
   onSelectWorktree,
   openProject,
@@ -151,6 +161,7 @@ function MobileNavigation({
   | 'navigationTrigger'
   | 'selectedWorktreeId'
   | 'inventory'
+  | 'summaries'
   | 'onSelectWorktree'
   | 'openProject'
   | 'openSettings'
@@ -164,6 +175,7 @@ function MobileNavigation({
     >
       <ProjectNavigator
         inventory={inventory}
+        summaries={summaries}
         selectedWorktreeId={selectedWorktreeId}
         onOpenProject={openProject}
         onOpenSettings={openSettings}
@@ -182,6 +194,7 @@ function WorkspaceShell({
   selection,
   selectedWorktreeId,
   inventory,
+  summaries,
   isMobile,
   open,
   openMobile,
@@ -203,6 +216,7 @@ function WorkspaceShell({
             >
               <ProjectNavigator
                 inventory={inventory}
+                summaries={summaries}
                 selectedWorktreeId={selectedWorktreeId}
                 onOpenProject={openProject}
                 onOpenSettings={openSettings}
@@ -276,15 +290,16 @@ function WorkspaceDocument({
   );
 }
 
-function firstWaitingWorktree(inventory: ReturnType<typeof useInventory>) {
+function firstWaitingWorktree(
+  inventory: ReturnType<typeof useInventory>,
+  summaries: ReadonlyMap<string, ReviewSummary>,
+) {
   const worktrees = inventory.projects.flatMap((project) => project.worktrees);
-  const waiting = worktrees.find((worktree) => {
-    const summary = (
-      worktree as typeof worktree & {
-        reviewSummary?: { pendingFiles?: number };
-      }
-    ).reviewSummary;
-    return worktree.available && (summary?.pendingFiles ?? 0) > 0;
-  });
-  return waiting ?? firstAvailableWorktree(inventory);
+  return (
+    worktrees.find(
+      (worktree) =>
+        worktree.available &&
+        (summaries.get(worktree.id)?.pendingFiles ?? 0) > 0,
+    ) ?? firstAvailableWorktree(inventory)
+  );
 }

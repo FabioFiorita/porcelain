@@ -92,6 +92,123 @@ describe('Git actions HTTP', () => {
     await rm(root, { recursive: true, force: true });
   });
 
+  it('counts current unreviewed files and unresolved comments in the review summary', async () => {
+    const worktreeId = prefix.split('/')[4];
+    const url = `/worktrees/${worktreeId}`;
+    await writeFile(join(checkout, 'file'), 'review me\n');
+    const readSummary = async () =>
+      (await server.inject({ url: `${url}/review-summary`, headers })).json();
+    expect(await readSummary()).toMatchObject({
+      pendingFiles: 1,
+      openThreads: 0,
+    });
+    const evidence = (
+      await server.inject({ url: `${url}/evidence`, headers })
+    ).json();
+    const mark = await server.inject({
+      method: 'PUT',
+      url: `${url}/reviewed`,
+      headers,
+      payload: {
+        path: 'file',
+        reviewed: true,
+        fingerprint: evidence.evidence[0].fingerprint,
+      },
+    });
+    expect(mark.statusCode, mark.body).toBe(200);
+    expect(await readSummary()).toMatchObject({ pendingFiles: 0 });
+    await writeFile(join(checkout, 'file'), 'changed since review\n');
+    const comment = await server.inject({
+      method: 'POST',
+      url: `${url}/comments`,
+      headers,
+      payload: {
+        body: 'Please explain',
+        anchor: { kind: 'file', filePath: 'file' },
+      },
+    });
+    expect(comment.statusCode, comment.body).toBe(200);
+    expect(await readSummary()).toMatchObject({
+      pendingFiles: 1,
+      openThreads: 1,
+    });
+  });
+
+  it.each([false, true])(
+    'archives committed layer notes and preserves remaining review work (selected: %s)',
+    async (selected) => {
+      await writeFile(join(checkout, 'file'), 'staged\n');
+      await git('add', 'file');
+      await writeFile(join(checkout, 'file'), 'unstaged\n');
+      await writeFile(join(checkout, 'other'), 'remaining\n');
+      const worktreeId = prefix.split('/')[4];
+      const projectId = prefix.split('/')[2];
+      const layerUrl = `/worktrees/${worktreeId}/review-layers`;
+      const layerId = randomUUID();
+      const files = [
+        { path: 'file', scope: 'staged', note: 'Staged explanation' },
+        { path: 'file', scope: 'unstaged', note: 'Working explanation' },
+        { path: 'other', scope: 'unstaged', note: 'Remaining explanation' },
+      ];
+      const written = await server.inject({
+        method: 'PUT',
+        url: layerUrl,
+        headers,
+        payload: {
+          expectedRevision: 0,
+          layers: [
+            {
+              id: layerId,
+              title: 'Review intent',
+              summary: 'Why this changes',
+              files,
+            },
+          ],
+        },
+      });
+      expect(written.statusCode, written.body).toBe(200);
+      const preparationId = await preparation('commit', {
+        message: 'Reviewed change',
+        ...(selected ? { paths: ['file'] } : {}),
+      });
+      const requestId = randomUUID();
+      await server.inject({
+        method: 'POST',
+        url: `${prefix}/commit`,
+        headers,
+        payload: { preparationId, requestId },
+      });
+      const completed = await outcome(requestId);
+      expect(completed).toMatchObject({
+        state: 'succeeded',
+        reviewLayersUpdated: true,
+      });
+      const oid = await git('rev-parse', 'HEAD');
+      const snapshotUrl = `/projects/${projectId}/commits/${oid}/review-layers`;
+      const snapshot = await server.inject({ url: snapshotUrl, headers });
+      expect(snapshot.statusCode, snapshot.body).toBe(200);
+      expect(snapshot.json().layers[0]).toMatchObject({
+        title: 'Review intent',
+        summary: 'Why this changes',
+        files: selected ? files.slice(0, 2) : files.slice(0, 1),
+      });
+      const remaining = await server.inject({ url: layerUrl, headers });
+      expect(remaining.json()).toMatchObject({
+        revision: 2,
+        layers: [{ files: selected ? files.slice(2) : files.slice(1) }],
+      });
+      await server.inject({
+        method: 'PUT',
+        url: layerUrl,
+        headers,
+        payload: { expectedRevision: 2, layers: [] },
+      });
+      expect(
+        (await server.inject({ url: snapshotUrl, headers })).json(),
+      ).toEqual(snapshot.json());
+    },
+  );
+
   it('authenticates and validates before preparing or launching Git actions', async () => {
     expect(
       (

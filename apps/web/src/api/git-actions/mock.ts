@@ -18,6 +18,15 @@ export function createGitActionsMock(
   >();
   const receipts = new Map<string, Receipt>();
   return {
+    async models() {
+      return [{ id: 'fixture:default', label: 'Fixture model' }];
+    },
+    async draft({ input }) {
+      return {
+        groups: [{ message: 'Review workspace changes', paths: input.paths }],
+        expectedFiles: [],
+      };
+    },
     async prepare(request) {
       request.signal.throwIfAborted();
       const data = store.review[request.worktreeId];

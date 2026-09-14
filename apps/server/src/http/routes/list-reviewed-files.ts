@@ -1,6 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { gitWorktreeParamsSchema } from '@porcelain/contracts/git-status';
-import { reviewedMarksResponseSchema } from '@porcelain/contracts/reviewed-files';
+import {
+  reviewedMarksResponseSchema,
+  reviewSummarySchema,
+} from '@porcelain/contracts/reviewed-files';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
@@ -10,6 +13,17 @@ export function listReviewedFiles(
   options: { application: Application },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
+  api.get(
+    '/worktrees/:worktreeId/review-summary',
+    {
+      schema: {
+        params: gitWorktreeParamsSchema,
+        response: { ...errorResponses, 200: reviewSummarySchema },
+      },
+    },
+    async (request) =>
+      options.application.reviewSummary(request.params.worktreeId),
+  );
   api.get(
     '/worktrees/:worktreeId/reviewed',
     {

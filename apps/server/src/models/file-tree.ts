@@ -1,4 +1,4 @@
-export type FileTreeEntry = {
+type FileTreeEntry = {
   path: string;
   kind: 'file' | 'directory' | 'symlink' | 'submodule' | 'other';
   ignored: boolean;

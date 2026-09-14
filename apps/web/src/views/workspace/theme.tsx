@@ -1,12 +1,9 @@
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
-import { MoonIcon, SunIcon } from 'lucide-react';
+import { useHotkey } from '@tanstack/react-hotkeys';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { PreferencesProvider, usePreferences } from './preferences';
 import { SHORTCUTS } from './shortcuts';
 
-/** Keep the old provider name for callers while preferences remain device-local. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <PreferencesProvider>
@@ -41,7 +38,6 @@ function ThemeSurface({ children }: { children: ReactNode }) {
   );
 }
 
-/** Compatibility adapter for review surfaces that only need the resolved mode. */
 export function useTheme() {
   const { preferences, resolvedTheme, setPreference } = usePreferences();
   return {
@@ -50,20 +46,4 @@ export function useTheme() {
       setPreference('appearance', resolvedTheme === 'dark' ? 'light' : 'dark'),
     appearance: preferences.appearance,
   };
-}
-
-export function ThemeToggle() {
-  const { dark, toggle } = useTheme();
-  return (
-    <Button
-      aria-keyshortcuts={SHORTCUTS.cycleAppearance}
-      title={`Toggle theme (${formatForDisplay(SHORTCUTS.cycleAppearance)})`}
-      variant="ghost"
-      size="icon-sm"
-      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-      onClick={toggle}
-    >
-      {dark ? <SunIcon /> : <MoonIcon />}
-    </Button>
-  );
 }

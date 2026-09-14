@@ -65,7 +65,7 @@ export const boundaryRules: IConfiguration = {
       to: {
         path: '(^packages/(contracts|git)/|^apps/server/src/|(^|/)(fastify|drizzle-orm|better-sqlite3)(/|$)|^(node:)?(fs|child_process|net|http|https)(/|$))',
         pathNot:
-          '(^packages/git/src/(interfaces|dtos|errors)/|^apps/server/src/(use-cases/|models/|(git|filesystem)/(interfaces|dtos|errors)/|repositories/interfaces/))',
+          '(^packages/git/src/(interfaces|dtos|errors)/|^apps/server/src/(use-cases/|models/|(git|filesystem)/(interfaces|dtos|errors)/|agents/interfaces/|repositories/interfaces/))',
       },
     },
     {
@@ -86,7 +86,7 @@ export const boundaryRules: IConfiguration = {
       to: {
         path: '^(apps/server/src|packages/git/src)/',
         pathNot:
-          '(^packages/git/src/(interfaces|dtos|errors)/|^apps/server/src/(models/|(git|filesystem)/(interfaces|dtos|errors)/|repositories/interfaces/))',
+          '(^packages/git/src/(interfaces|dtos|errors)/|^apps/server/src/(models/|(git|filesystem)/(interfaces|dtos|errors)/|agents/interfaces/|repositories/interfaces/))',
       },
     },
     { name: 'no-cycles', severity: 'error', from: {}, to: { circular: true } },

@@ -58,11 +58,12 @@ vi.mock('../../query/review', () => ({
       : fileState,
   useChanges: () => ({ status: { changes: [] } }),
   useCommit: () => commitState,
+  useCommitLayers: () => null,
 }));
 vi.mock('../../query/files', () => ({
   useFileDraft: (_scope: unknown, _path: string, text: string) => ({
     draft: {},
-    state: { text, savedText: text },
+    state: { text, savedText: text, owner: null },
   }),
 }));
 vi.mock('../../query/history', () => ({

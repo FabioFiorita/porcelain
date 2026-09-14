@@ -84,18 +84,41 @@ test('creates, edits and renames a file, preserves conflicts, and moves it to di
   expect(await readFile(join(worktreePath, filename), 'utf8')).toBe(
     'Saved from the editor',
   );
+  await expect(
+    page.getByText('Changed on disk just now', { exact: true }),
+  ).toHaveCount(0);
+  await writeFile(join(worktreePath, filename), 'Updated by another writer');
+  await expect(
+    page.getByText('Changed on disk just now', { exact: true }),
+  ).toBeVisible({ timeout: 8000 });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(editor).toContainText('Updated by another writer');
   await editor.press('End');
   await editor.pressSequentially(' with a local draft');
-  await writeFile(join(worktreePath, filename), 'External change');
+  await writeFile(join(worktreePath, filename), Buffer.from([0, 1, 2]));
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: 'The file is no longer readable' }),
+  ).toBeVisible({ timeout: 8000 });
+  await expect(editor).toContainText('with a local draft');
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(
     page.getByRole('alert').filter({ hasText: 'Your draft is kept here.' }),
   ).toBeVisible();
   await expect(editor).toContainText('with a local draft');
-  expect(await readFile(join(worktreePath, filename), 'utf8')).toBe(
-    'External change',
+  expect(await readFile(join(worktreePath, filename))).toEqual(
+    Buffer.from([0, 1, 2]),
   );
+  await expect(
+    page.getByRole('button', { name: 'Copy draft', exact: true }),
+  ).toBeVisible();
+  await writeFile(join(worktreePath, filename), 'External change');
+  await expect(
+    page
+      .getByRole('alert')
+      .filter({ hasText: 'The file is no longer readable' }),
+  ).toHaveCount(0, { timeout: 8000 });
   await page
     .getByRole('button', { name: 'Discard draft and reload', exact: true })
     .click();

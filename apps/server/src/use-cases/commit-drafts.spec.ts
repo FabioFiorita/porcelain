@@ -1,0 +1,114 @@
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import type { CommitGenerator } from '../agents/interfaces/commit-generator.ts';
+import { openApplication } from '../app.ts';
+import type { GitActionScope } from '../models/git-action.ts';
+
+let root: string;
+let checkout: string;
+let application: Awaited<ReturnType<typeof openApplication>>;
+let scope: GitActionScope;
+const generate = vi.fn<CommitGenerator['generate']>();
+beforeEach(async () => {
+  root = await mkdtemp(join(tmpdir(), 'porcelain-commit-drafts-'));
+  checkout = join(root, 'repo');
+  await mkdir(checkout);
+  vi.stubEnv('HOME', root);
+  vi.stubEnv('XDG_CONFIG_HOME', root);
+  execFileSync('git', ['init', '-b', 'main', checkout], { stdio: 'ignore' });
+  execFileSync('git', ['-C', checkout, 'config', 'user.name', 'Fixture']);
+  execFileSync('git', [
+    '-C',
+    checkout,
+    'config',
+    'user.email',
+    'fixture@example.invalid',
+  ]);
+  await writeFile(join(checkout, 'a.ts'), 'first\n');
+  generate
+    .mockReset()
+    .mockResolvedValue([{ message: 'Add first file', paths: ['a.ts'] }]);
+  application = await openApplication({
+    dataDirectory: join(root, 'state'),
+    commitGenerator: {
+      async models() {
+        return [];
+      },
+      generate,
+    },
+  });
+  const { project } = await application.register(checkout);
+  scope = { projectId: project.id, worktreeId: project.worktrees[0]?.id ?? '' };
+});
+afterEach(async () => {
+  await application.close();
+  vi.unstubAllEnvs();
+  await rm(root, { recursive: true, force: true });
+});
+async function draft() {
+  const { status } = await application.gitStatus(scope.worktreeId);
+  return application.draftCommits(scope, {
+    mode: 'message',
+    model: 'fixture:default',
+    paths: ['a.ts'],
+    expectedStatusToken: status.statusToken,
+  });
+}
+it('returns guarded drafts and rejects content changed after generation before preparing a commit', async () => {
+  const result = await draft();
+  expect(result.groups[0]?.message).toBe('Add first file');
+  await writeFile(join(checkout, 'a.ts'), 'other\n');
+  await expect(
+    application.prepareCommit(scope, {
+      message: 'Add first file',
+      paths: ['a.ts'],
+      expectedFiles: result.expectedFiles,
+    }),
+  ).rejects.toMatchObject({ reason: 'STALE_PREPARATION' });
+});
+it('keeps ordinary reads available while generation waits and rejects changed evidence at completion', async () => {
+  let finish:
+    | ((value: { message: string; paths: string[] }[]) => void)
+    | undefined;
+  generate.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const pending = draft();
+  await vi.waitFor(() => expect(generate).toHaveBeenCalled());
+  expect((await application.readTextFile(scope.worktreeId, 'a.ts')).text).toBe(
+    'first\n',
+  );
+  await writeFile(join(checkout, 'a.ts'), 'other\n');
+  finish?.([{ message: 'Old proposal', paths: ['a.ts'] }]);
+  await expect(pending).rejects.toMatchObject({ name: 'WorktreeChangedError' });
+});
+it('rejects invented paths and duplicate assignments from a model', async () => {
+  generate.mockResolvedValue([{ message: 'Invalid', paths: ['invented.ts'] }]);
+  await expect(draft()).rejects.toThrow('did not cover');
+  generate.mockResolvedValue([{ message: 'Invalid', paths: ['a.ts', 'a.ts'] }]);
+  await expect(draft()).rejects.toThrow('did not cover');
+});
+it('rejects groups that split the source and destination of a rename', async () => {
+  execFileSync('git', ['-C', checkout, 'add', 'a.ts']);
+  execFileSync('git', ['-C', checkout, 'commit', '-m', 'Initial']);
+  execFileSync('git', ['-C', checkout, 'mv', 'a.ts', 'b.ts']);
+  generate.mockResolvedValue([
+    { message: 'Remove old file', paths: ['a.ts'] },
+    { message: 'Add new file', paths: ['b.ts'] },
+  ]);
+  const { status } = await application.gitStatus(scope.worktreeId);
+  await expect(
+    application.draftCommits(scope, {
+      mode: 'groups',
+      model: 'fixture:default',
+      paths: ['a.ts', 'b.ts'],
+      expectedStatusToken: status.statusToken,
+    }),
+  ).rejects.toThrow('did not cover');
+});

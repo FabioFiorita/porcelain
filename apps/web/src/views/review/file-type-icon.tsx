@@ -5,7 +5,7 @@ import {
 import { cn } from '@/lib/utils';
 
 /** The same complete, coloured icon set used by the Files tree. */
-export const ICON_SET = 'complete' as const;
+const ICON_SET = 'complete' as const;
 
 const resolver = createFileTreeIconResolver({
   set: ICON_SET,

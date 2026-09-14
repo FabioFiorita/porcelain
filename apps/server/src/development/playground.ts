@@ -28,6 +28,24 @@ try {
       },
       shutdown.signal,
       {
+        commitGenerator: {
+          async models() {
+            return [
+              { id: 'fixture:default', label: 'Disposable fixture model' },
+            ];
+          },
+          async generate(_model, prompt) {
+            const paths = JSON.parse(
+              prompt.split('Selected paths: ')[1]?.split('\n')[0] ?? '[]',
+            ) as string[];
+            return prompt.startsWith('Write exactly')
+              ? [{ message: 'Review workspace changes', paths }]
+              : paths.map((path) => ({
+                  message: `Update ${path}`,
+                  paths: [path],
+                }));
+          },
+        },
         fileWriter: new NodeFileWriter(async (paths) => {
           const directory = join(fixture.root, 'trash');
           await mkdir(directory, { recursive: true });

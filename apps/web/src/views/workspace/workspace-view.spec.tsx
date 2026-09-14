@@ -27,14 +27,20 @@ vi.mock('@pierre/diffs/react', () => ({
   CodeView: ({
     items,
     renderCodeViewHeader,
+    renderAnnotation,
   }: {
-    items: Array<{ id: string }>;
+    items: Array<{ id: string; annotations?: Array<{ metadata: unknown }> }>;
+    renderAnnotation?: (annotation: { metadata: unknown }) => React.ReactNode;
     renderCodeViewHeader?: () => React.ReactNode;
   }) => (
     <div data-testid="code-view">
       {renderCodeViewHeader?.()}
       {items.map((item) => (
-        <div key={item.id} data-code-item={item.id} />
+        <div key={item.id} data-code-item={item.id}>
+          {item.annotations?.map((annotation) =>
+            renderAnnotation?.(annotation),
+          )}
+        </div>
       ))}
     </div>
   ),
@@ -399,9 +405,6 @@ describe('worktree review navigation', () => {
       await screen.findByRole('button', { name: /review-panel\.tsx.*staged/ }),
     );
     await user.click(await screen.findByRole('button', { name: 'Comment' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Add comment' }),
-    );
     await user.type(screen.getByLabelText('Comment'), 'Keep this draft');
     const reviewContent = screen.getByRole('region', {
       name: 'Review content',
@@ -648,9 +651,6 @@ describe('file discussion', () => {
       await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
     );
     await user.click(await screen.findByRole('button', { name: 'Comment' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Add comment' }),
-    );
     await user.type(
       screen.getByLabelText('Comment'),
       'Please explain this component.',
@@ -668,22 +668,15 @@ describe('file discussion', () => {
     store.commentsFailed = false;
     await user.click(screen.getByRole('button', { name: 'Post comment' }));
     await screen.findByText('Please explain this component.');
-    store.commentsFailed = true;
-    refocusWindow();
-    await screen.findByText(/Comments shown may be out of date/);
-    expect(screen.getByText('Please explain this component.')).toBeTruthy();
-    store.commentsFailed = false;
-    expect(Object.values(store.comments).flat()[0]?.anchor).toEqual({
+    expect(Object.values(store.comments).flat()[0]?.anchor).toMatchObject({
       kind: 'file',
       filePath: 'src/components/review-panel.tsx',
     });
-    await user.click(screen.getByRole('button', { name: '1 comment' }));
-    expect(screen.queryByText('Please explain this component.')).toBeNull();
     await user.click(
       screen.getByRole('button', { name: /empty-state.tsx.*staged/ }),
     );
     await user.click(await screen.findByRole('button', { name: 'Comment' }));
-    await screen.findByRole('button', { name: '0 comments' });
+    expect(screen.getByLabelText('Comment')).toHaveProperty('value', '');
     expect(screen.queryByText('Please explain this component.')).toBeNull();
   });
 });

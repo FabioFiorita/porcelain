@@ -48,7 +48,7 @@ export function ArtifactDocument({
 }
 
 /** The compact artifact document: metadata belongs in the artifact list, not above the report. */
-export function ArtifactDetails({
+function ArtifactDetails({
   artifact,
   content,
 }: {

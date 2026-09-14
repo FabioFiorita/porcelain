@@ -48,6 +48,10 @@ async function mergeCommentThreads(
   // finish after it, restoring an older snapshot over the mutation result.
   // Cancel only this exact worktree query, then apply the command response.
   await client.cancelQueries({ queryKey: key, exact: true });
+  void client.invalidateQueries({
+    queryKey: [...key.slice(0, -1), 'summary'],
+    exact: true,
+  });
   client.setQueryData<CommentThread[]>(key, (current) => {
     if (!current) return [...updated];
     const byId = new Map(current.map((thread) => [thread.id, thread]));

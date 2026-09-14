@@ -203,6 +203,30 @@ packageAcceptance(
       const headers = { authorization: `Bearer ${token}` };
       expect((await fetch(`${firstAddress}/`)).status).toBe(200);
       expect((await fetch(`${firstAddress}/inventory`)).status).toBe(401);
+      const mcp = await fetch(`${firstAddress}/mcp`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2025-03-26',
+            capabilities: {},
+            clientInfo: { name: 'package-test', version: '1' },
+          },
+        }),
+      });
+      expect(mcp.status).toBe(200);
+      expect(await mcp.json()).toMatchObject({
+        jsonrpc: '2.0',
+        id: 1,
+        result: { serverInfo: { name: 'porcelain' } },
+      });
       const registered = await fetch(`${firstAddress}/projects`, {
         method: 'POST',
         headers: { ...headers, 'content-type': 'application/json' },

@@ -1,3 +1,4 @@
+import type { CommentAnchor } from './comments';
 /**
  * A document is the stable thing shown in a centre pane. Surface navigation
  * only chooses which documents are available; it never owns the document.
@@ -71,18 +72,4 @@ export function withDocument(
   return next;
 }
 
-export function withoutDocument(
-  open: readonly string[],
-  key: string,
-): string[] {
-  return open.filter((entry) => entry !== key);
-}
-
-export function focusAfterClose(
-  open: readonly string[],
-  key: string,
-): string | null {
-  const index = open.indexOf(key);
-  if (index === -1) return null;
-  return open[index + 1] ?? open[index - 1] ?? null;
-}
+export type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;

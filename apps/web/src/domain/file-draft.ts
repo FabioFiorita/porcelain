@@ -10,6 +10,7 @@ export type FileDraftState = {
 export class FileDraft {
   private state: FileDraftState;
   private readonly listeners = new Set<() => void>();
+  lastWrittenFingerprint: string | null = null;
   private pending: Promise<boolean> | undefined;
   private readonly write: (
     text: string,
@@ -75,6 +76,7 @@ export class FileDraft {
         while (this.state.text !== this.state.savedText) {
           const text = this.state.text;
           const fingerprint = await this.write(text, this.state.fingerprint);
+          this.lastWrittenFingerprint = fingerprint;
           this.update({ savedText: text, fingerprint });
         }
         this.update({ saving: false });

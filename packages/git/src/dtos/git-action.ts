@@ -7,7 +7,12 @@ export type GitActionIntent =
       destinationRef: string;
       allowCreate: boolean;
     }
-  | { action: 'commit'; message: string; paths?: string[] | undefined }
+  | {
+      action: 'commit';
+      message: string;
+      paths?: string[] | undefined;
+      expectedFiles?: { path: string; fingerprint: string }[] | undefined;
+    }
   | { action: 'stash-create'; message: string; includeUntracked: boolean }
   | {
       action: 'stash-apply' | 'stash-pop';

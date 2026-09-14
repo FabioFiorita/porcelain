@@ -68,6 +68,13 @@ export function ReviewedControl({
         type="button"
         size={compact ? 'icon-xs' : 'xs'}
         variant={reviewed ? 'ghost' : 'outline'}
+        className={cn(
+          compact && 'size-5 rounded-full',
+          compact &&
+            reviewed &&
+            'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white',
+        )}
+        aria-pressed={reviewed}
         disabled={pending}
         aria-label={`${reviewed ? 'Unmark' : 'Mark'} ${path} ${reviewed ? 'as unreviewed' : 'as reviewed'}`}
         title={
@@ -86,7 +93,7 @@ export function ReviewedControl({
         ) : status === 'stale' ? (
           <RotateCcwIcon />
         ) : (
-          <CheckIcon />
+          <CheckIcon className={cn(compact && 'invisible')} />
         )}
         {!compact && (reviewed ? 'Reviewed' : 'Mark reviewed')}
       </Button>

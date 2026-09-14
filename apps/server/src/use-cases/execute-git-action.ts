@@ -4,20 +4,24 @@ import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-actio
 import type { GitActionReceipt } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
+import type { CompleteCommitReview } from './complete-commit-review.ts';
 import { resolveActionWorktree } from './resolve-action-worktree.ts';
 
 export class ExecuteGitAction {
   private readonly inventory: InventoryStore;
   private readonly store: GitActionStore;
   private readonly git: GitActionWriterFactory;
+  private readonly review: CompleteCommitReview | undefined;
   constructor(
     inventory: InventoryStore,
     store: GitActionStore,
     git: GitActionWriterFactory,
+    review?: CompleteCommitReview,
   ) {
     this.inventory = inventory;
     this.store = store;
     this.git = git;
+    this.review = review;
   }
   async execute(receipt: GitActionReceipt, signal: AbortSignal): Promise<void> {
     const state = { launched: false };
@@ -48,7 +52,33 @@ export class ExecuteGitAction {
     );
     if (outcome.reason === 'PROCESS_GROUP_UNCONFIRMED')
       this.store.blockProject(receipt.projectId);
-    this.store.finish({ ...receipt, ...outcome, finishedAt: Date.now() });
+    let reviewLayersUpdated: boolean | undefined;
+    const intent = this.store.preparation(receipt.preparationId)?.intent;
+    if (
+      this.review &&
+      intent?.action === 'commit' &&
+      outcome.state === 'succeeded' &&
+      outcome.result?.headOid
+    ) {
+      try {
+        await this.review.execute(
+          receipt,
+          outcome.result.headOid,
+          intent,
+          signal,
+        );
+        reviewLayersUpdated = true;
+      } catch {
+        // Git already succeeded; metadata failure must never invite another commit.
+        reviewLayersUpdated = false;
+      }
+    }
+    this.store.finish({
+      ...receipt,
+      ...outcome,
+      ...(reviewLayersUpdated === undefined ? {} : { reviewLayersUpdated }),
+      finishedAt: Date.now(),
+    });
   }
   private async perform(
     receipt: GitActionReceipt,

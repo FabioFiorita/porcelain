@@ -1,4 +1,4 @@
-export type ReviewLayerFile = {
+type ReviewLayerFile = {
   path: string;
   scope: 'staged' | 'unstaged';
   /** One short, file-specific explanation from the agent. */

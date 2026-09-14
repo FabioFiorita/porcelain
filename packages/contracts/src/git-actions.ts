@@ -35,6 +35,15 @@ export const pushPreparationRequestSchema = z.strictObject({
 export const commitPreparationRequestSchema = z.strictObject({
   message: messageSchema,
   paths: z.array(gitPathSchema).min(1).max(2000).optional(),
+  expectedFiles: z
+    .array(
+      z.strictObject({
+        path: gitPathSchema,
+        fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+      }),
+    )
+    .max(2000)
+    .optional(),
 });
 export const stashCreatePreparationRequestSchema = z.strictObject({
   message: messageSchema,
@@ -102,6 +111,7 @@ export const gitActionReceiptSchema = z.strictObject({
       'PROCESS_GROUP_UNCONFIRMED',
     ])
     .optional(),
+  reviewLayersUpdated: z.boolean().optional(),
   result: z
     .strictObject({
       headOid: oidSchema.optional(),

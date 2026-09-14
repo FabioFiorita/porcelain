@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@fastify/type-provider-zod": "1.0.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/git": "workspace:*",
     "better-sqlite3": "13.0.3",

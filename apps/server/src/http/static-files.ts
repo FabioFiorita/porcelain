@@ -98,7 +98,7 @@ export function resolveStaticPath(
 }
 
 /** Return true when the request belongs to the API namespace. */
-export function isApiRequestPath(urlPath: string): boolean {
+function isApiRequestPath(urlPath: string): boolean {
   const decoded = decodePath(urlPath);
   if (decoded === null) return false;
   const normalized = decoded.replace(/^\/+/, '/');

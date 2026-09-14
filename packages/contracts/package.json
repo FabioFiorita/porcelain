@@ -18,7 +18,8 @@
     "./git-actions": "./src/git-actions.ts",
     "./commit-review-layers": "./src/commit-review-layers.ts",
     "./reviewed-files": "./src/reviewed-files.ts",
-    "./evidence": "./src/evidence.ts"
+    "./evidence": "./src/evidence.ts",
+    "./commit-draft": "./src/commit-draft.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

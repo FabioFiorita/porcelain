@@ -1,6 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useSyncExternalStore } from 'react';
-import type { ActionInput, GitAction, Receipt } from '../domain/git-action';
+import type {
+  ActionInput,
+  CommitDraftInput,
+  GitAction,
+  Receipt,
+} from '../domain/git-action';
 import type { ReviewScope } from '../domain/review';
 import { createId } from '../lib/id';
 import { queryKeys } from './keys';
@@ -128,4 +133,28 @@ export function useGitAction(scope: ReviewScope, action: GitAction) {
     },
     canStartNew: Boolean(terminal),
   };
+}
+
+export function useCommitModels() {
+  const { api, connection } = useConnectedContext();
+  return useQuery({
+    queryKey: queryKeys.commitModels(connection.environmentId),
+    queryFn: ({ signal }) =>
+      api.gitActions.models({
+        ...connection.request(),
+        signal: AbortSignal.any([signal, connection.controller.signal]),
+      }),
+    staleTime: 60_000,
+  });
+}
+export function useCommitDraft(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  // Generation returns an editable proposal and does not mutate Git or review state.
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation
+  return asMutation(
+    useMutation({
+      mutationFn: (input: CommitDraftInput) =>
+        api.gitActions.draft({ ...scope, ...connection.request(), input }),
+    }),
+  );
 }

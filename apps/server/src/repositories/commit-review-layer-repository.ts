@@ -14,6 +14,22 @@ export class CommitReviewLayerRepository implements CommitReviewLayerStore {
   constructor(db: BetterSQLite3Database) {
     this.db = db;
   }
+  complete(
+    snapshot: CommitReviewLayers,
+    remaining: CommitReviewLayers['layers'],
+  ): void {
+    this.db.transaction(
+      () => {
+        this.create(snapshot);
+        this.db
+          .update(reviewLayerSets)
+          .set({ revision: snapshot.sourceRevision + 1, layers: remaining })
+          .where(eq(reviewLayerSets.worktreeId, snapshot.sourceWorktreeId))
+          .run();
+      },
+      { behavior: 'immediate' },
+    );
+  }
   read(projectId: string, commitOid: string): CommitReviewLayers | null {
     return (
       this.db

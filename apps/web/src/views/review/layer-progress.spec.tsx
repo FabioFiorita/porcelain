@@ -104,11 +104,14 @@ vi.mock('./review-code-document', () => ({
   ReviewCodeDocument: ({
     changes,
     header,
+    toolbar,
   }: {
     changes?: readonly Change[];
     header?: () => React.ReactNode;
+    toolbar?: (control: React.ReactNode) => React.ReactNode;
   }) => (
     <div data-testid="code-document">
+      {toolbar?.(null)}
       {changes?.map((change) => (
         <span key={`${change.scope}:${changePath(change)}`}>
           {change.scope}:{changePath(change)}

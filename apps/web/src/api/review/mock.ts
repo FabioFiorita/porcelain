@@ -43,6 +43,31 @@ export function createReviewMock(
     return structuredClone(fixture);
   }
   return {
+    async commitLayers(request) {
+      await context(request);
+      return null;
+    },
+    async summary(request) {
+      const data = await context(request);
+      const observed = mockEvidence(request.worktreeId, data);
+      const marks = new Map(
+        (store.reviewed[request.worktreeId] ?? []).map((mark) => [
+          mark.path,
+          mark.fingerprint,
+        ]),
+      );
+      return {
+        worktreeId: request.worktreeId,
+        pendingFiles: observed.evidence.filter(
+          (entry) =>
+            entry.fingerprint === null ||
+            marks.get(entry.path) !== entry.fingerprint,
+        ).length,
+        openThreads: (store.comments[request.worktreeId] ?? []).filter(
+          (thread) => !thread.resolved,
+        ).length,
+      };
+    },
     async fileTree(request) {
       const data = await context(request);
       return {

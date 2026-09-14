@@ -31,3 +31,7 @@ export const commitReviewLayersResponseSchema = z.strictObject({
   parentNumber: z.number().int().positive(),
   layers: layersSchema,
 });
+
+export type CommitReviewLayersResponse = z.infer<
+  typeof commitReviewLayersResponseSchema
+>;

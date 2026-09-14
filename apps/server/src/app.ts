@@ -17,6 +17,8 @@ import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-actio
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { readTreePaths } from '@porcelain/git/tree-paths';
+import { CliCommitGenerator } from './agents/cli-commit-generator.ts';
+import type { CommitGenerator } from './agents/interfaces/commit-generator.ts';
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
@@ -39,6 +41,8 @@ import { ReviewedFileRepository } from './repositories/reviewed-file-repository.
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
+import { CommitDrafts } from './use-cases/commit-drafts.ts';
+import { CompleteCommitReview } from './use-cases/complete-commit-review.ts';
 import { DeleteArtifact } from './use-cases/delete-artifact.ts';
 import { EditFile } from './use-cases/edit-file.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
@@ -52,6 +56,7 @@ import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
 import { ListFileTree } from './use-cases/list-file-tree.ts';
 import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
+import { ReadReviewSummary } from './use-cases/read-review-summary.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeEvidence } from './use-cases/read-worktree-evidence.ts';
@@ -72,6 +77,7 @@ export async function openApplication(options: {
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
   files?: FileReader;
+  commitGenerator?: CommitGenerator;
   fileWriter?: FileWriter;
   now?: () => string;
   signal?: AbortSignal;
@@ -84,6 +90,7 @@ export async function openApplication(options: {
     () => database.close(),
     operationTimeoutMs,
   );
+  const drafting = new OperationRunner(() => {}, 120_000);
   try {
     const layers = new ReviewLayerRepository(database.db);
     const replaceLayers = new ReplaceReviewLayers(layers);
@@ -97,13 +104,6 @@ export async function openApplication(options: {
       options.actionGit ??
       ((checkout, identity, repositoryIdentity) =>
         new ActionGit(checkout, identity, repositoryIdentity));
-    const actions = new GitActionCoordinator(
-      operations,
-      new PrepareGitAction(store, actionStore, actionGit, randomUUID),
-      new AcceptGitAction(actionStore),
-      new ExecuteGitAction(store, actionStore, actionGit),
-      actionStore,
-    );
 
     const preferences = new FilePreferenceRepository(database.db);
     const listPreferences = new ListFilePreferences(store, preferences);
@@ -150,6 +150,25 @@ export async function openApplication(options: {
     const status = new ReadWorktreeStatus(store, inspection);
     const diff = new ReadWorktreeDiff(store, inspection);
     const evidence = new ReadWorktreeEvidence(store, inspection, git, files);
+    const actions = new GitActionCoordinator(
+      operations,
+      new PrepareGitAction(store, actionStore, actionGit, randomUUID, evidence),
+      new AcceptGitAction(actionStore),
+      new ExecuteGitAction(
+        store,
+        actionStore,
+        actionGit,
+        new CompleteCommitReview(store, layers, commitLayers, commitGit),
+      ),
+      actionStore,
+    );
+    const generator = options.commitGenerator ?? new CliCommitGenerator();
+    const commitDrafts = new CommitDrafts(
+      store,
+      actionGit,
+      evidence,
+      generator,
+    );
     const reviewed = new ReviewedFileRepository(database.db);
     const listReviewedFiles = new ListReviewedFiles(reviewed);
     const setReviewedFile = new SetReviewedFile(
@@ -168,7 +187,43 @@ export async function openApplication(options: {
       randomUUID,
       options.now,
     );
+    const summary = new ReadReviewSummary(
+      evidence,
+      listReviewedFiles,
+      comments,
+    );
     return {
+      reviewSummary: (worktreeId, signal) =>
+        operations.run(
+          (ownedSignal) => summary.execute(worktreeId, ownedSignal),
+          signal,
+        ),
+      commitModels: (signal) =>
+        drafting.run(
+          (operationSignal) => generator.models(operationSignal),
+          signal,
+        ),
+      draftCommits: async (scope, input, signal) => {
+        scope = structuredClone(scope);
+        input = structuredClone(input);
+        const captured = await operations.run(
+          (operationSignal) =>
+            commitDrafts.capture(scope, input, operationSignal),
+          signal,
+        );
+        const result = await drafting.runOwned(
+          (operationSignal) =>
+            commitDrafts.generate(captured, input, operationSignal),
+          120_000,
+          signal,
+        );
+        await operations.run(
+          (operationSignal) =>
+            commitDrafts.verify(scope, captured.fingerprint, operationSignal),
+          signal,
+        );
+        return result;
+      },
       prepareFetch: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'fetch' }, signal),
       executeFetch: (scope, input, signal) =>
@@ -437,7 +492,10 @@ export async function openApplication(options: {
           async () => deleteArtifact.execute(worktreeId, artifactId),
           signal,
         ),
-      close: () => operations.close(),
+      close: async () => {
+        await drafting.close();
+        await operations.close();
+      },
     };
   } catch (error) {
     await operations.close();

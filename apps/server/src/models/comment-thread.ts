@@ -1,11 +1,11 @@
-export type CommentAuthor = 'reviewer' | 'agent';
+type CommentAuthor = 'reviewer' | 'agent';
 
 type CommentComparison =
   | { kind: 'worktree'; scope: 'staged' | 'unstaged' | 'untracked' }
   | { kind: 'file' }
   | { kind: 'commit'; parent: number };
 
-export type CommentAnchor = {
+type CommentAnchor = {
   comparison?: CommentComparison | undefined;
   filePath: string;
   revision?: string | undefined;
@@ -19,7 +19,7 @@ export type CommentAnchor = {
       side?: 'additions' | 'deletions' | undefined;
     }
 );
-export type CommentMessage = {
+type CommentMessage = {
   id: string;
   body: string;
   author: CommentAuthor;

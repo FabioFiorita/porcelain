@@ -6,9 +6,9 @@ import {
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { OpenDocument } from '../../domain/documents';
 import type { ReviewScope, Surface } from '../../domain/review';
 import { useArtifacts, useHasReviewLayers } from '../../query/review';
-import type { OpenDocument } from './documents';
 import { FileNavigation } from './file-navigation';
 import { HistoryNavigation } from './history-navigation';
 import { ReviewBoundary } from './review-boundary';

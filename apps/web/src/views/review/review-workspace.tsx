@@ -37,13 +37,14 @@ import {
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import type { RevealComment } from '../../domain/comments';
+import type { OpenDocument } from '../../domain/documents';
 import { entryKey, parseEntry } from '../../domain/documents';
 import type { Project } from '../../domain/inventory';
 import type { Artifact, Layers, Surface } from '../../domain/review';
 import { useArtifactsOverview, useReviewOverview } from '../../query/review';
 import { SHORTCUTS } from '../workspace/shortcuts';
 import { DocumentTabs } from './document-tabs';
-import { DocumentView, type OpenDocument } from './documents';
+import { DocumentView } from './documents';
 import { GitButton } from './git-button';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';

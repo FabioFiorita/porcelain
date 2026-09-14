@@ -5,6 +5,7 @@ import {
 } from '@porcelain/contracts/artifacts';
 import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes';
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
+import { commitReviewLayersResponseSchema } from '@porcelain/contracts/commit-review-layers';
 import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
 import {
   directoryResponseSchema,
@@ -21,6 +22,7 @@ import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import {
   reviewedMarksResponseSchema,
+  reviewSummarySchema,
   setReviewedRequestSchema,
 } from '@porcelain/contracts/reviewed-files';
 import { ConnectionError } from './errors/connection-error.ts';
@@ -34,27 +36,25 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     schema: { parse: (value: unknown) => T },
     body?: unknown,
     method = body === undefined ? 'GET' : 'POST',
+    prefix = `${endpoint}/worktrees/${encodeURIComponent(request.worktreeId)}`,
   ): Promise<T> {
     try {
-      const response = await transport(
-        `${endpoint}/worktrees/${encodeURIComponent(request.worktreeId)}/${path}`,
-        {
-          ...(body === undefined && method === 'GET'
-            ? {}
-            : {
-                method,
-                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-              }),
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${request.token}`,
-          },
-          signal: request.signal,
-          redirect: 'error',
-          credentials: 'omit',
-          cache: 'no-store',
+      const response = await transport(`${prefix}/${path}`, {
+        ...(body === undefined && method === 'GET'
+          ? {}
+          : {
+              method,
+              ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+            }),
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${request.token}`,
         },
-      );
+        signal: request.signal,
+        redirect: 'error',
+        credentials: 'omit',
+        cache: 'no-store',
+      });
       if (!response.ok) {
         const failure = apiErrorSchema.safeParse(
           await response.json().catch(() => null),
@@ -82,6 +82,15 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     }
   }
   return {
+    commitLayers: (request: Request & { projectId: string; oid: string }) =>
+      read(
+        request,
+        `commits/${encodeURIComponent(request.oid)}/review-layers`,
+        commitReviewLayersResponseSchema.nullable(),
+        undefined,
+        'GET',
+        `${endpoint}/projects/${encodeURIComponent(request.projectId)}`,
+      ),
     fileTree: (request: Request) => read(request, 'file-tree', fileTreeSchema),
     editFile: (request: Request & { input: FileEdit }) =>
       read(request, 'files', fileEditResultSchema, request.input),
@@ -124,6 +133,8 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ),
     artifacts: (request: Request) =>
       read(request, 'artifacts', artifactListSchema),
+    summary: (request: Request) =>
+      read(request, 'review-summary', reviewSummarySchema),
     evidence: (request: Request) =>
       read(request, 'evidence', evidenceResponseSchema),
     reviewed: {

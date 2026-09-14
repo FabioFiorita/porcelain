@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CommitModelSetting } from './commit-model-setting';
 import { DialogIcon } from './dialog-icon';
 import type { Preferences } from './preferences';
 import { usePreferences } from './preferences';
@@ -142,6 +143,10 @@ export function SettingsDialog({
                   { value: 'source', label: 'Source' },
                 ]}
               />
+            </Section>
+            <Separator />
+            <Section title="Git">
+              <CommitModelSetting />
             </Section>
           </div>
         </ScrollArea>

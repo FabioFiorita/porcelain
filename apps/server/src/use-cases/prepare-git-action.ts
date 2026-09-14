@@ -7,23 +7,27 @@ import type {
 } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
+import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
 import { resolveActionWorktree } from './resolve-action-worktree.ts';
 
 export class PrepareGitAction {
   private readonly inventory: InventoryStore;
   private readonly store: GitActionStore;
   private readonly git: GitActionWriterFactory;
+  private readonly evidence: ReadWorktreeEvidence | undefined;
   private readonly uuid: () => string;
   constructor(
     inventory: InventoryStore,
     store: GitActionStore,
     git: GitActionWriterFactory,
     uuid: () => string,
+    evidence?: ReadWorktreeEvidence,
   ) {
     this.inventory = inventory;
     this.store = store;
     this.git = git;
     this.uuid = uuid;
+    this.evidence = evidence;
   }
   async execute(
     scope: GitActionScope,
@@ -52,6 +56,25 @@ export class PrepareGitAction {
         }
         throw error;
       });
+    if (intent.action === 'commit' && intent.expectedFiles) {
+      if (!this.evidence) throw new GitActionRejectedError('STALE_PREPARATION');
+      const current = await this.evidence.execute(scope.worktreeId, signal);
+      if (
+        intent.expectedFiles.some(
+          (expected) =>
+            current.evidence.find((entry) => entry.path === expected.path)
+              ?.fingerprint !== expected.fingerprint,
+        )
+      )
+        throw new GitActionRejectedError('STALE_PREPARATION');
+      const verified = await this.git(
+        target.worktree.path,
+        target.metadataIdentity,
+        target.repositoryIdentity,
+      ).inspect(intent, signal);
+      if (verified.fingerprint !== snapshot.fingerprint)
+        throw new GitActionRejectedError('STALE_PREPARATION');
+    }
     signal.throwIfAborted();
     const preparation = {
       ...scope,

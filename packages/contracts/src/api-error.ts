@@ -25,6 +25,7 @@ export const apiErrorSchema = z.object({
     'REVISION_CONFLICT',
     'COMMIT_REVIEW_LAYER_CONFLICT',
     'ENTRY_EXISTS',
+    'COMMIT_DRAFT_UNAVAILABLE',
     'INVALID_REQUEST',
     'PATH_NOT_FOUND',
     'PATH_NOT_READABLE',
