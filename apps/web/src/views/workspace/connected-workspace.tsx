@@ -88,7 +88,6 @@ function WorkspaceNavigation() {
           onOpenProject={() => setOpenProject(true)}
           onOpenSettings={() => setSettings(true)}
           onOpenShortcuts={() => setShortcuts(true)}
-          showThemeToggle
           onSelect={(id) => {
             void navigate({ search: { worktree: id } });
             setOpenMobile(false);

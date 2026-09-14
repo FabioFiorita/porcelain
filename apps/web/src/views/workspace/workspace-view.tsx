@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { useConnection } from '../../query/connection';
 import { ConnectionForm } from '../connection/connection-form';
 import { ConnectedWorkspace } from './connected-workspace';
-import { ThemeProvider, ThemeToggle } from './theme';
+import { ThemeProvider } from './theme';
 import { WorkspacePending } from './workspace-pending';
 
 const Devtools = import.meta.env.DEV
@@ -28,9 +28,8 @@ export function WorkspaceView() {
   return (
     <ThemeProvider>
       {!connected && (
-        <div className="absolute right-4 top-3 flex items-center gap-3">
+        <div className="absolute right-4 top-3">
           <h1 className="font-medium">Porcelain</h1>
-          <ThemeToggle />
         </div>
       )}
 

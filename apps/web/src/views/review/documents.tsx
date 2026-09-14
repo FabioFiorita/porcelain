@@ -1,6 +1,8 @@
 import { formatDistanceToNowStrict } from 'date-fns';
+import { CopyIcon, FileDiffIcon, MessageSquarePlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { DocumentRef } from '../../domain/documents';
@@ -19,9 +21,11 @@ import {
   useReviewEvidence,
   useTextFile,
 } from '../../query/review';
+import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
 import { DocumentToolbar } from './document-toolbar';
 import { FileComments } from './file-comments';
+import { FileTypeIcon } from './file-type-icon';
 import { HandoffSummary } from './handoff-artifact';
 import { HtmlFrame } from './html-frame';
 import { MarkdownView } from './markdown-view';
@@ -49,7 +53,9 @@ export function DocumentView({
     case 'change':
       return <ChangeDocument scope={scope} path={document.path} />;
     case 'file':
-      return <FileDocument scope={scope} path={document.path} />;
+      return (
+        <FileDocument scope={scope} path={document.path} onOpen={onOpen} />
+      );
     case 'commit':
       return <CommitDocument scope={scope} oid={document.oid} />;
     case 'artifact':
@@ -174,6 +180,7 @@ function LayerDocument({
 
 function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
   const { status } = useChanges(scope);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const changes = status.changes.filter(
     (change) => changePath(change) === path,
   );
@@ -187,34 +194,46 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ReviewCodeDocument
-        scope={scope}
-        changes={changes}
-        header={() => (
-          <>
-            <DocumentHeading
-              eyebrow="Change"
-              title={path}
-              detail={`${changes.length} comparison${changes.length === 1 ? '' : 's'} · staged and unstaged evidence remain visible`}
-            />
-            <div className="border-b px-6 py-4">
-              <FileComments scope={scope} path={path} />
-            </div>
-          </>
-        )}
-      />
+      <DocumentToolbar
+        title={path}
+        subtitle={`${changes.length} comparison${changes.length === 1 ? '' : 's'}`}
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={commentsOpen}
+          onClick={() => setCommentsOpen((open) => !open)}
+        >
+          <MessageSquarePlusIcon className="size-3.5" />
+          Comment
+        </Button>
+      </DocumentToolbar>
+      {commentsOpen && (
+        <div className="shrink-0 border-b px-3.5 py-2">
+          <FileComments scope={scope} path={path} />
+        </div>
+      )}
+      <ReviewCodeDocument scope={scope} changes={changes} />
     </div>
   );
 }
 
-function FileDocument({ scope, path }: { scope: ReviewScope; path: string }) {
+function FileDocument({
+  scope,
+  path,
+  onOpen,
+}: {
+  scope: ReviewScope;
+  path: string;
+  onOpen: OpenDocument;
+}) {
   const file = useTextFile(scope, path);
   return (
     <ReadableFileDocument
       scope={scope}
       path={path}
       text={file.text}
-      byteLength={file.byteLength}
+      onOpen={onOpen}
     />
   );
 }
@@ -226,26 +245,26 @@ function ReadableFileDocument({
   scope,
   path,
   text,
-  byteLength,
+  onOpen,
 }: {
   scope: ReviewScope;
   path: string;
   text: string;
-  byteLength: number;
+  onOpen: OpenDocument;
 }) {
   const { preferences } = usePreferences();
+  const { status } = useChanges(scope);
   const kind = fileKind(path);
+  const changed = status.changes.some((change) => changePath(change) === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
   );
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const showingSource = kind === 'code' || mode === 'source';
 
   return (
-    <DocumentFrame>
-      <DocumentHeading
-        eyebrow="File"
-        title={path}
-        detail={`${byteLength.toLocaleString()} bytes · Read only`}
-      >
+    <div className="flex min-h-0 flex-1 flex-col bg-card">
+      <FileToolbar path={path}>
         {kind !== 'code' && (
           <Tabs
             value={mode}
@@ -261,10 +280,33 @@ function ReadableFileDocument({
             </TabsList>
           </Tabs>
         )}
-      </DocumentHeading>
-      <div className="border-b px-6 py-4">
-        <FileComments scope={scope} path={path} />
-      </div>
+        {showingSource && (
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-expanded={commentsOpen}
+            onClick={() => setCommentsOpen((open) => !open)}
+          >
+            <MessageSquarePlusIcon className="size-3.5" />
+            Comment
+          </Button>
+        )}
+        {changed && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onOpen({ kind: 'change', path })}
+          >
+            <FileDiffIcon className="size-3.5" />
+            Open diff
+          </Button>
+        )}
+      </FileToolbar>
+      {commentsOpen && showingSource && (
+        <div className="shrink-0 border-b px-3.5 py-2">
+          <FileComments scope={scope} path={path} />
+        </div>
+      )}
       {mode === 'rendered' && kind === 'markdown' ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <MarkdownView
@@ -283,7 +325,45 @@ function ReadableFileDocument({
       ) : (
         <SourcePreview path={path} contents={text} />
       )}
-    </DocumentFrame>
+    </div>
+  );
+}
+
+function FileToolbar({
+  path,
+  children,
+}: {
+  path: string;
+  children?: React.ReactNode;
+}) {
+  const separator = path.lastIndexOf('/') + 1;
+  const directory = path.slice(0, separator);
+  const name = path.slice(separator);
+  return (
+    <DocumentToolbar
+      title={
+        <span className="flex min-w-0 items-center gap-1.5">
+          <FileTypeIcon path={path} className="size-4 shrink-0" />
+          {directory && (
+            <span className="truncate font-normal text-muted-foreground">
+              {directory}
+            </span>
+          )}
+          <span className="shrink-0">{name}</span>
+        </span>
+      }
+    >
+      {children}
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        aria-label="Copy path"
+        title="Copy path"
+        onClick={() => copyText(path, 'path')}
+      >
+        <CopyIcon />
+      </Button>
+    </DocumentToolbar>
   );
 }
 
@@ -308,35 +388,45 @@ function defaultFileDisplayMode(
 function CommitDocument({ scope, oid }: { scope: ReviewScope; oid: string }) {
   const commit = useCommit(scope, oid);
   return (
-    <DocumentFrame>
-      <DocumentHeading
-        eyebrow="History"
-        title={`Commit ${shortOid(oid)}`}
-        detail={
+    <div className="flex min-h-0 flex-1 flex-col bg-card">
+      <DocumentToolbar
+        title={<span className="font-mono">Commit {shortOid(oid)}</span>}
+        subtitle={
           commit.comparison.kind === 'parent'
             ? `Compared with parent ${commit.comparison.parentNumber}`
             : 'Initial commit · compared with empty tree'
         }
-      />
-      {commit.changes.map((change) => (
-        <section key={change.newPath ?? change.oldPath} className="border-t">
-          <div className="flex items-center gap-3 px-6 py-3">
-            <h3 className="min-w-0 flex-1 break-all text-sm">
-              {change.newPath ?? change.oldPath}
-            </h3>
-            <Badge variant="outline">{change.status}</Badge>
-          </div>
-          {'text' in change.patch ? (
-            <DiffPreview patch={change.patch.text} />
-          ) : (
-            <ReviewEmpty
-              title="Binary change"
-              description="Binary contents are not displayed."
-            />
-          )}
-        </section>
-      ))}
-    </DocumentFrame>
+      >
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => copyText(oid, 'commit id')}
+        >
+          <CopyIcon className="size-3.5" />
+          Copy id
+        </Button>
+      </DocumentToolbar>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {commit.changes.map((change) => (
+          <section key={change.newPath ?? change.oldPath} className="border-b">
+            <div className="flex items-center gap-3 px-4 py-2.5">
+              <h3 className="min-w-0 flex-1 break-all text-sm">
+                {change.newPath ?? change.oldPath}
+              </h3>
+              <Badge variant="outline">{change.status}</Badge>
+            </div>
+            {change.patch.kind === 'text' ? (
+              <DiffPreview patch={change.patch.text} />
+            ) : (
+              <ReviewEmpty
+                title="Binary change"
+                description="Binary contents are not displayed."
+              />
+            )}
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -419,31 +509,6 @@ function DocumentFrame({ children }: { children: React.ReactNode }) {
     <article className="min-h-0 flex-1 overflow-auto bg-card">
       {children}
     </article>
-  );
-}
-
-function DocumentHeading({
-  eyebrow,
-  title,
-  detail,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  detail: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <header className="flex items-start gap-4 border-b px-6 py-5">
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground">{eyebrow}</p>
-        <h1 className="break-all text-lg font-medium tracking-tight">
-          {title}
-        </h1>
-        <p className="text-xs text-muted-foreground">{detail}</p>
-      </div>
-      {children != null && <div className="shrink-0">{children}</div>}
-    </header>
   );
 }
 

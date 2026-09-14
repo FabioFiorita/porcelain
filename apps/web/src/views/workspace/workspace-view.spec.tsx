@@ -573,6 +573,7 @@ describe('file discussion', () => {
     await user.click(
       await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
     );
+    await user.click(await screen.findByRole('button', { name: 'Comment' }));
     await user.click(
       await screen.findByRole('button', { name: 'Add comment' }),
     );
@@ -607,6 +608,7 @@ describe('file discussion', () => {
     await user.click(
       screen.getByRole('button', { name: /empty-state.tsx.*staged/ }),
     );
+    await user.click(await screen.findByRole('button', { name: 'Comment' }));
     await screen.findByRole('button', { name: '0 comments' });
     expect(screen.queryByText('Please explain this component.')).toBeNull();
   });
@@ -731,24 +733,21 @@ describe('git actions', () => {
 });
 
 describe('workspace theme', () => {
-  it('toggles the theme from the disconnected shell and from the connected controls', async () => {
+  it('keeps theme selection inside Settings', async () => {
     renderReview();
-    const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole('button', { name: 'Switch to dark theme' }),
-    );
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
-    await user.click(
-      screen.getByRole('button', { name: 'Switch to light theme' }),
-    );
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
-    await connect();
+    expect(
+      screen.queryByRole('button', { name: /Switch to .* theme/ }),
+    ).toBeNull();
+    const user = await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    await user.click(
-      screen.getByRole('button', { name: 'Switch to dark theme' }),
-    );
+    expect(
+      screen.queryByRole('button', { name: /Switch to .* theme/ }),
+    ).toBeNull();
+    await user.click(screen.getByRole('button', { name: /^Settings/ }));
+    await user.click(screen.getByRole('tab', { name: 'Dark' }));
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    await screen.findByRole('button', { name: 'Switch to light theme' });
+    await user.click(screen.getByRole('tab', { name: 'Light' }));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });
 
@@ -762,7 +761,8 @@ describe('review surfaces', () => {
     await user.click(await screen.findByRole('tab', { name: 'Files' }));
     await user.click(await screen.findByRole('button', { name: /README\.md/ }));
     await screen.findByRole('heading', { name: 'README.md' });
-    expect(screen.getByText(/bytes · Read only/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy();
+    expect(screen.queryByText(/bytes · Read only/)).toBeNull();
 
     await user.click(await screen.findByRole('tab', { name: 'History' }));
     await user.click(

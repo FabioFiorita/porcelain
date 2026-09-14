@@ -36,7 +36,6 @@ import type { Inventory, Project } from '../../domain/inventory';
 import { projectPath, worktreeLabel } from '../../domain/inventory';
 import { copyText } from './copy';
 import { SHORTCUTS } from './shortcuts';
-import { ThemeToggle } from './theme';
 
 type Worktree = Project['worktrees'][number];
 type WorktreeSummary = { pendingFiles?: number; openThreads?: number };
@@ -58,7 +57,6 @@ type Props = {
   onOpenProject?: () => void;
   onOpenSettings?: () => void;
   onOpenShortcuts?: () => void;
-  showThemeToggle?: boolean;
 };
 
 /** Projects and their worktrees. Navigation only; it never edits git. */
@@ -71,7 +69,6 @@ export function ProjectNavigator({
   onOpenProject,
   onOpenSettings,
   onOpenShortcuts,
-  showThemeToggle = false,
 }: Props) {
   const projects = inventory?.projects ?? legacyProjects ?? [];
   const selected = selectedWorktreeId ?? legacySelected ?? null;
@@ -142,7 +139,6 @@ export function ProjectNavigator({
             <SettingsIcon />
             Settings
           </Button>
-          {showThemeToggle && <ThemeToggle />}
           <Button
             variant="ghost"
             size="icon-sm"

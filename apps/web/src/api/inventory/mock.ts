@@ -1,5 +1,6 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { CommentThread } from '../../domain/comments';
+import type { FilePreference } from '../../domain/file-preferences';
 import type { Inventory } from '../../domain/inventory';
 import type { ReviewedMark } from '../../domain/review';
 import { createId } from '../../lib/id';
@@ -133,6 +134,8 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     sessionToken: '',
     disconnectFailed: false,
     comments: {} as Record<string, CommentThread[]>,
+    filePreferences: {} as Record<string, FilePreference[]>,
+    filePreferencesFailed: false,
     commentsFailed: false,
     actionCount: 0,
     loseActionResponse: false,

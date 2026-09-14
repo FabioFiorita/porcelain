@@ -11,7 +11,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { SHORTCUTS } from './shortcuts';
-import { ThemeToggle } from './theme';
 
 export function WorkspaceControls({
   children,
@@ -46,7 +45,6 @@ export function WorkspaceControls({
         </TooltipContent>
       </Tooltip>
       {children}
-      <ThemeToggle />
     </div>
   );
 }

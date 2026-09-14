@@ -17,6 +17,7 @@ import { ReviewIndex } from './review-index';
 
 export function ReviewSidebar({
   scope,
+  worktreePath,
   surface,
   activeEntry,
   available,
@@ -24,6 +25,7 @@ export function ReviewSidebar({
   onOpen,
 }: {
   scope: ReviewScope;
+  worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
   available: boolean;
@@ -59,6 +61,7 @@ export function ReviewSidebar({
         <TabsContent value="changes" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
+            worktreePath={worktreePath}
             surface="changes"
             activeEntry={activeEntry}
             available={available}
@@ -68,6 +71,7 @@ export function ReviewSidebar({
         <TabsContent value="files" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
+            worktreePath={worktreePath}
             surface="files"
             activeEntry={activeEntry}
             available={available}
@@ -77,6 +81,7 @@ export function ReviewSidebar({
         <TabsContent value="history" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
+            worktreePath={worktreePath}
             surface="history"
             activeEntry={activeEntry}
             available={available}
@@ -101,12 +106,14 @@ function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
 
 function SidebarSurface({
   scope,
+  worktreePath,
   surface,
   activeEntry,
   available,
   onOpen,
 }: {
   scope: ReviewScope;
+  worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
   available: boolean;
@@ -139,10 +146,11 @@ function SidebarSurface({
       {surface === 'files' && (
         <FileNavigation
           scope={scope}
+          worktreePath={worktreePath}
           selected={
             activeEntry?.startsWith('file:') ? activeEntry.slice(5) : ''
           }
-          onSelect={(path) => onOpen({ kind: 'file', path })}
+          onOpen={onOpen}
         />
       )}
       {surface === 'history' && (

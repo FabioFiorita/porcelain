@@ -120,9 +120,19 @@ export function ReviewWorkspace({
     },
     [navigate],
   );
+  useHotkey(SHORTCUTS.surfaceReview, () => setSurface('changes'), {
+    ignoreInputs: true,
+  });
+  useHotkey(SHORTCUTS.surfaceFiles, () => setSurface('files'), {
+    ignoreInputs: true,
+  });
+  useHotkey(SHORTCUTS.surfaceHistory, () => setSurface('history'), {
+    ignoreInputs: true,
+  });
   const sidebar = (
     <ReviewSidebar
       scope={scope}
+      worktreePath={worktree.path}
       surface={surface}
       activeEntry={focusedPane === 1 ? search.side : search.entry}
       available={worktree.available}

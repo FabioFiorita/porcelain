@@ -4,6 +4,11 @@ export const queryKeys = {
   inventory: (environmentId: string) => ['inventory', environmentId] as const,
   reviewProject: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId] as const,
+  filePreferences: (environmentId: string, projectId: string) =>
+    [
+      ...queryKeys.reviewProject(environmentId, projectId),
+      'file-preferences',
+    ] as const,
   review: (environmentId: string, scope: ReviewScope) =>
     [
       ...queryKeys.reviewProject(environmentId, scope.projectId),
