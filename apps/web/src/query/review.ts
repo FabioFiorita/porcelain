@@ -435,9 +435,20 @@ export function useMarkAllReviewed(scope: ReviewScope) {
 }
 
 export function useFileTree(scope: ReviewScope) {
-  return useReviewData(scope, ['file-tree'], (api, request) =>
-    api.fileTree(request),
-  );
+  const { api, connection } = useConnectedContext();
+  return useQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'file-tree',
+    ]),
+    queryFn: async ({ signal }) => {
+      const request = connection.request(signal);
+      const data = await api.review.fileTree({ ...scope, ...request });
+      request.signal.throwIfAborted();
+      return data;
+    },
+    retry: false,
+    throwOnError: false,
+  });
 }
 
 export function useCommitLayers(scope: ReviewScope, oid: string) {

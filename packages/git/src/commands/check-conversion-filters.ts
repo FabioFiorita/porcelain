@@ -4,6 +4,7 @@ import { executeInspection } from '../execute-inspection.ts';
 export async function checkConversionFilters(
   checkout: string,
   signal?: AbortSignal,
+  selectedPaths?: readonly string[],
 ): Promise<string[]> {
   const config = await executeInspection(
     checkout,
@@ -22,12 +23,14 @@ export async function checkConversionFilters(
         return match?.[1] ? [match[1]] : [];
       }),
   );
-  const paths = await executeInspection(
-    checkout,
-    ['ls-files', '-z'],
-    8 * 1024 * 1024,
-    signal,
-  );
+  const paths = selectedPaths
+    ? Buffer.from(`${selectedPaths.join('\0')}\0`)
+    : await executeInspection(
+        checkout,
+        ['ls-files', '-z'],
+        8 * 1024 * 1024,
+        signal,
+      );
   // check-attr does not run conversion drivers. stdin preserves filename bytes.
   const attributes = await executeInspection(
     checkout,

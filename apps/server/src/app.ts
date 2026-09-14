@@ -426,6 +426,11 @@ export async function openApplication(options: {
       },
       comments: async (command, signal) => {
         const snapshot = structuredClone(command);
+        if (snapshot.kind === 'list') {
+          operations.assertOpen();
+          signal?.throwIfAborted();
+          return comments.execute(snapshot);
+        }
         return operations.run(async () => comments.execute(snapshot), signal);
       },
       commitReviewLayers: (projectId, commitOid, signal) => {

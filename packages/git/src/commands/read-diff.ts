@@ -11,15 +11,15 @@ export async function readDiff(
 ): Promise<GitDiffResult> {
   if (!change.supported)
     return { kind: 'omitted', reason: 'unsupported-submodule' };
-  const config =
-    change.scope === 'unstaged'
-      ? await checkConversionFilters(checkout, signal)
-      : [];
   const paths = [
     ...new Set(
       [change.oldPath, change.newPath].filter((path) => path !== null),
     ),
   ];
+  const config =
+    change.scope === 'unstaged'
+      ? await checkConversionFilters(checkout, signal, paths)
+      : [];
   // Literal pathspecs also match descendants. Escaping every codepoint in a
   // glob pathspec forces exact matching, including for a rename foo -> foo/bar.
   const pathspecs = paths.map(
@@ -50,7 +50,7 @@ export async function readDiff(
     );
     if (statistics.subarray(0, 4).equals(Buffer.from('-\t-\t'))) {
       if (change.scope === 'unstaged')
-        await checkConversionFilters(checkout, signal);
+        await checkConversionFilters(checkout, signal, paths);
       return { kind: 'binary' };
     }
     const output = await executeInspection(
@@ -61,7 +61,7 @@ export async function readDiff(
       config,
     );
     if (change.scope === 'unstaged')
-      await checkConversionFilters(checkout, signal);
+      await checkConversionFilters(checkout, signal, paths);
     try {
       const patch = new TextDecoder('utf-8', { fatal: true }).decode(output);
       return { kind: /^@@ /m.test(patch) ? 'text' : 'metadata-only', patch };

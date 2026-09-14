@@ -68,6 +68,7 @@ function ScopedFileNavigation({
 }: Props) {
   const root = useDirectory(scope, '');
   const tree = useFileTree(scope);
+  const treeEntries = useMemo(() => tree.data?.entries ?? [], [tree.data]);
   const edit = useEditFile(scope);
   const [creating, setCreating] = useState<{
     kind: 'file' | 'directory';
@@ -92,7 +93,7 @@ function ScopedFileNavigation({
     ...queries.flatMap((query) => (query.data ? [query.data] : [])),
   ];
   const special = new Set(
-    tree.entries
+    treeEntries
       .filter((entry) => entry.kind === 'submodule')
       .map((entry) => `${entry.path}/`),
   );
@@ -102,7 +103,7 @@ function ScopedFileNavigation({
         ...mergeFileTreeEntries(directories).filter(
           (entry) => !special.has(entry.path),
         ),
-        ...tree.entries,
+        ...treeEntries,
       ].map((entry) => [entry.path, entry]),
     ).values(),
   ];
@@ -114,7 +115,7 @@ function ScopedFileNavigation({
   const failed = queries.filter((query) => query.isError);
   const gitStatus = useMemo<GitStatusEntry[]>(
     () => [
-      ...tree.entries
+      ...treeEntries
         .filter((entry) => entry.ignored)
         .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
       ...(overview?.status.changes ?? []).map(
@@ -129,7 +130,7 @@ function ScopedFileNavigation({
         }),
       ),
     ],
-    [overview?.status.changes, tree.entries],
+    [overview?.status.changes, treeEntries],
   );
   const changed = useMemo(
     () => new Set((overview?.status.changes ?? []).map(changePath)),
@@ -143,8 +144,10 @@ function ScopedFileNavigation({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center gap-1 border-b px-3">
         <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-          {visiblePaths.filter((path) => !path.endsWith('/')).length} files ·{' '}
-          {changed.size} changed
+          {tree.isPending
+            ? 'Loading files…'
+            : `${visiblePaths.filter((path) => !path.endsWith('/')).length} files`}{' '}
+          · {changed.size} changed
         </p>
         {hidden.size > 0 && (
           <Button
@@ -187,7 +190,7 @@ function ScopedFileNavigation({
       </div>
       <PierreFileTree
         paths={visiblePaths}
-        links={tree.entries.filter(
+        links={treeEntries.filter(
           (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
         )}
         creating={creating}
@@ -277,6 +280,20 @@ function ScopedFileNavigation({
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
           {reviewErrorMessage(setHidden.error)}
         </p>
+      )}
+      {tree.isError && (
+        <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1">
+            Full file search could not be loaded. You can still browse folders.
+          </span>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void tree.refetch()}
+          >
+            Try again
+          </Button>
+        </div>
       )}
       {failed.length > 0 && (
         <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-muted-foreground">

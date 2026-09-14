@@ -337,3 +337,53 @@ it('bounds aggregate UTF-8 evidence content while retaining affected paths', asy
     MAX_EVIDENCE_CONTENT_BYTES + 1_000_000,
   );
 });
+
+it('bounds concurrent evidence reads and drains them before reporting a failure', async () => {
+  const started: string[] = [];
+  const pending = Array.from({ length: 4 }, () =>
+    Promise.withResolvers<GitDiffResult>(),
+  );
+  const changes = Array.from(
+    { length: 8 },
+    (_, index): GitChange => ({
+      ...staged,
+      oldPath: `${index}.ts`,
+      newPath: `${index}.ts`,
+    }),
+  );
+  const allStarted = Promise.withResolvers<void>();
+  const operation = new ReadWorktreeEvidence(
+    store(),
+    () => ({
+      readStatus: async () => status(changes),
+      readDiff: async (change) => {
+        const index = started.length;
+        started.push(change.newPath ?? '');
+        if (started.length === 4) allStarted.resolve();
+        const entry = pending[index];
+        if (!entry) throw new Error('Unbounded evidence reads');
+        return entry.promise;
+      },
+    }),
+    readableGit,
+    {
+      read: async () => {
+        throw new Error('not needed');
+      },
+      list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
+    },
+  );
+  let settled = false;
+  const result = operation.execute('worktree').finally(() => {
+    settled = true;
+  });
+  const rejected = expect(result).rejects.toThrow('failed diff');
+  await allStarted.promise;
+  pending[0]?.reject(new Error('failed diff'));
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  expect(started).toEqual(['0.ts', '1.ts', '2.ts', '3.ts']);
+  for (const entry of pending.slice(1)) entry.resolve({ kind: 'binary' });
+  await rejected;
+  expect(started).toHaveLength(4);
+});

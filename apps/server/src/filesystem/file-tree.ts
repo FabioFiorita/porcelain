@@ -17,55 +17,65 @@ export class NodeFileTree implements FileTreeReader {
       listed.ignored.map((path) => path.replace(/\/$/, '')),
     );
     const entries: FileTree['entries'] = [];
-    for (const candidate of listed.paths) {
+    for (let offset = 0; offset < listed.paths.length; offset += 32) {
       signal?.throwIfAborted();
-      const path = candidate.replace(/\/$/, '');
-      try {
-        const parent = await inspectPath(
-          {
-            root,
-            path: dirname(path) === '.' ? '' : dirname(path),
-            worktreeId,
-          },
-          signal,
-        );
-        const full = join(parent.path, basename(path));
-        const info = await lstat(full);
-        const kind = info.isSymbolicLink()
-          ? 'symlink'
-          : info.isDirectory()
-            ? (await lstat(join(full, '.git')).then(
-                () => true,
-                (error: unknown) => {
-                  if (
-                    error instanceof Error &&
-                    'code' in error &&
-                    error.code === 'ENOENT'
-                  )
-                    return false;
-                  throw error;
-                },
-              ))
-              ? 'submodule'
-              : 'directory'
-            : info.isFile()
-              ? 'file'
-              : 'other';
-        entries.push({
-          path: kind === 'directory' ? `${path}/` : path,
-          kind,
-          ignored: ignored.has(path),
-          ...(kind === 'symlink' ? { target: await readlink(full) } : {}),
-        });
-      } catch (error) {
-        if (
-          !(
-            error instanceof Error &&
-            'code' in error &&
-            (error.code === 'ENOENT' || error.code === 'PATH_NOT_READABLE')
-          )
-        )
-          throw error;
+      const batch = await Promise.allSettled(
+        listed.paths.slice(offset, offset + 32).map(async (candidate) => {
+          signal?.throwIfAborted();
+          const path = candidate.replace(/\/$/, '');
+          try {
+            const parent = await inspectPath(
+              {
+                root,
+                path: dirname(path) === '.' ? '' : dirname(path),
+                worktreeId,
+              },
+              signal,
+            );
+            const full = join(parent.path, basename(path));
+            const info = await lstat(full);
+            const kind: FileTree['entries'][number]['kind'] =
+              info.isSymbolicLink()
+                ? 'symlink'
+                : info.isDirectory()
+                  ? (await lstat(join(full, '.git')).then(
+                      () => true,
+                      (error: unknown) => {
+                        if (
+                          error instanceof Error &&
+                          'code' in error &&
+                          error.code === 'ENOENT'
+                        )
+                          return false;
+                        throw error;
+                      },
+                    ))
+                    ? 'submodule'
+                    : 'directory'
+                  : info.isFile()
+                    ? 'file'
+                    : 'other';
+            return {
+              path: kind === 'directory' ? `${path}/` : path,
+              kind,
+              ignored: ignored.has(path),
+              ...(kind === 'symlink' ? { target: await readlink(full) } : {}),
+            };
+          } catch (error) {
+            if (
+              !(
+                error instanceof Error &&
+                'code' in error &&
+                (error.code === 'ENOENT' || error.code === 'PATH_NOT_READABLE')
+              )
+            )
+              throw error;
+          }
+        }),
+      );
+      for (const entry of batch) {
+        if (entry.status === 'rejected') throw entry.reason;
+        if (entry.value) entries.push(entry.value);
       }
     }
     const result = { worktreeId, entries };

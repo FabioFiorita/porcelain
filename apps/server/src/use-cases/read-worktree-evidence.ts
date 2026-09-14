@@ -70,21 +70,26 @@ export class ReadWorktreeEvidence {
 
     const byPath = new Map<string, EvidenceComparison[]>();
     let evidenceBytes = 0;
-    for (const change of before.changes) {
+    for (let offset = 0; offset < before.changes.length; offset += 4) {
       signal?.throwIfAborted();
-      const path = logicalPath(change);
-      const loaded = await this.readContent(
-        change,
-        worktreeId,
-        worktree.path,
-        reader,
-        signal,
+      const changes = before.changes.slice(offset, offset + 4);
+      const loaded = await Promise.allSettled(
+        changes.map((change) =>
+          this.readContent(change, worktreeId, worktree.path, reader, signal),
+        ),
       );
-      const content = boundedContent(loaded, evidenceBytes);
-      if (content === loaded) evidenceBytes += contentByteLength(content);
-      const comparisons = byPath.get(path) ?? [];
-      comparisons.push({ change, content });
-      byPath.set(path, comparisons);
+      for (const [index, change] of changes.entries()) {
+        const result = loaded[index];
+        if (!result) throw new Error('Missing evidence result');
+        if (result.status === 'rejected') throw result.reason;
+        const path = logicalPath(change);
+        const content = boundedContent(result.value, evidenceBytes);
+        if (content === result.value)
+          evidenceBytes += contentByteLength(content);
+        const comparisons = byPath.get(path) ?? [];
+        comparisons.push({ change, content });
+        byPath.set(path, comparisons);
+      }
     }
 
     const after = await reader.readStatus(signal);

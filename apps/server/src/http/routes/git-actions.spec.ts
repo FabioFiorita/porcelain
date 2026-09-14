@@ -141,6 +141,38 @@ describe('Git actions HTTP', () => {
     }
   });
 
+  it('reads comments without waiting for slow review evidence', async () => {
+    await writeFile(join(checkout, 'file'), 'changed\n');
+    const started = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<void>();
+    const original = InspectionGit.prototype.readDiff;
+    const diff = vi
+      .spyOn(InspectionGit.prototype, 'readDiff')
+      .mockImplementationOnce(async function (
+        this: InspectionGit,
+        change,
+        signal,
+      ) {
+        started.resolve();
+        await gate.promise;
+        return original.call(this, change, signal);
+      });
+    const url = `/worktrees/${prefix.split('/')[4]}`;
+    const evidence = server
+      .inject({ url: `${url}/evidence`, headers })
+      .then((response) => response);
+    try {
+      await started.promise;
+      const response = await server.inject({ url: `${url}/comments`, headers });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual([]);
+    } finally {
+      gate.resolve();
+      await evidence;
+      diff.mockRestore();
+    }
+  });
+
   it('counts current unreviewed files and unresolved comments in the review summary', async () => {
     const worktreeId = prefix.split('/')[4];
     const url = `/worktrees/${worktreeId}`;

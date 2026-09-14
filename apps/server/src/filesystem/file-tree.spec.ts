@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readTreePaths } from '@porcelain/git/tree-paths';
@@ -50,4 +50,33 @@ it('still rejects trees beyond the bounded path capacity before inspecting files
       ignored: [],
     }),
   ).rejects.toMatchObject({ code: 'DIRECTORY_TOO_LARGE' });
+});
+
+it('keeps entry order and skips paths through symlinked parents in concurrent batches', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-tree-links-'));
+  try {
+    await mkdir(join(root, 'folder'));
+    await writeFile(join(root, 'folder', 'file'), 'fixture');
+    await symlink('folder', join(root, 'link'));
+    const tree = await new NodeFileTree().read(root, 'fixture', {
+      paths: ['link/file', 'folder/file', 'missing', 'link'],
+      ignored: ['link'],
+    });
+    expect(tree.entries).toEqual([
+      { path: 'folder/file', kind: 'file', ignored: false },
+      { path: 'link', kind: 'symlink', ignored: true, target: 'folder' },
+    ]);
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled listing'));
+    await expect(
+      new NodeFileTree().read(
+        root,
+        'fixture',
+        { paths: ['folder/file'], ignored: [] },
+        controller.signal,
+      ),
+    ).rejects.toThrow('cancelled listing');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
