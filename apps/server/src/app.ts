@@ -90,6 +90,7 @@ export async function openApplication(options: {
     () => database.close(),
     operationTimeoutMs,
   );
+  const summaries = new OperationRunner(() => {}, operationTimeoutMs);
   const drafting = new OperationRunner(() => {}, 120_000);
   try {
     const layers = new ReviewLayerRepository(database.db);
@@ -191,10 +192,11 @@ export async function openApplication(options: {
       evidence,
       listReviewedFiles,
       comments,
+      status,
     );
     return {
       reviewSummary: (worktreeId, signal) =>
-        operations.run(
+        summaries.run(
           (ownedSignal) => summary.execute(worktreeId, ownedSignal),
           signal,
         ),
@@ -493,7 +495,7 @@ export async function openApplication(options: {
           signal,
         ),
       close: async () => {
-        await drafting.close();
+        await Promise.all([drafting.close(), summaries.close()]);
         await operations.close();
       },
     };

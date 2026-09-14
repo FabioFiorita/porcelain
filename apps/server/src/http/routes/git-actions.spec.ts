@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
+import { InspectionGit } from '@porcelain/git/inspection-git';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from '../server.ts';
 
@@ -90,6 +91,54 @@ describe('Git actions HTTP', () => {
     await server.close();
     vi.unstubAllEnvs();
     await rm(root, { recursive: true, force: true });
+  });
+
+  it('counts unreviewed paths without loading their diffs', async () => {
+    await writeFile(join(checkout, 'file'), 'staged\n');
+    await git('add', 'file');
+    await writeFile(join(checkout, 'file'), 'unstaged\n');
+    await writeFile(join(checkout, 'new'), 'new\n');
+    const diff = vi.spyOn(InspectionGit.prototype, 'readDiff');
+    try {
+      const response = await server.inject({
+        url: `/worktrees/${prefix.split('/')[4]}/review-summary`,
+        headers,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ pendingFiles: 2 });
+      expect(diff).not.toHaveBeenCalled();
+    } finally {
+      diff.mockRestore();
+    }
+  });
+
+  it('serves foreground reads while a background summary is blocked', async () => {
+    const gate = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    const original = InspectionGit.prototype.readStatus;
+    const status = vi
+      .spyOn(InspectionGit.prototype, 'readStatus')
+      .mockImplementationOnce(async function (this: InspectionGit, signal) {
+        started.resolve();
+        await gate.promise;
+        return original.call(this, signal);
+      });
+    const url = `/worktrees/${prefix.split('/')[4]}`;
+    const summary = server
+      .inject({ url: `${url}/review-summary`, headers })
+      .then((response) => response);
+    try {
+      await started.promise;
+      const foreground = await server.inject({
+        url: `${url}/git/status`,
+        headers,
+      });
+      expect(foreground.statusCode).toBe(200);
+    } finally {
+      gate.resolve();
+      await summary;
+      status.mockRestore();
+    }
   });
 
   it('counts current unreviewed files and unresolved comments in the review summary', async () => {

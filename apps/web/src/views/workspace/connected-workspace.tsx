@@ -62,11 +62,8 @@ function WorkspaceNavigation() {
   const navigate = useNavigate({ from: '/' });
   const inventory = useInventory();
   const selection = selectedWorktreeInProject(inventory, selected);
-  const { summaries, pending: summariesPending } =
-    useReviewSummaries(inventory);
-  const fallback = summariesPending
-    ? undefined
-    : firstWaitingWorktree(inventory, summaries);
+  const { summaries } = useReviewSummaries(inventory);
+  const fallback = firstWaitingWorktree(inventory, summaries);
 
   useEffect(() => {
     if (selection || !fallback) return;

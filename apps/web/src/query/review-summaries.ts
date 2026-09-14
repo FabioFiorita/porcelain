@@ -5,6 +5,30 @@ import type { ReviewSummary } from '../domain/review';
 import { queryKeys } from './keys';
 import { useConnectedContext } from './workspace-provider';
 
+const pendingSummaries = new WeakMap<object, Promise<void>>();
+
+function readInBackground<T>(
+  connection: object,
+  signal: AbortSignal,
+  read: () => Promise<T>,
+): Promise<T> {
+  const previous = pendingSummaries.get(connection) ?? Promise.resolve();
+  const result = previous.then(() => {
+    signal.throwIfAborted();
+    return read();
+  });
+  const settled = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  pendingSummaries.set(connection, settled);
+  void settled.then(() => {
+    if (pendingSummaries.get(connection) === settled)
+      pendingSummaries.delete(connection);
+  });
+  return result;
+}
+
 export function useReviewSummaries(inventory: Inventory) {
   const { api, connection } = useConnectedContext();
   const scopes = inventory.projects.flatMap((project) =>
@@ -17,14 +41,15 @@ export function useReviewSummaries(inventory: Inventory) {
       queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
         'summary',
       ]),
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const request = connection.request(signal);
-        const data = await api.review.summary({ ...scope, ...request });
-        request.signal.throwIfAborted();
-        if (data.worktreeId !== scope.worktreeId)
-          throw new ConnectionError('The review context changed.');
-        return data;
-      },
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        readInBackground(connection, signal, async () => {
+          const request = connection.request(signal);
+          const data = await api.review.summary({ ...scope, ...request });
+          request.signal.throwIfAborted();
+          if (data.worktreeId !== scope.worktreeId)
+            throw new ConnectionError('The review context changed.');
+          return data;
+        }),
       staleTime: 30000,
       retry: false,
       throwOnError: false,
