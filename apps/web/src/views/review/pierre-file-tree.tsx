@@ -12,7 +12,9 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { Fragment, useEffect, useRef } from 'react';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/toast';
+import { cn } from '@/lib/utils';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
@@ -36,6 +38,7 @@ export function PierreFileTree({
   onExpand,
   onSelect,
   onOpenFile,
+  onOpenDiff,
   onSetHidden,
 }: {
   paths: readonly string[];
@@ -56,6 +59,7 @@ export function PierreFileTree({
   onExpand: (paths: readonly string[]) => void;
   onSelect: (path: string) => void;
   onOpenFile: (path: string) => void;
+  onOpenDiff: (path: string) => void;
   onSetHidden: (path: string, hidden: boolean) => void;
 }) {
   const latest = useRef({
@@ -74,6 +78,7 @@ export function PierreFileTree({
     onExpand,
     onSelect,
     onOpenFile,
+    onOpenDiff,
     onSetHidden,
   });
   const reveal = useRef({ selected: '', complete: false });
@@ -93,6 +98,7 @@ export function PierreFileTree({
     onExpand,
     onSelect,
     onOpenFile,
+    onOpenDiff,
     onSetHidden,
   };
   const modelRef = useRef<ReturnType<typeof useFileTree>['model'] | null>(null);
@@ -104,9 +110,11 @@ export function PierreFileTree({
   const { model } = useFileTree({
     paths,
     density: 'compact',
-    flattenEmptyDirectories: false,
+    flattenEmptyDirectories: true,
     initialExpansion: 'closed',
-    icons: 'complete',
+    icons: { set: 'complete', colored: true },
+    unsafeCSS:
+      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); }',
     gitStatus,
     search: true,
     renaming: {
@@ -217,16 +225,27 @@ export function PierreFileTree({
     });
     syncing.current = true;
     try {
-      model.resetPaths(paths);
       const revealPaths = reveal.current.complete
         ? []
         : selectedDirectories(selected);
-      for (const path of [...expanded, ...revealPaths]) {
-        const item = model.getItem(path);
-        if (item?.isDirectory()) (item as FileTreeDirectoryHandle).expand();
-      }
+      model.resetPaths(paths, {
+        initialExpandedPaths: [
+          ...new Set([
+            ...expanded.filter((path) =>
+              selectedDirectories(path.replace(/\/$/, '')).every((parent) =>
+                expanded.includes(parent),
+              ),
+            ),
+            ...revealPaths,
+          ]),
+        ],
+      });
       const selectedItem = model.getItem(selected);
-      if (selectedItem && !selectedItem.isDirectory()) {
+      if (
+        !reveal.current.complete &&
+        selectedItem &&
+        !selectedItem.isDirectory()
+      ) {
         selectedItem.select();
         reveal.current.complete = true;
       }
@@ -240,6 +259,7 @@ export function PierreFileTree({
   useEffect(
     () =>
       model.subscribe(() => {
+        if (syncing.current) return;
         const expanded = directoryPaths(latest.current.paths)
           .filter((path) => {
             const item = model.getItem(path);
@@ -307,6 +327,7 @@ export function PierreFileTree({
                     icon: FolderPlusIcon,
                     run: () => latest.current.onStartCreate('directory', path),
                   },
+                  'separator-create' as const,
                 ]
               : []),
             ...(!link
@@ -323,7 +344,10 @@ export function PierreFileTree({
                   {
                     label: changed ? 'Open diff' : 'Open',
                     icon: changed ? FileDiffIcon : FileCodeIcon,
-                    run: () => latest.current.onSelect(path),
+                    run: () =>
+                      changed
+                        ? latest.current.onOpenDiff(path)
+                        : latest.current.onOpenFile(path),
                   },
                   ...(changed
                     ? [
@@ -357,11 +381,6 @@ export function PierreFileTree({
             },
             'separator-hide' as const,
             {
-              label: 'Move to trash',
-              icon: Trash2Icon,
-              run: () => latest.current.onTrash(path),
-            },
-            {
               label: 'Copy relative path',
               icon: CopyIcon,
               run: () => copyText(path, 'relative path'),
@@ -374,6 +393,12 @@ export function PierreFileTree({
                   `${latest.current.worktreePath.replace(/\/$/, '')}/${path}`,
                   'full path',
                 ),
+            },
+            'separator-trash' as const,
+            {
+              label: 'Move to trash',
+              icon: Trash2Icon,
+              run: () => latest.current.onTrash(path),
             },
           ];
           return (
@@ -411,7 +436,7 @@ export function PierreFileTree({
             >
               {actions.map((action) =>
                 typeof action === 'string' ? (
-                  <hr key={action} className="-mx-1 my-1 border-border" />
+                  <Separator key={action} className="-mx-1 my-1" />
                 ) : (
                   <Fragment key={action.label}>
                     <button
@@ -423,9 +448,18 @@ export function PierreFileTree({
                         });
                         action.run();
                       }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] hover:bg-accent"
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12.5px] hover:bg-accent focus-visible:bg-accent',
+                        action.label === 'Move to trash' && 'text-destructive',
+                      )}
                     >
-                      <action.icon className="size-3.5 text-muted-foreground" />
+                      <action.icon
+                        className={cn(
+                          'size-3.5',
+                          action.label !== 'Move to trash' &&
+                            'text-muted-foreground',
+                        )}
+                      />
                       {action.label}
                     </button>
                   </Fragment>

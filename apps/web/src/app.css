@@ -164,6 +164,7 @@
 }
 
 [data-slot="file-tree"] {
+  --trees-indent-guide-bg-override: transparent;
   color-scheme: inherit;
   --trees-bg-override: transparent;
   --trees-fg-override: var(--foreground);

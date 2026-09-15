@@ -43,7 +43,7 @@ export function ReviewSidebar({
         onValueChange={(value) => onSurface(value as Surface)}
         className="min-h-0 flex-1 gap-0"
       >
-        <div className="shrink-0 border-b p-1.5">
+        <div className="shrink-0 p-1.5">
           <TabsList className="h-8 w-full gap-0">
             <TabsTrigger value="changes" className="min-w-0 gap-1 px-1.5">
               <ChangesSurfaceLabel scope={scope} />

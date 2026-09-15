@@ -143,7 +143,7 @@ function ScopedFileNavigation({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b px-3">
+      <div className="flex h-9 shrink-0 items-center gap-1 px-3">
         <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
           {tree.isPending
             ? 'Loading files…'
@@ -175,7 +175,7 @@ function ScopedFileNavigation({
             setCreating({ kind: 'file', folder: '', nonce: Date.now() })
           }
         >
-          <FilePlusIcon />
+          <FilePlusIcon className="text-muted-foreground" />
         </Button>
         <Button
           size="icon-sm"
@@ -186,7 +186,7 @@ function ScopedFileNavigation({
             setCreating({ kind: 'directory', folder: '', nonce: Date.now() })
           }
         >
-          <FolderPlusIcon />
+          <FolderPlusIcon className="text-muted-foreground" />
         </Button>
       </div>
       <PierreFileTree
@@ -234,6 +234,7 @@ function ScopedFileNavigation({
             });
         }}
         onOpenFile={(path) => onOpen({ kind: 'file', path })}
+        onOpenDiff={(path) => onOpen({ kind: 'change', path })}
         onSetHidden={(path, value) =>
           discardRejection(setHidden.submit({ path, hidden: value }))
         }
