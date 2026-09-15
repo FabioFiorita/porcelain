@@ -6,6 +6,11 @@ import type {
 } from '../../domain/inventory';
 
 export type InventoryPort = {
+  remove(options: {
+    token: string;
+    signal: AbortSignal;
+    projectId: string;
+  }): Promise<{ deleted: boolean }>;
   discover(options: {
     token: string;
     signal: AbortSignal;

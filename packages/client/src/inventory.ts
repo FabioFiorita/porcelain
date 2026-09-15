@@ -1,5 +1,6 @@
 import {
   inventoryResponseSchema,
+  projectDeletionSchema,
   projectDiscoveryResponseSchema,
   projectFolderResponseSchema,
   projectResponseSchema,
@@ -161,6 +162,43 @@ async function readProjectLocation<T>(
     if (options.signal.aborted || error instanceof ConnectionError) throw error;
     throw new ConnectionError(
       'Could not load folders or repositories from the Porcelain server. Try again.',
+      { cause: error },
+    );
+  }
+}
+
+export async function removeProject(
+  options: InventoryRequest & { projectId: string },
+) {
+  try {
+    const response = await options.fetch(
+      `${options.endpoint}/projects/${encodeURIComponent(options.projectId)}`,
+      {
+        method: 'DELETE',
+        headers: { authorization: `Bearer ${options.token}` },
+        signal: options.signal,
+        redirect: 'error',
+        credentials: 'omit',
+        cache: 'no-store',
+      },
+    );
+    if (response.status === 401)
+      throw new ConnectionError(
+        'Access token was rejected. Disconnect and connect again.',
+      );
+    if (response.status === 409)
+      throw new ConnectionError(
+        'This project has an active or unresolved Git operation. Resolve it before removing the project.',
+      );
+    if (!response.ok)
+      throw new ConnectionError(
+        'Could not remove this project from Porcelain. Try again.',
+      );
+    return projectDeletionSchema.parse(await response.json());
+  } catch (error) {
+    if (options.signal.aborted || error instanceof ConnectionError) throw error;
+    throw new ConnectionError(
+      'Could not confirm project removal. Try again; repository files are not deleted.',
       { cause: error },
     );
   }

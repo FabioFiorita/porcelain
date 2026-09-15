@@ -4,6 +4,7 @@ import {
   discoverProjects,
   readInventory,
   registerProject,
+  removeProject,
 } from './inventory.ts';
 
 const inventory = {
@@ -242,4 +243,52 @@ test('reports folder failures without exposing server diagnostics and preserves 
       fetch: transport,
     }),
   ).rejects.toBe(controller.signal.reason);
+});
+
+test('removes a project using the authenticated idempotent DELETE endpoint', async () => {
+  const transport = vi.fn<typeof fetch>();
+  for (const deleted of [true, false]) {
+    transport.mockResolvedValue(new Response(JSON.stringify({ deleted })));
+    expect(
+      await removeProject({
+        endpoint: '/api',
+        token: 'secret',
+        signal,
+        fetch: transport,
+        projectId: 'project-id',
+      }),
+    ).toEqual({ deleted });
+  }
+  expect(transport).toHaveBeenCalledWith(
+    '/api/projects/project-id',
+    expect.objectContaining({
+      method: 'DELETE',
+      signal,
+      headers: { authorization: 'Bearer secret' },
+      cache: 'no-store',
+      redirect: 'error',
+    }),
+  );
+  transport.mockResolvedValue(
+    new Response('private diagnostics', { status: 409 }),
+  );
+  await expect(
+    removeProject({
+      endpoint: '/api',
+      token: 'secret',
+      signal,
+      fetch: transport,
+      projectId: 'project-id',
+    }),
+  ).rejects.toThrow('active or unresolved Git operation');
+  transport.mockResolvedValue(new Response('{}'));
+  await expect(
+    removeProject({
+      endpoint: '/api',
+      token: 'secret',
+      signal,
+      fetch: transport,
+      projectId: 'project-id',
+    }),
+  ).rejects.toThrow('Could not confirm project removal');
 });

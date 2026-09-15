@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import type { Api } from '../api/api';
 import type { Inventory, Project } from '../domain/inventory';
+import { retainedFileDrafts } from './file-drafts';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
 import { useConnectedContext } from './workspace-provider';
@@ -108,6 +109,52 @@ export function useRegisterProject() {
             : [...inventory.projects, project];
           return { ...inventory, projects };
         });
+      },
+    }),
+  );
+}
+
+export function useRemoveProject() {
+  const { api, connection } = useConnectedContext();
+  const client = useQueryClient();
+  const queryKey = queryKeys.inventory(connection.environmentId);
+  return asMutation(
+    useMutation<{ deleted: boolean }, Error, string, InventoryWriteContext>({
+      onMutate: () => ({ version: beginInventoryWrite(connection) }),
+      mutationFn: async (projectId) => {
+        const prefix = `[${JSON.stringify(projectId)},`;
+        for (const [key, draft] of retainedFileDrafts(connection)) {
+          if (key.startsWith(prefix) && !(await draft.save()))
+            throw new ConnectionError(
+              'Save or discard unsaved file drafts before removing this project.',
+            );
+        }
+        await client.cancelQueries({ queryKey });
+        const request = connection.request();
+        const result = await api.inventory.remove({ ...request, projectId });
+        request.signal.throwIfAborted();
+        return result;
+      },
+      onSuccess: async (_result, projectId, context) => {
+        if (connection.controller.signal.aborted) return;
+        if (context) canApplyInventoryWrite(connection, context.version);
+        await client.cancelQueries({ queryKey });
+        client.setQueryData<Inventory>(
+          queryKey,
+          (inventory) =>
+            inventory && {
+              ...inventory,
+              projects: inventory.projects.filter(
+                (project) => project.id !== projectId,
+              ),
+            },
+        );
+        const projectKey = queryKeys.reviewProject(
+          connection.environmentId,
+          projectId,
+        );
+        await client.cancelQueries({ queryKey: projectKey });
+        client.removeQueries({ queryKey: projectKey });
       },
     }),
   );

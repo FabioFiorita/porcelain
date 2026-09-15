@@ -66,9 +66,12 @@ function WorkspaceNavigation() {
   const fallback = firstWaitingWorktree(inventory, summaries);
 
   useEffect(() => {
-    if (selection || !fallback) return;
-    void navigate({ search: { worktree: fallback.id }, replace: true });
-  }, [fallback, navigate, selection]);
+    if (selection || (!fallback && !selected)) return;
+    void navigate({
+      search: fallback ? { worktree: fallback.id } : {},
+      replace: true,
+    });
+  }, [fallback, navigate, selected, selection]);
 
   useHotkey(
     SHORTCUTS.toggleNavigator,

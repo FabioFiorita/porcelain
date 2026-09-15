@@ -1,7 +1,14 @@
 // @vitest-environment jsdom
 
 import { focusManager } from '@tanstack/react-query';
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   afterAll,
@@ -425,6 +432,71 @@ describe('workspace through the inventory port', () => {
         project.worktrees.some((worktree) => worktree.path === path),
       ),
     ).toBe(false);
+  });
+});
+
+describe('project removal', () => {
+  it('confirms the scope, preserves a failed removal, and switches away from the removed project', async () => {
+    const store = createMockStore();
+    const project = store.inventory.projects[0];
+    if (!project) throw new Error('Missing fixture project');
+    renderWorkspace(store);
+    const user = await connect();
+    const trigger = await screen.findByRole('button', { name: project.name });
+    fireEvent.contextMenu(trigger);
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Remove from Porcelain' }),
+    );
+    let dialog = await screen.findByRole('alertdialog');
+    expect(dialog.textContent).toContain(
+      'Repository files and Git history stay on disk.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(store.inventory.projects).toContain(project);
+    fireEvent.contextMenu(trigger);
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Remove from Porcelain' }),
+    );
+    dialog = await screen.findByRole('alertdialog');
+    store.removeFailed = true;
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Remove from Porcelain' }),
+    );
+    expect((await within(dialog).findByRole('alert')).textContent).toContain(
+      'active or unresolved Git operation',
+    );
+    expect(store.inventory.projects).toContain(project);
+    store.removeFailed = false;
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Remove from Porcelain' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(store.inventory.projects).not.toContain(project);
+    expect(screen.queryByRole('button', { name: project.name })).toBeNull();
+    await waitFor(() =>
+      expect(document.querySelector('[aria-current="page"]')).not.toBeNull(),
+    );
+  });
+
+  it('shows the empty workspace when the final project is removed', async () => {
+    const store = createMockStore();
+    store.inventory.projects = store.inventory.projects.slice(0, 1);
+    renderWorkspace(store);
+    const user = await connect();
+    const project = store.inventory.projects[0];
+    if (!project) throw new Error('Missing fixture project');
+    fireEvent.contextMenu(
+      await screen.findByRole('button', { name: project.name }),
+    );
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'Remove from Porcelain' }),
+    );
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Remove from Porcelain' }),
+    );
+    expect(await screen.findByText('No projects registered')).toBeTruthy();
+    expect(await screen.findByText('Select a worktree')).toBeTruthy();
   });
 });
 

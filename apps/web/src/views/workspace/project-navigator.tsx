@@ -4,6 +4,7 @@ import {
   CircleAlertIcon,
   CopyIcon,
   FolderGit2Icon,
+  FolderMinusIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
   HouseIcon,
@@ -12,6 +13,7 @@ import {
   PlusIcon,
   SettingsIcon,
 } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +24,9 @@ import {
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import {
@@ -38,6 +42,7 @@ import type { Inventory, Project } from '../../domain/inventory';
 import { projectPath, worktreeLabel } from '../../domain/inventory';
 import type { ReviewSummary } from '../../domain/review';
 import { copyText } from './copy';
+import { RemoveProjectDialog } from './remove-project-dialog';
 import { SHORTCUTS } from './shortcuts';
 
 type Worktree = Project['worktrees'][number];
@@ -66,6 +71,8 @@ export function ProjectNavigator({
   onOpenShortcuts: openShortcuts,
 }: Props) {
   const projects = inventory.projects;
+  const [removing, setRemoving] = useState<Project | null>(null);
+  const openProjectButton = useRef<HTMLButtonElement>(null);
 
   return (
     <nav
@@ -84,6 +91,7 @@ export function ProjectNavigator({
           variant="ghost"
           size="icon-sm"
           className="ml-auto text-muted-foreground"
+          ref={openProjectButton}
           aria-label="Open project"
           title="Open project"
           onClick={openProject}
@@ -111,6 +119,7 @@ export function ProjectNavigator({
                 summaries={summaries}
                 selected={selected}
                 onSelect={select}
+                onRemove={setRemoving}
               />
             ))
           )}
@@ -140,6 +149,13 @@ export function ProjectNavigator({
           <KeyboardIcon />
         </Button>
       </footer>
+      {removing && (
+        <RemoveProjectDialog
+          project={removing}
+          onClose={() => setRemoving(null)}
+          finalFocus={openProjectButton}
+        />
+      )}
     </nav>
   );
 }
@@ -149,11 +165,13 @@ function ProjectSection({
   summaries,
   selected,
   onSelect,
+  onRemove,
 }: {
   project: Project;
   summaries: ReadonlyMap<string, ReviewSummary> | undefined;
   selected: string | null | undefined;
   onSelect: (id: string) => void;
+  onRemove: (project: Project) => void;
 }) {
   const path = projectPath(project);
   return (
@@ -184,10 +202,22 @@ function ProjectSection({
           </CollapsibleTrigger>
         </ContextMenuTrigger>
         <ContextMenuContent className="min-w-44">
-          <ContextMenuItem onClick={() => copyText(path, 'project path')}>
-            <CopyIcon />
-            Copy path
-          </ContextMenuItem>
+          <ContextMenuGroup>
+            <ContextMenuItem onClick={() => copyText(path, 'project path')}>
+              <CopyIcon />
+              Copy path
+            </ContextMenuItem>
+          </ContextMenuGroup>
+          <ContextMenuSeparator />
+          <ContextMenuGroup>
+            <ContextMenuItem
+              variant="destructive"
+              onClick={() => onRemove(project)}
+            >
+              <FolderMinusIcon />
+              Remove from Porcelain
+            </ContextMenuItem>
+          </ContextMenuGroup>
         </ContextMenuContent>
       </ContextMenu>
 

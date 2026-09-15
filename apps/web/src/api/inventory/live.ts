@@ -3,11 +3,14 @@ import {
   discoverProjects,
   readInventory,
   registerProject,
+  removeProject,
 } from '@porcelain/client/inventory';
 import type { InventoryPort } from './port';
 
 export function createInventoryLive(transport: typeof fetch): InventoryPort {
   return {
+    remove: (options) =>
+      removeProject({ ...options, endpoint: '/api', fetch: transport }),
     discover: (options) =>
       discoverProjects({ ...options, endpoint: '/api', fetch: transport }),
     browse: (options) =>

@@ -154,6 +154,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     reviewedSetFailed: false,
     reviewedRemoveFailed: false,
     registerFailed: false,
+    removeFailed: false,
     discoveryFailed: false,
     projectDiscovery: {
       repositories: [{ name: 'new-project', path: '/srv/work/new-project' }],
@@ -217,6 +218,20 @@ export function createInventoryMock(
   store: ReturnType<typeof createMockStore>,
 ): InventoryPort {
   return {
+    async remove({ token, signal, projectId }) {
+      await prepareInventoryRequest(store, token, signal);
+      if (store.removeFailed)
+        throw new ConnectionError(
+          'This project has an active or unresolved Git operation. Resolve it before removing the project.',
+        );
+      const project = store.inventory.projects.find(
+        (entry) => entry.id === projectId,
+      );
+      store.inventory.projects = store.inventory.projects.filter(
+        (entry) => entry.id !== projectId,
+      );
+      return { deleted: Boolean(project) };
+    },
     async discover({ token, signal }) {
       await prepareInventoryRequest(store, token, signal);
       if (store.discoveryFailed)
