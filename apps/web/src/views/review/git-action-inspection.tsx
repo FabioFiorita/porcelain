@@ -11,6 +11,7 @@ import type { ActionInput, GitAction } from '../../domain/git-action';
 import type { ReviewScope, Status } from '../../domain/review';
 import { useGitAction } from '../../query/git-actions';
 import { reviewErrorMessage } from '../../query/review';
+import { usePreferences } from '../workspace/preferences';
 import { CommitForm } from './commit-form';
 import { gitActions } from './git-action-options';
 
@@ -49,6 +50,8 @@ function ActionForm({
   onBusy: (busy: boolean) => void;
 }) {
   const git = useGitAction(scope, action);
+  const { preferences } = usePreferences();
+  const [strategy] = useState(preferences.pullStrategy);
   const branch = status.branch;
   const [message, setMessage] = useState('Porcelain review');
   const [remoteName, setRemote] = useState(branch?.remoteName ?? 'origin');
@@ -68,6 +71,7 @@ function ActionForm({
       case 'push':
         return { remoteName, destinationRef: ref, allowCreate: option };
       case 'pull':
+        return { remoteName, sourceRef: ref, strategy };
       case 'fetch':
         return { remoteName, sourceRef: ref };
       case 'stash-create':
@@ -176,8 +180,9 @@ function ActionForm({
       </fieldset>
       {action === 'pull' && (
         <p className="text-xs text-muted-foreground">
-          Pull fast-forwards this branch. Diverged branches need to be
-          reconciled first.
+          {strategy === 'merge'
+            ? 'Pull merges upstream changes into this branch.'
+            : 'Pull rebases local commits onto upstream, rewriting their commit IDs.'}
         </p>
       )}
       {outcome && (
@@ -186,6 +191,15 @@ function ActionForm({
           {outcome.reason
             ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
             : ''}
+        </p>
+      )}
+      {action === 'pull' && outcome?.state === 'conflicted' && (
+        <p role="alert" className="text-sm">
+          Pull stopped with conflicts. In this worktree, run{' '}
+          <code>git status</code> and follow its instructions to resolve and
+          continue. To undo the pull, run <code>git merge --abort</code> for a
+          merge or <code>git rebase --abort</code> for a rebase. Finish or abort
+          before starting another Git action.
         </p>
       )}
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}

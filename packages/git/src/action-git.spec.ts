@@ -422,6 +422,84 @@ describe('ActionGit', () => {
       expect(await git('rev-parse', 'HEAD')).toBe(local);
     });
 
+    it.each(['merge', 'rebase'] as const)(
+      'pulls divergent commits with %s and leaves an ahead branch unchanged',
+      async (strategy) => {
+        const remote = join(root, 'strategy-remote.git');
+        await git('init', '--bare', remote);
+        await git('remote', 'add', 'origin', remote);
+        const base = await git('rev-parse', 'HEAD');
+        await writeFile(join(checkout, 'remote'), 'upstream\n');
+        await git('add', 'remote');
+        await git('commit', '-m', 'upstream');
+        const upstream = await git('rev-parse', 'HEAD');
+        await git('push', '-u', 'origin', 'main');
+        await git('reset', '--hard', base);
+        await writeFile(join(checkout, 'local'), 'local\n');
+        await git('add', 'local');
+        await git('commit', '-m', 'local');
+        const local = await git('rev-parse', 'HEAD');
+        const intent = {
+          action: 'pull',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+          strategy,
+        } as const;
+        expect(await act(intent)).toMatchObject({
+          state: 'succeeded',
+          result: { trackingOid: upstream },
+        });
+        const tip = await git('rev-parse', 'HEAD');
+        expect(await git('show', 'HEAD:local')).toBe('local');
+        expect(await git('show', 'HEAD:remote')).toBe('upstream');
+        if (strategy === 'merge') {
+          expect(await git('show', '-s', '--format=%P', 'HEAD')).toBe(
+            `${local} ${upstream}`,
+          );
+        } else {
+          expect(await git('show', '-s', '--format=%P', 'HEAD')).toBe(upstream);
+          expect(tip).not.toBe(local);
+        }
+        expect(await act(intent)).toMatchObject({
+          state: 'no-change',
+          result: { headOid: tip },
+        });
+        expect(await git('rev-parse', 'HEAD')).toBe(tip);
+      },
+    );
+
+    it.each(['merge', 'rebase'] as const)(
+      'reports %s conflicts, blocks new actions, and permits recovery after abort',
+      async (strategy) => {
+        const remote = join(root, 'conflict-remote.git');
+        await git('init', '--bare', remote);
+        await git('remote', 'add', 'origin', remote);
+        const base = await git('rev-parse', 'HEAD');
+        await writeFile(join(checkout, 'file'), 'upstream\n');
+        await git('commit', '-am', 'upstream');
+        await git('push', '-u', 'origin', 'main');
+        await git('reset', '--hard', base);
+        await writeFile(join(checkout, 'file'), 'local\n');
+        await git('commit', '-am', 'local');
+        const local = await git('rev-parse', 'HEAD');
+        const intent = {
+          action: 'pull',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+          strategy,
+        } as const;
+        expect(await act(intent)).toMatchObject({ state: 'conflicted' });
+        expect(await git('ls-files', '--unmerged')).not.toBe('');
+        await expect(prepare(intent)).rejects.toMatchObject({
+          reason: 'CHECKOUT_BUSY',
+        });
+        await git(strategy, '--abort');
+        expect(await git('rev-parse', 'HEAD')).toBe(local);
+        expect(await git('status', '--porcelain')).toBe('');
+        await expect(prepare(intent)).resolves.toBeDefined();
+      },
+    );
+
     it('commits selected new files before the first commit', async () => {
       await git('checkout', '--orphan', 'new-history');
       await git('rm', '-rf', '.');

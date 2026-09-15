@@ -1,8 +1,8 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  fetchPreparationRequestSchema,
   gitActionPreparationSchema,
   gitActionScopeSchema,
+  pullPreparationRequestSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
@@ -18,13 +18,16 @@ export function preparePull(
     {
       schema: {
         params: gitActionScopeSchema,
-        body: fetchPreparationRequestSchema,
+        body: pullPreparationRequestSchema,
         response: { ...errorResponses, 200: gitActionPreparationSchema },
       },
     },
     async (request) =>
       toGitActionPreparation(
-        await options.application.preparePull(request.params, request.body),
+        await options.application.preparePull(request.params, {
+          ...request.body,
+          strategy: request.body.strategy ?? 'ff-only',
+        }),
       ),
   );
 }

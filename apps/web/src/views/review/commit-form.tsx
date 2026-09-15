@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import { commitFiles } from '../../domain/commit-files';
+import { resolveCommitModel } from '../../domain/commit-model';
 import type { CommitDraft } from '../../domain/git-action';
 import type { ReviewScope, Status } from '../../domain/review';
 import { createId } from '../../lib/id';
@@ -33,9 +34,7 @@ export function CommitForm({
   const generator = useCommitDraft(scope);
   const models = useCommitModels();
   const { preferences } = usePreferences();
-  const model =
-    models.data?.find((model) => model.id === preferences.commitModel)?.id ??
-    models.data?.[0]?.id;
+  const model = resolveCommitModel(models.data, preferences.commitModel);
   const [message, setMessage] = useState('');
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   const [groups, setGroups] = useState<Group[] | null>(null);
@@ -203,7 +202,9 @@ export function CommitForm({
               </Button>
               <span className="min-w-0 truncate text-xs text-muted-foreground">
                 {models.data?.find((entry) => entry.id === model)?.label ??
-                  'No coding CLI available'}
+                  (models.data?.length
+                    ? 'Choose a commit model in Settings'
+                    : 'No coding CLI available')}
               </span>
             </div>
           </>

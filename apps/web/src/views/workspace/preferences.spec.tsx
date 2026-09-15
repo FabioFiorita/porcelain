@@ -7,6 +7,13 @@ function PreferencesProbe() {
   const { preferences, resolvedTheme, setPreference } = usePreferences();
   return (
     <div>
+      <output data-testid="pull-strategy">{preferences.pullStrategy}</output>
+      <button
+        type="button"
+        onClick={() => setPreference('pullStrategy', 'rebase')}
+      >
+        Rebase
+      </button>
       <output data-testid="appearance">{preferences.appearance}</output>
       <output data-testid="diff-style">{preferences.diffStyle}</output>
       <output data-testid="line-overflow">{preferences.lineOverflow}</output>
@@ -34,6 +41,7 @@ describe('PreferencesProvider', () => {
     window.localStorage.setItem(
       'porcelain.prototype.preferences',
       JSON.stringify({
+        pullStrategy: 'rebase',
         appearance: 'light',
         diffStyle: 'split',
         lineOverflow: 'wrap',
@@ -48,6 +56,7 @@ describe('PreferencesProvider', () => {
       </PreferencesProvider>,
     );
 
+    expect(screen.getByTestId('pull-strategy').textContent).toBe('rebase');
     expect(screen.getByTestId('appearance').textContent).toBe('light');
     expect(screen.getByTestId('diff-style').textContent).toBe('split');
     expect(screen.getByTestId('line-overflow').textContent).toBe('wrap');
@@ -63,6 +72,8 @@ describe('PreferencesProvider', () => {
       </PreferencesProvider>,
     );
 
+    expect(screen.getByTestId('pull-strategy').textContent).toBe('merge');
+    fireEvent.click(screen.getByRole('button', { name: 'Rebase' }));
     fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
 
     expect(screen.getByTestId('appearance').textContent).toBe('dark');
@@ -72,6 +83,7 @@ describe('PreferencesProvider', () => {
         window.localStorage.getItem('porcelain.prototype.preferences') ?? '{}',
       ),
     ).toMatchObject({
+      pullStrategy: 'rebase',
       appearance: 'dark',
     });
   });

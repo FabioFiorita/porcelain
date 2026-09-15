@@ -28,7 +28,7 @@ function Choice<K extends keyof Preferences>({
 }) {
   const { preferences, setPreference } = usePreferences();
   return (
-    <div className="flex items-center justify-between gap-6">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0">
         <p className="text-sm font-medium">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
@@ -38,7 +38,7 @@ function Choice<K extends keyof Preferences>({
         onValueChange={(value) => setPreference(name, value as Preferences[K])}
         className="shrink-0"
       >
-        <TabsList className="w-56">
+        <TabsList className="w-full sm:w-56">
           {options.map((option) => (
             <TabsTrigger
               key={option.value}
@@ -146,6 +146,15 @@ export function SettingsDialog({
             </Section>
             <Separator />
             <Section title="Git">
+              <Choice
+                label="Pull strategy"
+                description="Used by Pull in the Git menu."
+                name="pullStrategy"
+                options={[
+                  { value: 'merge', label: 'Merge' },
+                  { value: 'rebase', label: 'Rebase' },
+                ]}
+              />
               <CommitModelSetting />
             </Section>
           </div>

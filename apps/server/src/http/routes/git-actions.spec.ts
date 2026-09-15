@@ -93,6 +93,44 @@ describe('Git actions HTTP', () => {
     await rm(root, { recursive: true, force: true });
   });
 
+  it.each(['merge', 'rebase'])(
+    'carries the %s pull strategy through preparation and execution',
+    async (strategy) => {
+      const remote = join(root, 'remote.git');
+      await git('init', '--bare', remote);
+      await git('remote', 'add', 'origin', remote);
+      const base = await git('rev-parse', 'HEAD');
+      await writeFile(join(checkout, 'upstream'), 'upstream\n');
+      await git('add', 'upstream');
+      await git('commit', '-m', 'upstream');
+      await git('push', '-u', 'origin', 'main');
+      await git('reset', '--hard', base);
+      await writeFile(join(checkout, 'local'), 'local\n');
+      await git('add', 'local');
+      await git('commit', '-m', 'local');
+      const preparationId = await preparation('pull', {
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
+        strategy,
+      });
+      const requestId = randomUUID();
+      const response = await server.inject({
+        method: 'POST',
+        url: `${prefix}/pull`,
+        headers,
+        payload: { preparationId, requestId },
+      });
+      expect(response.statusCode, response.body).toBe(202);
+      expect(await outcome(requestId)).toMatchObject({
+        state: 'succeeded',
+        action: 'pull',
+      });
+      expect(
+        (await git('show', '-s', '--format=%P', 'HEAD')).split(' '),
+      ).toHaveLength(strategy === 'merge' ? 2 : 1);
+    },
+  );
+
   it('counts unreviewed paths without loading their diffs', async () => {
     await writeFile(join(checkout, 'file'), 'staged\n');
     await git('add', 'file');

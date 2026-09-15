@@ -17,7 +17,7 @@ export type Preparation = ReturnType<typeof gitActionPreparationSchema.parse>;
 export type Receipt = ReturnType<typeof gitActionReceiptSchema.parse>;
 export type GitAction = Preparation['action'];
 export type ActionInput =
-  | { remoteName: string; sourceRef: string }
+  | { remoteName: string; sourceRef: string; strategy?: 'merge' | 'rebase' }
   | { remoteName: string; destinationRef: string; allowCreate: boolean }
   | {
       message: string;

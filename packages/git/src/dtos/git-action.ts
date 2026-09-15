@@ -1,5 +1,10 @@
 export type GitActionIntent =
-  | { action: 'pull'; remoteName: string; sourceRef: string }
+  | {
+      action: 'pull';
+      remoteName: string;
+      sourceRef: string;
+      strategy?: 'ff-only' | 'merge' | 'rebase';
+    }
   | { action: 'fetch'; remoteName: string; sourceRef: string }
   | {
       action: 'push';

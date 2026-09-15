@@ -41,7 +41,7 @@ it('discovers local models and invokes an isolated, tool-disabled CLI using stdi
       (await generator.models(AbortSignal.timeout(5000))).map(
         (model) => model.id,
       ),
-    ).toEqual(['codex:default', 'codex:fixture-model', 'claude:default']);
+    ).toEqual(['codex:fixture-model', 'claude:sonnet', 'claude:haiku']);
     expect(
       await generator.generate(
         'codex:fixture-model',
@@ -49,6 +49,14 @@ it('discovers local models and invokes an isolated, tool-disabled CLI using stdi
         AbortSignal.timeout(5000),
       ),
     ).toEqual([{ message: 'A fixture commit', paths: ['a.ts'] }]);
+    for (const model of [
+      'codex:default',
+      'claude:default',
+      'codex:fixture-model:extra',
+    ])
+      await expect(
+        generator.generate(model, 'Source', AbortSignal.timeout(5000)),
+      ).rejects.toThrow('Unsupported commit model');
     const recorded = JSON.parse(await readFile(log, 'utf8'));
     expect(recorded.input).toBe('Source content');
     expect(recorded.args).toEqual(
@@ -64,12 +72,14 @@ it('discovers local models and invokes an isolated, tool-disabled CLI using stdi
     );
     expect(recorded.cwd).not.toBe(process.cwd());
     await generator.generate(
-      'claude:default',
+      'claude:sonnet',
       'Source content',
       AbortSignal.timeout(5000),
     );
     expect(JSON.parse(await readFile(log, 'utf8')).args).toEqual(
       expect.arrayContaining([
+        '--model',
+        'sonnet',
         '--safe-mode',
         '--restricted',
         '--tools',
@@ -77,6 +87,9 @@ it('discovers local models and invokes an isolated, tool-disabled CLI using stdi
         '--strict-mcp-config',
       ]),
     );
+    await rm(join(root, '.codex/models_cache.json'));
+    await rm(join(root, 'claude'));
+    expect(await generator.models(AbortSignal.timeout(5000))).toEqual([]);
   } finally {
     vi.unstubAllEnvs();
     await rm(root, { recursive: true, force: true });

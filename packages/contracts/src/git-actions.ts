@@ -27,6 +27,10 @@ export const fetchPreparationRequestSchema = z.strictObject({
   remoteName: remoteSchema,
   sourceRef: refSchema,
 });
+export const pullPreparationRequestSchema =
+  fetchPreparationRequestSchema.extend({
+    strategy: z.enum(['ff-only', 'merge', 'rebase']).optional(),
+  });
 export const pushPreparationRequestSchema = z.strictObject({
   remoteName: remoteSchema,
   destinationRef: refSchema,

@@ -31,7 +31,7 @@ try {
         commitGenerator: {
           async models() {
             return [
-              { id: 'fixture:default', label: 'Disposable fixture model' },
+              { id: 'codex:gpt-5.6-luna', label: 'Disposable fixture model' },
             ];
           },
           async generate(_model, prompt) {

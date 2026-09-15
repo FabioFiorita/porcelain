@@ -11,6 +11,7 @@ import {
 
 export type Preferences = {
   commitModel: string;
+  pullStrategy: 'merge' | 'rebase';
   appearance: 'system' | 'light' | 'dark';
   diffStyle: 'unified' | 'split';
   lineOverflow: 'scroll' | 'wrap';
@@ -23,6 +24,7 @@ const PREFERENCES_STORAGE_KEY = 'porcelain.prototype.preferences';
 
 const DEFAULT_PREFERENCES: Preferences = {
   commitModel: '',
+  pullStrategy: 'merge',
   appearance: 'system',
   diffStyle: 'unified',
   lineOverflow: 'scroll',
@@ -55,6 +57,7 @@ function readPreferences(): Preferences {
     if (value == null || typeof value !== 'object') return DEFAULT_PREFERENCES;
     const stored = value as Record<string, unknown>;
     return {
+      pullStrategy: stored.pullStrategy === 'rebase' ? 'rebase' : 'merge',
       commitModel:
         typeof stored.commitModel === 'string' &&
         stored.commitModel.length <= 160

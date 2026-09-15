@@ -41,7 +41,7 @@ export const gitActions = [
   {
     id: 'pull',
     label: 'Pull',
-    description: 'Fast-forward from upstream',
+    description: 'Bring in upstream changes',
     icon: ArrowDownIcon,
     group: 'sync',
   },

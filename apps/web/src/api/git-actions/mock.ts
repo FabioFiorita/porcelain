@@ -19,7 +19,7 @@ export function createGitActionsMock(
   const receipts = new Map<string, Receipt>();
   return {
     async models() {
-      return [{ id: 'fixture:default', label: 'Fixture model' }];
+      return [{ id: 'codex:gpt-5.6-luna', label: 'Fixture model' }];
     },
     async draft({ input }) {
       return {

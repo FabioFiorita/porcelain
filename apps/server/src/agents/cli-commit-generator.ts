@@ -34,7 +34,6 @@ export class CliCommitGenerator implements CommitGenerator {
     signal.throwIfAborted();
     const models: CommitModel[] = [];
     if (await executable('codex')) {
-      models.push({ id: 'codex:default', label: 'Codex default' });
       const cache = join(
         process.env.CODEX_HOME ?? join(homedir(), '.codex'),
         'models_cache.json',
@@ -60,17 +59,22 @@ export class CliCommitGenerator implements CommitGenerator {
               });
         }
       } catch {
-        /* The CLI default remains available without a model cache. */
+        /* An explicit catalogue model is required for Codex drafts. */
       }
     }
     if (await executable('claude'))
-      models.push({ id: 'claude:default', label: 'Claude Code default' });
+      models.push(
+        { id: 'claude:sonnet', label: 'Sonnet' },
+        { id: 'claude:haiku', label: 'Haiku' },
+      );
     return models;
   }
   async generate(model: string, prompt: string, signal: AbortSignal) {
-    const [provider, selected] = model.split(':');
+    const [provider, selected, extra] = model.split(':');
     if (
       !selected ||
+      selected === 'default' ||
+      extra !== undefined ||
       !modelId.test(selected) ||
       !['codex', 'claude'].includes(provider ?? '')
     )
@@ -111,7 +115,8 @@ export class CliCommitGenerator implements CommitGenerator {
             schemaPath,
             '--output-last-message',
             outputPath,
-            ...(selected === 'default' ? [] : ['--model', selected]),
+            '--model',
+            selected,
             '-',
           ],
           root,
@@ -134,7 +139,8 @@ export class CliCommitGenerator implements CommitGenerator {
             'json',
             '--json-schema',
             outputSchema,
-            ...(selected === 'default' ? [] : ['--model', selected]),
+            '--model',
+            selected,
           ],
           root,
           prompt,
