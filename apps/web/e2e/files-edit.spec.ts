@@ -52,11 +52,15 @@ test('creates, edits and renames a file, preserves conflicts, and moves it to di
   await page.locator('[data-item-rename-input]').fill(filename);
   await page.locator('[data-item-rename-input]').press('Enter');
   await expect(
-    page.getByRole('heading', { name: filename, exact: true }),
+    page.locator('[data-header-content]').filter({ hasText: filename }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Open diff', exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: filename, exact: true }),
+  ).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath('file-header.png') });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   const editor = page.getByRole('textbox', { name: filename, exact: true });
   await expect(editor).toBeFocused();

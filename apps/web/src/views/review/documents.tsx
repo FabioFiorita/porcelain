@@ -1,6 +1,3 @@
-import { MessageSquarePlusIcon } from 'lucide-react';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import type { RevealComment } from '../../domain/comments';
 import type { DocumentRef, OpenDocument } from '../../domain/documents';
@@ -207,7 +204,6 @@ function LayerDocument({
 
 function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
   const { status } = useChanges(scope);
-  const [commentRequest, setCommentRequest] = useState<number>();
   const changes = status.changes.filter(
     (change) => changePath(change) === path,
   );
@@ -221,24 +217,7 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <DocumentToolbar
-        title={path}
-        subtitle={`${changes.length} comparison${changes.length === 1 ? '' : 's'}`}
-      >
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setCommentRequest(Date.now())}
-        >
-          <MessageSquarePlusIcon className="size-3.5" />
-          Comment
-        </Button>
-      </DocumentToolbar>
-      <ReviewCodeDocument
-        scope={scope}
-        changes={changes}
-        {...(commentRequest !== undefined ? { commentRequest } : {})}
-      />
+      <ReviewCodeDocument scope={scope} changes={changes} />
     </div>
   );
 }

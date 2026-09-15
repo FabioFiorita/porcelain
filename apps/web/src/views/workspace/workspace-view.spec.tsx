@@ -35,15 +35,18 @@ vi.mock('@pierre/diffs/react', () => ({
     items,
     renderCodeViewHeader,
     renderAnnotation,
+    renderHeaderMetadata,
   }: {
     items: Array<{ id: string; annotations?: Array<{ metadata: unknown }> }>;
     renderAnnotation?: (annotation: { metadata: unknown }) => React.ReactNode;
     renderCodeViewHeader?: () => React.ReactNode;
+    renderHeaderMetadata?: (item: { id: string }) => React.ReactNode;
   }) => (
     <div data-testid="code-view">
       {renderCodeViewHeader?.()}
       {items.map((item) => (
         <div key={item.id} data-code-item={item.id}>
+          {renderHeaderMetadata?.(item)}
           {item.annotations?.map((annotation) =>
             renderAnnotation?.(annotation),
           )}
@@ -540,9 +543,13 @@ describe('worktree review navigation', () => {
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
     await user.click(
-      await screen.findByRole('button', { name: /review-panel\.tsx.*staged/ }),
+      await screen.findByRole('button', { name: /^review-panel\.tsx.*staged/ }),
     );
-    await user.click(await screen.findByRole('button', { name: 'Comment' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^Comment on src\/components\/review-panel.tsx/,
+      }),
+    );
     await user.type(screen.getByLabelText('Comment'), 'Keep this draft');
     const reviewContent = screen.getByRole('region', {
       name: 'Review content',
@@ -593,10 +600,10 @@ describe('worktree review navigation', () => {
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
     await user.click(
-      await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
+      await screen.findByRole('button', { name: /^review-panel.tsx.*staged/ }),
     );
-    await screen.findByRole('heading', {
-      name: 'src/components/review-panel.tsx',
+    await screen.findByRole('button', {
+      name: /^Comment on src\/components\/review-panel.tsx/,
     });
     await user.click(
       screen.getByRole('button', {
@@ -786,9 +793,13 @@ describe('file discussion', () => {
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
     await user.click(
-      await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
+      await screen.findByRole('button', { name: /^review-panel.tsx.*staged/ }),
     );
-    await user.click(await screen.findByRole('button', { name: 'Comment' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^Comment on src\/components\/review-panel.tsx/,
+      }),
+    );
     await user.type(
       screen.getByLabelText('Comment'),
       'Please explain this component.',
@@ -821,7 +832,11 @@ describe('file discussion', () => {
     await user.click(
       screen.getByRole('button', { name: /empty-state.tsx.*staged/ }),
     );
-    await user.click(await screen.findByRole('button', { name: 'Comment' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: /^Comment on src\/components\/empty-state.tsx/,
+      }),
+    );
     expect(screen.getByLabelText('Comment')).toHaveProperty('value', '');
     expect(screen.queryByText('Please explain this component.')).toBeNull();
   });
@@ -957,10 +972,10 @@ describe('review surfaces', () => {
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
     await user.click(
-      await screen.findByRole('button', { name: /review-panel.tsx.*staged/ }),
+      await screen.findByRole('button', { name: /^review-panel.tsx.*staged/ }),
     );
-    await screen.findByRole('heading', {
-      name: 'src/components/review-panel.tsx',
+    await screen.findByRole('button', {
+      name: /^Comment on src\/components\/review-panel.tsx/,
     });
     const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
     if (!data) throw new Error('Missing fixture worktree');
@@ -999,7 +1014,7 @@ describe('git action cache consequences', () => {
       await screen.findByRole('button', { name: /agent\/review/ }),
     );
     await screen.findByRole('button', {
-      name: /review-panel.tsx.*staged/,
+      name: /^review-panel.tsx.*staged/,
     });
 
     await user.click(

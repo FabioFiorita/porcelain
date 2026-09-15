@@ -5,8 +5,8 @@ import {
 } from '@pierre/diffs/edit';
 import { EditProvider, File } from '@pierre/diffs/react';
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { CheckIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { CheckIcon, CopyIcon } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import type { FileDraft, FileDraftState } from '../../domain/file-draft';
@@ -31,7 +31,6 @@ export function FileEditor({
   changed,
   onDone,
   onDiscard,
-  toolbar,
 }: {
   owner: string;
   path: string;
@@ -41,7 +40,6 @@ export function FileEditor({
   changed: boolean;
   onDone: () => void;
   onDiscard: () => void;
-  toolbar: (controls: ReactNode) => ReactNode;
 }) {
   const { preferences } = usePreferences();
   const { dark } = useTheme();
@@ -91,24 +89,6 @@ export function FileEditor({
           : 'Saved';
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {toolbar(
-        <>
-          <span role="status" className="text-xs text-muted-foreground">
-            {label}
-          </span>
-          <Button
-            size="sm"
-            onClick={() =>
-              void draft.save().then((saved) => {
-                if (saved) onDone();
-              })
-            }
-          >
-            <CheckIcon className="size-3.5" />
-            Done
-          </Button>
-        </>,
-      )}
       {changed && (
         <p className="border-b bg-amber-500/10 px-3.5 py-1.5 text-xs text-amber-800 dark:text-amber-200">
           Saving edits the changes you are reviewing.
@@ -140,6 +120,32 @@ export function FileEditor({
       <div className="min-h-0 flex-1 overflow-auto">
         <EditProvider createEditor={createEditor}>
           <File
+            renderHeaderMetadata={() => (
+              <>
+                <span role="status" className="text-xs text-muted-foreground">
+                  {label}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    void draft.save().then((saved) => {
+                      if (saved) onDone();
+                    })
+                  }
+                >
+                  <CheckIcon className="size-3.5" />
+                  Done
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Copy path"
+                  onClick={() => copyText(path, 'path')}
+                >
+                  <CopyIcon />
+                </Button>
+              </>
+            )}
             file={file}
             edit
             editorOptions={editorOptions}
@@ -147,8 +153,7 @@ export function FileEditor({
               theme: PIERRE_THEME,
               themeType: dark ? 'dark' : 'light',
               overflow: preferences.lineOverflow,
-              disableFileHeader: true,
-              unsafeCSS: `${PIERRE_SURFACE_CSS}[data-code] { padding-top: 0 !important; }`,
+              unsafeCSS: PIERRE_SURFACE_CSS,
             }}
             onEditChange={(event) => draft.change(event.file.contents)}
             onEditComplete={() => 'reject'}

@@ -93,6 +93,7 @@ type Props = {
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
   disableFileHeader?: boolean;
+  headerActions?: ReactNode;
   onToggleReviewed?: (entry: CodeEntry) => void;
 };
 export function CodeDocument(props: Props) {
@@ -139,6 +140,7 @@ function CodeSurface({
   threads,
   commentRequest,
   disableFileHeader = false,
+  headerActions,
   onToggleReviewed,
 }: Props & { threads: readonly CommentThread[] }) {
   const { dark } = useTheme();
@@ -455,17 +457,22 @@ function CodeSurface({
           }}
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);
-            return entry?.comment && scope ? (
-              <button
-                type="button"
-                aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-sans text-xs text-muted-foreground hover:bg-accent"
-                onClick={() => openFileComment(entry)}
-              >
-                <MessageSquarePlusIcon className="size-3.5" />
-                Comment
-              </button>
-            ) : null;
+            return (
+              <div className="flex items-center gap-2">
+                {headerActions}
+                {entry?.comment && scope ? (
+                  <button
+                    type="button"
+                    aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-sans text-xs text-muted-foreground hover:bg-accent"
+                    onClick={() => openFileComment(entry)}
+                  >
+                    <MessageSquarePlusIcon className="size-3.5" />
+                    Comment
+                  </button>
+                ) : null}
+              </div>
+            );
           }}
           options={options}
           className="min-h-0 flex-1 overflow-auto"

@@ -1,9 +1,4 @@
-import {
-  CopyIcon,
-  FileDiffIcon,
-  MessageSquarePlusIcon,
-  PencilIcon,
-} from 'lucide-react';
+import { CopyIcon, FileDiffIcon, PencilIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -104,7 +99,6 @@ function ReadableFileDocument({
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
   );
-  const [commentRequest, setCommentRequest] = useState<number>();
   const { reveal } = useDocumentInteraction();
   useEffect(() => {
     if (
@@ -147,78 +141,71 @@ function ReadableFileDocument({
           draft.reset(text, contentFingerprint ?? '');
           setEditing(false);
         }}
-        toolbar={(controls) => (
-          <FileToolbar path={path}>{controls}</FileToolbar>
-        )}
       />
     );
   const showingSource = kind === 'code' || mode === 'source';
 
+  const actions = (
+    <>
+      <span
+        aria-live="polite"
+        className="hidden text-xs text-muted-foreground xl:inline"
+      >
+        {diskChanged ? 'Changed on disk just now' : ''}
+      </span>
+      {contentFingerprint && (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={draftState.owner !== null && draftState.owner !== editorId}
+          title={
+            draftState.owner && draftState.owner !== editorId
+              ? 'Editing in another pane'
+              : undefined
+          }
+          onClick={() => {
+            if (draft.claim(editorId)) setEditing(true);
+          }}
+        >
+          <PencilIcon className="size-3.5" />
+          {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
+        </Button>
+      )}
+      {kind !== 'code' && (
+        <Tabs
+          value={mode}
+          onValueChange={(value) => setMode(value as FileDisplayMode)}
+        >
+          <TabsList className="h-7">
+            <TabsTrigger value="rendered" className="px-2 text-xs">
+              {kind === 'markdown' ? 'Reader' : 'Preview'}
+            </TabsTrigger>
+            <TabsTrigger value="source" className="px-2 text-xs">
+              Source
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+      {changed && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onOpen({ kind: 'change', path })}
+        >
+          <FileDiffIcon className="size-3.5" />
+          Open diff
+        </Button>
+      )}
+      <CopyPath path={path} />
+    </>
+  );
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      <FileToolbar path={path}>
-        <span
-          aria-live="polite"
-          className="hidden text-xs text-muted-foreground xl:inline"
-        >
-          {diskChanged ? 'Changed on disk just now' : ''}
-        </span>
-        {contentFingerprint && (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={
-              draftState.owner !== null && draftState.owner !== editorId
-            }
-            title={
-              draftState.owner && draftState.owner !== editorId
-                ? 'Editing in another pane'
-                : undefined
-            }
-            onClick={() => {
-              if (draft.claim(editorId)) setEditing(true);
-            }}
-          >
-            <PencilIcon className="size-3.5" />
-            {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
-          </Button>
-        )}
-        {kind !== 'code' && (
-          <Tabs
-            value={mode}
-            onValueChange={(value) => setMode(value as FileDisplayMode)}
-          >
-            <TabsList className="h-7">
-              <TabsTrigger value="rendered" className="px-2 text-xs">
-                {kind === 'markdown' ? 'Reader' : 'Preview'}
-              </TabsTrigger>
-              <TabsTrigger value="source" className="px-2 text-xs">
-                Source
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        )}
-        {showingSource && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setCommentRequest(Date.now())}
-          >
-            <MessageSquarePlusIcon className="size-3.5" />
-            Comment
-          </Button>
-        )}
-        {changed && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => onOpen({ kind: 'change', path })}
-          >
-            <FileDiffIcon className="size-3.5" />
-            Open diff
-          </Button>
-        )}
-      </FileToolbar>
+      {!showingSource && (
+        <FileToolbar path={path} copy={false}>
+          {actions}
+        </FileToolbar>
+      )}
       {mode === 'rendered' && kind === 'markdown' ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <MarkdownView
@@ -237,7 +224,7 @@ function ReadableFileDocument({
       ) : (
         <CodeDocument
           scope={scope}
-          disableFileHeader
+          headerActions={actions}
           entries={[
             {
               ...fileEntry(`file:${path}`, path, text),
@@ -248,7 +235,6 @@ function ReadableFileDocument({
               },
             },
           ]}
-          {...(commentRequest !== undefined ? { commentRequest } : {})}
         />
       )}
     </div>
@@ -258,9 +244,11 @@ function ReadableFileDocument({
 function FileToolbar({
   path,
   children,
+  copy = true,
 }: {
   path: string;
   children?: React.ReactNode;
+  copy?: boolean;
 }) {
   const separator = path.lastIndexOf('/') + 1;
   const directory = path.slice(0, separator);
@@ -280,16 +268,22 @@ function FileToolbar({
       }
     >
       {children}
-      <Button
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Copy path"
-        title="Copy path"
-        onClick={() => copyText(path, 'path')}
-      >
-        <CopyIcon />
-      </Button>
+      {copy && <CopyPath path={path} />}
     </DocumentToolbar>
+  );
+}
+
+function CopyPath({ path }: { path: string }) {
+  return (
+    <Button
+      size="icon-sm"
+      variant="ghost"
+      aria-label="Copy path"
+      title="Copy path"
+      onClick={() => copyText(path, 'path')}
+    >
+      <CopyIcon />
+    </Button>
   );
 }
 

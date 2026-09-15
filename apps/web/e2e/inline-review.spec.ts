@@ -17,6 +17,11 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: /^accessibility.md/ }).click();
+  await expect(
+    page.getByRole('heading', { name: 'docs/accessibility.md', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('[data-header-content]').first()).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('diff-header.png') });
   await page.locator('[data-column-number]').first().hover();
   await page.locator('[data-utility-button]').first().click();
   const body = `Please clarify this line ${test.info().project.name}`;
@@ -76,7 +81,12 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
   ).toHaveCount(0);
   await page.getByRole('tab', { name: 'Layers', exact: true }).click();
   await page.getByRole('button', { name: /board-preview.png/ }).click();
-  await page.getByRole('button', { name: 'Comment', exact: true }).click();
+  await page
+    .getByRole('button', {
+      name: /Comment on .*board-preview.png/,
+      exact: true,
+    })
+    .click();
   await page
     .getByRole('textbox', { name: 'Comment', exact: true })
     .fill('Binary file discussion');
