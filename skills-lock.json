@@ -1,11 +1,23 @@
 {
   "version": 1,
   "skills": {
+    "diffs": {
+      "source": "pierrecomputer/pierre",
+      "sourceType": "github",
+      "skillPath": "skills/diffs/SKILL.md",
+      "computedHash": "a71296d891eb7a598fdc77d1cf8b92dcdd5bac30a9c6bfbc32a046f0d496c85e"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
       "skillPath": "skills/shadcn/SKILL.md",
       "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
+    },
+    "trees": {
+      "source": "pierrecomputer/pierre",
+      "sourceType": "github",
+      "skillPath": "skills/trees/SKILL.md",
+      "computedHash": "7132a04dc1cb869f53db7fc01f34805d7c78a1089608d9df9b4839647e34b13a"
     }
   }
 }
