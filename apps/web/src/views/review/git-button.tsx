@@ -117,7 +117,6 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
             {gitActionGroups.map((group, index) => (
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
                   {group.actions.map((candidate) => {
                     const blocker = gitActionBlocker(candidate.id, status);
                     const reason =
