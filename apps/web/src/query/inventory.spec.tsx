@@ -1,8 +1,6 @@
-// @vitest-environment jsdom
 import { focusManager, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { Api } from '../api/api';
 import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
@@ -67,7 +65,6 @@ function Harness() {
 }
 
 afterEach(() => {
-  cleanup();
   focusManager.setFocused(undefined);
 });
 
@@ -109,21 +106,19 @@ it('keeps a registered project when an older focus refresh resolves last', async
     },
   };
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={api}>
         <Harness />
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const user = userEvent.setup();
-  await user.type(
-    await screen.findByLabelText('Access token'),
-    'fixture-token',
-  );
-  await user.click(screen.getByRole('button', { name: 'Connect' }));
-  await screen.findByRole('button', { name: 'Register project' });
-  await user.click(screen.getByRole('button', { name: 'Register project' }));
+  await screen.getByLabelText('Access token').fill('fixture-token');
+  await screen.getByRole('button', { name: 'Connect' }).click();
+  await expect
+    .element(screen.getByRole('button', { name: 'Register project' }))
+    .toBeVisible();
+  await screen.getByRole('button', { name: 'Register project' }).click();
   await registerStarted.promise;
   focusManager.setFocused(false);
   focusManager.setFocused(true);
@@ -131,13 +126,17 @@ it('keeps a registered project when an older focus refresh resolves last', async
   registerResponse.resolve(registeredProject);
 
   const projects = screen.getByLabelText('Projects');
-  await waitFor(() =>
-    expect(projects.textContent).toContain('registered-project'),
-  );
+  await expect.element(projects).toMatchTextContent('registered-project');
 
   refreshResponse.resolve(staleInventory);
-  await Promise.resolve();
-  expect(projects.textContent).toContain('registered-project');
+  await vi.waitFor(() =>
+    expect(
+      queryClient.getQueryState(
+        queryKeys.inventory(store.inventory.environmentId),
+      )?.fetchStatus,
+    ).toBe('idle'),
+  );
+  await expect.element(projects).toMatchTextContent('registered-project');
 });
 
 it('does not resurrect a removed project from a late refresh and clears only its review cache', async () => {
@@ -166,20 +165,18 @@ it('does not resurrect a removed project from a late refresh and clears only its
     },
   };
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={api}>
         <Harness />
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const user = userEvent.setup();
-  await user.type(
-    await screen.findByLabelText('Access token'),
-    'fixture-token',
-  );
-  await user.click(screen.getByRole('button', { name: 'Connect' }));
-  await screen.findByRole('button', { name: 'Remove first project' });
+  await screen.getByLabelText('Access token').fill('fixture-token');
+  await screen.getByRole('button', { name: 'Connect' }).click();
+  await expect
+    .element(screen.getByRole('button', { name: 'Remove first project' }))
+    .toBeVisible();
   const removedKey = [
     ...queryKeys.reviewProject(store.inventory.environmentId, removed.id),
     'fixture',
@@ -190,24 +187,26 @@ it('does not resurrect a removed project from a late refresh and clears only its
   ];
   queryClient.setQueryData(removedKey, 'removed review');
   queryClient.setQueryData(retainedKey, 'retained review');
-  await user.click(
-    screen.getByRole('button', { name: 'Remove first project' }),
-  );
+  await screen.getByRole('button', { name: 'Remove first project' }).click();
   await removeStarted.promise;
   focusManager.setFocused(false);
   focusManager.setFocused(true);
   await refreshStarted.promise;
   removeResponse.resolve({ deleted: true });
-  await waitFor(() =>
-    expect(screen.getByLabelText('Projects').textContent).not.toContain(
-      removed.name,
-    ),
-  );
+  await expect
+    .element(screen.getByLabelText('Projects'))
+    .not.toMatchTextContent(removed.name);
   refreshResponse.resolve(stale);
-  await Promise.resolve();
-  expect(screen.getByLabelText('Projects').textContent).not.toContain(
-    removed.name,
+  await vi.waitFor(() =>
+    expect(
+      queryClient.getQueryState(
+        queryKeys.inventory(store.inventory.environmentId),
+      )?.fetchStatus,
+    ).toBe('idle'),
   );
+  await expect
+    .element(screen.getByLabelText('Projects'))
+    .not.toMatchTextContent(removed.name);
   expect(queryClient.getQueryData(removedKey)).toBeUndefined();
   expect(queryClient.getQueryData(retainedKey)).toBe('retained review');
 });
@@ -237,7 +236,7 @@ it('saves only the removed project drafts and blocks removal if saving fails', a
     );
     return <InventoryControls />;
   }
-  render(
+  const screen = await render(
     <QueryClientProvider client={createQueryClient()}>
       <WorkspaceProvider
         api={{ ...base, inventory: { ...base.inventory, remove } }}
@@ -246,30 +245,22 @@ it('saves only the removed project drafts and blocks removal if saving fails', a
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  const user = userEvent.setup();
-  await user.type(
-    await screen.findByLabelText('Access token'),
-    'fixture-token',
-  );
-  await user.click(screen.getByRole('button', { name: 'Connect' }));
-  await user.click(
-    await screen.findByRole('button', { name: 'Remove first project' }),
-  );
-  expect((await screen.findByRole('alert')).textContent).toContain(
-    'Save or discard',
-  );
+  await screen.getByLabelText('Access token').fill('fixture-token');
+  await screen.getByRole('button', { name: 'Connect' }).click();
+  await screen.getByRole('button', { name: 'Remove first project' }).click();
+  await expect
+    .element(screen.getByRole('alert'))
+    .toMatchTextContent('Save or discard');
   expect(remove).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Projects').textContent).toContain(removed.name);
+  await expect
+    .element(screen.getByLabelText('Projects'))
+    .toMatchTextContent(removed.name);
   expect(unrelatedSave).not.toHaveBeenCalled();
   save.mockResolvedValue('saved');
-  await user.click(
-    screen.getByRole('button', { name: 'Remove first project' }),
-  );
-  await waitFor(() =>
-    expect(screen.getByLabelText('Projects').textContent).not.toContain(
-      removed.name,
-    ),
-  );
+  await screen.getByRole('button', { name: 'Remove first project' }).click();
+  await expect
+    .element(screen.getByLabelText('Projects'))
+    .not.toMatchTextContent(removed.name);
   expect(draft.snapshot().savedText).toBe('local edits');
   expect(remove).toHaveBeenCalledOnce();
   expect(unrelatedSave).not.toHaveBeenCalled();

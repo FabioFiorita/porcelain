@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { PreferencesProvider, usePreferences } from './preferences';
 
 function PreferencesProbe() {
@@ -29,15 +28,10 @@ function PreferencesProbe() {
   );
 }
 
-beforeEach(() => {
-  window.localStorage.clear();
-  document.documentElement.classList.remove('dark');
-});
-
-afterEach(() => cleanup());
-
 describe('PreferencesProvider', () => {
-  it('restores supported device-local display preferences', () => {
+  it('restores supported device-local display preferences', async () => {
+    window.localStorage.clear();
+    document.documentElement.classList.remove('dark');
     window.localStorage.setItem(
       'porcelain.prototype.preferences',
       JSON.stringify({
@@ -50,33 +44,54 @@ describe('PreferencesProvider', () => {
       }),
     );
 
-    render(
+    const screen = await render(
       <PreferencesProvider>
         <PreferencesProbe />
       </PreferencesProvider>,
     );
 
-    expect(screen.getByTestId('pull-strategy').textContent).toBe('rebase');
-    expect(screen.getByTestId('appearance').textContent).toBe('light');
-    expect(screen.getByTestId('diff-style').textContent).toBe('split');
-    expect(screen.getByTestId('line-overflow').textContent).toBe('wrap');
-    expect(screen.getByTestId('markdown-default').textContent).toBe('source');
-    expect(screen.getByTestId('html-default').textContent).toBe('source');
-    expect(screen.getByTestId('theme').textContent).toBe('light');
+    await expect
+      .element(screen.getByTestId('pull-strategy'))
+      .toHaveTextContent('rebase');
+    await expect
+      .element(screen.getByTestId('appearance'))
+      .toHaveTextContent('light');
+    await expect
+      .element(screen.getByTestId('diff-style'))
+      .toHaveTextContent('split');
+    await expect
+      .element(screen.getByTestId('line-overflow'))
+      .toHaveTextContent('wrap');
+    await expect
+      .element(screen.getByTestId('markdown-default'))
+      .toHaveTextContent('source');
+    await expect
+      .element(screen.getByTestId('html-default'))
+      .toHaveTextContent('source');
+    await expect
+      .element(screen.getByTestId('theme'))
+      .toHaveTextContent('light');
   });
 
-  it('persists changes without involving the server', () => {
-    render(
+  it('persists changes without involving the server', async () => {
+    window.localStorage.clear();
+    document.documentElement.classList.remove('dark');
+
+    const screen = await render(
       <PreferencesProvider>
         <PreferencesProbe />
       </PreferencesProvider>,
     );
 
-    expect(screen.getByTestId('pull-strategy').textContent).toBe('merge');
-    fireEvent.click(screen.getByRole('button', { name: 'Rebase' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
+    await expect
+      .element(screen.getByTestId('pull-strategy'))
+      .toHaveTextContent('merge');
+    await screen.getByRole('button', { name: 'Rebase' }).click();
+    await screen.getByRole('button', { name: 'Dark' }).click();
 
-    expect(screen.getByTestId('appearance').textContent).toBe('dark');
+    await expect
+      .element(screen.getByTestId('appearance'))
+      .toHaveTextContent('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(
       JSON.parse(

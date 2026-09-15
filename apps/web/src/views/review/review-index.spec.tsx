@@ -1,7 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { CommentThread } from '../../domain/comments';
 import { type DocumentRef, entryKey } from '../../domain/documents';
 import type { Status } from '../../domain/review';
@@ -48,7 +46,8 @@ const status: Status = {
   ],
 };
 
-vi.mock('../../query/review', () => ({
+vi.mock('../../query/review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/review')>()),
   useChanges: () => ({
     status,
     layers: {
@@ -82,7 +81,8 @@ vi.mock('../../query/review', () => ({
     reset: vi.fn(),
   }),
 }));
-vi.mock('../../query/comments', () => ({
+vi.mock('../../query/comments', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/comments')>()),
   useComments: () => ({ threads: commentState.threads, error: null }),
   useReplyComment: () => ({
     submit: vi.fn(),
@@ -97,16 +97,14 @@ vi.mock('../../query/comments', () => ({
 }));
 
 afterEach(() => {
-  cleanup();
   commentState.threads = [];
 });
 
 describe('review index', () => {
   it('keeps staged and unstaged evidence in one compact file row', async () => {
     const onOpen = vi.fn<(ref: DocumentRef) => void>();
-    const user = userEvent.setup();
 
-    render(
+    const screen = await render(
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
@@ -120,19 +118,25 @@ describe('review index', () => {
     const row = screen.getByRole('button', {
       name: 'review-panel.tsx · staged + unstaged',
     });
-    expect(row.getAttribute('title')).toBe('src/components/review-panel.tsx');
-    expect(row.querySelector('[data-icon-token="react"]')).toBeTruthy();
-    expect(screen.queryByText('staged + unstaged')).toBeNull();
+    expect((await row.element()).getAttribute('title')).toBe(
+      'src/components/review-panel.tsx',
+    );
+    expect(
+      (await row.element()).querySelector('[data-icon-token="react"]'),
+    ).toBeTruthy();
+    await expect
+      .element(screen.getByText('staged + unstaged'))
+      .not.toBeInTheDocument();
 
-    await user.click(row);
+    await row.click();
     expect(onOpen).toHaveBeenCalledWith({
       kind: 'change',
       path: 'src/components/review-panel.tsx',
     });
   });
 
-  it('keeps the selected change row on the review surface accent only', () => {
-    render(
+  it('keeps the selected change row on the review surface accent only', async () => {
+    const screen = await render(
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
@@ -149,12 +153,12 @@ describe('review index', () => {
     const row = screen.getByRole('button', {
       name: 'review-panel.tsx · staged + unstaged',
     });
-    expect(row.className).toContain('bg-accent');
-    expect(row.className).not.toContain('workspace-choice');
+    expect((await row.element()).className).toContain('bg-accent');
+    expect((await row.element()).className).not.toContain('workspace-choice');
   });
 
-  it('keeps layer order and compact file counts visible', () => {
-    render(
+  it('keeps layer order and compact file counts visible', async () => {
+    const screen = await render(
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
@@ -165,11 +169,13 @@ describe('review index', () => {
       />,
     );
 
-    expect(
-      screen.getByRole('button', { name: /A clearer review experience/ }),
-    ).toBeTruthy();
-    expect(screen.getByText('2')).toBeTruthy();
-    expect(screen.getByText('The whole handoff')).toBeTruthy();
+    await expect
+      .element(
+        screen.getByRole('button', { name: /A clearer review experience/ }),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText('2')).toBeVisible();
+    await expect.element(screen.getByText(/The whole handoff/)).toBeVisible();
   });
 
   it('filters comment threads and routes an anchor to its current document', async () => {
@@ -210,9 +216,8 @@ describe('review index', () => {
       },
     ];
     const onOpen = vi.fn<(ref: DocumentRef) => void>();
-    const user = userEvent.setup();
 
-    render(
+    const screen = await render(
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
@@ -223,13 +228,19 @@ describe('review index', () => {
       />,
     );
 
-    await user.click(screen.getByRole('tab', { name: /Comments/ }));
-    expect(screen.getByRole('button', { name: 'open 1' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'resolved 1' })).toBeTruthy();
-    expect(screen.getByText('Please check this branch.')).toBeTruthy();
+    await screen.getByRole('tab', { name: /Comments/ }).click();
+    await expect
+      .element(screen.getByRole('button', { name: 'open 1' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'resolved 1' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText('Please check this branch.'))
+      .toBeVisible();
     expect(document.querySelector('[data-slot="bubble"]')).toBeTruthy();
 
-    await user.click(screen.getByTitle('Show in the code'));
+    await screen.getByTitle('Show in the code').click();
     expect(onOpen).toHaveBeenCalledWith(
       {
         kind: 'change',
@@ -238,7 +249,7 @@ describe('review index', () => {
       commentState.threads[0]?.anchor,
     );
 
-    await user.click(screen.getByRole('button', { name: 'resolved 1' }));
-    expect(screen.getByText('Looks good now.')).toBeTruthy();
+    await screen.getByRole('button', { name: 'resolved 1' }).click();
+    await expect.element(screen.getByText('Looks good now.')).toBeVisible();
   });
 });

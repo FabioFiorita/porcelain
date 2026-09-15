@@ -1,12 +1,5 @@
-// @vitest-environment jsdom
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { PreferencesProvider } from '../workspace/preferences';
 import { GitActionInspection } from './git-action-inspection';
 
@@ -14,7 +7,8 @@ const { run, receipt } = vi.hoisted(() => ({
   run: vi.fn().mockResolvedValue({ state: 'succeeded' }),
   receipt: { state: 'conflicted' },
 }));
-vi.mock('../../query/git-actions', () => ({
+vi.mock('../../query/git-actions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/git-actions')>()),
   useGitAction: () => ({
     run,
     canStartNew: true,
@@ -23,7 +17,6 @@ vi.mock('../../query/git-actions', () => ({
   }),
 }));
 afterEach(() => {
-  cleanup();
   window.localStorage.clear();
   vi.clearAllMocks();
 });
@@ -35,7 +28,7 @@ it.each(['merge', 'rebase'])(
       'porcelain.prototype.preferences',
       JSON.stringify({ pullStrategy: strategy }),
     );
-    render(
+    const screen = await render(
       <PreferencesProvider>
         <GitActionInspection
           scope={{ projectId: 'project', worktreeId: 'worktree' }}
@@ -52,14 +45,14 @@ it.each(['merge', 'rebase'])(
         />
       </PreferencesProvider>,
     );
-    expect(screen.getByRole('alert').textContent).toContain(
-      'git merge --abort',
-    );
-    expect(screen.getByRole('alert').textContent).toContain(
-      'git rebase --abort',
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Pull' }));
-    await waitFor(() =>
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('git merge --abort');
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('git rebase --abort');
+    await screen.getByRole('button', { name: 'Pull' }).click();
+    await vi.waitFor(() =>
       expect(run).toHaveBeenCalledWith({
         remoteName: 'origin',
         sourceRef: 'refs/heads/main',

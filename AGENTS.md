@@ -16,8 +16,9 @@ real credentials or work projects. Stop only task-owned processes.
 
 Carry authorized work through implementation and focused verification. Use reasonable
 judgment for routine choices; discuss changes to product scope or major architecture.
-Protect changed behavior with meaningful tests. CI owns full verification; run checks
-proportional to the change locally and report what remains unverified.
+Protect changed behavior with meaningful tests. Follow the vitest skill for spec
+APIs and environments. CI owns full verification; run checks proportional to the
+change locally and report what remains unverified.
 
 For a nontrivial change, use one fresh read-only reviewer after focused checks pass.
 Bound review to correctness, regressions and architecture, including whether tests protect

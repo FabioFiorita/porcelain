@@ -1,17 +1,10 @@
-// @vitest-environment jsdom
 import type {
   FileTreeDirectoryHandle,
   FileTree as TreeModel,
 } from '@pierre/trees';
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { PierreFileTree } from './pierre-file-tree';
 
 type MenuRenderer = (
@@ -36,7 +29,6 @@ vi.mock('@pierre/trees/react', async (original) => ({
     return null;
   },
 }));
-afterEach(cleanup);
 const noop = () => {};
 const props = {
   links: [],
@@ -61,7 +53,7 @@ function directory(path: string) {
   if (!item?.isDirectory()) throw new Error(`Missing directory ${path}`);
   return item as FileTreeDirectoryHandle;
 }
-it('keeps a collapsed root closed when another root gains directory contents', () => {
+it('keeps a collapsed root closed when another root gains directory contents', async () => {
   const paths = [
     'alpha/',
     'alpha/nested/',
@@ -69,25 +61,25 @@ it('keeps a collapsed root closed when another root gains directory contents', (
     'alpha/other.ts',
     'beta/',
   ];
-  const view = render(<PierreFileTree {...props} paths={paths} />);
-  act(() => {
-    directory('alpha/').expand();
-    directory('alpha/nested/').expand();
-  });
-  act(() => directory('alpha/').collapse());
+  const view = await render(<PierreFileTree {...props} paths={paths} />);
+  directory('alpha/').expand();
+  directory('alpha/nested/').expand();
+  directory('alpha/').collapse();
   expect(directory('alpha/').isExpanded()).toBe(false);
-  act(() => directory('beta/').expand());
-  view.rerender(<PierreFileTree {...props} paths={[...paths, 'beta/b.ts']} />);
+  directory('beta/').expand();
+  await view.rerender(
+    <PierreFileTree {...props} paths={[...paths, 'beta/b.ts']} />,
+  );
   expect(directory('alpha/').isExpanded()).toBe(false);
   expect(directory('beta/').isExpanded()).toBe(true);
 });
 
-it('opens the requested diff independently of the default file selection', () => {
+it('opens the requested diff independently of the default file selection', async () => {
   vi.stubGlobal('requestAnimationFrame', vi.fn());
   try {
     const onOpenDiff = vi.fn();
     const onSelect = vi.fn();
-    render(
+    await render(
       <PierreFileTree
         {...props}
         paths={['page.html']}
@@ -98,13 +90,13 @@ it('opens the requested diff independently of the default file selection', () =>
       />,
     );
     if (!state.menu) throw new Error('Missing menu');
-    render(
+    const menu = await render(
       state.menu(
         { kind: 'file', path: 'page.html' },
         { anchorRect: new DOMRect(), close: noop },
       ),
     );
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Open diff' }));
+    await menu.getByRole('menuitem', { name: 'Open diff' }).click();
     expect(onOpenDiff).toHaveBeenCalledWith('page.html');
     expect(onSelect).not.toHaveBeenCalled();
   } finally {

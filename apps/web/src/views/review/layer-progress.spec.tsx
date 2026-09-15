@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { Change, ReviewEvidenceItem, Status } from '../../domain/review';
 import { changePath } from '../../domain/review';
 import { DocumentView } from './documents';
@@ -79,7 +78,8 @@ function evidenceEntry(
   };
 }
 
-vi.mock('../../query/review', () => ({
+vi.mock('../../query/review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/review')>()),
   useChanges: () => ({
     status,
     layers: {
@@ -124,7 +124,8 @@ vi.mock('./review-code-document', () => ({
 vi.mock('../../query/history', () => ({
   useHistory: () => ({ commits: [] }),
 }));
-vi.mock('../workspace/preferences', () => ({
+vi.mock('../workspace/preferences', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../workspace/preferences')>()),
   usePreferences: () => ({
     preferences: { markdownDefault: 'reader', htmlDefault: 'preview' },
   }),
@@ -141,43 +142,44 @@ function renderLayer() {
 }
 
 afterEach(() => {
-  cleanup();
   state.evidence = [];
   state.bulkEntries = [];
 });
 
 describe('layer review progress', () => {
-  it('counts declared missing paths and excludes evidence from other layers', () => {
+  it('counts declared missing paths and excludes evidence from other layers', async () => {
     state.evidence = [
       evidenceEntry('same.ts', 'reviewed'),
       evidenceEntry('other.ts', 'reviewed', otherLayerChange),
     ];
 
-    renderLayer();
+    const screen = await renderLayer();
 
-    expect(screen.getByText('1/2')).toBeTruthy();
-    expect(
-      screen.getByRole('progressbar', { name: '1 of 2 files reviewed' }),
-    ).toBeTruthy();
+    await expect.element(screen.getByText('1/2')).toBeVisible();
+    await expect
+      .element(
+        screen.getByRole('progressbar', { name: '1 of 2 files reviewed' }),
+      )
+      .toBeInTheDocument();
     expect(state.bulkEntries.map((entry) => entry.path)).toEqual(['same.ts']);
-    expect(
-      screen.getByRole('button', { name: 'Mark layer reviewed' }),
-    ).toBeTruthy();
+    await expect
+      .element(screen.getByRole('button', { name: 'Mark layer reviewed' }))
+      .toBeVisible();
   });
 
-  it('updates the toolbar counter when reviewed evidence changes', () => {
+  it('updates the toolbar counter when reviewed evidence changes', async () => {
     state.evidence = [
       evidenceEntry('same.ts', 'unreviewed'),
       evidenceEntry('missing.ts', 'unreviewed', unstaged),
     ];
-    const view = renderLayer();
+    const view = await renderLayer();
 
-    expect(screen.getByText('0/2')).toBeTruthy();
+    await expect.element(view.getByText('0/2')).toBeVisible();
     state.evidence = [
       evidenceEntry('same.ts', 'reviewed'),
       evidenceEntry('missing.ts', 'reviewed', unstaged),
     ];
-    view.rerender(
+    await view.rerender(
       <DocumentView
         scope={scope}
         document={{ kind: 'layer', layerId: layer.id }}
@@ -185,6 +187,6 @@ describe('layer review progress', () => {
       />,
     );
 
-    expect(screen.getByText('2/2')).toBeTruthy();
+    await expect.element(view.getByText('2/2')).toBeVisible();
   });
 });

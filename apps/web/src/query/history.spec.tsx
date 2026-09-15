@@ -1,9 +1,7 @@
-// @vitest-environment jsdom
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { Suspense, useEffect } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { Api } from '../api/api';
 import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
@@ -82,9 +80,9 @@ function pagesFor(store: ReturnType<typeof createMockStore>) {
   } satisfies { first: History; second: History };
 }
 
-function renderHistory(api: Api) {
+async function renderHistory(api: Api) {
   const queryClient = createQueryClient();
-  render(
+  return await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={api}>
         <ConnectionGate>
@@ -98,7 +96,6 @@ function renderHistory(api: Api) {
 }
 
 afterEach(() => {
-  cleanup();
   vi.restoreAllMocks();
 });
 
@@ -119,17 +116,15 @@ describe('history query', () => {
       },
     };
 
-    renderHistory(api);
-    await screen.findByText('Keep review context scoped to the worktree');
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Load older' }));
+    const screen = await renderHistory(api);
+    await expect
+      .element(screen.getByText('Keep review context scoped to the worktree'))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Load older' }).click();
 
-    await waitFor(() =>
-      expect(screen.getByLabelText('history').textContent).toContain(
-        'Add keyboard navigation to the workspace',
-      ),
-    );
+    await expect
+      .element(screen.getByLabelText('history'))
+      .toMatchTextContent('Add keyboard navigation to the workspace');
     expect(cursors).toEqual([undefined, 'page-2']);
   });
 
@@ -151,24 +146,22 @@ describe('history query', () => {
       },
     };
 
-    renderHistory(api);
-    await screen.findByText('Keep review context scoped to the worktree');
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Load older' }));
-    await screen.findByRole('button', { name: 'Retry' });
-    expect(screen.getByLabelText('history').textContent).toContain(
-      'Keep review context scoped to the worktree',
-    );
+    const screen = await renderHistory(api);
+    await expect
+      .element(screen.getByText('Keep review context scoped to the worktree'))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Load older' }).click();
+    await expect
+      .element(screen.getByRole('button', { name: 'Retry' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByLabelText('history'))
+      .toMatchTextContent('Keep review context scoped to the worktree');
 
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Retry' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('history').textContent).toContain(
-        'Add keyboard navigation to the workspace',
-      ),
-    );
+    await screen.getByRole('button', { name: 'Retry' }).click();
+    await expect
+      .element(screen.getByLabelText('history'))
+      .toMatchTextContent('Add keyboard navigation to the workspace');
     expect(olderCalls).toBe(2);
   });
 });

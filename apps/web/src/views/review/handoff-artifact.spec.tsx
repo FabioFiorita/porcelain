@@ -1,7 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { DocumentRef } from '../../domain/documents';
 import { HandoffSummary } from './handoff-artifact';
 
@@ -47,14 +45,11 @@ vi.mock('./markdown-view', () => ({
   MarkdownView: ({ text }: { text: string }) => <div>{text}</div>,
 }));
 
-afterEach(cleanup);
-
 describe('handoff summary', () => {
   it('renders handoff markdown, timestamp, reading order, and UUID actions', async () => {
     const onOpen = vi.fn<(ref: DocumentRef) => void>();
-    const user = userEvent.setup();
 
-    render(
+    const screen = await render(
       <HandoffSummary
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
@@ -71,26 +66,28 @@ describe('handoff summary', () => {
       />,
     );
 
-    expect(screen.getByText(/Verification/)).toBeTruthy();
-    expect(screen.getByText('Read in this order')).toBeTruthy();
-    expect(screen.getByText('A clearer review experience')).toBeTruthy();
-    expect(screen.getByRole('time').getAttribute('dateTime')).toBe(
-      '2026-09-12T15:20:00Z',
-    );
+    await expect.element(screen.getByText(/Verification/)).toBeVisible();
+    await expect.element(screen.getByText('Read in this order')).toBeVisible();
+    await expect
+      .element(screen.getByText('A clearer review experience'))
+      .toBeVisible();
+    expect(
+      (await screen.getByRole('time').element()).getAttribute('dateTime'),
+    ).toBe('2026-09-12T15:20:00Z');
 
-    await user.click(screen.getByRole('button', { name: 'Open report' }));
+    await screen.getByRole('button', { name: 'Open report' }).click();
     expect(onOpen).toHaveBeenCalledWith({
       kind: 'artifact',
       artifactId: 'afa08127-5c27-46bf-9d06-e8401f2aa102',
     });
-    await user.click(
-      screen.getByRole('button', { name: /A clearer review experience/ }),
-    );
+    await screen
+      .getByRole('button', { name: /A clearer review experience/ })
+      .click();
     expect(onOpen).toHaveBeenCalledWith({
       kind: 'layer',
       layerId: 'bf4f1c6b-2b54-423b-a9b5-7c40112b3101',
     });
-    await user.click(screen.getByRole('button', { name: /notes.txt/ }));
+    await screen.getByRole('button', { name: /notes.txt/ }).click();
     expect(onOpen).toHaveBeenCalledWith({
       kind: 'artifact',
       artifactId: 'afa08127-5c27-46bf-9d06-e8401f2aa103',

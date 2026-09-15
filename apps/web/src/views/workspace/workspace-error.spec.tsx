@@ -1,8 +1,7 @@
-// @vitest-environment jsdom
 import { QueryClientProvider, useSuspenseQuery } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
 import { Component, type ReactNode, Suspense } from 'react';
 import { expect, it } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { createQueryClient } from '../../query/client';
 import { WorkspaceError } from './workspace-error';
 
@@ -36,7 +35,7 @@ function RecoveringQuery({ read }: { read: () => string }) {
 it('retries a failed workspace query when the window becomes active', async () => {
   let attempts = 0;
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <TestBoundary>
         <Suspense fallback={<p>Loading</p>}>
@@ -52,8 +51,8 @@ it('retries a failed workspace query when the window becomes active', async () =
     </QueryClientProvider>,
   );
 
-  await screen.findByRole('alert');
-  fireEvent.focus(window);
-  expect(await screen.findByText('Workspace recovered')).toBeTruthy();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
+  window.dispatchEvent(new Event('focus'));
+  await expect.element(screen.getByText('Workspace recovered')).toBeVisible();
   expect(attempts).toBe(2);
 });

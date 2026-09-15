@@ -1,15 +1,5 @@
-// @vitest-environment jsdom
-
 import { focusManager } from '@tanstack/react-query';
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import type { ComponentProps, ReactNode } from 'react';
 import {
   afterAll,
   afterEach,
@@ -19,6 +9,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { type Locator, page } from 'vitest/browser';
 import { createMockStore } from '../../api/inventory/mock';
 import type { Inventory } from '../../domain/inventory';
 import { queryKeys } from '../../query/keys';
@@ -26,7 +17,7 @@ import { renderWorkspace } from '../../test/render';
 
 const mediaListeners = new Set<(event: MediaQueryListEvent) => void>();
 
-// The development overlay has its own browser smoke; it is not supported by jsdom.
+// The development overlay has its own browser smoke.
 vi.mock('../../development/devtools', () => ({ Devtools: () => null }));
 // Pierre owns a browser custom element and worker-backed highlighting. Its
 // adapter behavior is covered separately; workspace tests exercise navigation.
@@ -38,9 +29,9 @@ vi.mock('@pierre/diffs/react', () => ({
     renderHeaderMetadata,
   }: {
     items: Array<{ id: string; annotations?: Array<{ metadata: unknown }> }>;
-    renderAnnotation?: (annotation: { metadata: unknown }) => React.ReactNode;
-    renderCodeViewHeader?: () => React.ReactNode;
-    renderHeaderMetadata?: (item: { id: string }) => React.ReactNode;
+    renderAnnotation?: (annotation: { metadata: unknown }) => ReactNode;
+    renderCodeViewHeader?: () => ReactNode;
+    renderHeaderMetadata?: (item: { id: string }) => ReactNode;
   }) => (
     <div data-testid="code-view">
       {renderCodeViewHeader?.()}
@@ -57,8 +48,9 @@ vi.mock('@pierre/diffs/react', () => ({
   File: ({ file }: { file: { contents: string } }) => (
     <pre>{file.contents}</pre>
   ),
+  EditProvider: ({ children }: { children: ReactNode }) => children,
   PatchDiff: ({ patch }: { patch: string }) => <pre>{patch}</pre>,
-  Virtualizer: ({ children }: { children: React.ReactNode }) => children,
+  Virtualizer: ({ children }: { children: ReactNode }) => children,
 }));
 vi.mock('@pierre/trees/react', async () => {
   const { useRef } = await import('react');
@@ -113,45 +105,55 @@ vi.mock('@pierre/trees/react', async () => {
     ),
   };
 });
-// Layout behavior is covered in the browser. Keep review navigation interactive
-// without depending on panel measurements that jsdom cannot provide.
+// Keep review navigation interactive without depending on panel measurements.
 vi.mock('@/components/ui/resizable', () => ({
   ResizablePanelGroup: ({
     children,
-    orientation: _orientation,
+    orientation = 'horizontal',
     ...props
-  }: React.ComponentProps<'div'> & { orientation?: string }) => (
-    <div {...props}>{children}</div>
+  }: ComponentProps<'div'> & { orientation?: string }) => (
+    <div
+      {...props}
+      style={{
+        display: 'flex',
+        flexDirection: orientation === 'vertical' ? 'column' : 'row',
+        height: '100%',
+        minHeight: 0,
+        minWidth: 0,
+      }}
+    >
+      {children}
+    </div>
   ),
   ResizablePanel: ({
     children,
-    defaultSize: _defaultSize,
-    minSize: _minSize,
+    defaultSize = 50,
+    minSize,
     maxSize: _maxSize,
     ...props
-  }: React.ComponentProps<'div'> & {
+  }: ComponentProps<'div'> & {
     defaultSize?: number;
     minSize?: number;
     maxSize?: number;
-  }) => <div {...props}>{children}</div>,
-  ResizableHandle: (props: React.ComponentProps<'div'>) => <div {...props} />,
+  }) => (
+    <div
+      {...props}
+      style={{
+        flexGrow: defaultSize > 100 ? 0 : 1,
+        flexShrink: 1,
+        flexBasis: defaultSize > 100 ? defaultSize : 0,
+        minWidth: minSize,
+        minHeight: 0,
+      }}
+    >
+      {children}
+    </div>
+  ),
+  ResizableHandle: (props: ComponentProps<'div'>) => <div {...props} />,
 }));
-beforeAll(() => {
-  // jsdom has no native top-layer states. Its selector engine recursively delegates
-  // :fullscreen/:modal back to Element.matches; Base UI checks these when focusing.
-  const nativeMatches = Element.prototype.matches;
-  vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
-    this: Element,
-    selector,
-  ) {
-    if ([':fullscreen', ':modal', ':popover-open'].includes(selector))
-      return false;
-    return nativeMatches.call(this, selector);
-  });
-  Object.defineProperty(Element.prototype, 'getAnimations', {
-    configurable: true,
-    value: () => [],
-  });
+
+beforeAll(async () => {
+  await page.viewport(1280, 800);
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query.includes('min-width: 1280px'),
     addEventListener: (
@@ -163,19 +165,10 @@ beforeAll(() => {
       listener: (event: MediaQueryListEvent) => void,
     ) => mediaListeners.delete(listener),
   }));
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  );
-  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
-afterEach(() => {
-  cleanup();
-  window.innerWidth = 1024;
+afterEach(async () => {
+  Reflect.deleteProperty(window, 'innerWidth');
+  await page.viewport(1280, 800);
   focusManager.setFocused(undefined);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
@@ -187,14 +180,11 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
-async function connect() {
-  const user = userEvent.setup();
-  await user.type(
-    await screen.findByLabelText('Access token'),
-    'fixture-token',
-  );
-  await user.click(screen.getByRole('button', { name: 'Connect' }));
-  return user;
+type WorkspaceScreen = Awaited<ReturnType<typeof renderWorkspace>>;
+
+async function connect(screen: WorkspaceScreen) {
+  await screen.getByLabelText('Access token').fill('fixture-token');
+  await screen.getByRole('button', { name: 'Connect' }).click();
 }
 
 function refocusWindow() {
@@ -203,87 +193,120 @@ function refocusWindow() {
 }
 
 function setViewportWidth(width: number) {
-  window.innerWidth = width;
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: width,
+  });
   const event = { matches: width < 768 } as MediaQueryListEvent;
   for (const listener of mediaListeners) listener(event);
 }
 
+async function clickThrough(locator: Locator) {
+  await expect.element(locator).toBeVisible();
+  const node = await locator.element();
+  if (!(node instanceof HTMLElement))
+    throw new Error('Expected an HTMLElement');
+  node.click();
+}
+
+async function menuClosed(screen: WorkspaceScreen) {
+  await expect.element(screen.getByRole('menu')).not.toBeInTheDocument();
+}
+
 describe('workspace through the inventory port', () => {
   it('restores an authenticated connection without manual session or reload controls', async () => {
-    const first = renderWorkspace();
-    await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    first.unmount();
-    renderWorkspace(first.store);
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    const first = await renderWorkspace();
+    await connect(first);
+    await expect
+      .element(first.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    await first.unmount();
+    const screen = await renderWorkspace(first.store);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
     for (const name of ['Disconnect', 'Exit', 'Reload', 'Refresh']) {
-      expect(screen.queryByRole('button', { name })).toBeNull();
+      await expect
+        .element(screen.getByRole('button', { name }))
+        .not.toBeInTheDocument();
     }
   });
 
   it('keeps manual login available when the saved token is rejected', async () => {
-    const first = renderWorkspace();
-    await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    first.unmount();
+    const first = await renderWorkspace();
+    await connect(first);
+    await expect
+      .element(first.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    await first.unmount();
     const store = createMockStore('rejected');
     store.sessionToken = 'fixture-token';
-    const second = renderWorkspace(store);
-    await connect();
-    await screen.findByRole('alert');
-    expect(second.queryClient.getQueryCache().getAll()).toEqual([]);
+    const screen = await renderWorkspace(store);
+    await connect(screen);
+    await expect.element(screen.getByRole('alert')).toBeVisible();
+    expect(screen.queryClient.getQueryCache().getAll()).toEqual([]);
     store.rejected = false;
-    await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    await screen.getByRole('button', { name: 'Connect' }).click();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
   });
 
   it('does not restore a saved session after its provider unmounts', async () => {
-    const first = renderWorkspace();
-    await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    first.unmount();
+    const first = await renderWorkspace();
+    await connect(first);
+    await expect
+      .element(first.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    await first.unmount();
     const store = createMockStore();
     store.sessionToken = 'fixture-token';
     store.delayMs = 50;
-    const restoring = renderWorkspace(store);
-    restoring.unmount();
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const restoring = await renderWorkspace(store);
+    await restoring.unmount();
+    await new Promise((resolve) => setTimeout(resolve, store.delayMs + 50));
     expect(restoring.queryClient.getQueryCache().getAll()).toEqual([]);
   });
 
   it('refreshes authoritative inventory when the window regains focus', async () => {
-    const { store } = renderWorkspace();
-    await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    const project = store.inventory.projects[0];
+    const screen = await renderWorkspace();
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    const project = screen.store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     project.name = 'Renamed project';
     refocusWindow();
-    await screen.findByRole('heading', { name: 'Renamed project' });
-    expect(store.refreshCount).toBe(1);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Renamed project' }))
+      .toBeVisible();
+    expect(screen.store.refreshCount).toBe(1);
   });
 
   it('retains inventory after a failed focus refresh and recovers on the next focus', async () => {
     const store = createMockStore('refresh-failed');
-    const { queryClient } = renderWorkspace(store);
-    await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
+    const screen = await renderWorkspace(store);
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
     refocusWindow();
-    await waitFor(() =>
+    await vi.waitFor(() =>
       expect(
-        queryClient.getQueryState(
+        screen.queryClient.getQueryState(
           queryKeys.inventory(store.inventory.environmentId),
         )?.error,
       ).toBeTruthy(),
     );
-    expect(
-      screen.getByRole('heading', { name: 'Porcelain', level: 3 }),
-    ).toBeTruthy();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
     store.refreshFailed = false;
     refocusWindow();
-    await waitFor(() =>
+    await vi.waitFor(() =>
       expect(
-        queryClient.getQueryState(
+        screen.queryClient.getQueryState(
           queryKeys.inventory(store.inventory.environmentId),
         )?.error,
       ).toBeNull(),
@@ -291,83 +314,86 @@ describe('workspace through the inventory port', () => {
   });
 
   it('rejects inventory from a different environment without replacing current data', async () => {
-    const { store, queryClient } = renderWorkspace();
-    await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    const connectedEnvironmentId = store.inventory.environmentId;
-    store.inventory.environmentId = '641a8628-1cd6-4562-81a2-9c05fba76b4a';
-    store.inventory.projects = [];
+    const screen = await renderWorkspace();
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    const connectedEnvironmentId = screen.store.inventory.environmentId;
+    screen.store.inventory.environmentId =
+      '641a8628-1cd6-4562-81a2-9c05fba76b4a';
+    screen.store.inventory.projects = [];
     refocusWindow();
-    await waitFor(() =>
+    await vi.waitFor(() =>
       expect(
-        queryClient.getQueryState(queryKeys.inventory(connectedEnvironmentId))
-          ?.error,
+        screen.queryClient.getQueryState(
+          queryKeys.inventory(connectedEnvironmentId),
+        )?.error,
       ).toBeTruthy(),
     );
-    expect(
-      screen.getByRole('heading', { name: 'Porcelain', level: 3 }),
-    ).toBeTruthy();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
   });
 
   it('shows a rejected connection without caching private inventory', async () => {
-    const { queryClient } = renderWorkspace(createMockStore('rejected'));
-    await connect();
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'rejected',
-    );
-    expect(queryClient.getQueryCache().getAll()).toEqual([]);
+    const screen = await renderWorkspace(createMockStore('rejected'));
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('rejected');
+    expect(screen.queryClient.getQueryCache().getAll()).toEqual([]);
   });
 
   it('opens a server-side project, updates inventory, and selects its first available worktree', async () => {
-    const { store, queryClient } = renderWorkspace();
-    const user = await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    await user.click(screen.getByRole('button', { name: 'Open project' }));
-    await user.click(screen.getByRole('button', { name: 'Enter a path' }));
-    await user.type(
-      await screen.findByLabelText('Repository path'),
-      '/srv/work/new-project',
-    );
-    await user.click(screen.getByRole('button', { name: 'Open project' }));
+    const screen = await renderWorkspace();
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Open project' }).click();
+    await screen.getByRole('button', { name: 'Enter a path' }).click();
+    await screen
+      .getByLabelText('Repository path')
+      .fill('/srv/work/new-project');
+    await screen.getByRole('button', { name: 'Open project' }).click();
 
-    const project = await waitFor(() =>
-      store.inventory.projects.find(
+    const project = await vi.waitFor(() => {
+      const found = screen.store.inventory.projects.find(
         (entry) => entry.worktrees[0]?.path === '/srv/work/new-project',
-      ),
-    );
-    const worktree = project?.worktrees.find((entry) => entry.available);
+      );
+      if (!found) throw new Error('Missing opened project');
+      return found;
+    });
+    const worktree = project.worktrees.find((entry) => entry.available);
     expect(worktree).toBeDefined();
     expect(
-      queryClient.getQueryData<Inventory>(
-        queryKeys.inventory(store.inventory.environmentId),
+      screen.queryClient.getQueryData<Inventory>(
+        queryKeys.inventory(screen.store.inventory.environmentId),
       )?.projects,
     ).toContainEqual(project);
-    expect(
-      (
-        await screen.findByRole('button', { name: /main.*new-project/ })
-      ).getAttribute('aria-current'),
-    ).toBe('page');
+    const opened = screen.getByRole('button', { name: /main.*new-project/ });
+    await expect.element(opened).toBeVisible();
+    await expect.element(opened).toHaveAttribute('aria-current', 'page');
   });
 
   it('filters discovered repositories and opens one without typing its path', async () => {
-    const { store } = renderWorkspace();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: 'Open project' }),
-    );
-    const search = await screen.findByRole('textbox', {
+    const screen = await renderWorkspace();
+    await connect(screen);
+    await screen.getByRole('button', { name: 'Open project' }).click();
+    const search = screen.getByRole('textbox', {
       name: 'Search repositories on this machine',
     });
-    await user.type(search, 'missing');
-    expect(await screen.findByText('No matching repositories.')).toBeTruthy();
-    await user.clear(search);
-    await user.type(search, 'new-project');
-    await user.click(
-      await screen.findByRole('button', { name: /new-project.*srv/ }),
-    );
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await search.fill('missing');
+    await expect
+      .element(screen.getByText('No matching repositories.'))
+      .toBeVisible();
+    await search.clear();
+    await search.fill('new-project');
+    await screen.getByRole('button', { name: /new-project.*srv/ }).click();
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
     expect(
-      store.inventory.projects.some((entry) =>
+      screen.store.inventory.projects.some((entry) =>
         entry.worktrees.some(
           (worktree) => worktree.path === '/srv/work/new-project',
         ),
@@ -380,34 +406,28 @@ describe('workspace through the inventory port', () => {
     store.discoveryFailed = true;
     const folder = store.projectFolders['/srv/work/new-project'];
     delete store.projectFolders['/srv/work/new-project'];
-    renderWorkspace(store);
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: 'Open project' }),
-    );
-    expect(
-      await screen.findByText('Could not discover repositories. Try again.'),
-    ).toBeTruthy();
-    expect(
-      screen
-        .getByRole('button', { name: 'Open work' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
-    await user.click(
-      await screen.findByRole('button', { name: 'new-project' }),
-    );
-    expect(
-      await screen.findByText(
-        'That folder could not be read on the Porcelain server.',
-      ),
-    ).toBeTruthy();
+    const screen = await renderWorkspace(store);
+    await connect(screen);
+    await screen.getByRole('button', { name: 'Open project' }).click();
+    await expect
+      .element(screen.getByText('Could not discover repositories. Try again.'))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Open work' }))
+      .toBeDisabled();
+    await screen.getByRole('button', { name: 'new-project' }).click();
+    await expect
+      .element(
+        screen.getByText(
+          'That folder could not be read on the Porcelain server.',
+        ),
+      )
+      .toBeVisible();
     if (!folder) throw new Error('Missing fixture folder');
     store.projectFolders['/srv/work/new-project'] = folder;
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await user.click(
-      await screen.findByRole('button', { name: 'Open new-project' }),
-    );
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await screen.getByRole('button', { name: 'Try again' }).click();
+    await screen.getByRole('button', { name: 'Open new-project' }).click();
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
     expect(
       store.inventory.projects.some((entry) => entry.name === 'new-project'),
     ).toBe(true);
@@ -416,20 +436,22 @@ describe('workspace through the inventory port', () => {
   it('keeps the server path in the form after registration fails', async () => {
     const store = createMockStore();
     store.registerFailed = true;
-    renderWorkspace(store);
-    const user = await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    await user.click(screen.getByRole('button', { name: 'Open project' }));
+    const screen = await renderWorkspace(store);
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Open project' }).click();
     const path = '/srv/work/missing-repository';
-    await user.click(screen.getByRole('button', { name: 'Enter a path' }));
-    const input = await screen.findByLabelText('Repository path');
-    await user.type(input, path);
-    await user.click(screen.getByRole('button', { name: 'Open project' }));
+    await screen.getByRole('button', { name: 'Enter a path' }).click();
+    const input = screen.getByLabelText('Repository path');
+    await input.fill(path);
+    await screen.getByRole('button', { name: 'Open project' }).click();
 
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'could not be opened on the Porcelain server',
-    );
-    expect(input).toHaveProperty('value', path);
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('could not be opened on the Porcelain server');
+    await expect.element(input).toHaveValue(path);
     expect(
       store.inventory.projects.some((project) =>
         project.worktrees.some((worktree) => worktree.path === path),
@@ -443,136 +465,143 @@ describe('project removal', () => {
     const store = createMockStore();
     const project = store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
-    renderWorkspace(store);
-    const user = await connect();
-    const trigger = await screen.findByRole('button', { name: project.name });
-    fireEvent.contextMenu(trigger);
-    await user.click(
-      await screen.findByRole('menuitem', { name: 'Remove from Porcelain' }),
-    );
-    let dialog = await screen.findByRole('alertdialog');
-    expect(dialog.textContent).toContain(
-      'Repository files and Git history stay on disk.',
-    );
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    const screen = await renderWorkspace(store);
+    await connect(screen);
+    const trigger = screen.getByRole('button', { name: project.name });
+    await expect.element(trigger).toBeVisible();
+    await trigger.click({ button: 'right' });
+    await screen
+      .getByRole('menuitem', { name: 'Remove from Porcelain' })
+      .click();
+    const dialog = screen.getByRole('alertdialog');
+    await expect.element(dialog).toBeVisible();
+    await expect
+      .element(dialog)
+      .toMatchTextContent('Repository files and Git history stay on disk.');
+    await clickThrough(dialog.getByRole('button', { name: 'Cancel' }));
+    await expect
+      .element(screen.getByRole('alertdialog'))
+      .not.toBeInTheDocument();
     expect(store.inventory.projects).toContain(project);
-    fireEvent.contextMenu(trigger);
-    await user.click(
-      await screen.findByRole('menuitem', { name: 'Remove from Porcelain' }),
-    );
-    dialog = await screen.findByRole('alertdialog');
+    await trigger.click({ button: 'right' });
+    await screen
+      .getByRole('menuitem', { name: 'Remove from Porcelain' })
+      .click();
+    await expect.element(dialog).toBeVisible();
     store.removeFailed = true;
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Remove from Porcelain' }),
+    await clickThrough(
+      dialog.getByRole('button', { name: 'Remove from Porcelain' }),
     );
-    expect((await within(dialog).findByRole('alert')).textContent).toContain(
-      'active or unresolved Git operation',
-    );
+    await expect
+      .element(dialog.getByRole('alert'))
+      .toMatchTextContent('active or unresolved Git operation');
     expect(store.inventory.projects).toContain(project);
     store.removeFailed = false;
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Remove from Porcelain' }),
+    await clickThrough(
+      dialog.getByRole('button', { name: 'Remove from Porcelain' }),
     );
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    await expect
+      .element(screen.getByRole('alertdialog'))
+      .not.toBeInTheDocument();
     expect(store.inventory.projects).not.toContain(project);
-    expect(screen.queryByRole('button', { name: project.name })).toBeNull();
-    await waitFor(() =>
-      expect(document.querySelector('[aria-current="page"]')).not.toBeNull(),
-    );
+    await expect
+      .element(screen.getByRole('button', { name: project.name }))
+      .not.toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(document.querySelector('[aria-current="page"]')).not.toBeNull();
+    });
   });
 
   it('shows the empty workspace when the final project is removed', async () => {
     const store = createMockStore();
     store.inventory.projects = store.inventory.projects.slice(0, 1);
-    renderWorkspace(store);
-    const user = await connect();
+    const screen = await renderWorkspace(store);
+    await connect(screen);
     const project = store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
-    fireEvent.contextMenu(
-      await screen.findByRole('button', { name: project.name }),
+    await screen
+      .getByRole('button', { name: project.name })
+      .click({ button: 'right' });
+    await screen
+      .getByRole('menuitem', { name: 'Remove from Porcelain' })
+      .click();
+    await clickThrough(
+      screen
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Remove from Porcelain' }),
     );
-    await user.click(
-      await screen.findByRole('menuitem', { name: 'Remove from Porcelain' }),
-    );
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Remove from Porcelain' }),
-    );
-    expect(await screen.findByText('No projects registered')).toBeTruthy();
-    expect(await screen.findByText('Select a worktree')).toBeTruthy();
+    await expect
+      .element(screen.getByText('No projects registered'))
+      .toBeVisible();
+    await expect.element(screen.getByText('Select a worktree')).toBeVisible();
   });
 });
 
 describe('worktree review navigation', () => {
   it('keeps the review workspace mounted while desktop navigation is toggled', async () => {
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
 
-    const reviewContent = await screen.findByRole('region', {
+    const reviewContent = screen.getByRole('region', {
       name: 'Review content',
     });
+    await expect.element(reviewContent).toBeVisible();
+    const reviewNode = await reviewContent.element();
     const navigationToggle = screen.getByRole('button', {
       name: /^Toggle Sidebar$/,
     });
 
-    await user.click(navigationToggle);
-    expect(
-      screen.queryByRole('navigation', { name: 'Projects and worktrees' }),
-    ).toBeNull();
-    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
-      reviewContent,
-    );
-    expect(navigationToggle.getAttribute('aria-expanded')).toBe('false');
+    await navigationToggle.click();
+    await expect
+      .element(
+        screen.getByRole('navigation', { name: 'Projects and worktrees' }),
+      )
+      .not.toBeInTheDocument();
+    expect(await reviewContent.element()).toBe(reviewNode);
+    await expect
+      .element(navigationToggle)
+      .toHaveAttribute('aria-expanded', 'false');
 
-    await user.click(navigationToggle);
-    expect(
-      screen.getByRole('navigation', { name: 'Projects and worktrees' }),
-    ).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
-      reviewContent,
-    );
+    await navigationToggle.click();
+    await expect
+      .element(
+        screen.getByRole('navigation', { name: 'Projects and worktrees' }),
+      )
+      .toBeVisible();
+    expect(await reviewContent.element()).toBe(reviewNode);
   });
 
   it('keeps the review workspace and an unsent draft across the mobile breakpoint', async () => {
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: /^review-panel\.tsx.*staged/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', {
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen
+      .getByRole('button', { name: /^review-panel\.tsx.*staged/ })
+      .click();
+    await screen
+      .getByRole('button', {
         name: /^Comment on src\/components\/review-panel.tsx/,
-      }),
-    );
-    await user.type(screen.getByLabelText('Comment'), 'Keep this draft');
+      })
+      .click();
+    await screen.getByLabelText('Comment').fill('Keep this draft');
     const reviewContent = screen.getByRole('region', {
       name: 'Review content',
     });
+    const reviewNode = await reviewContent.element();
 
-    act(() => setViewportWidth(640));
+    setViewportWidth(640);
 
-    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
-      reviewContent,
-    );
-    expect(screen.getByLabelText('Comment')).toHaveProperty(
-      'value',
-      'Keep this draft',
-    );
+    expect(await reviewContent.element()).toBe(reviewNode);
+    await expect
+      .element(screen.getByLabelText('Comment'))
+      .toHaveValue('Keep this draft');
 
-    act(() => setViewportWidth(1024));
-    expect(screen.getByRole('region', { name: 'Review content' })).toBe(
-      reviewContent,
-    );
-    expect(screen.getByLabelText('Comment')).toHaveProperty(
-      'value',
-      'Keep this draft',
-    );
+    setViewportWidth(1024);
+    expect(await reviewContent.element()).toBe(reviewNode);
+    await expect
+      .element(screen.getByLabelText('Comment'))
+      .toHaveValue('Keep this draft');
   });
 
   it('opens the initial handoff when tab storage is unavailable', async () => {
@@ -584,458 +613,484 @@ describe('worktree review navigation', () => {
           throw new DOMException('Storage denied', 'SecurityError');
         return originalGetItem.call(this, key);
       });
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await screen.findByRole('heading', { name: 'Handoff' });
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Handoff' }))
+      .toBeVisible();
     getItem.mockRestore();
   });
 
   it('scopes selection to each worktree', async () => {
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: /^review-panel.tsx.*staged/ }),
-    );
-    await screen.findByRole('button', {
-      name: /^Comment on src\/components\/review-panel.tsx/,
-    });
-    await user.click(
-      screen.getByRole('button', {
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen
+      .getByRole('button', { name: /^review-panel.tsx.*staged/ })
+      .click();
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /^Comment on src\/components\/review-panel.tsx/,
+        }),
+      )
+      .toBeVisible();
+    await screen
+      .getByRole('button', {
         name: /main.*sample-project.*Main worktree/,
-      }),
-    );
-    await screen.findByText('No changes to review');
-    expect(
-      screen.queryByRole('heading', {
-        name: 'src/components/review-panel.tsx',
-      }),
-    ).toBeNull();
+      })
+      .click();
+    await expect
+      .element(screen.getByText('No changes to review'))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByRole('heading', {
+          name: 'src/components/review-panel.tsx',
+        }),
+      )
+      .not.toBeInTheDocument();
   });
   it('recovers failed review reads without adding unsupported navigation surfaces', async () => {
     const store = createMockStore();
     store.changesFailed = true;
-    renderReview(store);
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
+    const screen = await renderReview(store);
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
     const sidebar = screen.getByTestId('review-sidebar');
     expect(
-      within(sidebar).getAllByRole('tab', {
-        name: /^(Changes|Files|History)$/,
-      }),
-    ).toHaveLength(3);
-    await user.click(within(sidebar).getByRole('tab', { name: 'Files' }));
-    await screen.findByRole('button', { name: /README\.md/ });
-    await user.click(within(sidebar).getByRole('tab', { name: 'Changes' }));
-    const failedReviewRetries = await screen.findAllByRole('button', {
-      name: 'Try again',
-    });
-    expect(failedReviewRetries.length).toBeGreaterThan(0);
-    store.changesFailed = false;
-    const firstFailedReviewRetry = failedReviewRetries[0];
-    if (!firstFailedReviewRetry) throw new Error('Missing review retry');
-    await user.click(firstFailedReviewRetry);
-    const remainingReviewRetries = screen.queryAllByRole('button', {
-      name: 'Try again',
-    });
-    if (remainingReviewRetries[0]) {
-      await user.click(remainingReviewRetries[0]);
-    }
-    expect(
-      (
-        await screen.findAllByRole('button', {
-          name: /A clearer review experience/,
+      sidebar
+        .getByRole('tab', {
+          name: /^(Changes|Files|History)$/,
         })
-      ).length,
-    ).toBeGreaterThan(0);
-    expect(screen.queryByRole('tab', { name: 'Artifacts' })).toBeNull();
+        .all(),
+    ).toHaveLength(3);
+    await sidebar.getByRole('tab', { name: 'Files' }).click();
+    await expect
+      .element(screen.getByRole('button', { name: /README\.md/ }))
+      .toBeVisible();
+    await sidebar.getByRole('tab', { name: 'Changes' }).click();
+    const failedReviewRetries = screen.getByRole('button', {
+      name: 'Try again',
+    });
+    await expect.element(failedReviewRetries.first()).toBeVisible();
+    expect(failedReviewRetries.all().length).toBeGreaterThan(0);
+    store.changesFailed = false;
+    await failedReviewRetries.first().click();
+    const remainingReviewRetries = screen.getByRole('button', {
+      name: 'Try again',
+    });
+    if (remainingReviewRetries.query()) {
+      await remainingReviewRetries.first().click();
+    }
+    const recovered = screen.getByRole('button', {
+      name: /A clearer review experience/,
+    });
+    await expect.element(recovered.first()).toBeVisible();
+    expect(recovered.all().length).toBeGreaterThan(0);
+    await expect
+      .element(screen.getByRole('tab', { name: 'Artifacts' }))
+      .not.toBeInTheDocument();
     expect(
-      within(sidebar).getAllByRole('tab', {
-        name: /^(Review|Files|History)$/,
-      }),
+      sidebar
+        .getByRole('tab', {
+          name: /^(Review|Files|History)$/,
+        })
+        .all(),
     ).toHaveLength(3);
   });
   it('keeps file documents and Git controls available when artifacts fail', async () => {
     const store = createMockStore();
     store.artifactsFailed = true;
-    renderReview(store);
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
+    const screen = await renderReview(store);
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
     const sidebar = screen.getByTestId('review-sidebar');
-    await user.click(within(sidebar).getByRole('tab', { name: 'Files' }));
-    await user.click(
-      await within(sidebar).findByRole('button', { name: /README\.md/ }),
-    );
+    await sidebar.getByRole('tab', { name: 'Files' }).click();
+    await sidebar.getByRole('button', { name: /README\.md/ }).click();
 
-    await screen.findByRole('heading', { name: 'README.md' });
-    expect(screen.getByRole('button', { name: 'Git actions' })).toBeTruthy();
+    await expect
+      .element(screen.getByRole('heading', { name: 'README.md' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Git actions' }))
+      .toBeVisible();
   });
   it('keeps stored artifacts reachable for an unavailable worktree', async () => {
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /archive\/initial-prototype/ }),
-    );
-    await screen.findByText('Stored agent reports');
-    await user.click(
-      within(screen.getByTestId('review-sidebar')).getByRole('button', {
+    const screen = await renderReview();
+    await connect(screen);
+    await screen
+      .getByRole('button', { name: /archive\/initial-prototype/ })
+      .click();
+    await expect
+      .element(screen.getByText('Stored agent reports'))
+      .toBeVisible();
+    await screen
+      .getByTestId('review-sidebar')
+      .getByRole('button', {
         name: /Keyboard accessibility audit/,
-      }),
-    );
-    expect(
-      await screen.findAllByRole('heading', {
-        name: 'Keyboard accessibility audit',
-      }),
-    ).toHaveLength(2);
+      })
+      .click();
+    const headings = screen.getByRole('heading', {
+      name: 'Keyboard accessibility audit',
+    });
+    await expect.element(headings.first()).toBeVisible();
+    expect(headings.all()).toHaveLength(2);
   });
   it('renders the report in an opaque-origin sandboxed frame', async () => {
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: /The whole handoff/ }),
-    );
-    const reportButtons = await screen.findAllByRole('button', {
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen.getByRole('button', { name: /The whole handoff/ }).click();
+    const reportButtons = screen.getByRole('button', {
       name: /Launch review report/,
     });
-    await user.click(reportButtons[0] as HTMLButtonElement);
+    await expect.element(reportButtons.first()).toBeVisible();
+    await reportButtons.first().click();
 
-    await screen.findByRole('heading', { name: 'Launch review report' });
-    const frame = await screen.findByTitle('Launch review report');
-    expect(frame.tagName).toBe('IFRAME');
-    expect(frame.getAttribute('sandbox')).toBe('allow-scripts');
-    expect(frame.getAttribute('referrerpolicy')).toBe('no-referrer');
-    expect(frame.getAttribute('srcdoc')).toContain('Fieldnotes launch review');
+    await expect
+      .element(screen.getByRole('heading', { name: 'Launch review report' }))
+      .toBeVisible();
+    const frame = screen.getByTitle('Launch review report');
+    await expect.element(frame).toBeVisible();
+    expect((await frame.element()).tagName).toBe('IFRAME');
+    await expect.element(frame).toHaveAttribute('sandbox', 'allow-scripts');
+    await expect
+      .element(frame)
+      .toHaveAttribute('referrerpolicy', 'no-referrer');
+    await expect
+      .element(frame)
+      .toHaveAttribute(
+        'srcdoc',
+        expect.stringContaining('Fieldnotes launch review'),
+      );
   });
   it.each([false, true])(
     'commits selected files and recovers without repeating the action (lost response: %s)',
     async (loseResponse) => {
-      const { store } = renderReview();
-      const user = await connect();
-      await user.click(
-        await screen.findByRole('button', { name: /agent\/review/ }),
-      );
-      await user.click(
-        await screen.findByRole('button', { name: 'Git actions' }),
-      );
-      await user.click(
-        await screen.findByRole('menuitem', {
-          name: /^Commit Commit selected files/,
-        }),
-      );
-      await user.type(
-        await screen.findByLabelText('Message'),
-        'Review sidebar foundation',
-      );
-      expect(store.actionCount).toBe(0);
+      const screen = await renderReview();
+      await connect(screen);
+      await screen.getByRole('button', { name: /agent\/review/ }).click();
+      await screen.getByRole('button', { name: 'Git actions' }).click();
+      await screen
+        .getByRole('menuitem', {
+          name: /Commit selected files/,
+        })
+        .click();
+      await menuClosed(screen);
+      await screen.getByLabelText('Message').fill('Review sidebar foundation');
+      expect(screen.store.actionCount).toBe(0);
       const confirm = screen.getByRole('button', {
         name: 'Commit selected files',
       });
-      store.loseActionResponse = loseResponse;
-      await user.click(confirm);
+      screen.store.loseActionResponse = loseResponse;
+      await clickThrough(confirm);
       if (loseResponse) {
-        await screen.findByText('Outcome not yet confirmed');
-        await user.click(screen.getByRole('button', { name: 'Close' }));
-        expect(
-          screen.queryByRole('button', { name: 'Prepare another action' }),
-        ).toBeNull();
-        await user.click(await screen.findByRole('tab', { name: 'Files' }));
-        await user.click(
-          await screen.findByRole('button', { name: 'Git actions' }),
+        await expect
+          .element(screen.getByText('Outcome not yet confirmed'))
+          .toBeVisible();
+        await clickThrough(screen.getByRole('button', { name: 'Close' }));
+        await expect
+          .element(
+            screen.getByRole('button', { name: 'Prepare another action' }),
+          )
+          .not.toBeInTheDocument();
+        await screen.getByRole('tab', { name: 'Files' }).click();
+        await screen.getByRole('button', { name: 'Git actions' }).click();
+        await screen
+          .getByRole('menuitem', { name: /Commit selected files/ })
+          .click();
+        await menuClosed(screen);
+        await expect
+          .element(screen.getByText('Outcome not yet confirmed'))
+          .toBeVisible();
+        await clickThrough(
+          screen.getByRole('button', { name: 'Check outcome' }),
         );
-        await user.click(
-          await screen.findByRole('menuitem', { name: /^Commit Commit/ }),
-        );
-        await screen.findByText('Outcome not yet confirmed');
-        await user.click(screen.getByRole('button', { name: 'Check outcome' }));
       }
-      await screen.findByText('succeeded', { selector: '[role="status"]' });
-      expect(store.actionCount).toBe(1);
-      const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+      await expect
+        .element(screen.getByRole('status').filter({ hasText: 'succeeded' }))
+        .toBeVisible();
+      expect(screen.store.actionCount).toBe(1);
+      const data = screen.store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
       expect(
         data?.status.changes.some((change) => change.scope === 'staged'),
       ).toBe(false);
       expect(
         data?.status.changes.some((change) => change.scope === 'unstaged'),
       ).toBe(false);
-      await user.click(screen.getByRole('button', { name: 'Check outcome' }));
-      expect(store.actionCount).toBe(1);
-      if (screen.queryByRole('button', { name: 'Close' })) {
-        await user.click(screen.getByRole('button', { name: 'Close' }));
-      }
-      await user.click(await screen.findByRole('tab', { name: 'History' }));
-      await screen.findByRole('button', { name: /Review sidebar foundation/ });
+      await clickThrough(screen.getByRole('button', { name: 'Check outcome' }));
+      expect(screen.store.actionCount).toBe(1);
+      const close = screen.getByRole('button', { name: 'Close' });
+      if (close.query()) await clickThrough(close);
+      await screen.getByRole('tab', { name: 'History' }).click();
+      await expect
+        .element(
+          screen.getByRole('button', { name: /Review sidebar foundation/ }),
+        )
+        .toBeVisible();
     },
   );
 });
 
-function renderReview(store = createMockStore()) {
+async function renderReview(store = createMockStore()) {
   store.inventory.projects = store.inventory.projects.slice(0, 1);
   return renderWorkspace(store);
 }
 
 describe('file discussion', () => {
   it('preserves failed drafts, saves to the selected file and hides the discussion on other files', async () => {
-    const { store } = renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: /^review-panel.tsx.*staged/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', {
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen
+      .getByRole('button', { name: /^review-panel.tsx.*staged/ })
+      .click();
+    await screen
+      .getByRole('button', {
         name: /^Comment on src\/components\/review-panel.tsx/,
-      }),
-    );
-    await user.type(
-      screen.getByLabelText('Comment'),
-      'Please explain this component.',
-    );
-    store.commentsFailed = true;
-    await user.click(
-      within(
-        screen.getByLabelText('Comment').closest('form') as HTMLFormElement,
-      ).getByRole('button', { name: 'Comment' }),
-    );
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'Comments are unavailable',
-    );
-    expect(screen.getByLabelText('Comment')).toHaveProperty(
-      'value',
-      'Please explain this component.',
-    );
-    expect(Object.values(store.comments).flat()).toHaveLength(0);
-    store.commentsFailed = false;
-    await user.click(
-      within(
-        screen.getByLabelText('Comment').closest('form') as HTMLFormElement,
-      ).getByRole('button', { name: 'Comment' }),
-    );
-    await screen.findByText('Please explain this component.');
-    expect(Object.values(store.comments).flat()[0]?.anchor).toMatchObject({
+      })
+      .click();
+    await screen
+      .getByLabelText('Comment')
+      .fill('Please explain this component.');
+    screen.store.commentsFailed = true;
+    await screen.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('Comments are unavailable');
+    await expect
+      .element(screen.getByLabelText('Comment'))
+      .toHaveValue('Please explain this component.');
+    expect(Object.values(screen.store.comments).flat()).toHaveLength(0);
+    screen.store.commentsFailed = false;
+    await screen.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect
+      .element(screen.getByText('Please explain this component.'))
+      .toBeVisible();
+    expect(
+      Object.values(screen.store.comments).flat()[0]?.anchor,
+    ).toMatchObject({
       kind: 'file',
       filePath: 'src/components/review-panel.tsx',
     });
-    await user.click(
-      screen.getByRole('button', { name: /empty-state.tsx.*staged/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', {
+    await screen
+      .getByRole('button', { name: /empty-state.tsx.*staged/ })
+      .click();
+    await screen
+      .getByRole('button', {
         name: /^Comment on src\/components\/empty-state.tsx/,
-      }),
-    );
-    expect(screen.getByLabelText('Comment')).toHaveProperty('value', '');
-    expect(screen.queryByText('Please explain this component.')).toBeNull();
+      })
+      .click();
+    await expect.element(screen.getByLabelText('Comment')).toHaveValue('');
+    await expect
+      .element(screen.getByText('Please explain this component.'))
+      .not.toBeInTheDocument();
   });
 });
 
 describe('git actions', () => {
-  async function openAction(name: RegExp) {
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: 'Git actions' }),
-    );
-    await user.click(await screen.findByRole('menuitem', { name }));
-    return user;
+  async function openAction(screen: WorkspaceScreen, name: RegExp) {
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen.getByRole('button', { name: 'Git actions' }).click();
+    await screen.getByRole('menuitem', { name }).click();
+    await menuClosed(screen);
   }
 
   it('uses the remote destination and executes a push once', async () => {
-    const { store } = renderReview();
-    const user = await openAction(/^Push Send committed changes/);
-    expect(screen.getByLabelText('Remote')).toHaveProperty('value', 'origin');
-    await user.click(
+    const screen = await renderReview();
+    await openAction(screen, /Send committed changes/);
+    await expect.element(screen.getByLabelText('Remote')).toHaveValue('origin');
+    await clickThrough(
       screen.getByLabelText('Create the remote branch if needed'),
     );
-    await user.click(screen.getByRole('button', { name: 'Push' }));
-    await screen.findByText('succeeded', { selector: '[role="status"]' });
-    expect(store.actionCount).toBe(1);
+    await clickThrough(screen.getByRole('button', { name: 'Push' }));
+    await expect
+      .element(screen.getByRole('status').filter({ hasText: 'succeeded' }))
+      .toBeVisible();
+    expect(screen.store.actionCount).toBe(1);
   });
 
   it('reports a preparation the environment refuses without starting an operation', async () => {
-    const { store } = renderReview();
-    const user = await openAction(/^Apply stash Restore a stash and keep it/);
-    await user.type(
-      screen.getByRole('textbox', { name: 'Stash' }),
-      'a'.repeat(40),
-    );
-    await user.click(screen.getByLabelText('Restore staged changes'));
-    await user.click(screen.getByRole('button', { name: 'Apply stash' }));
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'not simulated in this mock',
-    );
-    expect(screen.queryByRole('button', { name: /^Confirm/ })).toBeNull();
-    expect(store.actionCount).toBe(0);
+    const screen = await renderReview();
+    await openAction(screen, /Restore a stash and keep it/);
+    await screen.getByRole('textbox', { name: 'Stash' }).fill('a'.repeat(40));
+    await clickThrough(screen.getByLabelText('Restore staged changes'));
+    await clickThrough(screen.getByRole('button', { name: 'Apply stash' }));
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('not simulated in this mock');
+    await expect
+      .element(screen.getByRole('button', { name: /^Confirm/ }))
+      .not.toBeInTheDocument();
+    expect(screen.store.actionCount).toBe(0);
   });
 
   it('keeps file selection editable before submitting', async () => {
-    const { store } = renderReview();
-    const user = await openAction(/^Commit Commit selected files/);
-    await user.type(screen.getByLabelText('Message'), 'Selected files');
-    const files = screen.getAllByRole('checkbox');
-    for (const file of files) await user.click(file);
-    expect(
-      screen
-        .getByRole('button', { name: 'Commit selected files' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
-    expect(store.actionCount).toBe(0);
+    const screen = await renderReview();
+    await openAction(screen, /Commit selected files/);
+    await screen.getByLabelText('Message').fill('Selected files');
+    for (const file of screen.getByRole('checkbox').all())
+      await clickThrough(file);
+    await expect
+      .element(screen.getByRole('button', { name: 'Commit selected files' }))
+      .toBeDisabled();
+    expect(screen.store.actionCount).toBe(0);
   });
 
   it('does not submit a commit when there are no changed files', async () => {
-    const { store } = renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', {
+    const screen = await renderReview();
+    await connect(screen);
+    await screen
+      .getByRole('button', {
         name: /main.*sample-project.*Main worktree/,
-      }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: 'Git actions' }),
-    );
-    await user.click(
-      await screen.findByRole('menuitem', {
-        name: /^Commit Commit selected files/,
-      }),
-    );
-    await user.type(await screen.findByLabelText('Message'), 'Nothing changed');
-    expect(
-      screen
-        .getByRole('button', { name: 'Commit selected files' })
-        .hasAttribute('disabled'),
-    ).toBe(true);
-    expect(store.actionCount).toBe(0);
+      })
+      .click();
+    await screen.getByRole('button', { name: 'Git actions' }).click();
+    await screen
+      .getByRole('menuitem', {
+        name: /Commit selected files/,
+      })
+      .click();
+    await screen.getByLabelText('Message').fill('Nothing changed');
+    await expect
+      .element(screen.getByRole('button', { name: 'Commit selected files' }))
+      .toBeDisabled();
+    expect(screen.store.actionCount).toBe(0);
   });
 });
 
 describe('workspace theme', () => {
   it('keeps theme selection inside Settings', async () => {
-    renderReview();
-    expect(
-      screen.queryByRole('button', { name: /Switch to .* theme/ }),
-    ).toBeNull();
-    const user = await connect();
-    await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
-    expect(
-      screen.queryByRole('button', { name: /Switch to .* theme/ }),
-    ).toBeNull();
-    await user.click(screen.getByRole('button', { name: /^Settings/ }));
-    await user.click(screen.getByRole('tab', { name: 'Dark' }));
+    const screen = await renderReview();
+    await expect
+      .element(screen.getByRole('button', { name: /Switch to .* theme/ }))
+      .not.toBeInTheDocument();
+    await connect(screen);
+    await expect
+      .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: /Switch to .* theme/ }))
+      .not.toBeInTheDocument();
+    await screen.getByRole('button', { name: /^Settings/ }).click();
+    await screen.getByRole('tab', { name: 'Dark' }).click();
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    await user.click(screen.getByRole('tab', { name: 'Light' }));
+    await screen.getByRole('tab', { name: 'Light' }).click();
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });
 
 describe('review surfaces', () => {
   it('inspects a tracked file and a commit from their navigation surfaces', async () => {
-    renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(await screen.findByRole('tab', { name: 'Files' }));
-    await user.click(await screen.findByRole('button', { name: /README\.md/ }));
-    await screen.findByRole('heading', { name: 'README.md' });
-    expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy();
-    expect(screen.queryByText(/bytes · Read only/)).toBeNull();
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen.getByRole('tab', { name: 'Files' }).click();
+    await screen.getByRole('button', { name: /README\.md/ }).click();
+    await expect
+      .element(screen.getByRole('heading', { name: 'README.md' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Copy path' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByText(/bytes · Read only/))
+      .not.toBeInTheDocument();
 
-    await user.click(await screen.findByRole('tab', { name: 'History' }));
-    await user.click(
-      await screen.findByRole('button', {
+    await screen.getByRole('tab', { name: 'History' }).click();
+    await screen
+      .getByRole('button', {
         name: /Keep review context scoped to the worktree/,
-      }),
-    );
-    await screen.findByRole('heading', { name: /^[0-9a-f]{7}$/ });
-    expect(screen.getByText(/against/)).toBeTruthy();
+      })
+      .click();
+    await expect
+      .element(screen.getByRole('heading', { name: /^[0-9a-f]{7}$/ }))
+      .toBeVisible();
+    await expect.element(screen.getByText(/against/)).toBeVisible();
   });
 
   it('reports a change that is no longer present in the current status', async () => {
-    const { store } = renderReview();
-    const user = await connect();
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await user.click(
-      await screen.findByRole('button', { name: /^review-panel.tsx.*staged/ }),
-    );
-    await screen.findByRole('button', {
-      name: /^Comment on src\/components\/review-panel.tsx/,
-    });
-    const data = store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+    const screen = await renderReview();
+    await connect(screen);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen
+      .getByRole('button', { name: /^review-panel.tsx.*staged/ })
+      .click();
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /^Comment on src\/components\/review-panel.tsx/,
+        }),
+      )
+      .toBeVisible();
+    const data = screen.store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
     if (!data) throw new Error('Missing fixture worktree');
     data.status.changes = data.status.changes.filter(
       (change) =>
         !('newPath' in change && change.newPath?.includes('review-panel')),
     );
     refocusWindow();
-    await screen.findByText('Change no longer present');
+    await expect
+      .element(screen.getByText('Change no longer present'))
+      .toBeVisible();
   });
 });
 
 describe('git action cache consequences', () => {
   it('invalidates cached review surfaces for the affected project only', async () => {
-    const { store, queryClient } = renderWorkspace();
-    const [project, otherProject] = store.inventory.projects;
+    const screen = await renderWorkspace();
+    const [project, otherProject] = screen.store.inventory.projects;
     const worktree = project?.worktrees[1];
     const sibling = project?.worktrees[2];
     const unrelated = otherProject?.worktrees[0];
     if (!project || !otherProject || !worktree || !sibling || !unrelated)
       throw new Error('Missing fixture review scopes');
     const siblingKey = queryKeys.reviewSurface(
-      store.inventory.environmentId,
+      screen.store.inventory.environmentId,
       { projectId: project.id, worktreeId: sibling.id },
       ['probe'],
     );
     const unrelatedKey = queryKeys.reviewSurface(
-      store.inventory.environmentId,
+      screen.store.inventory.environmentId,
       { projectId: otherProject.id, worktreeId: unrelated.id },
       ['probe'],
     );
-    const user = await connect();
-    queryClient.setQueryData(siblingKey, {});
-    queryClient.setQueryData(unrelatedKey, {});
-    await user.click(
-      await screen.findByRole('button', { name: /agent\/review/ }),
-    );
-    await screen.findByRole('button', {
-      name: /^review-panel.tsx.*staged/,
-    });
+    await connect(screen);
+    screen.queryClient.setQueryData(siblingKey, {});
+    screen.queryClient.setQueryData(unrelatedKey, {});
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /^review-panel.tsx.*staged/,
+        }),
+      )
+      .toBeVisible();
 
-    await user.click(
-      await screen.findByRole('button', { name: 'Git actions' }),
-    );
-    await user.click(
-      await screen.findByRole('menuitem', {
-        name: /^Commit Commit selected files/,
-      }),
-    );
-    await user.type(
-      await screen.findByLabelText('Message'),
-      'Commit staged work',
-    );
-    await user.click(
+    await screen.getByRole('button', { name: 'Git actions' }).click();
+    await screen
+      .getByRole('menuitem', {
+        name: /Commit selected files/,
+      })
+      .click();
+    await menuClosed(screen);
+    await screen.getByLabelText('Message').fill('Commit staged work');
+    await clickThrough(
       screen.getByRole('button', { name: 'Commit selected files' }),
     );
-    await screen.findByText('succeeded', { selector: '[role="status"]' });
-    expect(store.actionCount).toBe(1);
+    await expect
+      .element(screen.getByRole('status').filter({ hasText: 'succeeded' }))
+      .toBeVisible();
+    expect(screen.store.actionCount).toBe(1);
 
-    expect(queryClient.getQueryState(siblingKey)?.isInvalidated).toBe(true);
-    expect(queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(false);
+    expect(screen.queryClient.getQueryState(siblingKey)?.isInvalidated).toBe(
+      true,
+    );
+    expect(screen.queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(
+      false,
+    );
   });
 });

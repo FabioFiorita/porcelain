@@ -1,8 +1,6 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { useHistory } from '../../query/history';
 import { HistoryNavigation } from './history-navigation';
 
@@ -69,15 +67,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  cleanup();
   vi.clearAllMocks();
 });
 
 describe('HistoryNavigation', () => {
   it('shows the branch, graph nodes, relative author time and selected commit', async () => {
     const onSelect = vi.fn();
-    const user = userEvent.setup();
-    const { container } = render(
+    const screen = await render(
       <HistoryNavigation
         scope={scope}
         selected={tipCommit.oid}
@@ -85,25 +81,33 @@ describe('HistoryNavigation', () => {
       />,
     );
 
-    expect(screen.getAllByText('feature/review')).toHaveLength(2);
+    expect(screen.getByText('feature/review').length).toBe(2);
     const selected = screen.getByRole('button', {
       name: /Merge review branch/,
     });
-    expect(selected.getAttribute('aria-pressed')).toBe('true');
-    expect(selected.textContent).toContain('Alex Morgan');
-    expect(selected.textContent).toMatch(/ago/);
-    expect(selected.textContent).toContain('feature/review');
-    expect(selected.textContent).toContain('v1.0.0');
-    expect(selected.textContent).not.toContain('refs/heads/feature/review');
-    expect(screen.getByTitle('refs/heads/feature/review')).toBeTruthy();
+    expect((await selected.element()).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    await expect.element(selected).toMatchTextContent('Alex Morgan');
+    await expect.element(selected).toMatchTextContent(/ago/);
+    await expect.element(selected).toMatchTextContent('feature/review');
+    await expect.element(selected).toMatchTextContent('v1.0.0');
+    await expect
+      .element(selected)
+      .not.toMatchTextContent('refs/heads/feature/review');
+    await expect
+      .element(screen.getByTitle('refs/heads/feature/review'))
+      .toBeVisible();
     expect(
-      container
-        .querySelector('[data-testid="history-graph"]')
-        ?.querySelectorAll('circle'),
+      (await screen.getByTestId('history-graph').element()).querySelectorAll(
+        'circle',
+      ),
     ).toHaveLength(commits.length);
-    expect(screen.queryByText('refs/heads/feature/review')).toBeNull();
+    await expect
+      .element(screen.getByText('refs/heads/feature/review'))
+      .not.toBeInTheDocument();
 
-    await user.click(selected);
+    await selected.click();
     expect(onSelect).toHaveBeenCalledWith(tipCommit.oid);
   });
 
@@ -117,20 +121,27 @@ describe('HistoryNavigation', () => {
         fetchNextPage,
       }),
     );
-    const user = userEvent.setup();
-    render(<HistoryNavigation scope={scope} selected="" onSelect={vi.fn()} />);
+    const screen = await render(
+      <HistoryNavigation scope={scope} selected="" onSelect={vi.fn()} />,
+    );
 
-    expect(screen.getByText('Merge review branch')).toBeTruthy();
-    expect(screen.getByText("Couldn't load older commits")).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await expect.element(screen.getByText('Merge review branch')).toBeVisible();
+    await expect
+      .element(screen.getByText("Couldn't load older commits"))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Retry' }).click();
     expect(fetchNextPage).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps shallow-history messaging at the end of the loaded list', () => {
+  it('keeps shallow-history messaging at the end of the loaded list', async () => {
     vi.mocked(useHistory).mockReturnValue(baseHistory({ boundary: 'shallow' }));
-    render(<HistoryNavigation scope={scope} selected="" onSelect={vi.fn()} />);
-    expect(
-      screen.getByText('Shallow clone: older history is not available.'),
-    ).toBeTruthy();
+    const screen = await render(
+      <HistoryNavigation scope={scope} selected="" onSelect={vi.fn()} />,
+    );
+    await expect
+      .element(
+        screen.getByText('Shallow clone: older history is not available.'),
+      )
+      .toBeVisible();
   });
 });

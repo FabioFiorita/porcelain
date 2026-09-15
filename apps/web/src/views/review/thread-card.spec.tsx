@@ -1,9 +1,7 @@
-// @vitest-environment jsdom
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type ReactNode, useEffect } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { createMockStore } from '../../api/inventory/mock';
 import { createMockApi } from '../../api/mock-api';
 import type { CommentThread } from '../../domain/comments';
@@ -56,12 +54,12 @@ function thread(resolved: boolean): CommentThread {
   };
 }
 
-function renderThread(resolved: boolean) {
+async function renderThread(resolved: boolean) {
   const store = createMockStore();
   store.commentsFailed = true;
   const queryClient = createQueryClient();
 
-  render(
+  return render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={createMockApi(store)}>
         <ConnectionGate>
@@ -72,28 +70,24 @@ function renderThread(resolved: boolean) {
   );
 }
 
-afterEach(() => cleanup());
-
 describe('ThreadCard resolution mutations', () => {
   it('announces a failed resolve mutation', async () => {
-    const user = userEvent.setup();
-    renderThread(false);
+    const screen = await renderThread(false);
 
-    await user.click(await screen.findByRole('button', { name: 'Resolve' }));
+    await screen.getByRole('button', { name: 'Resolve' }).click();
 
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'Comments are unavailable',
-    );
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('Comments are unavailable');
   });
 
   it('announces a failed reopen mutation', async () => {
-    const user = userEvent.setup();
-    renderThread(true);
+    const screen = await renderThread(true);
 
-    await user.click(await screen.findByRole('button', { name: 'Reopen' }));
+    await screen.getByRole('button', { name: 'Reopen' }).click();
 
-    expect((await screen.findByRole('alert')).textContent).toContain(
-      'Comments are unavailable',
-    );
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('Comments are unavailable');
   });
 });

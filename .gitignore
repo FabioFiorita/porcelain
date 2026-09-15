@@ -11,6 +11,7 @@ coverage/
 
 playwright-report/
 test-results/
+.vitest/
 
 .playgrounds/
 /dist-porcelain/

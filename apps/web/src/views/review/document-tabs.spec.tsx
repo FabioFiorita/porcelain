@@ -1,10 +1,7 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
+import { render } from 'vitest-browser-react';
 import { DocumentTabs } from './document-tabs';
-
-afterEach(cleanup);
 
 describe('document tab keyboard controls', () => {
   it.each([
@@ -19,7 +16,7 @@ describe('document tab keyboard controls', () => {
       onTogglePin: vi.fn(),
       onOpenToSide: vi.fn(),
     };
-    render(
+    const screen = await render(
       <DocumentTabs
         tabs={['file:a.ts']}
         pinned={example.pinned ? ['file:a.ts'] : []}
@@ -32,8 +29,8 @@ describe('document tab keyboard controls', () => {
     );
 
     const control = screen.getByRole('button', { name: example.label });
-    control.focus();
-    await userEvent.setup().keyboard('{Enter}');
+    (await control.element()).focus();
+    await userEvent.keyboard('{Enter}');
 
     expect(actions[example.action]).toHaveBeenCalledWith('file:a.ts');
     expect(actions.onActivate).not.toHaveBeenCalled();
@@ -41,7 +38,7 @@ describe('document tab keyboard controls', () => {
 });
 
 describe('document tab presentation', () => {
-  it('uses the prototype icons and label for layers and reports', () => {
+  it('uses the prototype icons and label for layers and reports', async () => {
     const reportId = 'afa08127-5c27-46bf-9d06-e8401f2aa102';
     const layerId = 'bf4f1c6b-2b54-423b-a9b5-7c40112b3101';
     const actions = {
@@ -53,7 +50,7 @@ describe('document tab presentation', () => {
       onOpenToSide: vi.fn(),
     };
 
-    const { container } = render(
+    const screen = await render(
       <DocumentTabs
         tabs={[`artifact:${reportId}`, `layer:${layerId}`]}
         pinned={[]}
@@ -74,9 +71,15 @@ describe('document tab presentation', () => {
       />,
     );
 
-    expect(screen.getByRole('tab', { name: /Report/ })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /1\. Review layer/ })).toBeTruthy();
-    expect(container.querySelector('svg.lucide-newspaper')).toBeTruthy();
-    expect(container.querySelector('svg.lucide-square-stack')).toBeTruthy();
+    await expect
+      .element(screen.getByRole('tab', { name: /Report/ }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole('tab', { name: /1\. Review layer/ }))
+      .toBeVisible();
+    expect(screen.container.querySelector('svg.lucide-newspaper')).toBeTruthy();
+    expect(
+      screen.container.querySelector('svg.lucide-square-stack'),
+    ).toBeTruthy();
   });
 });

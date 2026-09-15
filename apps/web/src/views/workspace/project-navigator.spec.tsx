@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import {
   afterAll,
   afterEach,
@@ -9,6 +7,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { SidebarProvider } from '../../components/ui/sidebar';
 import { TooltipProvider } from '../../components/ui/tooltip';
 import type { Project } from '../../domain/inventory';
@@ -45,9 +44,9 @@ const projects: Project[] = [
   },
 ];
 
-function renderNavigator(selected: string | null = null) {
+async function renderNavigator(selected: string | null = null) {
   const onSelect = vi.fn();
-  render(
+  const screen = await render(
     <TooltipProvider>
       <SidebarProvider>
         <ProjectNavigator
@@ -61,7 +60,7 @@ function renderNavigator(selected: string | null = null) {
       </SidebarProvider>
     </TooltipProvider>,
   );
-  return onSelect;
+  return { onSelect, screen };
 }
 
 beforeAll(() => {
@@ -72,46 +71,55 @@ beforeAll(() => {
   }));
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  vi.clearAllMocks();
+});
 afterAll(() => vi.unstubAllGlobals());
 
 describe('ProjectNavigator', () => {
-  it('uses the compact prototype brand treatment', () => {
-    renderNavigator();
+  it('uses the compact prototype brand treatment', async () => {
+    const { screen } = await renderNavigator();
 
     const logo = screen.getByAltText('');
-    expect(logo.tagName).toBe('IMG');
-    expect(logo.getAttribute('src')).toContain('logo');
-    expect(logo.className).toContain('size-6');
+    await expect.element(logo).toBeVisible();
+    expect((await logo.element()).tagName).toBe('IMG');
+    expect((await logo.element()).getAttribute('src')).toContain('logo');
+    expect((await logo.element()).className).toContain('size-6');
     expect(
-      screen.getByRole('navigation').querySelector('header > span')
-        ?.textContent,
+      (await screen.getByRole('navigation').element()).querySelector(
+        'header > span',
+      )?.textContent,
     ).toBe('Porcelain');
   });
 
-  it('shows compact project context and branch rows', () => {
-    renderNavigator('worktree-review');
+  it('shows compact project context and branch rows', async () => {
+    const { screen } = await renderNavigator('worktree-review');
 
-    expect(screen.getByRole('navigation').className).toContain('text-[13px]');
     expect(
-      screen.getByRole('heading', { name: 'Porcelain' }).className,
+      (await screen.getByRole('navigation').element()).className,
+    ).toContain('text-[13px]');
+    expect(
+      (await screen.getByRole('heading', { name: 'Porcelain' }).element())
+        .className,
     ).toContain('text-[12.5px]');
-    expect(screen.getByTitle('/home/dev/code/porcelain')).toBeTruthy();
+    await expect
+      .element(screen.getByTitle('/home/dev/code/porcelain'))
+      .toBeVisible();
     expect(
-      screen
-        .getByRole('button', { name: /agent\/review/ })
-        .getAttribute('aria-current'),
+      (
+        await screen.getByRole('button', { name: /agent\/review/ }).element()
+      ).getAttribute('aria-current'),
     ).toBe('page');
-    expect(screen.getByText('main')).toBeTruthy();
+    await expect.element(screen.getByText('main')).toBeVisible();
   });
 
   it('keeps unavailable worktrees selectable for archived review data', async () => {
-    const onSelect = renderNavigator();
+    const { onSelect, screen } = await renderNavigator();
     const archived = screen.getByRole('button', {
       name: /archive\/prototype.*Unavailable/,
     });
-    expect(archived.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(archived);
+    expect((await archived.element()).hasAttribute('disabled')).toBe(false);
+    await archived.click();
 
     expect(onSelect).toHaveBeenCalledWith('worktree-archived');
   });

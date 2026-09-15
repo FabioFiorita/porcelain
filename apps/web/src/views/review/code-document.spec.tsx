@@ -1,7 +1,6 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
+import { render } from 'vitest-browser-react';
 import { CodeDocument, type CodeEntry } from './code-document';
 
 const preferenceState = vi.hoisted(() => ({
@@ -56,7 +55,6 @@ vi.mock('../workspace/preferences', () => ({
 }));
 
 afterEach(() => {
-  cleanup();
   preferenceState.diffStyle = 'unified';
   preferenceState.lineOverflow = 'scroll';
 });
@@ -82,58 +80,73 @@ describe('continuous code document', () => {
   ];
 
   it('keeps same-path evidence as separately collapsible items', async () => {
-    render(<CodeDocument entries={entries} />);
-    const user = userEvent.setup();
+    const screen = await render(<CodeDocument entries={entries} />);
 
-    expect(screen.getByTestId('diff:staged:README.md')).toBeTruthy();
-    expect(screen.getByTestId('diff:unstaged:README.md')).toBeTruthy();
-    const firstCollapse = screen.getAllByRole('button', {
-      name: 'Collapse README.md',
-    })[0];
-    if (!firstCollapse) throw new Error('Missing staged evidence control');
-    await user.click(firstCollapse);
+    await expect
+      .element(screen.getByTestId('diff:staged:README.md'))
+      .toBeVisible();
+    await expect
+      .element(screen.getByTestId('diff:unstaged:README.md'))
+      .toBeVisible();
+    await screen
+      .getByRole('button', { name: 'Collapse README.md' })
+      .first()
+      .click();
 
-    expect(screen.getByTestId('diff:staged:README.md').dataset.collapsed).toBe(
-      'true',
-    );
     expect(
-      screen.getByTestId('diff:unstaged:README.md').dataset.collapsed,
+      (await screen.getByTestId('diff:staged:README.md').element()).dataset
+        .collapsed,
+    ).toBe('true');
+    expect(
+      (await screen.getByTestId('diff:unstaged:README.md').element()).dataset
+        .collapsed,
     ).toBe('false');
   });
 
   it('collapses and expands the complete document', async () => {
-    render(<CodeDocument entries={entries} />);
-    const user = userEvent.setup();
+    const screen = await render(<CodeDocument entries={entries} />);
 
-    await user.click(screen.getByRole('button', { name: 'Collapse all' }));
+    await screen.getByRole('button', { name: 'Collapse all' }).click();
     expect(
-      entries.map((entry) => screen.getByTestId(entry.id).dataset.collapsed),
+      await Promise.all(
+        entries.map(
+          async (entry) =>
+            (await screen.getByTestId(entry.id).element()).dataset.collapsed,
+        ),
+      ),
     ).toEqual(['true', 'true']);
-    await user.click(screen.getByRole('button', { name: 'Expand all' }));
+    await screen.getByRole('button', { name: 'Expand all' }).click();
     expect(
-      entries.map((entry) => screen.getByTestId(entry.id).dataset.collapsed),
+      await Promise.all(
+        entries.map(
+          async (entry) =>
+            (await screen.getByTestId(entry.id).element()).dataset.collapsed,
+        ),
+      ),
     ).toEqual(['false', 'false']);
   });
 
-  it('passes the persisted code display preferences to Pierre', () => {
+  it('passes the persisted code display preferences to Pierre', async () => {
     preferenceState.diffStyle = 'split';
     preferenceState.lineOverflow = 'wrap';
-    render(<CodeDocument entries={entries} />);
+    const screen = await render(<CodeDocument entries={entries} />);
 
-    const codeView = screen.getByTestId('code-view');
+    const codeView = await screen.getByTestId('code-view').element();
     expect(codeView.dataset.diffStyle).toBe('split');
     expect(codeView.dataset.overflow).toBe('wrap');
   });
 
-  it('keeps an empty document header scrollable without mounting CodeView', () => {
-    render(
+  it('keeps an empty document header scrollable without mounting CodeView', async () => {
+    const screen = await render(
       <CodeDocument entries={[]} header={() => <div>Binary changes</div>} />,
     );
 
-    const surface = screen.getByTestId('empty-code-document');
+    const surface = await screen.getByTestId('empty-code-document').element();
     expect(surface.className).toContain('overflow-auto');
-    expect(screen.getByText('Binary changes')).toBeTruthy();
-    expect(screen.queryByTestId('code-view')).toBeNull();
+    await expect.element(screen.getByText('Binary changes')).toBeVisible();
+    await expect
+      .element(screen.getByTestId('code-view'))
+      .not.toBeInTheDocument();
   });
 });
 
@@ -154,19 +167,27 @@ describe('remembered review folds', () => {
         <CodeDocument entries={entries} />
       </DocumentInteraction>
     );
-    const view = render(ui('folds-one'));
-    expect(screen.getByTestId('a').dataset.collapsed).toBe('true');
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Expand a' }));
-    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
-    view.rerender(ui('folds-two'));
-    expect(screen.getByTestId('a').dataset.collapsed).toBe('true');
-    view.rerender(ui('folds-one'));
-    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
-    view.unmount();
-    render(ui('folds-one'));
-    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
+    const view = await render(ui('folds-one'));
+    expect((await view.getByTestId('a').element()).dataset.collapsed).toBe(
+      'true',
+    );
+    await view.getByRole('button', { name: 'Expand a' }).click();
+    expect((await view.getByTestId('a').element()).dataset.collapsed).toBe(
+      'false',
+    );
+    await view.rerender(ui('folds-two'));
+    expect((await view.getByTestId('a').element()).dataset.collapsed).toBe(
+      'true',
+    );
+    await view.rerender(ui('folds-one'));
+    expect((await view.getByTestId('a').element()).dataset.collapsed).toBe(
+      'false',
+    );
+    await view.unmount();
+    const restored = await render(ui('folds-one'));
+    expect((await restored.getByTestId('a').element()).dataset.collapsed).toBe(
+      'false',
+    );
   });
   it('ignores malformed saved folds', async () => {
     const { DocumentInteraction } = await import('./document-interaction');
@@ -174,7 +195,7 @@ describe('remembered review folds', () => {
       'bad-folds',
       JSON.stringify({ folded: ['a', 1], expanded: null }),
     );
-    render(
+    const screen = await render(
       <DocumentInteraction value={{ active: false, storageKey: 'bad-folds' }}>
         <CodeDocument
           entries={[
@@ -183,7 +204,9 @@ describe('remembered review folds', () => {
         />
       </DocumentInteraction>,
     );
-    expect(screen.getByTestId('a').dataset.collapsed).toBe('false');
+    expect((await screen.getByTestId('a').element()).dataset.collapsed).toBe(
+      'false',
+    );
   });
 });
 
@@ -197,13 +220,12 @@ it('reviews the file clicked in the code instead of the first file', async () =>
     contents: path,
     version: 1,
   }));
-  render(
+  const screen = await render(
     <DocumentInteraction value={{ active: true }}>
       <CodeDocument entries={entries} onToggleReviewed={toggle} />
     </DocumentInteraction>,
   );
-  const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Line in second' }));
-  await user.keyboard('r');
+  await screen.getByRole('button', { name: 'Line in second' }).click();
+  await userEvent.keyboard('r');
   expect(toggle).toHaveBeenCalledWith(entries[1]);
 });

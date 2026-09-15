@@ -1,9 +1,7 @@
-// @vitest-environment jsdom
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type ReactNode, useEffect } from 'react';
-import { afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { createMockStore } from '../../api/inventory/mock';
 import { createMockApi } from '../../api/mock-api';
 import type { CommentThread } from '../../domain/comments';
@@ -74,81 +72,83 @@ function seededThread(worktreeId = scope.worktreeId): CommentThread {
   };
 }
 
-function renderComments(
+async function renderComments(
   store = createMockStore(),
   children: ReactNode = <Discussion scope={scope} />,
 ) {
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={createMockApi(store)}>
         <ConnectionGate>{children}</ConnectionGate>
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  return { store, queryClient };
+  return { store, queryClient, screen };
 }
-
-afterEach(() => cleanup());
 
 it('shows author identity, replies to a thread, and toggles resolution accessibly', async () => {
   const store = createMockStore();
   store.comments[scope.worktreeId] = [seededThread()];
-  const user = userEvent.setup();
-  renderComments(store);
+  const { screen } = await renderComments(store);
 
-  await screen.findByText('Agent context for this file');
-  expect(screen.getAllByText('Agent').length).toBeGreaterThan(0);
-  expect(screen.getByText('Agent context for this file')).toBeTruthy();
+  await expect
+    .element(screen.getByText('Agent context for this file'))
+    .toBeVisible();
+  expect(screen.getByText('Agent').length).toBeGreaterThan(0);
+  await expect
+    .element(screen.getByText('Agent context for this file'))
+    .toBeVisible();
 
-  await user.click(screen.getByRole('button', { name: 'Reply' }));
-  await user.type(screen.getByLabelText('Reply'), 'Reviewer follow-up');
-  await user.click(screen.getByRole('button', { name: 'Post reply' }));
-  await screen.findByText('Reviewer follow-up');
+  await screen.getByRole('button', { name: 'Reply' }).click();
+  await screen.getByLabelText('Reply').fill('Reviewer follow-up');
+  await screen.getByRole('button', { name: 'Post reply' }).click();
+  await expect.element(screen.getByText('Reviewer follow-up')).toBeVisible();
   expect(store.comments[scope.worktreeId]?.[0]?.messages).toEqual([
     expect.objectContaining({ author: 'agent' }),
     expect.objectContaining({ author: 'reviewer', body: 'Reviewer follow-up' }),
   ]);
 
-  await user.click(screen.getByRole('button', { name: 'Resolve' }));
-  await screen.findByRole('button', { name: 'Reopen' });
-  await user.click(screen.getByRole('button', { name: 'Reopen' }));
-  await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Reopen' })).toBeNull(),
-  );
+  await screen.getByRole('button', { name: 'Resolve' }).click();
+  await expect
+    .element(screen.getByRole('button', { name: 'Reopen' }))
+    .toBeVisible();
+  await screen.getByRole('button', { name: 'Reopen' }).click();
+  await expect
+    .element(screen.getByRole('button', { name: 'Reopen' }))
+    .not.toBeInTheDocument();
 });
 
 it('preserves a failed reply draft and leaves resolution unchanged', async () => {
   const store = createMockStore();
   store.comments[scope.worktreeId] = [seededThread()];
-  const user = userEvent.setup();
-  renderComments(store);
+  const { screen } = await renderComments(store);
 
-  await screen.findByText('Agent context for this file');
-  await user.click(screen.getByRole('button', { name: 'Reply' }));
-  await user.type(screen.getByLabelText('Reply'), 'Retry this reply');
+  await expect
+    .element(screen.getByText('Agent context for this file'))
+    .toBeVisible();
+  await screen.getByRole('button', { name: 'Reply' }).click();
+  await screen.getByLabelText('Reply').fill('Retry this reply');
   store.commentsFailed = true;
-  await user.click(screen.getByRole('button', { name: 'Post reply' }));
-  expect((await screen.findByRole('alert')).textContent).toContain(
-    'Comments are unavailable',
-  );
-  expect(screen.getByLabelText('Reply')).toHaveProperty(
-    'value',
-    'Retry this reply',
-  );
-  await user.click(screen.getByRole('button', { name: 'Cancel' }));
-  await user.click(screen.getByRole('button', { name: 'Resolve' }));
-  expect((await screen.findAllByRole('alert')).at(-1)?.textContent).toContain(
-    'Comments are unavailable',
-  );
+  await screen.getByRole('button', { name: 'Post reply' }).click();
+  await expect
+    .element(screen.getByRole('alert'))
+    .toMatchTextContent('Comments are unavailable');
+  await expect
+    .element(screen.getByLabelText('Reply'))
+    .toHaveValue('Retry this reply');
+  await screen.getByRole('button', { name: 'Cancel' }).click();
+  await screen.getByRole('button', { name: 'Resolve' }).click();
+  await expect
+    .element(screen.getByRole('alert').last())
+    .toMatchTextContent('Comments are unavailable');
   expect(store.comments[scope.worktreeId]?.[0]?.resolved).toBe(false);
 });
 
 it('keeps comment counts and cache updates isolated by worktree', async () => {
   const store = createMockStore();
   store.comments[scope.worktreeId] = [seededThread()];
-  const user = userEvent.setup();
-  renderComments(
+  const { screen } = await renderComments(
     store,
     <>
       <Discussion scope={scope} />
@@ -156,13 +156,21 @@ it('keeps comment counts and cache updates isolated by worktree', async () => {
     </>,
   );
 
-  await screen.findByText('Agent context for this file');
-  await user.click(screen.getByRole('button', { name: 'Reply' }));
-  await user.type(screen.getByLabelText('Reply'), 'Only the first worktree');
-  await user.click(screen.getByRole('button', { name: 'Post reply' }));
-  await screen.findByText('Only the first worktree');
+  await expect
+    .element(screen.getByText('Agent context for this file'))
+    .toBeVisible();
+  await screen.getByRole('button', { name: 'Reply' }).click();
+  await screen.getByLabelText('Reply').fill('Only the first worktree');
+  await screen.getByRole('button', { name: 'Post reply' }).click();
+  await expect
+    .element(screen.getByText('Only the first worktree'))
+    .toBeVisible();
   expect(
-    screen.getByRole('region', { name: otherScope.worktreeId }).textContent,
+    (
+      await screen
+        .getByRole('region', { name: otherScope.worktreeId })
+        .element()
+    ).textContent,
   ).toBe('');
   expect(store.comments[otherScope.worktreeId]).toBeUndefined();
 });

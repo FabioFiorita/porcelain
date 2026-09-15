@@ -18,25 +18,33 @@ Mocks are test fixtures, not a separate way to run the application.
 
 ## Checks
 
-Run focused specs and changed-file checks while developing:
+Specs follow three layers ([test environments](decisions/test-environments.md)):
+Node units, Vitest Browser Mode for views, Playwright for the built app.
 
 ```sh
+pnpm exec vitest run packages/git/src/commit-git.spec.ts
 pnpm exec vitest run apps/web/src/views/workspace/workspace-view.spec.tsx
 pnpm exec biome check path/to/changed-file.ts
 pnpm typecheck
 ```
 
-`pnpm test:coverage` runs Vitest directly with the coverage thresholds in
+`pnpm test:coverage` runs Vitest with the thresholds in
 [its configuration](../vitest.config.ts). There is no task cache or coverage merger.
+View specs collect coverage in Chromium via istanbul; those percentages are
+lower than jsdom/v8 counts for the same files.
 `pnpm verify` runs the full checks, including browser smoke; CI owns routine full verification.
 React Doctor runs explicitly and in CI, without a blocking commit hook.
 
-Browser smoke uses a real disposable API and built web assets. Install Chromium once:
+Install Chromium once, then run focused Browser Mode files or smoke as usual:
 
 ```sh
 pnpm --filter @porcelain/web exec playwright install --with-deps chromium
+pnpm exec vitest run apps/web/src/views/workspace/workspace-view.spec.tsx
 pnpm test:web:smoke
 ```
+
+Smoke uses a real disposable API and built web assets. CI installs Chromium in
+both the specs job and the smoke job.
 
 Tests own their sample repositories and processes. Existing server specs exercise real Git,
 SQLite and HTTP; renderer specs use real providers with controlled API fixtures. Browser proof

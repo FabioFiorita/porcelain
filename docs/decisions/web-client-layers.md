@@ -24,9 +24,9 @@ session, clears Query state and removes selection through Router. Tokens never a
 disconnect clears the cookie before dropping the local connection. The existing automatic/manual playground login follows the same lifecycle.
 
 Development runs against the real disposable server. API mocks remain controlled test fixtures for
-empty, delayed, cancelled and failed operations. View specs mount the real router, query cache and
-session provider, asserting rendered outcomes and fixture changes. These specs complement real
-Git/HTTP/browser tests; they do not establish persistence or authentication correctness.
+empty, delayed, cancelled and failed operations. View specs run in Vitest Browser Mode: they mount the real router, query cache and
+session provider in Chromium, asserting rendered outcomes and fixture changes. These specs complement
+Playwright smoke and real Git/HTTP tests; they do not establish persistence or authentication correctness.
 
 Import boundaries are enforced by the existing dependency gate. Views cannot import API modules,
 wire contracts, the transport package or Query infrastructure. Domain and API code cannot import React

@@ -15,6 +15,7 @@
       "project": ["src/**/*.ts"]
     },
     "apps/web": {
+      "entry": ["src/**/*.spec.ts", "src/**/*.spec.tsx", "e2e/**/*.ts"],
       "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts"],
       "ignore": ["src/components/ui/**"],
       "ignoreDependencies": [

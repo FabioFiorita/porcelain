@@ -1,9 +1,7 @@
-// @vitest-environment jsdom
 import { QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { type ReactNode, useEffect } from 'react';
-import { afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
 import { createQueryClient } from './client';
@@ -63,10 +61,10 @@ function PreferencesHarness() {
   );
 }
 
-function renderPreferences(store = createMockStore()) {
+async function renderPreferences(store = createMockStore()) {
   const api = createMockApi(store);
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={api}>
         <ConnectionGate>
@@ -75,20 +73,17 @@ function renderPreferences(store = createMockStore()) {
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  return { store, queryClient };
+  return { store, queryClient, screen };
 }
-
-afterEach(() => cleanup());
 
 it('loads project hidden paths and updates the cache from the server', async () => {
   const store = createMockStore();
-  renderPreferences(store);
-  const user = userEvent.setup();
-  const hidden = await screen.findByLabelText('Hidden paths');
-  expect(hidden.textContent).toBe('');
+  const { screen } = await renderPreferences(store);
+  const hidden = screen.getByLabelText('Hidden paths');
+  await expect.element(hidden).toHaveTextContent('');
 
-  await user.click(screen.getByRole('button', { name: 'Hide file' }));
-  await waitFor(() => expect(hidden.textContent).toContain(hiddenPath));
+  await screen.getByRole('button', { name: 'Hide file' }).click();
+  await expect.element(hidden).toMatchTextContent(hiddenPath);
   expect(store.filePreferences[projectId]).toEqual([
     { path: hiddenPath, pinned: false, hidden: true },
   ]);
@@ -99,16 +94,19 @@ it('keeps the cached hidden state when the server rejects a write', async () => 
   store.filePreferences[projectId] = [
     { path: hiddenPath, pinned: false, hidden: true },
   ];
-  const { queryClient } = renderPreferences(store);
-  const user = userEvent.setup();
-  const hidden = await screen.findByLabelText('Hidden paths');
+  const { queryClient, screen } = await renderPreferences(store);
+  const hidden = screen.getByLabelText('Hidden paths');
   store.filePreferencesFailed = true;
 
-  await user.click(screen.getByRole('button', { name: 'Show file' }));
-  await screen.findByText(
-    'File preferences could not be loaded or saved. Try again.',
-  );
-  expect(hidden.textContent).toContain(hiddenPath);
+  await screen.getByRole('button', { name: 'Show file' }).click();
+  await expect
+    .element(
+      screen.getByText(
+        'File preferences could not be loaded or saved. Try again.',
+      ),
+    )
+    .toBeVisible();
+  await expect.element(hidden).toMatchTextContent(hiddenPath);
   expect(
     queryClient.getQueryData([
       'review',

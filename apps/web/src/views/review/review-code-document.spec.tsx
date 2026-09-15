@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { Change, ReviewEvidenceItem } from '../../domain/review';
 import { ReviewCodeDocument } from './review-code-document';
 
@@ -35,10 +34,12 @@ const evidence: ReviewEvidenceItem[] = [
   },
 ];
 
-vi.mock('../../query/comments', () => ({
+vi.mock('../../query/comments', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/comments')>()),
   useComments: () => ({ threads: [] }),
 }));
-vi.mock('../../query/review', () => ({
+vi.mock('../../query/review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/review')>()),
   useReviewEvidence: () => evidence,
   useMarkReviewed: () => ({
     submit: vi.fn(),
@@ -72,11 +73,9 @@ vi.mock('./code-document', () => ({
   ),
 }));
 
-afterEach(cleanup);
-
 describe('continuous review document', () => {
-  it('explains diff evidence that cannot be rendered as one file', () => {
-    render(
+  it('explains diff evidence that cannot be rendered as one file', async () => {
+    const screen = await render(
       <ReviewCodeDocument
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
@@ -85,12 +84,14 @@ describe('continuous review document', () => {
       />,
     );
 
-    expect(screen.getByText('README.md')).toBeTruthy();
-    expect(screen.getByText('No single-file textual patch')).toBeTruthy();
+    await expect.element(screen.getByText('README.md')).toBeVisible();
+    await expect
+      .element(screen.getByText('No single-file textual patch'))
+      .toBeVisible();
   });
 });
 
-it('shows the agent note on an untracked file, not only on Git patches', () => {
+it('shows the agent note on an untracked file, not only on Git patches', async () => {
   const original = evidence[0];
   if (!original) throw new Error('Missing fixture');
   evidence[0] = {
@@ -108,7 +109,7 @@ it('shows the agent note on an untracked file, not only on Git patches', () => {
     ],
   };
   try {
-    render(
+    const screen = await render(
       <ReviewCodeDocument
         scope={{ projectId: 'project', worktreeId: 'worktree' }}
         files={[
@@ -116,7 +117,7 @@ it('shows the agent note on an untracked file, not only on Git patches', () => {
         ]}
       />,
     );
-    expect(screen.getByText('Read this first.')).toBeTruthy();
+    await expect.element(screen.getByText('Read this first.')).toBeVisible();
   } finally {
     evidence[0] = original;
   }

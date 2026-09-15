@@ -1,9 +1,7 @@
-// @vitest-environment jsdom
 import { focusManager, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { Suspense, useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { Api } from '../api/api';
 import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
@@ -131,13 +129,13 @@ function CommitHarness({ oid, parent }: { oid: string; parent?: number }) {
   );
 }
 
-function renderReview(
+async function renderReview(
   store = createMockStore(),
   api = createMockApi(store),
   harness: React.ReactNode = <BulkHarness />,
 ) {
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={api}>
         <ConnectionGate>
@@ -146,11 +144,10 @@ function renderReview(
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  return { store, queryClient };
+  return { store, queryClient, screen };
 }
 
 afterEach(() => {
-  cleanup();
   focusManager.setFocused(undefined);
   vi.restoreAllMocks();
 });
@@ -176,15 +173,15 @@ describe('review evidence queries', () => {
       },
     };
 
-    const { queryClient } = renderReview(
+    const { queryClient, screen } = await renderReview(
       store,
       api,
       <CommitHarness oid={firstCommit.oid} parent={2} />,
     );
 
-    expect(
-      (await screen.findByLabelText('commit comparison')).textContent,
-    ).toBe(`2:${'c'.repeat(40)}`);
+    await expect
+      .element(screen.getByLabelText('commit comparison'))
+      .toHaveTextContent(`2:${'c'.repeat(40)}`);
     expect(parentCalls).toEqual([2]);
     expect(
       queryClient.getQueryData(
@@ -261,17 +258,16 @@ describe('review evidence queries', () => {
       path: 'conflict.ts',
       conflict: 'UU',
     });
-    const user = userEvent.setup();
-    renderReview(store);
+    const { screen } = await renderReview(store);
 
-    await screen.findByLabelText('Evidence paths');
-    expect(screen.getByLabelText('Evidence paths').textContent).toContain(
-      'conflict.ts:unreviewed',
-    );
-    await user.click(screen.getByRole('button', { name: 'Mark all' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('Bulk result').textContent).toBe('6/1/0'),
-    );
+    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await expect
+      .element(screen.getByLabelText('Evidence paths'))
+      .toMatchTextContent('conflict.ts:unreviewed');
+    await screen.getByRole('button', { name: 'Mark all' }).click();
+    await expect
+      .element(screen.getByLabelText('Bulk result'))
+      .toHaveTextContent('6/1/0');
     expect(store.reviewed[scope.worktreeId]).not.toContainEqual(
       expect.objectContaining({ path: 'conflict.ts' }),
     );
@@ -342,14 +338,12 @@ describe('review evidence queries', () => {
       },
     };
 
-    const { queryClient } = renderReview(store, api);
-    await screen.findByLabelText('Evidence paths');
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Mark all' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('Bulk result').textContent).toBe('6/0/0'),
-    );
+    const { queryClient, screen } = await renderReview(store, api);
+    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await screen.getByRole('button', { name: 'Mark all' }).click();
+    await expect
+      .element(screen.getByLabelText('Bulk result'))
+      .toHaveTextContent('6/0/0');
 
     const snapshot = queryClient.getQueryData<ReviewedMarksResponse>(
       queryKeys.reviewSurface(store.inventory.environmentId, scope, [
@@ -394,11 +388,15 @@ describe('review evidence queries', () => {
       },
     };
 
-    const { queryClient } = renderReview(store, api, <MutationHarness />);
-    await screen.findByLabelText('Mutation path');
-    const path = screen.getByLabelText('Mutation path').textContent;
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Mark one' }));
+    const { queryClient, screen } = await renderReview(
+      store,
+      api,
+      <MutationHarness />,
+    );
+    await expect.element(screen.getByLabelText('Mutation path')).toBeVisible();
+    const path = (await screen.getByLabelText('Mutation path').element())
+      .textContent;
+    await screen.getByRole('button', { name: 'Mark one' }).click();
     await markStartedPromise;
     const reviewedKey = queryKeys.reviewSurface(
       store.inventory.environmentId,
@@ -408,26 +406,22 @@ describe('review evidence queries', () => {
     expect(
       queryClient.getQueryData<ReviewedMarksResponse>(reviewedKey)?.marks,
     ).toContainEqual(expect.objectContaining({ path }));
-    await user.click(screen.getByRole('button', { name: 'Unmark one' }));
+    await screen.getByRole('button', { name: 'Unmark one' }).click();
     expect(removeCalls).toBe(0);
-    await waitFor(() =>
+    await vi.waitFor(() =>
       expect(
         queryClient.getQueryData<ReviewedMarksResponse>(reviewedKey)?.marks,
       ).not.toContainEqual(expect.objectContaining({ path })),
     );
 
     releaseMark();
-    await waitFor(() => expect(removeCalls).toBe(1));
-    await waitFor(() => {
-      const snapshot = queryClient.getQueryData<ReviewedMarksResponse>(
-        queryKeys.reviewSurface(store.inventory.environmentId, scope, [
-          'reviewed',
-        ]),
-      );
-      expect(snapshot?.marks).not.toContainEqual(
-        expect.objectContaining({ path }),
-      );
-    });
+    await vi.waitFor(() => expect(removeCalls).toBe(1));
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryState(reviewedKey)?.fetchStatus).toBe('idle'),
+    );
+    expect(
+      queryClient.getQueryData<ReviewedMarksResponse>(reviewedKey)?.marks,
+    ).not.toContainEqual(expect.objectContaining({ path }));
     expect(setCalls).toBe(1);
   });
 
@@ -464,25 +458,30 @@ describe('review evidence queries', () => {
       },
     };
 
-    const { queryClient } = renderReview(store, api, <MutationHarness />);
-    const path = (await screen.findByLabelText('Mutation path')).textContent;
+    const { queryClient, screen } = await renderReview(
+      store,
+      api,
+      <MutationHarness />,
+    );
+    const path = (await screen.getByLabelText('Mutation path').element())
+      .textContent;
     focusManager.setFocused(false);
     focusManager.setFocused(true);
     await readStartedPromise;
-    await userEvent
-      .setup()
-      .click(screen.getByRole('button', { name: 'Mark one' }));
+    await screen.getByRole('button', { name: 'Mark one' }).click();
 
     const key = queryKeys.reviewSurface(store.inventory.environmentId, scope, [
       'reviewed',
     ]);
-    await waitFor(() =>
+    await vi.waitFor(() =>
       expect(
         queryClient.getQueryData<ReviewedMarksResponse>(key)?.marks,
       ).toContainEqual(expect.objectContaining({ path })),
     );
     releaseRead();
-    await Promise.resolve();
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryState(key)?.fetchStatus).toBe('idle'),
+    );
     expect(
       queryClient.getQueryData<ReviewedMarksResponse>(key)?.marks,
     ).toContainEqual(expect.objectContaining({ path }));
@@ -517,16 +516,15 @@ describe('review evidence queries', () => {
       },
     };
 
-    const { queryClient } = renderReview(store, api);
-    await screen.findByLabelText('Evidence paths');
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Mark all' }));
-    await waitFor(() => expect(setCalls).toBe(2));
+    const { queryClient, screen } = await renderReview(store, api);
+    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await screen.getByRole('button', { name: 'Mark all' }).click();
+    await vi.waitFor(() => expect(setCalls).toBe(2));
     timeout.abort(new DOMException('The request timed out.', 'TimeoutError'));
 
-    await waitFor(() =>
-      expect(screen.getByLabelText('Bulk result').textContent).toBe('1/0/5'),
-    );
+    await expect
+      .element(screen.getByLabelText('Bulk result'))
+      .toHaveTextContent('1/0/5');
     const snapshot = queryClient.getQueryData<ReviewedMarksResponse>(
       queryKeys.reviewSurface(store.inventory.environmentId, scope, [
         'reviewed',
@@ -561,7 +559,7 @@ describe('review evidence queries', () => {
       },
     };
 
-    renderReview(
+    const { screen } = await renderReview(
       store,
       api,
       <BulkHarness
@@ -570,18 +568,15 @@ describe('review evidence queries', () => {
         }}
       />,
     );
-    await screen.findByLabelText('Evidence paths');
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Mark all' }));
-    await waitFor(() => expect(setCalls).toBe(1));
+    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await screen.getByRole('button', { name: 'Mark all' }).click();
+    await vi.waitFor(() => expect(setCalls).toBe(1));
     if (!connectionController) throw new Error('Missing connection controller');
     connectionController.abort(new DOMException('Disconnected', 'AbortError'));
 
-    await waitFor(() =>
-      expect(screen.getByLabelText('Bulk result').textContent).toMatch(
-        /^error:/,
-      ),
-    );
+    await expect
+      .element(screen.getByLabelText('Bulk result'))
+      .toMatchTextContent(/^error:/);
     expect(store.reviewed[scope.worktreeId]).toEqual([]);
   });
 });

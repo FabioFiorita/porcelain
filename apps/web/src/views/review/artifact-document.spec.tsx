@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import { ArtifactDocument } from './artifact-document';
 
 const state = vi.hoisted(() => ({
@@ -33,22 +32,22 @@ vi.mock('./html-frame', () => ({
   ),
 }));
 
-afterEach(cleanup);
-
 describe('artifact document', () => {
-  it('keeps report content directly under the compact toolbar', () => {
-    render(
+  it('keeps report content directly under the compact toolbar', async () => {
+    const screen = await render(
       <ArtifactDocument
         scope={{ projectId: 'project', worktreeId: state.artifact.worktreeId }}
         artifactId={state.artifact.id}
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Report' })).toBeTruthy();
-    expect(screen.getByTestId('html-preview').textContent).toBe(
-      '<h1>Report</h1>',
-    );
-    expect(screen.queryByText('Created')).toBeNull();
-    expect(screen.queryByText('Format')).toBeNull();
+    await expect
+      .element(screen.getByRole('heading', { name: 'Report' }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByTestId('html-preview'))
+      .toHaveTextContent('<h1>Report</h1>');
+    await expect.element(screen.getByText('Created')).not.toBeInTheDocument();
+    await expect.element(screen.getByText('Format')).not.toBeInTheDocument();
   });
 });

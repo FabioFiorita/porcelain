@@ -1,7 +1,5 @@
-// @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { CommitChanges } from '../../domain/review';
 import { DocumentView } from './documents';
 
@@ -51,7 +49,8 @@ const historyState = vi.hoisted(() => ({
   ],
 }));
 
-vi.mock('../../query/review', () => ({
+vi.mock('../../query/review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/review')>()),
   useTextFile: () =>
     fileState.unreadable
       ? { kind: 'unreadable', reason: 'This file is binary.' }
@@ -79,7 +78,8 @@ vi.mock('../../query/preview-assets', () => ({
 vi.mock('../../query/history', () => ({
   useHistory: () => historyState,
 }));
-vi.mock('../workspace/preferences', () => ({
+vi.mock('../workspace/preferences', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../workspace/preferences')>()),
   usePreferences: () => ({ preferences: preferenceState }),
 }));
 vi.mock('./markdown-view', () => ({
@@ -134,7 +134,6 @@ function renderFile(path: string) {
 }
 
 afterEach(() => {
-  cleanup();
   fileState.unreadable = false;
   preferenceState.markdownDefault = 'reader';
   preferenceState.htmlDefault = 'preview';
@@ -160,35 +159,39 @@ afterEach(() => {
 });
 
 describe('file document display defaults', () => {
-  it('opens markdown according to the persisted reader/source default', () => {
+  it('opens markdown according to the persisted reader/source default', async () => {
     preferenceState.markdownDefault = 'source';
-    renderFile('README.md');
+    const screen = await renderFile('README.md');
 
-    expect(screen.getByTestId('code-document')).toBeTruthy();
-    expect(screen.queryByTestId('markdown-reader')).toBeNull();
+    await expect.element(screen.getByTestId('code-document')).toBeVisible();
+    await expect
+      .element(screen.getByTestId('markdown-reader'))
+      .not.toBeInTheDocument();
   });
 
-  it('opens HTML according to the persisted preview/source default', () => {
+  it('opens HTML according to the persisted preview/source default', async () => {
     preferenceState.htmlDefault = 'preview';
-    renderFile('docs/index.html');
+    const screen = await renderFile('docs/index.html');
 
-    expect(screen.getByTestId('html-preview')).toBeTruthy();
-    expect(screen.queryByTestId('code-document')).toBeNull();
+    await expect.element(screen.getByTestId('html-preview')).toBeVisible();
+    await expect
+      .element(screen.getByTestId('code-document'))
+      .not.toBeInTheDocument();
   });
 
   it('lets the reader switch to source without changing the default', async () => {
-    const user = userEvent.setup();
-    renderFile('README.md');
+    const screen = await renderFile('README.md');
 
-    expect(screen.getByTestId('markdown-reader')).toBeTruthy();
-    await user.click(screen.getByRole('tab', { name: 'Source' }));
-    expect(screen.getByTestId('code-document')).toBeTruthy();
-    expect(screen.queryByTestId('markdown-reader')).toBeNull();
+    await expect.element(screen.getByTestId('markdown-reader')).toBeVisible();
+    await screen.getByRole('tab', { name: 'Source' }).click();
+    await expect.element(screen.getByTestId('code-document')).toBeVisible();
+    await expect
+      .element(screen.getByTestId('markdown-reader'))
+      .not.toBeInTheDocument();
   });
 
   it('renders merge parent choices and commit metadata through the shared code document', async () => {
-    const user = userEvent.setup();
-    render(
+    const screen = await render(
       <DocumentView
         scope={scope}
         document={{ kind: 'commit', oid: commitState.commitOid }}
@@ -196,29 +199,36 @@ describe('file document display defaults', () => {
       />,
     );
 
-    expect(screen.getByText('Keep commit review compact')).toBeTruthy();
-    const body = screen.getByText(/First line/u);
-    expect(body.textContent).toBe('First line\n\n  Second line');
-    expect(screen.getByText('main')).toBeTruthy();
-    expect(screen.getByText('origin/main')).toBeTruthy();
-    expect(screen.getByText('v1')).toBeTruthy();
-    expect(screen.getByTitle('refs/heads/main')).toBeTruthy();
-    expect(screen.getByText(/Fabio Fiorita/u)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Copy id' })).toBeTruthy();
-    expect(screen.getByTestId('code-document')).toBeTruthy();
+    await expect
+      .element(screen.getByText('Keep commit review compact'))
+      .toBeVisible();
+    expect((await screen.getByText(/First line/u).element()).textContent).toBe(
+      'First line\n\n  Second line',
+    );
+    await expect.element(screen.getByText('main')).toBeVisible();
+    await expect.element(screen.getByText('origin/main')).toBeVisible();
+    await expect.element(screen.getByText('v1')).toBeVisible();
+    await expect.element(screen.getByTitle('refs/heads/main')).toBeVisible();
+    await expect.element(screen.getByText(/Fabio Fiorita/u)).toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Copy id' }))
+      .toBeVisible();
+    await expect.element(screen.getByTestId('code-document')).toBeVisible();
     const secondParent = screen.getByRole('tab', {
       name: /2nd parent.*ccccccc/u,
     });
-    await user.click(secondParent);
-    expect(secondParent.getAttribute('aria-selected')).toBe('true');
+    await secondParent.click();
+    expect((await secondParent.element()).getAttribute('aria-selected')).toBe(
+      'true',
+    );
   });
 
-  it('discloses when the displayed commit body is truncated', () => {
+  it('discloses when the displayed commit body is truncated', async () => {
     const firstCommit = historyState.commits[0];
     if (!firstCommit) throw new Error('Missing history fixture');
     firstCommit.bodyTruncated = true;
 
-    render(
+    const screen = await render(
       <DocumentView
         scope={scope}
         document={{ kind: 'commit', oid: commitState.commitOid }}
@@ -226,10 +236,12 @@ describe('file document display defaults', () => {
       />,
     );
 
-    expect(screen.getByText('Commit message truncated')).toBeTruthy();
+    await expect
+      .element(screen.getByText('Commit message truncated'))
+      .toBeVisible();
   });
 
-  it('identifies binary and submodule changes that have no code preview', () => {
+  it('identifies binary and submodule changes that have no code preview', async () => {
     commitState.changes = [
       {
         oldPath: 'assets/logo.png',
@@ -252,7 +264,7 @@ describe('file document display defaults', () => {
       },
     ];
 
-    render(
+    const screen = await render(
       <DocumentView
         scope={scope}
         document={{ kind: 'commit', oid: commitState.commitOid }}
@@ -261,16 +273,20 @@ describe('file document display defaults', () => {
     );
 
     const fallback = screen.getByLabelText('Changes without code preview');
-    expect(fallback.textContent).toContain('assets/logo.png');
-    expect(fallback.textContent).toContain('modified · Binary change');
-    expect(fallback.textContent).toContain('vendor/tool');
-    expect(fallback.textContent).toContain('modified · Submodule change');
-    expect(fallback.textContent).toContain(
-      'Subproject commit 1111111..2222222',
-    );
+    await expect.element(fallback).toMatchTextContent('assets/logo.png');
+    await expect
+      .element(fallback)
+      .toMatchTextContent('modified · Binary change');
+    await expect.element(fallback).toMatchTextContent('vendor/tool');
+    await expect
+      .element(fallback)
+      .toMatchTextContent('modified · Submodule change');
+    await expect
+      .element(fallback)
+      .toMatchTextContent('Subproject commit 1111111..2222222');
   });
 
-  it('keeps binary-only commits navigable without a code entry', () => {
+  it('keeps binary-only commits navigable without a code entry', async () => {
     commitState.changes = [
       {
         oldPath: null,
@@ -282,7 +298,7 @@ describe('file document display defaults', () => {
       },
     ];
 
-    render(
+    const screen = await render(
       <DocumentView
         scope={scope}
         document={{ kind: 'commit', oid: commitState.commitOid }}
@@ -290,26 +306,38 @@ describe('file document display defaults', () => {
       />,
     );
 
-    expect(screen.getByText('assets/new-logo.png')).toBeTruthy();
-    expect(screen.getByText(/added · Binary change/u)).toBeTruthy();
+    await expect.element(screen.getByText('assets/new-logo.png')).toBeVisible();
+    await expect
+      .element(screen.getByText(/added · Binary change/u))
+      .toBeVisible();
   });
 });
 
-it('keeps the file header and copy action when text cannot be displayed', () => {
+it('keeps the file header and copy action when text cannot be displayed', async () => {
   fileState.unreadable = true;
-  renderFile('assets/data.bin');
-  expect(screen.getByText('data.bin')).toBeTruthy();
-  expect(screen.getByText('This file is binary.')).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
-  expect(screen.queryByTestId('code-document')).toBeNull();
+  const screen = await renderFile('assets/data.bin');
+  await expect.element(screen.getByText('data.bin')).toBeVisible();
+  await expect.element(screen.getByText('This file is binary.')).toBeVisible();
+  await expect
+    .element(screen.getByRole('button', { name: 'Copy path' }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole('button', { name: 'Try again' }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(screen.getByTestId('code-document'))
+    .not.toBeInTheDocument();
 });
 
-it('previews images without passing their bytes through the text viewer', () => {
+it('previews images without passing their bytes through the text viewer', async () => {
   fileState.unreadable = true;
-  renderFile('assets/image.png');
+  const screen = await renderFile('assets/image.png');
   expect(
-    screen.getByRole('img', { name: 'assets/image.png' }).getAttribute('src'),
+    (
+      await screen.getByRole('img', { name: 'assets/image.png' }).element()
+    ).getAttribute('src'),
   ).toBe('data:image/png;base64,AA==');
-  expect(screen.queryByTestId('code-document')).toBeNull();
+  await expect
+    .element(screen.getByTestId('code-document'))
+    .not.toBeInTheDocument();
 });

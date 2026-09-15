@@ -1,8 +1,7 @@
-// @vitest-environment jsdom
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode, useEffect } from 'react';
-import { afterEach, expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
+import { render } from 'vitest-browser-react';
 import type { Api } from '../api/api';
 import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
@@ -126,7 +125,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderMutation(
+async function renderMutation(
   operation: 'create' | 'reply' | 'resolve',
   initial: CommentThread[],
 ) {
@@ -147,7 +146,7 @@ function renderMutation(
     },
   };
   const queryClient = createQueryClient();
-  render(
+  const screen = await render(
     <QueryClientProvider client={queryClient}>
       <WorkspaceProvider api={api}>
         <ConnectionGate>
@@ -160,50 +159,55 @@ function renderMutation(
     queryClient,
     store,
     oldRead,
+    screen,
     get reads() {
       return reads;
     },
   };
 }
 
-afterEach(() => cleanup());
+function expectMutationCache(
+  cached: CommentThread[] | undefined,
+  operation: 'create' | 'reply' | 'resolve',
+) {
+  if (operation === 'create')
+    expect(
+      cached?.some(
+        (candidate) => candidate.messages[0]?.body === 'Created comment',
+      ),
+    ).toBe(true);
+  else if (operation === 'reply')
+    expect(cached?.[0]?.messages.at(-1)?.body).toBe('New reply');
+  else expect(cached?.[0]?.resolved).toBe(true);
+}
 
 it.each(['create', 'reply', 'resolve'] as const)(
   'keeps the %s response when an older list read resolves afterward',
   async (operation) => {
     const initial = operation === 'create' ? [] : [thread()];
-    const state = renderMutation(operation, initial);
+    const state = await renderMutation(operation, initial);
     const key = queryKeys.comments(state.store.inventory.environmentId, scope);
-    const user = (await import('@testing-library/user-event')).default.setup();
 
-    await screen.findByRole('button', { name: 'Run mutation' });
-    await user.click(screen.getByRole('button', { name: 'Start old read' }));
-    await waitFor(() => expect(state.reads).toBe(2));
-    await user.click(screen.getByRole('button', { name: 'Run mutation' }));
-    await waitFor(() => {
-      const cached = state.queryClient.getQueryData<CommentThread[]>(key);
-      if (operation === 'create')
-        expect(
-          cached?.some(
-            (candidate) => candidate.messages[0]?.body === 'Created comment',
-          ),
-        ).toBe(true);
-      else if (operation === 'reply')
-        expect(cached?.[0]?.messages.at(-1)?.body).toBe('New reply');
-      else expect(cached?.[0]?.resolved).toBe(true);
+    await expect
+      .element(state.screen.getByRole('button', { name: 'Run mutation' }))
+      .toBeVisible();
+    await state.screen.getByRole('button', { name: 'Start old read' }).click();
+    await vi.waitFor(() => expect(state.reads).toBe(2));
+    await state.screen.getByRole('button', { name: 'Run mutation' }).click();
+    await vi.waitFor(() => {
+      expectMutationCache(
+        state.queryClient.getQueryData<CommentThread[]>(key),
+        operation,
+      );
     });
 
     state.oldRead.resolve(structuredClone(initial));
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    const cached = state.queryClient.getQueryData<CommentThread[]>(key);
-    if (operation === 'create')
-      expect(
-        cached?.some(
-          (candidate) => candidate.messages[0]?.body === 'Created comment',
-        ),
-      ).toBe(true);
-    else if (operation === 'reply')
-      expect(cached?.[0]?.messages.at(-1)?.body).toBe('New reply');
-    else expect(cached?.[0]?.resolved).toBe(true);
+    await vi.waitFor(() =>
+      expect(state.queryClient.getQueryState(key)?.fetchStatus).toBe('idle'),
+    );
+    expectMutationCache(
+      state.queryClient.getQueryData<CommentThread[]>(key),
+      operation,
+    );
   },
 );
