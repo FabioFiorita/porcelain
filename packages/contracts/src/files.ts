@@ -68,3 +68,10 @@ export const fileTreeSchema = z.object({
   ),
 });
 export type FileTree = z.infer<typeof fileTreeSchema>;
+
+export const assetResponseSchema = z.object({
+  path: z.string(),
+  mediaType: z.string(),
+  base64: z.string(),
+});
+export type AssetResponse = z.infer<typeof assetResponseSchema>;

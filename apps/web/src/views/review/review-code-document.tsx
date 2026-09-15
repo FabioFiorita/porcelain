@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { isImagePath } from '../../domain/html-assets';
 import type {
   Change,
   Diff,
@@ -12,6 +13,7 @@ import { useComments } from '../../query/comments';
 import { useReviewEvidence } from '../../query/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { diffEntry, evidenceId, fileEntry } from './diff-entries';
+import { ImagePreview } from './image-preview';
 import { InlineComposer } from './inline-composer';
 import { ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
@@ -199,7 +201,7 @@ function OmittedEvidence({
 }) {
   return (
     <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
-      <p className="text-xs font-medium">Not shown in the code preview</p>
+      <p className="text-xs font-medium">Non-text content</p>
       <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
         {evidence.map(({ item, reasons }) => (
           <li
@@ -207,6 +209,12 @@ function OmittedEvidence({
             className="flex min-w-0 flex-wrap items-center gap-2"
           >
             <span className="min-w-0 flex-1 truncate">{item.path}</span>
+            {isImagePath(item.path) && (
+              <>
+                <span>Current worktree image</span>
+                <ImagePreview scope={scope} path={item.path} />
+              </>
+            )}
             <Badge
               variant="outline"
               className="shrink-0 text-[10px] font-normal"

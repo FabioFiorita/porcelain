@@ -24,6 +24,9 @@ export type ReviewRequest = ReviewScope & {
   signal: AbortSignal;
 };
 export type ReviewPort = {
+  asset: (
+    request: ReviewRequest & { path: string },
+  ) => Promise<import('@porcelain/contracts/files').AssetResponse>;
   commitLayers: (
     request: ReviewRequest & { oid: string },
   ) => Promise<CommitReviewLayers | null>;

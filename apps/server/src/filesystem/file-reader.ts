@@ -60,6 +60,23 @@ export class NodeFileReader implements FileReader {
   }
 
   async read(target: FileTarget, signal?: AbortSignal): Promise<TextContent> {
+    const buffer = await this.readBytes(target, maxBytes, signal);
+    const result: TextContent = {
+      worktreeId: target.worktreeId,
+      path: target.path,
+      encoding: 'utf-8',
+      byteLength: buffer.length,
+      text: decodeText(buffer),
+    };
+    checkResponseSize(result, 'FILE_TOO_LARGE', maxBytes);
+    return result;
+  }
+
+  async readBytes(
+    target: FileTarget,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
     try {
       const before = await inspectPath(target, signal);
       if (!before.info.isFile())
@@ -72,9 +89,9 @@ export class NodeFileReader implements FileReader {
         const opened = await handle.stat({ bigint: true });
         if (!opened.isFile() || !sameFile(before.info, opened))
           throw new FileInspectionError('CONTENT_CHANGED');
-        if (opened.size > BigInt(maxBytes))
+        if (opened.size > BigInt(limit))
           throw new FileInspectionError('FILE_TOO_LARGE');
-        const buffer = Buffer.alloc(maxBytes + 1);
+        const buffer = Buffer.alloc(limit + 1);
         const progress = { bytes: 0 };
         while (progress.bytes < buffer.length) {
           signal?.throwIfAborted();
@@ -87,21 +104,12 @@ export class NodeFileReader implements FileReader {
           if (bytesRead === 0) break;
           progress.bytes += bytesRead;
         }
-        if (progress.bytes > maxBytes)
+        if (progress.bytes > limit)
           throw new FileInspectionError('FILE_TOO_LARGE');
         if (!unchanged(opened, await handle.stat({ bigint: true })))
           throw new FileInspectionError('CONTENT_CHANGED');
         await verifyPath(before, target, signal);
-        const text = decodeText(buffer.subarray(0, progress.bytes));
-        const result: TextContent = {
-          worktreeId: target.worktreeId,
-          path: target.path,
-          encoding: 'utf-8',
-          byteLength: progress.bytes,
-          text,
-        };
-        checkResponseSize(result, 'FILE_TOO_LARGE', maxBytes);
-        return result;
+        return buffer.subarray(0, progress.bytes);
       } finally {
         await handle.close();
       }

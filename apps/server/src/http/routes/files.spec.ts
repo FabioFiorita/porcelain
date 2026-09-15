@@ -65,6 +65,43 @@ describe('Files HTTP', () => {
     }
   }
 
+  it('serves bounded preview assets while rejecting unauthenticated, escaping and symlink reads', async () => {
+    await fixture(async (server, root, path, id) => {
+      const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
+      await writeFile(join(path, 'image.png'), bytes);
+      const url = `/worktrees/${id}/asset?path=image.png`;
+      expect((await server.inject({ url })).statusCode).toBe(401);
+      const response = await server.inject({ url, headers });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        path: 'image.png',
+        mediaType: 'image/png',
+        base64: bytes.toString('base64'),
+      });
+      await writeFile(join(root, 'outside.png'), bytes);
+      await symlink(join(root, 'outside.png'), join(path, 'link.png'));
+      for (const target of ['../outside.png', 'link.png', '.git/config']) {
+        const rejected = await server.inject({
+          url: `/worktrees/${id}/asset?path=${encodeURIComponent(target)}`,
+          headers,
+        });
+        expect(rejected.statusCode).toBeGreaterThanOrEqual(400);
+      }
+      await writeFile(
+        join(path, 'huge.png'),
+        Buffer.alloc(10 * 1024 * 1024 + 1),
+      );
+      expect(
+        (
+          await server.inject({
+            url: `/worktrees/${id}/asset?path=huge.png`,
+            headers,
+          })
+        ).json().code,
+      ).toBe('FILE_TOO_LARGE');
+    });
+  });
+
   it('lists and reads through real authenticated loopback HTTP with exact public schemas', async () =>
     fixture(async (server, _root, path, id) => {
       await mkdir(join(path, 'src'));

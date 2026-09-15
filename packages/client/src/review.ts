@@ -8,6 +8,7 @@ import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import { commitReviewLayersResponseSchema } from '@porcelain/contracts/commit-review-layers';
 import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
 import {
+  assetResponseSchema,
   directoryResponseSchema,
   type FileEdit,
   fileEditResultSchema,
@@ -94,6 +95,12 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     fileTree: (request: Request) => read(request, 'file-tree', fileTreeSchema),
     editFile: (request: Request & { input: FileEdit }) =>
       read(request, 'files', fileEditResultSchema, request.input),
+    asset: (request: Request & { path: string }) =>
+      read(
+        request,
+        `asset?path=${encodeURIComponent(request.path)}`,
+        assetResponseSchema,
+      ),
     text: (request: Request & { path: string }) =>
       read(
         request,

@@ -22,6 +22,7 @@ import {
   fileTreeAncestors,
   mergeFileTreeEntries,
 } from '../../domain/file-tree';
+import { isImagePath } from '../../domain/html-assets';
 import { changePath, type ReviewScope } from '../../domain/review';
 import { discardRejection } from '../../lib/submit-form';
 import { useHiddenPaths, useSetHidden } from '../../query/file-preferences';
@@ -222,7 +223,15 @@ function ScopedFileNavigation({
         onExpand={(paths) => setRequested((current) => union(current, paths))}
         onSelect={(path) => {
           if (kinds.get(path) === 'file')
-            onOpen({ kind: changed.has(path) ? 'change' : 'file', path });
+            onOpen({
+              kind:
+                changed.has(path) &&
+                !isImagePath(path) &&
+                !/\.html?$/i.test(path)
+                  ? 'change'
+                  : 'file',
+              path,
+            });
         }}
         onOpenFile={(path) => onOpen({ kind: 'file', path })}
         onSetHidden={(path, value) =>

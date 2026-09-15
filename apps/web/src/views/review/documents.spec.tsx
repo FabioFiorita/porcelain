@@ -66,6 +66,16 @@ vi.mock('../../query/files', () => ({
     state: { text, savedText: text, owner: null },
   }),
 }));
+vi.mock('../../query/preview-assets', () => ({
+  useHtmlPreview: (_scope: unknown, _path: string, html: string) => ({
+    data: { html, missing: [] },
+    isPending: false,
+  }),
+  useAsset: () => ({
+    data: { mediaType: 'image/png', base64: 'AA==' },
+    isPending: false,
+  }),
+}));
 vi.mock('../../query/history', () => ({
   useHistory: () => historyState,
 }));
@@ -87,13 +97,16 @@ vi.mock('./code-document', () => ({
     entries,
     header,
     toolbar,
+    headerActions,
   }: {
     entries: Array<{ path: string; contents?: string }>;
+    headerActions?: React.ReactNode;
     header?: () => React.ReactNode;
     toolbar?: (control: React.ReactNode) => React.ReactNode;
   }) => (
     <div data-testid="code-document">
       {toolbar?.(null)}
+      {headerActions}
       {entries.map((entry) => (
         <span key={entry.path}>
           {entry.path}
@@ -284,10 +297,19 @@ describe('file document display defaults', () => {
 
 it('keeps the file header and copy action when text cannot be displayed', () => {
   fileState.unreadable = true;
-  renderFile('assets/image.png');
-  expect(screen.getByText('image.png')).toBeTruthy();
+  renderFile('assets/data.bin');
+  expect(screen.getByText('data.bin')).toBeTruthy();
   expect(screen.getByText('This file is binary.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Copy path' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  expect(screen.queryByTestId('code-document')).toBeNull();
+});
+
+it('previews images without passing their bytes through the text viewer', () => {
+  fileState.unreadable = true;
+  renderFile('assets/image.png');
+  expect(
+    screen.getByRole('img', { name: 'assets/image.png' }).getAttribute('src'),
+  ).toBe('data:image/png;base64,AA==');
   expect(screen.queryByTestId('code-document')).toBeNull();
 });

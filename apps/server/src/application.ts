@@ -195,6 +195,11 @@ export interface Application {
     path: string,
     signal?: AbortSignal,
   ): Promise<DirectoryListing>;
+  readAsset(
+    worktreeId: string,
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<import('@porcelain/contracts/files').AssetResponse>;
   readTextFile(
     worktreeId: string,
     path: string,

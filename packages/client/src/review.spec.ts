@@ -246,3 +246,29 @@ it('preserves typed file refusal codes without accepting malformed errors', asyn
     status: 422,
   });
 });
+
+it('reads image assets through the authenticated private transport', async () => {
+  const transport: typeof fetch = async (input, init) => {
+    expect(String(input)).toBe(
+      `/api/worktrees/${scope.worktreeId}/asset?path=img%2Fa%23b.png`,
+    );
+    expect(init?.headers).toMatchObject({
+      authorization: 'Bearer disposable-token',
+    });
+    expect(init?.cache).toBe('no-store');
+    expect(init?.credentials).toBe('omit');
+    return Response.json({
+      path: 'img/a#b.png',
+      mediaType: 'image/png',
+      base64: 'AA==',
+    });
+  };
+  expect(
+    (
+      await createReviewClient(transport, '/api').asset({
+        ...scope,
+        path: 'img/a#b.png',
+      })
+    ).mediaType,
+  ).toBe('image/png');
+});

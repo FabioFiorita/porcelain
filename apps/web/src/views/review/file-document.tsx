@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OpenDocument } from '../../domain/documents';
 import type { FileDraft, FileDraftState } from '../../domain/file-draft';
+import { isImagePath } from '../../domain/html-assets';
 import type { ReviewScope } from '../../domain/review';
 import { changePath } from '../../domain/review';
 import { useFileDraft } from '../../query/files';
@@ -16,10 +17,25 @@ import { useDocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
 import { FileEditor } from './file-editor';
 import { FileTypeIcon } from './file-type-icon';
-import { HtmlFrame } from './html-frame';
+import { HtmlPreview } from './html-preview';
+import { ImagePreview } from './image-preview';
 import { MarkdownView } from './markdown-view';
 import { ReviewEmpty } from './review-empty';
-export function FileDocument({
+export function FileDocument(props: {
+  scope: ReviewScope;
+  path: string;
+  onOpen: OpenDocument;
+}) {
+  return isImagePath(props.path) ? (
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+      <FileToolbar path={props.path} />
+      <ImagePreview scope={props.scope} path={props.path} />
+    </div>
+  ) : (
+    <TextFileDocument {...props} />
+  );
+}
+function TextFileDocument({
   scope,
   path,
   onOpen,
@@ -219,7 +235,7 @@ function ReadableFileDocument({
             Sandboxed preview: scripts run, but the page cannot reach Porcelain,
             your cookies or the network origin.
           </p>
-          <HtmlFrame html={text} title={path} className="min-h-0 flex-1" />
+          <HtmlPreview scope={scope} path={path} html={text} />
         </div>
       ) : (
         <CodeDocument

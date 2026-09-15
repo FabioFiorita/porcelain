@@ -7,3 +7,11 @@ export interface FileReader {
   list(target: FileTarget, signal?: AbortSignal): Promise<DirectoryListing>;
   read(target: FileTarget, signal?: AbortSignal): Promise<TextContent>;
 }
+
+export interface ByteReader {
+  readBytes(
+    target: FileTarget,
+    limit: number,
+    signal?: AbortSignal,
+  ): Promise<Buffer>;
+}

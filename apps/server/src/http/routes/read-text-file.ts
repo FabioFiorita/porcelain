@@ -1,5 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
+  assetResponseSchema,
   fileQuerySchema,
   textResponseSchema,
   worktreeParamsSchema,
@@ -14,6 +15,22 @@ export function readTextFile(
   options: { application: Application },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
+  api.get(
+    '/worktrees/:worktreeId/asset',
+    {
+      schema: {
+        params: worktreeParamsSchema,
+        querystring: fileQuerySchema,
+        response: { ...errorResponses, 200: assetResponseSchema },
+      },
+    },
+    (request) =>
+      options.application.readAsset(
+        request.params.worktreeId,
+        request.query.path,
+      ),
+  );
+
   api.get(
     '/worktrees/:worktreeId/text',
     {

@@ -60,6 +60,7 @@ import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
 import { ListFileTree } from './use-cases/list-file-tree.ts';
 import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
+import { ReadAsset } from './use-cases/read-asset.ts';
 import { ReadReviewSummary } from './use-cases/read-review-summary.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
@@ -145,6 +146,7 @@ export async function openApplication(options: {
     const files = options.files ?? new NodeFileReader();
     const list = new ListDirectory(store, git, files);
     const read = new ReadTextFile(store, git, files);
+    const asset = new ReadAsset(store, git, new NodeFileReader());
     const fileTree = new ListFileTree(
       store,
       git,
@@ -381,6 +383,11 @@ export async function openApplication(options: {
       listDirectory: (id: string, path: string, signal?: AbortSignal) =>
         operations.run(
           (operationSignal) => list.execute(id, path, operationSignal),
+          signal,
+        ),
+      readAsset: (id, path, signal) =>
+        operations.run(
+          (operationSignal) => asset.execute(id, path, operationSignal),
           signal,
         ),
       readTextFile: (id: string, path: string, signal?: AbortSignal) =>

@@ -107,6 +107,10 @@ export function createReviewMock(
           .join(''),
       };
     },
+    async asset(request) {
+      await context(request);
+      throw new ConnectionError('This asset is unavailable in the fixture.');
+    },
     async text(request) {
       const data = await context(request);
       const text = data.files[request.path];
