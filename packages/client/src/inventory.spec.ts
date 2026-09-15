@@ -1,5 +1,10 @@
 import { expect, test, vi } from 'vitest';
-import { readInventory, registerProject } from './inventory.ts';
+import {
+  browseProjectFolders,
+  discoverProjects,
+  readInventory,
+  registerProject,
+} from './inventory.ts';
 
 const inventory = {
   environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
@@ -156,3 +161,85 @@ test.each([
     ).rejects.toThrow(message);
   },
 );
+
+test('browses encoded server paths with private, cancellable requests', async () => {
+  const folder = {
+    path: '/srv/a #?&',
+    parent: '/srv',
+    directories: [],
+    repository: true,
+    truncated: false,
+  };
+  const transport = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response(JSON.stringify(folder)));
+  expect(
+    await browseProjectFolders({
+      endpoint: '/api',
+      token: 'secret',
+      signal,
+      fetch: transport,
+      path: folder.path,
+    }),
+  ).toEqual(folder);
+  expect(transport).toHaveBeenCalledWith(
+    `/api/projects/folders?${new URLSearchParams({ path: folder.path })}`,
+    expect.objectContaining({
+      headers: { authorization: 'Bearer secret' },
+      signal,
+      cache: 'no-store',
+      redirect: 'error',
+      credentials: 'omit',
+    }),
+  );
+  transport.mockResolvedValue(
+    new Response(JSON.stringify({ repositories: [], limited: false })),
+  );
+  expect(
+    await discoverProjects({
+      endpoint: '/api',
+      token: 'secret',
+      signal,
+      fetch: transport,
+    }),
+  ).toEqual({ repositories: [], limited: false });
+});
+
+test('reports folder failures without exposing server diagnostics and preserves cancellation', async () => {
+  const transport = vi.fn<typeof fetch>();
+  for (const status of [401, 400, 404, 422, 500]) {
+    transport.mockResolvedValue(
+      new Response('private diagnostics', { status }),
+    );
+    await expect(
+      browseProjectFolders({
+        endpoint: '/api',
+        token: 'secret',
+        signal,
+        fetch: transport,
+      }),
+    ).rejects.toThrow(/Porcelain server|Access token/);
+  }
+  transport.mockResolvedValue(
+    new Response(JSON.stringify({ repositories: 'wrong' })),
+  );
+  await expect(
+    discoverProjects({
+      endpoint: '/api',
+      token: 'secret',
+      signal,
+      fetch: transport,
+    }),
+  ).rejects.toThrow('Could not load folders or repositories');
+  const controller = new AbortController();
+  controller.abort(new Error('Cancelled'));
+  transport.mockRejectedValue(controller.signal.reason);
+  await expect(
+    discoverProjects({
+      endpoint: '/api',
+      token: 'secret',
+      signal: controller.signal,
+      fetch: transport,
+    }),
+  ).rejects.toBe(controller.signal.reason);
+});

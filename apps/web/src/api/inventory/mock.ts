@@ -1,7 +1,11 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import type { CommentThread } from '../../domain/comments';
 import type { FilePreference } from '../../domain/file-preferences';
-import type { Inventory } from '../../domain/inventory';
+import type {
+  Inventory,
+  ProjectDiscovery,
+  ProjectFolder,
+} from '../../domain/inventory';
 import type { ReviewedMark } from '../../domain/review';
 import { createId } from '../../lib/id';
 import { reviewFixture } from '../review/fixtures';
@@ -150,6 +154,27 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     reviewedSetFailed: false,
     reviewedRemoveFailed: false,
     registerFailed: false,
+    discoveryFailed: false,
+    projectDiscovery: {
+      repositories: [{ name: 'new-project', path: '/srv/work/new-project' }],
+      limited: false,
+    } as ProjectDiscovery,
+    projectFolders: {
+      '/srv/work': {
+        path: '/srv/work',
+        parent: '/srv',
+        directories: [{ name: 'new-project', path: '/srv/work/new-project' }],
+        repository: false,
+        truncated: false,
+      },
+      '/srv/work/new-project': {
+        path: '/srv/work/new-project',
+        parent: '/srv/work',
+        directories: [],
+        repository: true,
+        truncated: false,
+      },
+    } as Record<string, ProjectFolder>,
     delayMs: scenario === 'slow' ? 1500 : 0,
     rejected: scenario === 'rejected',
     refreshFailed: scenario === 'refresh-failed',
@@ -192,6 +217,23 @@ export function createInventoryMock(
   store: ReturnType<typeof createMockStore>,
 ): InventoryPort {
   return {
+    async discover({ token, signal }) {
+      await prepareInventoryRequest(store, token, signal);
+      if (store.discoveryFailed)
+        throw new ConnectionError(
+          'Could not discover repositories. Try again.',
+        );
+      return structuredClone(store.projectDiscovery);
+    },
+    async browse({ token, signal, path = '/srv/work' }) {
+      await prepareInventoryRequest(store, token, signal);
+      const folder = store.projectFolders[path];
+      if (!folder)
+        throw new ConnectionError(
+          'That folder could not be read on the Porcelain server.',
+        );
+      return structuredClone(folder);
+    },
     async read({ token, signal, refresh }) {
       await prepareInventoryRequest(store, token, signal);
       if (refresh && store.refreshFailed)

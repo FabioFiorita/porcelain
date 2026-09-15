@@ -1,7 +1,12 @@
 import type {
   InventoryResponse,
+  ProjectDiscoveryResponse,
+  ProjectFolderResponse,
   ProjectResponse,
 } from '@porcelain/contracts/inventory';
+
+export type ProjectDiscovery = ProjectDiscoveryResponse;
+export type ProjectFolder = ProjectFolderResponse;
 
 export type Inventory = InventoryResponse;
 export type Project = ProjectResponse;

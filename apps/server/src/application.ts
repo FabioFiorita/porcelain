@@ -41,6 +41,10 @@ import type {
 } from './models/git-action.ts';
 import type { Inventory } from './models/inventory.ts';
 import type { Project } from './models/project.ts';
+import type {
+  ProjectDiscovery,
+  ProjectFolder,
+} from './models/project-location.ts';
 import type { ReviewEvidence } from './models/review-evidence.ts';
 import type { ReviewLayer, ReviewLayers } from './models/review-layers.ts';
 import type {
@@ -181,6 +185,11 @@ export interface Application {
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
   inventory(): Inventory;
+  discoverProjects(signal?: AbortSignal): Promise<ProjectDiscovery>;
+  browseProjectFolders(
+    path?: string,
+    signal?: AbortSignal,
+  ): Promise<ProjectFolder>;
   listDirectory(
     worktreeId: string,
     path: string,

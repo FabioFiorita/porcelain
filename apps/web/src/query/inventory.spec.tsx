@@ -78,6 +78,7 @@ it('keeps a registered project when an older focus refresh resolves last', async
   const api: Api = {
     ...base,
     inventory: {
+      ...base.inventory,
       read: (options) => {
         if (!options.refresh) return base.inventory.read(options);
         refreshStarted.resolve();

@@ -33,3 +33,23 @@ export type InventoryResponse = z.infer<typeof inventoryResponseSchema>;
 
 export const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
 export const projectDeletionSchema = z.object({ deleted: z.boolean() });
+
+const projectLocationSchema = z.object({ name: z.string(), path: z.string() });
+export const projectDiscoveryResponseSchema = z.object({
+  repositories: z.array(projectLocationSchema),
+  limited: z.boolean(),
+});
+export const projectFolderResponseSchema = z.object({
+  path: z.string(),
+  parent: z.string().nullable(),
+  directories: z.array(projectLocationSchema),
+  repository: z.boolean(),
+  truncated: z.boolean(),
+});
+export const projectFolderQuerySchema = z.strictObject({
+  path: registerProjectRequestSchema.shape.path.optional(),
+});
+export type ProjectDiscoveryResponse = z.infer<
+  typeof projectDiscoveryResponseSchema
+>;
+export type ProjectFolderResponse = z.infer<typeof projectFolderResponseSchema>;

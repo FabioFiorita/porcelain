@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { homedir } from 'node:os';
 import {
   associateCommitReviewLayersSchema,
   commitReviewLayerParamsSchema,
@@ -27,6 +28,8 @@ import { NodeFileTree } from './filesystem/file-tree.ts';
 import { NodeFileWriter } from './filesystem/file-writer.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
 import type { FileWriter } from './filesystem/interfaces/file-writer.ts';
+import type { ProjectFolders } from './filesystem/interfaces/project-folders.ts';
+import { NodeProjectFolders } from './filesystem/project-folders.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { OperationRunner } from './lifecycle/operation-runner.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
@@ -46,6 +49,7 @@ import { CompleteCommitReview } from './use-cases/complete-commit-review.ts';
 import { DeleteArtifact } from './use-cases/delete-artifact.ts';
 import { EditFile } from './use-cases/edit-file.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
+import { FindProjects } from './use-cases/find-projects.ts';
 import { GetArtifact } from './use-cases/get-artifact.ts';
 import { GetCommitReviewLayers } from './use-cases/get-commit-review-layers.ts';
 import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
@@ -77,6 +81,8 @@ export async function openApplication(options: {
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
   files?: FileReader;
+  projectFolders?: ProjectFolders;
+  projectHome?: string;
   commitGenerator?: CommitGenerator;
   fileWriter?: FileWriter;
   now?: () => string;
@@ -90,6 +96,8 @@ export async function openApplication(options: {
     () => database.close(),
     operationTimeoutMs,
   );
+  const discovery = new OperationRunner(() => {}, operationTimeoutMs);
+  const browsing = new OperationRunner(() => {}, operationTimeoutMs);
   const summaries = new OperationRunner(() => {}, operationTimeoutMs);
   const drafting = new OperationRunner(() => {}, 120_000);
   try {
@@ -115,6 +123,12 @@ export async function openApplication(options: {
     const getArtifact = new GetArtifact(artifacts, store);
     const deleteArtifact = new DeleteArtifact(artifacts, store);
     const git = options.git ?? ((checkout: string) => new Git(checkout));
+    const finder = new FindProjects(
+      options.projectFolders ?? new NodeProjectFolders(),
+      git,
+      store,
+      options.projectHome ?? homedir(),
+    );
     const cursor = new CommitCursorCodec(randomBytes(32));
     const commitGit =
       options.commitGit ?? ((checkout) => new CommitGit(checkout, cursor));
@@ -379,6 +393,16 @@ export async function openApplication(options: {
           actions.assertProjectRemovable(projectId);
           return removeProject.execute(projectId);
         }, signal),
+      discoverProjects: (signal) =>
+        discovery.run(
+          (operationSignal) => finder.discover(operationSignal),
+          signal,
+        ),
+      browseProjectFolders: (path, signal) =>
+        browsing.run(
+          (operationSignal) => finder.browse(path, operationSignal),
+          signal,
+        ),
       inventory: () => {
         operations.assertOpen();
         return store.read();
@@ -500,11 +524,22 @@ export async function openApplication(options: {
           signal,
         ),
       close: async () => {
-        await Promise.all([drafting.close(), summaries.close()]);
+        await Promise.all([
+          discovery.close(),
+          browsing.close(),
+          drafting.close(),
+          summaries.close(),
+        ]);
         await operations.close();
       },
     };
   } catch (error) {
+    await Promise.all([
+      discovery.close(),
+      browsing.close(),
+      drafting.close(),
+      summaries.close(),
+    ]);
     await operations.close();
     throw error;
   }

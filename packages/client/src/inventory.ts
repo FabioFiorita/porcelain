@@ -1,5 +1,7 @@
 import {
   inventoryResponseSchema,
+  projectDiscoveryResponseSchema,
+  projectFolderResponseSchema,
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { ConnectionError } from './errors/connection-error.ts';
@@ -98,6 +100,67 @@ export async function registerProject(
     if (error instanceof ConnectionError) throw error;
     throw new ConnectionError(
       'Could not reach the Porcelain server. Check that it is running.',
+      { cause: error },
+    );
+  }
+}
+
+export async function discoverProjects(options: InventoryRequest) {
+  return readProjectLocation(
+    options,
+    '/projects/discover',
+    projectDiscoveryResponseSchema,
+  );
+}
+
+export async function browseProjectFolders(
+  options: InventoryRequest & { path?: string },
+) {
+  const query =
+    options.path === undefined
+      ? ''
+      : `?${new URLSearchParams({ path: options.path })}`;
+  return readProjectLocation(
+    options,
+    `/projects/folders${query}`,
+    projectFolderResponseSchema,
+  );
+}
+
+async function readProjectLocation<T>(
+  options: InventoryRequest,
+  path: string,
+  schema: { parse(value: unknown): T },
+): Promise<T> {
+  try {
+    const response = await options.fetch(`${options.endpoint}${path}`, {
+      headers: { authorization: `Bearer ${options.token}` },
+      signal: options.signal,
+      redirect: 'error',
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    if (response.status === 401)
+      throw new ConnectionError(
+        'Access token was rejected. Disconnect and connect again.',
+      );
+    if (response.status === 400)
+      throw new ConnectionError(
+        'Enter an absolute folder path on the Porcelain server.',
+      );
+    if (response.status === 404 || response.status === 422)
+      throw new ConnectionError(
+        'That folder could not be read on the Porcelain server. Check the path and permissions.',
+      );
+    if (!response.ok)
+      throw new ConnectionError(
+        'Could not load folders or repositories from the Porcelain server. Try again.',
+      );
+    return schema.parse(await response.json());
+  } catch (error) {
+    if (options.signal.aborted || error instanceof ConnectionError) throw error;
+    throw new ConnectionError(
+      'Could not load folders or repositories from the Porcelain server. Try again.',
       { cause: error },
     );
   }

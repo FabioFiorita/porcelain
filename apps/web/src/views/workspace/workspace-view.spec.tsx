@@ -313,6 +313,7 @@ describe('workspace through the inventory port', () => {
     const user = await connect();
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     await user.click(screen.getByRole('button', { name: 'Open project' }));
+    await user.click(screen.getByRole('button', { name: 'Enter a path' }));
     await user.type(
       await screen.findByLabelText('Repository path'),
       '/srv/work/new-project',
@@ -338,6 +339,70 @@ describe('workspace through the inventory port', () => {
     ).toBe('page');
   });
 
+  it('filters discovered repositories and opens one without typing its path', async () => {
+    const { store } = renderWorkspace();
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: 'Open project' }),
+    );
+    const search = await screen.findByRole('textbox', {
+      name: 'Search repositories on this machine',
+    });
+    await user.type(search, 'missing');
+    expect(await screen.findByText('No matching repositories.')).toBeTruthy();
+    await user.clear(search);
+    await user.type(search, 'new-project');
+    await user.click(
+      await screen.findByRole('button', { name: /new-project.*srv/ }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      store.inventory.projects.some((entry) =>
+        entry.worktrees.some(
+          (worktree) => worktree.path === '/srv/work/new-project',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps browsing available after discovery fails and recovers an unreadable folder', async () => {
+    const store = createMockStore();
+    store.discoveryFailed = true;
+    const folder = store.projectFolders['/srv/work/new-project'];
+    delete store.projectFolders['/srv/work/new-project'];
+    renderWorkspace(store);
+    const user = await connect();
+    await user.click(
+      await screen.findByRole('button', { name: 'Open project' }),
+    );
+    expect(
+      await screen.findByText('Could not discover repositories. Try again.'),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Open work' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    await user.click(
+      await screen.findByRole('button', { name: 'new-project' }),
+    );
+    expect(
+      await screen.findByText(
+        'That folder could not be read on the Porcelain server.',
+      ),
+    ).toBeTruthy();
+    if (!folder) throw new Error('Missing fixture folder');
+    store.projectFolders['/srv/work/new-project'] = folder;
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Open new-project' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      store.inventory.projects.some((entry) => entry.name === 'new-project'),
+    ).toBe(true);
+  });
+
   it('keeps the server path in the form after registration fails', async () => {
     const store = createMockStore();
     store.registerFailed = true;
@@ -346,6 +411,7 @@ describe('workspace through the inventory port', () => {
     await screen.findByRole('heading', { name: 'Porcelain', level: 3 });
     await user.click(screen.getByRole('button', { name: 'Open project' }));
     const path = '/srv/work/missing-repository';
+    await user.click(screen.getByRole('button', { name: 'Enter a path' }));
     const input = await screen.findByLabelText('Repository path');
     await user.type(input, path);
     await user.click(screen.getByRole('button', { name: 'Open project' }));

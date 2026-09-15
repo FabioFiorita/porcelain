@@ -1,8 +1,17 @@
-import { readInventory, registerProject } from '@porcelain/client/inventory';
+import {
+  browseProjectFolders,
+  discoverProjects,
+  readInventory,
+  registerProject,
+} from '@porcelain/client/inventory';
 import type { InventoryPort } from './port';
 
 export function createInventoryLive(transport: typeof fetch): InventoryPort {
   return {
+    discover: (options) =>
+      discoverProjects({ ...options, endpoint: '/api', fetch: transport }),
+    browse: (options) =>
+      browseProjectFolders({ ...options, endpoint: '/api', fetch: transport }),
     read: (options) =>
       readInventory({ ...options, endpoint: '/api', fetch: transport }),
     register: (options) =>
