@@ -797,7 +797,7 @@ describe('file discussion', () => {
     await user.click(
       within(
         screen.getByLabelText('Comment').closest('form') as HTMLFormElement,
-      ).getByRole('button', { name: 'Comment', exact: true }),
+      ).getByRole('button', { name: 'Comment' }),
     );
     expect((await screen.findByRole('alert')).textContent).toContain(
       'Comments are unavailable',
@@ -811,7 +811,7 @@ describe('file discussion', () => {
     await user.click(
       within(
         screen.getByLabelText('Comment').closest('form') as HTMLFormElement,
-      ).getByRole('button', { name: 'Comment', exact: true }),
+      ).getByRole('button', { name: 'Comment' }),
     );
     await screen.findByText('Please explain this component.');
     expect(Object.values(store.comments).flat()[0]?.anchor).toMatchObject({

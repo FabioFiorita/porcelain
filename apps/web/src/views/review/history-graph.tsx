@@ -5,10 +5,12 @@ export const HISTORY_ROW_HEIGHT = 58;
 const LANE_WIDTH = 16;
 const GRAPH_INSET = 13;
 const LANE_CLASSES = [
-  'text-muted-foreground',
-  'text-primary',
-  'text-accent-foreground',
-  'text-secondary-foreground',
+  'text-graph-1',
+  'text-graph-2',
+  'text-graph-3',
+  'text-graph-4',
+  'text-graph-5',
+  'text-graph-6',
 ];
 
 export function historyGraphWidth(rows: readonly GraphRow[]) {

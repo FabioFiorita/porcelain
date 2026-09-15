@@ -6,6 +6,13 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-graph-1: var(--graph-1);
+  --color-graph-2: var(--graph-2);
+  --color-graph-3: var(--graph-3);
+  --color-graph-4: var(--graph-4);
+  --color-graph-5: var(--graph-5);
+  --color-graph-6: var(--graph-6);
+
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -45,6 +52,13 @@
 
 :root {
   color-scheme: light;
+  --graph-1: #5075cf;
+  --graph-2: #278e4c;
+  --graph-3: #9360c4;
+  --graph-4: #b66c16;
+  --graph-5: #16858d;
+  --graph-6: #c34f7c;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -76,6 +90,13 @@
 
 .dark {
   color-scheme: dark;
+  --graph-1: #86a8ff;
+  --graph-2: #6bce89;
+  --graph-3: #c4a0f0;
+  --graph-4: #e5b05e;
+  --graph-5: #61c7cf;
+  --graph-6: #ed91b5;
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
