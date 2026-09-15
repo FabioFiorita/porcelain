@@ -13,6 +13,8 @@ import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -384,6 +386,11 @@ function CodeSurface({
         variant="ghost"
         onClick={() => setAllCollapsed(!allCollapsed)}
       >
+        {allCollapsed ? (
+          <ChevronsUpDownIcon aria-hidden="true" data-icon="inline-start" />
+        ) : (
+          <ChevronsDownUpIcon aria-hidden="true" data-icon="inline-start" />
+        )}
         {allCollapsed ? 'Expand all' : 'Collapse all'}
       </Button>
     ) : null;
