@@ -117,8 +117,8 @@ function HandoffDocument({
             }
           >
             <ProgressPill {...progress} />
-            <MarkAllReviewed scope={scope} entries={evidence} />
             {collapseControl}
+            <MarkAllReviewed scope={scope} entries={evidence} />
           </DocumentToolbar>
         )}
         scope={scope}
@@ -183,8 +183,8 @@ function LayerDocument({
             subtitle={`Layer · ${layerPaths.length} ${layerPaths.length === 1 ? 'file' : 'files'}`}
           >
             <ProgressPill {...progress} />
-            <MarkAllReviewed scope={scope} entries={evidence} />
             {collapseControl}
+            <MarkAllReviewed scope={scope} entries={evidence} />
           </DocumentToolbar>
         )}
         scope={scope}
