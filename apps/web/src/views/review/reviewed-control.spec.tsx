@@ -120,9 +120,23 @@ it('does not claim the whole review is complete when a file cannot be reviewed',
     />,
   );
   await expect
-    .element(screen.getByRole('button', { name: '1 reviewed · 1 unavailable' }))
+    .element(screen.getByRole('button', { name: 'Unmark all' }))
     .toBeVisible();
+  await screen.getByRole('button', { name: 'Unmark all' }).click();
+  await vi.waitFor(() =>
+    expect(mocks.unmarkSubmit).toHaveBeenCalledWith('a.ts'),
+  );
+  expect(mocks.unmarkSubmit).not.toHaveBeenCalledWith('image.png');
   await expect
     .element(screen.getByText('All reviewed'))
     .not.toBeInTheDocument();
+});
+
+it('labels a stale file Review again', async () => {
+  const screen = await render(
+    <ReviewedControl {...controlProps} status="stale" />,
+  );
+  await expect
+    .element(screen.getByRole('button', { name: 'Mark README.md as reviewed' }))
+    .toHaveTextContent('Review again');
 });

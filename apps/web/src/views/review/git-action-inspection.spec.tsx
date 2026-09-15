@@ -21,6 +21,27 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it('warns that a stash leaves the handoff empty', async () => {
+  const screen = await render(
+    <PreferencesProvider>
+      <GitActionInspection
+        scope={{ projectId: 'project', worktreeId: 'worktree' }}
+        entry="stash-create"
+        onBusy={() => {}}
+        status={{
+          environmentId: 'environment',
+          worktreeId: 'worktree',
+          statusToken: 'a'.repeat(64),
+          consistency: 'best-effort',
+          headOid: 'a'.repeat(40),
+          changes: [],
+        }}
+      />
+    </PreferencesProvider>,
+  );
+  await expect.element(screen.getByText(/handoff stays empty/u)).toBeVisible();
+});
+
 it.each(['merge', 'rebase'])(
   'submits the saved %s strategy and explains conflict recovery',
   async (strategy) => {

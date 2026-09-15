@@ -1,8 +1,12 @@
 import {
   NativeSelect,
+  NativeSelectOptGroup,
   NativeSelectOption,
 } from '@/components/ui/native-select';
-import { resolveCommitModel } from '../../domain/commit-model';
+import {
+  groupedCommitModels,
+  resolveCommitModel,
+} from '../../domain/commit-model';
 import { useCommitModels } from '../../query/git-actions';
 import { usePreferences } from './preferences';
 
@@ -36,13 +40,17 @@ export function CommitModelSetting() {
                 : 'No models available'}
           </NativeSelectOption>
         )}
-        {models.data
-          ?.filter((model) => !model.id.endsWith(':default'))
-          .map((model) => (
-            <NativeSelectOption key={model.id} value={model.id}>
-              {model.label}
-            </NativeSelectOption>
-          ))}
+        {groupedCommitModels(
+          models.data?.filter((model) => !model.id.endsWith(':default')) ?? [],
+        ).map(([provider, entries]) => (
+          <NativeSelectOptGroup key={provider} label={provider}>
+            {entries.map((model) => (
+              <NativeSelectOption key={model.id} value={model.id}>
+                {model.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelectOptGroup>
+        ))}
       </NativeSelect>
       <p className="w-full text-xs text-muted-foreground">
         {models.isError

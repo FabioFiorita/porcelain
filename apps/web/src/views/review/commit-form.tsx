@@ -45,6 +45,7 @@ export function CommitForm({
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [draftToken, setDraftToken] = useState<string | null>(null);
   const files = commitFiles(status.changes);
   const paths = [
     ...new Set(
@@ -72,6 +73,7 @@ export function CommitForm({
         expectedStatusToken: status.statusToken,
       });
       setExpectedFiles(result.expectedFiles);
+      setDraftToken(status.statusToken);
       setDone(new Set());
       setActiveGroup(null);
       if (mode === 'message') {
@@ -90,9 +92,24 @@ export function CommitForm({
     setWorking(true);
     setError(null);
     try {
+      let text = message;
+      if (groups === null && !text.trim()) {
+        if (!model || !paths.length)
+          throw new Error('Give every commit a message and at least one file.');
+        const result = await generator.submit({
+          mode: 'message',
+          model,
+          paths,
+          expectedStatusToken: status.statusToken,
+        });
+        text = result.groups[0]?.message ?? '';
+        setMessage(text);
+        setExpectedFiles(result.expectedFiles);
+        setDraftToken(status.statusToken);
+      }
       const pending = groups
         ? groups.filter((group) => !done.has(group.id))
-        : [{ id: 'single', message, paths }];
+        : [{ id: 'single', message: text, paths }];
       for (const group of pending) {
         if (!group.message.trim() || !group.paths.length)
           throw new Error('Give every commit a message and at least one file.');
@@ -117,11 +134,20 @@ export function CommitForm({
       setWorking(false);
     }
   }
-  const blocker = groups
-    ? groups
-        .filter((group) => !done.has(group.id))
-        .some((group) => !group.message.trim() || !group.paths.length)
-    : !paths.length || !message.trim();
+  const staleDraft =
+    draftToken != null && done.size === 0 && draftToken !== status.statusToken;
+  const leftUncommitted = groups
+    ? files.filter(
+        (file) => !groups.some((group) => group.paths.includes(file.path)),
+      )
+    : [];
+  const blocker = staleDraft
+    ? true
+    : groups
+      ? groups
+          .filter((group) => !done.has(group.id))
+          .some((group) => !group.message.trim() || !group.paths.length)
+      : !paths.length || (!message.trim() && !model);
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -175,7 +201,6 @@ export function CommitForm({
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
                 rows={4}
-                required
                 maxLength={16384}
                 placeholder="Describe what changed and why"
               />
@@ -289,6 +314,9 @@ export function CommitForm({
                           )
                         }
                       >
+                        <NativeSelectOption value="uncommitted">
+                          Leave uncommitted
+                        </NativeSelectOption>
                         {groups.map((entry, position) => (
                           <NativeSelectOption key={entry.id} value={entry.id}>
                             Commit {position + 1}
@@ -299,6 +327,52 @@ export function CommitForm({
                   ))}
               </section>
             ))}
+            {leftUncommitted.length > 0 && (
+              <section className="flex flex-col gap-2 rounded-lg border border-dashed p-3">
+                <p className="text-xs text-muted-foreground">
+                  Left uncommitted
+                </p>
+                {leftUncommitted.map((file) => (
+                  <div
+                    key={file.path}
+                    className="flex min-w-0 items-center gap-2 text-xs"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{file.path}</span>
+                    <NativeSelect
+                      aria-label={`Commit for ${file.path}`}
+                      value="uncommitted"
+                      disabled={done.size > 0}
+                      size="sm"
+                      onChange={(event) =>
+                        setGroups(
+                          (current) =>
+                            current?.map((entry) => ({
+                              ...entry,
+                              paths: [
+                                ...entry.paths.filter(
+                                  (path) => !file.paths.includes(path),
+                                ),
+                                ...(entry.id === event.target.value
+                                  ? file.paths
+                                  : []),
+                              ],
+                            })) ?? null,
+                        )
+                      }
+                    >
+                      <NativeSelectOption value="uncommitted">
+                        Leave uncommitted
+                      </NativeSelectOption>
+                      {groups.map((entry, position) => (
+                        <NativeSelectOption key={entry.id} value={entry.id}>
+                          Commit {position + 1}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                ))}
+              </section>
+            )}
             {done.size === 0 && (
               <div className="flex gap-2">
                 <Button
@@ -323,6 +397,7 @@ export function CommitForm({
                   onClick={() => {
                     setGroups(null);
                     setExpectedFiles([]);
+                    setDraftToken(null);
                   }}
                 >
                   Single commit
@@ -332,6 +407,12 @@ export function CommitForm({
           </>
         )}
       </fieldset>
+      {staleDraft && (
+        <p role="alert" className="text-sm text-amber-700 dark:text-amber-300">
+          The worktree changed since this draft was proposed. Generate it again
+          before committing.
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
         Selected files use their current contents. Other staged files stay
         staged. Pause other writers while committing.

@@ -144,6 +144,7 @@ function reviewControl(scope: ReviewScope, item: ReviewEvidenceItem) {
     path: item.path,
     fingerprint: item.fingerprint,
     reviewed: item.reviewStatus === 'reviewed',
+    stale: item.reviewStatus === 'stale',
     control: (
       <ReviewedControl
         key={`review:${item.path}`}

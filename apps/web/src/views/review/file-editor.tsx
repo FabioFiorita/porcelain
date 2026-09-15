@@ -4,13 +4,14 @@ import {
   type EditorOptions,
 } from '@pierre/diffs/edit';
 import { EditProvider, File } from '@pierre/diffs/react';
+import { RequestError } from '@porcelain/client/errors/request-error';
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { CheckIcon, CopyIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { CheckIcon } from 'lucide-react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import type { FileDraft, FileDraftState } from '../../domain/file-draft';
-import { PIERRE_SURFACE_CSS, PIERRE_THEME } from '../../lib/pierre';
+import { createPierreFileOptions } from '../../lib/pierre';
 import { reviewErrorMessage } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
@@ -22,6 +23,11 @@ const createEditor: EditorFactory<undefined, undefined> = (
   options,
   key,
 ) => new Editor(type, options, key);
+
+function isChangedOnDisk(error: unknown) {
+  return error instanceof RequestError && error.code === 'CONTENT_CHANGED';
+}
+
 export function FileEditor({
   owner,
   path,
@@ -31,6 +37,7 @@ export function FileEditor({
   changed,
   onDone,
   onDiscard,
+  renderToolbar,
 }: {
   owner: string;
   path: string;
@@ -40,18 +47,24 @@ export function FileEditor({
   changed: boolean;
   onDone: () => void;
   onDiscard: () => void;
+  renderToolbar?: (controls: ReactNode) => ReactNode;
 }) {
   const { preferences } = usePreferences();
   const { dark } = useTheme();
   const [file] = useState(() => ({ name: path, contents: state.text }));
   const dirty = state.text !== state.savedText;
-  const save = () => void draft.save();
+  const changedOnDisk = isChangedOnDisk(state.error);
+  const save = () => {
+    if (isChangedOnDisk(draft.snapshot().error)) return;
+    void draft.save();
+  };
   useHotkey(SHORTCUTS.saveFile, save, { enabled: active, ignoreInputs: false });
   useEffect(() => {
     if (state.text === state.savedText || state.error || state.saving) return;
     const timer = setTimeout(() => void draft.save(), 3000);
     return () => clearTimeout(timer);
   }, [draft, state.text, state.savedText, state.error, state.saving]);
+
   useEffect(() => {
     return () => {
       draft.release(owner);
@@ -78,17 +91,39 @@ export function FileEditor({
     }),
     [draft],
   );
-  const label = state.error
-    ? 'Not saved'
-    : state.saving
-      ? 'Saving…'
-      : dirty
-        ? 'Unsaved changes'
-        : state.text === file.contents
-          ? 'Saves as you pause'
-          : 'Saved';
+  const label = changedOnDisk
+    ? 'Not saving: changed on disk'
+    : state.error
+      ? 'Not saved'
+      : state.saving
+        ? 'Saving…'
+        : dirty
+          ? 'Unsaved changes'
+          : state.text === file.contents
+            ? 'Saves as you pause'
+            : 'Saved';
+  const controls = (
+    <>
+      <span role="status" className="text-xs text-muted-foreground">
+        {label}
+      </span>
+      <Button
+        size="sm"
+        disabled={changedOnDisk}
+        onClick={() =>
+          void draft.save().then((saved) => {
+            if (saved) onDone();
+          })
+        }
+      >
+        <CheckIcon className="size-3.5" />
+        Done
+      </Button>
+    </>
+  );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {renderToolbar?.(controls)}
       {changed && (
         <p className="border-b bg-amber-500/10 px-3.5 py-1.5 text-xs text-amber-800 dark:text-amber-200">
           Saving edits the changes you are reviewing.
@@ -100,7 +135,10 @@ export function FileEditor({
           className="flex items-center gap-2 border-b px-3.5 py-2 text-xs text-destructive"
         >
           <span className="flex-1">
-            {reviewErrorMessage(state.error)} Your draft is kept here.
+            {changedOnDisk
+              ? 'The file changed on disk since you opened it. Reload it before saving.'
+              : reviewErrorMessage(state.error)}{' '}
+            Your draft is kept here.
           </span>
           <Button
             size="xs"
@@ -109,52 +147,25 @@ export function FileEditor({
           >
             Copy draft
           </Button>
-          <Button size="xs" variant="outline" onClick={save}>
-            Retry save
-          </Button>
+          {!changedOnDisk && (
+            <Button size="xs" variant="outline" onClick={save}>
+              Retry save
+            </Button>
+          )}
           <Button size="xs" variant="ghost" onClick={onDiscard}>
-            Discard draft and reload
+            {changedOnDisk ? 'Reload' : 'Discard draft and reload'}
           </Button>
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto">
         <EditProvider createEditor={createEditor}>
           <File
-            renderHeaderMetadata={() => (
-              <>
-                <span role="status" className="text-xs text-muted-foreground">
-                  {label}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    void draft.save().then((saved) => {
-                      if (saved) onDone();
-                    })
-                  }
-                >
-                  <CheckIcon className="size-3.5" />
-                  Done
-                </Button>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="Copy path"
-                  onClick={() => copyText(path, 'path')}
-                >
-                  <CopyIcon />
-                </Button>
-              </>
-            )}
             file={file}
             edit
             editorOptions={editorOptions}
-            options={{
-              theme: PIERRE_THEME,
-              themeType: dark ? 'dark' : 'light',
+            options={createPierreFileOptions(dark ? 'dark' : 'light', {
               overflow: preferences.lineOverflow,
-              unsafeCSS: PIERRE_SURFACE_CSS,
-            }}
+            })}
             onEditChange={(event) => draft.change(event.file.contents)}
             onEditComplete={() => 'reject'}
           />

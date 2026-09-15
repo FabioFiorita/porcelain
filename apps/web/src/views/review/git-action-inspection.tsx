@@ -103,6 +103,12 @@ function ActionForm({
         className="flex min-w-0 flex-col gap-4"
       >
         {action === 'stash-create' && (
+          <p className="text-xs text-muted-foreground">
+            Every change, new files included, is set aside. The handoff stays
+            empty until you pop the stash.
+          </p>
+        )}
+        {action === 'stash-create' && (
           <Field>
             <FieldLabel htmlFor="git-message">Message</FieldLabel>
             <Textarea

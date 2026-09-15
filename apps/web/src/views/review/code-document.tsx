@@ -30,7 +30,7 @@ import {
   matchesCommentTarget,
   rangeAnchor,
 } from '../../domain/comments';
-import type { ReviewScope } from '../../domain/review';
+import { basename, type ReviewScope } from '../../domain/review';
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,
@@ -48,7 +48,7 @@ import { SHORTCUTS } from '../workspace/shortcuts';
 import { useTheme } from '../workspace/theme';
 import { useDocumentInteraction } from './document-interaction';
 import { InlineComposer } from './inline-composer';
-import { ThreadCard } from './thread-card';
+import { anchorLabel, ThreadCard } from './thread-card';
 import { useCodeFolds } from './use-code-folds';
 
 export type CodeEntry =
@@ -64,6 +64,7 @@ export type CodeEntry =
         path: string;
         control: ReactNode;
         reviewed?: boolean;
+        stale?: boolean;
         fingerprint?: string | null;
       };
     }
@@ -79,6 +80,7 @@ export type CodeEntry =
         path: string;
         control: ReactNode;
         reviewed?: boolean;
+        stale?: boolean;
         fingerprint?: string | null;
       };
     };
@@ -396,16 +398,39 @@ function CodeSurface({
         {allCollapsed ? 'Expand all' : 'Collapse all'}
       </Button>
     ) : null;
+  const selectionAnchor =
+    selection != null && composer == null && scope
+      ? (() => {
+          const entry = byId.get(selection.id);
+          return entry?.comment
+            ? rangeAnchor(entry.comment, selection.range)
+            : null;
+        })()
+      : null;
 
   return (
     <div className="@container/code relative flex min-h-0 flex-1 flex-col">
-      {rangeError && (
+      {rangeError ? (
         <p
           role="status"
           className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2 text-xs"
         >
           {rangeError}
         </p>
+      ) : (
+        selectionAnchor != null && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-1.5 rounded-lg border bg-popover/95 px-2.5 py-1 text-xs text-popover-foreground shadow-md"
+          >
+            <MessageSquarePlusIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate">
+              {basename(selectionAnchor.filePath)} ·{' '}
+              {anchorLabel(selectionAnchor)}
+            </span>
+          </div>
+        )
       )}
       {toolbar
         ? toolbar(collapseControl)
@@ -457,9 +482,15 @@ function CodeSurface({
           }}
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);
+            if (disableFileHeader) return null;
             return (
               <div className="flex items-center gap-2">
                 {headerActions}
+                {entry?.review?.stale && (
+                  <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-sans text-[10.5px] text-amber-800 dark:text-amber-200">
+                    Changed since reviewed
+                  </span>
+                )}
                 {entry?.comment && scope ? (
                   <button
                     type="button"

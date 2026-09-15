@@ -222,7 +222,10 @@ function ScopedFileNavigation({
         worktreePath={worktreePath}
         onExpand={(paths) => setRequested((current) => union(current, paths))}
         onSelect={(path) => {
-          if (kinds.get(path) === 'file')
+          const kind = kinds.get(path);
+          if (kind === 'symlink' || kind === 'submodule')
+            onOpen({ kind: 'file', path });
+          else if (kind === 'file')
             onOpen({
               kind:
                 changed.has(path) &&
@@ -249,8 +252,9 @@ function ScopedFileNavigation({
           <AlertDialogHeader>
             <AlertDialogTitle>Move {deleting} to the trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              You can restore it from the system trash. This changes the files
-              in your worktree.
+              {deleting != null && changed.has(deleting)
+                ? 'This is part of the agent’s changes. Deleting it changes what you are reviewing, and the agent may write it again. You can restore it from the system trash.'
+                : 'You can restore it from the system trash. This changes the files in your worktree.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

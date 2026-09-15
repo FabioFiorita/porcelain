@@ -1,4 +1,9 @@
-import { CopyIcon, FileDiffIcon, PencilIcon } from 'lucide-react';
+import {
+  CopyIcon,
+  FileDiffIcon,
+  MessageSquarePlusIcon,
+  PencilIcon,
+} from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,7 +13,7 @@ import { isImagePath } from '../../domain/html-assets';
 import type { ReviewScope } from '../../domain/review';
 import { changePath } from '../../domain/review';
 import { useFileDraft } from '../../query/files';
-import { useChanges, useTextFile } from '../../query/review';
+import { useChanges, useFileTree, useTextFile } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
 import { CodeDocument } from './code-document';
@@ -21,6 +26,7 @@ import { HtmlPreview } from './html-preview';
 import { ImagePreview } from './image-preview';
 import { MarkdownView } from './markdown-view';
 import { ReviewEmpty } from './review-empty';
+
 export function FileDocument(props: {
   scope: ReviewScope;
   path: string;
@@ -32,9 +38,49 @@ export function FileDocument(props: {
       <ImagePreview scope={props.scope} path={props.path} />
     </div>
   ) : (
-    <TextFileDocument {...props} />
+    <LinkedFileDocument {...props} />
   );
 }
+
+function LinkedFileDocument(props: {
+  scope: ReviewScope;
+  path: string;
+  onOpen: OpenDocument;
+}) {
+  const tree = useFileTree(props.scope);
+  const link = tree.data?.entries.find((entry) => entry.path === props.path);
+  if (tree.isPending)
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <FileToolbar path={props.path} />
+        <p role="status" className="p-6 text-sm text-muted-foreground">
+          Loading file…
+        </p>
+      </div>
+    );
+  if (link?.kind === 'symlink')
+    return (
+      <NotShownFile
+        path={props.path}
+        message={`Not followed: symlink to ${link.target ?? 'an unknown target'}`}
+      />
+    );
+  if (link?.kind === 'submodule')
+    return <NotShownFile path={props.path} message="Not followed: submodule" />;
+  return <TextFileDocument {...props} />;
+}
+
+function NotShownFile({ path, message }: { path: string; message: string }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <FileToolbar path={path} />
+      <div className="grid min-h-48 flex-1 place-items-center p-6">
+        <ReviewEmpty title="Not shown" description={message} />
+      </div>
+    </div>
+  );
+}
+
 function TextFileDocument({
   scope,
   path,
@@ -54,14 +100,7 @@ function TextFileDocument({
     unreadable ? '' : (file.contentFingerprint ?? ''),
   );
   if (unreadable && state.owner === null && state.text === state.savedText)
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <FileToolbar path={path} />
-        <div className="grid min-h-48 flex-1 place-items-center p-6">
-          <ReviewEmpty title="Not shown" description={file.reason} />
-        </div>
-      </div>
-    );
+    return <NotShownFile path={path} message={file.reason} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {unreadable && (
@@ -124,6 +163,7 @@ function ReadableFileDocument({
       setMode('source');
   }, [reveal, path]);
   const [editing, setEditing] = useState(false);
+  const [commentRequest, setCommentRequest] = useState<number>();
   const editorId = useId();
   const { active } = useDocumentInteraction();
   const previousFingerprint = useRef(contentFingerprint);
@@ -143,24 +183,8 @@ function ReadableFileDocument({
     const timer = setTimeout(() => setDiskChanged(false), 8000);
     return () => clearTimeout(timer);
   }, [diskChanged]);
-  if (editing)
-    return (
-      <FileEditor
-        owner={editorId}
-        path={path}
-        draft={draft}
-        state={draftState}
-        active={active}
-        changed={changed}
-        onDone={() => setEditing(false)}
-        onDiscard={() => {
-          draft.reset(text, contentFingerprint ?? '');
-          setEditing(false);
-        }}
-      />
-    );
-  const showingSource = kind === 'code' || mode === 'source';
 
+  const showingSource = kind === 'code' || mode === 'source';
   const actions = (
     <>
       <span
@@ -169,6 +193,31 @@ function ReadableFileDocument({
       >
         {diskChanged ? 'Changed on disk just now' : ''}
       </span>
+      {kind !== 'code' && (
+        <Tabs
+          value={mode}
+          onValueChange={(value) => setMode(value as FileDisplayMode)}
+        >
+          <TabsList className="h-7">
+            <TabsTrigger value="rendered" className="px-2 text-xs">
+              {kind === 'markdown' ? 'Reader' : 'Preview'}
+            </TabsTrigger>
+            <TabsTrigger value="source" className="px-2 text-xs">
+              Source
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+      {showingSource && contentFingerprint && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setCommentRequest(Date.now())}
+        >
+          <MessageSquarePlusIcon className="size-3.5" />
+          Comment
+        </Button>
+      )}
       {contentFingerprint && (
         <Button
           size="sm"
@@ -187,21 +236,6 @@ function ReadableFileDocument({
           {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
         </Button>
       )}
-      {kind !== 'code' && (
-        <Tabs
-          value={mode}
-          onValueChange={(value) => setMode(value as FileDisplayMode)}
-        >
-          <TabsList className="h-7">
-            <TabsTrigger value="rendered" className="px-2 text-xs">
-              {kind === 'markdown' ? 'Reader' : 'Preview'}
-            </TabsTrigger>
-            <TabsTrigger value="source" className="px-2 text-xs">
-              Source
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      )}
       {changed && (
         <Button
           size="sm"
@@ -212,16 +246,32 @@ function ReadableFileDocument({
           Open diff
         </Button>
       )}
-      <CopyPath path={path} />
     </>
   );
+
+  if (editing)
+    return (
+      <FileEditor
+        owner={editorId}
+        path={path}
+        draft={draft}
+        state={draftState}
+        active={active}
+        changed={changed}
+        onDone={() => setEditing(false)}
+        onDiscard={() => {
+          draft.reset(text, contentFingerprint ?? '');
+          setEditing(false);
+        }}
+        renderToolbar={(controls) => (
+          <FileToolbar path={path}>{controls}</FileToolbar>
+        )}
+      />
+    );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      {!showingSource && (
-        <FileToolbar path={path} copy={false}>
-          {actions}
-        </FileToolbar>
-      )}
+      <FileToolbar path={path}>{actions}</FileToolbar>
       {mode === 'rendered' && kind === 'markdown' ? (
         <div className="min-h-0 flex-1 overflow-auto">
           <MarkdownView
@@ -240,7 +290,8 @@ function ReadableFileDocument({
       ) : (
         <CodeDocument
           scope={scope}
-          headerActions={actions}
+          disableFileHeader
+          {...(commentRequest !== undefined ? { commentRequest } : {})}
           entries={[
             {
               ...fileEntry(`file:${path}`, path, text),

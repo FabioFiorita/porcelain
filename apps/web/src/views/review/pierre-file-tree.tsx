@@ -20,6 +20,7 @@ import {
   hiddenPathFor,
 } from '../../domain/file-preferences';
 import { copyText } from '../workspace/copy';
+import { treeIconsFor } from './file-icons';
 
 export function PierreFileTree({
   paths,
@@ -112,7 +113,7 @@ export function PierreFileTree({
     density: 'compact',
     flattenEmptyDirectories: true,
     initialExpansion: 'closed',
-    icons: { set: 'complete', colored: true },
+    icons: treeIconsFor(links),
     unsafeCSS:
       '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); }',
     gitStatus,
@@ -255,6 +256,7 @@ export function PierreFileTree({
   }, [model, paths, selected]);
 
   useEffect(() => model.setGitStatus(gitStatus), [model, gitStatus]);
+  useEffect(() => model.setIcons(treeIconsFor(links)), [model, links]);
 
   useEffect(
     () =>

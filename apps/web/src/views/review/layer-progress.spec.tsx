@@ -99,6 +99,7 @@ vi.mock('./reviewed-control', () => ({
     state.bulkEntries = [...entries];
     return <button type="button">Mark layer reviewed</button>;
   },
+  ReviewedControl: () => null,
 }));
 vi.mock('./review-code-document', () => ({
   ReviewCodeDocument: ({

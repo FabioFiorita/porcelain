@@ -95,7 +95,12 @@ export function ReviewedControl({
         ) : (
           <CheckIcon className={cn(compact && 'invisible')} />
         )}
-        {!compact && (reviewed ? 'Reviewed' : 'Mark reviewed')}
+        {!compact &&
+          (reviewed
+            ? 'Reviewed'
+            : status === 'stale'
+              ? 'Review again'
+              : 'Mark reviewed')}
       </Button>
       {error && (
         <span
@@ -113,12 +118,15 @@ export function MarkAllReviewed({
   scope,
   entries,
   compact = false,
+  kind = 'all',
 }: {
   scope: ReviewScope;
   entries: readonly ReviewEvidenceItem[];
   compact?: boolean;
+  kind?: 'all' | 'layer';
 }) {
   const bulk = useMarkAllReviewed(scope);
+  const unmark = useUnmarkReviewed(scope);
   const [report, setReport] = useState<BulkReviewReport | null>(null);
   const uniqueEntries = [
     ...new Map(entries.map((entry) => [entry.path, entry])).values(),
@@ -127,22 +135,45 @@ export function MarkAllReviewed({
   const eligible = fingerprintable.filter(
     (entry) => entry.fingerprint != null && entry.reviewStatus !== 'reviewed',
   );
+  const reviewed = fingerprintable.filter(
+    (entry) => entry.reviewStatus === 'reviewed',
+  );
   const unavailable = uniqueEntries.length - fingerprintable.length;
+  const unmarking = eligible.length === 0 && reviewed.length > 0;
   const completeLabel =
     unavailable > 0
       ? `${fingerprintable.length} reviewed · ${unavailable} unavailable`
       : 'All reviewed';
-  const disabled = eligible.length === 0 || bulk.isPending;
+  const noun = kind === 'layer' ? 'layer' : 'all';
+  const pending = bulk.isPending || unmark.isPending;
+  const disabled =
+    fingerprintable.length === 0 ||
+    pending ||
+    (eligible.length === 0 && reviewed.length === 0);
   const buttonLabel =
     fingerprintable.length === 0
       ? 'No files can be marked reviewed'
-      : eligible.length === 0
-        ? completeLabel
-        : `Mark all ${eligible.length} files reviewed`;
+      : unmarking
+        ? `Unmark ${noun}`
+        : eligible.length === 0
+          ? completeLabel
+          : kind === 'layer'
+            ? 'Mark layer reviewed'
+            : `Mark all ${eligible.length} files reviewed`;
 
   const submit = () => {
     if (disabled) return;
     setReport(null);
+    if (unmarking) {
+      void (async () => {
+        try {
+          for (const entry of reviewed) await unmark.submit(entry.path);
+        } catch {
+          /* Mutation error is rendered below. */
+        }
+      })();
+      return;
+    }
     void bulk
       .submit(uniqueEntries)
       .then(setReport)
@@ -160,27 +191,35 @@ export function MarkAllReviewed({
         title={buttonLabel}
         onClick={submit}
       >
-        {bulk.isPending ? (
+        {pending ? (
           <LoaderCircleIcon className="animate-spin" />
+        ) : unmarking ? (
+          <RotateCcwIcon />
         ) : (
           <CheckIcon />
         )}
         {!compact &&
-          (bulk.isPending
-            ? 'Marking…'
+          (pending
+            ? unmarking
+              ? 'Unmarking…'
+              : 'Marking…'
             : fingerprintable.length === 0
               ? 'No reviewable files'
-              : eligible.length === 0
-                ? completeLabel
-                : 'Mark all reviewed')}
+              : unmarking
+                ? `Unmark ${noun}`
+                : eligible.length === 0
+                  ? completeLabel
+                  : kind === 'layer'
+                    ? 'Mark layer reviewed'
+                    : 'Mark all reviewed')}
       </Button>
       {report && <BulkReport report={report} />}
-      {bulk.error && (
+      {(bulk.error || unmark.error) && (
         <span
           role="alert"
           className="max-w-64 text-right text-[11px] text-destructive"
         >
-          {reviewErrorMessage(bulk.error)}
+          {reviewErrorMessage(bulk.error ?? unmark.error)}
         </span>
       )}
     </span>

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { resolveCommitModel } from './commit-model';
+import { groupedCommitModels, resolveCommitModel } from './commit-model';
 
 const models = [
   'codex:gpt-6-astra',
@@ -7,6 +7,25 @@ const models = [
   'claude:sonnet',
   'claude:haiku',
 ].map((id) => ({ id, label: id }));
+it('groups models by the provider prefix', () => {
+  expect(groupedCommitModels(models)).toEqual([
+    [
+      'codex',
+      [
+        { id: 'codex:gpt-6-astra', label: 'codex:gpt-6-astra' },
+        { id: 'codex:gpt-5.6-luna', label: 'codex:gpt-5.6-luna' },
+      ],
+    ],
+    [
+      'claude',
+      [
+        { id: 'claude:sonnet', label: 'claude:sonnet' },
+        { id: 'claude:haiku', label: 'claude:haiku' },
+      ],
+    ],
+  ]);
+});
+
 it('uses Luna or Sonnet instead of a CLI default or the first expensive model', () => {
   expect(resolveCommitModel(models, '')).toBe('codex:gpt-5.6-luna');
   expect(resolveCommitModel(models, 'codex:default')).toBe(

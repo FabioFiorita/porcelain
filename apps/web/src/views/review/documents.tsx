@@ -14,7 +14,7 @@ import { HandoffSummary } from './handoff-artifact';
 import { MarkdownView } from './markdown-view';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
-import { MarkAllReviewed } from './reviewed-control';
+import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 
 function ProgressPill({ done, total }: { done: number; total: number }) {
   return (
@@ -181,7 +181,7 @@ function LayerDocument({
           >
             <ProgressPill {...progress} />
             {collapseControl}
-            <MarkAllReviewed scope={scope} entries={evidence} />
+            <MarkAllReviewed scope={scope} entries={evidence} kind="layer" />
           </DocumentToolbar>
         )}
         scope={scope}
@@ -207,6 +207,9 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
   const changes = status.changes.filter(
     (change) => changePath(change) === path,
   );
+  const evidence = useReviewEvidence(scope, changes).find(
+    (entry) => entry.path === path,
+  );
   if (changes.length === 0)
     return (
       <ReviewEmpty
@@ -217,7 +220,25 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ReviewCodeDocument scope={scope} changes={changes} />
+      <ReviewCodeDocument
+        toolbar={() => (
+          <DocumentToolbar
+            title={path.slice(path.lastIndexOf('/') + 1)}
+            subtitle={path}
+          >
+            {evidence && (
+              <ReviewedControl
+                scope={scope}
+                path={path}
+                fingerprint={evidence.fingerprint}
+                status={evidence.reviewStatus}
+              />
+            )}
+          </DocumentToolbar>
+        )}
+        scope={scope}
+        changes={changes}
+      />
     </div>
   );
 }
