@@ -197,10 +197,31 @@ describe('Application', () => {
       ).not.toBe(before.worktrees[1]?.id);
     });
 
-    it('retains unreachable repositories and missing Git-listed worktrees as unavailable', async () => {
+    it('syncs deleted checkout folders out of persisted inventory without pruning Git metadata', async () => {
       const f = await fixture();
       const app = await open(f.dataDirectory);
       const { project: before } = await app.register(f.main);
+      await rm(f.linked, { recursive: true });
+      const gitInventory = git(f.main, 'worktree', 'list', '--porcelain');
+      expect(gitInventory).toContain('prunable');
+      const { inventory, issues } = await app.refresh();
+      expect(inventory.projects[0]?.worktrees).toEqual([before.worktrees[0]]);
+      expect(issues).toEqual([]);
+      expect(app.inventory()).toEqual(inventory);
+      expect(git(f.main, 'worktree', 'list', '--porcelain')).toBe(gitInventory);
+      await app.close();
+      applications.splice(applications.indexOf(app), 1);
+      const reopened = await open(f.dataDirectory);
+      expect(reopened.inventory().projects[0]?.worktrees).toEqual([
+        before.worktrees[0],
+      ]);
+    });
+
+    it('retains unreachable repositories and missing locked worktrees as unavailable', async () => {
+      const f = await fixture();
+      const app = await open(f.dataDirectory);
+      const { project: before } = await app.register(f.main);
+      git(f.main, 'worktree', 'lock', f.linked);
       await rename(f.linked, join(f.root, 'hidden-feature'));
       const { inventory: partial, issues: partialIssues } = await app.refresh();
       expect(partialIssues).toEqual(
@@ -365,6 +386,7 @@ describe('Application', () => {
       const f = await fixture();
       const app = await open(f.dataDirectory);
       await app.register(f.main);
+      git(f.main, 'worktree', 'lock', f.linked);
       await rename(f.linked, join(f.root, 'hidden'));
       const first = await app.refresh();
       expect(first.issues).toEqual(

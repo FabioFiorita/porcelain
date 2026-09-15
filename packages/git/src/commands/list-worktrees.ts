@@ -1,4 +1,4 @@
-import { realpath, stat } from 'node:fs/promises';
+import { lstat, realpath, stat } from 'node:fs/promises';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
 import type { DiscoveryIssue } from '../dtos/discovery-issue.ts';
 import type { DiscoveryResult } from '../dtos/discovery-result.ts';
@@ -82,6 +82,20 @@ export async function listWorktrees(
       ?.slice(9);
     if (fields.includes('bare')) throw new UnsupportedRepositoryError();
     if (!path) throw new InvalidWorktreeInventoryError('Missing worktree path');
+    const prunable = fields.some(
+      (field) => field === 'prunable' || field.startsWith('prunable '),
+    );
+    const locked = fields.some(
+      (field) => field === 'locked' || field.startsWith('locked '),
+    );
+    if (index > 0 && prunable && !locked) {
+      try {
+        await lstat(path);
+      } catch (error) {
+        signal?.throwIfAborted();
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      }
+    }
     const inspection = await inspectWorktree(path, repositoryIdentity, signal);
     issues.push(...inspection.issues);
     worktrees.push({
