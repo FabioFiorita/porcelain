@@ -83,7 +83,13 @@ test('connects to real Git inventory and refreshes on focus', async ({
       }
     });
   expect(focusRingFits).toBe(true);
-  await page.getByRole('button', { name: 'Post comment' }).click();
+  await page
+    .locator('form')
+    .filter({
+      has: page.getByRole('textbox', { name: 'Comment', exact: true }),
+    })
+    .getByRole('button', { name: 'Comment', exact: true })
+    .click();
   await expect(page.getByText(feedback, { exact: true })).toBeVisible();
   const commentsResponse = await request.get(
     `/api/worktrees/${review.id}/comments`,

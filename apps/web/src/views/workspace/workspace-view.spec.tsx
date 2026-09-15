@@ -794,7 +794,11 @@ describe('file discussion', () => {
       'Please explain this component.',
     );
     store.commentsFailed = true;
-    await user.click(screen.getByRole('button', { name: 'Post comment' }));
+    await user.click(
+      within(
+        screen.getByLabelText('Comment').closest('form') as HTMLFormElement,
+      ).getByRole('button', { name: 'Comment', exact: true }),
+    );
     expect((await screen.findByRole('alert')).textContent).toContain(
       'Comments are unavailable',
     );
@@ -804,7 +808,11 @@ describe('file discussion', () => {
     );
     expect(Object.values(store.comments).flat()).toHaveLength(0);
     store.commentsFailed = false;
-    await user.click(screen.getByRole('button', { name: 'Post comment' }));
+    await user.click(
+      within(
+        screen.getByLabelText('Comment').closest('form') as HTMLFormElement,
+      ).getByRole('button', { name: 'Comment', exact: true }),
+    );
     await screen.findByText('Please explain this component.');
     expect(Object.values(store.comments).flat()[0]?.anchor).toMatchObject({
       kind: 'file',

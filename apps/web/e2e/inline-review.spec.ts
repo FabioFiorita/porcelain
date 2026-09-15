@@ -26,7 +26,13 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
       response.request().method() === 'POST' &&
       response.url().includes('/comments'),
   );
-  await page.getByRole('button', { name: 'Post comment', exact: true }).click();
+  await page
+    .locator('form')
+    .filter({
+      has: page.getByRole('textbox', { name: 'Comment', exact: true }),
+    })
+    .getByRole('button', { name: 'Comment', exact: true })
+    .click();
   const response = await saved;
   expect(response.ok()).toBe(true);
   expect(await response.json()).toEqual(
@@ -74,7 +80,13 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
   await page
     .getByRole('textbox', { name: 'Comment', exact: true })
     .fill('Binary file discussion');
-  await page.getByRole('button', { name: 'Post comment', exact: true }).click();
+  await page
+    .locator('form')
+    .filter({
+      has: page.getByRole('textbox', { name: 'Comment', exact: true }),
+    })
+    .getByRole('button', { name: 'Comment', exact: true })
+    .click();
   await expect(
     page.getByRole('textbox', { name: 'Comment', exact: true }),
   ).toHaveCount(0);

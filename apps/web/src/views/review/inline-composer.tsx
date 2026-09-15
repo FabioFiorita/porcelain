@@ -76,7 +76,7 @@ export function InlineComposer({
           Cancel
         </Button>
         <Button type="submit" size="sm" disabled={!valid || mutation.isPending}>
-          {mutation.isPending ? 'Posting…' : 'Post comment'}
+          {mutation.isPending ? 'Posting…' : 'Comment'}
         </Button>
       </div>
     </form>
