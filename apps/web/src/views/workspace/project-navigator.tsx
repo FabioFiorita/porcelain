@@ -31,6 +31,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import logo from '../../assets/logo.png';
 import type { Inventory, Project } from '../../domain/inventory';
@@ -91,28 +92,30 @@ export function ProjectNavigator({
         </Button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
-        {projects.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>No projects registered</EmptyTitle>
-              <EmptyDescription>
-                This environment has no projects yet.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          projects.map((project) => (
-            <ProjectSection
-              key={project.id}
-              project={project}
-              summaries={summaries}
-              selected={selected}
-              onSelect={select}
-            />
-          ))
-        )}
-      </div>
+      <ScrollArea className="h-0 min-h-0 flex-1">
+        <div className="p-2">
+          {projects.length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>No projects registered</EmptyTitle>
+                <EmptyDescription>
+                  This environment has no projects yet.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            projects.map((project) => (
+              <ProjectSection
+                key={project.id}
+                project={project}
+                summaries={summaries}
+                selected={selected}
+                onSelect={select}
+              />
+            ))
+          )}
+        </div>
+      </ScrollArea>
 
       <footer className="flex shrink-0 items-center gap-1 border-t p-2">
         <Button

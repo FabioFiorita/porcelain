@@ -23,6 +23,7 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { CommentAnchor, CommentThread } from '../../domain/comments';
@@ -153,28 +154,30 @@ function LayersView({
 
   if (paths.length === 0 && layers.layers.length === 0) {
     return (
-      <div className="min-h-0 flex-1 overflow-auto p-2">
-        <div className="grid min-h-48 place-items-center p-6">
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia>
-                <ListTreeIcon className="size-5 text-muted-foreground" />
-              </EmptyMedia>
-              <EmptyTitle>No changes</EmptyTitle>
-              <EmptyDescription>
-                This worktree matches its last commit.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+      <ScrollArea className="h-0 min-h-0 flex-1">
+        <div className="p-2">
+          <div className="grid min-h-48 place-items-center p-6">
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia>
+                  <ListTreeIcon className="size-5 text-muted-foreground" />
+                </EmptyMedia>
+                <EmptyTitle>No changes</EmptyTitle>
+                <EmptyDescription>
+                  This worktree matches its last commit.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </div>
+          {artifacts.length > 0 && (
+            <ArtifactLinks
+              artifacts={artifacts}
+              activeEntry={activeEntry}
+              onOpen={onOpen}
+            />
+          )}
         </div>
-        {artifacts.length > 0 && (
-          <ArtifactLinks
-            artifacts={artifacts}
-            activeEntry={activeEntry}
-            onOpen={onOpen}
-          />
-        )}
-      </div>
+      </ScrollArea>
     );
   }
 
@@ -201,98 +204,100 @@ function LayersView({
   );
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto p-2">
-      <button
-        type="button"
-        aria-pressed={isActive({ kind: 'handoff' })}
-        onClick={() => onOpen({ kind: 'handoff' })}
-        className={cn(
-          ROW,
-          'mb-2 flex-col items-stretch gap-1.5 py-2',
-          isActive({ kind: 'handoff' }) && 'bg-accent',
-        )}
-      >
-        <span className="flex items-center gap-1.5 font-medium">
-          {reviewBuilt ? 'The whole handoff' : 'All changes'}
-          <span className="ml-auto text-[11px] font-normal text-muted-foreground tabular-nums">
-            {progress.done} of {progress.total} reviewed
-          </span>
-        </span>
-        <Progress
-          value={
-            progress.total === 0 ? 0 : (progress.done / progress.total) * 100
-          }
-          aria-label={`${progress.done} of ${progress.total} files reviewed`}
-        />
-      </button>
-
-      {layers.layers.map((layer, index) => {
-        const ref: DocumentRef = { kind: 'layer', layerId: layer.id };
-        const layerPaths = uniquePaths(layer.files.map((file) => file.path));
-        const layerProgress = reviewProgress(layerPaths, evidence);
-        const commentCount = layerPaths.reduce(
-          (total, path) => total + openThreads(path),
-          0,
-        );
-        return (
-          <section key={layer.id} className="mb-2">
-            <button
-              type="button"
-              aria-pressed={isActive(ref)}
-              onClick={() => onOpen(ref)}
-              className={cn(ROW, isActive(ref) && 'bg-accent')}
-            >
-              <span className="grid size-4.5 shrink-0 place-items-center rounded bg-muted text-[10px] text-muted-foreground">
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1 truncate font-medium">
-                {layer.title}
-              </span>
-              {commentCount > 0 && (
-                <span className="flex shrink-0 items-center gap-0.5 text-[10.5px] text-muted-foreground">
-                  <MessageSquareIcon className="size-3" />
-                  {commentCount}
-                </span>
-              )}
-              <span className="shrink-0 text-[10.5px] text-muted-foreground tabular-nums">
-                {layerPaths.length}
-              </span>
-              <span className="shrink-0 text-[10.5px] text-muted-foreground tabular-nums">
-                {layerProgress.done}/{layerProgress.total}
-              </span>
-            </button>
-            {layer.files
-              .map((file) => file.path)
-              .filter((path, index, all) => all.indexOf(path) === index)
-              .map((path) => {
-                const note = layer.files.find(
-                  (file) => file.path === path,
-                )?.note;
-                return fileRow(path, note);
-              })}
-          </section>
-        );
-      })}
-
-      {loose.length > 0 && (
-        <section className="mb-2">
-          {reviewBuilt && (
-            <p className="px-2 py-1 text-[11px] font-medium text-muted-foreground">
-              Not in a layer
-            </p>
+    <ScrollArea className="h-0 min-h-0 flex-1">
+      <div className="p-2">
+        <button
+          type="button"
+          aria-pressed={isActive({ kind: 'handoff' })}
+          onClick={() => onOpen({ kind: 'handoff' })}
+          className={cn(
+            ROW,
+            'mb-2 flex-col items-stretch gap-1.5 py-2',
+            isActive({ kind: 'handoff' }) && 'bg-accent',
           )}
-          {loose.map((path) => fileRow(path))}
-        </section>
-      )}
+        >
+          <span className="flex items-center gap-1.5 font-medium">
+            {reviewBuilt ? 'The whole handoff' : 'All changes'}
+            <span className="ml-auto text-[11px] font-normal text-muted-foreground tabular-nums">
+              {progress.done} of {progress.total} reviewed
+            </span>
+          </span>
+          <Progress
+            value={
+              progress.total === 0 ? 0 : (progress.done / progress.total) * 100
+            }
+            aria-label={`${progress.done} of ${progress.total} files reviewed`}
+          />
+        </button>
 
-      {artifacts.length > 0 && (
-        <ArtifactLinks
-          artifacts={artifacts}
-          activeEntry={activeEntry}
-          onOpen={onOpen}
-        />
-      )}
-    </div>
+        {layers.layers.map((layer, index) => {
+          const ref: DocumentRef = { kind: 'layer', layerId: layer.id };
+          const layerPaths = uniquePaths(layer.files.map((file) => file.path));
+          const layerProgress = reviewProgress(layerPaths, evidence);
+          const commentCount = layerPaths.reduce(
+            (total, path) => total + openThreads(path),
+            0,
+          );
+          return (
+            <section key={layer.id} className="mb-2">
+              <button
+                type="button"
+                aria-pressed={isActive(ref)}
+                onClick={() => onOpen(ref)}
+                className={cn(ROW, isActive(ref) && 'bg-accent')}
+              >
+                <span className="grid size-4.5 shrink-0 place-items-center rounded bg-muted text-[10px] text-muted-foreground">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {layer.title}
+                </span>
+                {commentCount > 0 && (
+                  <span className="flex shrink-0 items-center gap-0.5 text-[10.5px] text-muted-foreground">
+                    <MessageSquareIcon className="size-3" />
+                    {commentCount}
+                  </span>
+                )}
+                <span className="shrink-0 text-[10.5px] text-muted-foreground tabular-nums">
+                  {layerPaths.length}
+                </span>
+                <span className="shrink-0 text-[10.5px] text-muted-foreground tabular-nums">
+                  {layerProgress.done}/{layerProgress.total}
+                </span>
+              </button>
+              {layer.files
+                .map((file) => file.path)
+                .filter((path, index, all) => all.indexOf(path) === index)
+                .map((path) => {
+                  const note = layer.files.find(
+                    (file) => file.path === path,
+                  )?.note;
+                  return fileRow(path, note);
+                })}
+            </section>
+          );
+        })}
+
+        {loose.length > 0 && (
+          <section className="mb-2">
+            {reviewBuilt && (
+              <p className="px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                Not in a layer
+              </p>
+            )}
+            {loose.map((path) => fileRow(path))}
+          </section>
+        )}
+
+        {artifacts.length > 0 && (
+          <ArtifactLinks
+            artifacts={artifacts}
+            activeEntry={activeEntry}
+            onOpen={onOpen}
+          />
+        )}
+      </div>
+    </ScrollArea>
   );
 }
 
