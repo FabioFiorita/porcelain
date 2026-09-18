@@ -1,0 +1,316 @@
+// Scripted interactions that mirror what the web does on common moments, so a
+// profile can be compared with another by processes, SQL, queue time and time.
+import type { BenchStepResult, Trace, WorktreeInfo } from './protocol.ts';
+import type { SimulationAction } from './simulate.ts';
+
+type Inventory = {
+  projects: {
+    id: string;
+    worktrees: {
+      id: string;
+      path: string;
+      main: boolean;
+      available: boolean;
+    }[];
+  }[];
+};
+
+export type BenchContext = {
+  address: string;
+  token: string;
+  run: string;
+  real: boolean;
+  worktrees: WorktreeInfo[];
+  simulate?: (
+    worktree: string,
+    action: SimulationAction,
+    count: number,
+  ) => Promise<string>;
+  progress: (message: string) => void;
+};
+
+type Api = (
+  method: string,
+  path: string,
+  body?: unknown,
+) => Promise<{ status: number; data: unknown }>;
+
+type Step = {
+  id: string;
+  title: string;
+  /** Only disposable playgrounds may be changed. */
+  playgroundOnly?: boolean;
+  run: (api: Api, scope: Scope, context: BenchContext) => Promise<void>;
+};
+
+type Scope = {
+  projectId: string;
+  worktreeId: string;
+  worktreePath: string;
+  worktrees: { id: string; path: string }[];
+};
+
+const selectWorktree = async (api: Api, scope: Scope) => {
+  const w = `/worktrees/${scope.worktreeId}`;
+  // useChanges (status + layers), evidence, reviewed marks, comments, artifacts.
+  await Promise.all([
+    api('GET', `${w}/git/status`),
+    api('GET', `${w}/review-layers`),
+    api('GET', `${w}/evidence`),
+    api('GET', `${w}/reviewed`),
+    api('GET', `${w}/comments`),
+    api('GET', `${w}/artifacts`),
+  ]);
+};
+
+const sidebar = async (api: Api, scope: Scope) => {
+  // useReviewSummaries: one request per available worktree, one at a time.
+  for (const worktree of scope.worktrees)
+    await api('GET', `/worktrees/${worktree.id}/review-summary`);
+};
+
+export const benchSteps: Step[] = [
+  {
+    id: 'open',
+    title: 'Open Porcelain (inventory, refresh, sidebar summaries)',
+    run: async (api, scope) => {
+      // As observed from the web on load: read, then refresh, then summaries.
+      await api('GET', '/inventory');
+      await api('POST', '/inventory/refresh');
+      await sidebar(api, scope);
+    },
+  },
+  {
+    id: 'select',
+    title: 'Select the review worktree',
+    run: (api, scope) => selectWorktree(api, scope),
+  },
+  {
+    id: 'reselect',
+    title: 'Select it again (nothing changed)',
+    run: (api, scope) => selectWorktree(api, scope),
+  },
+  {
+    id: 'diffs',
+    title: 'Open five diffs one by one',
+    run: async (api, scope) => {
+      const { data } = await api(
+        'GET',
+        `/worktrees/${scope.worktreeId}/git/status`,
+      );
+      const status = data as {
+        statusToken: string;
+        changes: {
+          scope: string;
+          oldPath?: string | null;
+          newPath?: string | null;
+        }[];
+      };
+      const ordinary = status.changes
+        .filter(
+          (change) => change.scope === 'staged' || change.scope === 'unstaged',
+        )
+        .slice(0, 5);
+      for (const change of ordinary)
+        await api('POST', `/worktrees/${scope.worktreeId}/git/diff`, {
+          expectedStatusToken: status.statusToken,
+          change: {
+            scope: change.scope,
+            oldPath: change.oldPath ?? null,
+            newPath: change.newPath ?? null,
+          },
+        });
+    },
+  },
+  {
+    id: 'files',
+    title: 'Open Files and read five files',
+    run: async (api, scope) => {
+      const { data } = await api(
+        'GET',
+        `/worktrees/${scope.worktreeId}/file-tree`,
+      );
+      const entries = (
+        (data as { entries?: { path: string; kind?: string; type?: string }[] })
+          .entries ?? []
+      )
+        .filter((entry) => /\.(ts|md|json|css|mjs)$/.test(entry.path))
+        .slice(0, 5);
+      for (const entry of entries)
+        await api(
+          'GET',
+          `/worktrees/${scope.worktreeId}/text?${new URLSearchParams({ path: entry.path })}`,
+        );
+    },
+  },
+  {
+    id: 'history',
+    title: 'Open History and three commits',
+    run: async (api, scope) => {
+      const { data } = await api(
+        'GET',
+        `/worktrees/${scope.worktreeId}/commits?limit=50`,
+      );
+      const commits = (
+        (data as { commits?: { oid: string }[] }).commits ?? []
+      ).slice(0, 3);
+      for (const commit of commits)
+        await api(
+          'GET',
+          `/worktrees/${scope.worktreeId}/commits/${commit.oid}/changes`,
+        );
+    },
+  },
+  {
+    id: 'mark',
+    title: 'Mark ten files reviewed',
+    run: async (api, scope) => {
+      const { data } = await api(
+        'GET',
+        `/worktrees/${scope.worktreeId}/evidence`,
+      );
+      const evidence = (
+        (data as { evidence?: { path: string; fingerprint: string | null }[] })
+          .evidence ?? []
+      )
+        .filter((entry) => entry.fingerprint)
+        .slice(0, 10);
+      for (const entry of evidence)
+        await api('PUT', `/worktrees/${scope.worktreeId}/reviewed`, {
+          path: entry.path,
+          reviewed: true,
+          fingerprint: entry.fingerprint,
+        });
+    },
+  },
+  {
+    id: 'sidebar-marked',
+    title: 'Sidebar summaries once marks exist',
+    run: (api, scope) => sidebar(api, scope),
+  },
+  {
+    id: 'agent-edit',
+    title: 'Agent edits ten files, reviewer refocuses the window',
+    playgroundOnly: true,
+    run: async (api, scope, context) => {
+      await context.simulate?.(scope.worktreePath, 'edit', 10);
+      await Promise.all([selectWorktree(api, scope), sidebar(api, scope)]);
+    },
+  },
+];
+
+export async function runBench(
+  context: BenchContext,
+  collect: (run: string, step: string) => Trace[],
+): Promise<BenchStepResult[]> {
+  const headers = (step: string) => ({
+    authorization: `Bearer ${context.token}`,
+    'x-lab-origin': 'bench',
+    'x-lab-run': context.run,
+    'x-lab-step': step,
+  });
+  const client =
+    (step: string): Api =>
+    async (method, path, body) => {
+      const response = await fetch(`${context.address}${path}`, {
+        method,
+        headers: {
+          ...headers(step),
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const text = await response.text();
+      let data: unknown = text;
+      try {
+        data = JSON.parse(text);
+      } catch {}
+      return { status: response.status, data };
+    };
+
+  const inventory = (await client('setup')('GET', '/inventory'))
+    .data as Inventory;
+  const project =
+    inventory.projects.find((candidate) =>
+      candidate.worktrees.some((worktree) => !worktree.main),
+    ) ?? inventory.projects[0];
+  if (!project) throw new Error('No project registered');
+  const reviewPath = context.worktrees.find(
+    (worktree) => worktree.role === 'review',
+  )?.path;
+  const review =
+    project.worktrees.find((worktree) => worktree.path === reviewPath) ??
+    project.worktrees.find(
+      (worktree) => !worktree.main && worktree.available,
+    ) ??
+    project.worktrees[0];
+  if (!review) throw new Error('No worktree registered');
+  const scope: Scope = {
+    projectId: project.id,
+    worktreeId: review.id,
+    worktreePath: review.path,
+    worktrees: inventory.projects.flatMap((candidate) =>
+      candidate.worktrees
+        .filter((worktree) => worktree.available)
+        .map((worktree) => ({ id: worktree.id, path: worktree.path })),
+    ),
+  };
+
+  const results: BenchStepResult[] = [];
+  for (const step of benchSteps) {
+    if (step.playgroundOnly && context.real) continue;
+    context.progress(step.title);
+    const started = performance.now();
+    let failed = false;
+    try {
+      await step.run(client(step.id), scope, context);
+    } catch {
+      failed = true;
+    }
+    const wallMs = performance.now() - started;
+    // Let abandoned or trailing work land on its trace.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    const traces = collect(context.run, step.id);
+    results.push({
+      step: step.id,
+      title: step.title,
+      requests: traces.length,
+      processes: traces.reduce((sum, trace) => sum + trace.processes.length, 0),
+      sql: traces.reduce((sum, trace) => sum + trace.sqlCount, 0),
+      wallMs: Math.round(wallMs),
+      serverMs: Math.round(
+        traces.reduce(
+          (sum, trace) => sum + ((trace.end ?? trace.start) - trace.start),
+          0,
+        ),
+      ),
+      queueMs: Math.round(
+        traces.reduce(
+          (sum, trace) =>
+            sum +
+            trace.operations.reduce(
+              (total, span) =>
+                total +
+                ((span.started ?? span.settled ?? span.queued) - span.queued),
+              0,
+            ),
+          0,
+        ),
+      ),
+      slowestMs: Math.round(
+        Math.max(
+          0,
+          ...traces.map((trace) => (trace.end ?? trace.start) - trace.start),
+        ),
+      ),
+      lateMs: Math.round(
+        Math.max(0, ...traces.map((trace) => trace.lateMs ?? 0)),
+      ),
+      errors:
+        (failed ? 1 : 0) +
+        traces.filter((trace) => (trace.status ?? 0) >= 400 || trace.aborted)
+          .length,
+    });
+  }
+  return results;
+}
