@@ -96,11 +96,24 @@ export async function openApplication(options: {
   const operations = new OperationRunner(
     () => database.close(),
     operationTimeoutMs,
+    'operations',
   );
-  const discovery = new OperationRunner(() => {}, operationTimeoutMs);
-  const browsing = new OperationRunner(() => {}, operationTimeoutMs);
-  const summaries = new OperationRunner(() => {}, operationTimeoutMs);
-  const drafting = new OperationRunner(() => {}, 120_000);
+  const discovery = new OperationRunner(
+    () => {},
+    operationTimeoutMs,
+    'discovery',
+  );
+  const browsing = new OperationRunner(
+    () => {},
+    operationTimeoutMs,
+    'browsing',
+  );
+  const summaries = new OperationRunner(
+    () => {},
+    operationTimeoutMs,
+    'summaries',
+  );
+  const drafting = new OperationRunner(() => {}, 120_000, 'drafting');
   try {
     const layers = new ReviewLayerRepository(database.db);
     const replaceLayers = new ReplaceReviewLayers(layers);
