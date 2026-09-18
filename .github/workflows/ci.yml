@@ -24,13 +24,21 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .node-version
-      - run: npx --yes pnpm@12.3.4 install --frozen-lockfile
-      - run: npx --yes pnpm@12.3.4 format:check
-      - run: npx --yes pnpm@12.3.4 lint
-      - run: npx --yes pnpm@12.3.4 check:react
-      - run: npx --yes pnpm@12.3.4 typecheck
-      - run: npx --yes pnpm@12.3.4 check:boundaries
-      - run: npx --yes pnpm@12.3.4 check:unused
+      - id: dependencies
+        run: npx --yes pnpm@12.3.4 install --frozen-lockfile
+      # Independent checks still report after a failure; none is made optional.
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx --yes pnpm@12.3.4 format:check
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx --yes pnpm@12.3.4 lint
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx --yes pnpm@12.3.4 check:react
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx --yes pnpm@12.3.4 typecheck
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx --yes pnpm@12.3.4 check:boundaries
+      - if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: npx --yes pnpm@12.3.4 check:unused
   specs:
     name: Specs and coverage (${{ matrix.os }})
     strategy:
