@@ -59,11 +59,7 @@ export function GuideStepHeader({
             </Button>
           ))}
           {hasRelatedSource && (
-            <Button
-              size="xs"
-              variant="outline"
-              onClick={() => onRelated(null)}
-            >
+            <Button size="xs" variant="outline" onClick={() => onRelated(null)}>
               Back to {step.title}
             </Button>
           )}
