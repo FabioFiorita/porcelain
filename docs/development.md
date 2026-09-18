@@ -12,6 +12,11 @@ repositories and SQLite state under ignored `.playgrounds/`, and connects the br
 Ctrl+C stops the owned processes and removes that run. Restarting creates fresh sample data.
 The [sample guide](../playgrounds/README.md) explains the review scenarios.
 
+`pnpm dev` uses the realistic `app` profile. Pass `--profile=monorepo` to check behavior at
+large-monorepo scale, or `--profile=fixture` for the small sample that tests use
+([profiles](../playgrounds/README.md#profiles)). Without the flag, `--preview` and runs that set
+`PORCELAIN_PLAYGROUND_DIRECTORY` (as the browser smoke does) use `fixture`.
+
 `pnpm dev --manual` exercises token entry. `pnpm dev:web` starts only Vite; set
 `PORCELAIN_API_TARGET` to a separately running API address to proxy `/api` requests.
 Mocks are test fixtures, not a separate way to run the application.

@@ -38,6 +38,29 @@ All generated repositories, worktrees, databases and credentials live in the ign
 `.playgrounds/` directory. Do not register work repositories in this environment.
 Automated tests generate independent runs in the OS temporary directory.
 
+## Profiles
+
+Performance problems hide in small repositories, so `pnpm dev` opens the `app` profile:
+the Fieldnotes story committed on top of generated history shaped like a mid-size
+application (about 1,000 files, 2,000 commits with merges, six remote branches, an
+agent worktree, 150 extra review changes and 60,000 ignored dependency files per
+worktree). `pnpm dev --profile=monorepo` grows to 20,000 files, 50,000 commits,
+200 remote branches and agent worktrees with 0, 50 and 400 changes, each with
+400,000 ignored files. `--profile=fixture` is the story alone; preview, browser
+smoke and tests use it. Numbers live in `apps/server/src/development/profiles.ts`.
+Generated code stays under `apps/`, `packages/`, `services/` and `tools/`, so every
+story path, commit and review record above still applies.
+
+The first run of a profile generates its base into `.playgrounds/.cache`
+(about 5 seconds for `app`, under a minute for `monorepo`); later runs clone it with
+hard links in seconds. Changed history or file numbers regenerate the base, while
+change counts apply per run. When generated content changes, the generator spec's
+digest fails until `generatorVersion` in `helpers/synthetic-base.ts` is bumped with it;
+bases of other versions are then removed. A monorepo run needs about 2.5 GB and
+2.3 million inodes (its cached base 0.5 GB), so keep it off small temporary file
+systems. Runs record their owner process, and the next start removes runs whose
+owner was killed. Delete `.playgrounds/.cache` to reclaim space.
+
 ## Running
 
 The Codex **Run Porcelain** action runs `pnpm dev`. Stop the current run before starting another;

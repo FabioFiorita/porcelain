@@ -1,20 +1,44 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, rename } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { NodeFileWriter } from '../filesystem/file-writer.ts';
 import { startLocalServer } from '../lifecycle/start-local-server.ts';
-import { createPlayground } from './create-playground.ts';
+import { createPlayground, removePlayground } from './create-playground.ts';
 import { seedPlaygroundReview } from './helpers/seed-playground-review.ts';
+import { hasSyntheticBase } from './helpers/synthetic-base.ts';
+import { isPlaygroundProfileName, playgroundProfiles } from './profiles.ts';
 
+const profile = process.env.PORCELAIN_PLAYGROUND_PROFILE || 'fixture';
+if (!isPlaygroundProfileName(profile)) {
+  process.stderr.write(
+    `Unknown playground profile "${profile}". Choose one of: ${Object.keys(playgroundProfiles).join(', ')}.\n`,
+  );
+  process.exit(1);
+}
 const shutdown = new AbortController();
 const stop = () => shutdown.abort();
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 try {
-  const fixture = await createPlayground(
-    process.env.PORCELAIN_PLAYGROUND_DIRECTORY,
-  );
+  const parent = process.env.PORCELAIN_PLAYGROUND_DIRECTORY || tmpdir();
+  const started = performance.now();
+  const { synthetic } = playgroundProfiles[profile];
+  if (synthetic)
+    process.stderr.write(
+      (await hasSyntheticBase(join(parent, '.cache'), profile, synthetic))
+        ? `Preparing the ${profile} playground from its cached base...\n`
+        : `Generating the ${profile} playground base; later runs reuse it...\n`,
+    );
+  const fixture = await createPlayground(parent, {
+    profile,
+    signal: shutdown.signal,
+  });
+  if (synthetic)
+    process.stderr.write(
+      `Playground ready in ${((performance.now() - started) / 1000).toFixed(1)} s.\n`,
+    );
   try {
     // This dedicated development process starts with an isolated Git environment.
     for (const key of Object.keys(process.env))
@@ -71,7 +95,7 @@ try {
         throw new Error('Could not register playground repository');
       const project = projectResponseSchema.parse(await response.json());
       const worktreeId = project.worktrees.find(
-        (worktree) => !worktree.main,
+        (worktree) => worktree.branch === 'refs/heads/review',
       )?.id;
       if (!worktreeId)
         throw new Error('Playground review worktree was not registered');
@@ -92,6 +116,8 @@ try {
           reviewCommitOid: fixture.reviewCommitOid,
           projectPath: fixture.project,
           worktreePath: fixture.worktree,
+          profile: fixture.profile,
+          worktrees: fixture.worktrees,
           cleanup:
             'Ctrl+C stops the server and removes this disposable playground.',
         })}\n`,
@@ -106,12 +132,12 @@ try {
       await server.close();
     }
   } finally {
-    await rm(fixture.root, { recursive: true, force: true });
+    await removePlayground(fixture.root);
   }
-} catch {
+} catch (error) {
   if (!shutdown.signal.aborted) {
     process.stderr.write(
-      'Playground startup failed. Check that Git is installed.\n',
+      `Playground startup failed. Check that Git is installed.\n${error instanceof Error ? `${error.message.slice(0, 2_000)}\n` : ''}`,
     );
     process.exitCode = 1;
   }

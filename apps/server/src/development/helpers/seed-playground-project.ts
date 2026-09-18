@@ -1,23 +1,44 @@
-import { cp, writeFile } from 'node:fs/promises';
+import { cp, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { seedPlaygroundChanges } from './seed-playground-changes.ts';
 
+/**
+ * Commits the Fieldnotes story. With `base`, the story continues a cached
+ * synthetic history: the remote and project start as clones of it (objects are
+ * hard-linked), and the story's ignore rules extend the workspace ones.
+ */
 export async function seedPlaygroundProject(
   project: string,
   worktree: string,
   remote: string,
   git: (...args: string[]) => Promise<unknown>,
+  base?: string,
 ) {
   const run = (...args: string[]) => git('-C', project, ...args);
-  await git('init', '--bare', remote);
-  await git('init', '-b', 'main', project);
+  // Large checkouts use every core; the setting is not persisted.
+  const checkout = base ? ['-c', 'checkout.workers=0'] : [];
+  if (base) {
+    await git('clone', '--quiet', '--bare', base, remote);
+    await git(...checkout, 'clone', '--quiet', remote, project);
+  } else {
+    await git('init', '--bare', remote);
+    await git('init', '-b', 'main', project);
+  }
   await run('config', 'user.name', 'Playground');
   await run('config', 'user.email', 'playground@example.invalid');
+  const ignored = base
+    ? await readFile(join(project, '.gitignore'), 'utf8')
+    : '';
   await cp(
     new URL('../../../../../playgrounds/review-project/', import.meta.url),
     project,
     { recursive: true },
   );
+  if (ignored)
+    await writeFile(
+      join(project, '.gitignore'),
+      `${ignored}${await readFile(join(project, '.gitignore'), 'utf8')}`,
+    );
   await run('add', '.gitignore', 'README.md', 'docs');
   await run('commit', '-m', 'Plan Fieldnotes launch workspace');
   await run('add', 'data', 'src/task-store.mjs', 'tests');
@@ -26,9 +47,9 @@ export async function seedPlaygroundProject(
   await run('commit', '-m', 'Serve task data through a local JSON endpoint');
   await run('add', 'app.html', 'src');
   await run('commit', '-m', 'Build responsive launch board');
-  await run('remote', 'add', 'origin', remote);
+  if (!base) await run('remote', 'add', 'origin', remote);
   await run('push', '-u', 'origin', 'main');
-  await run('worktree', 'add', '-b', 'review', worktree);
+  await run(...checkout, 'worktree', 'add', '-b', 'review', worktree);
   const review = (...args: string[]) => git('-C', worktree, ...args);
   await review('push', '-u', 'origin', 'review');
   await writeFile(

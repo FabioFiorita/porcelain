@@ -1,10 +1,90 @@
 import { once } from 'node:events';
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { access, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { expect, test, vi } from 'vitest';
-import { runWebPlayground, runWebPlaygroundCli } from './web-playground.ts';
+import type { PlaygroundProfileName } from '../apps/server/src/development/profiles.ts';
+import {
+  playgroundProfile,
+  runWebPlayground,
+  runWebPlaygroundCli,
+} from './web-playground.ts';
+
+test('pnpm dev opens the app profile while preview and redirected smoke runs keep the fixture', () => {
+  expect(playgroundProfile(['node', 'web-playground.ts'], {})).toBe('app');
+  expect(playgroundProfile(['--preview'], {})).toBe('fixture');
+  expect(
+    playgroundProfile(['--port=4175'], {
+      PORCELAIN_PLAYGROUND_DIRECTORY: '/tmp',
+    }),
+  ).toBe('fixture');
+  expect(
+    playgroundProfile(['--profile=monorepo', '--preview'], {
+      PORCELAIN_PLAYGROUND_DIRECTORY: '/tmp',
+    }),
+  ).toBe('monorepo');
+  // The shell environment never overrides the choice; only the flag does.
+  expect(
+    playgroundProfile([], { PORCELAIN_PLAYGROUND_PROFILE: 'monorepo' }),
+  ).toBe('app');
+  expect(
+    playgroundProfile(['--preview'], {
+      PORCELAIN_PLAYGROUND_PROFILE: 'monorepo',
+    }),
+  ).toBe('fixture');
+  expect(() => playgroundProfile(['--profile=huge'], {})).toThrow(
+    'Unknown playground profile "huge". Choose one of: fixture, app, monorepo.',
+  );
+});
+
+test('forwards the profile to the playground server and creates nothing for an unknown one', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'porcelain-web-profile-'));
+  try {
+    await expect(
+      runWebPlayground({
+        preview: false,
+        port: 0,
+        directory: parent,
+        signal: new AbortController().signal,
+        profile: 'huge' as PlaygroundProfileName,
+      }),
+    ).rejects.toThrow('Playground server exited before startup');
+    expect(await readdir(parent)).toEqual([]);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test('cancelling while a profile is generated stops the server and removes its run and partial base', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'porcelain-web-cancel-'));
+  try {
+    const controller = new AbortController();
+    const running = runWebPlayground({
+      preview: false,
+      port: 0,
+      directory: parent,
+      signal: controller.signal,
+      profile: 'app',
+    });
+    // Abort once the base build has started, long before the server is ready.
+    await vi.waitFor(
+      async () =>
+        expect(
+          (await readdir(join(parent, '.cache'))).some((name) =>
+            name.includes('.tmp-'),
+          ),
+        ).toBe(true),
+      { timeout: 10_000 },
+    );
+    controller.abort();
+    await expect(running).rejects.toThrow('Startup cancelled');
+    expect(await readdir(parent)).toEqual(['.cache']);
+    expect(await readdir(join(parent, '.cache'))).toEqual([]);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
 
 test('serves a template inventory through Vite and cleans owned state on cancellation', async () => {
   const parent = await mkdtemp(join(tmpdir(), 'porcelain-web-lifecycle-'));

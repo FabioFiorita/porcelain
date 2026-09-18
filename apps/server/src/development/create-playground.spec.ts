@@ -65,6 +65,11 @@ describe('Disposable playground', () => {
     );
     expect(checks.stdout).toContain('# fail 0');
     expect(await readFile(fixture.tokenFile, 'utf8')).toBe(fixture.token);
+    expect(fixture.profile).toBe('fixture');
+    expect(fixture.worktrees).toEqual([
+      { path: fixture.project, branch: 'main', role: 'main' },
+      { path: fixture.worktree, branch: 'review', role: 'review' },
+    ]);
   });
   it('runs the sample application with real task data and browser assets', async () => {
     const fixture = await createPlayground();

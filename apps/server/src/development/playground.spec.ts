@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
-import { access, readFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { once } from 'node:events';
+import { access, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import {
   commentThreadsSchema,
   createCommentThreadSchema,
@@ -53,7 +55,16 @@ describe('Playground workflow', () => {
         worktreeId: string;
         projectId: string;
         reviewCommitOid: string;
+        profile: string;
+        worktrees: { path: string; branch: string; role: string }[];
       };
+      expect(info.profile).toBe('fixture');
+      expect(
+        info.worktrees.map(({ branch, role }) => ({ branch, role })),
+      ).toEqual([
+        { branch: 'main', role: 'main' },
+        { branch: 'review', role: 'review' },
+      ]);
       const address = info.address;
       const token = await readFile(info.tokenFile, 'utf8');
       expect(output.stdout).not.toContain(token);
@@ -188,4 +199,104 @@ describe('Playground workflow', () => {
     },
     20000,
   );
+  it('rejects an unknown profile before creating anything', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'porcelain-profile-'));
+    onTestFinished(() => rm(parent, { recursive: true, force: true }));
+    const child = spawn(
+      process.execPath,
+      [new URL('./playground.ts', import.meta.url).pathname],
+      {
+        env: {
+          PATH: process.env.PATH,
+          PORCELAIN_PLAYGROUND_PROFILE: 'huge',
+          PORCELAIN_PLAYGROUND_DIRECTORY: parent,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    let stderr = '';
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    const [code] = await once(child, 'close');
+    expect(code).toBe(1);
+    expect(stderr).toContain('Unknown playground profile "huge"');
+    expect(await readdir(parent)).toEqual([]);
+  });
+  it('seeds the review worktree, not an agent worktree, in a generated profile', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'porcelain-profile-'));
+    onTestFinished(() => rm(parent, { recursive: true, force: true }));
+    const child = spawn(
+      process.execPath,
+      [new URL('./playground.ts', import.meta.url).pathname],
+      {
+        env: {
+          PATH: process.env.PATH,
+          PORCELAIN_PLAYGROUND_PROFILE: 'app',
+          PORCELAIN_PLAYGROUND_DIRECTORY: parent,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    const exited = once(child, 'close');
+    onTestFinished(async () => {
+      if (child.exitCode === null && child.signalCode === null)
+        child.kill('SIGTERM');
+      await exited;
+    });
+    await vi.waitFor(() => expect(stdout, stderr).toContain('\n'), {
+      timeout: 30_000,
+    });
+    expect(stderr).toContain('Generating the app playground base');
+    const info = JSON.parse(stdout.trim()) as {
+      address: string;
+      tokenFile: string;
+      worktreeId: string;
+      profile: string;
+      worktrees: { branch: string; role: string }[];
+    };
+    expect(info.profile).toBe('app');
+    expect(info.worktrees.map(({ role }) => role)).toEqual([
+      'main',
+      'review',
+      'agent',
+    ]);
+    const headers = {
+      authorization: `Bearer ${await readFile(info.tokenFile, 'utf8')}`,
+    };
+    const inventory = inventoryResponseSchema.parse(
+      await (await fetch(`${info.address}/inventory`, { headers })).json(),
+    );
+    const worktrees = inventory.projects[0]?.worktrees ?? [];
+    expect(worktrees).toHaveLength(3);
+    expect(
+      worktrees.find((worktree) => worktree.id === info.worktreeId)?.branch,
+    ).toBe('refs/heads/review');
+    expect(
+      await (
+        await fetch(
+          `${info.address}/worktrees/${info.worktreeId}/review-layers`,
+          {
+            headers,
+          },
+        )
+      ).json(),
+    ).toMatchObject({
+      layers: [{ title: 'Prepare release documentation' }, {}],
+    });
+    child.kill('SIGTERM');
+    expect((await exited)[0]).toBe(0);
+    await expect(access(dirname(info.tokenFile))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    expect(await readdir(parent)).toEqual(['.cache']);
+  }, 40_000);
 });
