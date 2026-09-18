@@ -34,10 +34,14 @@ vi.mock('./code-document', () => ({
     const { reveal } = useDocumentInteraction();
     return (
       <div>
-        <pre aria-label="Source content">
-          {entries[0]?.kind === 'file' ? entries[0].contents : 'diff'}
-        </pre>
-        <pre aria-label="Source anchor">{JSON.stringify(reveal?.anchor)}</pre>
+        <section aria-label="Source content">
+          <pre>
+            {entries[0]?.kind === 'file' ? entries[0].contents : 'diff'}
+          </pre>
+        </section>
+        <section aria-label="Source anchor">
+          <pre>{JSON.stringify(reveal?.anchor)}</pre>
+        </section>
         <p>
           {entries.some((entry) => entry.review)
             ? 'Reviewable'
@@ -102,10 +106,10 @@ describe('guided layer navigation', () => {
     const screen = await render(<GuidedLayerDocument {...props} />);
     await expect
       .element(screen.getByLabelText('Source content'))
-      .toHaveTextContent(/const owner = existingState/);
+      .toMatchTextContent(/const owner = existingState/);
     await expect
       .element(screen.getByLabelText('Source anchor'))
-      .toHaveTextContent(/"startLine":2,"endLine":3/);
+      .toMatchTextContent(/"startLine":2,"endLine":3/);
     await expect.element(screen.getByText('Context only')).toBeVisible();
     await screen.getByRole('button', { name: 'Open full file' }).click();
     expect(props.onOpen).toHaveBeenCalledWith({
@@ -119,7 +123,7 @@ describe('guided layer navigation', () => {
     await screen.getByRole('button', { name: 'State owner' }).click();
     await expect
       .element(screen.getByLabelText('Source content'))
-      .toHaveTextContent(/state.ts/);
+      .toMatchTextContent(/state.ts/);
     await screen.getByRole('button', { name: 'Current diff' }).click();
     await expect
       .element(screen.getByText(/No current diff for this source/))
@@ -127,7 +131,7 @@ describe('guided layer navigation', () => {
     await screen.getByRole('button', { name: 'Back to Enter' }).click();
     await expect
       .element(screen.getByLabelText('Source content'))
-      .toHaveTextContent(/route.ts/);
+      .toMatchTextContent(/route.ts/);
     await expect
       .element(
         screen.getByRole('heading', { name: 'What owns the transition?' }),
@@ -158,7 +162,7 @@ describe('guided layer navigation', () => {
     const screen = await render(<GuidedLayerDocument {...props} />);
     await expect
       .element(screen.getByRole('alert'))
-      .toHaveTextContent(/Source changed since this guide was published/);
+      .toMatchTextContent(/Source changed since this guide was published/);
     await expect
       .element(screen.getByLabelText('Source content'))
       .not.toBeInTheDocument();
