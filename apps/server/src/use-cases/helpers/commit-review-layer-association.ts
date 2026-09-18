@@ -23,7 +23,10 @@ export function selectLayers(
     throw new InvalidCommitReviewLayersError();
   const result = layers
     .map((layer) => ({
-      ...layer,
+      id: layer.id,
+      title: layer.title,
+      ...(layer.summary === undefined ? {} : { summary: layer.summary }),
+      // A live-source guide is not evidence of the selected committed content.
       files: layer.files.filter((file) => selected.has(referenceKey(file))),
     }))
     .filter((layer) => layer.files.length > 0);

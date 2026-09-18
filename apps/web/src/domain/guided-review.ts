@@ -1,20 +1,11 @@
 import type { Layers, ReviewScope, TextFile } from './review';
 
 export type ReviewGuide = NonNullable<Layers['layers'][number]['guide']>;
-export type GuideStep = ReviewGuide['steps'][number];
-export type GuideSource = GuideStep['source'];
+export type GuideSource = ReviewGuide['steps'][number]['source'];
 export type GuideSourceRead =
   | { kind: 'loading' }
   | { kind: 'unavailable'; message: string }
   | { kind: 'ready'; file: TextFile };
-
-/** Cross-references are context, not extra changed-file assignments. */
-export function guideSources(guide: ReviewGuide): GuideSource[] {
-  return guide.steps.flatMap((step) => [
-    step.source,
-    ...(step.related?.map((related) => related.source) ?? []),
-  ]);
-}
 
 export function guideSourceStatus(source: GuideSource, file: TextFile) {
   if (file.path !== source.path) return 'unavailable';

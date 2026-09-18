@@ -1,55 +1,52 @@
 # Guided review layers
 
 A layer can optionally carry a `guide`: a short purpose and an ordered path through
-actual source. The web layer document opens that guide first; **All layer files**
-retains the existing complete diff view and review controls. Layers without guides
-keep their existing behavior. Guides do not change file assignments or review marks.
+actual source. The layer opens the guide first. **All layer files** retains the
+complete assigned diffs and explicit reviewed controls. Layers without a guide
+continue to open their files. File counts and unassigned changes remain independent
+of guide references.
 
-## Source, not copied snippets
+## First slice and trust boundary
 
-Each step has a stable UUID, title, review question and source reference. References
-contain a repository-relative path, inclusive one-based line range, and the
-`contentFingerprint` returned by `read_file`. Related references can include tests,
-callers and unchanged files without assigning those files to another layer.
+References identify current-worktree UTF-8 source with a repository-relative path,
+one-based inclusive line range and the `contentFingerprint` returned by `read_file`.
+This is not a `review_evidence` fingerprint, an index snapshot, or a commit snapshot.
+The client reads only the selected source, including unchanged files and related
+sources assigned to other layers. It polls that source while the document is active.
+It does not claim that unvisited references are current.
 
-This first slice intentionally supports **current working-tree source only**. It
-loads real text through the existing bounded, authenticated file API, checks the
-fingerprint, and focuses the referenced range in the existing Pierre reader. The
-whole file remains readable and inline discussion uses the existing file anchors.
-It never reconstructs full source from a patch or labels current text as staged or
-committed content. Before/after source hydration and changed-line highlighting in
-context are follow-on work; **Current diff** keeps the existing scoped comparisons.
+A matching fingerprint and valid range open actual complete source through Pierre
+and scroll to the referenced lines. Full-document content preserves syntax context,
+absolute line numbers and existing current-file comment anchors. A missing file,
+failed refresh, absent fingerprint, changed content or invalid range displays an
+explicit explanation instead of silently pointing at different code. **Open full
+file** remains an escape hatch. **Current diff** shows the live comparisons for that
+path, including staged and unstaged changes, and does not claim to be the guide's
+published snapshot.
 
-A changed fingerprint, absent fingerprint, missing file, invalid range, or failed
-refresh is explicit. A stale range is not applied to different code. The reviewer
-can still open the current file or inspect the raw changes. Multi-file reads are
-best-effort observations, not an atomic repository snapshot.
+This slice does not reconstruct immutable before/after content or overlay changed
+lines on the source view. Those require versioned source reads, not a larger patch
+container. Deleted or binary sources remain inspectable in the existing diff/file
+surfaces when supported; the guide does not invent a text preview.
 
-## Reading position is not approval
+Verification notes are agent-provided instructions or claims, not passing-check
+attestations. Reading a guide never marks a file reviewed. Source comments reuse the
+existing thread model. Only the last selected step ID is saved locally, scoped to
+environment, project, worktree and layer. Missing steps fall back to the first;
+reordering retains stable IDs. Related-source detours preserve that selected step.
+Browser storage failure must not prevent review.
 
-The browser remembers only the selected step UUID, scoped by environment, project,
-worktree and layer. Reordering retains that step; removing it selects the first
-remaining step. Related-source detours do not change the main reading position.
-Storage failure must not prevent review. This bookmark is local to the browser and
-is not a synchronized checkpoint or a mark that any file has been reviewed.
+## Metadata and compatibility
 
-Verification notes are agent-authored prose, explicitly not an attestation from
-Porcelain. There is no new test runner, agent runtime, approval score or discussion
-system. Human file-review controls remain in the complete diff view.
+The optional guide is validated and replaced atomically with the existing layer
+revision. SQLite's JSON storage needs no migration. Bounds include 24 steps per
+guide, 4 related sources per step and 1000 references across a layer set. A guide
+reference is context, not an additional changed-file assignment.
 
-## Publication and limits
+Commit association deliberately copies titles, summaries and selected files without
+the live-source guide. Path membership alone cannot establish guide/content
+identity after a split commit, amend or rebase. Historical guided navigation,
+immutable source snapshots, rich-report links, a behavior-oriented sidebar and
+cross-device resume remain follow-on work.
 
-The existing revision-checked `replace_layers` operation publishes guides with the
-rest of the layer set. SQLite retains the nested metadata without a migration. The
-wire contract bounds titles, prose, paths, ranges, 24 steps per guide, 4 related
-references per step and 1000 source references across a layer set. Source references
-are not changed-file assignments and do not claim to exhaust Git changes.
-
-Authors should organize steps around behavior and decisions, not repeat filenames
-or session chronology. Read source before publishing a reference. Preserve existing
-layers and revision-conflict handling. See [agent handoff](../agent-review.md).
-
-History navigation, immutable guide snapshots, rich-report links, a collapsed
-behavior-oriented sidebar, and device-synchronized resume state remain deferred.
-Existing commit-association semantics are unchanged; a live-worktree guide must not
-be treated as evidence about a commit merely because paths match.
+For authoring and the existing MCP workflow, see [agent handoff](../agent-review.md).

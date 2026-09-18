@@ -1,64 +1,53 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import { RequestError } from '@porcelain/client/errors/request-error';
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   type GuideSourceRead,
   guidePositionKey,
-  guideSources,
-  type ReviewGuide,
 } from '../domain/guided-review';
 import type { ReviewScope } from '../domain/review';
 import { queryKeys } from './keys';
 import { useConnectedContext } from './workspace-provider';
 
-export function useGuideSources(
+export function useGuidePositionKey(scope: ReviewScope, layerId: string) {
+  const { connection } = useConnectedContext();
+  return guidePositionKey(connection.environmentId, scope, layerId);
+}
+
+/** Only the selected source is read and polled, including unchanged context. */
+export function useGuideSource(
   scope: ReviewScope,
-  layerId: string,
-  guide: ReviewGuide,
+  path: string | undefined,
   active: boolean,
-) {
+): GuideSourceRead {
   const { api, connection } = useConnectedContext();
-  const paths = [...new Set(guideSources(guide).map((source) => source.path))];
-  const reads = useQueries({
-    queries: paths.map((path) => ({
-      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-        'guide-source',
-        path,
-      ]),
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const request = connection.request(signal);
-        const file = await api.review.text({ ...scope, ...request, path });
-        request.signal.throwIfAborted();
-        if (file.worktreeId !== scope.worktreeId || file.path !== path)
-          throw new ConnectionError(
-            'The source context changed. Reopen this worktree to continue.',
-          );
-        return file;
-      },
-      refetchInterval: active ? 3000 : false,
-      retry: false,
-      throwOnError: false,
-    })),
+  const read = useQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'guide-source',
+      path,
+    ]),
+    enabled: path !== undefined,
+    queryFn: async ({ signal }) => {
+      if (path === undefined)
+        throw new ConnectionError('Choose a source to inspect.');
+      const request = connection.request(signal);
+      const file = await api.review.text({ ...scope, ...request, path });
+      request.signal.throwIfAborted();
+      if (file.worktreeId !== scope.worktreeId || file.path !== path)
+        throw new ConnectionError(
+          'The source context changed. Reopen this worktree to continue.',
+        );
+      return file;
+    },
+    refetchInterval: active ? 3000 : false,
+    retry: false,
+    throwOnError: false,
   });
-  const sources = new Map<string, GuideSourceRead>();
-  for (const [index, path] of paths.entries()) {
-    const read = reads[index];
-    // A failed refresh must not present its cached content as current evidence.
-    if (read?.error) {
-      sources.set(path, {
-        kind: 'unavailable',
-        message: sourceErrorMessage(read.error),
-      });
-    } else if (read?.data) {
-      sources.set(path, { kind: 'ready', file: read.data });
-    } else {
-      sources.set(path, { kind: 'loading' });
-    }
-  }
-  return {
-    sources,
-    positionKey: guidePositionKey(connection.environmentId, scope, layerId),
-  };
+  // A failed refresh must not present cached content as current evidence.
+  if (read.error)
+    return { kind: 'unavailable', message: sourceErrorMessage(read.error) };
+  if (read.data) return { kind: 'ready', file: read.data };
+  return { kind: 'loading' };
 }
 
 function sourceErrorMessage(error: unknown) {
