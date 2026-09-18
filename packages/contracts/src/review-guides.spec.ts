@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   replaceReviewLayersSchema,
   reviewLayersResponseSchema,
-} from './review-layers';
+} from './review-layers.ts';
 
 const source = {
   path: 'src/navigation.ts',

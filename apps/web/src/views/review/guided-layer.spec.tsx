@@ -38,7 +38,11 @@ vi.mock('./code-document', () => ({
           {entries[0]?.kind === 'file' ? entries[0].contents : 'diff'}
         </pre>
         <pre aria-label="Source anchor">{JSON.stringify(reveal?.anchor)}</pre>
-        <p>{entries.some((entry) => entry.review) ? 'Reviewable' : 'Context only'}</p>
+        <p>
+          {entries.some((entry) => entry.review)
+            ? 'Reviewable'
+            : 'Context only'}
+        </p>
       </div>
     );
   },
@@ -62,7 +66,9 @@ const guide: ReviewGuide = {
       title: 'Enter',
       question: 'What owns the transition?',
       source,
-      related: [{ title: 'State owner', source: { ...source, path: 'state.ts' } }],
+      related: [
+        { title: 'State owner', source: { ...source, path: 'state.ts' } },
+      ],
       verification: 'Advance twice, cancel a back swipe, then complete it.',
     },
     {
@@ -94,30 +100,39 @@ afterEach(() => {
 describe('guided layer navigation', () => {
   it('renders real surrounding source and anchors without review credit', async () => {
     const screen = await render(<GuidedLayerDocument {...props} />);
-    await expect.element(screen.getByLabelText('Source content')).toMatchTextContent(
-      /const owner = existingState/,
-    );
-    await expect.element(screen.getByLabelText('Source anchor')).toMatchTextContent(
-      /"startLine":2,"endLine":3/,
-    );
+    await expect
+      .element(screen.getByLabelText('Source content'))
+      .toHaveTextContent(/const owner = existingState/);
+    await expect
+      .element(screen.getByLabelText('Source anchor'))
+      .toHaveTextContent(/"startLine":2,"endLine":3/);
     await expect.element(screen.getByText('Context only')).toBeVisible();
     await screen.getByRole('button', { name: 'Open full file' }).click();
-    expect(props.onOpen).toHaveBeenCalledWith({ kind: 'file', path: 'route.ts' });
+    expect(props.onOpen).toHaveBeenCalledWith({
+      kind: 'file',
+      path: 'route.ts',
+    });
   });
 
   it('opens related unchanged context and returns to the same question', async () => {
     const screen = await render(<GuidedLayerDocument {...props} />);
     await screen.getByRole('button', { name: 'State owner' }).click();
-    await expect.element(screen.getByLabelText('Source content')).toMatchTextContent(
-      /state.ts/,
-    );
+    await expect
+      .element(screen.getByLabelText('Source content'))
+      .toHaveTextContent(/state.ts/);
     await screen.getByRole('button', { name: 'Current diff' }).click();
-    await expect.element(screen.getByText(/No current diff for this source/)).toBeVisible();
+    await expect
+      .element(screen.getByText(/No current diff for this source/))
+      .toBeVisible();
     await screen.getByRole('button', { name: 'Back to Enter' }).click();
-    await expect.element(screen.getByLabelText('Source content')).toMatchTextContent(
-      /route.ts/,
-    );
-    await expect.element(screen.getByRole('heading', { name: 'What owns the transition?' })).toBeVisible();
+    await expect
+      .element(screen.getByLabelText('Source content'))
+      .toHaveTextContent(/route.ts/);
+    await expect
+      .element(
+        screen.getByRole('heading', { name: 'What owns the transition?' }),
+      )
+      .toBeVisible();
   });
 
   it('resumes the stable step after unmount and does not approve files', async () => {
@@ -125,26 +140,41 @@ describe('guided layer navigation', () => {
     await first.getByRole('button', { name: 'Next step' }).click();
     await first.unmount();
     const second = await render(<GuidedLayerDocument {...props} />);
-    await expect.element(second.getByRole('heading', { name: 'Can back reopen a completed question?' })).toBeVisible();
-    await expect.element(second.getByRole('button', { name: 'Next step' })).toBeDisabled();
+    await expect
+      .element(
+        second.getByRole('heading', {
+          name: 'Can back reopen a completed question?',
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(second.getByRole('button', { name: 'Next step' }))
+      .toBeDisabled();
     await expect.element(second.getByText('Context only')).toBeVisible();
   });
 
   it('does not render the old range after a source change', async () => {
     state.fingerprint = 'b'.repeat(64);
     const screen = await render(<GuidedLayerDocument {...props} />);
-    await expect.element(screen.getByRole('alert')).toMatchTextContent(
-      /Source changed since this guide was published/,
-    );
-    await expect.element(screen.getByLabelText('Source content')).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent(/Source changed since this guide was published/);
+    await expect
+      .element(screen.getByLabelText('Source content'))
+      .not.toBeInTheDocument();
     await screen.getByRole('button', { name: 'Open full file' }).click();
-    expect(props.onOpen).toHaveBeenCalledWith({ kind: 'file', path: 'route.ts' });
+    expect(props.onOpen).toHaveBeenCalledWith({
+      kind: 'file',
+      path: 'route.ts',
+    });
   });
 
   it('keeps the navigation and escape hatch available when source disappears', async () => {
     state.missing = true;
     const screen = await render(<GuidedLayerDocument {...props} />);
-    await expect.element(screen.getByRole('alert')).toHaveTextContent('Source is missing.');
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent('Source is missing.');
     await screen.getByRole('button', { name: 'All layer files' }).click();
     expect(props.onAllFiles).toHaveBeenCalledOnce();
   });
@@ -158,6 +188,12 @@ describe('guided layer navigation', () => {
     });
     const screen = await render(<GuidedLayerDocument {...props} />);
     await screen.getByRole('button', { name: 'Next step' }).click();
-    await expect.element(screen.getByRole('heading', { name: 'Can back reopen a completed question?' })).toBeVisible();
+    await expect
+      .element(
+        screen.getByRole('heading', {
+          name: 'Can back reopen a completed question?',
+        }),
+      )
+      .toBeVisible();
   });
 });

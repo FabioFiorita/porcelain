@@ -60,9 +60,13 @@ describe('guide source identity', () => {
 
   it('separates stale, unbound and mismatched source', () => {
     expect(
-      guideSourceStatus(source, { ...file, contentFingerprint: 'b'.repeat(64) }),
+      guideSourceStatus(source, {
+        ...file,
+        contentFingerprint: 'b'.repeat(64),
+      }),
     ).toBe('stale');
-    const { contentFingerprint: _fingerprint, ...unbound } = file;
+    const unbound = { ...file };
+    delete unbound.contentFingerprint;
     expect(guideSourceStatus(source, unbound)).toBe('unverified');
     expect(guideSourceStatus(source, { ...file, path: 'different.ts' })).toBe(
       'unavailable',
@@ -76,7 +80,9 @@ describe('guide reading position', () => {
     expect(selectedGuideStep(reversed, 'second')?.title).toBe('Leave');
     expect(selectedGuideStep(guide, 'removed')?.id).toBe('first');
     expect(selectedGuideStep(guide, null)?.id).toBe('first');
-    expect(selectedGuideStep({ ...guide, steps: [] }, 'second')).toBeUndefined();
+    expect(
+      selectedGuideStep({ ...guide, steps: [] }, 'second'),
+    ).toBeUndefined();
   });
 
   it('isolates environments, projects, worktrees and layers', () => {

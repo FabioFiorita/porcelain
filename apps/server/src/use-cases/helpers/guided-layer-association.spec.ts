@@ -28,9 +28,10 @@ it('does not promote a live-source guide into a partial commit snapshot', () => 
       ],
     },
   };
-  const result = selectLayers([layer], [
-    { path: 'route.ts', scope: 'unstaged' },
-  ]);
+  const result = selectLayers(
+    [layer],
+    [{ path: 'route.ts', scope: 'unstaged' }],
+  );
   expect(result).toEqual([
     {
       id: layer.id,

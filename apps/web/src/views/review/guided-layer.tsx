@@ -6,10 +6,7 @@ import {
   type ReviewGuide,
 } from '../../domain/guided-review';
 import { type Change, changePath, type ReviewScope } from '../../domain/review';
-import {
-  useGuidePositionKey,
-  useGuideSource,
-} from '../../query/guided-review';
+import { useGuidePositionKey, useGuideSource } from '../../query/guided-review';
 import { useDocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
 import { GuideSourcePanel } from './guide-source-panel';
@@ -62,8 +59,7 @@ function GuidedLayer({
     (change) => changePath(change) === source.path,
   );
   const current =
-    read.kind === 'ready' &&
-    guideSourceStatus(source, read.file) === 'current';
+    read.kind === 'ready' && guideSourceStatus(source, read.file) === 'current';
   const choose = (id: string) => {
     select(id);
     setDetail(null);
@@ -71,14 +67,19 @@ function GuidedLayer({
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col" aria-label="Guided review">
+    <section
+      className="flex min-h-0 flex-1 flex-col"
+      aria-label="Guided review"
+    >
       <DocumentToolbar title={title} subtitle="Behavior and source">
         <Button size="sm" variant="outline" onClick={onAllFiles}>
           All layer files
         </Button>
       </DocumentToolbar>
       <div className="max-h-[45%] shrink-0 overflow-auto border-b px-4 py-3">
-        <p className="text-[11px] text-muted-foreground">Agent-authored guide</p>
+        <p className="text-[11px] text-muted-foreground">
+          Agent-authored guide
+        </p>
         <p className="mt-1 max-w-[78ch] text-sm">{guide.purpose}</p>
         <nav aria-label="Review path" className="mt-3 overflow-x-auto">
           <ol className="flex w-max gap-1">
@@ -105,7 +106,9 @@ function GuidedLayer({
         )}
         {(step.related?.length ?? 0) > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1">
-            <span className="text-xs text-muted-foreground">Related source:</span>
+            <span className="text-xs text-muted-foreground">
+              Related source:
+            </span>
             {step.related?.map((item) => (
               <Button
                 key={JSON.stringify([item.title, item.source])}
@@ -191,8 +194,8 @@ function GuidedLayer({
         <ReviewCodeDocument scope={scope} changes={selectedChanges} />
       ) : (
         <p className="p-4 text-sm text-muted-foreground">
-          No current diff for this source. Unchanged files can still explain
-          the behavior.
+          No current diff for this source. Unchanged files can still explain the
+          behavior.
         </p>
       )}
       <footer className="mt-auto flex shrink-0 items-center justify-between gap-2 border-t px-3 py-2">

@@ -14,6 +14,7 @@ import { GuidedLayerDocument } from './guided-layer';
 import { MarkdownView } from './markdown-view';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
+import { ReviewProgress } from './review-progress';
 import { MarkAllReviewed } from './reviewed-control';
 
 type Layer = Layers['layers'][number];
@@ -75,8 +76,11 @@ function LayerFiles({
   onGuide: () => void;
 }) {
   const paths = [...new Set(layer.files.map((file) => file.path))];
-  const selected = changes.filter((change) => paths.includes(changePath(change)));
-  const evidence = useReviewEvidence(scope, selected);
+  const pathSet = new Set(paths);
+  const selected = changes.filter((change) => pathSet.has(changePath(change)));
+  const evidence = useReviewEvidence(scope, selected).filter((entry) =>
+    pathSet.has(entry.path),
+  );
   const progress = reviewProgress(paths, evidence);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -87,8 +91,9 @@ function LayerFiles({
         toolbar={(collapseControl) => (
           <DocumentToolbar
             title={title}
-            subtitle={`Layer · ${paths.length} files · ${progress.done}/${progress.total} reviewed`}
+            subtitle={`Layer · ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`}
           >
+            <ReviewProgress {...progress} />
             {layer.guide && (
               <Button size="sm" variant="outline" onClick={onGuide}>
                 Guided review
