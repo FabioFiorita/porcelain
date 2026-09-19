@@ -1,4 +1,4 @@
-import type { AreaTestSummary, SpecAudit } from './types';
+import type { AreaTestSummary, SpecAudit } from './types.ts';
 
 // Audit of server specs under apps/server/src/http, apps/server/src/use-cases and
 // the spec files directly in apps/server/src, as of the uncommitted evidence cache.

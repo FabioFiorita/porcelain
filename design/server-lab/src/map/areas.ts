@@ -1,4 +1,11 @@
-import type { Area, Flow, Layer, SourceRef, Step, WebTrigger } from './types';
+import type {
+  Area,
+  Flow,
+  Layer,
+  SourceRef,
+  Step,
+  WebTrigger,
+} from './types.ts';
 
 // Curated map of the Porcelain server, traced from the working tree on
 // 2026-09-18 (including the uncommitted evidence batching and cache).

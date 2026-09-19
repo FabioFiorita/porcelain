@@ -1,4 +1,4 @@
-import type { AreaTestSummary, SpecAudit } from './types';
+import type { AreaTestSummary, SpecAudit } from './types.ts';
 
 // Audit of the core server specs: packages/git, packages/contracts,
 // packages/client and apps/server/src/{agents,cli,db,development,filesystem,
