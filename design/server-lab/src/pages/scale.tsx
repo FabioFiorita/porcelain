@@ -514,14 +514,9 @@ function BenchMatrix({
     run.steps.find((item) => item.step === step);
   const format = (number: number) =>
     metric === 'wallMs' || metric === 'queueMs' ? ms(number) : count(number);
+  // Only Git process ceilings are recorded; time and queue wait are reported.
   const budgetOf = (step: string) =>
-    metric === 'processes'
-      ? budgets[step]?.processes
-      : metric === 'wallMs'
-        ? budgets[step]?.wallMs
-        : metric === 'sql'
-          ? budgets[step]?.sql
-          : undefined;
+    metric === 'processes' ? budgets[step]?.processes : undefined;
   return (
     <div className="overflow-auto rounded-xl border">
       <table className="w-full text-sm">
@@ -553,7 +548,10 @@ function BenchMatrix({
               <tr key={step.id} className="border-t align-top">
                 <td className="px-3 py-2">{step.title}</td>
                 <td className="px-3 py-2 text-right">
-                  {editing === step.id ? (
+                  {metric !== 'processes' ? (
+                    // Only Git process ceilings are recorded; the rest report.
+                    <span className="text-muted-foreground">—</span>
+                  ) : editing === step.id ? (
                     <form
                       className="flex justify-end gap-1"
                       onSubmit={(event) => {
@@ -561,8 +559,6 @@ function BenchMatrix({
                         const data = new FormData(event.currentTarget);
                         onBudget(step.id, {
                           processes: Number(data.get('processes')) || undefined,
-                          wallMs: Number(data.get('wallMs')) || undefined,
-                          sql: Number(data.get('sql')) || undefined,
                         });
                         setEditing(undefined);
                       }}
@@ -571,18 +567,6 @@ function BenchMatrix({
                         name="processes"
                         placeholder="git"
                         defaultValue={budgets[step.id]?.processes}
-                        className="h-6 w-14 text-xs"
-                      />
-                      <Input
-                        name="wallMs"
-                        placeholder="ms"
-                        defaultValue={budgets[step.id]?.wallMs}
-                        className="h-6 w-14 text-xs"
-                      />
-                      <Input
-                        name="sql"
-                        placeholder="sql"
-                        defaultValue={budgets[step.id]?.sql}
                         className="h-6 w-14 text-xs"
                       />
                       <Button size="xs" type="submit">

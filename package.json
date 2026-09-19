@@ -16,6 +16,7 @@
     "test:coverage": "vitest run --coverage",
     "verify": "pnpm format:check && pnpm lint && pnpm check:react && pnpm typecheck && pnpm check:boundaries && pnpm check:unused && pnpm test:coverage && pnpm test:web:smoke",
     "check:unused": "knip",
+    "bench:server": "node scripts/server-bench/run.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "test:web:smoke": "pnpm --filter @porcelain/web test:smoke",
     "check:react": "react-doctor --no-telemetry --no-supply-chain",

@@ -151,6 +151,8 @@ export type BenchStepResult = {
   slowestMs: number;
   lateMs: number;
   errors: number;
+  /** First failure of the step, when it threw or did not settle. */
+  error?: string;
 };
 
 export type BenchRun = {

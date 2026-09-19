@@ -27,7 +27,59 @@ export type BenchContext = {
     count: number,
   ) => Promise<string>;
   progress: (message: string) => void;
+  /**
+   * Waits for the step's traced work to finish. Both hosts pass
+   * {@link settleTraces}; a step that never settles must fail rather than be
+   * measured half-done.
+   */
+  settle: (step: string) => Promise<void>;
 };
+
+/** A trace is finished when its request, its Git processes and its queued work all are. */
+function finished(trace: Trace) {
+  return (
+    trace.end !== undefined &&
+    trace.processes.every((span) => span.end !== undefined) &&
+    trace.operations.every((span) => span.settled !== undefined)
+  );
+}
+
+/**
+ * Waits until the step's traces stop arriving and none is still running, so
+ * trailing work is measured instead of being cut off by a fixed delay.
+ *
+ * `revision` must change on every traced message, not only on a new request:
+ * the tracer re-sends a trace when late work lands on it, and both hosts store
+ * traces by id, so a replacement leaves the count unchanged.
+ */
+export async function settleTraces(
+  snapshot: () => Trace[],
+  revision: () => number,
+  timeoutMs = 30_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  let quiet = 0;
+  let seen = -1;
+  while (Date.now() < deadline) {
+    await new Promise((tick) => setTimeout(tick, 100));
+    const current = revision();
+    const running = snapshot().filter((trace) => !finished(trace));
+    quiet = running.length === 0 && current === seen ? quiet + 1 : 0;
+    seen = current;
+    if (quiet >= 3) return;
+  }
+  const running = snapshot().filter((trace) => !finished(trace));
+  throw new Error(
+    running.length === 0
+      ? `Traced work did not settle in ${timeoutMs}ms: traces kept arriving.`
+      : `Traced work did not settle in ${timeoutMs}ms: ${running.length} request(s) still running, ${running
+          .map(
+            (trace) =>
+              `${trace.method} ${trace.route ?? trace.url} (${trace.processes.filter((span) => span.end === undefined).length} process(es), ${trace.operations.filter((span) => span.settled === undefined).length} operation(s))`,
+          )
+          .join('; ')}`,
+  );
+}
 
 type Api = (
   method: string,
@@ -212,14 +264,15 @@ export async function runBench(
   const client =
     (step: string): Api =>
     async (method, path, body) => {
-      const response = await fetch(`${context.address}${path}`, {
+      const init: RequestInit = {
         method,
         headers: {
           ...headers(step),
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      };
+      const response = await fetch(`${context.address}${path}`, init);
       const text = await response.text();
       let data: unknown = text;
       try {
@@ -262,14 +315,20 @@ export async function runBench(
     context.progress(step.title);
     const started = performance.now();
     let failed = false;
+    let error: string | undefined;
     try {
       await step.run(client(step.id), scope, context);
-    } catch {
+    } catch (cause) {
       failed = true;
+      error = (cause as Error).message;
     }
     const wallMs = performance.now() - started;
-    // Let abandoned or trailing work land on its trace.
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    try {
+      await context.settle(step.id);
+    } catch (cause) {
+      failed = true;
+      error ??= (cause as Error).message;
+    }
     const traces = collect(context.run, step.id);
     results.push({
       step: step.id,
@@ -310,6 +369,7 @@ export async function runBench(
         (failed ? 1 : 0) +
         traces.filter((trace) => (trace.status ?? 0) >= 400 || trace.aborted)
           .length,
+      ...(error === undefined ? {} : { error }),
     });
   }
   return results;

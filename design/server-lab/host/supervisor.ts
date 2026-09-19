@@ -13,7 +13,7 @@ import {
 import { dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
-import { benchSteps, runBench } from './bench.ts';
+import { benchSteps, runBench, settleTraces } from './bench.ts';
 import type {
   BenchRun,
   Budget,
@@ -37,7 +37,8 @@ const labRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(labRoot, '../..');
 const stateDirectory = join(labRoot, '.lab');
 const tokenFile = join(stateDirectory, 'token');
-const budgetsFile = join(labRoot, 'budgets.json');
+// The repository owns the recorded ceilings; the lab reads and adjusts them.
+const budgetsFile = join(repoRoot, 'scripts/server-bench/budgets.json');
 const benchFile = join(stateDirectory, 'bench-history.json');
 const playgroundsDirectory = join(repoRoot, '.playgrounds');
 const port = Number(process.env.LAB_PORT ?? 5199);
@@ -56,7 +57,16 @@ const broadcast = (event: LabEvent) => {
 // ---------------------------------------------------------------- traces
 const traces = new Map<string, Trace>();
 let vitals: Vitals | undefined;
+const stepTraces = (id: string, step: string) =>
+  [...traces.values()].filter(
+    (trace) => trace.run === id && trace.step === step,
+  );
+
+// Changes on every stored trace, including one replaced by a later flush.
+let traceRevision = 0;
+
 const storeTrace = (trace: Trace) => {
+  traceRevision++;
   traces.delete(trace.id);
   traces.set(trace.id, trace);
   while (traces.size > MAX_TRACES) {
@@ -307,11 +317,13 @@ async function benchOnce(): Promise<BenchRun> {
           : {}),
         progress: (progress) =>
           broadcast({ type: 'bench', run, progress, done: false }),
+        settle: (step) =>
+          settleTraces(
+            () => stepTraces(run.id, step),
+            () => traceRevision,
+          ),
       },
-      (id, step) =>
-        [...traces.values()].filter(
-          (trace) => trace.run === id && trace.step === step,
-        ),
+      stepTraces,
     );
   } catch (error) {
     run.error = error instanceof Error ? error.message : String(error);
@@ -375,10 +387,28 @@ async function profiles() {
   };
 }
 
+type RecordedBudgets = {
+  profiles?: Record<string, Record<string, { ceiling?: number }>>;
+};
+
+/**
+ * The recorded ceilings are per profile, so serve the ones for whatever the
+ * runtime is on; a real project has none.
+ */
 async function readBudgets(): Promise<Record<string, Budget>> {
-  return readFile(budgetsFile, 'utf8')
-    .then((text) => JSON.parse(text) as Record<string, Budget>)
-    .catch(() => ({}));
+  const recorded = await readFile(budgetsFile, 'utf8')
+    .then((text) => JSON.parse(text) as RecordedBudgets)
+    .catch(() => ({}) as RecordedBudgets);
+  const mode =
+    runtime.state.status === 'stopped' ? undefined : runtime.state.mode;
+  const profile = mode?.kind === 'playground' ? mode.profile : undefined;
+  const steps = profile ? (recorded.profiles?.[profile] ?? {}) : {};
+  return Object.fromEntries(
+    Object.entries(steps).map(([step, budget]) => [
+      step,
+      { processes: budget.ceiling },
+    ]),
+  );
 }
 
 const sourceRoots = [
@@ -668,9 +698,28 @@ server.on('request', async (request, response) => {
       case 'GET /budgets':
         return json(response, 200, await readBudgets());
       case 'PUT /budgets': {
-        const budgets = await body(request);
-        await writeFile(budgetsFile, `${JSON.stringify(budgets, null, 2)}\n`);
-        return json(response, 200, budgets);
+        const edited = (await body(request)) as Record<string, Budget>;
+        const mode =
+          runtime.state.status === 'stopped' ? undefined : runtime.state.mode;
+        const profile = mode?.kind === 'playground' ? mode.profile : undefined;
+        if (!profile)
+          return json(response, 409, { error: 'No playground profile.' });
+        const recorded = await readFile(budgetsFile, 'utf8')
+          .then((text) => JSON.parse(text) as Record<string, unknown>)
+          .catch(() => ({}) as Record<string, unknown>);
+        const profiles = (recorded.profiles ?? {}) as Record<
+          string,
+          Record<string, { measured?: number; ceiling?: number }>
+        >;
+        const steps = profiles[profile] ?? {};
+        for (const [step, budget] of Object.entries(edited))
+          steps[step] = { ...steps[step], ceiling: budget.processes };
+        profiles[profile] = steps;
+        await writeFile(
+          budgetsFile,
+          `${JSON.stringify({ ...recorded, profiles }, null, 2)}\n`,
+        );
+        return json(response, 200, edited);
       }
       case 'GET /source': {
         const file = url.searchParams.get('path') ?? '';

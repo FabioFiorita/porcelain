@@ -1,0 +1,88 @@
+{
+  "recorded": {
+    "commit": "57feb60a",
+    "runs": 3,
+    "node": "v24.20.0",
+    "git": "git version 2.53.0",
+    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs",
+    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server."
+  },
+  "profiles": {
+    "app": {
+      "open": {
+        "measured": 47,
+        "ceiling": 58
+      },
+      "select": {
+        "measured": 205,
+        "ceiling": 248
+      },
+      "reselect": {
+        "measured": 26,
+        "ceiling": 33
+      },
+      "diffs": {
+        "measured": 180,
+        "ceiling": 218
+      },
+      "files": {
+        "measured": 98,
+        "ceiling": 119
+      },
+      "history": {
+        "measured": 97,
+        "ceiling": 118
+      },
+      "mark": {
+        "measured": 143,
+        "ceiling": 173
+      },
+      "sidebar-marked": {
+        "measured": 39,
+        "ceiling": 48
+      },
+      "agent-edit": {
+        "measured": 443,
+        "ceiling": 533
+      }
+    },
+    "monorepo": {
+      "open": {
+        "measured": 77,
+        "ceiling": 94
+      },
+      "select": {
+        "measured": 158,
+        "ceiling": 191
+      },
+      "reselect": {
+        "measured": 26,
+        "ceiling": 33
+      },
+      "diffs": {
+        "measured": 184,
+        "ceiling": 222
+      },
+      "files": {
+        "measured": 146,
+        "ceiling": 177
+      },
+      "history": {
+        "measured": 97,
+        "ceiling": 118
+      },
+      "mark": {
+        "measured": 143,
+        "ceiling": 173
+      },
+      "sidebar-marked": {
+        "measured": 65,
+        "ceiling": 80
+      },
+      "agent-edit": {
+        "measured": 375,
+        "ceiling": 452
+      }
+    }
+  }
+}

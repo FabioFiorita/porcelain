@@ -144,11 +144,15 @@ export async function simulate(
       .filter((file) =>
         /\.(ts|tsx|js|mjs|md|css|json|yaml|yml|sql)$/.test(file),
       );
+  // Spread the choice across the listing rather than taking a random sample,
+  // so the same repository always produces the same simulated edit.
   const pick = (files: string[], n: number) => {
-    const chosen = new Set<string>();
-    while (chosen.size < Math.min(n, files.length))
-      chosen.add(files[Math.floor(Math.random() * files.length)] as string);
-    return [...chosen];
+    const wanted = Math.min(n, files.length);
+    const stride = Math.max(1, Math.floor(files.length / Math.max(1, wanted)));
+    const chosen: string[] = [];
+    for (let index = 0; chosen.length < wanted; index += stride)
+      chosen.push(files[index % files.length] as string);
+    return chosen;
   };
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 
