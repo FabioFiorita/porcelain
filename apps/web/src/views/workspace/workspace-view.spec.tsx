@@ -65,6 +65,7 @@ vi.mock('@pierre/trees/react', async () => {
     } | null;
     resetPaths: (paths: readonly string[]) => void;
     setGitStatus: () => void;
+    setIcons: () => void;
     subscribe: () => () => void;
   };
   return {
@@ -86,6 +87,7 @@ vi.mock('@pierre/trees/react', async () => {
           this.paths = paths;
         },
         setGitStatus() {},
+        setIcons() {},
         subscribe: () => () => {},
       };
       model.current.paths = options.paths;

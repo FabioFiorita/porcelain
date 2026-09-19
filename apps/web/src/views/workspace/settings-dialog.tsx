@@ -103,7 +103,7 @@ export function SettingsDialog({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="-mr-3 min-h-0">
+        <ScrollArea className="-mr-3 min-h-0 min-w-0">
           <div className="flex flex-col gap-6 pr-3">
             <Section title="Appearance">
               <Choice

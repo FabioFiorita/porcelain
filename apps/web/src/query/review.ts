@@ -200,6 +200,10 @@ export function reviewErrorMessage(error: unknown) {
     : 'This review surface could not be loaded. Try again.';
 }
 
+export function isContentChangedError(error: unknown) {
+  return error instanceof RequestError && error.code === 'CONTENT_CHANGED';
+}
+
 export function useReviewReset() {
   return useQueryErrorResetBoundary();
 }

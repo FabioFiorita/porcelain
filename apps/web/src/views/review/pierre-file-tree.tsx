@@ -11,7 +11,7 @@ import {
   PencilIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
@@ -63,27 +63,9 @@ export function PierreFileTree({
   onOpenDiff: (path: string) => void;
   onSetHidden: (path: string, hidden: boolean) => void;
 }) {
-  const latest = useRef({
-    paths,
-    links,
-    onStartCreate,
-    onCreate,
-    onMove,
-    onTrash,
-    gitStatus,
-    selected,
-    hidden,
-    changed,
-    openable,
-    worktreePath,
-    onExpand,
-    onSelect,
-    onOpenFile,
-    onOpenDiff,
-    onSetHidden,
-  });
-  const reveal = useRef({ selected: '', complete: false });
-  latest.current = {
+  // The tree model keeps the callbacks it was built with, so they read the
+  // current props through this ref instead of rebuilding the model.
+  const current = {
     paths,
     links,
     onStartCreate,
@@ -102,6 +84,11 @@ export function PierreFileTree({
     onOpenDiff,
     onSetHidden,
   };
+  const latest = useRef(current);
+  useLayoutEffect(() => {
+    latest.current = current;
+  });
+  const reveal = useRef({ selected: '', complete: false });
   const modelRef = useRef<ReturnType<typeof useFileTree>['model'] | null>(null);
   const syncing = useRef(false);
   const pendingCreate = useRef<{
@@ -192,7 +179,9 @@ export function PierreFileTree({
     },
   });
 
-  modelRef.current = model;
+  useLayoutEffect(() => {
+    modelRef.current = model;
+  }, [model]);
   const handledCreate = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!creating || handledCreate.current === creating.nonce) return;

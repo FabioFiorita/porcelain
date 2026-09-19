@@ -48,7 +48,7 @@ vi.mock('@pierre/diffs/react', () => ({
   ),
 }));
 vi.mock('../workspace/theme', () => ({
-  useTheme: () => ({ dark: false, toggle: vi.fn() }),
+  useTheme: () => ({ dark: false }),
 }));
 vi.mock('../workspace/preferences', () => ({
   usePreferences: () => ({ preferences: preferenceState }),

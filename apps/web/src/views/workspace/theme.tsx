@@ -39,11 +39,6 @@ function ThemeSurface({ children }: { children: ReactNode }) {
 }
 
 export function useTheme() {
-  const { preferences, resolvedTheme, setPreference } = usePreferences();
-  return {
-    dark: resolvedTheme === 'dark',
-    toggle: () =>
-      setPreference('appearance', resolvedTheme === 'dark' ? 'light' : 'dark'),
-    appearance: preferences.appearance,
-  };
+  const { resolvedTheme } = usePreferences();
+  return { dark: resolvedTheme === 'dark' };
 }

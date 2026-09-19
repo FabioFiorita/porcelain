@@ -135,21 +135,21 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   const setPreference = useCallback<PreferencesContext['setPreference']>(
     (key, value) => {
-      setPreferences((current) => {
-        const next = { ...current, [key]: value };
-        try {
-          window.localStorage.setItem(
-            PREFERENCES_STORAGE_KEY,
-            JSON.stringify(next),
-          );
-        } catch {
-          // Private browsing can deny storage; the current session still works.
-        }
-        return next;
-      });
+      setPreferences((current) => ({ ...current, [key]: value }));
     },
     [],
   );
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        PREFERENCES_STORAGE_KEY,
+        JSON.stringify(preferences),
+      );
+    } catch {
+      // Private browsing can deny storage; the current session still works.
+    }
+  }, [preferences]);
 
   const resolvedTheme =
     preferences.appearance === 'system'

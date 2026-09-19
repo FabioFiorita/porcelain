@@ -5,7 +5,7 @@ import {
   FilePlusIcon,
   FolderPlusIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -338,11 +338,9 @@ function union(left: readonly string[], right: readonly string[]) {
 }
 
 function useStableList(value: readonly string[]) {
-  const stable = useRef(value);
-  if (
-    value.length !== stable.current.length ||
-    value.some((entry, index) => entry !== stable.current[index])
-  )
-    stable.current = value;
-  return stable.current;
+  // Repository paths cannot contain NUL, so joining on it identifies the
+  // contents without colliding with a path that contains the separator.
+  const key = value.join('\0');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the key stands in for the contents.
+  return useMemo(() => value, [key]);
 }

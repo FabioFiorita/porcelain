@@ -322,6 +322,7 @@ function FileToolbar({
   const name = path.slice(separator);
   return (
     <DocumentToolbar
+      titleLabel={path}
       title={
         <span className="flex min-w-0 items-center gap-1.5">
           <FileTypeIcon path={path} className="size-4 shrink-0" />

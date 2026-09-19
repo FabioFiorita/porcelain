@@ -4,11 +4,14 @@ import { cn } from '@/lib/utils';
 /** The compact, shared heading used by review documents. */
 export function DocumentToolbar({
   title,
+  titleLabel,
   subtitle,
   children,
   className,
 }: {
   title: ReactNode;
+  /** Names the heading when the title renders as several styled parts. */
+  titleLabel?: string;
   subtitle?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -21,7 +24,10 @@ export function DocumentToolbar({
       )}
     >
       <div className="flex min-w-0 flex-col">
-        <h1 className="truncate text-[13px] leading-tight font-semibold">
+        <h1
+          aria-label={titleLabel}
+          className="truncate text-[13px] leading-tight font-semibold"
+        >
           {title}
         </h1>
         {subtitle != null && (

@@ -4,7 +4,6 @@ import {
   type EditorOptions,
 } from '@pierre/diffs/edit';
 import { EditProvider, File } from '@pierre/diffs/react';
-import { RequestError } from '@porcelain/client/errors/request-error';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import type { FileDraft, FileDraftState } from '../../domain/file-draft';
 import { createPierreFileOptions } from '../../lib/pierre';
-import { reviewErrorMessage } from '../../query/review';
+import { isContentChangedError, reviewErrorMessage } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
 import { SHORTCUTS } from '../workspace/shortcuts';
@@ -23,10 +22,6 @@ const createEditor: EditorFactory<undefined, undefined> = (
   options,
   key,
 ) => new Editor(type, options, key);
-
-function isChangedOnDisk(error: unknown) {
-  return error instanceof RequestError && error.code === 'CONTENT_CHANGED';
-}
 
 export function FileEditor({
   owner,
@@ -53,9 +48,9 @@ export function FileEditor({
   const { dark } = useTheme();
   const [file] = useState(() => ({ name: path, contents: state.text }));
   const dirty = state.text !== state.savedText;
-  const changedOnDisk = isChangedOnDisk(state.error);
+  const changedOnDisk = isContentChangedError(state.error);
   const save = () => {
-    if (isChangedOnDisk(draft.snapshot().error)) return;
+    if (isContentChangedError(draft.snapshot().error)) return;
     void draft.save();
   };
   useHotkey(SHORTCUTS.saveFile, save, { enabled: active, ignoreInputs: false });
