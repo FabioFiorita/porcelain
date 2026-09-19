@@ -97,6 +97,12 @@ export function WorkspaceProvider({
           queryKeys.inventory(inventory.environmentId),
           inventory,
         );
+        // Login and session restore return the server's stored snapshot
+        // without rescanning. Mark the seed stale so the workspace rescans on
+        // mount; otherwise a page reload can never discover a new worktree.
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.inventory(inventory.environmentId),
+        });
         setConnection(createConnection(token, inventory.environmentId));
         return true;
       };

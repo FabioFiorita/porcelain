@@ -265,3 +265,50 @@ it('saves only the removed project drafts and blocks removal if saving fails', a
   expect(remove).toHaveBeenCalledOnce();
   expect(unrelatedSave).not.toHaveBeenCalled();
 });
+
+it('rescans repositories after connecting from the stored snapshot', async () => {
+  const store = createMockStore('empty');
+  const base = createMockApi(store);
+  const discoveredProject: Project = {
+    id: '5d0c6c1f-6a0b-4f2a-9a57-2f1f3f3b8c21',
+    name: 'discovered-project',
+    available: true,
+    worktrees: [
+      {
+        id: '0b1de0a4-0f0c-4a63-8d5e-6c3a0a4b9d31',
+        path: '/srv/discovered-project',
+        branch: 'refs/heads/main',
+        main: true,
+        available: true,
+      },
+    ],
+  };
+  const api: Api = {
+    ...base,
+    inventory: {
+      ...base.inventory,
+      read: async (options) => {
+        const inventory = await base.inventory.read(options);
+        return options.refresh
+          ? {
+              ...inventory,
+              projects: [...inventory.projects, discoveredProject],
+            }
+          : inventory;
+      },
+    },
+  };
+  const screen = await render(
+    <QueryClientProvider client={createQueryClient()}>
+      <WorkspaceProvider api={api}>
+        <Harness />
+      </WorkspaceProvider>
+    </QueryClientProvider>,
+  );
+  await screen.getByLabelText('Access token').fill('fixture-token');
+  await screen.getByRole('button', { name: 'Connect' }).click();
+
+  await expect
+    .element(screen.getByLabelText('Projects'))
+    .toMatchTextContent('discovered-project');
+});

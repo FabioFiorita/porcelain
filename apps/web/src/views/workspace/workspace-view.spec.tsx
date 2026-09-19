@@ -274,6 +274,8 @@ describe('workspace through the inventory port', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
+    // Connecting rescans once because login only returns the stored snapshot.
+    await vi.waitFor(() => expect(screen.store.refreshCount).toBe(1));
     const project = screen.store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     project.name = 'Renamed project';
@@ -281,7 +283,7 @@ describe('workspace through the inventory port', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'Renamed project' }))
       .toBeVisible();
-    expect(screen.store.refreshCount).toBe(1);
+    expect(screen.store.refreshCount).toBe(2);
   });
 
   it('retains inventory after a failed focus refresh and recovers on the next focus', async () => {
