@@ -2,14 +2,14 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('creates, edits and renames a file, preserves conflicts, and moves it to disposable trash', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile, worktreePath } = JSON.parse(
     await readFile(manifest, 'utf8'),
   ) as { tokenFile: string; worktreePath: string };
@@ -52,14 +52,11 @@ test('creates, edits and renames a file, preserves conflicts, and moves it to di
   await page.locator('[data-item-rename-input]').fill(filename);
   await page.locator('[data-item-rename-input]').press('Enter');
   await expect(
-    page.locator('[data-header-content]').filter({ hasText: filename }),
+    page.getByRole('heading', { name: filename, exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Open diff', exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: filename, exact: true }),
-  ).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath('file-header.png') });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   const editor = page.getByRole('textbox', { name: filename, exact: true });

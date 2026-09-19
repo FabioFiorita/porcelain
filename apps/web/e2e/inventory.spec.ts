@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 async function refocusWindow(page: import('@playwright/test').Page) {
   await page.evaluate(() => {
@@ -12,8 +13,7 @@ test('connects to real Git inventory and refreshes on focus', async ({
   page,
   request,
 }) => {
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing playground manifest');
+  const manifest = playgroundManifest();
   const info = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };
@@ -55,9 +55,14 @@ test('connects to real Git inventory and refreshes on focus', async ({
   if (await openReview.isVisible()) await openReview.click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: 'README.md', exact: true }).click();
-  await expect(page.getByRole('article')).toContainText('Porcelain');
+  await expect(page.getByTestId('review-document')).toContainText('Porcelain');
   const feedback = `File feedback ${crypto.randomUUID()}`;
-  await page.getByRole('button', { name: 'Add comment' }).click();
+  await page
+    .getByRole('button', {
+      name: 'Comment on README.md (staged · modified)',
+      exact: true,
+    })
+    .click();
   await page.getByLabel('Comment', { exact: true }).fill(feedback);
   // The textarea's 3px focus ring must fit inside every clipping ancestor.
   const focusRingFits = await page
@@ -101,7 +106,12 @@ test('connects to real Git inventory and refreshes on focus', async ({
   expect(await commentsResponse.json()).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
-        anchor: { kind: 'file', filePath: 'README.md' },
+        anchor: {
+          kind: 'file',
+          filePath: 'README.md',
+          comparison: { kind: 'worktree', scope: 'staged' },
+          contentFingerprint: expect.any(String),
+        },
         messages: expect.arrayContaining([
           expect.objectContaining({ body: feedback }),
         ]),
@@ -197,8 +207,7 @@ test('logout in another tab prevents an existing tab from continuing with a bear
   page,
   context,
 }) => {
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing playground manifest');
+  const manifest = playgroundManifest();
   const info = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };

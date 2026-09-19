@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
+// Each viewport project gets its own playground server and repository.
 process.env.PORCELAIN_PLAYGROUND_INFO ??= join(
+  tmpdir(),
+  `porcelain-web-${randomUUID()}.json`,
+);
+process.env.PORCELAIN_PLAYGROUND_INFO_NARROW ??= join(
   tmpdir(),
   `porcelain-web-${randomUUID()}.json`,
 );
@@ -13,6 +18,9 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   forbidOnly: true,
   retries: 0,
+  // Specs within a project share its playground repository, and some write
+  // files or move HEAD, so they run one at a time.
+  workers: 1,
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure' },
   projects: [
     {
@@ -22,7 +30,7 @@ export default defineConfig({
     },
     {
       name: 'narrow',
-      use: { ...devices['Pixel 7'] },
+      use: { ...devices['Pixel 7'], baseURL: 'http://127.0.0.1:4176' },
       testIgnore: ['**/playground.spec.ts', '**/playground-auto.spec.ts'],
     },
     {
@@ -38,11 +46,20 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command:
-        'pnpm build && cd ../.. && node scripts/web-playground.ts --preview',
+      command: 'cd ../.. && node scripts/web-playground.ts --preview',
       env: { PORCELAIN_PLAYGROUND_INFO: process.env.PORCELAIN_PLAYGROUND_INFO },
       gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
       url: 'http://127.0.0.1:4173',
+      reuseExistingServer: false,
+    },
+    {
+      command:
+        'cd ../.. && node scripts/web-playground.ts --preview --port=4176',
+      env: {
+        PORCELAIN_PLAYGROUND_INFO: process.env.PORCELAIN_PLAYGROUND_INFO_NARROW,
+      },
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
+      url: 'http://127.0.0.1:4176',
       reuseExistingServer: false,
     },
     {

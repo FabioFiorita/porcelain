@@ -3,13 +3,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('removes a project through its menu while preserving repository files', async ({
   page,
   request,
 }, testInfo) => {
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };

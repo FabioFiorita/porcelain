@@ -1,16 +1,26 @@
 import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 async function connect(page: Page) {
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing playground manifest');
+  const manifest = playgroundManifest();
   const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };
   await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(page.getByLabel('Access token')).toHaveCount(0);
+}
+
+// Diff rows label their own controls with the file and scope too, so entries
+// are located inside the sidebar. A file listed in several layers repeats the
+// same entry, and each one opens the same document.
+function reviewEntry(page: Page, name: RegExp) {
+  return page
+    .getByRole('complementary', { name: 'Review sidebar' })
+    .getByRole('button', { name })
+    .first();
 }
 
 test('keeps keyboard focus on visible controls when desktop navigation is collapsed', async ({
@@ -61,7 +71,9 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
     name: 'Projects and worktrees',
   });
   const review = page.getByRole('complementary', { name: 'Review sidebar' });
-  const divider = page.locator('[data-slot="resizable-handle"]');
+  const divider = page.locator(
+    '[data-slot="resizable-handle"][aria-controls="navigator"]',
+  );
   const leftBox = await left.boundingBox();
   const rightBox = await right.boundingBox();
   expect(leftBox?.y).toBe(rightBox?.y);
@@ -89,11 +101,11 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
   await expect(review).toBeVisible();
   await page.keyboard.press('ControlOrMeta+b');
   await expect(navigator).toBeVisible();
+  await reviewEntry(page, /^README\.md · /).click();
   await page
-    .getByRole('button', { name: /README\.md.*staged/ })
+    .getByRole('button', { name: /^Comment on README\.md/ })
     .first()
     .click();
-  await page.getByRole('button', { name: 'Add comment', exact: true }).click();
   const comment = page.getByLabel('Comment', { exact: true });
   await comment.fill('Keep my review draft');
   for (const shortcut of ['ControlOrMeta+b', 'Alt+Shift+r', 'Alt+Shift+d']) {
@@ -134,10 +146,7 @@ test('keyboard focus selects which split pane receives document shortcuts', asyn
   await page.goto('/');
   await connect(page);
   await page.getByRole('button', { name: /^review / }).click();
-  await page
-    .getByRole('button', { name: /README\.md.*staged/ })
-    .first()
-    .click();
+  await reviewEntry(page, /^README\.md · /).click();
   const unsplitTab = page.getByRole('tab', { name: /README\.md/ });
   await unsplitTab.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Open to the side' }).click();
@@ -214,7 +223,7 @@ test('selected diff rows match worktree selection in both themes', async ({
   await openNavigation(page);
   const worktree = page.getByRole('button', { name: /^review / });
   await worktree.click();
-  const diff = page.getByRole('button', { name: /README\.md.*staged/ }).first();
+  const diff = reviewEntry(page, /^README\.md · /);
   const appearance = (element: HTMLElement | SVGElement) => {
     const style = getComputedStyle(element);
     return {
@@ -302,10 +311,7 @@ test('inspects staged changes, commit history and artifact metadata from the rea
     .getByRole('tab', { name: /^(Review|Changes)$/, exact: true })
     .click();
   await expect(page).toHaveURL(/surface=changes/);
-  await page
-    .getByRole('button', { name: /README\.md.*staged/ })
-    .first()
-    .click();
+  await reviewEntry(page, /^README\.md · /).click();
   const documents = page.locator('diffs-container');
   await expect(documents).toHaveCount(2);
   await expect(
@@ -330,7 +336,9 @@ test('inspects staged changes, commit history and artifact metadata from the rea
   await page
     .getByRole('button', { name: /Document launch board review workflow/ })
     .click();
-  await expect(page.getByRole('main')).toContainText('docs/review-guide.md');
+  await expect(
+    page.getByRole('region', { name: 'Review content' }),
+  ).toContainText('docs/review-guide.md');
   await openReview();
   await page
     .getByRole('tab', { name: /^(Review|Changes)$/, exact: true })
@@ -341,5 +349,9 @@ test('inspects staged changes, commit history and artifact metadata from the rea
     .getByRole('button', { name: 'Open report' })
     .click();
   await expect(page.getByRole('heading', { name: 'Report' })).toBeVisible();
-  await expect(page.getByRole('main')).toContainText('Stored artifact');
+  // Agent HTML renders in an opaque-origin sandbox, so its text is only
+  // reachable through the frame.
+  await expect(
+    page.frameLocator('iframe').getByText('Fieldnotes launch review'),
+  ).toBeVisible();
 });

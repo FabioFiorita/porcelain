@@ -17,7 +17,13 @@ test('automatically authenticates on page load and keeps Devtools', async ({
       .getByRole('button', { name: 'Connected', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: /close.*devtools/i }).click();
-  await page.getByRole('button', { name: 'Switch to dark theme' }).click();
+  await page.keyboard.press('Alt+Shift+D');
+  await page.keyboard.press('Alt+Shift+D');
+  expect(
+    await page.evaluate(() =>
+      document.documentElement.classList.contains('dark'),
+    ),
+  ).toBe(true);
   for (const name of ['Disconnect', 'Exit', 'Reload', 'Refresh']) {
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
       0,

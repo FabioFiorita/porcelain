@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('marks immediately and rolls back when background validation rejects the file', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };

@@ -15,20 +15,21 @@ test('opens the built workspace and switches the preset theme with the keyboard'
   const light = await surface.evaluate(
     (element) => getComputedStyle(element).backgroundColor,
   );
-  const toggle = page.getByRole('button', { name: 'Switch to dark theme' });
-  await page.keyboard.press('Tab');
-  await expect(toggle).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(
-    page.getByRole('button', { name: 'Switch to light theme' }),
-  ).toBeVisible();
+  const dark = () =>
+    page.evaluate(() => document.documentElement.classList.contains('dark'));
+  // The appearance cycle is system -> light -> dark; the test browser reports a
+  // light system preference, so the first step keeps the resolved theme.
+  await page.keyboard.press('Alt+Shift+D');
+  expect(await dark()).toBe(false);
+  await page.keyboard.press('Alt+Shift+D');
+  expect(await dark()).toBe(true);
   await expect
     .poll(() =>
       surface.evaluate((element) => getComputedStyle(element).backgroundColor),
     )
     .not.toBe(light);
-  await page.keyboard.press('Enter');
-  await expect(toggle).toBeVisible();
+  await page.keyboard.press('Alt+Shift+D');
+  expect(await dark()).toBe(false);
   await expect
     .poll(() =>
       surface.evaluate((element) => getComputedStyle(element).backgroundColor),
@@ -42,24 +43,11 @@ test('opens the built workspace and switches the preset theme with the keyboard'
   expect(errors).toEqual([]);
 });
 
-test('toggles the theme with the registered shortcut', async ({ page }) => {
+test('serves the built preview without playground tooling', async ({
+  page,
+}) => {
   await page.goto('/');
-  const lightControl = page.getByRole('button', {
-    name: 'Switch to dark theme',
-  });
-  const darkControl = page.getByRole('button', {
-    name: 'Switch to light theme',
-  });
-
-  // The prototype cycles system -> light -> dark. On the test browser the
-  // system preference is light, so the first step keeps the resolved theme.
-  await expect(lightControl).toBeVisible();
-  await page.keyboard.press('Alt+Shift+d');
-  await expect(lightControl).toBeVisible();
-  await page.keyboard.press('Alt+Shift+d');
-  await expect(darkControl).toBeVisible();
-  await page.keyboard.press('Alt+Shift+d');
-  await expect(lightControl).toBeVisible();
+  await expect(page.getByText('No environment connected')).toBeVisible();
   await expect(
     page.getByRole('button', { name: /open.*devtools/i }),
   ).toHaveCount(0);

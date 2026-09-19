@@ -5,13 +5,13 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('commits the selected new file and leaves other staged changes in place', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile, worktreePath } = JSON.parse(
     await readFile(manifest, 'utf8'),
   ) as { tokenFile: string; worktreePath: string };
@@ -100,8 +100,7 @@ test('reviews generated groups and commits them sequentially', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile, worktreePath } = JSON.parse(
     await readFile(manifest, 'utf8'),
   ) as { tokenFile: string; worktreePath: string };

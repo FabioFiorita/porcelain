@@ -2,12 +2,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('renders repository images and HTML with local CSS and image assets', async ({
   page,
 }) => {
-  const info = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!info) throw new Error('Missing isolated playground');
+  const info = playgroundManifest();
   const { tokenFile, worktreePath } = JSON.parse(await readFile(info, 'utf8'));
   const stem = `preview-${test.info().project.name}`;
   const imagePath = `${stem}.png`;

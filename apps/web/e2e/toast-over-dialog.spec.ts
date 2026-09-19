@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('shows a toast above the dialog that raised it', async ({ page }) => {
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };

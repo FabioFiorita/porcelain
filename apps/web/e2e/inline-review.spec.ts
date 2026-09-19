@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('posts a line comment on the exact comparison, reloads it, and reveals it from the sidebar', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  const manifest = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!manifest) throw new Error('Missing isolated playground');
+  const manifest = playgroundManifest();
   const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
     tokenFile: string;
   };
@@ -18,9 +18,8 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: /^accessibility.md/ }).click();
   await expect(
-    page.getByRole('heading', { name: 'docs/accessibility.md', exact: true }),
-  ).toHaveCount(0);
-  await expect(page.locator('[data-header-content]').first()).toBeVisible();
+    page.getByRole('heading', { name: 'accessibility.md', exact: true }),
+  ).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('diff-header.png') });
   await page.locator('[data-column-number]').first().hover();
   await page.locator('[data-utility-button]').first().click();

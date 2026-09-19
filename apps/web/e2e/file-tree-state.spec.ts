@@ -2,12 +2,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { openNavigation } from './workspace-navigation';
+import { playgroundManifest } from './playground';
 
 test('keeps unrelated roots closed during loading and uses compact folder menus', async ({
   page,
 }) => {
-  const info = process.env.PORCELAIN_PLAYGROUND_INFO;
-  if (!info) throw new Error('Missing isolated playground');
+  const info = playgroundManifest();
   const { tokenFile, worktreePath } = JSON.parse(await readFile(info, 'utf8'));
   const prefix = test.info().project.name;
   const alpha = `${prefix}-alpha`;
