@@ -68,6 +68,7 @@ describe('Worktree inspection use cases', () => {
       return {
         readStatus: async () => observation,
         readDiff: async () => ({ kind: 'binary' }),
+        readDiffs: async () => [],
       };
     };
     expect(
@@ -100,6 +101,7 @@ describe('Worktree inspection use cases', () => {
       readDiff: async () => {
         throw new Error('Must not read diff');
       },
+      readDiffs: async () => [],
     });
     const operation = new ReadWorktreeDiff(store(), git);
     await expect(
@@ -124,6 +126,7 @@ describe('Worktree inspection use cases', () => {
         current = { ...observation, statusToken: 'changed' };
         return { kind: 'text', patch: 'untrusted result' };
       },
+      readDiffs: async () => [],
     });
     await expect(
       new ReadWorktreeDiff(store(), git).execute(
@@ -139,6 +142,7 @@ describe('Worktree inspection use cases', () => {
     const git: InspectionFactory = () => ({
       readStatus: async () => observation,
       readDiff: async () => ({ kind: 'binary' }),
+      readDiffs: async () => [],
     });
     expect(
       await new ReadWorktreeDiff(store(), git).execute(
@@ -158,6 +162,7 @@ describe('Worktree inspection use cases', () => {
         return observation;
       },
       readDiff: async () => ({ kind: 'binary' }),
+      readDiffs: async () => [],
     });
     await expect(
       new ReadWorktreeStatus(store(), cancelling).execute(

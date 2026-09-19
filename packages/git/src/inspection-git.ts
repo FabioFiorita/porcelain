@@ -1,4 +1,4 @@
-import { readDiff } from './commands/read-diff.ts';
+import { readDiff, readDiffs } from './commands/read-diff.ts';
 import { readStatus } from './commands/read-status.ts';
 import { verifyCheckout } from './commands/verify-checkout.ts';
 import type { GitOrdinaryChange } from './dtos/git-status.ts';
@@ -45,6 +45,23 @@ export class InspectionGit implements StatusReader, DiffReader {
       signal,
     );
     const result = await readDiff(this.checkout, change, signal);
+    await verifyCheckout(
+      this.checkout,
+      this.metadataIdentity,
+      this.repositoryIdentity,
+      signal,
+    );
+    return result;
+  }
+
+  async readDiffs(changes: readonly GitOrdinaryChange[], signal?: AbortSignal) {
+    await verifyCheckout(
+      this.checkout,
+      this.metadataIdentity,
+      this.repositoryIdentity,
+      signal,
+    );
+    const result = await readDiffs(this.checkout, changes, signal);
     await verifyCheckout(
       this.checkout,
       this.metadataIdentity,

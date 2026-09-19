@@ -53,6 +53,14 @@ fresh status. A different observation before or after diff generation returns
 preserve status output, race individual Git reads, or change and revert between checks.
 Matching tokens do not establish immutable content or atomicity.
 
+Review evidence reads every selected diff as one batch: identities and conversion filters are
+checked once before and once after the batch, not around each file, and each file is still one
+exact-pathspec `git diff`. Spawning about ten Git processes per file made a review take seconds.
+Binary changes are recognized from Git's `Binary files ... differ` patch line. The server keeps
+the last evidence per worktree, keyed by the status token plus the inode, size and change times
+of every unstaged, untracked or unmerged path, because status output does not change when an
+already modified file is edited again. A hit still reads and verifies fresh status.
+
 Missing registered identities return `404 WORKTREE_NOT_FOUND`. Unavailable checkouts retain
 the existing repository error mapping. Authentication, no-cache responses, operation
 serialization/deadlines and safe error responses follow the inventory HTTP boundary.

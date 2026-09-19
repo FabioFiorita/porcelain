@@ -2,12 +2,14 @@ import { createHash } from 'node:crypto';
 import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
 import type {
   GitChange,
+  GitOrdinaryChange,
   GitStatusObservation,
 } from '@porcelain/git/dtos/git-status';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { expect, it } from 'vitest';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
+import type { TextContent } from '../models/file-content.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
 import {
@@ -80,18 +82,32 @@ function status(changes: GitChange[], token = 'a'.repeat(64)) {
   return { statusToken: token, headOid: null, changes };
 }
 
+function diffReader(
+  readDiff: (change: GitOrdinaryChange) => Promise<GitDiffResult>,
+) {
+  return {
+    readDiff,
+    readDiffs: (changes: readonly GitOrdinaryChange[]) =>
+      Promise.all(changes.map(readDiff)),
+  };
+}
+
 function inspection(
   observation: GitStatusObservation,
   diffs: Record<string, GitDiffResult>,
 ): InspectionFactory {
   return () => ({
     readStatus: async () => observation,
-    readDiff: async (change) =>
-      diffs[`${change.scope}:${change.newPath ?? change.oldPath}`] ?? {
-        kind: 'binary',
-      },
+    ...diffReader(
+      async (change) =>
+        diffs[`${change.scope}:${change.newPath ?? change.oldPath}`] ?? {
+          kind: 'binary',
+        },
+    ),
   });
 }
+
+const stamps = async () => '';
 
 const readableGit: GitFactory = () => ({
   listWorktrees: async () => ({
@@ -140,6 +156,7 @@ it('returns exact staged, unstaged, untracked and omitted evidence grouped by lo
     }),
     readableGit,
     files,
+    stamps,
   );
 
   const result = await operation.execute('worktree');
@@ -223,12 +240,18 @@ it('does not include a status token in the evidence fingerprint', async () => {
   const reader = inspection(status(changes, token), {
     'staged:src/review.ts': { kind: 'text', patch: 'same patch' },
   });
-  const operation = new ReadWorktreeEvidence(store(), reader, readableGit, {
-    read: async () => {
-      throw new Error('not needed');
+  const operation = new ReadWorktreeEvidence(
+    store(),
+    reader,
+    readableGit,
+    {
+      read: async () => {
+        throw new Error('not needed');
+      },
+      list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
-    list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
-  });
+    stamps,
+  );
   const first = await operation.execute('worktree');
   token = 'b'.repeat(64);
   const second = await new ReadWorktreeEvidence(
@@ -243,6 +266,7 @@ it('does not include a status token in the evidence fingerprint', async () => {
       },
       list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
+    stamps,
   ).execute('worktree');
   expect(first.evidence[0]?.fingerprint).toBe(second.evidence[0]?.fingerprint);
 });
@@ -259,6 +283,7 @@ it('localizes unreadable untracked files and rejects a moving worktree', async (
       },
       list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
+    stamps,
   );
   await expect(operation.execute('worktree')).resolves.toMatchObject({
     evidence: [
@@ -277,15 +302,21 @@ it('localizes unreadable untracked files and rejects a moving worktree', async (
       reads += 1;
       return status([staged], reads === 1 ? 'a'.repeat(64) : 'b'.repeat(64));
     },
-    readDiff: async () => ({ kind: 'text', patch: 'moving' }),
+    ...diffReader(async () => ({ kind: 'text', patch: 'moving' })),
   });
   await expect(
-    new ReadWorktreeEvidence(store(), moving, readableGit, {
-      read: async () => {
-        throw new Error('not needed');
+    new ReadWorktreeEvidence(
+      store(),
+      moving,
+      readableGit,
+      {
+        read: async () => {
+          throw new Error('not needed');
+        },
+        list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
       },
-      list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
-    }).execute('worktree'),
+      stamps,
+    ).execute('worktree'),
   ).rejects.toBeInstanceOf(WorktreeChangedError);
 });
 
@@ -320,6 +351,7 @@ it('bounds aggregate UTF-8 evidence content while retaining affected paths', asy
       },
       list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
+    stamps,
   );
 
   const result = await operation.execute('worktree');
@@ -338,32 +370,68 @@ it('bounds aggregate UTF-8 evidence content while retaining affected paths', asy
   );
 });
 
-it('bounds concurrent evidence reads and drains them before reporting a failure', async () => {
+it('bounds concurrent file reads and drains them before reporting a failure', async () => {
   const started: string[] = [];
   const pending = Array.from({ length: 4 }, () =>
-    Promise.withResolvers<GitDiffResult>(),
+    Promise.withResolvers<TextContent>(),
   );
   const changes = Array.from(
     { length: 8 },
-    (_, index): GitChange => ({
-      ...staged,
-      oldPath: `${index}.ts`,
-      newPath: `${index}.ts`,
-    }),
+    (_, index): GitChange => ({ scope: 'untracked', path: `${index}.txt` }),
   );
   const allStarted = Promise.withResolvers<void>();
   const operation = new ReadWorktreeEvidence(
     store(),
-    () => ({
-      readStatus: async () => status(changes),
-      readDiff: async (change) => {
+    inspection(status(changes), {}),
+    readableGit,
+    {
+      read: async (target) => {
         const index = started.length;
-        started.push(change.newPath ?? '');
+        started.push(target.path);
         if (started.length === 4) allStarted.resolve();
         const entry = pending[index];
         if (!entry) throw new Error('Unbounded evidence reads');
         return entry.promise;
       },
+      list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
+    },
+    stamps,
+  );
+  let settled = false;
+  const result = operation.execute('worktree').finally(() => {
+    settled = true;
+  });
+  const rejected = expect(result).rejects.toThrow('failed read');
+  await allStarted.promise;
+  pending[0]?.reject(new Error('failed read'));
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  expect(started).toEqual(['0.txt', '1.txt', '2.txt', '3.txt']);
+  for (const [index, entry] of pending.slice(1).entries())
+    entry.resolve({
+      worktreeId: 'worktree',
+      path: `${index + 1}.txt`,
+      encoding: 'utf-8',
+      byteLength: 0,
+      text: '',
+    });
+  await rejected;
+  expect(started).toHaveLength(4);
+});
+
+it('reuses evidence until the status or a working file changes', async () => {
+  let stamp = 'first';
+  let token = 'a'.repeat(64);
+  let reads = 0;
+  const stamped: string[][] = [];
+  const operation = new ReadWorktreeEvidence(
+    store(),
+    () => ({
+      readStatus: async () => status([staged, unstaged], token),
+      ...diffReader(async () => {
+        reads += 1;
+        return { kind: 'text', patch: `patch ${reads}` };
+      }),
     }),
     readableGit,
     {
@@ -372,20 +440,31 @@ it('bounds concurrent evidence reads and drains them before reporting a failure'
       },
       list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
+    async (_, paths) => {
+      stamped.push([...paths]);
+      return stamp;
+    },
   );
-  let settled = false;
-  const result = operation.execute('worktree').finally(() => {
-    settled = true;
-  });
-  const rejected = expect(result).rejects.toThrow('failed diff');
-  await allStarted.promise;
-  pending[0]?.reject(new Error('failed diff'));
-  await Promise.resolve();
-  expect(settled).toBe(false);
-  expect(started).toEqual(['0.ts', '1.ts', '2.ts', '3.ts']);
-  for (const entry of pending.slice(1)) entry.resolve({ kind: 'binary' });
-  await rejected;
-  expect(started).toHaveLength(4);
+  const first = await operation.execute('worktree');
+  expect(await operation.execute('worktree')).toBe(first);
+  expect(
+    await operation.execute('worktree', undefined, new Set(['src/review.ts'])),
+  ).toEqual(first);
+  expect(
+    (await operation.execute('worktree', undefined, new Set(['gone.ts'])))
+      .evidence,
+  ).toEqual([]);
+  expect(reads).toBe(2);
+  expect(stamped[0]).toEqual(['src/review.ts']);
+  stamp = 'second';
+  const changed = await operation.execute('worktree');
+  expect(reads).toBe(4);
+  expect(changed.evidence[0]?.fingerprint).not.toBe(
+    first.evidence[0]?.fingerprint,
+  );
+  token = 'b'.repeat(64);
+  await operation.execute('worktree');
+  expect(reads).toBe(6);
 });
 
 it('selects logical paths without reading unrelated changes or dropping comparison scopes', async () => {
@@ -395,12 +474,12 @@ it('selects logical paths without reading unrelated changes or dropping comparis
     store(),
     () => ({
       readStatus: async () => status(changes),
-      readDiff: async (change) => {
+      ...diffReader(async (change) => {
         reads.push(`${change.scope}:${change.newPath}`);
         if (change.newPath !== 'src/review.ts')
           throw new Error('Unrelated diff read');
         return { kind: 'text', patch: `${change.scope} patch` };
-      },
+      }),
     }),
     readableGit,
     {
@@ -409,6 +488,7 @@ it('selects logical paths without reading unrelated changes or dropping comparis
       },
       list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
+    stamps,
   );
   const response = await operation.execute(
     'worktree',

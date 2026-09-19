@@ -24,6 +24,7 @@ import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
+import { readFileStamps } from './filesystem/file-stamps.ts';
 import { NodeFileTree } from './filesystem/file-tree.ts';
 import { NodeFileWriter } from './filesystem/file-writer.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
@@ -179,7 +180,13 @@ export async function openApplication(options: {
         new InspectionGit(checkout, identity, repositoryIdentity));
     const status = new ReadWorktreeStatus(store, inspection);
     const diff = new ReadWorktreeDiff(store, inspection);
-    const evidence = new ReadWorktreeEvidence(store, inspection, git, files);
+    const evidence = new ReadWorktreeEvidence(
+      store,
+      inspection,
+      git,
+      files,
+      readFileStamps,
+    );
     const actions = new GitActionCoordinator(
       operations,
       new PrepareGitAction(store, actionStore, actionGit, randomUUID, evidence),

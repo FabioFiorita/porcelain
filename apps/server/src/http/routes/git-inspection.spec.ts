@@ -162,6 +162,7 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
         throw failure;
       },
       readDiff: async () => ({ kind: 'binary' }),
+      readDiffs: async () => [],
     }),
   });
   try {

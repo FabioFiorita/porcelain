@@ -6,4 +6,8 @@ export interface DiffReader {
     change: GitOrdinaryChange,
     signal?: AbortSignal,
   ): Promise<GitDiffResult>;
+  readDiffs(
+    changes: readonly GitOrdinaryChange[],
+    signal?: AbortSignal,
+  ): Promise<GitDiffResult[]>;
 }

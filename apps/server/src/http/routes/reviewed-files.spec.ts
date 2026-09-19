@@ -62,6 +62,11 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
         kind: 'text',
         patch: '@@ -1 +1 @@\n-before\n+after\n',
       }),
+      readDiffs: async (changes) =>
+        changes.map(() => ({
+          kind: 'text',
+          patch: '@@ -1 +1 @@\n-before\n+after\n',
+        })),
     }),
   });
   try {

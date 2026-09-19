@@ -6,6 +6,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
@@ -136,7 +137,7 @@ describe('Git actions HTTP', () => {
     await git('add', 'file');
     await writeFile(join(checkout, 'file'), 'unstaged\n');
     await writeFile(join(checkout, 'new'), 'new\n');
-    const diff = vi.spyOn(InspectionGit.prototype, 'readDiff');
+    const diff = vi.spyOn(InspectionGit.prototype, 'readDiffs');
     try {
       const response = await server.inject({
         url: `/worktrees/${prefix.split('/')[4]}/review-summary`,
@@ -183,17 +184,17 @@ describe('Git actions HTTP', () => {
     await writeFile(join(checkout, 'file'), 'changed\n');
     const started = Promise.withResolvers<void>();
     const gate = Promise.withResolvers<void>();
-    const original = InspectionGit.prototype.readDiff;
+    const original = InspectionGit.prototype.readDiffs;
     const diff = vi
-      .spyOn(InspectionGit.prototype, 'readDiff')
+      .spyOn(InspectionGit.prototype, 'readDiffs')
       .mockImplementationOnce(async function (
         this: InspectionGit,
-        change,
+        changes,
         signal,
       ) {
         started.resolve();
         await gate.promise;
-        return original.call(this, change, signal);
+        return original.call(this, changes, signal);
       });
     const url = `/worktrees/${prefix.split('/')[4]}`;
     const evidence = server
@@ -219,6 +220,10 @@ describe('Git actions HTTP', () => {
     await git('add', 'file');
     await writeFile(join(checkout, 'file'), 'unstaged\n');
     await writeFile(join(checkout, 'other'), 'unreviewed change\n');
+    // Evidence for files written moments ago is never reused.
+    const settled = new Date(Date.now() - 60_000);
+    for (const name of ['file', 'other'])
+      await utimes(join(checkout, name), settled, settled);
     const url = `/worktrees/${prefix.split('/')[4]}`;
     const evidence = (
       await server.inject({ url: `${url}/evidence`, headers })
@@ -226,7 +231,7 @@ describe('Git actions HTTP', () => {
     const fingerprint = evidence.evidence.find(
       (entry: { path: string }) => entry.path === 'file',
     ).fingerprint;
-    const diff = vi.spyOn(InspectionGit.prototype, 'readDiff');
+    const diff = vi.spyOn(InspectionGit.prototype, 'readDiffs');
     const mark = () =>
       server.inject({
         method: 'PUT',
@@ -236,13 +241,7 @@ describe('Git actions HTTP', () => {
       });
     try {
       expect((await mark()).statusCode).toBe(200);
-      expect(
-        diff.mock.calls.map(([change]) => [change.newPath, change.scope]),
-      ).toEqual([
-        ['file', 'staged'],
-        ['file', 'unstaged'],
-      ]);
-      diff.mockClear();
+      expect(diff).not.toHaveBeenCalled();
       const summary = await server.inject({
         url: `${url}/review-summary`,
         headers,
@@ -251,6 +250,16 @@ describe('Git actions HTTP', () => {
       expect(summary.json()).toMatchObject({ pendingFiles: 1 });
       await writeFile(join(checkout, 'file'), 'edited after review\n');
       expect((await mark()).statusCode).toBe(409);
+      expect(
+        diff.mock.calls.map(([changes]) =>
+          changes.map((change) => [change.newPath, change.scope]),
+        ),
+      ).toEqual([
+        [
+          ['file', 'staged'],
+          ['file', 'unstaged'],
+        ],
+      ]);
       expect(
         (await server.inject({ url: `${url}/review-summary`, headers })).json(),
       ).toMatchObject({ pendingFiles: 2 });

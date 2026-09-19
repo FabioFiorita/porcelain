@@ -195,6 +195,12 @@ describe('InspectionGit', () => {
         kind: 'metadata-only',
         patch: expect.stringContaining('new mode 100755'),
       });
+      const batch = ['deleted', 'binary', 'mode'].map((name) =>
+        selected(status, 'unstaged', name),
+      );
+      expect(await reader.readDiffs(batch)).toEqual(
+        await Promise.all(batch.map((change) => reader.readDiff(change))),
+      );
       expect(selected(status, 'unstaged', 'link')).toMatchObject({
         kind: 'type-changed',
         newMode: '120000',
