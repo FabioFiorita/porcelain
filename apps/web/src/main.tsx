@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Toaster } from './components/ui/toast';
 import { TooltipProvider } from './components/ui/tooltip';
 import { createAppRouter } from './routes/router';
 import './app.css';
@@ -22,8 +23,10 @@ createRoot(root).render(
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
         <WorkspaceProvider api={api}>
-          <PierreIconSprite />
-          <RouterProvider router={router} />
+          <Toaster>
+            <PierreIconSprite />
+            <RouterProvider router={router} />
+          </Toaster>
         </WorkspaceProvider>
       </QueryClientProvider>
     </TooltipProvider>
