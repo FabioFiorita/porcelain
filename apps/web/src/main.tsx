@@ -10,6 +10,7 @@ import { createBootApi } from './api/boot';
 import { createQueryClient } from './query/client';
 import { WorkspaceProvider } from './query/workspace-provider';
 import { PierreIconSprite } from './views/review/file-type-icon';
+import { PierreWorkers } from './views/review/pierre-workers';
 import './pierre.css';
 
 const queryClient = createQueryClient();
@@ -25,7 +26,9 @@ createRoot(root).render(
         <WorkspaceProvider api={api}>
           <Toaster>
             <PierreIconSprite />
-            <RouterProvider router={router} />
+            <PierreWorkers>
+              <RouterProvider router={router} />
+            </PierreWorkers>
           </Toaster>
         </WorkspaceProvider>
       </QueryClientProvider>

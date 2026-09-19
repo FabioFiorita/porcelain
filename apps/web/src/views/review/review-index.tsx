@@ -40,10 +40,11 @@ import {
   reviewProgress,
   type Status,
 } from '../../domain/review';
-import { useComments } from '../../query/comments';
+import { useComments, usePrefetchComments } from '../../query/comments';
 import {
   useArtifacts,
   useChanges,
+  usePrefetchReview,
   useReviewEvidence,
 } from '../../query/review';
 import { FileTypeIcon } from './file-type-icon';
@@ -62,6 +63,8 @@ const ROW =
 /** The Review surface: layers in reading order, changed files, and comments. */
 export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
   const [view, setView] = useState<'layers' | 'comments'>('layers');
+  usePrefetchReview(scope);
+  usePrefetchComments(scope);
   const { status, layers } = useChanges(scope);
   const { threads } = useComments(scope);
   const evidence = useReviewEvidence(scope);

@@ -4,7 +4,11 @@ import type { DocumentRef, OpenDocument } from '../../domain/documents';
 import { entryKey } from '../../domain/documents';
 import type { ReviewScope } from '../../domain/review';
 import { changePath, reviewProgress } from '../../domain/review';
-import { useChanges, useReviewEvidence } from '../../query/review';
+import {
+  useChanges,
+  usePrefetchReview,
+  useReviewEvidence,
+} from '../../query/review';
 import { ArtifactDocument } from './artifact-document';
 import { CommitDocument } from './commit-document';
 import { DocumentInteraction } from './document-interaction';
@@ -92,6 +96,7 @@ function HandoffDocument({
   scope: ReviewScope;
   onOpen: OpenDocument;
 }) {
+  usePrefetchReview(scope);
   const { status, layers } = useChanges(scope);
   const evidence = useReviewEvidence(scope);
   const paths = uniquePaths([

@@ -51,6 +51,7 @@ export function useReviewSummaries(inventory: Inventory) {
           return data;
         }),
       staleTime: 30000,
+      refetchOnWindowFocus: true,
       retry: false,
       throwOnError: false,
     })),

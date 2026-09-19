@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Change, CommitChanges, Diff } from '../../domain/review';
-import {
-  commitEntry,
-  diffEntry,
-  evidenceId,
-  fileEntry,
-  MAX_PARSED_DIFFS,
-} from './diff-entries';
+import { commitEntry, diffEntry, evidenceId, fileEntry } from './diff-entries';
 
 const staged: Change = {
   scope: 'staged',
@@ -118,17 +112,19 @@ describe('continuous diff entries', () => {
     expect(first.fileDiff.cacheKey).not.toBe(second.fileDiff.cacheKey);
   });
 
-  it('evicts the oldest parsed patch when the cache reaches its bound', () => {
-    const firstToken = '0'.repeat(64);
-    const first = diffEntry(staged, response(staged, firstToken));
-    for (let index = 1; index <= MAX_PARSED_DIFFS; index += 1) {
-      const token = index.toString(16).padStart(64, '0');
-      diffEntry(staged, response(staged, token));
-    }
+  it('parses a patch once for the same evidence content', () => {
+    const first = response(staged);
+    const again = diffEntry(staged, { ...first, statusToken: 'b'.repeat(64) });
+    const other = diffEntry(staged, response(staged));
+    const parsed = diffEntry(staged, first);
 
-    const parsedAgain = diffEntry(staged, response(staged, firstToken));
-    if (parsedAgain?.kind !== 'diff' || first?.kind !== 'diff')
+    if (
+      parsed?.kind !== 'diff' ||
+      again?.kind !== 'diff' ||
+      other?.kind !== 'diff'
+    )
       throw new Error('Expected textual patches to produce diff entries');
-    expect(parsedAgain.fileDiff).not.toBe(first.fileDiff);
+    expect(again.fileDiff).toBe(parsed.fileDiff);
+    expect(other.fileDiff).not.toBe(parsed.fileDiff);
   });
 });

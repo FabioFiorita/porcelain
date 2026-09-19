@@ -2,6 +2,7 @@ import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import { RequestError } from '@porcelain/client/errors/request-error';
 import {
   useMutation,
+  usePrefetchQuery,
   useQueries,
   useQuery,
   useQueryClient,
@@ -30,22 +31,31 @@ import { asMutation } from './mutation';
 import { enqueueReviewed } from './reviewed-queue';
 import { useConnectedContext } from './workspace-provider';
 
+function useReviewOptions<T>(
+  scope: ReviewScope,
+  key: readonly unknown[],
+  read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
+) {
+  const { api, connection } = useConnectedContext();
+  return {
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, key),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const request = connection.request(signal);
+      const data = await read(api.review, { ...scope, ...request });
+      request.signal.throwIfAborted();
+      return data;
+    },
+  };
+}
 function useReviewData<T>(
   scope: ReviewScope,
   key: readonly unknown[],
   read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
   refetchInterval: number | false = false,
 ) {
-  const { api, connection } = useConnectedContext();
   return useSuspenseQuery({
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, key),
+    ...useReviewOptions(scope, key, read),
     refetchInterval,
-    queryFn: async ({ signal }) => {
-      const request = connection.request(signal);
-      const data = await read(api.review, { ...scope, ...request });
-      request.signal.throwIfAborted();
-      return data;
-    },
   }).data;
 }
 export function useDirectory(scope: ReviewScope, path: string) {
@@ -136,18 +146,27 @@ export function useArtifactsOverview(scope: ReviewScope) {
   );
 }
 
-function useEvidence(scope: ReviewScope) {
-  return useReviewData<EvidenceResponse>(scope, ['evidence'], (api, request) =>
-    api.evidence(request),
+function useEvidenceOptions(scope: ReviewScope) {
+  return useReviewOptions<EvidenceResponse>(
+    scope,
+    ['evidence'],
+    (api, request) => api.evidence(request),
   );
 }
 
-function useReviewed(scope: ReviewScope) {
-  return useReviewData<ReviewedMarksResponse>(
+function useReviewedOptions(scope: ReviewScope) {
+  return useReviewOptions<ReviewedMarksResponse>(
     scope,
     ['reviewed'],
     (api, request) => api.reviewed.list(request),
   );
+}
+
+/** Suspense hooks start one read at a time; start them together instead. */
+export function usePrefetchReview(scope: ReviewScope) {
+  usePrefetchQuery(useChangesOptions(scope));
+  usePrefetchQuery(useEvidenceOptions(scope));
+  usePrefetchQuery(useReviewedOptions(scope));
 }
 
 /** Fetch only the content for the currently available artifact tabs. */
@@ -221,9 +240,10 @@ export function useReviewEvidence(
   scope: ReviewScope,
   changes?: readonly Change[],
 ): ReviewEvidenceItem[] {
-  const evidence = useEvidence(scope);
-  const reviewed = useReviewed(scope);
-  return mergeReviewEvidence(evidence, reviewed, changes);
+  const [evidence, reviewed] = useSuspenseQueries({
+    queries: [useEvidenceOptions(scope), useReviewedOptions(scope)],
+  });
+  return mergeReviewEvidence(evidence.data, reviewed.data, changes);
 }
 
 export function mergeReviewEvidence(

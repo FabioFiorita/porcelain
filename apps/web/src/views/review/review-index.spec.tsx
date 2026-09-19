@@ -72,6 +72,7 @@ vi.mock('../../query/review', async (importOriginal) => ({
     },
   }),
   useArtifacts: () => [],
+  usePrefetchReview: () => {},
   useReviewEvidence: () => [],
   useMarkAllReviewed: () => ({
     submit: vi.fn(),
@@ -84,6 +85,7 @@ vi.mock('../../query/review', async (importOriginal) => ({
 vi.mock('../../query/comments', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../query/comments')>()),
   useComments: () => ({ threads: commentState.threads, error: null }),
+  usePrefetchComments: () => {},
   useReplyComment: () => ({
     submit: vi.fn(),
     isPending: false,

@@ -1,6 +1,7 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import {
   useMutation,
+  usePrefetchQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
@@ -96,18 +97,26 @@ function enqueueComment<T>(
   return result;
 }
 
-export function useComments(scope: ReviewScope) {
+function useCommentsOptions(scope: ReviewScope) {
   const context = useCommentContext(scope);
-  const query = useSuspenseQuery({
+  return {
     queryKey: context.key,
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const request = context.request(signal);
       const result = await context.api.list(request);
       request.signal.throwIfAborted();
       return assertCommentScope(result, scope.worktreeId);
     },
-  });
+  };
+}
+
+export function useComments(scope: ReviewScope) {
+  const query = useSuspenseQuery(useCommentsOptions(scope));
   return { threads: query.data, error: query.error };
+}
+
+export function usePrefetchComments(scope: ReviewScope) {
+  usePrefetchQuery(useCommentsOptions(scope));
 }
 export function useCreateComment(scope: ReviewScope) {
   const context = useCommentContext(scope);

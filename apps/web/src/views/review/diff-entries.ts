@@ -4,8 +4,10 @@ import { changePath } from '../../domain/review';
 import { contentVersion } from '../../lib/pierre';
 import type { CodeEntry } from './code-document';
 
-export const MAX_PARSED_DIFFS = 128;
-const parsedDiffs = new Map<string, FileDiffMetadata | null>();
+const parsedDiffs = new WeakMap<
+  object,
+  { fileDiff: FileDiffMetadata | null; version: number }
+>();
 const parsedCommits = new WeakMap<object, FileDiffMetadata | null>();
 type OrdinaryChange = Extract<Change, { kind: string }>;
 
@@ -19,32 +21,26 @@ export function diffEntry(
 ): CodeEntry | null {
   if (response.content.kind === 'binary' || response.content.kind === 'omitted')
     return null;
-  const path = changePath(change);
-  const version = contentVersion(response.content.patch);
-  const cacheKey = `${response.statusToken}:${evidenceId(change)}:${version}`;
-  let fileDiff: FileDiffMetadata | null;
-  if (parsedDiffs.has(cacheKey)) {
-    fileDiff = parsedDiffs.get(cacheKey) ?? null;
-    // Refresh the entry's position so frequently revisited files stay warm.
-    parsedDiffs.delete(cacheKey);
-    parsedDiffs.set(cacheKey, fileDiff);
-  } else {
-    const parsed = parsePatchFiles(
+  // Evidence keeps its content objects across renders and unchanged refetches.
+  let parsed = parsedDiffs.get(response.content);
+  if (!parsed) {
+    const version = contentVersion(response.content.patch);
+    const files = parsePatchFiles(
       response.content.patch,
-      `${response.statusToken}:${evidenceId(change)}`,
+      `${evidenceId(change)}:${version}`,
     ).flatMap((group) => group.files);
-    fileDiff = parsed.length === 1 ? (parsed[0] ?? null) : null;
-    parsedDiffs.set(cacheKey, fileDiff);
-    if (parsedDiffs.size > MAX_PARSED_DIFFS) {
-      const oldest = parsedDiffs.keys().next().value;
-      if (oldest !== undefined) parsedDiffs.delete(oldest);
-    }
+    parsed = {
+      fileDiff: files.length === 1 ? (files[0] ?? null) : null,
+      version,
+    };
+    parsedDiffs.set(response.content, parsed);
   }
+  const { fileDiff, version } = parsed;
   if (!fileDiff) return null;
   return {
     id: evidenceId(change),
     kind: 'diff',
-    path,
+    path: changePath(change),
     fileDiff,
     version,
     note: `${change.scope} · ${change.kind}`,
