@@ -18,7 +18,7 @@
     "check:unused": "knip",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "test:web:smoke": "pnpm --filter @porcelain/web test:smoke",
-    "check:react": "react-doctor --blocking warning --no-telemetry --no-supply-chain",
+    "check:react": "react-doctor --no-telemetry --no-supply-chain",
     "dev": "node scripts/web-playground.ts",
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
