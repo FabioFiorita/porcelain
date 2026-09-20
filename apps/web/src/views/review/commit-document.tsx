@@ -1,20 +1,40 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CopyIcon } from 'lucide-react';
-import { useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { historyRefLabel, ordinal } from '../../domain/history';
-import type { CommitChanges, ReviewScope } from '../../domain/review';
+import type {
+  CommitFile,
+  CommitFiles,
+  DiffContent,
+  ReviewScope,
+} from '../../domain/review';
 import { shortOid } from '../../domain/review';
-import { useHistory } from '../../query/history';
-import { useCommit, useCommitLayers } from '../../query/review';
+import { useCommit, useCommitDiffs } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { CodeDocument } from './code-document';
 import { commitEntry } from './diff-entries';
 import { useDocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
-import { MarkdownView } from './markdown-view';
+
+/**
+ * How many files' patches are read at a time, extended by the control at the
+ * foot of the document.
+ *
+ * One batch is one Git process and one response; a batch that exceeds the
+ * reader's size limit marks every file in it unavailable rather than only the
+ * file that was too large, which is why it is a good deal smaller than a page
+ * of file names.
+ */
+const SHOWN_STEP = 25;
+
+/** A file is named by both its sides, so a rename is one diff, not two. */
+const pathList = (file: CommitFile) => [
+  ...new Set([file.oldPath, file.newPath].filter((path) => path !== null)),
+];
+const pathKey = (file: CommitFile) => pathList(file).join('\0');
 
 export function CommitDocument({
   scope,
@@ -40,12 +60,32 @@ export function CommitDocument({
       : requestedParent;
   const [, startTransition] = useTransition();
   const commit = useCommit(scope, oid, parent);
-  const archived = useCommitLayers(scope, oid);
-  const history = useHistory(scope);
+  // Patches are read for the files that have been reached, not for the whole
+  // commit: a commit touching thousands of files opens as fast as one file.
+  // A new commit, or a new comparison, starts the window again. Derived while
+  // rendering rather than reset in an effect: an effect would fire inside the
+  // transition that changes the parent and undo it.
+  const [window, setWindow] = useState({
+    of: `${oid}:${parent}`,
+    shown: SHOWN_STEP,
+  });
+  const shown = window.of === `${oid}:${parent}` ? window.shown : SHOWN_STEP;
+  const readMore = () =>
+    setWindow({ of: `${oid}:${parent}`, shown: shown + SHOWN_STEP });
+  const reached = useMemo(() => commit.files.slice(0, shown), [commit, shown]);
+  const wanted = useMemo(
+    () => reached.map((file) => pathList(file)),
+    [reached],
+  );
+  const diffs = useCommitDiffs(scope, oid, parent, wanted);
+  const patchOf = useCallback(
+    (file: CommitFile) => diffs.patches.get(pathKey(file)),
+    [diffs.patches],
+  );
   const entries = useMemo(
     () =>
-      commit.changes.flatMap((change) => {
-        const entry = commitEntry(oid, change);
+      reached.flatMap((file) => {
+        const entry = commitEntry(oid, file, patchOf(file));
         return entry == null
           ? []
           : [
@@ -60,13 +100,14 @@ export function CommitDocument({
               },
             ];
       }),
-    [commit, oid, parent],
+    [reached, oid, parent, patchOf],
   );
   const omitted = useMemo(
-    () => commit.changes.filter((change) => commitEntry(oid, change) == null),
-    [commit, oid],
+    () =>
+      reached.filter((file) => commitEntry(oid, file, patchOf(file)) == null),
+    [reached, oid, patchOf],
   );
-  const historyEntry = history.commits.find((item) => item.oid === oid);
+  const more = commit.files.length - reached.length;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -74,9 +115,9 @@ export function CommitDocument({
         toolbar={(collapseControl) => (
           <DocumentToolbar
             title={<span className="font-mono">{shortOid(oid)}</span>}
-            subtitle={`${commit.changes.length} file${commit.changes.length === 1 ? '' : 's'} changed`}
+            subtitle={`${commit.files.length} file${commit.files.length === 1 ? '' : 's'} changed`}
           >
-            {commit.parentOids.length > 1 && (
+            {commit.commit.parentOids.length > 1 && (
               // Keep the current diff visible while the other parent is loading.
               <Tabs
                 value={String(parent)}
@@ -90,7 +131,7 @@ export function CommitDocument({
                 }
               >
                 <TabsList className="h-7">
-                  {commit.parentOids.map((parentOid, index) => (
+                  {commit.commit.parentOids.map((parentOid, index) => (
                     <TabsTrigger
                       key={parentOid}
                       value={String(index + 1)}
@@ -120,93 +161,69 @@ export function CommitDocument({
           <>
             <CommitHeader
               commit={commit}
-              historyEntry={historyEntry}
               oid={oid}
               omitted={omitted}
+              patchOf={patchOf}
+              failed={diffs.isError}
+              onRetry={diffs.retry}
             />
-            {archived && (
-              <section
-                aria-label="Archived review notes"
-                className="mx-4 mb-4 space-y-3 rounded-xl border p-4"
-              >
-                <h2 className="text-sm font-semibold">Review notes</h2>
-                {archived.parentNumber !== parent && (
-                  <p className="text-xs text-muted-foreground">
-                    These notes describe the comparison against parent{' '}
-                    {archived.parentNumber}.
-                  </p>
-                )}
-                {archived.layers.map((layer) => (
-                  <div key={layer.id} className="space-y-2">
-                    <h3 className="text-sm font-medium">{layer.title}</h3>
-                    {layer.summary && (
-                      <MarkdownView
-                        text={layer.summary}
-                        className="text-sm text-muted-foreground"
-                      />
-                    )}
-                    {layer.files.map((file) => (
-                      <div
-                        key={`${file.scope}:${file.path}`}
-                        className="text-xs"
-                      >
-                        <p className="font-mono">
-                          {file.path}{' '}
-                          <span className="font-sans text-muted-foreground">
-                            · {file.scope} at review
-                          </span>
-                        </p>
-                        {file.note && (
-                          <MarkdownView
-                            text={file.note}
-                            className="mt-1 text-muted-foreground"
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </section>
-            )}
           </>
         )}
       />
+      {more > 0 && (
+        // A commit with more files than this has been read so far. Reading
+        // them all at once is what used to make large commits unopenable.
+        <div className="border-t px-4 py-3 text-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={readMore}
+            disabled={diffs.isPending}
+          >
+            {diffs.isPending
+              ? 'Reading…'
+              : `Read ${Math.min(more, SHOWN_STEP)} more of ${more}`}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 function CommitHeader({
   commit,
-  historyEntry,
   oid,
   omitted,
+  patchOf,
+  failed,
+  onRetry,
 }: {
-  commit: CommitChanges;
-  historyEntry?: ReturnType<typeof useHistory>['commits'][number] | undefined;
+  commit: CommitFiles;
   oid: string;
-  omitted: readonly CommitChanges['changes'][number][];
+  omitted: readonly CommitFile[];
+  patchOf: (file: CommitFile) => DiffContent | undefined;
+  failed: boolean;
+  onRetry: () => void;
 }) {
   return (
     <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
-      <h2 className="text-sm font-semibold">
-        {historyEntry?.subject ?? 'Commit'}
-      </h2>
-      {historyEntry?.body != null && (
+      <h2 className="text-sm font-semibold">{commit.commit.subject}</h2>
+      {commit.commit.body != null && (
         <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-muted-foreground">
-          {historyEntry.body}
+          {commit.commit.body}
         </p>
       )}
-      {historyEntry?.bodyTruncated && (
+      {commit.commit.bodyTruncated && (
         <p className="mt-1 text-[11px] text-muted-foreground">
           Commit message truncated
         </p>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground">
-        {historyEntry != null && (
+        {commit.commit != null && (
           <span>
-            {historyEntry.author.name} ·{' '}
+            {commit.commit.author.name} ·{' '}
             {formatDistanceToNowStrict(
-              new Date(historyEntry.author.timestamp),
+              new Date(commit.commit.author.timestamp),
               { addSuffix: true },
             )}
           </span>
@@ -218,13 +235,13 @@ function CommitHeader({
             <span className="font-mono">
               {shortOid(commit.comparison.baseOid)}
             </span>
-            {commit.parentOids.length > 1 &&
+            {commit.commit.parentOids.length > 1 &&
               ` (${ordinal(commit.comparison.parentNumber)} parent of a merge)`}
           </span>
         ) : (
           <span>root commit</span>
         )}
-        {historyEntry?.refs.map((ref) => (
+        {commit.commit.refs.map((ref) => (
           <Badge
             key={ref}
             title={ref}
@@ -235,45 +252,85 @@ function CommitHeader({
           </Badge>
         ))}
       </div>
-      {omitted.length > 0 && <OmittedCommitChanges changes={omitted} />}
+      {omitted.length > 0 && (
+        <OmittedCommitChanges
+          changes={omitted}
+          patchOf={patchOf}
+          failed={failed}
+          onRetry={onRetry}
+        />
+      )}
     </section>
   );
 }
 
 function OmittedCommitChanges({
   changes,
+  patchOf,
+  failed,
+  onRetry,
 }: {
-  changes: readonly CommitChanges['changes'][number][];
+  changes: readonly CommitFile[];
+  patchOf: (file: CommitFile) => DiffContent | undefined;
+  failed: boolean;
+  onRetry: () => void;
 }) {
   return (
-    <ul className="mt-3 space-y-1.5" aria-label="Changes without code preview">
-      {changes.map((change) => {
-        const path = change.newPath ?? change.oldPath ?? 'Unknown path';
-        const reason =
-          change.patch.kind === 'binary'
-            ? 'Binary change'
-            : change.patch.kind === 'submodule'
-              ? 'Submodule change'
-              : 'Patch could not be displayed';
-        return (
-          <li
-            key={`${change.oldPath}->${change.newPath}:${change.status}`}
-            className="rounded-lg border bg-muted/25 px-3 py-2 text-xs"
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-mono font-medium">{path}</span>
-              <span className="shrink-0 text-muted-foreground">
-                {change.status} · {reason}
-              </span>
-            </div>
-            {change.patch.kind === 'submodule' && (
-              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
-                {change.patch.text}
-              </pre>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {failed && (
+        <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          Some patches could not be read.
+          <Button size="xs" variant="outline" onClick={onRetry}>
+            Try again
+          </Button>
+        </p>
+      )}
+      <ul
+        className="mt-3 space-y-1.5"
+        aria-label="Changes without code preview"
+      >
+        {changes.map((change) => {
+          const path = change.newPath ?? change.oldPath ?? 'Unknown path';
+          const content = patchOf(change);
+          const submodule =
+            change.oldMode === '160000' || change.newMode === '160000';
+          const reason = submodule
+            ? 'Submodule change'
+            : content === undefined
+              ? failed
+                ? 'The patch could not be read'
+                : 'Reading the patch'
+              : content.kind === 'binary'
+                ? 'Binary change'
+                : content.kind === 'omitted'
+                  ? content.reason === 'size-limit'
+                    ? 'Too large to show'
+                    : 'Cannot be shown'
+                  : 'No code change';
+          return (
+            <li
+              key={`${change.oldPath}->${change.newPath}:${change.status}`}
+              className="rounded-lg border bg-muted/25 px-3 py-2 text-xs"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate font-mono font-medium">{path}</span>
+                <span className="shrink-0 text-muted-foreground">
+                  {change.status} · {reason}
+                </span>
+              </div>
+              {submodule && content?.kind === 'text' && (
+                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
+                  {content.patch
+                    .split('\n')
+                    .filter((line) => /^[+-]Subproject commit /.test(line))
+                    .map((line) => line.slice(1))
+                    .join('\n')}
+                </pre>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

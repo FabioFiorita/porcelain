@@ -114,7 +114,6 @@ try {
         seeding,
         project.id,
         worktreeId,
-        fixture.reviewCommitOid,
         shutdown.signal,
       );
       process.stdout.write(

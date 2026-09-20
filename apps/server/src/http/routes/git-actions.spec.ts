@@ -212,7 +212,7 @@ describe('Git actions HTTP', () => {
   });
 
   it.each([false, true])(
-    'archives committed layer notes and preserves remaining review work (selected: %s)',
+    'clears the layer notes a commit carried and preserves the rest (selected: %s)',
     async (selected) => {
       await writeFile(join(checkout, 'file'), 'staged\n');
       await git('add', 'file');
@@ -260,29 +260,24 @@ describe('Git actions HTTP', () => {
         state: 'succeeded',
         reviewLayersUpdated: true,
       });
-      const oid = await git('rev-parse', 'HEAD');
-      const snapshotUrl = `/api/projects/${projectId}/commits/${oid}/review-layers`;
-      const snapshot = await server.inject({ url: snapshotUrl, headers });
-      expect(snapshot.statusCode, snapshot.body).toBe(200);
-      expect(snapshot.json().layers[0]).toMatchObject({
-        title: 'Review intent',
-        summary: 'Why this changes',
-        files: selected ? files.slice(0, 2) : files.slice(0, 1),
-      });
+      // Only the work the commit carried leaves the live layers; the rest is
+      // still waiting to be reviewed. Step 5c removed the per-commit copy of
+      // the notes, not this.
       const remaining = await server.inject({ url: layerUrl, headers });
       expect(remaining.json()).toMatchObject({
         revision: 2,
         layers: [{ files: selected ? files.slice(2) : files.slice(1) }],
       });
-      await server.inject({
-        method: 'PUT',
-        url: layerUrl,
-        headers,
-        payload: { expectedRevision: 2, layers: [] },
-      });
+      // And the surface that used to keep them under the commit is gone.
+      const oid = await git('rev-parse', 'HEAD');
       expect(
-        (await server.inject({ url: snapshotUrl, headers })).json(),
-      ).toEqual(snapshot.json());
+        (
+          await server.inject({
+            url: `/api/projects/${projectId}/commits/${oid}/review-layers`,
+            headers,
+          })
+        ).statusCode,
+      ).toBe(404);
     },
   );
 

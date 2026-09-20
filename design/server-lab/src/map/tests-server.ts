@@ -1018,43 +1018,6 @@ export const serverSpecAudits: SpecAudit[] = [
     verdict: 'adequate',
   },
   {
-    file: 'apps/server/src/http/routes/commit-review-layers.spec.ts',
-    areas: ['review-layers', 'history'],
-    kind: 'http',
-    real: [
-      'git (linked worktree, external commits, clone, merge, rename, delete)',
-      'sqlite',
-      'loopback fetch',
-      'restart',
-      'project removal',
-    ],
-    fakes: [],
-    tests: [
-      {
-        name: 'preserves ordered subsets for external split commits across live edits, worktree removal, restart and project removal',
-        asserts:
-          'Exact snapshots per commit, 409 on revision conflict and on changed association, 400 on invalid references, per-project isolation, snapshots survive worktree removal and restart, project removal erases them.',
-      },
-      {
-        name: 'authenticates before validating association identities and rejects ambiguous path selections',
-        asserts:
-          '401 before 400; empty, escaping or scope-ambiguous references are 400; unknown project 404.',
-      },
-      {
-        name: 'binds review order to the chosen merge parent and uses committed rename and deletion paths',
-        asserts:
-          'Merge requires parent 2, rename/delete paths come from the commit, unknown commit is 422 on PUT and null on GET.',
-      },
-    ],
-    strengths: [
-      'Real merge, rename and deletion commits with exact snapshot bodies; strong state-machine coverage.',
-    ],
-    gaps: [
-      'Association cost on a large commit (thousands of paths) is not covered.',
-    ],
-    verdict: 'strong',
-  },
-  {
     file: 'apps/server/src/http/routes/comments.spec.ts',
     areas: ['comments'],
     kind: 'http',
@@ -1411,7 +1374,7 @@ export const serverSpecAudits: SpecAudit[] = [
     areas: ['history'],
     kind: 'http',
     real: [
-      'git (commits including a 1 MiB file)',
+      'git (a commit touching 400 files)',
       'sqlite',
       'loopback fetch and inject',
       'filesystem removal + refresh',
@@ -1421,15 +1384,15 @@ export const serverSpecAudits: SpecAudit[] = [
       {
         name: 'lists and inspects registered history through authenticated loopback HTTP with bounded safe failures',
         asserts:
-          'limit=1 paging with a cursor to the older commit, empty-tree comparison for the root, 400 for tampered cursor and bad params, 401, 404, 422 snapshot unavailable, 422 READ_LIMIT_EXCEEDED without the path, 422 after checkout removal.',
+          'limit=1 paging continued by frontier and tip, empty-tree comparison for the root, patches read by name after the file list, a 400-file commit opened and its patches read a batch at a time, 400 for a malformed anchor and bad params, 401, 404, 422 snapshot unavailable, 422 after checkout removal.',
       },
     ],
     strengths: [
-      'Real cursor round trip, tamper rejection and read-limit mapping.',
+      'The commit that used to be unopenable — 400 files — is opened over real HTTP, which is the claim the slice makes.',
     ],
     gaps: [
-      'A page costs 15 git processes (measured); no test on a deep or wide history for time or process count.',
-      'No test of a cursor after the branch tip moves (commit or rebase between pages).',
+      'Process count is asserted in git-process-budgets.spec.ts, not here; this spec does not measure cost.',
+      'Paging across a merge is checked in the adapter spec against a full git walk, not over HTTP.',
     ],
     verdict: 'strong',
   },
@@ -1437,7 +1400,7 @@ export const serverSpecAudits: SpecAudit[] = [
     file: 'apps/server/src/use-cases/commit-history.spec.ts',
     areas: ['history'],
     kind: 'unit',
-    real: ['ListCommits and InspectCommitChanges guards'],
+    real: ['ListCommits and ReadCommitFiles guards'],
     fakes: ['CommitReader and factory (vi.fn)', 'InventoryStore'],
     tests: [
       {
@@ -1478,12 +1441,14 @@ export const serverSpecAudits: SpecAudit[] = [
           'One attached-head page maps to an identical commit and parses with the schema.',
       },
     ],
-    strengths: ['Keeps full ref names in the contract.'],
-    gaps: [
-      'Detached and unborn heads, nextCursor and boundary are not covered.',
-      'toCommitChangesResponse (binary vs text patches, parent comparison) has no test here.',
+    strengths: [
+      'Covers both shapes a page can have: one read from the top, which carries the snapshot, and a continuation, which does not.',
     ],
-    verdict: 'weak',
+    gaps: [
+      'Detached and unborn heads and the shallow boundary are not covered here; they are in the adapter spec.',
+      'toCommitFilesResponse and toCommitDiffsResponse have no test here.',
+    ],
+    verdict: 'adequate',
   },
   {
     file: 'apps/server/src/cli/mcp-bridge.spec.ts',
@@ -1693,7 +1658,7 @@ export const serverAreaSummaries: AreaTestSummary[] = [
     area: 'changes',
     verdict: 'adequate',
     summary:
-      'Cost is now asserted rather than assumed: git-process-budgets.spec.ts measures the change list and the batched diff read at two repository sizes and requires the same count for both, so a regression that reintroduced a read per changed file would fail the slope rather than slip under a ceiling. Correctness is covered where it lives — fingerprint-change.spec.ts takes each kind of side (modes, rename, symlink, submodule pointer, binary, deletion, conflict), and git-actions.spec.ts proves with real Git that a mark covers both comparisons of a path and reads no diff. What is still thin is the large-repository and concurrency end.',
+      'Cost is now asserted rather than assumed: git-process-budgets.spec.ts measures the change list and the batched diff read at two repository sizes and requires the same count for both, so a regression that reintroduced a read per changed file would fail the slope rather than slip under a ceiling. History is measured the same way, at 121 and 401 commits: one process for a page, two for a continuation, and one to open a commit. Correctness is covered where it lives — fingerprint-change.spec.ts takes each kind of side (modes, rename, symlink, submodule pointer, binary, deletion, conflict), and git-actions.spec.ts proves with real Git that a mark covers both comparisons of a path and reads no diff. What is still thin is the large-repository and concurrency end.',
     missing: [
       'A real repository with 200 changed files still answers GET /changes within the same process count and a time budget.',
       'Two concurrent GET /changes for one worktree share one answer (SharedReads is not exercised here).',
@@ -1772,11 +1737,11 @@ export const serverAreaSummaries: AreaTestSummary[] = [
     area: 'history',
     verdict: 'adequate',
     summary:
-      'The route spec uses real commits for cursor paging, tamper rejection, the read limit and unavailable checkouts, and review-layer snapshots cover merges. The mapper spec covers only one attached-head page, and nothing checks deep histories or a cursor after the tip moves.',
+      'The route spec uses real commits for frontier paging, the file list of a 400-file commit and its patches read by name, malformed anchors and unavailable checkouts. Cost is asserted in git-process-budgets.spec.ts rather than here: a page is one process and a continuation two, at 121 and 401 commits. The mapper spec covers both shapes a page can have.',
     missing: [
-      'A page from a 50k-commit repository spawns at most N git processes and returns within a time budget.',
-      'A cursor taken before a new commit or rebase gives a defined result (stable page or HISTORY_SNAPSHOT_UNAVAILABLE).',
-      'Mapper tests for detached and unborn heads and for toCommitChangesResponse.',
+      'A page from the 49,995-commit profile within a time budget: process count is flat, the one ancestry question a continuation asks is not measured against real depth.',
+      'Paging across a merge over HTTP; it is checked in the adapter spec against a full git walk.',
+      'Mapper tests for detached and unborn heads and for toCommitFilesResponse.',
     ],
   },
   {

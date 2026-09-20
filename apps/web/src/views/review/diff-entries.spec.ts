@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { Change, CommitChanges, DiffContent } from '../../domain/review';
+import type { Change, CommitFile, DiffContent } from '../../domain/review';
 import { changeId, commitEntry, diffEntry, fileEntry } from './diff-entries';
+
+const commitFile: CommitFile = {
+  oldPath: 'README.md',
+  newPath: 'README.md',
+  status: 'modified',
+  oldMode: '100644',
+  newMode: '100644',
+};
 
 const staged = {
   scope: 'staged',
@@ -47,19 +55,12 @@ describe('continuous diff entries', () => {
   });
 
   it('turns a commit patch into the shared Pierre entry shape', () => {
-    const change: CommitChanges['changes'][number] = {
-      oldPath: 'README.md',
-      newPath: 'README.md',
-      status: 'modified',
-      oldMode: '100644',
-      newMode: '100644',
-      patch: {
+    expect(
+      commitEntry('b'.repeat(40), commitFile, {
         kind: 'text',
-        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
-      },
-    };
-
-    expect(commitEntry('b'.repeat(40), change)).toMatchObject({
+        patch: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
+      }),
+    ).toMatchObject({
       id: `commit:${'b'.repeat(40)}:README.md`,
       kind: 'diff',
       path: 'README.md',
@@ -67,25 +68,18 @@ describe('continuous diff entries', () => {
     });
   });
 
+  it('has no entry for a file whose patch has not been read yet', () => {
+    expect(commitEntry('b'.repeat(40), commitFile, undefined)).toBeNull();
+  });
+
   it('uses distinct Pierre cache identities for different parent patches', () => {
-    const base: CommitChanges['changes'][number] = {
-      oldPath: 'README.md',
-      newPath: 'README.md',
-      status: 'modified',
-      oldMode: '100644',
-      newMode: '100644',
-      patch: {
-        kind: 'text',
-        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+first\n',
-      },
-    };
-    const first = commitEntry('b'.repeat(40), base);
-    const second = commitEntry('b'.repeat(40), {
-      ...base,
-      patch: {
-        kind: 'text',
-        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+second\n',
-      },
+    const first = commitEntry('b'.repeat(40), commitFile, {
+      kind: 'text',
+      patch: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+first\n',
+    });
+    const second = commitEntry('b'.repeat(40), commitFile, {
+      kind: 'text',
+      patch: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+second\n',
     });
 
     if (first?.kind !== 'diff' || second?.kind !== 'diff')

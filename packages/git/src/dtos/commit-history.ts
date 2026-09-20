@@ -17,39 +17,66 @@ export interface CommitSummary {
 }
 export interface CommitPageRequest {
   limit?: number;
-  cursor?: string;
+  /**
+   * Where the walk had got to: the commits whose children have all been shown.
+   * Absent asks for the newest commits.
+   */
+  after?: string[];
+  /** The commit the list started at, to notice a history rewritten since. */
+  tip?: string;
 }
 export interface CommitPage {
-  snapshot: HeadSnapshot;
+  /**
+   * What HEAD was when the page was read. Only a page read from the top has
+   * one: a continuation is anchored to a commit, not to the branch, and never
+   * needed to look.
+   */
+  snapshot: HeadSnapshot | null;
   commits: CommitSummary[];
-  nextCursor: string | null;
-  boundary: 'shallow' | null;
+  /** The frontier to continue from. Null when there is nothing after this. */
+  nextAfter: string[] | null;
+  /** The commit this list started at, carried back on every continuation. */
+  tip: string | null;
+  boundary: 'shallow' | 'wide' | null;
+  /**
+   * The requested commit had left the branch, so this is the top of the
+   * history that exists now rather than the continuation that was asked for.
+   */
+  restarted: boolean;
 }
-export interface CommitChangesRequest {
+/** What the guard establishes, per request, without spawning anything. */
+export interface HistorySnapshot {
+  graph: string;
+  shallow: boolean;
+}
+export interface CommitFilesRequest {
   oid: string;
   parent?: number;
 }
-export interface CommitChange {
+export interface CommitFile {
   oldPath: string | null;
   newPath: string | null;
   status: 'added' | 'deleted' | 'modified' | 'renamed' | 'type-changed';
   oldMode: string;
   newMode: string;
-  patch:
-    | { kind: 'text'; text: string }
-    | { kind: 'binary' }
-    | { kind: 'submodule'; text: string };
 }
-export interface CommitChanges {
-  commitOid: string;
-  parentOids: string[];
+export interface CommitFiles {
+  commit: CommitSummary;
   comparison:
     | { kind: 'parent'; parentNumber: number; baseOid: string }
     | { kind: 'empty-tree' };
-  changes: CommitChange[];
+  files: CommitFile[];
+}
+export interface CommitDiffsRequest {
+  oid: string;
+  parent?: number;
+  paths: string[];
 }
 export interface HistoryCheckout {
   path: string;
+  /** Both directories come from the registry, which reads them from disk. */
+  commonDirectory: string;
+  administrativeDirectory: string;
   repositoryIdentity: string;
   metadataIdentity: string;
   scope: string;

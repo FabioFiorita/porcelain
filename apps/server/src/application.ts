@@ -1,11 +1,13 @@
 import type {
-  CommitChanges,
-  CommitChangesRequest,
+  CommitDiffsRequest,
+  CommitFiles,
+  CommitFilesRequest,
   CommitPage,
   CommitPageRequest,
 } from '@porcelain/git/dtos/commit-history';
 import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
 import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
+import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
 import type {
   GitChangeSelection,
   GitStatusObservation,
@@ -26,10 +28,6 @@ import type {
   CommitDraftInput,
   CommitModel,
 } from './models/commit-draft.ts';
-import type {
-  CommitReviewLayerRequest,
-  CommitReviewLayers,
-} from './models/commit-review-layers.ts';
 import type { DirectoryListing, TextContent } from './models/file-content.ts';
 import type { FileEdit, FileEditResult } from './models/file-edit.ts';
 import type {
@@ -268,11 +266,16 @@ export interface Application {
     request: CommitPageRequest,
     signal?: AbortSignal,
   ): Promise<CommitPage>;
-  inspectCommitChanges(
+  commitFiles(
     worktreeId: string,
-    request: CommitChangesRequest,
+    request: CommitFilesRequest,
     signal?: AbortSignal,
-  ): Promise<CommitChanges>;
+  ): Promise<CommitFiles>;
+  commitDiffs(
+    worktreeId: string,
+    request: CommitDiffsRequest,
+    signal?: AbortSignal,
+  ): Promise<Map<string, GitDiffResult> | null>;
   listFilePreferences(
     projectId: string,
     signal?: AbortSignal,
@@ -287,17 +290,6 @@ export interface Application {
     principal: AuthenticatedPrincipal,
     signal?: AbortSignal,
   ): Promise<StoredCommentThread[]>;
-  commitReviewLayers(
-    projectId: string,
-    commitOid: string,
-    signal?: AbortSignal,
-  ): Promise<CommitReviewLayers | null>;
-  associateCommitReviewLayers(
-    projectId: string,
-    commitOid: string,
-    request: CommitReviewLayerRequest,
-    signal?: AbortSignal,
-  ): Promise<CommitReviewLayers>;
   reviewLayers(worktreeId: string, signal?: AbortSignal): Promise<ReviewLayers>;
   replaceReviewLayers(
     worktreeId: string,

@@ -68,10 +68,15 @@ export function ordinal(n: number) {
   return `${n}${suffix}`;
 }
 
-/** The history endpoint follows the checked-out branch in its snapshot. */
+/**
+ * The history endpoint follows the checked-out branch in its snapshot. Only a
+ * page read from the top carries one, which is the page this always has.
+ */
 export function historyFollows(
-  head: CommitPageResponse['snapshot']['head'],
+  snapshot: CommitPageResponse['snapshot'],
 ): string {
+  if (!snapshot) return 'This branch';
+  const head = snapshot.head;
   switch (head.kind) {
     case 'attached':
       return worktreeLabel(head.ref);

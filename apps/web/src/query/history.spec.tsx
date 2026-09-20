@@ -42,6 +42,7 @@ function HistoryHarness() {
       <output aria-label="history">
         {history.commits.map((commit) => commit.subject).join('|')}
       </output>
+      <output aria-label="restarted">{String(history.restarted)}</output>
       {history.hasNextPage && (
         <button
           type="button"
@@ -71,12 +72,14 @@ function pagesFor(store: ReturnType<typeof createMockStore>) {
     first: {
       ...fixture.history,
       commits: [tip],
-      nextCursor: 'page-2',
+      nextAfter: ['b'.repeat(40)],
+      tip: 'a'.repeat(40),
     },
     second: {
       ...fixture.history,
       commits: [older],
-      nextCursor: null,
+      nextAfter: null,
+      tip: 'a'.repeat(40),
     },
   } satisfies { first: History; second: History };
 }
@@ -101,18 +104,18 @@ afterEach(() => {
 });
 
 describe('history query', () => {
-  it('accumulates cursor pages and only sends the returned cursor for older history', async () => {
+  it('accumulates pages and asks for older history after the last commit shown', async () => {
     const store = createMockStore();
     const baseApi = createMockApi(store);
     const pages = pagesFor(store);
-    const cursors: (string | undefined)[] = [];
+    const anchors: (string | undefined)[] = [];
     const api: Api = {
       ...baseApi,
       review: {
         ...baseApi.review,
         history: async (request) => {
-          cursors.push(request.cursor);
-          return request.cursor == null ? pages.first : pages.second;
+          anchors.push(request.after?.join(','));
+          return request.after == null ? pages.first : pages.second;
         },
       },
     };
@@ -126,7 +129,84 @@ describe('history query', () => {
     await expect
       .element(screen.getByLabelText('history'))
       .toMatchTextContent('Add keyboard navigation to the workspace');
-    expect(cursors).toEqual([undefined, 'page-2']);
+    expect(anchors).toEqual([undefined, 'b'.repeat(40)]);
+  });
+
+  /**
+   * The branch was rewritten under the reader: what they were scrolling is
+   * gone, so the page that comes back replaces it rather than continuing it.
+   */
+  it('replaces the list when history restarts from the top', async () => {
+    const store = createMockStore();
+    const baseApi = createMockApi(store);
+    const pages = pagesFor(store);
+    const api: Api = {
+      ...baseApi,
+      review: {
+        ...baseApi.review,
+        history: async (request) =>
+          request.after == null
+            ? pages.first
+            : { ...pages.second, restarted: true },
+      },
+    };
+
+    const screen = await renderHistory(api);
+    await expect
+      .element(screen.getByText('Keep review context scoped to the worktree'))
+      .toBeVisible();
+    await screen.getByRole('button', { name: 'Load older' }).click();
+    await expect
+      .element(screen.getByLabelText('history'))
+      .toMatchTextContent('Add keyboard navigation to the workspace');
+    // The commits from before the restart are not kept above the new ones.
+    await expect
+      .element(screen.getByLabelText('history'))
+      .not.toMatchTextContent('Keep review context scoped to the worktree');
+    await expect
+      .element(screen.getByLabelText('restarted'))
+      .toMatchTextContent('true');
+  });
+
+  /**
+   * The notice belongs to the page that restarted, not to the list for as long
+   * as it is open: reading on past it is what says the reader has seen it.
+   */
+  it('clears the restarted notice once a later page succeeds', async () => {
+    const store = createMockStore();
+    const baseApi = createMockApi(store);
+    const pages = pagesFor(store);
+    let calls = 0;
+    const api: Api = {
+      ...baseApi,
+      review: {
+        ...baseApi.review,
+        history: async (request) => {
+          if (request.after == null) return pages.first;
+          calls += 1;
+          // The first continuation restarted; the one after it did not.
+          return calls === 1
+            ? {
+                ...pages.second,
+                restarted: true,
+                nextAfter: ['c'.repeat(40)],
+                tip: 'a'.repeat(40),
+              }
+            : { ...pages.second, restarted: false, nextAfter: null };
+        },
+      },
+    };
+
+    const screen = await renderHistory(api);
+    await screen.getByRole('button', { name: 'Load older' }).click();
+    await expect
+      .element(screen.getByLabelText('restarted'))
+      .toMatchTextContent('true');
+
+    await screen.getByRole('button', { name: 'Load older' }).click();
+    await expect
+      .element(screen.getByLabelText('restarted'))
+      .toMatchTextContent('false');
   });
 
   it('retains loaded commits and succeeds after explicitly retrying a failed page', async () => {
@@ -139,7 +219,7 @@ describe('history query', () => {
       review: {
         ...baseApi.review,
         history: async (request) => {
-          if (request.cursor == null) return pages.first;
+          if (request.after == null) return pages.first;
           olderCalls += 1;
           if (olderCalls === 1) throw new Error('temporary history failure');
           return pages.second;

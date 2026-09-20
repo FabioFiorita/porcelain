@@ -19,7 +19,6 @@
       "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts"],
       "ignore": ["src/components/ui/**"],
       "ignoreDependencies": [
-        "cmdk",
         "embla-carousel-react",
         "input-otp",
         "react-day-picker"

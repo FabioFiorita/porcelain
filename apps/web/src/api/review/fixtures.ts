@@ -136,7 +136,9 @@ export function reviewFixture(
       head: branch ? { kind: 'attached', ref: branch } : { kind: 'detached' },
     },
     boundary: null,
-    nextCursor: null,
+    nextAfter: null,
+    tip: 'a'.repeat(40),
+    restarted: false,
     commits: [
       'Keep review context scoped to the worktree',
       'Add keyboard navigation to the workspace',

@@ -55,10 +55,10 @@ export async function readDiffs(
       (change) => change.supported && change.scope === scope,
     );
     if (wanted.length === 0) continue;
-    const sections = await readScope(
+    const sections = await readSections(
       session.path,
-      scope,
-      wanted,
+      { kind: scope },
+      wanted.flatMap(changePaths),
       scope === 'unstaged' ? config : [],
       signal,
     );
@@ -82,6 +82,30 @@ export async function readDiffs(
   });
 }
 
+/**
+ * The patches of some of a commit's files, in one Git process.
+ *
+ * The same reader as the worktree's: the only difference is which two sides
+ * Git is asked about. A commit needs none of the worktree's guards — its
+ * content cannot change under the read, so the oid is the fingerprint — and
+ * none of its conversion filters, which are about the working tree.
+ */
+export async function readCommitDiffs(
+  checkout: string,
+  oid: string,
+  parent: number,
+  paths: readonly string[],
+  signal?: AbortSignal,
+): Promise<Map<string, GitDiffResult> | null> {
+  return readSections(
+    checkout,
+    { kind: 'commit', oid, parent },
+    paths,
+    [],
+    signal,
+  );
+}
+
 function changePaths(change: GitOrdinaryChange) {
   return [...new Set([change.oldPath, change.newPath])].filter(
     (path): path is string => path !== null,
@@ -90,10 +114,33 @@ function changePaths(change: GitOrdinaryChange) {
 
 const keyOf = (paths: readonly string[]) => paths.join('\0');
 
-function diffArguments(scope: 'staged' | 'unstaged', pathspecs: string[]) {
+/**
+ * What two sides a patch is between. A worktree comparison is against the
+ * index or the working tree; a commit's is between two objects, which is the
+ * only difference in the command — everything after it is shared.
+ */
+type DiffComparison =
+  | { kind: 'staged' }
+  | { kind: 'unstaged' }
+  | { kind: 'commit'; oid: string; parent: number };
+
+function diffArguments(comparison: DiffComparison, pathspecs: string[]) {
   return [
-    'diff',
-    ...(scope === 'staged' ? ['--cached'] : []),
+    // `diff-tree` is the same diff machinery over two objects rather than the
+    // index or the working tree, and it takes every option below unchanged.
+    // Naming one commit compares it with its first parent; `--root` covers the
+    // commit that has none, and `--diff-merges` the one that has two, so no
+    // base has to be looked up to ask for the usual comparison.
+    ...(comparison.kind === 'commit'
+      ? [
+          'diff-tree',
+          '--no-commit-id',
+          '-r',
+          ...(comparison.parent === 1
+            ? ['--root', '--diff-merges=first-parent']
+            : []),
+        ]
+      : ['diff', ...(comparison.kind === 'staged' ? ['--cached'] : [])]),
     '--no-ext-diff',
     '--no-textconv',
     '--no-color',
@@ -109,6 +156,11 @@ function diffArguments(scope: 'staged' | 'unstaged', pathspecs: string[]) {
     '--raw',
     '-z',
     '--patch',
+    ...(comparison.kind === 'commit'
+      ? comparison.parent === 1
+        ? [comparison.oid]
+        : [`${comparison.oid}^${comparison.parent}`, comparison.oid]
+      : []),
     '--',
     ...pathspecs,
   ];
@@ -120,22 +172,20 @@ function pathspec(path: string) {
   return `:(top,glob)${[...path].map((character) => `\\${character}`).join('')}`;
 }
 
-/** Null when the scope was larger than one response may carry. */
-async function readScope(
+/** Null when the comparison was larger than one response may carry. */
+async function readSections(
   checkout: string,
-  scope: 'staged' | 'unstaged',
-  changes: readonly GitOrdinaryChange[],
+  comparison: DiffComparison,
+  paths: readonly string[],
   config: string[],
   signal?: AbortSignal,
 ): Promise<Map<string, GitDiffResult> | null> {
-  const pathspecs = [
-    ...new Set(changes.flatMap(changePaths).map((path) => pathspec(path))),
-  ];
+  const pathspecs = [...new Set(paths.map((path) => pathspec(path)))];
   let output: Buffer;
   try {
     output = await runInspection(
       checkout,
-      diffArguments(scope, pathspecs),
+      diffArguments(comparison, pathspecs),
       signal,
       { maxBytes: MAX_BATCH_BYTES, config },
     );
@@ -172,7 +222,12 @@ async function readScope(
  * a rename, then one empty field, then the patch.
  */
 function splitRaw(output: Buffer) {
-  const entries: { status: string; paths: string[] }[] = [];
+  const entries: {
+    status: string;
+    paths: string[];
+    oldMode: string;
+    newMode: string;
+  }[] = [];
   let at = 0;
   const field = () => {
     const end = output.indexOf(0, at);
@@ -185,7 +240,8 @@ function splitRaw(output: Buffer) {
     const meta = field();
     if (meta === null) break;
     // The status letter is last: R and C name a source and a destination.
-    const status = meta.split(' ').at(-1) ?? '';
+    const parts = meta.split(' ');
+    const status = parts.at(-1) ?? '';
     const first = field();
     if (first === null) break;
     const second = /^[RC]/.test(status) ? field() : null;
@@ -193,6 +249,10 @@ function splitRaw(output: Buffer) {
     entries.push({
       status,
       paths: second === null ? [first] : [...new Set([first, second])],
+      // `:<oldmode> <newmode> <oldoid> <newoid> <status>`; the leading colon
+      // belongs to the first field.
+      oldMode: (parts[0] ?? '').slice(1),
+      newMode: parts[1] ?? '',
     });
   }
   // The empty field that closes the raw section.

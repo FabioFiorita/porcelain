@@ -117,28 +117,16 @@ describe('Playground workflow', () => {
           },
         ],
       });
+      // The per-commit review surface was removed in step 5c: the playground
+      // no longer seeds it and the route is gone.
       expect(
-        await (
+        (
           await fetch(
             `${address}/api/projects/${info.projectId}/commits/${info.reviewCommitOid}/review-layers`,
             { headers },
           )
-        ).json(),
-      ).toMatchObject({
-        commitOid: info.reviewCommitOid,
-        layers: [
-          {
-            summary:
-              'The committed guide establishes the order for the release handoff.',
-            files: [
-              {
-                path: 'docs/review-guide.md',
-                note: 'The guide is the committed review entry point.',
-              },
-            ],
-          },
-        ],
-      });
+        ).status,
+      ).toBe(404);
       expect(
         await (
           await fetch(

@@ -9,9 +9,11 @@ import {
   changeLinesResponseSchema,
   changesResponseSchema,
 } from '@porcelain/contracts/changes';
-import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes';
+import {
+  commitDiffsResponseSchema,
+  commitFilesResponseSchema,
+} from '@porcelain/contracts/commit-changes';
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
-import { commitReviewLayersResponseSchema } from '@porcelain/contracts/commit-review-layers';
 import {
   assetResponseSchema,
   directoryResponseSchema,
@@ -82,15 +84,6 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     }
   }
   return {
-    commitLayers: (request: Request & { projectId: string; oid: string }) =>
-      read(
-        request,
-        `commits/${encodeURIComponent(request.oid)}/review-layers`,
-        commitReviewLayersResponseSchema.nullable(),
-        undefined,
-        'GET',
-        `${endpoint}/projects/${encodeURIComponent(request.projectId)}`,
-      ),
     worktreePaths: (request: Request) =>
       read(request, 'paths', worktreePathsSchema),
     editFile: (request: Request & { input: FileEdit }) =>
@@ -134,12 +127,28 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
     commit: (request: Request & { oid: string; parent?: number }) =>
       read(
         request,
-        `commits/${encodeURIComponent(request.oid)}/changes${
+        `commits/${encodeURIComponent(request.oid)}/files${
           request.parent === undefined
             ? ''
             : `?${new URLSearchParams({ parent: String(request.parent) })}`
         }`,
-        commitChangesResponseSchema,
+        commitFilesResponseSchema,
+      ),
+    commitDiffs: (
+      request: Request & {
+        oid: string;
+        parent?: number;
+        paths: string[][];
+      },
+    ) =>
+      read(
+        request,
+        `commits/${encodeURIComponent(request.oid)}/diffs`,
+        commitDiffsResponseSchema,
+        {
+          paths: request.paths,
+          ...(request.parent === undefined ? {} : { parent: request.parent }),
+        },
       ),
     directory: (request: Request & { path: string }) =>
       read(
@@ -154,10 +163,14 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ]);
       return { changes, layers };
     },
-    history: (request: Request & { cursor?: string }) =>
+    history: (request: Request & { after?: string[]; tip?: string }) =>
       read(
         request,
-        `commits?${new URLSearchParams(request.cursor ? { cursor: request.cursor } : { limit: '50' })}`,
+        `commits?${new URLSearchParams(
+          request.after?.length && request.tip
+            ? { limit: '50', after: request.after.join(','), tip: request.tip }
+            : { limit: '50' },
+        )}`,
         commitPageResponseSchema,
       ),
     artifacts: (request: Request) =>

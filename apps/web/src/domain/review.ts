@@ -9,7 +9,10 @@ import type {
   ChangesResponse,
   FileChange as FileChangeResponse,
 } from '@porcelain/contracts/changes';
-import type { CommitChangesResponse } from '@porcelain/contracts/commit-changes';
+import type {
+  CommitDiffsResponse,
+  CommitFilesResponse,
+} from '@porcelain/contracts/commit-changes';
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
   DirectoryResponse,
@@ -180,9 +183,10 @@ export function groupChanges(list: ChangeList, layers: Layers) {
 }
 
 export type TextFile = TextResponse;
-export type CommitChanges = CommitChangesResponse;
+export type CommitFiles = CommitFilesResponse;
+export type CommitFile = CommitFilesResponse['files'][number];
+export type CommitDiffs = CommitDiffsResponse;
 
-export type { CommitReviewLayersResponse as CommitReviewLayers } from '@porcelain/contracts/commit-review-layers';
 export type {
   FileEdit,
   FileEditResult,

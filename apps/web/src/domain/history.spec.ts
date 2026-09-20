@@ -39,11 +39,19 @@ describe('history domain', () => {
 
   it('describes attached, detached and unborn heads compactly', () => {
     expect(
-      historyFollows({ kind: 'attached', ref: 'refs/heads/feature/review' }),
+      historyFollows({
+        tipOid: 'a'.repeat(40),
+        head: { kind: 'attached', ref: 'refs/heads/feature/review' },
+      }),
     ).toBe('feature/review');
-    expect(historyFollows({ kind: 'detached' })).toBe('Detached HEAD');
     expect(
-      historyFollows({ kind: 'unborn', ref: 'refs/heads/new-branch' }),
+      historyFollows({ tipOid: 'a'.repeat(40), head: { kind: 'detached' } }),
+    ).toBe('Detached HEAD');
+    expect(
+      historyFollows({
+        tipOid: null,
+        head: { kind: 'unborn', ref: 'refs/heads/new-branch' },
+      }),
     ).toBe('No commits yet on new-branch');
   });
 

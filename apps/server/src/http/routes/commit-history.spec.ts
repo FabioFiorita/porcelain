@@ -2,7 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { devNull, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes';
+import {
+  commitDiffsResponseSchema,
+  commitFilesResponseSchema,
+} from '@porcelain/contracts/commit-changes';
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
@@ -61,32 +64,43 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
     const first = commitPageResponseSchema.parse(raw);
     expect(raw).toEqual(first);
     expect(first.commits[0]?.subject).toBe('second');
-    expect(first.nextCursor).toBeTypeOf('string');
+    expect(first.nextAfter).toHaveLength(1);
+    expect(first.restarted).toBe(false);
     const second = await server.inject({
       method: 'GET',
-      url: `${url}?cursor=${first.nextCursor}`,
+      url: `${url}?after=${first.nextAfter?.join(',')}&tip=${first.tip}`,
       headers,
     });
     expect(second.statusCode).toBe(200);
     expect(commitPageResponseSchema.parse(second.json()).commits[0]?.oid).toBe(
       oid,
     );
-    const inspection = await fetch(`${address}${url}/${oid}/changes`, {
+    const inspection = await fetch(`${address}${url}/${oid}/files`, {
       headers,
     });
     expect(inspection.status).toBe(200);
-    const changes: unknown = await inspection.json();
-    expect(changes).toEqual(commitChangesResponseSchema.parse(changes));
-    expect(changes).toMatchObject({
+    const files: unknown = await inspection.json();
+    expect(files).toEqual(commitFilesResponseSchema.parse(files));
+    expect(files).toMatchObject({
       comparison: { kind: 'empty-tree' },
-      changes: [{ status: 'added', newPath: 'file' }],
+      files: [{ status: 'added', newPath: 'file' }],
     });
+    // The list carries no patches at all; they are asked for by name.
+    const patches = await server.inject({
+      method: 'POST',
+      url: `${url}/${oid}/diffs`,
+      headers,
+      payload: { paths: [['file']] },
+    });
+    expect(patches.statusCode).toBe(200);
+    const diffs = commitDiffsResponseSchema.parse(patches.json());
+    expect(diffs.diffs[0]?.content).toMatchObject({ kind: 'text' });
     for (const suffix of [
       '?limit=101',
-      '?cursor=tampered',
+      '?after=tampered',
       '?extra=true',
-      '/HEAD/changes',
-      `/${oid}/changes?parent=1`,
+      '/HEAD/files',
+      `/${oid}/files?parent=1`,
     ]) {
       const response = await server.inject({
         method: 'GET',
@@ -96,7 +110,7 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({ code: 'INVALID_REQUEST' });
     }
-    for (const suffix of ['?limit=invalid', '/invalid/changes']) {
+    for (const suffix of ['?limit=invalid', '/invalid/files']) {
       const response = await server.inject({
         method: 'GET',
         url: `${url}${suffix}`,
@@ -104,7 +118,7 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
       expect(response.statusCode).toBe(401);
     }
     const unknown = `/api/worktrees/${'0'.repeat(32)}/commits`;
-    for (const target of [unknown, `${unknown}/${oid}/changes`]) {
+    for (const target of [unknown, `${unknown}/${oid}/files`]) {
       const response = await server.inject({
         method: 'GET',
         url: target,
@@ -118,7 +132,7 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
     }
     const missing = await server.inject({
       method: 'GET',
-      url: `${url}/${'0'.repeat(40)}/changes`,
+      url: `${url}/${'0'.repeat(40)}/files`,
       headers,
     });
     expect(missing.statusCode).toBe(422);
@@ -126,20 +140,39 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
       code: 'HISTORY_SNAPSHOT_UNAVAILABLE',
       message: 'History snapshot is unavailable; start a new listing',
     });
-    await writeFile(join(path, 'large'), 'x'.repeat(1024 * 1024));
+    // The commit that used to be unopenable. Returning every patch at once
+    // refused above a megabyte, so the largest commits were the ones that
+    // could not be read; the list carries no patches, so it opens.
+    await mkdir(join(path, 'bulk'));
+    await Promise.all(
+      Array.from({ length: 400 }, (_, index) =>
+        writeFile(join(path, 'bulk', `file-${index}.txt`), 'x'.repeat(4096)),
+      ),
+    );
     git('add', '.');
-    git('-c', 'commit.gpgsign=false', 'commit', '-m', 'large');
-    const limited = await server.inject({
+    git('-c', 'commit.gpgsign=false', 'commit', '-m', 'bulk');
+    const bulkOid = git('rev-parse', 'HEAD');
+    const bulk = await server.inject({
       method: 'GET',
-      url: `${url}/${git('rev-parse', 'HEAD')}/changes`,
+      url: `${url}/${bulkOid}/files`,
       headers,
     });
-    expect(limited.statusCode).toBe(422);
-    expect(limited.json()).toEqual({
-      code: 'READ_LIMIT_EXCEEDED',
-      message: 'History read exceeds its limit',
+    expect(bulk.statusCode).toBe(200);
+    const bulkFiles = commitFilesResponseSchema.parse(bulk.json());
+    expect(bulkFiles.files).toHaveLength(400);
+    // And its patches come a batch at a time rather than all at once.
+    const batch = await server.inject({
+      method: 'POST',
+      url: `${url}/${bulkOid}/diffs`,
+      headers,
+      payload: {
+        paths: bulkFiles.files
+          .slice(0, 5)
+          .map((file) => [file.newPath ?? file.oldPath]),
+      },
     });
-    expect(JSON.stringify(limited.json())).not.toContain(path);
+    expect(batch.statusCode).toBe(200);
+    expect(commitDiffsResponseSchema.parse(batch.json()).diffs).toHaveLength(5);
     await rm(path, { recursive: true, force: true });
     await server.inject({
       method: 'GET',

@@ -234,6 +234,44 @@ describe('review change queries', () => {
     ).toBeTruthy();
   });
 
+  /**
+   * A commit cannot change and its id is in the key, so coming back to the
+   * window has nothing to find out. History itself already says as much; the
+   * commit open inside it was still asking.
+   */
+  it('does not read an open commit again when the window regains focus', async () => {
+    const store = createMockStore();
+    const fixture = store.review[scope.worktreeId];
+    const firstCommit = fixture?.history.commits[0];
+    if (!firstCommit) throw new Error('Missing fixture commit');
+    const baseApi = createMockApi(store);
+    let reads = 0;
+    const api: Api = {
+      ...baseApi,
+      review: {
+        ...baseApi.review,
+        async commit(request) {
+          reads += 1;
+          return baseApi.review.commit(request);
+        },
+      },
+    };
+
+    const { screen } = await renderReview(
+      store,
+      api,
+      <CommitHarness oid={firstCommit.oid} parent={1} />,
+    );
+    await expect
+      .element(screen.getByLabelText('commit comparison'))
+      .toBeVisible();
+    expect(reads).toBe(1);
+
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await expect.poll(() => reads).toBe(1);
+  });
+
   it('selects a logical path without dropping its staged and unstaged comparisons', () => {
     const staged: Extract<Change, { kind: string }> = {
       scope: 'staged',

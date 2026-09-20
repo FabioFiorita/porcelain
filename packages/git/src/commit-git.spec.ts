@@ -1,32 +1,26 @@
 import { execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
 import {
-  mkdir,
+  appendFile,
   mkdtemp,
-  readFile,
-  realpath,
   rename,
   rm,
-  symlink,
+  stat,
   writeFile,
 } from 'node:fs/promises';
 import { devNull, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CommitCursorCodec } from './commit-cursor.ts';
+import { afterEach, describe, expect, it } from 'vitest';
 import { CommitGit } from './commit-git.ts';
-import type { CommitPage, HistoryCheckout } from './dtos/commit-history.ts';
-import { HistorySnapshotUnavailableError } from './errors/history-snapshot-unavailable-error.ts';
+import type { HistoryCheckout } from './dtos/commit-history.ts';
 import { HistoryWorktreeUnavailableError } from './errors/history-worktree-unavailable-error.ts';
 import { InvalidHistoryRequestError } from './errors/invalid-history-request-error.ts';
-import { ReadLimitExceededError } from './errors/read-limit-exceeded-error.ts';
 import { UnsupportedHistoryDataError } from './errors/unsupported-history-data-error.ts';
 import { Git } from './git.ts';
 
 describe('CommitGit', () => {
   const roots: string[] = [];
   afterEach(async () => {
-    vi.unstubAllEnvs();
     await Promise.all(
       roots.splice(0).map((path) => rm(path, { recursive: true, force: true })),
     );
@@ -47,592 +41,539 @@ describe('CommitGit', () => {
       },
     }).trim();
   }
-  async function reader(
-    path: string,
-    scope = 'fixture',
-  ): Promise<{
-    adapter: CommitGit;
-    checkout: HistoryCheckout;
-    codec: CommitCursorCodec;
-  }> {
+  async function checkout(path: string): Promise<HistoryCheckout> {
     const { repository } = await new Git(path).listWorktrees();
     const worktree = repository.worktrees.find((entry) => entry.path === path);
     if (!worktree?.metadataIdentity)
       throw new Error('Missing fixture identity');
-    const checkout = {
+    return {
       path,
+      commonDirectory: repository.commonDirectory,
+      administrativeDirectory: worktree.administrativeDirectory,
       repositoryIdentity: repository.repositoryIdentity,
       metadataIdentity: worktree.metadataIdentity,
-      scope,
+      scope: 'fixture',
     };
-    const codec = new CommitCursorCodec(randomBytes(32));
-    return { adapter: new CommitGit(checkout, codec), checkout, codec };
   }
-  async function fixture(format = 'sha1') {
-    const root = await realpath(
-      await mkdtemp(join(tmpdir(), 'porcelain-history-')),
-    );
+  async function repository(commits = 0) {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-history-'));
     roots.push(root);
-    const path = join(root, 'repo');
-    await mkdir(path);
-    git(path, 'init', '-b', 'main', `--object-format=${format}`);
-    return { root, path, ...(await reader(path)) };
-  }
-  async function commit(
-    path: string,
-    name: string,
-    text = name,
-  ): Promise<string> {
-    await writeFile(join(path, name), text);
-    git(path, 'add', '--', name);
-    git(path, '-c', 'commit.gpgsign=false', 'commit', '-m', name);
-    return git(path, 'rev-parse', 'HEAD');
-  }
-  async function remaining(
-    adapter: CommitGit,
-    first: CommitPage,
-  ): Promise<string[]> {
-    const oids = first.commits.map((entry) => entry.oid);
-    let cursor = first.nextCursor;
-    while (cursor) {
-      const page = await adapter.listCommits({ cursor });
-      oids.push(...page.commits.map((entry) => entry.oid));
-      cursor = page.nextCursor;
+    git(root, 'init', '-b', 'main', '.');
+    for (let index = 1; index <= commits; index += 1) {
+      await writeFile(join(root, 'file.txt'), `${index}\n`);
+      git(root, 'add', 'file.txt');
+      git(root, 'commit', '-m', `commit ${index}`);
     }
-    return oids;
+    return { root, reader: new CommitGit(await checkout(root)) };
+  }
+  const subjects = (page: { commits: { subject: string }[] }) =>
+    page.commits.map((commit) => commit.subject);
+  /** Every page, in order, as one list — what the reader ends up scrolling. */
+  async function pageThrough(reader: CommitGit, limit: number) {
+    const all: string[] = [];
+    let after: string[] | null = null;
+    let tip: string | null = null;
+    for (let guard = 0; guard < 50; guard += 1) {
+      const page = await reader.listCommits({
+        limit,
+        ...(after && tip ? { after, tip } : {}),
+      });
+      all.push(...subjects(page));
+      after = page.nextAfter;
+      tip = page.tip ?? tip;
+      if (!after) break;
+    }
+    return all;
   }
 
-  describe('History traversal and pagination', () => {
-    it('maps lightweight and annotated refs once per page without leaking refs from other commits', async () => {
-      const f = await fixture();
-      const root = await commit(f.path, 'root');
-      const tip = await commit(f.path, 'tip');
-      git(f.path, 'branch', 'feature');
-      git(f.path, 'update-ref', 'refs/remotes/origin/feature', tip);
-      git(f.path, 'tag', 'lightweight', tip);
-      git(f.path, 'tag', '-a', 'annotated', '-m', 'annotated', tip);
-      git(f.path, 'checkout', '-b', 'outside', root);
-      await commit(f.path, 'outside');
-      git(f.path, 'checkout', 'main');
-
-      const first = await f.adapter.listCommits({ limit: 1 });
-      expect(first.commits[0]?.oid).toBe(tip);
-      expect(first.commits[0]?.refs).toEqual([
-        'refs/heads/feature',
-        'refs/heads/main',
-        'refs/remotes/origin/feature',
-        'refs/tags/annotated',
-        'refs/tags/lightweight',
-      ]);
-      if (!first.nextCursor) throw new Error('Missing cursor');
-      const second = await f.adapter.listCommits({ cursor: first.nextCursor });
-      expect(second.commits[0]?.oid).toBe(root);
-      expect(second.commits[0]?.refs).toEqual([]);
+  it('reads the newest commits and where HEAD is', async () => {
+    const { reader } = await repository(3);
+    const page = await reader.listCommits({});
+    expect(subjects(page)).toEqual(['commit 3', 'commit 2', 'commit 1']);
+    expect(page.snapshot?.head).toEqual({
+      kind: 'attached',
+      ref: 'refs/heads/main',
     });
+    expect(page.commits[0]?.refs).toEqual(['main']);
+    expect(page.nextAfter).toBeNull();
+    expect(page.restarted).toBe(false);
+  });
 
-    it('keeps all ancestors in topological order across ref movement, reset and deletion', async () => {
-      const f = await fixture();
-      const root = await commit(f.path, 'root');
-      git(f.path, 'checkout', '-b', 'side');
-      const side = await commit(f.path, 'side');
-      git(f.path, 'checkout', 'main');
-      const main = await commit(f.path, 'main');
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'merge',
-        '--no-ff',
-        'side',
-        '-m',
-        'merge',
-      );
-      const tip = git(f.path, 'rev-parse', 'HEAD');
-      const first = await f.adapter.listCommits({ limit: 1 });
-      await commit(f.path, 'later');
-      git(f.path, 'reset', '--hard', root);
-      git(f.path, 'checkout', '--detach');
-      git(f.path, 'branch', '-D', 'main');
-      const oids = await remaining(f.adapter, first);
-      expect(first.snapshot).toEqual({
-        tipOid: tip,
-        head: { kind: 'attached', ref: 'refs/heads/main' },
-      });
-      expect(oids[0]).toBe(tip);
-      expect(oids.at(-1)).toBe(root);
-      expect(new Set(oids)).toEqual(new Set([tip, side, main, root]));
-      expect(oids).toHaveLength(4);
-      expect(oids).toEqual(
-        git(f.path, 'rev-list', '--topo-order', tip).split('\n'),
-      );
-    });
-
-    it('rejects tampered, cross-worktree and restarted cursors and honors a cursor page size', async () => {
-      const f = await fixture();
-      await commit(f.path, 'one');
-      await commit(f.path, 'two');
-      const first = await f.adapter.listCommits({ limit: 1 });
-      const cursor = first.nextCursor;
-      if (!cursor) throw new Error('Missing cursor');
-      await expect(
-        f.adapter.listCommits({ cursor: `x${cursor}` }),
-      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
-      await expect(
-        f.adapter.listCommits({ cursor, limit: 2 }),
-      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
-      await expect(
-        new CommitGit(
-          { ...f.checkout, scope: 'another-worktree' },
-          f.codec,
-        ).listCommits({ cursor }),
-      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
-      await expect(
-        new CommitGit(
-          f.checkout,
-          new CommitCursorCodec(randomBytes(32)),
-        ).listCommits({ cursor }),
-      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
-      expect((await f.adapter.listCommits({ cursor })).commits).toHaveLength(1);
-    });
-
-    it('marks shallow history and rejects continuation after deepening without treating a boundary as a root', async () => {
-      const f = await fixture();
-      await commit(f.path, 'one');
-      await commit(f.path, 'two');
-      await commit(f.path, 'three');
-      const path = join(f.root, 'shallow');
-      git(f.path, 'clone', '--depth=2', `file://${f.path}`, path);
-      const { adapter } = await reader(path);
-      const first = await adapter.listCommits({ limit: 1 });
-      if (!first.nextCursor) throw new Error('Missing cursor');
-      const last = await adapter.listCommits({ cursor: first.nextCursor });
-      expect(last.boundary).toBe('shallow');
-      const boundary = last.commits[0];
-      if (!boundary) throw new Error('Missing boundary');
-      await expect(
-        adapter.inspectCommitChanges({ oid: boundary.oid }),
-      ).rejects.toBeInstanceOf(HistorySnapshotUnavailableError);
-      git(path, 'fetch', '--unshallow');
-      await expect(
-        adapter.listCommits({ cursor: first.nextCursor }),
-      ).rejects.toBeInstanceOf(HistorySnapshotUnavailableError);
+  it('answers a branch with no commits yet without failing', async () => {
+    const { reader } = await repository();
+    const page = await reader.listCommits({});
+    expect(page.commits).toEqual([]);
+    expect(page.snapshot).toEqual({
+      tipOid: null,
+      head: { kind: 'unborn', ref: 'refs/heads/main' },
     });
   });
-  describe('Commit comparisons', () => {
-    it('distinguishes unborn and detached HEAD and SHA-256 root inspection', async () => {
-      const f = await fixture('sha256');
-      expect(await f.adapter.listCommits({})).toEqual({
-        snapshot: {
-          tipOid: null,
-          head: { kind: 'unborn', ref: 'refs/heads/main' },
-        },
-        commits: [],
-        nextCursor: null,
-        boundary: null,
-      });
-      const oid = await commit(f.path, 'root', 'hello\n');
-      git(f.path, 'checkout', '--detach');
-      expect((await f.adapter.listCommits({})).snapshot).toEqual({
-        tipOid: oid,
-        head: { kind: 'detached' },
-      });
-      const inspection = await f.adapter.inspectCommitChanges({ oid });
-      expect(oid).toHaveLength(64);
-      expect(inspection.comparison).toEqual({ kind: 'empty-tree' });
-      expect(inspection.changes).toMatchObject([
-        {
-          oldPath: null,
-          newPath: 'root',
-          status: 'added',
-          patch: { kind: 'text', text: expect.stringContaining('+hello') },
-        },
-      ]);
-      await expect(
-        f.adapter.inspectCommitChanges({ oid, parent: 1 }),
-      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
-    });
 
-    it('compares merge commits against the chosen parent and handles empty commits', async () => {
-      const f = await fixture();
-      await commit(f.path, 'root');
-      git(f.path, 'checkout', '-b', 'side');
-      const side = await commit(f.path, 'side');
-      git(f.path, 'checkout', 'main');
-      const main = await commit(f.path, 'main');
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'merge',
-        '--no-ff',
-        'side',
-        '-m',
-        'merge',
-      );
-      const oid = git(f.path, 'rev-parse', 'HEAD');
-      const first = await f.adapter.inspectCommitChanges({ oid });
-      expect(first.comparison).toEqual({
-        kind: 'parent',
-        parentNumber: 1,
-        baseOid: main,
-      });
-      expect(first.changes.map((entry) => entry.newPath)).toEqual(['side']);
-      const second = await f.adapter.inspectCommitChanges({ oid, parent: 2 });
-      expect(second.comparison).toEqual({
-        kind: 'parent',
-        parentNumber: 2,
-        baseOid: side,
-      });
-      expect(second.changes.map((entry) => entry.newPath)).toEqual(['main']);
-      await expect(
-        f.adapter.inspectCommitChanges({ oid, parent: 3 }),
-      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'commit',
-        '--allow-empty',
-        '-m',
-        'empty',
-      );
-      expect(
-        (
-          await f.adapter.inspectCommitChanges({
-            oid: git(f.path, 'rev-parse', 'HEAD'),
-          })
-        ).changes,
-      ).toEqual([]);
-    });
-
-    it('detects renames at 50 percent, retains literal unusual paths, and distinguishes binary and modes without modifying the checkout', async () => {
-      const f = await fixture();
-      const odd = '-old\n\t😀';
-      await commit(f.path, odd, 'one\ntwo\nthree\nfour\n');
-      git(f.path, 'mv', '--', odd, 'renamed');
-      await writeFile(join(f.path, 'renamed'), 'one\ntwo\nthree\nchanged\n');
-      await writeFile(join(f.path, 'binary'), Buffer.from([0, 1, 2]));
-      await symlink('renamed', join(f.path, 'link'));
-      git(f.path, 'add', '.');
-      git(f.path, '-c', 'commit.gpgsign=false', 'commit', '-m', 'changes');
-      const oid = git(f.path, 'rev-parse', 'HEAD');
-      await writeFile(join(f.path, 'untracked'), 'leave me');
-      const beforeIndex = await readFile(join(f.path, '.git/index'));
-      const beforeRefs = git(f.path, 'show-ref');
-      const result = await f.adapter.inspectCommitChanges({ oid });
-      expect(result.changes).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            status: 'renamed',
-            oldPath: odd,
-            newPath: 'renamed',
-          }),
-          expect.objectContaining({
-            newPath: 'binary',
-            patch: { kind: 'binary' },
-          }),
-          expect.objectContaining({ newPath: 'link', newMode: '120000' }),
-        ]),
-      );
-      expect(await readFile(join(f.path, '.git/index'))).toEqual(beforeIndex);
-      expect(git(f.path, 'show-ref')).toBe(beforeRefs);
-      expect(await readFile(join(f.path, 'untracked'), 'utf8')).toBe(
-        'leave me',
-      );
-    });
-
-    it('supports octopus parent selection and reports gitlinks, mode changes and copies without recursion', async () => {
-      const f = await fixture();
-      const root = await commit(f.path, 'root');
-      git(f.path, 'checkout', '-b', 'one');
-      await commit(f.path, 'one');
-      git(f.path, 'checkout', '-b', 'two', root);
-      const two = await commit(f.path, 'two');
-      git(f.path, 'checkout', 'main');
-      await commit(f.path, 'main');
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'merge',
-        'one',
-        'two',
-        '-m',
-        'octopus',
-      );
-      const merge = git(f.path, 'rev-parse', 'HEAD');
-      const comparison = await f.adapter.inspectCommitChanges({
-        oid: merge,
-        parent: 3,
-      });
-      expect(comparison.parentOids).toHaveLength(3);
-      expect(comparison.comparison).toEqual({
-        kind: 'parent',
-        parentNumber: 3,
-        baseOid: two,
-      });
-      expect(comparison.changes.map((change) => change.newPath)).toEqual([
-        'main',
-        'one',
-      ]);
-      git(
-        f.path,
-        'update-index',
-        '--add',
-        '--cacheinfo',
-        `160000,${root},module`,
-      );
-      git(f.path, 'update-index', '--chmod=+x', 'root');
-      await writeFile(join(f.path, 'copy'), 'root');
-      git(f.path, 'add', 'copy');
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'commit',
-        '-m',
-        'gitlink and mode',
-      );
-      git(f.path, 'config', 'diff.renames', 'copies');
-      const changes = (
-        await f.adapter.inspectCommitChanges({
-          oid: git(f.path, 'rev-parse', 'HEAD'),
-        })
-      ).changes;
-      expect(changes).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            newPath: 'module',
-            newMode: '160000',
-            patch: { kind: 'submodule', text: expect.stringContaining(root) },
-          }),
-          expect.objectContaining({
-            newPath: 'root',
-            oldMode: '100644',
-            newMode: '100755',
-          }),
-          expect.objectContaining({
-            newPath: 'copy',
-            status: 'added',
-            oldPath: null,
-          }),
-        ]),
-      );
+  it('reports a detached HEAD', async () => {
+    const { root, reader } = await repository(2);
+    git(root, 'checkout', '--detach', 'HEAD');
+    expect((await reader.listCommits({})).snapshot?.head).toEqual({
+      kind: 'detached',
     });
   });
-  describe('Inspection limits and isolation', () => {
-    it('truncates multibyte subjects at a valid UTF-8 boundary and rejects oversized change results', async () => {
-      const f = await fixture();
-      await commit(f.path, 'root');
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'commit',
-        '--allow-empty',
-        '-m',
-        '😀'.repeat(129),
-      );
-      const page = await f.adapter.listCommits({ limit: 1 });
-      expect(page.commits[0]?.subject).toBe('😀'.repeat(128));
-      expect(page.commits[0]?.subjectTruncated).toBe(true);
-      git(
-        f.path,
-        '-c',
-        'commit.gpgsign=false',
-        'commit',
-        '--allow-empty',
-        '-m',
-        `${'a'.repeat(511)}😀`,
-      );
-      const splitCharacter = await f.adapter.listCommits({ limit: 1 });
-      expect(splitCharacter.commits[0]?.subject).toBe('a'.repeat(511));
-      expect(splitCharacter.commits[0]?.subjectTruncated).toBe(true);
-      const oid = await commit(f.path, 'large', 'a'.repeat(1024 * 1024));
-      await expect(
-        f.adapter.inspectCommitChanges({ oid }),
-      ).rejects.toBeInstanceOf(ReadLimitExceededError);
-      for (let i = 0; i < 501; i++)
-        await writeFile(join(f.path, `file-${i}`), 'x');
-      git(f.path, 'add', '.');
-      git(f.path, '-c', 'commit.gpgsign=false', 'commit', '-m', 'many');
-      await expect(
-        f.adapter.inspectCommitChanges({
-          oid: git(f.path, 'rev-parse', 'HEAD'),
-        }),
-      ).rejects.toBeInstanceOf(ReadLimitExceededError);
-    });
 
-    it('rejects replacement checkout identities, missing snapshot objects and non-UTF-8 paths', async () => {
-      const f = await fixture();
-      const root = await commit(f.path, 'root');
-      const tip = await commit(f.path, 'tip');
-      const first = await f.adapter.listCommits({ limit: 1 });
-      if (!first.nextCursor) throw new Error('Missing cursor');
-      await rm(join(f.path, '.git/objects', tip.slice(0, 2), tip.slice(2)));
-      await expect(
-        f.adapter.listCommits({ cursor: first.nextCursor }),
-      ).rejects.toBeInstanceOf(HistorySnapshotUnavailableError);
-      git(f.path, 'update-ref', 'refs/heads/main', root);
-      const blob = git(f.path, 'hash-object', '-w', 'root');
-      const tree = execFileSync('git', ['-C', f.path, 'mktree', '-z'], {
-        input: Buffer.concat([
-          Buffer.from(`100644 blob ${blob}\t`),
-          Buffer.from([0xff, 0]),
-        ]),
-        encoding: 'utf8',
-      }).trim();
-      const invalidCommit = git(
-        f.path,
-        'commit-tree',
-        tree,
-        '-p',
-        root,
-        '-m',
-        'invalid path',
-      );
-      await expect(
-        f.adapter.inspectCommitChanges({ oid: invalidCommit }),
-      ).rejects.toBeInstanceOf(UnsupportedHistoryDataError);
-      await rename(f.path, join(f.root, 'old'));
-      await mkdir(f.path);
-      git(f.path, 'init', '-b', 'main');
-      await expect(f.adapter.listCommits({})).rejects.toBeInstanceOf(
-        HistoryWorktreeUnavailableError,
-      );
-    });
+  /**
+   * The property the signed cursor existed to provide, now coming from the
+   * shape of the graph: pages are anchored to a commit, so commits arriving at
+   * the top while somebody reads cannot shift what the next page holds.
+   */
+  it('continues after the last commit shown, with no gap and no repeat', async () => {
+    const { root, reader } = await repository(12);
+    const first = await reader.listCommits({ limit: 5 });
+    expect(subjects(first)).toEqual([
+      'commit 12',
+      'commit 11',
+      'commit 10',
+      'commit 9',
+      'commit 8',
+    ]);
+    // Somebody commits while the reader is part-way down the list.
+    await writeFile(join(root, 'file.txt'), 'newer\n');
+    git(root, 'add', 'file.txt');
+    git(root, 'commit', '-m', 'arrived later');
 
-    it('ignores replacement objects and configured external diff and textconv programs', async () => {
-      const f = await fixture();
-      const root = await commit(f.path, 'file', 'original');
-      const replacement = await commit(f.path, 'other', 'other');
-      git(f.path, 'replace', root, replacement);
-      git(f.path, 'config', 'diff.external', 'touch SHOULD-NOT-EXIST');
-      git(f.path, 'config', 'diff.fixture.textconv', 'touch SHOULD-NOT-EXIST');
-      await writeFile(join(f.path, '.gitattributes'), '* diff=fixture\n');
-      const inspection = await f.adapter.inspectCommitChanges({ oid: root });
-      expect(inspection.comparison).toEqual({ kind: 'empty-tree' });
-      expect(inspection.changes.map((entry) => entry.newPath)).toEqual([
-        'file',
-      ]);
-      await expect(
-        readFile(join(f.path, 'SHOULD-NOT-EXIST')),
-      ).rejects.toMatchObject({ code: 'ENOENT' });
-      const controller = new AbortController();
-      controller.abort();
-      await expect(
-        f.adapter.listCommits({}, controller.signal),
-      ).rejects.toMatchObject({ name: 'AbortError' });
+    const second = await reader.listCommits({
+      limit: 5,
+      ...(first.nextAfter && first.tip
+        ? { after: first.nextAfter, tip: first.tip }
+        : {}),
     });
-
-    it('does not lazily fetch promised blobs during commit inspection', async () => {
-      const f = await fixture();
-      const oid = await commit(f.path, 'root', 'promised content');
-      git(f.path, 'config', 'uploadpack.allowFilter', 'true');
-      const path = join(f.root, 'partial');
-      git(
-        f.path,
-        'clone',
-        '--filter=blob:none',
-        '--no-checkout',
-        `file://${f.path}`,
-        path,
-      );
-      const { adapter } = await reader(path);
-      const missing = git(
-        path,
-        'rev-list',
-        '--objects',
-        '--missing=print',
-        'HEAD',
-      );
-      expect(missing).toContain('?');
-      // An attempted lazy fetch would fail locally and leave evidence, without network access.
-      const marker = join(f.root, 'fetch-attempted');
-      git(
-        path,
-        'config',
-        'remote.origin.uploadpack',
-        `touch '${marker}'; false`,
-      );
-      await expect(
-        adapter.inspectCommitChanges({ oid }),
-      ).rejects.toBeInstanceOf(HistorySnapshotUnavailableError);
-      expect(
-        git(path, 'rev-list', '--objects', '--missing=print', 'HEAD'),
-      ).toBe(missing);
-      await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(subjects(second)).toEqual([
+      'commit 7',
+      'commit 6',
+      'commit 5',
+      'commit 4',
+      'commit 3',
+    ]);
+    // A continuation never looked at the branch, so it says nothing about it.
+    expect(second.snapshot).toBeNull();
+    expect(second.restarted).toBe(false);
+    const third = await reader.listCommits({
+      limit: 5,
+      ...(second.nextAfter && first.tip
+        ? { after: second.nextAfter, tip: first.tip }
+        : {}),
     });
+    expect(subjects(third)).toEqual(['commit 2', 'commit 1']);
+    expect(third.nextAfter).toBeNull();
+  });
 
-    it.each(['file-to-symlink', 'symlink-to-file'] as const)(
-      'preserves both patch sections for %s changes without shifting neighboring patches',
-      async (direction) => {
-        const f = await fixture();
-        await writeFile(join(f.path, 'a-before'), 'before old\n');
-        if (direction === 'file-to-symlink')
-          await writeFile(join(f.path, 'middle'), 'regular content\n');
-        else await symlink('target', join(f.path, 'middle'));
-        await writeFile(join(f.path, 'z-after'), 'after old\n');
-        git(f.path, 'add', '.');
-        git(
-          f.path,
-          '-c',
-          'commit.gpgsign=false',
-          'commit',
-          '-m',
-          'initial types',
-        );
-        await rm(join(f.path, 'middle'));
-        if (direction === 'file-to-symlink')
-          await symlink('target', join(f.path, 'middle'));
-        else await writeFile(join(f.path, 'middle'), 'regular content\n');
-        await writeFile(join(f.path, 'a-before'), 'before new\n');
-        await writeFile(join(f.path, 'z-after'), 'after new\n');
-        git(f.path, 'add', '.');
-        git(
-          f.path,
-          '-c',
-          'commit.gpgsign=false',
-          'commit',
-          '-m',
-          'change types',
-        );
-        const result = await f.adapter.inspectCommitChanges({
-          oid: git(f.path, 'rev-parse', 'HEAD'),
-        });
-        expect(result.changes.map((change) => change.newPath)).toEqual([
-          'a-before',
-          'middle',
-          'z-after',
-        ]);
-        const middle = result.changes[1];
-        expect(middle).toMatchObject({
-          status: 'type-changed',
-          oldPath: 'middle',
-          newPath: 'middle',
-          oldMode: direction === 'file-to-symlink' ? '100644' : '120000',
-          newMode: direction === 'file-to-symlink' ? '120000' : '100644',
-        });
-        if (middle?.patch.kind !== 'text')
-          throw new Error('Expected text patch');
-        expect(middle.patch.text).toContain(
-          direction === 'file-to-symlink'
-            ? '-regular content'
-            : '+regular content',
-        );
-        expect(middle.patch.text).toContain(
-          direction === 'file-to-symlink' ? '+target' : '-target',
-        );
-        expect(middle.patch.text.match(/^diff --git /gm)).toHaveLength(2);
-        expect(result.changes[0]?.patch).toEqual({
-          kind: 'text',
-          text: expect.stringContaining('+before new'),
-        });
-        expect(result.changes[2]?.patch).toEqual({
-          kind: 'text',
-          text: expect.stringContaining('+after new'),
-        });
+  /**
+   * A reset leaves the commit that was being paged from in place as an object,
+   * so walking from it would print a history this branch no longer has. The
+   * reader is told the list restarted instead.
+   */
+  it('restarts from the top when a reset takes the anchor off the branch', async () => {
+    const { root, reader } = await repository(12);
+    const first = await reader.listCommits({ limit: 5 });
+    git(root, 'reset', '--hard', 'HEAD~6');
+    await writeFile(join(root, 'after.txt'), 'x\n');
+    git(root, 'add', 'after.txt');
+    git(root, 'commit', '-m', 'after the reset');
+
+    const next = await reader.listCommits({
+      limit: 5,
+      ...(first.nextAfter && first.tip
+        ? { after: first.nextAfter, tip: first.tip }
+        : {}),
+    });
+    expect(next.restarted).toBe(true);
+    expect(subjects(next)[0]).toBe('after the reset');
+    // Restarting is a page from the top, so it says where HEAD is again.
+    expect(next.snapshot?.head).toEqual({
+      kind: 'attached',
+      ref: 'refs/heads/main',
+    });
+  });
+
+  it('restarts from the top when a rebase rewrites the anchor', async () => {
+    const { root, reader } = await repository(6);
+    const first = await reader.listCommits({ limit: 3 });
+    const anchor = first.nextAfter;
+    const startedAt = first.tip;
+    // Replaying onto a different base is what guarantees new object ids:
+    // rebasing onto the same parent with the same trees and timestamps can
+    // reproduce the commits exactly, which would not be a rewrite at all.
+    git(root, 'branch', 'elsewhere', 'HEAD~5');
+    git(root, 'checkout', 'elsewhere');
+    await writeFile(join(root, 'other.txt'), 'other\n');
+    git(root, 'add', 'other.txt');
+    git(root, 'commit', '-m', 'a different base');
+    git(root, 'checkout', 'main');
+    git(root, 'rebase', '--onto', 'elsewhere', 'main~5', 'main');
+    // The commit the reader is holding still exists; it is simply no longer
+    // part of this branch, which is exactly the case that must be caught.
+    expect(git(root, 'cat-file', '-t', startedAt ?? '')).toBe('commit');
+
+    const next = await reader.listCommits({
+      limit: 3,
+      ...(anchor && startedAt ? { after: anchor, tip: startedAt } : {}),
+    });
+    expect(next.restarted).toBe(true);
+    expect(subjects(next)).toEqual(['commit 6', 'commit 5', 'commit 4']);
+  });
+
+  /**
+   * The defect a single-commit anchor has in any history with merges: the
+   * commit that ends a page is not an ancestor of the branches running beside
+   * it, so continuing from it alone drops them with no error and no race.
+   */
+  it('loses no branch when a page ends at a merge boundary', async () => {
+    const { root } = await repository();
+    await writeFile(join(root, 'r.txt'), 'r\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-m', 'root');
+    git(root, 'checkout', '-b', 'side');
+    await writeFile(join(root, 's.txt'), 's\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-m', 'side');
+    git(root, 'checkout', 'main');
+    await writeFile(join(root, 'm.txt'), 'm\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-m', 'main');
+    git(root, 'merge', '--no-ff', 'side', '-m', 'merge');
+    const reader = new CommitGit(await checkout(root));
+
+    // Two at a time, so a page ends inside the merge.
+    expect(await pageThrough(reader, 2)).toEqual(
+      git(root, 'log', '--topo-order', '--format=%s').split('\n'),
+    );
+  });
+
+  it('pages a wider history in the same order as one walk', async () => {
+    const { root } = await repository(3);
+    for (const branch of ['one', 'two', 'three']) {
+      git(root, 'checkout', '-b', branch, 'main~1');
+      await writeFile(join(root, `${branch}.txt`), branch);
+      git(root, 'add', '.');
+      git(root, 'commit', '-m', `on ${branch}`);
+      git(root, 'checkout', 'main');
+      git(root, 'merge', '--no-ff', branch, '-m', `merge ${branch}`);
+    }
+    const reader = new CommitGit(await checkout(root));
+    expect(await pageThrough(reader, 2)).toEqual(
+      git(root, 'log', '--topo-order', '--format=%s').split('\n'),
+    );
+  });
+
+  /**
+   * A rewrite whose old commits have since been collected. The anchor is not
+   * merely off the branch, it is gone, and Git reports that as a fatal unknown
+   * revision rather than a plain "no".
+   */
+  it('restarts from the top when the commit it started at has been pruned', async () => {
+    const { root, reader } = await repository(8);
+    const first = await reader.listCommits({ limit: 3 });
+    git(root, 'reset', '--hard', 'HEAD~4');
+    git(root, 'reflog', 'expire', '--expire=now', '--all');
+    git(root, 'gc', '--prune=now', '--quiet');
+
+    const next = await reader.listCommits({
+      limit: 3,
+      ...(first.nextAfter && first.tip
+        ? { after: first.nextAfter, tip: first.tip }
+        : {}),
+    });
+    expect(next.restarted).toBe(true);
+    expect(subjects(next)[0]).toBe('commit 4');
+  });
+
+  /**
+   * Decoration is display configuration. Reading HEAD from it let a repository
+   * that excludes `refs/heads/*` turn an attached branch into a detached one.
+   */
+  it('reads HEAD and refs despite repository decoration settings', async () => {
+    const { root, reader } = await repository(1);
+    git(root, 'tag', 'v1');
+    git(root, 'config', 'log.excludeDecoration', 'refs/heads/*');
+    const page = await reader.listCommits({});
+    expect(page.snapshot?.head).toEqual({
+      kind: 'attached',
+      ref: 'refs/heads/main',
+    });
+    expect(page.commits[0]?.refs).toEqual(
+      expect.arrayContaining(['main', 'v1']),
+    );
+  });
+
+  /**
+   * A linked worktree is the case that matters: its administrative and common
+   * directories live inside the main repository, so moving its checkout aside
+   * and putting another repository at that path leaves both recorded
+   * directories present and unchanged. A guard that only stats what it
+   * recorded sees nothing wrong while Git reads the impostor.
+   */
+  it('refuses to answer from a repository swapped in at the checkout path', async () => {
+    const { root } = await repository(2);
+    const linked = join(`${root}-linked`, 'work');
+    roots.push(`${root}-linked`);
+    git(root, 'worktree', 'add', linked, '-b', 'linked');
+    const authorised = await checkout(linked);
+    const reader = new CommitGit(authorised);
+    // It answers while it is the checkout it was authorised for.
+    expect((await reader.listCommits({})).commits).not.toHaveLength(0);
+
+    const impostor = await mkdtemp(join(tmpdir(), 'porcelain-history-other-'));
+    roots.push(impostor);
+    git(impostor, 'init', '-b', 'main', '.');
+    await writeFile(join(impostor, 'other.txt'), 'other\n');
+    git(impostor, 'add', '.');
+    git(impostor, 'commit', '-m', 'a different repository');
+    await rename(linked, `${linked}-moved`);
+    await rename(impostor, linked);
+    // Both recorded directories are exactly as they were.
+    expect((await stat(authorised.administrativeDirectory)).isDirectory()).toBe(
+      true,
+    );
+    expect((await stat(authorised.commonDirectory)).isDirectory()).toBe(true);
+
+    await expect(reader.listCommits({})).rejects.toBeInstanceOf(
+      HistoryWorktreeUnavailableError,
+    );
+    const oid = git(linked, 'rev-parse', 'HEAD');
+    await expect(reader.readCommitFiles({ oid })).rejects.toBeInstanceOf(
+      HistoryWorktreeUnavailableError,
+    );
+    await expect(
+      reader.readCommitDiffs({ oid, paths: ['other.txt'] }),
+    ).rejects.toBeInstanceOf(HistoryWorktreeUnavailableError);
+  });
+
+  /**
+   * More branches meet here than a continuation can name. Reporting no next
+   * page would be indistinguishable from reaching the first commit, so the
+   * list has to say why it stops.
+   */
+  it('says a history is too wide to continue rather than reporting an end', async () => {
+    const { root } = await repository(1);
+    const heads: string[] = [];
+    for (let index = 0; index < 101; index += 1) {
+      const branch = `wide-${index}`;
+      git(root, 'checkout', '-q', '-b', branch, 'main');
+      await writeFile(join(root, `${branch}.txt`), branch);
+      git(root, 'add', '.');
+      git(root, 'commit', '-m', branch);
+      heads.push(branch);
+    }
+    git(root, 'checkout', '-q', 'main');
+    git(root, 'merge', '--no-ff', '-m', 'octopus', ...heads);
+    const reader = new CommitGit(await checkout(root));
+
+    const page = await reader.listCommits({ limit: 1 });
+    expect(subjects(page)).toEqual(['octopus']);
+    expect(page.nextAfter).toBeNull();
+    // Not the end of history: 102 commits are still down there.
+    expect(page.boundary).toBe('wide');
+  });
+
+  /**
+   * A repository that cannot be read is not a repository with no commits. The
+   * pruned-anchor answer is narrow on purpose: it is about one revision Git
+   * says is unknown, not about every fatal failure.
+   */
+  it('reports a broken repository rather than an empty branch', async () => {
+    const { root, reader } = await repository(2);
+    await appendFile(join(root, '.git', 'config'), '\n[core\nnot a config\n');
+    await expect(reader.listCommits({})).rejects.toThrow();
+  });
+
+  it('refuses a page size or an anchor it cannot honour', async () => {
+    const { reader } = await repository(1);
+    await expect(reader.listCommits({ limit: 0 })).rejects.toBeInstanceOf(
+      InvalidHistoryRequestError,
+    );
+    await expect(reader.listCommits({ limit: 101 })).rejects.toBeInstanceOf(
+      InvalidHistoryRequestError,
+    );
+    await expect(
+      reader.listCommits({ after: ['not-an-object-id'], tip: 'a'.repeat(40) }),
+    ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
+  });
+
+  /**
+   * The runner refuses replacement objects and grafts. Without that, a
+   * repository could quietly rewrite what its own history says it contains.
+   */
+  it('reads the real commit, not a replacement object', async () => {
+    const { root, reader } = await repository(2);
+    const tip = git(root, 'rev-parse', 'HEAD');
+    const older = git(root, 'rev-parse', 'HEAD~1');
+    git(root, 'replace', tip, older);
+    const page = await reader.listCommits({});
+    expect(page.commits[0]?.oid).toBe(tip);
+    expect(subjects(page)).toEqual(['commit 2', 'commit 1']);
+  });
+
+  it('refuses a path that is not valid UTF-8 rather than mangling it', async () => {
+    const { root, reader } = await repository();
+    // A name that is not valid UTF-8, written as raw bytes.
+    writeFileSync(
+      Buffer.concat([
+        Buffer.from(`${root}/`),
+        Buffer.from([0xff]),
+        Buffer.from('.txt'),
+      ]),
+      'x',
+    );
+    git(root, 'add', '-A');
+    git(root, 'commit', '-m', 'odd name');
+    const oid = git(root, 'rev-parse', 'HEAD');
+    await expect(reader.readCommitFiles({ oid })).rejects.toBeInstanceOf(
+      UnsupportedHistoryDataError,
+    );
+  });
+
+  it('reads a repository whose object ids are SHA-256', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-history-sha256-'));
+    roots.push(root);
+    git(root, 'init', '--object-format=sha256', '-b', 'main', '.');
+    await writeFile(join(root, 'file.txt'), 'one\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-m', 'only commit');
+    const reader = new CommitGit(await checkout(root));
+    const page = await reader.listCommits({});
+    expect(page.commits[0]?.oid).toHaveLength(64);
+    expect(subjects(page)).toEqual(['only commit']);
+  });
+
+  it('marks the end of a shallow history as a boundary', async () => {
+    const { root } = await repository(5);
+    const clone = await mkdtemp(join(tmpdir(), 'porcelain-history-shallow-'));
+    roots.push(clone);
+    execFileSync(
+      'git',
+      ['clone', '--depth=2', `file://${root}`, join(clone, 'checkout')],
+      {
+        env: {
+          ...process.env,
+          GIT_CONFIG_NOSYSTEM: '1',
+          GIT_CONFIG_GLOBAL: devNull,
+        },
+        stdio: 'ignore',
       },
     );
+    const reader = new CommitGit(await checkout(join(clone, 'checkout')));
+    const page = await reader.listCommits({});
+    expect(page.commits).toHaveLength(2);
+    expect(page.boundary).toBe('shallow');
+  });
+
+  it('refuses a worktree that is no longer the one it resolved', async () => {
+    const { root } = await repository(1);
+    const stale = await checkout(root);
+    const reader = new CommitGit({ ...stale, repositoryIdentity: 'moved' });
+    await expect(reader.listCommits({})).rejects.toBeInstanceOf(
+      HistoryWorktreeUnavailableError,
+    );
+  });
+
+  describe('opening a commit', () => {
+    async function history() {
+      const { root } = await repository();
+      await writeFile(join(root, 'a.txt'), 'one\n');
+      git(root, 'add', '.');
+      git(root, 'commit', '-m', 'root commit');
+      git(root, 'checkout', '-b', 'side');
+      await writeFile(join(root, 'side.txt'), 'side\n');
+      git(root, 'add', '.');
+      git(root, 'commit', '-m', 'side work');
+      git(root, 'checkout', 'main');
+      git(root, 'mv', 'a.txt', 'b.txt');
+      git(root, 'commit', '-m', 'rename it');
+      git(root, 'merge', '--no-ff', 'side', '-m', 'merge side');
+      return { root, reader: new CommitGit(await checkout(root)) };
+    }
+
+    it('lists what a first commit added, comparing against nothing', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-list', '--max-parents=0', 'HEAD');
+      const result = await reader.readCommitFiles({ oid });
+      expect(result.comparison).toEqual({ kind: 'empty-tree' });
+      expect(result.files).toEqual([
+        {
+          oldPath: null,
+          newPath: 'a.txt',
+          status: 'added',
+          oldMode: '000000',
+          newMode: '100644',
+        },
+      ]);
+    });
+
+    it('names both sides of a rename', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-parse', 'HEAD^1');
+      const result = await reader.readCommitFiles({ oid });
+      expect(result.files).toEqual([
+        expect.objectContaining({
+          oldPath: 'a.txt',
+          newPath: 'b.txt',
+          status: 'renamed',
+        }),
+      ]);
+    });
+
+    /**
+     * A merge prints no file list at all unless Git is told which side to
+     * compare with, so this is the case that would silently open empty.
+     */
+    it('shows a merge against its first parent, and against another on request', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-parse', 'HEAD');
+      const first = await reader.readCommitFiles({ oid });
+      expect(first.files.map((file) => file.newPath)).toEqual(['side.txt']);
+      expect(first.comparison).toMatchObject({
+        kind: 'parent',
+        parentNumber: 1,
+      });
+      const second = await reader.readCommitFiles({ oid, parent: 2 });
+      expect(second.files.map((file) => file.newPath)).toEqual(['b.txt']);
+      expect(second.comparison).toMatchObject({
+        kind: 'parent',
+        parentNumber: 2,
+      });
+    });
+
+    it('refuses a parent the commit does not have', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-parse', 'HEAD^1');
+      await expect(
+        reader.readCommitFiles({ oid, parent: 2 }),
+      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
+    });
+
+    it('reads the patches of named files, and only those', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-list', '--max-parents=0', 'HEAD');
+      const diffs = await reader.readCommitDiffs({ oid, paths: ['a.txt'] });
+      const patch = diffs?.get('a.txt');
+      expect(patch).toMatchObject({ kind: 'text' });
+      expect(patch && 'patch' in patch ? patch.patch : '').toContain('+one');
+    });
+
+    it('reads a rename as one diff named by both its paths', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-parse', 'HEAD^1');
+      const diffs = await reader.readCommitDiffs({
+        oid,
+        paths: ['a.txt', 'b.txt'],
+      });
+      expect(diffs?.get('a.txt\0b.txt')).toMatchObject({
+        kind: 'metadata-only',
+      });
+    });
+
+    it('refuses a request naming no file at all', async () => {
+      const { root, reader } = await history();
+      const oid = git(root, 'rev-parse', 'HEAD');
+      await expect(
+        reader.readCommitDiffs({ oid, paths: [] }),
+      ).rejects.toBeInstanceOf(InvalidHistoryRequestError);
+    });
   });
 });

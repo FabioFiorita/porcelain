@@ -7,7 +7,6 @@ export async function seedPlaygroundReview(
   token: string,
   projectId: string,
   worktreeId: string,
-  commitOid: string,
   signal: AbortSignal,
 ) {
   const send = async (method: string, path: string, body: unknown) => {
@@ -49,11 +48,6 @@ export async function seedPlaygroundReview(
       ],
     }),
   );
-  await send('PUT', `${project}/commits/${commitOid}/review-layers`, {
-    sourceWorktreeId: worktreeId,
-    sourceRevision: historical.revision,
-    references: [committedFile],
-  });
   await send('PUT', `${worktree}/review-layers`, {
     expectedRevision: historical.revision,
     layers: [

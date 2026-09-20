@@ -1,41 +1,52 @@
-import type { CommitChangesResponse } from '@porcelain/contracts/commit-changes';
+import type {
+  CommitDiffsResponse,
+  CommitFilesResponse,
+} from '@porcelain/contracts/commit-changes';
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
-  CommitChanges,
+  CommitFiles,
   CommitPage,
+  CommitSummary,
 } from '@porcelain/git/dtos/commit-history';
+import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
+
+const toCommitSummary = (commit: CommitSummary) => ({
+  oid: commit.oid,
+  parentOids: [...commit.parentOids],
+  author: { name: commit.author.name, timestamp: commit.author.timestamp },
+  subject: commit.subject,
+  subjectTruncated: commit.subjectTruncated,
+  body: commit.body,
+  bodyTruncated: commit.bodyTruncated,
+  refs: [...commit.refs],
+});
 
 export function toCommitPageResponse(page: CommitPage): CommitPageResponse {
-  const head = page.snapshot.head;
+  const head = page.snapshot?.head;
   return {
-    snapshot: {
-      tipOid: page.snapshot.tipOid,
-      head:
-        head.kind === 'detached'
-          ? { kind: head.kind }
-          : { kind: head.kind, ref: head.ref },
-    },
-    commits: page.commits.map((commit) => ({
-      oid: commit.oid,
-      parentOids: [...commit.parentOids],
-      author: { name: commit.author.name, timestamp: commit.author.timestamp },
-      subject: commit.subject,
-      subjectTruncated: commit.subjectTruncated,
-      body: commit.body,
-      bodyTruncated: commit.bodyTruncated,
-      refs: [...commit.refs],
-    })),
-    nextCursor: page.nextCursor,
+    snapshot:
+      page.snapshot && head
+        ? {
+            tipOid: page.snapshot.tipOid,
+            head:
+              head.kind === 'detached'
+                ? { kind: head.kind }
+                : { kind: head.kind, ref: head.ref },
+          }
+        : null,
+    commits: page.commits.map(toCommitSummary),
+    nextAfter: page.nextAfter ? [...page.nextAfter] : null,
+    tip: page.tip,
     boundary: page.boundary,
+    restarted: page.restarted,
   };
 }
 
-export function toCommitChangesResponse(
-  result: CommitChanges,
-): CommitChangesResponse {
+export function toCommitFilesResponse(
+  result: CommitFiles,
+): CommitFilesResponse {
   return {
-    commitOid: result.commitOid,
-    parentOids: [...result.parentOids],
+    commit: toCommitSummary(result.commit),
     comparison:
       result.comparison.kind === 'empty-tree'
         ? { kind: 'empty-tree' }
@@ -44,16 +55,37 @@ export function toCommitChangesResponse(
             parentNumber: result.comparison.parentNumber,
             baseOid: result.comparison.baseOid,
           },
-    changes: result.changes.map((change) => ({
-      oldPath: change.oldPath,
-      newPath: change.newPath,
-      status: change.status,
-      oldMode: change.oldMode,
-      newMode: change.newMode,
-      patch:
-        change.patch.kind === 'binary'
-          ? { kind: 'binary' }
-          : { kind: change.patch.kind, text: change.patch.text },
+    files: result.files.map((file) => ({
+      oldPath: file.oldPath,
+      newPath: file.newPath,
+      status: file.status,
+      oldMode: file.oldMode,
+      newMode: file.newMode,
+    })),
+  };
+}
+
+/**
+ * The diffs asked for, in the order they were asked for. A file Git printed
+ * nothing about has no patch rather than a missing entry, so the reader sees
+ * "nothing changed here" instead of a gap.
+ */
+export function toCommitDiffsResponse(
+  commitOid: string,
+  paths: readonly (readonly string[])[],
+  sections: Map<string, GitDiffResult> | null,
+): CommitDiffsResponse {
+  return {
+    commitOid,
+    diffs: paths.map((entry) => ({
+      paths: [...entry],
+      content:
+        sections === null
+          ? { kind: 'omitted', reason: 'size-limit' }
+          : (sections.get(entry.join('\0')) ?? {
+              kind: 'metadata-only',
+              patch: '',
+            }),
     })),
   };
 }

@@ -8,8 +8,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 import { fakeWorktrees } from './helpers/fake-worktrees.ts';
-import { InspectCommitChanges } from './inspect-commit-changes.ts';
 import { ListCommits } from './list-commits.ts';
+import { ReadCommitFiles } from './read-commit-files.ts';
 
 describe('Commit history use cases', () => {
   // Projects are stored; worktrees are listed. The fixture says both apart.
@@ -37,8 +37,10 @@ describe('Commit history use cases', () => {
       head: { kind: 'unborn', ref: 'refs/heads/main' },
     },
     commits: [],
-    nextCursor: null,
+    nextAfter: null,
+    tip: null,
     boundary: null,
+    restarted: false,
   };
   function fixture(
     options: { projectAvailable?: boolean; worktreeAvailable?: boolean } = {},
@@ -61,16 +63,19 @@ describe('Commit history use cases', () => {
     );
     const reader: CommitReader = {
       listCommits: vi.fn<CommitReader['listCommits']>().mockResolvedValue(page),
-      inspectCommitChanges: vi
-        .fn<CommitReader['inspectCommitChanges']>()
+      readCommitFiles: vi
+        .fn<CommitReader['readCommitFiles']>()
         .mockRejectedValue(new Error('fixture read failure')),
+      readCommitDiffs: vi
+        .fn<CommitReader['readCommitDiffs']>()
+        .mockResolvedValue(new Map()),
     };
     const factory = vi.fn<CommitReaderFactory>(() => reader);
     return {
       factory,
       reader,
       list: new ListCommits(store, worktrees, factory),
-      inspect: new InspectCommitChanges(store, worktrees, factory),
+      inspect: new ReadCommitFiles(store, worktrees, factory),
     };
   }
   it('binds reads to inventory identity and carries the selected comparison and cancellation signal', async () => {
@@ -81,15 +86,17 @@ describe('Commit history use cases', () => {
     );
     expect(f.factory).toHaveBeenCalledWith({
       path: '/fixture',
+      commonDirectory: '/fixture/.git',
+      administrativeDirectory: '/fixture/.git',
       repositoryIdentity: 'repository-identity',
       metadataIdentity: 'checkout-identity',
       scope: 'environment:project:worktree',
     });
     const request = { oid: 'a'.repeat(40), parent: 2 };
     await expect(
-      f.inspect.execute('worktree', request, controller.signal),
+      f.inspect.files('worktree', request, controller.signal),
     ).rejects.toThrow('fixture read failure');
-    expect(f.reader.inspectCommitChanges).toHaveBeenCalledWith(
+    expect(f.reader.readCommitFiles).toHaveBeenCalledWith(
       request,
       controller.signal,
     );
@@ -104,7 +111,7 @@ describe('Commit history use cases', () => {
         HistoryWorktreeUnavailableError,
       );
       await expect(
-        f.inspect.execute('worktree', { oid: 'a'.repeat(40) }),
+        f.inspect.files('worktree', { oid: 'a'.repeat(40) }),
       ).rejects.toBeInstanceOf(HistoryWorktreeUnavailableError);
       expect(f.factory).not.toHaveBeenCalled();
     }
@@ -117,7 +124,7 @@ describe('Commit history use cases', () => {
       f.list.execute('worktree', {}, controller.signal),
     ).rejects.toMatchObject({ name: 'AbortError' });
     await expect(
-      f.inspect.execute('worktree', { oid: 'a'.repeat(40) }, controller.signal),
+      f.inspect.files('worktree', { oid: 'a'.repeat(40) }, controller.signal),
     ).rejects.toMatchObject({ name: 'AbortError' });
     expect(f.factory).not.toHaveBeenCalled();
   });
@@ -128,7 +135,7 @@ describe('Commit history use cases', () => {
       WorktreeNotFoundError,
     );
     await expect(
-      f.inspect.execute('unknown', { oid: 'a'.repeat(40) }),
+      f.inspect.files('unknown', { oid: 'a'.repeat(40) }),
     ).rejects.toBeInstanceOf(WorktreeNotFoundError);
     expect(f.factory).not.toHaveBeenCalled();
   });

@@ -251,11 +251,26 @@ export const benchSteps: Step[] = [
       const commits = (
         (data as { commits?: { oid: string }[] }).commits ?? []
       ).slice(0, 3);
-      for (const commit of commits)
-        await api(
-          'GET',
-          `/api/worktrees/${scope.worktreeId}/commits/${commit.oid}/changes`,
-        );
+      for (const commit of commits) {
+        const base = `/api/worktrees/${scope.worktreeId}/commits/${commit.oid}`;
+        const files = await api('GET', `${base}/files`);
+        // The document reads the patches of the files it shows, so the
+        // scenario does too: a file list nobody reads is not the cost.
+        const paths = (
+          (
+            files.data as {
+              files?: { oldPath: string | null; newPath: string | null }[];
+            }
+          ).files ?? []
+        )
+          .slice(0, 25)
+          .map((file) => [
+            ...new Set(
+              [file.oldPath, file.newPath].filter((path) => path !== null),
+            ),
+          ]);
+        if (paths.length > 0) await api('POST', `${base}/diffs`, { paths });
+      }
     },
   },
   {

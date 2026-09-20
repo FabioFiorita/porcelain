@@ -1,5 +1,5 @@
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs';
-import type { Change, CommitChanges, DiffContent } from '../../domain/review';
+import type { Change, CommitFile, DiffContent } from '../../domain/review';
 import { changePath } from '../../domain/review';
 import { contentVersion } from '../../lib/pierre';
 import type { CodeEntry } from './code-document';
@@ -62,30 +62,39 @@ export function fileEntry(
   };
 }
 
-/** Turn a textual commit patch into the same Pierre entry used by review diffs. */
+/**
+ * Turn a textual commit patch into the same Pierre entry used by review diffs.
+ *
+ * The patch arrives separately from the file it belongs to, so a file whose
+ * patch has not been read yet has no entry rather than an empty one.
+ */
 export function commitEntry(
   oid: string,
-  change: CommitChanges['changes'][number],
+  file: CommitFile,
+  content: DiffContent | undefined,
 ): CodeEntry | null {
-  if (change.patch.kind !== 'text') return null;
-  const path = change.newPath ?? change.oldPath ?? '';
+  // A gitlink's patch is two lines naming commits in another repository, not
+  // code, and Pierre has nothing useful to draw for it.
+  if (file.oldMode === '160000' || file.newMode === '160000') return null;
+  if (content?.kind !== 'text') return null;
+  const path = file.newPath ?? file.oldPath ?? '';
   if (path === '') return null;
-  if (!parsedCommits.has(change)) {
-    const patchVersion = contentVersion(change.patch.text);
+  if (!parsedCommits.has(content)) {
+    const patchVersion = contentVersion(content.patch);
     parsedCommits.set(
-      change,
-      parsePatchFiles(change.patch.text, `${oid}:${path}:${patchVersion}`)[0]
+      content,
+      parsePatchFiles(content.patch, `${oid}:${path}:${patchVersion}`)[0]
         ?.files[0] ?? null,
     );
   }
-  const fileDiff = parsedCommits.get(change);
+  const fileDiff = parsedCommits.get(content);
   if (!fileDiff) return null;
   return {
     id: `commit:${oid}:${path}`,
     kind: 'diff',
     path,
     fileDiff,
-    version: contentVersion(change.patch.text),
-    note: change.status,
+    version: contentVersion(content.patch),
+    note: file.status,
   };
 }

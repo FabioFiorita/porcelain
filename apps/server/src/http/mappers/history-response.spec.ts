@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { toCommitPageResponse } from './history-response.ts';
 
 describe('history response mapping', () => {
-  it('maps body metadata and keeps full ref names in the HTTP contract', () => {
+  it('maps a page read from the top, refs and all', () => {
     const page: CommitPage = {
       snapshot: {
         tipOid: 'a'.repeat(40),
@@ -19,15 +19,37 @@ describe('history response mapping', () => {
           subjectTruncated: false,
           body: 'line one\nline two',
           bodyTruncated: false,
-          refs: ['refs/heads/main', 'refs/tags/v1'],
+          refs: ['main', 'v1'],
         },
       ],
-      nextCursor: null,
+      nextAfter: null,
+      tip: 'a'.repeat(40),
       boundary: null,
+      restarted: false,
     };
 
     const response = toCommitPageResponse(page);
     expect(response.commits[0]).toEqual(page.commits[0]);
+    expect(response.snapshot).toEqual(page.snapshot);
+    expect(commitPageResponseSchema.parse(response)).toEqual(response);
+  });
+
+  /**
+   * A continuation is anchored to a commit and never looks at the branch, so
+   * it has nothing to say about HEAD rather than a stale guess at it.
+   */
+  it('maps a continuation, which has no snapshot', () => {
+    const page: CommitPage = {
+      snapshot: null,
+      commits: [],
+      nextAfter: ['b'.repeat(40)],
+      tip: 'a'.repeat(40),
+      boundary: null,
+      restarted: true,
+    };
+    const response = toCommitPageResponse(page);
+    expect(response.snapshot).toBeNull();
+    expect(response.restarted).toBe(true);
     expect(commitPageResponseSchema.parse(response)).toEqual(response);
   });
 });

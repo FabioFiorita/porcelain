@@ -1,29 +1,33 @@
 import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
 import type { CommitReaderFactory } from '@porcelain/git/interfaces/commit-reader';
 import type { GitActionScope } from '../models/git-action.ts';
-import type { CommitReviewLayerStore } from '../repositories/interfaces/commit-review-layer-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { ReviewLayerStore } from '../repositories/interfaces/review-layer-store.ts';
 import { resolveHistoryCheckout } from './resolve-history-checkout.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
+/**
+ * What a commit finishes: the files it carried leave the live review layers,
+ * so a worktree stops asking to be reviewed for work that has been committed.
+ *
+ * Step 5c removed the per-commit review surface, which is what used to keep a
+ * copy of those layers under the commit. Clearing them is a different thing
+ * and belongs to the live layers, so it stayed.
+ */
 export class CompleteCommitReview {
   private readonly inventory: InventoryStore;
   private readonly worktrees: ResolveWorktree;
   private readonly layers: ReviewLayerStore;
-  private readonly snapshots: CommitReviewLayerStore;
   private readonly git: CommitReaderFactory;
   constructor(
     inventory: InventoryStore,
     worktrees: ResolveWorktree,
     layers: ReviewLayerStore,
-    snapshots: CommitReviewLayerStore,
     git: CommitReaderFactory,
   ) {
     this.inventory = inventory;
     this.worktrees = worktrees;
     this.layers = layers;
-    this.snapshots = snapshots;
     this.git = git;
   }
   async execute(
@@ -34,6 +38,8 @@ export class CompleteCommitReview {
   ) {
     const source = this.layers.read(scope.worktreeId);
     if (!source.layers.length) return;
+    // Only the names are needed, so this is the file list rather than the
+    // whole commit: one Git process where the old read spent nine.
     const changes = await this.git(
       await resolveHistoryCheckout(
         this.worktrees,
@@ -41,17 +47,15 @@ export class CompleteCommitReview {
         scope.worktreeId,
         signal,
       ),
-    ).inspectCommitChanges({ oid }, signal);
+    ).readCommitFiles({ oid }, signal);
     const committed = new Set(
-      changes.changes.map((change) => change.newPath ?? change.oldPath),
+      changes.files.map((change) => change.newPath ?? change.oldPath),
     );
     const includes = (file: { path: string; scope: string }) =>
       committed.has(file.path) &&
       (intent.paths !== undefined || file.scope === 'staged');
-    const completed = source.layers
-      .map((layer) => ({ ...layer, files: layer.files.filter(includes) }))
-      .filter((layer) => layer.files.length);
-    if (!completed.length) return;
+    const completed = source.layers.some((layer) => layer.files.some(includes));
+    if (!completed) return;
     const remaining = source.layers
       .map((layer) => ({
         ...layer,
@@ -59,16 +63,6 @@ export class CompleteCommitReview {
       }))
       .filter((layer) => layer.files.length);
     signal.throwIfAborted();
-    this.snapshots.complete(
-      {
-        projectId: scope.projectId,
-        commitOid: oid,
-        sourceWorktreeId: scope.worktreeId,
-        sourceRevision: source.revision,
-        parentNumber: 1,
-        layers: completed,
-      },
-      remaining,
-    );
+    this.layers.replace(scope.worktreeId, source.revision, remaining);
   }
 }

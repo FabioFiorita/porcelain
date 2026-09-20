@@ -22,6 +22,10 @@ export async function resolveHistoryCheckout(
   }
   return {
     path: worktree.path,
+    // The guard compares these two directories rather than asking Git where
+    // they are: the registry already read them off the filesystem.
+    commonDirectory: worktree.commonDirectory,
+    administrativeDirectory: worktree.administrativeDirectory,
     repositoryIdentity: worktree.repositoryIdentity,
     metadataIdentity: worktree.metadataIdentity,
     scope: `${store.read().environmentId}:${worktree.projectId}:${worktree.id}`,

@@ -711,7 +711,7 @@ describe('Application', () => {
       );
       await writing.promise;
       const page = app.listCommits(worktreeId, pageRequest);
-      const commit = app.inspectCommitChanges(worktreeId, commitRequest);
+      const commit = app.commitFiles(worktreeId, commitRequest);
       const selection: {
         scope: 'staged' | 'unstaged';
         oldPath: string | null;
@@ -744,8 +744,8 @@ describe('Application', () => {
       release.resolve();
       expect((await page).commits.map((entry) => entry.oid)).toEqual([oid]);
       expect(await commit).toMatchObject({
-        commitOid: oid,
-        changes: [expect.objectContaining({ newPath: 'notes.txt' })],
+        commit: expect.objectContaining({ oid }),
+        files: [expect.objectContaining({ newPath: 'notes.txt' })],
       });
       expect((await diffs).diffs).toMatchObject([
         {

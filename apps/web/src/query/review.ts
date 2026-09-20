@@ -52,10 +52,14 @@ function useReviewData<T>(
   key: readonly unknown[],
   read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
   refetchInterval: number | false = false,
+  /** For a read whose answer cannot change: a commit, keyed by its id. */
+  onFocus: 'always' | false = 'always',
 ) {
   return useSuspenseQuery({
     ...useReviewOptions(scope, key, read),
     refetchInterval,
+    refetchOnWindowFocus: onFocus,
+    refetchOnReconnect: onFocus,
   }).data;
 }
 export function useDirectory(scope: ReviewScope, path: string) {
@@ -260,10 +264,81 @@ export function useTextFile(scope: ReviewScope, path: string, active: boolean) {
     refetchInterval: active ? 3000 : false,
   }).data;
 }
+/**
+ * A commit's files. Read once: a commit is immutable and its id is in the key,
+ * so coming back to the window has nothing to find out.
+ */
 export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
-  return useReviewData(scope, ['commit', oid, parent], (api, request) =>
-    api.commit({ ...request, oid, ...(parent === 1 ? {} : { parent }) }),
+  return useReviewData(
+    scope,
+    ['commit', oid, parent],
+    (api, request) =>
+      api.commit({ ...request, oid, ...(parent === 1 ? {} : { parent }) }),
+    false,
+    false,
   );
+}
+
+/** One request carries at most this many files, as the contract allows. */
+const COMMIT_DIFF_BATCH = 200;
+
+/**
+ * The patches of the commit's files that are on screen.
+ *
+ * A commit cannot change, so these need none of the guards a worktree diff
+ * carries: the commit id is the whole of what makes the answer correct, and it
+ * is in the key. Longer lists are split into batches so a commit touching
+ * thousands of files does not ask for thousands of patches at once.
+ */
+export function useCommitDiffs(
+  scope: ReviewScope,
+  oid: string,
+  parent: number,
+  paths: readonly (readonly string[])[],
+) {
+  const { api, connection } = useConnectedContext();
+  const batches: (readonly string[])[][] = [];
+  for (let at = 0; at < paths.length; at += COMMIT_DIFF_BATCH)
+    batches.push([...paths.slice(at, at + COMMIT_DIFF_BATCH)]);
+  const results = useQueries({
+    queries: batches.map((batch) => ({
+      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+        'commit-diffs',
+        oid,
+        parent,
+        batch.map((entry) => entry.join('\0')),
+      ]),
+      refetchOnWindowFocus: false as const,
+      refetchOnReconnect: false as const,
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const request = connection.request(signal);
+        const data = await api.review.commitDiffs({
+          ...scope,
+          ...request,
+          oid,
+          ...(parent === 1 ? {} : { parent }),
+          paths: batch.map((entry) => [...entry]),
+        });
+        request.signal.throwIfAborted();
+        return data.diffs;
+      },
+    })),
+  });
+  const patches = new Map<string, DiffContent>();
+  for (const result of results)
+    for (const diff of result.data ?? [])
+      patches.set(diff.paths.join('\0'), diff.content);
+  return {
+    patches,
+    isPending: results.some((result) => result.isPending),
+    // A patch that failed is not a patch still arriving. Without this the
+    // files it covers stay labelled as loading for as long as the commit is
+    // open, with nothing to press.
+    isError: results.some((result) => result.isError),
+    retry: () => {
+      for (const result of results) if (result.isError) void result.refetch();
+    },
+  };
 }
 
 export function useReviewChanges(
@@ -665,10 +740,4 @@ export function useWorktreePaths(scope: ReviewScope, enabled = true) {
     retry: false,
     throwOnError: false,
   });
-}
-
-export function useCommitLayers(scope: ReviewScope, oid: string) {
-  return useReviewData(scope, ['commit-layers', oid], (api, request) =>
-    api.commitLayers({ ...request, oid }),
-  );
 }

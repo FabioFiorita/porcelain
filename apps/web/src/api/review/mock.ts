@@ -45,10 +45,6 @@ export function createReviewMock(
     return structuredClone(fixture);
   }
   return {
-    async commitLayers(request) {
-      await context(request);
-      return null;
-    },
     async worktreePaths(request) {
       const data = await context(request);
       return {
@@ -185,24 +181,33 @@ export function createReviewMock(
       )
         throw new ConnectionError(`This commit has no parent ${parentNumber}.`);
       return {
-        commitOid: commit.oid,
-        parentOids: commit.parentOids,
+        commit,
         comparison: baseOid
           ? { kind: 'parent', parentNumber, baseOid }
           : { kind: 'empty-tree' },
-        changes: [
+        files: [
           {
             oldPath: 'src/domain/review.ts',
             newPath: 'src/domain/review.ts',
             status: 'modified',
             oldMode: '100644',
             newMode: '100644',
-            patch: {
-              kind: 'text',
-              text: '--- a/src/domain/review.ts\n+++ b/src/domain/review.ts\n@@ -1 +1,4 @@\n-export type Context = string;\n+export type ReviewScope = {\n+  projectId: string;\n+  worktreeId: string;\n+};\n',
-            },
           },
         ],
+      };
+    },
+    async commitDiffs(request) {
+      await context(request);
+      return {
+        commitOid: request.oid,
+        diffs: request.paths.map((paths) => ({
+          paths,
+          content: {
+            kind: 'text',
+            patch:
+              '--- a/src/domain/review.ts\n+++ b/src/domain/review.ts\n@@ -1 +1,4 @@\n-export type Context = string;\n+export type ReviewScope = {\n+  projectId: string;\n+  worktreeId: string;\n+};\n',
+          },
+        })),
       };
     },
     async directory(request) {

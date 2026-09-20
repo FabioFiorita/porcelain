@@ -5,10 +5,8 @@ import { UnknownWorktreeError } from '../../repositories/errors/unknown-worktree
 import { ArtifactNotFoundError } from '../../use-cases/errors/artifact-not-found-error.ts';
 import { CommentLimitExceededError } from '../../use-cases/errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
-import { CommitReviewLayerConflictError } from '../../use-cases/errors/commit-review-layer-conflict-error.ts';
 import { InvalidArtifactError } from '../../use-cases/errors/invalid-artifact-error.ts';
 import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
-import { InvalidCommitReviewLayersError } from '../../use-cases/errors/invalid-commit-review-layers-error.ts';
 import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
 import { ProjectNotFoundError } from '../../use-cases/errors/project-not-found-error.ts';
 import { ReviewedMarkConflictError } from '../../use-cases/errors/reviewed-mark-conflict-error.ts';
@@ -21,14 +19,6 @@ export function toStorageErrorResponse(error: unknown) {
         code: 'REVIEWED_MARK_STALE',
         message:
           'The reviewed mark is based on a version of the file that has changed',
-      },
-    };
-  if (error instanceof CommitReviewLayerConflictError)
-    return {
-      statusCode: 409,
-      body: {
-        code: 'COMMIT_REVIEW_LAYER_CONFLICT',
-        message: 'Commit review layers are already associated',
       },
     };
   if (error instanceof ProjectNotFoundError)
@@ -59,7 +49,6 @@ export function toStorageErrorResponse(error: unknown) {
     };
   if (
     error instanceof InvalidFilePreferenceError ||
-    error instanceof InvalidCommitReviewLayersError ||
     error instanceof InvalidCommentError ||
     error instanceof InvalidArtifactError
   )

@@ -24,12 +24,13 @@ test('commits the selected new file and leaves other staged changes in place', a
     await checkbox.uncheck();
   await dialog.getByLabel('notes.txt', { exact: true }).check();
   const inventory = await (await page.request.get('/api/inventory')).json();
-  const worktree = inventory.projects
-    .flatMap(
-      (project: { worktrees: { id: string; path: string }[] }) =>
-        project.worktrees,
-    )
-    .find((entry: { path: string }) => entry.path === worktreePath);
+  const project = inventory.projects.find(
+    (entry: { worktrees: { path: string }[] }) =>
+      entry.worktrees.some((worktree) => worktree.path === worktreePath),
+  );
+  const worktree = project?.worktrees.find(
+    (entry: { path: string }) => entry.path === worktreePath,
+  );
   const layerUrl = `/api/worktrees/${worktree.id}/review-layers`;
   const source = await (await page.request.get(layerUrl)).json();
   const layers = source.layers.map((layer: { files: { path: string }[] }) => ({
@@ -80,9 +81,26 @@ test('commits the selected new file and leaves other staged changes in place', a
   await page
     .getByRole('button', { name: /Commit selected review notes/ })
     .click();
+  // The commit opens and shows what it changed.
   await expect(
-    page.getByRole('region', { name: 'Archived review notes' }),
-  ).toContainText('This explanation must remain in History.');
+    page.getByRole('heading', { name: /^[0-9a-f]{7}$/ }),
+  ).toBeVisible();
+
+  // Step 5c removed the per-commit review surface, so a commit no longer keeps
+  // a copy of the notes it carried: the route is gone and the explanation is
+  // cleared from the live layers along with the file it described. This
+  // assertion records that loss rather than hiding it.
+  const head = (await git('rev-parse', 'HEAD')).trim();
+  const archived = await page.request.get(
+    `/api/projects/${project.id}/commits/${head}/review-layers`,
+  );
+  expect(archived.status()).toBe(404);
+  const afterCommit = await (await page.request.get(layerUrl)).json();
+  expect(
+    afterCommit.layers.flatMap(
+      (layer: { files: { path: string }[] }) => layer.files,
+    ),
+  ).not.toContainEqual(expect.objectContaining({ path: 'notes.txt' }));
 });
 
 test('reviews generated groups and commits them sequentially', async ({

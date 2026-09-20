@@ -72,22 +72,30 @@ describe('review transport', () => {
       content: '<h1>Ready</h1>',
     });
   });
-  it('adds a selected merge parent to the commit changes request', async () => {
+  it('adds a selected merge parent to the commit files request', async () => {
     const oid = 'a'.repeat(40);
     const parent = 2;
     const transport: typeof fetch = async (input) => {
       expect(String(input)).toBe(
-        `/api/worktrees/${scope.worktreeId}/commits/${oid}/changes?parent=${parent}`,
+        `/api/worktrees/${scope.worktreeId}/commits/${oid}/files?parent=${parent}`,
       );
       return Response.json({
-        commitOid: oid,
-        parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+        commit: {
+          oid,
+          parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+          author: { name: 'Ada', timestamp: '2026-09-14T00:00:00Z' },
+          subject: 'Subject',
+          subjectTruncated: false,
+          body: null,
+          bodyTruncated: false,
+          refs: [],
+        },
         comparison: {
           kind: 'parent',
           parentNumber: parent,
           baseOid: 'c'.repeat(40),
         },
-        changes: [],
+        files: [],
       });
     };
 
@@ -97,7 +105,7 @@ describe('review transport', () => {
       comparison: { parentNumber: parent, baseOid: 'c'.repeat(40) },
     });
   });
-  it('validates commit body truncation metadata and full refs from history', async () => {
+  it('validates commit body truncation metadata and refs from history', async () => {
     const oid = 'a'.repeat(40);
     const transport: typeof fetch = async (input) => {
       expect(String(input)).toBe(
@@ -117,11 +125,13 @@ describe('review transport', () => {
             subjectTruncated: false,
             body: 'line one\nline two',
             bodyTruncated: false,
-            refs: ['refs/heads/main', 'refs/tags/v1'],
+            refs: ['main', 'v1'],
           },
         ],
-        nextCursor: null,
+        nextAfter: null,
+        tip: oid,
         boundary: null,
+        restarted: false,
       });
     };
 
@@ -132,7 +142,7 @@ describe('review transport', () => {
         {
           body: 'line one\nline two',
           bodyTruncated: false,
-          refs: ['refs/heads/main', 'refs/tags/v1'],
+          refs: ['main', 'v1'],
         },
       ],
     });

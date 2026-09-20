@@ -167,7 +167,6 @@ async function start() {
         credential,
         project.id,
         review.id,
-        fixture.reviewCommitOid,
         AbortSignal.timeout(60_000),
       );
     };

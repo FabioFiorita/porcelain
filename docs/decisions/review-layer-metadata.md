@@ -49,34 +49,19 @@ Request selection order never changes review order. A committed path may be sele
 even when the live set references both staged and unstaged changes. Saved scope flags describe the
 source selection, not a staging state of the commit.
 
-Before saving, the server inspects the immutable commit against the chosen parent in the source
-worktree's project. Selected paths must occur in that comparison. Renames use their destination
-path, deletions their old path. This verifies committed-path membership, not content equivalence
-with the source worktree. For a partial-file commit the ordering applies only to that commit's diff;
-it makes no claim that all source-file edits were committed. Unassigned committed changes remain
-available through the existing commit inspection API.
+## Per-commit review layers, removed (2026-09-20)
 
-The live layer set is retained independently. An explicit subset can be associated with each split
-commit, and one source revision can describe multiple commits. A later layer edit cannot rewrite
-a saved snapshot. Source revision and project ownership are checked again in the same immediate
-SQLite transaction that inserts the snapshot, rejecting concurrent source changes or project removal.
+A commit used to keep a copy of the layers it carried, readable at
+`GET /api/projects/:projectId/commits/:oid/review-layers` and writable by an association endpoint
+the web never called. Step 5c removed that surface: both routes, the repository, the contracts, and
+the "Archived review notes" the commit document drew.
 
-Identical association retries return the saved snapshot even if the live revision changed, the
-source worktree disappeared, or the checkout became unavailable. Changed source, revision, parent
-or reference selection returns a conflict. The snapshot has no edit/delete operation beyond explicit
-project removal. Refresh, worktree disappearance, restart and Git garbage collection retain metadata;
-retention does not keep Git objects alive or guarantee the commit diff remains inspectable.
+What a commit still does is clear the live layers it carried, so a worktree stops asking to be
+reviewed for work that has been committed
+([completion](../../apps/server/src/use-cases/complete-commit-review.ts)). That belongs to the live
+layer set's own lifecycle and is unchanged; it now reads the commit's file list, which costs one
+Git process rather than nine.
 
-The authenticated routes are owned by
-[association](../../apps/server/src/http/routes/associate-commit-review-layers.ts) and
-[retrieval](../../apps/server/src/http/routes/get-commit-review-layers.ts).
-Retrieval requires a registered project but no available checkout; an unassociated commit returns
-null without asserting that the Git object exists. New associations require an available registered
-source worktree. Requests and snapshots use bounded contracts; at most 500 unique committed paths
-can be selected, within the existing live-layer and Git inspection limits.
-
-This slice supports explicit association of commits created inside or outside Porcelain. Automatic
-association during commit execution or external Git reconciliation is deferred: it needs captured
-content/hunk identities and an agreed ambiguity policy. Amend and rebase create distinct OIDs with
-no inherited association. There is no content matching, automatic consumption of live references,
-UI, MCP, or agent execution in this boundary.
+The `commit_review_layer_sets` table stays. Nothing reads it, and removing a project still clears
+its rows, but an upgrade does not destroy layers a reader may still have. Dropping the table is a
+separate decision about data somebody may still want, and needs its own migration.

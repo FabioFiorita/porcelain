@@ -1,8 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
-import {
-  associateCommitReviewLayersSchema,
-  commitReviewLayerParamsSchema,
-} from '@porcelain/contracts/commit-review-layers';
+import { randomUUID } from 'node:crypto';
 import { renameProjectRequestSchema } from '@porcelain/contracts/inventory';
 import {
   replaceReviewLayersSchema,
@@ -11,7 +7,6 @@ import {
 import { ActionGit } from '@porcelain/git/action-git';
 import { checkIgnored } from '@porcelain/git/commands/check-ignored';
 import { listTrackedPaths } from '@porcelain/git/commands/list-tracked-paths';
-import { CommitCursorCodec } from '@porcelain/git/commit-cursor';
 import { CommitGit } from '@porcelain/git/commit-git';
 import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
 import { Git } from '@porcelain/git/git';
@@ -48,7 +43,6 @@ import { WorktreeDirectory } from './lifecycle/worktree-directory.ts';
 import type { Project } from './models/project.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
-import { CommitReviewLayerRepository } from './repositories/commit-review-layer-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
@@ -59,7 +53,6 @@ import { ReviewedFileRepository } from './repositories/reviewed-file-repository.
 import { WorktreePresenceRepository } from './repositories/worktree-presence-repository.ts';
 import { WorktreeStatusRepository } from './repositories/worktree-status-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
-import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
 import { CollectAbsentWorktrees } from './use-cases/collect-absent-worktrees.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { CommitDrafts } from './use-cases/commit-drafts.ts';
@@ -69,8 +62,6 @@ import { EditFile } from './use-cases/edit-file.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
 import { FindProjects } from './use-cases/find-projects.ts';
 import { GetArtifact } from './use-cases/get-artifact.ts';
-import { GetCommitReviewLayers } from './use-cases/get-commit-review-layers.ts';
-import { InspectCommitChanges } from './use-cases/inspect-commit-changes.ts';
 import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
@@ -86,6 +77,7 @@ import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadAsset } from './use-cases/read-asset.ts';
 import { ReadChangeDiffs } from './use-cases/read-change-diffs.ts';
 import { ReadChangeLines } from './use-cases/read-change-lines.ts';
+import { ReadCommitFiles } from './use-cases/read-commit-files.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeChanges } from './use-cases/read-worktree-changes.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
@@ -362,24 +354,10 @@ export async function openApplication(options: {
     // Read once here rather than per history request; a missing Git still
     // surfaces on the request that needs it, so startup is unaffected.
     void readGitVersion().catch(() => undefined);
-    const cursor = new CommitCursorCodec(randomBytes(32));
     const commitGit =
-      options.commitGit ?? ((checkout) => new CommitGit(checkout, cursor));
-    const commitLayers = new CommitReviewLayerRepository(database.db);
-    const associateLayers = new AssociateCommitReviewLayers(
-      store,
-      worktrees,
-      layers,
-      commitLayers,
-      commitGit,
-    );
-    const getCommitLayers = new GetCommitReviewLayers(store, commitLayers);
+      options.commitGit ?? ((checkout) => new CommitGit(checkout));
     const listCommits = new ListCommits(store, worktrees, commitGit);
-    const inspectCommitChanges = new InspectCommitChanges(
-      store,
-      worktrees,
-      commitGit,
-    );
+    const commitFiles = new ReadCommitFiles(store, worktrees, commitGit);
     const files = options.files ?? new NodeFileReader();
     // The ignore question runs through the same session guard every other Git
     // read uses, and only for the entries of the folder being opened.
@@ -445,13 +423,7 @@ export async function openApplication(options: {
         worktrees,
         actionStore,
         actionGit,
-        new CompleteCommitReview(
-          store,
-          worktrees,
-          layers,
-          commitLayers,
-          commitGit,
-        ),
+        new CompleteCommitReview(store, worktrees, layers, commitGit),
       ),
       actionStore,
     );
@@ -839,17 +811,23 @@ export async function openApplication(options: {
           { callerSignal: signal },
         );
       },
-      inspectCommitChanges: (worktreeId, request, signal) => {
+      commitFiles: (worktreeId, request, signal) => {
         const submitted = { ...request };
         return lanes.run(
           laneOf(worktreeId),
           'read',
           ({ signal: operationSignal }) =>
-            inspectCommitChanges.execute(
-              worktreeId,
-              submitted,
-              operationSignal,
-            ),
+            commitFiles.files(worktreeId, submitted, operationSignal),
+          { callerSignal: signal },
+        );
+      },
+      commitDiffs: (worktreeId, request, signal) => {
+        const submitted = { ...request, paths: [...request.paths] };
+        return lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
+            commitFiles.diffs(worktreeId, submitted, operationSignal),
           { callerSignal: signal },
         );
       },
@@ -880,34 +858,6 @@ export async function openApplication(options: {
           'write',
           ({ signal: operationSignal }) =>
             comments.execute(snapshot, principal, operationSignal),
-          { callerSignal: signal },
-        );
-      },
-      commitReviewLayers: (projectId, commitOid) => {
-        const params = commitReviewLayerParamsSchema.parse({
-          projectId,
-          oid: commitOid,
-        });
-        return stored(() =>
-          getCommitLayers.execute(params.projectId, params.oid),
-        );
-      },
-      associateCommitReviewLayers: (projectId, commitOid, request, signal) => {
-        const params = commitReviewLayerParamsSchema.parse({
-          projectId,
-          oid: commitOid,
-        });
-        const input = associateCommitReviewLayersSchema.parse(request);
-        return lanes.run(
-          projectLaneOf(params.projectId),
-          'read',
-          ({ signal: operationSignal }) =>
-            associateLayers.execute(
-              params.projectId,
-              params.oid,
-              input,
-              operationSignal,
-            ),
           { callerSignal: signal },
         );
       },

@@ -48,7 +48,7 @@ const baseHistory = (overrides: Partial<ReturnType<typeof useHistory>> = {}) =>
       head: { kind: 'attached', ref: 'refs/heads/feature/review' },
     },
     commits,
-    nextCursor: null,
+    nextAfter: null,
     boundary: null,
     hasNextPage: false,
     isFetchingNextPage: false,
@@ -116,7 +116,7 @@ describe('HistoryNavigation', () => {
     vi.mocked(useHistory).mockReturnValue(
       baseHistory({
         hasNextPage: true,
-        nextCursor: 'opaque-cursor',
+        nextAfter: ['b'.repeat(40)],
         isFetchNextPageError: true,
         fetchNextPage,
       }),

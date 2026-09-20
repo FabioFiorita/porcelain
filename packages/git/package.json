@@ -4,7 +4,6 @@
   "type": "module",
   "exports": {
     "./action-git": "./src/action-git.ts",
-    "./commit-cursor": "./src/commit-cursor.ts",
     "./commit-git": "./src/commit-git.ts",
     "./dtos/commit-history": "./src/dtos/commit-history.ts",
     "./dtos/discovered-repository": "./src/dtos/discovered-repository.ts",
@@ -50,7 +49,5 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "zod": "4.5.4"
-  }
+  "dependencies": {}
 }

@@ -2,17 +2,20 @@ import type { AreaTestSummary, SpecAudit } from './types.ts';
 
 // Audit of the core server specs: packages/git, packages/contracts,
 // packages/client and apps/server/src/{agents,cli,db,development,filesystem,
-// lifecycle,repositories}. Working tree as of 2026-09-18, including uncommitted
-// changes (readDiffs batching, file stamps, diagnostics channels).
+// lifecycle,repositories}. Working tree as of 2026-09-20 (step 5c), on the
+// commit after 527deb60.
 //
 // Process counts marked "measured" come from a scratch run that put a counting
 // git wrapper on PATH (the technique used by fixtures/isolated-git) around the
 // real adapters on a disposable repository: readStatus 13, readDiff (1 file) 9,
-// readDiffs (20 files) 28, listWorktrees (1 worktree) 4, listCommits (page of
-// 50) 64, inspectCommitChanges 11, ActionGit.inspect 21. On a repository with
-// 12,000 tracked files, ActionGit.inspect rejected with UNSUPPORTED_CONFIGURATION;
+// readDiffs (20 files) 28, listWorktrees (1 worktree) 4, ActionGit.inspect 21.
+// History is now counted by a spec rather than by hand: a page is 1 process, a
+// continuation 2, a commit's file list 1 and a batch of its patches 1
+// (apps/server/src/http/routes/git-process-budgets.spec.ts). Before step 5c a
+// page of 50 cost 64 and inspecting a commit 11. On a repository with 12,000
+// tracked files, ActionGit.inspect rejected with UNSUPPORTED_CONFIGURATION;
 // one new unignored folder of 2,001 files made readStatus throw
-// InspectionLimitError. No spec in this scope counts processes or time.
+// InspectionLimitError.
 
 export const coreSpecAudits: SpecAudit[] = [
   // ---------------------------------------------------------------- packages/git
@@ -163,13 +166,13 @@ export const coreSpecAudits: SpecAudit[] = [
     file: 'packages/git/src/mappers/parse-commit.spec.ts',
     areas: ['history'],
     kind: 'unit',
-    real: ['parseCommit on raw commit text'],
-    fakes: ['synthetic raw commit objects'],
+    real: ['parseCommitRecords and headFromDecoration over a log answer'],
+    fakes: ['synthetic NUL-delimited records'],
     tests: [
       {
-        name: 'separates a subject from an absent or empty body',
+        name: 'keeps a last commit whose body is empty',
         asserts:
-          'body null for Subject\\n and Subject\\n\\n; bodyTruncated false.',
+          'Both commits survive. The body is the last field of a record and is empty for most commits, so trimming trailing empty fields eats the final one.',
       },
       {
         name: 'keeps body line breaks and indentation',
@@ -179,11 +182,30 @@ export const coreSpecAudits: SpecAudit[] = [
         name: 'truncates the body at a valid UTF-8 boundary',
         asserts: '4,095 a + emoji becomes 4,095 a with bodyTruncated true.',
       },
+      {
+        name: 'refuses an answer that does not divide into whole records',
+        asserts: 'UnsupportedHistoryDataError rather than a partial commit.',
+      },
+      {
+        name: 'refuses an unreadable object id or timestamp',
+        asserts: 'UnsupportedHistoryDataError for either.',
+      },
+      {
+        name: 'takes the refs from the decoration, without HEAD and without the tag marker',
+        asserts:
+          "['main', 'origin/main', 'v1.2.0'] from 'HEAD -> main, origin/main, tag: v1.2.0'.",
+      },
+      {
+        name: 'headFromDecoration reads attached, detached and neither',
+        asserts:
+          'refs/heads/main; detached; UnsupportedHistoryDataError when HEAD is not in the decoration.',
+      },
     ],
-    strengths: ['Exact values at the UTF-8 truncation boundary.'],
+    strengths: [
+      'Exact values at the UTF-8 truncation boundary, and the empty-body record boundary a naive reader gets wrong.',
+    ],
     gaps: [
-      'Malformed author line or missing header separator (UnsupportedHistoryDataError) untested.',
-      'Parent parsing, leading blank lines before the subject and non-UTF-8 commit encodings untested.',
+      'Non-UTF-8 commit encodings are refused by the reader, not here.',
       'No property tests for arbitrary message bytes.',
     ],
     verdict: 'adequate',
@@ -193,112 +215,137 @@ export const coreSpecAudits: SpecAudit[] = [
     areas: ['history'],
     kind: 'integration',
     real: [
-      'git (sha1 and sha256 repos, shallow and partial clones, merges, octopus, replace refs)',
+      'git (sha1 and sha256 repositories, shallow clones, merges, renames, replace refs)',
       'filesystem',
       'child-process',
       'Git.listWorktrees for real identities',
     ],
-    fakes: ['none; global and system Git config disabled through env'],
-    tests: [
-      {
-        name: 'maps lightweight and annotated refs once per page without leaking refs from other commits',
-        asserts:
-          'Exact ref list on the tip (heads, remote, both tags); root commit on page 2 has no refs. Does not check that refs are read once per page despite the name.',
-      },
-      {
-        name: 'keeps all ancestors in topological order across ref movement, reset and deletion',
-        asserts:
-          'Continuation after reset and branch deletion equals git rev-list --topo-order of the snapshot tip (git as oracle).',
-      },
-      {
-        name: 'rejects tampered, cross-worktree and restarted cursors and honors a cursor page size',
-        asserts:
-          'InvalidHistoryRequestError for tampered, limit mismatch, other scope and other key; valid cursor yields 1 commit.',
-      },
-      {
-        name: 'marks shallow history and rejects continuation after deepening without treating a boundary as a root',
-        asserts:
-          'boundary shallow; inspecting the boundary commit and continuing after unshallow reject HistorySnapshotUnavailableError.',
-      },
-      {
-        name: 'distinguishes unborn and detached HEAD and SHA-256 root inspection',
-        asserts:
-          'Exact unborn page; detached snapshot; empty-tree comparison with +hello; parent 1 on a root rejects.',
-      },
-      {
-        name: 'compares merge commits against the chosen parent and handles empty commits',
-        asserts:
-          'Exact comparison base per parent; parent 3 rejects; empty commit has no changes.',
-      },
-      {
-        name: 'detects renames at 50 percent, retains literal unusual paths, and distinguishes binary and modes without modifying the checkout',
-        asserts:
-          'arrayContaining rename/binary/symlink entries; index, refs and untracked file unchanged.',
-      },
-      {
-        name: 'supports octopus parent selection and reports gitlinks, mode changes and copies without recursion',
-        asserts:
-          'Parent 3 comparison exact; gitlink patch kind submodule; mode change; copy reported as added.',
-      },
-      {
-        name: 'truncates multibyte subjects at a valid UTF-8 boundary and rejects oversized change results',
-        asserts:
-          'Subject cut at 128 emoji / 511 bytes; 1 MB patch and 501 changed files reject ReadLimitExceededError.',
-      },
-      {
-        name: 'rejects replacement checkout identities, missing snapshot objects and non-UTF-8 paths',
-        asserts:
-          'Deleted tip object, 0xff tree path and replaced checkout each map to their specific error.',
-      },
-      {
-        name: 'ignores replacement objects and configured external diff and textconv programs',
-        asserts:
-          'Real root commit inspected; helper marker absent; pre-aborted listCommits rejects AbortError.',
-      },
-      {
-        name: 'does not lazily fetch promised blobs during commit inspection',
-        asserts:
-          'HistorySnapshotUnavailableError; missing-object list unchanged; fetch marker absent.',
-      },
-      {
-        name: 'preserves both patch sections for %s changes without shifting neighboring patches (x2)',
-        asserts:
-          'type-changed entry carries both diff sections; neighbours keep their own patches.',
-      },
-    ],
-    strengths: [
-      'Unusually broad real-git coverage: sha256, shallow, partial clone, octopus, replace refs, gitlinks, type changes.',
-      'Pagination is checked against git rev-list itself instead of a re-implementation.',
-      'Cursor integrity (HMAC, scope, key, page size) tested end to end.',
-    ],
-    gaps: [
-      'No cost assertions. Measured: one 50-commit page = 64 git processes (identity + git --version checked before and after = 8, HEAD 3, rev-list, one cat-file per commit, for-each-ref, is-shallow); inspectCommitChanges = 11. The per-commit cat-file N+1 is invisible to every test.',
-      'Largest history is about 6 commits. rev-list --topo-order --skip=offset re-walks from the tip on every page, so page N of a 50k-commit repo costs O(offset); untested.',
-      'for-each-ref over all heads, remotes and tags runs on every page with a 4 MB buffer; hundreds of remote branches or thousands of tags are untested for cost and for the overflow failure.',
-      'The 10 s per-command timeout and mid-command cancellation are never exercised.',
-      'Several checks use arrayContaining/objectContaining, so an extra or duplicated change entry would pass.',
-    ],
-    verdict: 'adequate',
-  },
-  {
-    file: 'packages/git/src/commit-cursor.spec.ts',
-    areas: ['history'],
-    kind: 'unit',
-    real: ['CommitCursorCodec with a random HMAC key'],
     fakes: [],
     tests: [
       {
-        name: 'never emits an unusable continuation for a long ref',
+        name: 'reads the newest commits and where HEAD is',
         asserts:
-          'Round trip equals input; a 360-segment ref makes encode throw ReadLimitExceededError.',
+          'Subjects newest first; HEAD from the administrative HEAD file, refs from the decoration the same process printed.',
+      },
+      {
+        name: 'answers a branch with no commits yet without failing',
+        asserts:
+          'Unborn snapshot with the branch name, read from the HEAD file.',
+      },
+      { name: 'reports a detached HEAD', asserts: 'head.kind detached.' },
+      {
+        name: 'continues after the last commit shown, with no gap and no repeat',
+        asserts:
+          'A commit made between page one and page two does not shift page two; the third page ends with nextAfter null; a continuation carries no snapshot.',
+      },
+      {
+        name: 'restarts from the top when a reset takes the anchor off the branch',
+        asserts:
+          'restarted true and the new tip first, rather than the old history the object still holds.',
+      },
+      {
+        name: 'restarts from the top when a rebase rewrites the anchor',
+        asserts:
+          'Same, replayed onto a different base so the ids must differ; the old anchor still exists as an object.',
+      },
+      {
+        name: 'refuses a page size or an anchor it cannot honour',
+        asserts:
+          'InvalidHistoryRequestError for limit 0, 101 and a malformed oid.',
+      },
+      {
+        name: 'reads the real commit, not a replacement object',
+        asserts:
+          'A replace ref pointing the tip at an older commit is ignored.',
+      },
+      {
+        name: 'refuses a path that is not valid UTF-8 rather than mangling it',
+        asserts: 'UnsupportedHistoryDataError from the file list.',
+      },
+      {
+        name: 'reads a repository whose object ids are SHA-256',
+        asserts: '64-character oids accepted throughout.',
+      },
+      {
+        name: 'marks the end of a shallow history as a boundary',
+        asserts: "boundary 'shallow' from the shallow file, with no rev-parse.",
+      },
+      {
+        name: 'refuses a worktree that is no longer the one it resolved',
+        asserts: 'HistoryWorktreeUnavailableError from the stat comparison.',
+      },
+      {
+        name: 'lists what a first commit added, comparing against nothing',
+        asserts: 'empty-tree comparison and the added file.',
+      },
+      {
+        name: 'names both sides of a rename',
+        asserts: 'oldPath and newPath, status renamed.',
+      },
+      {
+        name: 'shows a merge against its first parent, and against another on request',
+        asserts:
+          'The case that silently opens empty without --diff-merges: each parent gives that side of the merge, with the comparison naming which.',
+      },
+      {
+        name: 'refuses a parent the commit does not have',
+        asserts: 'InvalidHistoryRequestError.',
+      },
+      {
+        name: 'reads the patches of named files, and only those',
+        asserts: 'Text patch containing the added line.',
+      },
+      {
+        name: 'reads a rename as one diff named by both its paths',
+        asserts:
+          'Keyed by both paths; metadata-only, because nothing changed inside.',
+      },
+      {
+        name: 'refuses a request naming no file at all',
+        asserts: 'InvalidHistoryRequestError.',
+      },
+      {
+        name: 'loses no branch when a page ends at a merge boundary',
+        asserts:
+          'Every page concatenated equals `git log --topo-order` on root/main/side/merge at two per page. The defect a single-commit anchor has in any graph with merges.',
+      },
+      {
+        name: 'pages a wider history in the same order as one walk',
+        asserts: 'Same comparison over three merges.',
+      },
+      {
+        name: 'restarts from the top when the commit it started at has been pruned',
+        asserts:
+          'reset, reflog expire and gc --prune=now, then restarted true at the new top.',
+      },
+      {
+        name: 'says a history is too wide to continue rather than reporting an end',
+        asserts:
+          "A 101-parent octopus gives nextAfter null with boundary 'wide', which is not the same answer as reaching the first commit.",
+      },
+      {
+        name: 'reports a broken repository rather than an empty branch',
+        asserts:
+          'A corrupted .git/config rejects instead of answering with an unborn branch.',
+      },
+      {
+        name: 'reads HEAD and refs despite repository decoration settings',
+        asserts:
+          'log.excludeDecoration=refs/heads/* still gives attached refs/heads/main and the tag.',
+      },
+      {
+        name: 'refuses to answer from a repository swapped in at the checkout path',
+        asserts:
+          'A linked worktree, whose recorded directories survive the swap untouched: the page, the file list and the patches all refuse.',
       },
     ],
     strengths: [
-      'Pins the 4,096-character bound on the encode side so the server never issues a cursor it would reject.',
+      'Paging stability is tested against the events that break it: a commit arriving mid-read, a reset, and a rebase onto a different base so the ids genuinely change.',
+      'Merge, root and rename commits are exercised against real Git rather than fixtures.',
     ],
     gaps: [
-      'Tampering, scope mismatch and key rotation are covered only through commit-git.spec.',
-      'Decode of an over-length cursor and offset upper bound untested here.',
+      'Rewritten in step 5c. The previous suite also covered octopus parent selection, copies, partial clones and promised-blob fetching, external diff and textconv programs, and oversized results; those protections live in the shared runner and are no longer covered here.',
+      'The 10 s per-command timeout and mid-command cancellation are never exercised.',
     ],
     verdict: 'adequate',
   },
@@ -1501,31 +1548,6 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'adequate',
   },
   {
-    file: 'apps/server/src/repositories/commit-review-layer-repository.spec.ts',
-    areas: ['review-layers', 'history'],
-    kind: 'integration',
-    real: [
-      'sqlite with two connections to one file',
-      'Inventory, ReviewLayer and ProjectRemoval repositories',
-    ],
-    fakes: [],
-    tests: [
-      {
-        name: 'rejects source changes across connections, preserves immutable snapshots and atomically cleans only the owning project',
-        asserts:
-          'StaleReviewLayerSourceError, CommitReviewLayerConflictError, WorktreeNotFoundError; idempotent create; snapshot survives inventory rewrite; removal deletes only the owning project.',
-      },
-    ],
-    strengths: [
-      'Two real connections; ownership and cleanup checked across projects.',
-    ],
-    gaps: [
-      'complete() (snapshot plus source layer update in one transaction) untested.',
-      'Connections interleave synchronously in one thread; no truly concurrent writers.',
-    ],
-    verdict: 'strong',
-  },
-  {
     file: 'apps/server/src/repositories/file-preference-repository.spec.ts',
     areas: ['files'],
     kind: 'integration',
@@ -1737,7 +1759,6 @@ export const coreAreaSummaries: AreaTestSummary[] = [
     summary:
       'Contracts test every bound at its edge, and both repositories use two real SQLite connections to prove optimistic revision checks, immutable commit snapshots and retention across inventory rewrites. The playground e2e confirms seeded layers are served. Remaining gaps are the complete() transaction and payload size.',
     missing: [
-      'CommitReviewLayerRepository.complete(): snapshot creation and source layer update commit or roll back together.',
       'Replace and read back the maximum payload (100 layers, 2,500 file references) under N ms.',
     ],
   },
@@ -1776,12 +1797,12 @@ export const coreAreaSummaries: AreaTestSummary[] = [
     area: 'history',
     verdict: 'adequate',
     summary:
-      'Correctness is broad and uses git as the oracle: pagination is compared with git rev-list across resets, shallow and partial clones, sha256, octopus merges and cursor tampering. Cost is invisible: a 50-commit page spawns 64 git processes (one cat-file per commit, identity and git --version checked before and after), and deep pages re-walk history via --skip. The largest fixture has about six commits.',
+      'Correctness uses git as the oracle, and since step 5c pagination is checked against a full `git log --topo-order` on histories with merges rather than only on linear ones: the concatenated pages must equal that walk exactly, which is what catches a page ending at a merge boundary. Cost is asserted rather than assumed — a page is one process and a continuation two, measured at 121 and 401 commits. The checkout guard spends no Git and is confirmed on both sides of every read, including the swap that leaves the recorded directories untouched.',
     missing: [
-      'listCommits page of 50 spawns at most N git processes (one formatted rev-list or log instead of cat-file per commit).',
-      'History on a 50k-commit repository: page 1 and page 200 each under N ms (topo-order with --skip re-walks).',
-      'for-each-ref with 300 remote branches and 5,000 tags stays under the 4 MB buffer and N ms, with refs attached correctly.',
-      'inspectCommitChanges on a merge touching 400 files with a 900 KB patch stays within limits and N processes.',
+      'Wall time on the 49,995-commit profile: process count is flat, but the one ancestry question a continuation asks is not measured against real depth.',
+      'A page whose frontier exceeds the 100-commit bound (a history that wide is untested; the code stops paging rather than dropping branches).',
+      'Decoration with 300 remote branches and 5,000 tags stays within the read buffer, with refs attached correctly.',
+      'A commit touching 400 files is opened in the route spec, but its patches are only read 5 at a time there; the batch size limit is untested.',
     ],
   },
   {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
-import type { CommitChanges } from '../../domain/review';
+import type { CommitFile } from '../../domain/review';
 import { DocumentView } from './documents';
 
 const fileState = vi.hoisted(() => ({
@@ -15,26 +15,36 @@ const preferenceState = vi.hoisted(() => ({
   htmlDefault: 'preview' as 'preview' | 'source',
 }));
 const commitState = vi.hoisted(() => ({
-  commitOid: 'a'.repeat(40),
-  parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+  commit: {
+    oid: 'a'.repeat(40),
+    parentOids: ['b'.repeat(40), 'c'.repeat(40)],
+    author: { name: 'Fabio Fiorita', timestamp: '2026-09-14T12:00:00Z' },
+    subject: 'Keep commit review compact',
+    subjectTruncated: false,
+    body: 'First line\n\n  Second line',
+    bodyTruncated: false,
+    refs: ['main', 'origin/main', 'v1'],
+  },
   comparison: {
     kind: 'parent' as const,
     parentNumber: 1,
     baseOid: 'b'.repeat(40),
   },
-  changes: [
+  files: [
     {
       oldPath: 'README.md',
       newPath: 'README.md',
       status: 'modified' as const,
       oldMode: '100644',
       newMode: '100644',
-      patch: {
-        kind: 'text' as const,
-        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
-      },
     },
-  ] as CommitChanges['changes'],
+  ] as CommitFile[],
+}));
+/** Patches arrive separately from the file list, keyed by the file's paths. */
+const patchState = vi.hoisted(() => ({
+  patches: new Map<string, { kind: string; patch?: string; reason?: string }>(),
+  failed: false,
+  retry: () => {},
 }));
 const historyState = vi.hoisted(() => ({
   commits: [
@@ -59,7 +69,12 @@ vi.mock('../../query/review', async (importOriginal) => ({
       : fileState,
   useChanges: () => ({ changes: { changes: [] } }),
   useCommit: () => commitState,
-  useCommitLayers: () => null,
+  useCommitDiffs: () => ({
+    patches: patchState.patches,
+    isPending: false,
+    isError: patchState.failed,
+    retry: patchState.retry,
+  }),
   useDirectory: () => ({ entries: fileState.folder }),
 }));
 vi.mock('../../query/files', () => ({
@@ -142,24 +157,28 @@ afterEach(() => {
   preferenceState.markdownDefault = 'reader';
   preferenceState.htmlDefault = 'preview';
   commitState.comparison.parentNumber = 1;
-  commitState.changes = [
+  commitState.files = [
     {
       oldPath: 'README.md',
       newPath: 'README.md',
       status: 'modified',
       oldMode: '100644',
       newMode: '100644',
-      patch: {
-        kind: 'text',
-        text: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
-      },
     },
   ];
-  const firstCommit = historyState.commits[0];
-  if (firstCommit) {
-    firstCommit.subject = 'Keep commit review compact';
-    firstCommit.bodyTruncated = false;
-  }
+  patchState.failed = false;
+  patchState.retry = () => {};
+  patchState.patches = new Map([
+    [
+      'README.md',
+      {
+        kind: 'text',
+        patch: '--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\n',
+      },
+    ],
+  ]);
+  commitState.commit.subject = 'Keep commit review compact';
+  commitState.commit.bodyTruncated = false;
 });
 
 describe('file document display defaults', () => {
@@ -237,7 +256,7 @@ describe('file document display defaults', () => {
     const screen = await render(
       <DocumentView
         scope={scope}
-        document={{ kind: 'commit', oid: commitState.commitOid }}
+        document={{ kind: 'commit', oid: commitState.commit.oid }}
         onOpen={vi.fn()}
       />,
     );
@@ -251,7 +270,7 @@ describe('file document display defaults', () => {
     await expect.element(screen.getByText('main')).toBeVisible();
     await expect.element(screen.getByText('origin/main')).toBeVisible();
     await expect.element(screen.getByText('v1')).toBeVisible();
-    await expect.element(screen.getByTitle('refs/heads/main')).toBeVisible();
+    await expect.element(screen.getByTitle('main')).toBeVisible();
     await expect.element(screen.getByText(/Fabio Fiorita/u)).toBeVisible();
     await expect
       .element(screen.getByRole('button', { name: 'Copy id' }))
@@ -267,14 +286,14 @@ describe('file document display defaults', () => {
   });
 
   it('discloses when the displayed commit body is truncated', async () => {
-    const firstCommit = historyState.commits[0];
-    if (!firstCommit) throw new Error('Missing history fixture');
-    firstCommit.bodyTruncated = true;
+    // The commit's own details come with its file list now, not from the
+    // history page, so a commit opened by link has them without one.
+    commitState.commit.bodyTruncated = true;
 
     const screen = await render(
       <DocumentView
         scope={scope}
-        document={{ kind: 'commit', oid: commitState.commitOid }}
+        document={{ kind: 'commit', oid: commitState.commit.oid }}
         onOpen={vi.fn()}
       />,
     );
@@ -285,14 +304,13 @@ describe('file document display defaults', () => {
   });
 
   it('identifies binary and submodule changes that have no code preview', async () => {
-    commitState.changes = [
+    commitState.files = [
       {
         oldPath: 'assets/logo.png',
         newPath: 'assets/logo.png',
         status: 'modified',
         oldMode: '100644',
         newMode: '100644',
-        patch: { kind: 'binary' },
       },
       {
         oldPath: 'vendor/tool',
@@ -300,17 +318,24 @@ describe('file document display defaults', () => {
         status: 'modified',
         oldMode: '160000',
         newMode: '160000',
-        patch: {
-          kind: 'submodule',
-          text: 'Subproject commit 1111111..2222222',
-        },
       },
     ];
+    patchState.patches = new Map([
+      ['assets/logo.png', { kind: 'binary' }],
+      [
+        'vendor/tool',
+        {
+          kind: 'text',
+          patch:
+            'diff --git a/vendor/tool b/vendor/tool\n-Subproject commit 1111111\n+Subproject commit 2222222\n',
+        },
+      ],
+    ]);
 
     const screen = await render(
       <DocumentView
         scope={scope}
-        document={{ kind: 'commit', oid: commitState.commitOid }}
+        document={{ kind: 'commit', oid: commitState.commit.oid }}
         onOpen={vi.fn()}
       />,
     );
@@ -326,25 +351,62 @@ describe('file document display defaults', () => {
       .toMatchTextContent('modified · Submodule change');
     await expect
       .element(fallback)
-      .toMatchTextContent('Subproject commit 1111111..2222222');
+      .toMatchTextContent('Subproject commit 1111111');
+  });
+
+  /**
+   * A patch that failed to arrive is not a patch still arriving. Without this
+   * the file stays labelled as loading for as long as the commit is open,
+   * with nothing to press.
+   */
+  it('says when a patch could not be read, and offers to try again', async () => {
+    commitState.files = [
+      {
+        oldPath: 'src/domain/review.ts',
+        newPath: 'src/domain/review.ts',
+        status: 'modified',
+        oldMode: '100644',
+        newMode: '100644',
+      },
+    ];
+    patchState.patches = new Map();
+    patchState.failed = true;
+    let retried = 0;
+    patchState.retry = () => {
+      retried += 1;
+    };
+
+    const screen = await render(
+      <DocumentView
+        scope={scope}
+        document={{ kind: 'commit', oid: commitState.commit.oid }}
+        onOpen={vi.fn()}
+      />,
+    );
+    const fallback = screen.getByLabelText('Changes without code preview');
+    await expect
+      .element(fallback)
+      .toMatchTextContent('The patch could not be read');
+    await screen.getByRole('button', { name: 'Try again' }).click();
+    expect(retried).toBe(1);
   });
 
   it('keeps binary-only commits navigable without a code entry', async () => {
-    commitState.changes = [
+    commitState.files = [
       {
         oldPath: null,
         newPath: 'assets/new-logo.png',
         status: 'added',
         oldMode: '000000',
         newMode: '100644',
-        patch: { kind: 'binary' },
       },
     ];
+    patchState.patches = new Map([['assets/new-logo.png', { kind: 'binary' }]]);
 
     const screen = await render(
       <DocumentView
         scope={scope}
-        document={{ kind: 'commit', oid: commitState.commitOid }}
+        document={{ kind: 'commit', oid: commitState.commit.oid }}
         onOpen={vi.fn()}
       />,
     );

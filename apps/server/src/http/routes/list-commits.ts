@@ -31,8 +31,11 @@ export function listCommits(
             ...(request.query.limit !== undefined
               ? { limit: request.query.limit }
               : {}),
-            ...(request.query.cursor !== undefined
-              ? { cursor: request.query.cursor }
+            ...(request.query.after !== undefined
+              ? { after: request.query.after.split(',') }
+              : {}),
+            ...(request.query.tip !== undefined
+              ? { tip: request.query.tip }
               : {}),
           },
           request.disconnected,

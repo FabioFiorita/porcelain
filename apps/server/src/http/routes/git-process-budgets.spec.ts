@@ -9,6 +9,8 @@ import {
   changeDiffsResponseSchema,
   changesResponseSchema,
 } from '@porcelain/contracts/changes';
+import { commitFilesResponseSchema } from '@porcelain/contracts/commit-changes';
+import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
@@ -67,7 +69,12 @@ function countGitProcesses() {
 
 async function repository(
   changedFiles: number,
-  options: { awkwardNames?: boolean; bigPatches?: boolean } = {},
+  options: {
+    awkwardNames?: boolean;
+    bigPatches?: boolean;
+    /** Commits made before the working changes, to give history depth. */
+    commits?: number;
+  } = {},
 ) {
   // A name Git has to quote in a patch header, and one it does not.
   const name = (index: number) =>
@@ -98,6 +105,8 @@ async function repository(
     await writeFile(join(checkout, name(index)), body(index, false));
   git(['add', '.']);
   git(['commit', '-m', 'Initial']);
+  for (let index = 0; index < (options.commits ?? 0); index += 1)
+    git(['commit', '--allow-empty', '-m', `commit ${index}`]);
   for (let index = 0; index < changedFiles; index += 1)
     await writeFile(join(checkout, name(index)), body(index, true));
   return { root, checkout };
@@ -106,7 +115,12 @@ async function repository(
 async function fixture(
   changedFiles:
     | number
-    | { files: number; awkwardNames?: boolean; bigPatches?: boolean },
+    | {
+        files: number;
+        awkwardNames?: boolean;
+        bigPatches?: boolean;
+        commits?: number;
+      },
   run: (
     server: Awaited<ReturnType<typeof createServer>>,
     worktreeId: string,
@@ -405,6 +419,110 @@ describe('Git process budgets', () => {
       },
     );
   });
+
+  /**
+   * A page used to cost about 62 processes — one `cat-file` for every commit
+   * in it — and every later page re-walked from the tip with `--skip`.
+   *
+   * This counts processes, which is what it can count deterministically. The
+   * traversal is bounded separately: a continuation walks from its frontier,
+   * and the one ancestry question it asks is about the commit the list
+   * started at, so what Git has to walk there is the commits added since,
+   * not everything above a progressively deeper anchor.
+   */
+  it('reads a page of history in two processes at any depth', async () => {
+    const counts: Record<number, { first: number; second: number }> = {};
+    // Enough that both pages are full at either depth.
+    for (const commits of [120, 400]) {
+      await fixture(
+        { files: 1, commits },
+        async (server, worktreeId, measure, headers) => {
+          const url = `/api/worktrees/${worktreeId}/commits?limit=50`;
+          let next: { after: string[]; tip: string } | null = null;
+          const first = await measure(async () => {
+            const response = await server.inject({
+              method: 'GET',
+              url,
+              headers,
+            });
+            expect(response.statusCode).toBe(200);
+            const page = commitPageResponseSchema.parse(response.json());
+            expect(page.commits).toHaveLength(50);
+            next =
+              page.nextAfter && page.tip
+                ? { after: page.nextAfter, tip: page.tip }
+                : null;
+          });
+          expect(next).not.toBeNull();
+          const second = await measure(async () => {
+            const response = await server.inject({
+              method: 'GET',
+              url: `${url}&after=${next?.after.join(',')}&tip=${next?.tip}`,
+              headers,
+            });
+            expect(response.statusCode).toBe(200);
+            expect(
+              commitPageResponseSchema.parse(response.json()).commits,
+            ).toHaveLength(50);
+          });
+          counts[commits] = { first, second };
+        },
+      );
+    }
+    const shallow = counts[120] ?? { first: 0, second: 0 };
+    const deep = counts[400] ?? { first: 0, second: 0 };
+    // One `git log` for the newest commits; one more for a continuation,
+    // which asks first whether the history it started in is still the one
+    // here. The guard costs nothing: it reads directories, not Git.
+    expect(shallow.first).toBe(1);
+    expect(shallow.second).toBe(2);
+    // More than three times the history, the same cost.
+    expect(deep).toEqual(shallow);
+    // Making five hundred commits with real Git is the slow part, not the read.
+  }, 120_000);
+
+  /** Opening a commit reads its file list and no patches at all. */
+  it('opens a commit in one process, and reads its patches separately', async () => {
+    await fixture(
+      { files: 12 },
+      async (server, worktreeId, measure, headers) => {
+        const listed = await server.inject({
+          method: 'GET',
+          url: `/api/worktrees/${worktreeId}/commits?limit=1`,
+          headers,
+        });
+        const oid = commitPageResponseSchema.parse(listed.json()).commits[0]
+          ?.oid;
+        if (!oid) throw new Error('Missing commit');
+        const base = `/api/worktrees/${worktreeId}/commits/${oid}`;
+        let paths: string[][] = [];
+        expect(
+          await measure(async () => {
+            const response = await server.inject({
+              method: 'GET',
+              url: `${base}/files`,
+              headers,
+            });
+            expect(response.statusCode).toBe(200);
+            paths = commitFilesResponseSchema
+              .parse(response.json())
+              .files.map((file) => [file.newPath ?? file.oldPath ?? '']);
+          }),
+        ).toBe(1);
+        expect(
+          await measure(async () => {
+            const response = await server.inject({
+              method: 'POST',
+              url: `${base}/diffs`,
+              headers,
+              payload: { paths },
+            });
+            expect(response.statusCode).toBe(200);
+          }),
+        ).toBe(1);
+      },
+    );
+  }, 60_000);
 
   it('reads a file within its budget', async () => {
     await fixture(2, async (server, worktreeId, measure, headers) => {

@@ -321,11 +321,7 @@ importers:
         specifier: 4.5.4
         version: 4.5.4
 
-  packages/git:
-    dependencies:
-      zod:
-        specifier: 4.5.4
-        version: 4.5.4
+  packages/git: {}
 
 packages:
 

@@ -79,9 +79,19 @@ function HistoryPage({
       {history.snapshot != null && (
         <p className="flex shrink-0 items-center gap-1.5 border-b px-3.5 py-2 text-[11.5px] text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
-          <span className="truncate">
-            {historyFollows(history.snapshot.head)}
-          </span>
+          <span className="truncate">{historyFollows(history.snapshot)}</span>
+        </p>
+      )}
+
+      {history.restarted && (
+        // The commits below are not the continuation that was asked for: the
+        // branch was rewritten under the reader, and what they were scrolling
+        // through is no longer part of it.
+        <p
+          role="status"
+          className="shrink-0 border-b bg-muted/40 px-3.5 py-2 text-[11.5px] text-muted-foreground"
+        >
+          History changed. Showing it from the top.
         </p>
       )}
 
@@ -157,11 +167,13 @@ function HistoryPage({
                   Retry
                 </Button>
               </div>
-            ) : history.nextCursor == null ? (
+            ) : history.nextAfter == null ? (
               <p className="px-2 py-3 text-[11px] text-muted-foreground">
                 {history.boundary === 'shallow'
                   ? 'Shallow clone: older history is not available.'
-                  : 'Start of history.'}
+                  : history.boundary === 'wide'
+                    ? 'Too many branches meet here to continue past this point.'
+                    : 'Start of history.'}
               </p>
             ) : null}
             <div ref={sentinel} aria-hidden="true" className="h-px" />

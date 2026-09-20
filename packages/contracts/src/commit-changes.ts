@@ -1,46 +1,46 @@
 import { z } from 'zod';
-import { commitOidSchema } from './commit-history.ts';
+import { commitOidSchema, commitSummarySchema } from './commit-history.ts';
+import { gitDiffContentSchema } from './git-diff.ts';
 import { worktreeIdSchema } from './worktree-id.ts';
 
-export const commitChangesParamsSchema = z.strictObject({
+export const commitFilesParamsSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
   oid: commitOidSchema,
 });
-export const commitChangesQuerySchema = z.strictObject({
+export const commitFilesQuerySchema = z.strictObject({
   parent: z.coerce.number().int().min(1).max(1000).optional(),
 });
-export const commitChangesResponseSchema = z.object({
-  commitOid: commitOidSchema,
-  parentOids: z.array(commitOidSchema),
-  comparison: z.discriminatedUnion('kind', [
-    z.object({
-      kind: z.literal('parent'),
-      parentNumber: z.number().int().positive(),
-      baseOid: commitOidSchema,
-    }),
-    z.object({ kind: z.literal('empty-tree') }),
-  ]),
-  changes: z
-    .array(
-      z.object({
-        oldPath: z.string().nullable(),
-        newPath: z.string().nullable(),
-        status: z.enum([
-          'added',
-          'deleted',
-          'modified',
-          'renamed',
-          'type-changed',
-        ]),
-        oldMode: z.string(),
-        newMode: z.string(),
-        patch: z.discriminatedUnion('kind', [
-          z.object({ kind: z.literal('text'), text: z.string() }),
-          z.object({ kind: z.literal('binary') }),
-          z.object({ kind: z.literal('submodule'), text: z.string() }),
-        ]),
-      }),
-    )
-    .max(500),
+const commitComparisonSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('parent'),
+    parentNumber: z.number().int().positive(),
+    baseOid: commitOidSchema,
+  }),
+  z.object({ kind: z.literal('empty-tree') }),
+]);
+export const commitFileSchema = z.object({
+  oldPath: z.string().nullable(),
+  newPath: z.string().nullable(),
+  status: z.enum(['added', 'deleted', 'modified', 'renamed', 'type-changed']),
+  oldMode: z.string(),
+  newMode: z.string(),
 });
-export type CommitChangesResponse = z.infer<typeof commitChangesResponseSchema>;
+/** What a commit touched, with no patches: those are read as they are needed. */
+export const commitFilesResponseSchema = z.object({
+  commit: commitSummarySchema,
+  comparison: commitComparisonSchema,
+  files: z.array(commitFileSchema).max(10_000),
+});
+export const commitDiffsRequestSchema = z.strictObject({
+  parent: z.number().int().min(1).max(1000).optional(),
+  /** A file is named by both its sides, so a rename asks for one diff. */
+  paths: z.array(z.array(z.string()).min(1).max(2)).min(1).max(200),
+});
+export const commitDiffsResponseSchema = z.object({
+  commitOid: commitOidSchema,
+  diffs: z.array(
+    z.object({ paths: z.array(z.string()), content: gitDiffContentSchema }),
+  ),
+});
+export type CommitFilesResponse = z.infer<typeof commitFilesResponseSchema>;
+export type CommitDiffsResponse = z.infer<typeof commitDiffsResponseSchema>;

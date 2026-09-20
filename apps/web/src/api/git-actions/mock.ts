@@ -42,9 +42,9 @@ export function createGitActionsMock(
         preview: {
           headOid: data.git.headOid,
           branch:
-            data.history.snapshot.head.kind === 'detached'
+            data.history.snapshot?.head.kind === 'detached'
               ? null
-              : data.history.snapshot.head.ref,
+              : (data.history.snapshot?.head.ref ?? null),
           staged: data.git.comparisons.some(
             (change) => change.scope === 'staged',
           ),
@@ -151,7 +151,7 @@ function applyMockAction(
       refs: [],
     });
     data.git.headOid = oid;
-    data.history.snapshot.tipOid = oid;
+    if (data.history.snapshot) data.history.snapshot.tipOid = oid;
     data.git.comparisons = data.git.comparisons.filter((change) =>
       'paths' in input && input.paths
         ? !input.paths.includes(changePath(change))

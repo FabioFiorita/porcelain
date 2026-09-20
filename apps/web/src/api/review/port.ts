@@ -5,8 +5,8 @@ import type {
   ChangeDiffsRequest,
   ChangeLines,
   ChangeList,
-  CommitChanges,
-  CommitReviewLayers,
+  CommitDiffs,
+  CommitFiles,
   Directory,
   FileEdit,
   FileEditResult,
@@ -26,9 +26,6 @@ export type ReviewPort = {
   asset: (
     request: ReviewRequest & { path: string },
   ) => Promise<import('@porcelain/contracts/files').AssetResponse>;
-  commitLayers: (
-    request: ReviewRequest & { oid: string },
-  ) => Promise<CommitReviewLayers | null>;
   worktreePaths: (request: ReviewRequest) => Promise<WorktreePaths>;
   editFile: (
     request: ReviewRequest & { input: FileEdit },
@@ -48,12 +45,22 @@ export type ReviewPort = {
   ) => Promise<ChangeLines>;
   commit: (
     request: ReviewRequest & { oid: string; parent?: number },
-  ) => Promise<CommitChanges>;
+  ) => Promise<CommitFiles>;
+  /** The patches of named files, asked for as they come into view. */
+  commitDiffs: (
+    request: ReviewRequest & {
+      oid: string;
+      parent?: number;
+      paths: string[][];
+    },
+  ) => Promise<CommitDiffs>;
   directory: (request: ReviewRequest & { path: string }) => Promise<Directory>;
   changes: (
     request: ReviewRequest,
   ) => Promise<{ changes: ChangeList; layers: Layers }>;
-  history: (request: ReviewRequest & { cursor?: string }) => Promise<History>;
+  history: (
+    request: ReviewRequest & { after?: string[]; tip?: string },
+  ) => Promise<History>;
   artifacts: (request: ReviewRequest) => Promise<Artifact[]>;
   reviewed: {
     list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
