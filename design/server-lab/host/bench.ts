@@ -103,7 +103,7 @@ type Scope = {
 };
 
 const selectWorktree = async (api: Api, scope: Scope) => {
-  const w = `/worktrees/${scope.worktreeId}`;
+  const w = `/api/worktrees/${scope.worktreeId}`;
   // useChanges (status + layers), evidence, reviewed marks, comments, artifacts.
   await Promise.all([
     api('GET', `${w}/git/status`),
@@ -118,7 +118,7 @@ const selectWorktree = async (api: Api, scope: Scope) => {
 const sidebar = async (api: Api, scope: Scope) => {
   // useReviewSummaries: one request per available worktree, one at a time.
   for (const worktree of scope.worktrees)
-    await api('GET', `/worktrees/${worktree.id}/review-summary`);
+    await api('GET', `/api/worktrees/${worktree.id}/review-summary`);
 };
 
 export const benchSteps: Step[] = [
@@ -127,8 +127,8 @@ export const benchSteps: Step[] = [
     title: 'Open Porcelain (inventory, refresh, sidebar summaries)',
     run: async (api, scope) => {
       // As observed from the web on load: read, then refresh, then summaries.
-      await api('GET', '/inventory');
-      await api('POST', '/inventory/refresh');
+      await api('GET', '/api/inventory');
+      await api('POST', '/api/inventory/refresh');
       await sidebar(api, scope);
     },
   },
@@ -148,7 +148,7 @@ export const benchSteps: Step[] = [
     run: async (api, scope) => {
       const { data } = await api(
         'GET',
-        `/worktrees/${scope.worktreeId}/git/status`,
+        `/api/worktrees/${scope.worktreeId}/git/status`,
       );
       const status = data as {
         statusToken: string;
@@ -164,7 +164,7 @@ export const benchSteps: Step[] = [
         )
         .slice(0, 5);
       for (const change of ordinary)
-        await api('POST', `/worktrees/${scope.worktreeId}/git/diff`, {
+        await api('POST', `/api/worktrees/${scope.worktreeId}/git/diff`, {
           expectedStatusToken: status.statusToken,
           change: {
             scope: change.scope,
@@ -180,7 +180,7 @@ export const benchSteps: Step[] = [
     run: async (api, scope) => {
       const { data } = await api(
         'GET',
-        `/worktrees/${scope.worktreeId}/file-tree`,
+        `/api/worktrees/${scope.worktreeId}/file-tree`,
       );
       const entries = (
         (data as { entries?: { path: string; kind?: string; type?: string }[] })
@@ -191,7 +191,7 @@ export const benchSteps: Step[] = [
       for (const entry of entries)
         await api(
           'GET',
-          `/worktrees/${scope.worktreeId}/text?${new URLSearchParams({ path: entry.path })}`,
+          `/api/worktrees/${scope.worktreeId}/text?${new URLSearchParams({ path: entry.path })}`,
         );
     },
   },
@@ -201,7 +201,7 @@ export const benchSteps: Step[] = [
     run: async (api, scope) => {
       const { data } = await api(
         'GET',
-        `/worktrees/${scope.worktreeId}/commits?limit=50`,
+        `/api/worktrees/${scope.worktreeId}/commits?limit=50`,
       );
       const commits = (
         (data as { commits?: { oid: string }[] }).commits ?? []
@@ -209,7 +209,7 @@ export const benchSteps: Step[] = [
       for (const commit of commits)
         await api(
           'GET',
-          `/worktrees/${scope.worktreeId}/commits/${commit.oid}/changes`,
+          `/api/worktrees/${scope.worktreeId}/commits/${commit.oid}/changes`,
         );
     },
   },
@@ -219,7 +219,7 @@ export const benchSteps: Step[] = [
     run: async (api, scope) => {
       const { data } = await api(
         'GET',
-        `/worktrees/${scope.worktreeId}/evidence`,
+        `/api/worktrees/${scope.worktreeId}/evidence`,
       );
       const evidence = (
         (data as { evidence?: { path: string; fingerprint: string | null }[] })
@@ -228,7 +228,7 @@ export const benchSteps: Step[] = [
         .filter((entry) => entry.fingerprint)
         .slice(0, 10);
       for (const entry of evidence)
-        await api('PUT', `/worktrees/${scope.worktreeId}/reviewed`, {
+        await api('PUT', `/api/worktrees/${scope.worktreeId}/reviewed`, {
           path: entry.path,
           reviewed: true,
           fingerprint: entry.fingerprint,
@@ -281,7 +281,7 @@ export async function runBench(
       return { status: response.status, data };
     };
 
-  const inventory = (await client('setup')('GET', '/inventory'))
+  const inventory = (await client('setup')('GET', '/api/inventory'))
     .data as Inventory;
   const project =
     inventory.projects.find((candidate) =>

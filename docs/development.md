@@ -97,13 +97,15 @@ pnpm --filter @porcelain/server start
 `PORCELAIN_HOST` defaults to `127.0.0.1`; set it explicitly to a LAN address or `0.0.0.0` when
 the machine should accept LAN connections. The host is validated before state is created, and
 the server never widens its listener implicitly. `PORCELAIN_WEB_ROOT` is also opt-in and must be
-an absolute path; without it the process remains API-only. Browser API requests use `/api`, while
-the root paths remain available for the Vite development proxy and existing integrations.
+an absolute path; without it the process remains API-only. Every API route lives under `/api`;
+there are no bare-path equivalents, and the development proxy forwards the prefix unchanged.
 
 The server prints its address, never its token. Use a caller-managed token if connecting manually.
 SIGINT/SIGTERM closes the server; remove disposable state after it stops. Only one process may own
-a data directory. After a crash, establish that its owner has stopped before removing
-`server.lock`; retain the database and migration data.
+a data directory, and `porcelain status` reports who does. A crash needs no recovery step: the
+startup lock dies with its holder and the next start removes a socket that no longer answers. The
+data directory must stay owner-only (`chmod 700`), because the owner socket inside it is protected
+by directory permissions.
 
 ## Database changes
 

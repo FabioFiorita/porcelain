@@ -1,7 +1,6 @@
 # Agent review handoff
 
-Porcelain exposes Streamable HTTP MCP at `/mcp` (also `/api/mcp`) on the running
-server. Configure the coding agent's MCP client with that URL and an
+Porcelain exposes Streamable HTTP MCP at `/api/mcp` on the running server. Configure the coding agent's MCP client with that URL and an
 `Authorization: Bearer <Porcelain access token>` header. Use its secret/environment
 setting for the token. Browser-session cookies are not accepted here.
 

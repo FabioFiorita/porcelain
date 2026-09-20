@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { NodeFileWriter } from '../filesystem/file-writer.ts';
-import { startLocalServer } from '../lifecycle/start-local-server.ts';
+import { startRuntime } from '../lifecycle/runtime.ts';
 import { createPlayground, removePlayground } from './create-playground.ts';
 import { seedPlaygroundReview } from './helpers/seed-playground-review.ts';
 import { hasSyntheticBase } from './helpers/synthetic-base.ts';
@@ -44,9 +44,11 @@ try {
     for (const key of Object.keys(process.env))
       if (/^(GIT_|SSH_)/.test(key)) delete process.env[key];
     Object.assign(process.env, fixture.environment);
-    const server = await startLocalServer(
+    const server = await startRuntime(
       {
         dataDirectory: fixture.dataDirectory,
+        // Discovery stays inside the disposable playground, never a real home.
+        projectHome: fixture.root,
         token: fixture.token,
         port: 0,
       },
@@ -82,7 +84,7 @@ try {
       },
     );
     try {
-      const response = await fetch(`${server.address}/projects`, {
+      const response = await fetch(`${server.address}/api/projects`, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${fixture.token}`,

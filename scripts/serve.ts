@@ -1,22 +1,24 @@
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   installShutdownSignals,
-  parseServeSettings,
+  parseCliArguments,
+  reportStatus,
   runLocalServer,
   ServeConfigurationError,
   type ServeSettings,
   serveHelp,
+  statusExitCodes,
 } from '../apps/server/src/cli/index.ts';
-import type { startLocalServer } from '../apps/server/src/cli/start-local-server.ts';
+import type { startRuntime } from '../apps/server/src/lifecycle/runtime.ts';
 
 export {
   ensureAccessToken,
   installShutdownSignals,
-  parseServeSettings,
+  parseCliArguments,
   ServeConfigurationError,
   type ServeSettings,
   serveHelp,
@@ -26,7 +28,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export type ServeDependencies = {
   buildWeb?: (signal: AbortSignal, outputDirectory: string) => Promise<void>;
-  startServer?: typeof startLocalServer;
+  startServer?: typeof startRuntime;
   output?: (message: string) => void;
   repositoryRoot?: string;
 };
@@ -237,7 +239,12 @@ async function assertWebRoot(webRoot: string): Promise<void> {
 
 function formatStartupError(error: unknown): string {
   if (error instanceof ServeConfigurationError) return error.message;
-  if (error instanceof Error && error.name === 'DataDirectoryOwnedError')
+  if (
+    error instanceof Error &&
+    (error.name === 'DataDirectoryOwnedError' ||
+      error.name === 'DataDirectoryInsecureError' ||
+      error.name === 'SocketPathTooLongError')
+  )
     return error.message;
   return 'Porcelain could not start. Check the build, data directory, and port.';
 }
@@ -246,12 +253,24 @@ async function main(): Promise<void> {
   const controller = new AbortController();
   const removeShutdownSignals = installShutdownSignals(controller);
   try {
-    const parsed = parseServeSettings(process.argv.slice(2));
-    if ('help' in parsed) {
+    const parsed = parseCliArguments(
+      process.argv.slice(2),
+      process.env,
+      homedir(),
+    );
+    if (parsed.command === 'help') {
       process.stdout.write(serveHelp);
       return;
     }
-    await runServe(parsed, controller.signal);
+    if (parsed.command === 'status') {
+      const code = await reportStatus(parsed.settings, {
+        stdout: (message) => process.stdout.write(message),
+        stderr: (message) => process.stderr.write(message),
+      });
+      if (code !== statusExitCodes.running) process.exitCode = code;
+      return;
+    }
+    await runServe(parsed.settings, controller.signal);
   } catch (error) {
     if (!controller.signal.aborted) {
       process.stderr.write(`${formatStartupError(error)}\n`);

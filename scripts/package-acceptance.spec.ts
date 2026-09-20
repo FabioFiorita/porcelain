@@ -197,13 +197,33 @@ packageAcceptance(
         return { child, output, listening: waitForListening(child, output) };
       };
 
+      const ownerStatus = () => {
+        try {
+          return {
+            code: 0,
+            output: execFileSync(bin, ['status', '--data-directory', state], {
+              cwd,
+              env: isolatedGitEnvironment(),
+              encoding: 'utf8',
+            }),
+          };
+        } catch (error) {
+          const failure = error as { status?: number; stdout?: string };
+          return { code: failure.status ?? -1, output: failure.stdout ?? '' };
+        }
+      };
+
+      // Nothing has run here yet: that is an answer, with its own exit code.
+      expect(ownerStatus()).toMatchObject({ code: 1, output: /not running/ });
+
       const firstLaunch = launch();
       const firstAddress = await firstLaunch.listening;
+      expect(ownerStatus()).toMatchObject({ code: 0, output: /is running/ });
       const token = (await readFile(tokenFile, 'utf8')).trim();
       const headers = { authorization: `Bearer ${token}` };
       expect((await fetch(`${firstAddress}/`)).status).toBe(200);
-      expect((await fetch(`${firstAddress}/inventory`)).status).toBe(401);
-      const mcp = await fetch(`${firstAddress}/mcp`, {
+      expect((await fetch(`${firstAddress}/api/inventory`)).status).toBe(401);
+      const mcp = await fetch(`${firstAddress}/api/mcp`, {
         method: 'POST',
         headers: {
           ...headers,
@@ -227,7 +247,7 @@ packageAcceptance(
         id: 1,
         result: { serverInfo: { name: 'porcelain' } },
       });
-      const registered = await fetch(`${firstAddress}/projects`, {
+      const registered = await fetch(`${firstAddress}/api/projects`, {
         method: 'POST',
         headers: { ...headers, 'content-type': 'application/json' },
         body: JSON.stringify({ path: project }),
@@ -239,18 +259,20 @@ packageAcceptance(
       const worktree = projectResponse.worktrees[0];
       if (!worktree)
         throw new Error('Project registration returned no worktree');
-      const inventory = await fetch(`${firstAddress}/inventory`, { headers });
+      const inventory = await fetch(`${firstAddress}/api/inventory`, {
+        headers,
+      });
       expect(inventory.status).toBe(200);
       expect(
         ((await inventory.json()) as { projects: unknown[] }).projects,
       ).toHaveLength(1);
       const status = await fetch(
-        `${firstAddress}/worktrees/${worktree.id}/git/status`,
+        `${firstAddress}/api/worktrees/${worktree.id}/git/status`,
         { headers },
       );
       expect(status.status).toBe(200);
       const reviewLayers = await fetch(
-        `${firstAddress}/worktrees/${worktree.id}/review-layers`,
+        `${firstAddress}/api/worktrees/${worktree.id}/review-layers`,
         { headers },
       );
       expect(reviewLayers.status).toBe(200);
@@ -259,10 +281,13 @@ packageAcceptance(
         address: firstAddress,
         output: firstLaunch.output,
       });
+      expect(ownerStatus()).toMatchObject({ code: 1, output: /not running/ });
 
       const secondLaunch = launch();
       const secondAddress = await secondLaunch.listening;
-      const persisted = await fetch(`${secondAddress}/inventory`, { headers });
+      const persisted = await fetch(`${secondAddress}/api/inventory`, {
+        headers,
+      });
       expect(persisted.status).toBe(200);
       expect(
         ((await persisted.json()) as { projects: unknown[] }).projects,

@@ -146,7 +146,7 @@ async function start() {
     );
     seed = async (address) => {
       const inventory = (await (
-        await fetch(`${address}/inventory`, {
+        await fetch(`${address}/api/inventory`, {
           headers: labHeaders(token, 'setup'),
         })
       ).json()) as {
@@ -231,11 +231,10 @@ async function start() {
   }).finally(() => unsubscribe('fastify.initialization', catalog));
   const resource = Symbol('lab-async-resource');
   function collect(route: RouteOptions & { prefix?: string }) {
-    if (route.prefix === '/api') return;
     const methods = Array.isArray(route.method) ? route.method : [route.method];
     for (const method of methods) {
-      // `/mcp` is registered for every verb but only answers POST.
-      if (route.url === '/mcp' && method !== 'POST') continue;
+      // `/api/mcp` is registered for every verb but only answers POST.
+      if (route.url === '/api/mcp' && method !== 'POST') continue;
       if (method === 'HEAD') continue;
       const schema = (route.schema ?? {}) as Record<string, unknown>;
       routes.push({
@@ -281,7 +280,7 @@ async function start() {
     };
     const origin =
       (header('x-lab-origin') as Origin | undefined) ??
-      (booting ? 'setup' : url.startsWith('/mcp') ? 'mcp' : 'console');
+      (booting ? 'setup' : url.startsWith('/api/mcp') ? 'mcp' : 'console');
     tracer.request(
       {
         method,
@@ -342,7 +341,7 @@ async function start() {
   };
 
   for (const path of register) {
-    const response = await fetch(`${address}/projects`, {
+    const response = await fetch(`${address}/api/projects`, {
       method: 'POST',
       headers: {
         ...labHeaders(token, 'setup'),
@@ -359,7 +358,7 @@ async function start() {
   if (mode === 'real') {
     // Every linked worktree registers with its repository; label each one.
     const inventory = (await (
-      await fetch(`${address}/inventory`, {
+      await fetch(`${address}/api/inventory`, {
         headers: labHeaders(token, 'setup'),
       })
     ).json()) as {

@@ -5,14 +5,8 @@ import { defineConfig } from 'vite';
 import { playgroundBridge } from './development/playground-bridge.ts';
 
 const target = process.env.PORCELAIN_API_TARGET;
-const proxy = target
-  ? {
-      '/api': {
-        target,
-        rewrite: (path: string) => path.replace(/^\/api(?=\/|$)/, ''),
-      },
-    }
-  : undefined;
+// Routes exist once, under `/api`, so the dev proxy forwards them unchanged.
+const proxy = target ? { '/api': { target } } : undefined;
 
 export default defineConfig(({ command, isPreview }) => {
   const tokenFile = process.env.PORCELAIN_PLAYGROUND_TOKEN_FILE;

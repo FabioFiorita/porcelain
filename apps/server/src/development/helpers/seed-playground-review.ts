@@ -26,8 +26,8 @@ export async function seedPlaygroundReview(
       );
     return response.json();
   };
-  const worktree = `/worktrees/${worktreeId}`;
-  const project = `/projects/${projectId}`;
+  const worktree = `/api/worktrees/${worktreeId}`;
+  const project = `/api/projects/${projectId}`;
   // Explicitly associate the real review-guide commit, then replace the live order.
   const committedFile = { path: 'docs/review-guide.md', scope: 'staged' };
   const historical = reviewLayersResponseSchema.parse(

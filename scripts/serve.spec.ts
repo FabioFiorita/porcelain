@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { expect, it, vi } from 'vitest';
 import {
   ensureAccessToken,
-  parseServeSettings,
+  parseCliArguments,
   runBuildCommand,
   runServe,
   ServeConfigurationError,
@@ -28,15 +28,20 @@ async function temporaryRoot(prefix: string) {
 it('resolves a persistent default and validates explicit listener options', async () => {
   const home = await temporaryRoot('porcelain-serve-home-');
   try {
-    expect(parseServeSettings([], {}, home)).toEqual({
-      dataDirectory: join(home, '.porcelain'),
-      tokenFile: join(home, '.porcelain', 'admin-token'),
-      host: '127.0.0.1',
-      port: 3000,
-      webRoot: expect.stringContaining('/apps/web/dist'),
+    expect(parseCliArguments([], {}, home)).toEqual({
+      command: 'serve',
+      settings: {
+        dataDirectory: join(home, '.porcelain'),
+        projectHome: home,
+        tokenFile: join(home, '.porcelain', 'admin-token'),
+        host: '127.0.0.1',
+        port: 3000,
+        webRoot: expect.stringContaining('/apps/web/dist'),
+        allowedHosts: [],
+      },
     });
     expect(
-      parseServeSettings(
+      parseCliArguments(
         [
           '--',
           '--lan',
@@ -50,21 +55,24 @@ it('resolves a persistent default and validates explicit listener options', asyn
         home,
       ),
     ).toMatchObject({
-      dataDirectory: join(home, 'state'),
-      tokenFile: join(home, 'credentials', 'token'),
-      host: '0.0.0.0',
-      port: 4321,
+      command: 'serve',
+      settings: {
+        dataDirectory: join(home, 'state'),
+        tokenFile: join(home, 'credentials', 'token'),
+        host: '0.0.0.0',
+        port: 4321,
+      },
     });
     expect(() =>
-      parseServeSettings(['--lan', '--host', '127.0.0.1'], {}, home),
+      parseCliArguments(['--lan', '--host', '127.0.0.1'], {}, home),
     ).toThrow(ServeConfigurationError);
-    expect(() => parseServeSettings(['--port', '65536'], {}, home)).toThrow(
+    expect(() => parseCliArguments(['--port', '65536'], {}, home)).toThrow(
       'integer from 0 to 65535',
     );
     expect(() =>
-      parseServeSettings(['--data-directory', 'relative'], {}, home),
+      parseCliArguments(['--data-directory', 'relative'], {}, home),
     ).toThrow('absolute path');
-    expect(() => parseServeSettings(['--unknown'], {}, home)).toThrow(
+    expect(() => parseCliArguments(['--unknown'], {}, home)).toThrow(
       'Unknown option',
     );
   } finally {
@@ -176,10 +184,12 @@ it('keeps the persistent token and registered project across launcher restarts',
   const tokenFile = join(state, 'admin-token');
   const settings: ServeSettings = {
     dataDirectory: state,
+    projectHome: join(root, 'home'),
     tokenFile,
     host: '127.0.0.1',
     port: 0,
     webRoot,
+    allowedHosts: [],
   };
   const buildWeb = vi.fn(async () => {
     await mkdirForTest(webRoot);
@@ -205,7 +215,7 @@ it('keeps the persistent token and registered project across launcher restarts',
     if (!firstLine) throw new Error('Launcher did not print an address');
     const firstAddress = firstLine.slice('Porcelain listening at '.length);
     const token = await readFile(tokenFile, 'utf8');
-    const response = await fetch(`${firstAddress}/projects`, {
+    const response = await fetch(`${firstAddress}/api/projects`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${token}`,
@@ -229,7 +239,7 @@ it('keeps the persistent token and registered project across launcher restarts',
     const secondLine = secondOutput[0];
     if (!secondLine) throw new Error('Launcher did not print an address');
     const secondAddress = secondLine.slice('Porcelain listening at '.length);
-    const inventory = await fetch(`${secondAddress}/inventory`, {
+    const inventory = await fetch(`${secondAddress}/api/inventory`, {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(inventory.status).toBe(200);

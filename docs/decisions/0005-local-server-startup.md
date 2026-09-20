@@ -18,24 +18,34 @@ SIGINT and SIGTERM cancel startup or close the listener and application before r
 HTTP connections get five seconds to drain before remaining sockets are closed, including incomplete
 request bodies. Application work still must unwind before ownership is released.
 
-An exclusive `server.lock` file in the canonical data directory prevents cooperating executable
-instances from opening the same inventory. Its PID is diagnostic only. Successful shutdown and
-failed startup release ownership after resources close. Crashes leave the file in place. There
-is no automatic stale-lock takeover: PID reuse and delayed processes make inferred ownership unsafe.
-An operator must establish that the previous owner has stopped before removing this one file.
-Removing a live owner's file, replacing its data directory, and running direct application factories
-against an executable-owned directory are unsupported. Ownership assumes a local filesystem with
-atomic exclusive file creation. The low-level application and HTTP factories remain available for
-isolated embedding/tests; their caller owns process coordination.
+One server owns a data directory, and the owner socket is the proof: a start that connects and
+gets an answer refuses; a socket file that nothing answers on is what a crash leaves, and the next
+start removes it. No PID is consulted, so PID reuse cannot fool it.
 
-OS-managed locking is deferred. The current slice uses disposable development state and manual
-crash recovery so the server can be exercised without another native dependency. Revisit automatic
-lock release when introducing Electron process supervision or persistent home-server operation.
-At that point, evaluate a maintained macOS/Linux implementation and prove that a running owner
-rejects competitors, a killed owner permits restart without cleanup, and competing restarts produce
-exactly one owner. PID checks or time-based expiry alone must not establish abandoned ownership.
+Deciding "stale, remove, bind" is not atomic, so that window is held under an advisory lock taken
+on a file used for nothing else. Without it two starters can both find a dead socket and the second
+deletes the first one's live one, because no probe distinguishes a crashed starter from a live one
+that has not bound yet. The lock is an exclusive SQLite transaction because Node exposes no `flock`
+and SQLite already ships here; what matters is that it locks through `fcntl`, so the kernel releases
+it when the holder dies and a crash needs no cleanup. It is waited for by polling rather than inside
+SQLite, whose wait would block the event loop. This replaces the lifetime-held `server.lock`, which
+required an operator to remove it after every crash.
+
+Owner operations are served only on a Unix socket in the data directory, so file permissions are
+the credential and nothing on the network can reach them. Because socket modes are not portable,
+the containing directory is the boundary: startup refuses a data directory that another user owns
+or that is readable beyond its owner, since `mkdir` never tightens an existing directory. The socket
+is then narrowed to 0600 and confirmed before the owner door counts as ready. A composite runtime
+owns both listeners and the application: on any partial start it closes both doors, then the
+application exactly once.
+
+Routes exist once, under `/api`. Browser-facing requests are checked before anything reads them:
+`Host` must be loopback, the address the connection arrived on, or a name given on the command line,
+and an unsafe method carrying an `Origin` that is not this server's own is refused. Forwarded
+headers are never trusted, so running behind a reverse proxy needs an explicit trusted-proxy and
+public-origin contract that does not exist yet.
 
 Process smoke specs use disposable Git repositories and data directories to verify real HTTP,
-authentication, inventory persistence, concurrent startup refusal, shutdown signals, and explicit
-crash recovery. CI runs those specs on Linux and macOS. This does not prove packaging, service
+authentication, inventory persistence, concurrent startup refusal, shutdown signals, and restart
+after a crash with no recovery step. CI runs those specs on Linux and macOS. This does not prove packaging, service
 supervision, remote connectivity, or a client UI.

@@ -73,10 +73,10 @@ describe('Playground workflow', () => {
         'content-type': 'application/json',
       };
       const inventory = inventoryResponseSchema.parse(
-        await (await fetch(`${address}/inventory`, { headers })).json(),
+        await (await fetch(`${address}/api/inventory`, { headers })).json(),
       );
       expect(inventory.projects[0]?.worktrees).toHaveLength(2);
-      const base = `${address}/worktrees/${info.worktreeId}`;
+      const base = `${address}/api/worktrees/${info.worktreeId}`;
       const seededThreads = commentThreadsSchema.parse(
         await (await fetch(`${base}/comments`, { headers })).json(),
       );
@@ -113,7 +113,7 @@ describe('Playground workflow', () => {
       expect(
         await (
           await fetch(
-            `${address}/projects/${info.projectId}/commits/${info.reviewCommitOid}/review-layers`,
+            `${address}/api/projects/${info.projectId}/commits/${info.reviewCommitOid}/review-layers`,
             { headers },
           )
         ).json(),
@@ -135,7 +135,7 @@ describe('Playground workflow', () => {
       expect(
         await (
           await fetch(
-            `${address}/projects/${info.projectId}/file-preferences`,
+            `${address}/api/projects/${info.projectId}/file-preferences`,
             { headers },
           )
         ).json(),
@@ -161,7 +161,7 @@ describe('Playground workflow', () => {
       ).toMatchObject({
         content: expect.stringContaining('Fieldnotes launch review'),
       });
-      const route = '/worktrees/{worktreeId}/comments';
+      const route = '/api/worktrees/{worktreeId}/comments';
       const example = createCommentThreadSchema.parse({
         anchor: { kind: 'file', filePath: 'src/task-store.mjs' },
         body: 'Check the completion count when the board is empty.',
@@ -273,7 +273,7 @@ describe('Playground workflow', () => {
       authorization: `Bearer ${await readFile(info.tokenFile, 'utf8')}`,
     };
     const inventory = inventoryResponseSchema.parse(
-      await (await fetch(`${info.address}/inventory`, { headers })).json(),
+      await (await fetch(`${info.address}/api/inventory`, { headers })).json(),
     );
     const worktrees = inventory.projects[0]?.worktrees ?? [];
     expect(worktrees).toHaveLength(3);
@@ -283,7 +283,7 @@ describe('Playground workflow', () => {
     expect(
       await (
         await fetch(
-          `${info.address}/worktrees/${info.worktreeId}/review-layers`,
+          `${info.address}/api/worktrees/${info.worktreeId}/review-layers`,
           {
             headers,
           },
