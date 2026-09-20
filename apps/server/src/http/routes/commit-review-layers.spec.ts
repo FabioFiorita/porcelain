@@ -174,7 +174,7 @@ it('preserves ordered subsets for external split commits across live edits, work
       await request(firstUrl, 'PUT', { ...firstInput, sourceRevision: 2 }, 409),
     ).toMatchObject({ code: 'COMMIT_REVIEW_LAYER_CONFLICT' });
     git(path, 'worktree', 'remove', linked);
-    await request('/api/inventory/refresh', 'POST');
+    await request('/api/inventory');
     expect(await request(firstUrl)).toEqual(first);
     expect(await request(firstUrl, 'PUT', firstInput)).toEqual(first);
     await server.close();
@@ -240,7 +240,7 @@ it('authenticates before validating association identities and rejects ambiguous
     }
     const url = `/api/projects/${randomUUID()}/commits/${'a'.repeat(40)}/review-layers`;
     const input = {
-      sourceWorktreeId: randomUUID(),
+      sourceWorktreeId: '0'.repeat(32),
       sourceRevision: 1,
       references: [{ path: 'file', scope: 'staged' }],
     };

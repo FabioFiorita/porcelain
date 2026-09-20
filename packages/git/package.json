@@ -41,7 +41,8 @@
     "./read-git-version": "./src/read-git-version.ts",
     "./read-history": "./src/read-history.ts",
     "./run-git": "./src/run-git.ts",
-    "./tree-paths": "./src/tree-paths.ts"
+    "./tree-paths": "./src/tree-paths.ts",
+    "./worktree-registry": "./src/worktree-registry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

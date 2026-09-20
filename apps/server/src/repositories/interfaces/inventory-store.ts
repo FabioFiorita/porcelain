@@ -1,7 +1,7 @@
-import type { Inventory } from '../../models/inventory.ts';
-import type { Project } from '../../models/project.ts';
+import type { RegisteredProject } from '../../models/project.ts';
 
 export interface InventoryStore {
-  read(): Inventory;
-  save(project: Project): void;
+  /** Environment and projects. Never Git: health and pairing call this. */
+  read(): { environmentId: string; projects: RegisteredProject[] };
+  save(project: RegisteredProject): void;
 }

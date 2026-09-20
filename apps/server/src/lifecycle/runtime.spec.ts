@@ -472,7 +472,7 @@ describe('Runtime', () => {
 
       // A different machine on the same network is still refused.
       await expect(
-        runtime.issuePairing(['iPhone'], ['http://198.51.100.7:' + port]),
+        runtime.issuePairing(['iPhone'], [`http://198.51.100.7:${port}`]),
       ).rejects.toMatchObject({ name: 'InvalidPairingAddressError' });
     } finally {
       await runtime.close();

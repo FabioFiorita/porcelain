@@ -12,7 +12,7 @@ import {
 
 it('uses layer/file order and keeps unassigned and stale metadata from hiding real changes', () => {
   const { status, layers } = reviewFixture(
-    '801a8628-1cd6-4562-81a2-9c05fba76b4a',
+    '801a86281cd6456281a29c05fba76b4a',
     '7fe18f78-1477-4c19-a42b-cdd42f862151',
     'refs/heads/main',
   );

@@ -7,8 +7,8 @@ import { openDatabase } from '../db/connection.ts';
 import { InvalidDataDirectoryError } from '../db/errors/invalid-data-directory-error.ts';
 import { UnsupportedDatabaseVersionError } from '../db/errors/unsupported-database-version-error.ts';
 import { environments } from '../db/schema/environments.ts';
-import { worktrees } from '../db/schema/worktrees.ts';
-import type { Project } from '../models/project.ts';
+import { worktreePresence } from '../db/schema/worktree-presence.ts';
+import type { RegisteredProject } from '../models/project.ts';
 import { MissingEnvironmentIdentityError } from './errors/missing-environment-identity-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 
@@ -19,7 +19,7 @@ describe('InventoryRepository', () => {
       const repository = new InventoryRepository(database.db);
       return {
         read: () => repository.read(),
-        save: (project: Project) => repository.save(project),
+        save: (project: RegisteredProject) => repository.save(project),
         close: () => database.close(),
       };
     } catch (error) {
@@ -62,61 +62,43 @@ describe('InventoryRepository', () => {
     );
   });
 
-  const fixtureProject: Project = {
+  // Only projects are stored: worktrees come from Git, so there is no order or
+  // identity here to preserve any more.
+  const fixtureProject: RegisteredProject = {
     id: 'project-original',
     name: 'Atlas',
     commonDirectory: '/fixture/atlas/.git',
     repositoryIdentity: 'repository-original',
     available: false,
-    worktrees: [
-      {
-        id: 'main-original',
-        path: '/fixture/atlas',
-        metadataIdentity: 'main-metadata',
-        main: true,
-        branch: 'refs/heads/main',
-        available: false,
-      },
-      {
-        id: 'linked-original',
-        path: '/fixture/linked',
-        metadataIdentity: 'linked-metadata',
-        main: false,
-        branch: null,
-        available: false,
-      },
-    ],
   };
 
-  it.each(['known', 'missing'])(
-    'creates and reopens inventory preserving worktree order and %s metadata identities',
-    async (identity) => {
-      const directory = await mkdtemp(join(tmpdir(), 'porcelain-reopen-'));
+  it('creates and reopens registered projects unchanged', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'porcelain-reopen-'));
+    try {
+      const store = openInventoryStore(directory);
+      store.save(fixtureProject);
+      const second: RegisteredProject = {
+        ...fixtureProject,
+        id: 'project-second',
+        name: 'Beacon',
+        commonDirectory: '/fixture/beacon/.git',
+        repositoryIdentity: 'repository-second',
+      };
+      store.save(second);
+      const inventory = store.read();
+      store.close();
+      const reopened = openInventoryStore(directory);
       try {
-        const store = openInventoryStore(directory);
-        const project = {
-          ...fixtureProject,
-          worktrees: fixtureProject.worktrees.map((worktree) => ({
-            ...worktree,
-            metadataIdentity:
-              identity === 'missing' ? null : worktree.metadataIdentity,
-          })),
-        };
-        store.save(project);
-        const inventory = store.read();
-        store.close();
-        const reopened = openInventoryStore(directory);
-        try {
-          expect(reopened.read()).toEqual(inventory);
-          expect(reopened.read().projects).toEqual([project]);
-        } finally {
-          reopened.close();
-        }
+        expect(reopened.read()).toEqual(inventory);
+        // Registration order survives a restart.
+        expect(reopened.read().projects).toEqual([fixtureProject, second]);
       } finally {
-        await rm(directory, { recursive: true, force: true });
+        reopened.close();
       }
-    },
-  );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 
   it.each(['future', 'divergent', 'untracked'])(
     'rejects %s migration history without changing the database',
@@ -148,48 +130,20 @@ describe('InventoryRepository', () => {
     },
   );
 
-  it('rolls back the complete project update when worktree identities conflict', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'porcelain-transaction-'));
-    try {
-      const store = openInventoryStore(directory);
-      try {
-        store.save(fixtureProject);
-        expect(() =>
-          store.save({
-            ...fixtureProject,
-            name: 'Rejected change',
-            worktrees: [
-              ...fixtureProject.worktrees,
-              ...fixtureProject.worktrees,
-            ],
-          }),
-        ).toThrow();
-        expect(store.read().projects).toEqual([fixtureProject]);
-      } finally {
-        store.close();
-      }
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
-
-  it('enforces worktree ownership through foreign keys', async () => {
+  // Review data is owned by a project through the presence table, so removing
+  // a project must not leave rows pointing at it.
+  it('enforces presence ownership through foreign keys', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'porcelain-relations-'));
     try {
       const database = openDatabase(directory);
       try {
         expect(() =>
           database.db
-            .insert(worktrees)
+            .insert(worktreePresence)
             .values({
-              id: 'orphan',
+              worktreeId: 'orphan',
               projectId: 'missing-project',
-              path: '/fixture',
-              metadataIdentity: 'metadata',
-              main: true,
-              branch: null,
-              available: true,
-              position: 0,
+              missingSince: null,
             })
             .run(),
         ).toThrow();

@@ -116,7 +116,7 @@ it('carries the environment id in the link', async () => {
     reachFor({ localAddresses: ['127.0.0.1'] }),
   );
   try {
-    const environmentId = context.app.inventory().environmentId;
+    const environmentId = context.app.environment().environmentId;
     expect(environmentId).not.toBe('');
     const [issued] = await context.app.issuePairing(
       ['iPhone'],

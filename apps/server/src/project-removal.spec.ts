@@ -69,7 +69,7 @@ describe('Project removal and Git operation lifecycle', () => {
       await expect
         .poll(() => app.gitActionReceipt(secondId).state)
         .toBe('succeeded');
-      expect(app.inventory().projects).toEqual([project]);
+      expect((await app.inventory()).inventory.projects).toEqual([project]);
       expect(await app.removeProject(project.id)).toEqual({ deleted: true });
       expect(() =>
         app.executeCommit(scope, {
@@ -77,7 +77,7 @@ describe('Project removal and Git operation lifecycle', () => {
           preparationId: unused.id,
         }),
       ).toThrow(expect.objectContaining({ reason: 'STALE_PREPARATION' }));
-      expect(app.inventory().projects).toEqual([]);
+      expect((await app.inventory()).inventory.projects).toEqual([]);
     } finally {
       release.resolve();
       await app.close();
@@ -123,7 +123,7 @@ describe('Project removal and Git operation lifecycle', () => {
       await expect(app.removeProject(project.id)).rejects.toThrow(
         ProjectRemovalBlockedError,
       );
-      expect(app.inventory().projects).toEqual([project]);
+      expect((await app.inventory()).inventory.projects).toEqual([project]);
     } finally {
       db.close();
       await app.close();

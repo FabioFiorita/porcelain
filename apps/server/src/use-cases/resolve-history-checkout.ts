@@ -1,24 +1,29 @@
 import type { HistoryCheckout } from '@porcelain/git/dtos/commit-history';
 import { HistoryWorktreeUnavailableError } from '@porcelain/git/errors/history-worktree-unavailable-error';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repository-identity-mismatch-error';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
-export function resolveHistoryCheckout(
+export async function resolveHistoryCheckout(
+  worktrees: ResolveWorktree,
   store: InventoryStore,
   worktreeId: string,
-): HistoryCheckout {
-  const inventory = store.read();
-  const project = inventory.projects.find((entry) =>
-    entry.worktrees.some((worktree) => worktree.id === worktreeId),
-  );
-  const worktree = project?.worktrees.find((entry) => entry.id === worktreeId);
-  if (!worktree) throw new WorktreeNotFoundError();
-  if (!project?.available || !worktree?.available || !worktree.metadataIdentity)
-    throw new HistoryWorktreeUnavailableError();
+  signal?: AbortSignal,
+): Promise<HistoryCheckout> {
+  let worktree: Awaited<ReturnType<ResolveWorktree['reachable']>>;
+  try {
+    worktree = await worktrees.reachable(worktreeId, signal);
+  } catch (error) {
+    // History has its own word for an unreachable worktree, because its
+    // caches are keyed by the scope below and must not be filled from one.
+    if (error instanceof RepositoryIdentityMismatchError)
+      throw new HistoryWorktreeUnavailableError();
+    throw error;
+  }
   return {
     path: worktree.path,
-    repositoryIdentity: project.repositoryIdentity,
+    repositoryIdentity: worktree.repositoryIdentity,
     metadataIdentity: worktree.metadataIdentity,
-    scope: `${inventory.environmentId}:${project.id}:${worktree.id}`,
+    scope: `${store.read().environmentId}:${worktree.projectId}:${worktree.id}`,
   };
 }

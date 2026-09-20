@@ -10,6 +10,7 @@ import {
 import { ActionGit } from '@porcelain/git/action-git';
 import { CommitCursorCodec } from '@porcelain/git/commit-cursor';
 import { CommitGit } from '@porcelain/git/commit-git';
+import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
 import { Git } from '@porcelain/git/git';
 import { RequestGitSession } from '@porcelain/git/git-session';
 import { InspectionGit } from '@porcelain/git/inspection-git';
@@ -36,6 +37,8 @@ import { DeviceDirectory } from './lifecycle/device-directory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { Lanes } from './lifecycle/lanes.ts';
 import { SharedReads } from './lifecycle/shared-reads.ts';
+import { WorktreeDirectory } from './lifecycle/worktree-directory.ts';
+import type { Project } from './models/project.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { CommitReviewLayerRepository } from './repositories/commit-review-layer-repository.ts';
@@ -46,8 +49,10 @@ import { PairingRepository } from './repositories/pairing-repository.ts';
 import { ProjectRemovalRepository } from './repositories/project-removal-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { ReviewedFileRepository } from './repositories/reviewed-file-repository.ts';
+import { WorktreePresenceRepository } from './repositories/worktree-presence-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
+import { CollectAbsentWorktrees } from './use-cases/collect-absent-worktrees.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { CommitDrafts } from './use-cases/commit-drafts.ts';
 import { CompleteCommitReview } from './use-cases/complete-commit-review.ts';
@@ -72,12 +77,11 @@ import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeEvidence } from './use-cases/read-worktree-evidence.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
-import { RefreshProjects } from './use-cases/refresh-projects.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
 import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
 import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
-import { resolveInspectionWorktree } from './use-cases/resolve-inspection-worktree.ts';
+import { ResolveWorktree } from './use-cases/resolve-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
 import { UploadArtifact } from './use-cases/upload-artifact.ts';
@@ -85,6 +89,8 @@ import { UploadArtifact } from './use-cases/upload-artifact.ts';
 const READ_CAPACITY = 4;
 /** How often a device's last-seen time reaches the database. */
 const LAST_SEEN_FLUSH_MS = 60_000;
+/** Review data outlives its worktree by thirty days; hourly is ample. */
+const COLLECTION_INTERVAL_MS = 60 * 60_000;
 /** A model call is slow and reaches outside; it never holds a lane. */
 const GENERATOR_DEADLINE_MS = 120_000;
 
@@ -122,22 +128,98 @@ export async function openApplication(options: {
   const sharedReads = new SharedReads();
   try {
     const layers = new ReviewLayerRepository(database.db);
-    const replaceLayers = new ReplaceReviewLayers(layers);
     const store = new InventoryRepository(database.db);
+    const git = options.git ?? ((checkout: string) => new Git(checkout));
+    // Git is the source of truth for worktrees: this lists them and turns an
+    // id back into one, without SQLite and usually without a Git process.
+    const directory = new WorktreeDirectory({
+      git,
+      reads: sharedReads,
+      projects: () => store.read().projects,
+    });
+    const presence = new WorktreePresenceRepository(database.db);
+    const collectAbsent = new CollectAbsentWorktrees(
+      presence,
+      options.now ? () => Date.parse(options.now?.() ?? '') : undefined,
+    );
+    const worktrees = new ResolveWorktree(directory, store, presence);
+    const replaceLayers = new ReplaceReviewLayers(layers, worktrees);
+
+    /**
+     * Every project, with the worktrees Git lists for it right now.
+     *
+     * One coalesced `git worktree list` per project. A project that cannot be
+     * listed is recorded unavailable and keeps its last-known worktrees, and
+     * its presence rows are left alone: absence is only ever observed by a
+     * listing that worked.
+     */
+    const listProjects = async (signal?: AbortSignal) => {
+      const issues: DiscoveryIssue[] = [];
+      const projects: Project[] = [];
+      for (const project of store.read().projects) {
+        const listing = await directory.list(project, signal);
+        const available = listing.failure === undefined;
+        if (available !== project.available)
+          store.save({ ...project, available });
+        issues.push(...listing.issues);
+        // A listing that is short by a worktree cannot say that worktree is
+        // gone: absence is only ever observed from the whole truth.
+        if (available && listing.complete) {
+          presence.observe(
+            project.id,
+            listing.worktrees.map((worktree) => worktree.id),
+            options.now?.() ?? new Date().toISOString(),
+          );
+        } else if (listing.failure) {
+          issues.push({
+            path: project.commonDirectory,
+            error: listing.failure,
+          });
+        }
+        projects.push({ ...project, available, worktrees: listing.worktrees });
+      }
+      return {
+        inventory: { environmentId: store.read().environmentId, projects },
+        issues,
+      };
+    };
     /** Database work answers immediately; it never enters a lane. */
-    const stored = async <T>(read: () => T): Promise<T> => {
+    const stored = async <T>(read: () => T | Promise<T>): Promise<T> => {
       lanes.assertOpen();
       return read();
     };
 
-    /** The repository a worktree belongs to: one lane per repository. */
-    const laneOf = (worktreeId: string) => {
-      try {
-        return resolveInspectionWorktree(store, worktreeId).repositoryIdentity;
-      } catch {
-        return 'unresolved';
-      }
-    };
+    /**
+     * Review data for one worktree.
+     *
+     * The work is SQLite, but asking whether the worktree exists can reach
+     * Git: an id the directory has not seen costs a listing. So it takes an
+     * admission like everything else that might run a process — otherwise it
+     * would run outside the deadline, outside the read budget, and outside
+     * the drain that shutdown waits on before closing the database.
+     */
+    const forWorktree = <T>(
+      read: (signal: AbortSignal) => T | Promise<T>,
+      signal?: AbortSignal,
+    ): Promise<T> =>
+      // Unqueued on purpose: a repository permit would put this behind real
+      // Git work, and holding one while several of these run together stops
+      // the reads they trigger from sharing a single answer — the difference
+      // between reselecting a worktree for 16 Git processes and for 155.
+      lanes.unqueued(async (operationSignal) => read(operationSignal), {
+        callerSignal: signal,
+      });
+
+    /**
+     * The repository a worktree belongs to: one lane per repository.
+     *
+     * Lanes are chosen before the work runs, so this answers from what the
+     * directory already knows. An id it has never seen goes to the unresolved
+     * lane and the request itself then fails to resolve, which is the same
+     * outcome as before without making lane choice wait on Git.
+     */
+    const laneOf = (worktreeId: string) =>
+      directory.repositoryOf(worktreeId) ?? 'unresolved';
     const projectLaneOf = (projectId: string) =>
       store.read().projects.find((entry) => entry.id === projectId)
         ?.repositoryIdentity ?? 'unresolved';
@@ -172,12 +254,21 @@ export async function openApplication(options: {
       LAST_SEEN_FLUSH_MS,
     );
     lastSeenFlush.unref();
+    // Listing is what observes absence, so collection follows it on the same
+    // timer rather than on a schedule of its own.
+    const collection = setInterval(() => {
+      try {
+        collectAbsent.execute();
+      } catch {
+        // Cleanup is housekeeping: a failure must not take the server with it.
+      }
+    }, COLLECTION_INTERVAL_MS);
+    collection.unref();
     const artifacts = new ArtifactRepository(database.db);
-    const uploadArtifact = new UploadArtifact(artifacts, store);
-    const listArtifacts = new ListArtifacts(artifacts, store);
-    const getArtifact = new GetArtifact(artifacts, store);
-    const deleteArtifact = new DeleteArtifact(artifacts, store);
-    const git = options.git ?? ((checkout: string) => new Git(checkout));
+    const uploadArtifact = new UploadArtifact(artifacts, worktrees);
+    const listArtifacts = new ListArtifacts(artifacts, worktrees);
+    const getArtifact = new GetArtifact(artifacts, worktrees);
+    const deleteArtifact = new DeleteArtifact(artifacts, worktrees);
     const finder = new FindProjects(
       options.projectFolders ?? new NodeProjectFolders(),
       git,
@@ -193,77 +284,96 @@ export async function openApplication(options: {
     const commitLayers = new CommitReviewLayerRepository(database.db);
     const associateLayers = new AssociateCommitReviewLayers(
       store,
+      worktrees,
       layers,
       commitLayers,
       commitGit,
     );
     const getCommitLayers = new GetCommitReviewLayers(store, commitLayers);
-    const listCommits = new ListCommits(store, commitGit);
-    const inspectCommitChanges = new InspectCommitChanges(store, commitGit);
-    const files = options.files ?? new NodeFileReader();
-    const list = new ListDirectory(store, git, files);
-    const read = new ReadTextFile(store, git, files);
-    const asset = new ReadAsset(store, git, new NodeFileReader());
-    const fileTree = new ListFileTree(
+    const listCommits = new ListCommits(store, worktrees, commitGit);
+    const inspectCommitChanges = new InspectCommitChanges(
       store,
-      git,
+      worktrees,
+      commitGit,
+    );
+    const files = options.files ?? new NodeFileReader();
+    const list = new ListDirectory(worktrees, files);
+    const read = new ReadTextFile(worktrees, files);
+    const asset = new ReadAsset(worktrees, new NodeFileReader());
+    const fileTree = new ListFileTree(
+      worktrees,
       new NodeFileTree(),
       readTreePaths,
     );
     const editFile = new EditFile(
-      store,
-      git,
+      worktrees,
       options.fileWriter ?? new NodeFileWriter(),
     );
-    const refresh = new RefreshProjects(store, git);
-    const register = new RegisterProject(store, git, refresh);
+    const register = new RegisterProject(store, git, directory);
     const inspection =
       options.inspectionGit ?? ((checkout) => new InspectionGit(checkout));
-    const status = new ReadWorktreeStatus(store, inspection);
-    const diff = new ReadWorktreeDiff(store, inspection);
+    const status = new ReadWorktreeStatus(store, worktrees, inspection);
+    const diff = new ReadWorktreeDiff(store, worktrees, inspection);
     const evidence = new ReadWorktreeEvidence(
       store,
+      worktrees,
       inspection,
-      git,
       files,
       readFileStamps,
     );
     const actions = new GitActionCoordinator(
       lanes,
       projectLaneOf,
-      new PrepareGitAction(store, actionStore, actionGit, randomUUID, evidence),
+      new PrepareGitAction(
+        store,
+        worktrees,
+        actionStore,
+        actionGit,
+        randomUUID,
+        evidence,
+      ),
       new AcceptGitAction(actionStore),
       new ExecuteGitAction(
         store,
+        worktrees,
         actionStore,
         actionGit,
-        new CompleteCommitReview(store, layers, commitLayers, commitGit),
+        new CompleteCommitReview(
+          store,
+          worktrees,
+          layers,
+          commitLayers,
+          commitGit,
+        ),
       ),
       actionStore,
     );
     const generator = options.commitGenerator ?? new CliCommitGenerator();
     const commitDrafts = new CommitDrafts(
       store,
+      worktrees,
       actionGit,
       evidence,
       generator,
     );
     const reviewed = new ReviewedFileRepository(database.db);
-    const listReviewedFiles = new ListReviewedFiles(reviewed);
+    const listReviewedFiles = new ListReviewedFiles(reviewed, worktrees);
     const setReviewedFile = new SetReviewedFile(
       reviewed,
+      worktrees,
       evidence,
       listReviewedFiles,
     );
     const removeReviewedFile = new RemoveReviewedFile(
       reviewed,
+      worktrees,
       listReviewedFiles,
     );
     // Availability is persisted, so a project that was reachable at the last
-    // shutdown would otherwise keep reporting so while a hung refresh runs.
+    // shutdown would otherwise keep reporting so until a listing answers.
     store.markAllUnavailable();
     const firstRefresh = lanes
-      .run(INVENTORY, 'write', ({ signal }) => refresh.execute(signal), {
+      .run(INVENTORY, 'write', ({ signal }) => listProjects(signal), {
         callerSignal: options.signal,
       })
       .then(
@@ -271,13 +381,13 @@ export async function openApplication(options: {
         (cause: unknown) => {
           // A repository that cannot be read is data, already recorded as
           // unavailable. Anything else is a fault and must not look like
-          // success to whoever waits for the first refresh.
+          // success to whoever waits for the first listing.
           firstRefreshFailure = cause;
         },
       );
     const comments = new CommentThreads(
       new CommentRepository(database.db),
-      store,
+      worktrees,
       randomUUID,
       options.now,
     );
@@ -439,8 +549,12 @@ export async function openApplication(options: {
             ),
           { callerSignal: signal },
         ),
-      listReviewedFiles: (worktreeId) =>
-        stored(() => listReviewedFiles.execute(worktreeId)),
+      listReviewedFiles: (worktreeId, signal) =>
+        forWorktree(
+          (operationSignal) =>
+            listReviewedFiles.execute(worktreeId, operationSignal),
+          signal,
+        ),
       setReviewedFile: (worktreeId, input, signal) => {
         const submitted = { ...input };
         return lanes.run(
@@ -456,8 +570,12 @@ export async function openApplication(options: {
           { callerSignal: signal },
         );
       },
-      removeReviewedFile: (worktreeId, path) =>
-        stored(() => removeReviewedFile.execute(worktreeId, path)),
+      removeReviewedFile: (worktreeId, path, signal) =>
+        forWorktree(
+          (operationSignal) =>
+            removeReviewedFile.execute(worktreeId, path, operationSignal),
+          signal,
+        ),
       fileTree: (worktreeId, signal) =>
         lanes.run(
           laneOf(worktreeId),
@@ -506,7 +624,11 @@ export async function openApplication(options: {
           'write',
           async () => {
             actions.assertProjectRemovable(projectId);
-            return removeProject.execute(projectId);
+            const removal = removeProject.execute(projectId);
+            // The checkouts stay on disk, so the directory would go on
+            // resolving ids for a project that is gone.
+            if (removal.deleted) directory.forget(projectId);
+            return removal;
           },
           { callerSignal: signal },
         ),
@@ -524,23 +646,24 @@ export async function openApplication(options: {
           ({ signal: operationSignal }) => finder.browse(path, operationSignal),
           { callerSignal: signal },
         ),
-      inventory: () => {
+      /** Environment and projects only: no Git, so health can call it. */
+      environment: () => {
         lanes.assertOpen();
         return store.read();
       },
+      inventory: (signal?: AbortSignal) =>
+        lanes.run(
+          INVENTORY,
+          'read',
+          ({ signal: operationSignal }) => listProjects(operationSignal),
+          { callerSignal: signal },
+        ),
       register: (checkout: string, signal?: AbortSignal) =>
         lanes.run(
           INVENTORY,
           'write',
           ({ signal: operationSignal }) =>
             register.execute(checkout, operationSignal),
-          { callerSignal: signal },
-        ),
-      refresh: (signal?: AbortSignal) =>
-        lanes.run(
-          INVENTORY,
-          'write',
-          ({ signal: operationSignal }) => refresh.execute(operationSignal),
           { callerSignal: signal },
         ),
       listCommits: (worktreeId, request, signal) => {
@@ -579,12 +702,23 @@ export async function openApplication(options: {
       },
       comments: async (command, principal, signal) => {
         const snapshot = structuredClone(command);
-        if (snapshot.kind === 'list') {
-          lanes.assertOpen();
-          signal?.throwIfAborted();
-          return comments.execute(snapshot, principal);
-        }
-        return stored(() => comments.execute(snapshot, principal));
+        // A thread is read, appended to and written back, so two replies sent
+        // at once would otherwise both start from the same thread and one
+        // would be lost. Writing alone also keeps them in the order the
+        // server accepted them, which is what a discussion means.
+        if (snapshot.kind === 'list')
+          return forWorktree(
+            (operationSignal) =>
+              comments.execute(snapshot, principal, operationSignal),
+            signal,
+          );
+        return lanes.run(
+          laneOf(snapshot.worktreeId),
+          'write',
+          ({ signal: operationSignal }) =>
+            comments.execute(snapshot, principal, operationSignal),
+          { callerSignal: signal },
+        );
       },
       commitReviewLayers: (projectId, commitOid) => {
         const params = commitReviewLayerParamsSchema.parse({
@@ -614,36 +748,58 @@ export async function openApplication(options: {
           { callerSignal: signal },
         );
       },
-      reviewLayers: (worktreeId) => {
-        lanes.assertOpen();
-        return layers.read(
-          reviewLayerParamsSchema.parse({ worktreeId }).worktreeId,
-        );
+      reviewLayers: async (worktreeId, signal) => {
+        const params = reviewLayerParamsSchema.parse({ worktreeId });
+        // Reading layers asks the same existence question as everything else,
+        // so an id Git does not list is not found rather than empty.
+        return forWorktree(async (operationSignal) => {
+          await worktrees.known(params.worktreeId, operationSignal);
+          return layers.read(params.worktreeId);
+        }, signal);
       },
-      replaceReviewLayers: async (worktreeId, revision, value) => {
+      replaceReviewLayers: async (worktreeId, revision, value, signal) => {
         const params = reviewLayerParamsSchema.parse({ worktreeId });
         const input = replaceReviewLayersSchema.parse({
           expectedRevision: revision,
           layers: value,
         });
-        return stored(() =>
-          replaceLayers.execute(
-            params.worktreeId,
-            input.expectedRevision,
-            input.layers,
-          ),
+        return forWorktree(
+          (operationSignal) =>
+            replaceLayers.execute(
+              params.worktreeId,
+              input.expectedRevision,
+              input.layers,
+              operationSignal,
+            ),
+          signal,
         );
       },
-      uploadArtifact: (worktreeId, input) => {
+      uploadArtifact: (worktreeId, input, signal) => {
         const submitted = { name: input.name, content: input.content };
-        return stored(() => uploadArtifact.execute(worktreeId, submitted));
+        return forWorktree(
+          (operationSignal) =>
+            uploadArtifact.execute(worktreeId, submitted, operationSignal),
+          signal,
+        );
       },
-      listArtifacts: (worktreeId) =>
-        stored(() => listArtifacts.execute(worktreeId)),
-      getArtifact: (worktreeId, artifactId) =>
-        stored(() => getArtifact.execute(worktreeId, artifactId)),
-      deleteArtifact: (worktreeId, artifactId) =>
-        stored(() => deleteArtifact.execute(worktreeId, artifactId)),
+      listArtifacts: (worktreeId, signal) =>
+        forWorktree(
+          (operationSignal) =>
+            listArtifacts.execute(worktreeId, operationSignal),
+          signal,
+        ),
+      getArtifact: (worktreeId, artifactId, signal) =>
+        forWorktree(
+          (operationSignal) =>
+            getArtifact.execute(worktreeId, artifactId, operationSignal),
+          signal,
+        ),
+      deleteArtifact: (worktreeId, artifactId, signal) =>
+        forWorktree(
+          (operationSignal) =>
+            deleteArtifact.execute(worktreeId, artifactId, operationSignal),
+          signal,
+        ),
       /** Resolves once the first refresh has settled, however it settled. */
       ready: async () => {
         await firstRefresh;
@@ -661,6 +817,7 @@ export async function openApplication(options: {
         stored(() => pairing.redeem(code, registration)),
       close: async () => {
         clearInterval(lastSeenFlush);
+        clearInterval(collection);
         // The last flush has to happen while the database is still open.
         try {
           deviceDirectory.flush();

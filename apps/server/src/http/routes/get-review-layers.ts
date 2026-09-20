@@ -21,6 +21,9 @@ export function getReviewLayers(
       },
     },
     async (request) =>
-      options.application.reviewLayers(request.params.worktreeId),
+      options.application.reviewLayers(
+        request.params.worktreeId,
+        request.disconnected,
+      ),
   );
 }

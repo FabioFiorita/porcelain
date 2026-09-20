@@ -1,18 +1,15 @@
-import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
 import type { FileWriter } from '../filesystem/interfaces/file-writer.ts';
 import type { FileEdit } from '../models/file-edit.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateFilePath } from './validate-file-path.ts';
 
 export class EditFile {
-  private readonly store: InventoryStore;
-  private readonly git: GitFactory;
+  private readonly worktrees: ResolveWorktree;
   private readonly files: FileWriter;
-  constructor(store: InventoryStore, git: GitFactory, files: FileWriter) {
-    this.store = store;
-    this.git = git;
+  constructor(worktrees: ResolveWorktree, files: FileWriter) {
+    this.worktrees = worktrees;
     this.files = files;
   }
   async execute(worktreeId: string, command: FileEdit, signal?: AbortSignal) {
@@ -27,8 +24,7 @@ export class EditFile {
       throw new FileInspectionError('INVALID_REQUEST');
     signal?.throwIfAborted();
     const worktree = await resolveReadableWorktree(
-      this.store,
-      this.git,
+      this.worktrees,
       worktreeId,
       signal,
     );

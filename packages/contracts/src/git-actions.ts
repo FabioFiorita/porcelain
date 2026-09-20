@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { gitPathSchema } from './git-status.ts';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 const messageSchema = z
   .string()
@@ -21,7 +22,7 @@ const remoteSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/);
 const oidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
 export const gitActionScopeSchema = z.strictObject({
   projectId: z.uuid(),
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
 });
 export const fetchPreparationRequestSchema = z.strictObject({
   remoteName: remoteSchema,
@@ -92,7 +93,7 @@ export const gitActionReceiptSchema = z.strictObject({
   requestId: z.uuid(),
   preparationId: z.uuid(),
   projectId: z.uuid(),
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   action: actionSchema,
   state: z.enum([
     'running',

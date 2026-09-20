@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 const filePath = z
   .string()
@@ -69,9 +70,11 @@ export const createCommentThreadSchema = z.strictObject({
 });
 export const replyToCommentSchema = z.strictObject({ body });
 export const resolveCommentSchema = z.strictObject({ resolved: z.boolean() });
-export const commentScopeSchema = z.strictObject({ worktreeId: z.uuid() });
+export const commentScopeSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+});
 export const commentThreadScopeSchema = z.strictObject({
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   threadId: z.uuid(),
 });
 const message = z.strictObject({
@@ -83,7 +86,7 @@ const message = z.strictObject({
 });
 export const commentThreadSchema = z.strictObject({
   id: z.uuid(),
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   anchor: commentAnchorSchema,
   resolved: z.boolean(),
   messages: z.array(message).min(1),

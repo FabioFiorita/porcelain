@@ -3,9 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
-import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { projects } from '../db/schema/projects.ts';
-import { worktrees } from '../db/schema/worktrees.ts';
+import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import {
   MAX_REVIEWED_MARKS,
   ReviewedFileRepository,
@@ -27,10 +26,13 @@ it('stores one durable mark per worktree and keeps rows across database reopen',
       position: 1,
     })
     .run();
-  first.db.insert(projectWorktrees).values({ worktreeId, projectId }).run();
+  // A worktree with review data has a presence row; existence itself is
+  // answered by the resolver, not by this repository.
+  first.db
+    .insert(worktreePresence)
+    .values({ worktreeId, projectId, missingSince: null })
+    .run();
   const store = new ReviewedFileRepository(first.db);
-  expect(store.hasWorktree(worktreeId)).toBe(true);
-  expect(store.hasWorktree('missing')).toBe(false);
   store.set(
     worktreeId,
     'src/file.ts',
@@ -56,10 +58,9 @@ it('stores one durable mark per worktree and keeps rows across database reopen',
       reviewedAt: '2026-09-13T00:01:00.000Z',
     },
   ]);
-  // Inventory refresh can replace the active worktree row. Retained project
-  // ownership keeps marks available while the checkout is unavailable.
-  first.db.delete(worktrees).run();
-  expect(store.hasWorktree(worktreeId)).toBe(true);
+  // Marks are keyed by the derived worktree id and stored on their own. They
+  // stay readable while the checkout is unavailable, and only the thirty-day
+  // rule may remove them.
   expect(store.list(worktreeId)).toHaveLength(1);
   first.close();
   const reopened = openDatabase(directory);

@@ -19,7 +19,6 @@ describe('mock inventory', () => {
     const controller = new AbortController();
     const pending = createInventoryMock(store).read({
       signal: controller.signal,
-      refresh: true,
     });
     controller.abort();
     await expect(pending).rejects.toThrow();

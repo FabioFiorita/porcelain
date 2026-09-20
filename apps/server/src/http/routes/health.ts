@@ -16,7 +16,7 @@ export async function healthRoute(
     },
     () => ({
       status: 'ok' as const,
-      environmentId: options.application.inventory().environmentId,
+      environmentId: options.application.environment().environmentId,
     }),
   );
 }

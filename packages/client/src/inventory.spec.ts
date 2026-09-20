@@ -13,7 +13,7 @@ const inventory = {
 };
 const signal = new AbortController().signal;
 
-test('authenticates inventory reads and refreshes without caching or redirects', async () => {
+test('reads the inventory without caching, redirects or a second endpoint', async () => {
   const transport = vi
     .fn<typeof fetch>()
     .mockResolvedValue(new Response(JSON.stringify(inventory)));
@@ -34,17 +34,20 @@ test('authenticates inventory reads and refreshes without caching or redirects',
       redirect: 'error',
     }),
   );
+  // Reading is the only way to ask: there is no second, mutating endpoint a
+  // caller could reach for to force a rescan.
   transport.mockResolvedValue(new Response(JSON.stringify(inventory)));
   await readInventory({
     endpoint: '/api',
     fetch: transport,
     signal,
-    refresh: true,
   });
-  expect(transport).toHaveBeenLastCalledWith(
-    '/api/inventory/refresh',
-    expect.objectContaining({ method: 'POST' }),
-  );
+  expect(
+    transport.mock.calls.map(([url, init]) => [url, init?.method]),
+  ).toEqual([
+    ['/api/inventory', 'GET'],
+    ['/api/inventory', 'GET'],
+  ]);
 });
 
 test.each([
@@ -97,7 +100,7 @@ test('registers an absolute server-side project without caching or redirects', a
     available: true,
     worktrees: [
       {
-        id: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
+        id: '801a86281cd6456281a29c05fba76b4a',
         path: '/srv/porcelain',
         branch: 'refs/heads/main',
         main: true,

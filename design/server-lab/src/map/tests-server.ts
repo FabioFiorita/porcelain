@@ -798,40 +798,35 @@ export const serverSpecAudits: SpecAudit[] = [
       'Queued-input snapshot tests protect a subtle class of bugs in the shared queue.',
     ],
     gaps: [
-      'Refresh walks every project and runs listWorktrees (2 + 2 per worktree git processes) serially on the shared queue; no test with many projects or worktrees, and none that it blocks foreground reads while it runs.',
+      'Listing walks every project serially on the inventory lane; no test with many projects or worktrees, and none that it blocks foreground reads while it runs.',
       'All fixtures have one or two worktrees.',
     ],
     verdict: 'strong',
   },
   {
-    file: 'apps/server/src/use-cases/reconciliation/reconcile-project.spec.ts',
-    areas: ['inventory'],
-    kind: 'property',
-    real: [
-      'reconcileProject pure function',
-      'fast-check generated worktree sets (1-20)',
-    ],
+    file: 'apps/server/src/db/worktree-id-migration.spec.ts',
+    areas: ['inventory', 'lifecycle'],
+    kind: 'integration',
+    real: ['sqlite', 'drizzle migrations', 'the derived-id SQL function'],
     fakes: [],
     tests: [
       {
-        name: 'preserves worktree identity through moves, branch changes, and discovery reorder',
+        name: 'moves every stored worktree id to its derived one, payloads included',
         asserts:
-          'Any reorder, move and branch change keeps project and worktree ids by metadata identity.',
+          'Reviewed files, comments (column and data.worktreeId), artifacts, layer sets, commit layer sourceWorktreeId and Git action payloads all carry the derived id; rows with no mapping keep their legacy id.',
       },
       {
-        name: 'assigns distinct fresh IDs when new metadata replaces checkouts at the same paths',
-        asserts: 'Replacement metadata never reuses an id.',
-      },
-      {
-        name: 'retains unavailable worktree identity so a later move can reconnect it',
-        asserts: 'Offline worktrees keep ids and reconnect after a move.',
+        name: 'leaves every legacy id intact when the rewrite cannot finish',
+        asserts:
+          'A failure mid-rewrite rolls the whole migration back: every legacy id is still there and nothing is half-converted.',
       },
     ],
     strengths: [
-      'Property-based coverage of the identity rules is exactly the right tool for this pure function.',
+      'Asserts the payloads, not only the columns: the JSON rewrites are where a migration quietly loses review data.',
+      'Atomicity is tested rather than assumed.',
     ],
     gaps: [
-      'Mixed cases (some worktrees moved, some replaced, some offline in one refresh) are not generated.',
+      'One project with a handful of worktrees; no database large enough to say what the rewrite costs.',
     ],
     verdict: 'strong',
   },

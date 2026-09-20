@@ -4,13 +4,20 @@ import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-fac
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
 import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 export class ReadWorktreeDiff {
   private readonly store: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly git: InspectionFactory;
 
-  constructor(store: InventoryStore, git: InspectionFactory) {
+  constructor(
+    store: InventoryStore,
+    worktrees: ResolveWorktree,
+    git: InspectionFactory,
+  ) {
     this.store = store;
+    this.worktrees = worktrees;
     this.git = git;
   }
 
@@ -22,10 +29,12 @@ export class ReadWorktreeDiff {
     signal?: AbortSignal,
   ) {
     signal?.throwIfAborted();
-    const { environmentId, checkout } = resolveCheckoutSession(
+    const { environmentId, checkout } = await resolveCheckoutSession(
+      this.worktrees,
       this.store,
       session,
       worktreeId,
+      signal,
     );
     const git = this.git(checkout);
     const before = await git.readStatus(signal);

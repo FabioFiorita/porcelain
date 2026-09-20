@@ -55,3 +55,32 @@ identity evidence remains server-private. Workspace type checking covers package
 
 [Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
 including associated review data and operation recovery constraints.
+
+Superseded, 2026-09-20: Git owns the worktree list. `git worktree list` is read on the way out of
+every inventory request; no table stores worktrees, and nothing reconciles a stored list against a
+discovered one. A worktree's ID is derived, not assigned: the SHA-256 of a version prefix, the
+project ID and the device, inode and birth time of the worktree's administrative Git directory,
+truncated to 32 hex characters. The same checkout therefore keeps its ID across moves and restarts
+without anything being written down, and a recreated metadata directory gets a new one. Derivation
+is best effort — inode reuse, coarse birth time and network filesystems can all break it — and the
+[worktree ID model](../../apps/server/src/models/worktree-id.ts) says what that costs.
+
+Resolution is an in-memory map rebuilt by each listing, so review data can be reached for a worktree
+Git has stopped reporting. `worktree_presence` records when a successful listing first omitted an ID;
+after thirty days [collection](../../apps/server/src/use-cases/collect-absent-worktrees.ts) deletes
+that worktree's review data. Only a successful listing sets absence: an unreachable repository
+leaves presence alone, so an unplugged drive never starts the clock.
+
+Environment identity and project metadata are read without Git, so health and pairing never wait on a
+repository. Existing review data carried over in one migration
+([0004_worktrees_from_git.sql](../../apps/server/drizzle/0004_worktrees_from_git.sql)), which rewrote
+both ID columns and the IDs inside stored JSON payloads in a single transaction. Rows it could not map
+kept their legacy IDs rather than being attached to a worktree by path.
+
+A registered project is listed with one Git process: the server already stores its common
+directory, so nothing has to go and find it first. Discovering a repository from an arbitrary
+checkout still costs the extra `rev-parse`. A checkout folder someone deleted is unreadable
+rather than gone — Git still reports it and its administrative directory still exists, so it
+keeps its ID and its review data, and only a real omission from Git's list starts the clock.
+Every resolution asks the checkout whether it still belongs to that administrative directory,
+so a different repository moved into its path is refused rather than read.

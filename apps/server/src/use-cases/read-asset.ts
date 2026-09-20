@@ -1,9 +1,8 @@
 import { extname } from 'node:path';
-import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
 import type { ByteReader } from '../filesystem/interfaces/file-reader.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateFilePath } from './validate-file-path.ts';
 
 const mediaTypes: Record<string, string> = {
@@ -22,12 +21,10 @@ const mediaTypes: Record<string, string> = {
   '.ttf': 'font/ttf',
 };
 export class ReadAsset {
-  private readonly store: InventoryStore;
-  private readonly git: GitFactory;
+  private readonly worktrees: ResolveWorktree;
   private readonly files: ByteReader;
-  constructor(store: InventoryStore, git: GitFactory, files: ByteReader) {
-    this.store = store;
-    this.git = git;
+  constructor(worktrees: ResolveWorktree, files: ByteReader) {
+    this.worktrees = worktrees;
     this.files = files;
   }
   async execute(worktreeId: string, path: string, signal?: AbortSignal) {
@@ -35,8 +32,7 @@ export class ReadAsset {
     const mediaType = mediaTypes[extname(path).toLowerCase()];
     if (!mediaType) throw new FileInspectionError('PATH_NOT_READABLE');
     const worktree = await resolveReadableWorktree(
-      this.store,
-      this.git,
+      this.worktrees,
       worktreeId,
       signal,
     );
@@ -45,7 +41,7 @@ export class ReadAsset {
       10 * 1024 * 1024,
       signal,
     );
-    await resolveReadableWorktree(this.store, this.git, worktreeId, signal);
+    await resolveReadableWorktree(this.worktrees, worktreeId, signal);
     signal?.throwIfAborted();
     return { path, mediaType, base64: bytes.toString('base64') };
   }

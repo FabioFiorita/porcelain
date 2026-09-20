@@ -302,27 +302,34 @@ export const plans: AreaPlan[] = [
     decidedOn: '2026-09-18',
     reviewedOn: '2026-09-18',
     changes: [
-      'Projects stay in the database; worktrees are listed live from Git (one process per project).',
-      'No worktree table, no refresh route, no rescanning on focus, no reconciliation.',
-      'Worktree IDs are derived from the filesystem identity of the worktree’s Git directory: stable across moves, new when recreated.',
-      'Review data rows appear with the first comment, mark, layer or artifact.',
-      'Review data of worktrees Git no longer reports is deleted after 30 days.',
-      'IDs resolve to paths from an in-memory map, not a SQLite read per request.',
+      'Projects stay in the database; worktrees are listed live from Git (one process per project) (done, 2026-09-20).',
+      'No worktree table, no refresh route, no reconciliation; a focus lists rather than rescans (done, 2026-09-20).',
+      'Worktree IDs are derived from the filesystem identity of the worktree’s Git directory: stable across moves, new when recreated (done, 2026-09-20).',
+      'Review data rows appear with the first comment, mark, layer or artifact (done, 2026-09-20).',
+      'Review data of worktrees Git no longer reports is deleted after 30 days (done, 2026-09-20).',
+      'IDs resolve to paths from an in-memory map, not a SQLite read per request (done, 2026-09-20).',
       'No file-count badge: a status dot (green = review ready, yellow = the agent replied), returned with the list from SQLite.',
       'Projects are listed in parallel, a few at a time, each with its own timeout: one hanging project no longer fails the rest.',
       'Project names come from the origin remote URL (else the main folder); the owner can rename.',
       'Removing a project is always allowed; it never touches the disk.',
     ],
     current: {
-      lanes: ['Web app', 'Porcelain server', 'Database', 'Git'],
+      lanes: [
+        'Web app',
+        'Porcelain server',
+        'Database',
+        'Git and the filesystem',
+      ],
       nodes: [
         {
           id: 'focus',
           lane: 0,
           kind: 'actor',
           label: 'Mount, reconnect, every window focus',
+          detail:
+            'Reading the inventory is the listing; there is nothing else to ask',
           problem:
-            'Every alt-tab rescans every project with Git, and your next click waits behind it.',
+            'Still one Git process per project on every alt-tab, and projects are listed one after another under a single deadline.',
         },
         {
           id: 'sidebar',
@@ -339,6 +346,37 @@ export const plans: AreaPlan[] = [
             'One request per worktree, one at a time: 13 Git processes each, or a full diff of every file once any file was marked.',
         },
         {
+          id: 'list',
+          lane: 1,
+          kind: 'component',
+          label: 'List worktrees',
+          detail: 'One git worktree list per project, on the inventory lane',
+        },
+        {
+          id: 'identity',
+          lane: 1,
+          kind: 'component',
+          label: 'Derived worktree ID',
+          detail:
+            'Hash of the project and the administrative Git directory’s device, inode and birth time',
+        },
+        {
+          id: 'map',
+          lane: 1,
+          kind: 'component',
+          label: 'In-memory ID → path',
+          detail:
+            'Rebuilt by each listing; a worktree Git has stopped reporting is still reachable as its last-known self',
+        },
+        {
+          id: 'cleanup',
+          lane: 1,
+          kind: 'component',
+          label: 'Cleanup',
+          detail:
+            'Hourly; only a listing that succeeded starts a worktree’s thirty-day clock',
+        },
+        {
           id: 'summary',
           lane: 1,
           kind: 'component',
@@ -347,57 +385,51 @@ export const plans: AreaPlan[] = [
             'Status read, or full evidence read when marks exist; own queue',
         },
         {
-          id: 'refresh',
-          lane: 1,
-          kind: 'component',
-          label: 'POST /inventory/refresh',
-          detail: '2 + 2W Git processes per project, on the main queue',
-        },
-        {
-          id: 'reconcile',
-          lane: 1,
-          kind: 'component',
-          label: 'Reconciliation',
-          detail: 'Matches Git’s list to stored rows by filesystem identity',
-          problem:
-            'A copy of Git’s list that must be kept in sync; four parts of the code disagree on whether a worktree exists.',
-        },
-        {
-          id: 'resolve',
-          lane: 1,
-          kind: 'component',
-          label: 'Resolve worktree ID',
-          detail: 'Reads the whole inventory on every request',
-        },
-        {
           id: 'tables',
           lane: 2,
           kind: 'storage',
-          label: 'projects · worktrees · project_worktrees',
-          detail: 'Worktree rows replaced on each refresh; random IDs',
+          label: 'projects · worktree_presence',
+          detail:
+            'What the owner registered, and how long each worktree has been gone',
         },
         {
           id: 'review',
           lane: 2,
           kind: 'storage',
           label: 'Review data',
-          detail: 'Comments, marks, layers, artifacts by worktree ID',
+          detail:
+            'Comments, marks, layers, artifacts by derived worktree ID; rows appear with the first one',
         },
         {
           id: 'git',
           lane: 3,
           kind: 'component',
-          label: 'git worktree list + rev-parse ×2 per worktree',
+          label: 'git worktree list',
+          detail: 'One process per project; none per worktree',
+        },
+        {
+          id: 'stat',
+          lane: 3,
+          kind: 'storage',
+          label: 'Stat of each worktree’s Git directory',
+          detail: 'No Git process',
         },
       ],
       edges: [
-        { from: 'focus', to: 'refresh', label: 'always' },
-        { from: 'refresh', to: 'git' },
-        { from: 'refresh', to: 'reconcile' },
-        { from: 'reconcile', to: 'tables', label: 'replace rows' },
-        { from: 'sidebar', to: 'resolve' },
-        { from: 'resolve', to: 'tables', label: 'full read' },
-        { from: 'review', to: 'tables', dashed: true },
+        { from: 'focus', to: 'list', label: 'always' },
+        { from: 'list', to: 'tables', label: 'which repositories' },
+        { from: 'list', to: 'git' },
+        { from: 'list', to: 'identity' },
+        { from: 'identity', to: 'stat' },
+        { from: 'identity', to: 'map' },
+        { from: 'sidebar', to: 'map', label: 'ID → path' },
+        {
+          from: 'list',
+          to: 'cleanup',
+          label: 'what still exists',
+          dashed: true,
+        },
+        { from: 'cleanup', to: 'review', dashed: true },
         { from: 'badges', to: 'summary', label: 'per worktree' },
         { from: 'summary', to: 'git', label: 'status or every diff' },
       ],
@@ -426,8 +458,8 @@ export const plans: AreaPlan[] = [
           kind: 'component',
           label: 'List worktrees',
           detail:
-            'Projects in parallel, each with its own timeout; git worktree list, skipped when .git/worktrees is unchanged',
-          change: 'new',
+            'Projects in parallel, each with its own timeout; concurrent listings of one repository share a single read',
+          change: 'changed',
         },
         {
           id: 'identity',
@@ -436,7 +468,6 @@ export const plans: AreaPlan[] = [
           label: 'Derived worktree ID',
           detail:
             'Hash of project + Git directory identity (device, inode, birth time)',
-          change: 'new',
         },
         {
           id: 'map',
@@ -444,7 +475,6 @@ export const plans: AreaPlan[] = [
           kind: 'component',
           label: 'In-memory ID → path',
           detail: 'Last listing per project; no SQLite read per request',
-          change: 'new',
         },
         {
           id: 'ready',
@@ -461,14 +491,14 @@ export const plans: AreaPlan[] = [
           kind: 'component',
           label: 'Cleanup',
           detail: 'Review data of worktrees gone for 30 days is deleted',
-          change: 'new',
         },
         {
           id: 'projects',
           lane: 2,
           kind: 'storage',
-          label: 'projects',
-          detail: 'Only what the owner registered',
+          label: 'projects · worktree_presence',
+          detail:
+            'What the owner registered, and how long each worktree has been gone',
         },
         {
           id: 'review',
@@ -477,7 +507,6 @@ export const plans: AreaPlan[] = [
           label: 'Review data',
           detail:
             'By derived worktree ID; created with the first comment or mark',
-          change: 'changed',
         },
         {
           id: 'git',

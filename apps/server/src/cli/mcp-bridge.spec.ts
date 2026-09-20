@@ -104,6 +104,12 @@ it('calls a tool and is attributed to the agent, not the owner', async () => {
     const called = JSON.parse(out.at(-1) ?? '{}');
     expect(called.error).toBeUndefined();
     expect(called.result.isError).not.toBe(true);
+    // An agent asked for the inventory, so it gets the inventory: the server's
+    // own listing diagnostics are not part of this tool's answer.
+    expect(JSON.parse(called.result.content[0].text)).toEqual({
+      environmentId: expect.any(String),
+      projects: expect.any(Array),
+    });
   } finally {
     await server.close();
   }

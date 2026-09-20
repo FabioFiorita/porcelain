@@ -6,10 +6,10 @@ import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repositor
 import { RequestGitSession } from '@porcelain/git/git-session';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { describe, expect, it } from 'vitest';
-import type { Inventory } from '../models/inventory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import { ReadWorktreeDiff } from './read-worktree-diff.ts';
 import { ReadWorktreeStatus } from './read-worktree-status.ts';
 
@@ -29,34 +29,39 @@ describe('Worktree inspection use cases', () => {
     changes: [change],
   };
   function store(available = true): InventoryStore {
-    const inventory: Inventory = {
-      environmentId: 'environment',
-      projects: [
-        {
-          id: 'project',
-          name: 'project',
-          commonDirectory: '/fixture/.git',
-          repositoryIdentity: 'repository',
-          available,
-          worktrees: [
-            {
-              id: 'worktree',
-              path: '/fixture',
-              metadataIdentity: 'identity',
-              main: true,
-              branch: null,
-              available,
-            },
-          ],
-        },
-      ],
-    };
     return {
-      read: () => inventory,
+      read: () => ({
+        environmentId: 'environment',
+        projects: [
+          {
+            id: 'project',
+            name: 'project',
+            commonDirectory: '/fixture/.git',
+            repositoryIdentity: 'repository',
+            available,
+          },
+        ],
+      }),
       save: () => {
         throw new Error('Read must not write inventory');
       },
     };
+  }
+
+  /** Worktrees come from Git now, so resolution is what decides them. */
+  function worktrees(available = true) {
+    return fakeWorktrees(
+      [
+        {
+          id: 'worktree',
+          path: '/fixture',
+          metadataIdentity: 'identity',
+          main: true,
+          available,
+        },
+      ],
+      { projectAvailable: available },
+    );
   }
 
   it('returns status using the registered checkout and identity with typed adapters', async () => {
@@ -69,7 +74,7 @@ describe('Worktree inspection use cases', () => {
       };
     };
     expect(
-      await new ReadWorktreeStatus(store(), git).execute(
+      await new ReadWorktreeStatus(store(), worktrees(), git).execute(
         'worktree',
         new RequestGitSession(async () => {}),
       ),
@@ -85,19 +90,19 @@ describe('Worktree inspection use cases', () => {
       throw new Error('Must not inspect');
     };
     await expect(
-      new ReadWorktreeStatus(store(), git).execute(
+      new ReadWorktreeStatus(store(), worktrees(), git).execute(
         'missing',
         new RequestGitSession(async () => {}),
       ),
     ).rejects.toBeInstanceOf(WorktreeNotFoundError);
     await expect(
-      new ReadWorktreeStatus(store(false), git).execute(
+      new ReadWorktreeStatus(store(false), worktrees(false), git).execute(
         'worktree',
         new RequestGitSession(async () => {}),
       ),
     ).rejects.toBeInstanceOf(RepositoryIdentityMismatchError);
     await expect(
-      new ReadWorktreeDiff(store(), git).execute(
+      new ReadWorktreeDiff(store(), worktrees(), git).execute(
         'missing',
         'observed',
         change,
@@ -114,7 +119,7 @@ describe('Worktree inspection use cases', () => {
       },
       readDiffs: async () => [],
     });
-    const operation = new ReadWorktreeDiff(store(), git);
+    const operation = new ReadWorktreeDiff(store(), worktrees(), git);
     await expect(
       operation.execute(
         'worktree',
@@ -152,7 +157,7 @@ describe('Worktree inspection use cases', () => {
       readDiffs: async () => [],
     });
     await expect(
-      new ReadWorktreeDiff(store(), git).execute(
+      new ReadWorktreeDiff(store(), worktrees(), git).execute(
         'worktree',
         'observed',
         change,
@@ -169,7 +174,7 @@ describe('Worktree inspection use cases', () => {
       readDiffs: async () => [],
     });
     expect(
-      await new ReadWorktreeDiff(store(), git).execute(
+      await new ReadWorktreeDiff(store(), worktrees(), git).execute(
         'worktree',
         'observed',
         change,
@@ -190,7 +195,7 @@ describe('Worktree inspection use cases', () => {
       readDiffs: async () => [],
     });
     await expect(
-      new ReadWorktreeStatus(store(), cancelling).execute(
+      new ReadWorktreeStatus(store(), worktrees(), cancelling).execute(
         'worktree',
         new RequestGitSession(async () => {}),
         controller.signal,
@@ -215,8 +220,8 @@ describe('Worktree inspection use cases', () => {
         readDiffs: async () => [],
       };
     };
-    const status = new ReadWorktreeStatus(store(), git);
-    const diff = new ReadWorktreeDiff(store(), git);
+    const status = new ReadWorktreeStatus(store(), worktrees(), git);
+    const diff = new ReadWorktreeDiff(store(), worktrees(), git);
     await status.execute('worktree', session);
     await diff.execute('worktree', 'observed', change, session);
     // Two use cases, two readers, one guarded checkout.

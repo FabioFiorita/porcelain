@@ -1,19 +1,19 @@
 import type { ArtifactStore } from '../repositories/interfaces/artifact-store.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { assertArtifactScope } from './assert-artifact-scope.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 export class DeleteArtifact {
   private readonly store: Pick<ArtifactStore, 'delete'>;
-  private readonly inventory: Pick<InventoryStore, 'read'>;
+  private readonly worktrees: ResolveWorktree;
   constructor(
     store: Pick<ArtifactStore, 'delete'>,
-    inventory: Pick<InventoryStore, 'read'>,
+    worktrees: ResolveWorktree,
   ) {
     this.store = store;
-    this.inventory = inventory;
+    this.worktrees = worktrees;
   }
-  execute(worktreeId: string, artifactId: string) {
-    assertArtifactScope(this.inventory, worktreeId);
+  async execute(worktreeId: string, artifactId: string, signal?: AbortSignal) {
+    await assertArtifactScope(this.worktrees, worktreeId, signal);
     return { deleted: this.store.delete(worktreeId, artifactId) };
   }
 }

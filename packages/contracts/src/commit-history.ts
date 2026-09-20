@@ -1,9 +1,12 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 export const commitOidSchema = z
   .string()
   .regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
-export const historyParamsSchema = z.strictObject({ worktreeId: z.uuid() });
+export const historyParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+});
 export const commitPageQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursor: z.string().min(1).max(4096).optional(),

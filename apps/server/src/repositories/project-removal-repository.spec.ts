@@ -8,27 +8,18 @@ import { artifacts } from '../db/schema/artifacts.ts';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
-import type { Project } from '../models/project.ts';
+import { worktreePresence } from '../db/schema/worktree-presence.ts';
+import type { RegisteredProject } from '../models/project.ts';
 import { ProjectRemovalBlockedError } from './errors/project-removal-blocked-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 import { ProjectRemovalRepository } from './project-removal-repository.ts';
 
-const project: Project = {
+const project: RegisteredProject = {
   id: 'project',
   name: 'Fixture',
   commonDirectory: '/fixture/.git',
   repositoryIdentity: 'fixture',
   available: false,
-  worktrees: [
-    {
-      id: 'worktree',
-      path: '/fixture',
-      metadataIdentity: 'fixture-main',
-      main: true,
-      branch: null,
-      available: false,
-    },
-  ],
 };
 
 async function fixture() {
@@ -40,6 +31,16 @@ async function fixture() {
   });
   const inventory = new InventoryRepository(database.db);
   inventory.save(project);
+  // Writing review data records the worktree's presence, which is what ties
+  // it to a project now that no table copies Git's list.
+  database.db
+    .insert(worktreePresence)
+    .values({
+      worktreeId: 'worktree',
+      projectId: project.id,
+      missingSince: null,
+    })
+    .run();
   database.db
     .insert(artifacts)
     .values({

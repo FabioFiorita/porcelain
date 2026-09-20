@@ -28,6 +28,7 @@ export function replaceReviewLayers(
         request.params.worktreeId,
         request.body.expectedRevision,
         request.body.layers,
+        request.disconnected,
       ),
   );
 }

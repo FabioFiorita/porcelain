@@ -124,11 +124,11 @@ const sidebar = async (api: Api, scope: Scope) => {
 export const benchSteps: Step[] = [
   {
     id: 'open',
-    title: 'Open Porcelain (inventory, refresh, sidebar summaries)',
+    title: 'Open Porcelain (inventory, sidebar summaries)',
     run: async (api, scope) => {
-      // As observed from the web on load: read, then refresh, then summaries.
+      // As observed from the web on load. Reading the inventory is the
+      // listing now, so there is no second rescan to pay for.
       await api('GET', '/api/inventory');
-      await api('POST', '/api/inventory/refresh');
       await sidebar(api, scope);
     },
   },

@@ -11,7 +11,7 @@ it('limits reviewed marks to canonical paths and SHA-256 fingerprints', () => {
   expect(() => evidenceFingerprintSchema.parse('status-token')).toThrow();
   expect(
     reviewedMarksResponseSchema.parse({
-      worktreeId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
+      worktreeId: 'fac0e50fb0194e469dd1efcb6af7dc09',
       marks: [
         {
           path: 'src/file.ts',

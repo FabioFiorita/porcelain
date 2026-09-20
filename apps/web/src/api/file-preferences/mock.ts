@@ -13,7 +13,6 @@ type MockStore = ReturnType<typeof createMockStore>;
 async function readContext(store: MockStore, request: FilePreferencesRequest) {
   const inventory = await createInventoryMock(store).read({
     signal: request.signal,
-    refresh: false,
   });
   if (!inventory.projects.some((project) => project.id === request.projectId))
     throw new ConnectionError('That project is no longer available.');

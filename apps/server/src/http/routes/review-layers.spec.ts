@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
+import { Git } from '@porcelain/git/git';
 import { expect, it } from 'vitest';
 import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
@@ -132,8 +133,8 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
     });
     expect(duplicate.statusCode).toBe(400);
     await server.inject({
-      method: 'POST',
-      url: '/api/inventory/refresh',
+      method: 'GET',
+      url: '/api/inventory',
       headers,
     });
     expect(
@@ -143,11 +144,22 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
       (
         await server.inject({
           method: 'GET',
-          url: `/api/worktrees/${randomUUID()}/review-layers`,
+          url: `/api/worktrees/${'0'.repeat(32)}/review-layers`,
           headers,
         })
       ).statusCode,
     ).toBe(404);
+    // A worktree id is derived, so one shaped like the ids this replaced is
+    // refused at the boundary rather than looked up.
+    expect(
+      (
+        await server.inject({
+          method: 'GET',
+          url: `/api/worktrees/${randomUUID()}/review-layers`,
+          headers,
+        })
+      ).statusCode,
+    ).toBe(400);
     await server.close();
     const restarted = await createServer({
       pairingReach,
@@ -176,3 +188,62 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('cancels the listing a review-layers read started when the client disconnects', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'layers-disconnect-'));
+  const dataDirectory = join(root, 'state');
+  const path = join(root, 'repo');
+  execFileSync('git', ['init', '-b', 'main', path], { stdio: 'ignore' });
+  const entered = Promise.withResolvers<void>();
+  const cancelled = Promise.withResolvers<void>();
+  let block = false;
+  const server = await createServer({
+    pairingReach,
+    dataDirectory,
+    projectHome: dataDirectory,
+    git: (checkout) => ({
+      listWorktrees: (signal) => {
+        if (!block) return new Git(checkout).listWorktrees(signal);
+        return new Promise((_resolve, reject) => {
+          if (!signal) throw new Error('Missing cancellation');
+          signal.addEventListener(
+            'abort',
+            () => {
+              cancelled.resolve();
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+          entered.resolve();
+        });
+      },
+    }),
+  });
+  const headers = await pairDevice(server, server.application);
+  const leaving = new AbortController();
+  try {
+    await server.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers,
+      payload: { path },
+    });
+    // Reading layers now asks whether the worktree exists, and an id nothing
+    // has listed costs a listing. A reader who leaves must take that Git work
+    // with them, exactly as they would a status read.
+    block = true;
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const response = fetch(
+      `${address}/api/worktrees/${'a'.repeat(32)}/review-layers`,
+      { headers, signal: leaving.signal },
+    ).catch((error: unknown) => error);
+    await entered.promise;
+    leaving.abort();
+    await cancelled.promise;
+    expect(await response).toMatchObject({ name: 'AbortError' });
+  } finally {
+    leaving.abort();
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 20_000);

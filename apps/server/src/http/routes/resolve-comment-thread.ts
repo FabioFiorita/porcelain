@@ -27,6 +27,7 @@ export function resolveCommentThread(
       options.application.comments(
         { kind: 'resolve', ...request.params, ...request.body },
         callerOf(request),
+        request.disconnected,
       ),
   );
 }

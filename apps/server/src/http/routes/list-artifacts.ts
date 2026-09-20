@@ -22,8 +22,11 @@ export function listArtifacts(
       },
     },
     async (request) =>
-      (await options.application.listArtifacts(request.params.worktreeId)).map(
-        toArtifactMetadata,
-      ),
+      (
+        await options.application.listArtifacts(
+          request.params.worktreeId,
+          request.disconnected,
+        )
+      ).map(toArtifactMetadata),
   );
 }

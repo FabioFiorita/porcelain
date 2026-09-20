@@ -1,7 +1,6 @@
 import type { ReviewedMark } from '../../models/reviewed-file.ts';
 
 export interface ReviewedFileStore {
-  hasWorktree(worktreeId: string): boolean;
   list(worktreeId: string): ReviewedMark[];
   set(
     worktreeId: string,

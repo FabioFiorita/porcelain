@@ -27,6 +27,7 @@ export function replyToComment(
       options.application.comments(
         { kind: 'reply', ...request.params, ...request.body },
         callerOf(request),
+        request.disconnected,
       ),
   );
 }

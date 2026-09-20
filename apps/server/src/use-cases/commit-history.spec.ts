@@ -5,34 +5,30 @@ import type {
   CommitReaderFactory,
 } from '@porcelain/git/interfaces/commit-reader';
 import { describe, expect, it, vi } from 'vitest';
-import type { Inventory } from '../models/inventory.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import { InspectCommitChanges } from './inspect-commit-changes.ts';
 import { ListCommits } from './list-commits.ts';
 
 describe('Commit history use cases', () => {
-  const inventory: Inventory = {
-    environmentId: 'environment',
-    projects: [
-      {
-        id: 'project',
-        name: 'Project',
-        commonDirectory: '/fixture/.git',
-        repositoryIdentity: 'repository-identity',
-        available: true,
-        worktrees: [
-          {
-            id: 'worktree',
-            path: '/fixture',
-            metadataIdentity: 'checkout-identity',
-            available: true,
-            main: true,
-            branch: 'refs/heads/main',
-          },
-        ],
-      },
-    ],
+  // Projects are stored; worktrees are listed. The fixture says both apart.
+  const projects = [
+    {
+      id: 'project',
+      name: 'Project',
+      commonDirectory: '/fixture/.git',
+      repositoryIdentity: 'repository-identity',
+      available: true,
+    },
+  ];
+  const worktree = {
+    id: 'worktree',
+    path: '/fixture',
+    metadataIdentity: 'checkout-identity',
+    repositoryIdentity: 'repository-identity',
+    main: true,
+    branch: 'refs/heads/main',
   };
   const page: CommitPage = {
     snapshot: {
@@ -43,13 +39,25 @@ describe('Commit history use cases', () => {
     nextCursor: null,
     boundary: null,
   };
-  function fixture(value: Inventory = inventory) {
+  function fixture(
+    options: { projectAvailable?: boolean; worktreeAvailable?: boolean } = {},
+  ) {
     const store: InventoryStore = {
-      read: () => value,
+      read: () => ({
+        environmentId: 'environment',
+        projects: projects.map((project) => ({
+          ...project,
+          available: options.projectAvailable ?? true,
+        })),
+      }),
       save: () => {
         throw new Error('History must not write inventory');
       },
     };
+    const worktrees = fakeWorktrees(
+      [{ ...worktree, available: options.worktreeAvailable ?? true }],
+      { projectAvailable: options.projectAvailable ?? true },
+    );
     const reader: CommitReader = {
       listCommits: vi.fn<CommitReader['listCommits']>().mockResolvedValue(page),
       inspectCommitChanges: vi
@@ -60,8 +68,8 @@ describe('Commit history use cases', () => {
     return {
       factory,
       reader,
-      list: new ListCommits(store, factory),
-      inspect: new InspectCommitChanges(store, factory),
+      list: new ListCommits(store, worktrees, factory),
+      inspect: new InspectCommitChanges(store, worktrees, factory),
     };
   }
   it('binds reads to inventory identity and carries the selected comparison and cancellation signal', async () => {
@@ -87,33 +95,8 @@ describe('Commit history use cases', () => {
   });
   it('rejects unavailable worktrees before invoking Git', async () => {
     for (const unavailable of [
-      {
-        ...inventory,
-        projects: inventory.projects.map((project) => ({
-          ...project,
-          available: false,
-        })),
-      },
-      {
-        ...inventory,
-        projects: inventory.projects.map((project) => ({
-          ...project,
-          worktrees: project.worktrees.map((worktree) => ({
-            ...worktree,
-            available: false,
-          })),
-        })),
-      },
-      {
-        ...inventory,
-        projects: inventory.projects.map((project) => ({
-          ...project,
-          worktrees: project.worktrees.map((worktree) => ({
-            ...worktree,
-            metadataIdentity: null,
-          })),
-        })),
-      },
+      { projectAvailable: false },
+      { worktreeAvailable: false },
     ]) {
       const f = fixture(unavailable);
       await expect(f.list.execute('worktree', {})).rejects.toBeInstanceOf(
@@ -139,7 +122,7 @@ describe('Commit history use cases', () => {
   });
 
   it('reports an unknown worktree separately from unavailable inventory', async () => {
-    const f = fixture({ ...inventory, projects: [] });
+    const f = fixture();
     await expect(f.list.execute('unknown', {})).rejects.toBeInstanceOf(
       WorktreeNotFoundError,
     );

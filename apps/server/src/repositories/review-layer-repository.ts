@@ -1,10 +1,8 @@
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
-import { worktrees } from '../db/schema/worktrees.ts';
 import type { ReviewLayer, ReviewLayers } from '../models/review-layers.ts';
 import { ReviewLayerConflictError } from './errors/review-layer-conflict-error.ts';
-import { UnknownWorktreeError } from './errors/unknown-worktree-error.ts';
 import type { ReviewLayerStore } from './interfaces/review-layer-store.ts';
 
 export class ReviewLayerRepository implements ReviewLayerStore {
@@ -19,16 +17,10 @@ export class ReviewLayerRepository implements ReviewLayerStore {
       .from(reviewLayerSets)
       .where(eq(reviewLayerSets.worktreeId, worktreeId))
       .get();
-    if (stored) return stored;
-    if (
-      !this.db
-        .select({ id: worktrees.id })
-        .from(worktrees)
-        .where(eq(worktrees.id, worktreeId))
-        .get()
-    )
-      throw new UnknownWorktreeError();
-    return { worktreeId, revision: 0, layers: [] };
+    // Whether the worktree exists is settled before this is called, by the
+    // one resolver everything asks. A worktree that simply has no layers yet
+    // has an empty set, not an unknown one.
+    return stored ?? { worktreeId, revision: 0, layers: [] };
   }
 
   replace(

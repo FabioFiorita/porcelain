@@ -8,6 +8,7 @@ import { CommitDraftError } from './errors/commit-draft-error.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
 import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
 import { resolveActionCheckout } from './resolve-action-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 type Capture = {
   fingerprint: string;
@@ -18,26 +19,35 @@ type Capture = {
 };
 export class CommitDrafts {
   private readonly inventory: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly git: GitActionWriterFactory;
   private readonly evidence: ReadWorktreeEvidence;
   private readonly generator: CommitGenerator;
   constructor(
     inventory: InventoryStore,
+    worktrees: ResolveWorktree,
     git: GitActionWriterFactory,
     evidence: ReadWorktreeEvidence,
     generator: CommitGenerator,
   ) {
     this.inventory = inventory;
+    this.worktrees = worktrees;
     this.git = git;
     this.evidence = evidence;
     this.generator = generator;
   }
-  private inspect(
+  private async inspect(
     scope: GitActionScope,
     session: GitSession,
     signal: AbortSignal,
   ) {
-    const { checkout } = resolveActionCheckout(this.inventory, session, scope);
+    const { checkout } = await resolveActionCheckout(
+      this.worktrees,
+      this.inventory,
+      session,
+      scope,
+      signal,
+    );
     return this.git(checkout).inspect(
       { action: 'commit', message: 'Draft commit' },
       signal,

@@ -7,19 +7,23 @@ import type { GitActionStore } from '../repositories/interfaces/git-action-store
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { CompleteCommitReview } from './complete-commit-review.ts';
 import { resolveActionCheckout } from './resolve-action-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 export class ExecuteGitAction {
   private readonly inventory: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly store: GitActionStore;
   private readonly git: GitActionWriterFactory;
   private readonly review: CompleteCommitReview | undefined;
   constructor(
     inventory: InventoryStore,
+    worktrees: ResolveWorktree,
     store: GitActionStore,
     git: GitActionWriterFactory,
     review?: CompleteCommitReview,
   ) {
     this.inventory = inventory;
+    this.worktrees = worktrees;
     this.store = store;
     this.git = git;
     this.review = review;
@@ -97,10 +101,12 @@ export class ExecuteGitAction {
     const preparation = this.store.preparation(receipt.preparationId);
     if (!preparation || preparation.expiresAt <= Date.now())
       throw new GitActionRejectedError('STALE_PREPARATION');
-    const { checkout } = resolveActionCheckout(
+    const { checkout } = await resolveActionCheckout(
+      this.worktrees,
       this.inventory,
       session,
       receipt,
+      signal,
     );
     const git = this.git(checkout);
     const snapshot = await git.inspect(preparation.intent, signal);

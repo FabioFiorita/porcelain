@@ -16,6 +16,9 @@ export async function getInventoryRoute(
         response: { ...errorResponses, 200: inventoryResponseSchema },
       },
     },
-    async () => toInventoryResponse(options.application.inventory()),
+    async (request) =>
+      toInventoryResponse(
+        (await options.application.inventory(request.disconnected)).inventory,
+      ),
   );
 }

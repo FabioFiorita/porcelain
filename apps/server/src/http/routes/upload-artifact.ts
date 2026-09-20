@@ -34,6 +34,7 @@ export function uploadArtifact(
             await options.application.uploadArtifact(
               request.params.worktreeId,
               request.body,
+              request.disconnected,
             ),
           ),
         ),

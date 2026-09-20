@@ -1,24 +1,20 @@
 import { createHash } from 'node:crypto';
-import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateFilePath } from './validate-file-path.ts';
 
 export class ReadTextFile {
-  private readonly store: InventoryStore;
-  private readonly git: GitFactory;
+  private readonly worktrees: ResolveWorktree;
   private readonly files: FileReader;
-  constructor(store: InventoryStore, git: GitFactory, files: FileReader) {
-    this.store = store;
-    this.git = git;
+  constructor(worktrees: ResolveWorktree, files: FileReader) {
+    this.worktrees = worktrees;
     this.files = files;
   }
   async execute(worktreeId: string, path: string, signal?: AbortSignal) {
     validateFilePath(path, false);
     const worktree = await resolveReadableWorktree(
-      this.store,
-      this.git,
+      this.worktrees,
       worktreeId,
       signal,
     );
@@ -26,7 +22,7 @@ export class ReadTextFile {
       { worktreeId, root: worktree.path, path },
       signal,
     );
-    await resolveReadableWorktree(this.store, this.git, worktreeId, signal);
+    await resolveReadableWorktree(this.worktrees, worktreeId, signal);
     signal?.throwIfAborted();
     return {
       ...result,

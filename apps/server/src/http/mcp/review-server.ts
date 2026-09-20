@@ -32,7 +32,9 @@ export function createReviewMcpServer(
       inputSchema: z.strictObject({}),
       annotations: { readOnlyHint: true },
     },
-    async () => result(() => application.inventory()),
+    // The application answers with the listing's diagnostics beside the
+    // inventory; the tool's shape is the inventory alone.
+    async () => result(async () => (await application.inventory()).inventory),
   );
   server.registerTool(
     'git_status',
@@ -134,8 +136,8 @@ export function createReviewMcpServer(
       inputSchema: commentScopeSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ worktreeId }) =>
-      result(() => application.reviewLayers(worktreeId)),
+    async ({ worktreeId }, { signal }) =>
+      result(() => application.reviewLayers(worktreeId, signal)),
   );
   server.registerTool(
     'replace_layers',
@@ -144,9 +146,14 @@ export function createReviewMcpServer(
         'Publish ordered layers with titles, summaries and file notes. Preserve unrelated layers and supply the revision returned by read_layers.',
       inputSchema: commentScopeSchema.extend(replaceReviewLayersSchema.shape),
     },
-    async ({ worktreeId, expectedRevision, layers }) =>
+    async ({ worktreeId, expectedRevision, layers }, { signal }) =>
       result(() =>
-        application.replaceReviewLayers(worktreeId, expectedRevision, layers),
+        application.replaceReviewLayers(
+          worktreeId,
+          expectedRevision,
+          layers,
+          signal,
+        ),
       ),
   );
   server.registerTool(

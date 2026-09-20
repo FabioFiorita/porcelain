@@ -5,19 +5,23 @@ import type { CommitReviewLayerStore } from '../repositories/interfaces/commit-r
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { ReviewLayerStore } from '../repositories/interfaces/review-layer-store.ts';
 import { resolveHistoryCheckout } from './resolve-history-checkout.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 export class CompleteCommitReview {
   private readonly inventory: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly layers: ReviewLayerStore;
   private readonly snapshots: CommitReviewLayerStore;
   private readonly git: CommitReaderFactory;
   constructor(
     inventory: InventoryStore,
+    worktrees: ResolveWorktree,
     layers: ReviewLayerStore,
     snapshots: CommitReviewLayerStore,
     git: CommitReaderFactory,
   ) {
     this.inventory = inventory;
+    this.worktrees = worktrees;
     this.layers = layers;
     this.snapshots = snapshots;
     this.git = git;
@@ -31,7 +35,12 @@ export class CompleteCommitReview {
     const source = this.layers.read(scope.worktreeId);
     if (!source.layers.length) return;
     const changes = await this.git(
-      resolveHistoryCheckout(this.inventory, scope.worktreeId),
+      await resolveHistoryCheckout(
+        this.worktrees,
+        this.inventory,
+        scope.worktreeId,
+        signal,
+      ),
     ).inspectCommitChanges({ oid }, signal);
     const committed = new Set(
       changes.changes.map((change) => change.newPath ?? change.oldPath),

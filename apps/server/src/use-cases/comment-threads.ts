@@ -6,34 +6,34 @@ import type {
 } from '../models/comment-thread.ts';
 import type { AuthenticatedPrincipal } from '../models/principal.ts';
 import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { CommentLimitExceededError } from './errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from './errors/comment-target-not-found-error.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateCommentCommand } from './validate-comment-command.ts';
 
 export class CommentThreads {
   private readonly store: CommentStore;
-  private readonly inventory: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly newId: () => string;
   private readonly now: () => string;
   constructor(
     store: CommentStore,
-    inventory: InventoryStore,
+    worktrees: ResolveWorktree,
     newId: () => string,
     now: () => string = () => new Date().toISOString(),
   ) {
     this.store = store;
-    this.inventory = inventory;
+    this.worktrees = worktrees;
     this.newId = newId;
     this.now = now;
   }
-  private hasWorktree(worktreeId: string): boolean {
-    return this.inventory
-      .read()
-      .projects.some((project) =>
-        project.worktrees.some((worktree) => worktree.id === worktreeId),
-      );
+  /**
+   * The same question everything else asks. It used to be skipped whenever the
+   * worktree already had threads, so comments could disagree with marks about
+   * whether a worktree was there.
+   */
+  private async assertWorktree(worktreeId: string, signal?: AbortSignal) {
+    await this.worktrees.known(worktreeId, signal);
   }
   private assertCapacity(next: CommentThread, previous?: CommentThread): void {
     const usage = this.store.usage(next.worktreeId);
@@ -48,21 +48,23 @@ export class CommentThreads {
       throw new CommentLimitExceededError();
   }
   /** Reading threads has no author, so it needs no principal. */
-  list(worktreeId: string): CommentThread[] {
-    const threads = this.store.list(worktreeId);
-    if (threads.length === 0 && !this.hasWorktree(worktreeId))
-      throw new WorktreeNotFoundError();
-    return threads;
+  async list(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<CommentThread[]> {
+    await this.assertWorktree(worktreeId, signal);
+    return this.store.list(worktreeId);
   }
-  execute(
+  async execute(
     command: CommentCommand,
     principal: AuthenticatedPrincipal,
-  ): CommentThread[] {
+    signal?: AbortSignal,
+  ): Promise<CommentThread[]> {
     validateCommentCommand(command);
-    if (command.kind === 'list') return this.list(command.worktreeId);
+    if (command.kind === 'list') return this.list(command.worktreeId, signal);
+    // A write: the worktree is recorded as present before anything is stored.
+    await this.worktrees.forWriting(command.worktreeId, signal);
     if (command.kind === 'create') {
-      if (!this.hasWorktree(command.worktreeId))
-        throw new CommentTargetNotFoundError();
       const thread: CommentThread = {
         id: this.newId(),
         worktreeId: command.worktreeId,

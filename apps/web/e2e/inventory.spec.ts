@@ -104,13 +104,13 @@ test('connects to real Git inventory and refreshes on focus', async ({
   await expect(
     navigator.getByRole('button').filter({ hasText: review.path }),
   ).toHaveAttribute('aria-pressed', 'true');
-  const refreshed = page.waitForResponse(
+  const relisted = page.waitForResponse(
     (response) =>
-      response.url().endsWith('/api/inventory/refresh') &&
-      response.request().method() === 'POST',
+      new URL(response.url()).pathname === '/api/inventory' &&
+      response.request().method() === 'GET',
   );
   await refocusWindow(page);
-  expect((await refreshed).ok()).toBe(true);
+  expect((await relisted).ok()).toBe(true);
   for (const name of ['Disconnect', 'Exit', 'Reload', 'Refresh']) {
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
       0,
@@ -144,52 +144,52 @@ test('shows empty and unavailable inventory and recovers on a later focus', asyn
     await page.request.get('/api/inventory')
   ).json()) as { environmentId: string };
   const empty = { environmentId, projects: [] };
-  // Exact paths: a glob would also swallow /api/inventory/refresh, which the
-  // rest of this test needs to fail and then succeed on its own.
+  const unavailable = {
+    environmentId,
+    projects: [
+      {
+        id: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
+        name: 'Missing project',
+        available: false,
+        worktrees: [
+          {
+            id: '801a86281cd6456281a29c05fba76b4a',
+            path: '/fixture/missing',
+            main: false,
+            branch: null,
+            available: false,
+          },
+        ],
+      },
+    ],
+  };
+  // Listing is the only inventory endpoint now, so one handler answers every
+  // ask and this variable is what the next one gets: empty, then a failure,
+  // then a project that is there but unreachable.
+  let answer: { json: unknown } | { status: number; body: string } = {
+    json: empty,
+  };
   await page.route(
     (url) => url.pathname === '/api/inventory',
-    (route) => route.fulfill({ json: empty }),
+    (route) => route.fulfill(answer),
   );
   await page.route(
     (url) => url.pathname === '/api/session',
     (route) => route.fulfill({ json: empty }),
   );
-  // Registered before the page loads: the workspace rescans on mount, and a
-  // refresh already in flight would otherwise answer the focus below.
-  await page.route('**/api/inventory/refresh', (route) =>
-    route.fulfill({ status: 503, body: '{}' }),
-  );
   await page.reload();
   await openNavigation(page);
   await expect(page.getByText('No projects registered')).toBeVisible();
-  const failedRefresh = page.waitForResponse('**/api/inventory/refresh');
-  await refocusWindow(page);
-  expect((await failedRefresh).status()).toBe(503);
-  await expect(page.getByText('No projects registered')).toBeVisible();
-  await page.unroute('**/api/inventory/refresh');
-  await page.route('**/api/inventory/refresh', (route) =>
-    route.fulfill({
-      json: {
-        environmentId,
-        projects: [
-          {
-            id: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
-            name: 'Missing project',
-            available: false,
-            worktrees: [
-              {
-                id: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
-                path: '/fixture/missing',
-                main: false,
-                branch: null,
-                available: false,
-              },
-            ],
-          },
-        ],
-      },
-    }),
+  answer = { status: 503, body: '{}' };
+  const failed = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/inventory',
   );
+  await refocusWindow(page);
+  expect((await failed).status()).toBe(503);
+  // A failed listing must not empty the sidebar of what it last knew; here
+  // the last thing it knew was that there is nothing.
+  await expect(page.getByText('No projects registered')).toBeVisible();
+  answer = { json: unavailable };
   await refocusWindow(page);
   const worktree = page.getByRole('button', { name: /Detached HEAD/ });
   await expect(worktree).toContainText('Unavailable');

@@ -1,44 +1,50 @@
+import { randomUUID } from 'node:crypto';
+import { basename, dirname } from 'node:path';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
+import type { RegisteredProject } from '../models/project.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { reconcileProject } from './reconciliation/reconcile-project.ts';
-import type { RefreshProjects } from './refresh-projects.ts';
+import type { WorktreeSource } from '../repositories/interfaces/worktree-source.ts';
 
 export class RegisterProject {
   private readonly store: InventoryStore;
   private readonly git: GitFactory;
-  private readonly refresh: Pick<RefreshProjects, 'execute'>;
+  private readonly directory: WorktreeSource;
 
   constructor(
     store: InventoryStore,
     git: GitFactory,
-    refresh: Pick<RefreshProjects, 'execute'>,
+    directory: WorktreeSource,
   ) {
     this.store = store;
     this.git = git;
-    this.refresh = refresh;
+    this.directory = directory;
   }
 
   async execute(checkout: string, signal?: AbortSignal) {
     const { repository: discovered, issues } =
       await this.git(checkout).listWorktrees(signal);
     signal?.throwIfAborted();
-    // Only revisit old projects whose recorded checkout paths overlap this registration.
+    // A checkout path can move between repositories. Re-list the projects that
+    // claim any of these paths, so a stale claim from a project that has since
+    // changed does not block registering this one.
     const paths = new Set(
       discovered.worktrees.map((worktree) => worktree.path),
     );
-    const conflicts = this.store
+    const others = this.store
       .read()
       .projects.filter(
         (project) =>
-          project.repositoryIdentity !== discovered.repositoryIdentity &&
-          project.worktrees.some((worktree) => paths.has(worktree.path)),
+          project.repositoryIdentity !== discovered.repositoryIdentity,
       );
-    if (conflicts.length > 0) {
-      const refreshed = await this.refresh.execute(
-        signal,
-        conflicts.map((project) => project.id),
-      );
-      issues.push(...refreshed.issues);
+    for (const project of others) {
+      const listing = await this.directory.list(project, signal);
+      if (listing.worktrees.some((worktree) => paths.has(worktree.path)))
+        issues.push(
+          ...listing.issues,
+          ...(listing.failure
+            ? [{ path: checkout, error: listing.failure }]
+            : []),
+        );
     }
     signal?.throwIfAborted();
     const previous = this.store
@@ -47,8 +53,21 @@ export class RegisterProject {
         (project) =>
           project.repositoryIdentity === discovered.repositoryIdentity,
       );
-    const project = reconcileProject(discovered, previous);
+    const project: RegisteredProject = {
+      id: previous?.id ?? randomUUID(),
+      name: previous?.name ?? basename(dirname(discovered.commonDirectory)),
+      commonDirectory: discovered.commonDirectory,
+      repositoryIdentity: discovered.repositoryIdentity,
+      available: true,
+    };
     this.store.save(project);
-    return { project, issues };
+    // The registration itself is the first listing, so the reply already
+    // carries the worktrees and their ids: the sidebar has them without a
+    // second request.
+    const listing = await this.directory.list(project, signal);
+    return {
+      project: { ...project, worktrees: listing.worktrees },
+      issues,
+    };
   }
 }

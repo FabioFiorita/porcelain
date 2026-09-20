@@ -12,6 +12,7 @@ import type { GitActionStore } from '../repositories/interfaces/git-action-store
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { AcceptGitAction } from './accept-git-action.ts';
 import { ExecuteGitAction } from './execute-git-action.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import { PrepareGitAction } from './prepare-git-action.ts';
 
 describe('Git action execution', () => {
@@ -64,16 +65,6 @@ describe('Git action execution', () => {
                 commonDirectory: '/fixture/.git',
                 repositoryIdentity: 'repository',
                 available: true,
-                worktrees: [
-                  {
-                    id: 'worktree',
-                    path: '/fixture',
-                    metadataIdentity: 'checkout',
-                    available: true,
-                    main: true,
-                    branch: 'main',
-                  },
-                ],
               },
             ],
       }),
@@ -81,6 +72,21 @@ describe('Git action execution', () => {
         throw new Error('Unexpected inventory write');
       },
     };
+    // `state.missing` is a project Git no longer lists: the action's target
+    // cannot be resolved, which is what each of these tests turns on.
+    const worktrees = fakeWorktrees(() =>
+      state.missing
+        ? []
+        : [
+            {
+              id: 'worktree',
+              path: '/fixture',
+              metadataIdentity: 'checkout',
+              main: true,
+              branch: 'main',
+            },
+          ],
+    );
     const store: GitActionStore = {
       preparation: () => ({
         ...preparation,
@@ -117,13 +123,14 @@ describe('Git action execution', () => {
       },
     };
     return {
+      worktrees,
       inventory,
       store,
       git,
       preparation,
       state,
       receipt,
-      useCase: new ExecuteGitAction(inventory, store, () => git),
+      useCase: new ExecuteGitAction(inventory, worktrees, store, () => git),
     };
   }
 
@@ -175,7 +182,8 @@ describe('Git action execution', () => {
   });
 
   it('blocks already queued work in memory when persisting quarantine fails', async () => {
-    const { state, inventory, store, git, preparation, useCase } = fixture();
+    const { state, inventory, worktrees, store, git, preparation, useCase } =
+      fixture();
     state.unconfirmed = true;
     state.failBlock = true;
     store.preparation = (id) => ({ ...preparation, id });
@@ -191,6 +199,7 @@ describe('Git action execution', () => {
       () => 'repository',
       new PrepareGitAction(
         inventory,
+        worktrees,
         store,
         () => git,
         () => 'preparation',
@@ -219,7 +228,7 @@ describe('Git action execution', () => {
   });
 
   it('blocks a queued preparation after failed quarantine persistence using the captured scope', async () => {
-    const { state, inventory, store, git, useCase } = fixture();
+    const { state, inventory, worktrees, store, git, useCase } = fixture();
     state.failBlock = true;
     const started = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
@@ -236,6 +245,7 @@ describe('Git action execution', () => {
       () => 'repository',
       new PrepareGitAction(
         inventory,
+        worktrees,
         store,
         () => git,
         () => 'preparation',
@@ -275,7 +285,7 @@ describe('Git action execution', () => {
   });
 
   it('finishes both receipts when the lane closes while one action is queued', async () => {
-    const { state, inventory, store, git, useCase } = fixture();
+    const { state, inventory, worktrees, store, git, useCase } = fixture();
     const release = Promise.withResolvers<void>();
     const started = Promise.withResolvers<void>();
     git.execute = async () => {
@@ -289,6 +299,7 @@ describe('Git action execution', () => {
       () => 'repository',
       new PrepareGitAction(
         inventory,
+        worktrees,
         store,
         () => git,
         () => 'preparation',
@@ -313,7 +324,7 @@ describe('Git action execution', () => {
   });
 
   it('waits for a refused action to finish its receipt before closing resources', async () => {
-    const { state, inventory, store, git, useCase } = fixture();
+    const { state, inventory, worktrees, store, git, useCase } = fixture();
     const release = Promise.withResolvers<void>();
     const started = Promise.withResolvers<void>();
     const finalizing = Promise.withResolvers<void>();
@@ -341,6 +352,7 @@ describe('Git action execution', () => {
       () => 'repository',
       new PrepareGitAction(
         inventory,
+        worktrees,
         store,
         () => git,
         () => 'preparation',

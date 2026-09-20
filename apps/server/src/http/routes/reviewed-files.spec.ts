@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
@@ -142,6 +142,32 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
       code: 'REVIEWED_MARK_STALE',
       message: 'The reviewed mark is based on stale evidence',
     });
+    expect(
+      reviewedMarksResponseSchema.parse(
+        (
+          await server.inject({
+            method: 'GET',
+            url: `${base}/reviewed`,
+            headers,
+          })
+        ).json(),
+      ).marks,
+    ).toEqual([
+      { path: 'file.ts', fingerprint, reviewedAt: expect.any(String) },
+    ]);
+
+    // Removing asks whether the worktree exists before it deletes anything.
+    // A repository nobody can read is not an answer, so the mark survives to
+    // be removed once it is back — a request that fails must not have changed
+    // something on its way to failing.
+    await rename(checkout, join(root, 'moved'));
+    const refused = await server.inject({
+      method: 'DELETE',
+      url: `${base}/reviewed?path=file.ts`,
+      headers,
+    });
+    expect(refused.statusCode).toBe(422);
+    await rename(join(root, 'moved'), checkout);
     expect(
       reviewedMarksResponseSchema.parse(
         (

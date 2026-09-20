@@ -1,9 +1,6 @@
-import type { DiscoveryResult } from '@porcelain/git/dtos/discovery-result';
-import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import { describe, expect, it, vi } from 'vitest';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
-import type { Inventory } from '../models/inventory.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import { ListDirectory } from './list-directory.ts';
 import { ReadTextFile } from './read-text-file.ts';
 
@@ -23,28 +20,13 @@ describe('ReadFiles', () => {
       commonDirectory: '/fixture/.git',
       repositoryIdentity: 'repository',
       available: true,
-      worktrees: [worktree],
     };
-    const inventory: Inventory = {
-      environmentId: 'environment',
-      projects: [project],
-    };
-    const store: InventoryStore = {
-      read: () => inventory,
-      save: () => {
-        throw new Error('Reads must not write inventory');
-      },
-    };
-    const discovered: DiscoveryResult = {
-      repository: {
-        commonDirectory: project.commonDirectory,
-        repositoryIdentity: project.repositoryIdentity,
-        worktrees: [{ ...worktree }],
-      },
-      issues: [],
-    };
-    const discover = vi.fn(async () => discovered);
-    const git: GitFactory = () => ({ listWorktrees: discover });
+    // What Git lists right now. A test changes this to express a worktree
+    // being replaced, or disappearing while a read is in flight.
+    let listed = [{ ...worktree }];
+    const worktrees = fakeWorktrees(() => listed, {
+      projectAvailable: () => project.available,
+    });
     const files: FileReader = {
       list: vi.fn<FileReader['list']>(async (target) => ({
         worktreeId: target.worktreeId,
@@ -62,11 +44,12 @@ describe('ReadFiles', () => {
     return {
       project,
       worktree,
-      discovered,
-      discover,
       files,
-      list: new ListDirectory(store, git, files),
-      read: new ReadTextFile(store, git, files),
+      replace: (next: typeof listed) => {
+        listed = next;
+      },
+      list: new ListDirectory(worktrees, files),
+      read: new ReadTextFile(worktrees, files),
     };
   }
 
@@ -108,7 +91,6 @@ describe('ReadFiles', () => {
     await expect(f.read.execute('worktree', path)).rejects.toMatchObject({
       code: 'INVALID_REQUEST',
     });
-    expect(f.discover).not.toHaveBeenCalled();
     expect(f.files.read).not.toHaveBeenCalled();
   });
 
@@ -134,34 +116,35 @@ describe('ReadFiles', () => {
       code: 'REPOSITORY_UNAVAILABLE',
     });
     f.project.available = true;
-    f.worktree.available = false;
-    await expect(f.read.execute('worktree', 'a')).rejects.toMatchObject({
-      code: 'REPOSITORY_UNAVAILABLE',
-    });
-    expect(f.discover).not.toHaveBeenCalled();
-  });
-
-  it('rejects replaced repository and worktree identities without returning content', async () => {
-    const f = fixture();
-    f.discovered.repository.repositoryIdentity = 'replacement';
+    f.replace([{ ...f.worktree, available: false }]);
     await expect(f.read.execute('worktree', 'a')).rejects.toMatchObject({
       code: 'REPOSITORY_UNAVAILABLE',
     });
     expect(f.files.read).not.toHaveBeenCalled();
-    f.discovered.repository.repositoryIdentity = 'repository';
-    f.discovered.repository.worktrees[0] = {
-      ...f.worktree,
-      metadataIdentity: 'replacement',
-    };
+  });
+
+  it('rejects replaced repository and worktree identities without returning content', async () => {
+    const f = fixture();
+    // A worktree whose checkout cannot be read is refused before any content
+    // is produced, and so is one whose identity no longer derives to this id.
+    f.replace([{ ...f.worktree, available: false }]);
     await expect(f.read.execute('worktree', 'a')).rejects.toMatchObject({
       code: 'REPOSITORY_UNAVAILABLE',
     });
+    expect(f.files.read).not.toHaveBeenCalled();
+    f.replace([{ ...f.worktree, id: 'replacement' }]);
+    await expect(f.read.execute('worktree', 'a')).rejects.toMatchObject({
+      code: 'WORKTREE_NOT_FOUND',
+    });
+    expect(f.files.read).not.toHaveBeenCalled();
   });
 
   it('withholds a result if the registered checkout changes during reading', async () => {
     const f = fixture();
     vi.mocked(f.files.read).mockImplementationOnce(async () => {
-      f.discovered.repository.worktrees = [];
+      // The checkout is swapped while the bytes are being read: the result
+      // must be withheld rather than returned from a worktree that is gone.
+      f.replace([]);
       return {
         worktreeId: 'worktree',
         path: 'a',
@@ -171,19 +154,29 @@ describe('ReadFiles', () => {
       };
     });
     await expect(f.read.execute('worktree', 'a')).rejects.toMatchObject({
-      code: 'REPOSITORY_UNAVAILABLE',
+      code: 'WORKTREE_NOT_FOUND',
     });
   });
 
   it('preserves unexpected failures and cancellation', async () => {
     const f = fixture();
+    // A failure from the filesystem is not laundered into an inspection
+    // error, and cancellation still wins over whatever else went wrong.
     const error = new Error('private diagnostics');
-    f.discover.mockRejectedValueOnce(error);
+    vi.mocked(f.files.list).mockRejectedValueOnce(error);
     await expect(f.list.execute('worktree', '')).rejects.toBe(error);
+    // A request cancelled while its bytes were being read reports the
+    // cancellation, and never returns the content it had already gathered.
     const controller = new AbortController();
-    f.discover.mockImplementationOnce(async () => {
+    vi.mocked(f.files.read).mockImplementationOnce(async () => {
       controller.abort();
-      throw error;
+      return {
+        worktreeId: 'worktree',
+        path: 'a',
+        encoding: 'utf-8' as const,
+        byteLength: 6,
+        text: 'secret',
+      };
     });
     await expect(
       f.read.execute('worktree', 'a', controller.signal),

@@ -2,39 +2,49 @@ import { randomUUID } from 'node:crypto';
 import { asc, eq, max } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { environments } from '../db/schema/environments.ts';
-import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { projects } from '../db/schema/projects.ts';
-import { worktrees } from '../db/schema/worktrees.ts';
-import type { Inventory } from '../models/inventory.ts';
-import type { Project } from '../models/project.ts';
+import type { RegisteredProject } from '../models/project.ts';
 import { MissingEnvironmentIdentityError } from './errors/missing-environment-identity-error.ts';
 import type { InventoryStore } from './interfaces/inventory-store.ts';
 
+/**
+ * The registered projects, and only those.
+ *
+ * Worktrees are not stored: Git lists them and their ids are derived, so there
+ * is no table here for them to drift from. Registering a repository is the one
+ * explicit choice, which is why projects stay.
+ */
 export class InventoryRepository implements InventoryStore {
   private readonly db: BetterSQLite3Database;
 
   constructor(db: BetterSQLite3Database) {
     this.db = db;
+    // The installation's own id, minted once and never again.
     db.insert(environments)
       .values({ singleton: 1, id: randomUUID() })
       .onConflictDoNothing()
       .run();
   }
 
+  /**
+   * A project is reachable until a listing says so. Availability is persisted,
+   * so a project that was reachable at the last shutdown would otherwise keep
+   * reporting so until the first listing answers.
+   */
   markAllUnavailable(): void {
     this.db.update(projects).set({ available: false }).run();
-    this.db.update(worktrees).set({ available: false }).run();
   }
 
-  read(): Inventory {
+  /**
+   * Environment and projects, read synchronously.
+   *
+   * Health and pairing need the environment id, so this must never reach for
+   * Git. Live worktree listing is a separate, asynchronous call.
+   */
+  read(): { environmentId: string; projects: RegisteredProject[] } {
     return this.db.transaction((tx) => {
       const environment = tx.select().from(environments).get();
       if (!environment) throw new MissingEnvironmentIdentityError();
-      const rows = tx
-        .select()
-        .from(worktrees)
-        .orderBy(asc(worktrees.position))
-        .all();
       return {
         environmentId: environment.id,
         projects: tx
@@ -48,23 +58,13 @@ export class InventoryRepository implements InventoryStore {
             commonDirectory: project.commonDirectory,
             repositoryIdentity: project.repositoryIdentity,
             available: project.available,
-            worktrees: rows
-              .filter((row) => row.projectId === project.id)
-              .map((worktree) => ({
-                id: worktree.id,
-                path: worktree.path,
-                metadataIdentity: worktree.metadataIdentity,
-                main: worktree.main,
-                branch: worktree.branch,
-                available: worktree.available,
-              })),
           })),
       };
     });
   }
-  save(project: Project): void {
+
+  save(project: RegisteredProject): void {
     this.db.transaction((tx) => {
-      const { worktrees: checkouts, ...record } = project;
       const existing = tx
         .select({ position: projects.position })
         .from(projects)
@@ -77,25 +77,9 @@ export class InventoryRepository implements InventoryStore {
           .from(projects)
           .get()?.position ?? 0) + 1;
       tx.insert(projects)
-        .values({ ...record, position })
-        .onConflictDoUpdate({ target: projects.id, set: record })
+        .values({ ...project, position })
+        .onConflictDoUpdate({ target: projects.id, set: project })
         .run();
-      for (const worktree of checkouts)
-        tx.insert(projectWorktrees)
-          .values({ worktreeId: worktree.id, projectId: project.id })
-          .onConflictDoNothing()
-          .run();
-      tx.delete(worktrees).where(eq(worktrees.projectId, project.id)).run();
-      if (checkouts.length > 0)
-        tx.insert(worktrees)
-          .values(
-            checkouts.map((worktree, index) => ({
-              ...worktree,
-              projectId: project.id,
-              position: index,
-            })),
-          )
-          .run();
     });
   }
 }

@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
-export const artifactScopeSchema = z.strictObject({ worktreeId: z.uuid() });
+export const artifactScopeSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+});
 export const artifactAddressSchema = artifactScopeSchema.extend({
   artifactId: z.uuid(),
 });
@@ -10,7 +13,7 @@ export const uploadArtifactRequestSchema = z.strictObject({
 });
 export const artifactMetadataSchema = z.object({
   id: z.uuid(),
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   name: z.string(),
   sizeBytes: z.number().int().positive(),
   createdAt: z.iso.datetime(),

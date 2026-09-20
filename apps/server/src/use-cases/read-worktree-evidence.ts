@@ -4,7 +4,6 @@ import type {
   GitChange,
   GitOrdinaryChange,
 } from '@porcelain/git/dtos/git-status';
-import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
@@ -19,6 +18,7 @@ import type { InventoryStore } from '../repositories/interfaces/inventory-store.
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
 import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';
 import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 const scopeOrder = {
   staged: 0,
@@ -38,22 +38,22 @@ const MAX_CACHED_WORKTREES = 16;
  */
 export class ReadWorktreeEvidence {
   private readonly store: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly inspection: InspectionFactory;
-  private readonly git: GitFactory;
   private readonly files: FileReader;
   private readonly stamps: FileStamps;
   private readonly cache = new Map<string, { key: string; result: Evidence }>();
 
   constructor(
     store: InventoryStore,
+    worktrees: ResolveWorktree,
     inspection: InspectionFactory,
-    git: GitFactory,
     files: FileReader,
     stamps: FileStamps,
   ) {
     this.store = store;
+    this.worktrees = worktrees;
     this.inspection = inspection;
-    this.git = git;
     this.files = files;
     this.stamps = stamps;
   }
@@ -65,10 +65,12 @@ export class ReadWorktreeEvidence {
     paths?: ReadonlySet<string>,
   ): Promise<Evidence> {
     signal?.throwIfAborted();
-    const { environmentId, worktree, checkout } = resolveCheckoutSession(
+    const { environmentId, worktree, checkout } = await resolveCheckoutSession(
+      this.worktrees,
       this.store,
       session,
       worktreeId,
+      signal,
     );
     const reader = this.inspection(checkout);
     const before = await reader.readStatus(signal);
@@ -101,7 +103,7 @@ export class ReadWorktreeEvidence {
       (change) => change.scope === 'untracked',
     );
     if (hasUntracked)
-      await resolveReadableWorktree(this.store, this.git, worktreeId, signal);
+      await resolveReadableWorktree(this.worktrees, worktreeId, signal);
 
     const byPath = new Map<string, EvidenceComparison[]>();
     let evidenceBytes = 0;

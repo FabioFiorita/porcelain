@@ -65,28 +65,28 @@ function seed(scenario: MockScenario): Inventory {
               available: scenario !== 'unavailable',
               worktrees: [
                 {
-                  id: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
+                  id: '801a86281cd6456281a29c05fba76b4a',
                   path: '/fixtures/sample-project',
                   branch: 'refs/heads/main',
                   main: true,
                   available: scenario !== 'unavailable',
                 },
                 {
-                  id: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+                  id: '629a86281cd6456281a29c05fba76b4b',
                   path: '/fixtures/sample-review',
                   branch: 'refs/heads/agent/review',
                   main: false,
                   available: true,
                 },
                 {
-                  id: '629a8628-1cd6-4562-81a2-9c05fba76b4c',
+                  id: '629a86281cd6456281a29c05fba76b4c',
                   path: '/fixtures/porcelain/detached-review',
                   branch: null,
                   main: false,
                   available: true,
                 },
                 {
-                  id: '629a8628-1cd6-4562-81a2-9c05fba76b4d',
+                  id: '629a86281cd6456281a29c05fba76b4d',
                   path: '/fixtures/porcelain/worktrees/archived-prototype',
                   branch: 'refs/heads/archive/initial-prototype',
                   main: false,
@@ -100,7 +100,7 @@ function seed(scenario: MockScenario): Inventory {
                 name,
                 available: projectIndex !== 4,
                 worktrees: branches.map((branch, worktreeIndex) => ({
-                  id: `801a8628-1cd6-4562-81a2-9c05fba76${projectIndex}${worktreeIndex}a`,
+                  id: `801a86281cd6456281a29c05fba76${projectIndex}${worktreeIndex}a`,
                   path: `/fixtures/${directory}/${worktreeIndex === 0 ? 'repository' : `worktrees/${branch ?? 'detached-review'}`}`,
                   branch: branch === null ? null : `refs/heads/${branch}`,
                   main: worktreeIndex === 0,
@@ -246,13 +246,15 @@ export function createInventoryMock(
         );
       return structuredClone(folder);
     },
-    async read({ signal, refresh }) {
+    async read({ signal }) {
       await prepareInventoryRequest(store, signal);
-      if (refresh && store.refreshFailed)
+      // Reading the inventory *is* the rescan now, so every read counts and
+      // every read can fail the way a listing can.
+      if (store.refreshFailed)
         throw new ConnectionError(
           'The environment could not complete the request. Try again.',
         );
-      if (refresh) store.refreshCount += 1;
+      store.refreshCount += 1;
       return structuredClone(store.inventory);
     },
     async register({ signal, path }) {
@@ -266,7 +268,9 @@ export function createInventoryMock(
       );
       if (existing) return structuredClone(existing);
       const projectId = createId();
-      const worktreeId = createId();
+      // The server derives a worktree id from filesystem identity; the mock
+      // has no filesystem, so it makes one of the same shape.
+      const worktreeId = createId().replaceAll('-', '');
       const name = path.split('/').filter(Boolean).at(-1) || 'project';
       const project = {
         id: projectId,

@@ -116,11 +116,10 @@ const STATUS_STEPS: Step[] = [
   ),
 ];
 
-/** Git.listWorktrees used as an identity check: 2 + 2W processes. */
+/** Git.listWorktrees used as an identity check: 2 processes, whatever W is. */
 const readableGit = (when: string): string[] => [
-  `rev-parse --git-common-dir (listWorktrees, ${when})`,
+  `rev-parse --git-common-dir (listWorktrees from a checkout, ${when})`,
   `worktree list --porcelain -z (${when})`,
-  `rev-parse --absolute-git-dir + rev-parse --git-common-dir for each of the W worktrees (${when})`,
 ];
 
 const readableStep = (when: string, path: string, line: number): Step =>
@@ -301,7 +300,7 @@ const connection: Area = {
           'WorkspaceProvider restore effect',
           web('query/workspace-provider.tsx'),
           151,
-          `Once on app mount (skipped with the playground bridge), 15 s timeout. Success seeds the inventory cache and immediately invalidates it (workspace-provider.tsx:103), which triggers POST /api/inventory/refresh.`,
+          `Once on app mount (skipped with the playground bridge), 15 s timeout. Success seeds the inventory cache and immediately invalidates it (workspace-provider.tsx:103), which lists again.`,
         ),
       ],
       steps: [
@@ -515,136 +514,79 @@ const connection: Area = {
 const LIST_WORKTREES_GIT = [
   'rev-parse --path-format=absolute --git-common-dir',
   'worktree list --porcelain -z',
-  'rev-parse --absolute-git-dir + rev-parse --git-common-dir for each of the W worktrees',
+  // Identity per worktree comes from the repository's own registry: a stat
+  // and two small file reads, no Git process.
 ];
 
 const inventory: Area = {
   id: 'inventory',
   title: 'Projects and worktrees',
   webSurface: `Left sidebar: projects and worktrees with pending-file and open-thread badges, the add-project dialog (suggestions and folder picker), and Remove project.`,
-  summary: `Inventory is SQLite rows for projects and worktrees, rebuilt from git worktree list and matched by filesystem identity. The web almost never uses the stored snapshot: every inventory query run (mount, window focus, reconnect) calls POST /api/inventory/refresh, which rescans every project with Git on the operations queue. The sidebar also requests one review summary per available worktree, one at a time, on the separate summaries queue. A summary is a status read, or a full evidence read once the worktree has any reviewed mark.`,
+  summary: `Projects are SQLite rows; worktrees are not stored at all. Every inventory request lists them from Git and derives each id from the project and the filesystem identity of the worktree's administrative directory, so the same checkout keeps its id across moves and restarts without anything being written down. Resolution is an in-memory map, and worktree_presence records only how long a worktree has been gone. The sidebar also requests one review summary per available worktree, one at a time, on the separate summaries queue. A summary is a status read, or a full evidence read once the worktree has any reviewed mark.`,
   flows: [
     {
-      id: 'inventory.read',
-      title: 'Read stored inventory (login)',
+      id: 'inventory.list',
+      title: 'List worktrees from Git',
       endpoint: {
         method: 'GET',
         path: '/api/inventory',
-        source: at(route('get-inventory.ts'), 13),
+        source: at(route('get-inventory.ts'), 12),
       },
       webTriggers: [
         wt(
-          'useConnect',
-          web('query/connection.ts'),
-          24,
-          `Login only: sends the typed token with the browser header, which also issues the session cookie. Later reads go through POST /api/inventory/refresh.`,
+          'useInventory',
+          web('query/inventory.ts'),
+          64,
+          `Mount, window focus and reconnect. There is no separate refresh to ask for: reading the inventory is the listing.`,
         ),
       ],
       steps: [
         s(
           'route',
           'getInventoryRoute',
-          `Authenticated, no-store; maps the snapshot through the public schema.`,
+          `Returns environment, projects and the worktrees Git lists right now.`,
           route('get-inventory.ts'),
-          12,
+          19,
         ),
         s(
           'application',
-          'Application.inventory',
-          `assertOpen, then a synchronous SQLite read outside any queue.`,
+          'listProjects',
+          `One coalesced \`git worktree list\` per project, on the inventory lane. A registered project brings its own common directory, so nothing has to go and find it first.`,
           APP,
-          433,
-        ),
-        s(
-          'repository',
-          'InventoryRepository.read',
-          `Reads environment, projects and worktrees in one transaction.`,
-          repo('inventory-repository.ts'),
-          24,
-        ),
-      ],
-      runner: 'none',
-      gitCommands: [],
-      tables: INVENTORY_READ,
-      cost: 'Three selects; grows with rows. No Git.',
-    },
-    {
-      id: 'inventory.refresh',
-      title: 'Refresh inventory from Git',
-      endpoint: {
-        method: 'POST',
-        path: '/api/inventory/refresh',
-        source: at(route('refresh-inventory.ts'), 13),
-      },
-      webTriggers: [
-        wt(
-          'useInventory',
-          web('query/inventory.ts'),
-          70,
-          `The queryFn always asks for refresh (inventory.ts:66). Runs right after login or session restore because the seed is invalidated (workspace-provider.tsx:103), and ${FOCUS} Mounted by ConnectedWorkspace (connected-workspace.tsx:63).`,
-        ),
-      ],
-      steps: [
-        s(
-          'route',
-          'refreshInventoryRoute',
-          `No body; returns the refreshed inventory.`,
-          route('refresh-inventory.ts'),
-          12,
+          148,
         ),
         s(
           'application',
-          'Application.refresh',
-          `Queues the rescan on the main operations queue.`,
-          APP,
-          441,
-        ),
-        operationsStep(
-          `Waits behind every earlier queued operation; 30 s deadline counted from enqueue.`,
+          'WorktreeDirectory.list',
+          `Reads the repository's own worktree registry and stats each administrative directory for its identity: one Git process per project, none per worktree.`,
+          'apps/server/src/lifecycle/worktree-directory.ts',
+          80,
         ),
         s(
-          'use-case',
-          'RefreshProjects.execute',
-          `Loops over every project, one at a time.`,
-          caseFile('refresh-projects.ts'),
-          45,
-        ),
-        s(
-          'use-case',
-          'rediscover',
-          `Tries each known worktree path until listWorktrees succeeds for the same repository identity.`,
-          caseFile('refresh-projects.ts'),
-          9,
-        ),
-        s(
-          'git',
-          'Git.listWorktrees',
-          `Reads the common directory identity, lists worktrees, then runs two rev-parse per worktree for its metadata identity.`,
-          git('commands/list-worktrees.ts'),
-          56,
-        ),
-        s(
-          'use-case',
-          'reconcileProject',
-          `Keeps project and worktree IDs by metadata identity (or path when unknown), new UUIDs otherwise.`,
-          caseFile('reconciliation/reconcile-project.ts'),
-          6,
+          'application',
+          'deriveWorktreeId',
+          `The id is a hash of the project and that identity, so it survives a restart and a move and changes when a worktree is recreated.`,
+          'apps/server/src/models/worktree-id.ts',
+          25,
         ),
         s(
           'repository',
-          'InventoryRepository.save',
-          `Upserts the project, records worktree ownership, deletes and reinserts all worktree rows of the project.`,
-          repo('inventory-repository.ts'),
-          60,
+          'WorktreePresenceRepository.observe',
+          `A listing that succeeded is the only thing allowed to say a worktree is missing; that starts the thirty-day clock.`,
+          repo('worktree-presence-repository.ts'),
+          44,
         ),
       ],
       runner: 'operations',
-      gitCommands: [
-        ...LIST_WORKTREES_GIT.map((command) => `${command} (per project)`),
-        '(the same sequence again from the next worktree path if the first is unavailable)',
+      gitCommands: ['worktree list --porcelain -z (per project)'],
+      tables: [
+        { name: 'environment', access: 'read' },
+        { name: 'projects', access: 'read' },
+        { name: 'projects', access: 'write' },
+        { name: 'worktree_presence', access: 'read' },
+        { name: 'worktree_presence', access: 'write' },
       ],
-      tables: INVENTORY_WRITE,
-      cost: `Per project: 2 + 2W Git processes, serial across projects, plus one write transaction per project. Runs on every browser window focus.`,
+      cost: 'One Git process per project, plus one stat per worktree. Nothing per worktree from Git.',
     },
     {
       id: 'inventory.register',
@@ -694,15 +636,15 @@ const inventory: Area = {
         ),
         s(
           'use-case',
-          'RefreshProjects.execute (overlapping only)',
-          `Refreshes only old projects whose recorded paths overlap this repository.`,
+          'RegisterProject.execute (overlapping only)',
+          `Re-lists only the projects that claim one of this repository's checkout paths, so a stale claim cannot block the registration.`,
           caseFile('register-project.ts'),
-          37,
+          31,
         ),
         s(
           'repository',
           'InventoryRepository.save',
-          `Reconciles with any project of the same identity and saves.`,
+          `Keeps the id and name of any project with the same repository identity, and saves the project alone: its worktrees come from the listing in the same reply.`,
           repo('inventory-repository.ts'),
           60,
         ),
@@ -710,10 +652,10 @@ const inventory: Area = {
       runner: 'operations',
       gitCommands: [
         ...LIST_WORKTREES_GIT.map((command) => `${command} (new repository)`),
-        'listWorktrees (2 + 2W) for each overlapping old project',
+        'listWorktrees (2) for each overlapping old project',
       ],
       tables: INVENTORY_WRITE,
-      cost: '2 + 2W for the new repository, plus 2 + 2W per overlapping project.',
+      cost: 'Two Git processes for the new repository, plus two per overlapping project, whatever their worktree counts.',
     },
     {
       id: 'inventory.discover',
@@ -776,7 +718,7 @@ const inventory: Area = {
         ),
       ],
       runner: 'discovery',
-      gitCommands: ['listWorktrees (2 + 2W) per folder with a .git marker'],
+      gitCommands: ['listWorktrees (2) per folder with a .git marker'],
       tables: INVENTORY_READ,
       cost: 'Bounded: at most 500 folders, depth 3, 50 repositories; one listWorktrees per repository found.',
     },
@@ -835,7 +777,7 @@ const inventory: Area = {
       ],
       runner: 'browsing',
       gitCommands: [
-        'listWorktrees (2 + 2W), only when the folder has a .git marker',
+        'listWorktrees (2), only when the folder has a .git marker',
       ],
       tables: [],
       cost: 'One opendir per request; Git only for repository folders.',
@@ -1026,14 +968,13 @@ const inventory: Area = {
   ],
   observations: [
     {
-      kind: 'performance',
-      title: 'Every window focus rescans all projects with Git',
-      detail: `The global Query default refetchOnWindowFocus 'always' plus a queryFn that always posts refresh means each alt-tab back to the browser runs 2 + 2W Git processes per project, serially on the operations queue, and rewrites every project's worktree rows. Whatever the user clicks next waits behind it.`,
+      kind: 'good',
+      title: 'A window focus costs one Git process per project',
+      detail: `refetchOnWindowFocus 'always' still means each alt-tab lists again, but listing is one \`git worktree list\` per project and a stat per worktree — no per-worktree Git, and no rows rewritten, because no table copies Git's list.`,
       sources: [
         at(web('query/client.ts'), 12),
-        at(web('query/inventory.ts'), 66),
-        at(caseFile('refresh-projects.ts'), 45),
-        at(repo('inventory-repository.ts'), 83),
+        at(web('query/inventory.ts'), 64),
+        at('apps/server/src/lifecycle/worktree-directory.ts', 80),
       ],
       confidence: 'verified',
     },
@@ -1063,10 +1004,10 @@ const inventory: Area = {
     },
     {
       kind: 'risk',
-      title: 'One hanging repository fails the whole refresh',
-      detail: `rediscover swallows only repository-unavailable errors. A Git process killed by the 10 s timeout is not one, so refresh rejects for all projects; projects saved before it stay saved. The same path runs at startup (see lifecycle).`,
+      title: 'One hanging repository still delays the others',
+      detail: `A repository that cannot be read is data: it is reported unavailable and the others are listed. But listing is still sequential and a Git process killed by the 10 s timeout is a fault that reaches the caller, so one hung repository can still hold up the request. Parallel listing with per-project timeouts is step 4b.`,
       sources: [
-        at(caseFile('refresh-projects.ts'), 29),
+        at('apps/server/src/lifecycle/worktree-directory.ts', 118),
         at(git('errors/is-repository-unavailable.ts'), 13),
         at(git('run-git.ts'), 20),
       ],
@@ -1088,14 +1029,14 @@ const inventory: Area = {
     {
       kind: 'correctness',
       title: 'Project name can be the wrong folder',
-      detail: `A new project is named basename(dirname(commonDirectory)). That is the checkout folder only when the Git directory is checkout/.git; with a separate git dir the name is whatever folder contains the Git directory.`,
-      sources: [at(caseFile('reconciliation/reconcile-project.ts'), 12)],
+      detail: `A new project is named basename(dirname(commonDirectory)). That is the checkout folder only when the Git directory is checkout/.git; with a separate git dir the name is whatever folder contains the Git directory. Naming from the origin remote is step 4b.`,
+      sources: [at(caseFile('register-project.ts'), 51)],
       confidence: 'likely',
     },
     {
       kind: 'good',
       title: 'Registration and discovery are scoped',
-      detail: `Registering refreshes only projects whose paths overlap the new repository; discovery is bounded (500 folders, depth 3, 50 repos), runs on its own queue and cancels when the client leaves.`,
+      detail: `Registering re-lists only projects whose paths overlap the new repository; discovery is bounded (500 folders, depth 3, 50 repos), runs on its own queue and cancels when the client leaves.`,
       sources: [
         at(caseFile('register-project.ts'), 29),
         at(caseFile('find-projects.ts'), 81),
@@ -1335,7 +1276,7 @@ const changes: Area = {
       runner: 'operations',
       gitCommands: EVIDENCE_GIT,
       tables: INVENTORY_READ,
-      cost: `Hit: 13 processes plus one lstat per non-staged path. Miss: about 34 + N processes for N up to 64 changes (8 more per extra group, 2 + 2W more with untracked files), plus reading every untracked file. The response carries every patch and untracked file text, up to 16 MiB.`,
+      cost: `Hit: 13 processes plus one lstat per non-staged path. Miss: about 34 + N processes for N up to 64 changes (8 more per extra group, 2 more with untracked files), plus reading every untracked file. The response carries every patch and untracked file text, up to 16 MiB.`,
     },
     {
       id: 'changes.reviewed-list',
@@ -2874,7 +2815,7 @@ const files: Area = {
       runner: 'operations',
       gitCommands: readableGit('before'),
       tables: INVENTORY_READ,
-      cost: '2 + 2W Git processes, then the worktree-wide refetch fan-out on the client.',
+      cost: 'Two Git processes, then the worktree-wide refetch fan-out on the client.',
     },
     {
       id: 'files.preferences-list',
@@ -4661,16 +4602,16 @@ const lifecycle: Area = {
           126,
         ),
         s(
-          'use-case',
-          'RefreshProjects.execute',
-          `Rescans every project with Git on the operations queue before returning.`,
+          'application',
+          'listProjects',
+          `Lists every project once on the inventory lane so the directory can resolve worktree IDs; failures are recorded, not raised, and callers wait for it through ready().`,
           APP,
-          220,
+          352,
         ),
       ],
       runner: 'operations',
       gitCommands: [
-        'listWorktrees per project: rev-parse --git-common-dir; worktree list; 2 rev-parse per worktree',
+        'listWorktrees per project: rev-parse --git-common-dir; worktree list',
       ],
       tables: [
         { name: '__drizzle_migrations', access: 'read' },
@@ -4680,7 +4621,7 @@ const lifecycle: Area = {
         { name: 'git_action_receipts', access: 'write' },
         ...INVENTORY_WRITE,
       ],
-      cost: 'Grows with P x (2 + 2W) serial Git processes and with the size of git_action_receipts (recover reads all of it). The refresh must finish within the 30 s operation deadline.',
+      cost: 'Grows with P serial Git processes plus a stat per worktree, and with the size of git_action_receipts (recover reads all of it). The listing must finish within the 30 s operation deadline.',
     },
     {
       id: 'lifecycle.data-directory',
@@ -4820,29 +4761,36 @@ const lifecycle: Area = {
       cost: 'One transaction over every stored receipt.',
     },
     {
-      id: 'lifecycle.reconcile',
-      title: 'Reconcile discovered worktrees with stored identities',
+      id: 'lifecycle.collect-absent',
+      title: 'Forget worktrees that stayed gone',
       webTriggers: [],
       steps: [
         s(
-          'use-case',
-          'reconcileProject',
-          `Keeps project ID and name; matches worktrees by metadata identity, or by path when Git could not inspect them; new UUIDs otherwise.`,
-          caseFile('reconciliation/reconcile-project.ts'),
-          6,
+          'application',
+          'collection timer',
+          `Runs hourly, unref'd, and swallows its own failures: housekeeping must not take the server with it.`,
+          APP,
+          237,
         ),
         s(
-          'repository',
-          'InventoryRepository.save',
-          `Records ownership in project_worktrees and replaces worktree rows.`,
-          repo('inventory-repository.ts'),
-          60,
+          'use-case',
+          'CollectAbsentWorktrees.execute',
+          `Deletes review data for IDs whose missing_since is older than 30 days, and the presence row last, so an interrupted pass repeats rather than orphans.`,
+          caseFile('collect-absent-worktrees.ts'),
+          20,
         ),
       ],
-      runner: 'operations',
+      runner: 'none',
       gitCommands: [],
-      tables: INVENTORY_WRITE,
-      cost: 'In memory, W x W matching per project; called by refresh and register.',
+      tables: [
+        { name: 'worktree_presence', access: 'read' },
+        { name: 'worktree_presence', access: 'write' },
+        { name: 'reviewed_files', access: 'write' },
+        { name: 'comment_threads', access: 'write' },
+        { name: 'artifacts', access: 'write' },
+        { name: 'review_layer_sets', access: 'write' },
+      ],
+      cost: 'One transaction per expired worktree; nothing runs while every worktree is present.',
     },
     {
       id: 'lifecycle.shutdown',
@@ -4990,20 +4938,20 @@ const lifecycle: Area = {
     },
     {
       kind: 'risk',
-      title: 'One slow repository can stop the server from starting',
-      detail: `Startup awaits a full refresh under the 30 s deadline. A Git timeout is not treated as unavailable, so a hung network mount rejects the refresh, and openApplication closes everything and fails.`,
+      title: 'One slow repository can still stop the server from starting',
+      detail: `Startup awaits one listing of every project under the 30 s deadline. An unreadable repository is now data — it is recorded unavailable and the listing succeeds — but a Git process killed by the timeout is still a fault, so a hung network mount fails ready() and openApplication closes everything. Per-project timeouts are step 4b.`,
       sources: [
-        at(APP, 220),
-        at(caseFile('refresh-projects.ts'), 29),
+        at(APP, 352),
+        at('apps/server/src/lifecycle/worktree-directory.ts', 118),
         at(git('errors/is-repository-unavailable.ts'), 13),
-        at(APP, 563),
+        at(git('run-git.ts'), 20),
       ],
       confidence: 'verified',
     },
     {
       kind: 'complexity',
       title: 'One Git runner, guards once per request',
-      detail: `executeCommand, executeInspection, executeHistoryCommand and GitActionProcess each scrub the environment and map errors differently. Checkout identity is checked by verifyCheckout (2 processes), by listWorktrees (2 + 2W) and by inspectHistoryCheckout (4, including git --version): the same question at three prices.`,
+      detail: `executeCommand, executeInspection, executeHistoryCommand and GitActionProcess each scrub the environment and map errors differently. Checkout identity is checked by verifyCheckout (2 processes), by listWorktrees (2) and by inspectHistoryCheckout (4, including git --version): the same question at three prices.`,
       sources: [
         at(git('run-git.ts'), 8),
         at(git('run-git.ts'), 9),

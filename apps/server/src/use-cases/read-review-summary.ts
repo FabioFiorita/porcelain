@@ -22,9 +22,10 @@ export class ReadReviewSummary {
   }
   async execute(worktreeId: string, session: GitSession, signal: AbortSignal) {
     const marks = new Map(
-      this.reviewed
-        .execute(worktreeId)
-        .marks.map((mark) => [mark.path, mark.fingerprint]),
+      (await this.reviewed.execute(worktreeId, signal)).marks.map((mark) => [
+        mark.path,
+        mark.fingerprint,
+      ]),
     );
     let pendingFiles: number;
     if (marks.size === 0) {
@@ -47,9 +48,9 @@ export class ReadReviewSummary {
     return {
       worktreeId,
       pendingFiles,
-      openThreads: this.comments
-        .list(worktreeId)
-        .filter((thread) => !thread.resolved).length,
+      openThreads: (await this.comments.list(worktreeId, signal)).filter(
+        (thread) => !thread.resolved,
+      ).length,
     };
   }
 }

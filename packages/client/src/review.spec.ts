@@ -5,7 +5,7 @@ import { createReviewClient } from './review.ts';
 const scope = {
   signal: new AbortController().signal,
   projectId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
-  worktreeId: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
+  worktreeId: '801a86281cd6456281a29c05fba76b4a',
 };
 describe('review transport', () => {
   it('encodes literal file paths and validates text without treating it as HTML', async () => {

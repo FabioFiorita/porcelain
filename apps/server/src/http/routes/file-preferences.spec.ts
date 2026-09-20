@@ -68,8 +68,8 @@ it('persists independent file and folder intent through retry, refresh, unavaila
     expect(
       (
         await server.inject({
-          method: 'POST',
-          url: '/api/inventory/refresh',
+          method: 'GET',
+          url: '/api/inventory',
           headers,
         })
       ).statusCode,
@@ -94,8 +94,8 @@ it('persists independent file and folder intent through retry, refresh, unavaila
     expect(
       (
         await server.inject({
-          method: 'POST',
-          url: '/api/inventory/refresh',
+          method: 'GET',
+          url: '/api/inventory',
           headers,
         })
       ).statusCode,

@@ -174,7 +174,9 @@ describe('Files HTTP', () => {
         });
         expect(response.headers['cache-control']).toBe('no-store');
       }
-      const id = 'ccfb8c0d-4ba5-43e3-bca5-8b76000eec65';
+      // Well formed but unknown: a derived id, not one of the UUIDs this
+      // replaced, so the request reaches the lookup rather than validation.
+      const id = 'ccfb8c0d4ba543e3bca58b76000eec65';
       for (const query of [
         'path=%2e%2e%2fprivate',
         'path=%2Fprivate',
@@ -254,8 +256,8 @@ describe('Files HTTP', () => {
       ).toBe('REPOSITORY_UNAVAILABLE');
       await rm(path, { recursive: true });
       await server.inject({
-        method: 'POST',
-        url: '/api/inventory/refresh',
+        method: 'GET',
+        url: '/api/inventory',
         headers,
       });
       expect(
@@ -350,8 +352,8 @@ describe('Files HTTP', () => {
       await writeFile(join(path, 'file'), 'main');
       await writeFile(join(linked, 'file'), 'linked');
       const refresh = await server.inject({
-        method: 'POST',
-        url: '/api/inventory/refresh',
+        method: 'GET',
+        url: '/api/inventory',
         headers,
       });
       const project = projectResponseSchema.parse(refresh.json().projects[0]);

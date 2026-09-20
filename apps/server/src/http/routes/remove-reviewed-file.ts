@@ -26,6 +26,7 @@ export function removeReviewedFile(
       options.application.removeReviewedFile(
         request.params.worktreeId,
         request.query.path,
+        request.disconnected,
       ),
   );
 }

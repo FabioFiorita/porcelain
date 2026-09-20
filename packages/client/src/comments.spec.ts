@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { createCommentsClient } from './comments.ts';
 
 const request = {
-  worktreeId: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
+  worktreeId: '801a86281cd6456281a29c05fba76b4a',
   signal: new AbortController().signal,
 };
 it('posts a literal file anchor and validates the returned discussion', async () => {

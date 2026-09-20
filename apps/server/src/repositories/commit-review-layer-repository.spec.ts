@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
+import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import { CommitReviewLayerConflictError } from '../use-cases/errors/commit-review-layer-conflict-error.ts';
 import { StaleReviewLayerSourceError } from '../use-cases/errors/stale-review-layer-source-error.ts';
 import { WorktreeNotFoundError } from '../use-cases/errors/worktree-not-found-error.ts';
@@ -27,7 +28,7 @@ it('rejects source changes across connections, preserves immutable snapshots and
       available: true,
       worktrees: [
         {
-          id: randomUUID(),
+          id: randomUUID().replaceAll('-', ''),
           path: `/${name}`,
           metadataIdentity: name,
           main: true,
@@ -49,7 +50,23 @@ it('rejects source changes across connections, preserves immutable snapshots and
       },
     ];
     for (const owner of projects) {
-      inventory.save(owner);
+      inventory.save({
+        id: owner.id,
+        name: owner.name,
+        commonDirectory: owner.commonDirectory,
+        repositoryIdentity: owner.repositoryIdentity,
+        available: owner.available,
+      });
+      // Publishing layers is a review-data write, which records the worktree's
+      // presence — that is what ties it to its project now.
+      first.db
+        .insert(worktreePresence)
+        .values({
+          worktreeId: owner.worktrees[0]?.id ?? '',
+          projectId: owner.id,
+          missingSince: null,
+        })
+        .run();
       layers.replace(owner.worktrees[0]?.id ?? '', 0, ordered);
     }
     const a = new CommitReviewLayerRepository(first.db);
@@ -80,7 +97,7 @@ it('rejects source changes across connections, preserves immutable snapshots and
       sourceWorktreeId: otherSource.id,
     });
     layers.replace(source.id, 2, []);
-    inventory.save({ ...project, worktrees: [], available: false });
+    inventory.save({ ...project, available: false });
     expect(b.read(project.id, snapshot.commitOid)).toEqual(saved);
     expect(b.create(current)).toEqual(saved);
     expect(new ProjectRemovalRepository(first.db).remove(project.id)).toEqual({

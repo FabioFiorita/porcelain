@@ -31,8 +31,8 @@ it('keeps the browser on its paired device cookie across restart, and lets it di
     expect(
       (
         await server.inject({
-          method: 'POST',
-          url: '/api/inventory/refresh',
+          method: 'GET',
+          url: '/api/inventory',
           headers: { cookie, 'x-porcelain-browser': '1' },
         })
       ).statusCode,

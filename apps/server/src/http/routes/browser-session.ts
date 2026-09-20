@@ -21,8 +21,10 @@ export async function browserSessionRoutes(
         response: { ...errorResponses, 200: inventoryResponseSchema },
       },
     },
-    async () => {
-      return toInventoryResponse(options.application.inventory());
+    async (request) => {
+      return toInventoryResponse(
+        (await options.application.inventory(request.disconnected)).inventory,
+      );
     },
   );
   server.delete('/session', async (request, reply) => {

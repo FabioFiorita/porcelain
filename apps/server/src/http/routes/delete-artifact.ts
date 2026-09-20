@@ -24,6 +24,7 @@ export function deleteArtifact(
       options.application.deleteArtifact(
         request.params.worktreeId,
         request.params.artifactId,
+        request.disconnected,
       ),
   );
 }

@@ -110,7 +110,7 @@ describe('Project removal HTTP workflow', () => {
       }
       // External worktree removal must not make its retained data escape project deletion.
       git(path, ['worktree', 'remove', linked]);
-      await request('/api/inventory/refresh', 'POST');
+      await request('/api/inventory');
       expect(
         await request(`/api/projects/${project.id}/file-preferences`),
       ).toEqual({
@@ -154,7 +154,8 @@ describe('Project removal HTTP workflow', () => {
           'review_layer_sets',
           'comment_threads',
           'artifacts',
-          'project_worktrees',
+          // Presence is what ties review data to a project now.
+          'worktree_presence',
         ]) {
           expect(db.prepare(`SELECT worktree_id FROM ${table}`).all()).toEqual([
             { worktree_id: other.worktrees[0]?.id },
@@ -237,6 +238,65 @@ describe('Project removal HTTP workflow', () => {
       } finally {
         await restarted.close();
       }
+    } finally {
+      await server.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("answers not found for a removed project's worktree, whose checkout is still on disk", async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-remove-stale-'));
+    const server = await createServer({
+      pairingReach,
+      dataDirectory: root,
+      projectHome: root,
+    });
+    const headers = await pairDevice(server, server.application);
+    await server.refreshed();
+    try {
+      const path = join(root, 'repo');
+      execFileSync('git', ['init', '-b', 'main', path]);
+      const project = projectResponseSchema.parse(
+        (
+          await server.inject({
+            method: 'POST',
+            url: '/api/projects',
+            headers,
+            payload: { path },
+          })
+        ).json(),
+      );
+      const worktree = project.worktrees[0]?.id;
+      // Removal deletes rows; it does not touch Git, so the checkout and its
+      // administrative directory still answer everything the resolver asks.
+      expect(
+        (
+          await server.inject({
+            method: 'DELETE',
+            url: `/api/projects/${project.id}`,
+            headers,
+          })
+        ).json(),
+      ).toEqual({ deleted: true });
+      const written = await server.inject({
+        method: 'POST',
+        url: `/api/worktrees/${worktree}/comments`,
+        headers,
+        payload: {
+          anchor: { kind: 'file', filePath: 'notes.txt' },
+          body: 'Is anyone there?',
+        },
+      });
+      expect(written.statusCode).toBe(404);
+      expect(
+        (
+          await server.inject({
+            method: 'GET',
+            url: `/api/worktrees/${worktree}/comments`,
+            headers,
+          })
+        ).statusCode,
+      ).toBe(404);
     } finally {
       await server.close();
       await rm(root, { recursive: true, force: true });

@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
 import { ReviewLayerConflictError } from './errors/review-layer-conflict-error.ts';
-import { UnknownWorktreeError } from './errors/unknown-worktree-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 import { ReviewLayerRepository } from './review-layer-repository.ts';
 
@@ -22,16 +21,6 @@ it('protects revisions across SQLite connections and retains metadata after inve
       commonDirectory: '/fixture/.git',
       repositoryIdentity: 'fixture',
       available: true,
-      worktrees: [
-        {
-          id,
-          path: '/fixture',
-          metadataIdentity: 'worktree',
-          main: true,
-          branch: null,
-          available: true,
-        },
-      ],
     };
     inventory.save(project);
     const a = new ReviewLayerRepository(first.db);
@@ -50,9 +39,15 @@ it('protects revisions across SQLite connections and retains metadata after inve
     expect(b.read(id)).toEqual(saved);
     inventory.save(project);
     expect(b.read(id)).toEqual(saved);
-    inventory.save({ ...project, worktrees: [] });
+    inventory.save({ ...project });
     expect(b.read(id)).toEqual(saved);
-    expect(() => b.replace(randomUUID(), 0, [])).toThrow(UnknownWorktreeError);
+    // Whether a worktree exists is the resolver's answer, not this
+    // repository's: an id it has never seen simply starts at revision zero,
+    // and a stale expected revision is still a conflict.
+    expect(b.replace('a'.repeat(32), 0, [])).toMatchObject({ revision: 1 });
+    expect(() => b.replace('a'.repeat(32), 0, [])).toThrow(
+      ReviewLayerConflictError,
+    );
   } finally {
     second.close();
     first.close();

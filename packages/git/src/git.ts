@@ -8,7 +8,7 @@ export class Git implements WorktreeReader {
     this.checkout = checkout;
   }
 
-  listWorktrees(signal?: AbortSignal) {
-    return listWorktrees(this.checkout, signal);
+  listWorktrees(signal?: AbortSignal, known?: { commonDirectory: string }) {
+    return listWorktrees(this.checkout, signal, known);
   }
 }

@@ -5,12 +5,10 @@ const agent = { kind: 'agent' } as const;
 
 import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type { CommentThread } from '../models/comment-thread.ts';
-import type { Inventory } from '../models/inventory.ts';
 import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { CommentThreads } from './comment-threads.ts';
-import { CommentTargetNotFoundError } from './errors/comment-target-not-found-error.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 
 class MemoryComments implements CommentStore {
   readonly rows = new Map<string, CommentThread>();
@@ -38,45 +36,32 @@ class MemoryComments implements CommentStore {
     this.rows.set(thread.id, structuredClone(thread));
   }
 }
-class MemoryInventory implements InventoryStore {
-  readonly state: Inventory = {
-    environmentId: 'environment',
-    projects: [
+/**
+ * The worktree these comments belong to, unreachable on purpose: a review
+ * conversation must survive an unplugged disk, so comments ask whether the
+ * worktree is *known*, not whether its checkout can be read.
+ */
+const worktrees = () =>
+  fakeWorktrees(
+    [
       {
-        id: 'project',
-        name: 'project',
-        commonDirectory: '/git',
-        repositoryIdentity: 'repository',
+        id: 'worktree',
+        path: '/checkout',
+        metadataIdentity: 'identity',
+        main: true,
         available: false,
-        worktrees: [
-          {
-            id: 'worktree',
-            path: '/checkout',
-            metadataIdentity: null,
-            main: true,
-            branch: null,
-            available: false,
-          },
-        ],
       },
     ],
-  };
-  read() {
-    return this.state;
-  }
-  save() {
-    throw new Error('Comments must not modify inventory');
-  }
-}
-it('preserves literal anchors and reply order, isolates scope, and sets resolution idempotently', () => {
+    { projectAvailable: false },
+  );
+it('preserves literal anchors and reply order, isolates scope, and sets resolution idempotently', async () => {
   const store = new MemoryComments();
-  const inventory = new MemoryInventory();
   let sequence = 0;
-  const comments = new CommentThreads(store, inventory, () =>
+  const comments = new CommentThreads(store, worktrees(), () =>
     String(++sequence),
   );
   expect(
-    comments.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer),
+    await comments.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer),
   ).toEqual([]);
   const anchor = {
     kind: 'codeRange' as const,
@@ -87,7 +72,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     contentFingerprint: 'opaque',
     side: 'deletions' as const,
   };
-  const [thread] = comments.execute(
+  const [thread] = await comments.execute(
     {
       kind: 'create',
       worktreeId: 'worktree',
@@ -99,7 +84,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
   if (!thread) throw new Error('Expected thread');
   const originalMessageId = thread.messages[0]?.id;
   anchor.startLine = 99;
-  comments.execute(
+  await comments.execute(
     {
       kind: 'reply',
       worktreeId: 'worktree',
@@ -108,7 +93,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     },
     reviewer,
   );
-  const resolved = comments.execute(
+  const resolved = await comments.execute(
     {
       kind: 'resolve',
       worktreeId: 'worktree',
@@ -118,7 +103,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     reviewer,
   );
   expect(
-    comments.execute(
+    await comments.execute(
       {
         kind: 'resolve',
         worktreeId: 'worktree',
@@ -128,7 +113,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       reviewer,
     ),
   ).toEqual(resolved);
-  comments.execute(
+  await comments.execute(
     {
       kind: 'reply',
       worktreeId: 'worktree',
@@ -137,8 +122,7 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     },
     agent,
   );
-  inventory.state.projects = [];
-  const [retained] = comments.execute(
+  const [retained] = await comments.execute(
     { kind: 'list', worktreeId: 'worktree' },
     reviewer,
   );
@@ -157,20 +141,25 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
   });
   expect(new Set(retained?.messages.map((message) => message.id)).size).toBe(3);
   expect(
-    comments.execute(
-      {
-        kind: 'resolve',
-        worktreeId: 'worktree',
-        threadId: thread.id,
-        resolved: false,
-      },
-      reviewer,
+    (
+      await comments.execute(
+        {
+          kind: 'resolve',
+          worktreeId: 'worktree',
+          threadId: thread.id,
+          resolved: false,
+        },
+        reviewer,
+      )
     )[0]?.resolved,
   ).toBe(false);
-  expect(() =>
+  await expect(
     comments.execute({ kind: 'list', worktreeId: 'other' }, reviewer),
-  ).toThrow(WorktreeNotFoundError);
-  expect(() =>
+  ).rejects.toBeInstanceOf(WorktreeNotFoundError);
+  // A reply aimed at a worktree that does not exist is refused for that
+  // reason, rather than looking like a missing thread: every surface asks the
+  // same question about a worktree and gets the same answer. Both are 404.
+  await expect(
     comments.execute(
       {
         kind: 'reply',
@@ -180,9 +169,15 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       },
       reviewer,
     ),
-  ).toThrow(CommentTargetNotFoundError);
-  expect(() =>
-    comments.execute(
+  ).rejects.toBeInstanceOf(WorktreeNotFoundError);
+  // Once Git stops listing the worktree, nothing may be written to it and
+  // nothing may be read from it — but the threads are not deleted here. They
+  // wait for the thirty-day rule, which is the only thing allowed to remove
+  // them, and only after a listing that worked said the worktree was gone.
+  const gone = new CommentThreads(store, fakeWorktrees([]), () => 'unused');
+  const stored = structuredClone(store.rows);
+  await expect(
+    gone.execute(
       {
         kind: 'create',
         worktreeId: 'worktree',
@@ -191,31 +186,35 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
       },
       reviewer,
     ),
-  ).toThrow(CommentTargetNotFoundError);
+  ).rejects.toBeInstanceOf(WorktreeNotFoundError);
+  await expect(
+    gone.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer),
+  ).rejects.toBeInstanceOf(WorktreeNotFoundError);
+  expect(store.rows).toEqual(stored);
 });
 
-it('bounds thread and message additions without blocking resolution at capacity or reading all threads', () => {
+it('bounds thread and message additions without blocking resolution at capacity or reading all threads', async () => {
   const store = new MemoryComments();
-  const inventory = new MemoryInventory();
   let id = 0;
-  const comments = new CommentThreads(store, inventory, () => String(++id));
+  const comments = new CommentThreads(store, worktrees(), () => String(++id));
   const create = {
     kind: 'create' as const,
     worktreeId: 'worktree',
     anchor: { kind: 'file' as const, filePath: 'a' },
     body: 'text',
   };
-  const [first] = comments.execute(create, reviewer);
+  const [first] = await comments.execute(create, reviewer);
   if (!first) throw new Error('Missing thread');
   store.list = () => {
     throw new Error('Mutations must not load all threads');
   };
-  for (let count = 1; count < 100; count++) comments.execute(create, reviewer);
-  expect(() => comments.execute(create, reviewer)).toThrow(
+  for (let count = 1; count < 100; count++)
+    await comments.execute(create, reviewer);
+  await expect(comments.execute(create, reviewer)).rejects.toThrow(
     'Comment capacity exceeded',
   );
   for (let count = 1; count < 100; count++)
-    comments.execute(
+    await comments.execute(
       {
         kind: 'reply',
         worktreeId: 'worktree',
@@ -225,7 +224,7 @@ it('bounds thread and message additions without blocking resolution at capacity 
       reviewer,
     );
   const before = structuredClone(store.rows);
-  expect(() =>
+  await expect(
     comments.execute(
       {
         kind: 'reply',
@@ -235,25 +234,26 @@ it('bounds thread and message additions without blocking resolution at capacity 
       },
       reviewer,
     ),
-  ).toThrow('Comment capacity exceeded');
+  ).rejects.toThrow('Comment capacity exceeded');
   expect(store.rows).toEqual(before);
   for (const resolved of [true, false])
     expect(
-      comments.execute(
-        {
-          kind: 'resolve',
-          worktreeId: 'worktree',
-          threadId: first.id,
-          resolved,
-        },
-        reviewer,
+      (
+        await comments.execute(
+          {
+            kind: 'resolve',
+            worktreeId: 'worktree',
+            threadId: first.id,
+            resolved,
+          },
+          reviewer,
+        )
       )[0]?.resolved,
     ).toBe(resolved);
 });
 
-it('enforces the UTF-8 serialized aggregate budget and allows resolution at exactly one MiB', () => {
+it('enforces the UTF-8 serialized aggregate budget and allows resolution at exactly one MiB', async () => {
   const store = new MemoryComments();
-  const inventory = new MemoryInventory();
   const thread: CommentThread = {
     id: 'thread',
     worktreeId: 'worktree',
@@ -273,10 +273,10 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
     message.body = 'x'.repeat(Math.min(16000, remaining));
   }
   store.save(thread);
-  const comments = new CommentThreads(store, inventory, () => 'new-id');
+  const comments = new CommentThreads(store, worktrees(), () => 'new-id');
   expect(store.usage('worktree').bytes).toBe(1048576);
   expect(thread.messages.length).toBeLessThan(100);
-  expect(() =>
+  await expect(
     comments.execute(
       {
         kind: 'reply',
@@ -286,8 +286,8 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       },
       reviewer,
     ),
-  ).toThrow('Comment capacity exceeded');
-  expect(() =>
+  ).rejects.toThrow('Comment capacity exceeded');
+  await expect(
     comments.execute(
       {
         kind: 'create',
@@ -297,10 +297,10 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       },
       reviewer,
     ),
-  ).toThrow('Comment capacity exceeded');
+  ).rejects.toThrow('Comment capacity exceeded');
   expect(store.find('worktree', thread.id)).toEqual(thread);
   for (const resolved of [true, false])
-    comments.execute(
+    await comments.execute(
       {
         kind: 'resolve',
         worktreeId: 'worktree',
@@ -322,13 +322,9 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
   ).toBe(2);
 });
 
-it('preserves comparison targets through storage and rejects mutable commit anchors', () => {
+it('preserves comparison targets through storage and rejects mutable commit anchors', async () => {
   const store = new MemoryComments();
-  const comments = new CommentThreads(
-    store,
-    new MemoryInventory(),
-    () => 'new-id',
-  );
+  const comments = new CommentThreads(store, worktrees(), () => 'new-id');
   const anchor = {
     kind: 'codeRange' as const,
     filePath: 'a.ts',
@@ -338,7 +334,7 @@ it('preserves comparison targets through storage and rejects mutable commit anch
     comparison: { kind: 'commit' as const, parent: 2 },
     revision: 'a'.repeat(40),
   };
-  comments.execute(
+  await comments.execute(
     {
       kind: 'create',
       worktreeId: 'worktree',
@@ -348,10 +344,11 @@ it('preserves comparison targets through storage and rejects mutable commit anch
     reviewer,
   );
   expect(
-    comments.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer)[0]
-      ?.anchor,
+    (
+      await comments.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer)
+    )[0]?.anchor,
   ).toEqual(anchor);
-  expect(() =>
+  await expect(
     comments.execute(
       {
         kind: 'create',
@@ -361,16 +358,14 @@ it('preserves comparison targets through storage and rejects mutable commit anch
       },
       reviewer,
     ),
-  ).toThrow();
+  ).rejects.toThrow();
   expect(store.list('worktree')).toHaveLength(1);
 });
 
-it('takes authorship from the principal, never from the command', () => {
+it('takes authorship from the principal, never from the command', async () => {
   const store = new MemoryComments();
   let id = 0;
-  const comments = new CommentThreads(store, new MemoryInventory(), () =>
-    String(++id),
-  );
+  const comments = new CommentThreads(store, worktrees(), () => String(++id));
   const create = {
     kind: 'create' as const,
     worktreeId: 'worktree',
@@ -383,10 +378,10 @@ it('takes authorship from the principal, never from the command', () => {
     [{ kind: 'owner' } as const, 'reviewer'],
     [agent, 'agent'],
   ] as const) {
-    const [thread] = comments.execute(create, principal);
+    const [thread] = await comments.execute(create, principal);
     expect(thread?.messages[0]?.author).toBe(author);
     if (!thread) throw new Error('Missing thread');
-    const [replied] = comments.execute(
+    const [replied] = await comments.execute(
       { kind: 'reply', worktreeId: 'worktree', threadId: thread.id, body: 'r' },
       principal,
     );

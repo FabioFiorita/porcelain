@@ -47,7 +47,7 @@ import type {
   RedeemedPairing,
 } from './models/pairing.ts';
 import type { AuthenticatedPrincipal } from './models/principal.ts';
-import type { Project } from './models/project.ts';
+import type { Project, RegisteredProject } from './models/project.ts';
 import type {
   ProjectDiscovery,
   ProjectFolder,
@@ -191,7 +191,17 @@ export interface Application {
     projectId: string,
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
-  inventory(): Inventory;
+  /**
+   * Environment and projects, without touching Git.
+   *
+   * Health and pairing need the environment id on every request; asking Git
+   * for a worktree list to answer that would be absurd.
+   */
+  environment(): { environmentId: string; projects: RegisteredProject[] };
+  /** Projects with the worktrees Git lists for them right now. */
+  inventory(
+    signal?: AbortSignal,
+  ): Promise<{ inventory: Inventory; issues: DiscoveryIssue[] }>;
   discoverProjects(signal?: AbortSignal): Promise<ProjectDiscovery>;
   browseProjectFolders(
     path?: string,
@@ -216,9 +226,6 @@ export interface Application {
     checkout: string,
     signal?: AbortSignal,
   ): Promise<{ project: Project; issues: DiscoveryIssue[] }>;
-  refresh(
-    signal?: AbortSignal,
-  ): Promise<{ inventory: Inventory; issues: DiscoveryIssue[] }>;
   listCommits(
     worktreeId: string,
     request: CommitPageRequest,
@@ -258,11 +265,12 @@ export interface Application {
     worktreeId: string,
     signal?: AbortSignal,
   ): Promise<{ worktreeId: string; pendingFiles: number; openThreads: number }>;
-  reviewLayers(worktreeId: string): ReviewLayers;
+  reviewLayers(worktreeId: string, signal?: AbortSignal): Promise<ReviewLayers>;
   replaceReviewLayers(
     worktreeId: string,
     expectedRevision: number,
     layers: ReviewLayer[],
+    signal?: AbortSignal,
   ): Promise<ReviewLayers>;
   uploadArtifact(
     worktreeId: string,

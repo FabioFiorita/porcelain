@@ -65,11 +65,11 @@ export class FindProjects {
 
   async discover(signal?: AbortSignal): Promise<ProjectDiscovery> {
     const roots = new Set([this.home]);
+    // Registered repositories suggest where to look. The common directory is
+    // inside the repository, so its grandparent is the folder that holds it.
     for (const project of this.inventory.read().projects) {
-      for (const worktree of project.worktrees) {
-        const parent = dirname(worktree.path);
-        if (parent !== parse(parent).root) roots.add(parent);
-      }
+      const parent = dirname(dirname(project.commonDirectory));
+      if (parent !== parse(parent).root) roots.add(parent);
     }
     const queue = [...roots].map((path) => ({ path, depth: 0 }));
     const visited = new Set<string>();

@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { commitReviewLayerSets } from '../db/schema/commit-review-layer-sets.ts';
-import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
+import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import type { CommitReviewLayers } from '../models/commit-review-layers.ts';
 import { CommitReviewLayerConflictError } from '../use-cases/errors/commit-review-layer-conflict-error.ts';
 import { StaleReviewLayerSourceError } from '../use-cases/errors/stale-review-layer-source-error.ts';
@@ -53,13 +53,15 @@ export class CommitReviewLayerRepository implements CommitReviewLayerStore {
             throw new CommitReviewLayerConflictError();
           return existing;
         }
+        // The source worktree has to belong to this project: archiving one
+        // project's review under another's commit would misattribute it.
         const owner = tx
           .select()
-          .from(projectWorktrees)
+          .from(worktreePresence)
           .where(
             and(
-              eq(projectWorktrees.projectId, snapshot.projectId),
-              eq(projectWorktrees.worktreeId, snapshot.sourceWorktreeId),
+              eq(worktreePresence.projectId, snapshot.projectId),
+              eq(worktreePresence.worktreeId, snapshot.sourceWorktreeId),
             ),
           )
           .get();

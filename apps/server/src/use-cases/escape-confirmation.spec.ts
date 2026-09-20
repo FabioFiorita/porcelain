@@ -2,6 +2,7 @@ import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import { describe, expect, it } from 'vitest';
 import { CommitDrafts } from './commit-drafts.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import { PrepareGitAction } from './prepare-git-action.ts';
 import { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
 import { SetReviewedFile } from './set-reviewed-file.ts';
@@ -32,23 +33,21 @@ function store() {
     read: () => ({
       environmentId: 'environment',
       projects: [
-        {
-          id: 'project',
-          available: true,
-          repositoryIdentity: 'repository',
-          worktrees: [
-            {
-              id: 'worktree',
-              path: '/fixture',
-              available: true,
-              metadataIdentity: 'metadata',
-            },
-          ],
-        },
+        { id: 'project', available: true, repositoryIdentity: 'repository' },
       ],
     }),
   } as never;
 }
+
+const worktrees = () =>
+  fakeWorktrees([
+    {
+      id: 'worktree',
+      path: '/fixture',
+      metadataIdentity: 'metadata',
+      main: true,
+    },
+  ]);
 
 /**
  * A checkout swapped mid-request: the first `passes` verifications succeed and
@@ -66,7 +65,8 @@ function swappedAfterFirstRead(passes = 1) {
 function evidenceReader() {
   return new ReadWorktreeEvidence(
     store(),
-    (checkout) => ({
+    worktrees(),
+    (checkout: { verify: (signal?: AbortSignal) => Promise<void> }) => ({
       // The real reader verifies before its first read; the fake must too.
       readStatus: async (signal?: AbortSignal) => {
         await checkout.verify(signal);
@@ -75,7 +75,6 @@ function evidenceReader() {
       readDiff: async () => ({ kind: 'text' as const, patch: '@@' }),
       readDiffs: async () => [{ kind: 'text' as const, patch: '@@' }],
     }),
-    () => ({ listWorktrees: async () => ({ repositories: [] }) }) as never,
     { readTextFile: async () => ({ text: '' }) } as never,
     (async () => new Map()) as never,
   );
@@ -110,9 +109,12 @@ describe('escape-point confirmation', () => {
       hasWorktree: () => true,
       set: (_worktree: string, path: string) => written.push(path),
     } as never;
-    const operation = new SetReviewedFile(reviewed, evidenceReader(), {
-      execute: async () => ({ marks: [] }),
-    } as never);
+    const operation = new SetReviewedFile(
+      reviewed,
+      worktrees(),
+      evidenceReader(),
+      { execute: async () => ({ marks: [] }) } as never,
+    );
     await expect(
       operation.execute(
         'worktree',
@@ -133,8 +135,9 @@ describe('escape-point confirmation', () => {
     } as never;
     const operation = new PrepareGitAction(
       store(),
+      worktrees(),
       actions,
-      (checkout) => ({
+      (checkout: { verify: (signal?: AbortSignal) => Promise<void> }) => ({
         inspect: async (_intent, signal) => {
           await checkout.verify(signal);
           return {
@@ -174,8 +177,9 @@ describe('escape-point confirmation', () => {
     let generated = 0;
     const operation = new CommitDrafts(
       store(),
-      (checkout) => ({
-        inspect: async (_intent, signal) => {
+      worktrees(),
+      (checkout: { verify: (signal?: AbortSignal) => Promise<void> }) => ({
+        inspect: async (_intent: unknown, signal?: AbortSignal) => {
           await checkout.verify(signal);
           return {
             fingerprint: 'observed',

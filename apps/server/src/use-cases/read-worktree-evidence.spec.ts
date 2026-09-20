@@ -6,13 +6,13 @@ import type {
   GitStatusObservation,
 } from '@porcelain/git/dtos/git-status';
 import { RequestGitSession } from '@porcelain/git/git-session';
-import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { expect, it } from 'vitest';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
 import type { TextContent } from '../models/file-content.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
+import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import {
   MAX_EVIDENCE_CONTENT_BYTES,
   ReadWorktreeEvidence,
@@ -49,6 +49,16 @@ const conflict: GitChange = {
   conflict: 'UU',
 };
 
+const worktrees = () =>
+  fakeWorktrees([
+    {
+      id: 'worktree',
+      path: '/fixture',
+      metadataIdentity: 'identity',
+      main: true,
+    },
+  ]);
+
 function store(): InventoryStore {
   return {
     read: () => ({
@@ -60,16 +70,6 @@ function store(): InventoryStore {
           commonDirectory: '/fixture/.git',
           repositoryIdentity: 'repository',
           available: true,
-          worktrees: [
-            {
-              id: 'worktree',
-              path: '/fixture',
-              metadataIdentity: 'identity',
-              main: true,
-              branch: null,
-              available: true,
-            },
-          ],
         },
       ],
     }),
@@ -110,25 +110,6 @@ function inspection(
 
 const stamps = async () => '';
 
-const readableGit: GitFactory = () => ({
-  listWorktrees: async () => ({
-    repository: {
-      commonDirectory: '/fixture/.git',
-      repositoryIdentity: 'repository',
-      worktrees: [
-        {
-          path: '/fixture',
-          metadataIdentity: 'identity',
-          main: true,
-          branch: null,
-          available: true,
-        },
-      ],
-    },
-    issues: [],
-  }),
-});
-
 it('returns exact staged, unstaged, untracked and omitted evidence grouped by logical path', async () => {
   const observation = status([
     staged,
@@ -150,12 +131,12 @@ it('returns exact staged, unstaged, untracked and omitted evidence grouped by lo
   };
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     inspection(observation, {
       'staged:src/review.ts': { kind: 'text', patch: 'staged patch' },
       'unstaged:src/review.ts': { kind: 'text', patch: 'unstaged patch' },
       'staged:assets/logo.png': { kind: 'binary' },
     }),
-    readableGit,
     files,
     stamps,
   );
@@ -246,8 +227,8 @@ it('does not include a status token in the evidence fingerprint', async () => {
   });
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     reader,
-    readableGit,
     {
       read: async () => {
         throw new Error('not needed');
@@ -263,10 +244,10 @@ it('does not include a status token in the evidence fingerprint', async () => {
   token = 'b'.repeat(64);
   const second = await new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     inspection(status(changes, token), {
       'staged:src/review.ts': { kind: 'text', patch: 'same patch' },
     }),
-    readableGit,
     {
       read: async () => {
         throw new Error('not needed');
@@ -282,8 +263,8 @@ it('localizes unreadable untracked files and rejects a moving worktree', async (
   const observation = status([untracked]);
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     inspection(observation, {}),
-    readableGit,
     {
       read: async () => {
         throw new FileInspectionError('UNSUPPORTED_TEXT');
@@ -316,8 +297,8 @@ it('localizes unreadable untracked files and rejects a moving worktree', async (
   await expect(
     new ReadWorktreeEvidence(
       store(),
+      worktrees(),
       moving,
-      readableGit,
       {
         read: async () => {
           throw new Error('not needed');
@@ -349,11 +330,11 @@ it('bounds aggregate UTF-8 evidence content while retaining affected paths', asy
   const unicodePatch = 'é'.repeat(Math.floor(MAX_EVIDENCE_CONTENT_BYTES * 0.3));
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     inspection(status([first, second]), {
       [`unstaged:${firstPath}`]: { kind: 'text', patch: unicodePatch },
       [`unstaged:${secondPath}`]: { kind: 'text', patch: unicodePatch },
     }),
-    readableGit,
     {
       read: async () => {
         throw new Error('not needed');
@@ -394,8 +375,8 @@ it('bounds concurrent file reads and drains them before reporting a failure', as
   const allStarted = Promise.withResolvers<void>();
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     inspection(status(changes), {}),
-    readableGit,
     {
       read: async (target) => {
         const index = started.length;
@@ -440,6 +421,7 @@ it('reuses evidence until the status or a working file changes', async () => {
   const stamped: string[][] = [];
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     () => ({
       readStatus: async () => status([staged, unstaged], token),
       ...diffReader(async () => {
@@ -447,7 +429,6 @@ it('reuses evidence until the status or a working file changes', async () => {
         return { kind: 'text', patch: `patch ${reads}` };
       }),
     }),
-    readableGit,
     {
       read: async () => {
         throw new Error('not needed');
@@ -505,6 +486,7 @@ it('selects logical paths without reading unrelated changes or dropping comparis
   const reads: string[] = [];
   const operation = new ReadWorktreeEvidence(
     store(),
+    worktrees(),
     () => ({
       readStatus: async () => status(changes),
       ...diffReader(async (change) => {
@@ -514,7 +496,6 @@ it('selects logical paths without reading unrelated changes or dropping comparis
         return { kind: 'text', patch: `${change.scope} patch` };
       }),
     }),
-    readableGit,
     {
       read: async () => {
         throw new Error('Unrelated untracked file read');

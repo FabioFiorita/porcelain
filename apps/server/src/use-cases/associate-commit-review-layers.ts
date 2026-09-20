@@ -9,25 +9,28 @@ import type { ReviewLayerStore } from '../repositories/interfaces/review-layer-s
 import { InvalidCommitReviewLayersError } from './errors/invalid-commit-review-layers-error.ts';
 import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
 import { StaleReviewLayerSourceError } from './errors/stale-review-layer-source-error.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 import {
   retryAssociation,
   selectLayers,
 } from './helpers/commit-review-layer-association.ts';
 import { resolveHistoryCheckout } from './resolve-history-checkout.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
 export class AssociateCommitReviewLayers {
   private readonly inventory: InventoryStore;
+  private readonly worktrees: ResolveWorktree;
   private readonly layers: ReviewLayerStore;
   private readonly snapshots: CommitReviewLayerStore;
   private readonly git: CommitReaderFactory;
   constructor(
     inventory: InventoryStore,
+    worktrees: ResolveWorktree,
     layers: ReviewLayerStore,
     snapshots: CommitReviewLayerStore,
     git: CommitReaderFactory,
   ) {
     this.inventory = inventory;
+    this.worktrees = worktrees;
     this.layers = layers;
     this.snapshots = snapshots;
     this.git = git;
@@ -39,24 +42,27 @@ export class AssociateCommitReviewLayers {
     signal?: AbortSignal,
   ): Promise<CommitReviewLayers> {
     signal?.throwIfAborted();
-    const project = this.inventory
-      .read()
-      .projects.find((entry) => entry.id === projectId);
-    if (!project) throw new ProjectNotFoundError();
+    // The project comes first: associating under a project that is gone is a
+    // different answer from naming a worktree that is not in it.
+    if (!this.inventory.read().projects.some((entry) => entry.id === projectId))
+      throw new ProjectNotFoundError();
+    // An archived snapshot is immutable, so re-associating the same commit is
+    // idempotent and never re-reads the live layers.
     const existing = this.snapshots.read(projectId, commitOid);
     if (existing) return retryAssociation(existing, request);
-    if (
-      !project.worktrees.some(
-        (worktree) => worktree.id === request.sourceWorktreeId,
-      )
-    )
-      throw new WorktreeNotFoundError();
+    // One answer: the source worktree must be in this project.
+    await this.worktrees.inProject(projectId, request.sourceWorktreeId, signal);
     const source = this.layers.read(request.sourceWorktreeId);
     if (source.revision !== request.sourceRevision)
       throw new StaleReviewLayerSourceError();
     const layers = selectLayers(source.layers, request.references);
     const changes = await this.git(
-      resolveHistoryCheckout(this.inventory, request.sourceWorktreeId),
+      await resolveHistoryCheckout(
+        this.worktrees,
+        this.inventory,
+        request.sourceWorktreeId,
+        signal,
+      ),
     ).inspectCommitChanges(
       {
         oid: commitOid,

@@ -94,7 +94,7 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
       (
         await server.inject({
           method: 'GET',
-          url: '/api/worktrees/00000000-0000-4000-8000-000000000000/git/status',
+          url: `/api/worktrees/${'0'.repeat(32)}/git/status`,
           headers,
         })
       ).statusCode,

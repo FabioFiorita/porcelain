@@ -281,8 +281,12 @@ describe('workspace through the inventory port', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
-    // Connecting rescans once because login only returns the stored snapshot.
-    await vi.waitFor(() => expect(screen.store.refreshCount).toBe(1));
+    // Reading the inventory is the rescan now, so the count is whatever the
+    // mount did; what matters is that focusing causes another one.
+    await vi.waitFor(() =>
+      expect(screen.store.refreshCount).toBeGreaterThan(0),
+    );
+    const listedOnMount = screen.store.refreshCount;
     const project = screen.store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     project.name = 'Renamed project';
@@ -290,15 +294,18 @@ describe('workspace through the inventory port', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'Renamed project' }))
       .toBeVisible();
-    expect(screen.store.refreshCount).toBe(2);
+    expect(screen.store.refreshCount).toBeGreaterThan(listedOnMount);
   });
 
   it('retains inventory after a failed focus refresh and recovers on the next focus', async () => {
-    const store = createMockStore('refresh-failed');
+    // Connect first: reading the inventory is the listing, so a store that
+    // failed from the start would never show a workspace to retain.
+    const store = createMockStore();
     const screen = await renderWorkspace(store);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
+    store.refreshFailed = true;
     refocusWindow();
     await vi.waitFor(() =>
       expect(
@@ -806,7 +813,7 @@ describe('worktree review navigation', () => {
         .element(screen.getByRole('status').filter({ hasText: 'succeeded' }))
         .toBeVisible();
       expect(screen.store.actionCount).toBe(1);
-      const data = screen.store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+      const data = screen.store.review['629a86281cd6456281a29c05fba76b4b'];
       expect(
         data?.status.changes.some((change) => change.scope === 'staged'),
       ).toBe(false);
@@ -1013,7 +1020,7 @@ describe('review surfaces', () => {
         }),
       )
       .toBeVisible();
-    const data = screen.store.review['629a8628-1cd6-4562-81a2-9c05fba76b4b'];
+    const data = screen.store.review['629a86281cd6456281a29c05fba76b4b'];
     if (!data) throw new Error('Missing fixture worktree');
     data.status.changes = data.status.changes.filter(
       (change) =>

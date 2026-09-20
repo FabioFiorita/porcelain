@@ -36,6 +36,9 @@ export function listReviewedFiles(
       },
     },
     async (request) =>
-      options.application.listReviewedFiles(request.params.worktreeId),
+      options.application.listReviewedFiles(
+        request.params.worktreeId,
+        request.disconnected,
+      ),
   );
 }

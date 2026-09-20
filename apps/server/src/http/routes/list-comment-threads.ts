@@ -25,6 +25,7 @@ export function listCommentThreads(
       options.application.comments(
         { kind: 'list', ...request.params },
         callerOf(request),
+        request.disconnected,
       ),
   );
 }

@@ -1,16 +1,14 @@
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
-export function assertArtifactScope(
-  inventory: Pick<InventoryStore, 'read'>,
+/**
+ * Artifacts ask the same question as everything else. A worktree whose disk is
+ * out still counts: an agent's handoff should not vanish because a drive was
+ * unplugged, and nothing here reads the checkout.
+ */
+export async function assertArtifactScope(
+  worktrees: ResolveWorktree,
   worktreeId: string,
+  signal?: AbortSignal,
 ) {
-  if (
-    !inventory
-      .read()
-      .projects.some((project) =>
-        project.worktrees.some((worktree) => worktree.id === worktreeId),
-      )
-  )
-    throw new WorktreeNotFoundError();
+  await worktrees.known(worktreeId, signal);
 }

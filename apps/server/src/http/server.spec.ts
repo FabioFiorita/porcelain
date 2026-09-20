@@ -67,7 +67,7 @@ describe('HTTP server', () => {
         // installation's own value, not a constant.
         expect(healthResponseSchema.parse(response.json())).toEqual({
           status: 'ok',
-          environmentId: server.application.inventory().environmentId,
+          environmentId: server.application.environment().environmentId,
         });
         expect(
           (await server.inject({ method: 'GET', url: '/api/inventory' }))
@@ -102,7 +102,7 @@ describe('HTTP server', () => {
         expect(response.status).toBe(200);
         expect(await response.json()).toEqual({
           status: 'ok',
-          environmentId: server.application.inventory().environmentId,
+          environmentId: server.application.environment().environmentId,
         });
       } finally {
         await server.close();
@@ -128,7 +128,7 @@ describe('HTTP server', () => {
         (await server.inject({ method: 'GET', url: '/api/health' })).json(),
       ).toEqual({
         status: 'ok',
-        environmentId: server.application.inventory().environmentId,
+        environmentId: server.application.environment().environmentId,
       });
       expect(
         (await server.inject({ method: 'GET', url: '/api/inventory' }))

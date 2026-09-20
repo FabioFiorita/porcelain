@@ -1,9 +1,12 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
-export const worktreeParamsSchema = z.strictObject({ worktreeId: z.uuid() });
+export const worktreeParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+});
 export const fileQuerySchema = z.strictObject({ path: z.string().max(4096) });
 export const directoryResponseSchema = z.object({
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   path: z.string(),
   entries: z.array(
     z.object({
@@ -13,7 +16,7 @@ export const directoryResponseSchema = z.object({
   ),
 });
 export const textResponseSchema = z.object({
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   path: z.string(),
   encoding: z.literal('utf-8'),
   byteLength: z.number().int().nonnegative(),
@@ -57,7 +60,7 @@ export type FileEdit = z.infer<typeof fileEditSchema>;
 export type FileEditResult = z.infer<typeof fileEditResultSchema>;
 
 export const fileTreeSchema = z.object({
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   entries: z.array(
     z.object({
       path: z.string(),

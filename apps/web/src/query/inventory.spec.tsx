@@ -72,6 +72,7 @@ it('keeps a registered project when an older focus refresh resolves last', async
   const store = createMockStore('empty');
   const base = createMockApi(store);
   const refreshResponse = deferred<Inventory>();
+  let held = false;
   const refreshStarted = deferred<void>();
   const registerResponse = deferred<Project>();
   const registerStarted = deferred<void>();
@@ -82,7 +83,7 @@ it('keeps a registered project when an older focus refresh resolves last', async
     available: true,
     worktrees: [
       {
-        id: '801a8628-1cd6-4562-81a2-9c05fba76b11',
+        id: '801a86281cd6456281a29c05fba76b11',
         path: '/srv/registered-project',
         branch: 'refs/heads/main',
         main: true,
@@ -95,7 +96,8 @@ it('keeps a registered project when an older focus refresh resolves last', async
     inventory: {
       ...base.inventory,
       read: (options) => {
-        if (!options.refresh) return base.inventory.read(options);
+        if (held) return base.inventory.read(options);
+        held = true;
         refreshStarted.resolve();
         return refreshResponse.promise;
       },
@@ -145,6 +147,7 @@ it('does not resurrect a removed project from a late refresh and clears only its
   const stale = structuredClone(store.inventory);
   const refreshResponse = deferred<Inventory>();
   const refreshStarted = deferred<void>();
+  let held = false;
   const removeResponse = deferred<{ deleted: boolean }>();
   const removeStarted = deferred<void>();
   const api: Api = {
@@ -152,7 +155,8 @@ it('does not resurrect a removed project from a late refresh and clears only its
     inventory: {
       ...base.inventory,
       read: (options) => {
-        if (!options.refresh) return base.inventory.read(options);
+        if (held) return base.inventory.read(options);
+        held = true;
         refreshStarted.resolve();
         return refreshResponse.promise;
       },
@@ -269,7 +273,7 @@ it('rescans repositories after connecting from the stored snapshot', async () =>
     available: true,
     worktrees: [
       {
-        id: '0b1de0a4-0f0c-4a63-8d5e-6c3a0a4b9d31',
+        id: '0b1de0a40f0c4a638d5e6c3a0a4b9d31',
         path: '/srv/discovered-project',
         branch: 'refs/heads/main',
         main: true,
@@ -277,18 +281,18 @@ it('rescans repositories after connecting from the stored snapshot', async () =>
       },
     ],
   };
+  // Session restore seeds the cache from the stored snapshot; the query then
+  // reads, which lists live and finds the project that appeared on disk.
   const api: Api = {
     ...base,
     inventory: {
       ...base.inventory,
       read: async (options) => {
         const inventory = await base.inventory.read(options);
-        return options.refresh
-          ? {
-              ...inventory,
-              projects: [...inventory.projects, discoveredProject],
-            }
-          : inventory;
+        return {
+          ...inventory,
+          projects: [...inventory.projects, discoveredProject],
+        };
       },
     },
   };

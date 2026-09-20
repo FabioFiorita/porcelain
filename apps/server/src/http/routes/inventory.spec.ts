@@ -73,8 +73,8 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
       ).toEqual(inventory);
       await rename(path, join(root, 'moved'));
       const refreshed = await restarted.inject({
-        method: 'POST',
-        url: '/api/inventory/refresh',
+        method: 'GET',
+        url: '/api/inventory',
         headers,
       });
       expect(refreshed.statusCode).toBe(200);
@@ -117,7 +117,6 @@ it('rejects unauthenticated operations before validation or discovery and saniti
     for (const [method, url] of [
       ['GET', '/api/inventory'],
       ['POST', '/api/projects'],
-      ['POST', '/api/inventory/refresh'],
     ] as const) {
       for (const authorization of [
         '',

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 export const gitPathSchema = z
   .string()
@@ -53,7 +54,7 @@ export const gitChangeSchema = z.union([
 
 export const gitStatusResponseSchema = z.object({
   environmentId: z.uuid(),
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   statusToken: z.string().regex(/^[a-f0-9]{64}$/),
   branch: z
     .object({
@@ -81,5 +82,7 @@ export const gitStatusResponseSchema = z.object({
   changes: z.array(gitChangeSchema).max(2000),
 });
 
-export const gitWorktreeParamsSchema = z.strictObject({ worktreeId: z.uuid() });
+export const gitWorktreeParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+});
 export type GitStatusResponse = z.infer<typeof gitStatusResponseSchema>;

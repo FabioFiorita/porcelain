@@ -118,10 +118,8 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
     )
     .toEqual(before);
   await rm(path, { recursive: true });
-  const refreshed = await fetch(`${secondAddress}/api/inventory/refresh`, {
-    method: 'POST',
-    headers,
-  });
+  // Asking for the inventory is the rescan: there is no refresh to call.
+  const refreshed = await fetch(`${secondAddress}/api/inventory`, { headers });
   expect(refreshed.status).toBe(200);
   expect(await refreshed.json()).toMatchObject({
     environmentId: before.environmentId,

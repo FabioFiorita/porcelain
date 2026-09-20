@@ -117,7 +117,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
         content: '<h1>Review</h1>',
       }),
     );
-    await request('/api/inventory/refresh', 'POST');
+    await request('/api/inventory');
     await server.close();
     const restarted = await createServer({
       pairingReach,

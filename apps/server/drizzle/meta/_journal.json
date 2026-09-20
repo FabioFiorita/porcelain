@@ -29,6 +29,13 @@
       "when": 1789882726950,
       "tag": "0003_pairing_and_devices",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789905077147,
+      "tag": "0004_worktrees_from_git",
+      "breakpoints": true
     }
   ]
 }

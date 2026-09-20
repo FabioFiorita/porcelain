@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 const worktreeSchema = z.object({
-  id: z.uuid(),
+  id: worktreeIdSchema,
   path: z.string(),
   main: z.boolean(),
   branch: z.string().nullable(),

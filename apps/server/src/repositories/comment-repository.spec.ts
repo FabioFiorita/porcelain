@@ -5,7 +5,7 @@ import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
 import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type { CommentThread } from '../models/comment-thread.ts';
-import type { Project } from '../models/project.ts';
+import type { RegisteredProject } from '../models/project.ts';
 import { CommentRepository } from './comment-repository.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 
@@ -14,22 +14,12 @@ it('retains creation order and discussions after inventory removes their worktre
   const database = openDatabase(root);
   try {
     const inventory = new InventoryRepository(database.db);
-    const project: Project = {
+    const project: RegisteredProject = {
       id: 'project',
       name: 'project',
       commonDirectory: '/git',
       repositoryIdentity: 'identity',
       available: true,
-      worktrees: [
-        {
-          id: 'worktree',
-          path: '/repo',
-          metadataIdentity: 'metadata',
-          main: true,
-          branch: 'main',
-          available: true,
-        },
-      ],
     };
     inventory.save(project);
     const store = new CommentRepository(database.db);
@@ -61,8 +51,8 @@ it('retains creation order and discussions after inventory removes their worktre
       bytes: commentStorageSize(first) + commentStorageSize(second),
     });
     expect(store.usage('other')).toEqual({ threads: 0, bytes: 0 });
-    inventory.save({ ...project, worktrees: [] });
-    expect(inventory.read().projects[0]?.worktrees).toEqual([]);
+    // Threads are keyed by worktree id and owe nothing to the project record:
+    // storage keeps them whether or not Git still lists that worktree.
     expect(store.list('worktree')).toEqual([
       { ...first, resolved: true },
       second,

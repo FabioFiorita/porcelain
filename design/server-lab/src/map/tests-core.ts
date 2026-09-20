@@ -1399,7 +1399,7 @@ export const coreSpecAudits: SpecAudit[] = [
       'Real sockets, real modes and a real SIGKILLed child; the claim/bind race and both partial-bind orders are tested, not only the happy path.',
     ],
     gaps: [
-      'Startup refreshes inventory (listWorktrees for every registered project, serially, 2 + 2 per worktree git processes) before listening; no test bounds startup time with many or unavailable projects.',
+      'Startup lists every registered project (one Git process each, serially) before listening; no test bounds startup time with many or unavailable projects.',
       'Shutdown while a git action or a long evidence read is running is not covered here.',
       'The directory check covers the data directory itself, not a world-writable ancestor that could let it be replaced.',
     ],
@@ -1662,7 +1662,7 @@ export const coreAreaSummaries: AreaTestSummary[] = [
     summary:
       'Persistence is strong: migration history, transactional saves, foreign keys and reopen are verified on real SQLite. The Git side (listWorktrees: 2 processes plus 2 per worktree, sequential) has no dedicated spec in packages/git and no cost check; it is only used as a fixture helper. Project removal can be blocked forever by a historical indeterminate receipt and no test notices.',
     missing: [
-      'Git.listWorktrees on a repository with 30 linked worktrees (some prunable, locked or deleted): correct result, at most 2 + 2 per worktree git processes, under N ms.',
+      'Git.listWorktrees on a repository with 30 linked worktrees (some prunable, locked or deleted): correct result, two git processes whatever the count, under N ms.',
       'listWorktrees with a bare repository and a prunable-but-present worktree, asserted directly.',
       'Project removal after a push that ended indeterminate (or after a crash mid-action) eventually succeeds, or an explicit operator path exists and is tested.',
       'InventoryRepository save + read with 50 projects x 20 worktrees keeps worktree ids stable and reads under N ms.',

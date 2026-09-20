@@ -1,35 +1,44 @@
-import { RepositoryIdentityMismatchError } from '@porcelain/git/errors/repository-identity-mismatch-error';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
+import type { ResolveWorktree } from './resolve-worktree.ts';
 
-export function resolveInspectionWorktree(
+/**
+ * A worktree ready to be inspected: found in Git's list, its checkout
+ * reachable, and its identity the one the id was derived from.
+ *
+ * This is asynchronous because Git is the source of truth now. It usually
+ * costs one `stat` and two small file reads — no SQLite, and no Git process
+ * unless the id is one the directory has not seen.
+ */
+async function resolveInspectionWorktree(
+  worktrees: ResolveWorktree,
   store: InventoryStore,
   worktreeId: string,
+  signal?: AbortSignal,
 ) {
-  const inventory = store.read();
-  const project = inventory.projects.find((entry) =>
-    entry.worktrees.some((worktree) => worktree.id === worktreeId),
-  );
-  const worktree = project?.worktrees.find((entry) => entry.id === worktreeId);
-  if (!worktree) throw new WorktreeNotFoundError();
-  if (!project?.available || !worktree.available || !worktree.metadataIdentity)
-    throw new RepositoryIdentityMismatchError();
+  const worktree = await worktrees.reachable(worktreeId, signal);
   return {
-    environmentId: inventory.environmentId,
+    environmentId: store.read().environmentId,
     worktree,
     metadataIdentity: worktree.metadataIdentity,
-    repositoryIdentity: project.repositoryIdentity,
+    repositoryIdentity: worktree.repositoryIdentity,
   };
 }
 
 /** The request's guarded state for one worktree's checkout. */
-export function resolveCheckoutSession(
+export async function resolveCheckoutSession(
+  worktrees: ResolveWorktree,
   store: InventoryStore,
   session: GitSession,
   worktreeId: string,
+  signal?: AbortSignal,
 ) {
-  const resolved = resolveInspectionWorktree(store, worktreeId);
+  const resolved = await resolveInspectionWorktree(
+    worktrees,
+    store,
+    worktreeId,
+    signal,
+  );
   return {
     ...resolved,
     checkout: session.checkout(

@@ -10,7 +10,7 @@ import {
 
 const baseStatus = (): GitActionStatus => ({
   environmentId: '641a8628-1cd6-4562-81a2-9c05fba76b4a',
-  worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+  worktreeId: '629a86281cd6456281a29c05fba76b4b',
   statusToken: 'a'.repeat(64),
   consistency: 'best-effort',
   headOid: 'a'.repeat(40),

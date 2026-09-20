@@ -1,6 +1,5 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
 import type { ReviewedMark } from '../models/reviewed-file.ts';
 import type { ReviewedFileStore } from './interfaces/reviewed-file-store.ts';
@@ -12,16 +11,6 @@ export class ReviewedFileRepository implements ReviewedFileStore {
 
   constructor(db: BetterSQLite3Database) {
     this.db = db;
-  }
-
-  hasWorktree(worktreeId: string): boolean {
-    return Boolean(
-      this.db
-        .select({ worktreeId: projectWorktrees.worktreeId })
-        .from(projectWorktrees)
-        .where(eq(projectWorktrees.worktreeId, worktreeId))
-        .get(),
-    );
   }
 
   list(worktreeId: string): ReviewedMark[] {

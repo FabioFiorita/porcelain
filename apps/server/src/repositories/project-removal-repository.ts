@@ -7,10 +7,10 @@ import { filePreferences } from '../db/schema/file-preferences.ts';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionPreparations } from '../db/schema/git-action-preparations.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
-import { projectWorktrees } from '../db/schema/project-worktrees.ts';
 import { projects } from '../db/schema/projects.ts';
 import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
+import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import { ProjectRemovalBlockedError } from './errors/project-removal-blocked-error.ts';
 import type { ProjectRemovalStore } from './interfaces/project-removal-store.ts';
 
@@ -42,10 +42,11 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
               value.reason === 'PROCESS_GROUP_UNCONFIRMED',
           );
         if (blocked || unresolved) throw new ProjectRemovalBlockedError();
+        // Every worktree this project has review data for.
         const owned = tx
-          .select({ id: projectWorktrees.worktreeId })
-          .from(projectWorktrees)
-          .where(eq(projectWorktrees.projectId, projectId));
+          .select({ id: worktreePresence.worktreeId })
+          .from(worktreePresence)
+          .where(eq(worktreePresence.projectId, projectId));
         tx.delete(artifacts).where(inArray(artifacts.worktreeId, owned)).run();
         tx.delete(commentThreads)
           .where(inArray(commentThreads.worktreeId, owned))

@@ -1,21 +1,21 @@
 {
   "recorded": {
-    "commit": "bc058d01",
+    "commit": "4a9cfbf9",
     "runs": 3,
     "node": "v24.20.0",
     "git": "git version 2.53.0",
-    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs",
-    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server. Lowered in step 2a when guards moved to once per request."
+    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs; measured on the step 4a working tree, whose commit follows 4a9cfbf9",
+    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server. Lowered in step 4a: a registered project is listed with one Git process and a stat per worktree instead of two processes per worktree, and resolving an id is a stat rather than a checkout verification, which is why reading files costs almost no Git at all."
   },
   "profiles": {
     "app": {
       "open": {
-        "measured": 32,
-        "ceiling": 40
+        "measured": 25,
+        "ceiling": 31
       },
       "select": {
-        "measured": 163,
-        "ceiling": 197
+        "measured": 155,
+        "ceiling": 188
       },
       "reselect": {
         "measured": 16,
@@ -26,8 +26,8 @@
         "ceiling": 83
       },
       "files": {
-        "measured": 98,
-        "ceiling": 119
+        "measured": 2,
+        "ceiling": 7
       },
       "history": {
         "measured": 89,
@@ -42,18 +42,18 @@
         "ceiling": 30
       },
       "agent-edit": {
-        "measured": 354,
-        "ceiling": 426
+        "measured": 338,
+        "ceiling": 409
       }
     },
     "monorepo": {
       "open": {
-        "measured": 52,
-        "ceiling": 64
+        "measured": 41,
+        "ceiling": 50
       },
       "select": {
-        "measured": 124,
-        "ceiling": 150
+        "measured": 112,
+        "ceiling": 136
       },
       "reselect": {
         "measured": 16,
@@ -64,8 +64,8 @@
         "ceiling": 83
       },
       "files": {
-        "measured": 146,
-        "ceiling": 177
+        "measured": 2,
+        "ceiling": 7
       },
       "history": {
         "measured": 89,
@@ -77,11 +77,11 @@
       },
       "sidebar-marked": {
         "measured": 40,
-        "ceiling": 50
+        "ceiling": 49
       },
       "agent-edit": {
-        "measured": 292,
-        "ceiling": 352
+        "measured": 268,
+        "ceiling": 325
       }
     }
   }

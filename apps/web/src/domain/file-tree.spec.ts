@@ -9,7 +9,7 @@ describe('file tree paths', () => {
   it('keeps empty directories explicit and non-directories as leaves', () => {
     expect(
       fileTreeEntries({
-        worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+        worktreeId: '629a86281cd6456281a29c05fba76b4b',
         path: 'src',
         entries: [
           { name: 'empty', kind: 'directory' },
@@ -34,7 +34,7 @@ describe('file tree paths', () => {
 
   it('merges repeated directory observations by path', () => {
     const root = {
-      worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+      worktreeId: '629a86281cd6456281a29c05fba76b4b',
       path: '',
       entries: [{ name: 'src', kind: 'directory' as const }],
     };
@@ -47,12 +47,12 @@ describe('file tree paths', () => {
     expect(
       mergeFileTreeEntries([
         {
-          worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+          worktreeId: '629a86281cd6456281a29c05fba76b4b',
           path: '',
           entries: [{ name: 'README.md', kind: 'file' }],
         },
         {
-          worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+          worktreeId: '629a86281cd6456281a29c05fba76b4b',
           path: 'removed',
           entries: [{ name: 'stale.ts', kind: 'file' }],
         },

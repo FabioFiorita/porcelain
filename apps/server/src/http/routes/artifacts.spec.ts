@@ -74,8 +74,8 @@ describe('Artifacts', () => {
       });
       expect(await readdir(f.path)).toEqual(['.git']);
       await f.server.inject({
-        method: 'POST',
-        url: '/api/inventory/refresh',
+        method: 'GET',
+        url: '/api/inventory',
         headers,
       });
       await f.server.close();
@@ -205,7 +205,7 @@ describe('Artifacts', () => {
         expect(response.headers['cache-control']).toBe('no-store');
       }
       for (const method of ['POST', 'GET', 'DELETE'] as const) {
-        const url = `/api/worktrees/${randomUUID()}/artifacts${method === 'DELETE' ? `/${randomUUID()}` : ''}`;
+        const url = `/api/worktrees/${'0'.repeat(32)}/artifacts${method === 'DELETE' ? `/${randomUUID()}` : ''}`;
         expect(
           (
             await f.server.inject({
@@ -378,8 +378,8 @@ describe('Artifacts', () => {
         linked,
       ]);
       await f.server.inject({
-        method: 'POST',
-        url: '/api/inventory/refresh',
+        method: 'GET',
+        url: '/api/inventory',
         headers,
       });
       const inventory = (
@@ -398,8 +398,8 @@ describe('Artifacts', () => {
       const metadata = artifactMetadataSchema.parse(uploaded.json());
       execFileSync('git', ['-C', f.path, 'worktree', 'remove', linked]);
       await f.server.inject({
-        method: 'POST',
-        url: '/api/inventory/refresh',
+        method: 'GET',
+        url: '/api/inventory',
         headers,
       });
       for (const [method, url] of [

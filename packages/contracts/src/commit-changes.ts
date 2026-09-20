@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { commitOidSchema } from './commit-history.ts';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 export const commitChangesParamsSchema = z.strictObject({
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   oid: commitOidSchema,
 });
 export const commitChangesQuerySchema = z.strictObject({

@@ -37,7 +37,7 @@ it('keeps browsing and inventory refresh responsive during discovery and cancels
     const signal = await entered.promise;
     const [folder, refreshed] = await Promise.all([
       application.browseProjectFolders('/fixture/other'),
-      application.refresh(),
+      application.inventory(),
     ]);
     expect(folder.path).toBe('/fixture/other');
     expect(refreshed.inventory.projects).toEqual([]);

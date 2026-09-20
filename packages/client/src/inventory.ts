@@ -18,21 +18,16 @@ export async function readInventory(options: {
   endpoint: InventoryRequest['endpoint'];
   fetch: InventoryRequest['fetch'];
   signal: InventoryRequest['signal'];
-  refresh?: boolean;
 }) {
   const transport = options.fetch;
   try {
-    const response = await transport(
-      options.endpoint +
-        (options.refresh ? '/inventory/refresh' : '/inventory'),
-      {
-        method: options.refresh ? 'POST' : 'GET',
-        signal: options.signal,
-        redirect: 'error',
-        credentials: 'same-origin',
-        cache: 'no-store',
-      },
-    );
+    const response = await transport(`${options.endpoint}/inventory`, {
+      method: 'GET',
+      signal: options.signal,
+      redirect: 'error',
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
     if (response.status === 401) throw new UnauthorizedError();
     if (!response.ok)
       throw new ConnectionError(

@@ -27,6 +27,7 @@ export function createCommentThread(
       options.application.comments(
         { kind: 'create', ...request.params, ...request.body },
         callerOf(request),
+        request.disconnected,
       ),
   );
 }

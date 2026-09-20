@@ -23,12 +23,11 @@ protected transport outside disposable loopback tests. The factory does not open
 | GET /projects/discover | No body | 200 nearby repository suggestions |
 | GET /projects/folders | Optional absolute server-side folder `path`; defaults to home | 200 child folders and repository status |
 | POST /projects | JSON object with absolute server-side checkout path in `path` | 200 registered project |
-| POST /inventory/refresh | No body | 200 refreshed inventory |
 
 Registration returns 200 for both a new project and an already registered project. Relative paths,
 unknown request fields, empty paths, and NUL-containing paths are rejected. Absolute-path interpretation
-belongs to the server platform, not the client. A successful registration does not refresh unrelated
-projects. GET returns the current snapshot; POST refresh requests fresh Git inspection.
+belongs to the server platform, not the client. A successful registration does not inspect unrelated
+projects. GET lists worktrees from Git on the way out, so there is no second, mutating way to ask.
 
 Project discovery and folder browsing use the same authenticated server access as registration.
 They inspect the server filesystem without registering projects. Discovery is bounded around the
@@ -53,8 +52,8 @@ returned. Inventory route responses disable caching. Internal discovery diagnost
 
 Operations retain application deadlines. Discovery and folder browsing run independently of writes
 and cancel when their HTTP client disconnects. Disconnecting does not roll back an accepted write;
-a client uncertain about registration can retry and receive the existing project identity. Refresh may persist completed projects before a
-later failure, as defined by the inventory decision.
+a client uncertain about registration can retry and receive the existing project identity. A listing may
+record some projects as reachable before a later one fails, as defined by the inventory decision.
 
 HTTP integration specs cover authentication, invalid input, safe failures, duplicate registration,
 restart persistence, unavailable repositories, and real loopback registration. They do not establish

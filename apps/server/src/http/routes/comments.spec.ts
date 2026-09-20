@@ -111,17 +111,9 @@ it('persists authenticated discussion across refresh, unavailability and restart
         })
       ).json(),
     ).toEqual(resolved.json());
-    await server.inject({
-      method: 'POST',
-      url: '/api/inventory/refresh',
-      headers,
-    });
+    await server.inject({ method: 'GET', url: '/api/inventory', headers });
     await rename(path, join(root, 'moved'));
-    await server.inject({
-      method: 'POST',
-      url: '/api/inventory/refresh',
-      headers,
-    });
+    await server.inject({ method: 'GET', url: '/api/inventory', headers });
     await server.close();
     const restarted = await createServer({
       pairingReach,
@@ -129,6 +121,14 @@ it('persists authenticated discussion across refresh, unavailability and restart
       projectHome: dataDirectory,
     });
     try {
+      // The repository is still moved away, so the server cannot tell whether
+      // this worktree exists. It says so, rather than claiming the discussion
+      // is gone — and the thirty-day clock never starts on an absence nobody
+      // observed.
+      expect(
+        (await restarted.inject({ method: 'GET', url, headers })).statusCode,
+      ).toBe(422);
+      await rename(join(root, 'moved'), path);
       const result = await restarted.inject({ method: 'GET', url, headers });
       expect(result.statusCode).toBe(200);
       expect(result.headers['cache-control']).toBe('no-store');
@@ -157,7 +157,9 @@ it('authenticates every operation and rejects malformed anchors, bodies and cros
     projectHome: root,
   });
   const headers = await pairDevice(server, server.application);
-  const url = '/api/worktrees/00000000-0000-4000-8000-000000000001/comments';
+  // Well formed but unknown: the question is an unknown worktree, not a
+  // malformed one.
+  const url = `/api/worktrees/${'0'.repeat(32)}/comments`;
   const threadUrl = `${url}/00000000-0000-4000-8000-000000000002`;
   try {
     for (const [method, route] of [
@@ -233,9 +235,11 @@ it('authenticates every operation and rejects malformed anchors, bodies and cros
         payload,
       });
       expect(result.statusCode).toBe(404);
+      // Every surface names the real reason: the worktree is not there, so
+      // the thread inside it cannot be either.
       expect(result.json()).toEqual({
-        code: 'NOT_FOUND',
-        message: 'Comment target not found',
+        code: 'WORKTREE_NOT_FOUND',
+        message: 'Worktree not found',
       });
     }
   } finally {

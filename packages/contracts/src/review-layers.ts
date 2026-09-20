@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { worktreeIdSchema } from './worktree-id.ts';
 
 const pathSchema = z
   .string()
@@ -58,7 +59,9 @@ const layersSchema = z
       }
     }
   });
-export const reviewLayerParamsSchema = z.strictObject({ worktreeId: z.uuid() });
+export const reviewLayerParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+});
 export const replaceReviewLayersSchema = z.strictObject({
   expectedRevision: z
     .number()
@@ -68,7 +71,7 @@ export const replaceReviewLayersSchema = z.strictObject({
   layers: layersSchema,
 });
 export const reviewLayersResponseSchema = z.strictObject({
-  worktreeId: z.uuid(),
+  worktreeId: worktreeIdSchema,
   revision: z.number().int().nonnegative(),
   layers: layersSchema,
 });

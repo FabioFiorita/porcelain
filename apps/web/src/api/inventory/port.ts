@@ -15,6 +15,6 @@ export type InventoryPort = {
     signal: AbortSignal;
     path?: string;
   }): Promise<ProjectFolder>;
-  read(options: { signal: AbortSignal; refresh?: boolean }): Promise<Inventory>;
+  read(options: { signal: AbortSignal }): Promise<Inventory>;
   register(options: { signal: AbortSignal; path: string }): Promise<Project>;
 };

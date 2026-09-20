@@ -37,7 +37,7 @@ it('requires message authors, keeps legacy timestamps optional, and accepts diff
   expect(
     commentThreadSchema.parse({
       id: '00000000-0000-4000-8000-000000000001',
-      worktreeId: '00000000-0000-4000-8000-000000000002',
+      worktreeId: '00000000000040008000000000000002',
       anchor: { kind: 'file', filePath: 'README.md' },
       resolved: false,
       messages: [
@@ -52,7 +52,7 @@ it('requires message authors, keeps legacy timestamps optional, and accepts diff
   expect(
     commentThreadSchema.safeParse({
       id: '00000000-0000-4000-8000-000000000001',
-      worktreeId: '00000000-0000-4000-8000-000000000002',
+      worktreeId: '00000000000040008000000000000002',
       anchor: { kind: 'file', filePath: 'README.md' },
       resolved: false,
       messages: [

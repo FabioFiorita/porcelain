@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { deriveWorktreeId } from '../models/worktree-id.ts';
 import { InvalidDataDirectoryError } from './errors/invalid-data-directory-error.ts';
 import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 
@@ -34,6 +35,18 @@ export function openDatabase(dataDirectory: string) {
     assertMigrationHistory(database);
     database.exec(
       'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;',
+    );
+    // Migration 0004 derives worktree ids in SQL. Registering the derivation
+    // here is what lets that migration rewrite every column and JSON payload
+    // inside its own transaction, rather than recording a schema change and
+    // then rewriting ids in a second pass that a crash could skip.
+    database.function(
+      'porcelain_worktree_id',
+      { deterministic: true },
+      (projectId: unknown, metadataIdentity: unknown) =>
+        typeof projectId === 'string' && typeof metadataIdentity === 'string'
+          ? deriveWorktreeId(projectId, metadataIdentity)
+          : null,
     );
     migrateDatabase(db);
   } catch (error) {

@@ -41,14 +41,9 @@ function canApplyInventoryWrite(connection: Connection, version: number) {
   return true;
 }
 
-async function read(
-  api: Api,
-  connection: Connection,
-  signal?: AbortSignal,
-  refresh = false,
-) {
+async function read(api: Api, connection: Connection, signal?: AbortSignal) {
   const request = connection.request(signal);
-  const result = await api.inventory.read({ ...request, refresh });
+  const result = await api.inventory.read(request);
   request.signal.throwIfAborted();
   if (result.environmentId !== connection.environmentId)
     throw new ConnectionError(
@@ -60,10 +55,9 @@ async function read(
 function inventoryQueryOptions(api: Api, connection: Connection) {
   return queryOptions({
     queryKey: queryKeys.inventory(connection.environmentId),
-    // Login seeds the first snapshot. Every later query execution is a natural
-    // refresh boundary (focus, reconnect, or explicit cache invalidation), so
-    // ask the server to rescan the repositories before returning inventory.
-    queryFn: ({ signal }) => read(api, connection, signal, true),
+    // There is nothing to rescan: the server lists worktrees from Git when it
+    // is asked, so reading the inventory is the refresh.
+    queryFn: ({ signal }) => read(api, connection, signal),
   });
 }
 

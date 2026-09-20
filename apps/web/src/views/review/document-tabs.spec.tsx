@@ -59,7 +59,7 @@ describe('document tab presentation', () => {
         artifacts={[
           {
             id: reportId,
-            worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+            worktreeId: '629a86281cd6456281a29c05fba76b4b',
             name: 'handoff.html',
             sizeBytes: 120,
             createdAt: '2026-09-12T15:20:00Z',

@@ -26,6 +26,7 @@ export function getArtifact(
         await options.application.getArtifact(
           request.params.worktreeId,
           request.params.artifactId,
+          request.disconnected,
         ),
       ),
   );

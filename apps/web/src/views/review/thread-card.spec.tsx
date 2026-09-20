@@ -14,7 +14,7 @@ import { ThreadCard } from './thread-card';
 
 const scope = {
   projectId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
-  worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
+  worktreeId: '629a86281cd6456281a29c05fba76b4b',
 };
 
 function ConnectionGate({ children }: { children: ReactNode }) {

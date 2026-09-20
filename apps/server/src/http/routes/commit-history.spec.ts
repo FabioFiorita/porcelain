@@ -103,8 +103,7 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
       });
       expect(response.statusCode).toBe(401);
     }
-    const unknown =
-      '/api/worktrees/00000000-0000-4000-8000-000000000000/commits';
+    const unknown = `/api/worktrees/${'0'.repeat(32)}/commits`;
     for (const target of [unknown, `${unknown}/${oid}/changes`]) {
       const response = await server.inject({
         method: 'GET',
@@ -143,8 +142,8 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
     expect(JSON.stringify(limited.json())).not.toContain(path);
     await rm(path, { recursive: true, force: true });
     await server.inject({
-      method: 'POST',
-      url: '/api/inventory/refresh',
+      method: 'GET',
+      url: '/api/inventory',
       headers,
     });
     expect(
