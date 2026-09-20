@@ -284,6 +284,10 @@ function useReviewedContext(scope: ReviewScope) {
   return {
     api: api.review.reviewed,
     key: queryKeys.reviewSurface(connection.environmentId, scope, ['reviewed']),
+    // Marking the last file of a published layer moves the sidebar's dot from
+    // pending to reviewed, and unmarking moves it back. The dot rides with the
+    // worktree list, so that list is what has gone stale.
+    inventoryKey: queryKeys.inventory(connection.environmentId),
     connection,
     request: (signal?: AbortSignal) => ({
       ...scope,
@@ -312,6 +316,9 @@ export function useMarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           return result;
         }),
+      onSuccess: () => {
+        void client.invalidateQueries({ queryKey: context.inventoryKey });
+      },
     }),
   );
 }
@@ -328,6 +335,9 @@ export function useUnmarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           return result;
         }),
+      onSuccess: () => {
+        void client.invalidateQueries({ queryKey: context.inventoryKey });
+      },
     }),
   );
 }
@@ -401,6 +411,13 @@ export function useMarkAllReviewed(scope: ReviewScope) {
           }
         }
         return report;
+      },
+      onSuccess: (report) => {
+        // Once, at the end: marking the last file of a published layer moves
+        // the sidebar's dot, and one bulk pass is one change to it however
+        // many files it covered.
+        if (report.marked.length > 0)
+          void client.invalidateQueries({ queryKey: context.inventoryKey });
       },
     }),
   );

@@ -1,6 +1,5 @@
 import { ArtifactQuotaError } from '../../repositories/errors/artifact-quota-error.ts';
 import { FilePreferenceLimitError } from '../../repositories/errors/file-preference-limit-error.ts';
-import { ProjectRemovalBlockedError } from '../../repositories/errors/project-removal-blocked-error.ts';
 import { ReviewLayerConflictError } from '../../repositories/errors/review-layer-conflict-error.ts';
 import { UnknownWorktreeError } from '../../repositories/errors/unknown-worktree-error.ts';
 import { ArtifactNotFoundError } from '../../use-cases/errors/artifact-not-found-error.ts';
@@ -36,15 +35,6 @@ export function toStorageErrorResponse(error: unknown) {
       statusCode: 404,
       body: { code: 'PROJECT_NOT_FOUND', message: 'Project not found' },
     };
-  if (error instanceof ProjectRemovalBlockedError)
-    return {
-      statusCode: 409,
-      body: {
-        code: 'PROJECT_REMOVAL_BLOCKED',
-        message: 'Project has an active or unresolved Git operation',
-      },
-    };
-
   if (error instanceof CommentLimitExceededError)
     return {
       statusCode: 409,

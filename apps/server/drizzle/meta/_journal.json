@@ -36,6 +36,13 @@
       "when": 1789905077147,
       "tag": "0004_worktrees_from_git",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789909823222,
+      "tag": "0005_names_and_status",
+      "breakpoints": true
     }
   ]
 }

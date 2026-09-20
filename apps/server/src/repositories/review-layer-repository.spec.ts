@@ -18,6 +18,7 @@ it('protects revisions across SQLite connections and retains metadata after inve
     const project = {
       id: randomUUID(),
       name: 'fixture',
+      namedByOwner: false,
       commonDirectory: '/fixture/.git',
       repositoryIdentity: 'fixture',
       available: true,

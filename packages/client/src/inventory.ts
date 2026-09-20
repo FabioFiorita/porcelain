@@ -3,6 +3,7 @@ import {
   projectDeletionSchema,
   projectDiscoveryResponseSchema,
   projectFolderResponseSchema,
+  projectNameResponseSchema,
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { ConnectionError } from './errors/connection-error.ts';
@@ -144,6 +145,39 @@ async function readProjectLocation<T>(
       'Could not load folders or repositories from the Porcelain server. Try again.',
       { cause: error },
     );
+  }
+}
+
+/** Name a project. The name is a label; nothing looks a project up by it. */
+export async function renameProject(
+  options: InventoryRequest & { projectId: string; name: string },
+) {
+  try {
+    const response = await options.fetch(
+      `${options.endpoint}/projects/${encodeURIComponent(options.projectId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ name: options.name }),
+        headers: { 'content-type': 'application/json' },
+        signal: options.signal,
+        redirect: 'error',
+        credentials: 'same-origin',
+        cache: 'no-store',
+      },
+    );
+    if (response.status === 401) throw new UnauthorizedError();
+    if (response.status === 400)
+      throw new ConnectionError('That name cannot be used. Try another.');
+    if (response.status === 404)
+      throw new ConnectionError('That project is no longer registered.');
+    if (!response.ok)
+      throw new ConnectionError('Could not rename this project. Try again.');
+    return projectNameResponseSchema.parse(await response.json());
+  } catch (error) {
+    if (options.signal.aborted || error instanceof ConnectionError) throw error;
+    throw new ConnectionError('Could not rename this project. Try again.', {
+      cause: error,
+    });
   }
 }
 

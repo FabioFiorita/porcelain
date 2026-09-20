@@ -7,6 +7,24 @@ export interface ListableProject {
   repositoryIdentity: string;
 }
 
+/**
+ * What the sidebar has to say about a worktree, by meaning rather than by
+ * appearance: how it is drawn is the web's business, so the palette can change
+ * without touching the server.
+ *
+ * `pending`: published layers with something in them still unreviewed.
+ * `reviewed`: published layers where every file named in them is marked —
+ *   waiting for a commit. It means "everything marked, as of when it was
+ *   marked": computed from marks alone, it cannot notice the agent editing a
+ *   file that was already marked, and buying that knowledge would cost a
+ *   status read per worktree, which is what this dot replaced.
+ * `replied`: the agent answered a comment the owner has not seen. It outranks
+ *   both, being newer and addressed to them.
+ * Absent: nothing published. Both layer states end when a commit archives the
+ * layers.
+ */
+export type WorktreeStatus = 'pending' | 'reviewed' | 'replied';
+
 /** A worktree as Git listed it, with the id derived from its identity. */
 export interface ResolvedWorktree {
   id: string;

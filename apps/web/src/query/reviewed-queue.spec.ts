@@ -1,6 +1,6 @@
-import { QueryClient, QueryObserver } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 import { expect, it, vi } from 'vitest';
-import type { ReviewedMarksResponse, ReviewSummary } from '../domain/review';
+import type { ReviewedMarksResponse } from '../domain/review';
 import { enqueueReviewed } from './reviewed-queue';
 
 function deferred<T>() {
@@ -13,39 +13,15 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-it('rolls back failed optimism while retaining newer intent and updates cached badges without fetching', async () => {
+it('rolls back failed optimism while retaining newer intent', async () => {
   const client = new QueryClient();
   const context = {
     connection: { controller: new AbortController() },
     key: ['review', 'environment', 'project', 'worktree', 'reviewed'],
   };
-  const prefix = context.key.slice(0, -1);
-  const summaryKey = [...prefix, 'summary'];
   const first = deferred<ReviewedMarksResponse>();
   const second = deferred<ReviewedMarksResponse>();
-  const summaryRead = vi.fn(async () => ({
-    worktreeId: 'worktree',
-    pendingFiles: 2,
-    openThreads: 3,
-  }));
   client.setQueryData(context.key, { worktreeId: 'worktree', marks: [] });
-  client.setQueryData([...prefix, 'evidence'], {
-    evidence: [
-      { path: 'a', fingerprint: 'a' },
-      { path: 'b', fingerprint: 'b' },
-    ],
-  });
-  client.setQueryData(summaryKey, {
-    worktreeId: 'worktree',
-    pendingFiles: 2,
-    openThreads: 3,
-  });
-  const observer = new QueryObserver(client, {
-    queryKey: summaryKey,
-    queryFn: summaryRead,
-    staleTime: Infinity,
-  });
-  const unsubscribe = observer.subscribe(() => {});
   try {
     const a = enqueueReviewed(
       context,
@@ -60,10 +36,13 @@ it('rolls back failed optimism while retaining newer intent and updates cached b
       { path: 'b', fingerprint: 'b' },
       () => second.promise,
     );
+    // Both marks are showing before either has been confirmed.
     await vi.waitFor(() =>
-      expect(client.getQueryData<ReviewSummary>(summaryKey)?.pendingFiles).toBe(
-        0,
-      ),
+      expect(
+        client
+          .getQueryData<ReviewedMarksResponse>(context.key)
+          ?.marks.map((mark) => mark.path),
+      ).toEqual(['a', 'b']),
     );
     first.reject(new Error('stale file'));
     await rejected;
@@ -72,10 +51,6 @@ it('rolls back failed optimism while retaining newer intent and updates cached b
         .getQueryData<ReviewedMarksResponse>(context.key)
         ?.marks.map((mark) => mark.path),
     ).toEqual(['b']);
-    expect(client.getQueryData(summaryKey)).toMatchObject({
-      pendingFiles: 1,
-      openThreads: 3,
-    });
     second.resolve({
       worktreeId: 'worktree',
       marks: [
@@ -86,9 +61,7 @@ it('rolls back failed optimism while retaining newer intent and updates cached b
     expect(
       client.getQueryData<ReviewedMarksResponse>(context.key)?.marks,
     ).toEqual((await second.promise).marks);
-    expect(summaryRead).not.toHaveBeenCalled();
   } finally {
-    unsubscribe();
     client.clear();
   }
 });

@@ -20,9 +20,11 @@ test('marks immediately and rolls back when background validation rejects the fi
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  let summaries = 0;
+  // Marking a file is a local decision: it must not send the reviewer's
+  // browser back to the server for anything else.
+  let extra = 0;
   page.on('request', (request) => {
-    if (request.url().endsWith('/review-summary')) summaries++;
+    if (/\/(evidence|inventory|git\/status)$/.test(request.url())) extra++;
   });
   await page.route('**/reviewed', async (route) => {
     if (route.request().method() !== 'PUT') return route.continue();
@@ -46,7 +48,7 @@ test('marks immediately and rolls back when background validation rejects the fi
         })
         .first(),
     ).toHaveAttribute('aria-pressed', 'true');
-    expect(summaries).toBe(0);
+    expect(extra).toBe(0);
     release();
     await expect(mark).toHaveAttribute('aria-pressed', 'false');
     await expect(
@@ -55,7 +57,7 @@ test('marks immediately and rolls back when background validation rejects the fi
         .filter({ hasText: /stale|changed/i })
         .first(),
     ).toBeVisible();
-    expect(summaries).toBe(0);
+    expect(extra).toBe(0);
   } finally {
     release();
   }

@@ -178,4 +178,3 @@ export type {
   FileEditResult,
   FileTree,
 } from '@porcelain/contracts/files';
-export type { ReviewSummary } from '@porcelain/contracts/reviewed-files';

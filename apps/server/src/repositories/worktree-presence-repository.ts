@@ -9,6 +9,7 @@ import {
 } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { artifacts } from '../db/schema/artifacts.ts';
+import { commentReads } from '../db/schema/comment-reads.ts';
 import { commentThreads } from '../db/schema/comment-threads.ts';
 import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
@@ -99,6 +100,9 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
         .run();
       tx.delete(reviewedFiles)
         .where(inArray(reviewedFiles.worktreeId, worktreeIds))
+        .run();
+      tx.delete(commentReads)
+        .where(inArray(commentReads.worktreeId, worktreeIds))
         .run();
       // The presence rows go last: while one exists the data is still
       // findable, so a crash mid-collection leaves work to redo, not orphans.

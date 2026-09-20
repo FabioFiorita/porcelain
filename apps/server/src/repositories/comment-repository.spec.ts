@@ -17,6 +17,7 @@ it('retains creation order and discussions after inventory removes their worktre
     const project: RegisteredProject = {
       id: 'project',
       name: 'project',
+      namedByOwner: false,
       commonDirectory: '/git',
       repositoryIdentity: 'identity',
       available: true,
@@ -40,10 +41,15 @@ it('retains creation order and discussions after inventory removes their worktre
     const second = { ...first, id: 'a-second' };
     store.save(first);
     store.save(second);
-    store.save({ ...first, resolved: true });
+    // Every write is handed the next revision, across worktrees: the number
+    // the owner acknowledges must never be reused.
+    expect(store.save({ ...first, resolved: true })).toMatchObject({
+      revision: 3,
+    });
     expect(store.find('worktree', first.id)).toEqual({
       ...first,
       resolved: true,
+      revision: 3,
     });
     expect(store.find('other', first.id)).toBeUndefined();
     expect(store.usage('worktree')).toEqual({
@@ -54,8 +60,8 @@ it('retains creation order and discussions after inventory removes their worktre
     // Threads are keyed by worktree id and owe nothing to the project record:
     // storage keeps them whether or not Git still lists that worktree.
     expect(store.list('worktree')).toEqual([
-      { ...first, resolved: true },
-      second,
+      { ...first, resolved: true, revision: 3 },
+      { ...second, revision: 2 },
     ]);
     expect(store.list('other')).toEqual([]);
   } finally {

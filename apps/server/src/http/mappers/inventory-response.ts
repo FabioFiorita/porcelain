@@ -16,6 +16,7 @@ export function toProjectResponse(project: Project): ProjectResponse {
       main: worktree.main,
       branch: worktree.branch,
       available: worktree.available,
+      status: worktree.status,
     })),
   };
 }

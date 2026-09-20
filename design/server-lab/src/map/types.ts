@@ -18,7 +18,6 @@ export type SourceRef = { path: string; line?: number; symbol?: string };
 
 export type RunnerName =
   | 'operations'
-  | 'summaries'
   | 'discovery'
   | 'browsing'
   | 'drafting'
@@ -46,7 +45,7 @@ export type Step = {
 };
 
 export type WebTrigger = {
-  /** Query/mutation hook or view, e.g. `useReviewSummaries`. */
+  /** Query/mutation hook or view, e.g. `useInventory`. */
   hook: string;
   source: SourceRef;
   /** When it fires and how often: mount, per worktree, staleTime, focus refetch, invalidations. */

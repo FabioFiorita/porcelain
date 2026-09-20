@@ -6,6 +6,7 @@ export const projects = sqliteTable(
   {
     id: text().notNull().primaryKey(),
     name: text().notNull(),
+    namedByOwner: integer('named_by_owner', { mode: 'boolean' }).notNull(),
     commonDirectory: text('common_directory').notNull(),
     repositoryIdentity: text('repository_identity').notNull().unique(),
     available: integer({ mode: 'boolean' }).notNull(),
@@ -14,5 +15,6 @@ export const projects = sqliteTable(
   (table) => [
     check('project_id_present', sql`${table.id} IS NOT NULL`),
     check('project_available', sql`${table.available} IN (0, 1)`),
+    check('project_named_by_owner', sql`${table.namedByOwner} IN (0, 1)`),
   ],
 );

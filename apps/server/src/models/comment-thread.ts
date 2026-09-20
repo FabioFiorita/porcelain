@@ -33,6 +33,9 @@ export type CommentThread = {
   resolved: boolean;
   messages: CommentMessage[];
 };
+/** A thread as it is stored, with the revision its last write was given. */
+export type StoredCommentThread = CommentThread & { revision: number };
+
 export type CommentCommand =
   | { kind: 'list'; worktreeId: string }
   | {

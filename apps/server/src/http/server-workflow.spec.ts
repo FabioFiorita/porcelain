@@ -117,7 +117,14 @@ it('keeps review metadata together across Git inspection, refresh and a server r
         content: '<h1>Review</h1>',
       }),
     );
-    await request('/api/inventory');
+    const before = inventoryResponseSchema.parse(
+      await request('/api/inventory'),
+    );
+    // Layers were published above, so the sidebar's dot is part of what has
+    // to survive the restart.
+    expect(
+      before.projects[0]?.worktrees.map((worktree) => worktree.status),
+    ).toContain('pending');
     await server.close();
     const restarted = await createServer({
       pairingReach,
@@ -132,7 +139,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
         headers,
       });
       expect(restored.statusCode).toBe(200);
-      expect(inventoryResponseSchema.parse(restored.json())).toEqual(inventory);
+      expect(inventoryResponseSchema.parse(restored.json())).toEqual(before);
       for (const [suffix, expected] of [
         ['file-preferences', preferences],
         ['review-layers', layers],

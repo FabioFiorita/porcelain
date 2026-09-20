@@ -70,6 +70,7 @@ function seededThread(worktreeId = scope.worktreeId): CommentThread {
         author: 'agent',
       },
     ],
+    revision: 1,
   };
 }
 

@@ -25,6 +25,7 @@ const projects: Project[] = [
         branch: 'refs/heads/main',
         main: true,
         available: true,
+        status: 'reviewed' as const,
       },
       {
         id: 'worktree-review',
@@ -32,6 +33,7 @@ const projects: Project[] = [
         branch: 'refs/heads/agent/review',
         main: false,
         available: true,
+        status: 'pending' as const,
       },
       {
         id: 'worktree-archived',
@@ -39,6 +41,7 @@ const projects: Project[] = [
         branch: 'refs/heads/archive/prototype',
         main: false,
         available: false,
+        status: 'replied' as const,
       },
     ],
   },
@@ -111,6 +114,24 @@ describe('ProjectNavigator', () => {
       ).getAttribute('aria-current'),
     ).toBe('page');
     await expect.element(screen.getByText('main')).toBeVisible();
+  });
+
+  it('shows one dot per worktree, named by what it means', async () => {
+    const { screen } = await renderNavigator();
+    // A count per worktree cost a Git read each; this arrives with the list.
+    // The dot carries no text of its own, so its hue and its name are what
+    // say which state it is.
+    expect(
+      (await screen.getByTitle('Waiting for your review').element()).className,
+    ).toContain('bg-yellow-500');
+    expect(
+      (await screen.getByTitle('Reviewed, waiting for a commit').element())
+        .className,
+    ).toContain('bg-emerald-500');
+    expect(
+      (await screen.getByTitle('The agent replied').element()).className,
+    ).toContain('bg-blue-500');
+    expect(document.querySelectorAll('[role="img"]')).toHaveLength(3);
   });
 
   it('keeps unavailable worktrees selectable for archived review data', async () => {

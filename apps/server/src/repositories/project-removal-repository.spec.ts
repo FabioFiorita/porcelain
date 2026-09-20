@@ -10,13 +10,13 @@ import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
 import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import type { RegisteredProject } from '../models/project.ts';
-import { ProjectRemovalBlockedError } from './errors/project-removal-blocked-error.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 import { ProjectRemovalRepository } from './project-removal-repository.ts';
 
 const project: RegisteredProject = {
   id: 'project',
   name: 'Fixture',
+  namedByOwner: false,
   commonDirectory: '/fixture/.git',
   repositoryIdentity: 'fixture',
   available: false,
@@ -71,7 +71,7 @@ async function fixture() {
 
 describe('Project removal persistence', () => {
   it.each(['running', 'indeterminate', 'block'] as const)(
-    'preserves the project and its data when a Git operation is %s',
+    'removes the project and its records when a Git operation is %s',
     async (state) => {
       const { database, inventory, store } = await fixture();
       if (state === 'block')
@@ -96,14 +96,16 @@ describe('Project removal persistence', () => {
             },
           })
           .run();
-      expect(() => store.remove(project.id)).toThrow(
-        ProjectRemovalBlockedError,
-      );
-      expect(inventory.read().projects).toEqual([project]);
-      expect(database.db.select().from(artifacts).all()).toMatchObject([
-        { content: 'data' },
-      ]);
-      expect(database.db.select().from(reviewedFiles).all()).toHaveLength(1);
+      // Removal touches no disk and the repository can be added again, so an
+      // action that ended without a confirmed outcome must not leave a
+      // project nobody can ever remove. Its latch goes with it: the table
+      // still refuses actions, but not for a project that no longer exists.
+      expect(store.remove(project.id)).toEqual({ deleted: true });
+      expect(inventory.read().projects).toEqual([]);
+      expect(database.db.select().from(artifacts).all()).toEqual([]);
+      expect(database.db.select().from(reviewedFiles).all()).toEqual([]);
+      expect(database.db.select().from(gitActionBlocks).all()).toEqual([]);
+      expect(database.db.select().from(gitActionReceipts).all()).toEqual([]);
     },
   );
 

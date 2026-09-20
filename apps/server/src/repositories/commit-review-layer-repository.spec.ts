@@ -53,6 +53,7 @@ it('rejects source changes across connections, preserves immutable snapshots and
       inventory.save({
         id: owner.id,
         name: owner.name,
+        namedByOwner: false,
         commonDirectory: owner.commonDirectory,
         repositoryIdentity: owner.repositoryIdentity,
         available: owner.available,
@@ -97,7 +98,7 @@ it('rejects source changes across connections, preserves immutable snapshots and
       sourceWorktreeId: otherSource.id,
     });
     layers.replace(source.id, 2, []);
-    inventory.save({ ...project, available: false });
+    inventory.save({ ...project, namedByOwner: false, available: false });
     expect(b.read(project.id, snapshot.commitOid)).toEqual(saved);
     expect(b.create(current)).toEqual(saved);
     expect(new ProjectRemovalRepository(first.db).remove(project.id)).toEqual({

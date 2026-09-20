@@ -49,13 +49,19 @@ export function useGitAction(scope: ReviewScope, action: GitAction) {
       preparationId: receipt.preparationId,
       receipt,
     });
-    if (receipt.refreshRequired)
+    if (receipt.refreshRequired) {
       await client.invalidateQueries({
         queryKey: queryKeys.reviewProject(
           connection.environmentId,
           scope.projectId,
         ),
       });
+      // A commit archives the review layers, which is what puts the sidebar's
+      // dot out; the dot arrives with the worktree list, not with the review.
+      await client.invalidateQueries({
+        queryKey: queryKeys.inventory(connection.environmentId),
+      });
+    }
   }
   // Preparation reads and captures state; it has no Git/cache effects.
   // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation

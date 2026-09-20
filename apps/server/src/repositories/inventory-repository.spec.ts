@@ -67,6 +67,7 @@ describe('InventoryRepository', () => {
   const fixtureProject: RegisteredProject = {
     id: 'project-original',
     name: 'Atlas',
+    namedByOwner: false,
     commonDirectory: '/fixture/atlas/.git',
     repositoryIdentity: 'repository-original',
     available: false,
@@ -81,6 +82,7 @@ describe('InventoryRepository', () => {
         ...fixtureProject,
         id: 'project-second',
         name: 'Beacon',
+        namedByOwner: false,
         commonDirectory: '/fixture/beacon/.git',
         repositoryIdentity: 'repository-second',
       };

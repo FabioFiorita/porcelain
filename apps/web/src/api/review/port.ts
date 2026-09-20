@@ -14,7 +14,6 @@ import type {
   Layers,
   ReviewedMarksResponse,
   ReviewScope,
-  ReviewSummary,
   SetReviewedRequest,
   Status,
   TextFile,
@@ -29,7 +28,6 @@ export type ReviewPort = {
   commitLayers: (
     request: ReviewRequest & { oid: string },
   ) => Promise<CommitReviewLayers | null>;
-  summary: (request: ReviewRequest) => Promise<ReviewSummary>;
   fileTree: (request: ReviewRequest) => Promise<FileTree>;
   editFile: (
     request: ReviewRequest & { input: FileEdit },

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -172,6 +172,7 @@ export async function createProfilePlayground(
       // Fresh checkouts leave racily clean index entries that Git re-hashes on
       // every status until the index is rewritten in a later second. Porcelain
       // reads without optional locks, so settle each index once here.
+      await settled(worktrees.map((entry) => ageChanges(entry.path, git)));
       await sleep(1_020 - (Date.now() % 1_000), undefined, { signal });
       await settled(
         worktrees.map((entry) =>
@@ -197,4 +198,37 @@ export async function createProfilePlayground(
     await settled([pruning, removeTree(root)]);
     throw error;
   }
+}
+
+/**
+ * Make a playground's changes look like work done a while ago.
+ *
+ * A file modified in the last couple of seconds is deliberately never trusted
+ * for caching — a second write within the same timestamp tick would look
+ * identical — so a playground built this instant measures every read as a
+ * first read. That is not what working in a repository looks like, and it
+ * makes the second reading of a worktree appear to cost as much as the first.
+ */
+async function ageChanges(
+  worktree: string,
+  git: (...args: string[]) => Promise<{ stdout: string }>,
+) {
+  const { stdout } = await git('-C', worktree, 'status', '--porcelain', '-z');
+  const settled = new Date(Date.now() - 600_000);
+  // `-z` records are `XY <path>`, and a rename or copy is followed by a second
+  // bare record holding the path it came from. Reading that one as a status
+  // line would age whatever its third character onwards happens to name.
+  const records = stdout.split('\0').filter(Boolean);
+  const paths: string[] = [];
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index] ?? '';
+    if (record.length <= 3) continue;
+    paths.push(record.slice(3));
+    if (record.startsWith('R') || record.startsWith('C')) index += 1;
+  }
+  await Promise.all(
+    paths.map((path) =>
+      utimes(join(worktree, path), settled, settled).catch(() => undefined),
+    ),
+  );
 }

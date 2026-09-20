@@ -19,6 +19,7 @@ describe('HTTP server', () => {
       dataDirectory,
       projectHome: dataDirectory,
       git: () => ({
+        readOriginUrl: async () => null,
         listWorktrees: (signal) =>
           new Promise((_resolve, reject) => {
             signal?.addEventListener('abort', () => reject(signal.reason), {

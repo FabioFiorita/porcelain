@@ -421,7 +421,6 @@ export const serverSpecAudits: SpecAudit[] = [
     gaps: [
       'Evidence comes from a fake, so "exact evidence" only proves the fake is echoed back. Real evidence and real staleness after an edit are covered in git-actions.spec.ts, not here.',
       'Because the fake status never changes, a mark can never become stale through a file edit in this spec.',
-      'The review-summary endpoint, which the web polls per worktree, is not exercised here.',
       'Marks are never pruned or checked for paths that are no longer changed.',
     ],
     verdict: 'adequate',
@@ -455,29 +454,14 @@ export const serverSpecAudits: SpecAudit[] = [
           'merge produces a two-parent HEAD, rebase a one-parent HEAD; receipt succeeded.',
       },
       {
-        name: 'counts unreviewed paths without loading their diffs',
-        asserts:
-          'With no marks, review-summary reports pendingFiles 2 and readDiffs is never called.',
-      },
-      {
-        name: 'serves foreground reads while a background summary is blocked',
-        asserts:
-          'A git/status request completes while the summary runner is blocked inside readStatus.',
-      },
-      {
         name: 'reads comments without waiting for slow review evidence',
         asserts:
           'GET comments returns while an evidence request is blocked inside readDiffs.',
       },
       {
-        name: 'validates only the marked file, including both comparisons, and preserves badge counts',
+        name: 'validates only the marked file, including both comparisons',
         asserts:
-          'With files backdated 60 s: marking hits the cache (no readDiffs), summary is 1 pending; after an edit the mark is 409 and exactly one readDiffs call covered file staged+unstaged; summary becomes 2.',
-      },
-      {
-        name: 'counts current unreviewed files and unresolved comments in the review summary',
-        asserts:
-          'pendingFiles 1 -> 0 after marking -> 1 after an edit; openThreads counts a new comment.',
+          'With files backdated 60 s: marking hits the cache (no readDiffs); after an edit the mark is 409 and exactly one readDiffs call covered file staged+unstaged.',
       },
       {
         name: 'archives committed layer notes and preserves remaining review work (selected: %s)',
@@ -512,16 +496,15 @@ export const serverSpecAudits: SpecAudit[] = [
     ],
     strengths: [
       'The strongest spec in scope: real Git, real HTTP, restarts, a hanging hook and a dropped socket, with idempotency and staleness checked on disk.',
-      'Contains the only tests that look at work done per request (readDiffs call counts) and at queue independence between the summary runner, comments and operations.',
+      'Contains the only tests that look at work done per request (readDiffs call counts) and at lane independence between comments and operations.',
       'Commit-to-review-layer archiving is checked with both whole and selected commits.',
     ],
     gaps: [
-      'Spies count calls to readDiffs, not processes. "Counts unreviewed paths without loading their diffs" still costs 13 git processes per worktree per summary, and a summary with any mark computes full evidence (84-258 processes cold, measured).',
-      'The cache-hit test only works because files are backdated 60 s. The realistic case (an agent edited a file a moment ago) makes every evidence and summary call cold; nothing asserts that.',
-      'Every fixture has 1-3 changed files and one worktree; there is no sidebar-shaped test (summaries for many worktrees).',
+      'The cache-hit test only works because files are backdated 60 s. The realistic case (an agent edited a file a moment ago) makes every evidence call cold; nothing asserts that.',
+      'Every fixture has 1-3 changed files and one worktree.',
       'No test that a long pre-commit hook (up to 120 s on the shared operations queue) delays or times out status, evidence and file reads for other worktrees and projects.',
       'Fetch, push and stash apply are not exercised over HTTP here; failed pull (conflict) receipts are not checked.',
-      'The file name hides that it is also the main review-summary and evidence-cache spec, which makes those tests hard to find.',
+      'The file name hides that it is also the main evidence-cache spec, which makes those tests hard to find.',
     ],
     verdict: 'strong',
   },
@@ -986,9 +969,9 @@ export const serverSpecAudits: SpecAudit[] = [
           'Per-table rows for the removed project are gone (including a disappeared worktree), the other project keeps its rows, foreign keys are consistent, HEAD/index/worktrees/files unchanged, re-registration starts empty.',
       },
       {
-        name: 'authenticates before validation and rejects removal of a recovery-blocked project',
+        name: 'authenticates before validation and removes a project an old action blocked',
         asserts:
-          '401, 400, then 409 PROJECT_REMOVAL_BLOCKED with inventory unchanged.',
+          '401, 400, then 200 {deleted:true}: an old unconfirmed action no longer makes a project unremovable, and its latch row goes with it.',
       },
     ],
     strengths: [
@@ -1739,13 +1722,11 @@ export const serverAreaSummaries: AreaTestSummary[] = [
     area: 'inventory',
     verdict: 'adequate',
     summary:
-      'Identity and availability are among the best-tested parts of the server: real worktree moves, removals, substitutions, restarts and property tests for reconciliation. The per-worktree review summary is tested only for counts on a one-worktree fixture, and refresh and discovery have no bound on Git work as projects and worktrees grow.',
+      'Identity and availability are among the best-tested parts of the server: real worktree moves, removals, substitutions, restarts, a real hanging Git child, and the derived-id properties. The sidebar dot is covered end to end, including what does and does not count as having read a reply. What is still untested is scale: listing ten projects of five worktrees, and discovery under a crowded home folder.',
     missing: [
-      'Review summaries for 20 worktrees (the sidebar) spawn at most N git processes in total and finish within a time budget.',
-      'A summary for a worktree with one reviewed mark does not read every diff in that worktree.',
-      'GET /review-summary is cancelled when the browser drops the request.',
-      'Refresh of 10 projects with 5 worktrees each has bounded process count and does not hold foreground reads for its whole duration.',
+      'Listing 10 projects with 5 worktrees each keeps its Git processes at the launch limit and does not hold foreground reads for its whole duration.',
       'Discovery under a home folder with 50 repositories bounds listWorktrees calls.',
+      'A worktree with thousands of comment threads still answers the dot in one statement within a time budget.',
     ],
   },
   {

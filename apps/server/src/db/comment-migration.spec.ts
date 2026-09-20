@@ -87,6 +87,9 @@ it('backfills legacy authors, preserves evidence/order/content and reopens safel
           },
           { id: 'third', body: 'legacy third', author: 'reviewer' },
         ],
+        // Threads written before revisions existed are numbered from the
+        // sequence they already had, so nothing starts life unacknowledgeable.
+        revision: 1,
       };
       expect(store.list('legacy-worktree')).toEqual([expected]);
       expect(store.list('legacy-worktree')[0]?.messages[0]).not.toHaveProperty(
@@ -123,6 +126,7 @@ it('backfills legacy authors, preserves evidence/order/content and reopens safel
             },
             { id: 'third', body: 'legacy third', author: 'reviewer' },
           ],
+          revision: 1,
         },
       ]);
     } finally {

@@ -99,7 +99,6 @@ type Scope = {
   projectId: string;
   worktreeId: string;
   worktreePath: string;
-  worktrees: { id: string; path: string }[];
 };
 
 const selectWorktree = async (api: Api, scope: Scope) => {
@@ -115,21 +114,14 @@ const selectWorktree = async (api: Api, scope: Scope) => {
   ]);
 };
 
-const sidebar = async (api: Api, scope: Scope) => {
-  // useReviewSummaries: one request per available worktree, one at a time.
-  for (const worktree of scope.worktrees)
-    await api('GET', `/api/worktrees/${worktree.id}/review-summary`);
-};
-
 export const benchSteps: Step[] = [
   {
     id: 'open',
-    title: 'Open Porcelain (inventory, sidebar summaries)',
-    run: async (api, scope) => {
-      // As observed from the web on load. Reading the inventory is the
-      // listing now, so there is no second rescan to pay for.
+    title: 'Open Porcelain (the sidebar, in one request)',
+    run: async (api) => {
+      // As observed from the web on load. The list carries each worktree's
+      // status dot, so there is nothing else to ask for.
       await api('GET', '/api/inventory');
-      await sidebar(api, scope);
     },
   },
   {
@@ -236,17 +228,15 @@ export const benchSteps: Step[] = [
     },
   },
   {
-    id: 'sidebar-marked',
-    title: 'Sidebar summaries once marks exist',
-    run: (api, scope) => sidebar(api, scope),
-  },
-  {
     id: 'agent-edit',
     title: 'Agent edits ten files, reviewer refocuses the window',
     playgroundOnly: true,
     run: async (api, scope, context) => {
       await context.simulate?.(scope.worktreePath, 'edit', 10);
-      await Promise.all([selectWorktree(api, scope), sidebar(api, scope)]);
+      await Promise.all([
+        selectWorktree(api, scope),
+        api('GET', '/api/inventory'),
+      ]);
     },
   },
 ];
@@ -302,11 +292,6 @@ export async function runBench(
     projectId: project.id,
     worktreeId: review.id,
     worktreePath: review.path,
-    worktrees: inventory.projects.flatMap((candidate) =>
-      candidate.worktrees
-        .filter((worktree) => worktree.available)
-        .map((worktree) => ({ id: worktree.id, path: worktree.path })),
-    ),
   };
 
   const results: BenchStepResult[] = [];

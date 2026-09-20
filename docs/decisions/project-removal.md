@@ -32,13 +32,12 @@ This explicit removal overrides retention on inventory disappearance in the
 
 ## Git operation coordination
 
-Removal shares the application queue. An active operation must unwind before removal can run.
-Because action acceptance happens outside that queue, the removal transaction also rejects running
-receipts, including actions accepted behind an already queued removal. Indeterminate receipts and
-persisted or in-memory recovery blocks also reject removal with `PROJECT_REMOVAL_BLOCKED`.
-Removal must not become a way to discard recovery evidence and bypass an unconfirmed process group.
-There is no new recovery/unblock workflow. Successful removal invalidates old preparations and deletes
-completed receipts; receipt retries after removal no longer recover the deleted operation.
+Removal is a writer on the project's lane, so an action already running unwinds before removal is
+admitted. Because action acceptance happens outside that lane, a submit can persist a running
+receipt just before removal deletes it; that queued executor then finds its preparation gone, is
+recorded as rejected, launches no Git and resurrects nothing. Successful removal invalidates old
+preparations and deletes completed receipts; receipt retries after removal no longer recover the
+deleted operation. See the 2026-09-20 amendment below for what removal no longer refuses.
 
 ## Evidence
 
@@ -47,3 +46,12 @@ removal, refresh, project removal, restart, and fresh registration. It checks ot
 and unchanged checkout content, Git HEAD, index, and worktree listing. Focused persistence and
 application specs cover transaction rollback, unresolved operations, queued
 acceptance, and a recovery-block persistence failure. These checks do not establish client UI behavior.
+
+Amended, 2026-09-20 (step 4b): removal is always allowed. It touches no disk and the repository can
+be registered again at any time, so a Git action that ended without a confirmed outcome no longer
+makes a project unremovable — which it did, for ever, because the recovery that recorded the
+unknown outcome never cleared it. The only wait is structural: removal is a writer on the project's
+lane, so an action already running finishes first. The removal transaction deletes that project's
+refusal latch along with its receipts, preparations and review data, and the coordinator forgets it
+in memory. `git_action_blocks` itself stays: it is what stops a second action running against a
+repository whose previous process group could not be confirmed dead.

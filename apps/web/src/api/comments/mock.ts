@@ -12,6 +12,10 @@ import type { CommentsPort } from './port';
 export function createCommentsMock(
   store: ReturnType<typeof createMockStore>,
 ): CommentsPort {
+  // The server hands every write a rising revision; the mock keeps its own so
+  // the discussion can say what it has displayed.
+  let revision = 0;
+  const next = () => (revision += 1);
   async function context(request: ReviewRequest) {
     const inventory = await createInventoryMock(store).read({
       signal: request.signal,
@@ -32,6 +36,17 @@ export function createCommentsMock(
     return store.comments[request.worktreeId] ?? [];
   }
   return {
+    async seen(request) {
+      await context(request);
+      store.commentsSeen[request.worktreeId] = Math.max(
+        store.commentsSeen[request.worktreeId] ?? 0,
+        request.throughRevision,
+      );
+      return {
+        worktreeId: request.worktreeId,
+        seenThrough: store.commentsSeen[request.worktreeId] ?? 0,
+      };
+    },
     async list(request) {
       return structuredClone(await context(request));
     },
@@ -52,6 +67,7 @@ export function createCommentsMock(
             createdAt: new Date().toISOString(),
           },
         ],
+        revision: next(),
       };
       store.comments[request.worktreeId] = [...threads, thread];
       return structuredClone([thread]);
@@ -78,6 +94,7 @@ export function createCommentsMock(
             createdAt: new Date().toISOString(),
           },
         ],
+        revision: next(),
       };
       store.comments[request.worktreeId] = threads.map((candidate) =>
         candidate.id === updated.id ? updated : candidate,
@@ -95,7 +112,7 @@ export function createCommentsMock(
         throw new ConnectionError(
           'That comment thread is no longer available. Refresh the discussion.',
         );
-      const updated = { ...thread, resolved: input.resolved };
+      const updated = { ...thread, resolved: input.resolved, revision: next() };
       store.comments[request.worktreeId] = threads.map((candidate) =>
         candidate.id === updated.id ? updated : candidate,
       );

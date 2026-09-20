@@ -20,6 +20,7 @@ it('stores one durable mark per worktree and keeps rows across database reopen',
     .values({
       id: projectId,
       name: 'project',
+      namedByOwner: false,
       commonDirectory: '/fixture/.git',
       repositoryIdentity: 'repository',
       available: true,

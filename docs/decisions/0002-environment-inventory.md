@@ -84,3 +84,16 @@ rather than gone — Git still reports it and its administrative directory still
 keeps its ID and its review data, and only a real omission from Git's list starts the clock.
 Every resolution asks the checkout whether it still belongs to that administrative directory,
 so a different repository moved into its path is refused rather than read.
+
+Amended, 2026-09-20 (step 4b): projects are listed together rather than one after another, four
+Git processes at a time across the whole server, and each project's listing has five seconds of
+its own. A project that does not answer in time is reported unavailable with its last-known
+worktrees, like one that cannot be read; the request's deadline is derived from how many waves the
+projects take, so more slow projects cannot fail the whole listing. The bound is on Git launches,
+not on callers: joining a listing already in flight starts nothing.
+
+A project's name is the repository name in its `origin` URL, read once with `git remote get-url`
+when it is registered — only that command applies `url.*.insteadOf`. Only a genuinely missing
+remote falls back to the main checkout's folder name. `named_by_owner` records who chose the name:
+a derived name is refreshed when the repository is registered again, and a name the owner set is
+never derived over. Names are labels, so duplicates are allowed.

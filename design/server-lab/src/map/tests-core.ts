@@ -1577,9 +1577,9 @@ export const coreSpecAudits: SpecAudit[] = [
     fakes: [],
     tests: [
       {
-        name: 'preserves the project and its data when a Git operation is %s (x3: running, indeterminate, block)',
+        name: 'removes the project and its records when a Git operation is %s (x3: running, indeterminate, block)',
         asserts:
-          'ProjectRemovalBlockedError; inventory, artifacts and reviewed files unchanged.',
+          'Removal succeeds whatever an old action left behind: the project, its artifacts, reviewed files, receipts and its refusal latch row are all gone.',
       },
       {
         name: 'rolls back review-data deletion if deleting inventory fails',

@@ -23,7 +23,6 @@ import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import {
   reviewedMarksResponseSchema,
-  reviewSummarySchema,
   setReviewedRequestSchema,
 } from '@porcelain/contracts/reviewed-files';
 import { ConnectionError } from './errors/connection-error.ts';
@@ -139,8 +138,6 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ),
     artifacts: (request: Request) =>
       read(request, 'artifacts', artifactListSchema),
-    summary: (request: Request) =>
-      read(request, 'review-summary', reviewSummarySchema),
     evidence: (request: Request) =>
       read(request, 'evidence', evidenceResponseSchema),
     reviewed: {

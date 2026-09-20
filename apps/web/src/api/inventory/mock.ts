@@ -70,6 +70,7 @@ function seed(scenario: MockScenario): Inventory {
                   branch: 'refs/heads/main',
                   main: true,
                   available: scenario !== 'unavailable',
+                  status: null,
                 },
                 {
                   id: '629a86281cd6456281a29c05fba76b4b',
@@ -77,6 +78,7 @@ function seed(scenario: MockScenario): Inventory {
                   branch: 'refs/heads/agent/review',
                   main: false,
                   available: true,
+                  status: null,
                 },
                 {
                   id: '629a86281cd6456281a29c05fba76b4c',
@@ -84,6 +86,7 @@ function seed(scenario: MockScenario): Inventory {
                   branch: null,
                   main: false,
                   available: true,
+                  status: null,
                 },
                 {
                   id: '629a86281cd6456281a29c05fba76b4d',
@@ -91,6 +94,7 @@ function seed(scenario: MockScenario): Inventory {
                   branch: 'refs/heads/archive/initial-prototype',
                   main: false,
                   available: false,
+                  status: null,
                 },
               ],
             },
@@ -105,6 +109,7 @@ function seed(scenario: MockScenario): Inventory {
                   branch: branch === null ? null : `refs/heads/${branch}`,
                   main: worktreeIndex === 0,
                   available: projectIndex !== 4,
+                  status: null,
                 })),
               }),
             ),
@@ -146,6 +151,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     paired: scenario !== 'unpaired',
     disconnectFailed: false,
     comments: {} as Record<string, CommentThread[]>,
+    commentsSeen: {} as Record<string, number>,
     filePreferences: {} as Record<string, FilePreference[]>,
     filePreferencesFailed: false,
     commentsFailed: false,
@@ -229,6 +235,16 @@ export function createInventoryMock(
       );
       return { deleted: Boolean(project) };
     },
+    async rename({ signal, projectId, name }) {
+      await prepareInventoryRequest(store, signal);
+      const project = store.inventory.projects.find(
+        (entry) => entry.id === projectId,
+      );
+      if (!project)
+        throw new ConnectionError('That project is no longer registered.');
+      project.name = name.trim();
+      return { id: project.id, name: project.name };
+    },
     async discover({ signal }) {
       await prepareInventoryRequest(store, signal);
       if (store.discoveryFailed)
@@ -283,6 +299,7 @@ export function createInventoryMock(
             branch: 'refs/heads/main',
             main: true,
             available: true,
+            status: null,
           },
         ],
       };

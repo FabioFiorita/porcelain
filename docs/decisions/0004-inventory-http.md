@@ -23,6 +23,7 @@ protected transport outside disposable loopback tests. The factory does not open
 | GET /projects/discover | No body | 200 nearby repository suggestions |
 | GET /projects/folders | Optional absolute server-side folder `path`; defaults to home | 200 child folders and repository status |
 | POST /projects | JSON object with absolute server-side checkout path in `path` | 200 registered project |
+| PATCH /projects/:projectId | JSON object with `name`, 1-100 characters, no control characters | 200 the project's id and name |
 
 Registration returns 200 for both a new project and an already registered project. Relative paths,
 unknown request fields, empty paths, and NUL-containing paths are rejected. Absolute-path interpretation
@@ -35,7 +36,9 @@ server user's home and known project locations; it is a convenience, not a compl
 Folder browsing and direct path entry remain available for repositories outside those suggestions.
 
 Inventory includes environment identity and projects with IDs, names, availability, and worktrees.
-Worktrees expose IDs, paths, main-checkout status, branches, and availability. Internal filesystem
+Worktrees expose IDs, paths, main-checkout status, branches, availability, and the sidebar's
+status: review layers waiting to be read, a reply the owner has not seen, or nothing. That status
+is read from SQLite with the list, so the sidebar costs no extra request and no Git. Internal filesystem
 identity evidence and Git metadata directory paths are excluded by explicit HTTP mappers and response
 schemas. Unavailable entries retain last-known information. No multi-environment aggregation occurs
 on the server.

@@ -58,6 +58,7 @@ function thread(): CommentThread {
         author: 'agent',
       },
     ],
+    revision: 1,
   };
 }
 

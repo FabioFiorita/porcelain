@@ -5,7 +5,7 @@ import {
   MessageSquareIcon,
   RotateCcwIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
   Empty,
@@ -40,7 +40,11 @@ import {
   reviewProgress,
   type Status,
 } from '../../domain/review';
-import { useComments, usePrefetchComments } from '../../query/comments';
+import {
+  useComments,
+  useMarkCommentsSeen,
+  usePrefetchComments,
+} from '../../query/comments';
 import {
   useArtifacts,
   useChanges,
@@ -435,12 +439,47 @@ function CommentsView({
     .sort((left, right) =>
       lastActivity(left).localeCompare(lastActivity(right)),
     );
-  const counts = {
-    open: threads.filter((thread) => !thread.resolved).length,
-    resolved: threads.filter((thread) => thread.resolved).length,
-  };
+  const openCount = threads.filter((thread) => !thread.resolved).length;
+  const resolvedCount = threads.length - openCount;
+  const counts = { open: openCount, resolved: resolvedCount };
   const empty =
     filter === 'open' ? 'No open comments yet.' : 'Nothing resolved yet.';
+
+  // Reading the discussion is what clears the dot — not fetching it, which
+  // happens on mount and from every code document.
+  //
+  // The acknowledgement is one number per worktree, so it can only be moved
+  // once *everything* below it has been on screen: acknowledging the newest
+  // open thread would otherwise bury an older unread reply sitting in the
+  // resolved list. Both filters therefore have to have been shown for this
+  // same set of threads, and a set that changes starts the proof again.
+  const snapshot = threads
+    .map((thread) => `${thread.id}:${thread.revision}`)
+    .sort()
+    .join('\n');
+  const highest = threads.reduce(
+    (top, thread) => Math.max(top, thread.revision),
+    0,
+  );
+  const markSeen = useMarkCommentsSeen(scope).mutate;
+  const shown = useRef({ snapshot: '', filters: new Set<string>() });
+  useEffect(() => {
+    if (shown.current.snapshot !== snapshot)
+      shown.current = { snapshot, filters: new Set() };
+    shown.current.filters.add(filter);
+    const needed = (
+      [
+        ['open', openCount],
+        ['resolved', resolvedCount],
+      ] as const
+    ).filter(([, count]) => count > 0);
+    if (
+      highest === 0 ||
+      !needed.every(([value]) => shown.current.filters.has(value))
+    )
+      return;
+    markSeen(highest);
+  }, [filter, highest, markSeen, openCount, resolvedCount, snapshot]);
 
   const reveal = (anchor: CommentAnchor) => {
     const ref: DocumentRef =

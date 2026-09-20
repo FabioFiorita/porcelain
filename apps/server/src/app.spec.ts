@@ -212,6 +212,105 @@ describe('Application', () => {
       ).not.toBe(before.worktrees[1]?.id);
     });
 
+    it('reports a project whose Git never answers as unavailable, and lists the rest', async () => {
+      const f = await fixture();
+      const slow = join(f.root, 'slow');
+      await mkdir(slow);
+      git(slow, 'init', '-b', 'main');
+      git(slow, 'commit', '--allow-empty', '-m', 'Fixture');
+      // A `git` that really does hang, for one repository only: everything
+      // else runs the Git this machine has. A mock that resolves would prove
+      // nothing about a mount that has stopped answering.
+      const real = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+      const shim = join(f.root, 'bin');
+      await mkdir(shim);
+      await writeFile(
+        join(shim, 'git'),
+        `#!/bin/sh\ncase "$*" in *${slow}*) exec sleep 300 ;; esac\nexec ${real} "$@"\n`,
+        { mode: 0o755 },
+      );
+      const app = await openApplication({
+        dataDirectory: f.dataDirectory,
+        projectHome: f.dataDirectory,
+        projectListingTimeoutMs: 300,
+      });
+      applications.push(app);
+      await app.ready();
+      const { project: healthy } = await app.register(f.main);
+      const { project: hanging } = await app.register(slow);
+      const path = process.env.PATH;
+      // From here on, that one repository's Git never answers.
+      process.env.PATH = `${shim}:${path ?? ''}`;
+      try {
+        const { inventory } = await app.inventory();
+        // Stored order, whichever answered first.
+        expect(inventory.projects.map((project) => project.id)).toEqual([
+          healthy.id,
+          hanging.id,
+        ]);
+        expect(inventory.projects[0]).toMatchObject({
+          available: true,
+          worktrees: healthy.worktrees,
+        });
+        // The one that hung keeps what was last known about it rather than
+        // looking like a repository whose worktrees were deleted.
+        expect(inventory.projects[1]).toMatchObject({
+          available: false,
+          worktrees: hanging.worktrees.map((worktree) => ({
+            ...worktree,
+            available: false,
+          })),
+        });
+      } finally {
+        process.env.PATH = path;
+      }
+    }, 20_000);
+
+    it('answers when more projects hang than can be listed at once', async () => {
+      const f = await fixture();
+      const real = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+      const shim = join(f.root, 'bin');
+      await mkdir(shim);
+      const slow = join(f.root, 'slow');
+      await writeFile(
+        join(shim, 'git'),
+        `#!/bin/sh\ncase "$*" in *${slow}*) exec sleep 300 ;; esac\nexec ${real} "$@"\n`,
+        { mode: 0o755 },
+      );
+      const app = await openApplication({
+        dataDirectory: f.dataDirectory,
+        projectHome: f.dataDirectory,
+        projectListingTimeoutMs: 300,
+        // Deliberately shorter than the six projects need: the budget has to
+        // come from how many waves they take, or the last wave never gets its
+        // own answer and the whole request fails instead.
+        operationTimeoutMs: 500,
+      });
+      applications.push(app);
+      await app.ready();
+      const hanging: string[] = [];
+      for (let index = 0; index < 6; index += 1) {
+        const path = `${slow}-${index}`;
+        await mkdir(path);
+        git(path, 'init', '-b', 'main');
+        git(path, 'commit', '--allow-empty', '-m', 'Fixture');
+        hanging.push((await app.register(path)).project.id);
+      }
+      const previous = process.env.PATH;
+      process.env.PATH = `${shim}:${previous ?? ''}`;
+      try {
+        const { inventory } = await app.inventory();
+        expect(inventory.projects.map((project) => project.id)).toEqual(
+          hanging,
+        );
+        expect(inventory.projects.map((project) => project.available)).toEqual(
+          hanging.map(() => false),
+        );
+      } finally {
+        process.env.PATH = previous;
+      }
+    }, 30_000);
+
     it('keeps a deleted checkout folder as an unavailable worktree, and off the clock', async () => {
       const f = await fixture();
       const app = await open(f.dataDirectory);
@@ -234,7 +333,14 @@ describe('Application', () => {
       const { inventory, issues } = await app.inventory();
       expect(inventory.projects[0]?.worktrees).toEqual([
         before.worktrees[0],
-        { ...before.worktrees[1], id: linked, available: false },
+        // Its layers are still published, so the dot still says so: the
+        // worktree is unreachable, not finished with.
+        {
+          ...before.worktrees[1],
+          id: linked,
+          available: false,
+          status: 'pending',
+        },
       ]);
       expect(issues).toEqual([
         expect.objectContaining({ path: f.linked, error: expect.any(Error) }),
@@ -443,6 +549,7 @@ describe('Application', () => {
             if (failure) return Promise.reject(failure);
             return new Git(path).listWorktrees(signal);
           },
+          readOriginUrl: (signal) => new Git(path).readOriginUrl(signal),
         }),
       });
       await app.ready();
@@ -477,6 +584,7 @@ describe('Application', () => {
             await release.promise;
             return discovered;
           },
+          readOriginUrl: async () => null,
         }),
       });
       // Startup does not wait for a repository, so this never blocks here.
@@ -656,6 +764,7 @@ describe('Application', () => {
             }
             return new Git(path).listWorktrees(signal);
           },
+          readOriginUrl: (signal) => new Git(path).readOriginUrl(signal),
         }),
       });
       await app.ready();

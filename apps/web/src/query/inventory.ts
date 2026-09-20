@@ -108,6 +108,47 @@ export function useRegisterProject() {
   );
 }
 
+/** Name a project. The list is the only thing that changes. */
+export function useRenameProject() {
+  const { api, connection } = useConnectedContext();
+  const client = useQueryClient();
+  const queryKey = queryKeys.inventory(connection.environmentId);
+  return asMutation(
+    useMutation<
+      { id: string; name: string },
+      Error,
+      { projectId: string; name: string }
+    >({
+      mutationFn: async ({ projectId, name }) => {
+        const request = connection.request();
+        const result = await api.inventory.rename({
+          ...request,
+          projectId,
+          name,
+        });
+        request.signal.throwIfAborted();
+        return result;
+      },
+      onSuccess: async (result) => {
+        if (connection.controller.signal.aborted) return;
+        await client.cancelQueries({ queryKey });
+        client.setQueryData<Inventory>(
+          queryKey,
+          (inventory) =>
+            inventory && {
+              ...inventory,
+              projects: inventory.projects.map((project) =>
+                project.id === result.id
+                  ? { ...project, name: result.name }
+                  : project,
+              ),
+            },
+        );
+      },
+    }),
+  );
+}
+
 export function useRemoveProject() {
   const { api, connection } = useConnectedContext();
   const client = useQueryClient();

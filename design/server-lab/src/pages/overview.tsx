@@ -9,13 +9,7 @@ import { type Trace, useLab } from '@/lib/lab';
 import { areas, areaTests, tracesForFlow, verdictTone } from '@/lib/map';
 import { href } from '@/lib/route';
 
-const runners = [
-  'operations',
-  'summaries',
-  'discovery',
-  'browsing',
-  'drafting',
-];
+const runners = ['operations', 'discovery', 'browsing', 'drafting'];
 
 export function OverviewPage() {
   const { runtime, vitals, traces } = useLab();

@@ -1,17 +1,17 @@
 {
   "recorded": {
-    "commit": "4a9cfbf9",
+    "commit": "49f676ff",
     "runs": 3,
     "node": "v24.20.0",
     "git": "git version 2.53.0",
-    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs; measured on the step 4a working tree, whose commit follows 4a9cfbf9",
-    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server. Lowered in step 4a: a registered project is listed with one Git process and a stat per worktree instead of two processes per worktree, and resolving an id is a stat rather than a checkout verification, which is why reading files costs almost no Git at all."
+    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs; measured on the step 4b working tree, whose commit follows 49f676ff",
+    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server. Lowered in step 4b: opening the sidebar is one request and no Git at all, because the status dot is read from SQLite with the worktree list instead of a review summary per worktree. The sidebar-marked step is gone with the summaries it measured."
   },
   "profiles": {
     "app": {
       "open": {
-        "measured": 25,
-        "ceiling": 31
+        "measured": 1,
+        "ceiling": 6
       },
       "select": {
         "measured": 155,
@@ -37,19 +37,15 @@
         "measured": 108,
         "ceiling": 131
       },
-      "sidebar-marked": {
-        "measured": 24,
-        "ceiling": 30
-      },
       "agent-edit": {
-        "measured": 338,
-        "ceiling": 409
+        "measured": 166,
+        "ceiling": 201
       }
     },
     "monorepo": {
       "open": {
-        "measured": 41,
-        "ceiling": 50
+        "measured": 1,
+        "ceiling": 6
       },
       "select": {
         "measured": 112,
@@ -75,13 +71,9 @@
         "measured": 108,
         "ceiling": 131
       },
-      "sidebar-marked": {
-        "measured": 40,
-        "ceiling": 49
-      },
       "agent-edit": {
-        "measured": 268,
-        "ceiling": 325
+        "measured": 123,
+        "ceiling": 149
       }
     }
   }

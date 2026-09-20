@@ -1,7 +1,11 @@
-import type { CommentThread } from '../../models/comment-thread.ts';
+import type {
+  CommentThread,
+  StoredCommentThread,
+} from '../../models/comment-thread.ts';
 export interface CommentStore {
-  list(worktreeId: string): CommentThread[];
-  find(worktreeId: string, threadId: string): CommentThread | undefined;
+  list(worktreeId: string): StoredCommentThread[];
+  find(worktreeId: string, threadId: string): StoredCommentThread | undefined;
   usage(worktreeId: string): { threads: number; bytes: number };
-  save(thread: CommentThread): void;
+  /** Returns the thread with the revision this write was given. */
+  save(thread: CommentThread): StoredCommentThread;
 }

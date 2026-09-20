@@ -60,27 +60,3 @@ it('answers two identical status reads in flight with one Git read', async () =>
     await f.close();
   }
 });
-
-it('never lets a blocked background summary capture a foreground read', async () => {
-  const blocked = Promise.withResolvers<void>();
-  let reads = 0;
-  const f = await fixture(async () => {
-    reads += 1;
-    // Only the summary's read blocks, as a slow background read would.
-    if (reads === 1) await blocked.promise;
-    return observation;
-  });
-  try {
-    const background = f.app.reviewSummary(f.worktreeId).catch(() => undefined);
-    await new Promise((tick) => setTimeout(tick, 20));
-    const foreground = await f.app.gitStatus(f.worktreeId);
-    expect(foreground.status).toEqual(observation);
-    blocked.resolve();
-    await background;
-    expect(reads).toBe(2);
-  } finally {
-    blocked.resolve();
-    await f.app.close();
-    await f.close();
-  }
-});

@@ -105,6 +105,7 @@ test('registers an absolute server-side project without caching or redirects', a
         branch: 'refs/heads/main',
         main: true,
         available: true,
+        status: null,
       },
     ],
   };

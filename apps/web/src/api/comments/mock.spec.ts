@@ -19,6 +19,7 @@ const thread = {
       author: 'agent' as const,
     },
   ],
+  revision: 1,
 };
 
 function request(overrides: Partial<typeof scope> = {}) {

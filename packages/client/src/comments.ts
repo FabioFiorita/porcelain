@@ -3,6 +3,8 @@ import {
   createCommentThreadSchema,
   replyToCommentSchema,
   resolveCommentSchema,
+  seenCommentsRequestSchema,
+  seenCommentsResponseSchema,
 } from '@porcelain/contracts/comments';
 import { ConnectionError } from './errors/connection-error.ts';
 import { UnauthorizedError } from './errors/unauthorized-error.ts';
@@ -86,5 +88,31 @@ export function createCommentsClient(
         resolveCommentSchema,
         'PUT',
       ),
+    seen: async (input: Request & { throughRevision: number }) => {
+      try {
+        const response = await transport(`${commentsPath(input)}/seen`, {
+          method: 'POST',
+          body: JSON.stringify(
+            seenCommentsRequestSchema.parse({
+              throughRevision: input.throughRevision,
+            }),
+          ),
+          headers: { 'content-type': 'application/json' },
+          signal: input.signal,
+          redirect: 'error',
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (response.status === 401) throw new UnauthorizedError();
+        if (!response.ok)
+          throw new ConnectionError('The discussion could not be marked read.');
+        return seenCommentsResponseSchema.parse(await response.json());
+      } catch (error) {
+        if (error instanceof ConnectionError) throw error;
+        throw new ConnectionError('Could not reach the discussion.', {
+          cause: error,
+        });
+      }
+    },
   };
 }

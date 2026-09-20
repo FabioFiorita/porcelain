@@ -7,6 +7,7 @@ import { ReviewIndex } from './review-index';
 
 const commentState = vi.hoisted(() => ({
   threads: [] as CommentThread[],
+  seen: vi.fn(),
 }));
 
 const status: Status = {
@@ -86,6 +87,7 @@ vi.mock('../../query/comments', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../query/comments')>()),
   useComments: () => ({ threads: commentState.threads, error: null }),
   usePrefetchComments: () => {},
+  useMarkCommentsSeen: () => ({ mutate: commentState.seen }),
   useReplyComment: () => ({
     submit: vi.fn(),
     isPending: false,
@@ -180,6 +182,68 @@ describe('review index', () => {
     await expect.element(screen.getByText(/The whole handoff/)).toBeVisible();
   });
 
+  it('acknowledges the discussion only once every thread has been shown', async () => {
+    commentState.threads = [
+      {
+        // Unread, and hidden behind the resolved filter.
+        id: '00000000-0000-4000-8000-000000000005',
+        worktreeId: status.worktreeId,
+        anchor: { kind: 'file', filePath: 'src/components/empty-state.tsx' },
+        resolved: true,
+        messages: [
+          {
+            id: '00000000-0000-4000-8000-000000000006',
+            body: 'Renamed it as you asked.',
+            author: 'agent',
+            createdAt: '2026-09-12T11:00:00Z',
+          },
+        ],
+        revision: 7,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000007',
+        worktreeId: status.worktreeId,
+        anchor: { kind: 'file', filePath: 'src/components/review-panel.tsx' },
+        resolved: false,
+        messages: [
+          {
+            id: '00000000-0000-4000-8000-000000000008',
+            body: 'Still thinking about this one.',
+            author: 'reviewer',
+            createdAt: '2026-09-12T12:00:00Z',
+          },
+        ],
+        revision: 10,
+      },
+    ];
+    commentState.seen.mockClear();
+    const screen = await render(
+      <ReviewIndex
+        scope={{
+          projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
+          worktreeId: status.worktreeId,
+        }}
+        activeEntry={undefined}
+        onOpen={vi.fn()}
+      />,
+    );
+    // Rendering the surface fetches the discussion; that is not reading it.
+    expect(commentState.seen).not.toHaveBeenCalled();
+    await screen.getByRole('tab', { name: /Comments/ }).click();
+    await expect
+      .element(screen.getByText('Still thinking about this one.'))
+      .toBeVisible();
+    // The open list is on screen, but the unread reply is in the resolved one.
+    // One marker per worktree cannot say "this newer thread, not that older
+    // one", so nothing is acknowledged yet.
+    expect(commentState.seen).not.toHaveBeenCalled();
+    await screen.getByRole('button', { name: 'resolved 1' }).click();
+    await expect
+      .element(screen.getByText('Renamed it as you asked.'))
+      .toBeVisible();
+    await expect.poll(() => commentState.seen.mock.calls).toEqual([[10]]);
+  });
+
   it('filters comment threads and routes an anchor to its current document', async () => {
     commentState.threads = [
       {
@@ -201,6 +265,7 @@ describe('review index', () => {
             createdAt: '2026-09-12T10:00:00Z',
           },
         ],
+        revision: 1,
       },
       {
         id: '00000000-0000-4000-8000-000000000003',
@@ -215,6 +280,7 @@ describe('review index', () => {
             createdAt: '2026-09-12T11:00:00Z',
           },
         ],
+        revision: 1,
       },
     ];
     const onOpen = vi.fn<(ref: DocumentRef) => void>();

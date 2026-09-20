@@ -1,9 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type {
-  EvidenceResponse,
-  ReviewedMarksResponse,
-  ReviewSummary,
-} from '../domain/review';
+import type { ReviewedMarksResponse } from '../domain/review';
 
 type Intent = { path: string; fingerprint?: string; reviewedAt: string };
 type Queue = {
@@ -42,8 +38,6 @@ export function enqueueReviewed(
   const current = queue;
   const intent: Intent = { ...change, reviewedAt: new Date().toISOString() };
   current.pending.push(intent);
-  const prefix = context.key.slice(0, -1);
-  const summaryKey = [...prefix, 'summary'];
   const publish = () => {
     if (signal.aborted || !current.confirmed) return;
     const marks = new Map(
@@ -62,28 +56,10 @@ export function enqueueReviewed(
       ...current.confirmed,
       marks: [...marks.values()],
     });
-    const evidence = client.getQueryData<EvidenceResponse>([
-      ...prefix,
-      'evidence',
-    ]);
-    if (evidence)
-      client.setQueryData<ReviewSummary>(summaryKey, (summary) =>
-        summary
-          ? {
-              ...summary,
-              pendingFiles: evidence.evidence.filter(
-                (entry) =>
-                  entry.fingerprint === null ||
-                  marks.get(entry.path)?.fingerprint !== entry.fingerprint,
-              ).length,
-            }
-          : undefined,
-      );
   };
-  const ready = Promise.all([
-    client.cancelQueries({ queryKey: context.key, exact: true }),
-    client.cancelQueries({ queryKey: summaryKey, exact: true }),
-  ]).then(publish);
+  const ready = client
+    .cancelQueries({ queryKey: context.key, exact: true })
+    .then(publish);
   // Keep newer optimistic intents on top of every confirmed server snapshot.
   const result = current.tail.then(async () => {
     await ready;
@@ -93,10 +69,7 @@ export function enqueueReviewed(
       return response;
     } finally {
       if (!signal.aborted)
-        await Promise.all([
-          client.cancelQueries({ queryKey: context.key, exact: true }),
-          client.cancelQueries({ queryKey: summaryKey, exact: true }),
-        ]);
+        await client.cancelQueries({ queryKey: context.key, exact: true });
       current.pending = current.pending.filter((pending) => pending !== intent);
       publish();
     }
@@ -107,18 +80,7 @@ export function enqueueReviewed(
   );
   current.tail = tail;
   void tail.then(() => {
-    if (current.tail !== tail) return;
-    entries.delete(hash);
-    if (signal.aborted) return;
-    void client.invalidateQueries({
-      queryKey: summaryKey,
-      exact: true,
-      refetchType:
-        client.getQueryData(summaryKey) &&
-        client.getQueryData([...prefix, 'evidence'])
-          ? 'none'
-          : 'active',
-    });
+    if (current.tail !== tail) entries.delete(hash);
   });
   return result;
 }

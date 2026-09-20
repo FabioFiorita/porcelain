@@ -308,10 +308,10 @@ export const plans: AreaPlan[] = [
       'Review data rows appear with the first comment, mark, layer or artifact (done, 2026-09-20).',
       'Review data of worktrees Git no longer reports is deleted after 30 days (done, 2026-09-20).',
       'IDs resolve to paths from an in-memory map, not a SQLite read per request (done, 2026-09-20).',
-      'No file-count badge: a status dot (green = review ready, yellow = the agent replied), returned with the list from SQLite.',
-      'Projects are listed in parallel, a few at a time, each with its own timeout: one hanging project no longer fails the rest.',
-      'Project names come from the origin remote URL (else the main folder); the owner can rename.',
-      'Removing a project is always allowed; it never touches the disk.',
+      'No file-count badge: a status dot the server names — pending, reviewed or replied — and the web draws, returned with the list from SQLite (done, 2026-09-20).',
+      'Projects are listed in parallel, a few at a time, each with its own timeout: one hanging project no longer fails the rest (done, 2026-09-20).',
+      'Project names come from the origin remote URL (else the main folder); the owner can rename (done, 2026-09-20).',
+      'Removing a project is always allowed; it never touches the disk (done, 2026-09-20).',
     ],
     current: {
       lanes: [
@@ -327,30 +327,22 @@ export const plans: AreaPlan[] = [
           kind: 'actor',
           label: 'Mount, reconnect, every window focus',
           detail:
-            'Reading the inventory is the listing; there is nothing else to ask',
-          problem:
-            'Still one Git process per project on every alt-tab, and projects are listed one after another under a single deadline.',
+            'Reading the inventory is the listing, and it carries each worktree’s dot',
         },
         {
           id: 'sidebar',
           lane: 0,
           kind: 'actor',
           label: 'Sidebar and every worktree request',
-        },
-        {
-          id: 'badges',
-          lane: 0,
-          kind: 'actor',
-          label: 'Badge: files to review, per worktree',
-          problem:
-            'One request per worktree, one at a time: 13 Git processes each, or a full diff of every file once any file was marked.',
+          detail: 'One dot per worktree; no per-worktree request at all',
         },
         {
           id: 'list',
           lane: 1,
           kind: 'component',
           label: 'List worktrees',
-          detail: 'One git worktree list per project, on the inventory lane',
+          detail:
+            'Projects together, four Git processes at a time, five seconds each; a project that does not answer keeps its last-known worktrees',
         },
         {
           id: 'identity',
@@ -366,7 +358,15 @@ export const plans: AreaPlan[] = [
           kind: 'component',
           label: 'In-memory ID → path',
           detail:
-            'Rebuilt by each listing; a worktree Git has stopped reporting is still reachable as its last-known self',
+            'Rechecked on every use: the checkout has to agree it is still that worktree',
+        },
+        {
+          id: 'status',
+          lane: 1,
+          kind: 'component',
+          label: 'Worktree status',
+          detail:
+            'One statement for every worktree: live layers, or a reply newer than what the owner acknowledged',
         },
         {
           id: 'cleanup',
@@ -377,20 +377,12 @@ export const plans: AreaPlan[] = [
             'Hourly; only a listing that succeeded starts a worktree’s thirty-day clock',
         },
         {
-          id: 'summary',
-          lane: 1,
-          kind: 'component',
-          label: 'Review summary',
-          detail:
-            'Status read, or full evidence read when marks exist; own queue',
-        },
-        {
           id: 'tables',
           lane: 2,
           kind: 'storage',
-          label: 'projects · worktree_presence',
+          label: 'projects · worktree_presence · comment_reads',
           detail:
-            'What the owner registered, and how long each worktree has been gone',
+            'What the owner registered, how long each worktree has been gone, and how far they have read',
         },
         {
           id: 'review',
@@ -423,6 +415,8 @@ export const plans: AreaPlan[] = [
         { from: 'identity', to: 'stat' },
         { from: 'identity', to: 'map' },
         { from: 'sidebar', to: 'map', label: 'ID → path' },
+        { from: 'list', to: 'status', label: 'one statement' },
+        { from: 'status', to: 'review', label: 'layers? replies?' },
         {
           from: 'list',
           to: 'cleanup',
@@ -430,8 +424,6 @@ export const plans: AreaPlan[] = [
           dashed: true,
         },
         { from: 'cleanup', to: 'review', dashed: true },
-        { from: 'badges', to: 'summary', label: 'per worktree' },
-        { from: 'summary', to: 'git', label: 'status or every diff' },
       ],
     },
     planned: {
@@ -448,7 +440,7 @@ export const plans: AreaPlan[] = [
           kind: 'actor',
           label: 'Sidebar',
           detail:
-            'Asks for the list when it needs it; status dot: green = review ready, yellow = agent replied; no counts',
+            'Asks for the list when it needs it; one status dot per worktree — pending, reviewed or replied — and no counts',
           change: 'changed',
         },
         { id: 'requests', lane: 0, kind: 'actor', label: 'Worktree requests' },
@@ -482,7 +474,7 @@ export const plans: AreaPlan[] = [
           kind: 'component',
           label: 'Worktree status',
           detail:
-            'Review ready (live layers) · agent replied (unseen reply); one SQLite query for all, sent with the list',
+            'pending · reviewed · replied, named by the server and drawn by the web; one SQLite query for all, sent with the list',
           change: 'new',
         },
         {
@@ -762,7 +754,7 @@ export const plans: AreaPlan[] = [
       'Changed lines that no step explains are listed as “Not explained”, and publishing returns them to the agent.',
       'The whole review is replaced with a revision; only the latest is kept.',
       'Per-commit snapshots are removed (deferred); committed steps fold away and the review hides when nothing it describes is uncommitted.',
-      'Marks: tick a layer (fingerprinted from its code) or, in plain Changes, a file. Dot: green when ready, hollow green when everything is reviewed but not committed.',
+      'Marks: tick a layer (fingerprinted from its code) or, in plain Changes, a file. The dot follows: pending while anything the layers name is unreviewed, reviewed once all of it is.',
       'MCP: publish_review and read_review replace replace_layers and the handoff artifacts; an agent skill teaches layers and the design guide.',
       'Clients read the review once on open, then only when it changes.',
     ],
@@ -978,7 +970,7 @@ export const plans: AreaPlan[] = [
       'A general thread for the whole worktree, besides file and line comments.',
       'Writes go straight to SQLite, not through the shared queue: a commit hook never blocks posting.',
       'No Git after a comment: the dot and counts come from the database and update on the spot; threads are indexed by worktree.',
-      'One “seen up to” marker per thread, shared by all devices, drives the yellow dot.',
+      'One “seen up to” marker per thread, shared by all devices, drives the replied state (today the marker is one per worktree).',
       'The app picks thread and message IDs, so a retry never duplicates; messages become their own rows.',
       'list_comments returns only what waits for the agent unless asked for everything; nothing is pushed to agents.',
       'Bodies are Markdown, never raw HTML.',

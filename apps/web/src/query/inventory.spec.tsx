@@ -88,6 +88,7 @@ it('keeps a registered project when an older focus refresh resolves last', async
         branch: 'refs/heads/main',
         main: true,
         available: true,
+        status: null,
       },
     ],
   };
@@ -278,6 +279,7 @@ it('rescans repositories after connecting from the stored snapshot', async () =>
         branch: 'refs/heads/main',
         main: true,
         available: true,
+        status: null,
       },
     ],
   };

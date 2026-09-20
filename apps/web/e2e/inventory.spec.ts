@@ -158,6 +158,7 @@ test('shows empty and unavailable inventory and recovers on a later focus', asyn
             main: false,
             branch: null,
             available: false,
+            status: 'pending',
           },
         ],
       },
@@ -193,6 +194,8 @@ test('shows empty and unavailable inventory and recovers on a later focus', asyn
   await refocusWindow(page);
   const worktree = page.getByRole('button', { name: /Detached HEAD/ });
   await expect(worktree).toContainText('Unavailable');
+  // Its dot came with the list: review data outlives the checkout it is about.
+  await expect(worktree.getByTitle('Waiting for your review')).toBeAttached();
   await worktree.click();
   await expect(page).toHaveURL(/worktree=801a8628/);
   await expect(worktree).toHaveAttribute('aria-pressed', 'true');

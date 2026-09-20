@@ -29,6 +29,7 @@ it('posts a literal file anchor and validates the returned discussion', async ()
             author: 'reviewer',
           },
         ],
+        revision: 1,
       },
     ]);
   };
@@ -98,6 +99,7 @@ it('posts replies and resolution changes to the encoded thread routes', async ()
             author: 'reviewer',
           },
         ],
+        revision: 1,
       },
     ]);
   };
