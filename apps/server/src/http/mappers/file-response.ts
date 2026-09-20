@@ -12,7 +12,12 @@ export function toDirectoryResponse(
   return {
     worktreeId: value.worktreeId,
     path: value.path,
-    entries: value.entries.map(({ name, kind }) => ({ name, kind })),
+    entries: value.entries.map(({ name, kind, ignored, target }) => ({
+      name,
+      kind,
+      ...(ignored ? { ignored } : {}),
+      ...(target === undefined ? {} : { target }),
+    })),
   };
 }
 export function toTextResponse(value: TextContent): TextResponse {

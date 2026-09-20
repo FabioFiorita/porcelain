@@ -7,7 +7,8 @@ const fileState = vi.hoisted(() => ({
   text: '# A document',
   byteLength: 12,
   unreadable: false,
-  tree: [] as Array<{ path: string; kind: string; target?: string }>,
+  /** What the file's own folder says about it — not a listing of everything. */
+  folder: [] as Array<{ name: string; kind: string; target?: string }>,
 }));
 const preferenceState = vi.hoisted(() => ({
   markdownDefault: 'reader' as 'reader' | 'source',
@@ -59,10 +60,7 @@ vi.mock('../../query/review', async (importOriginal) => ({
   useChanges: () => ({ changes: { changes: [] } }),
   useCommit: () => commitState,
   useCommitLayers: () => null,
-  useFileTree: () => ({
-    data: { entries: fileState.tree },
-    isPending: false,
-  }),
+  useDirectory: () => ({ entries: fileState.folder }),
 }));
 vi.mock('../../query/files', () => ({
   useFileDraft: (_scope: unknown, _path: string, text: string) => ({
@@ -140,7 +138,7 @@ function renderFile(path: string) {
 
 afterEach(() => {
   fileState.unreadable = false;
-  fileState.tree = [];
+  fileState.folder = [];
   preferenceState.markdownDefault = 'reader';
   preferenceState.htmlDefault = 'preview';
   commitState.comparison.parentNumber = 1;
@@ -214,8 +212,8 @@ describe('file document display defaults', () => {
   });
 
   it('does not follow symlink or submodule files', async () => {
-    fileState.tree = [
-      { path: 'docs/link', kind: 'symlink', target: 'docs/decisions' },
+    fileState.folder = [
+      { name: 'link', kind: 'symlink', target: 'docs/decisions' },
     ];
     const screen = await renderFile('docs/link');
 
@@ -228,7 +226,7 @@ describe('file document display defaults', () => {
       .not.toBeInTheDocument();
 
     await screen.unmount();
-    fileState.tree = [{ path: 'vendor/tool', kind: 'submodule' }];
+    fileState.folder = [{ name: 'tool', kind: 'submodule' }];
     const submodule = await renderFile('vendor/tool');
     await expect
       .element(submodule.getByText('Not followed: submodule'))

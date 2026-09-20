@@ -195,20 +195,48 @@ export const benchSteps: Step[] = [
     id: 'files',
     title: 'Open Files and read five files',
     run: async (api, scope) => {
+      // Opening Files is the root folder and the names quick open searches;
+      // no folder is walked and no ignored directory is descended into.
+      await api('GET', `/api/worktrees/${scope.worktreeId}/directory?path=`);
       const { data } = await api(
         'GET',
-        `/api/worktrees/${scope.worktreeId}/file-tree`,
+        `/api/worktrees/${scope.worktreeId}/paths`,
       );
-      const entries = (
-        (data as { entries?: { path: string; kind?: string; type?: string }[] })
-          .entries ?? []
-      )
-        .filter((entry) => /\.(ts|md|json|css|mjs)$/.test(entry.path))
+      // Source files a reader would actually open: generated bundles and
+      // lockfiles are legitimately refused as too large, which is an answer
+      // rather than a cost worth measuring.
+      const names = ((data as { paths?: string[] }).paths ?? [])
+        .filter((path) => /\.(ts|tsx|md)$/.test(path))
         .slice(0, 5);
-      for (const entry of entries)
+      for (const path of names)
         await api(
           'GET',
-          `/api/worktrees/${scope.worktreeId}/text?${new URLSearchParams({ path: entry.path })}`,
+          `/api/worktrees/${scope.worktreeId}/text?${new URLSearchParams({ path })}`,
+        );
+    },
+  },
+  {
+    id: 'ignored-folder',
+    title: 'Open a folder holding an ignored one, then open that',
+    run: async (api, scope) => {
+      // The case the whole-tree read could not survive: a folder whose
+      // neighbour holds a hundred thousand ignored files. Listing the parent
+      // never descends; opening the ignored folder itself is one more read.
+      const { data } = await api(
+        'GET',
+        `/api/worktrees/${scope.worktreeId}/directory?path=`,
+      );
+      const ignored = (
+        (
+          data as {
+            entries?: { name: string; kind?: string; ignored?: boolean }[];
+          }
+        ).entries ?? []
+      ).find((entry) => entry.ignored && entry.kind === 'directory');
+      if (ignored)
+        await api(
+          'GET',
+          `/api/worktrees/${scope.worktreeId}/directory?${new URLSearchParams({ path: ignored.name })}`,
         );
     },
   },

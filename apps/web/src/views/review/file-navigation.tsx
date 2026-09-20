@@ -31,10 +31,10 @@ import {
   reviewErrorMessage,
   useDirectories,
   useDirectory,
-  useFileTree,
   useReviewOverview,
 } from '../../query/review';
 import { PierreFileTree } from './pierre-file-tree';
+import { QuickOpen } from './quick-open';
 
 type Props = {
   scope: ReviewScope;
@@ -68,8 +68,6 @@ function ScopedFileNavigation({
   onOpen,
 }: Props) {
   const root = useDirectory(scope, '');
-  const tree = useFileTree(scope);
-  const treeEntries = useMemo(() => tree.data?.entries ?? [], [tree.data]);
   const edit = useEditFile(scope);
   const [creating, setCreating] = useState<{
     kind: 'file' | 'directory';
@@ -93,21 +91,7 @@ function ScopedFileNavigation({
     root,
     ...queries.flatMap((query) => (query.data ? [query.data] : [])),
   ];
-  const special = new Set(
-    treeEntries
-      .filter((entry) => entry.kind === 'submodule')
-      .map((entry) => `${entry.path}/`),
-  );
-  const entries = [
-    ...new Map(
-      [
-        ...mergeFileTreeEntries(directories).filter(
-          (entry) => !special.has(entry.path),
-        ),
-        ...treeEntries,
-      ].map((entry) => [entry.path, entry]),
-    ).values(),
-  ];
+  const entries = mergeFileTreeEntries(directories);
   const paths = useStableList(entries.map((entry) => entry.path));
   const visiblePaths = useStableList(
     visibleFileTreePaths(paths, hidden, showHidden),
@@ -116,7 +100,9 @@ function ScopedFileNavigation({
   const failed = queries.filter((query) => query.isError);
   const gitStatus = useMemo<GitStatusEntry[]>(
     () => [
-      ...treeEntries
+      // Ignored comes with each folder that was opened, so a folder nobody
+      // opened costs nothing to know about.
+      ...entries
         .filter((entry) => entry.ignored)
         .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
       ...(overview ? comparisons(overview.changes) : []).map(
@@ -131,7 +117,7 @@ function ScopedFileNavigation({
         }),
       ),
     ],
-    [overview, treeEntries],
+    [overview, entries],
   );
   const changed = useMemo(
     () =>
@@ -148,11 +134,18 @@ function ScopedFileNavigation({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-9 shrink-0 items-center gap-1 px-3">
         <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-          {tree.isPending
-            ? 'Loading files…'
-            : `${visiblePaths.filter((path) => !path.endsWith('/')).length} files`}{' '}
+          {`${visiblePaths.filter((path) => !path.endsWith('/')).length} shown`}{' '}
           · {changed.size} changed
         </p>
+        {/* The tree only knows the folders somebody opened, so finding a file
+            by name is its own thing, and reads every name only when asked. */}
+        <QuickOpen
+          scope={scope}
+          onOpen={(path) => {
+            setRequested((current) => union(current, fileTreeAncestors(path)));
+            onOpen({ kind: 'file', path });
+          }}
+        />
         {hidden.size > 0 && (
           <Button
             size="sm"
@@ -194,7 +187,7 @@ function ScopedFileNavigation({
       </div>
       <PierreFileTree
         paths={visiblePaths}
-        links={treeEntries.filter(
+        links={entries.filter(
           (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
         )}
         creating={creating}
@@ -297,20 +290,6 @@ function ScopedFileNavigation({
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
           {reviewErrorMessage(setHidden.error)}
         </p>
-      )}
-      {tree.isError && (
-        <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
-          <span className="min-w-0 flex-1">
-            Full file search could not be loaded. You can still browse folders.
-          </span>
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => void tree.refetch()}
-          >
-            Try again
-          </Button>
-        </div>
       )}
       {failed.length > 0 && (
         <div className="flex items-center gap-2 border-t px-3 py-2 text-xs text-muted-foreground">

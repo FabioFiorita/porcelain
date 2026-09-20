@@ -3,8 +3,13 @@ import type {
   FileTarget,
   TextContent,
 } from '../../models/file-content.ts';
+import type { IgnoredEntries } from './ignored-entries.ts';
 export interface FileReader {
-  list(target: FileTarget, signal?: AbortSignal): Promise<DirectoryListing>;
+  list(
+    target: FileTarget,
+    ignored?: IgnoredEntries,
+    signal?: AbortSignal,
+  ): Promise<DirectoryListing>;
   read(target: FileTarget, signal?: AbortSignal): Promise<TextContent>;
 }
 

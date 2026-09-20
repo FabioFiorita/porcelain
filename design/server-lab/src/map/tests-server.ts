@@ -1246,7 +1246,7 @@ export const serverSpecAudits: SpecAudit[] = [
       {
         name: 'serves bounded preview assets while rejecting unauthenticated, escaping and symlink reads',
         asserts:
-          'Exact base64 PNG body, 401, traversal/symlink/.git rejected (status >= 400), 10 MiB + 1 is FILE_TOO_LARGE.',
+          'Exact base64 PNG body, 401, traversal is 400 INVALID_REQUEST and .git and a symlink are 422 PATH_NOT_READABLE with no outside bytes in the body, 10 MiB + 1 is FILE_TOO_LARGE.',
       },
       {
         name: 'lists and reads through real authenticated loopback HTTP with exact public schemas',
@@ -1280,7 +1280,7 @@ export const serverSpecAudits: SpecAudit[] = [
       {
         name: 'writes only the expected text version and lists searchable paths including ignored and linked entries',
         asserts:
-          'File tree includes ignored dir and symlink target; write with the right fingerprint succeeds, stale write is 409 and leaves disk unchanged; creates outside the root are rejected (>= 400).',
+          'One folder listing carries the ignored directory and the symlink target and marks nothing else ignored; the name list holds tracked files and not ignored ones; write with the right fingerprint succeeds, stale write is 409 and leaves disk unchanged; creates outside the root are 400 INVALID_REQUEST and .git is 422, with nothing created beside the checkout.',
       },
     ],
     strengths: [
@@ -1722,7 +1722,7 @@ export const serverAreaSummaries: AreaTestSummary[] = [
     missing: [
       'Opening one file in a repository with 10 linked worktrees spawns at most N git processes (today 48).',
       'File tree and directory listing on a 20k-file tree with a large ignored folder stay within size and time bounds.',
-      'Traversal and symlink rejections assert the exact 4xx code instead of >= 400.',
+      'Move and trash now have HTTP coverage — collision, escape, cross-device and unavailable trash — each asserting the exact code and that the files were left alone.',
       'Move and trash edits over HTTP, including destinations outside the root and stale fingerprints.',
     ],
   },

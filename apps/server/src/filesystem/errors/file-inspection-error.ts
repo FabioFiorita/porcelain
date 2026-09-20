@@ -9,7 +9,9 @@ export type FileErrorCode =
   | 'UNSUPPORTED_TEXT'
   | 'FILE_TOO_LARGE'
   | 'DIRECTORY_TOO_LARGE'
-  | 'CONTENT_CHANGED';
+  | 'CONTENT_CHANGED'
+  | 'CROSS_DEVICE'
+  | 'TRASH_UNAVAILABLE';
 export class FileInspectionError extends Error {
   readonly code: FileErrorCode;
   constructor(code: FileErrorCode, options?: ErrorOptions) {

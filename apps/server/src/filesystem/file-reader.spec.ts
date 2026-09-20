@@ -44,6 +44,29 @@ describe('FileReader', () => {
     worktreeId: 'ccfb8c0d-4ba5-43e3-bca5-8b76000eec65',
   });
 
+  /**
+   * Listing a folder and asking Git which of its entries are ignored are two
+   * moments. If the directory were verified before that question instead of
+   * after it, a checkout replaced while Git was running would pair these names
+   * with a different one — and the reader would be told a file is ignored on
+   * the strength of another repository's rules.
+   */
+  it('refuses a listing whose directory was replaced while ignore rules were read', async () =>
+    fixture(async (root, reader) => {
+      await mkdir(join(root, 'src'));
+      await writeFile(join(root, 'src', 'a.ts'), 'inside');
+      await mkdir(join(root, 'elsewhere'));
+      await writeFile(join(root, 'elsewhere', 'b.ts'), 'outside');
+      await expect(
+        reader.list(target(root, 'src'), async (paths) => {
+          // The competing writer lands inside the ignore question.
+          await rename(join(root, 'src'), join(root, 'src-gone'));
+          await symlink(join(root, 'elsewhere'), join(root, 'src'));
+          return new Set(paths);
+        }),
+      ).rejects.toMatchObject({ code: 'CONTENT_CHANGED' });
+    }));
+
   it('lists one directory in deterministic order, including ignored/dot files but excluding Git metadata', async () =>
     fixture(async (root, reader) => {
       await mkdir(join(root, 'folder'));
@@ -56,7 +79,9 @@ describe('FileReader', () => {
       expect(listing.entries).toEqual([
         { name: '.env', kind: 'file' },
         { name: 'folder', kind: 'directory' },
-        { name: 'link', kind: 'symlink' },
+        // Where a link points is all that is ever read of one, and it is what
+        // a document needs to say "not followed" without opening it.
+        { name: 'link', kind: 'symlink', target: 'folder' },
         { name: 'pipe', kind: 'other' },
       ]);
       await expect(reader.read(target(root, 'pipe'))).rejects.toMatchObject({
@@ -182,11 +207,11 @@ describe('FileReader', () => {
   it('honors already cancelled reads and listings', async () =>
     fixture(async (root, reader) => {
       const signal = AbortSignal.abort();
-      await expect(reader.list(target(root, ''), signal)).rejects.toMatchObject(
-        {
-          name: 'AbortError',
-        },
-      );
+      await expect(
+        reader.list(target(root, ''), undefined, signal),
+      ).rejects.toMatchObject({
+        name: 'AbortError',
+      });
       await expect(
         reader.read(target(root, 'file'), signal),
       ).rejects.toMatchObject({ name: 'AbortError' });

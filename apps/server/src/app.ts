@@ -9,6 +9,8 @@ import {
   reviewLayerParamsSchema,
 } from '@porcelain/contracts/review-layers';
 import { ActionGit } from '@porcelain/git/action-git';
+import { checkIgnored } from '@porcelain/git/commands/check-ignored';
+import { listTrackedPaths } from '@porcelain/git/commands/list-tracked-paths';
 import { CommitCursorCodec } from '@porcelain/git/commit-cursor';
 import { CommitGit } from '@porcelain/git/commit-git';
 import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
@@ -20,17 +22,16 @@ import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-actio
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { readGitVersion } from '@porcelain/git/read-git-version';
-import { readTreePaths } from '@porcelain/git/tree-paths';
 import { CliCommitGenerator } from './agents/cli-commit-generator.ts';
 import type { CommitGenerator } from './agents/interfaces/commit-generator.ts';
 import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
-import { NodeFileTree } from './filesystem/file-tree.ts';
 import { NodeFileWriter } from './filesystem/file-writer.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
 import type { FileWriter } from './filesystem/interfaces/file-writer.ts';
+import type { IgnoredEntries } from './filesystem/interfaces/ignored-entries.ts';
 import type { ProjectFolders } from './filesystem/interfaces/project-folders.ts';
 import type {
   StampPath,
@@ -74,8 +75,11 @@ import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
-import { ListFileTree } from './use-cases/list-file-tree.ts';
 import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
+import {
+  ListWorktreePaths,
+  type TrackedPaths,
+} from './use-cases/list-worktree-paths.ts';
 import { MarkCommentsSeen } from './use-cases/mark-comments-seen.ts';
 import { Pairing, type PairingReach } from './use-cases/pairing.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
@@ -117,6 +121,8 @@ export async function openApplication(options: {
   inspectionGit?: InspectionFactory;
   files?: FileReader;
   worktreeFiles?: WorktreeFiles;
+  ignoredEntries?: (root: string) => IgnoredEntries;
+  trackedPaths?: TrackedPaths;
   stampPath?: StampPath;
   projectFolders?: ProjectFolders;
   /** Where discovery and browsing start; the composition root resolves it. */
@@ -375,13 +381,22 @@ export async function openApplication(options: {
       commitGit,
     );
     const files = options.files ?? new NodeFileReader();
-    const list = new ListDirectory(worktrees, files);
+    // The ignore question runs through the same session guard every other Git
+    // read uses, and only for the entries of the folder being opened.
+    // One Git process per folder opened, for the entries of that folder only.
+    // The read that calls it establishes the worktree by stat on both sides
+    // and verifies the directory around it, so this needs no guard of its own.
+    const list = new ListDirectory(
+      worktrees,
+      files,
+      options.ignoredEntries ??
+        ((root) => (paths, signal) => checkIgnored(root, paths, signal)),
+    );
     const read = new ReadTextFile(worktrees, files);
     const asset = new ReadAsset(worktrees, new NodeFileReader());
-    const fileTree = new ListFileTree(
+    const worktreePaths = new ListWorktreePaths(
       worktrees,
-      new NodeFileTree(),
-      readTreePaths,
+      options.trackedPaths ?? listTrackedPaths,
     );
     const editFile = new EditFile(
       worktrees,
@@ -682,12 +697,12 @@ export async function openApplication(options: {
             removeReviewedFile.execute(worktreeId, path, operationSignal),
           signal,
         ),
-      fileTree: (worktreeId, signal) =>
+      worktreePaths: (worktreeId, signal) =>
         lanes.run(
           laneOf(worktreeId),
           'read',
           ({ signal: operationSignal }) =>
-            fileTree.execute(worktreeId, operationSignal),
+            worktreePaths.execute(worktreeId, operationSignal),
           { callerSignal: signal },
         ),
       editFile: (worktreeId, command, signal) => {

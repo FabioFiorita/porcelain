@@ -123,11 +123,14 @@ it('stops an action that outgrows the shared output cap and names the failure', 
 it('refuses every later command once descendants could not be confirmed stopped', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-action-latch-'));
   const script = join(root, 'escapee.cjs');
+  const pidPath = join(root, 'escaped');
   // A descendant that leaves the process group keeps the inherited pipe open,
   // so the group is killed but the output never drains: cleanup is unconfirmed.
+  // It records its pid so this test can stop the one process it deliberately
+  // let escape; nothing else will, and it would otherwise outlive the run.
   await writeFile(
     script,
-    `const { spawn } = require('node:child_process'); spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }).unref();`,
+    `const { spawn } = require('node:child_process'); const { writeFileSync } = require('node:fs'); const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); writeFileSync(${JSON.stringify(pidPath)}, String(child.pid)); child.unref();`,
   );
   try {
     const git = new GitActionRunner(root);
@@ -142,6 +145,8 @@ it('refuses every later command once descendants could not be confirmed stopped'
       git.execute(['status'], new AbortController().signal),
     ).rejects.toMatchObject({ reason: 'PROCESS_GROUP_UNCONFIRMED' });
   } finally {
+    const escaped = Number(await readFile(pidPath, 'utf8').catch(() => ''));
+    if (escaped) process.kill(escaped, 'SIGKILL');
     await rm(root, { recursive: true, force: true });
   }
 }, 20_000);

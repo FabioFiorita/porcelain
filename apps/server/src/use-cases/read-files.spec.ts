@@ -48,7 +48,9 @@ describe('ReadFiles', () => {
       replace: (next: typeof listed) => {
         listed = next;
       },
-      list: new ListDirectory(worktrees, files),
+      // Nothing in this spec is about ignore rules, so the classifier says
+      // nothing is ignored rather than reaching for Git.
+      list: new ListDirectory(worktrees, files, () => async () => new Set()),
       read: new ReadTextFile(worktrees, files),
     };
   }

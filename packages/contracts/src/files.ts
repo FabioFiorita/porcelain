@@ -11,9 +11,18 @@ export const directoryResponseSchema = z.object({
   entries: z.array(
     z.object({
       name: z.string(),
-      kind: z.enum(['file', 'directory', 'symlink', 'other']),
+      kind: z.enum(['file', 'directory', 'symlink', 'submodule', 'other']),
+      /** Dimmed in the tree; the folder is never walked to find this out. */
+      ignored: z.boolean().optional(),
+      /** Where a link points, which is all that is ever read of one. */
+      target: z.string().optional(),
     }),
   ),
+});
+export const worktreePathsSchema = z.object({
+  worktreeId: worktreeIdSchema,
+  /** Every name quick open can offer, or a refusal if there are too many. */
+  paths: z.array(z.string()).max(50_000),
 });
 export const textResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
@@ -26,6 +35,7 @@ export const textResponseSchema = z.object({
     .regex(/^[a-f0-9]{64}$/)
     .optional(),
 });
+export type WorktreePaths = z.infer<typeof worktreePathsSchema>;
 export type DirectoryResponse = z.infer<typeof directoryResponseSchema>;
 export type TextResponse = z.infer<typeof textResponseSchema>;
 
@@ -58,19 +68,6 @@ export const fileEditResultSchema = z.object({
 });
 export type FileEdit = z.infer<typeof fileEditSchema>;
 export type FileEditResult = z.infer<typeof fileEditResultSchema>;
-
-export const fileTreeSchema = z.object({
-  worktreeId: worktreeIdSchema,
-  entries: z.array(
-    z.object({
-      path: z.string(),
-      kind: z.enum(['file', 'directory', 'symlink', 'submodule', 'other']),
-      ignored: z.boolean(),
-      target: z.string().optional(),
-    }),
-  ),
-});
-export type FileTree = z.infer<typeof fileTreeSchema>;
 
 export const assetResponseSchema = z.object({
   path: z.string(),

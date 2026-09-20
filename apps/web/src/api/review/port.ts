@@ -10,7 +10,6 @@ import type {
   Directory,
   FileEdit,
   FileEditResult,
-  FileTree,
   History,
   Layers,
   ReviewedMarksResponse,
@@ -18,6 +17,7 @@ import type {
   SetReviewedRequest,
   Status,
   TextFile,
+  WorktreePaths,
 } from '../../domain/review';
 export type ReviewRequest = ReviewScope & {
   signal: AbortSignal;
@@ -29,7 +29,7 @@ export type ReviewPort = {
   commitLayers: (
     request: ReviewRequest & { oid: string },
   ) => Promise<CommitReviewLayers | null>;
-  fileTree: (request: ReviewRequest) => Promise<FileTree>;
+  worktreePaths: (request: ReviewRequest) => Promise<WorktreePaths>;
   editFile: (
     request: ReviewRequest & { input: FileEdit },
   ) => Promise<FileEditResult>;

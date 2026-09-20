@@ -644,15 +644,21 @@ export function useMarkAllReviewed(scope: ReviewScope) {
   );
 }
 
-export function useFileTree(scope: ReviewScope) {
+/**
+ * Every name quick open can offer. It is read per opening rather than held:
+ * nothing can tell a cache it went stale until step 6's watcher, and a stale
+ * name list quietly stops finding files that are there.
+ */
+export function useWorktreePaths(scope: ReviewScope, enabled = true) {
   const { api, connection } = useConnectedContext();
   return useQuery({
+    enabled,
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'file-tree',
+      'paths',
     ]),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const data = await api.review.fileTree({ ...scope, ...request });
+      const data = await api.review.worktreePaths({ ...scope, ...request });
       request.signal.throwIfAborted();
       return data;
     },

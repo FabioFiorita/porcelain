@@ -37,3 +37,46 @@ behavior remain governed by their owning decisions.
 This slice introduces no preferences, edits, indexing, events or UI. Contracts live at
 `@porcelain/contracts/files`; filesystem operations remain a server adapter with explicit injectable
 interfaces. Disposable integration specs own filesystem and HTTP proof on supported server platforms.
+
+## Folders on demand, and what a mutation can promise (2026-09-20)
+
+Reading a file or a folder costs no Git process: the worktree is established by re-deriving its id
+from the administrative directory's filesystem identity, before and after the read. Opening a
+folder is one directory read plus one `git check-ignore` over the entries of that folder, inside
+the same verified boundary — the directory is checked again after Git answers, so names can never
+be paired with a different checkout. Nothing descends into an ignored directory to discover that it
+is ignored, so a folder holding a hundred thousand ignored files costs what any other folder costs;
+opening that folder itself still enumerates its own children and refuses past the listing limit.
+The whole-tree walk is gone. Quick open reads every name in one `ls-files`, bounded at 50,000 paths
+and 4 MiB, decoded with fatal UTF-8 validation, and refuses rather than truncating — a truncated
+list would quietly stop finding files that are there.
+
+Mutations are bounded by what Node can express. There is no `openat`, `unlinkat` or `renameat2`, so
+an operation cannot be anchored to a verified directory handle, and the promise is stated as what
+can actually be kept rather than what would be nicer to claim:
+
+- **Create** refuses an existing name (`O_EXCL`, `mkdir`) and never follows a final symlink
+  (`O_NOFOLLOW`). An ancestor replaced between the check and the create can still place the entry
+  outside the checkout. The ancestors are checked again immediately afterwards and the request is
+  always refused, but the cleanup works by name: if the ancestor has been put back before that
+  recheck, the name now leads back inside the checkout and the entry created outside cannot be
+  found. It is left behind. That is detection, and repair only when the swap is still in place.
+- **Moving a file or a symlink** cannot replace anything at the destination: `link` and `symlink`
+  refuse an existing name. The source is confirmed against the entry just created immediately
+  before it is unlinked, which is as tight as `unlink` allows — it removes a name, not the entry
+  that was checked. An entry substituted in that last gap is the entry removed, and the move
+  reports success.
+- **Moving a directory** reserves the name with `mkdir` and renames onto it. `rename` refuses a
+  file and a non-empty directory, so the only thing it can replace is an empty directory that
+  appeared where the reservation was.
+- **Writing** refuses content that changed since it was opened, checked immediately before the
+  replacement. It is not a lock: a write landing between that check and the rename is lost.
+- **Trash** hands a pathname to an implementation that works by name. The entry is checked
+  immediately before the handoff and nothing happens in between, but an entry replaced *inside* the
+  handoff is the entry that gets trashed. Delete stays recoverable: where this machine has no
+  trash, the answer is `TRASH_UNAVAILABLE` and the file is left alone, never unlinked.
+- A move across filesystems is refused (`CROSS_DEVICE`) rather than copied, because copy-then-delete
+  gives up the atomicity the no-replace step exists for.
+
+Worktree identity is confirmed again after every mutation, before its result is reported. That says
+which worktree the change happened in; it cannot undo a change that already happened.

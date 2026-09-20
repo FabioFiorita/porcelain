@@ -1,5 +1,6 @@
 import { constants, type Dirent } from 'node:fs';
-import { open, opendir } from 'node:fs/promises';
+import { lstat, open, opendir, readlink } from 'node:fs/promises';
+import { join } from 'node:path';
 import type {
   DirectoryListing,
   FileTarget,
@@ -16,14 +17,26 @@ import {
   verifyPath,
 } from './inspect-path.ts';
 import type { FileReader } from './interfaces/file-reader.ts';
+import type { IgnoredEntries } from './interfaces/ignored-entries.ts';
 import { mapFilesystemError } from './map-filesystem-error.ts';
 
 const maxBytes = 1024 * 1024;
 const maxEntries = 2000;
 
 export class NodeFileReader implements FileReader {
+  /**
+   * One folder, and everything the tree needs to draw it.
+   *
+   * The listing, what each entry is, and whether Git ignores it are one
+   * operation: the directory is verified again *after* the ignore answer comes
+   * back, so a checkout replaced while Git was running cannot pair these names
+   * with a different one. This is also the bound — a folder of a hundred
+   * thousand entries still refuses past the limit rather than being walked;
+   * what folders-on-demand avoids is descending into one to list its parent.
+   */
   async list(
     target: FileTarget,
+    ignored?: IgnoredEntries,
     signal?: AbortSignal,
   ): Promise<DirectoryListing> {
     try {
@@ -38,14 +51,21 @@ export class NodeFileReader implements FileReader {
         if (name.toLowerCase() === '.git') continue;
         if (entries.length === maxEntries)
           throw new FileInspectionError('DIRECTORY_TOO_LARGE');
-        entries.push({
-          name,
-          kind: entryKind(entry),
-        });
+        entries.push({ name, kind: entryKind(entry) });
       }
       entries.sort((left, right) =>
         left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
       );
+      await this.describe(before.path, entries, signal);
+      const prefix = target.path ? `${target.path}/` : '';
+      const dimmed = ignored
+        ? await ignored(
+            entries.map((entry) => `${prefix}${entry.name}`),
+            signal,
+          )
+        : new Set<string>();
+      for (const entry of entries)
+        if (dimmed.has(`${prefix}${entry.name}`)) entry.ignored = true;
       const result = {
         worktreeId: target.worktreeId,
         path: target.path,
@@ -56,6 +76,32 @@ export class NodeFileReader implements FileReader {
       return result;
     } catch (error) {
       return mapFilesystemError(error);
+    }
+  }
+
+  /**
+   * A submodule is a directory with its own `.git`, and a link is worth only
+   * its target. Both are what a document needs before it tries to read a file,
+   * and both used to come from the whole-tree walk this replaces.
+   */
+  private async describe(
+    root: string,
+    entries: DirectoryListing['entries'],
+    signal?: AbortSignal,
+  ) {
+    for (const entry of entries) {
+      signal?.throwIfAborted();
+      const full = join(root, entry.name);
+      if (entry.kind === 'symlink') {
+        const target = await readlink(full).catch(() => null);
+        if (target !== null) entry.target = target;
+      } else if (entry.kind === 'directory') {
+        const nested = await lstat(join(full, '.git')).then(
+          () => true,
+          () => false,
+        );
+        if (nested) entry.kind = 'submodule';
+      }
     }
   }
 

@@ -17,8 +17,8 @@ import {
   directoryResponseSchema,
   type FileEdit,
   fileEditResultSchema,
-  fileTreeSchema,
   textResponseSchema,
+  worktreePathsSchema,
 } from '@porcelain/contracts/files';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
@@ -91,7 +91,8 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
         'GET',
         `${endpoint}/projects/${encodeURIComponent(request.projectId)}`,
       ),
-    fileTree: (request: Request) => read(request, 'file-tree', fileTreeSchema),
+    worktreePaths: (request: Request) =>
+      read(request, 'paths', worktreePathsSchema),
     editFile: (request: Request & { input: FileEdit }) =>
       read(request, 'files', fileEditResultSchema, request.input),
     asset: (request: Request & { path: string }) =>

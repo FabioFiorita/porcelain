@@ -1,11 +1,11 @@
 {
   "recorded": {
-    "commit": "5331f6ea",
+    "commit": "894bf0fe",
     "runs": 3,
     "node": "v24.20.0",
     "git": "git version 2.53.0",
-    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs apart from one diff scope in the app profile (14 or 15); measured on the step 5a working tree, whose commit follows 5331f6ea",
-    "note": "Ceilings are measured current cost with headroom, not targets. A change list is 6: working files are digested from the filesystem rather than hashed by Git, so no filename can break it. A diff request is 7 rather than 6 because it reads the status on both sides of the hunks — once to check the request against, once to bind the hunks to the fingerprints returned with them. Marking is still one request per file and each one re-reads the list to refuse a stale fingerprint; 'mark all' being one request is section 4's to collect. History is untouched until step 5c."
+    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all runs apart from one diff scope in the app profile (14 or 15); measured on the step 5b working tree, whose commit follows 894bf0fe",
+    "note": "Ceilings are measured current cost with headroom, not targets. 5b: opening Files is one folder read plus the names quick open searches, and a folder holding an ignored directory costs the same whatever is inside it — the whole-tree walk and its hundreds of thousands of syscalls are gone. A file read remains 0 Git processes, which step 4a's identity-by-stat already gave. Marking is still one request per file; 'mark all' as one request is section 4's to collect. History is untouched until step 5c."
   },
   "profiles": {
     "app": {
@@ -26,6 +26,10 @@
         "ceiling": 20
       },
       "files": {
+        "measured": 2,
+        "ceiling": 7
+      },
+      "ignored-folder": {
         "measured": 2,
         "ceiling": 7
       },
@@ -60,6 +64,10 @@
         "ceiling": 19
       },
       "files": {
+        "measured": 2,
+        "ceiling": 7
+      },
+      "ignored-folder": {
         "measured": 2,
         "ceiling": 7
       },

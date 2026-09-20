@@ -21,6 +21,13 @@ export default defineConfig({
   // Specs within a project share its playground repository, and some write
   // files or move HEAD, so they run one at a time.
   workers: 1,
+  // Playwright empties the output directory when it starts, so a second run in
+  // this checkout deletes the artifacts of the one already going and fails it
+  // with an ENOENT that looks nothing like its real cause. A run that expects
+  // company gives itself somewhere else to write.
+  ...(process.env.PORCELAIN_PLAYWRIGHT_OUTPUT
+    ? { outputDir: process.env.PORCELAIN_PLAYWRIGHT_OUTPUT }
+    : {}),
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure' },
   projects: [
     {

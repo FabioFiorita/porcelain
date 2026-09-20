@@ -186,5 +186,5 @@ export type { CommitReviewLayersResponse as CommitReviewLayers } from '@porcelai
 export type {
   FileEdit,
   FileEditResult,
-  FileTree,
+  WorktreePaths,
 } from '@porcelain/contracts/files';

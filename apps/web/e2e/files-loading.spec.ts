@@ -2,14 +2,21 @@ import { expect, test } from '@playwright/test';
 import { pairBrowser } from './playground';
 import { openNavigation } from './workspace-navigation';
 
-test('keeps Files usable while the complete tree is slow or unavailable', async ({
+/**
+ * Folders load on demand, so browsing never waits on the repository-wide list
+ * of names — and finding a file by name is its own thing, which says so when
+ * it is slow and offers to try again when it fails.
+ */
+test('browses folders while search is slow, and says so when it fails', async ({
   page,
 }) => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route('**/file-tree', async (route) => {
+  let asked = 0;
+  await page.route('**/paths', async (route) => {
+    asked += 1;
     await gate;
     await route.fulfill({
       status: 503,
@@ -25,27 +32,37 @@ test('keeps Files usable while the complete tree is slow or unavailable', async 
     if (!(await files.isVisible()))
       await page.getByRole('button', { name: 'Review', exact: true }).click();
     await files.click();
-    await expect(
-      page.getByText('Loading files…', { exact: false }),
-    ).toBeVisible();
+    // The tree is there without the name list having answered at all.
     await expect(page.getByRole('treeitem').first()).toBeVisible();
+    // And without it having been asked for: a repository's worth of names is
+    // not worth reading for someone who never searches. Holding the request
+    // would look the same from the screen, so count it instead.
+    expect(asked).toBe(0);
+
+    await page.getByRole('button', { name: 'Find a file by name' }).click();
+    await expect.poll(() => asked).toBe(1);
+    await expect(page.getByText('Reading file names…')).toBeVisible();
     release();
     await expect(
       page.getByText(
         'Full file search could not be loaded. You can still browse folders.',
       ),
     ).toBeVisible();
-    await expect(page.getByRole('treeitem').first()).toBeVisible();
-    await page.unroute('**/file-tree');
+
+    await page.unroute('**/paths');
     await page.getByRole('button', { name: 'Try again', exact: true }).click();
     await expect(
       page.getByText(
         'Full file search could not be loaded. You can still browse folders.',
       ),
     ).toHaveCount(0);
+    // And a name from a folder nobody opened is now findable.
+    await page
+      .getByRole('combobox', { name: 'Find a file by name' })
+      .fill('accessibility');
     await expect(
-      page.getByText('Loading files…', { exact: false }),
-    ).toHaveCount(0);
+      page.getByRole('option', { name: /accessibility\.md/ }).first(),
+    ).toBeVisible();
   } finally {
     release();
   }

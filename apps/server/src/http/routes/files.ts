@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  fileTreeSchema,
   worktreeParamsSchema,
+  worktreePathsSchema,
 } from '@porcelain/contracts/files';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
@@ -20,16 +20,18 @@ export async function fileRoutes(
   listDirectory(server, options);
   readTextFile(server, options);
   editFile(server, options);
+  // Quick open: every name at once, bounded, read per opening rather than
+  // held — nothing can tell a cache it went stale until step 6's watcher.
   server.withTypeProvider<ZodTypeProvider>().get(
-    '/worktrees/:worktreeId/file-tree',
+    '/worktrees/:worktreeId/paths',
     {
       schema: {
         params: worktreeParamsSchema,
-        response: { ...errorResponses, 200: fileTreeSchema },
+        response: { ...errorResponses, 200: worktreePathsSchema },
       },
     },
     (request) =>
-      options.application.fileTree(
+      options.application.worktreePaths(
         request.params.worktreeId,
         request.disconnected,
       ),

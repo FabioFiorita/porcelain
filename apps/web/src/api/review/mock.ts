@@ -49,15 +49,11 @@ export function createReviewMock(
       await context(request);
       return null;
     },
-    async fileTree(request) {
+    async worktreePaths(request) {
       const data = await context(request);
       return {
         worktreeId: request.worktreeId,
-        entries: Object.keys(data.files).map((path) => ({
-          path,
-          kind: 'file' as const,
-          ignored: false,
-        })),
+        paths: Object.keys(data.files).sort(),
       };
     },
     async editFile(request) {

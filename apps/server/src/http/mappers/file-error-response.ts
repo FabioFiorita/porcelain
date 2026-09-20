@@ -31,6 +31,14 @@ const failures: Record<FileErrorCode, { statusCode: number; message: string }> =
       statusCode: 409,
       message: 'Content changed; retry the operation',
     },
+    CROSS_DEVICE: {
+      statusCode: 422,
+      message: 'Destination is on another filesystem; nothing was moved',
+    },
+    TRASH_UNAVAILABLE: {
+      statusCode: 422,
+      message: 'This machine has no trash; nothing was deleted',
+    },
   };
 export function toFileErrorResponse(code: FileErrorCode) {
   const { statusCode, message } = failures[code];

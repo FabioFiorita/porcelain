@@ -12,7 +12,7 @@ import type { FileDraft, FileDraftState } from '../../domain/file-draft';
 import { isImagePath } from '../../domain/html-assets';
 import type { ReviewScope } from '../../domain/review';
 import { useFileDraft } from '../../query/files';
-import { useChanges, useFileTree, useTextFile } from '../../query/review';
+import { useChanges, useDirectory, useTextFile } from '../../query/review';
 import { copyText } from '../workspace/copy';
 import { usePreferences } from '../workspace/preferences';
 import { CodeDocument } from './code-document';
@@ -41,22 +41,20 @@ export function FileDocument(props: {
   );
 }
 
+/**
+ * What a path is comes from its own folder rather than from a listing of the
+ * whole worktree: a link is not followed and a submodule is not opened, and
+ * knowing that should not cost a walk of everything else.
+ */
 function LinkedFileDocument(props: {
   scope: ReviewScope;
   path: string;
   onOpen: OpenDocument;
 }) {
-  const tree = useFileTree(props.scope);
-  const link = tree.data?.entries.find((entry) => entry.path === props.path);
-  if (tree.isPending)
-    return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <FileToolbar path={props.path} />
-        <p role="status" className="p-6 text-sm text-muted-foreground">
-          Loading file…
-        </p>
-      </div>
-    );
+  const parent = props.path.split('/').slice(0, -1).join('/');
+  const folder = useDirectory(props.scope, parent);
+  const name = props.path.split('/').at(-1);
+  const link = folder.entries.find((entry) => entry.name === name);
   if (link?.kind === 'symlink')
     return (
       <NotShownFile

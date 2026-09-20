@@ -15,8 +15,16 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
     page.getByRole('heading', { name: 'accessibility.md', exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('diff-header.png') });
-  await page.locator('[data-column-number]').first().hover();
-  await page.locator('[data-utility-button]').first().click();
+  // The heading arrives with the change; the diff itself is a second read, and
+  // hovering a row while the body is still arriving moves it out from under
+  // the pointer. Wait for the line being commented on to actually be there.
+  const line = page.locator('[data-column-number]').first();
+  await expect(page.getByText('# Accessibility review')).toBeVisible();
+  await expect(line).toBeVisible();
+  await line.hover();
+  const utility = page.locator('[data-utility-button]').first();
+  await expect(utility).toBeVisible();
+  await utility.click();
   const body = `Please clarify this line ${test.info().project.name}`;
   await page.getByRole('textbox', { name: 'Comment', exact: true }).fill(body);
   const saved = page.waitForResponse(

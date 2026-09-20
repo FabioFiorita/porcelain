@@ -1201,36 +1201,87 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'strong',
   },
   {
-    file: 'apps/server/src/filesystem/file-tree.spec.ts',
+    file: 'apps/server/src/filesystem/file-writer-races.spec.ts',
     areas: ['files'],
     kind: 'integration',
-    real: ['git ls-files via readTreePaths', 'filesystem'],
-    fakes: [],
+    real: ['filesystem', "the writer's own check-then-act sequences"],
+    fakes: [
+      'node:fs/promises seamed so open, link, rename, mkdir, unlink and realpath run a hook first, and open runs one after it returns',
+    ],
     tests: [
       {
-        name: 'lists a large repository whose tree exceeds 20,000 paths and 2 MB without dropping files',
+        name: 'does not create outside the checkout when an ancestor is swapped for a link',
         asserts:
-          'Exact sorted set of 20,200 paths; JSON larger than 2 MB; all files not ignored.',
+          'The create is refused PATH_NOT_READABLE and, while the swap is still in place, what it made outside the checkout is taken back.',
       },
       {
-        name: 'still rejects trees beyond the bounded path capacity before inspecting files',
-        asserts: '50,001 paths reject DIRECTORY_TOO_LARGE.',
+        name: 'refuses a move whose destination was taken after it was verified',
+        asserts:
+          'ENTRY_EXISTS, the competing file keeps its contents, and the source is still there.',
       },
       {
-        name: 'keeps entry order and skips paths through symlinked parents in concurrent batches',
+        name: 'refuses a move whose source was replaced after it was verified',
         asserts:
-          'Exact entries; paths under a symlinked parent skipped; cancellation reason propagated.',
+          'CONTENT_CHANGED, the replacement is untouched and no half-move is left behind.',
+      },
+      {
+        name: 'does not move a directory outside the checkout when an ancestor is swapped',
+        asserts: 'PATH_NOT_READABLE and nothing created outside.',
+      },
+      {
+        name: 'refuses a write whose file changed between the fingerprint and the replace',
+        asserts:
+          "CONTENT_CHANGED, the other writer's text survives, and no temporary file is left.",
+      },
+      {
+        name: 'refuses to unlink a source that was replaced after the move was confirmed',
+        asserts:
+          'CONTENT_CHANGED, the replacement is still there and the link the move made is cleaned up.',
+      },
+      {
+        name: 'refuses a directory move whose reservation was replaced before the rename',
+        asserts:
+          'ENTRY_EXISTS, because rename will not take a non-empty directory; the replacement keeps its contents.',
+      },
+      {
+        name: 'refuses to trash an entry replaced after the ancestors were confirmed',
+        asserts:
+          'CONTENT_CHANGED and nothing handed to trash. The parent was already read, so only the last look at the entry can refuse: removing it makes this red.',
+      },
+      {
+        name: 'documents that a replacement inside the trash handoff is what gets trashed',
+        asserts:
+          'The replacement is what trash receives. A limitation pinned on purpose, not a protection.',
+      },
+      {
+        name: 'documents that an ancestor put back again hides what was created outside',
+        asserts:
+          'The request is refused and the entry outside the checkout survives, because cleanup works by name. A limitation pinned on purpose.',
+      },
+      {
+        name: 'documents that a source substituted before the unlink is what is removed',
+        asserts:
+          'The substitute is unlinked and the move reports success. A limitation pinned on purpose.',
+      },
+      {
+        name: 'refuses a trash this machine cannot perform, and leaves the file',
+        asserts: 'TRASH_UNAVAILABLE and the file still on disk.',
+      },
+      {
+        name: 'refuses a move across filesystems instead of copying',
+        asserts: 'CROSS_DEVICE, source intact, destination absent.',
       },
     ],
     strengths: [
-      'One of the few specs with a realistic repository shape, and it checks exact completeness.',
+      'Each test puts a competing writer exactly inside the window between a check and the step it protects, which no happy-path HTTP test can reach.',
+      'Every test named for a refusal was checked by removing the protection and watching it go red. The four named "documents that" are the opposite: they assert the bad outcome of a window that cannot be closed portably, so the promise cannot drift without one of them changing.',
     ],
     gaps: [
-      'No time or syscall budget; the 20k case takes about 2 s including fixture creation under a 20 s timeout.',
-      'Ignored directories collapsed by --directory (node_modules) and submodule detection are never exercised with real git.',
-      'readTreePaths 8 MB ls-files cap untested; repositories above 50,000 paths fail the Files view entirely.',
+      'Node exposes no openat/renameat2, so a directory move keeps a reservation and rename: it refuses a file and a non-empty directory, and the only thing it can still replace is an empty directory that appeared where the reservation was. That narrower guarantee is documented rather than tested.',
+      'The window between the final comparison and the replace in a write cannot be closed portably; what is tested is that a change observed up to that comparison is refused.',
+      'Three windows stay open for want of openat/unlinkat: an ancestor restored before the post-create check hides an entry created outside, a source substituted before unlink is what a move removes, and an entry replaced inside the trash handoff is what gets trashed. Each is pinned by a test asserting the real outcome and stated in docs/decisions/files-read-boundary.md.',
     ],
-    verdict: 'adequate',
+    verdict: 'strong',
   },
   {
     file: 'apps/server/src/filesystem/file-writer.spec.ts',
@@ -1713,13 +1764,12 @@ export const coreAreaSummaries: AreaTestSummary[] = [
     area: 'files',
     verdict: 'adequate',
     summary:
-      'NodeFileReader is one of the best-tested units: real races injected between inspection and open, handle closing, exact 1 MB and 2,000-entry limits. The tree and writer are thinner: the tree has a real 20k-file case but no cost budget, and writer races are not injected. project-folders.ts has no spec in this scope (top-level project-locations specs cover it).',
+      'NodeFileReader is one of the best-tested units: real races injected between inspection and open, handle closing, exact 1 MB and 2,000-entry limits, and now a race inside the ignore question that proves the directory is verified after Git rather than before it. The writer has a seam suite putting a competing writer inside each check-to-act window, every test of it checked by removing the protection. The whole-tree reader is gone, and with it its 20k-path case. project-folders.ts has no spec in this scope (top-level project-locations specs cover it).',
     missing: [
-      'NodeFileTree on 20k paths within a syscall or time budget (each path currently lstats every ancestor and calls realpath).',
-      'readTreePaths on a repository whose node_modules holds 1M ignored files: one collapsed ignored entry, 2 git processes, under N ms.',
+      'Opening a folder whose neighbour holds a million ignored files, within a time budget: the bench covers the process count, nothing covers the wall clock.',
       'NodeFileReader.read of 500 small files does not allocate 1 MB per read.',
-      'NodeFileWriter.move with the destination parent swapped between reservation and rename: CONTENT_CHANGED and the reservation removed.',
       'Editing a 2 MB text file has an explicit, tested outcome (today FILE_TOO_LARGE from the re-read).',
+      'The windows Node cannot close — a write landing between the final comparison and the rename, and an entry replaced inside the trash handoff — are documented and one is pinned by a test; neither can be prevented without openat/renameat2.',
     ],
   },
   {

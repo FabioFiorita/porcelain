@@ -36,7 +36,6 @@ import type {
   FilePreference,
   FilePreferenceChange,
 } from './models/file-preference.ts';
-import type { FileTree } from './models/file-tree.ts';
 import type {
   GitActionPreparation,
   GitActionReceipt,
@@ -66,7 +65,11 @@ import type {
 } from './use-cases/read-change-diffs.ts';
 
 export interface Application {
-  fileTree(worktreeId: string, signal?: AbortSignal): Promise<FileTree>;
+  /** Every name quick open can offer, read once per opening. */
+  worktreePaths(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; paths: string[] }>;
   editFile(
     worktreeId: string,
     command: FileEdit,

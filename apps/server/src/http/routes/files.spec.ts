@@ -1,8 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  lstat,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   realpath,
   rename,
@@ -22,8 +24,8 @@ import {
   type FileErrorCode,
   FileInspectionError,
 } from '../../filesystem/errors/file-inspection-error.ts';
+import { NodeFileWriter } from '../../filesystem/file-writer.ts';
 import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
-
 import { createServer } from '../server.ts';
 
 describe('Files HTTP', () => {
@@ -82,12 +84,24 @@ describe('Files HTTP', () => {
       });
       await writeFile(join(root, 'outside.png'), bytes);
       await symlink(join(root, 'outside.png'), join(path, 'link.png'));
-      for (const target of ['../outside.png', 'link.png', '.git/config']) {
+      // A rejection test that accepts any 4xx or a 500 cannot tell a refusal
+      // from a crash, which is the one thing it exists to tell apart.
+      // Each of these is refused for its own reason, and the test says which:
+      // a lumped "any 4xx" cannot tell a refusal from a crash, nor one refusal
+      // path from another.
+      for (const [target, expected] of [
+        ['../outside.png', { statusCode: 400, code: 'INVALID_REQUEST' }],
+        ['.git/config', { statusCode: 422, code: 'PATH_NOT_READABLE' }],
+        ['link.png', { statusCode: 422, code: 'PATH_NOT_READABLE' }],
+      ] as const) {
         const rejected = await server.inject({
           url: `/api/worktrees/${id}/asset?path=${encodeURIComponent(target)}`,
           headers,
         });
-        expect(rejected.statusCode).toBeGreaterThanOrEqual(400);
+        expect(rejected.statusCode, target).toBe(expected.statusCode);
+        expect(rejected.json().code, target).toBe(expected.code);
+        // And nothing of the file it was pointed at came back.
+        expect(rejected.body, target).not.toContain('outside');
       }
       await writeFile(
         join(path, 'huge.png'),
@@ -374,39 +388,52 @@ describe('Files HTTP', () => {
         expect(response.json().text).toBe(text);
       }
     }));
-  it('writes only the expected text version and lists searchable paths including ignored and linked entries', async () =>
-    fixture(async (server, _root, path, id, headers) => {
+  it('writes only the expected text version, and lists one folder with its ignored and linked entries', async () =>
+    fixture(async (server, root, path, id, headers) => {
       await mkdir(join(path, 'src'));
       await writeFile(join(path, 'src/a.ts'), 'original');
       await writeFile(join(path, '.gitignore'), 'ignored/\n');
       await mkdir(join(path, 'ignored'));
       await writeFile(join(path, 'ignored/large.txt'), 'ignored contents');
       await symlink('src/a.ts', join(path, 'link'));
-      const tree = await server.inject({
+      // One folder, with everything the tree needs to draw it: an ignored
+      // directory is one dimmed row, and nothing descends into it to say so.
+      const listing = await server.inject({
         method: 'GET',
-        url: `/api/worktrees/${id}/file-tree`,
+        url: `/api/worktrees/${id}/directory?path=`,
         headers,
       });
-      expect(tree.statusCode).toBe(200);
-      expect(tree.json().entries).toEqual(
+      expect(listing.statusCode).toBe(200);
+      expect(listing.json().entries).toEqual(
         expect.arrayContaining([
+          expect.objectContaining({ name: 'src', kind: 'directory' }),
           expect.objectContaining({
-            path: 'src/a.ts',
-            kind: 'file',
-            ignored: false,
-          }),
-          expect.objectContaining({
-            path: 'ignored/',
+            name: 'ignored',
             kind: 'directory',
             ignored: true,
           }),
           expect.objectContaining({
-            path: 'link',
+            name: 'link',
             kind: 'symlink',
             target: 'src/a.ts',
           }),
         ]),
       );
+      expect(
+        listing
+          .json()
+          .entries.find((entry: { name: string }) => entry.name === 'src')
+          ?.ignored,
+      ).toBeUndefined();
+      // Quick open is the whole list of names, bounded, in one Git process.
+      const paths = await server.inject({
+        method: 'GET',
+        url: `/api/worktrees/${id}/paths`,
+        headers,
+      });
+      expect(paths.statusCode).toBe(200);
+      expect(paths.json().paths).toContain('src/a.ts');
+      expect(paths.json().paths).not.toContain('ignored/large.txt');
       const payload = {
         kind: 'write',
         path: 'src/a.ts',
@@ -433,14 +460,119 @@ describe('Files HTTP', () => {
       });
       expect(stale.statusCode).toBe(409);
       expect(await readFile(join(path, 'src/a.ts'), 'utf8')).toBe('saved');
-      for (const invalid of ['../outside', '.git/config', '/tmp/outside']) {
+      // Each refusal is named: a traversing or absolute path never reaches the
+      // filesystem, and `.git` is refused by the read boundary itself.
+      for (const [invalid, expected] of [
+        ['../outside', { statusCode: 400, code: 'INVALID_REQUEST' }],
+        ['/tmp/outside', { statusCode: 400, code: 'INVALID_REQUEST' }],
+        ['.git/config', { statusCode: 422, code: 'PATH_NOT_READABLE' }],
+      ] as const) {
         const response = await server.inject({
           method: 'POST',
           url: `/api/worktrees/${id}/files`,
           headers,
           payload: { kind: 'create', path: invalid, entryKind: 'file' },
         });
-        expect(response.statusCode).toBeGreaterThanOrEqual(400);
+        expect(response.statusCode, invalid).toBe(expected.statusCode);
+        expect(response.json().code, invalid).toBe(expected.code);
       }
+      // The refusals left nothing behind them: no `outside` beside the
+      // checkout, and `.git/config` is the file it always was.
+      expect(await readdir(root)).not.toContain('outside');
+      expect(await readdir(path)).not.toContain('outside');
+      await expect(lstat(join(path, '.git', 'config'))).resolves.toMatchObject({
+        size: expect.any(Number),
+      });
     }));
+
+  /**
+   * Move and trash change the owner's real files and had no coverage at this
+   * boundary at all. Each refusal here is one the owner can act on, and each
+   * is proved to have left the files alone.
+   */
+  it('moves and trashes entries, and refuses without touching anything', async () =>
+    fixture(async (server, _root, path, id, headers) => {
+      await mkdir(join(path, 'src'));
+      await writeFile(join(path, 'src', 'a.ts'), 'contents\n');
+      await writeFile(join(path, 'src', 'taken.ts'), 'someone else\n');
+      const edit = (payload: Record<string, string>) =>
+        server.inject({
+          method: 'POST',
+          url: `/api/worktrees/${id}/files`,
+          headers,
+          payload,
+        });
+
+      const moved = await edit({
+        kind: 'move',
+        path: 'src/a.ts',
+        destination: 'src/b.ts',
+      });
+      expect(moved.statusCode).toBe(200);
+      expect(moved.json()).toMatchObject({ path: 'src/b.ts' });
+      expect(await readFile(join(path, 'src', 'b.ts'), 'utf8')).toBe(
+        'contents\n',
+      );
+      expect(await readdir(join(path, 'src'))).not.toContain('a.ts');
+
+      // An existing destination is never replaced, and the mover keeps its file.
+      const collision = await edit({
+        kind: 'move',
+        path: 'src/b.ts',
+        destination: 'src/taken.ts',
+      });
+      expect(collision.statusCode).toBe(409);
+      expect(collision.json().code).toBe('ENTRY_EXISTS');
+      expect(await readFile(join(path, 'src', 'taken.ts'), 'utf8')).toBe(
+        'someone else\n',
+      );
+      expect(await readFile(join(path, 'src', 'b.ts'), 'utf8')).toBe(
+        'contents\n',
+      );
+
+      for (const outside of ['../outside.ts', '/tmp/outside.ts']) {
+        const escaping = await edit({
+          kind: 'move',
+          path: 'src/b.ts',
+          destination: outside,
+        });
+        expect(escaping.statusCode, outside).toBe(400);
+        expect(escaping.json().code, outside).toBe('INVALID_REQUEST');
+        expect(await readFile(join(path, 'src', 'b.ts'), 'utf8')).toBe(
+          'contents\n',
+        );
+      }
+
+      const trashed = await edit({ kind: 'trash', path: 'src/taken.ts' });
+      expect(trashed.statusCode).toBe(200);
+      expect(await readdir(join(path, 'src'))).toEqual(['b.ts']);
+    }));
+
+  it('refuses a delete this machine cannot make recoverable', async () =>
+    fixture(
+      async (server, _root, path, id, headers) => {
+        await writeFile(join(path, 'keep.ts'), 'still here\n');
+        const response = await server.inject({
+          method: 'POST',
+          url: `/api/worktrees/${id}/files`,
+          headers,
+          payload: { kind: 'trash', path: 'keep.ts' },
+        });
+        expect(response.statusCode).toBe(422);
+        expect(response.json()).toEqual({
+          code: 'TRASH_UNAVAILABLE',
+          message: 'This machine has no trash; nothing was deleted',
+        });
+        // Delete means recoverable. With nowhere to recover from, the file
+        // stays rather than being quietly unlinked.
+        expect(await readFile(join(path, 'keep.ts'), 'utf8')).toBe(
+          'still here\n',
+        );
+      },
+      {
+        fileWriter: new NodeFileWriter(async () => {
+          throw new Error('no trash on this machine');
+        }),
+      },
+    ));
 });
