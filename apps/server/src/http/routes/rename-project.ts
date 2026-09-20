@@ -1,26 +1,31 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { gitWorktreeParamsSchema } from '@porcelain/contracts/git-status';
-import { reviewedMarksResponseSchema } from '@porcelain/contracts/reviewed-files';
+import {
+  projectNameResponseSchema,
+  projectParamsSchema,
+  renameProjectRequestSchema,
+} from '@porcelain/contracts/inventory';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
-export function listReviewedFiles(
+export function renameProject(
   server: FastifyInstance,
   options: { application: Application },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.get(
-    '/worktrees/:worktreeId/reviewed',
+  api.patch(
+    '/projects/:projectId',
     {
       schema: {
-        params: gitWorktreeParamsSchema,
-        response: { ...errorResponses, 200: reviewedMarksResponseSchema },
+        params: projectParamsSchema,
+        body: renameProjectRequestSchema,
+        response: { ...errorResponses, 200: projectNameResponseSchema },
       },
     },
     async (request) =>
-      options.application.listReviewedFiles(
-        request.params.worktreeId,
+      options.application.renameProject(
+        request.params.projectId,
+        request.body.name,
         request.disconnected,
       ),
   );

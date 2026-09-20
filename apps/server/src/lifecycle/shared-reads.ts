@@ -6,9 +6,9 @@
  * waiting for. Nothing is kept once it settles, so this shares work in
  * progress rather than caching answers.
  *
- * Only callers with the same latency expectation share. Background work, such
- * as a sidebar summary, never captures a foreground request: attaching to a
- * slow read would hand its wait to someone who would otherwise have been
+ * Only callers with the same latency expectation share the same key, so a
+ * read nobody is waiting on cannot capture one somebody is: attaching to a
+ * slow read would hand its wait to a request that would otherwise have been
  * answered.
  */
 type Group<T> = {

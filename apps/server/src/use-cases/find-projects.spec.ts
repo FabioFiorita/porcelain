@@ -47,6 +47,9 @@ it('stops scanning on cancellation instead of returning incomplete success', asy
       signal?.throwIfAborted();
       throw new Error('Should not reach Git');
     },
+    readOriginUrl: async () => {
+      throw new Error('Should not reach Git');
+    },
   });
   const finder = new FindProjects({ read }, git, inventory, '/fixture');
   await expect(finder.discover(controller.signal)).rejects.toBe(

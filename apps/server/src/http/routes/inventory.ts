@@ -6,6 +6,7 @@ import { getInventoryRoute } from './get-inventory.ts';
 import { projectLocationRoutes } from './project-locations.ts';
 import { registerProjectRoute } from './register-project.ts';
 import { removeProject } from './remove-project.ts';
+import { renameProject } from './rename-project.ts';
 
 export async function inventoryRoutes(
   server: FastifyInstance,
@@ -17,4 +18,5 @@ export async function inventoryRoutes(
   server.register(getInventoryRoute, { application: options.application });
   server.register(removeProject, { application: options.application });
   server.register(registerProjectRoute, { application: options.application });
+  server.register(renameProject, { application: options.application });
 }

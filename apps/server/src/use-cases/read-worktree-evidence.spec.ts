@@ -67,6 +67,7 @@ function store(): InventoryStore {
         {
           id: 'project',
           name: 'project',
+          namedByOwner: false,
           commonDirectory: '/fixture/.git',
           repositoryIdentity: 'repository',
           available: true,

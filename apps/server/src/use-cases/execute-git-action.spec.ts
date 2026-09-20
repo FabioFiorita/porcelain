@@ -62,6 +62,7 @@ describe('Git action execution', () => {
               {
                 id: 'project',
                 name: 'fixture',
+                namedByOwner: false,
                 commonDirectory: '/fixture/.git',
                 repositoryIdentity: 'repository',
                 available: true,

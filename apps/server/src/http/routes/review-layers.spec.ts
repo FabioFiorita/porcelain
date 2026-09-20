@@ -202,6 +202,7 @@ it('cancels the listing a review-layers read started when the client disconnects
     dataDirectory,
     projectHome: dataDirectory,
     git: (checkout) => ({
+      readOriginUrl: (signal) => new Git(checkout).readOriginUrl(signal),
       listWorktrees: (signal) => {
         if (!block) return new Git(checkout).listWorktrees(signal);
         return new Promise((_resolve, reject) => {

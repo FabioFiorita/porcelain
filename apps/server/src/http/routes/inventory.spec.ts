@@ -109,6 +109,7 @@ it('rejects unauthenticated operations before validation or discovery and saniti
         calls++;
         throw new Error('private database path and credentials');
       },
+      readOriginUrl: async () => null,
     }),
   });
   const headers = await pairDevice(server, server.application);

@@ -9,6 +9,7 @@ import { identity } from '@porcelain/git/worktree-registry';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { ListableProject } from '../models/worktree.ts';
 import { deriveWorktreeId } from '../models/worktree-id.ts';
+import { LaunchLimit } from './launch-limit.ts';
 import { SharedReads } from './shared-reads.ts';
 import { WorktreeDirectory } from './worktree-directory.ts';
 
@@ -73,12 +74,17 @@ function directoryWith(
   project: ListableProject,
   listWorktrees: () => Promise<DiscoveryResult>,
 ) {
-  const git = vi.fn<GitFactory>(() => ({ listWorktrees }));
+  const git = vi.fn<GitFactory>(() => ({
+    listWorktrees,
+    readOriginUrl: async () => null,
+  }));
   return {
     git,
     directory: new WorktreeDirectory({
       git,
       reads: new SharedReads(),
+      launches: new LaunchLimit(4),
+      timeoutMs: 5_000,
       projects: () => [project],
     }),
   };
@@ -170,6 +176,69 @@ describe('Worktree directory', () => {
     await expect(
       directory.resolve(deriveWorktreeId('project', 'unknown')),
     ).rejects.toBeInstanceOf(RepositoryIdentityMismatchError);
+  });
+
+  it('launches no more Git processes at once than the limit allows', async () => {
+    const f = await fixture();
+    const projects = Array.from({ length: 6 }, (_, index) => ({
+      ...f.project,
+      id: `project-${index}`,
+    }));
+    let running = 0;
+    let peak = 0;
+    const release = Promise.withResolvers<void>();
+    const git = vi.fn<GitFactory>(() => ({
+      listWorktrees: async () => {
+        running += 1;
+        peak = Math.max(peak, running);
+        await release.promise;
+        running -= 1;
+        return f.listing();
+      },
+      readOriginUrl: async () => null,
+    }));
+    const directory = new WorktreeDirectory({
+      git,
+      reads: new SharedReads(),
+      launches: new LaunchLimit(2),
+      timeoutMs: 5_000,
+      projects: () => projects,
+    });
+    const listed = directory.listAll();
+    // Six projects, two permits: the rest wait for a process to finish rather
+    // than adding to the number of Git children on the machine.
+    await new Promise((tick) => setTimeout(tick, 10));
+    expect(peak).toBe(2);
+    release.resolve();
+    expect(await listed).toHaveLength(6);
+    expect(git).toHaveBeenCalledTimes(6);
+    expect(peak).toBe(2);
+  });
+
+  it('joins a listing already in flight without taking a second permit', async () => {
+    const f = await fixture();
+    const release = Promise.withResolvers<void>();
+    const git = vi.fn<GitFactory>(() => ({
+      listWorktrees: async () => {
+        await release.promise;
+        return f.listing();
+      },
+      readOriginUrl: async () => null,
+    }));
+    const directory = new WorktreeDirectory({
+      git,
+      reads: new SharedReads(),
+      // One permit: a joining caller that took one would deadlock here.
+      launches: new LaunchLimit(1),
+      timeoutMs: 5_000,
+      projects: () => [f.project],
+    });
+    const first = directory.list(f.project);
+    const second = directory.list(f.project);
+    release.resolve();
+    expect((await first).worktrees).toHaveLength(2);
+    expect((await second).worktrees).toHaveLength(2);
+    expect(git).toHaveBeenCalledTimes(1);
   });
 
   it('forgets a project rather than answering for it after removal', async () => {

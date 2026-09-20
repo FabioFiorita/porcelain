@@ -55,6 +55,7 @@ export class InventoryRepository implements InventoryStore {
           .map((project) => ({
             id: project.id,
             name: project.name,
+            namedByOwner: project.namedByOwner,
             commonDirectory: project.commonDirectory,
             repositoryIdentity: project.repositoryIdentity,
             available: project.available,

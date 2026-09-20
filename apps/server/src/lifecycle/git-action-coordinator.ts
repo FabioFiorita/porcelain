@@ -2,7 +2,6 @@ import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
 import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitActionReceipt, GitActionScope } from '../models/git-action.ts';
-import { ProjectRemovalBlockedError } from '../repositories/errors/project-removal-blocked-error.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { AcceptGitAction } from '../use-cases/accept-git-action.ts';
 import { GitActionNotFoundError } from '../use-cases/errors/git-action-not-found-error.ts';
@@ -35,9 +34,9 @@ export class GitActionCoordinator {
     this.execute = execute;
     this.store = store;
   }
-  assertProjectRemovable(projectId: string): void {
-    if (this.failedProjects.has(projectId))
-      throw new ProjectRemovalBlockedError();
+  /** A removed project takes its in-memory refusal with it. */
+  forget(projectId: string): void {
+    this.failedProjects.delete(projectId);
   }
   prepareAction(
     scope: GitActionScope,
@@ -128,6 +127,12 @@ export class GitActionCoordinator {
     } catch {
       // Set the in-memory block before the queue advances, even if persistence
       // failed while recording an unconfirmed group. Never launch subsequent work.
+      //
+      // ExecuteGitAction turns every refusal into an outcome it records, so
+      // what reaches here is the unexpected: a store that could not be
+      // written. A submit whose project was removed while it waited for the
+      // lane is not one of them — it finds its preparation gone, is recorded
+      // as rejected, and leaves no latch behind for an id that is gone too.
       this.failedProjects.add(receipt.projectId);
       this.failures.add(receipt.requestId);
     }

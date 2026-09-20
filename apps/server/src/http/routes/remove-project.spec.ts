@@ -148,7 +148,16 @@ describe('Project removal HTTP workflow', () => {
         });
         expect(await request('/api/inventory')).toEqual({
           ...initial,
-          projects: [other],
+          // The remaining project kept its review data, so it kept its dot.
+          projects: [
+            {
+              ...other,
+              worktrees: other.worktrees.map((worktree) => ({
+                ...worktree,
+                status: 'pending',
+              })),
+            },
+          ],
         });
         for (const table of [
           'review_layer_sets',
@@ -196,7 +205,18 @@ describe('Project removal HTTP workflow', () => {
               headers,
             })
           ).json(),
-        ).toEqual({ ...initial, projects: [other] });
+        ).toEqual({
+          ...initial,
+          projects: [
+            {
+              ...other,
+              worktrees: other.worktrees.map((worktree) => ({
+                ...worktree,
+                status: 'pending',
+              })),
+            },
+          ],
+        });
         const registered = projectResponseSchema.parse(
           (
             await restarted.inject({
@@ -303,7 +323,77 @@ describe('Project removal HTTP workflow', () => {
     }
   });
 
-  it('authenticates before validation and rejects removal of a recovery-blocked project', async () => {
+  it('renames a project, refuses an unusable name, and 404s an unknown one', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-rename-http-'));
+    const server = await createServer({
+      pairingReach,
+      dataDirectory: root,
+      projectHome: root,
+    });
+    const headers = await pairDevice(server, server.application);
+    await server.refreshed();
+    try {
+      const path = join(root, 'checked-out-here');
+      execFileSync('git', ['init', '-b', 'main', path]);
+      const project = projectResponseSchema.parse(
+        (
+          await server.inject({
+            method: 'POST',
+            url: '/api/projects',
+            headers,
+            payload: { path },
+          })
+        ).json(),
+      );
+      const rename = (payload: Record<string, unknown>, id = project.id) =>
+        server.inject({
+          method: 'PATCH',
+          url: `/api/projects/${id}`,
+          headers,
+          payload,
+        });
+      const renamed = await rename({ name: '  Atlas review  ' });
+      expect(renamed.statusCode, renamed.body).toBe(200);
+      // Trimmed on the way in, and the name is all the reply carries.
+      expect(renamed.json()).toEqual({ id: project.id, name: 'Atlas review' });
+      expect(
+        (
+          await server.inject({ method: 'GET', url: '/api/inventory', headers })
+        ).json().projects[0].name,
+      ).toBe('Atlas review');
+      for (const payload of [
+        { name: '   ' },
+        { name: 'two\nlines' },
+        { name: 'x'.repeat(101) },
+        { name: 'fine', extra: true },
+        {},
+      ])
+        expect(
+          (await rename(payload)).statusCode,
+          JSON.stringify(payload),
+        ).toBe(400);
+      expect((await rename({ name: 'orphan' }, randomUUID())).statusCode).toBe(
+        404,
+      );
+      expect((await rename({ name: 'bad id' }, 'not-a-uuid')).statusCode).toBe(
+        400,
+      );
+      expect(
+        (
+          await server.inject({
+            method: 'PATCH',
+            url: `/api/projects/${project.id}`,
+            payload: { name: 'unauthenticated' },
+          })
+        ).statusCode,
+      ).toBe(401);
+    } finally {
+      await server.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('authenticates before validation and removes a project an old action blocked', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-remove-errors-'));
     const server = await createServer({
       pairingReach,
@@ -353,16 +443,28 @@ describe('Project removal HTTP workflow', () => {
         url: `/api/projects/${project.id}`,
         headers,
       });
-      expect(response.statusCode).toBe(409);
-      expect(response.json()).toMatchObject({
-        code: 'PROJECT_REMOVAL_BLOCKED',
-      });
+      // A latch from an action that ended without a confirmed outcome used to
+      // make this project unremovable for ever. Removal touches no disk, so
+      // it is allowed, and the latch goes with it.
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ deleted: true });
       expect(response.headers['cache-control']).toBe('no-store');
       expect(
         (
           await server.inject({ method: 'GET', url: '/api/inventory', headers })
         ).json().projects,
-      ).toEqual([project]);
+      ).toEqual([]);
+      // Read the latch once the server has closed: a second connection to a
+      // live WAL database can answer from an older snapshot.
+      await server.close();
+      const after = new DatabaseSync(join(root, 'inventory.sqlite'));
+      try {
+        expect(after.prepare('SELECT * FROM git_action_blocks').all()).toEqual(
+          [],
+        );
+      } finally {
+        after.close();
+      }
     } finally {
       await server.close();
       await rm(root, { recursive: true, force: true });

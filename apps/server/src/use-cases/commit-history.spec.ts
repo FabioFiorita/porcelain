@@ -17,6 +17,7 @@ describe('Commit history use cases', () => {
     {
       id: 'project',
       name: 'Project',
+      namedByOwner: false,
       commonDirectory: '/fixture/.git',
       repositoryIdentity: 'repository-identity',
       available: true,

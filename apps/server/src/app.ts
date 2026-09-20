@@ -3,6 +3,7 @@ import {
   associateCommitReviewLayersSchema,
   commitReviewLayerParamsSchema,
 } from '@porcelain/contracts/commit-review-layers';
+import { renameProjectRequestSchema } from '@porcelain/contracts/inventory';
 import {
   replaceReviewLayersSchema,
   reviewLayerParamsSchema,
@@ -36,6 +37,7 @@ import { NodeProjectFolders } from './filesystem/project-folders.ts';
 import { DeviceDirectory } from './lifecycle/device-directory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { Lanes } from './lifecycle/lanes.ts';
+import { LaunchLimit } from './lifecycle/launch-limit.ts';
 import { SharedReads } from './lifecycle/shared-reads.ts';
 import { WorktreeDirectory } from './lifecycle/worktree-directory.ts';
 import type { Project } from './models/project.ts';
@@ -50,6 +52,7 @@ import { ProjectRemovalRepository } from './repositories/project-removal-reposit
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { ReviewedFileRepository } from './repositories/reviewed-file-repository.ts';
 import { WorktreePresenceRepository } from './repositories/worktree-presence-repository.ts';
+import { WorktreeStatusRepository } from './repositories/worktree-status-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { AssociateCommitReviewLayers } from './use-cases/associate-commit-review-layers.ts';
 import { CollectAbsentWorktrees } from './use-cases/collect-absent-worktrees.ts';
@@ -69,10 +72,10 @@ import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
 import { ListFileTree } from './use-cases/list-file-tree.ts';
 import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
+import { MarkCommentsSeen } from './use-cases/mark-comments-seen.ts';
 import { Pairing, type PairingReach } from './use-cases/pairing.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadAsset } from './use-cases/read-asset.ts';
-import { ReadReviewSummary } from './use-cases/read-review-summary.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
 import { ReadWorktreeEvidence } from './use-cases/read-worktree-evidence.ts';
@@ -80,6 +83,7 @@ import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
 import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
+import { RenameProject } from './use-cases/rename-project.ts';
 import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
 import { ResolveWorktree } from './use-cases/resolve-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
@@ -87,6 +91,12 @@ import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
 import { UploadArtifact } from './use-cases/upload-artifact.ts';
 
 const READ_CAPACITY = 4;
+/**
+ * How many `git worktree list` processes may run at once, over the whole
+ * server. Its own policy: it happens to equal the read capacity, but one
+ * bounds requests waiting on a repository and this bounds child processes.
+ */
+const LISTING_LAUNCHES = 4;
 /** How often a device's last-seen time reaches the database. */
 const LAST_SEEN_FLUSH_MS = 60_000;
 /** Review data outlives its worktree by thirty days; hourly is ample. */
@@ -111,12 +121,29 @@ export async function openApplication(options: {
   now?: () => string;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
+  projectListingTimeoutMs?: number;
 }): Promise<Application> {
-  const { operationTimeoutMs } = applicationSettingsSchema.parse(options);
+  const { operationTimeoutMs, projectListingTimeoutMs } =
+    applicationSettingsSchema.parse(options);
   options.signal?.throwIfAborted();
   const database = openDatabase(options.dataDirectory);
+  // Set once the inventory store exists; until then there is nothing to count.
+  let countProjects = () => 0;
+  /**
+   * Long enough for every wave of projects to reach its own deadline.
+   *
+   * A fixed deadline would abort a request once there are more slow projects
+   * than the launch limit can start at once — which is the failure the
+   * per-project timeout exists to remove. Every lane operation gets this,
+   * because any of them can end up listing: a worktree id the directory has
+   * not seen is resolved by listing every project.
+   */
+  const listingBudgetMs = () =>
+    Math.ceil(Math.max(countProjects(), 1) / LISTING_LAUNCHES) *
+      projectListingTimeoutMs +
+    operationTimeoutMs;
   const lanes = new Lanes({
-    deadlineMs: operationTimeoutMs,
+    deadlineMs: listingBudgetMs,
     readCapacity: READ_CAPACITY,
     closeResources: () => database.close(),
   });
@@ -129,15 +156,22 @@ export async function openApplication(options: {
   try {
     const layers = new ReviewLayerRepository(database.db);
     const store = new InventoryRepository(database.db);
+    // The lane deadline counts projects; a lane asserts it is open before it
+    // asks, so this never reads a closed database.
+    countProjects = () => store.read().projects.length;
     const git = options.git ?? ((checkout: string) => new Git(checkout));
     // Git is the source of truth for worktrees: this lists them and turns an
     // id back into one, without SQLite and usually without a Git process.
+    const launches = new LaunchLimit(LISTING_LAUNCHES);
     const directory = new WorktreeDirectory({
       git,
       reads: sharedReads,
+      launches,
+      timeoutMs: projectListingTimeoutMs,
       projects: () => store.read().projects,
     });
     const presence = new WorktreePresenceRepository(database.db);
+    const statuses = new WorktreeStatusRepository(database.db);
     const collectAbsent = new CollectAbsentWorktrees(
       presence,
       options.now ? () => Date.parse(options.now?.() ?? '') : undefined,
@@ -154,10 +188,31 @@ export async function openApplication(options: {
      * listing that worked.
      */
     const listProjects = async (signal?: AbortSignal) => {
+      const registered = store.read().projects;
+      // Listed together, recorded in stored order: how fast a repository
+      // answers must not decide where it sits in the sidebar.
+      const listings = await Promise.all(
+        registered.map((project) => directory.list(project, signal)),
+      );
       const issues: DiscoveryIssue[] = [];
       const projects: Project[] = [];
-      for (const project of store.read().projects) {
-        const listing = await directory.list(project, signal);
+      // Removal runs on the project's own lane, so it can land while these
+      // listings are in flight. Whatever is still registered when they finish
+      // is what this answers with: writing back availability for a project
+      // that has gone would put it back in the sidebar without its data.
+      const present = new Set(
+        store.read().projects.map((project) => project.id),
+      );
+      // One read for every worktree of every project: the dot costs a single
+      // statement, which is what replacing the per-worktree count was for.
+      const dots = statuses.status(
+        listings.flatMap((listing) =>
+          listing.worktrees.map((worktree) => worktree.id),
+        ),
+      );
+      for (const [index, project] of registered.entries()) {
+        const listing = listings[index];
+        if (!listing || !present.has(project.id)) continue;
         const available = listing.failure === undefined;
         if (available !== project.available)
           store.save({ ...project, available });
@@ -176,13 +231,27 @@ export async function openApplication(options: {
             error: listing.failure,
           });
         }
-        projects.push({ ...project, available, worktrees: listing.worktrees });
+        projects.push({
+          ...project,
+          available,
+          worktrees: listing.worktrees.map((worktree) => ({
+            ...worktree,
+            status: dots.get(worktree.id) ?? null,
+          })),
+        });
       }
       return {
         inventory: { environmentId: store.read().environmentId, projects },
         issues,
       };
     };
+    /**
+     * Long enough for every wave of projects to reach its own deadline.
+     *
+     * A fixed operation deadline would abort the whole request once there are
+     * more slow projects than the launch limit can start at once — which is
+     * the failure the per-project timeout exists to remove.
+     */
     /** Database work answers immediately; it never enters a lane. */
     const stored = async <T>(read: () => T | Promise<T>): Promise<T> => {
       lanes.assertOpen();
@@ -223,6 +292,8 @@ export async function openApplication(options: {
     const projectLaneOf = (projectId: string) =>
       store.read().projects.find((entry) => entry.id === projectId)
         ?.repositoryIdentity ?? 'unresolved';
+    const renameProject = new RenameProject(store);
+    const markSeen = new MarkCommentsSeen(worktrees, statuses);
     const removeProject = new RemoveProject(
       new ProjectRemovalRepository(database.db),
     );
@@ -391,22 +462,8 @@ export async function openApplication(options: {
       randomUUID,
       options.now,
     );
-    const summary = new ReadReviewSummary(
-      evidence,
-      listReviewedFiles,
-      comments,
-      status,
-    );
 
     return {
-      reviewSummary: (worktreeId, signal) =>
-        lanes.run(
-          laneOf(worktreeId),
-          'read',
-          ({ signal: ownedSignal }) =>
-            summary.execute(worktreeId, new RequestGitSession(), ownedSignal),
-          { callerSignal: signal },
-        ),
       commitModels: (signal) =>
         lanes.unqueued((operationSignal) => generator.models(operationSignal), {
           callerSignal: signal,
@@ -623,14 +680,35 @@ export async function openApplication(options: {
           projectLaneOf(projectId),
           'write',
           async () => {
-            actions.assertProjectRemovable(projectId);
             const removal = removeProject.execute(projectId);
-            // The checkouts stay on disk, so the directory would go on
-            // resolving ids for a project that is gone.
-            if (removal.deleted) directory.forget(projectId);
+            if (removal.deleted) {
+              // The checkouts stay on disk, so the directory would go on
+              // resolving ids for a project that is gone.
+              directory.forget(projectId);
+              // Its refusal latch went with it; the coordinator must not keep
+              // refusing actions for an id that no longer exists.
+              actions.forget(projectId);
+            }
             return removal;
           },
           { callerSignal: signal },
+        ),
+      renameProject: async (projectId, name, signal) => {
+        // Parsed here, not only at the route: a name reaches storage the same
+        // way whichever door it came through.
+        const input = renameProjectRequestSchema.parse({ name });
+        return lanes.run(
+          INVENTORY,
+          'write',
+          async () => renameProject.execute(projectId, input.name),
+          { callerSignal: signal },
+        );
+      },
+      markCommentsSeen: (worktreeId, throughRevision, signal) =>
+        forWorktree(
+          (operationSignal) =>
+            markSeen.execute(worktreeId, throughRevision, operationSignal),
+          signal,
         ),
       discoverProjects: (signal) =>
         lanes.run(
@@ -651,19 +729,40 @@ export async function openApplication(options: {
         lanes.assertOpen();
         return store.read();
       },
-      inventory: (signal?: AbortSignal) =>
+      inventory: async (signal?: AbortSignal) =>
         lanes.run(
           INVENTORY,
           'read',
           ({ signal: operationSignal }) => listProjects(operationSignal),
           { callerSignal: signal },
         ),
-      register: (checkout: string, signal?: AbortSignal) =>
+      register: async (checkout: string, signal?: AbortSignal) =>
         lanes.run(
           INVENTORY,
           'write',
-          ({ signal: operationSignal }) =>
-            register.execute(checkout, operationSignal),
+          async ({ signal: operationSignal }) => {
+            const registered = await register.execute(
+              checkout,
+              operationSignal,
+            );
+            // The reply carries the sidebar's dots too: a repository added
+            // back keeps whatever review data it already had.
+            const dots = statuses.status(
+              registered.project.worktrees.map((worktree) => worktree.id),
+            );
+            return {
+              ...registered,
+              project: {
+                ...registered.project,
+                worktrees: registered.project.worktrees.map((worktree) => ({
+                  ...worktree,
+                  status: dots.get(worktree.id) ?? null,
+                })),
+              },
+            };
+          },
+          // Registering re-lists the projects that claim these paths, so it
+          // waits on the same waves an inventory read does.
           { callerSignal: signal },
         ),
       listCommits: (worktreeId, request, signal) => {

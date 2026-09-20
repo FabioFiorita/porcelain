@@ -131,8 +131,15 @@ class Gate {
 export type LaneOptions = {
   /** How many reads one repository runs side by side. */
   readCapacity?: number;
-  /** The execution budget, counted from admission rather than from arrival. */
-  deadlineMs: number;
+  /**
+   * The execution budget, counted from admission rather than from arrival.
+   *
+   * A function, because the budget has to cover whatever the work may reach
+   * for: any worktree request can end up listing every project when the id it
+   * names is one the directory has not seen, and how long that takes depends
+   * on how many projects there are.
+   */
+  deadlineMs: number | (() => number);
   closeResources?: () => void;
 };
 
@@ -143,7 +150,7 @@ export type LaneOptions = {
 export class Lanes {
   private readonly gates = new Map<string, Gate>();
   private readonly capacity: number;
-  private readonly deadlineMs: number;
+  private readonly deadlineMs: () => number;
   private readonly closeResources: () => void;
   private readonly shutdown = new AbortController();
   private active = new Set<Promise<unknown>>();
@@ -151,7 +158,10 @@ export class Lanes {
 
   constructor(options: LaneOptions) {
     this.capacity = options.readCapacity ?? 4;
-    this.deadlineMs = options.deadlineMs;
+    this.deadlineMs =
+      typeof options.deadlineMs === 'function'
+        ? options.deadlineMs
+        : () => options.deadlineMs as number;
     this.closeResources = options.closeResources ?? (() => undefined);
   }
 
@@ -199,7 +209,7 @@ export class Lanes {
     // caller's execution budget.
     const signal = AbortSignal.any([
       waiting,
-      AbortSignal.timeout(options.deadlineMs ?? this.deadlineMs),
+      AbortSignal.timeout(options.deadlineMs ?? this.deadlineMs()),
     ]);
     this.publish(id, lane, 'started');
     let task: Promise<T>;
@@ -255,7 +265,7 @@ export class Lanes {
     const signal = AbortSignal.any([
       this.shutdown.signal,
       ...(options.callerSignal ? [options.callerSignal] : []),
-      AbortSignal.timeout(options.deadlineMs ?? this.deadlineMs),
+      AbortSignal.timeout(options.deadlineMs ?? this.deadlineMs()),
     ]);
     const task = work(signal);
     this.track(task);

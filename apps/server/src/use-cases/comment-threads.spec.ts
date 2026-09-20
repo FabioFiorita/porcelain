@@ -11,29 +11,46 @@ import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 
 class MemoryComments implements CommentStore {
-  readonly rows = new Map<string, CommentThread>();
-  list(worktreeId: string) {
-    return structuredClone(
-      [...this.rows.values()].filter((row) => row.worktreeId === worktreeId),
+  // The thread and its revision are kept apart, as the table keeps them: only
+  // the thread is stored data, so only the thread counts against the budget.
+  readonly rows = new Map<
+    string,
+    { thread: CommentThread; revision: number }
+  >();
+  private revision = 0;
+  get threads() {
+    return new Map(
+      [...this.rows].map(([id, row]) => [id, row.thread] as const),
     );
   }
+  list(worktreeId: string) {
+    return [...this.rows.values()]
+      .filter((row) => row.thread.worktreeId === worktreeId)
+      .map((row) => ({
+        ...structuredClone(row.thread),
+        revision: row.revision,
+      }));
+  }
   find(worktreeId: string, threadId: string) {
-    const thread = this.rows.get(threadId);
-    return thread?.worktreeId === worktreeId
-      ? structuredClone(thread)
+    const row = this.rows.get(threadId);
+    return row?.thread.worktreeId === worktreeId
+      ? { ...structuredClone(row.thread), revision: row.revision }
       : undefined;
   }
   usage(worktreeId: string) {
     const rows = [...this.rows.values()].filter(
-      (row) => row.worktreeId === worktreeId,
+      (row) => row.thread.worktreeId === worktreeId,
     );
     return {
       threads: rows.length,
-      bytes: rows.reduce((sum, row) => sum + commentStorageSize(row), 0),
+      bytes: rows.reduce((sum, row) => sum + commentStorageSize(row.thread), 0),
     };
   }
   save(thread: CommentThread) {
-    this.rows.set(thread.id, structuredClone(thread));
+    this.revision += 1;
+    const stored = structuredClone(thread);
+    this.rows.set(thread.id, { thread: stored, revision: this.revision });
+    return { ...structuredClone(stored), revision: this.revision };
   }
 }
 /**
@@ -298,7 +315,10 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       reviewer,
     ),
   ).rejects.toThrow('Comment capacity exceeded');
-  expect(store.find('worktree', thread.id)).toEqual(thread);
+  expect(store.find('worktree', thread.id)).toEqual({
+    ...thread,
+    revision: expect.any(Number),
+  });
   for (const resolved of [true, false])
     await comments.execute(
       {
@@ -309,7 +329,10 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
       },
       reviewer,
     );
-  expect(store.find('worktree', thread.id)).toEqual(thread);
+  expect(store.find('worktree', thread.id)).toEqual({
+    ...thread,
+    revision: expect.any(Number),
+  });
   expect(
     commentStorageSize({
       ...thread,

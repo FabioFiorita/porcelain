@@ -16,7 +16,12 @@ import type {
 } from '../models/worktree.ts';
 import { deriveWorktreeId } from '../models/worktree-id.ts';
 import type { WorktreeSource } from '../repositories/interfaces/worktree-source.ts';
+import { ProjectListingTimeoutError } from './errors/project-listing-timeout-error.ts';
+import type { LaunchLimit } from './launch-limit.ts';
 import type { SharedReads } from './shared-reads.ts';
+
+/** One instance: a timeout says the same thing whichever project hit it. */
+const TIMED_OUT = new ProjectListingTimeoutError();
 
 /**
  * Turns a worktree id into a worktree, without SQLite and usually without Git.
@@ -33,15 +38,21 @@ export class WorktreeDirectory implements WorktreeSource {
   private readonly entries = new Map<string, ResolvedWorktree>();
   private readonly git: GitFactory;
   private readonly reads: SharedReads;
+  private readonly launches: LaunchLimit;
+  private readonly timeoutMs: number;
   private readonly projects: () => readonly ListableProject[];
 
   constructor(options: {
     git: GitFactory;
     reads: SharedReads;
+    launches: LaunchLimit;
+    timeoutMs: number;
     projects: () => readonly ListableProject[];
   }) {
     this.git = options.git;
     this.reads = options.reads;
+    this.launches = options.launches;
+    this.timeoutMs = options.timeoutMs;
     this.projects = options.projects;
   }
 
@@ -57,12 +68,18 @@ export class WorktreeDirectory implements WorktreeSource {
     );
   }
 
-  /** Every registered project, listed. */
+  /**
+   * Every registered project, listed, in the order they are stored.
+   *
+   * Projects are listed together rather than one after another, so a slow
+   * repository costs its own timeout instead of everybody's. What bounds Git
+   * is the launch limit, not this fan-out: a caller that joins a listing
+   * already in flight starts nothing.
+   */
   async listAll(signal?: AbortSignal): Promise<ProjectListing[]> {
-    const listings: ProjectListing[] = [];
-    for (const project of this.projects())
-      listings.push(await this.list(project, signal));
-    return listings;
+    return Promise.all(
+      this.projects().map((project) => this.list(project, signal)),
+    );
   }
 
   /**
@@ -122,13 +139,32 @@ export class WorktreeDirectory implements WorktreeSource {
     signal?: AbortSignal,
   ): Promise<ProjectListing> {
     let discovered: DiscoveryResult;
+    // This project's own share of the wait, started when its Git process
+    // starts rather than when it joins the queue: a healthy repository behind
+    // four slow ones must not be reported unavailable for waiting its turn.
+    let expiry: AbortSignal | undefined;
     try {
-      discovered = await this.git(project.commonDirectory).listWorktrees(
-        signal,
-        { commonDirectory: project.commonDirectory },
-      );
+      discovered = await this.launches.run(() => {
+        expiry = AbortSignal.timeout(this.timeoutMs);
+        const listing = signal ? AbortSignal.any([signal, expiry]) : expiry;
+        return this.git(project.commonDirectory).listWorktrees(listing, {
+          commonDirectory: project.commonDirectory,
+        });
+      }, signal);
     } catch (failure) {
+      // The caller leaving, or shutdown, is still cancellation and belongs to
+      // whoever asked. Only this project's own deadline is data.
       signal?.throwIfAborted();
+      if (expiry?.aborted)
+        return {
+          projectId: project.id,
+          worktrees: this.known(project.id),
+          issues: [
+            { path: dirname(project.commonDirectory), error: TIMED_OUT },
+          ],
+          failure: TIMED_OUT,
+          complete: false,
+        };
       // A repository that cannot be read is data. Git missing from the machine
       // is a fault, and must not be reported as every project being
       // unavailable — that would hide a broken installation behind an empty

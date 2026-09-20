@@ -1,4 +1,5 @@
 import { listWorktrees } from './commands/list-worktrees.ts';
+import { readOriginUrl } from './commands/read-origin-url.ts';
 import type { WorktreeReader } from './interfaces/git-factory.ts';
 
 export class Git implements WorktreeReader {
@@ -10,5 +11,9 @@ export class Git implements WorktreeReader {
 
   listWorktrees(signal?: AbortSignal, known?: { commonDirectory: string }) {
     return listWorktrees(this.checkout, signal, known);
+  }
+
+  readOriginUrl(signal?: AbortSignal) {
+    return readOriginUrl(this.checkout, signal);
   }
 }

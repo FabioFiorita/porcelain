@@ -15,19 +15,12 @@ it('requires known identity but permits unavailable inventory and missing paths 
         {
           id: 'project',
           name: 'project',
+          namedByOwner: false,
           commonDirectory: '/absent/.git',
           repositoryIdentity: 'identity',
+          // Unavailable on purpose: preferences belong to the project, so an
+          // unreachable repository must not stop the owner pinning a file.
           available: false,
-          worktrees: [
-            {
-              id: 'known',
-              path: '/absent',
-              metadataIdentity: null,
-              main: true,
-              branch: null,
-              available: false,
-            },
-          ],
         },
       ],
     }),

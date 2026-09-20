@@ -18,6 +18,7 @@ import {
 const project: RegisteredProject = {
   id: 'project',
   name: 'Fixture',
+  namedByOwner: false,
   commonDirectory: '/fixture/.git',
   repositoryIdentity: 'fixture',
   available: true,
@@ -53,6 +54,7 @@ async function fixture() {
       .values({
         id: `thread-${worktreeId}`,
         worktreeId,
+        revision: 1,
         data: {
           id: `thread-${worktreeId}`,
           worktreeId,

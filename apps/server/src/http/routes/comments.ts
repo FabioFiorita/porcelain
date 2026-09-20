@@ -4,6 +4,7 @@ import { authenticate } from '../middlewares/authenticate.ts';
 import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { createCommentThread } from './create-comment-thread.ts';
 import { listCommentThreads } from './list-comment-threads.ts';
+import { markCommentsSeen } from './mark-comments-seen.ts';
 import { replyToComment } from './reply-to-comment.ts';
 import { resolveCommentThread } from './resolve-comment-thread.ts';
 
@@ -17,4 +18,5 @@ export async function commentRoutes(
   createCommentThread(server, options);
   replyToComment(server, options);
   resolveCommentThread(server, options);
+  markCommentsSeen(server, options);
 }

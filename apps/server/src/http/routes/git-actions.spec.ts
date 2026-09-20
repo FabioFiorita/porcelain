@@ -138,54 +138,6 @@ describe('Git actions HTTP', () => {
     },
   );
 
-  it('counts unreviewed paths without loading their diffs', async () => {
-    await writeFile(join(checkout, 'file'), 'staged\n');
-    await git('add', 'file');
-    await writeFile(join(checkout, 'file'), 'unstaged\n');
-    await writeFile(join(checkout, 'new'), 'new\n');
-    const diff = vi.spyOn(InspectionGit.prototype, 'readDiffs');
-    try {
-      const response = await server.inject({
-        url: `/api/worktrees/${prefix.split('/')[5]}/review-summary`,
-        headers,
-      });
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toMatchObject({ pendingFiles: 2 });
-      expect(diff).not.toHaveBeenCalled();
-    } finally {
-      diff.mockRestore();
-    }
-  });
-
-  it('serves foreground reads while a background summary is blocked', async () => {
-    const gate = Promise.withResolvers<void>();
-    const started = Promise.withResolvers<void>();
-    const original = InspectionGit.prototype.readStatus;
-    const status = vi
-      .spyOn(InspectionGit.prototype, 'readStatus')
-      .mockImplementationOnce(async function (this: InspectionGit, signal) {
-        started.resolve();
-        await gate.promise;
-        return original.call(this, signal);
-      });
-    const url = `/api/worktrees/${prefix.split('/')[5]}`;
-    const summary = server
-      .inject({ url: `${url}/review-summary`, headers })
-      .then((response) => response);
-    try {
-      await started.promise;
-      const foreground = await server.inject({
-        url: `${url}/git/status`,
-        headers,
-      });
-      expect(foreground.statusCode).toBe(200);
-    } finally {
-      gate.resolve();
-      await summary;
-      status.mockRestore();
-    }
-  });
-
   it('reads comments without waiting for slow review evidence', async () => {
     await writeFile(join(checkout, 'file'), 'changed\n');
     const started = Promise.withResolvers<void>();
@@ -218,7 +170,7 @@ describe('Git actions HTTP', () => {
     }
   });
 
-  it('validates only the marked file, including both comparisons, and preserves badge counts', async () => {
+  it('validates only the marked file, including both comparisons', async () => {
     await writeFile(join(checkout, 'other'), 'base\n');
     await git('add', 'other');
     await git('commit', '-m', 'other fixture');
@@ -248,12 +200,6 @@ describe('Git actions HTTP', () => {
     try {
       expect((await mark()).statusCode).toBe(200);
       expect(diff).not.toHaveBeenCalled();
-      const summary = await server.inject({
-        url: `${url}/review-summary`,
-        headers,
-      });
-      expect(summary.statusCode).toBe(200);
-      expect(summary.json()).toMatchObject({ pendingFiles: 1 });
       await writeFile(join(checkout, 'file'), 'edited after review\n');
       expect((await mark()).statusCode).toBe(409);
       expect(
@@ -266,54 +212,9 @@ describe('Git actions HTTP', () => {
           ['file', 'unstaged'],
         ],
       ]);
-      expect(
-        (await server.inject({ url: `${url}/review-summary`, headers })).json(),
-      ).toMatchObject({ pendingFiles: 2 });
     } finally {
       diff.mockRestore();
     }
-  });
-
-  it('counts current unreviewed files and unresolved comments in the review summary', async () => {
-    const worktreeId = prefix.split('/')[5];
-    const url = `/api/worktrees/${worktreeId}`;
-    await writeFile(join(checkout, 'file'), 'review me\n');
-    const readSummary = async () =>
-      (await server.inject({ url: `${url}/review-summary`, headers })).json();
-    expect(await readSummary()).toMatchObject({
-      pendingFiles: 1,
-      openThreads: 0,
-    });
-    const evidence = (
-      await server.inject({ url: `${url}/evidence`, headers })
-    ).json();
-    const mark = await server.inject({
-      method: 'PUT',
-      url: `${url}/reviewed`,
-      headers,
-      payload: {
-        path: 'file',
-        reviewed: true,
-        fingerprint: evidence.evidence[0].fingerprint,
-      },
-    });
-    expect(mark.statusCode, mark.body).toBe(200);
-    expect(await readSummary()).toMatchObject({ pendingFiles: 0 });
-    await writeFile(join(checkout, 'file'), 'changed since review\n');
-    const comment = await server.inject({
-      method: 'POST',
-      url: `${url}/comments`,
-      headers,
-      payload: {
-        body: 'Please explain',
-        anchor: { kind: 'file', filePath: 'file' },
-      },
-    });
-    expect(comment.statusCode, comment.body).toBe(200);
-    expect(await readSummary()).toMatchObject({
-      pendingFiles: 1,
-      openThreads: 1,
-    });
   });
 
   it.each([false, true])(

@@ -17,7 +17,10 @@ import type {
   ArtifactMetadata,
   ArtifactUpload,
 } from './models/artifact.ts';
-import type { CommentCommand, CommentThread } from './models/comment-thread.ts';
+import type {
+  CommentCommand,
+  StoredCommentThread,
+} from './models/comment-thread.ts';
 import type {
   CommitDraft,
   CommitDraftInput,
@@ -191,6 +194,22 @@ export interface Application {
     projectId: string,
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
+  /** The owner names a project; a name they chose is never derived over. */
+  renameProject(
+    projectId: string,
+    name: string,
+    signal?: AbortSignal,
+  ): Promise<{ id: string; name: string }>;
+  /**
+   * Record how far the owner has read a worktree's discussion. The revision
+   * comes from what was displayed, so a reply that arrived after the snapshot
+   * stays unseen.
+   */
+  markCommentsSeen(
+    worktreeId: string,
+    throughRevision: number,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; seenThrough: number }>;
   /**
    * Environment and projects, without touching Git.
    *
@@ -249,7 +268,7 @@ export interface Application {
     command: CommentCommand,
     principal: AuthenticatedPrincipal,
     signal?: AbortSignal,
-  ): Promise<CommentThread[]>;
+  ): Promise<StoredCommentThread[]>;
   commitReviewLayers(
     projectId: string,
     commitOid: string,
@@ -261,10 +280,6 @@ export interface Application {
     request: CommitReviewLayerRequest,
     signal?: AbortSignal,
   ): Promise<CommitReviewLayers>;
-  reviewSummary(
-    worktreeId: string,
-    signal?: AbortSignal,
-  ): Promise<{ worktreeId: string; pendingFiles: number; openThreads: number }>;
   reviewLayers(worktreeId: string, signal?: AbortSignal): Promise<ReviewLayers>;
   replaceReviewLayers(
     worktreeId: string,

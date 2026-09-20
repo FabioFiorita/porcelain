@@ -47,6 +47,7 @@ it('requires message authors, keeps legacy timestamps optional, and accepts diff
           author: 'reviewer',
         },
       ],
+      revision: 1,
     }),
   ).toMatchObject({ messages: [{ author: 'reviewer' }] });
   expect(
@@ -61,6 +62,7 @@ it('requires message authors, keeps legacy timestamps optional, and accepts diff
           body: 'missing author',
         },
       ],
+      revision: 1,
     }).success,
   ).toBe(false);
   expect(

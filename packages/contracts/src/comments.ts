@@ -90,6 +90,11 @@ export const commentThreadSchema = z.strictObject({
   anchor: commentAnchorSchema,
   resolved: z.boolean(),
   messages: z.array(message).min(1),
+  /**
+   * Rises with every write to this thread. The reader sends back the highest
+   * one it displayed to say what it has actually seen.
+   */
+  revision: z.number().int().nonnegative(),
 });
 export const commentThreadsSchema = z.array(commentThreadSchema);
 
@@ -97,3 +102,11 @@ export type CommentAuthor = z.infer<typeof commentAuthorSchema>;
 export type CommentAnchor = z.infer<typeof commentAnchorSchema>;
 export type CommentMessage = z.infer<typeof message>;
 export type CommentThread = z.infer<typeof commentThreadSchema>;
+
+export const seenCommentsRequestSchema = z.strictObject({
+  throughRevision: z.number().int().nonnegative(),
+});
+export const seenCommentsResponseSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+  seenThrough: z.number().int().nonnegative(),
+});

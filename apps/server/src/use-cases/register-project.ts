@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { basename, dirname } from 'node:path';
+import { dirname } from 'node:path';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { RegisteredProject } from '../models/project.ts';
+import { deriveProjectName } from '../models/project-name.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { WorktreeSource } from '../repositories/interfaces/worktree-source.ts';
 
@@ -53,9 +54,20 @@ export class RegisterProject {
         (project) =>
           project.repositoryIdentity === discovered.repositoryIdentity,
       );
+    // A name the owner chose is theirs; a derived one is data, so registering
+    // again picks up a repository that has moved host or folder since.
+    const name = previous?.namedByOwner
+      ? previous.name
+      : deriveProjectName(
+          await this.git(checkout).readOriginUrl(signal),
+          discovered.worktrees.find((worktree) => worktree.main)?.path ??
+            dirname(discovered.commonDirectory),
+        );
+    signal?.throwIfAborted();
     const project: RegisteredProject = {
       id: previous?.id ?? randomUUID(),
-      name: previous?.name ?? basename(dirname(discovered.commonDirectory)),
+      name,
+      namedByOwner: previous?.namedByOwner ?? false,
       commonDirectory: discovered.commonDirectory,
       repositoryIdentity: discovered.repositoryIdentity,
       available: true,

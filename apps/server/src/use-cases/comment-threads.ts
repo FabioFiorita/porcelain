@@ -3,6 +3,7 @@ import type {
   CommentAuthor,
   CommentCommand,
   CommentThread,
+  StoredCommentThread,
 } from '../models/comment-thread.ts';
 import type { AuthenticatedPrincipal } from '../models/principal.ts';
 import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
@@ -51,7 +52,7 @@ export class CommentThreads {
   async list(
     worktreeId: string,
     signal?: AbortSignal,
-  ): Promise<CommentThread[]> {
+  ): Promise<StoredCommentThread[]> {
     await this.assertWorktree(worktreeId, signal);
     return this.store.list(worktreeId);
   }
@@ -59,7 +60,7 @@ export class CommentThreads {
     command: CommentCommand,
     principal: AuthenticatedPrincipal,
     signal?: AbortSignal,
-  ): Promise<CommentThread[]> {
+  ): Promise<StoredCommentThread[]> {
     validateCommentCommand(command);
     if (command.kind === 'list') return this.list(command.worktreeId, signal);
     // A write: the worktree is recorded as present before anything is stored.
@@ -80,11 +81,15 @@ export class CommentThreads {
         ],
       };
       this.assertCapacity(thread);
-      this.store.save(thread);
-      return [thread];
+      return [this.store.save(thread)];
     }
     const thread = this.store.find(command.worktreeId, command.threadId);
     if (!thread) throw new CommentTargetNotFoundError();
+    // Resolving what is already resolved changes nothing, so it is not a
+    // write: a revision means the discussion moved, and the dot and the seen
+    // marker both measure from it.
+    if (command.kind === 'resolve' && thread.resolved === command.resolved)
+      return [thread];
     const updated =
       command.kind === 'reply'
         ? {
@@ -101,8 +106,7 @@ export class CommentThreads {
           }
         : { ...thread, resolved: command.resolved };
     if (command.kind === 'reply') this.assertCapacity(updated, thread);
-    this.store.save(updated);
-    return [updated];
+    return [this.store.save(updated)];
   }
 }
 
