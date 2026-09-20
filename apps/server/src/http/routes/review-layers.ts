@@ -8,7 +8,7 @@ import { getReviewLayers } from './get-review-layers.ts';
 import { replaceReviewLayers } from './replace-review-layers.ts';
 export async function reviewLayerRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

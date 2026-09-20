@@ -11,6 +11,7 @@ import {
 } from 'vitest';
 import { type Locator, page } from 'vitest/browser';
 import { createMockStore } from '../../api/inventory/mock';
+import { reportUnauthorized } from '../../api/unauthorized';
 import type { Inventory } from '../../domain/inventory';
 import { queryKeys } from '../../query/keys';
 import { renderWorkspace } from '../../test/render';
@@ -184,11 +185,6 @@ afterAll(() => {
 
 type WorkspaceScreen = Awaited<ReturnType<typeof renderWorkspace>>;
 
-async function connect(screen: WorkspaceScreen) {
-  await screen.getByLabelText('Access token').fill('fixture-token');
-  await screen.getByRole('button', { name: 'Connect' }).click();
-}
-
 function refocusWindow() {
   focusManager.setFocused(false);
   focusManager.setFocused(true);
@@ -218,7 +214,6 @@ async function menuClosed(screen: WorkspaceScreen) {
 describe('workspace through the inventory port', () => {
   it('restores an authenticated connection without manual session or reload controls', async () => {
     const first = await renderWorkspace();
-    await connect(first);
     await expect
       .element(first.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -234,35 +229,46 @@ describe('workspace through the inventory port', () => {
     }
   });
 
-  it('keeps manual login available when the saved token is rejected', async () => {
-    const first = await renderWorkspace();
-    await connect(first);
-    await expect
-      .element(first.getByRole('heading', { name: 'Porcelain', level: 3 }))
-      .toBeVisible();
-    await first.unmount();
-    const store = createMockStore('rejected');
-    store.sessionToken = 'fixture-token';
-    const screen = await renderWorkspace(store);
-    await connect(screen);
-    await expect.element(screen.getByRole('alert')).toBeVisible();
-    expect(screen.queryClient.getQueryCache().getAll()).toEqual([]);
-    store.rejected = false;
-    await screen.getByRole('button', { name: 'Connect' }).click();
+  it('ends the connection while a page is open when the server refuses it', async () => {
+    const screen = await renderWorkspace();
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
+    expect(screen.queryClient.getQueryCache().getAll()).not.toEqual([]);
+
+    // Revocation lands between requests, not on a reload: the next refused
+    // request is what the open page learns from.
+    reportUnauthorized();
+    await expect
+      .element(
+        screen.getByRole('heading', { name: 'This browser is not paired' }),
+      )
+      .toBeVisible();
+    // Whatever it had loaded under that device goes with the connection.
+    expect(screen.queryClient.getQueryCache().getAll()).toEqual([]);
+  });
+
+  it('tells an unpaired browser how to pair, and caches nothing', async () => {
+    const screen = await renderWorkspace(createMockStore('unpaired'));
+    await expect
+      .element(
+        screen.getByRole('heading', { name: 'This browser is not paired' }),
+      )
+      .toBeVisible();
+    // There is nothing to type: a credential arrives as a link, not a field.
+    await expect
+      .element(screen.getByRole('button', { name: 'Connect' }))
+      .not.toBeInTheDocument();
+    expect(screen.queryClient.getQueryCache().getAll()).toEqual([]);
   });
 
   it('does not restore a saved session after its provider unmounts', async () => {
     const first = await renderWorkspace();
-    await connect(first);
     await expect
       .element(first.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
     await first.unmount();
     const store = createMockStore();
-    store.sessionToken = 'fixture-token';
     store.delayMs = 50;
     const restoring = await renderWorkspace(store);
     await restoring.unmount();
@@ -272,7 +278,6 @@ describe('workspace through the inventory port', () => {
 
   it('refreshes authoritative inventory when the window regains focus', async () => {
     const screen = await renderWorkspace();
-    await connect(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -291,7 +296,6 @@ describe('workspace through the inventory port', () => {
   it('retains inventory after a failed focus refresh and recovers on the next focus', async () => {
     const store = createMockStore('refresh-failed');
     const screen = await renderWorkspace(store);
-    await connect(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -319,7 +323,6 @@ describe('workspace through the inventory port', () => {
 
   it('rejects inventory from a different environment without replacing current data', async () => {
     const screen = await renderWorkspace();
-    await connect(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -340,18 +343,18 @@ describe('workspace through the inventory port', () => {
       .toBeVisible();
   });
 
-  it('shows a rejected connection without caching private inventory', async () => {
+  it('shows a refused connection without caching private inventory', async () => {
     const screen = await renderWorkspace(createMockStore('rejected'));
-    await connect(screen);
     await expect
-      .element(screen.getByRole('alert'))
-      .toMatchTextContent('rejected');
+      .element(
+        screen.getByRole('heading', { name: 'This browser is not paired' }),
+      )
+      .toBeVisible();
     expect(screen.queryClient.getQueryCache().getAll()).toEqual([]);
   });
 
   it('opens a server-side project, updates inventory, and selects its first available worktree', async () => {
     const screen = await renderWorkspace();
-    await connect(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -383,7 +386,6 @@ describe('workspace through the inventory port', () => {
 
   it('filters discovered repositories and opens one without typing its path', async () => {
     const screen = await renderWorkspace();
-    await connect(screen);
     await screen.getByRole('button', { name: 'Open project' }).click();
     const search = screen.getByRole('textbox', {
       name: 'Search repositories on this machine',
@@ -411,7 +413,6 @@ describe('workspace through the inventory port', () => {
     const folder = store.projectFolders['/srv/work/new-project'];
     delete store.projectFolders['/srv/work/new-project'];
     const screen = await renderWorkspace(store);
-    await connect(screen);
     await screen.getByRole('button', { name: 'Open project' }).click();
     await expect
       .element(screen.getByText('Could not discover repositories. Try again.'))
@@ -441,7 +442,6 @@ describe('workspace through the inventory port', () => {
     const store = createMockStore();
     store.registerFailed = true;
     const screen = await renderWorkspace(store);
-    await connect(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -470,7 +470,6 @@ describe('project removal', () => {
     const project = store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     const screen = await renderWorkspace(store);
-    await connect(screen);
     const trigger = screen.getByRole('button', { name: project.name });
     await expect.element(trigger).toBeVisible();
     await trigger.click({ button: 'right' });
@@ -520,7 +519,6 @@ describe('project removal', () => {
     const store = createMockStore();
     store.inventory.projects = store.inventory.projects.slice(0, 1);
     const screen = await renderWorkspace(store);
-    await connect(screen);
     const project = store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     await screen
@@ -544,7 +542,6 @@ describe('project removal', () => {
 describe('worktree review navigation', () => {
   it('keeps the review workspace mounted while desktop navigation is toggled', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
 
     const reviewContent = screen.getByRole('region', {
@@ -578,7 +575,6 @@ describe('worktree review navigation', () => {
 
   it('keeps the review workspace and an unsent draft across the mobile breakpoint', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen
       .getByRole('button', { name: /^review-panel\.tsx.*staged/ })
@@ -618,7 +614,6 @@ describe('worktree review navigation', () => {
         return originalGetItem.call(this, key);
       });
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await expect
       .element(screen.getByRole('heading', { name: 'Handoff' }))
@@ -628,7 +623,6 @@ describe('worktree review navigation', () => {
 
   it('scopes selection to each worktree', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen
       .getByRole('button', { name: /^review-panel.tsx.*staged/ })
@@ -660,7 +654,6 @@ describe('worktree review navigation', () => {
     const store = createMockStore();
     store.changesFailed = true;
     const screen = await renderReview(store);
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     const sidebar = screen.getByTestId('review-sidebar');
     expect(
@@ -708,7 +701,6 @@ describe('worktree review navigation', () => {
     const store = createMockStore();
     store.artifactsFailed = true;
     const screen = await renderReview(store);
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     const sidebar = screen.getByTestId('review-sidebar');
     await sidebar.getByRole('tab', { name: 'Files' }).click();
@@ -723,7 +715,6 @@ describe('worktree review navigation', () => {
   });
   it('keeps stored artifacts reachable for an unavailable worktree', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen
       .getByRole('button', { name: /archive\/initial-prototype/ })
       .click();
@@ -744,7 +735,6 @@ describe('worktree review navigation', () => {
   });
   it('renders the report in an opaque-origin sandboxed frame', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen.getByRole('button', { name: /The whole handoff/ }).click();
     const reportButtons = screen.getByRole('button', {
@@ -774,7 +764,6 @@ describe('worktree review navigation', () => {
     'commits selected files and recovers without repeating the action (lost response: %s)',
     async (loseResponse) => {
       const screen = await renderReview();
-      await connect(screen);
       await screen.getByRole('button', { name: /agent\/review/ }).click();
       await screen.getByRole('button', { name: 'Git actions' }).click();
       await screen
@@ -846,7 +835,6 @@ async function renderReview(store = createMockStore()) {
 describe('file discussion', () => {
   it('preserves failed drafts, saves to the selected file and hides the discussion on other files', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen
       .getByRole('button', { name: /^review-panel.tsx.*staged/ })
@@ -896,7 +884,6 @@ describe('file discussion', () => {
 
 describe('git actions', () => {
   async function openAction(screen: WorkspaceScreen, name: RegExp) {
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen.getByRole('button', { name: 'Git actions' }).click();
     await screen.getByRole('menuitem', { name }).click();
@@ -946,7 +933,6 @@ describe('git actions', () => {
 
   it('does not submit a commit when there are no changed files', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen
       .getByRole('button', {
         name: /main.*sample-project.*Main worktree/,
@@ -972,7 +958,6 @@ describe('workspace theme', () => {
     await expect
       .element(screen.getByRole('button', { name: /Switch to .* theme/ }))
       .not.toBeInTheDocument();
-    await connect(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
@@ -990,7 +975,6 @@ describe('workspace theme', () => {
 describe('review surfaces', () => {
   it('inspects a tracked file and a commit from their navigation surfaces', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen.getByRole('tab', { name: 'Files' }).click();
     await screen.getByRole('button', { name: /README\.md/ }).click();
@@ -1018,7 +1002,6 @@ describe('review surfaces', () => {
 
   it('reports a change that is no longer present in the current status', async () => {
     const screen = await renderReview();
-    await connect(screen);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await screen
       .getByRole('button', { name: /^review-panel.tsx.*staged/ })
@@ -1062,7 +1045,6 @@ describe('git action cache consequences', () => {
       { projectId: otherProject.id, worktreeId: unrelated.id },
       ['probe'],
     );
-    await connect(screen);
     screen.queryClient.setQueryData(siblingKey, {});
     screen.queryClient.setQueryData(unrelatedKey, {});
     await screen.getByRole('button', { name: /agent\/review/ }).click();

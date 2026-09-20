@@ -6,10 +6,9 @@ import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
-const token = 'fixture-history-token-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 it('lists and inspects registered history through authenticated loopback HTTP with bounded safe failures', async () => {
   const root = await realpath(
     await mkdtemp(join(tmpdir(), 'porcelain-history-http-')),
@@ -38,10 +37,11 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
   const oid = git('rev-parse', 'HEAD');
   git('-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'second');
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = await server.inject({
       method: 'POST',

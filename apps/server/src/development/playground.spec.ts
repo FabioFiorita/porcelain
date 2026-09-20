@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { access, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { access, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@porcelain/contracts/comments';
 import { inventoryResponseSchema } from '@porcelain/contracts/inventory';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
+import { pairThroughSocket } from './pair-through-socket.ts';
 
 describe('Playground workflow', () => {
   it.each(['SIGINT', 'SIGTERM'] as const)(
@@ -51,7 +52,7 @@ describe('Playground workflow', () => {
       );
       const info = JSON.parse(output.stdout.trim()) as {
         address: string;
-        tokenFile: string;
+        socketPath: string;
         worktreeId: string;
         projectId: string;
         reviewCommitOid: string;
@@ -66,10 +67,16 @@ describe('Playground workflow', () => {
         { branch: 'review', role: 'review' },
       ]);
       const address = info.address;
-      const token = await readFile(info.tokenFile, 'utf8');
-      expect(output.stdout).not.toContain(token);
+      // The manifest names the owner socket, never a credential: anything
+      // reusable printed here would be the shared fixture secret again.
+      const credential = await pairThroughSocket(
+        info.socketPath,
+        address,
+        'Playground fixture',
+      );
+      expect(output.stdout).not.toContain(credential);
       const headers = {
-        authorization: `Bearer ${token}`,
+        authorization: `Bearer ${credential}`,
         'content-type': 'application/json',
       };
       const inventory = inventoryResponseSchema.parse(
@@ -193,7 +200,7 @@ describe('Playground workflow', () => {
       child.kill(signal);
       await vi.waitFor(() => expect(child.exitCode).toBe(0), { timeout: 5000 });
       expect(await exited).toBe(0);
-      await expect(access(dirname(info.tokenFile))).rejects.toMatchObject({
+      await expect(access(dirname(info.socketPath))).rejects.toMatchObject({
         code: 'ENOENT',
       });
     },
@@ -258,7 +265,7 @@ describe('Playground workflow', () => {
     expect(stderr).toContain('Generating the app playground base');
     const info = JSON.parse(stdout.trim()) as {
       address: string;
-      tokenFile: string;
+      socketPath: string;
       worktreeId: string;
       profile: string;
       worktrees: { branch: string; role: string }[];
@@ -270,7 +277,11 @@ describe('Playground workflow', () => {
       'agent',
     ]);
     const headers = {
-      authorization: `Bearer ${await readFile(info.tokenFile, 'utf8')}`,
+      authorization: `Bearer ${await pairThroughSocket(
+        info.socketPath,
+        info.address,
+        'Playground fixture',
+      )}`,
     };
     const inventory = inventoryResponseSchema.parse(
       await (await fetch(`${info.address}/api/inventory`, { headers })).json(),
@@ -294,7 +305,7 @@ describe('Playground workflow', () => {
     });
     child.kill('SIGTERM');
     expect((await exited)[0]).toBe(0);
-    await expect(access(dirname(info.tokenFile))).rejects.toMatchObject({
+    await expect(access(dirname(info.socketPath))).rejects.toMatchObject({
       code: 'ENOENT',
     });
     expect(await readdir(parent)).toEqual(['.cache']);

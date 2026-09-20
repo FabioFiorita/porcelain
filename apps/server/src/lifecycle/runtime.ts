@@ -119,15 +119,8 @@ export async function startRuntime(
   signal?: AbortSignal,
   dependencies: RuntimeDependencies = {},
 ): Promise<Runtime> {
-  const {
-    dataDirectory,
-    projectHome,
-    token,
-    port,
-    host,
-    webRoot,
-    allowedHosts,
-  } = startupSettingsSchema.parse(settings);
+  const { dataDirectory, projectHome, port, host, webRoot, allowedHosts } =
+    startupSettingsSchema.parse(settings);
   signal?.throwIfAborted();
   const directory = prepareDataDirectory(dataDirectory);
   const socketPath = ownerSocketPath(directory);
@@ -170,7 +163,6 @@ export async function startRuntime(
     signal?.throwIfAborted();
     parts.network = createNetworkServer({
       application,
-      token,
       ...(webRoot === undefined ? {} : { webRoot }),
       allowedHosts,
     });

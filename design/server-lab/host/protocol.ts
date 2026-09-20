@@ -181,6 +181,10 @@ export type RuntimeMessage =
   | {
       type: 'ready';
       address: string;
+      /** This run's own device credential; it dies with the lab's state. */
+      credential: string;
+      /** The owner socket beside the network listener. */
+      socketPath: string;
       readOnly: boolean;
       playgroundRoot?: string;
       worktrees: WorktreeInfo[];

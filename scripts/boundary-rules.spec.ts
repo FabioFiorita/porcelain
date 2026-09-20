@@ -65,6 +65,36 @@ test('rejects application-to-application imports', async () => {
   ).toContain('apps-web-dependencies');
 });
 
+test('lets web development tooling drive a real server, but never the app', async () => {
+  // The smoke suite and the dev-server bridge start and pair against a real
+  // server; neither ships. The application itself is only ever a client.
+  expect(
+    await violations({
+      'apps/web/e2e/helper.ts':
+        "import { value } from '../../server/src/value.ts'; export const result = value;",
+      'apps/web/development/bridge.ts':
+        "import { value } from '../../server/src/value.ts'; export const bridge = value;",
+      'apps/server/src/value.ts': 'export const value = 1;',
+    }),
+  ).toEqual([]);
+  expect(
+    await violations({
+      'apps/web/src/api/thing.ts':
+        "import { value } from '../../../server/src/value.ts'; export const result = value;",
+      'apps/server/src/value.ts': 'export const value = 1;',
+    }),
+  ).toContain('web-app-is-a-client');
+  // The exemption is for the server, not for everything: tooling still may not
+  // reach into another package that owns nothing it needs.
+  expect(
+    await violations({
+      'apps/web/e2e/helper.ts':
+        "import { value } from '../../../packages/git/src/value.ts'; export const result = value;",
+      'packages/git/src/value.ts': 'export const value = 1;',
+    }),
+  ).toContain('web-tooling-dependencies');
+});
+
 test('rejects cycles', async () => {
   expect(
     await violations({

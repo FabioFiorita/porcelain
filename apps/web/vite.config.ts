@@ -9,12 +9,15 @@ const target = process.env.PORCELAIN_API_TARGET;
 const proxy = target ? { '/api': { target } } : undefined;
 
 export default defineConfig(({ command, isPreview }) => {
-  const tokenFile = process.env.PORCELAIN_PLAYGROUND_TOKEN_FILE;
+  const socketPath = process.env.PORCELAIN_PLAYGROUND_SOCKET;
+  // The lab moves its socket and its address on every restart, so it mints
+  // through an endpoint of its own rather than letting us cache either.
+  const mintUrl = process.env.PORCELAIN_PLAYGROUND_MINT;
   const bridge =
     command === 'serve' &&
     !isPreview &&
     process.env.PORCELAIN_PLAYGROUND_BRIDGE === '1' &&
-    Boolean(tokenFile);
+    (Boolean(mintUrl) || (Boolean(socketPath) && Boolean(target)));
   return {
     define: {
       'import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE': JSON.stringify(bridge),
@@ -25,12 +28,21 @@ export default defineConfig(({ command, isPreview }) => {
     plugins: [
       react(),
       tailwindcss(),
-      ...(bridge && tokenFile
+      ...(bridge
         ? [
             {
               name: 'porcelain-playground',
               configureServer(server: import('vite').ViteDevServer) {
-                server.middlewares.use(playgroundBridge(tokenFile));
+                server.middlewares.use(
+                  playgroundBridge(
+                    mintUrl
+                      ? { mintUrl }
+                      : {
+                          socketPath: socketPath as string,
+                          address: target as string,
+                        },
+                  ),
+                );
               },
             },
           ]
@@ -53,7 +65,7 @@ export default defineConfig(({ command, isPreview }) => {
           '.yarnrc.yml',
           '**/.git/**',
           '**/.playgrounds/**',
-          ...(tokenFile ? [tokenFile] : []),
+          ...(socketPath ? [socketPath] : []),
         ],
       },
       ...(proxy ? { proxy } : {}),

@@ -6,17 +6,16 @@ import {
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { ConnectionError } from './errors/connection-error.ts';
+import { UnauthorizedError } from './errors/unauthorized-error.ts';
 
 type InventoryRequest = {
   endpoint: string;
-  token: string;
   fetch: typeof fetch;
   signal: AbortSignal;
 };
 
 export async function readInventory(options: {
   endpoint: InventoryRequest['endpoint'];
-  token: InventoryRequest['token'];
   fetch: InventoryRequest['fetch'];
   signal: InventoryRequest['signal'];
   refresh?: boolean;
@@ -28,17 +27,13 @@ export async function readInventory(options: {
         (options.refresh ? '/inventory/refresh' : '/inventory'),
       {
         method: options.refresh ? 'POST' : 'GET',
-        headers: { authorization: `Bearer ${options.token}` },
         signal: options.signal,
         redirect: 'error',
-        credentials: 'omit',
+        credentials: 'same-origin',
         cache: 'no-store',
       },
     );
-    if (response.status === 401)
-      throw new ConnectionError(
-        'Access token was rejected. Check it and try again.',
-      );
+    if (response.status === 401) throw new UnauthorizedError();
     if (!response.ok)
       throw new ConnectionError(
         'The environment could not complete the request. Try again.',
@@ -66,20 +61,14 @@ export async function registerProject(
   try {
     const response = await options.fetch(`${options.endpoint}/projects`, {
       method: 'POST',
-      headers: {
-        authorization: `Bearer ${options.token}`,
-        'content-type': 'application/json',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: options.path }),
       signal: options.signal,
       redirect: 'error',
-      credentials: 'omit',
+      credentials: 'same-origin',
       cache: 'no-store',
     });
-    if (response.status === 401)
-      throw new ConnectionError(
-        'Access token was rejected. Disconnect and connect again.',
-      );
+    if (response.status === 401) throw new UnauthorizedError();
     if (response.status === 400)
       throw new ConnectionError(
         'Enter an absolute path on the Porcelain server.',
@@ -135,16 +124,12 @@ async function readProjectLocation<T>(
 ): Promise<T> {
   try {
     const response = await options.fetch(`${options.endpoint}${path}`, {
-      headers: { authorization: `Bearer ${options.token}` },
       signal: options.signal,
       redirect: 'error',
-      credentials: 'omit',
+      credentials: 'same-origin',
       cache: 'no-store',
     });
-    if (response.status === 401)
-      throw new ConnectionError(
-        'Access token was rejected. Disconnect and connect again.',
-      );
+    if (response.status === 401) throw new UnauthorizedError();
     if (response.status === 400)
       throw new ConnectionError(
         'Enter an absolute folder path on the Porcelain server.',
@@ -175,17 +160,13 @@ export async function removeProject(
       `${options.endpoint}/projects/${encodeURIComponent(options.projectId)}`,
       {
         method: 'DELETE',
-        headers: { authorization: `Bearer ${options.token}` },
         signal: options.signal,
         redirect: 'error',
-        credentials: 'omit',
+        credentials: 'same-origin',
         cache: 'no-store',
       },
     );
-    if (response.status === 401)
-      throw new ConnectionError(
-        'Access token was rejected. Disconnect and connect again.',
-      );
+    if (response.status === 401) throw new UnauthorizedError();
     if (response.status === 409)
       throw new ConnectionError(
         'This project has an active or unresolved Git operation. Resolve it before removing the project.',

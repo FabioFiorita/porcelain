@@ -9,13 +9,13 @@ import {
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from './helpers/paired-server.ts';
 import { createServer } from './server.ts';
 
 it('keeps review metadata together across Git inspection, refresh and a server restart', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-workflow-'));
   const path = join(root, 'repo');
   const dataDirectory = join(root, 'state');
-  const token = 'disposable-workflow-token-at-least-32-characters';
   execFileSync('git', ['init', '-b', 'main', path]);
   await writeFile(join(path, 'notes.txt'), 'before\n');
   execFileSync('git', ['-C', path, 'add', '.']);
@@ -34,10 +34,11 @@ it('keeps review metadata together across Git inspection, refresh and a server r
   execFileSync('git', ['-C', path, 'worktree', 'add', '-b', 'review', linked]);
   await writeFile(join(linked, 'notes.txt'), 'after\n');
   const server = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   await server.refreshed();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
@@ -45,7 +46,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
       const response = await fetch(`${address}${url}`, {
         method,
         headers: {
-          authorization: `Bearer ${token}`,
+          ...headers,
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -119,13 +120,12 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     await request('/api/inventory/refresh', 'POST');
     await server.close();
     const restarted = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     await restarted.refreshed();
     try {
-      const headers = { authorization: `Bearer ${token}` };
       const restored = await restarted.inject({
         method: 'GET',
         url: '/api/inventory',

@@ -10,7 +10,7 @@ import { removeProject } from './remove-project.ts';
 
 export async function inventoryRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

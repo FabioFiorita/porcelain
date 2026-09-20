@@ -25,7 +25,6 @@ function request(overrides: Partial<typeof scope> = {}) {
   return {
     ...scope,
     ...overrides,
-    token: 'fixture-token',
     signal: new AbortController().signal,
   };
 }
@@ -40,7 +39,6 @@ it('does not save a delayed comment after the session is cancelled', async () =>
   const pending = createCommentsMock(store).create({
     projectId: project.id,
     worktreeId: worktree.id,
-    token: 'fixture',
     signal: controller.signal,
     input: {
       anchor: { kind: 'file', filePath: 'README.md' },

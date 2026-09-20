@@ -16,16 +16,17 @@ import { promisify } from 'node:util';
 import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
 import { InspectionGit } from '@porcelain/git/inspection-git';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
+
 import { createServer } from '../server.ts';
 
 describe('Git actions HTTP', () => {
   const execute = promisify(execFile);
-  const token = 'disposable-token-with-32-characters';
-  const headers = { authorization: `Bearer ${token}` };
   let root: string;
   let checkout: string;
   let server: Awaited<ReturnType<typeof createServer>>;
   let prefix: string;
+  let headers: { authorization: string };
   async function git(...args: string[]) {
     return (await execute('git', ['-C', checkout, ...args])).stdout.trimEnd();
   }
@@ -76,10 +77,11 @@ describe('Git actions HTTP', () => {
     await git('add', 'file');
     await git('commit', '-m', 'base');
     server = await createServer({
+      pairingReach,
       dataDirectory: join(root, 'data'),
       projectHome: join(root, 'data'),
-      token,
     });
+    headers = await pairDevice(server, server.application);
     const response = await server.inject({
       method: 'POST',
       url: '/api/projects',
@@ -460,10 +462,11 @@ describe('Git actions HTTP', () => {
     expect(reuse.statusCode, reuse.body).toBe(409);
     await server.close();
     server = await createServer({
+      pairingReach,
       dataDirectory: join(root, 'data'),
       projectHome: join(root, 'data'),
-      token,
     });
+    headers = await pairDevice(server, server.application);
     expect(await outcome(requestId)).toMatchObject({ state: 'succeeded' });
     expect(await git('rev-list', '--count', 'HEAD')).toBe('2');
   });
@@ -594,10 +597,11 @@ describe('Git actions HTTP', () => {
     ).toBe(202);
     await server.close();
     server = await createServer({
+      pairingReach,
       dataDirectory: join(root, 'data'),
       projectHome: join(root, 'data'),
-      token,
     });
+    headers = await pairDevice(server, server.application);
     const interrupted = await outcome(requestId);
     expect(interrupted).toMatchObject({
       state: 'indeterminate',

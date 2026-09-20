@@ -20,7 +20,6 @@ import type {
   TextFile,
 } from '../../domain/review';
 export type ReviewRequest = ReviewScope & {
-  token: string;
   signal: AbortSignal;
 };
 export type ReviewPort = {

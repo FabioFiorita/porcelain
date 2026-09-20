@@ -1,7 +1,7 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('creates, edits and renames a file, preserves conflicts, and moves it to disposable trash', async ({
@@ -9,12 +9,8 @@ test('creates, edits and renames a file, preserves conflicts, and moves it to di
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  const manifest = playgroundManifest();
-  const { tokenFile, worktreePath } = JSON.parse(
-    await readFile(manifest, 'utf8'),
-  ) as { tokenFile: string; worktreePath: string };
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  const { worktreePath } = await playgroundInfo<{ worktreePath: string }>();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();

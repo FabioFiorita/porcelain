@@ -15,8 +15,6 @@ it('parses the installed command and keeps all state paths absolute', async () =
           '--port=4321',
           '--data-directory',
           join(root, 'state'),
-          '--token-file',
-          join(root, 'credentials', 'token'),
         ],
         {},
         root,
@@ -27,7 +25,6 @@ it('parses the installed command and keeps all state paths absolute', async () =
       settings: {
         dataDirectory: join(root, 'state'),
         projectHome: root,
-        tokenFile: join(root, 'credentials', 'token'),
         host: '0.0.0.0',
         port: 4321,
         webRoot: join(root, 'web'),
@@ -50,7 +47,7 @@ it('parses the installed command and keeps all state paths absolute', async () =
   }
 });
 
-it('resolves status against the data directory without needing a token', async () => {
+it('resolves status against the data directory alone', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-cli-status-'));
   try {
     expect(parseCliArguments(['status'], {}, root)).toEqual({

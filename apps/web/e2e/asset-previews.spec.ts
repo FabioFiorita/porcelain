@@ -1,14 +1,13 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('renders repository images and HTML with local CSS and image assets', async ({
   page,
 }) => {
-  const info = playgroundManifest();
-  const { tokenFile, worktreePath } = JSON.parse(await readFile(info, 'utf8'));
+  const { worktreePath } = await playgroundInfo<{ worktreePath: string }>();
   const stem = `preview-${test.info().project.name}`;
   const imagePath = `${stem}.png`;
   const htmlPath = `${stem}.html`;
@@ -27,9 +26,7 @@ test('renders repository images and HTML with local CSS and image assets', async
     join(worktreePath, htmlPath),
     `<!doctype html><link rel="stylesheet" href="./${stem}.css"><h1>Styled local preview</h1><img alt="Local image" src="./${imagePath}"><div id="sample"></div>`,
   );
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();
   async function openFile(path: string) {

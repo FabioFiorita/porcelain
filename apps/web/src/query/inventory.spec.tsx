@@ -6,7 +6,7 @@ import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
 import { FileDraft } from '../domain/file-draft';
 import type { Inventory, Project } from '../domain/inventory';
-import { ConnectionForm } from '../views/connection/connection-form';
+import { NotPaired } from '../views/connection/not-paired';
 import { createQueryClient } from './client';
 import { retainedFileDrafts } from './file-drafts';
 import {
@@ -61,7 +61,7 @@ function InventoryControls() {
 
 function Harness() {
   const { connection } = useWorkspaceContext();
-  return connection ? <InventoryControls /> : <ConnectionForm />;
+  return connection ? <InventoryControls /> : <NotPaired />;
 }
 
 afterEach(() => {
@@ -113,8 +113,6 @@ it('keeps a registered project when an older focus refresh resolves last', async
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  await screen.getByLabelText('Access token').fill('fixture-token');
-  await screen.getByRole('button', { name: 'Connect' }).click();
   await expect
     .element(screen.getByRole('button', { name: 'Register project' }))
     .toBeVisible();
@@ -172,8 +170,6 @@ it('does not resurrect a removed project from a late refresh and clears only its
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  await screen.getByLabelText('Access token').fill('fixture-token');
-  await screen.getByRole('button', { name: 'Connect' }).click();
   await expect
     .element(screen.getByRole('button', { name: 'Remove first project' }))
     .toBeVisible();
@@ -227,7 +223,7 @@ it('saves only the removed project drafts and blocks removal if saving fails', a
   unrelated.change('other edits');
   function DraftHarness() {
     const { connection } = useWorkspaceContext();
-    if (!connection) return <ConnectionForm />;
+    if (!connection) return <NotPaired />;
     const entries = retainedFileDrafts(connection);
     entries.set(`${JSON.stringify([removed?.id, 'worktree'])}/file.txt`, draft);
     entries.set(
@@ -245,8 +241,6 @@ it('saves only the removed project drafts and blocks removal if saving fails', a
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  await screen.getByLabelText('Access token').fill('fixture-token');
-  await screen.getByRole('button', { name: 'Connect' }).click();
   await screen.getByRole('button', { name: 'Remove first project' }).click();
   await expect
     .element(screen.getByRole('alert'))
@@ -305,8 +299,6 @@ it('rescans repositories after connecting from the stored snapshot', async () =>
       </WorkspaceProvider>
     </QueryClientProvider>,
   );
-  await screen.getByLabelText('Access token').fill('fixture-token');
-  await screen.getByRole('button', { name: 'Connect' }).click();
 
   await expect
     .element(screen.getByLabelText('Projects'))

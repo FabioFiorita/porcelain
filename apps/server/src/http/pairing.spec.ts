@@ -7,8 +7,6 @@ import type { Application } from '../application.ts';
 import { authenticate } from './middlewares/authenticate.ts';
 import { createNetworkServer } from './server.ts';
 
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 /** Injected fixtures never listen, so the origin is stated rather than bound. */
 const pairingOrigin = 'http://127.0.0.1:3000';
 
@@ -30,7 +28,7 @@ async function fixture(prefix: string): Promise<Fixture> {
       policy: { allowedHosts: [], localAddresses: ['127.0.0.1'] },
     }),
   });
-  const server = createNetworkServer({ application, token });
+  const server = createNetworkServer({ application });
   return {
     root,
     application,
@@ -133,29 +131,23 @@ it('never lets a device credential become the agent principal', async () => {
     const credential = (await redeem(context.server, issued.code)).json()
       .credential as string;
 
-    // The MCP door grants `agent` to the shared token. A device credential
-    // replayed there must be its own device, never an agent: otherwise a
-    // stolen browser cookie would be attributed as one.
-    const listing = await context.server.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      headers: {
-        authorization: `Bearer ${credential}`,
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-      },
-      payload: {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/call',
-        params: { name: 'inventory', arguments: {} },
-      },
-    });
-    expect(listing.statusCode).not.toBe(500);
-    // The device reached the agent door and was still its own device.
-    const atMcp = seen.filter((entry) => entry.startsWith('/api/mcp')).at(-1);
-    expect(atMcp).toContain('"kind":"viewer"');
-    expect(atMcp).not.toContain('agent');
+    // Nothing on the network door can produce an agent any more: the MCP
+    // route is gone, and `agent` is reachable only through the owner socket.
+    // A device credential is always its own device, so a stolen browser
+    // cookie can never be attributed as an agent.
+    expect(
+      (
+        await context.server.inject({
+          method: 'POST',
+          url: '/api/mcp',
+          headers: {
+            authorization: `Bearer ${credential}`,
+            'content-type': 'application/json',
+          },
+          payload: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+        })
+      ).statusCode,
+    ).toBe(404);
 
     await context.server.inject({
       method: 'GET',
@@ -164,16 +156,7 @@ it('never lets a device credential become the agent principal', async () => {
     });
     expect(seen.at(-1)).toContain('"kind":"viewer"');
     expect(seen.at(-1)).toContain(`"deviceId":"`);
-
-    // The shared token at the same door is still an agent, so the distinction
-    // is the credential's, not the route's.
-    await context.server.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      headers: { ...headers, 'content-type': 'application/json' },
-      payload: { jsonrpc: '2.0', id: 2, method: 'tools/list' },
-    });
-    expect(seen.at(-1)).toContain('"kind":"agent"');
+    expect(seen.join(' ')).not.toContain('agent');
   } finally {
     await context.close();
   }
@@ -233,7 +216,7 @@ it('cuts a response the device is still holding when it is revoked', async () =>
     projectHome: join(root, 'home'),
     pairingReach: () => reach,
   });
-  const server = createNetworkServer({ application, token });
+  const server = createNetworkServer({ application });
   const reached = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   // A route behind the real authentication hook that then stops, so the
@@ -242,7 +225,7 @@ it('cuts a response the device is still holding when it is revoked', async () =>
   // test would pass with the feature deleted.
   server.register(
     async (held) => {
-      held.addHook('onRequest', authenticate({ token, application }));
+      held.addHook('onRequest', authenticate({ application }));
       held.get('/held', async (_request, reply) => {
         reached.resolve();
         await release.promise;
@@ -385,14 +368,35 @@ it('takes the device credential away when the browser disconnects', async () => 
       },
     });
     expect(out.statusCode).toBe(204);
-    // Both credentials are expired, as separate Set-Cookie values. Clearing
-    // only the session would leave the browser authenticating again from the
-    // device cookie on its very next request.
-    const expired = out.headers['set-cookie'] as string[];
-    expect(expired).toHaveLength(2);
-    expect(expired.join(' ')).toContain('porcelain_session=;');
-    expect(expired.join(' ')).toContain('porcelain_device=;');
-    for (const value of expired) expect(value).toContain('Max-Age=0');
+    // The device cookie is the only credential a browser holds now, so one
+    // expiry takes all of it away.
+    const expired = String(out.headers['set-cookie']);
+    expect(expired).toContain('porcelain_device=;');
+    expect(expired).toContain('Max-Age=0');
+  } finally {
+    await context.close();
+  }
+});
+
+it('does not spend the redemption budget on links that worked', async () => {
+  const context = await fixture('porcelain-pair-budget-');
+  try {
+    // Comfortably past the per-peer allowance: pairing a handful of devices in
+    // one sitting must not lock the owner out of pairing the next one.
+    for (let index = 0; index < 25; index += 1) {
+      const issued = await link(context.application);
+      const redeemed = await redeem(context.server, issued.code);
+      expect(redeemed.statusCode, `attempt ${index}`).toBe(200);
+    }
+    // A guess still costs. Refunding failures too would leave the budget
+    // untouched forever, so spend past the per-peer allowance and watch it run
+    // out — which it cannot do if every attempt is given back.
+    const statuses: number[] = [];
+    for (let index = 0; index < 14; index += 1)
+      statuses.push(
+        (await redeem(context.server, 'pcp_not-a-real-code')).statusCode,
+      );
+    expect(statuses).toContain(429);
   } finally {
     await context.close();
   }
@@ -417,27 +421,6 @@ it('limits redemption across peers, not only per peer', async () => {
         ).statusCode,
       );
     expect(statuses).toContain(429);
-  } finally {
-    await context.close();
-  }
-});
-
-it('keeps the shared token working so the web and its tests still pass', async () => {
-  const context = await fixture('porcelain-pair-legacy-');
-  try {
-    expect(
-      (
-        await context.server.inject({
-          method: 'GET',
-          url: '/api/inventory',
-          headers,
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(
-      (await context.server.inject({ method: 'GET', url: '/api/inventory' }))
-        .statusCode,
-    ).toBe(401);
   } finally {
     await context.close();
   }

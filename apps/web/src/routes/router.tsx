@@ -6,12 +6,23 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { isSurface, type Surface } from '../domain/review';
+import { PairingView } from '../views/connection/pairing-view';
+import { ThemeProvider } from '../views/workspace/theme';
 import { WorkspaceError } from '../views/workspace/workspace-error';
 import { WorkspacePending } from '../views/workspace/workspace-pending';
 import { WorkspaceView } from '../views/workspace/workspace-view';
 
 export function createAppRouter(history?: RouterHistory) {
-  const rootRoute = createRootRoute({ component: Outlet });
+  // Theme and appearance belong to every route, not only the workspace: the
+  // pairing screens render before anything is connected and must not be the
+  // one place the owner's dark mode does not apply.
+  const rootRoute = createRootRoute({
+    component: () => (
+      <ThemeProvider>
+        <Outlet />
+      </ThemeProvider>
+    ),
+  });
   const homeRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/',
@@ -39,8 +50,16 @@ export function createAppRouter(history?: RouterHistory) {
     errorComponent: WorkspaceError,
   });
 
+  // Where a pairing link points. The code lives in the fragment, which never
+  // reaches the server, so this route needs no search parameters.
+  const pairRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/pair',
+    component: PairingView,
+  });
+
   return createRouter({
-    routeTree: rootRoute.addChildren([homeRoute]),
+    routeTree: rootRoute.addChildren([homeRoute, pairRoute]),
     ...(history ? { history } : {}),
   });
 }

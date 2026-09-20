@@ -69,4 +69,24 @@ export class AttemptLimit {
     this.shared.at = at;
     return true;
   }
+
+  /**
+   * Give the slot back after a redemption that worked.
+   *
+   * The budget exists to bound guesses, and a code that redeemed was not a
+   * guess. Without this, pairing several devices in one sitting — or a test
+   * suite pairing one browser per case — would lock itself out while nothing
+   * malicious happened.
+   */
+  refund(peer: string): void {
+    const at = this.now();
+    this.shared.tokens = Math.min(globalCapacity, this.shared.tokens + 1);
+    this.shared.at = at;
+    const bucket = this.peers.get(peer);
+    if (bucket)
+      this.peers.set(peer, {
+        tokens: Math.min(capacity, bucket.tokens + 1),
+        at: bucket.at,
+      });
+  }
 }

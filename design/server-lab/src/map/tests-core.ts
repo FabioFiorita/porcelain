@@ -957,17 +957,28 @@ export const coreSpecAudits: SpecAudit[] = [
       {
         name: 'parses the installed command and keeps all state paths absolute',
         asserts:
-          'Exact settings for --lan, --port=, --data-directory, --token-file; help; PORCELAIN_PORT from env with default host.',
+          'Exact settings for --lan, --port= and --data-directory; help; PORCELAIN_PORT from env with default host.',
       },
       {
         name: 'rejects conflicting or unknown installed command arguments',
         asserts: '--lan with --host, unknown option and unknown command throw.',
       },
+      {
+        name: 'requires a device name and an explicit address to pair',
+        asserts:
+          'No name, no --address, a non-origin and an origin with a path each throw; several names and addresses parse exactly.',
+      },
+      {
+        name: 'takes exactly one id to revoke',
+        asserts: 'Zero or two ids throw; one parses.',
+      },
     ],
-    strengths: ['Exact values for the main flag combinations.'],
+    strengths: [
+      'Exact values for the main flag combinations, and the pairing arguments are checked for the shapes a person actually mistypes.',
+    ],
     gaps: [
       'Invalid port strings, relative paths, missing option values and flag-over-env precedence untested.',
-      'runCli, runLocalServer and installShutdownSignals have no spec in this directory; token-file creation and permissions are covered by scripts/serve.spec.ts (not audited here).',
+      'runCli, runLocalServer and installShutdownSignals have no spec in this directory. That --token-file is now refused with the command that replaces it is covered by apps/server/src/http/token-absence.spec.ts.',
     ],
     verdict: 'adequate',
   },

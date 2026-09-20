@@ -8,6 +8,7 @@ import { startRuntime } from '../lifecycle/runtime.ts';
 import { createPlayground, removePlayground } from './create-playground.ts';
 import { seedPlaygroundReview } from './helpers/seed-playground-review.ts';
 import { hasSyntheticBase } from './helpers/synthetic-base.ts';
+import { pairThroughSocket } from './pair-through-socket.ts';
 import { isPlaygroundProfileName, playgroundProfiles } from './profiles.ts';
 
 const profile = process.env.PORCELAIN_PLAYGROUND_PROFILE || 'fixture';
@@ -49,7 +50,6 @@ try {
         dataDirectory: fixture.dataDirectory,
         // Discovery stays inside the disposable playground, never a real home.
         projectHome: fixture.root,
-        token: fixture.token,
         port: 0,
       },
       shutdown.signal,
@@ -84,10 +84,18 @@ try {
       },
     );
     try {
+      // The playground pairs itself like any other device: there is no shared
+      // secret to seed with, so it redeems a grant of its own through the
+      // owner socket and uses that credential.
+      const seeding = await pairThroughSocket(
+        server.socketPath,
+        server.address,
+        'Playground seeding',
+      );
       const response = await fetch(`${server.address}/api/projects`, {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${fixture.token}`,
+          authorization: `Bearer ${seeding}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({ path: fixture.project }),
@@ -103,7 +111,7 @@ try {
         throw new Error('Playground review worktree was not registered');
       await seedPlaygroundReview(
         server.address,
-        fixture.token,
+        seeding,
         project.id,
         worktreeId,
         fixture.reviewCommitOid,
@@ -112,7 +120,9 @@ try {
       process.stdout.write(
         `${JSON.stringify({
           address: server.address,
-          tokenFile: fixture.tokenFile,
+          // The manifest carries no secret and no reusable grant. A caller that
+          // needs access asks this socket for a one-use link of its own.
+          socketPath: server.socketPath,
           projectId: project.id,
           worktreeId,
           reviewCommitOid: fixture.reviewCommitOid,

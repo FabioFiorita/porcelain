@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
 import { expect, it } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { createMockStore } from '../api/inventory/mock';
+import { createMockStore, mockEnvironmentId } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
 import { createQueryClient } from './client';
 import { useHiddenPaths, useSetHidden } from './file-preferences';
@@ -16,14 +16,15 @@ function ConnectionGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (connection) return;
     const controller = new AbortController();
-    void api.inventory
-      .read({
-        token: 'fixture-token',
+    // Connect the way a browser does: redeem a link, then hold the cookie.
+    void api.pairing
+      .redeem({
+        code: 'fixture-code',
+        environmentId: mockEnvironmentId,
         signal: controller.signal,
-        refresh: false,
       })
       .then((inventory) => {
-        beginConnection()?.('fixture-token', inventory);
+        beginConnection()?.(inventory);
       });
     return () => controller.abort();
   }, [api, beginConnection, connection]);

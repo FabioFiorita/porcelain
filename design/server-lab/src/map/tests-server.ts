@@ -200,7 +200,7 @@ export const serverSpecAudits: SpecAudit[] = [
       {
         name: 'never lets a device credential become the agent principal',
         asserts:
-          'A device at /api/mcp is a viewer; the shared token at the same door is still an agent.',
+          'POST /api/mcp is 404 \u2014 the network door cannot produce an agent at all \u2014 and a device stays a viewer with its own id across every request.',
       },
       {
         name: 'refuses a device whose label or platform could forge the owner listing',
@@ -223,7 +223,8 @@ export const serverSpecAudits: SpecAudit[] = [
       },
       {
         name: 'takes the device credential away when the browser disconnects',
-        asserts: 'Both cookies are expired as separate Set-Cookie values.',
+        asserts:
+          'The device cookie is expired with Max-Age=0. It is the only credential a browser holds.',
       },
       {
         name: 'limits redemption across peers, not only per peer',
@@ -234,12 +235,13 @@ export const serverSpecAudits: SpecAudit[] = [
         asserts: 'The owner can cancel a link pasted into the wrong window.',
       },
       {
-        name: 'keeps the shared token working so the web and its tests still pass',
-        asserts: '3c removes the token; 3b must not.',
+        name: 'does not spend the redemption budget on links that worked',
+        asserts:
+          'Twenty-five successful redemptions in a row from one peer, well past the ten-per-minute allowance; a guess still drives the bucket to 429.',
       },
     ],
     strengths: [
-      'The agent-principal test asserts both credentials at the same door, so it fails if the device path ever inherits the door\u2019s grant.',
+      'The agent-principal test proves the door cannot grant `agent` at all, rather than that one credential happens not to.',
     ],
     gaps: [
       'The cookie refresh on use is not exercised over HTTP; the directory spec covers the idle window it depends on.',
@@ -1519,32 +1521,35 @@ export const serverSpecAudits: SpecAudit[] = [
     verdict: 'weak',
   },
   {
-    file: 'apps/server/src/http/routes/mcp.spec.ts',
-    areas: ['mcp', 'comments', 'review-layers', 'artifacts'],
-    kind: 'http',
-    real: [
-      'MCP SDK client over StreamableHTTP to a real listener',
-      'sqlite',
-      'git init',
-    ],
+    file: 'apps/server/src/cli/mcp-bridge.spec.ts',
+    areas: ['mcp'],
+    kind: 'process',
+    real: ['a real runtime with both listeners', 'sqlite', 'the owner socket'],
     fakes: [],
     tests: [
       {
-        name: 'serves MCP tools with agent attribution, revision checks and explicit bearer authentication',
+        name: 'completes initialize and tools/list over the socket with no secret',
         asserts:
-          '401 without bearer, 403 with an Origin header; create_comment is authored by agent; reply/resolve/list work (list checked by string contains); spoofed author is an error; replace_layers conflicts on a stale revision; publish_artifact is not an error.',
+          'Two JSON-RPC replies for three messages: the notification is answered 202 with no body. Tools include inventory.',
+      },
+      {
+        name: 'calls a tool and is attributed to the agent, not the owner',
+        asserts: 'inventory runs and returns no error result.',
+      },
+      {
+        name: 'reports a stopped server once per request instead of hanging',
+        asserts:
+          'With no server, one error mentioning "not running" and nothing for the notification.',
       },
     ],
     strengths: [
-      'Uses the real MCP client and transport, and checks that browser-origin requests and author spoofing are refused.',
+      'Exercises the whole secretless agent path end to end, including the Accept header the transport requires, which a missing header once broke silently.',
     ],
     gaps: [
-      'inventory, git_status, review_evidence, read_file and read_layers are never called. review_evidence loads every diff (84-258 git processes cold, measured) only to return fingerprints and change identities.',
-      'Error results are only checked with isError; the mapped error code inside the tool result is never asserted.',
-      'publish_artifact success is not verified by reading the artifact back.',
+      'The individual tools are still only covered through their application use cases.',
       'No test that a disconnecting agent cancels its tool call.',
     ],
-    verdict: 'weak',
+    verdict: 'adequate',
   },
   {
     file: 'apps/server/src/http/server.spec.ts',

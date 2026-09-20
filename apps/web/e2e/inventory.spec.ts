@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, revokeDevice } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 async function refocusWindow(page: import('@playwright/test').Page) {
@@ -11,27 +10,13 @@ async function refocusWindow(page: import('@playwright/test').Page) {
 
 test('connects to real Git inventory and refreshes on focus', async ({
   page,
-  request,
 }) => {
-  const manifest = playgroundManifest();
-  const info = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
-  const token = await readFile(info.tokenFile, 'utf8');
-  const inventoryResponse = await request.get('/api/inventory', {
-    headers: { authorization: `Bearer ${token}` },
-  });
+  // Nothing reaches the API before this browser is paired.
+  expect((await page.request.get('/api/inventory')).status()).toBe(401);
+  await pairBrowser(page);
+  const inventoryResponse = await page.request.get('/api/inventory');
   expect(inventoryResponse.ok()).toBe(true);
   const inventory = await inventoryResponse.json();
-  await page.goto('/');
-  await page.getByLabel('Access token').fill('incorrect');
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText(
-    'Access token was rejected',
-  );
-  await page.getByLabel('Access token').fill(token);
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(page.getByLabel('Access token')).toBeHidden();
   await openNavigation(page);
   const navigator = page.getByRole('navigation', {
     name: 'Projects and worktrees',
@@ -96,11 +81,8 @@ test('connects to real Git inventory and refreshes on focus', async ({
     .getByRole('button', { name: 'Comment', exact: true })
     .click();
   await expect(page.getByText(feedback, { exact: true })).toBeVisible();
-  const commentsResponse = await request.get(
+  const commentsResponse = await page.request.get(
     `/api/worktrees/${review.id}/comments`,
-    {
-      headers: { authorization: `Bearer ${token}` },
-    },
   );
   expect(commentsResponse.ok()).toBe(true);
   expect(await commentsResponse.json()).toEqual(
@@ -134,17 +116,20 @@ test('connects to real Git inventory and refreshes on focus', async ({
       0,
     );
   }
-  const cookies = await page.context().cookies();
-  const session = cookies.find((cookie) => cookie.name === 'porcelain_session');
-  expect(session?.httpOnly).toBe(true);
-  expect(session?.expires).toBeGreaterThan(Date.now() / 1000);
+  const device = (await page.context().cookies()).find(
+    (cookie) => cookie.name === 'porcelain_device',
+  );
+  expect(device?.httpOnly).toBe(true);
+  expect(device?.expires).toBeGreaterThan(Date.now() / 1000);
+  const credential = device?.value;
+  expect(credential).toBeTruthy();
+  // HttpOnly means the page cannot read it, so nothing it can reach holds it.
   expect(
     await page.evaluate(() =>
       JSON.stringify([localStorage, sessionStorage, document.cookie]),
     ),
-  ).not.toContain(token);
+  ).not.toContain(credential);
   await page.reload();
-  await expect(page.getByLabel('Access token')).toHaveCount(0);
   await openNavigation(page);
   await expect(navigator).toBeVisible();
 });
@@ -152,20 +137,31 @@ test('connects to real Git inventory and refreshes on focus', async ({
 test('shows empty and unavailable inventory and recovers on a later focus', async ({
   page,
 }) => {
-  const environmentId = '7fe18f78-1477-4c19-a42b-cdd42f862151';
-  await page.route('**/api/inventory', (route) =>
-    route.fulfill({
-      json: { environmentId, projects: [] },
-    }),
+  // Pair against the real server first: the id below has to be this
+  // installation's own, or the browser would refuse the link.
+  await pairBrowser(page);
+  const { environmentId } = (await (
+    await page.request.get('/api/inventory')
+  ).json()) as { environmentId: string };
+  const empty = { environmentId, projects: [] };
+  // Exact paths: a glob would also swallow /api/inventory/refresh, which the
+  // rest of this test needs to fail and then succeed on its own.
+  await page.route(
+    (url) => url.pathname === '/api/inventory',
+    (route) => route.fulfill({ json: empty }),
   );
-  await page.goto('/');
-  await page.getByLabel('Access token').fill('fixture-token');
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await openNavigation(page);
-  await expect(page.getByText('No projects registered')).toBeVisible();
+  await page.route(
+    (url) => url.pathname === '/api/session',
+    (route) => route.fulfill({ json: empty }),
+  );
+  // Registered before the page loads: the workspace rescans on mount, and a
+  // refresh already in flight would otherwise answer the focus below.
   await page.route('**/api/inventory/refresh', (route) =>
     route.fulfill({ status: 503, body: '{}' }),
   );
+  await page.reload();
+  await openNavigation(page);
+  await expect(page.getByText('No projects registered')).toBeVisible();
   const failedRefresh = page.waitForResponse('**/api/inventory/refresh');
   await refocusWindow(page);
   expect((await failedRefresh).status()).toBe(503);
@@ -203,36 +199,28 @@ test('shows empty and unavailable inventory and recovers on a later focus', asyn
   await expect(page.getByText('No changes to review')).toBeVisible();
 });
 
-test('logout in another tab prevents an existing tab from continuing with a bearer token', async ({
+test('revoking the device ends a connection in a page already open', async ({
   page,
   context,
 }) => {
-  const manifest = playgroundManifest();
-  const info = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
-  const token = (await readFile(info.tokenFile, 'utf8')).trim();
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(token);
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(page.getByLabel('Access token')).toHaveCount(0);
-  const other = await context.newPage();
-  await other.goto('/');
-  await expect(other.getByLabel('Access token')).toHaveCount(0);
-  const logout = await other.request.delete('/api/session', {
-    headers: { 'x-porcelain-browser': '1' },
-  });
-  expect(logout.ok()).toBe(true);
+  const { label } = await pairBrowser(page);
   await openNavigation(page);
-  const response = page.waitForResponse('**/api/inventory/refresh');
+  await expect(
+    page.getByRole('navigation', { name: 'Projects and worktrees' }),
+  ).toBeVisible();
+  // The owner revokes from their terminal, with the page still on screen.
+  await revokeDevice(label);
+  // Revoking also destroys whatever the device is holding open, so the page
+  // may learn from a cut-off request before this focus even asks for one.
   await refocusWindow(page);
-  expect((await response).status()).toBe(401);
-  await page.reload();
-  await expect(page.getByLabel('Access token')).toBeVisible();
+  // No reload: the refusal ends the connection and takes the private data it
+  // had loaded with it.
+  await expect(
+    page.getByRole('heading', { name: 'This browser is not paired' }),
+  ).toBeVisible();
+  // The cookie is still in the jar; it is simply no longer a credential.
   expect(
-    (await context.cookies()).some(
-      (cookie) => cookie.name === 'porcelain_session',
-    ),
-  ).toBe(false);
-  await other.close();
+    (await context.cookies()).some((c) => c.name === 'porcelain_device'),
+  ).toBe(true);
+  expect((await page.request.get('/api/inventory')).status()).toBe(401);
 });

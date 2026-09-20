@@ -20,7 +20,6 @@ test('authenticates inventory reads and refreshes without caching or redirects',
   expect(
     await readInventory({
       endpoint: '/api',
-      token: 'secret',
       fetch: transport,
       signal,
     }),
@@ -29,17 +28,15 @@ test('authenticates inventory reads and refreshes without caching or redirects',
     '/api/inventory',
     expect.objectContaining({
       method: 'GET',
-      headers: { authorization: 'Bearer secret' },
       signal,
       cache: 'no-store',
-      credentials: 'omit',
+      credentials: 'same-origin',
       redirect: 'error',
     }),
   );
   transport.mockResolvedValue(new Response(JSON.stringify(inventory)));
   await readInventory({
     endpoint: '/api',
-    token: 'secret',
     fetch: transport,
     signal,
     refresh: true,
@@ -51,7 +48,7 @@ test('authenticates inventory reads and refreshes without caching or redirects',
 });
 
 test.each([
-  [401, '{}', 'Access token was rejected'],
+  [401, '{}', 'no longer paired'],
   [500, '{}', 'could not complete'],
   [200, '{}', 'incompatible inventory'],
 ])(
@@ -60,7 +57,6 @@ test.each([
     await expect(
       readInventory({
         endpoint: '/api',
-        token: 'secret',
         signal,
         fetch: vi
           .fn<typeof fetch>()
@@ -76,7 +72,6 @@ test('preserves transport causes and aborts without exposing response bodies', a
   await expect(
     readInventory({
       endpoint: '/api',
-      token: 'secret',
       signal,
       fetch: transport,
     }),
@@ -89,7 +84,6 @@ test('preserves transport causes and aborts without exposing response bodies', a
   await expect(
     readInventory({
       endpoint: '/api',
-      token: 'secret',
       signal: controller.signal,
       fetch: transport,
     }),
@@ -118,7 +112,6 @@ test('registers an absolute server-side project without caching or redirects', a
   await expect(
     registerProject({
       endpoint: '/api',
-      token: 'secret',
       fetch: transport,
       signal,
       path: '/srv/porcelain',
@@ -128,21 +121,18 @@ test('registers an absolute server-side project without caching or redirects', a
     '/api/projects',
     expect.objectContaining({
       method: 'POST',
-      headers: {
-        authorization: 'Bearer secret',
-        'content-type': 'application/json',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: '/srv/porcelain' }),
       signal,
       cache: 'no-store',
-      credentials: 'omit',
+      credentials: 'same-origin',
       redirect: 'error',
     }),
   );
 });
 
 test.each([
-  [401, 'Access token was rejected'],
+  [401, 'no longer paired'],
   [400, 'absolute path on the Porcelain server'],
   [422, 'accessible Git repository on the Porcelain server'],
   [500, 'could not open that project'],
@@ -152,7 +142,6 @@ test.each([
     await expect(
       registerProject({
         endpoint: '/api',
-        token: 'secret',
         fetch: vi
           .fn<typeof fetch>()
           .mockResolvedValue(new Response('{}', { status })),
@@ -177,7 +166,6 @@ test('browses encoded server paths with private, cancellable requests', async ()
   expect(
     await browseProjectFolders({
       endpoint: '/api',
-      token: 'secret',
       signal,
       fetch: transport,
       path: folder.path,
@@ -186,11 +174,10 @@ test('browses encoded server paths with private, cancellable requests', async ()
   expect(transport).toHaveBeenCalledWith(
     `/api/projects/folders?${new URLSearchParams({ path: folder.path })}`,
     expect.objectContaining({
-      headers: { authorization: 'Bearer secret' },
       signal,
       cache: 'no-store',
       redirect: 'error',
-      credentials: 'omit',
+      credentials: 'same-origin',
     }),
   );
   transport.mockResolvedValue(
@@ -199,7 +186,6 @@ test('browses encoded server paths with private, cancellable requests', async ()
   expect(
     await discoverProjects({
       endpoint: '/api',
-      token: 'secret',
       signal,
       fetch: transport,
     }),
@@ -215,11 +201,10 @@ test('reports folder failures without exposing server diagnostics and preserves 
     await expect(
       browseProjectFolders({
         endpoint: '/api',
-        token: 'secret',
         signal,
         fetch: transport,
       }),
-    ).rejects.toThrow(/Porcelain server|Access token/);
+    ).rejects.toThrow(/Porcelain server|no longer paired/);
   }
   transport.mockResolvedValue(
     new Response(JSON.stringify({ repositories: 'wrong' })),
@@ -227,7 +212,6 @@ test('reports folder failures without exposing server diagnostics and preserves 
   await expect(
     discoverProjects({
       endpoint: '/api',
-      token: 'secret',
       signal,
       fetch: transport,
     }),
@@ -238,7 +222,6 @@ test('reports folder failures without exposing server diagnostics and preserves 
   await expect(
     discoverProjects({
       endpoint: '/api',
-      token: 'secret',
       signal: controller.signal,
       fetch: transport,
     }),
@@ -252,7 +235,6 @@ test('removes a project using the authenticated idempotent DELETE endpoint', asy
     expect(
       await removeProject({
         endpoint: '/api',
-        token: 'secret',
         signal,
         fetch: transport,
         projectId: 'project-id',
@@ -264,7 +246,6 @@ test('removes a project using the authenticated idempotent DELETE endpoint', asy
     expect.objectContaining({
       method: 'DELETE',
       signal,
-      headers: { authorization: 'Bearer secret' },
       cache: 'no-store',
       redirect: 'error',
     }),
@@ -275,7 +256,6 @@ test('removes a project using the authenticated idempotent DELETE endpoint', asy
   await expect(
     removeProject({
       endpoint: '/api',
-      token: 'secret',
       signal,
       fetch: transport,
       projectId: 'project-id',
@@ -285,7 +265,6 @@ test('removes a project using the authenticated idempotent DELETE endpoint', asy
   await expect(
     removeProject({
       endpoint: '/api',
-      token: 'secret',
       signal,
       fetch: transport,
       projectId: 'project-id',

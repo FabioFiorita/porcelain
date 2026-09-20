@@ -12,11 +12,10 @@ import { describe, expect, it } from 'vitest';
 import { openDatabase } from '../../db/connection.ts';
 import { artifactLimits } from '../../models/artifact.ts';
 import { ArtifactRepository } from '../../repositories/artifact-repository.ts';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
 describe('Artifacts', () => {
-  const token = 'fixture-token-with-at-least-32-characters';
-  const headers = { authorization: `Bearer ${token}` };
   async function fixture() {
     const root = await realpath(
       await mkdtemp(join(tmpdir(), 'porcelain-artifact-http-')),
@@ -25,11 +24,12 @@ describe('Artifacts', () => {
     await mkdir(path);
     execFileSync('git', ['init', '-b', 'main', path]);
     const options = {
+      pairingReach,
       dataDirectory: join(root, 'state'),
       projectHome: join(root, 'state'),
-      token,
     };
     const server = await createServer(options);
+    const headers = await pairDevice(server, server.application);
     const response = await server.inject({
       method: 'POST',
       url: '/api/projects',
@@ -44,6 +44,7 @@ describe('Artifacts', () => {
       path,
       options,
       server,
+      headers,
       collection: `/api/worktrees/${worktree.id}/artifacts`,
       worktreeId: worktree.id,
     };
@@ -51,6 +52,7 @@ describe('Artifacts', () => {
 
   it('uploads and retrieves inert HTML over real authenticated JSON, preserving content through refresh and restart outside Git', async () => {
     const f = await fixture();
+    const { headers } = f;
     const input = {
       name: '../../<img src=x onerror=alert(1)>.html',
       content:
@@ -182,6 +184,7 @@ describe('Artifacts', () => {
 
   it('authenticates all artifact routes before parsing and rejects unknown scope and caller path fields', async () => {
     const f = await fixture();
+    const { headers } = f;
     try {
       for (const [method, url] of [
         ['POST', f.collection],
@@ -248,6 +251,7 @@ describe('Artifacts', () => {
 
   it('rejects malformed UTF-8 and Unicode, bounds request bytes, and accepts exact content limit with escaped JSON', async () => {
     const f = await fixture();
+    const { headers } = f;
     try {
       const jsonHeaders = { ...headers, 'content-type': 'application/json' };
       const malformed = Buffer.concat([
@@ -299,6 +303,7 @@ describe('Artifacts', () => {
 
   it('reports aggregate quota exhaustion safely through HTTP and permits recovery by deletion', async () => {
     const f = await fixture();
+    const { headers } = f;
     try {
       const ids: string[] = [];
       for (const _ of Array.from({ length: 16 })) {
@@ -348,6 +353,7 @@ describe('Artifacts', () => {
 
   it('retains removed worktree storage while denying access through its absent inventory identity', async () => {
     const f = await fixture();
+    const { headers } = f;
     try {
       execFileSync('git', [
         '-C',

@@ -9,6 +9,8 @@ import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { describe, expect, it, onTestFinished } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
+
 import { createServer } from '../server.ts';
 
 /**
@@ -17,9 +19,6 @@ import { createServer } from '../server.ts';
  * file today. They stop that fan-out growing until the rebuild removes it, and
  * the rebuild lowers them.
  */
-const token = 'git-process-budget-token-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
-
 const gitEnvironment = {
   ...process.env,
   GIT_CONFIG_NOSYSTEM: '1',
@@ -92,19 +91,22 @@ async function fixture(
     server: Awaited<ReturnType<typeof createServer>>,
     worktreeId: string,
     measure: (work: () => Promise<void>) => Promise<number>,
+    headers: { authorization: string },
     /** A second server over the same checkout, with nothing cached. */
     coldServer: () => Promise<{
       server: Awaited<ReturnType<typeof createServer>>;
       worktreeId: string;
+      headers: { authorization: string };
     }>,
   ) => Promise<void>,
 ) {
   const { root, checkout } = await repository(changedFiles);
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = projectResponseSchema.parse(
       (
@@ -120,26 +122,28 @@ async function fixture(
     if (!worktreeId) throw new Error('Fixture registration failed');
     const coldServer = async () => {
       const cold = await createServer({
+        pairingReach,
         dataDirectory: join(root, 'cold-state'),
         projectHome: join(root, 'cold-state'),
-        token,
       });
+      // A separate installation: its devices are its own.
+      const coldHeaders = await pairDevice(cold, cold.application);
       const registeredCold = projectResponseSchema.parse(
         (
           await cold.inject({
             method: 'POST',
             url: '/api/projects',
-            headers,
+            headers: coldHeaders,
             payload: { path: checkout },
           })
         ).json(),
       );
       const id = registeredCold.worktrees[0]?.id;
       if (!id) throw new Error('Cold registration failed');
-      return { server: cold, worktreeId: id };
+      return { server: cold, worktreeId: id, headers: coldHeaders };
     };
     // Subscribe after the fixture's own Git commands have run.
-    await run(server, worktreeId, countGitProcesses(), coldServer);
+    await run(server, worktreeId, countGitProcesses(), headers, coldServer);
   } finally {
     await server.close();
     await rm(root, { recursive: true, force: true });
@@ -175,19 +179,22 @@ describe('Git process budgets', () => {
   it('reads evidence with a bounded number of Git processes per changed file', async () => {
     const counts: Record<number, number> = {};
     for (const changedFiles of [2, 10]) {
-      await fixture(changedFiles, async (server, worktreeId, measure) => {
-        counts[changedFiles] = await measure(async () => {
-          const response = await server.inject({
-            method: 'GET',
-            url: `/api/worktrees/${worktreeId}/evidence`,
-            headers,
+      await fixture(
+        changedFiles,
+        async (server, worktreeId, measure, headers) => {
+          counts[changedFiles] = await measure(async () => {
+            const response = await server.inject({
+              method: 'GET',
+              url: `/api/worktrees/${worktreeId}/evidence`,
+              headers,
+            });
+            expect(response.statusCode).toBe(200);
+            expect(
+              evidenceResponseSchema.parse(response.json()).evidence,
+            ).toHaveLength(changedFiles);
           });
-          expect(response.statusCode).toBe(200);
-          expect(
-            evidenceResponseSchema.parse(response.json()).evidence,
-          ).toHaveLength(changedFiles);
-        });
-      });
+        },
+      );
     }
     const small = counts[2] ?? 0;
     const large = counts[10] ?? 0;
@@ -199,42 +206,23 @@ describe('Git process budgets', () => {
   });
 
   it('marks a file reviewed within its budget, warm and cold', async () => {
-    await fixture(2, async (server, worktreeId, measure, coldServer) => {
-      const evidence = evidenceResponseSchema.parse(
-        (
-          await server.inject({
-            method: 'GET',
-            url: `/api/worktrees/${worktreeId}/evidence`,
-            headers,
-          })
-        ).json(),
-      ).evidence[0];
-      if (!evidence?.fingerprint) throw new Error('Expected evidence');
-      const spawned = await measure(async () => {
-        const response = await server.inject({
-          method: 'PUT',
-          url: `/api/worktrees/${worktreeId}/reviewed`,
-          headers,
-          payload: {
-            path: evidence.path,
-            reviewed: true,
-            fingerprint: evidence.fingerprint,
-          },
-        });
-        expect(response.statusCode).toBe(200);
-      });
-      // Warm: the preceding read left the worktree's changes cached, so the
-      // mark only revalidates the fingerprint.
-      expect(spawned).toBeLessThanOrEqual(18);
-
-      // Cold: a second server over the same checkout has nothing cached, which
-      // is what a mark costs when it is the request's first read.
-      const cold = await coldServer();
-      try {
-        const coldSpawned = await measure(async () => {
-          const response = await cold.server.inject({
+    await fixture(
+      2,
+      async (server, worktreeId, measure, headers, coldServer) => {
+        const evidence = evidenceResponseSchema.parse(
+          (
+            await server.inject({
+              method: 'GET',
+              url: `/api/worktrees/${worktreeId}/evidence`,
+              headers,
+            })
+          ).json(),
+        ).evidence[0];
+        if (!evidence?.fingerprint) throw new Error('Expected evidence');
+        const spawned = await measure(async () => {
+          const response = await server.inject({
             method: 'PUT',
-            url: `/api/worktrees/${cold.worktreeId}/reviewed`,
+            url: `/api/worktrees/${worktreeId}/reviewed`,
             headers,
             payload: {
               path: evidence.path,
@@ -244,17 +232,39 @@ describe('Git process budgets', () => {
           });
           expect(response.statusCode).toBe(200);
         });
-        // Measured 14, the same as warm: the guards that made a cold mark
-        // cost 35 are gone, so the cache no longer changes its Git cost.
-        expect(coldSpawned).toBeLessThanOrEqual(18);
-      } finally {
-        await cold.server.close();
-      }
-    });
+        // Warm: the preceding read left the worktree's changes cached, so the
+        // mark only revalidates the fingerprint.
+        expect(spawned).toBeLessThanOrEqual(18);
+
+        // Cold: a second server over the same checkout has nothing cached, which
+        // is what a mark costs when it is the request's first read.
+        const cold = await coldServer();
+        try {
+          const coldSpawned = await measure(async () => {
+            const response = await cold.server.inject({
+              method: 'PUT',
+              url: `/api/worktrees/${cold.worktreeId}/reviewed`,
+              headers: cold.headers,
+              payload: {
+                path: evidence.path,
+                reviewed: true,
+                fingerprint: evidence.fingerprint,
+              },
+            });
+            expect(response.statusCode).toBe(200);
+          });
+          // Measured 14, the same as warm: the guards that made a cold mark
+          // cost 35 are gone, so the cache no longer changes its Git cost.
+          expect(coldSpawned).toBeLessThanOrEqual(18);
+        } finally {
+          await cold.server.close();
+        }
+      },
+    );
   });
 
   it('reads one diff within its budget', async () => {
-    await fixture(2, async (server, worktreeId, measure) => {
+    await fixture(2, async (server, worktreeId, measure, headers) => {
       const status = gitStatusResponseSchema.parse(
         (
           await server.inject({
@@ -291,7 +301,7 @@ describe('Git process budgets', () => {
   });
 
   it('reads a file within its budget', async () => {
-    await fixture(2, async (server, worktreeId, measure) => {
+    await fixture(2, async (server, worktreeId, measure, headers) => {
       const spawned = await measure(async () => {
         const response = await server.inject({
           method: 'GET',

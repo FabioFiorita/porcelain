@@ -3,7 +3,6 @@ import { createGitActionsClient } from './git-actions.ts';
 import { createReviewClient } from './review.ts';
 
 const scope = {
-  token: 'disposable-token',
   signal: new AbortController().signal,
   projectId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
   worktreeId: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
@@ -14,10 +13,8 @@ describe('review transport', () => {
       expect(String(input)).toBe(
         `/api/worktrees/${scope.worktreeId}/text?path=src%2Fa%23b.ts`,
       );
-      expect(init?.headers).toMatchObject({
-        authorization: 'Bearer disposable-token',
-      });
-      expect(init?.credentials).toBe('omit');
+      expect(init?.headers).not.toHaveProperty('authorization');
+      expect(init?.credentials).toBe('same-origin');
       expect(init?.redirect).toBe('error');
       return Response.json({
         worktreeId: scope.worktreeId,
@@ -55,9 +52,7 @@ describe('review transport', () => {
         `/api/worktrees/${scope.worktreeId}/artifacts/${artifactId}`,
       );
       expect(init?.method).toBeUndefined();
-      expect(init?.headers).toMatchObject({
-        authorization: 'Bearer disposable-token',
-      });
+      expect(init?.headers).not.toHaveProperty('authorization');
       return Response.json({
         id: artifactId,
         worktreeId: scope.worktreeId,
@@ -252,11 +247,9 @@ it('reads image assets through the authenticated private transport', async () =>
     expect(String(input)).toBe(
       `/api/worktrees/${scope.worktreeId}/asset?path=img%2Fa%23b.png`,
     );
-    expect(init?.headers).toMatchObject({
-      authorization: 'Bearer disposable-token',
-    });
+    expect(init?.headers).not.toHaveProperty('authorization');
     expect(init?.cache).toBe('no-store');
-    expect(init?.credentials).toBe('omit');
+    expect(init?.credentials).toBe('same-origin');
     return Response.json({
       path: 'img/a#b.png',
       mediaType: 'image/png',

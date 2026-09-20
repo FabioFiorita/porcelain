@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, realpath, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,10 +8,8 @@ import {
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
-
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 
 it('registers, refreshes and persists inventory through authenticated HTTP', async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'porcelain-api-')));
@@ -19,10 +18,11 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
   const server = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   await server.refreshed();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
@@ -56,9 +56,9 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
     expect(initial.headers['cache-control']).toBe('no-store');
     await server.close();
     const restarted = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     await restarted.refreshed();
     try {
@@ -101,9 +101,9 @@ it('rejects unauthenticated operations before validation or discovery and saniti
   const root = await mkdtemp(join(tmpdir(), 'porcelain-api-errors-'));
   let calls = 0;
   const server = await createServer({
+    pairingReach,
     dataDirectory: root,
     projectHome: root,
-    token,
     git: () => ({
       listWorktrees: async () => {
         calls++;
@@ -111,6 +111,7 @@ it('rejects unauthenticated operations before validation or discovery and saniti
       },
     }),
   });
+  const headers = await pairDevice(server, server.application);
   await server.refreshed();
   try {
     for (const [method, url] of [
@@ -121,7 +122,8 @@ it('rejects unauthenticated operations before validation or discovery and saniti
       for (const authorization of [
         '',
         'Bearer wrong',
-        `Bearer ${'x'.repeat(token.length)}`,
+        // A well-formed credential of the right shape, but never minted here.
+        `Bearer pcd_${randomUUID()}_${'x'.repeat(43)}`,
       ]) {
         const response = await server.inject({
           method,
@@ -175,10 +177,11 @@ it('rejects unauthenticated operations before validation or discovery and saniti
 it('reports an uninspectable checkout without returning Git diagnostics', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-api-unavailable-'));
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   await server.refreshed();
   try {
     const response = await server.inject({

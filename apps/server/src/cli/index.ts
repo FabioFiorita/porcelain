@@ -6,7 +6,6 @@ export {
 export { runLocalServer } from './launcher.ts';
 export { installShutdownSignals } from './signals.ts';
 export { reportStatus, statusExitCodes } from './status.ts';
-export { ensureAccessToken } from './token.ts';
 
 export const serveHelp = `Usage: porcelain <command> [options]
 
@@ -26,6 +25,5 @@ Options:
   --address <origin>       Origin a pairing link points at (repeatable)
   --port <port>            Listen port (default: 3000)
   --data-directory <path>  Persistent state directory (default: ~/.porcelain)
-  --token-file <path>      Persistent access token file (default: <data-directory>/admin-token)
   -h, --help               Show this help
 `;

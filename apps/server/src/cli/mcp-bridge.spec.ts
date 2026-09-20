@@ -6,8 +6,6 @@ import { expect, it } from 'vitest';
 import { startRuntime } from '../lifecycle/runtime.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
 
-const token = 'fixture-token-with-at-least-32-characters';
-
 function rpc(messages: unknown[]): Readable {
   return Readable.from([
     `${messages.map((message) => JSON.stringify(message)).join('\n')}\n`,
@@ -20,7 +18,6 @@ async function running(prefix: string) {
   const runtime = await startRuntime({
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'home'),
-    token,
     port: 0,
   });
   return {

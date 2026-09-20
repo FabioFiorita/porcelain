@@ -59,3 +59,7 @@ later failure, as defined by the inventory decision.
 HTTP integration specs cover authentication, invalid input, safe failures, duplicate registration,
 restart persistence, unavailable repositories, and real loopback registration. They do not establish
 production TLS, remote access, or browser/Electron/mobile behavior.
+
+Superseded, 2026-09-20: the shared bearer token is gone. A device redeems a single-use
+pairing link for its own credential, and the browser holds that credential as an HttpOnly
+cookie. See [pairing and device credentials](../development.md#persistent-server).

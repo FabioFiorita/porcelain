@@ -10,7 +10,7 @@ import { uploadArtifact } from './upload-artifact.ts';
 
 export async function artifactRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

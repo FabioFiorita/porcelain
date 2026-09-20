@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createMockStore } from '../inventory/mock';
+import { onUnauthorized } from '../unauthorized';
 import { browserTransport, createSessionLive } from './live';
 
 type Call = { input: RequestInfo | URL; init: RequestInit | undefined };
@@ -19,26 +20,49 @@ const ok = (body: unknown) =>
     headers: { 'content-type': 'application/json' },
   });
 
-describe('browser session transport', () => {
-  it('replaces the placeholder bearer token with the browser session marker', async () => {
+describe('browser transport', () => {
+  it('sends the device cookie and never a credential of its own', async () => {
     const { calls, transport } = recordingTransport(() => ok({}));
-    await browserTransport(transport)('/api/session', {
-      headers: { authorization: 'Bearer browser-session' },
+    await browserTransport(transport)('/api/inventory', {
+      headers: { authorization: 'Bearer something-a-page-found' },
     });
     const headers = new Headers(calls[0]?.init?.headers);
+    // A page that can attach a credential is a page that can leak one.
     expect(headers.get('authorization')).toBeNull();
     expect(headers.get('x-porcelain-browser')).toBe('1');
     expect(calls[0]?.init?.credentials).toBe('same-origin');
   });
 
-  it('keeps a real access token so playground requests still authenticate', async () => {
-    const { calls, transport } = recordingTransport(() => ok({}));
-    await browserTransport(transport)('/api/inventory', {
-      headers: { authorization: 'Bearer fixture-token' },
-    });
-    const headers = new Headers(calls[0]?.init?.headers);
-    expect(headers.get('authorization')).toBe('Bearer fixture-token');
-    expect(headers.get('x-porcelain-browser')).toBe('1');
+  it('reports a refused request once, from the transport, for every caller', async () => {
+    const seen: number[] = [];
+    const stop = onUnauthorized(() => seen.push(1));
+    try {
+      const refused = browserTransport(
+        recordingTransport(() => new Response('{}', { status: 401 })).transport,
+      );
+      // Whatever the view was asking for, losing access is the same event.
+      await refused('/api/inventory');
+      await refused('/api/worktrees/w/comments');
+      expect(seen).toHaveLength(2);
+
+      // Establishing a connection is not losing one: redeeming a link and
+      // probing for a session both run before the browser knows whether it
+      // has access at all.
+      seen.length = 0;
+      await refused('/api/pair', { method: 'POST' });
+      await refused('/api/session');
+      expect(seen).toHaveLength(0);
+
+      // Nothing else is a loss of access.
+      for (const status of [200, 403, 404, 500]) {
+        await browserTransport(
+          recordingTransport(() => new Response('{}', { status })).transport,
+        )('/api/inventory');
+      }
+      expect(seen).toHaveLength(0);
+    } finally {
+      stop();
+    }
   });
 });
 

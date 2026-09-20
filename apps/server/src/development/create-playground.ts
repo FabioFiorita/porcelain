@@ -1,6 +1,5 @@
 import { execFile } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -181,9 +180,6 @@ export async function createProfilePlayground(
       );
     }
     await pruning;
-    const token = randomBytes(32).toString('base64url');
-    const tokenFile = join(root, 'token.txt');
-    await writeFile(tokenFile, token, { mode: 0o600 });
     return {
       root,
       project,
@@ -192,8 +188,6 @@ export async function createProfilePlayground(
       reviewCommitOid: (
         await git('-C', worktree, 'rev-parse', 'HEAD')
       ).stdout.trim(),
-      token,
-      tokenFile,
       environment,
       dataDirectory: join(root, 'state'),
       profile,

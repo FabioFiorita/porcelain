@@ -7,7 +7,6 @@ describe('mock inventory', () => {
     const store = createMockStore();
     const api = createInventoryMock(store);
     const result = await api.read({
-      token: 'fixture',
       signal: new AbortController().signal,
     });
     expect(inventoryResponseSchema.safeParse(result).success).toBe(true);
@@ -19,7 +18,6 @@ describe('mock inventory', () => {
     const store = createMockStore('slow');
     const controller = new AbortController();
     const pending = createInventoryMock(store).read({
-      token: 'fixture',
       signal: controller.signal,
       refresh: true,
     });

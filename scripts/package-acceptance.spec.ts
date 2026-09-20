@@ -6,6 +6,7 @@ import {
   readFile,
   readlink,
   rm,
+  stat,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -143,7 +144,6 @@ packageAcceptance(
       const cwd = join(root, 'unrelated-cwd');
       const project = join(root, 'repository');
       const state = join(root, 'state');
-      const tokenFile = join(root, 'credentials', 'token');
       await mkdir(install, { recursive: true });
       await mkdir(cwd, { recursive: true });
       await writeFile(
@@ -154,6 +154,13 @@ packageAcceptance(
       execFileSync('git', ['init', '-b', 'main', project], {
         env: isolatedGitEnvironment(),
       });
+      // An installation upgraded from the token world: the launcher's old
+      // credential is still sitting in the state directory. The packaged
+      // server must start on it, leave it alone, and refuse its value.
+      const legacyToken = 'a'.repeat(43);
+      const legacyTokenFile = join(state, 'admin-token');
+      await mkdir(state, { recursive: true, mode: 0o700 });
+      await writeFile(legacyTokenFile, legacyToken, { mode: 0o600 });
       execFileSync(
         'npm',
         [
@@ -178,15 +185,7 @@ packageAcceptance(
         const output = { stdout: '', stderr: '' };
         const child = spawn(
           bin,
-          [
-            'serve',
-            '--data-directory',
-            state,
-            '--token-file',
-            tokenFile,
-            '--port',
-            '0',
-          ],
+          ['serve', '--data-directory', state, '--port', '0'],
           {
             cwd,
             env: isolatedGitEnvironment(),
@@ -219,18 +218,66 @@ packageAcceptance(
       const firstLaunch = launch();
       const firstAddress = await firstLaunch.listening;
       expect(ownerStatus()).toMatchObject({ code: 0, output: /is running/ });
-      const token = (await readFile(tokenFile, 'utf8')).trim();
-      const headers = { authorization: `Bearer ${token}` };
       expect((await fetch(`${firstAddress}/`)).status).toBe(200);
       expect((await fetch(`${firstAddress}/api/inventory`)).status).toBe(401);
-      const mcp = await fetch(`${firstAddress}/api/mcp`, {
+      // The exact old value, in the shape it used to work in.
+      expect(
+        (
+          await fetch(`${firstAddress}/api/inventory`, {
+            headers: { authorization: `Bearer ${legacyToken}` },
+          })
+        ).status,
+      ).toBe(401);
+
+      // The installed package has no shared credential: access comes from the
+      // owner socket, which a process on this machine reaches and nothing else
+      // can. This is the packaged CLI doing it, not a test helper.
+      const paired = execFileSync(
+        bin,
+        [
+          'pair',
+          'Acceptance',
+          '--address',
+          firstAddress,
+          '--data-directory',
+          state,
+        ],
+        { cwd, env: isolatedGitEnvironment(), encoding: 'utf8' },
+      );
+      const link = /https?:\/\/\S+/.exec(paired)?.[0];
+      if (!link) throw new Error(`porcelain pair printed no link: ${paired}`);
+      const code = new URLSearchParams(
+        new URL(link).hash.replace(/^#/, ''),
+      ).get('c');
+      const redeemed = await fetch(`${firstAddress}/api/pair`, {
         method: 'POST',
-        headers: {
-          ...headers,
-          'content-type': 'application/json',
-          accept: 'application/json, text/event-stream',
-        },
-        body: JSON.stringify({
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code, platform: 'Acceptance' }),
+      });
+      expect(redeemed.status).toBe(200);
+      const { credential } = (await redeemed.json()) as { credential: string };
+      const headers = { authorization: `Bearer ${credential}` };
+
+      // The agent door moved off the network with the token.
+      expect(
+        (
+          await fetch(`${firstAddress}/api/mcp`, {
+            method: 'POST',
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'tools/list',
+            }),
+          })
+        ).status,
+      ).toBe(404);
+      // It answers over the socket instead, with no secret at all.
+      const mcp = execFileSync(bin, ['mcp', '--data-directory', state], {
+        cwd,
+        env: isolatedGitEnvironment(),
+        encoding: 'utf8',
+        input: `${JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
           method: 'initialize',
@@ -239,10 +286,9 @@ packageAcceptance(
             capabilities: {},
             clientInfo: { name: 'package-test', version: '1' },
           },
-        }),
+        })}\n`,
       });
-      expect(mcp.status).toBe(200);
-      expect(await mcp.json()).toMatchObject({
+      expect(JSON.parse(mcp.trim().split('\n')[0] ?? '{}')).toMatchObject({
         jsonrpc: '2.0',
         id: 1,
         result: { serverInfo: { name: 'porcelain' } },
@@ -302,7 +348,10 @@ packageAcceptance(
           firstLaunch.output.stderr +
           secondLaunch.output.stdout +
           secondLaunch.output.stderr,
-      ).not.toContain(token);
+      ).not.toContain(credential);
+      // Still the owner's file, untouched: an upgrade does not delete it.
+      expect(await readFile(legacyTokenFile, 'utf8')).toBe(legacyToken);
+      expect((await stat(legacyTokenFile)).mode & 0o777).toBe(0o600);
     } finally {
       for (const child of children) await stopChild(child);
       await rm(root, { recursive: true, force: true });

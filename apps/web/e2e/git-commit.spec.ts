@@ -1,26 +1,21 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('commits the selected new file and leaves other staged changes in place', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
-  const manifest = playgroundManifest();
-  const { tokenFile, worktreePath } = JSON.parse(
-    await readFile(manifest, 'utf8'),
-  ) as { tokenFile: string; worktreePath: string };
+  const { worktreePath } = await playgroundInfo<{ worktreePath: string }>();
   const git = async (...args: string[]) =>
     (await promisify(execFile)('git', ['-C', worktreePath, ...args])).stdout;
   const staged = await git('diff', '--cached', '--name-only');
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: 'Commit', exact: true }).click();
@@ -28,12 +23,7 @@ test('commits the selected new file and leaves other staged changes in place', a
   for (const checkbox of await dialog.getByRole('checkbox').all())
     await checkbox.uncheck();
   await dialog.getByLabel('notes.txt', { exact: true }).check();
-  const headers = {
-    authorization: `Bearer ${(await readFile(tokenFile, 'utf8')).trim()}`,
-  };
-  const inventory = await (
-    await page.request.get('/api/inventory', { headers })
-  ).json();
+  const inventory = await (await page.request.get('/api/inventory')).json();
   const worktree = inventory.projects
     .flatMap(
       (project: { worktrees: { id: string; path: string }[] }) =>
@@ -41,13 +31,12 @@ test('commits the selected new file and leaves other staged changes in place', a
     )
     .find((entry: { path: string }) => entry.path === worktreePath);
   const layerUrl = `/api/worktrees/${worktree.id}/review-layers`;
-  const source = await (await page.request.get(layerUrl, { headers })).json();
+  const source = await (await page.request.get(layerUrl)).json();
   const layers = source.layers.map((layer: { files: { path: string }[] }) => ({
     ...layer,
     files: layer.files.filter((file) => file.path !== 'notes.txt'),
   }));
   const response = await page.request.put(layerUrl, {
-    headers,
     data: {
       expectedRevision: source.revision,
       layers: [
@@ -100,18 +89,13 @@ test('reviews generated groups and commits them sequentially', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
-  const manifest = playgroundManifest();
-  const { tokenFile, worktreePath } = JSON.parse(
-    await readFile(manifest, 'utf8'),
-  ) as { tokenFile: string; worktreePath: string };
+  const { worktreePath } = await playgroundInfo<{ worktreePath: string }>();
   for (const name of ['group-a.txt', 'group-b.txt'])
     await writeFile(join(worktreePath, name), name);
   const git = async (...args: string[]) =>
     (await promisify(execFile)('git', ['-C', worktreePath, ...args])).stdout;
   const before = Number(await git('rev-list', '--count', 'HEAD'));
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: 'Commit', exact: true }).click();

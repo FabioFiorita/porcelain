@@ -3,18 +3,22 @@ import { expect, test } from '@playwright/test';
 test('automatically authenticates on page load and keeps Devtools', async ({
   page,
 }) => {
-  const inventory = page.waitForRequest('**/api/inventory');
+  // Pairing ends by reading the session, which is the first request the new
+  // device makes on its own.
+  const session = page.waitForRequest('**/api/session');
   await page.goto('/');
   await expect(
     page.getByRole('navigation', { name: 'Projects and worktrees' }),
   ).toBeVisible();
-  expect((await inventory).headers().authorization).toMatch(/^Bearer .+/);
+  // The browser authenticates with its device cookie and nothing else; a page
+  // that could attach a credential is a page that could leak one.
+  expect((await session).headers().authorization).toBeUndefined();
   await page.getByRole('button', { name: /open.*devtools/i }).click();
   await page.getByRole('button', { name: 'Playground', exact: true }).click();
   await expect(
     page
       .getByRole('region', { name: 'Playground tools' })
-      .getByRole('button', { name: 'Connected', exact: true }),
+      .getByRole('button', { name: 'Paired', exact: true }),
   ).toBeDisabled();
   await page.getByRole('button', { name: /close.*devtools/i }).click();
   await page.keyboard.press('Alt+Shift+D');
@@ -45,11 +49,10 @@ test('a failed automatic connection can be retried from Devtools', async ({
   await expect(page.getByRole('alert')).toContainText(
     'Automatic playground connection failed',
   );
-  await expect(page.getByLabel('Access token')).toHaveValue('');
   await page.unroute('**/__porcelain/playground');
   await page.getByRole('button', { name: /open.*devtools/i }).click();
   await page.getByRole('button', { name: 'Playground', exact: true }).click();
-  await page.getByRole('button', { name: 'Connect to playground' }).click();
+  await page.getByRole('button', { name: 'Pair this browser' }).click();
   await expect(
     page.getByRole('navigation', { name: 'Projects and worktrees' }),
   ).toBeVisible();

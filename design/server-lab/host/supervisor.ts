@@ -13,6 +13,7 @@ import {
 import { dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer as createViteServer } from 'vite';
+import { overSocket } from '../../../apps/server/src/development/pair-through-socket.ts';
 import { benchSteps, runBench, settleTraces } from './bench.ts';
 import type {
   BenchRun,
@@ -36,7 +37,6 @@ import {
 const labRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(labRoot, '../..');
 const stateDirectory = join(labRoot, '.lab');
-const tokenFile = join(stateDirectory, 'token');
 // The repository owns the recorded ceilings; the lab reads and adjusts them.
 const budgetsFile = join(repoRoot, 'scripts/server-bench/budgets.json');
 const benchFile = join(stateDirectory, 'bench-history.json');
@@ -81,7 +81,8 @@ const storeTrace = (trace: Trace) => {
 const runtime: {
   child?: ChildProcess;
   state: RuntimeState;
-  token?: string;
+  credential?: string;
+  socketPath?: string;
   generation: number;
 } = { state: { status: 'stopped' }, generation: 0 };
 
@@ -100,7 +101,8 @@ const appendLog = (line: string) => {
 async function stopRuntime() {
   const child = runtime.child;
   runtime.child = undefined;
-  runtime.token = undefined;
+  runtime.credential = undefined;
+  runtime.socketPath = undefined;
   runtime.generation++;
   stopAllStreams();
   if (child && child.exitCode === null && child.signalCode === null) {
@@ -133,7 +135,6 @@ async function startRuntime(mode: RuntimeMode): Promise<RuntimeState> {
       LAB_PROFILE: mode.kind === 'playground' ? mode.profile : '',
       LAB_REAL_REPOSITORIES:
         mode.kind === 'real' ? JSON.stringify(mode.repositories) : '[]',
-      LAB_TOKEN_FILE: tokenFile,
       LAB_PLAYGROUNDS_DIRECTORY: playgroundsDirectory,
     },
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -169,7 +170,10 @@ async function startRuntime(mode: RuntimeMode): Promise<RuntimeState> {
           settle(runtime.state);
           break;
         case 'ready': {
-          runtime.token = (await readFile(tokenFile, 'utf8')).trim();
+          // The runtime pairs a device for this run and reports it here; no
+          // credential is ever written to disk.
+          runtime.credential = message.credential;
+          runtime.socketPath = message.socketPath;
           setRuntime({
             status: 'ready',
             mode,
@@ -234,7 +238,9 @@ function startWeb() {
       env: {
         ...process.env,
         PORCELAIN_API_TARGET: `http://127.0.0.1:${port}/porcelain-web`,
-        PORCELAIN_PLAYGROUND_TOKEN_FILE: tokenFile,
+        // Not the socket itself: the runtime restarts into a fresh data
+        // directory, so a path baked in here would point at a dead socket.
+        PORCELAIN_PLAYGROUND_MINT: `http://127.0.0.1:${port}/porcelain-pairing`,
         PORCELAIN_PLAYGROUND_BRIDGE: '1',
         PORCELAIN_PLAYGROUND_AUTO_CONNECT: '1',
       },
@@ -282,7 +288,7 @@ const describe = (mode: RuntimeMode) =>
 
 async function benchOnce(): Promise<BenchRun> {
   const state = runtime.state;
-  if (state.status !== 'ready' || !runtime.token)
+  if (state.status !== 'ready' || !runtime.credential)
     throw new Error('The runtime is not ready.');
   const run: BenchRun = {
     id: randomUUID(),
@@ -296,7 +302,7 @@ async function benchOnce(): Promise<BenchRun> {
     run.steps = await runBench(
       {
         address: state.address,
-        token: runtime.token,
+        token: runtime.credential,
         run: run.id,
         real: run.real,
         worktrees: state.worktrees,
@@ -448,14 +454,51 @@ function json(response: ServerResponse, status: number, value: unknown) {
   response.end(JSON.stringify(value));
 }
 
+/**
+ * Mint a one-use pairing link for the embedded web, against whatever runtime
+ * is live right now. It is the lab's own door, not Porcelain's: the browser is
+ * asking the supervisor, which reaches the owner socket on its behalf.
+ */
+async function mintPairingLink(
+  request: IncomingMessage,
+  response: ServerResponse,
+) {
+  const state = runtime.state;
+  if (
+    request.method !== 'POST' ||
+    state.status !== 'ready' ||
+    !runtime.socketPath
+  ) {
+    json(response, 503, {
+      error: 'LAB_RUNTIME_NOT_READY',
+      message: 'The server is not running.',
+    });
+    return;
+  }
+  try {
+    const issued = (await overSocket(runtime.socketPath, '/pairings', {
+      labels: [`Lab browser ${new Date().toISOString()}`],
+      addresses: [new URL(state.address).origin],
+    })) as { grants: { link: string }[] };
+    const link = issued.grants[0]?.link;
+    if (!link) throw new Error('The owner socket issued no pairing link');
+    json(response, 200, { link });
+  } catch (error) {
+    json(response, 503, {
+      error: 'LAB_PAIRING',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 function proxy(
   request: IncomingMessage,
   response: ServerResponse,
   path: string,
-  kind: 'console' | 'web',
+  kind: 'console' | 'web' | 'mcp',
 ) {
   const state = runtime.state;
-  if (state.status !== 'ready' || !runtime.token) {
+  if (state.status !== 'ready' || !runtime.credential || !runtime.socketPath) {
     json(response, 503, {
       error: 'LAB_RUNTIME_NOT_READY',
       message: 'The server is not running.',
@@ -467,22 +510,37 @@ function proxy(
     ...request.headers,
   };
   if (kind === 'console') {
-    // The lab speaks for the reviewer with the bearer token, like the CLI would.
-    headers.authorization = `Bearer ${runtime.token}`;
+    // The lab speaks for the reviewer with this run's own device credential.
+    headers.authorization = `Bearer ${runtime.credential}`;
     headers.host = target.host;
     delete headers.origin;
     delete headers.referer;
     delete headers.cookie;
     headers['x-lab-origin'] ??= 'console';
+  } else if (kind === 'mcp') {
+    // Reaching the socket is the whole credential; nothing is presented.
+    delete headers.authorization;
+    delete headers.origin;
+    delete headers.referer;
+    delete headers.cookie;
+    headers['x-lab-origin'] = 'mcp';
   } else headers['x-lab-origin'] = 'web';
   const upstream = httpRequest(
-    {
-      hostname: target.hostname,
-      port: target.port,
-      method: request.method,
-      path,
-      headers,
-    },
+    kind === 'mcp'
+      ? {
+          socketPath: runtime.socketPath,
+          method: request.method,
+          path,
+          headers,
+          agent: false,
+        }
+      : {
+          hostname: target.hostname,
+          port: target.port,
+          method: request.method,
+          path,
+          headers,
+        },
     (reply) => {
       response.writeHead(reply.statusCode ?? 502, reply.headers);
       reply.pipe(response);
@@ -522,6 +580,18 @@ server.on('request', async (request, response) => {
         (request.url ?? '/').slice('/porcelain-web'.length) || '/',
         'web',
       );
+      return;
+    }
+    // The agent door is a Unix socket, so the console reaches it here rather
+    // than through the network listener, which no longer serves MCP at all.
+    if (path === '/porcelain-mcp') {
+      proxy(request, response, '/mcp', 'mcp');
+      return;
+    }
+    // The embedded web asks here for a pairing link, because only the
+    // supervisor knows which socket and address are current.
+    if (path === '/porcelain-pairing') {
+      await mintPairingLink(request, response);
       return;
     }
     if (path.startsWith('/porcelain/') || path === '/porcelain') {

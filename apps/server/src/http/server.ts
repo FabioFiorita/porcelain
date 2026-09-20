@@ -21,10 +21,7 @@ declare module 'fastify' {
 }
 
 import type { Application } from '../application.ts';
-import {
-  absolutePathSchema,
-  serverSettingsSchema,
-} from '../config/server-settings.ts';
+import { absolutePathSchema } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
 import {
   checkRequestOrigin,
@@ -41,7 +38,6 @@ import { gitActionRoutes } from './routes/git-actions.ts';
 import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
-import { mcpRoutes } from './routes/mcp.ts';
 import { pairRoutes } from './routes/pair.ts';
 import { reviewEvidenceRoutes } from './routes/review-evidence.ts';
 import { reviewLayerRoutes } from './routes/review-layers.ts';
@@ -50,21 +46,19 @@ import { registerStaticFiles } from './static-files.ts';
 
 export type NetworkServerOptions = {
   application: Application;
-  token: string;
   webRoot?: string;
 } & Partial<OriginPolicy>;
 
 type ServerOptions = Parameters<typeof openApplication>[0] & {
-  token: string;
   webRoot?: string;
 } & Partial<OriginPolicy>;
 
 function registerApiRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.register(browserSessionRoutes, options);
-  server.register(healthRoute);
+  server.register(healthRoute, options);
   server.register(pairRoutes, options);
   server.register(gitActionRoutes, options);
   server.register(commitDraftRoutes, options);
@@ -73,7 +67,6 @@ function registerApiRoutes(
   server.register(reviewEvidenceRoutes, options);
   server.register(reviewedFileRoutes, options);
   server.register(commentRoutes, options);
-  server.register(mcpRoutes, options);
   server.register(filePreferenceRoutes, options);
   server.register(fileRoutes, options);
   server.register(inventoryRoutes, options);
@@ -90,11 +83,9 @@ function registerApiRoutes(
 export function createNetworkServer(options: NetworkServerOptions) {
   const {
     application,
-    token: configuredToken,
     webRoot: configuredWebRoot,
     allowedHosts = [],
   } = options;
-  const { token } = serverSettingsSchema.parse({ token: configuredToken });
   const webRoot =
     configuredWebRoot === undefined
       ? undefined
@@ -136,7 +127,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   server.decorate('refreshed', () => application.ready());
   server.register(
     async (api) => {
-      registerApiRoutes(api, { application, token });
+      registerApiRoutes(api, { application });
     },
     { prefix: '/api' },
   );
@@ -150,15 +141,18 @@ export function createNetworkServer(options: NetworkServerOptions) {
  * nothing else, which is every test and the server lab.
  */
 export async function createServer(options: ServerOptions) {
-  const { token, webRoot, allowedHosts, ...applicationOptions } = options;
+  const { webRoot, allowedHosts, ...applicationOptions } = options;
   const application = await openApplication(applicationOptions);
   const server = createNetworkServer({
     application,
-    token,
     ...(webRoot === undefined ? {} : { webRoot }),
     ...(allowedHosts === undefined ? {} : { allowedHosts }),
   });
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
-  return server;
+  // The caller owns this instance and its application together; exposing it
+  // lets a test pair a device the way a browser does. It is on the returned
+  // type rather than on every Fastify instance, because a listener the runtime
+  // built does not own its application and must not appear to.
+  return Object.assign(server, { application });
 }

@@ -7,10 +7,8 @@ import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { reviewedMarksResponseSchema } from '@porcelain/contracts/reviewed-files';
 import type { GitStatusObservation } from '@porcelain/git/dtos/git-status';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
-
-const token = 'fixture-reviewed-files-token-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 
 it('serves exact evidence, persists worktree marks, rejects stale fingerprints, and removes idempotently', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-reviewed-http-'));
@@ -54,9 +52,9 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
     ],
   };
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
     inspectionGit: () => ({
       readStatus: async () => observation,
       readDiff: async () => ({
@@ -70,6 +68,7 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
         })),
     }),
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = projectResponseSchema.parse(
       (

@@ -5,10 +5,9 @@ import { join } from 'node:path';
 import { commentThreadsSchema } from '@porcelain/contracts/comments';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 it('persists authenticated discussion across refresh, unavailability and restart over real HTTP', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-comments-'));
   const path = join(root, 'repo');
@@ -16,10 +15,11 @@ it('persists authenticated discussion across refresh, unavailability and restart
   execFileSync('git', ['init', '-b', 'main', path]);
   const dataDirectory = join(root, 'state');
   const server = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const project = projectResponseSchema.parse(
       (
@@ -124,9 +124,9 @@ it('persists authenticated discussion across refresh, unavailability and restart
     });
     await server.close();
     const restarted = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     try {
       const result = await restarted.inject({ method: 'GET', url, headers });
@@ -152,10 +152,11 @@ it('persists authenticated discussion across refresh, unavailability and restart
 it('authenticates every operation and rejects malformed anchors, bodies and cross-scope targets safely', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-comments-errors-'));
   const server = await createServer({
+    pairingReach,
     dataDirectory: root,
     projectHome: root,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   const url = '/api/worktrees/00000000-0000-4000-8000-000000000001/comments';
   const threadUrl = `${url}/00000000-0000-4000-8000-000000000002`;
   try {
@@ -250,11 +251,12 @@ it('assigns reviewer authorship and the application clock without trusting publi
   execFileSync('git', ['init', '-b', 'main', path]);
   const timestamp = '2026-09-14T02:03:04.000Z';
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
     now: () => timestamp,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const project = projectResponseSchema.parse(
       (

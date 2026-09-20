@@ -4,12 +4,13 @@ import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
 import { toInventoryResponse } from '../mappers/inventory-response.ts';
 import { authenticate } from '../middlewares/authenticate.ts';
-import { clearBrowserSession } from '../middlewares/browser-session.ts';
+import { clearDeviceCookie } from '../middlewares/device-cookie.ts';
 import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
+
 export async function browserSessionRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.withTypeProvider<ZodTypeProvider>().get(
@@ -31,7 +32,7 @@ export async function browserSessionRoutes(
         message: 'Browser request header required',
       });
     }
-    clearBrowserSession(reply);
+    clearDeviceCookie(reply);
     return reply.code(204).send();
   });
 }

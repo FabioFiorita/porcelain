@@ -6,8 +6,6 @@ import { expect, it } from 'vitest';
 import { startRuntime } from '../lifecycle/runtime.ts';
 import { reportStatus, statusExitCodes } from './status.ts';
 
-const token = 'fixture-token-with-at-least-32-characters';
-
 function recorder() {
   const out: string[] = [];
   const err: string[] = [];
@@ -27,7 +25,6 @@ it('reports a running server and exits zero', async () => {
   const runtime = await startRuntime({
     dataDirectory,
     projectHome: join(root, 'home'),
-    token,
     port: 0,
   });
   try {
@@ -60,7 +57,6 @@ it('says so and exits nonzero when nothing is running', async () => {
     const runtime = await startRuntime({
       dataDirectory,
       projectHome: join(root, 'home'),
-      token,
       port: 0,
     });
     await runtime.close();

@@ -51,14 +51,14 @@ export async function runWebPlayground(options: {
     ]);
     const info = JSON.parse(line as string) as {
       address: string;
-      tokenFile: string;
+      socketPath: string;
       profile: PlaygroundProfileName;
     };
     if (signal.aborted) throw new Error('Startup cancelled');
     if (manifest)
       await writeFile(manifest, JSON.stringify(info), { mode: 0o600 });
     process.stdout.write(
-      `Playground profile: ${info.profile}\nAccess token file: ${info.tokenFile}\n`,
+      `Playground profile: ${info.profile}\nOwner socket: ${info.socketPath}\n`,
     );
     const vite = spawn(
       process.execPath,
@@ -77,7 +77,7 @@ export async function runWebPlayground(options: {
         env: {
           ...process.env,
           PORCELAIN_API_TARGET: info.address,
-          PORCELAIN_PLAYGROUND_TOKEN_FILE: !preview ? info.tokenFile : '',
+          PORCELAIN_PLAYGROUND_SOCKET: !preview ? info.socketPath : '',
           PORCELAIN_PLAYGROUND_BRIDGE: !preview ? '1' : '0',
           PORCELAIN_PLAYGROUND_AUTO_CONNECT:
             !preview && !options.manual ? '1' : '0',

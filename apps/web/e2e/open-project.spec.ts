@@ -1,18 +1,17 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('finds and browses real server repositories in both themes', async ({
   page,
 }, testInfo) => {
-  const manifest = playgroundManifest();
-  const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
-  const root = dirname(tokenFile);
+  // Discovery searches the playground's project home, which is the folder
+  // its sample repository sits in.
+  const { projectPath } = await playgroundInfo<{ projectPath: string }>();
+  const root = dirname(projectPath);
   const group = `code-${testInfo.project.name}`;
   const first = `found-${testInfo.project.name}`;
   const second = `browse-${testInfo.project.name}`;
@@ -27,9 +26,7 @@ test('finds and browses real server repositories in both themes', async ({
       },
     });
   }
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: 'Open project', exact: true }).click();
   let dialog = page.getByRole('dialog', { name: 'Open project', exact: true });

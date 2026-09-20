@@ -29,7 +29,6 @@ export function createReviewMock(
       (item) => item.id === request.projectId,
     );
     if (
-      !request.token ||
       store.rejected ||
       !project?.worktrees.some((item) => item.id === request.worktreeId)
     )

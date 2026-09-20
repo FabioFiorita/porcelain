@@ -1,12 +1,8 @@
 import { homedir } from 'node:os';
 import { z } from 'zod';
-import {
-  absolutePathSchema,
-  listenHostSchema,
-  serverSettingsSchema,
-} from './server-settings.ts';
+import { absolutePathSchema, listenHostSchema } from './server-settings.ts';
 
-export const startupSettingsSchema = serverSettingsSchema.extend({
+export const startupSettingsSchema = z.object({
   dataDirectory: absolutePathSchema,
   /** Where project discovery and folder browsing start. */
   projectHome: absolutePathSchema,
@@ -25,7 +21,6 @@ export function readStartupSettings(environment: NodeJS.ProcessEnv) {
   return startupSettingsSchema.parse({
     dataDirectory: environment.PORCELAIN_DATA_DIRECTORY,
     projectHome: environment.PORCELAIN_PROJECT_HOME ?? homedir(),
-    token: environment.PORCELAIN_TOKEN,
     port: /^\d+$/.test(environment.PORCELAIN_PORT ?? '')
       ? Number(environment.PORCELAIN_PORT)
       : undefined,

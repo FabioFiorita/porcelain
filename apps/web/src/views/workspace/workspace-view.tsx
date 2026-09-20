@@ -1,9 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { cn } from '@/lib/utils';
 import { useConnection } from '../../query/connection';
-import { ConnectionForm } from '../connection/connection-form';
+import { DisconnectedPage } from '../connection/disconnected-page';
+import { NotPaired } from '../connection/not-paired';
 import { ConnectedWorkspace } from './connected-workspace';
-import { ThemeProvider } from './theme';
 import { WorkspacePending } from './workspace-pending';
 
 const Devtools = import.meta.env.DEV
@@ -25,35 +24,30 @@ const PlaygroundAutoConnect =
 
 export function WorkspaceView() {
   const { connected } = useConnection();
-  return (
-    <ThemeProvider>
-      {!connected && (
-        <div className="absolute right-4 top-3">
-          <h1 className="font-medium">Porcelain</h1>
-        </div>
-      )}
-
-      <div
-        role={connected ? undefined : 'main'}
-        className={cn(
-          !connected &&
-            'mx-auto flex min-h-svh max-w-6xl flex-col items-start gap-6 px-6 py-24',
-        )}
-      >
-        {PlaygroundAutoConnect && (
-          <Suspense fallback={null}>
-            <PlaygroundAutoConnect />
-          </Suspense>
-        )}
-        <Suspense fallback={<WorkspacePending />}>
-          {connected ? <ConnectedWorkspace /> : <ConnectionForm />}
+  const body = (
+    <>
+      {PlaygroundAutoConnect && (
+        <Suspense fallback={null}>
+          <PlaygroundAutoConnect />
         </Suspense>
-      </div>
+      )}
+      <Suspense fallback={<WorkspacePending />}>
+        {connected ? <ConnectedWorkspace /> : <NotPaired />}
+      </Suspense>
+    </>
+  );
+  return (
+    <>
+      {connected ? (
+        <div>{body}</div>
+      ) : (
+        <DisconnectedPage>{body}</DisconnectedPage>
+      )}
       {Devtools && (
         <Suspense fallback={null}>
           <Devtools />
         </Suspense>
       )}
-    </ThemeProvider>
+    </>
   );
 }

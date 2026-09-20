@@ -8,7 +8,7 @@ import { setReviewedFile } from './set-reviewed-file.ts';
 
 export async function reviewedFileRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

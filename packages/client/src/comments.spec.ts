@@ -3,7 +3,6 @@ import { createCommentsClient } from './comments.ts';
 
 const request = {
   worktreeId: '801a8628-1cd6-4562-81a2-9c05fba76b4a',
-  token: 'fixture',
   signal: new AbortController().signal,
 };
 it('posts a literal file anchor and validates the returned discussion', async () => {
@@ -15,7 +14,7 @@ it('posts a literal file anchor and validates the returned discussion', async ()
     expect(url).toBe(`/api/worktrees/${request.worktreeId}/comments`);
     expect(init?.method).toBe('POST');
     expect(JSON.parse(String(init?.body))).toEqual(input);
-    expect(init?.credentials).toBe('omit');
+    expect(init?.credentials).toBe('same-origin');
     expect(init?.redirect).toBe('error');
     return Response.json([
       {

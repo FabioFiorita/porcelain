@@ -5,11 +5,10 @@ export function createSessionMock(
   store: ReturnType<typeof createMockStore>,
 ): SessionPort {
   return {
-    restore: (signal) =>
-      createInventoryMock(store).read({ token: store.sessionToken, signal }),
+    restore: (signal) => createInventoryMock(store).read({ signal }),
     async disconnect() {
       if (store.disconnectFailed) throw new Error('Offline');
-      store.sessionToken = '';
+      store.paired = false;
     },
   };
 }

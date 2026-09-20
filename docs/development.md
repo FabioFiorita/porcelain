@@ -17,7 +17,7 @@ large-monorepo scale, or `--profile=fixture` for the small sample that tests use
 ([profiles](../playgrounds/README.md#profiles)). Without the flag, `--preview` and runs that set
 `PORCELAIN_PLAYGROUND_DIRECTORY` (as the browser smoke does) use `fixture`.
 
-`pnpm dev --manual` exercises token entry. `pnpm dev:web` starts only Vite; set
+`pnpm dev --manual` leaves the browser unpaired, so you can pair it from the Playground tab. `pnpm dev:web` starts only Vite; set
 `PORCELAIN_API_TARGET` to a separately running API address to proxy `/api` requests.
 Mocks are test fixtures, not a separate way to run the application.
 
@@ -59,8 +59,8 @@ covers the browser only. Electron, mobile and remote connectivity need verificat
 
 `pnpm serve` is the normal persistent launcher for a Linux or macOS machine. It builds the web
 app, starts the API and serves that build from one origin. It keeps the SQLite state in
-`~/.porcelain/` and creates or reuses `~/.porcelain/admin-token` with mode `0600`; the token is
-never printed. The launcher defaults to loopback:
+`~/.porcelain/`. There is no shared access token: nothing can reach the server until a device
+is paired. The launcher defaults to loopback:
 
 ```sh
 pnpm serve
@@ -72,17 +72,42 @@ For access from another device on the same network:
 pnpm serve --lan
 ```
 
-The command prints the listening address and token-file path. Enter the token from that file in
-the browser once; the browser session is then persisted by the server. `--host <host>` and
-`--port <port>` are also available. `--lan` is shorthand for `--host 0.0.0.0`; it cannot be
-combined with `--host`. Use `--data-directory <absolute-path>` or `--token-file <absolute-path>`
-when a different persistent location is required. The existing `pnpm dev` command remains the
+The command prints the listening address. Pair the device that will use it:
+
+```sh
+porcelain pair "Laptop" --address <the address printed above>
+```
+
+The address must be one this server answers at — pairing refuses a link aimed anywhere else, which
+is why nothing is guessed here. If you are unsure, open Porcelain on the device: the not-paired
+screen shows the command with that device's own origin already in it.
+
+Open the printed link on that device. It works once, expires, and carries its code in the URL
+fragment, which browsers never send — so the code stays out of request lines, access logs and
+`Referer` headers. The browser then holds an HttpOnly cookie no script can read, renewed on
+every use and good for 90 days of disuse. `porcelain devices` lists pending links and paired
+devices; `porcelain revoke <id>` ends either one at once, including any request that device is
+holding open. Revoking is the only way to end a device's access: the server can expire a browser's
+cookie (`DELETE /api/session`), but no control in the web app calls it today, and expiring a cookie
+would not revoke the device anyway.
+
+`--host <host>` and `--port <port>` are also available. `--lan` is shorthand for `--host
+0.0.0.0`; it cannot be combined with `--host`. Use `--data-directory <absolute-path>` when a
+different persistent location is required. The existing `pnpm dev` command remains the
 disposable sample-project workflow.
+
+### Upgrading from an installation that used the access token
+
+`--token-file` is gone and fails argument parsing with the command that replaces it. An
+installation that used the default path starts normally and simply leaves `~/.porcelain/admin-token`
+behind, inert — Porcelain does not delete it, because it is your file; remove it when you like.
+`PORCELAIN_TOKEN` in the environment is ignored. An MCP client configured with the old HTTP URL
+fails until it is changed: see [agent review](agent-review.md).
 
 ## Standalone server
 
 The underlying server can host a built browser client and its API from one origin. Build the
-web app first, then supply an explicit data directory, port, token and absolute web root:
+web app first, then supply an explicit data directory, port and absolute web root:
 
 ```sh
 pnpm --filter @porcelain/web build
@@ -90,7 +115,6 @@ PORCELAIN_DATA_DIRECTORY="$(mktemp -d)" \
 PORCELAIN_PORT=0 \
 PORCELAIN_HOST=127.0.0.1 \
 PORCELAIN_WEB_ROOT="$PWD/apps/web/dist" \
-PORCELAIN_TOKEN="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))')" \
 pnpm --filter @porcelain/server start
 ```
 
@@ -100,8 +124,8 @@ the server never widens its listener implicitly. `PORCELAIN_WEB_ROOT` is also op
 an absolute path; without it the process remains API-only. Every API route lives under `/api`;
 there are no bare-path equivalents, and the development proxy forwards the prefix unchanged.
 
-The server prints its address, never its token. Use a caller-managed token if connecting manually.
-SIGINT/SIGTERM closes the server; remove disposable state after it stops. Only one process may own
+The server prints its address. Pair a device through the owner socket with `porcelain pair`;
+there is no environment variable that grants access. SIGINT/SIGTERM closes the server; remove disposable state after it stops. Only one process may own
 a data directory, and `porcelain status` reports who does. A crash needs no recovery step: the
 startup lock dies with its holder and the next start removes a socket that no longer answers. The
 data directory must stay owner-only (`chmod 700`), because the owner socket inside it is protected

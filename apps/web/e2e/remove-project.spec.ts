@@ -2,18 +2,14 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('removes a project through its menu while preserving repository files', async ({
   page,
-  request,
 }, testInfo) => {
-  const manifest = playgroundManifest();
-  const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
-  const path = join(dirname(tokenFile), `removal-${testInfo.project.name}`);
+  const { projectPath } = await playgroundInfo<{ projectPath: string }>();
+  const path = join(dirname(projectPath), `removal-${testInfo.project.name}`);
   await mkdir(path);
   const git = (...args: string[]) =>
     execFileSync('git', args, {
@@ -27,16 +23,14 @@ test('removes a project through its menu while preserving repository files', asy
   git('init', '-b', 'main', path);
   await writeFile(join(path, 'notes.txt'), 'Keep this local work.\n');
   const before = git('-C', path, 'status', '--porcelain=v2');
-  const token = await readFile(tokenFile, 'utf8');
-  const added = await request.post('/api/projects', {
-    headers: { authorization: `Bearer ${token}` },
-    data: { path },
-  });
+  await pairBrowser(page);
+  // page.request shares this context's cookie jar, so the API call is made by
+  // the device this page paired and needs no credential of its own.
+  const added = await page.request.post('/api/projects', { data: { path } });
   expect(added.ok()).toBe(true);
   const project = await added.json();
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(token);
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  // The page loaded before this project existed; a reload picks it up.
+  await page.reload();
   await openNavigation(page);
   await page
     .getByRole('button', { name: new RegExp(`main.*${project.name}`) })

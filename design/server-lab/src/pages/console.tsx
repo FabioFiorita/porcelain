@@ -424,7 +424,10 @@ function ParamInput({
 type Tool = { name: string; description?: string; inputSchema?: unknown };
 
 async function mcp(method: string, params?: unknown, run?: string) {
-  const response = await porcelain('POST', '/api/mcp', {
+  // The agent door is a Unix socket, not a network route. The lab forwards
+  // `/porcelain-mcp` to it, and `porcelain` prefixes `/porcelain`, so this
+  // asks for exactly that path.
+  const response = await porcelain('POST', '-mcp', {
     origin: 'mcp',
     run,
     headers: { accept: 'application/json, text/event-stream' },

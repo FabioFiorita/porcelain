@@ -13,13 +13,11 @@ import {
 
 const defaultHost = '127.0.0.1';
 const defaultPort = 3000;
-const defaultTokenFileName = 'admin-token';
 const wildcardHosts = new Set(['0.0.0.0', '::']);
 
 /** Environment variables consumed by the installed and repository launchers. */
 export type ServeEnvironment = {
   PORCELAIN_DATA_DIRECTORY?: string;
-  PORCELAIN_TOKEN_FILE?: string;
   PORCELAIN_HOST?: string;
   PORCELAIN_PORT?: string;
 };
@@ -27,7 +25,6 @@ export type ServeEnvironment = {
 export type ServeSettings = {
   dataDirectory: string;
   projectHome: string;
-  tokenFile: string;
   host: string;
   port: number;
   webRoot: string;
@@ -61,7 +58,6 @@ export type CliCommand =
 
 type ServeArguments = {
   dataDirectory?: string;
-  tokenFile?: string;
   host?: string;
   port?: number;
   allowHosts: string[];
@@ -214,11 +210,13 @@ function parseArguments(args: readonly string[]): ServeArguments {
       index = option.nextIndex;
       continue;
     }
+    // Removed with the shared token. Named explicitly rather than falling into
+    // "unknown option", because anyone typing it is following old instructions
+    // and needs to know what replaced it.
     if (argument === '--token-file' || argument?.startsWith('--token-file=')) {
-      const option = optionValue(args, index, '--token-file');
-      parsed.tokenFile = parseAbsolutePath(option.value, '--token-file');
-      index = option.nextIndex;
-      continue;
+      throw new ServeConfigurationError(
+        '--token-file is gone: there is no shared access token. Pair a device with: porcelain pair <name> --address <origin>',
+      );
     }
     if (argument === '--host' || argument?.startsWith('--host=')) {
       const option = optionValue(args, index, '--host');
@@ -267,20 +265,6 @@ function dataDirectoryFor(
       'PORCELAIN_DATA_DIRECTORY',
     );
   return join(homeDirectory, '.porcelain');
-}
-
-function tokenFileFor(
-  parsed: ServeArguments,
-  environment: ServeEnvironment,
-  dataDirectory: string,
-): string {
-  if (parsed.tokenFile) return parsed.tokenFile;
-  if (environment.PORCELAIN_TOKEN_FILE)
-    return parseAbsolutePath(
-      environment.PORCELAIN_TOKEN_FILE,
-      'PORCELAIN_TOKEN_FILE',
-    );
-  return join(dataDirectory, defaultTokenFileName);
 }
 
 /**
@@ -334,7 +318,6 @@ export function parseCliArguments(
     return { command: 'revoke', settings: { dataDirectory, id } };
   }
 
-  const tokenFile = tokenFileFor(parsed, environment, dataDirectory);
   const host = parsed.lan
     ? '0.0.0.0'
     : (parsed.host ??
@@ -362,7 +345,6 @@ export function parseCliArguments(
     settings: {
       dataDirectory,
       projectHome: homeDirectory,
-      tokenFile,
       host,
       port,
       webRoot: parseAbsolutePath(webRoot, 'web root'),

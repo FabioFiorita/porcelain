@@ -9,7 +9,7 @@ import { resolveCommentThread } from './resolve-comment-thread.ts';
 
 export async function commentRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

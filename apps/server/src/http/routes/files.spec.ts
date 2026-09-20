@@ -22,18 +22,18 @@ import {
   type FileErrorCode,
   FileInspectionError,
 } from '../../filesystem/errors/file-inspection-error.ts';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
+
 import { createServer } from '../server.ts';
 
 describe('Files HTTP', () => {
-  const token = 'files-fixture-token-at-least-32-characters';
-  const headers = { authorization: `Bearer ${token}` };
-
   async function fixture(
     run: (
       server: Awaited<ReturnType<typeof createServer>>,
       root: string,
       path: string,
       id: string,
+      headers: { authorization: string },
     ) => Promise<void>,
     options: Partial<Parameters<typeof createServer>[0]> = {},
   ) {
@@ -44,11 +44,12 @@ describe('Files HTTP', () => {
     await mkdir(path);
     execFileSync('git', ['init', '-b', 'main', path]);
     const server = await createServer({
+      pairingReach,
       dataDirectory: join(root, 'state'),
       projectHome: join(root, 'state'),
-      token,
       ...options,
     });
+    const headers = await pairDevice(server, server.application);
     try {
       const registered = await server.inject({
         method: 'POST',
@@ -59,7 +60,7 @@ describe('Files HTTP', () => {
       const project = projectResponseSchema.parse(registered.json());
       const id = project.worktrees[0]?.id;
       if (!id) throw new Error('Fixture registration failed');
-      await run(server, root, path, id);
+      await run(server, root, path, id, headers);
     } finally {
       await server.close();
       await rm(root, { recursive: true, force: true });
@@ -67,7 +68,7 @@ describe('Files HTTP', () => {
   }
 
   it('serves bounded preview assets while rejecting unauthenticated, escaping and symlink reads', async () => {
-    await fixture(async (server, root, path, id) => {
+    await fixture(async (server, root, path, id, headers) => {
       const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
       await writeFile(join(path, 'image.png'), bytes);
       const url = `/api/worktrees/${id}/asset?path=image.png`;
@@ -104,7 +105,7 @@ describe('Files HTTP', () => {
   });
 
   it('lists and reads through real authenticated loopback HTTP with exact public schemas', async () =>
-    fixture(async (server, _root, path, id) => {
+    fixture(async (server, _root, path, id, headers) => {
       await mkdir(join(path, 'src'));
       await writeFile(join(path, 'src', 'app.ts'), 'olá\r\n');
       const address = await server.listen({ host: '127.0.0.1', port: 0 });
@@ -145,9 +146,9 @@ describe('Files HTTP', () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-files-auth-'));
     let reads = 0;
     const server = await createServer({
+      pairingReach,
       dataDirectory: root,
       projectHome: root,
-      token,
       files: {
         list: async () => {
           reads++;
@@ -159,6 +160,7 @@ describe('Files HTTP', () => {
         },
       },
     });
+    const headers = await pairDevice(server, server.application);
     try {
       for (const operation of ['directory', 'text']) {
         const response = await server.inject({
@@ -207,7 +209,7 @@ describe('Files HTTP', () => {
   });
 
   it('excludes metadata, refuses symlinks and decodes path queries only once', async () =>
-    fixture(async (server, root, path, id) => {
+    fixture(async (server, root, path, id, headers) => {
       await writeFile(join(path, '%2e%2e'), 'literal encoded filename');
       await writeFile(join(root, 'private'), 'outside');
       await symlink(join(root, 'private'), join(path, 'link'));
@@ -239,7 +241,7 @@ describe('Files HTTP', () => {
     }));
 
   it('rejects missing or replaced checkouts and known unavailable inventory', async () =>
-    fixture(async (server, root, path, id) => {
+    fixture(async (server, root, path, id, headers) => {
       const url = `/api/worktrees/${id}/directory?path=`;
       await rename(path, join(root, 'moved'));
       expect(
@@ -264,7 +266,7 @@ describe('Files HTTP', () => {
   it('maps every file failure safely without exposing causes or paths', async () => {
     let failure: Error = new Error('private path and credentials');
     await fixture(
-      async (server, _root, _path, id) => {
+      async (server, _root, _path, id, headers) => {
         const failures: [FileErrorCode, number][] = [
           ['INVALID_REQUEST', 400],
           ['WORKTREE_NOT_FOUND', 404],
@@ -320,7 +322,7 @@ describe('Files HTTP', () => {
   });
 
   it('reads a linked worktree by its own identity rather than the main checkout', async () =>
-    fixture(async (server, root, path, mainId) => {
+    fixture(async (server, root, path, mainId, headers) => {
       execFileSync('git', [
         '-C',
         path,
@@ -371,7 +373,7 @@ describe('Files HTTP', () => {
       }
     }));
   it('writes only the expected text version and lists searchable paths including ignored and linked entries', async () =>
-    fixture(async (server, _root, path, id) => {
+    fixture(async (server, _root, path, id, headers) => {
       await mkdir(join(path, 'src'));
       await writeFile(join(path, 'src/a.ts'), 'original');
       await writeFile(join(path, '.gitignore'), 'ignored/\n');

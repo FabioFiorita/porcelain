@@ -3,6 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { healthResponseSchema } from '@porcelain/contracts/health';
 import { describe, expect, it } from 'vitest';
+import {
+  pairBrowser,
+  pairDevice,
+  pairingReach,
+} from './helpers/paired-server.ts';
 import { createServer } from './server.ts';
 
 describe('HTTP server', () => {
@@ -10,9 +15,9 @@ describe('HTTP server', () => {
     const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-shutdown-'));
     const entered = Promise.withResolvers<void>();
     const server = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token: 'fixture-token-with-at-least-32-characters',
       git: () => ({
         listWorktrees: (signal) =>
           new Promise((_resolve, reject) => {
@@ -23,12 +28,13 @@ describe('HTTP server', () => {
           }),
       }),
     });
+    const headers = await pairDevice(server, server.application);
     try {
       const address = await server.listen({ host: '127.0.0.1', port: 0 });
       const response = fetch(`${address}/api/projects`, {
         method: 'POST',
         headers: {
-          authorization: 'Bearer fixture-token-with-at-least-32-characters',
+          ...headers,
           'content-type': 'application/json',
         },
         body: JSON.stringify({ path: dataDirectory }),
@@ -46,9 +52,9 @@ describe('HTTP server', () => {
     const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-http-'));
     try {
       const server = await createServer({
+        pairingReach,
         dataDirectory,
         projectHome: dataDirectory,
-        token: 'fixture-token-with-at-least-32-characters',
       });
       try {
         expect(server.server.listening).toBe(false);
@@ -57,10 +63,12 @@ describe('HTTP server', () => {
           url: '/api/health',
         });
         expect(response.statusCode).toBe(200);
+        // The id is what a pairing link carries, so health has to publish the
+        // installation's own value, not a constant.
         expect(healthResponseSchema.parse(response.json())).toEqual({
           status: 'ok',
+          environmentId: server.application.inventory().environmentId,
         });
-        expect(response.json()).toEqual({ status: 'ok' });
         expect(
           (await server.inject({ method: 'GET', url: '/api/inventory' }))
             .statusCode,
@@ -70,9 +78,9 @@ describe('HTTP server', () => {
       }
       // Application lifecycle releases persistence so it can be opened again.
       const reopened = await createServer({
+        pairingReach,
         dataDirectory,
         projectHome: dataDirectory,
-        token: 'fixture-token-with-at-least-32-characters',
       });
       await reopened.close();
     } finally {
@@ -84,15 +92,18 @@ describe('HTTP server', () => {
     const dataDirectory = await mkdtemp(join(tmpdir(), 'porcelain-listener-'));
     try {
       const server = await createServer({
+        pairingReach,
         dataDirectory,
         projectHome: dataDirectory,
-        token: 'fixture-token-with-at-least-32-characters',
       });
       try {
         const address = await server.listen({ host: '127.0.0.1', port: 0 });
         const response = await fetch(`${address}/api/health`);
         expect(response.status).toBe(200);
-        expect(await response.json()).toEqual({ status: 'ok' });
+        expect(await response.json()).toEqual({
+          status: 'ok',
+          environmentId: server.application.inventory().environmentId,
+        });
       } finally {
         await server.close();
       }
@@ -106,43 +117,43 @@ describe('HTTP server', () => {
     const dataDirectory = await mkdtemp(
       join(tmpdir(), 'porcelain-api-prefix-'),
     );
-    const token = 'fixture-token-with-at-least-32-characters';
     const server = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
+    const headers = await pairDevice(server, server.application);
     try {
       expect(
         (await server.inject({ method: 'GET', url: '/api/health' })).json(),
-      ).toEqual({ status: 'ok' });
+      ).toEqual({
+        status: 'ok',
+        environmentId: server.application.inventory().environmentId,
+      });
       expect(
         (await server.inject({ method: 'GET', url: '/api/inventory' }))
           .statusCode,
       ).toBe(401);
 
-      const inventory = await server.inject({
-        method: 'GET',
-        url: '/api/inventory',
-        headers: {
-          authorization: `Bearer ${token}`,
-          'x-porcelain-browser': '1',
-        },
-      });
-      expect(inventory.statusCode).toBe(200);
-      const cookie = inventory.headers['set-cookie'];
-      const setCookie = Array.isArray(cookie) ? cookie[0] : cookie;
+      const { cookie, setCookie } = await pairBrowser(
+        server,
+        server.application,
+      );
       expect(setCookie).toContain('Path=/api');
 
       const session = await server.inject({
         method: 'GET',
         url: '/api/session',
-        headers: {
-          cookie: setCookie?.split(';', 1)[0],
-          'x-porcelain-browser': '1',
-        },
+        headers: { cookie, 'x-porcelain-browser': '1' },
       });
       expect(session.statusCode).toBe(200);
+
+      const inventory = await server.inject({
+        method: 'GET',
+        url: '/api/inventory',
+        headers: { cookie },
+      });
+      expect(inventory.statusCode).toBe(200);
       expect(session.json()).toEqual(inventory.json());
 
       expect(
@@ -150,7 +161,7 @@ describe('HTTP server', () => {
           await server.inject({
             method: 'GET',
             url: '/api/inventory',
-            headers: { authorization: `Bearer ${token}` },
+            headers,
           })
         ).statusCode,
       ).toBe(200);
@@ -166,22 +177,29 @@ describe('HTTP server', () => {
     );
     try {
       const server = await createServer({
+        pairingReach,
         dataDirectory,
         projectHome: dataDirectory,
-        token: 'fixture-token-with-at-least-32-characters',
       });
       try {
         server.get(
           '/fixture',
           { schema: { response: { 200: healthResponseSchema } } },
-          () => ({ status: 'ok' as const, privatePath: '/fixture/private' }),
+          () => ({
+            status: 'ok' as const,
+            environmentId: 'fixture-environment',
+            privatePath: '/fixture/private',
+          }),
         );
         const response = await server.inject({
           method: 'GET',
           url: '/fixture',
         });
         expect(response.statusCode).toBe(200);
-        expect(response.json()).toEqual({ status: 'ok' });
+        expect(response.json()).toEqual({
+          status: 'ok',
+          environmentId: 'fixture-environment',
+        });
       } finally {
         await server.close();
       }
@@ -195,9 +213,9 @@ describe('HTTP server', () => {
       join(tmpdir(), 'porcelain-root-errors-'),
     );
     const server = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token: 'fixture-token-with-at-least-32-characters',
     });
     try {
       server.get('/failure', async () => {
@@ -231,18 +249,18 @@ describe('HTTP server', () => {
     const dataDirectory = await mkdtemp(
       join(tmpdir(), 'porcelain-json-errors-'),
     );
-    const token = 'fixture-token-with-at-least-32-characters';
     const server = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
+    const headers = await pairDevice(server, server.application);
     try {
       const response = await server.inject({
         method: 'POST',
         url: '/api/projects',
         headers: {
-          authorization: `Bearer ${token}`,
+          ...headers,
           'content-type': 'application/json',
         },
         payload: '{"path": private',

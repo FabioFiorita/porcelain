@@ -17,10 +17,8 @@ import { InspectionLimitError } from '@porcelain/git/errors/inspection-limit-err
 import { UnsupportedGitFiltersError } from '@porcelain/git/errors/unsupported-git-filters-error';
 import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-path-encoding-error';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
-
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 
 it('serves status and selected diffs over authenticated loopback HTTP and rejects stale or invalid selections', async () => {
   const root = await realpath(
@@ -32,10 +30,11 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
   await writeFile(join(path, 'file'), 'staged\n');
   execFileSync('git', ['-C', path, 'add', '.']);
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = await server.inject({
       method: 'POST',
@@ -156,9 +155,9 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
     cause: new Error('private path'),
   });
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
     inspectionGit: () => ({
       readStatus: async () => {
         throw failure;
@@ -167,6 +166,7 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
       readDiffs: async () => [],
     }),
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = await server.inject({
       method: 'POST',
@@ -214,9 +214,9 @@ it('aborts the signal a route passes into its lane when the client disconnects',
   const entered = Promise.withResolvers<void>();
   const cancelled = Promise.withResolvers<void>();
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
     inspectionGit: () => ({
       // The signal here is the one the request hook created and the route
       // handed to the lane; a queued caller is removed by the same signal.
@@ -237,6 +237,7 @@ it('aborts the signal a route passes into its lane when the client disconnects',
       readDiffs: async () => [],
     }),
   });
+  const headers = await pairDevice(server, server.application);
   const leaving = new AbortController();
   try {
     const registered = projectResponseSchema.parse(

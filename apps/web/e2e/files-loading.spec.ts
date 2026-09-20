@@ -1,15 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('keeps Files usable while the complete tree is slow or unavailable', async ({
   page,
 }) => {
-  const manifest = playgroundManifest();
-  const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -23,11 +18,7 @@ test('keeps Files usable while the complete tree is slow or unavailable', async 
     });
   });
   try {
-    await page.goto('/');
-    await page
-      .getByLabel('Access token')
-      .fill(await readFile(tokenFile, 'utf8'));
-    await page.getByRole('button', { name: 'Connect', exact: true }).click();
+    await pairBrowser(page);
     await openNavigation(page);
     await page.getByRole('button', { name: /^review / }).click();
     const files = page.getByRole('tab', { name: 'Files', exact: true });

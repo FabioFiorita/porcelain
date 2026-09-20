@@ -6,20 +6,20 @@ import { join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
 it('stores ordered metadata with atomic revision conflicts, refresh retention and restart durability over HTTP', async () => {
   const root = await mkdtemp(join(tmpdir(), 'layers-'));
-  const token = 'isolated-review-layers-test-token-12345';
-  const headers = { authorization: `Bearer ${token}` };
   const dataDirectory = join(root, 'state');
   const path = join(root, 'repo');
   execFileSync('git', ['init', '-b', 'main', path]);
   const server = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = await server.inject({
       method: 'POST',
@@ -150,9 +150,9 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
     ).toBe(404);
     await server.close();
     const restarted = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     try {
       expect(

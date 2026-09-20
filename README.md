@@ -18,9 +18,20 @@ Ctrl+C stops the processes and removes the sample state.
 - [Architecture](docs/architecture.md)
 
 For a persistent server that serves the built web app and can be opened from another device on
-the LAN, run `pnpm serve --lan`. It keeps projects and the access token under
-`~/.porcelain/`; the command prints the local address and token-file path without printing the
-token. Use `pnpm serve` for loopback-only access.
+the LAN, run `pnpm serve --lan`. It keeps projects under `~/.porcelain/` and prints the local
+address. Use `pnpm serve` for loopback-only access.
+
+Nothing can reach it until you pair a device. On the machine running the server:
+
+```sh
+porcelain pair "Phone" --address <the address the command printed>
+```
+
+That prints a link, good once, that you open on the device itself. The address has to be one this
+server answers at, so use what `pnpm serve` printed; the not-paired screen in the browser shows the
+whole command with the right address already filled in. `porcelain devices` lists
+what is paired and `porcelain revoke <id>` ends it, immediately and including whatever that
+device has open.
 
 To assemble the plain-Node package used by `npx @fabiofiorita/porcelain serve`, run
 `pnpm build:package`; it writes the ignored publishable package to `dist-porcelain/`.

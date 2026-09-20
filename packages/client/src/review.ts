@@ -28,8 +28,9 @@ import {
 } from '@porcelain/contracts/reviewed-files';
 import { ConnectionError } from './errors/connection-error.ts';
 import { RequestError } from './errors/request-error.ts';
+import { UnauthorizedError } from './errors/unauthorized-error.ts';
 
-type Request = { token: string; signal: AbortSignal; worktreeId: string };
+type Request = { signal: AbortSignal; worktreeId: string };
 export function createReviewClient(transport: typeof fetch, endpoint: string) {
   async function read<T>(
     request: Request,
@@ -49,14 +50,14 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
             }),
         headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${request.token}`,
         },
         signal: request.signal,
         redirect: 'error',
-        credentials: 'omit',
+        credentials: 'same-origin',
         cache: 'no-store',
       });
       if (!response.ok) {
+        if (response.status === 401) throw new UnauthorizedError();
         const failure = apiErrorSchema.safeParse(
           await response.json().catch(() => null),
         );
@@ -67,9 +68,7 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
             failure.data.message,
           );
         throw new ConnectionError(
-          response.status === 401
-            ? 'Access token was rejected. Disconnect and connect again.'
-            : 'This review surface could not be loaded. Refresh and try again.',
+          'This review surface could not be loaded. Refresh and try again.',
         );
       }
       return schema.parse(await response.json());

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   chmod,
   mkdir,
@@ -18,10 +19,15 @@ import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readStartupSettings } from '../config/startup-settings.ts';
+import { pairThroughSocket } from '../development/pair-through-socket.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { startRuntime } from './runtime.ts';
 
-const token = 'fixture-token-with-at-least-32-characters';
+/**
+ * Well-formed and never minted here: it proves a door refuses a credential,
+ * without any shared secret existing to refuse.
+ */
+const unminted = `pcd_${randomUUID()}_${'x'.repeat(43)}`;
 
 type Response = { status: number; type: string; body: string };
 
@@ -80,7 +86,6 @@ async function settings(root: string, extra: Record<string, unknown> = {}) {
   return {
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'home'),
-    token,
     port: 0,
     ...extra,
   };
@@ -94,7 +99,7 @@ describe('Runtime', () => {
       expect(new URL(runtime.address).hostname).toBe('127.0.0.1');
       expect(
         await (await fetch(`${runtime.address}/api/health`)).json(),
-      ).toEqual({ status: 'ok' });
+      ).toMatchObject({ status: 'ok' });
       // Without a web root there is no shell to fall through to: the owner
       // route simply is not on this listener.
       const missing = await fetch(`${runtime.address}/status`);
@@ -129,7 +134,7 @@ describe('Runtime', () => {
       // The owner route does not exist on the network, credentials or not.
       // With a web root the path falls through to the app shell, which must
       // never be the owner's answer.
-      for (const headers of [{}, { authorization: `Bearer ${token}` }]) {
+      for (const headers of [{}, { authorization: `Bearer ${unminted}` }]) {
         const response = await read(
           { address: runtime.address },
           '/status',
@@ -141,7 +146,7 @@ describe('Runtime', () => {
       // And the network's routes do not exist on the owner socket.
       for (const path of ['/api/inventory', '/api/mcp', '/index.html', '/']) {
         const response = await read({ socketPath: runtime.socketPath }, path, {
-          authorization: `Bearer ${token}`,
+          authorization: `Bearer ${unminted}`,
         });
         expect(response.status, path).toBe(404);
       }
@@ -164,7 +169,7 @@ describe('Runtime', () => {
       // The refused start left the live server untouched.
       expect(
         await (await fetch(`${runtime.address}/api/health`)).json(),
-      ).toEqual({ status: 'ok' });
+      ).toMatchObject({ status: 'ok' });
     } finally {
       await runtime.close();
       await rm(root, { recursive: true, force: true });
@@ -208,7 +213,7 @@ describe('Runtime', () => {
       expect((await stat(started.socketPath)).mode & 0o777).toBe(0o600);
       expect(
         await (await fetch(`${started.address}/api/health`)).json(),
-      ).toEqual({ status: 'ok' });
+      ).toMatchObject({ status: 'ok' });
     } finally {
       release.resolve();
       await (started ?? (await winner)).close();
@@ -356,12 +361,10 @@ describe('Runtime', () => {
         { PORCELAIN_HOST: '0.0.0.0/unsafe' },
         { PORCELAIN_WEB_ROOT: 'relative/web' },
         { PORCELAIN_DATA_DIRECTORY: 'relative' },
-        { PORCELAIN_TOKEN: 'short' },
       ]) {
         const configured = {
           PORCELAIN_DATA_DIRECTORY: dataDirectory,
           PORCELAIN_PROJECT_HOME: join(root, 'home'),
-          PORCELAIN_TOKEN: token,
           PORCELAIN_PORT: '0',
           ...environment,
         };
@@ -377,7 +380,6 @@ describe('Runtime', () => {
         readStartupSettings({
           PORCELAIN_DATA_DIRECTORY: dataDirectory,
           PORCELAIN_PROJECT_HOME: join(root, 'home'),
-          PORCELAIN_TOKEN: token,
           PORCELAIN_PORT: '0',
           PORCELAIN_HOST: '0.0.0.0',
           PORCELAIN_WEB_ROOT: '/srv/porcelain/web',
@@ -401,8 +403,15 @@ describe('Runtime', () => {
         stalled.once('error', reject);
         stalled.once('connect', () => resolve());
       });
+      // Authenticated on purpose: a refused request never reaches the body,
+      // so it would not stall anything and this test would prove nothing.
+      const credential = await pairThroughSocket(
+        first.socketPath,
+        first.address,
+        'Drain fixture',
+      );
       stalled.write(
-        `POST /api/projects HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer ${token}\r\nContent-Length: 100\r\n\r\n{`,
+        `POST /api/projects HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer ${credential}\r\nContent-Length: 100\r\n\r\n{`,
       );
       await read({ address: first.address }, '/api/health');
 
@@ -534,7 +543,7 @@ describe('Runtime', () => {
       expect(new URL(runtime.address).hostname).toBe('127.0.0.2');
       expect(
         await (await fetch(`${runtime.address}/api/health`)).json(),
-      ).toEqual({ status: 'ok' });
+      ).toMatchObject({ status: 'ok' });
     } finally {
       await runtime.close();
       await rm(root, { recursive: true, force: true });
@@ -556,8 +565,13 @@ describe('Runtime', () => {
         socket.once('error', reject);
         socket.once('connect', resolve);
       });
+      const credential = await pairThroughSocket(
+        runtime.socketPath,
+        runtime.address,
+        'Drain fixture',
+      );
       socket.write(
-        `POST /api/projects HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer ${token}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{`,
+        `POST /api/projects HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer ${credential}\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{`,
       );
       // A pipelined health request cannot complete until this body is consumed.
       await fetch(`${runtime.address}/api/health`);

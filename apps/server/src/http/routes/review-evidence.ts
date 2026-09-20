@@ -6,7 +6,7 @@ import { evidenceRoute } from './evidence.ts';
 
 export async function reviewEvidenceRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

@@ -1,4 +1,5 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
+import { UnauthorizedError } from '@porcelain/client/errors/unauthorized-error';
 import {
   filePreferencesResponseSchema,
   setFilePreferenceRequestSchema,
@@ -25,22 +26,18 @@ export function createFilePreferencesLive(
       const response = await transport(preferencesPath(input.projectId), {
         method,
         ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
-        headers: {
-          authorization: `Bearer ${input.token}`,
-          ...(payload === undefined
-            ? {}
-            : { 'content-type': 'application/json' }),
-        },
+        ...(payload === undefined
+          ? {}
+          : { headers: { 'content-type': 'application/json' } }),
         signal: input.signal,
         redirect: 'error',
-        credentials: 'omit',
+        credentials: 'same-origin',
         cache: 'no-store',
       });
+      if (response.status === 401) throw new UnauthorizedError();
       if (!response.ok)
         throw new ConnectionError(
-          response.status === 401
-            ? 'Access token was rejected. Connect again to continue.'
-            : 'File preferences could not be loaded or saved. Try again.',
+          'File preferences could not be loaded or saved. Try again.',
         );
       const parsed = filePreferencesResponseSchema.safeParse(
         await response.json(),

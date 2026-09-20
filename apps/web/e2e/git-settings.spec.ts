@@ -1,15 +1,10 @@
-import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('persists explicit commit models and pull strategy in both themes', async ({
   page,
 }, testInfo) => {
-  const manifest = playgroundManifest();
-  const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
   await page.route('**/api/git/commit-models', (route) =>
     route.fulfill({
       json: [
@@ -20,9 +15,7 @@ test('persists explicit commit models and pull strategy in both themes', async (
       ],
     }),
   );
-  await page.goto('/');
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });

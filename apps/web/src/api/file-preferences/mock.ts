@@ -12,7 +12,6 @@ type MockStore = ReturnType<typeof createMockStore>;
 
 async function readContext(store: MockStore, request: FilePreferencesRequest) {
   const inventory = await createInventoryMock(store).read({
-    token: request.token,
     signal: request.signal,
     refresh: false,
   });

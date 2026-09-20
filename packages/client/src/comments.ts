@@ -5,8 +5,9 @@ import {
   resolveCommentSchema,
 } from '@porcelain/contracts/comments';
 import { ConnectionError } from './errors/connection-error.ts';
+import { UnauthorizedError } from './errors/unauthorized-error.ts';
 
-type Request = { token: string; signal: AbortSignal; worktreeId: string };
+type Request = { signal: AbortSignal; worktreeId: string };
 export function createCommentsClient(
   transport: typeof fetch,
   endpoint: string,
@@ -28,15 +29,13 @@ export function createCommentsClient(
         ...(body === undefined
           ? {}
           : { body: JSON.stringify(bodySchema.parse(body)) }),
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${input.token}`,
-        },
+        headers: { 'content-type': 'application/json' },
         signal: input.signal,
         redirect: 'error',
-        credentials: 'omit',
+        credentials: 'same-origin',
         cache: 'no-store',
       });
+      if (response.status === 401) throw new UnauthorizedError();
       if (!response.ok)
         throw new ConnectionError(
           'Comments could not be saved or loaded. Refresh the discussion before trying again.',

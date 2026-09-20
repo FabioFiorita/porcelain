@@ -37,7 +37,6 @@ const budgets = JSON.parse(
 
 async function measureProfile(profile: string): Promise<BenchStepResult[]> {
   const stateDirectory = await mkdtemp(join(tmpdir(), 'porcelain-bench-'));
-  const tokenFile = join(stateDirectory, 'token');
   const traces = new Map<string, Trace>();
   // Changes on every traced message, including one that replaces a trace the
   // tracer re-sends when late work lands on it.
@@ -49,7 +48,6 @@ async function measureProfile(profile: string): Promise<BenchStepResult[]> {
       LAB_MODE: 'playground',
       LAB_PROFILE: profile,
       LAB_REAL_REPOSITORIES: '[]',
-      LAB_TOKEN_FILE: tokenFile,
       LAB_PLAYGROUNDS_DIRECTORY: join(repoRoot, '.playgrounds'),
     },
     stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
@@ -71,7 +69,6 @@ async function measureProfile(profile: string): Promise<BenchStepResult[]> {
         );
       },
     );
-    const token = (await readFile(tokenFile, 'utf8')).trim();
     const run = `bench-${profile}`;
     const stepTraces = (step: string) =>
       [...traces.values()].filter(
@@ -80,7 +77,7 @@ async function measureProfile(profile: string): Promise<BenchStepResult[]> {
     return await runBench(
       {
         address: ready.address,
-        token,
+        token: ready.credential,
         run,
         real: false,
         worktrees: ready.worktrees,

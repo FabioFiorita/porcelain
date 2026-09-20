@@ -5,18 +5,18 @@ import { expect, it } from 'vitest';
 import { openApplication } from '../app.ts';
 import type { Principal } from '../models/principal.ts';
 import { UnauthorizedError } from './errors/unauthorized-error.ts';
+import { pairDevice, pairingReach } from './helpers/paired-server.ts';
 import { callerOf } from './principal.ts';
 import { createNetworkServer } from './server.ts';
-
-const token = 'fixture-token-with-at-least-32-characters';
 
 it('puts a principal on every request, including the public ones', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-principal-'));
   const application = await openApplication({
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'home'),
+    pairingReach,
   });
-  const server = createNetworkServer({ application, token });
+  const server = createNetworkServer({ application });
   const seen: Record<string, Principal | undefined> = {};
   server.addHook('onResponse', (request, _reply, done) => {
     seen[request.url] = request.principal;
@@ -48,16 +48,16 @@ it('puts a principal on every request, including the public ones', async () => {
     ).toBe(401);
     expect(seen['/api/inventory']).toEqual({ kind: 'anonymous' });
 
-    // Passing it upgrades the caller to a viewer with no device yet.
+    // A paired device is a viewer, and the principal names which device it is.
+    const headers = await pairDevice(server, application);
     expect(
-      (
-        await server.inject({
-          url: '/api/inventory',
-          headers: { authorization: `Bearer ${token}` },
-        })
-      ).statusCode,
+      (await server.inject({ url: '/api/inventory', headers })).statusCode,
     ).toBe(200);
-    expect(seen['/api/inventory']).toEqual({ kind: 'viewer', deviceId: null });
+    expect(seen['/api/inventory']).toMatchObject({ kind: 'viewer' });
+    expect(
+      seen['/api/inventory']?.kind === 'viewer' &&
+        seen['/api/inventory'].deviceId,
+    ).toEqual(expect.any(String));
   } finally {
     await server.close();
     await application.close();

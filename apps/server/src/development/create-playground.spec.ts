@@ -64,7 +64,6 @@ describe('Disposable playground', () => {
       { cwd: fixture.worktree },
     );
     expect(checks.stdout).toContain('# fail 0');
-    expect(await readFile(fixture.tokenFile, 'utf8')).toBe(fixture.token);
     expect(fixture.profile).toBe('fixture');
     expect(fixture.worktrees).toEqual([
       { path: fixture.project, branch: 'main', role: 'main' },

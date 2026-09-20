@@ -15,9 +15,7 @@ import {
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { expect, it, onTestFinished, vi } from 'vitest';
-
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
+import { pairThroughSocket } from './development/pair-through-socket.ts';
 
 function launch(dataDirectory: string, overrides: NodeJS.ProcessEnv = {}) {
   const child = spawn(
@@ -28,7 +26,6 @@ function launch(dataDirectory: string, overrides: NodeJS.ProcessEnv = {}) {
         PATH: process.env.PATH,
         PORCELAIN_DATA_DIRECTORY: dataDirectory,
         PORCELAIN_PORT: '0',
-        PORCELAIN_TOKEN: token,
         ...overrides,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -80,10 +77,18 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   const first = launch(dataDirectory);
   const address = await first.address();
   expect(new URL(address).hostname).toBe('127.0.0.1');
-  expect(await (await fetch(`${address}/api/health`)).json()).toEqual({
+  expect(await (await fetch(`${address}/api/health`)).json()).toMatchObject({
     status: 'ok',
   });
   expect((await fetch(`${address}/api/inventory`)).status).toBe(401);
+  // Access comes from the owner socket, which only a process on this machine
+  // can reach: there is no secret in the environment to read.
+  const credential = await pairThroughSocket(
+    join(dataDirectory, 'server.sock'),
+    address,
+    'Process fixture',
+  );
+  const headers = { authorization: `Bearer ${credential}` };
   const registered = await fetch(`${address}/api/projects`, {
     method: 'POST',
     headers: { ...headers, 'content-type': 'application/json' },
@@ -125,7 +130,7 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   second.child.kill('SIGINT');
   expect(await second.exited).toBe(0);
   expect(first.output.stderr + second.output.stderr).toBe('');
-  expect(first.output.stdout + second.output.stdout).not.toContain(token);
+  expect(first.output.stdout + second.output.stdout).not.toContain(credential);
 });
 
 it('serves the configured SPA and the /api namespace from one process', async () => {
@@ -161,7 +166,7 @@ it('serves the configured SPA and the /api namespace from one process', async ()
 
     const api = await fetch(`${address}/api/health`);
     expect(api.status).toBe(200);
-    expect(await api.json()).toEqual({ status: 'ok' });
+    expect(await api.json()).toMatchObject({ status: 'ok' });
 
     const unknownApi = await fetch(`${address}/api/not-a-route`);
     expect(unknownApi.status).toBe(404);
@@ -183,7 +188,7 @@ it('restarts after a crash with no operator recovery step', async () => {
   expect((await stat(join(root, 'server.sock'))).isSocket()).toBe(true);
   const recovered = launch(root);
   const address = await recovered.address();
-  expect(await (await fetch(`${address}/api/health`)).json()).toEqual({
+  expect(await (await fetch(`${address}/api/health`)).json()).toMatchObject({
     status: 'ok',
   });
   recovered.child.kill('SIGTERM');
@@ -194,14 +199,13 @@ it('restarts after a crash with no operator recovery step', async () => {
   });
 });
 
-it('exits unsuccessfully on invalid configuration without leaking its token or creating state', async () => {
+it('exits unsuccessfully on invalid configuration without creating state', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-invalid-'));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
   const dataDirectory = join(root, 'state');
   const server = launch(dataDirectory, { PORCELAIN_PORT: '-1' });
   expect(await server.exited).toBe(1);
   expect(server.output.stdout).toBe('');
-  expect(server.output.stderr).not.toContain(token);
   await expect(
     readFile(join(dataDirectory, 'inventory.sqlite')),
   ).rejects.toMatchObject({ code: 'ENOENT' });

@@ -1,14 +1,13 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('keeps unrelated roots closed during loading and uses compact folder menus', async ({
   page,
 }) => {
-  const info = playgroundManifest();
-  const { tokenFile, worktreePath } = JSON.parse(await readFile(info, 'utf8'));
+  const { worktreePath } = await playgroundInfo<{ worktreePath: string }>();
   const prefix = test.info().project.name;
   const alpha = `${prefix}-alpha`;
   const beta = `${prefix}-beta`;
@@ -30,11 +29,7 @@ test('keeps unrelated roots closed during loading and uses compact folder menus'
     await route.continue();
   });
   try {
-    await page.goto('/');
-    await page
-      .getByLabel('Access token')
-      .fill(await readFile(tokenFile, 'utf8'));
-    await page.getByRole('button', { name: 'Connect', exact: true }).click();
+    await pairBrowser(page);
     await openNavigation(page);
     await page.getByRole('button', { name: /^review / }).click();
     const files = page.getByRole('tab', { name: 'Files', exact: true });

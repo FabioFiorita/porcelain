@@ -14,7 +14,6 @@ export function createCommentsMock(
 ): CommentsPort {
   async function context(request: ReviewRequest) {
     const inventory = await createInventoryMock(store).read({
-      token: request.token,
       signal: request.signal,
       refresh: false,
     });

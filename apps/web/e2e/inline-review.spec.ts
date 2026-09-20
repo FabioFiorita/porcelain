@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 test('posts a line comment on the exact comparison, reloads it, and reveals it from the sidebar', async ({
@@ -8,12 +7,7 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
 }) => {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto('/');
-  const manifest = playgroundManifest();
-  const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await pairBrowser(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: /^accessibility.md/ }).click();

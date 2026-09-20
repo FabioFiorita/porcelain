@@ -30,8 +30,7 @@ export function createGitActionsMock(
     async prepare(request) {
       request.signal.throwIfAborted();
       const data = store.review[request.worktreeId];
-      if (!data || !request.token)
-        throw new ConnectionError('Mock worktree unavailable.');
+      if (!data) throw new ConnectionError('Mock worktree unavailable.');
       if (request.action === 'stash-apply' || request.action === 'stash-pop')
         throw new ConnectionError(
           'Stash apply and pop are not simulated in this mock. The live adapter supports preparing these actions with a known stash object ID.',

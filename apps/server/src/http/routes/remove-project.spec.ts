@@ -9,10 +9,9 @@ import {
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
 import { describe, expect, it } from 'vitest';
-import { createServer } from '../server.ts';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 
-const token = 'fixture-project-removal-token-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
+import { createServer } from '../server.ts';
 
 describe('Project removal HTTP workflow', () => {
   it('erases current and disappeared worktree data, preserves other projects and leaves Git untouched across restart', async () => {
@@ -31,10 +30,11 @@ describe('Project removal HTTP workflow', () => {
     const linked = join(root, 'linked');
     const dataDirectory = join(root, 'state');
     const server = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
+    const headers = await pairDevice(server, server.application);
     await server.refreshed();
     try {
       execFileSync('git', ['init', '-b', 'main', path], { env: environment });
@@ -181,9 +181,9 @@ describe('Project removal HTTP workflow', () => {
       );
       await server.close();
       const restarted = await createServer({
+        pairingReach,
         dataDirectory,
         projectHome: dataDirectory,
-        token,
       });
       await restarted.refreshed();
       try {
@@ -246,10 +246,11 @@ describe('Project removal HTTP workflow', () => {
   it('authenticates before validation and rejects removal of a recovery-blocked project', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-remove-errors-'));
     const server = await createServer({
+      pairingReach,
       dataDirectory: root,
       projectHome: root,
-      token,
     });
+    const headers = await pairDevice(server, server.application);
     await server.refreshed();
     try {
       expect(

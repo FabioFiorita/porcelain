@@ -6,10 +6,8 @@ import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../../db/connection.ts';
 import { FilePreferenceRepository } from '../../repositories/file-preference-repository.ts';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
-
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 
 it('persists independent file and folder intent through retry, refresh, unavailable checkout and restart over HTTP', async () => {
   const root = await realpath(
@@ -20,10 +18,11 @@ it('persists independent file and folder intent through retry, refresh, unavaila
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
   const server = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const registered = await server.inject({
       method: 'POST',
@@ -104,9 +103,9 @@ it('persists independent file and folder intent through retry, refresh, unavaila
     await set('absent/child.ts', 'pinned', true);
     await server.close();
     const reopened = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     try {
       expect(
@@ -131,10 +130,11 @@ it('isolates projects and rejects unauthenticated, noncanonical, unknown identit
     await mkdtemp(join(tmpdir(), 'porcelain-preference-input-')),
   );
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const ids: string[] = [];
     for (const name of ['one', 'two']) {
@@ -242,10 +242,11 @@ it('returns a safe capacity conflict and permits clearing then adding through HT
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
   const initial = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(initial, initial.application);
   try {
     const registered = await initial.inject({
       method: 'POST',
@@ -270,9 +271,9 @@ it('returns a safe capacity conflict and permits clearing then adding through HT
       database.close();
     }
     const server = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     try {
       const url = `/api/projects/${projectId}/file-preferences`;

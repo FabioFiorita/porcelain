@@ -20,7 +20,7 @@ import { prepareStashPop } from './prepare-stash-pop.ts';
 
 export async function gitActionRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', authenticate(options));
   server.addHook('onSend', preventCaching);

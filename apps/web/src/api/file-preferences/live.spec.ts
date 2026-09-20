@@ -4,7 +4,6 @@ import { createFilePreferencesLive } from './live';
 const projectId = 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09';
 const request = {
   projectId,
-  token: 'fixture-token',
   signal: new AbortController().signal,
 };
 const response = {
@@ -34,10 +33,9 @@ it('lists and sets project preferences through the authenticated API', async () 
     `/api/projects/${projectId}/file-preferences`,
     expect.objectContaining({
       method: 'GET',
-      headers: { authorization: 'Bearer fixture-token' },
       signal: request.signal,
       redirect: 'error',
-      credentials: 'omit',
+      credentials: 'same-origin',
       cache: 'no-store',
     }),
   );
@@ -46,10 +44,7 @@ it('lists and sets project preferences through the authenticated API', async () 
     `/api/projects/${projectId}/file-preferences`,
     expect.objectContaining({
       method: 'PUT',
-      headers: {
-        authorization: 'Bearer fixture-token',
-        'content-type': 'application/json',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         path: 'src/hidden.ts',
         flag: 'hidden',
@@ -60,7 +55,7 @@ it('lists and sets project preferences through the authenticated API', async () 
 });
 
 it.each([
-  [401, 'Access token was rejected'],
+  [401, 'no longer paired'],
   [500, 'could not be loaded or saved'],
   [200, 'incompatible file preferences'],
 ] as const)(

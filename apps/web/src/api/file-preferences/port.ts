@@ -5,7 +5,6 @@ import type {
 
 export type FilePreferencesRequest = {
   projectId: string;
-  token: string;
   signal: AbortSignal;
 };
 

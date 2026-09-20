@@ -11,30 +11,28 @@ import {
   useState,
 } from 'react';
 import type { Api } from '../api/api';
+import { onUnauthorized } from '../api/unauthorized';
 import type { Inventory } from '../domain/inventory';
 import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
 import { retainedFileDrafts } from './file-drafts';
 import { queryKeys } from './keys';
 import { createOperationStore, type OperationStore } from './operation-store';
 
-type ConnectedRequest = { token: string; signal: AbortSignal };
+type ConnectedRequest = { signal: AbortSignal };
 type Connection = {
-  token: string;
   environmentId: string;
   controller: AbortController;
   operations: OperationStore;
   request: (signal?: AbortSignal) => ConnectedRequest;
 };
 
-function createConnection(token: string, environmentId: string): Connection {
+function createConnection(environmentId: string): Connection {
   const controller = new AbortController();
   return {
-    token,
     environmentId,
     controller,
     operations: createOperationStore(),
     request: (signal) => ({
-      token,
       signal: AbortSignal.any([
         controller.signal,
         AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -49,7 +47,7 @@ type WorkspaceContext = {
   connection: Connection | null;
   beginConnection: (
     automatic?: boolean,
-  ) => ((token: string, inventory: Inventory) => boolean) | null;
+  ) => ((inventory: Inventory) => boolean) | null;
   disconnect: () => Promise<void>;
   disconnectError: Error | null;
   disconnectPending: boolean;
@@ -89,7 +87,7 @@ export function WorkspaceProvider({
     (automatic = false) => {
       if (automatic && generation.current !== 0) return null;
       const attempt = generation.current;
-      return (token: string, inventory: Inventory) => {
+      return (inventory: Inventory) => {
         if (attempt !== generation.current) return false;
         generation.current += 1;
         queryClient.clear();
@@ -103,7 +101,7 @@ export function WorkspaceProvider({
         void queryClient.invalidateQueries({
           queryKey: queryKeys.inventory(inventory.environmentId),
         });
-        setConnection(createConnection(token, inventory.environmentId));
+        setConnection(createConnection(inventory.environmentId));
         return true;
       };
     },
@@ -120,8 +118,7 @@ export function WorkspaceProvider({
             throw new ConnectionError(
               'Save or discard unsaved file drafts before disconnecting.',
             );
-      if (!import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE)
-        await api.session.disconnect();
+      await api.session.disconnect();
       connection?.controller.abort();
       void queryClient.cancelQueries();
       queryClient.clear();
@@ -138,9 +135,24 @@ export function WorkspaceProvider({
       setDisconnectPending(false);
     }
   }, [api, connection, queryClient]);
+  // Losing access is not a per-view failure: whatever the server refused, the
+  // browser is no longer paired, so the connection ends and everything private
+  // that was loaded under it goes with it.
+  useEffect(
+    () =>
+      onUnauthorized(() => {
+        generation.current += 1;
+        setConnection((current) => {
+          current?.controller.abort();
+          return null;
+        });
+        void queryClient.cancelQueries();
+        queryClient.clear();
+      }),
+    [queryClient],
+  );
   // Restore through the API so private data is never shown before authentication.
   useEffect(() => {
-    if (import.meta.env.PORCELAIN_PLAYGROUND_BRIDGE) return;
     const complete = beginConnection(true);
     if (!complete) return;
     const controller = new AbortController();
@@ -152,7 +164,7 @@ export function WorkspaceProvider({
       try {
         const inventory = await api.session.restore(signal);
         signal.throwIfAborted();
-        complete('browser-session', inventory);
+        complete(inventory);
       } catch {
         // Expired sessions and temporary outages leave manual login available.
       }

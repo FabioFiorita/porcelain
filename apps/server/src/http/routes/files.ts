@@ -13,7 +13,7 @@ import { listDirectory } from './list-directory.ts';
 import { readTextFile } from './read-text-file.ts';
 export async function fileRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

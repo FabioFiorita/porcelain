@@ -10,7 +10,6 @@ import {
 import { ConnectionError } from './errors/connection-error.ts';
 
 type Request = {
-  token: string;
   signal: AbortSignal;
   projectId: string;
   worktreeId: string;
@@ -24,7 +23,7 @@ export function createGitActionsClient(
   endpoint: string,
 ) {
   async function send<T>(
-    request: Pick<Request, 'token' | 'signal'>,
+    request: Pick<Request, 'signal'>,
     path: string,
     schema: { parse: (value: unknown) => T },
     body?: unknown,
@@ -33,13 +32,10 @@ export function createGitActionsClient(
       const response = await transport(endpoint + path, {
         method: body ? 'POST' : 'GET',
         ...(body ? { body: JSON.stringify(body) } : {}),
-        headers: {
-          authorization: `Bearer ${request.token}`,
-          'content-type': 'application/json',
-        },
+        headers: { 'content-type': 'application/json' },
         signal: request.signal,
         redirect: 'error',
-        credentials: 'omit',
+        credentials: 'same-origin',
         cache: 'no-store',
       });
       const value: unknown = await response.json();
@@ -69,7 +65,7 @@ export function createGitActionsClient(
   const prefix = (request: Request) =>
     `/projects/${encodeURIComponent(request.projectId)}/worktrees/${encodeURIComponent(request.worktreeId)}/git`;
   return {
-    models: (request: Pick<Request, 'token' | 'signal'>) =>
+    models: (request: Pick<Request, 'signal'>) =>
       send(request, '/git/commit-models', commitModelsSchema),
     draft: (
       request: Request & {

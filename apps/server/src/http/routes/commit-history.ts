@@ -7,7 +7,7 @@ import { listCommits } from './list-commits.ts';
 
 export async function commitHistoryRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

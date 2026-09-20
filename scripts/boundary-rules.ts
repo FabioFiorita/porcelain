@@ -8,12 +8,24 @@ const owners = {
   'packages/client': ['packages/contracts'],
 } as const;
 
+/**
+ * Development tooling that happens to live beside an app: the dev-server
+ * bridge and the browser smoke suite. Neither ships, and both drive a real
+ * server, so they reach for it the way `scripts/` does. What must not happen
+ * is the shipped web app importing the server, which `web-app-is-a-client`
+ * states directly.
+ */
+const webTooling = '^apps/web/(development|e2e)/';
+
 const ownershipRules: IForbiddenRuleType[] = Object.entries(owners).map(
   ([owner, dependencies]) => ({
     name: `${owner.replace('/', '-')}-dependencies`,
     severity: 'error',
     comment: 'Import only the owning module or an approved shared package.',
-    from: { path: `^${owner}/` },
+    from:
+      owner === 'apps/web'
+        ? { path: `^${owner}/`, pathNot: webTooling }
+        : { path: `^${owner}/` },
     to: {
       path: '^(apps|packages|scripts)/',
       pathNot: `^(${[owner, ...dependencies].join('|')})/`,
@@ -24,6 +36,25 @@ const ownershipRules: IForbiddenRuleType[] = Object.entries(owners).map(
 export const boundaryRules: IConfiguration = {
   forbidden: [
     ...ownershipRules,
+    {
+      name: 'web-tooling-dependencies',
+      severity: 'error',
+      comment:
+        'Web development tooling may also drive the server; everything else is still off limits.',
+      from: { path: webTooling },
+      to: {
+        path: '^(apps|packages|scripts)/',
+        pathNot: `^(apps/web|apps/server|${owners['apps/web'].join('|')})/`,
+      },
+    },
+    {
+      name: 'web-app-is-a-client',
+      severity: 'error',
+      comment:
+        'The web application talks to the server over HTTP and shared contracts, never by importing it.',
+      from: { path: '^apps/web/src/' },
+      to: { path: '^apps/server/' },
+    },
     {
       name: 'web-views-use-query-hooks',
       severity: 'error',

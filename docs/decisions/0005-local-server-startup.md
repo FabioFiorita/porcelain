@@ -49,3 +49,7 @@ Process smoke specs use disposable Git repositories and data directories to veri
 authentication, inventory persistence, concurrent startup refusal, shutdown signals, and restart
 after a crash with no recovery step. CI runs those specs on Linux and macOS. This does not prove packaging, service
 supervision, remote connectivity, or a client UI.
+
+Superseded, 2026-09-20: the shared bearer token is gone. A device redeems a single-use
+pairing link for its own credential, and the browser holds that credential as an HttpOnly
+cookie. See [pairing and device credentials](../development.md#persistent-server).

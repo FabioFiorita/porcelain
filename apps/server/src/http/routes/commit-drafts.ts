@@ -12,7 +12,7 @@ import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 export async function commitDraftRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', authenticate(options));
   server.addHook('onSend', preventCaching);

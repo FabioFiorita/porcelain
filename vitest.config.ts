@@ -22,7 +22,7 @@ const coverage = {
     '**/*.spec.tsx',
     'apps/web/src/api/boot.ts',
     'apps/web/src/api/mock-api.ts',
-    'apps/web/src/api/playground-credentials.ts',
+    'apps/web/src/api/pairing/playground.ts',
     'apps/web/src/query/playground.ts',
     'apps/web/src/lib/utils.ts',
     'scripts/check-boundaries.ts',

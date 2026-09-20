@@ -1,19 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import {
-  chmod,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  stat,
-  symlink,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it, vi } from 'vitest';
+import { pairThroughSocket } from '../apps/server/src/development/pair-through-socket.ts';
 import {
-  ensureAccessToken,
   parseCliArguments,
   runBuildCommand,
   runServe,
@@ -33,7 +24,6 @@ it('resolves a persistent default and validates explicit listener options', asyn
       settings: {
         dataDirectory: join(home, '.porcelain'),
         projectHome: home,
-        tokenFile: join(home, '.porcelain', 'admin-token'),
         host: '127.0.0.1',
         port: 3000,
         webRoot: expect.stringContaining('/apps/web/dist'),
@@ -42,15 +32,7 @@ it('resolves a persistent default and validates explicit listener options', asyn
     });
     expect(
       parseCliArguments(
-        [
-          '--',
-          '--lan',
-          '--port=4321',
-          '--data-directory',
-          join(home, 'state'),
-          '--token-file',
-          join(home, 'credentials', 'token'),
-        ],
+        ['--', '--lan', '--port=4321', '--data-directory', join(home, 'state')],
         {},
         home,
       ),
@@ -58,7 +40,6 @@ it('resolves a persistent default and validates explicit listener options', asyn
       command: 'serve',
       settings: {
         dataDirectory: join(home, 'state'),
-        tokenFile: join(home, 'credentials', 'token'),
         host: '0.0.0.0',
         port: 4321,
       },
@@ -75,41 +56,13 @@ it('resolves a persistent default and validates explicit listener options', asyn
     expect(() => parseCliArguments(['--unknown'], {}, home)).toThrow(
       'Unknown option',
     );
+    // An installation upgraded from the token world fails loudly, with the
+    // command that replaces the option.
+    expect(() =>
+      parseCliArguments(['--token-file', join(home, 'token')], {}, home),
+    ).toThrow('porcelain pair');
   } finally {
     await rm(home, { recursive: true, force: true });
-  }
-});
-
-it('creates a mode-0600 token once and safely reuses it', async () => {
-  const root = await temporaryRoot('porcelain-serve-token-');
-  const tokenFile = join(root, 'nested', 'admin-token');
-  try {
-    const first = await ensureAccessToken(tokenFile);
-    expect(first).toHaveLength(43);
-    expect(await readFile(tokenFile, 'utf8')).toBe(first);
-    expect((await stat(tokenFile)).mode & 0o777).toBe(0o600);
-    await chmod(tokenFile, 0o644);
-    await expect(ensureAccessToken(tokenFile)).resolves.toBe(first);
-    expect((await stat(tokenFile)).mode & 0o777).toBe(0o600);
-    expect(await ensureAccessToken(tokenFile)).toBe(first);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-it('rejects weak or symlinked token files', async () => {
-  const root = await temporaryRoot('porcelain-serve-token-invalid-');
-  const weak = join(root, 'weak-token');
-  const target = join(root, 'target-token');
-  const link = join(root, 'link-token');
-  try {
-    await writeFile(weak, 'too-short', { mode: 0o600 });
-    await expect(ensureAccessToken(weak)).rejects.toThrow('strong token');
-    await writeFile(target, 'a'.repeat(43), { mode: 0o600 });
-    await symlink(target, link);
-    await expect(ensureAccessToken(link)).rejects.toThrow('regular file');
-  } finally {
-    await rm(root, { recursive: true, force: true });
   }
 });
 
@@ -176,16 +129,14 @@ it.runIf(process.platform === 'linux')(
   },
 );
 
-it('keeps the persistent token and registered project across launcher restarts', async () => {
+it('keeps a paired device and its registered project across launcher restarts', async () => {
   const root = await temporaryRoot('porcelain-serve-restart-');
   const project = join(root, 'project');
   const state = join(root, 'state');
   const webRoot = join(root, 'web');
-  const tokenFile = join(state, 'admin-token');
   const settings: ServeSettings = {
     dataDirectory: state,
     projectHome: join(root, 'home'),
-    tokenFile,
     host: '127.0.0.1',
     port: 0,
     webRoot,
@@ -214,11 +165,17 @@ it('keeps the persistent token and registered project across launcher restarts',
     const firstLine = firstOutput[0];
     if (!firstLine) throw new Error('Launcher did not print an address');
     const firstAddress = firstLine.slice('Porcelain listening at '.length);
-    const token = await readFile(tokenFile, 'utf8');
+    // Access is a device this run pairs for itself through the owner socket;
+    // the launcher leaves no shared credential on disk to read.
+    const credential = await pairThroughSocket(
+      join(state, 'server.sock'),
+      firstAddress,
+      'Launcher fixture',
+    );
     const response = await fetch(`${firstAddress}/api/projects`, {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${token}`,
+        authorization: `Bearer ${credential}`,
         'content-type': 'application/json',
       },
       body: JSON.stringify({ path: project }),
@@ -240,13 +197,12 @@ it('keeps the persistent token and registered project across launcher restarts',
     if (!secondLine) throw new Error('Launcher did not print an address');
     const secondAddress = secondLine.slice('Porcelain listening at '.length);
     const inventory = await fetch(`${secondAddress}/api/inventory`, {
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${credential}` },
     });
     expect(inventory.status).toBe(200);
     expect(
       ((await inventory.json()) as { projects: unknown[] }).projects,
     ).toHaveLength(1);
-    expect(await readFile(tokenFile, 'utf8')).toBe(token);
     secondController.abort();
     await second;
     expect(buildWeb).toHaveBeenCalledTimes(2);

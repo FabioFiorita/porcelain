@@ -1,16 +1,9 @@
-import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
-import { playgroundManifest } from './playground';
+import { pairBrowser } from './playground';
 import { openNavigation } from './workspace-navigation';
 
 async function connect(page: Page) {
-  const manifest = playgroundManifest();
-  const { tokenFile } = JSON.parse(await readFile(manifest, 'utf8')) as {
-    tokenFile: string;
-  };
-  await page.getByLabel('Access token').fill(await readFile(tokenFile, 'utf8'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(page.getByLabel('Access token')).toHaveCount(0);
+  await pairBrowser(page);
 }
 
 // Diff rows label their own controls with the file and scope too, so entries
@@ -27,7 +20,6 @@ test('keeps keyboard focus on visible controls when desktop navigation is collap
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/');
   await connect(page);
   await openNavigation(page);
   const toggle = page.getByRole('button', {
@@ -53,12 +45,8 @@ test('keeps both sidebar controls reachable and ignores workspace shortcuts whil
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
-  await page.getByLabel('Access token').fill('Session draft');
-  await page.keyboard.press('Alt+Shift+d');
-  await expect(page.getByLabel('Access token')).toHaveValue('Session draft');
-  await expect(page.locator('html')).not.toHaveClass('dark');
   await connect(page);
+  await expect(page.locator('html')).not.toHaveClass('dark');
   await page.getByRole('button', { name: /^review / }).click();
   const left = page.getByRole('button', {
     name: 'Toggle Sidebar',
@@ -143,7 +131,6 @@ test('keyboard focus selects which split pane receives document shortcuts', asyn
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/');
   await connect(page);
   await page.getByRole('button', { name: /^review / }).click();
   await reviewEntry(page, /^README\.md · /).click();
@@ -172,7 +159,6 @@ test('opens responsive drawers with shortcuts and returns to the review canvas',
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
   await connect(page);
   await page.keyboard.press('ControlOrMeta+b');
   await page.keyboard.press('Escape');
@@ -218,7 +204,6 @@ test('opens responsive drawers with shortcuts and returns to the review canvas',
 test('selected diff rows match worktree selection in both themes', async ({
   page,
 }) => {
-  await page.goto('/');
   await connect(page);
   await openNavigation(page);
   const worktree = page.getByRole('button', { name: /^review / });
@@ -269,7 +254,6 @@ test('selected diff rows match worktree selection in both themes', async ({
 test('inspects staged changes, commit history and artifact metadata from the real server', async ({
   page,
 }) => {
-  await page.goto('/');
   await connect(page);
   await openNavigation(page);
   await page.getByRole('button', { name: /^review / }).click();

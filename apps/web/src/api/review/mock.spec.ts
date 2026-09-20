@@ -5,7 +5,6 @@ import { createReviewMock } from './mock';
 const scope = {
   projectId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
   worktreeId: '629a8628-1cd6-4562-81a2-9c05fba76b4b',
-  token: 'fixture-token',
   signal: new AbortController().signal,
 };
 

@@ -16,7 +16,6 @@ import {
 import type { startRuntime } from '../apps/server/src/lifecycle/runtime.ts';
 
 export {
-  ensureAccessToken,
   installShutdownSignals,
   parseCliArguments,
   ServeConfigurationError,

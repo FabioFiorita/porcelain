@@ -7,7 +7,7 @@ import { setFilePreference } from './set-file-preference.ts';
 
 export async function filePreferenceRoutes(
   server: FastifyInstance,
-  options: { application: Application; token: string },
+  options: { application: Application },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options));

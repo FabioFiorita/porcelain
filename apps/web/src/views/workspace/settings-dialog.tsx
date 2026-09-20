@@ -17,22 +17,11 @@ import { DialogIcon } from './dialog-icon';
 import type { Preferences } from './preferences';
 import { usePreferences } from './preferences';
 
-function mcpConfig() {
-  const origin =
-    typeof window === 'undefined'
-      ? 'http://localhost:8787'
-      : window.location.origin;
-  return `{
-  "mcpServers": {
-    "porcelain": {
-      "url": "${origin}/api/mcp",
-      "headers": {
-        "Authorization": "Bearer <Porcelain access token>"
-      }
-    }
-  }
-}`;
-}
+/**
+ * The agent door is a local socket, so an agent runs a command rather than
+ * calling a URL — and there is no credential to paste anywhere.
+ */
+const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 
 function Choice<K extends keyof Preferences>({
   label,
@@ -182,19 +171,19 @@ export function SettingsDialog({
             <Section title="Agents">
               <p className="text-xs text-muted-foreground">
                 Agents read and add comments, read reviewed marks, and upload
-                their handoff through the Porcelain MCP server. Add it to Codex
-                or Claude Code:
+                their handoff through the Porcelain MCP server. It runs on this
+                machine and needs no credential. Add it to Codex or Claude Code:
               </p>
               <div className="relative rounded-lg border bg-muted/50">
                 <pre className="overflow-x-auto p-3 font-mono text-[11.5px]">
-                  {mcpConfig()}
+                  {mcpCommand}
                 </pre>
                 <Button
                   size="icon-sm"
                   variant="ghost"
                   className="absolute top-1.5 right-1.5"
                   aria-label="Copy MCP configuration"
-                  onClick={() => copyText(mcpConfig(), 'MCP configuration')}
+                  onClick={() => copyText(mcpCommand, 'MCP configuration')}
                 >
                   <CopyIcon />
                 </Button>

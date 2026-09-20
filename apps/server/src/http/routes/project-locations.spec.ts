@@ -16,10 +16,8 @@ import {
 import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
 import { expect, it } from 'vitest';
 import { NodeProjectFolders } from '../../filesystem/project-folders.ts';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
-
-const token = 'fixture-token-with-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 
 it('finds unregistered repositories and browses folders without changing inventory or repositories', async () => {
   const root = await realpath(
@@ -66,10 +64,11 @@ it('finds unregistered repositories and browses folders without changing invento
   await writeFile(join(home, 'plain.txt'), 'not a directory');
   const before = git('-C', repository, 'status', '--porcelain=v2');
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: home,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const initial = await server.inject({
       url: '/api/projects/folders',
@@ -147,9 +146,9 @@ it('authenticates and validates before reading any server folders', async () => 
   const root = await mkdtemp(join(tmpdir(), 'porcelain-location-auth-'));
   let reads = 0;
   const server = await createServer({
+    pairingReach,
     dataDirectory: root,
     projectHome: root,
-    token,
     projectFolders: {
       async read() {
         reads++;
@@ -157,6 +156,7 @@ it('authenticates and validates before reading any server folders', async () => 
       },
     },
   });
+  const headers = await pairDevice(server, server.application);
   try {
     for (const url of [
       '/api/projects/discover',
@@ -222,9 +222,9 @@ it('cancels discovery when its browser request disconnects', async () => {
   const entered = Promise.withResolvers<void>();
   const cancelled = Promise.withResolvers<void>();
   const server = await createServer({
+    pairingReach,
     dataDirectory: root,
     projectHome: root,
-    token,
     projectFolders: {
       read: (_path, signal) =>
         new Promise((_resolve, reject) => {
@@ -241,6 +241,7 @@ it('cancels discovery when its browser request disconnects', async () => {
         }),
     },
   });
+  const headers = await pairDevice(server, server.application);
   const controller = new AbortController();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
@@ -264,9 +265,9 @@ it('cancels an admitted read when its client disconnects', async () => {
   const entered = Promise.withResolvers<void>();
   const cancelled = Promise.withResolvers<void>();
   const server = await createServer({
+    pairingReach,
     dataDirectory: root,
     projectHome: root,
-    token,
     projectFolders: {
       // Browsing reaches the application through the request's own signal, so
       // this proves the transport supplies one for work already admitted.
@@ -285,6 +286,7 @@ it('cancels an admitted read when its client disconnects', async () => {
         }),
     },
   });
+  const headers = await pairDevice(server, server.application);
   const leaving = new AbortController();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });

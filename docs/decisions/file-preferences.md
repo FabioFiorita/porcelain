@@ -34,3 +34,7 @@ application serialization, deadlines, and shutdown behavior.
 
 [Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
 including associated review data and operation recovery constraints.
+
+Superseded, 2026-09-20: the shared bearer token is gone. These routes authenticate the
+device that paired, like every other route. See
+[pairing and device credentials](../development.md#persistent-server).

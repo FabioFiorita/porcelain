@@ -4,6 +4,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { expect, test, vi } from 'vitest';
+import { pairThroughSocket } from '../apps/server/src/development/pair-through-socket.ts';
 import type { PlaygroundProfileName } from '../apps/server/src/development/profiles.ts';
 import {
   playgroundProfile,
@@ -111,15 +112,23 @@ test('serves a template inventory through Vite and cleans owned state on cancell
   try {
     await vi.waitFor(() => access(manifest), { timeout: 10000 });
     const info = JSON.parse(await readFile(manifest, 'utf8')) as {
-      tokenFile: string;
+      address: string;
+      socketPath: string;
     };
-    const token = await readFile(info.tokenFile, 'utf8');
+    // The manifest names the owner socket and nothing secret, so this test
+    // pairs a device of its own exactly as a browser context would.
+    const credential = await pairThroughSocket(
+      info.socketPath,
+      info.address,
+      'Playground spec',
+    );
+    expect(await readFile(manifest, 'utf8')).not.toContain(credential);
     await vi.waitFor(
       async () => {
         const response = await fetch(
           `http://127.0.0.1:${address.port}/api/inventory`,
           {
-            headers: { authorization: `Bearer ${token}` },
+            headers: { authorization: `Bearer ${credential}` },
           },
         );
         expect(response.status).toBe(200);
@@ -167,7 +176,7 @@ test('serves a template inventory through Vite and cleans owned state on cancell
     expect((await fetch(`http://127.0.0.1:${address.port}`)).ok).toBe(true);
     process.emit('SIGTERM');
     expect(await completion).toBe(0);
-    await expect(access(dirname(info.tokenFile))).rejects.toMatchObject({
+    await expect(access(dirname(info.socketPath))).rejects.toMatchObject({
       code: 'ENOENT',
     });
     await expect(access(manifest)).rejects.toMatchObject({ code: 'ENOENT' });

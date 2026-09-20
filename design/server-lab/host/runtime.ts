@@ -1,9 +1,9 @@
 // Runs the real Porcelain server in this process, traced, and reports to the
 // supervisor over IPC. One runtime per mode: switching mode restarts it.
 import { AsyncResource } from 'node:async_hooks';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { subscribe, unsubscribe } from 'node:diagnostics_channel';
-import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rename, rm } from 'node:fs/promises';
 import {
   createServer as createHttpServer,
   type IncomingMessage,
@@ -19,9 +19,15 @@ import type {
 } from '../../../apps/server/node_modules/fastify/fastify.js';
 import { z } from '../../../apps/server/node_modules/zod/index.js';
 import type { CommitGenerator } from '../../../apps/server/src/agents/interfaces/commit-generator.ts';
+import type { Application } from '../../../apps/server/src/application.ts';
 import { NodeFileWriter } from '../../../apps/server/src/filesystem/file-writer.ts';
 import type { FileWriter } from '../../../apps/server/src/filesystem/interfaces/file-writer.ts';
+import { createOwnerServer } from '../../../apps/server/src/http/owner-server.ts';
 import { createServer } from '../../../apps/server/src/http/server.ts';
+import {
+  ownerSocketPath,
+  restrictOwnerSocket,
+} from '../../../apps/server/src/lifecycle/owner-socket.ts';
 import { ActionGit } from '../../../packages/git/src/action-git.ts';
 import type { GitActionWriterFactory } from '../../../packages/git/src/interfaces/git-action-writer.ts';
 import type {
@@ -37,9 +43,8 @@ const bootStarted = performance.now();
 const send = (message: RuntimeMessage) => process.send?.(message);
 const log = (line: string) => send({ type: 'log', line });
 const mode = process.env.LAB_MODE === 'real' ? 'real' : 'playground';
-const tokenFile = process.env.LAB_TOKEN_FILE ?? '';
 const playgroundsDirectory = process.env.LAB_PLAYGROUNDS_DIRECTORY ?? '';
-if (!tokenFile || !playgroundsDirectory)
+if (!playgroundsDirectory)
   throw new Error('The runtime is started by the lab supervisor.');
 
 let cleanup: (() => Promise<void>) | undefined;
@@ -68,7 +73,9 @@ try {
 }
 
 async function start() {
-  const token = randomBytes(32).toString('base64url');
+  // Assigned once the server is listening: a device is paired against a real
+  // address, so there is nothing to invent before one exists.
+  let credential = '';
   let dataDirectory: string;
   let worktrees: WorktreeInfo[] = [];
   let roots: [string, string][] = [];
@@ -147,7 +154,7 @@ async function start() {
     seed = async (address) => {
       const inventory = (await (
         await fetch(`${address}/api/inventory`, {
-          headers: labHeaders(token, 'setup'),
+          headers: labHeaders(credential, 'setup'),
         })
       ).json()) as {
         projects: { id: string; worktrees: { id: string; main: boolean }[] }[];
@@ -157,7 +164,7 @@ async function start() {
       if (!project || !review) throw new Error('Playground worktrees missing');
       await seedPlaygroundReview(
         address,
-        token,
+        credential,
         project.id,
         review.id,
         fixture.reviewCommitOid,
@@ -224,17 +231,21 @@ async function start() {
     fastify.addHook('onRoute', collect);
   };
   subscribe('fastify.initialization', catalog);
+  // The lab is a real installation in every way that matters, so it pairs a
+  // device for itself against the address it ends up listening on.
+  const reach = {
+    port: 0,
+    policy: { allowedHosts: [] as string[], localAddresses: [] as string[] },
+  };
   const server = await createServer({
     dataDirectory,
-    token,
+    pairingReach: () => reach,
     ...overrides,
   }).finally(() => unsubscribe('fastify.initialization', catalog));
   const resource = Symbol('lab-async-resource');
   function collect(route: RouteOptions & { prefix?: string }) {
     const methods = Array.isArray(route.method) ? route.method : [route.method];
     for (const method of methods) {
-      // `/api/mcp` is registered for every verb but only answers POST.
-      if (route.url === '/api/mcp' && method !== 'POST') continue;
       if (method === 'HEAD') continue;
       const schema = (route.schema ?? {}) as Record<string, unknown>;
       routes.push({
@@ -280,7 +291,7 @@ async function start() {
     };
     const origin =
       (header('x-lab-origin') as Origin | undefined) ??
-      (booting ? 'setup' : url.startsWith('/api/mcp') ? 'mcp' : 'console');
+      (booting ? 'setup' : 'console');
     tracer.request(
       {
         method,
@@ -331,11 +342,24 @@ async function start() {
   }
   await new Promise<void>((resolve) => http.listen(0, '127.0.0.1', resolve));
   const address = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+  reach.port = Number(new URL(address).port);
+  reach.policy = { allowedHosts: [], localAddresses: ['127.0.0.1'] };
+  // The agent door: an owner socket beside the network listener, exactly as a
+  // real installation has. The console's MCP page speaks to this.
+  const socketPath = ownerSocketPath(dataDirectory);
+  const owner = createOwnerServer({
+    application: server.application,
+    status: () => ({ address, dataDirectory, pid: process.pid }),
+  });
+  await owner.listen({ path: socketPath });
+  restrictOwnerSocket(socketPath);
+  credential = await pairLabDevice(server.application, address);
   const previousCleanup = cleanup;
   cleanup = async () => {
     tracer.close();
     await new Promise<void>((resolve) => http.close(() => resolve()));
     http.closeAllConnections();
+    await owner.close();
     await server.close();
     await previousCleanup?.();
   };
@@ -344,7 +368,7 @@ async function start() {
     const response = await fetch(`${address}/api/projects`, {
       method: 'POST',
       headers: {
-        ...labHeaders(token, 'setup'),
+        ...labHeaders(credential, 'setup'),
         'content-type': 'application/json',
       },
       body: JSON.stringify({ path }),
@@ -359,7 +383,7 @@ async function start() {
     // Every linked worktree registers with its repository; label each one.
     const inventory = (await (
       await fetch(`${address}/api/inventory`, {
-        headers: labHeaders(token, 'setup'),
+        headers: labHeaders(credential, 'setup'),
       })
     ).json()) as {
       projects: {
@@ -385,12 +409,13 @@ async function start() {
       ),
     );
   }
-  await writeFile(tokenFile as string, token, { mode: 0o600 });
   booting = false;
   tracer.setBackgroundLabel('unattributed');
   send({
     type: 'ready',
     address,
+    credential,
+    socketPath,
     readOnly,
     ...(playgroundRoot ? { playgroundRoot } : {}),
     worktrees,
@@ -402,8 +427,29 @@ async function start() {
   log(`Server listening on ${address}`);
 }
 
-function labHeaders(token: string, origin: Origin) {
-  return { authorization: `Bearer ${token}`, 'x-lab-origin': origin };
+function labHeaders(credential: string, origin: Origin) {
+  return { authorization: `Bearer ${credential}`, 'x-lab-origin': origin };
+}
+
+/**
+ * One ephemeral device for this lab run, redeemed through the real pairing
+ * route. It lives and dies with the lab's own state directory.
+ */
+async function pairLabDevice(application: Application, address: string) {
+  const [issued] = await application.issuePairing(
+    ['Server lab'],
+    [new URL(address).origin],
+  );
+  if (!issued) throw new Error('The lab could not issue a pairing link');
+  const redeemed = await fetch(`${address}/api/pair`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code: issued.code, platform: 'Server lab' }),
+  });
+  if (!redeemed.ok) throw new Error('The lab could not pair its own device');
+  const { credential } = (await redeemed.json()) as { credential?: string };
+  if (!credential) throw new Error('Pairing returned no credential');
+  return credential;
 }
 
 function toJsonSchema(schema: unknown) {

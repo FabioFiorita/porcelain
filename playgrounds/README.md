@@ -30,7 +30,7 @@ and inspect the receipt. Restart the playground to restore every example, branch
 stash and private record. No remote account, external project or manual reset is needed.
 
 Run `pnpm dev` from the repository root. It creates a unique run under
-`.playgrounds/`, starts the API and Vite, and prints the token-file path.
+`.playgrounds/`, starts the API and Vite, and prints the owner socket path.
 Open the web URL; the client authenticates automatically.
 Ctrl+C stops the owned processes and removes that run. The template stays unchanged.
 
@@ -64,8 +64,10 @@ owner was killed. Delete `.playgrounds/.cache` to reclaim space.
 ## Running
 
 The Codex **Run Porcelain** action runs `pnpm dev`. Stop the current run before starting another;
-the web uses port 5173. Use `pnpm dev --manual` when testing the connection form. The Playground
-tab in Devtools can reveal the disposable token and reconnect the browser.
+the web uses port 5173. Use `pnpm dev --manual` when testing the pairing screens: the browser
+starts unpaired, so you see what an owner sees before a link is opened. The Playground tab in
+Devtools then pairs it with a fresh single-use link. Nothing reusable is shown — each window mints
+its own, and restarting the playground discards every device it paired.
 
-Production builds and preview never enable automatic authentication or the credential bridge.
-Each launch generates fresh sample data and credentials.
+Production builds and preview never enable automatic pairing or the playground bridge. Each launch
+generates fresh sample data, and every device paired against it dies with the run.

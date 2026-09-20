@@ -6,7 +6,6 @@ import { createFilePreferencesMock } from './mock';
 const projectId = 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09';
 const request = {
   projectId,
-  token: 'fixture-token',
   signal: new AbortController().signal,
 };
 

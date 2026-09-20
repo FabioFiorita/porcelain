@@ -1,8 +1,15 @@
 # Agent review handoff
 
-Porcelain exposes Streamable HTTP MCP at `/api/mcp` on the running server. Configure the coding agent's MCP client with that URL and an
-`Authorization: Bearer <Porcelain access token>` header. Use its secret/environment
-setting for the token. Browser-session cookies are not accepted here.
+Porcelain serves MCP over its owner socket, not the network, and `porcelain mcp` bridges an
+agent's stdio to it. Configure the coding agent with that command, for example:
+
+```sh
+claude mcp add porcelain -- porcelain mcp
+```
+
+There is no credential to configure. Reaching the socket means passing the data directory's
+permissions, which is the authority you already have at that terminal — so an agent on this
+machine needs no secret, and nothing off it can reach the agent tools at all.
 
 An agent finds the registered worktree with `inventory`, reads current layers and
 revision with `read_layers`, then publishes ordered layers with `replace_layers`.

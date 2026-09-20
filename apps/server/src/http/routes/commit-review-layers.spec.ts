@@ -5,10 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { expect, it } from 'vitest';
+import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
-
-const token = 'commit-review-fixture-token-at-least-32-characters';
-const headers = { authorization: `Bearer ${token}` };
 
 it('preserves ordered subsets for external split commits across live edits, worktree removal, restart and project removal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-commit-layers-'));
@@ -47,10 +45,11 @@ it('preserves ordered subsets for external split commits across live edits, work
   commit(path, 'Initial');
   git(path, 'worktree', 'add', '-b', 'review', linked);
   const server = await createServer({
+    pairingReach,
     dataDirectory,
     projectHome: dataDirectory,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     async function request(
@@ -180,9 +179,9 @@ it('preserves ordered subsets for external split commits across live edits, work
     expect(await request(firstUrl, 'PUT', firstInput)).toEqual(first);
     await server.close();
     const reopened = await createServer({
+      pairingReach,
       dataDirectory,
       projectHome: dataDirectory,
-      token,
     });
     try {
       for (const [url, expected] of [
@@ -224,10 +223,11 @@ it('preserves ordered subsets for external split commits across live edits, work
 it('authenticates before validating association identities and rejects ambiguous path selections', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-commit-layer-errors-'));
   const server = await createServer({
+    pairingReach,
     dataDirectory: root,
     projectHome: root,
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const invalid = '/api/projects/invalid/commits/HEAD/review-layers';
     for (const method of ['GET', 'PUT'] as const) {
@@ -313,10 +313,11 @@ it('binds review order to the chosen merge parent and uses committed rename and 
   git('merge', '--no-ff', '-m', 'Merge', 'side');
   const mergeOid = git('rev-parse', 'HEAD');
   const server = await createServer({
+    pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    token,
   });
+  const headers = await pairDevice(server, server.application);
   try {
     const project = projectResponseSchema.parse(
       (

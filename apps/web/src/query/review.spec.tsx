@@ -3,7 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import type { Api } from '../api/api';
-import { createMockStore } from '../api/inventory/mock';
+import { createMockStore, mockEnvironmentId } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
 import type {
   Change,
@@ -32,14 +32,15 @@ function ConnectionGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (connection) return;
     const controller = new AbortController();
-    void api.inventory
-      .read({
-        token: 'fixture-token',
+    // Connect the way a browser does: redeem a link, then hold the cookie.
+    void api.pairing
+      .redeem({
+        code: 'fixture-code',
+        environmentId: mockEnvironmentId,
         signal: controller.signal,
-        refresh: false,
       })
       .then((inventory) => {
-        beginConnection()?.('fixture-token', inventory);
+        beginConnection()?.(inventory);
       });
     return () => controller.abort();
   }, [api, beginConnection, connection]);
@@ -278,7 +279,6 @@ describe('review evidence queries', () => {
     const api = createMockApi(store);
     const evidence = await api.review.evidence({
       ...scope,
-      token: 'fixture-token',
       signal: new AbortController().signal,
     });
     const first = evidence.evidence[0];
@@ -286,7 +286,6 @@ describe('review evidence queries', () => {
       throw new Error('Missing fingerprintable evidence');
     await api.review.reviewed.set({
       ...scope,
-      token: 'fixture-token',
       signal: new AbortController().signal,
       input: {
         path: first.path,
@@ -301,7 +300,6 @@ describe('review evidence queries', () => {
     await expect(
       api.review.reviewed.list({
         ...other,
-        token: 'fixture-token',
         signal: new AbortController().signal,
       }),
     ).resolves.toEqual({ worktreeId: other.worktreeId, marks: [] });

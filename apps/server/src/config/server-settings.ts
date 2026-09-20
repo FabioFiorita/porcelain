@@ -22,10 +22,3 @@ export const absolutePathSchema = z
 export const listenHostSchema = z
   .string()
   .refine(isValidListenHost, 'Host must be a valid IP address or hostname');
-
-export const serverSettingsSchema = z.object({
-  token: z
-    .string()
-    .min(32)
-    .regex(/^[A-Za-z0-9._~-]+$/),
-});

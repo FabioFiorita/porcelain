@@ -1,33 +1,28 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import {
-  copyPlaygroundToken,
-  readPlaygroundCredentials,
-} from '../api/playground-credentials';
+import { requestPlaygroundLink } from '../api/pairing/playground';
 import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
 import { asMutation } from './mutation';
 import { useWorkspaceContext } from './workspace-provider';
 
-export function usePlaygroundAction() {
+/**
+ * Pair this browser with the playground. It goes through the same redemption
+ * the owner's own link uses; only where the link came from differs.
+ */
+export function usePlaygroundPairing() {
   const { api, beginConnection } = useWorkspaceContext();
   return asMutation(
-    // Session completion seeds/clears the cache in WorkspaceProvider; this is not a server-data write.
+    // Pairing seeds the cache in WorkspaceProvider; this is not a server-data write.
     // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation
     useMutation({
-      mutationFn: async (action: 'reveal' | 'copy' | 'connect') => {
-        const complete = action === 'connect' ? beginConnection() : null;
-        const credentials = await readPlaygroundCredentials();
-        if (action === 'copy') await copyPlaygroundToken(credentials.token);
-        if (!complete) return { ...credentials, connected: false };
-        const inventory = await api.inventory.read({
-          token: credentials.token,
+      mutationFn: async () => {
+        const complete = beginConnection();
+        const link = await requestPlaygroundLink();
+        const inventory = await api.pairing.redeem({
+          ...link,
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
-        return {
-          token: '',
-          tokenFile: credentials.tokenFile,
-          connected: complete(credentials.token, inventory),
-        };
+        return complete?.(inventory) ?? false;
       },
     }),
   );
@@ -48,10 +43,10 @@ export function useAutomaticPlaygroundConnection() {
     ]);
     const connect = async () => {
       try {
-        const { token } = await readPlaygroundCredentials(signal);
-        const inventory = await api.inventory.read({ token, signal });
+        const link = await requestPlaygroundLink(signal);
+        const inventory = await api.pairing.redeem({ ...link, signal });
         signal.throwIfAborted();
-        complete(token, inventory);
+        complete(inventory);
       } catch {
         if (!controller.signal.aborted) setFailed(true);
       }

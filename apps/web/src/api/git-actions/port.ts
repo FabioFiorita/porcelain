@@ -9,9 +9,7 @@ import type {
 } from '../../domain/git-action';
 import type { ReviewRequest } from '../review/port';
 export type GitActionsPort = {
-  models: (
-    request: Pick<ReviewRequest, 'token' | 'signal'>,
-  ) => Promise<CommitModel[]>;
+  models: (request: Pick<ReviewRequest, 'signal'>) => Promise<CommitModel[]>;
   draft: (
     request: ReviewRequest & { input: CommitDraftInput },
   ) => Promise<CommitDraft>;

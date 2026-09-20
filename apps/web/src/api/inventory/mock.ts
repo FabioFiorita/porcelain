@@ -1,4 +1,5 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
+import { UnauthorizedError } from '@porcelain/client/errors/unauthorized-error';
 import type { CommentThread } from '../../domain/comments';
 import type { FilePreference } from '../../domain/file-preferences';
 import type {
@@ -8,6 +9,10 @@ import type {
 } from '../../domain/inventory';
 import type { ReviewedMark } from '../../domain/review';
 import { createId } from '../../lib/id';
+
+/** The installation a fixture pairing link belongs to. */
+export const mockEnvironmentId = '7fe18f78-1477-4c19-a42b-cdd42f862151';
+
 import { reviewFixture } from '../review/fixtures';
 import type { InventoryPort } from './port';
 
@@ -17,6 +22,7 @@ export type MockScenario =
   | 'unavailable'
   | 'slow'
   | 'rejected'
+  | 'unpaired'
   | 'refresh-failed'
   | 'review-empty'
   | 'review-failed';
@@ -48,7 +54,7 @@ const additionalProjects = [
 
 function seed(scenario: MockScenario): Inventory {
   return {
-    environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
+    environmentId: mockEnvironmentId,
     projects:
       scenario === 'empty'
         ? []
@@ -135,7 +141,9 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     ),
   );
   return {
-    sessionToken: '',
+    // A mock browser starts with its device cookie; 'unpaired' is the one
+    // that has none.
+    paired: scenario !== 'unpaired',
     disconnectFailed: false,
     comments: {} as Record<string, CommentThread[]>,
     filePreferences: {} as Record<string, FilePreference[]>,
@@ -185,11 +193,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
 
 type MockStore = ReturnType<typeof createMockStore>;
 
-async function prepareInventoryRequest(
-  store: MockStore,
-  token: string,
-  signal: AbortSignal,
-) {
+async function prepareInventoryRequest(store: MockStore, signal: AbortSignal) {
   signal.throwIfAborted();
   if (store.delayMs > 0)
     await new Promise<void>((resolve, reject) => {
@@ -204,22 +208,15 @@ async function prepareInventoryRequest(
       signal.addEventListener('abort', onAbort, { once: true });
     });
   signal.throwIfAborted();
-  if (
-    !token.trim() ||
-    store.rejected ||
-    (token === 'browser-session' && !store.sessionToken)
-  )
-    throw new ConnectionError(
-      'Access token was rejected. Check it and try again.',
-    );
+  if (store.rejected || !store.paired) throw new UnauthorizedError();
 }
 
 export function createInventoryMock(
   store: ReturnType<typeof createMockStore>,
 ): InventoryPort {
   return {
-    async remove({ token, signal, projectId }) {
-      await prepareInventoryRequest(store, token, signal);
+    async remove({ signal, projectId }) {
+      await prepareInventoryRequest(store, signal);
       if (store.removeFailed)
         throw new ConnectionError(
           'This project has an active or unresolved Git operation. Resolve it before removing the project.',
@@ -232,16 +229,16 @@ export function createInventoryMock(
       );
       return { deleted: Boolean(project) };
     },
-    async discover({ token, signal }) {
-      await prepareInventoryRequest(store, token, signal);
+    async discover({ signal }) {
+      await prepareInventoryRequest(store, signal);
       if (store.discoveryFailed)
         throw new ConnectionError(
           'Could not discover repositories. Try again.',
         );
       return structuredClone(store.projectDiscovery);
     },
-    async browse({ token, signal, path = '/srv/work' }) {
-      await prepareInventoryRequest(store, token, signal);
+    async browse({ signal, path = '/srv/work' }) {
+      await prepareInventoryRequest(store, signal);
       const folder = store.projectFolders[path];
       if (!folder)
         throw new ConnectionError(
@@ -249,23 +246,21 @@ export function createInventoryMock(
         );
       return structuredClone(folder);
     },
-    async read({ token, signal, refresh }) {
-      await prepareInventoryRequest(store, token, signal);
+    async read({ signal, refresh }) {
+      await prepareInventoryRequest(store, signal);
       if (refresh && store.refreshFailed)
         throw new ConnectionError(
           'The environment could not complete the request. Try again.',
         );
       if (refresh) store.refreshCount += 1;
-      if (token !== 'browser-session') store.sessionToken = token;
       return structuredClone(store.inventory);
     },
-    async register({ token, signal, path }) {
-      await prepareInventoryRequest(store, token, signal);
+    async register({ signal, path }) {
+      await prepareInventoryRequest(store, signal);
       if (store.registerFailed)
         throw new ConnectionError(
           'That project could not be opened on the Porcelain server. Check the path and try again.',
         );
-      if (token !== 'browser-session') store.sessionToken = token;
       const existing = store.inventory.projects.find((project) =>
         project.worktrees.some((worktree) => worktree.path === path),
       );

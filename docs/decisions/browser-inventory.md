@@ -67,3 +67,7 @@ connection available.
 The launcher supplies the internal bridge and automatic-connection flags to Vite.
 Standalone Vite has neither enabled by default; build and preview disable both regardless
 of those flags. This is local fixture tooling, not a public token-provisioning API.
+
+Superseded, 2026-09-20: the shared bearer token is gone. A device redeems a single-use
+pairing link for its own credential, and the browser holds that credential as an HttpOnly
+cookie. See [pairing and device credentials](../development.md#persistent-server).

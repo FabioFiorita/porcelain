@@ -166,13 +166,17 @@ npx @fabiofiorita/porcelain@latest serve
 npx @fabiofiorita/porcelain@latest serve --lan
 \`\`\`
 
-The default state and access-token file are \`~/.porcelain/\` and
-\`~/.porcelain/admin-token\`. The token file is created with mode 0600 and its
-value is never printed. Pass \`--data-directory\` and \`--token-file\` to keep
-state somewhere else. Use \`porcelain serve --help\` for all options.
+State lives in \`~/.porcelain/\`; pass \`--data-directory\` to keep it somewhere
+else. Use \`porcelain serve --help\` for all options.
 
-The server is token-gated. Register an absolute checkout path through the HTTP
-API, then use the bundled web app at the address printed by the launcher.
+Nothing can reach the server until you pair a device. On the machine running
+it, \`porcelain pair "Phone" --address <the address serve printed>\` prints a
+link that works once; open it on the device itself. The address must be one
+this server answers at, and the not-paired screen in the browser shows the
+whole command with that device's own origin already filled in. \`porcelain devices\` lists what is paired and
+\`porcelain revoke <id>\` ends it. Coding agents connect over MCP with
+\`porcelain mcp\`, which needs no credential: it reaches a local socket only a
+process on this machine can open.
 
 ## Repository development
 

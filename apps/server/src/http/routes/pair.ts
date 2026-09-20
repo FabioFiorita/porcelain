@@ -6,7 +6,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
 import { TooManyAttemptsError } from '../errors/too-many-attempts-error.ts';
-import { setDeviceCookie } from '../middlewares/browser-session.ts';
+import { setDeviceCookie } from '../middlewares/device-cookie.ts';
 import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 import { AttemptLimit } from './attempt-limit.ts';
@@ -33,13 +33,15 @@ export async function pairRoutes(
       },
     },
     async (request, reply) => {
-      if (!limit.take(request.ip ?? 'unknown'))
-        throw new TooManyAttemptsError();
+      const peer = request.ip ?? 'unknown';
+      if (!limit.take(peer)) throw new TooManyAttemptsError();
       const { code, platform, label } = request.body;
       const { device, credential } = await options.application.redeemPairing(
         code,
         { platform, ...(label === undefined ? {} : { label }) },
       );
+      // It worked, so it was not a guess: the budget is for guesses.
+      limit.refund(peer);
       const summary = {
         id: device.id,
         label: device.label,
