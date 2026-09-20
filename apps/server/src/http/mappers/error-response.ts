@@ -6,9 +6,13 @@ import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-
 import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
 import { CommitDraftError } from '../../use-cases/errors/commit-draft-error.ts';
+import { InvalidDeviceDetailsError } from '../../use-cases/errors/invalid-device-details-error.ts';
+import { InvalidPairingAddressError } from '../../use-cases/errors/invalid-pairing-address-error.ts';
+import { InvalidPairingError } from '../../use-cases/errors/invalid-pairing-error.ts';
 import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
 import { ForbiddenOriginError } from '../errors/forbidden-origin-error.ts';
+import { TooManyAttemptsError } from '../errors/too-many-attempts-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 import { toFileErrorResponse } from './file-error-response.ts';
 import { toGitActionErrorResponse } from './git-action-error-response.ts';
@@ -70,6 +74,32 @@ export function toErrorResponse(error: unknown) {
     return {
       statusCode: 401,
       body: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+    };
+  }
+  if (error instanceof InvalidPairingError) {
+    // 401, not 404: a distinct code for "no such grant" would tell an attacker
+    // which ids exist.
+    return {
+      statusCode: 401,
+      body: { code: 'INVALID_PAIRING', message: error.message },
+    };
+  }
+  if (error instanceof InvalidPairingAddressError) {
+    return {
+      statusCode: 400,
+      body: { code: 'INVALID_PAIRING_ADDRESS', message: error.message },
+    };
+  }
+  if (error instanceof InvalidDeviceDetailsError) {
+    return {
+      statusCode: 400,
+      body: { code: 'INVALID_DEVICE_DETAILS', message: error.message },
+    };
+  }
+  if (error instanceof TooManyAttemptsError) {
+    return {
+      statusCode: 429,
+      body: { code: 'TOO_MANY_ATTEMPTS', message: error.message },
     };
   }
   if (error instanceof ForbiddenOriginError) {

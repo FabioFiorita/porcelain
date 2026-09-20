@@ -13,6 +13,240 @@ import type { AreaTestSummary, SpecAudit } from './types.ts';
 
 export const serverSpecAudits: SpecAudit[] = [
   {
+    file: 'apps/server/src/repositories/pairing-repository.spec.ts',
+    areas: ['connection'],
+    kind: 'integration',
+    real: ['sqlite', 'two independent connections in separate processes'],
+    fakes: [],
+    tests: [
+      {
+        name: 'consumes a grant once and refuses every later attempt',
+        asserts:
+          'A second redemption with the right code fails; one device exists.',
+      },
+      {
+        name: 'refuses a wrong secret, an expired grant, a revoked one, and a future one',
+        asserts:
+          'Each is refused, revoking twice is not a second success, and no device is created.',
+      },
+      {
+        name: 'lets only one of two racing processes redeem a grant',
+        asserts:
+          'Two processes each running PairingRepository.redeem, released by a file barrier; exactly one wins and one device exists.',
+      },
+      {
+        name: 'fails the same race when the repository ignores its conditional update',
+        asserts:
+          'The mutation patches the production statement and produces two devices, proving the race above still races.',
+      },
+      {
+        name: 'writes only last-seen fields and never revives a revoked device',
+        asserts: 'A flush landing after revocation changes nothing.',
+      },
+      {
+        name: 'keeps existing rows and both new tables across a reopen',
+        asserts:
+          'A reviewed_files row survives; both tables exist and are empty.',
+      },
+      {
+        name: 'rolls 0003 back as a whole when one of its statements fails',
+        asserts:
+          'From a database recorded through 0002: the failure is 0003 own statement, the devices table it had already created is gone, the journal stays at three entries, and older rows survive.',
+      },
+    ],
+    strengths: [
+      'The concurrency test runs the real repository in each child, so its mutation targets production; an earlier version tested SQL duplicated in the spec, where a racy rewrite would have gone unnoticed.',
+    ],
+    gaps: [
+      'The race uses two processes on one machine; it says nothing about a networked filesystem, which SQLite does not support anyway.',
+    ],
+    verdict: 'strong',
+  },
+  {
+    file: 'apps/server/src/use-cases/pairing.spec.ts',
+    areas: ['connection'],
+    kind: 'integration',
+    real: ['sqlite'],
+    fakes: ['an injected listener reach'],
+    tests: [
+      {
+        name: 'accepts a link at an address the server answers on, including under --lan',
+        asserts:
+          'Loopback, the LAN address, and its IPv4-mapped spelling are all accepted.',
+      },
+      {
+        name: 'refuses a link aimed where the server does not answer',
+        asserts:
+          'Another machine, an unknown name, the wrong port and no address at all are refused.',
+      },
+      {
+        name: 'accepts a name given on the command line but not its neighbours',
+        asserts: 'An allowed host is not a wildcard over its domain.',
+      },
+      {
+        name: 'carries the environment id in the link',
+        asserts:
+          'The fragment holds the code and the environment id, so 3c can refuse a link meant elsewhere.',
+      },
+      {
+        name: 'lists every address it was given, and issues one link per name',
+        asserts:
+          'Each link points at the first address, carries the rest, and has its own code.',
+      },
+      {
+        name: 'keeps the codes it issued out of what it lists back',
+        asserts: 'Only digests are stored, so a listing cannot rebuild a link.',
+      },
+    ],
+    strengths: [
+      'Both guarantees are mutation-checked: removing the address validation or the environment id turns these red, and neither did before this spec existed.',
+    ],
+    gaps: [
+      'The reach is injected here; the runtime spec covers deriving it from a real wildcard bind.',
+    ],
+    verdict: 'strong',
+  },
+  {
+    file: 'apps/server/src/cli/mcp-bridge.spec.ts',
+    areas: ['connection', 'mcp'],
+    kind: 'integration',
+    real: ['a bound runtime with its owner socket', 'stdio framing'],
+    fakes: [],
+    tests: [
+      {
+        name: 'completes initialize and tools/list over the socket with no secret',
+        asserts:
+          'Both answer without error and the notification produces no line.',
+      },
+      {
+        name: 'calls a tool and is attributed to the agent, not the owner',
+        asserts: 'tools/call succeeds through the bridge.',
+      },
+      {
+        name: 'reports a stopped server once per request instead of hanging',
+        asserts: 'One error for the request, silence for the notification.',
+      },
+    ],
+    strengths: [
+      'This is the only test of the documented agent path; without it a missing Accept header made every bridge request 406 while the direct network MCP tests stayed green.',
+    ],
+    gaps: [
+      'One exchange per line, so a server that streams an event-stream response rather than JSON is not covered.',
+    ],
+    verdict: 'strong',
+  },
+  {
+    file: 'apps/server/src/lifecycle/device-directory.spec.ts',
+    areas: ['connection'],
+    kind: 'unit',
+    real: [],
+    fakes: ['an in-memory pairing store', 'an injected clock'],
+    tests: [
+      {
+        name: 'accepts a credential, moves last seen forward, and flushes only what moved',
+        asserts: 'The second flush writes nothing.',
+      },
+      {
+        name: 'refuses an unknown id, a wrong secret and a foreign credential alike',
+        asserts: 'A pairing code is not a device credential.',
+      },
+      {
+        name: 'retires a credential unused for ninety days, checked on every request',
+        asserts:
+          'The boundary bites on a cache built while the device was fresh, and use restarts the window.',
+      },
+      {
+        name: 'refuses a credential whose record is in the future and never rewinds last seen',
+        asserts: 'A backwards clock refuses the request and writes nothing.',
+      },
+      {
+        name: 'revokes immediately, closes what is held, and cannot be resurrected by a flush',
+        asserts:
+          'Only that device\u2019s connection closes; a pending flush writes nothing for it.',
+      },
+      {
+        name: 'stops holding a connection once it closes on its own',
+        asserts: 'A released registration is not closed again on revocation.',
+      },
+      {
+        name: 'makes a device usable on its next request as soon as it is added',
+        asserts: 'No restart is needed after redemption.',
+      },
+    ],
+    strengths: [
+      'The clock is injected, so the 90-day boundary and a rollback are tested rather than reasoned about.',
+    ],
+    gaps: [
+      'The flush timer itself is not exercised here; app.ts owns its interval and shutdown flush.',
+    ],
+    verdict: 'strong',
+  },
+  {
+    file: 'apps/server/src/http/pairing.spec.ts',
+    areas: ['connection'],
+    kind: 'http',
+    real: ['fastify inject', 'a bound runtime with its owner socket', 'sqlite'],
+    fakes: [],
+    tests: [
+      {
+        name: 'pairs once, works immediately, and refuses the link afterwards',
+        asserts: 'The credential authenticates; the link is dead.',
+      },
+      {
+        name: 'gives a browser a cookie and never the credential itself',
+        asserts:
+          'HttpOnly, SameSite=Strict, Path=/api, and no credential in the body.',
+      },
+      {
+        name: 'never lets a device credential become the agent principal',
+        asserts:
+          'A device at /api/mcp is a viewer; the shared token at the same door is still an agent.',
+      },
+      {
+        name: 'refuses a device whose label or platform could forge the owner listing',
+        asserts:
+          'Control characters are rejected and the grant survives the attempt.',
+      },
+      {
+        name: 'limits unauthenticated redemption attempts',
+        asserts: 'A burst of valid-shaped codes starts returning 429.',
+      },
+      {
+        name: 'cuts a response the device is still holding when it is revoked',
+        asserts:
+          'A route behind the real authentication hook blocks on a barrier; revoking destroys that response before the handler is released, and the next request is 401.',
+      },
+      {
+        name: 'keeps a constantly used browser signed in past ninety days',
+        asserts:
+          'Hourly requests for 91 days each renew the cookie, so constant use is never logged out by age.',
+      },
+      {
+        name: 'takes the device credential away when the browser disconnects',
+        asserts: 'Both cookies are expired as separate Set-Cookie values.',
+      },
+      {
+        name: 'limits redemption across peers, not only per peer',
+        asserts: 'Ninety attempts from rotating addresses still reach 429.',
+      },
+      {
+        name: 'revokes a pending link before anyone redeems it',
+        asserts: 'The owner can cancel a link pasted into the wrong window.',
+      },
+      {
+        name: 'keeps the shared token working so the web and its tests still pass',
+        asserts: '3c removes the token; 3b must not.',
+      },
+    ],
+    strengths: [
+      'The agent-principal test asserts both credentials at the same door, so it fails if the device path ever inherits the door\u2019s grant.',
+    ],
+    gaps: [
+      'The cookie refresh on use is not exercised over HTTP; the directory spec covers the idle window it depends on.',
+    ],
+    verdict: 'strong',
+  },
+  {
     file: 'apps/server/src/use-cases/read-worktree-evidence.spec.ts',
     areas: ['changes'],
     kind: 'unit',

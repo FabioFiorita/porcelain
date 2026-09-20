@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -92,11 +92,16 @@ it('backfills legacy authors, preserves evidence/order/content and reopens safel
       expect(store.list('legacy-worktree')[0]?.messages[0]).not.toHaveProperty(
         'createdAt',
       );
+      // Every shipped migration ran, counted from what is on disk rather than
+      // pinned to a number that any new migration would break.
+      const shipped = (await readdir(migrationsPath)).filter((entry) =>
+        entry.endsWith('.sql'),
+      ).length;
       expect(
         database.db.$client
           .prepare('SELECT count(*) AS count FROM __drizzle_migrations')
           .get(),
-      ).toMatchObject({ count: 3 });
+      ).toMatchObject({ count: shipped });
     } finally {
       database.close();
     }

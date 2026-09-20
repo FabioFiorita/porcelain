@@ -5,7 +5,9 @@ import {
 } from '@fastify/type-provider-zod';
 import { ownerStatusSchema } from '@porcelain/contracts/owner';
 import Fastify from 'fastify';
+import type { Application } from '../application.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
+import { registerOwnerRoutes } from './owner-routes.ts';
 
 export type OwnerStatus = {
   address: string;
@@ -20,7 +22,10 @@ export type OwnerStatus = {
  * routes: owner operations are then unreachable over the network by
  * construction, not by remembering a condition on every route.
  */
-export function createOwnerServer(options: { status: () => OwnerStatus }) {
+export function createOwnerServer(options: {
+  status: () => OwnerStatus;
+  application: Application;
+}) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
@@ -42,5 +47,6 @@ export function createOwnerServer(options: { status: () => OwnerStatus }) {
       return options.status();
     },
   );
+  registerOwnerRoutes(server, { application: options.application });
   return server;
 }

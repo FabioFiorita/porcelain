@@ -20,7 +20,8 @@
     "./reviewed-files": "./src/reviewed-files.ts",
     "./evidence": "./src/evidence.ts",
     "./commit-draft": "./src/commit-draft.ts",
-    "./owner": "./src/owner.ts"
+    "./owner": "./src/owner.ts",
+    "./pairing": "./src/pairing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

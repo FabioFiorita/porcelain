@@ -16,7 +16,7 @@ export async function fileRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   listDirectory(server, options);
   readTextFile(server, options);
   editFile(server, options);

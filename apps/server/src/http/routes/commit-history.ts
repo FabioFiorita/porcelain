@@ -10,7 +10,7 @@ export async function commitHistoryRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   listCommits(server, options);
   inspectCommitChanges(server, options);
 }

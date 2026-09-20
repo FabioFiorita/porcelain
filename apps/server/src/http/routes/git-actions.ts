@@ -22,7 +22,7 @@ export async function gitActionRoutes(
   server: FastifyInstance,
   options: { application: Application; token: string },
 ) {
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   server.addHook('onSend', preventCaching);
   preparePull(server, options);
   executePull(server, options);

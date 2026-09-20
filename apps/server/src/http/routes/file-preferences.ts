@@ -10,7 +10,7 @@ export async function filePreferenceRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   listFilePreferences(server, options);
   setFilePreference(server, options);
 }

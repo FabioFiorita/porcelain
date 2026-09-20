@@ -270,6 +270,15 @@ async function main(): Promise<void> {
       if (code !== statusExitCodes.running) process.exitCode = code;
       return;
     }
+    if (parsed.command !== 'serve') {
+      // Pairing and agent commands belong to the installed executable, which
+      // talks to an already-running server; this launcher starts one.
+      process.stderr.write(
+        `Use the installed porcelain command for ${parsed.command}.\n`,
+      );
+      process.exitCode = 1;
+      return;
+    }
     await runServe(parsed.settings, controller.signal);
   } catch (error) {
     if (!controller.signal.aborted) {

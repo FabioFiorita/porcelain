@@ -42,6 +42,11 @@ export const apiErrorSchema = z.object({
     'HISTORY_SNAPSHOT_UNAVAILABLE',
     'READ_LIMIT_EXCEEDED',
     'UNSUPPORTED_HISTORY_DATA',
+    'INVALID_PAIRING',
+    'INVALID_DEVICE_DETAILS',
+    'INVALID_PAIRING_ADDRESS',
+    'TOO_MANY_ATTEMPTS',
+    'FORBIDDEN_ORIGIN',
   ]),
   message: z.string(),
 });

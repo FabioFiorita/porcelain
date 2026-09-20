@@ -1,4 +1,5 @@
 import { rmSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import type { FastifyInstance } from 'fastify';
 import type { z } from 'zod';
 import type { CommitGenerator } from '../agents/interfaces/commit-generator.ts';
@@ -8,6 +9,7 @@ import { startupSettingsSchema } from '../config/startup-settings.ts';
 import type { FileWriter } from '../filesystem/interfaces/file-writer.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
+import type { HostPolicy } from '../models/origin-policy.ts';
 import { prepareDataDirectory } from './data-directory.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
@@ -38,6 +40,8 @@ export type Runtime = {
   address: string;
   socketPath: string;
   refreshed(): Promise<void>;
+  /** Exposed so a test can check both doors agree about where this server is. */
+  issuePairing: Application['issuePairing'];
   close(): Promise<void>;
 };
 
@@ -87,6 +91,28 @@ async function shutDown(parts: {
   if (failures.length > 0) throw failures[0];
 }
 
+/**
+ * The addresses a connection to this server can arrive on.
+ *
+ * A wildcard bind answers on every interface, but only in the family it bound:
+ * `0.0.0.0` is IPv4, and a link naming `[::1]` would reach nothing. Node binds
+ * `::` dual-stack, so that one covers both. Binding a single address narrows it
+ * to exactly that address, loopback included — a server on 192.168.1.5 does not
+ * answer on 127.0.0.1 either.
+ *
+ * This is not the interface discovery the pairing decision rules out: the owner
+ * still names the address they want with `--address`. It only stops the server
+ * refusing an address it demonstrably answers on, or offering one it does not.
+ */
+function listeningOn(host: string): string[] {
+  if (host !== '0.0.0.0' && host !== '::') return [host];
+  const families = host === '0.0.0.0' ? ['IPv4'] : ['IPv4', 'IPv6'];
+  return Object.values(networkInterfaces())
+    .flatMap((entries) => entries ?? [])
+    .filter((entry) => families.includes(entry.family))
+    .map((entry) => entry.address);
+}
+
 /** Start both doors over one application, or leave nothing running. */
 export async function startRuntime(
   settings: z.input<typeof startupSettingsSchema>,
@@ -112,6 +138,13 @@ export async function startRuntime(
     owner?: FastifyInstance;
     application?: Application;
   } = {};
+  // A pairing link may only name somewhere this server answers, judged by the
+  // same rule the request hook applies. Filled in once the listener reports the
+  // port it bound, since 0 means "any".
+  const reach: { port: number; policy: HostPolicy } = {
+    port: 0,
+    policy: { allowedHosts, localAddresses: [] },
+  };
   const lock = await acquireStartupLock(directory);
   try {
     signal?.throwIfAborted();
@@ -128,6 +161,7 @@ export async function startRuntime(
     parts.application = await openApplication({
       dataDirectory: directory,
       projectHome,
+      pairingReach: () => reach,
       ...(fileWriter ? { fileWriter } : {}),
       ...(commitGenerator ? { commitGenerator } : {}),
       ...(signal ? { signal } : {}),
@@ -141,8 +175,11 @@ export async function startRuntime(
       allowedHosts,
     });
     const address = await parts.network.listen({ host, port });
+    reach.port = Number(new URL(address).port);
+    reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
     await onNetworkBound?.(address);
     parts.owner = createOwnerServer({
+      application,
       status: () => ({ address, dataDirectory: directory, pid: process.pid }),
     });
     await parts.owner.listen({ path: socketPath });
@@ -153,6 +190,8 @@ export async function startRuntime(
       address,
       socketPath,
       refreshed: () => application.ready(),
+      issuePairing: (labels, addresses) =>
+        application.issuePairing(labels, addresses),
       close: () => {
         closing.started ??= shutDown(parts);
         return closing.started;

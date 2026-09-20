@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import { issuePairings, listAccess, revokeAccess } from './access-commands.ts';
 import type { ServeEnvironment } from './arguments.ts';
 import {
   parseCliArguments,
@@ -6,6 +7,8 @@ import {
   serveHelp,
 } from './index.ts';
 import { type LauncherDependencies, runLocalServer } from './launcher.ts';
+import { runMcpBridge } from './mcp-bridge.ts';
+import { OwnerRequestError } from './owner-client.ts';
 import { installShutdownSignals } from './signals.ts';
 import { reportStatus, statusExitCodes } from './status.ts';
 
@@ -18,6 +21,7 @@ export type CliDependencies = LauncherDependencies & {
 
 function formatStartupError(error: unknown): string {
   if (error instanceof ServeConfigurationError) return error.message;
+  if (error instanceof OwnerRequestError) return error.message;
   if (
     error instanceof Error &&
     (error.name === 'DataDirectoryOwnedError' ||
@@ -59,6 +63,35 @@ export async function runCli(
     if (parsed.command === 'status') {
       const code = await reportStatus(parsed.settings, { stdout, stderr });
       if (code !== statusExitCodes.running) process.exitCode = code;
+      return;
+    }
+    const output = { stdout, stderr };
+    if (parsed.command === 'pair') {
+      await issuePairings(
+        parsed.settings.dataDirectory,
+        parsed.settings.labels,
+        parsed.settings.addresses,
+        output,
+      );
+      return;
+    }
+    if (parsed.command === 'devices') {
+      await listAccess(parsed.settings.dataDirectory, output);
+      return;
+    }
+    if (parsed.command === 'revoke') {
+      if (
+        !(await revokeAccess(
+          parsed.settings.dataDirectory,
+          parsed.settings.id,
+          output,
+        ))
+      )
+        process.exitCode = 1;
+      return;
+    }
+    if (parsed.command === 'mcp') {
+      await runMcpBridge(parsed.settings.dataDirectory);
       return;
     }
     await runLocalServer(parsed.settings, controller.signal, dependencies);

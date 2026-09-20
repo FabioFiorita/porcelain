@@ -15,7 +15,7 @@ export async function browserSessionRoutes(
   server.withTypeProvider<ZodTypeProvider>().get(
     '/session',
     {
-      onRequest: authenticate(options.token),
+      onRequest: authenticate(options),
       schema: {
         response: { ...errorResponses, 200: inventoryResponseSchema },
       },

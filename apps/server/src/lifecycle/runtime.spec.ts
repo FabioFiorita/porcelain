@@ -14,7 +14,7 @@ import {
   request as httpRequest,
 } from 'node:http';
 import { connect } from 'node:net';
-import { tmpdir } from 'node:os';
+import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readStartupSettings } from '../config/startup-settings.ts';
@@ -430,6 +430,100 @@ describe('Runtime', () => {
       await rm(root, { recursive: true, force: true });
     }
   }, 15000);
+
+  it('pairs at every address it answers on when bound to every interface', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-runtime-lan-'));
+    // What `serve --lan` does. The request hook accepts a connection arriving
+    // on any interface, so a pairing link must be allowed to name the same
+    // address — these two disagreed once, and the owner met it as the server
+    // refusing the address it was answering on.
+    const runtime = await startRuntime(
+      await settings(root, { host: '0.0.0.0' }),
+    );
+    try {
+      const port = Number(new URL(runtime.address).port);
+      const local = Object.values(networkInterfaces())
+        .flatMap((entries) => entries ?? [])
+        .find((entry) => entry.family === 'IPv4' && !entry.internal);
+      if (!local) return;
+
+      // The door answers a request that genuinely arrives on that address.
+      const served = await read(
+        { address: `http://${local.address}:${port}` },
+        '/api/health',
+      );
+      expect(served.status).toBe(200);
+
+      // And pairing accepts a link pointing at it.
+      const [issued] = await runtime.issuePairing(
+        ['iPhone'],
+        [`http://${local.address}:${port}`],
+      );
+      expect(issued?.link).toContain(`http://${local.address}:${port}/pair#`);
+
+      // A different machine on the same network is still refused.
+      await expect(
+        runtime.issuePairing(['iPhone'], ['http://198.51.100.7:' + port]),
+      ).rejects.toMatchObject({ name: 'InvalidPairingAddressError' });
+    } finally {
+      await runtime.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a link in a family it did not bind', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-runtime-family-'));
+    // `--lan` binds IPv4 only, so nothing answers on [::1]. Offering a link
+    // there would give the owner one to paste into a device that cannot use it.
+    const runtime = await startRuntime(
+      await settings(root, { host: '0.0.0.0' }),
+    );
+    try {
+      const port = Number(new URL(runtime.address).port);
+      await expect(
+        runtime.issuePairing(['iPhone'], [`http://[::1]:${port}`]),
+      ).rejects.toMatchObject({ name: 'InvalidPairingAddressError' });
+      // The door agrees: it cannot be reached there at all.
+      await expect(fetch(`http://[::1]:${port}/api/health`)).rejects.toThrow();
+      // IPv4 loopback is bound, so it is offered.
+      const [issued] = await runtime.issuePairing(
+        ['iPhone'],
+        [`http://127.0.0.1:${port}`],
+      );
+      expect(issued).toBeDefined();
+    } finally {
+      await runtime.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('offers only the address it bound when given one', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-runtime-single-'));
+    const runtime = await startRuntime(
+      await settings(root, { host: '127.0.0.2' }),
+    );
+    try {
+      const port = Number(new URL(runtime.address).port);
+      const [issued] = await runtime.issuePairing(
+        ['iPhone'],
+        [`http://127.0.0.2:${port}`],
+      );
+      expect(issued).toBeDefined();
+      // A server bound to one loopback address does not answer on another, and
+      // `localhost` resolves to 127.0.0.1, not to this one.
+      for (const origin of [
+        `http://127.0.0.1:${port}`,
+        `http://localhost:${port}`,
+      ])
+        await expect(
+          runtime.issuePairing(['iPhone'], [origin]),
+          origin,
+        ).rejects.toMatchObject({ name: 'InvalidPairingAddressError' });
+    } finally {
+      await runtime.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 
   it('binds an explicitly configured host without changing the default', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-runtime-host-'));

@@ -13,7 +13,7 @@ export async function artifactRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   server.addHook('onRequest', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
   });

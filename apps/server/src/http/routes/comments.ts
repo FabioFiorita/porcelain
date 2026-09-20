@@ -12,7 +12,7 @@ export async function commentRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   listCommentThreads(server, options);
   createCommentThread(server, options);
   replyToComment(server, options);

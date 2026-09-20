@@ -32,6 +32,7 @@ import type { FileReader } from './filesystem/interfaces/file-reader.ts';
 import type { FileWriter } from './filesystem/interfaces/file-writer.ts';
 import type { ProjectFolders } from './filesystem/interfaces/project-folders.ts';
 import { NodeProjectFolders } from './filesystem/project-folders.ts';
+import { DeviceDirectory } from './lifecycle/device-directory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { Lanes } from './lifecycle/lanes.ts';
 import { SharedReads } from './lifecycle/shared-reads.ts';
@@ -41,6 +42,7 @@ import { CommitReviewLayerRepository } from './repositories/commit-review-layer-
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
+import { PairingRepository } from './repositories/pairing-repository.ts';
 import { ProjectRemovalRepository } from './repositories/project-removal-repository.ts';
 import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
 import { ReviewedFileRepository } from './repositories/reviewed-file-repository.ts';
@@ -62,6 +64,7 @@ import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
 import { ListFileTree } from './use-cases/list-file-tree.ts';
 import { ListReviewedFiles } from './use-cases/list-reviewed-files.ts';
+import { Pairing, type PairingReach } from './use-cases/pairing.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadAsset } from './use-cases/read-asset.ts';
 import { ReadReviewSummary } from './use-cases/read-review-summary.ts';
@@ -80,6 +83,8 @@ import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
 import { UploadArtifact } from './use-cases/upload-artifact.ts';
 
 const READ_CAPACITY = 4;
+/** How often a device's last-seen time reaches the database. */
+const LAST_SEEN_FLUSH_MS = 60_000;
 /** A model call is slow and reaches outside; it never holds a lane. */
 const GENERATOR_DEADLINE_MS = 120_000;
 
@@ -93,6 +98,8 @@ export async function openApplication(options: {
   projectFolders?: ProjectFolders;
   /** Where discovery and browsing start; the composition root resolves it. */
   projectHome: string;
+  /** Where this server answers, as the bound listener reports it. */
+  pairingReach?: () => PairingReach;
   commitGenerator?: CommitGenerator;
   fileWriter?: FileWriter;
   now?: () => string;
@@ -145,6 +152,26 @@ export async function openApplication(options: {
     const preferences = new FilePreferenceRepository(database.db);
     const listPreferences = new ListFilePreferences(store, preferences);
     const setPreference = new SetFilePreference(store, preferences);
+    const pairingStore = new PairingRepository(database.db);
+    // Device digests live in memory because the review forbids per-request SQL;
+    // one server owns a data directory, so nothing else can change them.
+    const deviceDirectory = new DeviceDirectory(pairingStore);
+    // Where this server answers is a listener fact, so the runtime supplies it;
+    // the application refuses a pairing link aimed anywhere else.
+    const pairing = new Pairing(
+      pairingStore,
+      deviceDirectory,
+      store,
+      options.pairingReach ??
+        (() => ({ port: 0, policy: { allowedHosts: [], localAddresses: [] } })),
+    );
+    // Last seen moves per request in memory and reaches SQLite on a timer, so
+    // authentication never writes. Unref'd: it must not hold the process open.
+    const lastSeenFlush = setInterval(
+      () => deviceDirectory.flush(),
+      LAST_SEEN_FLUSH_MS,
+    );
+    lastSeenFlush.unref();
     const artifacts = new ArtifactRepository(database.db);
     const uploadArtifact = new UploadArtifact(artifacts, store);
     const listArtifacts = new ListArtifacts(artifacts, store);
@@ -622,7 +649,26 @@ export async function openApplication(options: {
         await firstRefresh;
         if (firstRefreshFailure !== undefined) throw firstRefreshFailure;
       },
-      close: () => lanes.close(),
+      authenticateDevice: (credential, address) =>
+        deviceDirectory.authenticate(credential, address),
+      holdForDevice: (deviceId, connection) =>
+        deviceDirectory.register(deviceId, connection),
+      issuePairing: (labels, addresses) =>
+        stored(() => pairing.issue(labels, addresses)),
+      listAccess: () => stored(() => pairing.listing()),
+      revokeAccess: (id) => stored(() => pairing.revoke(id)),
+      redeemPairing: (code, registration) =>
+        stored(() => pairing.redeem(code, registration)),
+      close: async () => {
+        clearInterval(lastSeenFlush);
+        // The last flush has to happen while the database is still open.
+        try {
+          deviceDirectory.flush();
+        } catch {
+          // A failed final flush costs precision in "last seen", never access.
+        }
+        await lanes.close();
+      },
     };
   } catch (error) {
     await lanes.close();

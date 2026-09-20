@@ -122,3 +122,62 @@ it('rejects conflicting or unknown installed command arguments', () => {
     parseCliArguments(['serve', '--allow-host', 'not a host'], {}, home),
   ).toThrow('--allow-host');
 });
+
+it('requires a device name and an explicit address to pair', () => {
+  const home = '/fixture/home';
+  expect(() => parseCliArguments(['pair'], {}, home)).toThrow('device name');
+  // Nothing is discovered: a link with no address is not a link, and a
+  // wildcard bind is not an advertised URL.
+  expect(() => parseCliArguments(['pair', 'iPhone'], {}, home)).toThrow(
+    '--address',
+  );
+  expect(() =>
+    parseCliArguments(
+      ['pair', 'iPhone', '--address', 'not-an-origin'],
+      {},
+      home,
+    ),
+  ).toThrow('--address');
+  expect(() =>
+    parseCliArguments(
+      ['pair', 'iPhone', '--address', 'http://host:3000/path'],
+      {},
+      home,
+    ),
+  ).toThrow('--address');
+  expect(
+    parseCliArguments(
+      [
+        'pair',
+        'iPhone',
+        'iPad',
+        '--address',
+        'http://192.168.1.5:3000',
+        '--address=http://porcelain.tail1234.ts.net:3000',
+      ],
+      {},
+      home,
+    ),
+  ).toMatchObject({
+    command: 'pair',
+    settings: {
+      labels: ['iPhone', 'iPad'],
+      addresses: [
+        'http://192.168.1.5:3000',
+        'http://porcelain.tail1234.ts.net:3000',
+      ],
+    },
+  });
+});
+
+it('takes exactly one id to revoke', () => {
+  const home = '/fixture/home';
+  expect(() => parseCliArguments(['revoke'], {}, home)).toThrow('exactly one');
+  expect(() => parseCliArguments(['revoke', 'a', 'b'], {}, home)).toThrow(
+    'exactly one',
+  );
+  expect(parseCliArguments(['revoke', 'device-id'], {}, home)).toMatchObject({
+    command: 'revoke',
+    settings: { id: 'device-id' },
+  });
+});

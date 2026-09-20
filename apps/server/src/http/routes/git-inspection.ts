@@ -10,7 +10,7 @@ export async function gitInspectionRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   readGitStatus(server, options);
   readGitDiff(server, options);
 }

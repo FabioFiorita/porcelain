@@ -11,7 +11,7 @@ export async function reviewLayerRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   getReviewLayers(server, options);
   getCommitReviewLayers(server, options);
   associateCommitReviewLayers(server, options);

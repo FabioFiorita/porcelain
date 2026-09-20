@@ -22,6 +22,13 @@
       "when": 1789347169518,
       "tag": "0002_backfill_comment_authors",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789882726950,
+      "tag": "0003_pairing_and_devices",
+      "breakpoints": true
     }
   ]
 }

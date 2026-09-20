@@ -3,6 +3,9 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 
 const duration = 30 * 24 * 60 * 60;
 const name = 'porcelain_session';
+const deviceName = 'porcelain_device';
+/** Matches the device credential's own 90-day unused lifetime. */
+const deviceDuration = 90 * 24 * 60 * 60;
 
 function signature(value: string, token: string) {
   return createHmac('sha256', token)
@@ -26,6 +29,35 @@ export function browserSessionValid(request: FastifyRequest, token: string) {
   );
 }
 
+function readCookie(
+  request: FastifyRequest,
+  cookieName: string,
+): string | null {
+  const cookies = (request.headers.cookie ?? '')
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith(`${cookieName}=`));
+  return cookies.length === 1
+    ? (cookies[0]?.slice(cookieName.length + 1) ?? null)
+    : null;
+}
+
+/** The device credential as the browser holds it: HttpOnly, so no script reads it. */
+export function deviceCookie(request: FastifyRequest): string | null {
+  return readCookie(request, deviceName);
+}
+
+export function setDeviceCookie(
+  reply: FastifyReply,
+  credential: string,
+  secure: boolean,
+) {
+  reply.header(
+    'Set-Cookie',
+    `${deviceName}=${credential}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=${deviceDuration}${secure ? '; Secure' : ''}`,
+  );
+}
+
 export function setBrowserSession(
   reply: FastifyReply,
   token: string,
@@ -38,9 +70,14 @@ export function setBrowserSession(
   );
 }
 
+/**
+ * Disconnect has to take every credential the browser holds. Clearing only the
+ * session cookie would leave a paired device authenticating again on its next
+ * request from the device cookie, which is the opposite of what the owner
+ * pressed the button for.
+ */
 export function clearBrowserSession(reply: FastifyReply) {
-  reply.header(
-    'Set-Cookie',
-    `${name}=; Path=/api; HttpOnly; SameSite=Strict; Max-Age=0`,
-  );
+  const expire = (cookie: string) =>
+    `${cookie}=; Path=/api; HttpOnly; SameSite=Strict; Max-Age=0`;
+  reply.header('Set-Cookie', [expire(name), expire(deviceName)]);
 }

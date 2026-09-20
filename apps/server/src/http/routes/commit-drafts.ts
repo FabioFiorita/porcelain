@@ -14,7 +14,7 @@ export async function commitDraftRoutes(
   server: FastifyInstance,
   options: { application: Application; token: string },
 ) {
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   server.addHook('onSend', preventCaching);
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(

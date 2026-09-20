@@ -38,10 +38,26 @@ export type StatusSettings = {
   dataDirectory: string;
 };
 
+type PairSettings = {
+  dataDirectory: string;
+  labels: string[];
+  /** Origins the link may point at, given explicitly; nothing is discovered. */
+  addresses: string[];
+};
+
+type RevokeSettings = {
+  dataDirectory: string;
+  id: string;
+};
+
 export type CliCommand =
   | { command: 'help' }
   | { command: 'serve'; settings: ServeSettings }
-  | { command: 'status'; settings: StatusSettings };
+  | { command: 'status'; settings: StatusSettings }
+  | { command: 'pair'; settings: PairSettings }
+  | { command: 'devices'; settings: StatusSettings }
+  | { command: 'revoke'; settings: RevokeSettings }
+  | { command: 'mcp'; settings: StatusSettings };
 
 type ServeArguments = {
   dataDirectory?: string;
@@ -49,9 +65,11 @@ type ServeArguments = {
   host?: string;
   port?: number;
   allowHosts: string[];
+  addresses: string[];
+  operands: string[];
   lan: boolean;
   help: boolean;
-  command: 'serve' | 'status';
+  command: CliCommand['command'];
 };
 
 export class ServeConfigurationError extends Error {
@@ -103,6 +121,34 @@ function parseAbsolutePath(value: string, source: string): string {
   }
 }
 
+/**
+ * A pairing link points at an origin the owner names. Nothing is discovered:
+ * a wildcard bind is not an advertised URL, and the CLI cannot know which of
+ * the LAN, Tailscale or a proxy the device should use.
+ */
+function parseOrigin(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new ServeConfigurationError(
+      '--address must be an origin such as http://192.168.1.5:3000',
+    );
+  }
+  if (
+    (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+    url.pathname !== '/' ||
+    url.search !== '' ||
+    url.hash !== '' ||
+    url.username !== '' ||
+    url.password !== ''
+  )
+    throw new ServeConfigurationError(
+      '--address must be an origin such as http://192.168.1.5:3000',
+    );
+  return url.origin;
+}
+
 function parseHost(value: string, source: string): string {
   try {
     return listenHostSchema.parse(value);
@@ -118,11 +164,20 @@ function parseArguments(args: readonly string[]): ServeArguments {
     lan: false,
     help: false,
     allowHosts: [],
+    addresses: [],
+    operands: [],
     command: 'serve',
   };
   let index = 0;
   const command = args[0];
-  if (command === 'serve' || command === 'status') {
+  if (
+    command === 'serve' ||
+    command === 'status' ||
+    command === 'pair' ||
+    command === 'devices' ||
+    command === 'revoke' ||
+    command === 'mcp'
+  ) {
     parsed.command = command;
     index = 1;
   } else if (command === 'help' || command === '--help' || command === '-h') {
@@ -171,6 +226,12 @@ function parseArguments(args: readonly string[]): ServeArguments {
       index = option.nextIndex;
       continue;
     }
+    if (argument === '--address' || argument?.startsWith('--address=')) {
+      const option = optionValue(args, index, '--address');
+      parsed.addresses.push(parseOrigin(option.value));
+      index = option.nextIndex;
+      continue;
+    }
     if (argument === '--allow-host' || argument?.startsWith('--allow-host=')) {
       const option = optionValue(args, index, '--allow-host');
       parsed.allowHosts.push(parseHost(option.value, '--allow-host'));
@@ -181,6 +242,10 @@ function parseArguments(args: readonly string[]): ServeArguments {
       const option = optionValue(args, index, '--port');
       parsed.port = parsePort(option.value, '--port');
       index = option.nextIndex;
+      continue;
+    }
+    if (argument !== undefined && !argument.startsWith('-')) {
+      parsed.operands.push(argument);
       continue;
     }
     throw new ServeConfigurationError(`Unknown option: ${argument}`);
@@ -240,6 +305,34 @@ export function parseCliArguments(
     );
   if (parsed.command === 'status')
     return { command: 'status', settings: { dataDirectory } };
+  if (parsed.command === 'devices')
+    return { command: 'devices', settings: { dataDirectory } };
+  if (parsed.command === 'mcp')
+    return { command: 'mcp', settings: { dataDirectory } };
+  if (parsed.command === 'pair') {
+    if (parsed.operands.length === 0)
+      throw new ServeConfigurationError(
+        'pair needs at least one device name, for example: porcelain pair iPhone iPad',
+      );
+    if (parsed.addresses.length === 0)
+      throw new ServeConfigurationError(
+        'pair needs at least one --address, for example: --address http://192.168.1.5:3000',
+      );
+    return {
+      command: 'pair',
+      settings: {
+        dataDirectory,
+        labels: parsed.operands,
+        addresses: parsed.addresses,
+      },
+    };
+  }
+  if (parsed.command === 'revoke') {
+    const id = parsed.operands[0];
+    if (parsed.operands.length !== 1 || !id)
+      throw new ServeConfigurationError('revoke needs exactly one id');
+    return { command: 'revoke', settings: { dataDirectory, id } };
+  }
 
   const tokenFile = tokenFileFor(parsed, environment, dataDirectory);
   const host = parsed.lan

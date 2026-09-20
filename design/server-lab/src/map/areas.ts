@@ -146,8 +146,101 @@ const connection: Area = {
   id: 'connection',
   title: 'Connection and auth',
   webSurface: `Login screen, session restore on page reload, Disconnect in settings. Every browser request carries the session cookie and the x-porcelain-browser header.`,
-  summary: `One bearer token protects every API route; there is one trusted principal. Browsers trade the token once, on GET /api/inventory with the browser header, for a 30-day HMAC-signed HttpOnly cookie scoped to /api, and afterwards send only the cookie. Agents and portable clients keep sending the bearer. Every route is registered once, under /api, and /health is public. Before authentication, one hook validates the Host header and rejects a foreign Origin on unsafe methods, and every request carries a principal from the door it arrived through — anonymous until a credential upgrades it.`,
+  summary: `Two credentials answer at the same door, deliberately independent. A paired device sends its own bearer token, or the HttpOnly cookie holding it, and is always the viewer it belongs to — never the grant the door would otherwise give, so a stolen browser credential replayed at /api/mcp is not an agent. The shared admin token still works and still grants whatever its door says, which is what keeps the web and its tests green until 3c removes it. Device digests live in memory, so authentication adds no SQL and revoking takes effect on the next request and on anything the device is holding open. Every route is registered once under /api; /health and POST /api/pair are the only public ones, and pair carries its own attempt limit. Before authentication, one hook validates the Host header and rejects a foreign Origin on unsafe methods, and every request carries a principal from the door it arrived through — anonymous until a credential upgrades it.`,
   flows: [
+    {
+      id: 'connection.pair',
+      title: 'Redeem a pairing link',
+      endpoint: {
+        method: 'POST',
+        path: '/api/pair',
+        source: at('apps/server/src/http/routes/pair.ts', 27),
+      },
+      webTriggers: [],
+      steps: [
+        s(
+          'route',
+          'AttemptLimit.take',
+          `A shared ceiling spent before a per-peer bucket. Entropy makes guessing hopeless; this bounds a flood of valid-shaped codes forcing hashes and SQLite reads on the shared event loop, and rotating source addresses buys nothing.`,
+          'apps/server/src/http/routes/attempt-limit.ts',
+          24,
+        ),
+        s(
+          'use-case',
+          'Pairing.redeem',
+          `Parses the code, mints a device credential, and hands both to the store. One message covers expired, consumed, revoked and wrong, so nothing is an oracle.`,
+          'apps/server/src/use-cases/pairing.ts',
+          97,
+        ),
+        s(
+          'repository',
+          'PairingRepository.redeem',
+          `One immediate transaction: the conditional update and the device insert.`,
+          'apps/server/src/repositories/pairing-repository.ts',
+          78,
+        ),
+        s(
+          'route',
+          'setDeviceCookie',
+          `A browser gets an HttpOnly cookie and no credential in the body; anything else gets the credential and no cookie. Every later cookie request renews the 90-day window, because refreshing only after an idle gap would still expire a browser used hourly.`,
+          'apps/server/src/http/middlewares/browser-session.ts',
+          44,
+        ),
+      ],
+      runner: 'none',
+      gitCommands: [],
+      tables: [
+        { name: 'pairing_grants', access: 'write' },
+        { name: 'devices', access: 'write' },
+      ],
+      cost: 'One hash and one indexed read; it enters no lane.',
+      notes:
+        'The only unauthenticated write on the network door. The code arrives in the body because the link carries it in the fragment, which browsers never send.',
+    },
+    {
+      id: 'connection.owner-access',
+      title: 'Issue, list and revoke access (owner socket only)',
+      webTriggers: [],
+      steps: [
+        s(
+          'route',
+          'POST /pairings',
+          `One link per label, because the owner pairs several devices at a time. At least one origin is required, and each is judged by the same host rule the request hook applies, so a server bound to every interface cannot answer at an address that pairing then refuses. The port must be the one bound, because a link is a promise the device can reach this server. The link carries the environment id so a client can refuse one meant for another installation. The link is printed, never taken as an argument.`,
+          'apps/server/src/http/owner-routes.ts',
+          25,
+        ),
+        s(
+          'route',
+          'GET /access',
+          `Pending links and paired devices: label, platform, last seen, address.`,
+          'apps/server/src/http/owner-routes.ts',
+          47,
+        ),
+        s(
+          'route',
+          'POST /access/revoke',
+          `One id revokes either a pending link or a device.`,
+          'apps/server/src/http/owner-routes.ts',
+          56,
+        ),
+        s(
+          'runner',
+          'DeviceDirectory.revoke',
+          `Persists, then marks the cached entry, then closes whatever the device holds open.`,
+          'apps/server/src/lifecycle/device-directory.ts',
+          136,
+        ),
+      ],
+      runner: 'none',
+      gitCommands: [],
+      tables: [
+        { name: 'pairing_grants', access: 'write' },
+        { name: 'devices', access: 'write' },
+      ],
+      cost: 'Constant; the listing is two indexed reads.',
+      notes:
+        'Unreachable over the network by construction: these routes exist only on the Unix socket listener, so a leaked device credential cannot pair or revoke.',
+    },
     {
       id: 'connection.authenticate',
       title: 'Authenticate a request (bearer or browser cookie)',
@@ -353,6 +446,26 @@ const connection: Area = {
       title: 'Routes exist once, under /api',
       summary: `One prefix for browsers, agents and tests, matching the cookie path. The alternative, keeping bare paths as an alias, would have preserved two route tables and auth code that special-cases both spellings.`,
       source: at('apps/server/src/http/server.ts', 132),
+    },
+    {
+      title: 'Pairing links are single use, and consumed in one statement',
+      summary: `Redemption is one immediate transaction: a conditional update carrying every predicate — unredeemed, unrevoked, unexpired, not created in the future — and the device insert. Two redeemers cannot both see one row change, and a failure after the update rolls the consumption back rather than burning the owner's link.`,
+      source: at('apps/server/src/repositories/pairing-repository.ts', 78),
+    },
+    {
+      title: 'Device credentials are bearer tokens, hashed at rest',
+      summary: `\`pcd_<id>_<secret>\`: the id makes the lookup one map read and the 256-bit secret is compared as a digest in constant time. A bare secret would force a scan comparing every stored digest. No DPoP or device-bound keys — the LAN is trusted and remote access is already encrypted — so a stolen credential is that device until it is revoked.`,
+      source: at('apps/server/src/models/credential.ts', 16),
+    },
+    {
+      title: 'One host rule, and one reachability rule built on it',
+      summary: `The request hook asks whether a name is acceptable on a connection that already arrived; pairing asks whether a device could open one. They share canonicalisation and the allowed-host set, and they were written separately once and disagreed under \`--lan\` in both directions — the door served a LAN address pairing refused, and pairing offered \`[::1]\` on an IPv4-only bind that the door cannot answer. Reachability is therefore the stricter of the two: the port must be the bound one, and loopback has to actually be listening.`,
+      source: at('apps/server/src/models/origin-policy.ts', 62),
+    },
+    {
+      title: 'The device cache is what makes revocation immediate',
+      summary: `The review forbids per-request SQL, so digests are held in memory and every write goes through the directory. That is only safe because one server owns a data directory: there is no second writer to miss. Revocation persists first, then marks the entry, then cuts live connections; the last-seen flush writes only two fields and never to a revoked row, so a dirty entry cannot resurrect a credential.`,
+      source: at('apps/server/src/lifecycle/device-directory.ts', 36),
     },
     {
       title: 'The door decides the principal, and it is never absent',

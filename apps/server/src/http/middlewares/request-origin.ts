@@ -1,5 +1,8 @@
-import { isIP } from 'node:net';
 import type { FastifyRequest } from 'fastify';
+import {
+  canonicalHostname,
+  hostnameAllowed,
+} from '../../models/origin-policy.ts';
 import { ForbiddenOriginError } from '../errors/forbidden-origin-error.ts';
 
 /**
@@ -43,39 +46,6 @@ function parseAuthority(value: string): Authority | null {
   return hostname === null ? null : { hostname, port };
 }
 
-/**
- * One spelling per address, so that `::1`, `0:0:0:0:0:0:0:1` and a trailing dot
- * on a name cannot slip past a textual comparison.
- */
-function canonicalHostname(value: string): string | null {
-  if (value.length === 0) return null;
-  // A URL's hostname keeps the brackets around an IPv6 literal; a Host header
-  // is parsed without them. Compare one spelling.
-  const lower = value
-    .toLowerCase()
-    .replace(/^\[|\]$/g, '')
-    .replace(/\.$/, '');
-  if (lower.length === 0) return null;
-  // IPv4-mapped addresses arrive on dual-stack listeners as ::ffff:127.0.0.1;
-  // this must be decided before the general IPv6 form.
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-  if (mapped?.[1]) return mapped[1];
-  if (isIP(lower) === 6) {
-    try {
-      return new URL(`http://[${lower}]`).hostname.replace(/^\[|\]$/g, '');
-    } catch {
-      return null;
-    }
-  }
-  return lower;
-}
-
-function isLoopback(hostname: string): boolean {
-  if (hostname === 'localhost') return true;
-  if (hostname === '::1') return true;
-  return isIP(hostname) === 4 && hostname.startsWith('127.');
-}
-
 function requestAuthority(request: FastifyRequest): Authority | null {
   const header = request.headers.host;
   return header === undefined ? null : parseAuthority(header);
@@ -85,31 +55,20 @@ function effectivePort(scheme: string, port: string | undefined): string {
   return port ?? defaultPorts[scheme] ?? '';
 }
 
-function hostAllowed(
-  hostname: string,
-  request: FastifyRequest,
-  allowed: ReadonlySet<string>,
-): boolean {
-  if (isLoopback(hostname)) return true;
-  if (allowed.has(hostname)) return true;
-  // The address the connection actually arrived on covers the owner's LAN and
-  // Tailscale addresses without allowing arbitrary names to resolve here.
-  const local = request.socket.localAddress;
-  const canonical = local === undefined ? null : canonicalHostname(local);
-  return canonical !== null && canonical === hostname;
-}
-
 export function checkRequestOrigin(policy: OriginPolicy) {
-  const allowed = new Set(
-    policy.allowedHosts
-      .map((host) => canonicalHostname(host))
-      .filter((host): host is string => host !== null),
-  );
   return async (request: FastifyRequest) => {
     const authority = requestAuthority(request);
     if (authority === null)
       throw new ForbiddenOriginError('The Host header is missing or malformed');
-    if (!hostAllowed(authority.hostname, request, allowed))
+    // The same rule pairing uses, with the address this connection actually
+    // arrived on standing in for the set a link is checked against.
+    const local = request.socket.localAddress;
+    if (
+      !hostnameAllowed(authority.hostname, {
+        allowedHosts: policy.allowedHosts,
+        localAddresses: local === undefined ? [] : [local],
+      })
+    )
       throw new ForbiddenOriginError(
         `This server does not answer to the host ${authority.hostname}`,
       );

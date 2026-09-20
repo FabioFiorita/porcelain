@@ -85,7 +85,13 @@ it('persists browser authentication across restart, requires CSRF headers, and e
       headers,
     });
     expect(logout.statusCode).toBe(204);
-    expect(logout.headers['set-cookie']).toContain('Max-Age=0');
+    // Disconnect expires every credential the browser holds, as separate
+    // Set-Cookie values: the session and the paired device's.
+    const cleared = logout.headers['set-cookie'] as string[];
+    expect(cleared).toHaveLength(2);
+    for (const value of cleared) expect(value).toContain('Max-Age=0');
+    expect(cleared.join(' ')).toContain('porcelain_session=;');
+    expect(cleared.join(' ')).toContain('porcelain_device=;');
     await server.close();
     const restarted = await createServer({
       dataDirectory,

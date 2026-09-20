@@ -11,7 +11,7 @@ export async function reviewedFileRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   listReviewedFiles(server, options);
   setReviewedFile(server, options);
   removeReviewedFile(server, options);

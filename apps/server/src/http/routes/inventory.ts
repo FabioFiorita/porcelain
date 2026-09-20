@@ -13,7 +13,7 @@ export async function inventoryRoutes(
   options: { application: Application; token: string },
 ) {
   server.addHook('onRequest', preventCaching);
-  server.addHook('onRequest', authenticate(options.token));
+  server.addHook('onRequest', authenticate(options));
   server.register(projectLocationRoutes, { application: options.application });
   server.register(getInventoryRoute, { application: options.application });
   server.register(removeProject, { application: options.application });

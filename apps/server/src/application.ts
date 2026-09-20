@@ -40,6 +40,12 @@ import type {
   GitActionScope,
 } from './models/git-action.ts';
 import type { Inventory } from './models/inventory.ts';
+import type {
+  AccessListing,
+  DeviceRegistration,
+  IssuedGrant,
+  RedeemedPairing,
+} from './models/pairing.ts';
 import type { AuthenticatedPrincipal } from './models/principal.ts';
 import type { Project } from './models/project.ts';
 import type {
@@ -277,6 +283,29 @@ export interface Application {
     artifactId: string,
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
+  /**
+   * Resolve a device credential without touching the database, and move its
+   * last-seen time forward. Returns the device id, or null for every failure
+   * alike so nothing here distinguishes unknown from revoked or dormant.
+   */
+  authenticateDevice(
+    credential: string,
+    address: string | null,
+  ): { deviceId: string; idleMs: number } | null;
+  /** Register a held response so revoking the device can cut it. */
+  holdForDevice(deviceId: string, connection: { close(): void }): () => void;
+  issuePairing(
+    labels: readonly string[],
+    addresses: readonly string[],
+  ): Promise<IssuedGrant[]>;
+  listAccess(): Promise<AccessListing>;
+  revokeAccess(
+    id: string,
+  ): Promise<{ revoked: boolean; kind: 'grant' | 'device' | null }>;
+  redeemPairing(
+    code: string,
+    registration: DeviceRegistration,
+  ): Promise<RedeemedPairing>;
   /** Resolves once the first refresh at startup has settled. */
   ready(): Promise<void>;
   close(): Promise<void>;

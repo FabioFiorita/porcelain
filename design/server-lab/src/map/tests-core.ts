@@ -1360,6 +1360,21 @@ export const coreSpecAudits: SpecAudit[] = [
           '8 bad configurations throw; no database created; pre-aborted start rejects.',
       },
       {
+        name: 'pairs at every address it answers on when bound to every interface',
+        asserts:
+          'Under a wildcard bind a real request on the LAN address is served and a link naming it is issued, while another machine on that network is refused.',
+      },
+      {
+        name: 'refuses a link in a family it did not bind',
+        asserts:
+          'Under an IPv4 wildcard bind a link at [::1] is refused and the door cannot be reached there, while IPv4 loopback is offered.',
+      },
+      {
+        name: 'offers only the address it bound when given one',
+        asserts:
+          'Bound to 127.0.0.2, links at 127.0.0.1 and localhost are refused.',
+      },
+      {
         name: 'binds an explicitly configured host without changing the default',
         asserts: 'Listens on 127.0.0.2 and serves health.',
       },
