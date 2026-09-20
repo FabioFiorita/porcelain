@@ -1,8 +1,8 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { openNavigation } from './workspace-navigation';
 import { playgroundManifest } from './playground';
+import { openNavigation } from './workspace-navigation';
 
 test('creates, edits and renames a file, preserves conflicts, and moves it to disposable trash', async ({
   page,

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { openNavigation } from './workspace-navigation';
 import { playgroundManifest } from './playground';
+import { openNavigation } from './workspace-navigation';
 
 test('persists explicit commit models and pull strategy in both themes', async ({
   page,

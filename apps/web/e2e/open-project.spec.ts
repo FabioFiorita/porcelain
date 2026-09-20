@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { openNavigation } from './workspace-navigation';
 import { playgroundManifest } from './playground';
+import { openNavigation } from './workspace-navigation';
 
 test('finds and browses real server repositories in both themes', async ({
   page,

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { openNavigation } from './workspace-navigation';
 import { playgroundManifest } from './playground';
+import { openNavigation } from './workspace-navigation';
 
 test('posts a line comment on the exact comparison, reloads it, and reveals it from the sidebar', async ({
   page,

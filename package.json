@@ -7,8 +7,8 @@
     "node": ">=24.20.0 <25 || >=26.8.1 <27"
   },
   "scripts": {
-    "format": "biome format --write .",
-    "format:check": "biome format .",
+    "format": "biome check --write --linter-enabled=false .",
+    "format:check": "biome check --linter-enabled=false .",
     "lint": "biome lint --error-on-warnings .",
     "typecheck": "tsc --noEmit && pnpm -r typecheck",
     "check:boundaries": "node scripts/check-boundaries.ts",

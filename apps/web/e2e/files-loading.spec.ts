@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { openNavigation } from './workspace-navigation';
 import { playgroundManifest } from './playground';
+import { openNavigation } from './workspace-navigation';
 
 test('keeps Files usable while the complete tree is slow or unavailable', async ({
   page,
