@@ -48,7 +48,7 @@ export function createReviewMcpServer(
       result(() => application.gitStatus(worktreeId, signal)),
   );
   server.registerTool(
-    'review_evidence',
+    'review_changes',
     {
       description:
         'Read per-file review fingerprints and comparison identities for precise comments.',
@@ -56,19 +56,7 @@ export function createReviewMcpServer(
       annotations: { readOnlyHint: true },
     },
     async ({ worktreeId }, { signal }) =>
-      result(async () => {
-        const observed = await application.reviewEvidence(worktreeId, signal);
-        return {
-          ...observed,
-          evidence: observed.evidence.map(
-            ({ path, fingerprint, comparisons }) => ({
-              path,
-              fingerprint,
-              changes: comparisons.map(({ change }) => change),
-            }),
-          ),
-        };
-      }),
+      result(() => application.changes(worktreeId, signal)),
   );
   server.registerTool(
     'read_file',
@@ -98,7 +86,7 @@ export function createReviewMcpServer(
     'create_comment',
     {
       description:
-        'Create an agent review thread on a file or code range. For precise placement include comparison and content fingerprint from the reviewed evidence.',
+        'Create an agent review thread on a file or code range. For precise placement include comparison and content fingerprint from the reviewed changes.',
       inputSchema: commentScopeSchema.extend(createCommentThreadSchema.shape),
     },
     async (input, { signal }) =>

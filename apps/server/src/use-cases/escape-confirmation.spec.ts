@@ -1,10 +1,13 @@
+import type { GitChange } from '@porcelain/git/dtos/git-status';
 import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import { describe, expect, it } from 'vitest';
 import { CommitDrafts } from './commit-drafts.ts';
+import { fingerprintChange } from './fingerprint-change.ts';
 import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 import { PrepareGitAction } from './prepare-git-action.ts';
-import { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
+import { ReadChangeDiffs } from './read-change-diffs.ts';
+import { ReadWorktreeChanges } from './read-worktree-changes.ts';
 import { SetReviewedFile } from './set-reviewed-file.ts';
 
 /**
@@ -23,6 +26,8 @@ const observation = {
       newPath: 'file.ts',
       oldMode: '100644',
       newMode: '100644',
+      oldOid: 'c'.repeat(40),
+      newOid: 'd'.repeat(40),
       supported: true,
     },
   ],
@@ -39,15 +44,27 @@ function store() {
   } as never;
 }
 
-const worktrees = () =>
-  fakeWorktrees([
-    {
-      id: 'worktree',
-      path: '/fixture',
-      metadataIdentity: 'metadata',
-      main: true,
-    },
-  ]);
+/** The staged change is whole from the status alone, so no working side. */
+const stagedFingerprint = fingerprintChange(
+  'file.ts',
+  [observation.changes[0] as GitChange],
+  () => undefined,
+);
+
+const stamp = async () => 'index-stamp';
+
+const worktrees = (reachable: () => boolean = () => true) =>
+  fakeWorktrees(
+    [
+      {
+        id: 'worktree',
+        path: '/fixture',
+        metadataIdentity: 'metadata',
+        main: true,
+      },
+    ],
+    { projectAvailable: reachable },
+  );
 
 /**
  * A checkout swapped mid-request: the first `passes` verifications succeed and
@@ -62,46 +79,84 @@ function swappedAfterFirstRead(passes = 1) {
   return { session, verifications: () => verifications };
 }
 
-function evidenceReader() {
-  return new ReadWorktreeEvidence(
-    store(),
-    worktrees(),
-    (checkout: { verify: (signal?: AbortSignal) => Promise<void> }) => ({
+function inspection(onRead: () => void = () => {}) {
+  return (checkout: { verify: (signal?: AbortSignal) => Promise<void> }) =>
+    ({
       // The real reader verifies before its first read; the fake must too.
       readStatus: async (signal?: AbortSignal) => {
         await checkout.verify(signal);
+        onRead();
         return observation;
       },
       readDiff: async () => ({ kind: 'text' as const, patch: '@@' }),
       readDiffs: async () => [{ kind: 'text' as const, patch: '@@' }],
-    }),
-    { readTextFile: async () => ({ text: '' }) } as never,
-    (async () => new Map()) as never,
+      hashWorktreeFiles: async () => new Map<string, string>(),
+    }) as never;
+}
+
+function changesReader(resolver = worktrees(), onRead: () => void = () => {}) {
+  return new ReadWorktreeChanges(
+    store(),
+    resolver,
+    inspection(onRead),
+    async () => new Map(),
   );
 }
 
 describe('escape-point confirmation', () => {
-  it('does not cache a read whose checkout can no longer be confirmed', async () => {
-    const { session } = swappedAfterFirstRead();
-    const operation = evidenceReader();
-    await expect(operation.execute('worktree', session)).rejects.toThrow(
-      'identity changed',
+  it('does not return a change list whose checkout can no longer be confirmed', async () => {
+    // The identity guard passes; the checkout stops being the registered one
+    // only after the status has been read, which is the window this closes.
+    let reachable = true;
+    const operation = changesReader(
+      worktrees(() => reachable),
+      () => {
+        reachable = false;
+      },
     );
-    // A second request must still do the work rather than serve a kept answer.
-    const fresh = new RequestGitSession(async () => {});
-    const result = await operation.execute('worktree', fresh);
-    expect(result.evidence).toHaveLength(1);
+    await expect(
+      operation.execute('worktree', new RequestGitSession(async () => {})),
+    ).rejects.toThrow();
+    // Nothing was kept: a later request over a reachable checkout answers.
+    reachable = true;
+    const result = await changesReader().execute(
+      'worktree',
+      new RequestGitSession(async () => {}),
+    );
+    expect(result.changes).toHaveLength(1);
+  });
+
+  it('does not return diffs whose checkout can no longer be confirmed', async () => {
+    let reachable = true;
+    const operation = new ReadChangeDiffs(
+      store(),
+      worktrees(() => reachable),
+      inspection(() => {
+        reachable = false;
+      }),
+      async () => new Map(),
+      stamp,
+    );
+    await expect(
+      operation.execute(
+        'worktree',
+        observation.statusToken,
+        [{ path: 'file.ts', fingerprint: stagedFingerprint }],
+        [{ scope: 'staged', oldPath: 'file.ts', newPath: 'file.ts' }],
+        new RequestGitSession(async () => {}),
+      ),
+    ).rejects.toThrow();
   });
 
   it('does not store a mark whose checkout can no longer be confirmed', async () => {
     // The fingerprint a client would have from an earlier read, so the mark
     // reaches the confirmation instead of failing as a stale mark first.
     const observed = (
-      await evidenceReader().execute(
+      await changesReader().execute(
         'worktree',
         new RequestGitSession(async () => {}),
       )
-    ).evidence[0]?.fingerprint;
+    ).changes[0]?.fingerprint;
     expect(observed).toEqual(expect.any(String));
     const { session } = swappedAfterFirstRead();
     const written: string[] = [];
@@ -112,7 +167,7 @@ describe('escape-point confirmation', () => {
     const operation = new SetReviewedFile(
       reviewed,
       worktrees(),
-      evidenceReader(),
+      changesReader(),
       { execute: async () => ({ marks: [] }) } as never,
     );
     await expect(
@@ -171,9 +226,10 @@ describe('escape-point confirmation', () => {
 
   it('does not hand a capture to the commit generator when the checkout can no longer be confirmed', async () => {
     const statusToken = observation.statusToken;
-    // The read and its own caching confirmation both pass, so the only check
-    // left between this capture and the generator is capture's own.
-    const { session } = swappedAfterFirstRead(2);
+    // The action inspection verifies and passes, and the change reads confirm
+    // through the resolver rather than the session, so the only check left
+    // between this capture and the generator is capture's own.
+    const { session } = swappedAfterFirstRead(1);
     let generated = 0;
     const operation = new CommitDrafts(
       store(),
@@ -195,7 +251,22 @@ describe('escape-point confirmation', () => {
         },
         execute: async () => ({ state: 'completed' }) as never,
       }),
-      evidenceReader(),
+      changesReader(),
+      new ReadChangeDiffs(
+        store(),
+        worktrees(),
+        inspection(),
+        async () => new Map(),
+        stamp,
+      ),
+      {
+        list: async () => {
+          throw new Error('No untracked file in this fixture');
+        },
+        read: async () => {
+          throw new Error('No untracked file in this fixture');
+        },
+      },
       {
         models: async () => [],
         generate: async () => {

@@ -1,15 +1,15 @@
 import type { AreaTestSummary, SpecAudit } from './types.ts';
 
 // Audit of server specs under apps/server/src/http, apps/server/src/use-cases and
-// the spec files directly in apps/server/src, as of the uncommitted evidence cache.
+// the spec files directly in apps/server/src.
 //
 // Process counts quoted below were measured (not taken from a spec) with a PATH
-// wrapper that logs every git invocation, against a disposable fixture repository
-// on this working tree. 50 changed files / 4 checkouts: status 13, cold evidence 84,
-// warm evidence 13, one diff 35, one text read 20, directory 20, file tree 22,
-// commits 15, refresh 10. 200 changed files / 11 checkouts: cold evidence 258, warm
-// evidence 13, one diff 35, one text read 48, directory 48, file tree 50, refresh 24.
-// Editing any changed file made every evidence call cold for the next ~2 seconds.
+// wrapper that logs every git invocation, against a disposable fixture repository.
+// The `changes` area was re-measured after step 5a: a change list and a batched
+// diff read are 7 processes each, whatever the number of changed files, where the
+// evidence read they replaced cost 84 for 50 files and 258 for 200. The other
+// areas' numbers are still the pre-rebuild ones: one text read 20-48, directory
+// 20-48, file tree 22-50, commits 15, refresh 10-24.
 
 export const serverSpecAudits: SpecAudit[] = [
   {
@@ -249,79 +249,66 @@ export const serverSpecAudits: SpecAudit[] = [
     verdict: 'strong',
   },
   {
-    file: 'apps/server/src/use-cases/read-worktree-evidence.spec.ts',
+    file: 'apps/server/src/use-cases/fingerprint-change.spec.ts',
     areas: ['changes'],
     kind: 'unit',
-    real: [
-      'sha256 fingerprinting',
-      'grouping, ordering and byte bounding logic',
-    ],
-    fakes: [
-      'InspectionFactory (readStatus returns a fixed observation; readDiffs is Promise.all over a fake readDiff)',
-      'FileReader for untracked files',
-      'FileStamps (returns an empty or test-controlled string instead of real lstat stamps)',
-      'InventoryStore and GitFactory',
-    ],
+    real: ['sha256 fingerprinting over every comparison of a path'],
+    fakes: ['The working side of a change (an object id or a symlink target)'],
     tests: [
       {
-        name: 'returns exact staged, unstaged, untracked and omitted evidence grouped by logical path',
+        name: 'covers every comparison of a path, so half a change cannot be marked',
         asserts:
-          'Path order, staged-before-unstaged comparisons, exact diff content, a fingerprint recomputed in the test with the same sha256/JSON recipe, null fingerprints for binary, submodule and conflict entries.',
+          'The fingerprint over a staged and an unstaged comparison differs from either alone, and moves when only the working side moves.',
       },
       {
-        name: 'does not include a status token in the evidence fingerprint',
+        name: 'includes both modes',
         asserts:
-          'Two instances with different status tokens and the same patch produce the same fingerprint.',
+          '100644 to 100755 changes the fingerprint with identical bytes.',
       },
       {
-        name: 'localizes unreadable untracked files and rejects a moving worktree',
-        asserts:
-          'UNSUPPORTED_TEXT maps to omitted/unsupported-encoding with null fingerprint; a status token that differs between the before and after reads throws WorktreeChangedError.',
+        name: 'distinguishes a rename from an edit in place',
+        asserts: 'Old and new path are part of the fingerprint.',
       },
       {
-        name: 'bounds aggregate UTF-8 evidence content while retaining affected paths',
+        name: 'fingerprints a symlink from its target, and notices a retarget',
         asserts:
-          'Two 30%-of-limit multibyte patches: first kept, second omitted as size-limit, serialized result below limit + 1 MB.',
+          'tool-v1 and tool-v2 differ; nothing reads what the link points at.',
       },
       {
-        name: 'bounds concurrent file reads and drains them before reporting a failure',
-        asserts:
-          'Only 4 untracked reads start at once; a rejection does not settle the operation until the in-flight reads finish.',
+        name: 'fingerprints a submodule from its recorded commit',
+        asserts: 'A 160000 pointer move changes the fingerprint.',
       },
       {
-        name: 'reuses evidence until the status or a working file changes',
+        name: 'fingerprints a binary change from its object ids',
         asserts:
-          'With a fake stamp function: second call returns the same object (toBe), path-filtered hits read no diffs, a changed stamp or status token re-reads both diffs (read counter 2 -> 4 -> 6).',
+          'A binary file is markable rather than permanently unreviewable.',
       },
       {
-        name: 'selects logical paths without reading unrelated changes or dropping comparison scopes',
+        name: 'fingerprints a deletion from the side that was there',
         asserts:
-          'A path subset reads only that path (both scopes), no untracked reads, and an unknown path reads nothing.',
+          'A deletion is markable, and re-creating the file is not the same fingerprint.',
+      },
+      {
+        name: 'refuses to fingerprint a conflict or a side it could not establish',
+        asserts:
+          'Conflicts, an unreadable working file and an unreadable untracked file are null; one unestablished side poisons the whole path.',
       },
     ],
     strengths: [
-      'Pins the fingerprint contract (status token excluded, null for unfingerprintable content), which reviewed marks depend on.',
-      'Checks drift detection between the before and after status reads and the aggregate byte bound with multibyte text.',
-      'The cache test counts diff reads, so a regression that disables the cache for full or partial requests would fail.',
-      'The concurrency test for untracked reads is precise (exact started set, drain before rejection).',
+      'Covers each kind of side the list can produce, which is where marking correctness actually lives.',
+      'States the symlink and submodule boundaries as assertions, not comments.',
     ],
     gaps: [
-      'Git is fully faked, so nothing here can observe process count. The real cost is 13 git processes per status read and one git diff per changed file: 84 processes for 50 files and 258 for 200 files on a cold call (measured). A cache hit still costs 13.',
-      'The cache test injects stamps. The real readFileStamps returns a unique "recent:<hrtime>" stamp for any file modified in the last 2 s, so while an agent is editing, every call misses and re-reads every diff. No spec covers that; the HTTP spec avoids it by backdating files 60 s with utimes.',
-      'The fake readDiffs maps over readDiff, so the 64-change grouping and the single readDiffs call per group are not asserted; a return to per-change adapter calls would still pass.',
-      'LRU eviction (MAX_CACHED_WORKTREES = 16) and concurrent callers for the same worktree (two cold misses computed twice) are untested.',
-      'The cache hands the same object to every caller (the test asserts toBe); nothing guards against a consumer mutating it.',
-      'No cancellation test: an aborted signal between groups or during readDiffs is never exercised.',
-      'Renames, deletions (newPath null) and FILE_TOO_LARGE / CONTENT_CHANGED mappings for untracked files are not covered.',
-      'The first test recomputes the fingerprint with the same recipe as the code, so it pins the format rather than independently checking it.',
+      'The recipe is pinned by construction, not independently: a change of hash input would need every expectation rewritten rather than failing one.',
+      'Nothing here reaches Git, so which paths get hashed at all is covered by the HTTP and budget specs instead.',
     ],
-    verdict: 'adequate',
+    verdict: 'strong',
   },
   {
     file: 'apps/server/src/use-cases/read-worktree-inspection.spec.ts',
     areas: ['changes'],
     kind: 'unit',
-    real: ['ReadWorktreeStatus and ReadWorktreeDiff logic'],
+    real: ['ReadWorktreeStatus and ReadChangeDiffs logic'],
     fakes: ['InspectionFactory (fixed observations)', 'InventoryStore'],
     tests: [
       {
@@ -406,20 +393,21 @@ export const serverSpecAudits: SpecAudit[] = [
       'git for registration only',
     ],
     fakes: [
-      'InspectionFactory: a constant status observation and a constant patch for every diff',
+      'InspectionFactory: a constant status observation and a constant object id for every working file',
     ],
     tests: [
       {
-        name: 'serves exact evidence, persists worktree marks, rejects stale fingerprints, and removes idempotently',
+        name: 'serves the exact change list, persists worktree marks, rejects stale fingerprints, and removes idempotently',
         asserts:
-          'Evidence echoes the fake patch with a 64-hex fingerprint; reviewed:false is 400; a mark is stored; a wrong fingerprint is 409 REVIEWED_MARK_STALE; GET lists the mark; DELETE twice returns empty marks.',
+          'The list groups the change by path with a 64-hex fingerprint and no content; reviewed:false is 400; a mark is stored; a wrong fingerprint is 409 REVIEWED_MARK_STALE; GET lists the mark; an unreachable checkout refuses DELETE without losing the mark; DELETE twice returns empty marks.',
       },
     ],
     strengths: [
       'Covers the mark contract end to end through SQLite, including the stale-fingerprint conflict and idempotent removal.',
+      'The fake hashes rather than diffs, which is what the list actually asks Git for.',
     ],
     gaps: [
-      'Evidence comes from a fake, so "exact evidence" only proves the fake is echoed back. Real evidence and real staleness after an edit are covered in git-actions.spec.ts, not here.',
+      'The list comes from a fake, so it only proves the shape. Real fingerprints and real staleness after an edit are covered in git-actions.spec.ts, not here.',
       'Because the fake status never changes, a mark can never become stale through a file edit in this spec.',
       'Marks are never pruned or checked for paths that are no longer changed.',
     ],
@@ -454,14 +442,14 @@ export const serverSpecAudits: SpecAudit[] = [
           'merge produces a two-parent HEAD, rebase a one-parent HEAD; receipt succeeded.',
       },
       {
-        name: 'reads comments without waiting for slow review evidence',
+        name: 'reads comments without waiting for a slow change list',
         asserts:
-          'GET comments returns while an evidence request is blocked inside readDiffs.',
+          'GET comments returns while a change-list request is blocked inside readStatus.',
       },
       {
-        name: 'validates only the marked file, including both comparisons',
+        name: 'validates only the marked file, over both of its comparisons, without reading a diff',
         asserts:
-          'With files backdated 60 s: marking hits the cache (no readDiffs); after an edit the mark is 409 and exactly one readDiffs call covered file staged+unstaged.',
+          'The list groups file as staged+unstaged; a mark succeeds, survives a change to another file, and is 409 once the working side moves although the staged side did not; readDiffs is never called.',
       },
       {
         name: 'archives committed layer notes and preserves remaining review work (selected: %s)',
@@ -496,15 +484,14 @@ export const serverSpecAudits: SpecAudit[] = [
     ],
     strengths: [
       'The strongest spec in scope: real Git, real HTTP, restarts, a hanging hook and a dropped socket, with idempotency and staleness checked on disk.',
-      'Contains the only tests that look at work done per request (readDiffs call counts) and at lane independence between comments and operations.',
+      'Contains the only tests that look at work done per request (readDiffs call counts) and at lane independence between comments and the repository lane.',
       'Commit-to-review-layer archiving is checked with both whole and selected commits.',
     ],
     gaps: [
-      'The cache-hit test only works because files are backdated 60 s. The realistic case (an agent edited a file a moment ago) makes every evidence call cold; nothing asserts that.',
       'Every fixture has 1-3 changed files and one worktree.',
-      'No test that a long pre-commit hook (up to 120 s on the shared operations queue) delays or times out status, evidence and file reads for other worktrees and projects.',
+      'No test that a long pre-commit hook (up to 120 s on the repository lane) delays or times out status, change and file reads for other worktrees and projects.',
       'Fetch, push and stash apply are not exercised over HTTP here; failed pull (conflict) receipts are not checked.',
-      'The file name hides that it is also the main evidence-cache spec, which makes those tests hard to find.',
+      'The file name hides that it is also where marking is proved against real Git, which makes those tests hard to find.',
     ],
     verdict: 'strong',
   },
@@ -1704,18 +1691,16 @@ export const serverSpecAudits: SpecAudit[] = [
 export const serverAreaSummaries: AreaTestSummary[] = [
   {
     area: 'changes',
-    verdict: 'weak',
+    verdict: 'adequate',
     summary:
-      'Correctness is well covered: stale status tokens, drift during a diff, fingerprints, byte bounds and stale reviewed marks are all pinned, partly with real Git. Cost is not covered at all: Git is faked in the evidence unit spec, spies count readDiffs calls rather than processes, and every real-Git fixture has one to three changed files, so nothing could have caught evidence spawning 84 processes for 50 files or 258 for 200 (measured). The new cache is tested with fake stamps or files backdated 60 s, which hides that any edit in the last 2 s makes every call a full miss.',
+      'Cost is now asserted rather than assumed: git-process-budgets.spec.ts measures the change list and the batched diff read at two repository sizes and requires the same count for both, so a regression that reintroduced a read per changed file would fail the slope rather than slip under a ceiling. Correctness is covered where it lives — fingerprint-change.spec.ts takes each kind of side (modes, rename, symlink, submodule pointer, binary, deletion, conflict), and git-actions.spec.ts proves with real Git that a mark covers both comparisons of a path and reads no diff. What is still thin is the large-repository and concurrency end.',
     missing: [
-      'Cold GET /evidence for 200 changed files spawns at most N git processes (count with a PATH wrapper like createIsolatedGit; today 258).',
-      'A warm GET /evidence spawns at most 13 git processes and reads no diffs, using the real readFileStamps.',
-      'While one file keeps changing (agent editing), evidence re-reads only that file instead of every changed file.',
-      'A single POST /api/git/diff spawns at most N processes (today 35: two full status reads plus the diff).',
-      'Aborting the browser request for /evidence or /git/diff aborts the queued or running Git work (routes do not pass the request signal today).',
-      'Two concurrent cold /evidence requests for one worktree compute it once.',
+      'A real repository with 200 changed files still answers GET /changes within the same process count and a time budget.',
+      'Two concurrent GET /changes for one worktree share one answer (SharedReads is not exercised here).',
+      'A batched diff read whose patch exceeds the 8 MiB batch limit falls back to reading each file on its own.',
+      'A path Git would quote (or one that is not valid UTF-8) is matched back to its section, or falls back cleanly.',
+      'GET /changes/lines has no HTTP spec at all, including at=head against a path that is not in HEAD.',
       'A real repository with more than 2000 changes returns 413 INSPECTION_LIMIT over HTTP.',
-      'readFileStamps: the 2-second "recent" rule and missing files, with a real filesystem.',
     ],
   },
   {

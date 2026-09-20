@@ -4,20 +4,34 @@ import {
   artifactKind,
   changePath,
   groupChanges,
-  orderReviewEvidence,
+  orderReviewChanges,
   reviewMark,
   reviewProgress,
   reviewStatus,
 } from './review';
 
 it('uses layer/file order and keeps unassigned and stale metadata from hiding real changes', () => {
-  const { status, layers } = reviewFixture(
+  const { git, layers } = reviewFixture(
     '801a86281cd6456281a29c05fba76b4a',
     '7fe18f78-1477-4c19-a42b-cdd42f862151',
     'refs/heads/main',
   );
   layers.layers[0]?.files.unshift({ path: 'missing.ts', scope: 'staged' });
-  const groups = groupChanges(status, layers);
+  const list = {
+    environmentId: git.environmentId,
+    worktreeId: git.worktreeId,
+    statusToken: git.statusToken,
+    headOid: git.headOid,
+    branch: git.branch,
+    changes: [...new Set(git.comparisons.map(changePath))].map((path) => ({
+      path,
+      fingerprint: null,
+      comparisons: git.comparisons.filter(
+        (change) => changePath(change) === path,
+      ),
+    })),
+  };
+  const groups = groupChanges(list, layers);
   expect(groups.map((group) => group.title)).toEqual([
     'A clearer review experience',
     'Refine the foundation',
@@ -28,7 +42,7 @@ it('uses layer/file order and keeps unassigned and stale metadata from hiding re
     'src/styles/theme.css',
   ]);
   expect(groups.flatMap((group) => group.changes)).toHaveLength(
-    status.changes.length,
+    git.comparisons.length,
   );
 });
 
@@ -43,7 +57,7 @@ describe('artifact format selection', () => {
   });
 });
 
-describe('reviewed evidence state', () => {
+describe('reviewed change state', () => {
   const fingerprint = 'a'.repeat(64);
   const entry = { path: 'src/app.tsx', fingerprint };
 
@@ -69,7 +83,7 @@ describe('reviewed evidence state', () => {
     ).toBe('stale');
   });
 
-  it('keeps unreviewable evidence visible without treating it as reviewed', () => {
+  it('keeps an unmarkable change visible without treating it as reviewed', () => {
     const mark = {
       path: entry.path,
       fingerprint,
@@ -95,7 +109,7 @@ describe('review progress', () => {
     ).toEqual({ done: 1, total: 2 });
   });
 
-  it('keeps stale and missing evidence incomplete', () => {
+  it('keeps a stale or unestablished change out of the reviewed count', () => {
     expect(
       reviewProgress(
         ['README.md', 'missing.ts'],
@@ -109,19 +123,19 @@ describe('review progress', () => {
   });
 });
 
-it('orders whole-file evidence by the agent story without dropping comparisons or unassigned files', () => {
-  const evidence = [
+it('orders whole-file changes by the agent story without dropping comparisons or unassigned files', () => {
+  const changes = [
     { path: 'a.ts', comparisons: ['staged', 'unstaged'] },
     { path: 'b.ts', comparisons: ['unstaged'] },
     { path: 'z.ts', comparisons: ['staged'] },
   ];
-  const ordered = orderReviewEvidence(evidence, [
+  const ordered = orderReviewChanges(changes, [
     { path: 'z.ts' },
     { path: 'missing.ts' },
     { path: 'a.ts' },
     { path: 'a.ts' },
   ]);
   expect(ordered.map((entry) => entry.path)).toEqual(['z.ts', 'a.ts', 'b.ts']);
-  expect(ordered[1]).toBe(evidence[0]);
+  expect(ordered[1]).toBe(changes[0]);
   expect(ordered[1]?.comparisons).toEqual(['staged', 'unstaged']);
 });

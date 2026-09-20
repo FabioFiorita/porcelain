@@ -46,7 +46,7 @@ export type Trace = {
   step?: string;
   method: string;
   url: string;
-  /** Registered route pattern, e.g. `/worktrees/:worktreeId/evidence`. */
+  /** Registered route pattern, e.g. `/worktrees/:worktreeId/changes`. */
   route?: string;
   status?: number;
   start: number;

@@ -47,19 +47,54 @@ repository/configuration writers and does not claim race-proof helper suppressio
 
 Reads are best-effort observations, not snapshots. The opaque status token hashes the
 porcelain status observation, including HEAD and index information. It is not a file-content
-digest or a durable revision. Diff requests require that token and a selection present in
-fresh status. A different observation before or after diff generation returns
-`409 WORKTREE_CHANGED`; the caller refreshes status before retrying. External edits can
-preserve status output, race individual Git reads, or change and revert between checks.
-Matching tokens do not establish immutable content or atomicity.
+digest or a durable revision. Diff requests require that token and selections present in
+fresh status, so a diff keyed only by path cannot answer about a file that has since been
+renamed. A different observation returns `409 WORKTREE_CHANGED`; the caller refreshes the
+change list before retrying. External edits can preserve status output, race individual Git
+reads, or change and revert between checks. Matching tokens do not establish immutable content
+or atomicity.
 
-Review evidence reads every selected diff as one batch: identities and conversion filters are
-checked once before and once after the batch, not around each file, and each file is still one
-exact-pathspec `git diff`. Spawning about ten Git processes per file made a review take seconds.
-Binary changes are recognized from Git's `Binary files ... differ` patch line. The server keeps
-the last evidence per worktree, keyed by the status token plus the inode, size and change times
-of every unstaged, untracked or unmerged path, because status output does not change when an
-already modified file is edited again. A hit still reads and verifies fresh status.
+A change-list response is one observation. The status is read once and the token it returns is
+what a later diff or mark must present; nothing re-reads the status to prove that list was still
+true as it was sent, because that proves nothing about the moment the reader acts on it. A diff
+response is different, and re-reads deliberately: it carries content Git captured at some instant,
+so it is bound to what was read rather than merely preceded by a check. What every response
+confirms before it leaves is the checkout's identity, re-read from the filesystem at no Git cost.
+
+Reading what changed carries no content, so its cost does not grow with the size of the change:
+one status, and no Git at all for the working side. A working file is digested from its bytes
+through the filesystem boundary, which follows no link and costs no process; hashing through Git
+was tried and broke on the first filename containing a newline. Only a moved submodule pointer
+asks Git, because a submodule is a directory and the status prints the same gitlink on both sides.
+
+The hunks are a separate request for the files a reader has opened, and that request is one
+`git diff` per scope however many files it names. `--raw -z` is asked for alongside the patch, so
+the same process states which files it is about to print and in what order with unquoted paths,
+and sections are taken by position rather than by matching a header Git may have had to quote. A
+scope larger than one response may carry answers with bounded omissions rather than a process per
+file. Binary changes are recognized from Git's `Binary files ... differ` patch line.
+
+That request also carries the fingerprint the caller holds for every path it asks about. The
+status token cannot stand in for them: it hashes what porcelain status prints, which says nothing
+about the bytes of a file that was already modified, so editing such a file again leaves the token
+identical while the patch changes. The fingerprints are established again before the diff is read
+and once more afterwards, against a fresh observation, so the hunks returned are bound to the
+fingerprint returned with them rather than merely preceded by it.
+
+Equal content on both sides of that read is not enough on its own. A file written to something
+else, captured by Git, and written back reads the same and fingerprints the same, while the hunks
+describe a state that no longer exists. So everything the read looked at — each working path and
+the checkout's index, which a staged diff reads the same way — is also stamped by identity, size
+and change time, and the answer is refused when a stamp moves. Change time is the part that
+matters: an ordinary write always moves it, and the owner of a file cannot set it backwards the
+way they can set a modification time.
+
+A fingerprint is per logical path and covers every comparison of it, because a file can be
+staged and then edited again: a fingerprint over one side would let the other be marked unseen.
+It includes both modes, a symlink's literal target rather than what it points at, and a
+submodule's recorded commit — what changed inside a submodule is outside the parent's review.
+A binary file has an object id like anything else and stays markable; `null` means only that a
+side could not be established at all, and a `null` fingerprint can never be marked.
 
 Missing registered identities return `404 WORKTREE_NOT_FOUND`. Unavailable checkouts retain
 the existing repository error mapping. Authentication, no-cache responses, operation

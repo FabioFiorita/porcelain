@@ -694,29 +694,10 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'adequate',
   },
   {
-    file: 'packages/contracts/src/evidence.spec.ts',
+    file: 'packages/contracts/src/changes.spec.ts',
     areas: ['changes'],
     kind: 'unit',
-    real: ['zod schema'],
-    fakes: [],
-    tests: [
-      {
-        name: 'accepts grouped evidence with null fingerprints for unsafe comparisons',
-        asserts: 'One valid sample parses and its fingerprint is null.',
-      },
-    ],
-    strengths: ['Documents the null-fingerprint meaning.'],
-    gaps: [
-      'Single positive example; no rejection cases (non-hex fingerprint, empty comparisons, more than 2,000 entries, unknown omission reason, extra keys).',
-      'No test of parse cost for a realistic multi-MB evidence response (server allows 16 MB of content), which the client validates on every load.',
-    ],
-    verdict: 'weak',
-  },
-  {
-    file: 'packages/contracts/src/git-diff.spec.ts',
-    areas: ['changes'],
-    kind: 'unit',
-    real: ['zod schema'],
+    real: ['zod schemas'],
     fakes: [],
     tests: [
       {
@@ -724,9 +705,24 @@ export const coreSpecAudits: SpecAudit[] = [
         asserts:
           'Glob/newline/emoji path accepted; empty, absolute, .., //, NUL, lone surrogate, extra field, null newPath and unmerged scope rejected.',
       },
+      {
+        name: 'refuses an empty request and one larger than a layer',
+        asserts: 'Zero selections and 201 selections both fail to parse.',
+      },
+      {
+        name: 'coerces a line range from the query string and names where it is read from',
+        asserts:
+          'Strings become numbers; line 0, a traversing path and an "index" origin are rejected.',
+      },
     ],
-    strengths: ['Many exact negative cases for the shared path policy.'],
-    gaps: ['Response schema untested; rename oldPath rules untested.'],
+    strengths: [
+      'Many exact negative cases for the shared path policy.',
+      'Pins the selection bound, which is what stops a whole worktree being asked for as one diff read.',
+    ],
+    gaps: [
+      'The change-list response schema is untested here; HTTP specs parse it against a real server.',
+      'Rename oldPath rules untested.',
+    ],
     verdict: 'adequate',
   },
   {

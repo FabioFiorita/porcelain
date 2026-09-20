@@ -10,7 +10,7 @@
     "./commit-draft": "./src/commit-draft.ts",
     "./commit-history": "./src/commit-history.ts",
     "./commit-review-layers": "./src/commit-review-layers.ts",
-    "./evidence": "./src/evidence.ts",
+    "./changes": "./src/changes.ts",
     "./file-preferences": "./src/file-preferences.ts",
     "./files": "./src/files.ts",
     "./git-actions": "./src/git-actions.ts",

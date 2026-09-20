@@ -1,12 +1,13 @@
 import type {
   Artifact,
   ArtifactContent,
+  ChangeDiffs,
+  ChangeDiffsRequest,
+  ChangeLines,
+  ChangeList,
   CommitChanges,
   CommitReviewLayers,
-  Diff,
-  DiffRequest,
   Directory,
-  EvidenceResponse,
   FileEdit,
   FileEditResult,
   FileTree,
@@ -33,17 +34,27 @@ export type ReviewPort = {
     request: ReviewRequest & { input: FileEdit },
   ) => Promise<FileEditResult>;
   text: (request: ReviewRequest & { path: string }) => Promise<TextFile>;
-  diff: (request: ReviewRequest & { input: DiffRequest }) => Promise<Diff>;
+  status: (request: ReviewRequest) => Promise<Status>;
+  diffs: (
+    request: ReviewRequest & { input: ChangeDiffsRequest },
+  ) => Promise<ChangeDiffs>;
+  lines: (
+    request: ReviewRequest & {
+      path: string;
+      from: number;
+      to: number;
+      at: 'head' | 'worktree';
+    },
+  ) => Promise<ChangeLines>;
   commit: (
     request: ReviewRequest & { oid: string; parent?: number },
   ) => Promise<CommitChanges>;
   directory: (request: ReviewRequest & { path: string }) => Promise<Directory>;
   changes: (
     request: ReviewRequest,
-  ) => Promise<{ status: Status; layers: Layers }>;
+  ) => Promise<{ changes: ChangeList; layers: Layers }>;
   history: (request: ReviewRequest & { cursor?: string }) => Promise<History>;
   artifacts: (request: ReviewRequest) => Promise<Artifact[]>;
-  evidence: (request: ReviewRequest) => Promise<EvidenceResponse>;
   reviewed: {
     list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
     set: (

@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
-import type { Change, ReviewEvidenceItem, Status } from '../../domain/review';
-import { changePath } from '../../domain/review';
+import type { Change, ChangeList, ReviewChangeItem } from '../../domain/review';
 import { DocumentView } from './documents';
 
 const state = vi.hoisted(() => ({
-  evidence: [] as ReviewEvidenceItem[],
-  bulkEntries: [] as ReviewEvidenceItem[],
+  changes: [] as ReviewChangeItem[],
+  bulkEntries: [] as ReviewChangeItem[],
 }));
 
 const scope = {
@@ -21,6 +20,8 @@ const staged: Extract<Change, { kind: string }> = {
   newPath: 'same.ts',
   oldMode: '100644',
   newMode: '100644',
+  oldOid: null,
+  newOid: null,
   supported: true,
 };
 const unstaged = { ...staged, scope: 'unstaged' as const };
@@ -31,16 +32,29 @@ const otherLayerChange: Extract<Change, { kind: string }> = {
   newPath: 'other.ts',
   oldMode: '100644',
   newMode: '100644',
+  oldOid: null,
+  newOid: null,
   supported: true,
 };
 
-const status: Status = {
-  environmentId: 'environment',
+const list: ChangeList = {
+  environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
   worktreeId: scope.worktreeId,
   statusToken: 'a'.repeat(64),
-  consistency: 'best-effort',
   headOid: 'b'.repeat(40),
-  changes: [staged, unstaged, otherLayerChange],
+  branch: null,
+  changes: [
+    {
+      path: 'same.ts',
+      fingerprint: 'c'.repeat(64),
+      comparisons: [staged, unstaged],
+    },
+    {
+      path: 'other.ts',
+      fingerprint: 'c'.repeat(64),
+      comparisons: [otherLayerChange],
+    },
+  ],
 };
 
 const layer = {
@@ -53,27 +67,18 @@ const layer = {
   ],
 };
 
-function evidenceEntry(
+function changeEntry(
   path: string,
-  reviewStatus: ReviewEvidenceItem['reviewStatus'],
+  reviewStatus: ReviewChangeItem['reviewStatus'],
   change: Extract<Change, { kind: string }> = staged,
-): ReviewEvidenceItem {
+): ReviewChangeItem {
   return {
     path,
     fingerprint: 'c'.repeat(64),
-    comparisons: [
-      {
-        change,
-        content: {
-          kind: 'diff',
-          content: { kind: 'text', patch: '' },
-        },
-      },
-    ],
-    environmentId: status.environmentId,
-    worktreeId: status.worktreeId,
-    statusToken: status.statusToken,
-    consistency: 'best-effort',
+    comparisons: [change],
+    environmentId: list.environmentId,
+    worktreeId: list.worktreeId,
+    statusToken: list.statusToken,
     reviewStatus,
   };
 }
@@ -81,21 +86,22 @@ function evidenceEntry(
 vi.mock('../../query/review', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../query/review')>()),
   useChanges: () => ({
-    status,
+    changes: list,
     layers: {
       worktreeId: scope.worktreeId,
       revision: 1,
       layers: [layer],
     },
   }),
-  useReviewEvidence: () => state.evidence,
+  // The real hook narrows to the paths it is given, so the fake does too:
+  // what this spec asks is whether the layer view asks for its own files.
+  useReviewChanges: (_scope: unknown, paths?: readonly string[]) =>
+    paths
+      ? state.changes.filter((entry) => paths.includes(entry.path))
+      : state.changes,
 }));
 vi.mock('./reviewed-control', () => ({
-  MarkAllReviewed: ({
-    entries,
-  }: {
-    entries: readonly ReviewEvidenceItem[];
-  }) => {
+  MarkAllReviewed: ({ entries }: { entries: readonly ReviewChangeItem[] }) => {
     state.bulkEntries = [...entries];
     return <button type="button">Mark layer reviewed</button>;
   },
@@ -103,20 +109,18 @@ vi.mock('./reviewed-control', () => ({
 }));
 vi.mock('./review-code-document', () => ({
   ReviewCodeDocument: ({
-    changes,
+    paths,
     header,
     toolbar,
   }: {
-    changes?: readonly Change[];
+    paths?: readonly string[];
     header?: () => React.ReactNode;
     toolbar?: (control: React.ReactNode) => React.ReactNode;
   }) => (
     <div data-testid="code-document">
       {toolbar?.(null)}
-      {changes?.map((change) => (
-        <span key={`${change.scope}:${changePath(change)}`}>
-          {change.scope}:{changePath(change)}
-        </span>
+      {paths?.map((path) => (
+        <span key={path}>{path}</span>
       ))}
       {header?.()}
     </div>
@@ -143,15 +147,15 @@ function renderLayer() {
 }
 
 afterEach(() => {
-  state.evidence = [];
+  state.changes = [];
   state.bulkEntries = [];
 });
 
 describe('layer review progress', () => {
-  it('counts declared missing paths and excludes evidence from other layers', async () => {
-    state.evidence = [
-      evidenceEntry('same.ts', 'reviewed'),
-      evidenceEntry('other.ts', 'reviewed', otherLayerChange),
+  it('counts declared missing paths and excludes changes from other layers', async () => {
+    state.changes = [
+      changeEntry('same.ts', 'reviewed'),
+      changeEntry('other.ts', 'reviewed', otherLayerChange),
     ];
 
     const screen = await renderLayer();
@@ -168,17 +172,17 @@ describe('layer review progress', () => {
       .toBeVisible();
   });
 
-  it('updates the toolbar counter when reviewed evidence changes', async () => {
-    state.evidence = [
-      evidenceEntry('same.ts', 'unreviewed'),
-      evidenceEntry('missing.ts', 'unreviewed', unstaged),
+  it('updates the toolbar counter when reviewed marks change', async () => {
+    state.changes = [
+      changeEntry('same.ts', 'unreviewed'),
+      changeEntry('missing.ts', 'unreviewed', unstaged),
     ];
     const view = await renderLayer();
 
     await expect.element(view.getByText('0/2')).toBeVisible();
-    state.evidence = [
-      evidenceEntry('same.ts', 'reviewed'),
-      evidenceEntry('missing.ts', 'reviewed', unstaged),
+    state.changes = [
+      changeEntry('same.ts', 'reviewed'),
+      changeEntry('missing.ts', 'reviewed', unstaged),
     ];
     await view.rerender(
       <DocumentView

@@ -91,6 +91,10 @@ describe('InspectionGit', () => {
           newPath: 'new.txt',
           oldMode: '100644',
           newMode: '100644',
+          // A rename that moved the content unchanged: both sides are the
+          // same object, which is what makes it a rename and not an edit.
+          oldOid: expect.stringMatching(/^[0-9a-f]{40}$/),
+          newOid: expect.stringMatching(/^[0-9a-f]{40}$/),
           supported: true,
         },
         {
@@ -100,6 +104,9 @@ describe('InspectionGit', () => {
           newPath: 'new.txt',
           oldMode: '100644',
           newMode: '100644',
+          oldOid: expect.stringMatching(/^[0-9a-f]{40}$/),
+          // Nothing has hashed the working file yet.
+          newOid: null,
           supported: true,
         },
       ]);

@@ -1,7 +1,10 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
+import { RequestError } from '@porcelain/client/errors/request-error';
 import type {
   Change,
-  EvidenceResponse,
+  ChangeList,
+  ChangeSelection,
+  FileChange,
   ReviewedMark,
 } from '../../domain/review';
 import type { createMockStore } from '../inventory/mock';
@@ -102,24 +105,74 @@ export function createReviewMock(
         text,
       };
     },
-    async diff(request) {
+    async status(request) {
       const data = await context(request);
-      if (data.status.statusToken !== request.input.expectedStatusToken)
-        throw new ConnectionError(
-          'Changes moved since this list was loaded. Refresh the review.',
-        );
       return {
-        environmentId: data.status.environmentId,
+        environmentId: data.git.environmentId,
         worktreeId: request.worktreeId,
-        statusToken: data.status.statusToken,
+        statusToken: data.git.statusToken,
         consistency: 'best-effort',
-        change: request.input.change,
-        oldMode: '100644',
-        newMode: '100644',
-        content: {
-          kind: 'text',
-          patch: mockPatch(request.input.change, data.files),
-        },
+        headOid: data.git.headOid,
+        ...(data.git.branch
+          ? {
+              branch: {
+                ...data.git.branch,
+                remoteName: 'origin',
+                sourceRef: `refs/heads/${data.git.branch.name}`,
+                stashes: [],
+              },
+            }
+          : {}),
+        changes: data.git.comparisons,
+      };
+    },
+    async diffs(request) {
+      const data = await context(request);
+      const list = mockChangeList(request.worktreeId, data);
+      // The same refusal the server makes: the hunks must be about the state
+      // the caller's list described, not merely the same status output.
+      const moved =
+        data.git.statusToken !== request.input.expectedStatusToken ||
+        request.input.expectedFiles.some(
+          (file) =>
+            list.changes.find((entry) => entry.path === file.path)
+              ?.fingerprint !== file.fingerprint,
+        );
+      if (moved)
+        throw new RequestError(
+          409,
+          'WORKTREE_CHANGED',
+          'Refresh status and retry inspection',
+        );
+      if (store.diffsFailed)
+        throw new ConnectionError('These changes could not be read.');
+      return {
+        environmentId: data.git.environmentId,
+        worktreeId: request.worktreeId,
+        statusToken: data.git.statusToken,
+        diffs: request.input.selections.map((selection) => ({
+          selection,
+          content: {
+            kind: 'text' as const,
+            patch: mockPatch(selection, data.files),
+          },
+        })),
+      };
+    },
+    async lines(request) {
+      const data = await context(request);
+      const text = data.files[request.path];
+      if (text === undefined)
+        throw new ConnectionError('This file is no longer available.');
+      const lines = text.split('\n');
+      return {
+        environmentId: data.git.environmentId,
+        worktreeId: request.worktreeId,
+        at: request.at,
+        path: request.path,
+        from: request.from,
+        to: Math.min(request.to, lines.length),
+        lines: lines.slice(request.from - 1, request.to),
       };
     },
     async commit(request) {
@@ -180,12 +233,15 @@ export function createReviewMock(
       };
     },
     async changes(request) {
-      const { status, layers } = await context(request);
+      const data = await context(request);
       if (store.changesFailed)
         throw new ConnectionError(
           'This review surface could not be loaded. Refresh and try again.',
         );
-      return { status, layers };
+      return {
+        changes: mockChangeList(request.worktreeId, data),
+        layers: data.layers,
+      };
     },
     async history(request) {
       return (await context(request)).history;
@@ -197,14 +253,6 @@ export function createReviewMock(
           'This review surface could not be loaded. Refresh and try again.',
         );
       return artifacts.map(({ content: _content, ...metadata }) => metadata);
-    },
-    async evidence(request) {
-      const data = await context(request);
-      if (store.evidenceFailed)
-        throw new ConnectionError(
-          'This review surface could not be loaded. Refresh and try again.',
-        );
-      return mockEvidence(request.worktreeId, data);
     },
     reviewed: {
       async list(request) {
@@ -224,12 +272,12 @@ export function createReviewMock(
           throw new ConnectionError(
             'The file could not be marked as reviewed. Try again.',
           );
-        const current = mockEvidence(request.worktreeId, data).evidence.find(
+        const current = mockChangeList(request.worktreeId, data).changes.find(
           (entry) => entry.path === request.input.path,
         );
         if (!current || current.fingerprint !== request.input.fingerprint)
           throw new ConnectionError(
-            'Reviewed mark is based on stale evidence.',
+            'The reviewed mark is based on a version of the file that has changed.',
           );
         const marks = store.reviewed[request.worktreeId] ?? [];
         store.reviewed[request.worktreeId] = marks;
@@ -275,89 +323,65 @@ export function createReviewMock(
 
 type ReviewFixture = ReturnType<typeof createMockStore>['review'][string];
 
-function mockEvidence(
-  worktreeId: string,
-  data: ReviewFixture,
-): EvidenceResponse {
-  const byPath = new Map<
-    string,
-    EvidenceResponse['evidence'][number]['comparisons']
-  >();
-  for (const change of data.status.changes) {
+/**
+ * What changed, grouped by path, with a fingerprint over the content the
+ * fixture would serve for it. Deriving it from the files means editing one in
+ * the mock invalidates its mark, exactly as a real edit does.
+ */
+function mockChangeList(worktreeId: string, data: ReviewFixture): ChangeList {
+  const byPath = new Map<string, Change[]>();
+  for (const change of data.git.comparisons) {
     const path = changePath(change);
-    const comparisons = byPath.get(path) ?? [];
-    comparisons.push({ change, content: mockContent(change, data.files) });
-    byPath.set(path, comparisons);
+    byPath.set(path, [...(byPath.get(path) ?? []), change]);
   }
-  const evidence = [...byPath.entries()]
+  const scopeOrder = {
+    staged: 0,
+    unstaged: 1,
+    untracked: 2,
+    unmerged: 3,
+  } as const;
+  const changes: FileChange[] = [...byPath.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([path, comparisons]) => {
-      const ordered = comparisons.toSorted((left, right) => {
-        const scopeOrder = {
-          staged: 0,
-          unstaged: 1,
-          untracked: 2,
-          unmerged: 3,
-        } as const;
-        return (
-          scopeOrder[left.change.scope] - scopeOrder[right.change.scope] ||
-          changePath(left.change).localeCompare(changePath(right.change))
-        );
-      });
-      const fingerprintable = ordered.every(
-        (comparison) =>
-          comparison.content.kind === 'file' ||
-          (comparison.content.kind === 'diff' &&
-            (comparison.content.content.kind === 'text' ||
-              comparison.content.content.kind === 'metadata-only')),
+      const ordered = comparisons.toSorted(
+        (left, right) =>
+          scopeOrder[left.scope] - scopeOrder[right.scope] ||
+          changePath(left).localeCompare(changePath(right)),
+      );
+      const markable = ordered.every(
+        (change) =>
+          change.scope !== 'unmerged' &&
+          (change.scope !== 'untracked' ||
+            data.files[change.path] !== undefined),
       );
       return {
         path,
-        fingerprint: fingerprintable ? mockFingerprint(path, ordered) : null,
+        fingerprint: markable
+          ? mockFingerprint(path, ordered, data.files)
+          : null,
         comparisons: ordered,
       };
     });
   return {
-    environmentId: data.status.environmentId,
+    environmentId: data.git.environmentId,
     worktreeId,
-    statusToken: data.status.statusToken,
-    consistency: 'best-effort',
-    evidence,
-  };
-}
-
-function mockContent(change: Change, files: Record<string, string>) {
-  if (change.scope === 'unmerged')
-    return { kind: 'omitted' as const, reason: 'conflict' as const };
-  if (change.scope === 'untracked') {
-    const text = files[change.path];
-    return text === undefined
-      ? { kind: 'omitted' as const, reason: 'unreadable' as const }
-      : {
-          kind: 'file' as const,
-          encoding: 'utf-8' as const,
-          byteLength: new TextEncoder().encode(text).byteLength,
-          text,
-        };
-  }
-  if (!change.supported)
-    return {
-      kind: 'omitted' as const,
-      reason: 'unsupported-git-entry' as const,
-    };
-  return {
-    kind: 'diff' as const,
-    content: { kind: 'text' as const, patch: mockPatch(change, files) },
+    statusToken: data.git.statusToken,
+    headOid: data.git.headOid,
+    branch: data.git.branch,
+    changes,
   };
 }
 
 function mockFingerprint(
   path: string,
-  comparisons: ReadonlyArray<
-    EvidenceResponse['evidence'][number]['comparisons'][number]
-  >,
+  comparisons: readonly Change[],
+  files: Record<string, string>,
 ) {
-  const input = JSON.stringify({ path, comparisons });
+  const input = JSON.stringify({
+    path,
+    comparisons,
+    text: files[path] ?? null,
+  });
   let hash = 0x811c9dc5;
   for (let index = 0; index < input.length; index += 1) {
     hash ^= input.charCodeAt(index);
@@ -373,10 +397,7 @@ function changePath(change: Change) {
     : (change.newPath ?? change.oldPath ?? '');
 }
 
-function mockPatch(
-  change: import('../../domain/review').DiffRequest['change'],
-  files: Record<string, string>,
-) {
+function mockPatch(change: ChangeSelection, files: Record<string, string>) {
   const path = change.newPath ?? change.oldPath ?? '';
   if (!change.newPath)
     return `--- a/${path}\n+++ /dev/null\n@@ -1 +0,0 @@\n-export const legacyPanel = true;\n`;

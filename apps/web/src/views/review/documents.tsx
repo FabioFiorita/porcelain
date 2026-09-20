@@ -3,11 +3,11 @@ import type { RevealComment } from '../../domain/comments';
 import type { DocumentRef, OpenDocument } from '../../domain/documents';
 import { entryKey } from '../../domain/documents';
 import type { ReviewScope } from '../../domain/review';
-import { changePath, reviewProgress } from '../../domain/review';
+import { reviewProgress } from '../../domain/review';
 import {
   useChanges,
   usePrefetchReview,
-  useReviewEvidence,
+  useReviewChanges,
 } from '../../query/review';
 import { ArtifactDocument } from './artifact-document';
 import { CommitDocument } from './commit-document';
@@ -97,14 +97,14 @@ function HandoffDocument({
   onOpen: OpenDocument;
 }) {
   usePrefetchReview(scope);
-  const { status, layers } = useChanges(scope);
-  const evidence = useReviewEvidence(scope);
+  const { changes: list, layers } = useChanges(scope);
+  const changes = useReviewChanges(scope);
   const paths = uniquePaths([
-    ...status.changes.map(changePath),
+    ...list.changes.map((entry) => entry.path),
     ...layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
   ]);
   const reviewBuilt = layers.layers.length > 0;
-  const progress = reviewProgress(paths, evidence);
+  const progress = reviewProgress(paths, changes);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -120,7 +120,7 @@ function HandoffDocument({
           >
             <ProgressPill {...progress} />
             {collapseControl}
-            <MarkAllReviewed scope={scope} entries={evidence} />
+            <MarkAllReviewed scope={scope} entries={changes} />
           </DocumentToolbar>
         )}
         scope={scope}
@@ -156,16 +156,10 @@ function LayerDocument({
   scope: ReviewScope;
   layerId: string;
 }) {
-  const { status, layers } = useChanges(scope);
+  const { layers } = useChanges(scope);
   const layer = layers.layers.find((candidate) => candidate.id === layerId);
   const layerPaths = uniquePaths(layer?.files.map((file) => file.path) ?? []);
-  const layerPathSet = new Set(layerPaths);
-  const changes = status.changes.filter((change) =>
-    layerPathSet.has(changePath(change)),
-  );
-  const evidence = useReviewEvidence(scope, changes).filter((entry) =>
-    layerPathSet.has(entry.path),
-  );
+  const changes = useReviewChanges(scope, layerPaths);
 
   if (!layer)
     return (
@@ -175,7 +169,7 @@ function LayerDocument({
       />
     );
 
-  const progress = reviewProgress(layerPaths, evidence);
+  const progress = reviewProgress(layerPaths, changes);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -186,11 +180,11 @@ function LayerDocument({
           >
             <ProgressPill {...progress} />
             {collapseControl}
-            <MarkAllReviewed scope={scope} entries={evidence} kind="layer" />
+            <MarkAllReviewed scope={scope} entries={changes} kind="layer" />
           </DocumentToolbar>
         )}
         scope={scope}
-        changes={changes}
+        paths={layerPaths}
         files={layer.files}
         header={() =>
           layer.summary == null ? null : (
@@ -208,14 +202,10 @@ function LayerDocument({
 }
 
 function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
-  const { status } = useChanges(scope);
-  const changes = status.changes.filter(
-    (change) => changePath(change) === path,
-  );
-  const evidence = useReviewEvidence(scope, changes).find(
+  const change = useReviewChanges(scope, [path]).find(
     (entry) => entry.path === path,
   );
-  if (changes.length === 0)
+  if (!change)
     return (
       <ReviewEmpty
         title="Change no longer present"
@@ -231,18 +221,16 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
             title={path.slice(path.lastIndexOf('/') + 1)}
             subtitle={path}
           >
-            {evidence && (
-              <ReviewedControl
-                scope={scope}
-                path={path}
-                fingerprint={evidence.fingerprint}
-                status={evidence.reviewStatus}
-              />
-            )}
+            <ReviewedControl
+              scope={scope}
+              path={path}
+              fingerprint={change.fingerprint}
+              status={change.reviewStatus}
+            />
           </DocumentToolbar>
         )}
         scope={scope}
-        changes={changes}
+        paths={[path]}
       />
     </div>
   );

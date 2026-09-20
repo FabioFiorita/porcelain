@@ -24,46 +24,63 @@ export async function readStatus(
     signal,
     { maxBytes: 8 * 1024 * 1024, config: config },
   );
-  const status = parseGitStatus(output);
-  if (status.branch) {
-    const tracking = (
-      await runInspection(
-        checkout,
-        [
-          'for-each-ref',
-          '--format=%(refname)%00%(upstream:remotename)%00%(upstream:remoteref)',
-          'refs/heads/',
-        ],
-        signal,
-        { maxBytes: 1024 * 1024 },
+  return parseGitStatus(output);
+}
+
+/**
+ * The remote name, source ref and stashes the action UI needs.
+ *
+ * Two processes that say nothing about what changed, which is why they are not
+ * part of reading the list of changes: opening a worktree pays for the list,
+ * and only opening the action UI pays for these.
+ */
+export async function readBranchDetails(
+  session: CheckoutSession,
+  branch: string | null,
+  signal?: AbortSignal,
+): Promise<{
+  remoteName: string | null;
+  sourceRef: string | null;
+  stashes: { oid: string; message: string }[];
+}> {
+  const checkout = session.path;
+  const tracking = branch
+    ? (
+        await runInspection(
+          checkout,
+          [
+            'for-each-ref',
+            '--format=%(refname)%00%(upstream:remotename)%00%(upstream:remoteref)',
+            'refs/heads/',
+          ],
+          signal,
+          { maxBytes: 1024 * 1024 },
+        )
       )
+        .toString('utf8')
+        .split('\n')
+        .map((line) => line.split('\0'))
+        .find(([name]) => name === `refs/heads/${branch}`)
+    : undefined;
+  const stashes = (
+    await runInspection(
+      checkout,
+      ['stash', 'list', '--format=%H%x00%gs', '-100'],
+      signal,
+      { maxBytes: 1024 * 1024 },
     )
-      .toString('utf8')
-      .split('\n')
-      .map((line) => line.split('\0'))
-      .find(([name]) => name === `refs/heads/${status.branch?.name}`);
-    const stashes = (
-      await runInspection(
-        checkout,
-        ['stash', 'list', '--format=%H%x00%gs', '-100'],
-        signal,
-        { maxBytes: 1024 * 1024 },
-      )
-    )
-      .toString('utf8')
-      .trimEnd()
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const [oid = '', message = ''] = line.split('\0');
-        return { oid, message };
-      });
-    status.branch = {
-      ...status.branch,
-      remoteName: tracking?.[1] || null,
-      sourceRef: tracking?.[2] || null,
-      stashes,
-    };
-  }
-  return status;
+  )
+    .toString('utf8')
+    .trimEnd()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [oid = '', message = ''] = line.split('\0');
+      return { oid, message };
+    });
+  return {
+    remoteName: tracking?.[1] || null,
+    sourceRef: tracking?.[2] || null,
+    stashes,
+  };
 }

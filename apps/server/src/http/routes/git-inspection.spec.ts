@@ -9,7 +9,10 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gitDiffResponseSchema } from '@porcelain/contracts/git-diff';
+import {
+  changeDiffsResponseSchema,
+  changesResponseSchema,
+} from '@porcelain/contracts/changes';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { GitInspectionTimeoutError } from '@porcelain/git/errors/git-inspection-timeout-error';
@@ -17,6 +20,7 @@ import { InspectionLimitError } from '@porcelain/git/errors/inspection-limit-err
 import { UnsupportedGitFiltersError } from '@porcelain/git/errors/unsupported-git-filters-error';
 import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-path-encoding-error';
 import { expect, it } from 'vitest';
+import { fakeInspection } from '../../testing/fake-inspection.ts';
 import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
@@ -55,36 +59,58 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
       consistency: 'best-effort',
       headOid: null,
     });
+    const list = changesResponseSchema.parse(
+      (
+        await server.inject({
+          method: 'GET',
+          url: `/api/worktrees/${worktreeId}/changes`,
+          headers,
+        })
+      ).json(),
+    );
+    const listed = list.changes.find((entry) => entry.path === 'file');
     const body = {
       expectedStatusToken: status.statusToken,
-      change: { scope: 'staged', oldPath: null, newPath: 'file' },
+      // The hunks must be about the state the list described, not merely the
+      // same status output.
+      expectedFiles: [
+        { path: 'file', fingerprint: listed?.fingerprint ?? null },
+      ],
+      selections: [{ scope: 'staged', oldPath: null, newPath: 'file' }],
     };
-    const diffResponse = await fetch(`${address}${endpoint}/diff`, {
-      method: 'POST',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const diffResponse = await fetch(
+      `${address}/api/worktrees/${worktreeId}/changes/diffs`,
+      {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
     expect(diffResponse.status).toBe(200);
     const raw: unknown = await diffResponse.json();
-    const diff = gitDiffResponseSchema.parse(raw);
-    expect(raw).toEqual(diff);
-    expect(diff.content).toMatchObject({
+    const diffs = changeDiffsResponseSchema.parse(raw);
+    expect(raw).toEqual(diffs);
+    expect(diffs.diffs[0]?.content).toMatchObject({
       kind: 'text',
       patch: expect.stringContaining('+staged'),
     });
     for (const [method, suffix] of [
-      ['GET', 'status'],
-      ['POST', 'diff'],
+      ['GET', 'git/status'],
+      ['POST', 'changes/diffs'],
     ] as const) {
       expect(
-        (await server.inject({ method, url: `${endpoint}/${suffix}` }))
-          .statusCode,
+        (
+          await server.inject({
+            method,
+            url: `/api/worktrees/${worktreeId}/${suffix}`,
+          })
+        ).statusCode,
       ).toBe(401);
       expect(
         (
           await server.inject({
             method,
-            url: `/api/worktrees/not-a-uuid/git/${suffix}`,
+            url: `/api/worktrees/not-a-uuid/${suffix}`,
             headers,
           })
         ).statusCode,
@@ -99,16 +125,18 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
         })
       ).statusCode,
     ).toBe(404);
+    const selected = body.selections[0];
     for (const payload of [
       { ...body, extra: true },
-      { ...body, change: { ...body.change, newPath: '../outside' } },
-      { ...body, change: { ...body.change, scope: 'untracked' } },
+      { ...body, selections: [{ ...selected, newPath: '../outside' }] },
+      { ...body, selections: [{ ...selected, scope: 'untracked' }] },
+      { ...body, selections: [] },
     ]) {
       expect(
         (
           await server.inject({
             method: 'POST',
-            url: `${endpoint}/diff`,
+            url: `/api/worktrees/${worktreeId}/changes/diffs`,
             headers,
             payload,
           })
@@ -118,7 +146,7 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
     await writeFile(join(path, 'new-file'), 'concurrent\n');
     const stale = await server.inject({
       method: 'POST',
-      url: `${endpoint}/diff`,
+      url: `/api/worktrees/${worktreeId}/changes/diffs`,
       headers,
       payload: body,
     });
@@ -158,13 +186,14 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
     pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    inspectionGit: () => ({
-      readStatus: async () => {
-        throw failure;
-      },
-      readDiff: async () => ({ kind: 'binary' }),
-      readDiffs: async () => [],
-    }),
+    inspectionGit: () =>
+      fakeInspection({
+        readStatus: async () => {
+          throw failure;
+        },
+        readDiff: async () => ({ kind: 'binary' }),
+        readDiffs: async () => [],
+      }),
   });
   const headers = await pairDevice(server, server.application);
   try {
@@ -217,25 +246,26 @@ it('aborts the signal a route passes into its lane when the client disconnects',
     pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    inspectionGit: () => ({
-      // The signal here is the one the request hook created and the route
-      // handed to the lane; a queued caller is removed by the same signal.
-      readStatus: (signal) =>
-        new Promise((_resolve, reject) => {
-          if (!signal) throw new Error('Missing cancellation');
-          signal.addEventListener(
-            'abort',
-            () => {
-              cancelled.resolve();
-              reject(signal.reason);
-            },
-            { once: true },
-          );
-          entered.resolve();
-        }),
-      readDiff: async () => ({ kind: 'binary' }),
-      readDiffs: async () => [],
-    }),
+    inspectionGit: () =>
+      fakeInspection({
+        // The signal here is the one the request hook created and the route
+        // handed to the lane; a queued caller is removed by the same signal.
+        readStatus: (signal) =>
+          new Promise((_resolve, reject) => {
+            if (!signal) throw new Error('Missing cancellation');
+            signal.addEventListener(
+              'abort',
+              () => {
+                cancelled.resolve();
+                reject(signal.reason);
+              },
+              { once: true },
+            );
+            entered.resolve();
+          }),
+        readDiff: async () => ({ kind: 'binary' }),
+        readDiffs: async () => [],
+      }),
   });
   const headers = await pairDevice(server, server.application);
   const leaving = new AbortController();

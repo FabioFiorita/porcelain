@@ -7,10 +7,20 @@ import {
   GitCommitHorizontalIcon,
 } from 'lucide-react';
 import type { GitAction } from '../../domain/git-action';
-import type { Status } from '../../domain/review';
+import type { Change, Status } from '../../domain/review';
 
 export type GitBranchStatus = NonNullable<Status['branch']>;
-export type GitActionStatus = Status;
+/**
+ * What deciding an action needs: the comparisons, the observation they were
+ * read at, and the branch. The change list carries all three. The remote name
+ * and stashes are absent from it, and an absent field already means "not known
+ * to be blocking" here — the action panel reads them when it opens.
+ */
+export type GitActionStatus = {
+  statusToken: string;
+  changes: readonly Change[];
+  branch?: GitBranchStatus | null | undefined;
+};
 
 type GitActionGroupId = 'commit' | 'sync' | 'stash';
 

@@ -8,12 +8,12 @@ import {
 } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ActionInput, GitAction } from '../../domain/git-action';
-import type { ReviewScope, Status } from '../../domain/review';
+import type { ReviewScope } from '../../domain/review';
 import { useGitAction } from '../../query/git-actions';
-import { reviewErrorMessage } from '../../query/review';
+import { reviewErrorMessage, useGitStatus } from '../../query/review';
 import { usePreferences } from '../workspace/preferences';
 import { CommitForm } from './commit-form';
-import { gitActions } from './git-action-options';
+import { type GitActionStatus, gitActions } from './git-action-options';
 
 export function GitActionInspection({
   scope,
@@ -23,13 +23,13 @@ export function GitActionInspection({
 }: {
   scope: ReviewScope;
   entry: GitAction;
-  status: Status;
+  status: GitActionStatus;
   onBusy: (busy: boolean) => void;
 }) {
   return entry === 'commit' ? (
     <CommitForm scope={scope} status={status} onBusy={onBusy} />
   ) : (
-    <ActionForm
+    <RemoteActionForm
       key={entry}
       scope={scope}
       action={entry}
@@ -38,6 +38,41 @@ export function GitActionInspection({
     />
   );
 }
+
+/**
+ * The remote name, source ref and stashes cost two Git processes that say
+ * nothing about what changed, so they are read here, when the panel that fills
+ * its fields from them opens. The form waits for them rather than starting on
+ * defaults it would then have to replace under the person's cursor.
+ */
+function RemoteActionForm({
+  scope,
+  action,
+  status,
+  onBusy,
+}: {
+  scope: ReviewScope;
+  action: Exclude<GitAction, 'commit'>;
+  status: GitActionStatus;
+  onBusy: (busy: boolean) => void;
+}) {
+  const details = useGitStatus(scope);
+  if (details.pending)
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        Reading branch…
+      </p>
+    );
+  return (
+    <ActionForm
+      scope={scope}
+      action={action}
+      status={details.status ?? status}
+      onBusy={onBusy}
+    />
+  );
+}
+
 function ActionForm({
   scope,
   action,
@@ -46,7 +81,7 @@ function ActionForm({
 }: {
   scope: ReviewScope;
   action: Exclude<GitAction, 'commit'>;
-  status: Status;
+  status: GitActionStatus;
   onBusy: (busy: boolean) => void;
 }) {
   const git = useGitAction(scope, action);

@@ -12,15 +12,16 @@ import { useInventory } from './inventory';
 import {
   useMarkAllReviewed,
   useMarkReviewed,
-  useReviewEvidence,
+  useReviewChanges,
 } from './review';
 import { useWorkspaceContext, WorkspaceProvider } from './workspace-provider';
 
 /**
  * The sidebar's dot rides with the worktree list, so anything that changes
- * what the dot says leaves that list stale: marking the last file of a
- * published layer, a commit that archives the layers, and answering a reply.
- * Each of these proves the list is asked for again.
+ * what the dot says has to reach that list. A commit and an answered reply
+ * depend on state only the server holds, so they ask for it again. Marking
+ * does not: everything that decides the dot is already in cache, and asking
+ * would make marking one file cost a listing of every project.
  */
 function harness(onReads: () => void) {
   const store = createMockStore();
@@ -54,11 +55,18 @@ function Connected({ children }: { children: React.ReactNode }) {
   return connection ? children : null;
 }
 
-async function run(api: Api, use: () => () => Promise<unknown>) {
+async function run(
+  api: Api,
+  use: () => () => Promise<unknown>,
+  worktreeId?: string,
+) {
   const queryClient = createQueryClient();
   function Acting() {
     const inventory = useInventory();
     const act = use();
+    const dot = inventory.projects
+      .flatMap((entry) => entry.worktrees)
+      .find((entry) => entry.id === worktreeId)?.status;
     return (
       <>
         <button type="button" onClick={() => void act().catch(() => {})}>
@@ -67,6 +75,7 @@ async function run(api: Api, use: () => () => Promise<unknown>) {
         <output aria-label="Projects">
           {inventory.projects.map((entry) => entry.name).join(', ')}
         </output>
+        <output aria-label="Dot">{dot ?? 'none'}</output>
       </>
     );
   }
@@ -83,23 +92,32 @@ async function run(api: Api, use: () => () => Promise<unknown>) {
   return screen;
 }
 
-it('asks for the worktree list again once a file is marked reviewed', async () => {
+it('moves the dot from the mark itself, without asking for the worktree list', async () => {
   let reads = 0;
   const { api, scope } = harness(() => {
     reads += 1;
   });
-  const screen = await run(api, () => {
-    const mark = useMarkReviewed(scope);
-    const evidence = useReviewEvidence(scope);
-    return async () => {
-      const entry = evidence.find((file) => file.fingerprint);
-      if (!entry?.fingerprint) throw new Error('Missing fixture evidence');
-      await mark.submit({ path: entry.path, fingerprint: entry.fingerprint });
-    };
-  });
+  const screen = await run(
+    api,
+    () => {
+      const mark = useMarkReviewed(scope);
+      const changes = useReviewChanges(scope);
+      return async () => {
+        const entry = changes.find((file) => file.fingerprint);
+        if (!entry?.fingerprint) throw new Error('Missing markable fixture');
+        await mark.submit({ path: entry.path, fingerprint: entry.fingerprint });
+      };
+    },
+    scope.worktreeId,
+  );
   const before = reads;
   await screen.getByRole('button', { name: 'Act' }).click();
-  await vi.waitFor(() => expect(reads).toBeGreaterThan(before));
+  // Layers are published and most of their files are still unmarked, so one
+  // mark says pending — worked out here, not fetched.
+  await expect
+    .element(screen.getByLabelText('Dot'))
+    .toHaveTextContent('pending');
+  expect(reads).toBe(before);
 });
 
 it('asks for the worktree list again once a commit archives the layers', async () => {
@@ -150,24 +168,31 @@ it('asks for the worktree list again once a reply is answered', async () => {
   await vi.waitFor(() => expect(reads).toBeGreaterThan(before));
 });
 
-it('asks for the worktree list once after marking everything, not once per file', async () => {
+it('turns the dot to reviewed after marking everything, still without a list read', async () => {
   let reads = 0;
   const { api, scope } = harness(() => {
     reads += 1;
   });
-  const screen = await run(api, () => {
-    const markAll = useMarkAllReviewed(scope);
-    const evidence = useReviewEvidence(scope);
-    return async () => {
-      const report = await markAll.submit(evidence);
-      if (report.marked.length < 2)
-        throw new Error('Fixture marked too little to tell');
-    };
-  });
+  const screen = await run(
+    api,
+    () => {
+      const markAll = useMarkAllReviewed(scope);
+      const changes = useReviewChanges(scope);
+      return async () => {
+        const report = await markAll.submit(changes);
+        if (report.marked.length < 2)
+          throw new Error('Fixture marked too little to tell');
+      };
+    },
+    scope.worktreeId,
+  );
   const before = reads;
   await screen.getByRole('button', { name: 'Act' }).click();
-  // One pass over many files is one change to the dot.
-  await vi.waitFor(() => expect(reads).toBe(before + 1));
+  // Every file of every published layer is marked, so the handoff is done.
+  await expect
+    .element(screen.getByLabelText('Dot'))
+    .toHaveTextContent('reviewed');
+  expect(reads).toBe(before);
 });
 
 it('does not ask for the worktree list when a comment is only added', async () => {

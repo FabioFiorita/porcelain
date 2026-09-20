@@ -8,7 +8,7 @@ import type {
 } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
+import type { ReadWorktreeChanges } from './read-worktree-changes.ts';
 import { resolveActionCheckout } from './resolve-action-worktree.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
@@ -17,7 +17,7 @@ export class PrepareGitAction {
   private readonly worktrees: ResolveWorktree;
   private readonly store: GitActionStore;
   private readonly git: GitActionWriterFactory;
-  private readonly evidence: ReadWorktreeEvidence | undefined;
+  private readonly changes: ReadWorktreeChanges | undefined;
   private readonly uuid: () => string;
   constructor(
     inventory: InventoryStore,
@@ -25,14 +25,14 @@ export class PrepareGitAction {
     store: GitActionStore,
     git: GitActionWriterFactory,
     uuid: () => string,
-    evidence?: ReadWorktreeEvidence,
+    changes?: ReadWorktreeChanges,
   ) {
     this.inventory = inventory;
     this.worktrees = worktrees;
     this.store = store;
     this.git = git;
     this.uuid = uuid;
-    this.evidence = evidence;
+    this.changes = changes;
   }
   async execute(
     scope: GitActionScope,
@@ -65,8 +65,8 @@ export class PrepareGitAction {
         throw error;
       });
     if (intent.action === 'commit' && intent.expectedFiles) {
-      if (!this.evidence) throw new GitActionRejectedError('STALE_PREPARATION');
-      const current = await this.evidence.execute(
+      if (!this.changes) throw new GitActionRejectedError('STALE_PREPARATION');
+      const current = await this.changes.execute(
         scope.worktreeId,
         session,
         signal,
@@ -74,7 +74,7 @@ export class PrepareGitAction {
       if (
         intent.expectedFiles.some(
           (expected) =>
-            current.evidence.find((entry) => entry.path === expected.path)
+            current.changes.find((entry) => entry.path === expected.path)
               ?.fingerprint !== expected.fingerprint,
         )
       )

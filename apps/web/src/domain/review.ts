@@ -2,20 +2,19 @@ import type {
   ArtifactContentResponse,
   ArtifactMetadataResponse,
 } from '@porcelain/contracts/artifacts';
+import type {
+  ChangeDiffsRequest as ChangeDiffsRequestContract,
+  ChangeDiffsResponse,
+  ChangeLinesResponse,
+  ChangesResponse,
+  FileChange as FileChangeResponse,
+} from '@porcelain/contracts/changes';
 import type { CommitChangesResponse } from '@porcelain/contracts/commit-changes';
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
-import type {
-  EvidenceResponse as EvidenceResponseContract,
-  ReviewEvidence as ReviewEvidenceResponse,
-} from '@porcelain/contracts/evidence';
 import type {
   DirectoryResponse,
   TextResponse,
 } from '@porcelain/contracts/files';
-import type {
-  GitDiffRequest,
-  GitDiffResponse,
-} from '@porcelain/contracts/git-diff';
 import type { GitStatusResponse } from '@porcelain/contracts/git-status';
 import type { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import type {
@@ -30,18 +29,24 @@ export type Artifact = ArtifactMetadataResponse;
 export type ArtifactContent = ArtifactContentResponse;
 export type Status = GitStatusResponse;
 export type Layers = ReturnType<typeof reviewLayersResponseSchema.parse>;
-export type Change = Status['changes'][number];
-export type EvidenceResponse = EvidenceResponseContract;
-export type Evidence = ReviewEvidenceResponse;
+export type ChangeList = ChangesResponse;
+export type FileChange = FileChangeResponse;
+export type Change = FileChange['comparisons'][number];
+export type ChangeDiffs = ChangeDiffsResponse;
+export type ChangeDiffsRequest = ChangeDiffsRequestContract;
+export type ChangeLines = ChangeLinesResponse;
+export type DiffContent = ChangeDiffs['diffs'][number]['content'];
+export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
+/** What the caller holds for a path, and what the server re-establishes. */
+export type ExpectedFile = ChangeDiffsRequest['expectedFiles'][number];
 export type ReviewedMark = ReviewedMarkResponse;
 export type ReviewedMarksResponse = ReviewedMarksResponseContract;
 export type SetReviewedRequest = SetReviewedRequestContract;
 export type ReviewStatus = 'unreviewed' | 'reviewed' | 'stale';
-export type ReviewEvidenceItem = Evidence & {
+export type ReviewChangeItem = FileChange & {
   environmentId: string;
   worktreeId: string;
   statusToken: string;
-  consistency: 'best-effort';
   reviewStatus: ReviewStatus;
   mark?: ReviewedMark;
 };
@@ -60,11 +65,11 @@ function changeKey(change: Change) {
   return JSON.stringify([change.scope, changePath(change)]);
 }
 
-export function orderReviewEvidence<T extends { path: string }>(
-  evidence: readonly T[],
+export function orderReviewChanges<T extends { path: string }>(
+  changes: readonly T[],
   files: readonly { path: string }[],
 ): T[] {
-  const remaining = new Map(evidence.map((entry) => [entry.path, entry]));
+  const remaining = new Map(changes.map((entry) => [entry.path, entry]));
   const ordered: T[] = [];
   for (const file of files) {
     const entry = remaining.get(file.path);
@@ -76,29 +81,29 @@ export function orderReviewEvidence<T extends { path: string }>(
 }
 
 export function reviewStatus(
-  evidence: Pick<Evidence, 'path' | 'fingerprint'>,
+  change: Pick<FileChange, 'path' | 'fingerprint'>,
   marks: readonly ReviewedMark[],
 ): ReviewStatus {
-  if (evidence.fingerprint == null) return 'unreviewed';
-  const mark = marks.find((candidate) => candidate.path === evidence.path);
+  if (change.fingerprint == null) return 'unreviewed';
+  const mark = marks.find((candidate) => candidate.path === change.path);
   if (!mark) return 'unreviewed';
-  return mark.fingerprint === evidence.fingerprint ? 'reviewed' : 'stale';
+  return mark.fingerprint === change.fingerprint ? 'reviewed' : 'stale';
 }
 
 export function reviewMark(
-  evidence: Pick<Evidence, 'path'>,
+  change: Pick<FileChange, 'path'>,
   marks: readonly ReviewedMark[],
 ) {
-  return marks.find((candidate) => candidate.path === evidence.path);
+  return marks.find((candidate) => candidate.path === change.path);
 }
 
 export function reviewProgress(
   paths: readonly string[],
-  evidence: readonly Pick<ReviewEvidenceItem, 'path' | 'reviewStatus'>[],
+  changes: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[],
 ) {
   const uniquePaths = new Set(paths.filter(Boolean));
   const reviewedPaths = new Set(
-    evidence
+    changes
       .filter((entry) => entry.reviewStatus === 'reviewed')
       .map((entry) => entry.path),
   );
@@ -109,10 +114,18 @@ export function reviewProgress(
   return { done, total: uniquePaths.size };
 }
 
-export function isFingerprintable(
-  evidence: Pick<Evidence, 'fingerprint'>,
-): evidence is Pick<Evidence, 'fingerprint'> & { fingerprint: string } {
-  return evidence.fingerprint != null;
+export function isFingerprintable<T extends { fingerprint: string | null }>(
+  change: T,
+): change is T & { fingerprint: string } {
+  return change.fingerprint != null;
+}
+
+/**
+ * The comparisons of every changed path, flattened. Views that ask "what is
+ * changed in this worktree" want this; the review surface wants the grouping.
+ */
+export function comparisons(list: ChangeList): Change[] {
+  return list.changes.flatMap((entry) => entry.comparisons);
 }
 
 export function basename(path: string) {
@@ -139,7 +152,8 @@ export function artifactKind(name: string, content = ''): ArtifactKind {
   if (/^#{1,6}\s/u.test(leading)) return 'markdown';
   return 'text';
 }
-export function groupChanges(status: Status, layers: Layers) {
+export function groupChanges(list: ChangeList, layers: Layers) {
+  const all = comparisons(list);
   const assigned = new Set(
     layers.layers.flatMap((layer) =>
       layer.files.map((file) => JSON.stringify([file.scope, file.path])),
@@ -147,7 +161,7 @@ export function groupChanges(status: Status, layers: Layers) {
   );
   const groups = layers.layers.flatMap((layer) => {
     const changes = layer.files.flatMap((file) =>
-      status.changes.filter(
+      all.filter(
         (change) =>
           change.scope === file.scope && changePath(change) === file.path,
       ),
@@ -156,9 +170,7 @@ export function groupChanges(status: Status, layers: Layers) {
       ? [{ id: layer.id, title: layer.title, changes }]
       : [];
   });
-  const unassigned = status.changes.filter(
-    (change) => !assigned.has(changeKey(change)),
-  );
+  const unassigned = all.filter((change) => !assigned.has(changeKey(change)));
   return [
     ...groups,
     ...(unassigned.length
@@ -168,8 +180,6 @@ export function groupChanges(status: Status, layers: Layers) {
 }
 
 export type TextFile = TextResponse;
-export type DiffRequest = GitDiffRequest;
-export type Diff = GitDiffResponse;
 export type CommitChanges = CommitChangesResponse;
 
 export type { CommitReviewLayersResponse as CommitReviewLayers } from '@porcelain/contracts/commit-review-layers';

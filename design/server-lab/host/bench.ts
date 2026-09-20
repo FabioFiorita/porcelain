@@ -101,13 +101,34 @@ type Scope = {
   worktreePath: string;
 };
 
+type ChangeList = {
+  statusToken: string;
+  changes: {
+    path: string;
+    fingerprint: string | null;
+    comparisons: {
+      scope: string;
+      oldPath?: string | null;
+      newPath?: string | null;
+    }[];
+  }[];
+};
+
+const readChanges = async (api: Api, scope: Scope): Promise<ChangeList> => {
+  const { data } = await api(
+    'GET',
+    `/api/worktrees/${scope.worktreeId}/changes`,
+  );
+  return data as ChangeList;
+};
+
 const selectWorktree = async (api: Api, scope: Scope) => {
   const w = `/api/worktrees/${scope.worktreeId}`;
-  // useChanges (status + layers), evidence, reviewed marks, comments, artifacts.
+  // The change list and layers, reviewed marks, comments, artifacts. No diffs:
+  // those are read per document, as the reader opens them.
   await Promise.all([
-    api('GET', `${w}/git/status`),
+    api('GET', `${w}/changes`),
     api('GET', `${w}/review-layers`),
-    api('GET', `${w}/evidence`),
     api('GET', `${w}/reviewed`),
     api('GET', `${w}/comments`),
     api('GET', `${w}/artifacts`),
@@ -136,34 +157,38 @@ export const benchSteps: Step[] = [
   },
   {
     id: 'diffs',
-    title: 'Open five diffs one by one',
+    title: 'Open five diffs',
     run: async (api, scope) => {
-      const { data } = await api(
-        'GET',
-        `/api/worktrees/${scope.worktreeId}/git/status`,
-      );
-      const status = data as {
-        statusToken: string;
-        changes: {
-          scope: string;
-          oldPath?: string | null;
-          newPath?: string | null;
-        }[];
-      };
-      const ordinary = status.changes
-        .filter(
-          (change) => change.scope === 'staged' || change.scope === 'unstaged',
+      const list = await readChanges(api, scope);
+      const opened = list.changes
+        .filter((entry) =>
+          entry.comparisons.some(
+            (change) =>
+              change.scope === 'staged' || change.scope === 'unstaged',
+          ),
         )
         .slice(0, 5);
-      for (const change of ordinary)
-        await api('POST', `/api/worktrees/${scope.worktreeId}/git/diff`, {
-          expectedStatusToken: status.statusToken,
-          change: {
+      // One request for the layer the reader opened, not one per document. It
+      // carries the fingerprints the list was read at, which the server
+      // re-establishes before it answers.
+      await api('POST', `/api/worktrees/${scope.worktreeId}/changes/diffs`, {
+        expectedStatusToken: list.statusToken,
+        expectedFiles: opened.map((entry) => ({
+          path: entry.path,
+          fingerprint: entry.fingerprint,
+        })),
+        selections: opened
+          .flatMap((entry) => entry.comparisons)
+          .filter(
+            (change) =>
+              change.scope === 'staged' || change.scope === 'unstaged',
+          )
+          .map((change) => ({
             scope: change.scope,
             oldPath: change.oldPath ?? null,
             newPath: change.newPath ?? null,
-          },
-        });
+          })),
+      });
     },
   },
   {
@@ -209,17 +234,10 @@ export const benchSteps: Step[] = [
     id: 'mark',
     title: 'Mark ten files reviewed',
     run: async (api, scope) => {
-      const { data } = await api(
-        'GET',
-        `/api/worktrees/${scope.worktreeId}/evidence`,
-      );
-      const evidence = (
-        (data as { evidence?: { path: string; fingerprint: string | null }[] })
-          .evidence ?? []
-      )
+      const marked = (await readChanges(api, scope)).changes
         .filter((entry) => entry.fingerprint)
         .slice(0, 10);
-      for (const entry of evidence)
+      for (const entry of marked)
         await api('PUT', `/api/worktrees/${scope.worktreeId}/reviewed`, {
           path: entry.path,
           reviewed: true,

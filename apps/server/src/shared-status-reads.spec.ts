@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { GitStatusObservation } from '@porcelain/git/dtos/git-status';
 import { expect, it } from 'vitest';
 import { openApplication } from './app.ts';
+import { fakeInspection } from './testing/fake-inspection.ts';
 
 const observation: GitStatusObservation = {
   statusToken: 'a'.repeat(64),
@@ -22,11 +23,12 @@ async function fixture(readStatus: (signal?: AbortSignal) => Promise<unknown>) {
   const app = await openApplication({
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    inspectionGit: () => ({
-      readStatus: readStatus as never,
-      readDiff: async () => ({ kind: 'binary' }),
-      readDiffs: async () => [],
-    }),
+    inspectionGit: () =>
+      fakeInspection({
+        readStatus: readStatus as never,
+        readDiff: async () => ({ kind: 'binary' }),
+        readDiffs: async () => [],
+      }),
   });
   await app.ready();
   const { project } = await app.register(path);

@@ -65,7 +65,7 @@ describe('continuous code document', () => {
       id: 'diff:staged:README.md',
       kind: 'file',
       path: 'README.md',
-      contents: 'staged evidence',
+      contents: 'staged contents',
       version: 10,
       note: 'staged',
     },
@@ -73,13 +73,13 @@ describe('continuous code document', () => {
       id: 'diff:unstaged:README.md',
       kind: 'file',
       path: 'README.md',
-      contents: 'unstaged evidence',
+      contents: 'unstaged contents',
       version: 20,
       note: 'unstaged',
     },
   ];
 
-  it('keeps same-path evidence as separately collapsible items', async () => {
+  it('keeps same-path comparisons as separately collapsible items', async () => {
     const screen = await render(<CodeDocument entries={entries} />);
 
     await expect

@@ -1,6 +1,4 @@
 import { z } from 'zod';
-import { gitChangeSelectionSchema } from './git-status.ts';
-import { worktreeIdSchema } from './worktree-id.ts';
 
 export const gitDiffContentSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), patch: z.string() }),
@@ -15,22 +13,3 @@ export const gitDiffContentSchema = z.discriminatedUnion('kind', [
     ]),
   }),
 ]);
-
-export const gitDiffRequestSchema = z.strictObject({
-  expectedStatusToken: z.string().regex(/^[a-f0-9]{64}$/),
-  change: gitChangeSelectionSchema,
-});
-
-export const gitDiffResponseSchema = z.object({
-  environmentId: z.uuid(),
-  worktreeId: worktreeIdSchema,
-  statusToken: z.string().regex(/^[a-f0-9]{64}$/),
-  consistency: z.literal('best-effort'),
-  change: gitChangeSelectionSchema,
-  oldMode: z.string().regex(/^[0-7]{6}$/),
-  newMode: z.string().regex(/^[0-7]{6}$/),
-  content: gitDiffContentSchema,
-});
-
-export type GitDiffRequest = z.infer<typeof gitDiffRequestSchema>;
-export type GitDiffResponse = z.infer<typeof gitDiffResponseSchema>;

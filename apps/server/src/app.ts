@@ -27,13 +27,17 @@ import type { Application } from './application.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
-import { readFileStamps } from './filesystem/file-stamps.ts';
 import { NodeFileTree } from './filesystem/file-tree.ts';
 import { NodeFileWriter } from './filesystem/file-writer.ts';
 import type { FileReader } from './filesystem/interfaces/file-reader.ts';
 import type { FileWriter } from './filesystem/interfaces/file-writer.ts';
 import type { ProjectFolders } from './filesystem/interfaces/project-folders.ts';
+import type {
+  StampPath,
+  WorktreeFiles,
+} from './filesystem/interfaces/worktree-files.ts';
 import { NodeProjectFolders } from './filesystem/project-folders.ts';
+import { readWorktreeFiles, stampPath } from './filesystem/worktree-files.ts';
 import { DeviceDirectory } from './lifecycle/device-directory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { Lanes } from './lifecycle/lanes.ts';
@@ -76,9 +80,10 @@ import { MarkCommentsSeen } from './use-cases/mark-comments-seen.ts';
 import { Pairing, type PairingReach } from './use-cases/pairing.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import { ReadAsset } from './use-cases/read-asset.ts';
+import { ReadChangeDiffs } from './use-cases/read-change-diffs.ts';
+import { ReadChangeLines } from './use-cases/read-change-lines.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
-import { ReadWorktreeDiff } from './use-cases/read-worktree-diff.ts';
-import { ReadWorktreeEvidence } from './use-cases/read-worktree-evidence.ts';
+import { ReadWorktreeChanges } from './use-cases/read-worktree-changes.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
@@ -111,6 +116,8 @@ export async function openApplication(options: {
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
   files?: FileReader;
+  worktreeFiles?: WorktreeFiles;
+  stampPath?: StampPath;
   projectFolders?: ProjectFolders;
   /** Where discovery and browsing start; the composition root resolves it. */
   projectHome: string;
@@ -384,13 +391,27 @@ export async function openApplication(options: {
     const inspection =
       options.inspectionGit ?? ((checkout) => new InspectionGit(checkout));
     const status = new ReadWorktreeStatus(store, worktrees, inspection);
-    const diff = new ReadWorktreeDiff(store, worktrees, inspection);
-    const evidence = new ReadWorktreeEvidence(
+    const worktreeFiles = options.worktreeFiles ?? readWorktreeFiles;
+    const changes = new ReadWorktreeChanges(
+      store,
+      worktrees,
+      inspection,
+      worktreeFiles,
+    );
+    const changeDiffs = new ReadChangeDiffs(
+      store,
+      worktrees,
+      inspection,
+      worktreeFiles,
+      options.stampPath ?? stampPath,
+    );
+    // A snippet of a working file is a file read, through the same no-follow
+    // boundary the Files surface uses and under the same size bound.
+    const changeLines = new ReadChangeLines(
       store,
       worktrees,
       inspection,
       files,
-      readFileStamps,
     );
     const actions = new GitActionCoordinator(
       lanes,
@@ -401,7 +422,7 @@ export async function openApplication(options: {
         actionStore,
         actionGit,
         randomUUID,
-        evidence,
+        changes,
       ),
       new AcceptGitAction(actionStore),
       new ExecuteGitAction(
@@ -424,7 +445,9 @@ export async function openApplication(options: {
       store,
       worktrees,
       actionGit,
-      evidence,
+      changes,
+      changeDiffs,
+      files,
       generator,
     );
     const reviewed = new ReviewedFileRepository(database.db);
@@ -432,7 +455,7 @@ export async function openApplication(options: {
     const setReviewedFile = new SetReviewedFile(
       reviewed,
       worktrees,
-      evidence,
+      changes,
       listReviewedFiles,
     );
     const removeReviewedFile = new RemoveReviewedFile(
@@ -574,19 +597,42 @@ export async function openApplication(options: {
             ),
           signal,
         ),
-      gitDiff: (worktreeId, expectedStatusToken, selection, signal) => {
-        const submitted = {
+      changes: (worktreeId, signal) =>
+        lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
+            changes.execute(
+              worktreeId,
+              new RequestGitSession(),
+              operationSignal,
+            ),
+          { callerSignal: signal },
+        ),
+      changeDiffs: (
+        worktreeId,
+        expectedStatusToken,
+        expectedFiles,
+        selections,
+        signal,
+      ) => {
+        const submitted = selections.map((selection) => ({
           scope: selection.scope,
           oldPath: selection.oldPath,
           newPath: selection.newPath,
-        };
+        }));
+        const expected = expectedFiles.map((file) => ({
+          path: file.path,
+          fingerprint: file.fingerprint,
+        }));
         return lanes.run(
           laneOf(worktreeId),
           'read',
           ({ signal: operationSignal }) =>
-            diff.execute(
+            changeDiffs.execute(
               worktreeId,
               expectedStatusToken,
+              expected,
               submitted,
               new RequestGitSession(),
               operationSignal,
@@ -594,18 +640,21 @@ export async function openApplication(options: {
           { callerSignal: signal },
         );
       },
-      reviewEvidence: (worktreeId, signal) =>
-        lanes.run(
+      changeLines: (worktreeId, range, signal) => {
+        const submitted = { ...range };
+        return lanes.run(
           laneOf(worktreeId),
           'read',
           ({ signal: operationSignal }) =>
-            evidence.execute(
+            changeLines.execute(
               worktreeId,
+              submitted,
               new RequestGitSession(),
               operationSignal,
             ),
           { callerSignal: signal },
-        ),
+        );
+      },
       listReviewedFiles: (worktreeId, signal) =>
         forWorktree(
           (operationSignal) =>

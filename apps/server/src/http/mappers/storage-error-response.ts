@@ -19,7 +19,8 @@ export function toStorageErrorResponse(error: unknown) {
       statusCode: 409,
       body: {
         code: 'REVIEWED_MARK_STALE',
-        message: 'The reviewed mark is based on stale evidence',
+        message:
+          'The reviewed mark is based on a version of the file that has changed',
       },
     };
   if (error instanceof CommitReviewLayerConflictError)

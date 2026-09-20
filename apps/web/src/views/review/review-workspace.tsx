@@ -277,7 +277,7 @@ function DocumentArea({
   const layers = overview?.layers.layers ?? [];
   const hasHandoff =
     overview != null &&
-    (overview.status.changes.length > 0 || layers.length > 0);
+    (overview.changes.changes.length > 0 || layers.length > 0);
   const layout = useTabLayout({
     worktreeId,
     entry,

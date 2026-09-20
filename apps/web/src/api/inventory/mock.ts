@@ -128,7 +128,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
           worktree.branch,
         );
         if (scenario === 'review-empty' || worktree.main) {
-          fixture.status.changes = [];
+          fixture.git.comparisons = [];
           fixture.layers.layers = [];
           fixture.artifacts = [];
         }
@@ -163,7 +163,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     reviewFailed: scenario === 'review-failed',
     changesFailed: false,
     artifactsFailed: false,
-    evidenceFailed: false,
+    diffsFailed: false,
     reviewedFailed: false,
     reviewedSetFailed: false,
     reviewedRemoveFailed: false,

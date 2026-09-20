@@ -5,8 +5,10 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
-import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
-import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
+import {
+  changeDiffsResponseSchema,
+  changesResponseSchema,
+} from '@porcelain/contracts/changes';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
@@ -14,10 +16,12 @@ import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
 /**
- * These are ceilings measured against this server, not targets for the rebuilt
- * one: reading evidence really does cost about one Git process per changed
- * file today. They stop that fan-out growing until the rebuild removes it, and
- * the rebuild lowers them.
+ * Ceilings measured against this server, with headroom.
+ *
+ * The number that matters here is not the ceiling but the slope: a change list
+ * costs the same for ten changed files as for two, because it carries no
+ * content. Two sizes are measured for exactly that reason — a regression that
+ * reintroduced a read per file would pass a ceiling and fail the slope.
  */
 const gitEnvironment = {
   ...process.env,
@@ -61,7 +65,21 @@ function countGitProcesses() {
   };
 }
 
-async function repository(changedFiles: number) {
+async function repository(
+  changedFiles: number,
+  options: { awkwardNames?: boolean; bigPatches?: boolean } = {},
+) {
+  // A name Git has to quote in a patch header, and one it does not.
+  const name = (index: number) =>
+    options.awkwardNames
+      ? `odd\t${index}\nname "${index}".ts`
+      : `file-${index}.ts`;
+  // Two versions that share nothing, so each patch is both of them in full
+  // and the batch is larger than one response may carry.
+  const body = (index: number, working: boolean) =>
+    options.bigPatches
+      ? `${(working ? 'y' : 'x').repeat(64)}\n`.repeat(46_000)
+      : `${working ? 'after' : 'before'} ${index}\n`;
   const root = await realpath(
     await mkdtemp(join(tmpdir(), 'porcelain-git-budget-')),
   );
@@ -77,16 +95,18 @@ async function repository(changedFiles: number) {
     stdio: 'ignore',
   });
   for (let index = 0; index < changedFiles; index += 1)
-    await writeFile(join(checkout, `file-${index}.ts`), 'before\n');
+    await writeFile(join(checkout, name(index)), body(index, false));
   git(['add', '.']);
   git(['commit', '-m', 'Initial']);
   for (let index = 0; index < changedFiles; index += 1)
-    await writeFile(join(checkout, `file-${index}.ts`), `after ${index}\n`);
+    await writeFile(join(checkout, name(index)), body(index, true));
   return { root, checkout };
 }
 
 async function fixture(
-  changedFiles: number,
+  changedFiles:
+    | number
+    | { files: number; awkwardNames?: boolean; bigPatches?: boolean },
   run: (
     server: Awaited<ReturnType<typeof createServer>>,
     worktreeId: string,
@@ -100,7 +120,9 @@ async function fixture(
     }>,
   ) => Promise<void>,
 ) {
-  const { root, checkout } = await repository(changedFiles);
+  const wanted =
+    typeof changedFiles === 'number' ? { files: changedFiles } : changedFiles;
+  const { root, checkout } = await repository(wanted.files, wanted);
   const server = await createServer({
     pairingReach,
     dataDirectory: join(root, 'state'),
@@ -176,7 +198,7 @@ describe('Git process budgets', () => {
     }
   });
 
-  it('reads evidence with a bounded number of Git processes per changed file', async () => {
+  it('reads the change list at a cost that does not grow with the change', async () => {
     const counts: Record<number, number> = {};
     for (const changedFiles of [2, 10]) {
       await fixture(
@@ -185,12 +207,12 @@ describe('Git process budgets', () => {
           counts[changedFiles] = await measure(async () => {
             const response = await server.inject({
               method: 'GET',
-              url: `/api/worktrees/${worktreeId}/evidence`,
+              url: `/api/worktrees/${worktreeId}/changes`,
               headers,
             });
             expect(response.statusCode).toBe(200);
             expect(
-              evidenceResponseSchema.parse(response.json()).evidence,
+              changesResponseSchema.parse(response.json()).changes,
             ).toHaveLength(changedFiles);
           });
         },
@@ -198,46 +220,173 @@ describe('Git process budgets', () => {
     }
     const small = counts[2] ?? 0;
     const large = counts[10] ?? 0;
-    // Measured 15 for 2 changed files and 23 for 10: still exactly one Git
-    // process per changed file, over a base that guards once per request
-    // rather than around every call. The slope is the fan-out step 5 removes.
-    expect(large - small).toBeLessThanOrEqual(10);
-    expect(large).toBeLessThanOrEqual(29);
+    // Measured 6 at both sizes: the identity guard (2), the conversion-filter
+    // check (3) and one status. Working files are digested from the
+    // filesystem, which costs no process and no filename can break. Flat is
+    // the assertion; the ceiling is only headroom.
+    expect(large).toBe(small);
+    expect(large).toBeLessThanOrEqual(8);
+  });
+
+  it('reads the diffs of several files in one process per scope', async () => {
+    const counts: Record<number, number> = {};
+    for (const changedFiles of [2, 10]) {
+      await fixture(
+        changedFiles,
+        async (server, worktreeId, measure, headers) => {
+          const list = changesResponseSchema.parse(
+            (
+              await server.inject({
+                method: 'GET',
+                url: `/api/worktrees/${worktreeId}/changes`,
+                headers,
+              })
+            ).json(),
+          );
+          const selections = list.changes.flatMap((entry) =>
+            entry.comparisons.flatMap((change) =>
+              change.scope === 'staged' || change.scope === 'unstaged'
+                ? [
+                    {
+                      scope: change.scope,
+                      oldPath: change.oldPath,
+                      newPath: change.newPath,
+                    },
+                  ]
+                : [],
+            ),
+          );
+          counts[changedFiles] = await measure(async () => {
+            const response = await server.inject({
+              method: 'POST',
+              url: `/api/worktrees/${worktreeId}/changes/diffs`,
+              headers,
+              payload: {
+                expectedStatusToken: list.statusToken,
+                expectedFiles: list.changes.map((entry) => ({
+                  path: entry.path,
+                  fingerprint: entry.fingerprint,
+                })),
+                selections,
+              },
+            });
+            expect(response.statusCode).toBe(200);
+            expect(
+              changeDiffsResponseSchema.parse(response.json()).diffs,
+            ).toHaveLength(selections.length);
+          });
+        },
+      );
+    }
+    const small = counts[2] ?? 0;
+    const large = counts[10] ?? 0;
+    // Measured 7 at both sizes: the guards, one `git diff` for the whole
+    // unstaged scope, and the status read twice — once to check the request
+    // against and once to bind the hunks to the fingerprints returned with
+    // them. Flat is the assertion; the ceiling is only headroom.
+    expect(large).toBe(small);
+    expect(large).toBeLessThanOrEqual(9);
+  });
+
+  /**
+   * Batching is only worth anything if it holds when it is needed: a layer of
+   * large patches, or of names Git has to quote in its headers. Matching the
+   * header text and reading each missing file again would turn exactly those
+   * layers into a process per file.
+   */
+  it('stays one process per scope for quoted names and for a capped batch', async () => {
+    for (const shape of [
+      { files: 12, awkwardNames: true },
+      { files: 6, bigPatches: true },
+    ]) {
+      await fixture(shape, async (server, worktreeId, measure, headers) => {
+        const list = changesResponseSchema.parse(
+          (
+            await server.inject({
+              method: 'GET',
+              url: `/api/worktrees/${worktreeId}/changes`,
+              headers,
+            })
+          ).json(),
+        );
+        expect(list.changes).toHaveLength(shape.files);
+        const selections = list.changes.flatMap((entry) =>
+          entry.comparisons.flatMap((change) =>
+            change.scope === 'staged' || change.scope === 'unstaged'
+              ? [
+                  {
+                    scope: change.scope,
+                    oldPath: change.oldPath,
+                    newPath: change.newPath,
+                  },
+                ]
+              : [],
+          ),
+        );
+        const spawned = await measure(async () => {
+          const response = await server.inject({
+            method: 'POST',
+            url: `/api/worktrees/${worktreeId}/changes/diffs`,
+            headers,
+            payload: {
+              expectedStatusToken: list.statusToken,
+              expectedFiles: list.changes.map((entry) => ({
+                path: entry.path,
+                fingerprint: entry.fingerprint,
+              })),
+              selections,
+            },
+          });
+          expect(response.statusCode).toBe(200);
+          const { diffs } = changeDiffsResponseSchema.parse(response.json());
+          expect(diffs).toHaveLength(selections.length);
+          // Whatever the answer is, every file gets one: its hunks, or a
+          // bounded omission. None is read in a process of its own.
+          for (const diff of diffs)
+            expect(diff.content.kind).toBe(
+              shape.bigPatches ? 'omitted' : 'text',
+            );
+        });
+        expect(spawned, JSON.stringify(shape)).toBeLessThanOrEqual(9);
+      });
+    }
   });
 
   it('marks a file reviewed within its budget, warm and cold', async () => {
     await fixture(
       2,
       async (server, worktreeId, measure, headers, coldServer) => {
-        const evidence = evidenceResponseSchema.parse(
+        const marked = changesResponseSchema.parse(
           (
             await server.inject({
               method: 'GET',
-              url: `/api/worktrees/${worktreeId}/evidence`,
+              url: `/api/worktrees/${worktreeId}/changes`,
               headers,
             })
           ).json(),
-        ).evidence[0];
-        if (!evidence?.fingerprint) throw new Error('Expected evidence');
+        ).changes[0];
+        if (!marked?.fingerprint) throw new Error('Expected a markable change');
+        const payload = {
+          path: marked.path,
+          reviewed: true,
+          fingerprint: marked.fingerprint,
+        };
         const spawned = await measure(async () => {
           const response = await server.inject({
             method: 'PUT',
             url: `/api/worktrees/${worktreeId}/reviewed`,
             headers,
-            payload: {
-              path: evidence.path,
-              reviewed: true,
-              fingerprint: evidence.fingerprint,
-            },
+            payload,
           });
           expect(response.statusCode).toBe(200);
         });
-        // Warm: the preceding read left the worktree's changes cached, so the
-        // mark only revalidates the fingerprint.
-        expect(spawned).toBeLessThanOrEqual(18);
+        // A mark is one change read: it refuses a fingerprint that no longer
+        // matches, and nothing here is cached, so that costs what a list does.
+        expect(spawned).toBeLessThanOrEqual(9);
 
-        // Cold: a second server over the same checkout has nothing cached, which
-        // is what a mark costs when it is the request's first read.
+        // Cold: a second server over the same checkout, which is what a mark
+        // costs when it is the request's first read. Nothing is cached either
+        // way, so the two are the same number.
         const cold = await coldServer();
         try {
           const coldSpawned = await measure(async () => {
@@ -245,59 +394,16 @@ describe('Git process budgets', () => {
               method: 'PUT',
               url: `/api/worktrees/${cold.worktreeId}/reviewed`,
               headers: cold.headers,
-              payload: {
-                path: evidence.path,
-                reviewed: true,
-                fingerprint: evidence.fingerprint,
-              },
+              payload,
             });
             expect(response.statusCode).toBe(200);
           });
-          // Measured 14, the same as warm: the guards that made a cold mark
-          // cost 35 are gone, so the cache no longer changes its Git cost.
-          expect(coldSpawned).toBeLessThanOrEqual(18);
+          expect(coldSpawned).toBe(spawned);
         } finally {
           await cold.server.close();
         }
       },
     );
-  });
-
-  it('reads one diff within its budget', async () => {
-    await fixture(2, async (server, worktreeId, measure, headers) => {
-      const status = gitStatusResponseSchema.parse(
-        (
-          await server.inject({
-            method: 'GET',
-            url: `/api/worktrees/${worktreeId}/git/status`,
-            headers,
-          })
-        ).json(),
-      );
-      const change = status.changes.find(
-        (candidate) =>
-          candidate.scope === 'staged' || candidate.scope === 'unstaged',
-      );
-      if (change === undefined) throw new Error('Expected an ordinary change');
-      const spawned = await measure(async () => {
-        const response = await server.inject({
-          method: 'POST',
-          url: `/api/worktrees/${worktreeId}/git/diff`,
-          headers,
-          payload: {
-            expectedStatusToken: status.statusToken,
-            change: {
-              scope: change.scope,
-              oldPath: 'oldPath' in change ? (change.oldPath ?? null) : null,
-              newPath: 'newPath' in change ? (change.newPath ?? null) : null,
-            },
-          },
-        });
-        expect(response.statusCode).toBe(200);
-      });
-      // Measured 12: the route still revalidates the status token first.
-      expect(spawned).toBeLessThanOrEqual(16);
-    });
   });
 
   it('reads a file within its budget', async () => {

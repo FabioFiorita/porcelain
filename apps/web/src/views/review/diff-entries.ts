@@ -1,5 +1,5 @@
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs';
-import type { Change, CommitChanges, Diff } from '../../domain/review';
+import type { Change, CommitChanges, DiffContent } from '../../domain/review';
 import { changePath } from '../../domain/review';
 import { contentVersion } from '../../lib/pierre';
 import type { CodeEntry } from './code-document';
@@ -11,34 +11,33 @@ const parsedDiffs = new WeakMap<
 const parsedCommits = new WeakMap<object, FileDiffMetadata | null>();
 type OrdinaryChange = Extract<Change, { kind: string }>;
 
-export function evidenceId(change: Change) {
+export function changeId(change: Change) {
   return `change:${change.scope}:${changePath(change)}`;
 }
 
 export function diffEntry(
   change: OrdinaryChange,
-  response: Diff,
+  content: DiffContent,
 ): CodeEntry | null {
-  if (response.content.kind === 'binary' || response.content.kind === 'omitted')
-    return null;
-  // Evidence keeps its content objects across renders and unchanged refetches.
-  let parsed = parsedDiffs.get(response.content);
+  if (content.kind === 'binary' || content.kind === 'omitted') return null;
+  // The query keeps its content objects across renders and unchanged refetches.
+  let parsed = parsedDiffs.get(content);
   if (!parsed) {
-    const version = contentVersion(response.content.patch);
+    const version = contentVersion(content.patch);
     const files = parsePatchFiles(
-      response.content.patch,
-      `${evidenceId(change)}:${version}`,
+      content.patch,
+      `${changeId(change)}:${version}`,
     ).flatMap((group) => group.files);
     parsed = {
       fileDiff: files.length === 1 ? (files[0] ?? null) : null,
       version,
     };
-    parsedDiffs.set(response.content, parsed);
+    parsedDiffs.set(content, parsed);
   }
   const { fileDiff, version } = parsed;
   if (!fileDiff) return null;
   return {
-    id: evidenceId(change),
+    id: changeId(change),
     kind: 'diff',
     path: changePath(change),
     fileDiff,

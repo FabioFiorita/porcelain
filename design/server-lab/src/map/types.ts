@@ -37,7 +37,7 @@ export type Layer =
 
 export type Step = {
   layer: Layer;
-  /** Symbol as it appears in code, e.g. `ReadWorktreeEvidence.execute`. */
+  /** Symbol as it appears in code, e.g. `ReadWorktreeStatus.execute`. */
   name: string;
   /** One plain sentence: what this step does in this flow. */
   what: string;

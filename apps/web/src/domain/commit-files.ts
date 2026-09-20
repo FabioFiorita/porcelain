@@ -1,6 +1,6 @@
-import { changePath, type Status } from './review';
+import { type Change, changePath } from './review';
 
-export function commitFiles(changes: Status['changes']) {
+export function commitFiles(changes: readonly Change[]) {
   const files = new Map<string, { path: string; paths: string[] }>();
   for (const change of changes) {
     const path = changePath(change);

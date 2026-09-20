@@ -11,7 +11,6 @@ import type { OpenDocument } from '../../domain/documents';
 import type { FileDraft, FileDraftState } from '../../domain/file-draft';
 import { isImagePath } from '../../domain/html-assets';
 import type { ReviewScope } from '../../domain/review';
-import { changePath } from '../../domain/review';
 import { useFileDraft } from '../../query/files';
 import { useChanges, useFileTree, useTextFile } from '../../query/review';
 import { copyText } from '../workspace/copy';
@@ -148,9 +147,9 @@ function ReadableFileDocument({
   onOpen: OpenDocument;
 }) {
   const { preferences } = usePreferences();
-  const { status } = useChanges(scope);
+  const { changes } = useChanges(scope);
   const kind = fileKind(path);
-  const changed = status.changes.some((change) => changePath(change) === path);
+  const changed = changes.changes.some((entry) => entry.path === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
   );

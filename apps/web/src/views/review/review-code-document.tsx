@@ -4,15 +4,21 @@ import { Button } from '@/components/ui/button';
 import { isImagePath } from '../../domain/html-assets';
 import type {
   Change,
-  Diff,
-  ReviewEvidenceItem,
+  ChangeSelection,
+  DiffContent,
+  ReviewChangeItem,
   ReviewScope,
 } from '../../domain/review';
-import { type Layers, orderReviewEvidence } from '../../domain/review';
+import { type Layers, orderReviewChanges } from '../../domain/review';
 import { useComments } from '../../query/comments';
-import { useReviewEvidence } from '../../query/review';
+import {
+  selectionKey,
+  useChangeDiffs,
+  useReviewChanges,
+  useUntrackedContents,
+} from '../../query/review';
 import { CodeDocument, type CodeEntry } from './code-document';
-import { diffEntry, evidenceId, fileEntry } from './diff-entries';
+import { changeId, diffEntry, fileEntry } from './diff-entries';
 import { ImagePreview } from './image-preview';
 import { InlineComposer } from './inline-composer';
 import { ReviewedControl } from './reviewed-control';
@@ -20,55 +26,81 @@ import { ThreadCard } from './thread-card';
 
 export function ReviewCodeDocument({
   scope,
-  changes,
+  paths,
   files = [],
   header,
   commentRequest,
   toolbar,
 }: {
   scope: ReviewScope;
-  changes?: readonly Change[];
+  paths?: readonly string[];
   files?: Layers['layers'][number]['files'];
   header?: () => ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   // An omitted selection means the complete handoff. Selected views filter by
-  // logical path, while the evidence query retains every comparison for that
-  // path (including staged and unstaged changes).
-  const evidence = orderReviewEvidence(
-    useReviewEvidence(scope, changes),
-    files,
+  // logical path, and every comparison of a selected path is kept (including
+  // a staged and an unstaged change to the same file).
+  const items = orderReviewChanges(useReviewChanges(scope, paths), files);
+  const statusToken = items[0]?.statusToken ?? '';
+  // The server re-establishes these before it answers, so what the reader is
+  // shown cannot be newer than the fingerprint the mark beside it carries.
+  const diffs = useChangeDiffs(
+    scope,
+    statusToken,
+    items.flatMap((item) =>
+      item.comparisons.some(
+        (change) => change.scope === 'staged' || change.scope === 'unstaged',
+      )
+        ? [{ path: item.path, fingerprint: item.fingerprint }]
+        : [],
+    ),
+    items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
   );
+  const untracked = useUntrackedContents(
+    scope,
+    items.flatMap((item) =>
+      item.comparisons.flatMap((change) =>
+        change.scope === 'untracked' ? [change.path] : [],
+      ),
+    ),
+  );
+  const patchOf = (change: Change): DiffContent | undefined => {
+    const [selection] = selectionOf(change);
+    return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
+  };
+  const loading = diffs.pending || untracked.pending;
+  const failed = diffs.failed || untracked.failed;
   const notes = new Map(files.map((file) => [file.path, file.note]));
-  const unrenderable = evidence.flatMap((item) => {
-    const reasons = item.comparisons.flatMap((comparison) => {
-      if (comparison.content.kind === 'omitted')
-        return [formatOmission(comparison.content.reason)];
-      if (comparison.content.kind === 'file') return [];
-      if (comparison.content.content.kind === 'binary')
-        return ['Binary change'];
-      if (comparison.content.content.kind === 'omitted')
-        return [`Content omitted: ${comparison.content.content.reason}`];
-      if (!('kind' in comparison.change)) return ['Unsupported comparison'];
-      const response = toDiff(item, comparison.change, comparison.content);
-      return diffEntry(comparison.change, response)
-        ? []
-        : ['No single-file textual patch'];
+  const unrenderable = items.flatMap((item) => {
+    const reasons = item.comparisons.flatMap((change) => {
+      if (change.scope === 'unmerged') return ['Conflict'];
+      if (change.scope === 'untracked')
+        return untracked.contents.has(change.path) ? [] : ['Not readable'];
+      if (!change.supported) return ['Unsupported comparison'];
+      const content = patchOf(change);
+      if (!content) return [];
+      if (content.kind === 'binary') return ['Binary change'];
+      if (content.kind === 'omitted')
+        return [`Content omitted: ${formatOmission(content.reason)}`];
+      return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
     return reasons.length > 0 ? [{ item, reasons }] : [];
   });
-  const entries = evidence.flatMap((item): CodeEntry[] =>
-    item.comparisons.flatMap((comparison): CodeEntry[] => {
+  const entries = items.flatMap((item): CodeEntry[] =>
+    item.comparisons.flatMap((change): CodeEntry[] => {
       const review = reviewControl(scope, item);
-      if (comparison.content.kind === 'file')
+      if (change.scope === 'untracked') {
+        const text = untracked.contents.get(change.path);
+        if (text === undefined) return [];
         return [
           {
             ...fileEntry(
-              evidenceId(comparison.change),
+              changeId(change),
               item.path,
-              comparison.content.text,
-              notes.get(item.path) ?? `${comparison.change.scope} · untracked`,
+              text,
+              notes.get(item.path) ?? `${change.scope} · untracked`,
             ),
             review,
             comment: {
@@ -80,12 +112,10 @@ export function ReviewCodeDocument({
             },
           },
         ];
-      if (comparison.content.kind !== 'diff') return [];
-      if (!('kind' in comparison.change)) return [];
-      const entry = diffEntry(
-        comparison.change,
-        toDiff(item, comparison.change, comparison.content),
-      );
+      }
+      if (change.scope === 'unmerged' || !change.supported) return [];
+      const content = patchOf(change);
+      const entry = content ? diffEntry(change, content) : null;
       const note = notes.get(item.path);
       return entry
         ? [
@@ -95,10 +125,7 @@ export function ReviewCodeDocument({
               review,
               comment: {
                 filePath: item.path,
-                comparison: {
-                  kind: 'worktree',
-                  scope: comparison.change.scope,
-                },
+                comparison: { kind: 'worktree', scope: change.scope },
                 ...(item.fingerprint
                   ? { contentFingerprint: item.fingerprint }
                   : {}),
@@ -110,13 +137,22 @@ export function ReviewCodeDocument({
   );
   const renderedPaths = new Set(entries.map((entry) => entry.path));
   const documentHeader =
-    header || unrenderable.length > 0
+    header || loading || failed || unrenderable.length > 0
       ? () => (
           <>
             {header?.()}
+            {(loading || failed) && (
+              <ContentState
+                failed={failed}
+                retry={() => {
+                  diffs.retry();
+                  untracked.retry();
+                }}
+              />
+            )}
             {unrenderable.length > 0 && (
-              <OmittedEvidence
-                evidence={unrenderable}
+              <OmittedChanges
+                changes={unrenderable}
                 renderedPaths={renderedPaths}
                 scope={scope}
                 {...(entries.length === 0 && commentRequest !== undefined
@@ -139,7 +175,50 @@ export function ReviewCodeDocument({
   );
 }
 
-function reviewControl(scope: ReviewScope, item: ReviewEvidenceItem) {
+/** Only a tracked comparison has hunks to ask for. */
+function selectionOf(change: Change): ChangeSelection[] {
+  return change.scope === 'staged' || change.scope === 'unstaged'
+    ? [
+        {
+          scope: change.scope,
+          oldPath: change.oldPath,
+          newPath: change.newPath,
+        },
+      ]
+    : [];
+}
+
+/**
+ * Hunks arrive after the list of files does, so the document says where it is
+ * rather than painting as if there were nothing to show.
+ */
+function ContentState({
+  failed,
+  retry,
+}: {
+  failed: boolean;
+  retry: () => void;
+}) {
+  return (
+    <section
+      className="mx-4 mt-3 flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-xs text-muted-foreground"
+      aria-live="polite"
+    >
+      {failed ? (
+        <>
+          <span>The changes in this document could not be read.</span>
+          <Button size="xs" variant="outline" onClick={retry}>
+            Load the changes again
+          </Button>
+        </>
+      ) : (
+        <span>Loading changes…</span>
+      )}
+    </section>
+  );
+}
+
+function reviewControl(scope: ReviewScope, item: ReviewChangeItem) {
   return {
     path: item.path,
     fingerprint: item.fingerprint,
@@ -158,42 +237,18 @@ function reviewControl(scope: ReviewScope, item: ReviewEvidenceItem) {
   };
 }
 
-function toDiff(
-  item: ReviewEvidenceItem,
-  change: Extract<Change, { kind: string }>,
-  content: Extract<
-    ReviewEvidenceItem['comparisons'][number]['content'],
-    { kind: 'diff' }
-  >,
-): Diff {
-  return {
-    environmentId: item.environmentId,
-    worktreeId: item.worktreeId,
-    statusToken: item.statusToken,
-    consistency: item.consistency,
-    change: {
-      scope: change.scope,
-      oldPath: change.oldPath,
-      newPath: change.newPath,
-    },
-    oldMode: change.oldMode,
-    newMode: change.newMode,
-    content: content.content,
-  };
-}
-
 function formatOmission(reason: string) {
   return reason.replaceAll('-', ' ');
 }
 
-function OmittedEvidence({
-  evidence,
+function OmittedChanges({
+  changes,
   renderedPaths,
   scope,
   commentRequest,
 }: {
-  evidence: ReadonlyArray<{
-    item: ReviewEvidenceItem;
+  changes: ReadonlyArray<{
+    item: ReviewChangeItem;
     reasons: readonly string[];
   }>;
   commentRequest?: number;
@@ -204,7 +259,7 @@ function OmittedEvidence({
     <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
       <p className="text-xs font-medium">Non-text content</p>
       <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
-        {evidence.map(({ item, reasons }) => (
+        {changes.map(({ item, reasons }) => (
           <li
             key={item.path}
             className="flex min-w-0 flex-wrap items-center gap-2"

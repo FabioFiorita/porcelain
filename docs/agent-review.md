@@ -16,7 +16,7 @@ revision with `read_layers`, then publishes ordered layers with `replace_layers`
 Keep summaries and file notes short. `publish_artifact` accepts `handoff.md` for the
 code-facing summary and verification, and `handoff.html` for a readable report.
 
-Use `review_evidence` or `read_file` for the fingerprints used by anchored comments.
+Use `review_changes` or `read_file` for the fingerprints used by anchored comments.
 `list_comments`, `create_comment`, `reply_to_comment`, and `resolve_comment` share
 threads with the web app. MCP messages are attributed to the agent; HTTP messages
 to the reviewer. Nothing is pushed to coding sessions: ask the agent to read and

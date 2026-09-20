@@ -7,17 +7,18 @@ import { createMockStore, mockEnvironmentId } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
 import type {
   Change,
-  EvidenceResponse,
+  ChangeList,
   ReviewedMarksResponse,
 } from '../domain/review';
 import { createQueryClient } from './client';
 import { queryKeys } from './keys';
 import {
-  mergeReviewEvidence,
+  mergeReviewChanges,
+  useChangeDiffs,
   useCommit,
   useMarkAllReviewed,
   useMarkReviewed,
-  useReviewEvidence,
+  useReviewChanges,
   useUnmarkReviewed,
 } from './review';
 import { useWorkspaceContext, WorkspaceProvider } from './workspace-provider';
@@ -53,7 +54,7 @@ function BulkHarness({
   onConnection?: (controller: AbortController) => void;
 } = {}) {
   const { connection } = useWorkspaceContext();
-  const evidence = useReviewEvidence(scope);
+  const changes = useReviewChanges(scope);
   const bulk = useMarkAllReviewed(scope);
   const [message, setMessage] = useState('');
   useEffect(() => {
@@ -61,8 +62,8 @@ function BulkHarness({
   }, [connection, onConnection]);
   return (
     <>
-      <output aria-label="Evidence paths">
-        {evidence
+      <output aria-label="Change paths">
+        {changes
           .map((entry) => `${entry.path}:${entry.reviewStatus}`)
           .join('|')}
       </output>
@@ -70,7 +71,7 @@ function BulkHarness({
         type="button"
         onClick={() =>
           void bulk
-            .submit(evidence)
+            .submit(changes)
             .then((report) =>
               setMessage(
                 `${report.marked.length}/${report.skipped.length}/${report.failed.length}`,
@@ -90,11 +91,49 @@ function BulkHarness({
   );
 }
 
+/** One document's worth of hunks, read the way the review surface reads them. */
+function DiffHarness() {
+  const changes = useReviewChanges(scope);
+  const tracked = changes.filter((entry) =>
+    entry.comparisons.some(
+      (change) => change.scope === 'staged' || change.scope === 'unstaged',
+    ),
+  );
+  const { diffs } = useChangeDiffs(
+    scope,
+    tracked[0]?.statusToken ?? '',
+    tracked.map((entry) => ({
+      path: entry.path,
+      fingerprint: entry.fingerprint,
+    })),
+    tracked.flatMap((entry) =>
+      entry.comparisons.flatMap((change) =>
+        change.scope === 'staged' || change.scope === 'unstaged'
+          ? [
+              {
+                scope: change.scope,
+                oldPath: change.oldPath,
+                newPath: change.newPath,
+              },
+            ]
+          : [],
+      ),
+    ),
+  );
+  return (
+    <output aria-label="Diff patches">
+      {[...diffs.values()]
+        .map((content) => ('patch' in content ? content.patch : content.kind))
+        .join('')}
+    </output>
+  );
+}
+
 function MutationHarness() {
-  const evidence = useReviewEvidence(scope);
+  const changes = useReviewChanges(scope);
   const mark = useMarkReviewed(scope);
   const unmark = useUnmarkReviewed(scope);
-  const entry = evidence[0];
+  const entry = changes[0];
   if (!entry || entry.fingerprint == null) return <span>Waiting</span>;
   const path = entry.path;
   const fingerprint = entry.fingerprint;
@@ -153,7 +192,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('review evidence queries', () => {
+describe('review change queries', () => {
   it('keeps a selected merge parent in the query identity and request', async () => {
     const store = createMockStore();
     const fixture = store.review[scope.worktreeId];
@@ -203,46 +242,27 @@ describe('review evidence queries', () => {
       newPath: 'README.md',
       oldMode: '100644',
       newMode: '100644',
+      oldOid: 'a'.repeat(40),
+      newOid: 'd'.repeat(40),
       supported: true,
     };
     const unstaged = { ...staged, scope: 'unstaged' as const };
     const fingerprint = 'b'.repeat(64);
-    const evidence: EvidenceResponse = {
+    const list: ChangeList = {
       environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
       worktreeId: scope.worktreeId,
       statusToken: 'c'.repeat(64),
-      consistency: 'best-effort',
-      evidence: [
-        {
-          path: 'README.md',
-          fingerprint,
-          comparisons: [
-            {
-              change: staged,
-              content: {
-                kind: 'diff',
-                content: { kind: 'text', patch: 'staged patch' },
-              },
-            },
-            {
-              change: unstaged,
-              content: {
-                kind: 'diff',
-                content: { kind: 'text', patch: 'unstaged patch' },
-              },
-            },
-          ],
-        },
+      headOid: null,
+      branch: null,
+      changes: [
+        { path: 'README.md', fingerprint, comparisons: [staged, unstaged] },
       ],
     };
 
-    const selected = mergeReviewEvidence(
-      evidence,
-      {
-        worktreeId: scope.worktreeId,
-        marks: [],
-      },
-      [staged],
+    const selected = mergeReviewChanges(
+      list,
+      { worktreeId: scope.worktreeId, marks: [] },
+      ['README.md'],
     );
 
     expect(selected).toHaveLength(1);
@@ -250,20 +270,60 @@ describe('review evidence queries', () => {
     expect(selected[0]?.fingerprint).toBe(fingerprint);
   });
 
+  /**
+   * Returning to the window is the natural refresh boundary for everything
+   * else, and deliberately not for these two. The list is what a diff and a
+   * mark are checked against: re-reading it under a reader who has not moved
+   * would throw away the hunks on screen and the fingerprint beside them.
+   */
+  it('does not re-read the change list or its hunks when the window is focused', async () => {
+    const store = createMockStore();
+    const base = createMockApi(store);
+    let lists = 0;
+    let diffs = 0;
+    const api: Api = {
+      ...base,
+      review: {
+        ...base.review,
+        changes: (request) => {
+          lists += 1;
+          return base.review.changes(request);
+        },
+        diffs: (request) => {
+          diffs += 1;
+          return base.review.diffs(request);
+        },
+      },
+    };
+    const { screen } = await renderReview(store, api, <DiffHarness />);
+    await expect
+      .element(screen.getByLabelText('Diff patches'))
+      .toMatchTextContent(/@@/);
+    const before = { lists, diffs };
+    expect(before.lists).toBeGreaterThan(0);
+    expect(before.diffs).toBeGreaterThan(0);
+
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    // Long enough for a refetch to have been started and finished.
+    await new Promise((settle) => setTimeout(settle, 150));
+    expect({ lists, diffs }).toEqual(before);
+  });
+
   it('marks fingerprintable paths and reports null-fingerprint paths as skipped', async () => {
     const store = createMockStore();
     const fixture = store.review[scope.worktreeId];
     if (!fixture) throw new Error('Missing fixture review');
-    fixture.status.changes.push({
+    fixture.git.comparisons.push({
       scope: 'unmerged',
       path: 'conflict.ts',
       conflict: 'UU',
     });
     const { screen } = await renderReview(store);
 
-    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await expect.element(screen.getByLabelText('Change paths')).toBeVisible();
     await expect
-      .element(screen.getByLabelText('Evidence paths'))
+      .element(screen.getByLabelText('Change paths'))
       .toMatchTextContent('conflict.ts:unreviewed');
     await screen.getByRole('button', { name: 'Mark all' }).click();
     await expect
@@ -277,13 +337,12 @@ describe('review evidence queries', () => {
   it('keeps reviewed state scoped to the selected worktree', async () => {
     const store = createMockStore();
     const api = createMockApi(store);
-    const evidence = await api.review.evidence({
+    const { changes } = await api.review.changes({
       ...scope,
       signal: new AbortController().signal,
     });
-    const first = evidence.evidence[0];
-    if (!first?.fingerprint)
-      throw new Error('Missing fingerprintable evidence');
+    const first = changes.changes[0];
+    if (!first?.fingerprint) throw new Error('Missing markable change');
     await api.review.reviewed.set({
       ...scope,
       signal: new AbortController().signal,
@@ -337,7 +396,7 @@ describe('review evidence queries', () => {
     };
 
     const { queryClient, screen } = await renderReview(store, api);
-    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await expect.element(screen.getByLabelText('Change paths')).toBeVisible();
     await screen.getByRole('button', { name: 'Mark all' }).click();
     await expect
       .element(screen.getByLabelText('Bulk result'))
@@ -515,7 +574,7 @@ describe('review evidence queries', () => {
     };
 
     const { queryClient, screen } = await renderReview(store, api);
-    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await expect.element(screen.getByLabelText('Change paths')).toBeVisible();
     await screen.getByRole('button', { name: 'Mark all' }).click();
     await vi.waitFor(() => expect(setCalls).toBe(2));
     timeout.abort(new DOMException('The request timed out.', 'TimeoutError'));
@@ -566,7 +625,7 @@ describe('review evidence queries', () => {
         }}
       />,
     );
-    await expect.element(screen.getByLabelText('Evidence paths')).toBeVisible();
+    await expect.element(screen.getByLabelText('Change paths')).toBeVisible();
     await screen.getByRole('button', { name: 'Mark all' }).click();
     await vi.waitFor(() => expect(setCalls).toBe(1));
     if (!connectionController) throw new Error('Missing connection controller');

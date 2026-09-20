@@ -32,13 +32,12 @@ import { entryKey } from '../../domain/documents';
 import {
   type Artifact,
   basename,
-  changePath,
+  type ChangeList,
   type Layers,
-  type ReviewEvidenceItem,
+  type ReviewChangeItem,
   type ReviewScope,
   type ReviewStatus,
   reviewProgress,
-  type Status,
 } from '../../domain/review';
 import {
   useComments,
@@ -49,7 +48,7 @@ import {
   useArtifacts,
   useChanges,
   usePrefetchReview,
-  useReviewEvidence,
+  useReviewChanges,
 } from '../../query/review';
 import { FileTypeIcon } from './file-type-icon';
 import { ThreadCard } from './thread-card';
@@ -69,9 +68,9 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReview(scope);
   usePrefetchComments(scope);
-  const { status, layers } = useChanges(scope);
+  const { changes: list, layers } = useChanges(scope);
   const { threads } = useComments(scope);
-  const evidence = useReviewEvidence(scope);
+  const changes = useReviewChanges(scope);
   const artifacts = useArtifacts(scope);
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
@@ -106,15 +105,15 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
           scope={scope}
           activeEntry={activeEntry}
           onOpen={onOpen}
-          status={status}
+          list={list}
           layers={layers}
-          evidence={evidence}
+          changes={changes}
           threads={threads}
           artifacts={artifacts}
         />
       ) : (
         <CommentsView
-          status={status}
+          list={list}
           threads={threads}
           scope={scope}
           onOpen={onOpen}
@@ -127,35 +126,34 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
 function LayersView({
   activeEntry,
   onOpen,
-  status,
+  list,
   layers,
-  evidence,
+  changes,
   threads,
   artifacts,
 }: Props & {
-  status: Status;
+  list: ChangeList;
   layers: Layers;
-  evidence: readonly ReviewEvidenceItem[];
+  changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
   artifacts: readonly Artifact[];
 }) {
   const paths = uniquePaths([
-    ...status.changes.map(changePath),
+    ...list.changes.map((entry) => entry.path),
     ...layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
   ]);
   const layered = new Set(
     layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
   );
   const loose = paths.filter((path) => !layered.has(path));
-  const evidenceByPath = new Map(evidence.map((item) => [item.path, item]));
-  const scopesByPath = new Map<string, string[]>();
-  for (const change of status.changes) {
-    const path = changePath(change);
-    const scopes = scopesByPath.get(path) ?? [];
-    if (!scopes.includes(change.scope)) scopes.push(change.scope);
-    scopesByPath.set(path, scopes);
-  }
-  const progress = reviewProgress(paths, evidence);
+  const changeByPath = new Map(changes.map((item) => [item.path, item]));
+  const scopesByPath = new Map(
+    list.changes.map((entry) => [
+      entry.path,
+      [...new Set(entry.comparisons.map((change) => change.scope))],
+    ]),
+  );
+  const progress = reviewProgress(paths, changes);
   const isActive = (ref: DocumentRef) => activeEntry === entryKey(ref);
   const reviewBuilt = layers.layers.length > 0;
 
@@ -202,7 +200,7 @@ function LayersView({
       path={path}
       note={note}
       scopes={scopesByPath.get(path) ?? []}
-      reviewStatus={evidenceByPath.get(path)?.reviewStatus}
+      reviewStatus={changeByPath.get(path)?.reviewStatus}
       commentCount={openThreads(path)}
       active={isActive({ kind: 'change', path })}
       onOpen={onOpen}
@@ -240,7 +238,7 @@ function LayersView({
         {layers.layers.map((layer, index) => {
           const ref: DocumentRef = { kind: 'layer', layerId: layer.id };
           const layerPaths = uniquePaths(layer.files.map((file) => file.path));
-          const layerProgress = reviewProgress(layerPaths, evidence);
+          const layerProgress = reviewProgress(layerPaths, changes);
           const commentCount = layerPaths.reduce(
             (total, path) => total + openThreads(path),
             0,
@@ -423,17 +421,17 @@ function ArtifactLinks({
 
 function CommentsView({
   scope,
-  status,
+  list,
   threads,
   onOpen,
 }: {
   scope: ReviewScope;
-  status: Status;
+  list: ChangeList;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
 }) {
   const [filter, setFilter] = useState<'open' | 'resolved'>('open');
-  const changed = new Set(status.changes.map(changePath));
+  const changed = new Set(list.changes.map((entry) => entry.path));
   const visible = [...threads]
     .filter((thread) => thread.resolved === (filter === 'resolved'))
     .sort((left, right) =>

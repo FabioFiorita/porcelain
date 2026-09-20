@@ -1,11 +1,11 @@
 {
   "recorded": {
-    "commit": "49f676ff",
+    "commit": "5331f6ea",
     "runs": 3,
     "node": "v24.20.0",
     "git": "git version 2.53.0",
-    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs; measured on the step 4b working tree, whose commit follows 49f676ff",
-    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server. Lowered in step 4b: opening the sidebar is one request and no Git at all, because the status dot is read from SQLite with the worktree list instead of a review summary per worktree. The sidebar-marked step is gone with the summaries it measured."
+    "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs apart from one diff scope in the app profile (14 or 15); measured on the step 5a working tree, whose commit follows 5331f6ea",
+    "note": "Ceilings are measured current cost with headroom, not targets. A change list is 6: working files are digested from the filesystem rather than hashed by Git, so no filename can break it. A diff request is 7 rather than 6 because it reads the status on both sides of the hunks — once to check the request against, once to bind the hunks to the fingerprints returned with them. Marking is still one request per file and each one re-reads the list to refuse a stale fingerprint; 'mark all' being one request is section 4's to collect. History is untouched until step 5c."
   },
   "profiles": {
     "app": {
@@ -14,16 +14,16 @@
         "ceiling": 6
       },
       "select": {
-        "measured": 155,
-        "ceiling": 188
+        "measured": 6,
+        "ceiling": 11
       },
       "reselect": {
-        "measured": 16,
-        "ceiling": 21
+        "measured": 6,
+        "ceiling": 11
       },
       "diffs": {
-        "measured": 68,
-        "ceiling": 83
+        "measured": 15,
+        "ceiling": 20
       },
       "files": {
         "measured": 2,
@@ -34,12 +34,12 @@
         "ceiling": 108
       },
       "mark": {
-        "measured": 108,
-        "ceiling": 131
+        "measured": 86,
+        "ceiling": 105
       },
       "agent-edit": {
-        "measured": 166,
-        "ceiling": 201
+        "measured": 7,
+        "ceiling": 12
       }
     },
     "monorepo": {
@@ -48,16 +48,16 @@
         "ceiling": 6
       },
       "select": {
-        "measured": 112,
-        "ceiling": 136
+        "measured": 6,
+        "ceiling": 11
       },
       "reselect": {
-        "measured": 16,
-        "ceiling": 21
+        "measured": 6,
+        "ceiling": 11
       },
       "diffs": {
-        "measured": 68,
-        "ceiling": 83
+        "measured": 14,
+        "ceiling": 19
       },
       "files": {
         "measured": 2,
@@ -68,12 +68,12 @@
         "ceiling": 108
       },
       "mark": {
-        "measured": 108,
-        "ceiling": 131
+        "measured": 86,
+        "ceiling": 105
       },
       "agent-edit": {
-        "measured": 123,
-        "ceiling": 149
+        "measured": 7,
+        "ceiling": 12
       }
     }
   }

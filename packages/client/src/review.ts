@@ -3,10 +3,15 @@ import {
   artifactContentSchema,
   artifactListSchema,
 } from '@porcelain/contracts/artifacts';
+import {
+  type ChangeDiffsRequest,
+  changeDiffsResponseSchema,
+  changeLinesResponseSchema,
+  changesResponseSchema,
+} from '@porcelain/contracts/changes';
 import { commitChangesResponseSchema } from '@porcelain/contracts/commit-changes';
 import { commitPageResponseSchema } from '@porcelain/contracts/commit-history';
 import { commitReviewLayersResponseSchema } from '@porcelain/contracts/commit-review-layers';
-import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
 import {
   assetResponseSchema,
   directoryResponseSchema,
@@ -15,10 +20,6 @@ import {
   fileTreeSchema,
   textResponseSchema,
 } from '@porcelain/contracts/files';
-import {
-  type GitDiffRequest,
-  gitDiffResponseSchema,
-} from '@porcelain/contracts/git-diff';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
 import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import {
@@ -105,8 +106,30 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
         `text?${new URLSearchParams({ path: request.path })}`,
         textResponseSchema,
       ),
-    diff: (request: Request & { input: GitDiffRequest }) =>
-      read(request, 'git/diff', gitDiffResponseSchema, request.input),
+    // Only the action UI reads this: it is the change list plus the remote
+    // name, source ref and stashes, which cost two more Git processes.
+    status: (request: Request) =>
+      read(request, 'git/status', gitStatusResponseSchema),
+    diffs: (request: Request & { input: ChangeDiffsRequest }) =>
+      read(request, 'changes/diffs', changeDiffsResponseSchema, request.input),
+    lines: (
+      request: Request & {
+        path: string;
+        from: number;
+        to: number;
+        at: 'head' | 'worktree';
+      },
+    ) =>
+      read(
+        request,
+        `changes/lines?${new URLSearchParams({
+          path: request.path,
+          from: String(request.from),
+          to: String(request.to),
+          at: request.at,
+        })}`,
+        changeLinesResponseSchema,
+      ),
     commit: (request: Request & { oid: string; parent?: number }) =>
       read(
         request,
@@ -124,11 +147,11 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
         directoryResponseSchema,
       ),
     changes: async (request: Request) => {
-      const [status, layers] = await Promise.all([
-        read(request, 'git/status', gitStatusResponseSchema),
+      const [changes, layers] = await Promise.all([
+        read(request, 'changes', changesResponseSchema),
         read(request, 'review-layers', reviewLayersResponseSchema),
       ]);
-      return { status, layers };
+      return { changes, layers };
     },
     history: (request: Request & { cursor?: string }) =>
       read(
@@ -138,8 +161,6 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       ),
     artifacts: (request: Request) =>
       read(request, 'artifacts', artifactListSchema),
-    evidence: (request: Request) =>
-      read(request, 'evidence', evidenceResponseSchema),
     reviewed: {
       list: (request: Request) =>
         read(request, 'reviewed', reviewedMarksResponseSchema),

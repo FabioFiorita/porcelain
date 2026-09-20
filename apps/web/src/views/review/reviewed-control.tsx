@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type {
-  ReviewEvidenceItem,
+  ReviewChangeItem,
   ReviewScope,
   ReviewStatus,
 } from '../../domain/review';
@@ -43,7 +43,7 @@ export function ReviewedControl({
   if (fingerprint == null)
     return (
       <span
-        title={`${path} cannot be marked as reviewed because its evidence is incomplete`}
+        title={`${path} cannot be marked as reviewed because its current state could not be established`}
         className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
       >
         <EyeOffIcon className="size-3" aria-hidden="true" />
@@ -121,7 +121,7 @@ export function MarkAllReviewed({
   kind = 'all',
 }: {
   scope: ReviewScope;
-  entries: readonly ReviewEvidenceItem[];
+  entries: readonly ReviewChangeItem[];
   compact?: boolean;
   kind?: 'all' | 'layer';
 }) {

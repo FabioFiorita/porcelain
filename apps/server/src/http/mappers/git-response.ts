@@ -1,4 +1,3 @@
-import type { GitDiffResponse } from '@porcelain/contracts/git-diff';
 import type { GitStatusResponse } from '@porcelain/contracts/git-status';
 import type { Application } from '../../application.ts';
 
@@ -28,27 +27,10 @@ export function toGitStatusResponse(
         newPath: change.newPath,
         oldMode: change.oldMode,
         newMode: change.newMode,
+        oldOid: change.oldOid,
+        newOid: change.newOid,
         supported: change.supported,
       };
     }),
-  };
-}
-
-export function toGitDiffResponse(
-  result: Awaited<ReturnType<Application['gitDiff']>>,
-): GitDiffResponse {
-  return {
-    environmentId: result.environmentId,
-    worktreeId: result.worktreeId,
-    statusToken: result.statusToken,
-    consistency: 'best-effort',
-    change: {
-      scope: result.change.scope,
-      oldPath: result.change.oldPath,
-      newPath: result.change.newPath,
-    },
-    oldMode: result.change.oldMode,
-    newMode: result.change.newMode,
-    content: result.content,
   };
 }

@@ -3,26 +3,32 @@ import type { SetReviewedFileInput } from '../models/reviewed-file.ts';
 import type { ReviewedFileStore } from '../repositories/interfaces/reviewed-file-store.ts';
 import { ReviewedMarkConflictError } from './errors/reviewed-mark-conflict-error.ts';
 import type { ListReviewedFiles } from './list-reviewed-files.ts';
-import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
+import type { ReadWorktreeChanges } from './read-worktree-changes.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
+/**
+ * Marking is a claim about a specific state of a file, so it reads the change
+ * list again and refuses a fingerprint that no longer matches. That is not
+ * free — it is one flat change read — but the alternative is accepting a mark
+ * for content the person never saw. Step 6's watcher is what makes it free.
+ */
 export class SetReviewedFile {
   private readonly reviewed: ReviewedFileStore;
   private readonly worktrees: ResolveWorktree;
-  private readonly evidence: ReadWorktreeEvidence;
+  private readonly changes: ReadWorktreeChanges;
   private readonly list: ListReviewedFiles;
   private readonly now: () => string;
 
   constructor(
     reviewed: ReviewedFileStore,
     worktrees: ResolveWorktree,
-    evidence: ReadWorktreeEvidence,
+    changes: ReadWorktreeChanges,
     list: ListReviewedFiles,
     now: () => string = () => new Date().toISOString(),
   ) {
     this.reviewed = reviewed;
     this.worktrees = worktrees;
-    this.evidence = evidence;
+    this.changes = changes;
     this.list = list;
     this.now = now;
   }
@@ -35,13 +41,8 @@ export class SetReviewedFile {
   ) {
     // A write: the worktree is recorded as present before the mark is stored.
     await this.worktrees.forWriting(worktreeId, signal);
-    const current = await this.evidence.execute(
-      worktreeId,
-      session,
-      signal,
-      new Set([input.path]),
-    );
-    const entry = current.evidence.find(
+    const current = await this.changes.execute(worktreeId, session, signal);
+    const entry = current.changes.find(
       (candidate) => candidate.path === input.path,
     );
     if (

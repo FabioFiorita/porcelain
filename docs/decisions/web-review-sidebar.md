@@ -71,7 +71,12 @@ replaced. The file watcher in step 6 gives that signal for free, and flipping `r
 
 Both states come from one SQLite statement covering every worktree, returned with the worktree list,
 so the sidebar costs no request of its own and no Git. The count it replaced cost a status read per
-worktree, or a full evidence read once anything was marked.
+worktree, or a read of every changed file's content once anything was marked.
+
+A mark moves the dot without asking for that list again: marking cannot publish layers and cannot
+take away the agent's last word, so the only move it can make is between `pending` and `reviewed`,
+and both the published layers and the marks are already in the client's cache. Re-reading the list
+would make marking one file cost a listing of every project — the cost the dot exists to avoid.
 
 Reading the discussion is what clears `replied`, and only reading it: the review index prefetches
 comments and code documents list them, so the browser sends an explicit acknowledgement when the

@@ -92,8 +92,8 @@ it('reports reviewed when every file the layers name has been marked', async () 
     },
   ]);
   expect(await f.dot()).toBe('pending');
-  const { evidence } = await f.app.reviewEvidence(f.worktreeId);
-  const fingerprint = evidence.find(
+  const { changes } = await f.app.changes(f.worktreeId);
+  const fingerprint = changes.find(
     (entry) => entry.path === 'notes.txt',
   )?.fingerprint;
   await f.app.setReviewedFile(f.worktreeId, {

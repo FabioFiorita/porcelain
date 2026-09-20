@@ -23,7 +23,7 @@ import {
   mergeFileTreeEntries,
 } from '../../domain/file-tree';
 import { isImagePath } from '../../domain/html-assets';
-import { changePath, type ReviewScope } from '../../domain/review';
+import { changePath, comparisons, type ReviewScope } from '../../domain/review';
 import { discardRejection } from '../../lib/submit-form';
 import { useHiddenPaths, useSetHidden } from '../../query/file-preferences';
 import { useEditFile } from '../../query/files';
@@ -119,7 +119,7 @@ function ScopedFileNavigation({
       ...treeEntries
         .filter((entry) => entry.ignored)
         .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
-      ...(overview?.status.changes ?? []).map(
+      ...(overview ? comparisons(overview.changes) : []).map(
         (change): GitStatusEntry => ({
           path: changePath(change),
           status:
@@ -131,11 +131,14 @@ function ScopedFileNavigation({
         }),
       ),
     ],
-    [overview?.status.changes, treeEntries],
+    [overview, treeEntries],
   );
   const changed = useMemo(
-    () => new Set((overview?.status.changes ?? []).map(changePath)),
-    [overview?.status.changes],
+    () =>
+      new Set<string>(
+        (overview?.changes.changes ?? []).map((entry) => entry.path),
+      ),
+    [overview?.changes.changes],
   );
   const openable = new Set(
     entries.filter((entry) => entry.kind === 'file').map((entry) => entry.path),

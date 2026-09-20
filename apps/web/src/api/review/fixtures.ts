@@ -1,8 +1,8 @@
 import type {
   ArtifactContent,
+  Change,
   History,
   Layers,
-  Status,
 } from '../../domain/review';
 
 /** Keep the mock's artifact bytes stable so content reads are reproducible. */
@@ -83,25 +83,30 @@ export function reviewFixture(
     newPath: kind === 'deleted' ? null : path,
     oldMode: '100644',
     newMode: '100644',
+    oldOid: kind === 'added' ? null : 'b'.repeat(40),
+    newOid: kind === 'deleted' ? null : 'c'.repeat(40),
     supported: true,
   });
-  const status: Status = {
+  const comparisons: Change[] = [
+    ordinary('src/components/review-panel.tsx', 'modified', 'staged'),
+    ordinary('src/components/empty-state.tsx', 'added', 'staged'),
+    ordinary('src/styles/theme.css', 'modified'),
+    {
+      ...ordinary('src/domain/review.ts', 'renamed'),
+      oldPath: 'src/domain/context.ts',
+    },
+    ordinary('src/legacy-panel.tsx', 'deleted'),
+    { scope: 'untracked', path: 'docs/review-notes.md' },
+  ];
+  const git = {
     environmentId,
     worktreeId,
     statusToken: 'a'.repeat(64),
-    consistency: 'best-effort',
     headOid: 'a'.repeat(40),
-    changes: [
-      ordinary('src/components/review-panel.tsx', 'modified', 'staged'),
-      ordinary('src/components/empty-state.tsx', 'added', 'staged'),
-      ordinary('src/styles/theme.css', 'modified'),
-      {
-        ...ordinary('src/domain/review.ts', 'renamed'),
-        oldPath: 'src/domain/context.ts',
-      },
-      ordinary('src/legacy-panel.tsx', 'deleted'),
-      { scope: 'untracked', path: 'docs/review-notes.md' },
-    ],
+    branch: branch
+      ? { name: branch, upstream: null, ahead: 0, behind: 0 }
+      : null,
+    comparisons,
   };
   const layers: Layers = {
     worktreeId,
@@ -177,5 +182,5 @@ export function reviewFixture(
       '2026-09-11T11:45:00Z',
     ),
   ];
-  return { files, status, layers, history, artifacts };
+  return { files, git, layers, history, artifacts };
 }

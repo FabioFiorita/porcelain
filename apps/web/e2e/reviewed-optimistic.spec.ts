@@ -24,7 +24,7 @@ test('marks immediately and rolls back when background validation rejects the fi
   // browser back to the server for anything else.
   let extra = 0;
   page.on('request', (request) => {
-    if (/\/(evidence|inventory|git\/status)$/.test(request.url())) extra++;
+    if (/\/(changes|inventory|git\/status)$/.test(request.url())) extra++;
   });
   await page.route('**/reviewed', async (route) => {
     if (route.request().method() !== 'PUT') return route.continue();
@@ -34,7 +34,8 @@ test('marks immediately and rolls back when background validation rejects the fi
       contentType: 'application/json',
       body: JSON.stringify({
         code: 'REVIEWED_MARK_STALE',
-        message: 'The reviewed mark is based on stale evidence',
+        message:
+          'The reviewed mark is based on a version of the file that has changed',
       }),
     });
   });

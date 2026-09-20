@@ -56,7 +56,7 @@ vi.mock('../../query/review', async (importOriginal) => ({
     fileState.unreadable
       ? { kind: 'unreadable', reason: 'This file is binary.' }
       : fileState,
-  useChanges: () => ({ status: { changes: [] } }),
+  useChanges: () => ({ changes: { changes: [] } }),
   useCommit: () => commitState,
   useCommitLayers: () => null,
   useFileTree: () => ({

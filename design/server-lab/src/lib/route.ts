@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-// Hash routes keep deep links working without a router: #/map/changes/changes.evidence
+// Hash routes keep deep links working without a router: #/map/changes/changes.status
 const read = () =>
   window.location.hash
     .replace(/^#\/?/, '')

@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { GitAction } from '../../domain/git-action';
-import type { ReviewScope } from '../../domain/review';
+import { comparisons, type ReviewScope } from '../../domain/review';
 import { useReviewOverview } from '../../query/review';
 import { GitActionInspection } from './git-action-inspection';
 import {
@@ -51,7 +51,12 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
   if (overview == null) return null;
-  const { status } = overview;
+  // What an action needs to be decided; the panel reads the rest when it opens.
+  const status = {
+    statusToken: overview.changes.statusToken,
+    branch: overview.changes.branch,
+    changes: comparisons(overview.changes),
+  };
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
   const PrimaryIcon =

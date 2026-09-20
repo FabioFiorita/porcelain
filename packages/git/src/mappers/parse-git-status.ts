@@ -35,6 +35,8 @@ function ordinary(
   previous: string,
   oldMode: string,
   newMode: string,
+  oldOid: string | null,
+  newOid: string | null,
   submodule: boolean,
 ): GitOrdinaryChange[] {
   if (code === '.') return [];
@@ -59,9 +61,16 @@ function ordinary(
       newPath: code === 'D' ? null : current,
       oldMode,
       newMode,
+      oldOid: empty(oldOid),
+      newOid: empty(newOid),
       supported: !submodule && oldMode !== '160000' && newMode !== '160000',
     },
   ];
+}
+
+/** Git prints all zeroes where a side has no object. */
+function empty(oid: string | null) {
+  return !oid || /^0+$/.test(oid) ? null : oid;
 }
 
 function tracked(record: string, previous?: string): GitChange[] {
@@ -72,6 +81,8 @@ function tracked(record: string, previous?: string): GitChange[] {
   const headMode = fields[3] ?? '';
   const indexMode = fields[4] ?? '';
   const workingMode = fields[5] ?? '';
+  const headOid = fields[6] ?? '';
+  const indexOid = fields[7] ?? '';
   if (xy.length !== 2) throw new InvalidGitStatusError();
   const submodule = fields[2]?.startsWith('S') ?? false;
   return [
@@ -82,6 +93,8 @@ function tracked(record: string, previous?: string): GitChange[] {
       previous ?? current,
       headMode,
       indexMode,
+      headOid,
+      indexOid,
       submodule,
     ),
     ...ordinary(
@@ -91,6 +104,9 @@ function tracked(record: string, previous?: string): GitChange[] {
       previous ?? current,
       indexMode,
       workingMode,
+      // The worktree side has no object id until something hashes it.
+      indexOid,
+      null,
       submodule,
     ),
   ];

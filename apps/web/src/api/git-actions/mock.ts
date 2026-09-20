@@ -40,18 +40,18 @@ export function createGitActionsMock(
         expiresAt: Date.now() + 300_000,
         action: request.action,
         preview: {
-          headOid: data.status.headOid,
+          headOid: data.git.headOid,
           branch:
             data.history.snapshot.head.kind === 'detached'
               ? null
               : data.history.snapshot.head.ref,
-          staged: data.status.changes.some(
+          staged: data.git.comparisons.some(
             (change) => change.scope === 'staged',
           ),
-          trackedChanges: data.status.changes.some(
+          trackedChanges: data.git.comparisons.some(
             (change) => change.scope === 'unstaged',
           ),
-          untrackedCount: data.status.changes.filter(
+          untrackedCount: data.git.comparisons.filter(
             (change) => change.scope === 'untracked',
           ).length,
           ...('remoteName' in request.input
@@ -89,7 +89,7 @@ export function createGitActionsMock(
       const stale = saved.preparation.expiresAt < Date.now();
       const noChange =
         request.action === 'commit' &&
-        !data.status.changes.some((change) =>
+        !data.git.comparisons.some((change) =>
           'paths' in saved.input && saved.input.paths
             ? saved.input.paths.includes(changePath(change))
             : change.scope === 'staged',
@@ -139,7 +139,7 @@ function applyMockAction(
     const bodyText = bodyLines.join('\n').trim();
     data.history.commits.unshift({
       oid,
-      parentOids: data.status.headOid ? [data.status.headOid] : [],
+      parentOids: data.git.headOid ? [data.git.headOid] : [],
       author: {
         name: 'Mock developer',
         timestamp: new Date().toISOString(),
@@ -150,16 +150,16 @@ function applyMockAction(
       bodyTruncated: false,
       refs: [],
     });
-    data.status.headOid = oid;
+    data.git.headOid = oid;
     data.history.snapshot.tipOid = oid;
-    data.status.changes = data.status.changes.filter((change) =>
+    data.git.comparisons = data.git.comparisons.filter((change) =>
       'paths' in input && input.paths
         ? !input.paths.includes(changePath(change))
         : change.scope !== 'staged',
     );
   }
   if (action === 'stash-create')
-    data.status.changes = data.status.changes.filter(
+    data.git.comparisons = data.git.comparisons.filter(
       (change) =>
         change.scope === 'unmerged' ||
         (change.scope === 'untracked' &&

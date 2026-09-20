@@ -137,18 +137,43 @@ describe('review transport', () => {
       ],
     });
   });
-  it('loads complete review evidence and durable reviewed marks through scoped routes', async () => {
+  it('loads the change list, its diffs and durable reviewed marks through scoped routes', async () => {
     const fingerprint = 'a'.repeat(64);
     const calls: string[] = [];
     const transport: typeof fetch = async (input, init) => {
       calls.push(String(input));
-      if (String(input).endsWith('/evidence'))
+      if (String(input).endsWith('/changes/diffs')) {
+        expect(init?.method).toBe('POST');
         return Response.json({
           environmentId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
           worktreeId: scope.worktreeId,
           statusToken: 'b'.repeat(64),
-          consistency: 'best-effort',
-          evidence: [],
+          diffs: [
+            {
+              selection: {
+                scope: 'unstaged',
+                oldPath: 'src/review.ts',
+                newPath: 'src/review.ts',
+              },
+              content: { kind: 'text', patch: '@@ -1 +1 @@\n-a\n+b\n' },
+            },
+          ],
+        });
+      }
+      if (String(input).endsWith('/changes'))
+        return Response.json({
+          environmentId: 'fac0e50f-b019-4e46-9dd1-efcb6af7dc09',
+          worktreeId: scope.worktreeId,
+          statusToken: 'b'.repeat(64),
+          headOid: null,
+          branch: null,
+          changes: [],
+        });
+      if (String(input).endsWith('/review-layers'))
+        return Response.json({
+          worktreeId: scope.worktreeId,
+          revision: 0,
+          layers: [],
         });
       if (String(input).includes('/reviewed?path=')) {
         expect(init?.method).toBe('DELETE');
@@ -165,10 +190,30 @@ describe('review transport', () => {
       return Response.json({ worktreeId: scope.worktreeId, marks: [] });
     };
     const client = createReviewClient(transport, '/api');
-    await expect(client.evidence(scope)).resolves.toMatchObject({
-      worktreeId: scope.worktreeId,
-      evidence: [],
+    await expect(client.changes(scope)).resolves.toMatchObject({
+      changes: { worktreeId: scope.worktreeId, changes: [] },
+      layers: { worktreeId: scope.worktreeId, layers: [] },
     });
+    // The hunks are their own request, made against the observation the list
+    // was read at and naming the exact comparisons asked for.
+    await expect(
+      client.diffs({
+        ...scope,
+        input: {
+          expectedStatusToken: 'b'.repeat(64),
+          expectedFiles: [
+            { path: 'src/review.ts', fingerprint: 'c'.repeat(64) },
+          ],
+          selections: [
+            {
+              scope: 'unstaged',
+              oldPath: 'src/review.ts',
+              newPath: 'src/review.ts',
+            },
+          ],
+        },
+      }),
+    ).resolves.toMatchObject({ diffs: [{ content: { kind: 'text' } }] });
     await expect(client.reviewed.list(scope)).resolves.toEqual({
       worktreeId: scope.worktreeId,
       marks: [],
@@ -183,7 +228,9 @@ describe('review transport', () => {
       client.reviewed.remove({ ...scope, path: 'src/review.ts' }),
     ).resolves.toEqual({ worktreeId: scope.worktreeId, marks: [] });
     expect(calls).toEqual([
-      `/api/worktrees/${scope.worktreeId}/evidence`,
+      `/api/worktrees/${scope.worktreeId}/changes`,
+      `/api/worktrees/${scope.worktreeId}/review-layers`,
+      `/api/worktrees/${scope.worktreeId}/changes/diffs`,
       `/api/worktrees/${scope.worktreeId}/reviewed`,
       `/api/worktrees/${scope.worktreeId}/reviewed`,
       `/api/worktrees/${scope.worktreeId}/reviewed?path=src%2Freview.ts`,

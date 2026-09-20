@@ -543,14 +543,16 @@ export const plans: AreaPlan[] = [
     reviewedOn: '2026-09-18',
     changes: [
       'Checkout identity is verified once per request, not before and after every Git call.',
-      'Conversion filters are re-checked only when .gitattributes or the Git config change.',
+      'The filter check is paid per request, not cached: a cached “no filters” answer is permission to run a filter someone configured in between. Step 6’s watcher is what makes it free.',
       'Kept: reads never lock the index (GIT_OPTIONAL_LOCKS=0) and the scrubbed Git environment.',
-      'The all-in-one evidence read goes away: a list of changes, one file’s diff, a line range at the last commit or on disk.',
-      'Clients fetch diffs and snippets as they scroll into view; no refetch on window focus.',
-      'Direction: the review becomes flows of steps with code (like this Map); plain Changes stays as the fallback.',
-      'The overview needs no diffs; opening a layer or flow loads only its diffs. The handoff drops the all-diffs scroll.',
+      'The all-in-one evidence read goes away: a list of changes, the hunks of the files being read, a line range at the last commit or on disk.',
+      'A layer is one batched diff read — one git diff per scope, however many files — not one request per file. Clients read them when a document opens; no refetch on window focus.',
+      'The overview needs no diffs; opening a layer loads only its diffs. The handoff drops the all-diffs scroll.',
       'No cache to start with; identical in-flight reads share one answer.',
-      'Tests assert Git process budgets: open a worktree ≤ 2, open a layer 1, line range 0–1, mark reviewed 0.',
+      'One fingerprint per path over all its comparisons, with modes, symlink targets and submodule pointers. A binary file has an object id, so it stays markable.',
+      'Marking keeps its conflict check, so it is not free: it costs one change read. The alternative was accepting a mark for content nobody saw.',
+      'Budgets are about slope, not ceilings: a change list costs the same for ten changed files as for two (measured 7 processes), and a layer’s diffs the same.',
+      'The remote name, source ref and stashes leave the change list: only the action UI reads them, and only when it opens.',
       'The word “evidence” is retired: changes, diff, fingerprint.',
     ],
     current: {
@@ -656,8 +658,7 @@ export const plans: AreaPlan[] = [
           lane: 0,
           kind: 'actor',
           label: 'Mark reviewed',
-          detail:
-            'Sends the fingerprint it showed; “mark all” is one request (section 4)',
+          detail: 'Sends the fingerprint it showed; “mark all” is one pass',
           change: 'changed',
         },
         {
@@ -666,15 +667,16 @@ export const plans: AreaPlan[] = [
           kind: 'component',
           label: 'List of changes',
           detail:
-            'Paths, kinds, cheap fingerprints; “not modified” when unchanged; identical reads in flight share one answer; no cache',
+            'Paths, kinds and one fingerprint per path, no content; 7 processes whether 2 files changed or 200; identical reads in flight share one answer; no cache',
           change: 'new',
         },
         {
           id: 'diff',
           lane: 1,
           kind: 'component',
-          label: 'One file’s diff',
-          detail: 'Its hunks; the old POST git/diff',
+          label: 'The hunks of a layer',
+          detail:
+            'One git diff per scope for the files asked for, refused unless the fingerprints it names still hold — established before the read and again after it',
           change: 'changed',
         },
         {
@@ -686,11 +688,19 @@ export const plans: AreaPlan[] = [
           change: 'new',
         },
         {
+          id: 'marking',
+          lane: 1,
+          kind: 'component',
+          label: 'Set reviewed',
+          detail:
+            'Reads the change list again and refuses a fingerprint that moved on; one flat read, not free',
+          change: 'changed',
+        },
+        {
           id: 'marks',
           lane: 1,
           kind: 'storage',
           label: 'Marks in SQLite',
-          detail: 'A database write, no Git read',
           change: 'changed',
         },
         {
@@ -698,39 +708,46 @@ export const plans: AreaPlan[] = [
           lane: 2,
           kind: 'component',
           label: 'Identity once per request',
+          detail:
+            'Confirmed again from the filesystem before an answer leaves, at no Git cost',
           change: 'changed',
         },
         {
           id: 'filters',
           lane: 2,
           kind: 'component',
-          label: 'Filter check, cached',
-          detail: 'Re-run only when .gitattributes or the Git config change',
+          label: 'Filter check, per request',
+          detail:
+            'Paid every request: 3 processes, so a filter added in between cannot run',
           change: 'changed',
         },
         {
           id: 'git',
           lane: 3,
           kind: 'component',
-          label: 'git status · git diff -- path · git show HEAD:path',
-          detail: 'About one process per read',
+          label:
+            'git status · git hash-object · git diff (one per scope) · git show HEAD:path',
         },
         {
           id: 'disk',
           lane: 3,
           kind: 'storage',
           label: 'Working-tree files',
-          detail: 'Read straight from disk, no Git',
+          detail:
+            'lstat and read, never following a symlink out of the checkout',
         },
       ],
       edges: [
         { from: 'review', to: 'list' },
-        { from: 'review', to: 'diff', label: 'as it scrolls' },
+        { from: 'review', to: 'diff', label: 'when a document opens' },
         { from: 'review', to: 'range', label: 'context steps' },
-        { from: 'mark', to: 'marks' },
+        { from: 'mark', to: 'marking' },
+        { from: 'marking', to: 'list', label: 'refuse a stale mark' },
+        { from: 'marking', to: 'marks' },
         { from: 'list', to: 'identity' },
         { from: 'list', to: 'filters' },
         { from: 'list', to: 'git' },
+        { from: 'list', to: 'disk', label: 'classify and hash' },
         { from: 'diff', to: 'git' },
         { from: 'range', to: 'git', label: 'last commit' },
         { from: 'range', to: 'disk', label: 'on disk' },
@@ -1775,7 +1792,7 @@ export const plans: AreaPlan[] = [
     changes: [
       'Agents connect only with porcelain mcp through the local socket; /mcp is removed from HTTP.',
       'Tools resolve the worktree from the agent’s folder; inventory is removed.',
-      'git_status, review_evidence and read_file are removed: the agent has its own Git and files; publish_review checks its work.',
+      'git_status, review_changes and read_file are removed: the agent has its own Git and files; publish_review checks its work.',
       'Six tools: publish_review, read_review, list_comments, create_comment, reply_to_comment, resolve_comment.',
       'The MCP server serves the agent guide (layers, summary design, comments) itself.',
       'Errors tell the agent its next step; tests call every tool through the real command.',
@@ -1813,7 +1830,7 @@ export const plans: AreaPlan[] = [
           id: 'reads',
           lane: 2,
           kind: 'component',
-          label: 'git_status · review_evidence · read_file',
+          label: 'git_status · review_changes · read_file',
           problem:
             'Git-heavy, on the reviewer’s queue: agents and you delay each other.',
         },
@@ -1891,7 +1908,7 @@ export const plans: AreaPlan[] = [
           lane: 2,
           kind: 'component',
           label:
-            'inventory · git_status · review_evidence · read_file · publish_artifact',
+            'inventory · git_status · review_changes · read_file · publish_artifact',
           change: 'removed',
         },
         { id: 'db', lane: 3, kind: 'storage', label: 'SQLite' },

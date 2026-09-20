@@ -45,25 +45,25 @@ describe('mock review artifacts', () => {
   });
 });
 
-describe('mock reviewed evidence', () => {
+describe('mock change list', () => {
   it('groups dual-scope paths, transitions to stale, and isolates worktrees', async () => {
     const store = createMockStore();
     const fixture = store.review[scope.worktreeId];
     if (!fixture) throw new Error('Missing fixture review');
-    const existing = fixture.status.changes[0];
+    const existing = fixture.git.comparisons[0];
     if (!existing || !('kind' in existing))
       throw new Error('Missing ordinary fixture change');
-    fixture.status.changes.push({ ...existing, scope: 'unstaged' });
+    fixture.git.comparisons.push({ ...existing, scope: 'unstaged' });
     const path = existing.newPath ?? existing.oldPath;
     if (!path) throw new Error('Missing fixture change path');
 
     const api = createReviewMock(store);
-    const evidence = await api.evidence(scope);
-    const grouped = evidence.evidence.find((entry) => entry.path === path);
-    if (!grouped) throw new Error('Missing grouped evidence');
+    const { changes } = await api.changes(scope);
+    const grouped = changes.changes.find((entry) => entry.path === path);
+    if (!grouped) throw new Error('Missing grouped change');
     expect(grouped.comparisons).toHaveLength(2);
     expect(grouped.fingerprint).toMatch(/^[a-f0-9]{64}$/);
-    if (!grouped.fingerprint) throw new Error('Missing evidence fingerprint');
+    if (!grouped.fingerprint) throw new Error('Missing change fingerprint');
 
     await api.reviewed.set({
       ...scope,
@@ -74,7 +74,7 @@ describe('mock reviewed evidence', () => {
     });
 
     fixture.files[path] = `${fixture.files[path] ?? ''}\nchanged`;
-    const changed = (await api.evidence(scope)).evidence.find(
+    const changed = (await api.changes(scope)).changes.changes.find(
       (entry) => entry.path === path,
     );
     expect(changed?.fingerprint).not.toBe(grouped.fingerprint);
@@ -96,17 +96,17 @@ describe('mock reviewed evidence', () => {
     const store = createMockStore();
     const fixture = store.review[scope.worktreeId];
     if (!fixture) throw new Error('Missing fixture review');
-    fixture.status.changes.push({
+    fixture.git.comparisons.push({
       scope: 'unmerged',
       path: 'conflict.ts',
       conflict: 'UU',
     });
-    const evidence = await createReviewMock(store).evidence(scope);
+    const { changes } = await createReviewMock(store).changes(scope);
     expect(
-      evidence.evidence.find((entry) => entry.path === 'conflict.ts'),
+      changes.changes.find((entry) => entry.path === 'conflict.ts'),
     ).toMatchObject({
       fingerprint: null,
-      comparisons: [{ content: { kind: 'omitted', reason: 'conflict' } }],
+      comparisons: [{ scope: 'unmerged', conflict: 'UU' }],
     });
   });
 });

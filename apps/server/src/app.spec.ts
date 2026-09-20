@@ -693,6 +693,9 @@ describe('Application', () => {
       const change = status.changes.find((entry) => entry.scope === 'unstaged');
       if (change?.scope !== 'unstaged')
         throw new Error('Missing unstaged change');
+      // Read before the lane is held: a diff request carries the fingerprints
+      // its list was read at, and this test is about the request objects.
+      const { changes: listed } = await app.changes(worktreeId);
       const pageRequest = { limit: 1 };
       const commitRequest = { oid };
       // A commit is running, which holds this repository's lane as a writer,
@@ -709,10 +712,33 @@ describe('Application', () => {
       await writing.promise;
       const page = app.listCommits(worktreeId, pageRequest);
       const commit = app.inspectCommitChanges(worktreeId, commitRequest);
-      const diff = app.gitDiff(worktreeId, status.statusToken, change);
+      const selection: {
+        scope: 'staged' | 'unstaged';
+        oldPath: string | null;
+        newPath: string | null;
+      } = {
+        scope: change.scope,
+        oldPath: change.oldPath,
+        newPath: change.newPath,
+      };
+      const selections = [selection];
+      const expected = listed
+        .filter((entry) => entry.path === change.newPath)
+        .map((entry) => ({
+          path: entry.path,
+          fingerprint: entry.fingerprint,
+        }));
+      const diffs = app.changeDiffs(
+        worktreeId,
+        status.statusToken,
+        expected,
+        selections,
+      );
       pageRequest.limit = 0;
       commitRequest.oid = 'not-a-commit';
-      change.newPath = 'different.txt';
+      selection.newPath = 'different.txt';
+      selections.push({ ...selection, scope: 'staged' });
+      expected.push({ path: 'different.txt', fingerprint: null });
       // Only now can the reads start, and every one of them was submitted
       // before its object was changed.
       release.resolve();
@@ -721,10 +747,12 @@ describe('Application', () => {
         commitOid: oid,
         changes: [expect.objectContaining({ newPath: 'notes.txt' })],
       });
-      expect((await diff).content).toMatchObject({
-        kind: 'text',
-        patch: expect.stringContaining('+after'),
-      });
+      expect((await diffs).diffs).toMatchObject([
+        {
+          selection: { newPath: 'notes.txt' },
+          content: { kind: 'text', patch: expect.stringContaining('+after') },
+        },
+      ]);
     });
 
     it('snapshots preference intent before it is applied', async () => {

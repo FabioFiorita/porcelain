@@ -10,22 +10,22 @@ import {
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import type { ReviewPort, ReviewRequest } from '../api/review/port';
+import type { Inventory } from '../domain/inventory';
 import type {
-  Change,
-  EvidenceResponse,
-  ReviewEvidenceItem,
+  ChangeList,
+  ChangeSelection,
+  DiffContent,
+  ExpectedFile,
+  Layers,
+  ReviewChangeItem,
   ReviewedMarksResponse,
   ReviewScope,
   SetReviewedRequest,
   TextFile,
 } from '../domain/review';
-import {
-  changePath,
-  isFingerprintable,
-  reviewMark,
-  reviewStatus,
-} from '../domain/review';
+import { isFingerprintable, reviewMark, reviewStatus } from '../domain/review';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
 import { enqueueReviewed } from './reviewed-queue';
@@ -106,13 +106,19 @@ function useChangesOptions(scope: ReviewScope) {
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'changes',
     ]),
+    // Returning to the window is the natural refresh boundary for everything
+    // else, but not here: the list is what a diff and a mark are checked
+    // against, so re-reading it under a reader who has not moved would throw
+    // away the hunks on screen and the fingerprint they are about to mark.
+    refetchOnWindowFocus: false as const,
+    refetchOnReconnect: false as const,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const request = connection.request(signal);
       const data = await api.review.changes({ ...scope, ...request });
       request.signal.throwIfAborted();
       if (
-        data.status.environmentId !== connection.environmentId ||
-        data.status.worktreeId !== scope.worktreeId ||
+        data.changes.environmentId !== connection.environmentId ||
+        data.changes.worktreeId !== scope.worktreeId ||
         data.layers.worktreeId !== scope.worktreeId
       )
         throw new ConnectionError(
@@ -146,14 +152,6 @@ export function useArtifactsOverview(scope: ReviewScope) {
   );
 }
 
-function useEvidenceOptions(scope: ReviewScope) {
-  return useReviewOptions<EvidenceResponse>(
-    scope,
-    ['evidence'],
-    (api, request) => api.evidence(request),
-  );
-}
-
 function useReviewedOptions(scope: ReviewScope) {
   return useReviewOptions<ReviewedMarksResponse>(
     scope,
@@ -165,7 +163,6 @@ function useReviewedOptions(scope: ReviewScope) {
 /** Suspense hooks start one read at a time; start them together instead. */
 export function usePrefetchReview(scope: ReviewScope) {
   usePrefetchQuery(useChangesOptions(scope));
-  usePrefetchQuery(useEvidenceOptions(scope));
   usePrefetchQuery(useReviewedOptions(scope));
 }
 
@@ -207,32 +204,61 @@ export function isContentChangedError(error: unknown) {
 export function useReviewReset() {
   return useQueryErrorResetBoundary();
 }
-export function useTextFile(scope: ReviewScope, path: string, active: boolean) {
-  return useReviewData<TextFile | { kind: 'unreadable'; reason: string }>(
-    scope,
-    ['text', path],
-    async (api, request) => {
-      try {
-        return await api.text({ ...request, path });
-      } catch (error) {
-        if (error instanceof RequestError && error.status === 422) {
-          if (error.code === 'UNSUPPORTED_TEXT')
-            return {
-              kind: 'unreadable',
-              reason:
-                'This file is binary or uses an unsupported text encoding.',
-            };
-          if (error.code === 'FILE_TOO_LARGE')
-            return {
-              kind: 'unreadable',
-              reason: 'This file is too large to display as text.',
-            };
-        }
-        throw error;
+type ReadFile = TextFile | { kind: 'unreadable'; reason: string };
+
+/**
+ * One read of a file's text, whoever asks. A file the reader has open and an
+ * untracked file in the review are the same bytes under the same key, so they
+ * share one request and one answer rather than racing two shapes into it.
+ */
+function readFile(api: ReviewPort, request: ReviewRequest, path: string) {
+  return async (): Promise<ReadFile> => {
+    try {
+      return await api.text({ ...request, path });
+    } catch (error) {
+      if (error instanceof RequestError && error.status === 422) {
+        if (error.code === 'UNSUPPORTED_TEXT')
+          return {
+            kind: 'unreadable',
+            reason: 'This file is binary or uses an unsupported text encoding.',
+          };
+        if (error.code === 'FILE_TOO_LARGE')
+          return {
+            kind: 'unreadable',
+            reason: 'This file is too large to display as text.',
+          };
       }
+      throw error;
+    }
+  };
+}
+
+/** The same options wherever a file's text is wanted, so one key, one shape. */
+function textFileOptions(
+  { api, connection }: ReturnType<typeof useConnectedContext>,
+  scope: ReviewScope,
+  path: string,
+) {
+  return {
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'text',
+      path,
+    ]),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const request = connection.request(signal);
+      const data = await readFile(api.review, { ...scope, ...request }, path)();
+      request.signal.throwIfAborted();
+      return data;
     },
-    active ? 3000 : false,
-  );
+  };
+}
+
+export function useTextFile(scope: ReviewScope, path: string, active: boolean) {
+  const context = useConnectedContext();
+  return useSuspenseQuery({
+    ...textFileOptions(context, scope, path),
+    refetchInterval: active ? 3000 : false,
+  }).data;
 }
 export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
   return useReviewData(scope, ['commit', oid, parent], (api, request) =>
@@ -240,38 +266,34 @@ export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
   );
 }
 
-export function useReviewEvidence(
+export function useReviewChanges(
   scope: ReviewScope,
-  changes?: readonly Change[],
-): ReviewEvidenceItem[] {
-  const [evidence, reviewed] = useSuspenseQueries({
-    queries: [useEvidenceOptions(scope), useReviewedOptions(scope)],
+  paths?: readonly string[],
+): ReviewChangeItem[] {
+  const [list, reviewed] = useSuspenseQueries({
+    queries: [useChangesOptions(scope), useReviewedOptions(scope)],
   });
-  return mergeReviewEvidence(evidence.data, reviewed.data, changes);
+  return mergeReviewChanges(list.data.changes, reviewed.data, paths);
 }
 
-export function mergeReviewEvidence(
-  evidence: EvidenceResponse,
+export function mergeReviewChanges(
+  list: ChangeList,
   reviewed: ReviewedMarksResponse,
-  changes?: readonly Change[],
-): ReviewEvidenceItem[] {
-  const selected =
-    changes == null
-      ? null
-      : new Set(changes.map((change) => changePath(change)));
-  return evidence.evidence.flatMap((entry) => {
+  paths?: readonly string[],
+): ReviewChangeItem[] {
+  const selected = paths == null ? null : new Set(paths);
+  return list.changes.flatMap((entry) => {
     // Selection is by logical file path. Once a path is selected, retain every
-    // comparison for it so staged and unstaged evidence cannot disappear from
-    // the review surface or from the fingerprint being marked.
+    // comparison for it so a staged and an unstaged change to the same file
+    // cannot disappear from the surface or from the fingerprint being marked.
     if (selected && !selected.has(entry.path)) return [];
     const mark = reviewMark(entry, reviewed.marks);
     return [
       {
         ...entry,
-        environmentId: evidence.environmentId,
-        worktreeId: evidence.worktreeId,
-        statusToken: evidence.statusToken,
-        consistency: evidence.consistency,
+        environmentId: list.environmentId,
+        worktreeId: list.worktreeId,
+        statusToken: list.statusToken,
         reviewStatus: reviewStatus(entry, reviewed.marks),
         ...(mark ? { mark } : {}),
       },
@@ -279,21 +301,224 @@ export function mergeReviewEvidence(
   });
 }
 
+/**
+ * The hunks of the documents on screen, read only once they are on screen.
+ *
+ * The fingerprints the list was read at go with the request and are part of
+ * the key. The observation token alone would not do: it hashes what Git's
+ * status prints, which says nothing about the bytes of a file that was
+ * already modified, so editing such a file again leaves the token identical
+ * while the hunks change. Sending the fingerprints means the server refuses
+ * rather than pairing current hunks with an older fingerprint — the one the
+ * reader would then click to mark.
+ *
+ * The caller gets the query's own state because a document that is still
+ * loading its diff, or failed to, has to say so rather than render as empty.
+ */
+export function useChangeDiffs(
+  scope: ReviewScope,
+  statusToken: string,
+  expectedFiles: readonly ExpectedFile[],
+  selections: readonly ChangeSelection[],
+) {
+  const { api, connection } = useConnectedContext();
+  const client = useQueryClient();
+  const changesKey = queryKeys.reviewSurface(connection.environmentId, scope, [
+    'changes',
+  ]);
+  const wanted = [...selections].sort((left, right) =>
+    selectionKey(left).localeCompare(selectionKey(right)),
+  );
+  const query = useQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'change-diffs',
+      statusToken,
+      [...expectedFiles]
+        .map((file) => `${file.path}:${file.fingerprint ?? ''}`)
+        .sort(),
+      wanted.map(selectionKey),
+    ]),
+    enabled: wanted.length > 0,
+    // Read once for the observation they belong to; a new list is a new key.
+    refetchOnWindowFocus: false as const,
+    refetchOnReconnect: false as const,
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const request = connection.request(signal);
+      const data = await api.review.diffs({
+        ...scope,
+        ...request,
+        input: {
+          expectedStatusToken: statusToken,
+          expectedFiles: [...expectedFiles].sort((left, right) =>
+            left.path.localeCompare(right.path),
+          ),
+          selections: wanted,
+        },
+      });
+      request.signal.throwIfAborted();
+      return new Map(
+        data.diffs.map(({ selection, content }) => [
+          selectionKey(selection),
+          content,
+        ]),
+      );
+    },
+    throwOnError: false,
+  });
+  // The worktree moved between reading the list and asking for its hunks. The
+  // refusal is the signal to read the list again, not something to hand the
+  // reader: a new list carries a new token, which is a new query. Recovered
+  // once per token, so a mismatch that is not a passing edit still surfaces.
+  const moved = query.isError && isWorktreeChangedError(query.error);
+  const recovered = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!moved || recovered.current === statusToken) return;
+    recovered.current = statusToken;
+    void client.invalidateQueries({ queryKey: changesKey });
+  }, [moved, statusToken, client, changesKey]);
+  const recovering = moved && recovered.current !== statusToken;
+  return {
+    diffs: query.data ?? new Map<string, DiffContent>(),
+    pending: (wanted.length > 0 && query.isPending) || recovering,
+    failed: query.isError && !recovering,
+    retry: () => void query.refetch(),
+  };
+}
+
+function isWorktreeChangedError(error: unknown) {
+  return error instanceof RequestError && error.code === 'WORKTREE_CHANGED';
+}
+
+/**
+ * The status an action needs: the change list plus the remote name, source ref
+ * and stashes. Those cost two more Git processes and only an action uses them,
+ * so this is read when the action panel opens, not when a worktree does.
+ */
+export function useGitStatus(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  const query = useQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'git-status',
+    ]),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const request = connection.request(signal);
+      const data = await api.review.status({ ...scope, ...request });
+      request.signal.throwIfAborted();
+      return data;
+    },
+    throwOnError: false,
+  });
+  return { status: query.data, pending: query.isPending };
+}
+
+/**
+ * The bytes of the new files on screen. An untracked file has no diff — the
+ * file is the change — so it is read as a file, which costs no Git process.
+ */
+export function useUntrackedContents(
+  scope: ReviewScope,
+  paths: readonly string[],
+) {
+  const context = useConnectedContext();
+  const queries = useQueries({
+    queries: paths.map((path) => ({
+      ...textFileOptions(context, scope, path),
+      throwOnError: false,
+    })),
+  });
+  return {
+    contents: new Map(
+      paths.flatMap((path, index) => {
+        const data = queries[index]?.data;
+        return data === undefined || !('text' in data)
+          ? []
+          : [[path, data.text] as const];
+      }),
+    ),
+    pending: queries.some((query) => query.isPending),
+    failed: queries.some((query) => query.isError),
+    retry: () => {
+      for (const query of queries) void query.refetch();
+    },
+  };
+}
+
+export function selectionKey(selection: ChangeSelection) {
+  return `${selection.scope}\n${selection.oldPath}\n${selection.newPath}`;
+}
+
 function useReviewedContext(scope: ReviewScope) {
   const { api, connection } = useConnectedContext();
   return {
     api: api.review.reviewed,
     key: queryKeys.reviewSurface(connection.environmentId, scope, ['reviewed']),
-    // Marking the last file of a published layer moves the sidebar's dot from
-    // pending to reviewed, and unmarking moves it back. The dot rides with the
-    // worktree list, so that list is what has gone stale.
     inventoryKey: queryKeys.inventory(connection.environmentId),
+    changesKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'changes',
+    ]),
+    scope,
     connection,
     request: (signal?: AbortSignal) => ({
       ...scope,
       ...connection.request(signal),
     }),
   };
+}
+
+type ReviewedContext = ReturnType<typeof useReviewedContext>;
+
+/**
+ * The sidebar's dot after a mark, worked out from what is already here.
+ *
+ * Marking cannot publish layers and cannot take away the agent's last word,
+ * so the only move it can make is between pending and reviewed, and both the
+ * published layers and the marks are in cache. Invalidating the worktree list
+ * instead would make marking one file cost a listing of every project — the
+ * cost the dot was introduced to avoid.
+ */
+function patchWorktreeStatus(
+  client: ReturnType<typeof useQueryClient>,
+  context: ReviewedContext,
+  marks: ReviewedMarksResponse,
+) {
+  const cached = client.getQueryData<{ layers: Layers }>(context.changesKey);
+  if (!cached) {
+    // Nothing to decide from: ask for the list rather than guess at the dot.
+    void client.invalidateQueries({ queryKey: context.inventoryKey });
+    return;
+  }
+  const published = cached.layers.layers;
+  const files = published.flatMap((layer) =>
+    layer.files.map((file) => file.path),
+  );
+  const marked = new Set(marks.marks.map((mark) => mark.path));
+  const status =
+    published.length === 0
+      ? null
+      : files.length === 0 || files.some((path) => !marked.has(path))
+        ? ('pending' as const)
+        : ('reviewed' as const);
+  client.setQueryData<Inventory>(context.inventoryKey, (current) =>
+    current
+      ? {
+          ...current,
+          projects: current.projects.map((project) =>
+            project.id === context.scope.projectId
+              ? {
+                  ...project,
+                  worktrees: project.worktrees.map((worktree) =>
+                    worktree.id === context.scope.worktreeId &&
+                    // A reply is newer than the handoff and outranks it.
+                    worktree.status !== 'replied'
+                      ? { ...worktree, status }
+                      : worktree,
+                  ),
+                }
+              : project,
+          ),
+        }
+      : current,
+  );
 }
 
 export type MarkReviewedInput = Pick<
@@ -316,9 +541,7 @@ export function useMarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           return result;
         }),
-      onSuccess: () => {
-        void client.invalidateQueries({ queryKey: context.inventoryKey });
-      },
+      onSuccess: (result) => patchWorktreeStatus(client, context, result),
     }),
   );
 }
@@ -335,9 +558,7 @@ export function useUnmarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           return result;
         }),
-      onSuccess: () => {
-        void client.invalidateQueries({ queryKey: context.inventoryKey });
-      },
+      onSuccess: (result) => patchWorktreeStatus(client, context, result),
     }),
   );
 }
@@ -357,7 +578,7 @@ export function useMarkAllReviewed(scope: ReviewScope) {
   return asMutation(
     useMutation({
       mutationFn: async (
-        entries: readonly ReviewEvidenceItem[],
+        entries: readonly ReviewChangeItem[],
       ): Promise<BulkReviewReport> => {
         const report: BulkReviewReport = {
           marked: [],
@@ -413,11 +634,11 @@ export function useMarkAllReviewed(scope: ReviewScope) {
         return report;
       },
       onSuccess: (report) => {
-        // Once, at the end: marking the last file of a published layer moves
-        // the sidebar's dot, and one bulk pass is one change to it however
-        // many files it covered.
-        if (report.marked.length > 0)
-          void client.invalidateQueries({ queryKey: context.inventoryKey });
+        // Once, at the end: one bulk pass is one move of the dot however many
+        // files it covered. The marks it left are the ones now in cache.
+        const marks = client.getQueryData<ReviewedMarksResponse>(context.key);
+        if (report.marked.length > 0 && marks)
+          patchWorktreeStatus(client, context, marks);
       },
     }),
   );

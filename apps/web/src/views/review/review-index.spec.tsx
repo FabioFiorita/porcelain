@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import type { CommentThread } from '../../domain/comments';
 import { type DocumentRef, entryKey } from '../../domain/documents';
-import type { Status } from '../../domain/review';
+import type { Change, ChangeList } from '../../domain/review';
 import { ReviewIndex } from './review-index';
 
 const commentState = vi.hoisted(() => ({
@@ -10,39 +10,58 @@ const commentState = vi.hoisted(() => ({
   seen: vi.fn(),
 }));
 
-const status: Status = {
+const comparisons: Change[] = [
+  {
+    scope: 'staged',
+    kind: 'modified',
+    oldPath: 'src/components/review-panel.tsx',
+    newPath: 'src/components/review-panel.tsx',
+    oldMode: '100644',
+    newMode: '100644',
+    oldOid: null,
+    newOid: null,
+    supported: true,
+  },
+  {
+    scope: 'unstaged',
+    kind: 'modified',
+    oldPath: 'src/components/review-panel.tsx',
+    newPath: 'src/components/review-panel.tsx',
+    oldMode: '100644',
+    newMode: '100644',
+    oldOid: null,
+    newOid: null,
+    supported: true,
+  },
+  {
+    scope: 'unstaged',
+    kind: 'added',
+    oldPath: null,
+    newPath: 'src/components/empty-state.tsx',
+    oldMode: '100644',
+    newMode: '100644',
+    oldOid: null,
+    newOid: null,
+    supported: true,
+  },
+];
+
+const list: ChangeList = {
   environmentId: '641a8628-1cd6-4562-81a2-9c05fba76b4a',
   worktreeId: '629a86281cd6456281a29c05fba76b4b',
   statusToken: 'a'.repeat(64),
-  consistency: 'best-effort',
   headOid: 'a'.repeat(40),
+  branch: null,
   changes: [
     {
-      scope: 'staged',
-      kind: 'modified',
-      oldPath: 'src/components/review-panel.tsx',
-      newPath: 'src/components/review-panel.tsx',
-      oldMode: '100644',
-      newMode: '100644',
-      supported: true,
+      path: 'src/components/review-panel.tsx',
+      fingerprint: 'b'.repeat(64),
+      comparisons: comparisons.slice(0, 2),
     },
     {
-      scope: 'unstaged',
-      kind: 'modified',
-      oldPath: 'src/components/review-panel.tsx',
-      newPath: 'src/components/review-panel.tsx',
-      oldMode: '100644',
-      newMode: '100644',
-      supported: true,
-    },
-    {
-      scope: 'unstaged',
-      kind: 'added',
-      oldPath: null,
-      newPath: 'src/components/empty-state.tsx',
-      oldMode: '100644',
-      newMode: '100644',
-      supported: true,
+      path: 'src/components/empty-state.tsx',
+      fingerprint: 'c'.repeat(64),
+      comparisons: comparisons.slice(2),
     },
   ],
 };
@@ -50,9 +69,9 @@ const status: Status = {
 vi.mock('../../query/review', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../query/review')>()),
   useChanges: () => ({
-    status,
+    changes: list,
     layers: {
-      worktreeId: status.worktreeId,
+      worktreeId: list.worktreeId,
       revision: 1,
       layers: [
         {
@@ -74,7 +93,7 @@ vi.mock('../../query/review', async (importOriginal) => ({
   }),
   useArtifacts: () => [],
   usePrefetchReview: () => {},
-  useReviewEvidence: () => [],
+  useReviewChanges: () => [],
   useMarkAllReviewed: () => ({
     submit: vi.fn(),
     isPending: false,
@@ -105,14 +124,14 @@ afterEach(() => {
 });
 
 describe('review index', () => {
-  it('keeps staged and unstaged evidence in one compact file row', async () => {
+  it('keeps staged and unstaged comparisons in one compact file row', async () => {
     const onOpen = vi.fn<(ref: DocumentRef) => void>();
 
     const screen = await render(
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
-          worktreeId: status.worktreeId,
+          worktreeId: list.worktreeId,
         }}
         activeEntry={undefined}
         onOpen={onOpen}
@@ -144,7 +163,7 @@ describe('review index', () => {
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
-          worktreeId: status.worktreeId,
+          worktreeId: list.worktreeId,
         }}
         activeEntry={entryKey({
           kind: 'change',
@@ -166,7 +185,7 @@ describe('review index', () => {
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
-          worktreeId: status.worktreeId,
+          worktreeId: list.worktreeId,
         }}
         activeEntry={undefined}
         onOpen={vi.fn()}
@@ -187,7 +206,7 @@ describe('review index', () => {
       {
         // Unread, and hidden behind the resolved filter.
         id: '00000000-0000-4000-8000-000000000005',
-        worktreeId: status.worktreeId,
+        worktreeId: list.worktreeId,
         anchor: { kind: 'file', filePath: 'src/components/empty-state.tsx' },
         resolved: true,
         messages: [
@@ -202,7 +221,7 @@ describe('review index', () => {
       },
       {
         id: '00000000-0000-4000-8000-000000000007',
-        worktreeId: status.worktreeId,
+        worktreeId: list.worktreeId,
         anchor: { kind: 'file', filePath: 'src/components/review-panel.tsx' },
         resolved: false,
         messages: [
@@ -221,7 +240,7 @@ describe('review index', () => {
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
-          worktreeId: status.worktreeId,
+          worktreeId: list.worktreeId,
         }}
         activeEntry={undefined}
         onOpen={vi.fn()}
@@ -248,7 +267,7 @@ describe('review index', () => {
     commentState.threads = [
       {
         id: '00000000-0000-4000-8000-000000000001',
-        worktreeId: status.worktreeId,
+        worktreeId: list.worktreeId,
         anchor: {
           kind: 'codeRange',
           filePath: 'src/components/review-panel.tsx',
@@ -269,7 +288,7 @@ describe('review index', () => {
       },
       {
         id: '00000000-0000-4000-8000-000000000003',
-        worktreeId: status.worktreeId,
+        worktreeId: list.worktreeId,
         anchor: { kind: 'file', filePath: 'src/components/empty-state.tsx' },
         resolved: true,
         messages: [
@@ -289,7 +308,7 @@ describe('review index', () => {
       <ReviewIndex
         scope={{
           projectId: '621a8628-1cd6-4562-81a2-9c05fba76b4c',
-          worktreeId: status.worktreeId,
+          worktreeId: list.worktreeId,
         }}
         activeEntry={undefined}
         onOpen={onOpen}

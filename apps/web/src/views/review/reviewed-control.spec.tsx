@@ -55,6 +55,30 @@ afterEach(() => {
 });
 
 describe('ReviewedControl', () => {
+  /**
+   * A file whose current state could not be established has no fingerprint,
+   * so there is nothing a mark could be about. Saying so is the whole of what
+   * this control can offer, and it must say it in the reader's terms rather
+   * than by naming an internal one.
+   */
+  it('explains that a file with no fingerprint cannot be marked', async () => {
+    const screen = await render(
+      <ReviewedControl
+        {...controlProps}
+        fingerprint={null}
+        status="unreviewed"
+      />,
+    );
+    await expect.element(screen.getByText('Not reviewable')).toBeVisible();
+    await expect
+      .element(screen.getByTitle(/^README\.md cannot be marked as reviewed/))
+      .toHaveAttribute(
+        'title',
+        'README.md cannot be marked as reviewed because its current state could not be established',
+      );
+    expect(screen.container.querySelector('button[aria-pressed]')).toBeNull();
+  });
+
   it('contains a rejected mark mutation and shows its error', async () => {
     mocks.markSubmit.mockRejectedValueOnce(new Error('mark failed'));
 
@@ -104,7 +128,6 @@ it('does not claim the whole review is complete when a file cannot be reviewed',
           ...scope,
           environmentId: 'environment',
           statusToken: 'b'.repeat(64),
-          consistency: 'best-effort',
         },
         {
           path: 'image.png',
@@ -114,7 +137,6 @@ it('does not claim the whole review is complete when a file cannot be reviewed',
           ...scope,
           environmentId: 'environment',
           statusToken: 'b'.repeat(64),
-          consistency: 'best-effort',
         },
       ]}
     />,

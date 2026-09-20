@@ -815,10 +815,10 @@ describe('worktree review navigation', () => {
       expect(screen.store.actionCount).toBe(1);
       const data = screen.store.review['629a86281cd6456281a29c05fba76b4b'];
       expect(
-        data?.status.changes.some((change) => change.scope === 'staged'),
+        data?.git.comparisons.some((change) => change.scope === 'staged'),
       ).toBe(false);
       expect(
-        data?.status.changes.some((change) => change.scope === 'unstaged'),
+        data?.git.comparisons.some((change) => change.scope === 'unstaged'),
       ).toBe(false);
       await clickThrough(screen.getByRole('button', { name: 'Check outcome' }));
       expect(screen.store.actionCount).toBe(1);
@@ -1007,26 +1007,30 @@ describe('review surfaces', () => {
     await expect.element(screen.getByText(/against/)).toBeVisible();
   });
 
+  /**
+   * The change list is not re-read when the window is focused, so a document
+   * can be opened from a listing that has since moved on. The server refuses
+   * hunks whose fingerprint no longer matches, and that refusal is what sends
+   * the client back for a current list — so the reader is told the change is
+   * gone rather than shown an empty document.
+   */
   it('reports a change that is no longer present in the current status', async () => {
     const screen = await renderReview();
     await screen.getByRole('button', { name: /agent\/review/ }).click();
-    await screen
-      .getByRole('button', { name: /^review-panel.tsx.*staged/ })
-      .click();
     await expect
       .element(
-        screen.getByRole('button', {
-          name: /^Comment on src\/components\/review-panel.tsx/,
-        }),
+        screen.getByRole('button', { name: /^review-panel.tsx.*staged/ }),
       )
       .toBeVisible();
     const data = screen.store.review['629a86281cd6456281a29c05fba76b4b'];
     if (!data) throw new Error('Missing fixture worktree');
-    data.status.changes = data.status.changes.filter(
+    data.git.comparisons = data.git.comparisons.filter(
       (change) =>
         !('newPath' in change && change.newPath?.includes('review-panel')),
     );
-    refocusWindow();
+    await screen
+      .getByRole('button', { name: /^review-panel.tsx.*staged/ })
+      .click();
     await expect
       .element(screen.getByText('Change no longer present'))
       .toBeVisible();

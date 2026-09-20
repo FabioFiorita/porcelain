@@ -32,6 +32,15 @@ export const ordinaryChangeSchema = z.object({
   newPath: gitPathSchema.nullable(),
   oldMode: z.string().regex(/^[0-7]{6}$/),
   newMode: z.string().regex(/^[0-7]{6}$/),
+  /** What Git recorded on each side; the working side has none until hashed. */
+  oldOid: z
+    .string()
+    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    .nullable(),
+  newOid: z
+    .string()
+    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    .nullable(),
   supported: z.boolean(),
 });
 

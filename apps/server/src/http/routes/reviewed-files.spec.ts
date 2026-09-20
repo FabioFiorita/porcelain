@@ -2,15 +2,16 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { evidenceResponseSchema } from '@porcelain/contracts/evidence';
+import { changesResponseSchema } from '@porcelain/contracts/changes';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
 import { reviewedMarksResponseSchema } from '@porcelain/contracts/reviewed-files';
 import type { GitStatusObservation } from '@porcelain/git/dtos/git-status';
 import { expect, it } from 'vitest';
+import { fakeInspection } from '../../testing/fake-inspection.ts';
 import { pairDevice, pairingReach } from '../helpers/paired-server.ts';
 import { createServer } from '../server.ts';
 
-it('serves exact evidence, persists worktree marks, rejects stale fingerprints, and removes idempotently', async () => {
+it('serves the exact change list, persists worktree marks, rejects stale fingerprints, and removes idempotently', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-reviewed-http-'));
   const checkout = join(root, 'checkout');
   await mkdir(checkout);
@@ -47,6 +48,8 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
         newPath: 'file.ts',
         oldMode: '100644',
         newMode: '100644',
+        oldOid: 'c'.repeat(40),
+        newOid: null,
         supported: true,
       },
     ],
@@ -55,18 +58,13 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
     pairingReach,
     dataDirectory: join(root, 'state'),
     projectHome: join(root, 'state'),
-    inspectionGit: () => ({
-      readStatus: async () => observation,
-      readDiff: async () => ({
-        kind: 'text',
-        patch: '@@ -1 +1 @@\n-before\n+after\n',
+    inspectionGit: () =>
+      fakeInspection({
+        readStatus: async () => observation,
+        // The working side of an unstaged change is read from the filesystem,
+        // not from Git: the fingerprint is about content, and the patch is a
+        // separate read.
       }),
-      readDiffs: async (changes) =>
-        changes.map(() => ({
-          kind: 'text',
-          patch: '@@ -1 +1 @@\n-before\n+after\n',
-        })),
-    }),
   });
   const headers = await pairDevice(server, server.application);
   try {
@@ -84,28 +82,20 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
     if (!worktreeId) throw new Error('Expected registered worktree');
     const base = `/api/worktrees/${worktreeId}`;
 
-    const evidenceResponse = await server.inject({
+    const listResponse = await server.inject({
       method: 'GET',
-      url: `${base}/evidence`,
+      url: `${base}/changes`,
       headers,
     });
-    expect(evidenceResponse.statusCode).toBe(200);
-    const evidence = evidenceResponseSchema.parse(evidenceResponse.json());
-    expect(evidence.evidence).toHaveLength(1);
-    expect(evidence.evidence[0]).toMatchObject({
+    expect(listResponse.statusCode).toBe(200);
+    const list = changesResponseSchema.parse(listResponse.json());
+    expect(list.changes).toHaveLength(1);
+    expect(list.changes[0]).toMatchObject({
       path: 'file.ts',
       fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
-      comparisons: [
-        {
-          change: observation.changes[0],
-          content: {
-            kind: 'diff',
-            content: { kind: 'text', patch: '@@ -1 +1 @@\n-before\n+after\n' },
-          },
-        },
-      ],
+      comparisons: [observation.changes[0]],
     });
-    const fingerprint = evidence.evidence[0]?.fingerprint;
+    const fingerprint = list.changes[0]?.fingerprint;
     if (!fingerprint) throw new Error('Expected a fingerprint');
 
     expect(
@@ -140,7 +130,8 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
     expect(stale.statusCode).toBe(409);
     expect(stale.json()).toEqual({
       code: 'REVIEWED_MARK_STALE',
-      message: 'The reviewed mark is based on stale evidence',
+      message:
+        'The reviewed mark is based on a version of the file that has changed',
     });
     expect(
       reviewedMarksResponseSchema.parse(

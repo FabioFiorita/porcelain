@@ -6,17 +6,17 @@ import type {
 } from '@porcelain/git/dtos/commit-history';
 import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
 import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
-import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
 import type {
   GitChangeSelection,
-  GitOrdinaryChange,
   GitStatusObservation,
 } from '@porcelain/git/dtos/git-status';
+import type { LineRange } from '@porcelain/git/dtos/line-range';
 import type {
   Artifact,
   ArtifactMetadata,
   ArtifactUpload,
 } from './models/artifact.ts';
+import type { ChangeList } from './models/change.ts';
 import type {
   CommentCommand,
   StoredCommentThread,
@@ -55,12 +55,15 @@ import type {
   ProjectDiscovery,
   ProjectFolder,
 } from './models/project-location.ts';
-import type { ReviewEvidence } from './models/review-evidence.ts';
 import type { ReviewLayer, ReviewLayers } from './models/review-layers.ts';
 import type {
   ReviewedMark,
   SetReviewedFileInput,
 } from './models/reviewed-file.ts';
+import type {
+  ChangeDiff,
+  ExpectedFile,
+} from './use-cases/read-change-diffs.ts';
 
 export interface Application {
   fileTree(worktreeId: string, signal?: AbortSignal): Promise<FileTree>;
@@ -155,26 +158,38 @@ export interface Application {
     environmentId: string;
     worktreeId: string;
   }>;
-  gitDiff(
+  /** What changed, with a fingerprint per path and no content. */
+  changes(worktreeId: string, signal?: AbortSignal): Promise<ChangeList>;
+  /**
+   * The hunks of the files named, in one Git process per scope. The token is
+   * the one the list was read at: a mismatch is refused rather than answered
+   * against a checkout that has moved on.
+   */
+  changeDiffs(
     worktreeId: string,
     expectedStatusToken: string,
-    selection: GitChangeSelection,
+    expectedFiles: readonly ExpectedFile[],
+    selections: readonly GitChangeSelection[],
     signal?: AbortSignal,
   ): Promise<{
     environmentId: string;
     worktreeId: string;
     statusToken: string;
-    change: GitOrdinaryChange;
-    content: GitDiffResult;
+    diffs: ChangeDiff[];
   }>;
-  reviewEvidence(
+  /** A range of lines, from the last commit or from the working file. */
+  changeLines(
     worktreeId: string,
+    range: LineRange,
     signal?: AbortSignal,
   ): Promise<{
     environmentId: string;
     worktreeId: string;
-    statusToken: string;
-    evidence: ReviewEvidence[];
+    at: 'head' | 'worktree';
+    path: string;
+    from: number;
+    to: number;
+    lines: string[];
   }>;
   listReviewedFiles(
     worktreeId: string,

@@ -7,6 +7,11 @@ const { run, receipt } = vi.hoisted(() => ({
   run: vi.fn().mockResolvedValue({ state: 'succeeded' }),
   receipt: { state: 'conflicted' },
 }));
+// Branch details are their own read, made when this panel opens.
+vi.mock('../../query/review', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../query/review')>()),
+  useGitStatus: () => ({ status: undefined, pending: false }),
+}));
 vi.mock('../../query/git-actions', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../query/git-actions')>()),
   useGitAction: () => ({
@@ -29,11 +34,7 @@ it('warns that a stash leaves the handoff empty', async () => {
         entry="stash-create"
         onBusy={() => {}}
         status={{
-          environmentId: 'environment',
-          worktreeId: 'worktree',
           statusToken: 'a'.repeat(64),
-          consistency: 'best-effort',
-          headOid: 'a'.repeat(40),
           changes: [],
         }}
       />
@@ -56,11 +57,7 @@ it.each(['merge', 'rebase'])(
           entry="pull"
           onBusy={() => {}}
           status={{
-            environmentId: 'environment',
-            worktreeId: 'worktree',
             statusToken: 'a'.repeat(64),
-            consistency: 'best-effort',
-            headOid: 'a'.repeat(40),
             changes: [],
           }}
         />

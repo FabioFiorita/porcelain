@@ -39,7 +39,7 @@ import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
 import { pairRoutes } from './routes/pair.ts';
-import { reviewEvidenceRoutes } from './routes/review-evidence.ts';
+import { changeRoutes } from './routes/read-changes.ts';
 import { reviewLayerRoutes } from './routes/review-layers.ts';
 import { reviewedFileRoutes } from './routes/reviewed-files.ts';
 import { registerStaticFiles } from './static-files.ts';
@@ -64,7 +64,7 @@ function registerApiRoutes(
   server.register(commitDraftRoutes, options);
   server.register(artifactRoutes, options);
   server.register(reviewLayerRoutes, options);
-  server.register(reviewEvidenceRoutes, options);
+  server.register(changeRoutes, options);
   server.register(reviewedFileRoutes, options);
   server.register(commentRoutes, options);
   server.register(filePreferenceRoutes, options);

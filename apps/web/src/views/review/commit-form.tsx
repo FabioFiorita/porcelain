@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { commitFiles } from '../../domain/commit-files';
 import { resolveCommitModel } from '../../domain/commit-model';
 import type { CommitDraft } from '../../domain/git-action';
-import type { ReviewScope, Status } from '../../domain/review';
+import type { ReviewScope } from '../../domain/review';
 import { createId } from '../../lib/id';
 import {
   useCommitDraft,
@@ -19,6 +19,7 @@ import {
 } from '../../query/git-actions';
 import { reviewErrorMessage } from '../../query/review';
 import { usePreferences } from '../workspace/preferences';
+import type { GitActionStatus } from './git-action-options';
 
 type Group = CommitDraft['groups'][number] & { id: string };
 export function CommitForm({
@@ -27,7 +28,7 @@ export function CommitForm({
   onBusy,
 }: {
   scope: ReviewScope;
-  status: Status;
+  status: GitActionStatus;
   onBusy: (busy: boolean) => void;
 }) {
   const git = useGitAction(scope, 'commit');

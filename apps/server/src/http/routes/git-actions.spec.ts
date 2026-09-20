@@ -6,7 +6,6 @@ import {
   mkdtemp,
   readFile,
   rm,
-  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
@@ -138,26 +137,20 @@ describe('Git actions HTTP', () => {
     },
   );
 
-  it('reads comments without waiting for slow review evidence', async () => {
+  it('reads comments without waiting for a slow change list', async () => {
     await writeFile(join(checkout, 'file'), 'changed\n');
     const started = Promise.withResolvers<void>();
     const gate = Promise.withResolvers<void>();
-    const original = InspectionGit.prototype.readDiffs;
-    const diff = vi
-      .spyOn(InspectionGit.prototype, 'readDiffs')
-      .mockImplementationOnce(async function (
-        this: InspectionGit,
-        changes,
-        signal,
-      ) {
+    const original = InspectionGit.prototype.readStatus;
+    const status = vi
+      .spyOn(InspectionGit.prototype, 'readStatus')
+      .mockImplementationOnce(async function (this: InspectionGit, signal) {
         started.resolve();
         await gate.promise;
-        return original.call(this, changes, signal);
+        return original.call(this, signal);
       });
     const url = `/api/worktrees/${prefix.split('/')[5]}`;
-    const evidence = server
-      .inject({ url: `${url}/evidence`, headers })
-      .then((response) => response);
+    const changes = server.inject({ url: `${url}/changes`, headers });
     try {
       await started.promise;
       const response = await server.inject({ url: `${url}/comments`, headers });
@@ -165,12 +158,18 @@ describe('Git actions HTTP', () => {
       expect(response.json()).toEqual([]);
     } finally {
       gate.resolve();
-      await evidence;
-      diff.mockRestore();
+      await changes;
+      status.mockRestore();
     }
   });
 
-  it('validates only the marked file, including both comparisons', async () => {
+  /**
+   * A mark is a claim about one file in the state the reader saw it. Both of
+   * its comparisons are part of that claim, and none of it needs a patch:
+   * staging an edit and then editing again must not be markable from half the
+   * change, and reading the hunks is a separate request nobody made here.
+   */
+  it('validates only the marked file, over both of its comparisons, without reading a diff', async () => {
     await writeFile(join(checkout, 'other'), 'base\n');
     await git('add', 'other');
     await git('commit', '-m', 'other fixture');
@@ -178,40 +177,35 @@ describe('Git actions HTTP', () => {
     await git('add', 'file');
     await writeFile(join(checkout, 'file'), 'unstaged\n');
     await writeFile(join(checkout, 'other'), 'unreviewed change\n');
-    // Evidence for files written moments ago is never reused.
-    const settled = new Date(Date.now() - 60_000);
-    for (const name of ['file', 'other'])
-      await utimes(join(checkout, name), settled, settled);
     const url = `/api/worktrees/${prefix.split('/')[5]}`;
-    const evidence = (
-      await server.inject({ url: `${url}/evidence`, headers })
-    ).json();
-    const fingerprint = evidence.evidence.find(
-      (entry: { path: string }) => entry.path === 'file',
-    ).fingerprint;
+    const list = (await server.inject({ url: `${url}/changes`, headers }))
+      .json()
+      .changes.find((entry: { path: string }) => entry.path === 'file');
+    expect(
+      list.comparisons.map((change: { scope: string }) => change.scope),
+    ).toEqual(['staged', 'unstaged']);
     const diff = vi.spyOn(InspectionGit.prototype, 'readDiffs');
     const mark = () =>
       server.inject({
         method: 'PUT',
         url: `${url}/reviewed`,
         headers,
-        payload: { path: 'file', reviewed: true, fingerprint },
+        payload: {
+          path: 'file',
+          reviewed: true,
+          fingerprint: list.fingerprint,
+        },
       });
     try {
       expect((await mark()).statusCode).toBe(200);
-      expect(diff).not.toHaveBeenCalled();
+      // Changing the other file leaves this mark alone.
+      await writeFile(join(checkout, 'other'), 'changed again\n');
+      expect((await mark()).statusCode).toBe(200);
+      // The staged side is untouched; only the working side moved, and the
+      // fingerprint covers both, so the same mark is now refused.
       await writeFile(join(checkout, 'file'), 'edited after review\n');
       expect((await mark()).statusCode).toBe(409);
-      expect(
-        diff.mock.calls.map(([changes]) =>
-          changes.map((change) => [change.newPath, change.scope]),
-        ),
-      ).toEqual([
-        [
-          ['file', 'staged'],
-          ['file', 'unstaged'],
-        ],
-      ]);
+      expect(diff).not.toHaveBeenCalled();
     } finally {
       diff.mockRestore();
     }
