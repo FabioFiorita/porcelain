@@ -17,6 +17,7 @@ import { ActionGit } from './action-git.ts';
 import type { GitActionCommand, GitActionIntent } from './dtos/git-action.ts';
 import { createIsolatedGit } from './fixtures/isolated-git.ts';
 import { Git } from './git.ts';
+import { RequestGitSession } from './git-session.ts';
 
 describe('ActionGit', () => {
   const execute = promisify(execFile);
@@ -60,7 +61,13 @@ describe('ActionGit', () => {
     const { repository } = await new Git(checkout).listWorktrees();
     const identity = repository.worktrees[0]?.metadataIdentity;
     if (!identity) throw new Error('Missing fixture identity');
-    adapter = new ActionGit(checkout, identity, repository.repositoryIdentity);
+    adapter = new ActionGit(
+      new RequestGitSession().checkout(
+        checkout,
+        identity,
+        repository.repositoryIdentity,
+      ),
+    );
   });
   afterEach(async () => {
     vi.unstubAllEnvs();

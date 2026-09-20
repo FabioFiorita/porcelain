@@ -1,8 +1,8 @@
 import type { CommitSummary, HeadSnapshot } from '../dtos/commit-history.ts';
 import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
-import { executeHistoryCommand } from '../execute-history-command.ts';
 import { readOptionalHistoryRef } from '../helpers/read-optional-history-ref.ts';
 import { parseCommit } from '../mappers/parse-commit.ts';
+import { readHistory } from '../read-history.ts';
 
 const oidPattern = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 export async function readHead(
@@ -23,7 +23,7 @@ export async function readHead(
     );
     if (exists === null) return { tipOid: null, head: { kind: 'unborn', ref } };
     const oid = (
-      await executeHistoryCommand(
+      await readHistory(
         checkout,
         ['rev-parse', '--verify', `${ref}^{commit}`],
         signal,
@@ -32,7 +32,7 @@ export async function readHead(
     return { tipOid: oid, head: { kind: 'attached', ref } };
   }
   const oid = (
-    await executeHistoryCommand(
+    await readHistory(
       checkout,
       ['rev-parse', '--verify', 'HEAD^{commit}'],
       signal,
@@ -46,10 +46,6 @@ export async function readCommit(
   signal?: AbortSignal,
 ): Promise<CommitSummary> {
   if (!oidPattern.test(oid)) throw new UnsupportedHistoryDataError();
-  const raw = await executeHistoryCommand(
-    checkout,
-    ['cat-file', 'commit', oid],
-    signal,
-  );
+  const raw = await readHistory(checkout, ['cat-file', 'commit', oid], signal);
   return parseCommit(oid, raw);
 }

@@ -1,5 +1,5 @@
 import { HistorySnapshotUnavailableError } from '../errors/history-snapshot-unavailable-error.ts';
-import { executeHistoryCommand } from '../execute-history-command.ts';
+import { readHistory } from '../read-history.ts';
 
 function absentRef(error: unknown): null {
   if (
@@ -19,7 +19,7 @@ export async function readOptionalHistoryRef(
   signal?: AbortSignal,
 ) {
   try {
-    return await executeHistoryCommand(checkout, args, signal);
+    return await readHistory(checkout, args, signal);
   } catch (error) {
     return absentRef(error);
   }

@@ -5,6 +5,7 @@ import type {
   GitOrdinaryChange,
 } from '@porcelain/git/dtos/git-status';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { FileInspectionError } from '../filesystem/errors/file-inspection-error.ts';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
@@ -16,7 +17,7 @@ import type {
 } from '../models/review-evidence.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
-import { resolveInspectionWorktree } from './resolve-inspection-worktree.ts';
+import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';
 import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
 
 const scopeOrder = {
@@ -59,17 +60,17 @@ export class ReadWorktreeEvidence {
 
   async execute(
     worktreeId: string,
+    session: GitSession,
     signal?: AbortSignal,
     paths?: ReadonlySet<string>,
   ): Promise<Evidence> {
     signal?.throwIfAborted();
-    const { environmentId, worktree, metadataIdentity, repositoryIdentity } =
-      resolveInspectionWorktree(this.store, worktreeId);
-    const reader = this.inspection(
-      worktree.path,
-      metadataIdentity,
-      repositoryIdentity,
+    const { environmentId, worktree, checkout } = resolveCheckoutSession(
+      this.store,
+      session,
+      worktreeId,
     );
+    const reader = this.inspection(checkout);
     const before = await reader.readStatus(signal);
     signal?.throwIfAborted();
 
@@ -161,7 +162,12 @@ export class ReadWorktreeEvidence {
       statusToken: before.statusToken,
       evidence,
     };
-    if (!paths) this.remember(worktreeId, { key, result });
+    // The result is about to outlive this request, so confirm the checkout is
+    // still the one it was read from before it is kept.
+    if (!paths) {
+      await checkout.confirm(signal);
+      this.remember(worktreeId, { key, result });
+    }
     return result;
   }
 

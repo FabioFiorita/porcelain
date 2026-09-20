@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -11,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect, it, vi } from 'vitest';
-import { GitActionProcess } from './git-action-process.ts';
+import { GitActionRunner } from './run-git.ts';
 
 const execute = promisify(execFile);
 it('cancels an owned Git process group after its child readiness barrier', async () => {
@@ -24,7 +25,7 @@ it('cancels an owned Git process group after its child readiness barrier', async
   );
   const abort = new AbortController();
   try {
-    const git = new GitActionProcess(root);
+    const git = new GitActionRunner(root);
     const result = git.execute(
       ['-c', `alias.fixture=!"${process.execPath}" "${script}"`, 'fixture'],
       abort.signal,
@@ -59,7 +60,7 @@ it('rejects inherited repository and index redirection instead of changing anoth
   vi.stubEnv('GIT_CONFIG_KEY_0', 'core.bare');
   vi.stubEnv('GIT_CONFIG_VALUE_0', 'true');
   try {
-    const result = await new GitActionProcess(checkout).execute(
+    const result = await new GitActionRunner(checkout).execute(
       ['rev-parse', '--show-toplevel'],
       AbortSignal.timeout(5000),
     );
@@ -80,7 +81,7 @@ it('returns all large stdout bytes and the final tail after the Git process exit
     `const { writeFileSync } = require('node:fs'); writeFileSync(1, '0123456789abcdef'.repeat(196608) + '\\nfinal-output-tail\\n'); writeFileSync(2, 'diagnostic'.repeat(16384));`,
   );
   try {
-    const result = await new GitActionProcess(root).execute(
+    const result = await new GitActionRunner(root).execute(
       ['-c', `alias.fixture=!"${process.execPath}" "${script}"`, 'fixture'],
       AbortSignal.timeout(5000),
     );
@@ -94,3 +95,53 @@ it('returns all large stdout bytes and the final tail after the Git process exit
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('stops an action that outgrows the shared output cap and names the failure', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-action-cap-'));
+  try {
+    const binary = join(root, 'git');
+    // Five megabytes over one stream, past the four the policy allows.
+    await writeFile(
+      binary,
+      '#!/bin/sh\nexec /usr/bin/head -c 5242880 /dev/zero\n',
+    );
+    await chmod(binary, 0o700);
+    vi.stubEnv('PATH', root);
+    const result = await new GitActionRunner(root).execute(
+      ['status'],
+      new AbortController().signal,
+    );
+    expect(result.interrupted).toBe(true);
+    // The same vocabulary a read uses when it outgrows its buffer.
+    expect(result.failure).toBe('output-limit');
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('refuses every later command once descendants could not be confirmed stopped', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-action-latch-'));
+  const script = join(root, 'escapee.cjs');
+  // A descendant that leaves the process group keeps the inherited pipe open,
+  // so the group is killed but the output never drains: cleanup is unconfirmed.
+  await writeFile(
+    script,
+    `const { spawn } = require('node:child_process'); spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }).unref();`,
+  );
+  try {
+    const git = new GitActionRunner(root);
+    await expect(
+      git.execute(
+        ['-c', `alias.fixture=!"${process.execPath}" "${script}"`, 'fixture'],
+        new AbortController().signal,
+      ),
+    ).rejects.toMatchObject({ reason: 'PROCESS_GROUP_UNCONFIRMED' });
+    // The latch, not the failure itself, is what the next command must hit.
+    await expect(
+      git.execute(['status'], new AbortController().signal),
+    ).rejects.toMatchObject({ reason: 'PROCESS_GROUP_UNCONFIRMED' });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 20_000);

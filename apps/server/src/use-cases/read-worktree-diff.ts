@@ -1,8 +1,9 @@
 import type { GitChangeSelection } from '@porcelain/git/dtos/git-status';
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
-import { resolveInspectionWorktree } from './resolve-inspection-worktree.ts';
+import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';
 
 export class ReadWorktreeDiff {
   private readonly store: InventoryStore;
@@ -17,12 +18,16 @@ export class ReadWorktreeDiff {
     worktreeId: string,
     expectedStatusToken: string,
     selection: GitChangeSelection,
+    session: GitSession,
     signal?: AbortSignal,
   ) {
     signal?.throwIfAborted();
-    const { environmentId, worktree, metadataIdentity, repositoryIdentity } =
-      resolveInspectionWorktree(this.store, worktreeId);
-    const git = this.git(worktree.path, metadataIdentity, repositoryIdentity);
+    const { environmentId, checkout } = resolveCheckoutSession(
+      this.store,
+      session,
+      worktreeId,
+    );
+    const git = this.git(checkout);
     const before = await git.readStatus(signal);
     if (before.statusToken !== expectedStatusToken)
       throw new WorktreeChangedError();

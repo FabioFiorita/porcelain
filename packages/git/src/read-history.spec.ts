@@ -1,8 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { GitCommandError } from './errors/git-command-error.ts';
 import { ReadLimitExceededError } from './errors/read-limit-exceeded-error.ts';
-import * as execution from './execute-command.ts';
-import { executeHistoryCommand } from './execute-history-command.ts';
+import { readHistory } from './read-history.ts';
+import * as execution from './run-git.ts';
 
 // These failures come from the process API, independently of repository contents.
 afterEach(() => vi.restoreAllMocks());
@@ -12,10 +12,11 @@ it('preserves timeout diagnostics while classifying a killed read as a service d
     ['rev-list'],
     Object.assign(new Error('killed'), { killed: true }),
   );
-  vi.spyOn(execution, 'executeCommand').mockRejectedValue(cause);
-  await expect(
-    executeHistoryCommand('/fixture', ['rev-list']),
-  ).rejects.toMatchObject({ name: 'TimeoutError', cause });
+  vi.spyOn(execution, 'runGitRead').mockRejectedValue(cause);
+  await expect(readHistory('/fixture', ['rev-list'])).rejects.toMatchObject({
+    name: 'TimeoutError',
+    cause,
+  });
 });
 it('reports subprocess output overflow as a limit failure rather than a missing snapshot', async () => {
   const cause = new GitCommandError(
@@ -26,8 +27,8 @@ it('reports subprocess output overflow as a limit failure rather than a missing 
       killed: true,
     }),
   );
-  vi.spyOn(execution, 'executeCommand').mockRejectedValue(cause);
-  const failure = executeHistoryCommand('/fixture', ['diff-tree']);
+  vi.spyOn(execution, 'runGitRead').mockRejectedValue(cause);
+  const failure = readHistory('/fixture', ['diff-tree']);
   await expect(failure).rejects.toBeInstanceOf(ReadLimitExceededError);
   await expect(failure).rejects.toMatchObject({ cause });
 });

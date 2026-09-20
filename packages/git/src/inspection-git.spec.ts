@@ -22,6 +22,7 @@ import { InspectionLimitError } from './errors/inspection-limit-error.ts';
 import { RepositoryIdentityMismatchError } from './errors/repository-identity-mismatch-error.ts';
 import { UnsupportedGitFiltersError } from './errors/unsupported-git-filters-error.ts';
 import { UnsupportedPathEncodingError } from './errors/unsupported-path-encoding-error.ts';
+import { RequestGitSession } from './git-session.ts';
 import { InspectionGit } from './inspection-git.ts';
 
 describe('InspectionGit', () => {
@@ -47,12 +48,13 @@ describe('InspectionGit', () => {
     git('config', 'user.name', 'Fixture');
     git('config', 'user.email', 'fixture@example.invalid');
     const metadata = await stat(join(checkout, '.git'), { bigint: true });
-    const reader = new InspectionGit(
-      checkout,
-      `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`,
-      `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`,
-    );
-    return { root, checkout, git, reader };
+    const identity = `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`;
+    // Guards run once per request, so a new request means a new session.
+    const request = () =>
+      new InspectionGit(
+        new RequestGitSession().checkout(checkout, identity, identity),
+      );
+    return { root, checkout, git, reader: request(), request };
   }
 
   function selected(
@@ -285,7 +287,7 @@ describe('InspectionGit', () => {
   });
   describe('Identity and read limits', () => {
     it('lists real merge conflicts separately and refuses to inspect replaced checkout identity', async () => {
-      const { root, checkout, git, reader } = await fixture();
+      const { root, checkout, git, reader, request } = await fixture();
       await writeFile(join(checkout, 'file'), 'base\n');
       git('add', '.');
       git('commit', '-m', 'base');
@@ -301,7 +303,9 @@ describe('InspectionGit', () => {
       ]);
       await rename(join(checkout, '.git'), join(root, 'original-metadata'));
       git('init', '-b', 'main');
-      await expect(reader.readStatus()).rejects.toBeInstanceOf(
+      // The guard runs before the first read of a request, so a checkout
+      // replaced beforehand is refused.
+      await expect(request().readStatus()).rejects.toBeInstanceOf(
         RepositoryIdentityMismatchError,
       );
     });
@@ -351,11 +355,15 @@ describe('InspectionGit', () => {
         .trim();
       const metadata = await stat(metadataPath, { bigint: true });
       const common = await stat(join(checkout, '.git'), { bigint: true });
-      const reader = new InspectionGit(
-        linked,
-        `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`,
-        `${common.dev}:${common.ino}:${common.birthtimeNs}`,
-      );
+      const linkedRequest = () =>
+        new InspectionGit(
+          new RequestGitSession().checkout(
+            linked,
+            `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`,
+            `${common.dev}:${common.ino}:${common.birthtimeNs}`,
+          ),
+        );
+      const reader = linkedRequest();
       await writeFile(join(linked, 'file'), 'working\n');
       const change = selected(await reader.readStatus(), 'unstaged', 'file');
       const clone = join(root, 'clone');
@@ -367,10 +375,11 @@ describe('InspectionGit', () => {
       expect((await stat(metadataPath, { bigint: true })).ino).toBe(
         metadata.ino,
       );
-      await expect(reader.readStatus()).rejects.toBeInstanceOf(
+      // A later request re-derives the common repository and refuses it.
+      await expect(linkedRequest().readStatus()).rejects.toBeInstanceOf(
         RepositoryIdentityMismatchError,
       );
-      await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+      await expect(linkedRequest().readDiff(change)).rejects.toBeInstanceOf(
         RepositoryIdentityMismatchError,
       );
     });
@@ -444,17 +453,17 @@ describe('InspectionGit', () => {
     });
 
     it('rejects configured conversion drivers before status or working-tree diff can execute helpers', async () => {
-      const { root, checkout, git, reader } = await fixture();
+      const { root, checkout, git, reader, request } = await fixture();
       await writeFile(join(checkout, 'file'), 'original\n');
       git('add', '.');
       git('commit', '-m', 'base');
       await writeFile(join(checkout, 'file'), 'modified\n');
       const change = selected(await reader.readStatus(), 'unstaged', 'file');
       await writeFile(join(checkout, '.gitattributes'), 'file filter=probe\n');
-      await expect(reader.readStatus()).rejects.toBeInstanceOf(
+      await expect(request().readStatus()).rejects.toBeInstanceOf(
         UnsupportedGitFiltersError,
       );
-      await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+      await expect(request().readDiff(change)).rejects.toBeInstanceOf(
         UnsupportedGitFiltersError,
       );
       const marker = join(root, 'filter-executed');
@@ -466,10 +475,10 @@ describe('InspectionGit', () => {
       const beforeRefs = git('show-ref');
       for (const driver of ['clean', 'process', 'smudge']) {
         git('config', `filter.probe.${driver}`, helper);
-        await expect(reader.readStatus()).rejects.toBeInstanceOf(
+        await expect(request().readStatus()).rejects.toBeInstanceOf(
           UnsupportedGitFiltersError,
         );
-        await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+        await expect(request().readDiff(change)).rejects.toBeInstanceOf(
           UnsupportedGitFiltersError,
         );
         await expect(readFile(marker)).rejects.toMatchObject({
@@ -506,7 +515,9 @@ describe('InspectionGit', () => {
         });
       const metadata = await stat(join(partial, '.git'), { bigint: true });
       const identity = `${metadata.dev}:${metadata.ino}:${metadata.birthtimeNs}`;
-      const reader = new InspectionGit(partial, identity, identity);
+      const reader = new InspectionGit(
+        new RequestGitSession().checkout(partial, identity, identity),
+      );
       const missing = run('rev-list', '--objects', '--missing=print', 'HEAD');
       expect(missing.toString()).toContain('?');
       const marker = join(root, 'fetch-executed');
@@ -540,7 +551,7 @@ describe('InspectionGit', () => {
     });
 
     it('rejects literal driver names that also spell Git attribute-state markers', async () => {
-      const { root, checkout, git, reader } = await fixture();
+      const { root, checkout, git, reader, request } = await fixture();
       await writeFile(join(checkout, 'file'), 'base\n');
       git('add', '.');
       git('commit', '-m', 'base');
@@ -553,10 +564,10 @@ describe('InspectionGit', () => {
           `file filter=${driver}\n`,
         );
         git('config', `filter.${driver}.clean`, `touch '${marker}'; cat`);
-        await expect(reader.readStatus()).rejects.toBeInstanceOf(
+        await expect(request().readStatus()).rejects.toBeInstanceOf(
           UnsupportedGitFiltersError,
         );
-        await expect(reader.readDiff(change)).rejects.toBeInstanceOf(
+        await expect(request().readDiff(change)).rejects.toBeInstanceOf(
           UnsupportedGitFiltersError,
         );
         await expect(readFile(marker)).rejects.toMatchObject({

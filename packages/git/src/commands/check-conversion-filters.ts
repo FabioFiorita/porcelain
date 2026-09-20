@@ -1,16 +1,17 @@
 import { UnsupportedGitFiltersError } from '../errors/unsupported-git-filters-error.ts';
-import { executeInspection } from '../execute-inspection.ts';
+import type { CheckoutSession } from '../interfaces/git-session.ts';
+import { runInspection } from '../read-inspection.ts';
 
-export async function checkConversionFilters(
+async function checkConversionFilters(
   checkout: string,
   signal?: AbortSignal,
   selectedPaths?: readonly string[],
 ): Promise<string[]> {
-  const config = await executeInspection(
+  const config = await runInspection(
     checkout,
     ['config', '--null', '--list'],
-    1024 * 1024,
     signal,
+    { maxBytes: 1024 * 1024 },
   );
   const drivers = new Set(
     config
@@ -25,20 +26,15 @@ export async function checkConversionFilters(
   );
   const paths = selectedPaths
     ? Buffer.from(`${selectedPaths.join('\0')}\0`)
-    : await executeInspection(
-        checkout,
-        ['ls-files', '-z'],
-        8 * 1024 * 1024,
-        signal,
-      );
+    : await runInspection(checkout, ['ls-files', '-z'], signal, {
+        maxBytes: 8 * 1024 * 1024,
+      });
   // check-attr does not run conversion drivers. stdin preserves filename bytes.
-  const attributes = await executeInspection(
+  const attributes = await runInspection(
     checkout,
     ['check-attr', '-z', '--stdin', 'filter'],
-    16 * 1024 * 1024,
     signal,
-    [],
-    paths,
+    { maxBytes: 16 * 1024 * 1024, input: paths },
   );
   const fields = attributes.toString('utf8').split('\0');
   const assigned = fields.filter((_, index) => index % 3 === 2);
@@ -60,5 +56,18 @@ export async function checkConversionFilters(
     ['clean', 'smudge', 'process'].map(
       (operation) => `filter.${driver}.${operation}=`,
     ),
+  );
+}
+
+/**
+ * The request's conversion-filter answer. The check scans every tracked file,
+ * so it runs once per request rather than before and after each read.
+ */
+export function sessionConversionFilters(
+  session: CheckoutSession,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  return session.conversionFilters(() =>
+    checkConversionFilters(session.path, signal),
   );
 }

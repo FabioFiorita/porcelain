@@ -5,33 +5,26 @@ import { fetchBranch } from './commands/fetch-branch.ts';
 import { inspectActionState } from './commands/inspect-action-state.ts';
 import { pullBranch } from './commands/pull-branch.ts';
 import { pushBranch } from './commands/push-branch.ts';
-import { verifyCheckout } from './commands/verify-checkout.ts';
 import type { GitActionCommand, GitActionIntent } from './dtos/git-action.ts';
 import type { GitActionSnapshot } from './dtos/git-action-snapshot.ts';
-import { GitActionProcess } from './git-action-process.ts';
 import type { GitActionWriter } from './interfaces/git-action-writer.ts';
+import type { CheckoutSession } from './interfaces/git-session.ts';
+import { GitActionRunner } from './run-git.ts';
 
 export class ActionGit implements GitActionWriter {
   private readonly checkout: string;
-  private readonly identity: string;
-  private readonly repositoryIdentity: string;
-  private readonly process: GitActionProcess;
-  constructor(checkout: string, identity: string, repositoryIdentity: string) {
-    this.checkout = checkout;
-    this.identity = identity;
-    this.repositoryIdentity = repositoryIdentity;
-    this.process = new GitActionProcess(checkout);
+  private readonly session: CheckoutSession;
+  private readonly process: GitActionRunner;
+  constructor(session: CheckoutSession) {
+    this.checkout = session.path;
+    this.session = session;
+    this.process = new GitActionRunner(session.path);
   }
   async inspect(
     intent: GitActionIntent,
     signal: AbortSignal,
   ): Promise<GitActionSnapshot> {
-    await verifyCheckout(
-      this.checkout,
-      this.identity,
-      this.repositoryIdentity,
-      signal,
-    );
+    await this.session.verify(signal);
     return inspectActionState(this.checkout, this.process, intent, signal);
   }
   execute(

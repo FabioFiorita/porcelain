@@ -1,4 +1,5 @@
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitActionWriter } from '@porcelain/git/interfaces/git-action-writer';
 import { describe, expect, it } from 'vitest';
 import { GitActionCoordinator } from '../lifecycle/git-action-coordinator.ts';
@@ -135,7 +136,7 @@ describe('Git action execution', () => {
       if (scenario === 'expired') state.expired = true;
       if (scenario === 'missing') state.missing = true;
       if (scenario === 'aborted') abort.abort();
-      await useCase.execute(receipt, abort.signal);
+      await useCase.execute(receipt, new RequestGitSession(), abort.signal);
       expect(state.launched).toBe(0);
       expect(state.writes.at(-1)).toMatchObject({
         state: 'rejected',
@@ -148,7 +149,11 @@ describe('Git action execution', () => {
     const { state, receipt, useCase } = fixture();
     state.failPersistence = true;
     await expect(
-      useCase.execute(receipt, new AbortController().signal),
+      useCase.execute(
+        receipt,
+        new RequestGitSession(),
+        new AbortController().signal,
+      ),
     ).rejects.toThrow('Storage failed');
     expect(state.launched).toBe(0);
   });
@@ -156,7 +161,11 @@ describe('Git action execution', () => {
   it('records indeterminate effects after lost acknowledgement, without retrying', async () => {
     const { state, receipt, useCase } = fixture();
     state.abortDuringWrite = true;
-    await useCase.execute(receipt, new AbortController().signal);
+    await useCase.execute(
+      receipt,
+      new RequestGitSession(),
+      new AbortController().signal,
+    );
     expect(state.launched).toBe(1);
     expect(state.writes.at(-1)).toMatchObject({
       state: 'indeterminate',

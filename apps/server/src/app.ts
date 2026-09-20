@@ -12,11 +12,13 @@ import { ActionGit } from '@porcelain/git/action-git';
 import { CommitCursorCodec } from '@porcelain/git/commit-cursor';
 import { CommitGit } from '@porcelain/git/commit-git';
 import { Git } from '@porcelain/git/git';
+import { RequestGitSession } from '@porcelain/git/git-session';
 import { InspectionGit } from '@porcelain/git/inspection-git';
 import type { CommitReaderFactory } from '@porcelain/git/interfaces/commit-reader';
 import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import { readGitVersion } from '@porcelain/git/read-git-version';
 import { readTreePaths } from '@porcelain/git/tree-paths';
 import { CliCommitGenerator } from './agents/cli-commit-generator.ts';
 import type { CommitGenerator } from './agents/interfaces/commit-generator.ts';
@@ -125,9 +127,7 @@ export async function openApplication(options: {
     const actionStore = new GitActionRepository(database.db);
     actionStore.recover();
     const actionGit =
-      options.actionGit ??
-      ((checkout, identity, repositoryIdentity) =>
-        new ActionGit(checkout, identity, repositoryIdentity));
+      options.actionGit ?? ((checkout) => new ActionGit(checkout));
 
     const preferences = new FilePreferenceRepository(database.db);
     const listPreferences = new ListFilePreferences(store, preferences);
@@ -144,6 +144,9 @@ export async function openApplication(options: {
       store,
       options.projectHome ?? homedir(),
     );
+    // Read once here rather than per history request; a missing Git still
+    // surfaces on the request that needs it, so startup is unaffected.
+    void readGitVersion().catch(() => undefined);
     const cursor = new CommitCursorCodec(randomBytes(32));
     const commitGit =
       options.commitGit ?? ((checkout) => new CommitGit(checkout, cursor));
@@ -175,9 +178,7 @@ export async function openApplication(options: {
     const refresh = new RefreshProjects(store, git);
     const register = new RegisterProject(store, git, refresh);
     const inspection =
-      options.inspectionGit ??
-      ((checkout: string, identity: string, repositoryIdentity: string) =>
-        new InspectionGit(checkout, identity, repositoryIdentity));
+      options.inspectionGit ?? ((checkout) => new InspectionGit(checkout));
     const status = new ReadWorktreeStatus(store, inspection);
     const diff = new ReadWorktreeDiff(store, inspection);
     const evidence = new ReadWorktreeEvidence(
@@ -233,7 +234,8 @@ export async function openApplication(options: {
     return {
       reviewSummary: (worktreeId, signal) =>
         summaries.run(
-          (ownedSignal) => summary.execute(worktreeId, ownedSignal),
+          (ownedSignal) =>
+            summary.execute(worktreeId, new RequestGitSession(), ownedSignal),
           signal,
         ),
       commitModels: (signal) =>
@@ -246,7 +248,12 @@ export async function openApplication(options: {
         input = structuredClone(input);
         const captured = await operations.run(
           (operationSignal) =>
-            commitDrafts.capture(scope, input, operationSignal),
+            commitDrafts.capture(
+              scope,
+              input,
+              new RequestGitSession(),
+              operationSignal,
+            ),
           signal,
         );
         const result = await drafting.runOwned(
@@ -257,7 +264,12 @@ export async function openApplication(options: {
         );
         await operations.run(
           (operationSignal) =>
-            commitDrafts.verify(scope, captured.fingerprint, operationSignal),
+            commitDrafts.verify(
+              scope,
+              captured.fingerprint,
+              new RequestGitSession(),
+              operationSignal,
+            ),
           signal,
         );
         return result;
@@ -343,7 +355,12 @@ export async function openApplication(options: {
       gitActionReceipt: (requestId) => actions.receipt(requestId),
       gitStatus: (worktreeId, signal) =>
         operations.run(
-          (operationSignal) => status.execute(worktreeId, operationSignal),
+          (operationSignal) =>
+            status.execute(
+              worktreeId,
+              new RequestGitSession(),
+              operationSignal,
+            ),
           signal,
         ),
       gitDiff: (worktreeId, expectedStatusToken, selection, signal) => {
@@ -358,6 +375,7 @@ export async function openApplication(options: {
               worktreeId,
               expectedStatusToken,
               submitted,
+              new RequestGitSession(),
               operationSignal,
             ),
           signal,
@@ -365,7 +383,12 @@ export async function openApplication(options: {
       },
       reviewEvidence: (worktreeId, signal) =>
         operations.run(
-          (operationSignal) => evidence.execute(worktreeId, operationSignal),
+          (operationSignal) =>
+            evidence.execute(
+              worktreeId,
+              new RequestGitSession(),
+              operationSignal,
+            ),
           signal,
         ),
       listReviewedFiles: (worktreeId, signal) =>
@@ -377,7 +400,12 @@ export async function openApplication(options: {
         const submitted = { ...input };
         return operations.run(
           (operationSignal) =>
-            setReviewedFile.execute(worktreeId, submitted, operationSignal),
+            setReviewedFile.execute(
+              worktreeId,
+              submitted,
+              new RequestGitSession(),
+              operationSignal,
+            ),
           signal,
         );
       },

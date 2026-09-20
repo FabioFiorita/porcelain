@@ -5,6 +5,7 @@ import type {
   GitOrdinaryChange,
   GitStatusObservation,
 } from '@porcelain/git/dtos/git-status';
+import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
 import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
 import { expect, it } from 'vitest';
@@ -159,7 +160,10 @@ it('returns exact staged, unstaged, untracked and omitted evidence grouped by lo
     stamps,
   );
 
-  const result = await operation.execute('worktree');
+  const result = await operation.execute(
+    'worktree',
+    new RequestGitSession(async () => {}),
+  );
   expect(result.evidence.map((entry) => entry.path)).toEqual([
     'assets/logo.png',
     'module',
@@ -252,7 +256,10 @@ it('does not include a status token in the evidence fingerprint', async () => {
     },
     stamps,
   );
-  const first = await operation.execute('worktree');
+  const first = await operation.execute(
+    'worktree',
+    new RequestGitSession(async () => {}),
+  );
   token = 'b'.repeat(64);
   const second = await new ReadWorktreeEvidence(
     store(),
@@ -267,7 +274,7 @@ it('does not include a status token in the evidence fingerprint', async () => {
       list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
     },
     stamps,
-  ).execute('worktree');
+  ).execute('worktree', new RequestGitSession(async () => {}));
   expect(first.evidence[0]?.fingerprint).toBe(second.evidence[0]?.fingerprint);
 });
 
@@ -285,7 +292,9 @@ it('localizes unreadable untracked files and rejects a moving worktree', async (
     },
     stamps,
   );
-  await expect(operation.execute('worktree')).resolves.toMatchObject({
+  await expect(
+    operation.execute('worktree', new RequestGitSession(async () => {})),
+  ).resolves.toMatchObject({
     evidence: [
       {
         fingerprint: null,
@@ -316,7 +325,7 @@ it('localizes unreadable untracked files and rejects a moving worktree', async (
         list: async () => ({ worktreeId: 'worktree', path: '', entries: [] }),
       },
       stamps,
-    ).execute('worktree'),
+    ).execute('worktree', new RequestGitSession(async () => {})),
   ).rejects.toBeInstanceOf(WorktreeChangedError);
 });
 
@@ -354,7 +363,10 @@ it('bounds aggregate UTF-8 evidence content while retaining affected paths', asy
     stamps,
   );
 
-  const result = await operation.execute('worktree');
+  const result = await operation.execute(
+    'worktree',
+    new RequestGitSession(async () => {}),
+  );
   expect(result.evidence).toHaveLength(2);
   expect(result.evidence[0]?.comparisons[0]?.content).toMatchObject({
     kind: 'diff',
@@ -398,9 +410,11 @@ it('bounds concurrent file reads and drains them before reporting a failure', as
     stamps,
   );
   let settled = false;
-  const result = operation.execute('worktree').finally(() => {
-    settled = true;
-  });
+  const result = operation
+    .execute('worktree', new RequestGitSession(async () => {}))
+    .finally(() => {
+      settled = true;
+    });
   const rejected = expect(result).rejects.toThrow('failed read');
   await allStarted.promise;
   pending[0]?.reject(new Error('failed read'));
@@ -445,25 +459,44 @@ it('reuses evidence until the status or a working file changes', async () => {
       return stamp;
     },
   );
-  const first = await operation.execute('worktree');
-  expect(await operation.execute('worktree')).toBe(first);
+  const first = await operation.execute(
+    'worktree',
+    new RequestGitSession(async () => {}),
+  );
   expect(
-    await operation.execute('worktree', undefined, new Set(['src/review.ts'])),
+    await operation.execute('worktree', new RequestGitSession(async () => {})),
+  ).toBe(first);
+  expect(
+    await operation.execute(
+      'worktree',
+      new RequestGitSession(async () => {}),
+      undefined,
+      new Set(['src/review.ts']),
+    ),
   ).toEqual(first);
   expect(
-    (await operation.execute('worktree', undefined, new Set(['gone.ts'])))
-      .evidence,
+    (
+      await operation.execute(
+        'worktree',
+        new RequestGitSession(async () => {}),
+        undefined,
+        new Set(['gone.ts']),
+      )
+    ).evidence,
   ).toEqual([]);
   expect(reads).toBe(2);
   expect(stamped[0]).toEqual(['src/review.ts']);
   stamp = 'second';
-  const changed = await operation.execute('worktree');
+  const changed = await operation.execute(
+    'worktree',
+    new RequestGitSession(async () => {}),
+  );
   expect(reads).toBe(4);
   expect(changed.evidence[0]?.fingerprint).not.toBe(
     first.evidence[0]?.fingerprint,
   );
   token = 'b'.repeat(64);
-  await operation.execute('worktree');
+  await operation.execute('worktree', new RequestGitSession(async () => {}));
   expect(reads).toBe(6);
 });
 
@@ -492,6 +525,7 @@ it('selects logical paths without reading unrelated changes or dropping comparis
   );
   const response = await operation.execute(
     'worktree',
+    new RequestGitSession(async () => {}),
     undefined,
     new Set(['src/review.ts']),
   );
@@ -501,8 +535,14 @@ it('selects logical paths without reading unrelated changes or dropping comparis
   expect(response.evidence[0]?.fingerprint).toMatch(/^[a-f0-9]{64}$/);
   reads.length = 0;
   expect(
-    (await operation.execute('worktree', undefined, new Set(['gone.ts'])))
-      .evidence,
+    (
+      await operation.execute(
+        'worktree',
+        new RequestGitSession(async () => {}),
+        undefined,
+        new Set(['gone.ts']),
+      )
+    ).evidence,
   ).toEqual([]);
   expect(reads).toEqual([]);
 });

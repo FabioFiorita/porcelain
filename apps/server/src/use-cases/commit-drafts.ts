@@ -1,4 +1,5 @@
 import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { CommitGenerator } from '../agents/interfaces/commit-generator.ts';
 import type { CommitDraft, CommitDraftInput } from '../models/commit-draft.ts';
 import type { GitActionScope } from '../models/git-action.ts';
@@ -6,7 +7,7 @@ import type { InventoryStore } from '../repositories/interfaces/inventory-store.
 import { CommitDraftError } from './errors/commit-draft-error.ts';
 import { WorktreeChangedError } from './errors/worktree-changed-error.ts';
 import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
-import { resolveActionWorktree } from './resolve-action-worktree.ts';
+import { resolveActionCheckout } from './resolve-action-worktree.ts';
 
 type Capture = {
   fingerprint: string;
@@ -31,21 +32,29 @@ export class CommitDrafts {
     this.evidence = evidence;
     this.generator = generator;
   }
-  private inspect(scope: GitActionScope, signal: AbortSignal) {
-    const target = resolveActionWorktree(this.inventory, scope);
-    return this.git(
-      target.worktree.path,
-      target.metadataIdentity,
-      target.repositoryIdentity,
-    ).inspect({ action: 'commit', message: 'Draft commit' }, signal);
+  private inspect(
+    scope: GitActionScope,
+    session: GitSession,
+    signal: AbortSignal,
+  ) {
+    const { checkout } = resolveActionCheckout(this.inventory, session, scope);
+    return this.git(checkout).inspect(
+      { action: 'commit', message: 'Draft commit' },
+      signal,
+    );
   }
   async capture(
     scope: GitActionScope,
     input: CommitDraftInput,
+    session: GitSession,
     signal: AbortSignal,
   ): Promise<Capture> {
-    const before = await this.inspect(scope, signal);
-    const observed = await this.evidence.execute(scope.worktreeId, signal);
+    const before = await this.inspect(scope, session, signal);
+    const observed = await this.evidence.execute(
+      scope.worktreeId,
+      session,
+      signal,
+    );
     if (observed.statusToken !== input.expectedStatusToken)
       throw new WorktreeChangedError();
     const paths = [...new Set(input.paths)];
@@ -76,7 +85,10 @@ export class CommitDrafts {
       throw new CommitDraftError(
         'Select fewer files to generate a commit draft.',
       );
-    await this.verify(scope, before.fingerprint, signal);
+    await this.verify(scope, before.fingerprint, session, signal);
+    // The selected content leaves the process for the commit generator, so
+    // confirm it still came from the checkout this request verified.
+    await session.confirmAll(signal);
     return {
       fingerprint: before.fingerprint,
       paths,
@@ -141,9 +153,12 @@ export class CommitDrafts {
   async verify(
     scope: GitActionScope,
     fingerprint: string,
+    session: GitSession,
     signal: AbortSignal,
   ) {
-    if ((await this.inspect(scope, signal)).fingerprint !== fingerprint)
+    if (
+      (await this.inspect(scope, session, signal)).fingerprint !== fingerprint
+    )
       throw new WorktreeChangedError();
   }
 }

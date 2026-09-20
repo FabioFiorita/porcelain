@@ -1,3 +1,4 @@
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { SetReviewedFileInput } from '../models/reviewed-file.ts';
 import type { ReviewedFileStore } from '../repositories/interfaces/reviewed-file-store.ts';
 import { ReviewedMarkConflictError } from './errors/reviewed-mark-conflict-error.ts';
@@ -26,12 +27,14 @@ export class SetReviewedFile {
   async execute(
     worktreeId: string,
     input: SetReviewedFileInput,
+    session: GitSession,
     signal?: AbortSignal,
   ) {
     this.assertKnownWorktree(worktreeId);
 
     const current = await this.evidence.execute(
       worktreeId,
+      session,
       signal,
       new Set([input.path]),
     );
@@ -45,6 +48,8 @@ export class SetReviewedFile {
     )
       throw new ReviewedMarkConflictError();
 
+    // The mark outlives the request, so confirm the checkout it was read from.
+    await session.confirmAll(signal);
     this.reviewed.set(worktreeId, input.path, input.fingerprint, this.now());
     return this.list.execute(worktreeId);
   }

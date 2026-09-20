@@ -951,7 +951,7 @@ const inventory: Area = {
       sources: [
         at(caseFile('refresh-projects.ts'), 29),
         at(git('errors/is-repository-unavailable.ts'), 13),
-        at(git('execute-command.ts'), 20),
+        at(git('run-git.ts'), 20),
       ],
       confidence: 'verified',
     },
@@ -1435,7 +1435,7 @@ const changes: Area = {
     {
       title: 'GIT_OPTIONAL_LOCKS=0 and a scrubbed Git environment',
       summary: `Reads must never take index.lock or write the index, so they cannot collide with the agent's own Git; inherited GIT_DIR, config injection, external diff and lazy fetch are removed. Status therefore cannot refresh the stat cache, and fsmonitor and the untracked cache are disabled too, so Git re-stats files every time.`,
-      source: at(git('execute-inspection.ts'), 44),
+      source: at(git('run-git.ts'), 44),
     },
     {
       title: 'A reviewed mark is an evidence fingerprint',
@@ -3116,9 +3116,9 @@ const history: Area = {
       doc: doc('commit-history-inspection.md'),
     },
     {
-      title: 'A strict executor for history',
-      summary: `History disables replace objects and grafts, uses literal pathspecs, strips GIT_* variables and decodes strictly, so corrupted or unusual data fails explicitly. It is a third Git executor with its own error mapping.`,
-      source: at(git('execute-history-command.ts'), 7),
+      title: 'Strict history reads over the one runner',
+      summary: `History disables replace objects and grafts, uses literal pathspecs, strips GIT_* variables and decodes strictly, so corrupted or unusual data fails explicitly. It runs on the shared runner and keeps only its own error mapping.`,
+      source: at(git('read-history.ts'), 7),
     },
     {
       title: 'The graph token includes the Git version',
@@ -4799,7 +4799,7 @@ const lifecycle: Area = {
     {
       title: 'Every Git process is bounded',
       summary: `10 s timeout with SIGKILL, capped output and a scrubbed environment for every read; Git actions run in their own process group with a cleanup budget. Hung processes cannot hold the queue forever, but a timeout is not treated as repository unavailability.`,
-      source: at(git('execute-inspection.ts'), 40),
+      source: at(git('run-git.ts'), 40),
     },
     {
       title: 'Diagnostics channels for tooling',
@@ -4871,13 +4871,13 @@ const lifecycle: Area = {
     },
     {
       kind: 'complexity',
-      title: 'Four Git executors, three identity checks',
+      title: 'One Git runner, guards once per request',
       detail: `executeCommand, executeInspection, executeHistoryCommand and GitActionProcess each scrub the environment and map errors differently. Checkout identity is checked by verifyCheckout (2 processes), by listWorktrees (2 + 2W) and by inspectHistoryCheckout (4, including git --version): the same question at three prices.`,
       sources: [
-        at(git('execute-command.ts'), 8),
-        at(git('execute-inspection.ts'), 9),
-        at(git('execute-history-command.ts'), 7),
-        at(git('git-action-process.ts'), 36),
+        at(git('run-git.ts'), 8),
+        at(git('run-git.ts'), 9),
+        at(git('read-history.ts'), 7),
+        at(git('run-git.ts'), 36),
         at(git('commands/verify-checkout.ts'), 5),
         at(caseFile('resolve-readable-worktree.ts'), 23),
         at(git('commands/inspect-history-checkout.ts'), 13),

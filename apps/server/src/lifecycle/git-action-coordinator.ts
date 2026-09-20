@@ -1,5 +1,6 @@
 import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
+import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitActionReceipt, GitActionScope } from '../models/git-action.ts';
 import { ProjectRemovalBlockedError } from '../repositories/errors/project-removal-blocked-error.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
@@ -49,6 +50,7 @@ export class GitActionCoordinator {
         return await this.prepare.execute(
           submitted.scope,
           submitted.intent,
+          new RequestGitSession(),
           operationSignal,
         );
       } catch (error) {
@@ -99,7 +101,7 @@ export class GitActionCoordinator {
     try {
       if (this.failedProjects.has(receipt.projectId))
         throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
-      await this.execute.execute(receipt, signal);
+      await this.execute.execute(receipt, new RequestGitSession(), signal);
     } catch {
       // Set the in-memory block before the queue advances, even if persistence
       // failed while recording an unconfirmed group. Never launch subsequent work.

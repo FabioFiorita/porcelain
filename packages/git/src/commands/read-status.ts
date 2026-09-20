@@ -1,10 +1,15 @@
-import { executeInspection } from '../execute-inspection.ts';
+import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { parseGitStatus } from '../mappers/parse-git-status.ts';
-import { checkConversionFilters } from './check-conversion-filters.ts';
+import { runInspection } from '../read-inspection.ts';
+import { sessionConversionFilters } from './check-conversion-filters.ts';
 
-export async function readStatus(checkout: string, signal?: AbortSignal) {
-  const config = await checkConversionFilters(checkout, signal);
-  const output = await executeInspection(
+export async function readStatus(
+  session: CheckoutSession,
+  signal?: AbortSignal,
+) {
+  const checkout = session.path;
+  const config = await sessionConversionFilters(session, signal);
+  const output = await runInspection(
     checkout,
     [
       'status',
@@ -16,23 +21,21 @@ export async function readStatus(checkout: string, signal?: AbortSignal) {
       '--ignore-submodules=dirty',
       '--find-renames=50%',
     ],
-    8 * 1024 * 1024,
     signal,
-    config,
+    { maxBytes: 8 * 1024 * 1024, config: config },
   );
-  await checkConversionFilters(checkout, signal);
   const status = parseGitStatus(output);
   if (status.branch) {
     const tracking = (
-      await executeInspection(
+      await runInspection(
         checkout,
         [
           'for-each-ref',
           '--format=%(refname)%00%(upstream:remotename)%00%(upstream:remoteref)',
           'refs/heads/',
         ],
-        1024 * 1024,
         signal,
+        { maxBytes: 1024 * 1024 },
       )
     )
       .toString('utf8')
@@ -40,11 +43,11 @@ export async function readStatus(checkout: string, signal?: AbortSignal) {
       .map((line) => line.split('\0'))
       .find(([name]) => name === `refs/heads/${status.branch?.name}`);
     const stashes = (
-      await executeInspection(
+      await runInspection(
         checkout,
         ['stash', 'list', '--format=%H%x00%gs', '-100'],
-        1024 * 1024,
         signal,
+        { maxBytes: 1024 * 1024 },
       )
     )
       .toString('utf8')

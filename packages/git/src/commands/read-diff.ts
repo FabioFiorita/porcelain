@@ -1,22 +1,23 @@
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
-import { executeInspection } from '../execute-inspection.ts';
-import { checkConversionFilters } from './check-conversion-filters.ts';
+import type { CheckoutSession } from '../interfaces/git-session.ts';
+import { runInspection } from '../read-inspection.ts';
+import { sessionConversionFilters } from './check-conversion-filters.ts';
 
 export async function readDiff(
-  checkout: string,
+  session: CheckoutSession,
   change: GitOrdinaryChange,
   signal?: AbortSignal,
 ): Promise<GitDiffResult> {
-  const [result] = await readDiffs(checkout, [change], signal);
+  const [result] = await readDiffs(session, [change], signal);
   if (!result) throw new Error('Missing diff result');
   return result;
 }
 
-/** Checks conversion filters once around the whole batch, not once per change. */
+/** The request's filter check is reused; it is not repeated around the batch. */
 export async function readDiffs(
-  checkout: string,
+  session: CheckoutSession,
   changes: readonly GitOrdinaryChange[],
   signal?: AbortSignal,
 ): Promise<GitDiffResult[]> {
@@ -28,9 +29,7 @@ export async function readDiffs(
     ),
   ];
   const config =
-    converted.length > 0
-      ? await checkConversionFilters(checkout, signal, converted)
-      : [];
+    converted.length > 0 ? await sessionConversionFilters(session, signal) : [];
   const results: GitDiffResult[] = [];
   for (let offset = 0; offset < changes.length; offset += 8) {
     const loaded = await Promise.allSettled(
@@ -38,7 +37,7 @@ export async function readDiffs(
         .slice(offset, offset + 8)
         .map((change) =>
           readPatch(
-            checkout,
+            session.path,
             change,
             change.scope === 'unstaged' ? config : [],
             signal,
@@ -50,8 +49,6 @@ export async function readDiffs(
       results.push(result.value);
     }
   }
-  if (converted.length > 0)
-    await checkConversionFilters(checkout, signal, converted);
   return results;
 }
 
@@ -74,7 +71,7 @@ async function readPatch(
       `:(top,glob)${[...path].map((character) => `\\${character}`).join('')}`,
   );
   try {
-    const output = await executeInspection(
+    const output = await runInspection(
       checkout,
       [
         'diff',
@@ -93,9 +90,8 @@ async function readPatch(
         '--',
         ...pathspecs,
       ],
-      1024 * 1024,
       signal,
-      config,
+      { maxBytes: 1024 * 1024, config: config },
     );
     try {
       const patch = new TextDecoder('utf-8', { fatal: true }).decode(output);

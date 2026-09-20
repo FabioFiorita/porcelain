@@ -4,7 +4,8 @@ import type { HistoryCheckout } from '../dtos/commit-history.ts';
 import { HistorySnapshotUnavailableError } from '../errors/history-snapshot-unavailable-error.ts';
 import { HistoryWorktreeUnavailableError } from '../errors/history-worktree-unavailable-error.ts';
 import { isRepositoryUnavailable } from '../errors/is-repository-unavailable.ts';
-import { executeHistoryCommand } from '../execute-history-command.ts';
+import { readGitVersion } from '../read-git-version.ts';
+import { readHistory } from '../read-history.ts';
 
 async function identity(path: string): Promise<string> {
   const value = await stat(path, { bigint: true });
@@ -16,14 +17,14 @@ async function inspectCheckout(
 ): Promise<string> {
   signal?.throwIfAborted();
   const common = (
-    await executeHistoryCommand(
+    await readHistory(
       checkout.path,
       ['rev-parse', '--path-format=absolute', '--git-common-dir'],
       signal,
     )
   ).slice(0, -1);
   const metadata = (
-    await executeHistoryCommand(
+    await readHistory(
       checkout.path,
       ['rev-parse', '--absolute-git-dir'],
       signal,
@@ -35,18 +36,14 @@ async function inspectCheckout(
   )
     throw new HistoryWorktreeUnavailableError();
   const shallowPath = (
-    await executeHistoryCommand(
+    await readHistory(
       checkout.path,
       ['rev-parse', '--path-format=absolute', '--git-path', 'shallow'],
       signal,
     )
   ).slice(0, -1);
   const shallow = await readShallowBoundary(shallowPath);
-  const version = await executeHistoryCommand(
-    checkout.path,
-    ['--version'],
-    signal,
-  );
+  const version = await readGitVersion();
   return createHash('sha256').update(version).update(shallow).digest('hex');
 }
 

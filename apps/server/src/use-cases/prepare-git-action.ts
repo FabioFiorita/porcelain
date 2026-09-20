@@ -1,6 +1,7 @@
 import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
 import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type {
   GitActionPreparation,
   GitActionScope,
@@ -8,7 +9,7 @@ import type {
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
-import { resolveActionWorktree } from './resolve-action-worktree.ts';
+import { resolveActionCheckout } from './resolve-action-worktree.ts';
 
 export class PrepareGitAction {
   private readonly inventory: InventoryStore;
@@ -32,16 +33,13 @@ export class PrepareGitAction {
   async execute(
     scope: GitActionScope,
     intent: GitActionIntent,
+    session: GitSession,
     signal: AbortSignal,
   ): Promise<GitActionPreparation> {
     if (this.store.isBlocked(scope.projectId))
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
-    const target = resolveActionWorktree(this.inventory, scope);
-    const snapshot = await this.git(
-      target.worktree.path,
-      target.metadataIdentity,
-      target.repositoryIdentity,
-    )
+    const { checkout } = resolveActionCheckout(this.inventory, session, scope);
+    const snapshot = await this.git(checkout)
       .inspect(intent, signal)
       .catch((error: unknown) => {
         if (
@@ -58,7 +56,11 @@ export class PrepareGitAction {
       });
     if (intent.action === 'commit' && intent.expectedFiles) {
       if (!this.evidence) throw new GitActionRejectedError('STALE_PREPARATION');
-      const current = await this.evidence.execute(scope.worktreeId, signal);
+      const current = await this.evidence.execute(
+        scope.worktreeId,
+        session,
+        signal,
+      );
       if (
         intent.expectedFiles.some(
           (expected) =>
@@ -67,11 +69,7 @@ export class PrepareGitAction {
         )
       )
         throw new GitActionRejectedError('STALE_PREPARATION');
-      const verified = await this.git(
-        target.worktree.path,
-        target.metadataIdentity,
-        target.repositoryIdentity,
-      ).inspect(intent, signal);
+      const verified = await this.git(checkout).inspect(intent, signal);
       if (verified.fingerprint !== snapshot.fingerprint)
         throw new GitActionRejectedError('STALE_PREPARATION');
     }
@@ -84,6 +82,9 @@ export class PrepareGitAction {
       fingerprint: snapshot.fingerprint,
       preview: snapshot.preview,
     };
+    // The preview and fingerprint are about to be stored, so confirm they came
+    // from the checkout this request verified.
+    await checkout.confirm(signal);
     this.store.savePreparation(preparation);
     return preparation;
   }

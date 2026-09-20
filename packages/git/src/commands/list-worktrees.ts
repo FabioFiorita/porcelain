@@ -7,7 +7,7 @@ import { isRepositoryUnavailable } from '../errors/is-repository-unavailable.ts'
 import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
 import { UnsupportedFilesystemIdentityError } from '../errors/unsupported-filesystem-identity-error.ts';
 import { UnsupportedRepositoryError } from '../errors/unsupported-repository-error.ts';
-import { executeCommand } from '../execute-command.ts';
+import { runGitRead } from '../run-git.ts';
 
 async function identity(path: string): Promise<string> {
   const info = await stat(path, { bigint: true });
@@ -26,15 +26,19 @@ async function inspectWorktree(
 }> {
   try {
     const directory = (
-      await executeCommand(path, ['rev-parse', '--absolute-git-dir'], signal)
-    ).slice(0, -1);
+      await runGitRead(path, ['rev-parse', '--absolute-git-dir'], signal)
+    )
+      .toString('utf8')
+      .slice(0, -1);
     const common = (
-      await executeCommand(
+      await runGitRead(
         path,
         ['rev-parse', '--path-format=absolute', '--git-common-dir'],
         signal,
       )
-    ).slice(0, -1);
+    )
+      .toString('utf8')
+      .slice(0, -1);
     if ((await identity(common)) !== repositoryIdentity)
       throw new RepositoryIdentityMismatchError();
     return {
@@ -60,19 +64,23 @@ export async function listWorktrees(
   const issues: DiscoveryIssue[] = [];
   const commonDirectory = await realpath(
     (
-      await executeCommand(
+      await runGitRead(
         checkout,
         ['rev-parse', '--path-format=absolute', '--git-common-dir'],
         signal,
       )
-    ).slice(0, -1),
+    )
+      .toString('utf8')
+      .slice(0, -1),
   );
   const repositoryIdentity = await identity(commonDirectory);
-  const output = await executeCommand(
-    checkout,
-    ['worktree', 'list', '--porcelain', '-z'],
-    signal,
-  );
+  const output = (
+    await runGitRead(
+      checkout,
+      ['worktree', 'list', '--porcelain', '-z'],
+      signal,
+    )
+  ).toString('utf8');
   const records = output.split('\0\0').filter(Boolean);
   const worktrees: DiscoveredRepository['worktrees'] = [];
   for (const [index, record] of records.entries()) {

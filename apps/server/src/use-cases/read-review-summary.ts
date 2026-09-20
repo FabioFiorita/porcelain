@@ -1,3 +1,4 @@
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { CommentThreads } from './comment-threads.ts';
 import type { ListReviewedFiles } from './list-reviewed-files.ts';
 import type { ReadWorktreeEvidence } from './read-worktree-evidence.ts';
@@ -19,7 +20,7 @@ export class ReadReviewSummary {
     this.reviewed = reviewed;
     this.comments = comments;
   }
-  async execute(worktreeId: string, signal: AbortSignal) {
+  async execute(worktreeId: string, session: GitSession, signal: AbortSignal) {
     const marks = new Map(
       this.reviewed
         .execute(worktreeId)
@@ -27,14 +28,14 @@ export class ReadReviewSummary {
     );
     let pendingFiles: number;
     if (marks.size === 0) {
-      const { status } = await this.status.execute(worktreeId, signal);
+      const { status } = await this.status.execute(worktreeId, session, signal);
       pendingFiles = new Set(
         status.changes.map((change) =>
           'path' in change ? change.path : (change.newPath ?? change.oldPath),
         ),
       ).size;
     } else {
-      const evidence = await this.evidence.execute(worktreeId, signal);
+      const evidence = await this.evidence.execute(worktreeId, session, signal);
       pendingFiles = evidence.evidence.filter(
         (entry) =>
           entry.fingerprint === null ||

@@ -7,7 +7,7 @@ import type {
 import { HistorySnapshotUnavailableError } from '../errors/history-snapshot-unavailable-error.ts';
 import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
 import { ReadLimitExceededError } from '../errors/read-limit-exceeded-error.ts';
-import { executeHistoryCommand } from '../execute-history-command.ts';
+import { readHistory } from '../read-history.ts';
 import { inspectHistoryCheckout } from './inspect-history-checkout.ts';
 import { readCommit, readHead } from './read-commit.ts';
 
@@ -30,7 +30,7 @@ export async function listCommits(
     return { snapshot, commits: [], nextCursor: null, boundary: null };
   }
   const offset = cursor?.offset ?? 0;
-  const output = await executeHistoryCommand(
+  const output = await readHistory(
     checkout.path,
     [
       'rev-list',
@@ -51,7 +51,7 @@ export async function listCommits(
   const more = oids.length > limit;
   const shallow =
     (
-      await executeHistoryCommand(
+      await readHistory(
         checkout.path,
         ['rev-parse', '--is-shallow-repository'],
         signal,
@@ -83,7 +83,7 @@ async function readCommitRefs(
   checkout: string,
   signal?: AbortSignal,
 ): Promise<Map<string, string[]>> {
-  const output = await executeHistoryCommand(
+  const output = await readHistory(
     checkout,
     [
       'for-each-ref',

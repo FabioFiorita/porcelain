@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises';
 import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
-import { executeInspection } from '../execute-inspection.ts';
+import { runInspection } from '../read-inspection.ts';
 
 export async function verifyCheckout(
   checkout: string,
@@ -8,11 +8,11 @@ export async function verifyCheckout(
   expectedRepositoryIdentity: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  const output = await executeInspection(
+  const output = await runInspection(
     checkout,
     ['rev-parse', '--absolute-git-dir'],
-    16384,
     signal,
+    { maxBytes: 16384 },
   );
   const directory = new TextDecoder('utf-8', { fatal: true })
     .decode(output)
@@ -22,11 +22,11 @@ export async function verifyCheckout(
   if (`${info.dev}:${info.ino}:${info.birthtimeNs}` !== expectedIdentity) {
     throw new RepositoryIdentityMismatchError();
   }
-  const common = await executeInspection(
+  const common = await runInspection(
     checkout,
     ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-    16384,
     signal,
+    { maxBytes: 16384 },
   );
   const commonDirectory = new TextDecoder('utf-8', { fatal: true })
     .decode(common)

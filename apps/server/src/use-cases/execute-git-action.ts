@@ -1,11 +1,12 @@
 import type { GitActionOutcome } from '@porcelain/git/dtos/git-action';
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
 import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
+import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { GitActionReceipt } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import type { CompleteCommitReview } from './complete-commit-review.ts';
-import { resolveActionWorktree } from './resolve-action-worktree.ts';
+import { resolveActionCheckout } from './resolve-action-worktree.ts';
 
 export class ExecuteGitAction {
   private readonly inventory: InventoryStore;
@@ -23,9 +24,13 @@ export class ExecuteGitAction {
     this.git = git;
     this.review = review;
   }
-  async execute(receipt: GitActionReceipt, signal: AbortSignal): Promise<void> {
+  async execute(
+    receipt: GitActionReceipt,
+    session: GitSession,
+    signal: AbortSignal,
+  ): Promise<void> {
     const state = { launched: false };
-    const outcome = await this.perform(receipt, signal, state).catch(
+    const outcome = await this.perform(receipt, session, signal, state).catch(
       (error: unknown): GitActionOutcome => {
         if (
           error instanceof GitActionRejectedError &&
@@ -82,6 +87,7 @@ export class ExecuteGitAction {
   }
   private async perform(
     receipt: GitActionReceipt,
+    session: GitSession,
     signal: AbortSignal,
     state: { launched: boolean },
   ): Promise<GitActionOutcome> {
@@ -91,12 +97,12 @@ export class ExecuteGitAction {
     const preparation = this.store.preparation(receipt.preparationId);
     if (!preparation || preparation.expiresAt <= Date.now())
       throw new GitActionRejectedError('STALE_PREPARATION');
-    const target = resolveActionWorktree(this.inventory, receipt);
-    const git = this.git(
-      target.worktree.path,
-      target.metadataIdentity,
-      target.repositoryIdentity,
+    const { checkout } = resolveActionCheckout(
+      this.inventory,
+      session,
+      receipt,
     );
+    const git = this.git(checkout);
     const snapshot = await git.inspect(preparation.intent, signal);
     if (snapshot.fingerprint !== preparation.fingerprint)
       throw new GitActionRejectedError('STALE_PREPARATION');

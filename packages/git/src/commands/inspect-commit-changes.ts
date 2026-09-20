@@ -7,11 +7,11 @@ import type {
 import { HistorySnapshotUnavailableError } from '../errors/history-snapshot-unavailable-error.ts';
 import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
 import { ReadLimitExceededError } from '../errors/read-limit-exceeded-error.ts';
-import { executeHistoryCommand } from '../execute-history-command.ts';
 import {
   attachCommitPatches,
   parseCommitChanges,
 } from '../mappers/parse-commit-changes.ts';
+import { readHistory } from '../read-history.ts';
 import { inspectHistoryCheckout } from './inspect-history-checkout.ts';
 import { readCommit } from './read-commit.ts';
 
@@ -59,14 +59,14 @@ export async function inspectCommitChanges(
     '--src-prefix=a/',
     '--dst-prefix=b/',
   ];
-  const raw = await executeHistoryCommand(
+  const raw = await readHistory(
     checkout.path,
     [...args, '--raw', '-z', ...revisions, '--'],
     signal,
   );
   const changes = parseCommitChanges(raw);
   const patch = changes.length
-    ? await executeHistoryCommand(
+    ? await readHistory(
         checkout.path,
         [...args, '--patch', '--unified=3', ...revisions, '--'],
         signal,

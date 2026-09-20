@@ -1,13 +1,13 @@
 import { UnsupportedPathEncodingError } from './errors/unsupported-path-encoding-error.ts';
-import { executeInspection } from './execute-inspection.ts';
+import { runInspection } from './read-inspection.ts';
 
 export async function readTreePaths(checkout: string, signal?: AbortSignal) {
   const read = async (args: string[]) => {
-    const raw = await executeInspection(
+    const raw = await runInspection(
       checkout,
       ['ls-files', '-z', ...args],
-      8 * 1024 * 1024,
       signal,
+      { maxBytes: 8 * 1024 * 1024 },
     );
     try {
       return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })

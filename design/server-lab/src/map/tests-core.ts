@@ -303,7 +303,7 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'adequate',
   },
   {
-    file: 'packages/git/src/execute-history-command.spec.ts',
+    file: 'packages/git/src/read-history.spec.ts',
     areas: ['history'],
     kind: 'unit',
     real: ['error classification logic'],
@@ -329,7 +329,7 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'adequate',
   },
   {
-    file: 'packages/git/src/execute-command.spec.ts',
+    file: 'packages/git/src/run-git.spec.ts',
     areas: ['inventory', 'history'],
     kind: 'process',
     real: ['child-process', 'filesystem', 'git (environment test)'],
@@ -392,7 +392,7 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'strong',
   },
   {
-    file: 'packages/git/src/git-action-process.spec.ts',
+    file: 'packages/git/src/run-git-action.spec.ts',
     areas: ['git-actions'],
     kind: 'process',
     real: [
