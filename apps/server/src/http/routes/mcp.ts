@@ -15,7 +15,10 @@ export async function mcpRoutes(
   });
   // The agent door: a caller reaching it with the bearer token is an agent,
   // whatever it claims in a payload.
-  server.addHook('onRequest', authenticate(options.token, { kind: 'agent' }));
+  server.addHook(
+    'onRequest',
+    authenticate({ ...options, grant: { kind: 'agent' } }),
+  );
   server.all(
     '/mcp',
     { bodyLimit: 6 * 1024 * 1024 + 4096 },
