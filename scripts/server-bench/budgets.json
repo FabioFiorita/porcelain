@@ -1,87 +1,87 @@
 {
   "recorded": {
-    "commit": "57feb60a",
+    "commit": "bc058d01",
     "runs": 3,
     "node": "v24.20.0",
     "git": "git version 2.53.0",
     "how": "scripts/server-bench/run.ts, one fresh playground per run, identical counts in all three runs",
-    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server."
+    "note": "Ceilings are measured current cost with headroom, not targets for the rebuilt server. Lowered in step 2a when guards moved to once per request."
   },
   "profiles": {
     "app": {
       "open": {
-        "measured": 47,
-        "ceiling": 58
+        "measured": 32,
+        "ceiling": 40
       },
       "select": {
-        "measured": 205,
-        "ceiling": 248
+        "measured": 163,
+        "ceiling": 197
       },
       "reselect": {
-        "measured": 26,
-        "ceiling": 33
+        "measured": 16,
+        "ceiling": 21
       },
       "diffs": {
-        "measured": 180,
-        "ceiling": 218
+        "measured": 68,
+        "ceiling": 83
       },
       "files": {
         "measured": 98,
         "ceiling": 119
       },
       "history": {
-        "measured": 97,
-        "ceiling": 118
+        "measured": 89,
+        "ceiling": 108
       },
       "mark": {
-        "measured": 143,
-        "ceiling": 173
+        "measured": 108,
+        "ceiling": 131
       },
       "sidebar-marked": {
-        "measured": 39,
-        "ceiling": 48
+        "measured": 24,
+        "ceiling": 30
       },
       "agent-edit": {
-        "measured": 443,
-        "ceiling": 533
+        "measured": 354,
+        "ceiling": 426
       }
     },
     "monorepo": {
       "open": {
-        "measured": 77,
-        "ceiling": 94
+        "measured": 52,
+        "ceiling": 64
       },
       "select": {
-        "measured": 158,
-        "ceiling": 191
+        "measured": 124,
+        "ceiling": 150
       },
       "reselect": {
-        "measured": 26,
-        "ceiling": 33
+        "measured": 16,
+        "ceiling": 21
       },
       "diffs": {
-        "measured": 184,
-        "ceiling": 222
+        "measured": 68,
+        "ceiling": 83
       },
       "files": {
         "measured": 146,
         "ceiling": 177
       },
       "history": {
-        "measured": 97,
-        "ceiling": 118
+        "measured": 89,
+        "ceiling": 108
       },
       "mark": {
-        "measured": 143,
-        "ceiling": 173
+        "measured": 108,
+        "ceiling": 131
       },
       "sidebar-marked": {
-        "measured": 65,
-        "ceiling": 80
+        "measured": 40,
+        "ceiling": 50
       },
       "agent-edit": {
-        "measured": 375,
-        "ceiling": 452
+        "measured": 292,
+        "ceiling": 352
       }
     }
   }

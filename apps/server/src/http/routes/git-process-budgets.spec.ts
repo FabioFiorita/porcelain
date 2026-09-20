@@ -92,6 +92,11 @@ async function fixture(
     server: Awaited<ReturnType<typeof createServer>>,
     worktreeId: string,
     measure: (work: () => Promise<void>) => Promise<number>,
+    /** A second server over the same checkout, with nothing cached. */
+    coldServer: () => Promise<{
+      server: Awaited<ReturnType<typeof createServer>>;
+      worktreeId: string;
+    }>,
   ) => Promise<void>,
 ) {
   const { root, checkout } = await repository(changedFiles);
@@ -112,8 +117,27 @@ async function fixture(
     );
     const worktreeId = registered.worktrees[0]?.id;
     if (!worktreeId) throw new Error('Fixture registration failed');
+    const coldServer = async () => {
+      const cold = await createServer({
+        dataDirectory: join(root, 'cold-state'),
+        token,
+      });
+      const registeredCold = projectResponseSchema.parse(
+        (
+          await cold.inject({
+            method: 'POST',
+            url: '/projects',
+            headers,
+            payload: { path: checkout },
+          })
+        ).json(),
+      );
+      const id = registeredCold.worktrees[0]?.id;
+      if (!id) throw new Error('Cold registration failed');
+      return { server: cold, worktreeId: id };
+    };
     // Subscribe after the fixture's own Git commands have run.
-    await run(server, worktreeId, countGitProcesses());
+    await run(server, worktreeId, countGitProcesses(), coldServer);
   } finally {
     await server.close();
     await rm(root, { recursive: true, force: true });
@@ -165,15 +189,15 @@ describe('Git process budgets', () => {
     }
     const small = counts[2] ?? 0;
     const large = counts[10] ?? 0;
-    // Measured: 36 for 2 changed files and 44 for 10, so exactly one Git
-    // process per changed file over a fixed base. The fan-out is the failure
-    // this guards, so the slope is asserted as well as the total.
+    // Measured 15 for 2 changed files and 23 for 10: still exactly one Git
+    // process per changed file, over a base that guards once per request
+    // rather than around every call. The slope is the fan-out step 5 removes.
     expect(large - small).toBeLessThanOrEqual(10);
-    expect(large).toBeLessThanOrEqual(52);
+    expect(large).toBeLessThanOrEqual(29);
   });
 
-  it('marks a file reviewed within its budget', async () => {
-    await fixture(2, async (server, worktreeId, measure) => {
+  it('marks a file reviewed within its budget, warm and cold', async () => {
+    await fixture(2, async (server, worktreeId, measure, coldServer) => {
       const evidence = evidenceResponseSchema.parse(
         (
           await server.inject({
@@ -197,9 +221,33 @@ describe('Git process budgets', () => {
         });
         expect(response.statusCode).toBe(200);
       });
-      // Measured 35: a database write that revalidates the fingerprint by
-      // re-reading status and repository configuration first.
-      expect(spawned).toBeLessThanOrEqual(42);
+      // Warm: the preceding read left the worktree's changes cached, so the
+      // mark only revalidates the fingerprint.
+      expect(spawned).toBeLessThanOrEqual(18);
+
+      // Cold: a second server over the same checkout has nothing cached, which
+      // is what a mark costs when it is the request's first read.
+      const cold = await coldServer();
+      try {
+        const coldSpawned = await measure(async () => {
+          const response = await cold.server.inject({
+            method: 'PUT',
+            url: `/worktrees/${cold.worktreeId}/reviewed`,
+            headers,
+            payload: {
+              path: evidence.path,
+              reviewed: true,
+              fingerprint: evidence.fingerprint,
+            },
+          });
+          expect(response.statusCode).toBe(200);
+        });
+        // Measured 14, the same as warm: the guards that made a cold mark
+        // cost 35 are gone, so the cache no longer changes its Git cost.
+        expect(coldSpawned).toBeLessThanOrEqual(18);
+      } finally {
+        await cold.server.close();
+      }
     });
   });
 
@@ -235,8 +283,8 @@ describe('Git process budgets', () => {
         });
         expect(response.statusCode).toBe(200);
       });
-      // Measured 35: the route revalidates the status token before reading.
-      expect(spawned).toBeLessThanOrEqual(42);
+      // Measured 12: the route still revalidates the status token first.
+      expect(spawned).toBeLessThanOrEqual(16);
     });
   });
 
@@ -250,7 +298,7 @@ describe('Git process budgets', () => {
         });
         expect(response.statusCode).toBe(200);
       });
-      // Measured 8.
+      // Measured 8, unchanged: this read was never guard-bound.
       expect(spawned).toBeLessThanOrEqual(12);
     });
   });
