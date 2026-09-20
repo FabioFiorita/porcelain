@@ -19,6 +19,7 @@ import {
   directoryResponseSchema,
   type FileEdit,
   fileEditResultSchema,
+  previewAssetsResponseSchema,
   textResponseSchema,
   worktreePathsSchema,
 } from '@porcelain/contracts/files';
@@ -88,6 +89,11 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
       read(request, 'paths', worktreePathsSchema),
     editFile: (request: Request & { input: FileEdit }) =>
       read(request, 'files', fileEditResultSchema, request.input),
+    previewAssets: (request: Request & { document: string; paths: string[] }) =>
+      read(request, 'preview-assets', previewAssetsResponseSchema, {
+        document: request.document,
+        paths: request.paths,
+      }),
     asset: (request: Request & { path: string }) =>
       read(
         request,

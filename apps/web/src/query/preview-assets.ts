@@ -26,8 +26,19 @@ export function useHtmlPreview(scope: ReviewScope, path: string, html: string) {
       html,
     ],
     queryFn: ({ signal }) =>
-      inlineHtmlAssets(html, path, (path) =>
-        api.review.asset({ ...scope, ...connection.request(signal), path }),
-      ),
+      inlineHtmlAssets(html, path, async (paths) => {
+        const answer = await api.review.previewAssets({
+          ...scope,
+          ...connection.request(signal),
+          document: path,
+          paths,
+        });
+        return new Map(
+          answer.assets.map((asset) => [
+            asset.path,
+            asset.kind === 'asset' ? asset : null,
+          ]),
+        );
+      }),
   });
 }

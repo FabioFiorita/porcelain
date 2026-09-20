@@ -61,6 +61,7 @@ import type {
   ChangeDiff,
   ExpectedFile,
 } from './use-cases/read-change-diffs.ts';
+import type { PreviewAsset } from './use-cases/read-preview-assets.ts';
 
 export interface Application {
   /** Every name quick open can offer, read once per opening. */
@@ -257,6 +258,12 @@ export interface Application {
     path: string,
     signal?: AbortSignal,
   ): Promise<TextContent>;
+  previewAssets(
+    worktreeId: string,
+    document: string,
+    paths: string[],
+    signal?: AbortSignal,
+  ): Promise<PreviewAsset[]>;
   register(
     checkout: string,
     signal?: AbortSignal,

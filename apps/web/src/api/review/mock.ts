@@ -45,6 +45,15 @@ export function createReviewMock(
     return structuredClone(fixture);
   }
   return {
+    async previewAssets(request) {
+      await context(request);
+      return {
+        assets: request.paths.map((path) => ({
+          kind: 'unavailable' as const,
+          path,
+        })),
+      };
+    },
     async worktreePaths(request) {
       const data = await context(request);
       return {

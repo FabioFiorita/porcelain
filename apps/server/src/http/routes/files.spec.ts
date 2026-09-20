@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   directoryResponseSchema,
+  previewAssetsResponseSchema,
   textResponseSchema,
 } from '@porcelain/contracts/files';
 import { projectResponseSchema } from '@porcelain/contracts/inventory';
@@ -68,6 +69,78 @@ describe('Files HTTP', () => {
       await rm(root, { recursive: true, force: true });
     }
   }
+
+  /**
+   * The preview batch is driven by HTML nobody wrote on purpose, so its bound
+   * is the document's own folder. The browser resolves `../` before the server
+   * sees anything, which is why the document has to be named in the request.
+   */
+  it('reads a preview\u2019s assets in one request, bounded to the document folder', async () => {
+    await fixture(async (server, _root, path, id, headers) => {
+      await mkdir(join(path, 'reports'));
+      await writeFile(join(path, 'reports', 'chart.png'), 'png bytes');
+      await writeFile(join(path, 'reports', 'style.css'), 'body{}');
+      await writeFile(join(path, 'secrets.js'), 'const token = 1;');
+      await writeFile(join(path, '.env'), 'TOKEN=1');
+      const url = `/api/worktrees/${id}/preview-assets`;
+      const ask = async (payload: { document: string; paths: string[] }) =>
+        await server.inject({ method: 'POST', url, headers, payload });
+
+      const answered = await ask({
+        document: 'reports/index.html',
+        paths: [
+          'reports/chart.png',
+          'reports/style.css',
+          // Already resolved by the browser, so it arrives looking ordinary.
+          'secrets.js',
+          '.env',
+          'reports/absent.png',
+          // Asking twice must not buy twice the budget.
+          'reports/chart.png',
+        ],
+      });
+      expect(answered.statusCode).toBe(200);
+      const assets = previewAssetsResponseSchema.parse(answered.json()).assets;
+      expect(assets.map((asset) => [asset.path, asset.kind])).toEqual([
+        ['reports/chart.png', 'asset'],
+        ['reports/style.css', 'asset'],
+        ['secrets.js', 'unavailable'],
+        ['.env', 'unavailable'],
+        ['reports/absent.png', 'unavailable'],
+      ]);
+      // One answer for every reason, so a preview cannot map the worktree by
+      // telling a refusal apart from an absence.
+      expect(
+        assets.filter((asset) => asset.kind === 'unavailable'),
+      ).toHaveLength(3);
+      const chart = assets[0];
+      expect(chart?.kind === 'asset' && chart.mediaType).toBe('image/png');
+
+      // A document at the worktree root has the worktree as its folder.
+      const atRoot = await ask({
+        document: 'index.html',
+        paths: ['secrets.js'],
+      });
+      expect(
+        previewAssetsResponseSchema.parse(atRoot.json()).assets[0]?.kind,
+      ).toBe('asset');
+
+      expect((await server.inject({ method: 'POST', url })).statusCode).toBe(
+        401,
+      );
+      expect(
+        (await ask({ document: 'reports/index.html', paths: [] })).statusCode,
+      ).toBe(400);
+      expect(
+        (
+          await ask({
+            document: 'reports/index.html',
+            paths: Array.from({ length: 65 }, (_, index) => `a${index}.png`),
+          })
+        ).statusCode,
+      ).toBe(400);
+    });
+  });
 
   it('serves bounded preview assets while rejecting unauthenticated, escaping and symlink reads', async () => {
     await fixture(async (server, root, path, id, headers) => {

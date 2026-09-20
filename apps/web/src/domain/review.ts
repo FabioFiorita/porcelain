@@ -16,6 +16,7 @@ import type {
 import type { CommitPageResponse } from '@porcelain/contracts/commit-history';
 import type {
   DirectoryResponse,
+  PreviewAssetsResponse,
   TextResponse,
 } from '@porcelain/contracts/files';
 import type { GitStatusResponse } from '@porcelain/contracts/git-status';
@@ -27,6 +28,7 @@ import type {
 } from '@porcelain/contracts/reviewed-files';
 
 export type Directory = DirectoryResponse;
+export type PreviewAssets = PreviewAssetsResponse;
 export type History = CommitPageResponse;
 export type Artifact = ArtifactMetadataResponse;
 export type ArtifactContent = ArtifactContentResponse;

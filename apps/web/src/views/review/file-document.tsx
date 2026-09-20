@@ -279,8 +279,10 @@ function ReadableFileDocument({
       ) : mode === 'rendered' && kind === 'html' ? (
         <div className="flex min-h-0 flex-1 flex-col bg-background">
           <p className="border-b bg-muted/40 px-3.5 py-1.5 text-[11px] text-muted-foreground">
-            Sandboxed preview: scripts run, but the page cannot reach Porcelain,
-            your cookies or the network origin.
+            Sandboxed preview: scripts run, and cannot read Porcelain, your
+            cookies or the review API, load anything from the network, submit a
+            form, or move the page around them. A script can still send what it
+            sees out by sending this frame to another address.
           </p>
           <HtmlPreview scope={scope} path={path} html={text} />
         </div>

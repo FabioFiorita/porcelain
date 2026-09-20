@@ -75,3 +75,29 @@ export const assetResponseSchema = z.object({
   base64: z.string(),
 });
 export type AssetResponse = z.infer<typeof assetResponseSchema>;
+
+/**
+ * The assets one previewed HTML file needs. The document is named because it
+ * is what bounds the request: the browser has already resolved the references,
+ * so a path that left the document's folder arrives looking ordinary.
+ */
+export const previewAssetsRequestSchema = z.strictObject({
+  document: z.string().max(4096),
+  paths: z.array(z.string().max(4096)).min(1).max(64),
+});
+export const previewAssetsResponseSchema = z.object({
+  assets: z.array(
+    z.discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('asset'),
+        path: z.string(),
+        mediaType: z.string(),
+        base64: z.string(),
+      }),
+      // One answer for every reason: a preview that could tell them apart
+      // could map the worktree by asking.
+      z.object({ kind: z.literal('unavailable'), path: z.string() }),
+    ]),
+  ),
+});
+export type PreviewAssetsResponse = z.infer<typeof previewAssetsResponseSchema>;

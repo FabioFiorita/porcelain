@@ -78,6 +78,7 @@ import { ReadAsset } from './use-cases/read-asset.ts';
 import { ReadChangeDiffs } from './use-cases/read-change-diffs.ts';
 import { ReadChangeLines } from './use-cases/read-change-lines.ts';
 import { ReadCommitFiles } from './use-cases/read-commit-files.ts';
+import { ReadPreviewAssets } from './use-cases/read-preview-assets.ts';
 import { ReadTextFile } from './use-cases/read-text-file.ts';
 import { ReadWorktreeChanges } from './use-cases/read-worktree-changes.ts';
 import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
@@ -372,6 +373,10 @@ export async function openApplication(options: {
     );
     const read = new ReadTextFile(worktrees, files);
     const asset = new ReadAsset(worktrees, new NodeFileReader());
+    const previewAssets = new ReadPreviewAssets(
+      worktrees,
+      new NodeFileReader(),
+    );
     const worktreePaths = new ListWorktreePaths(
       worktrees,
       options.trackedPaths ?? listTrackedPaths,
@@ -695,6 +700,16 @@ export async function openApplication(options: {
             list.execute(id, path, operationSignal),
           { callerSignal: signal },
         ),
+      previewAssets: (id, document, paths, signal) => {
+        const wanted = [...paths];
+        return lanes.run(
+          laneOf(id),
+          'read',
+          ({ signal: operationSignal }) =>
+            previewAssets.execute(id, document, wanted, operationSignal),
+          { callerSignal: signal },
+        );
+      },
       readAsset: (id, path, signal) =>
         lanes.run(
           laneOf(id),

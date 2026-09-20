@@ -10,6 +10,7 @@ import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 import { editFile } from './edit-file.ts';
 import { listDirectory } from './list-directory.ts';
+import { readPreviewAssets } from './read-preview-assets.ts';
 import { readTextFile } from './read-text-file.ts';
 export async function fileRoutes(
   server: FastifyInstance,
@@ -19,6 +20,7 @@ export async function fileRoutes(
   server.addHook('onRequest', authenticate(options));
   listDirectory(server, options);
   readTextFile(server, options);
+  readPreviewAssets(server, options);
   editFile(server, options);
   // Quick open: every name at once, bounded, read per opening rather than
   // held — nothing can tell a cache it went stale until step 6's watcher.

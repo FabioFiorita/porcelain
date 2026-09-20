@@ -2542,12 +2542,6 @@ const files: Area = {
           7,
           `Image preview (image-preview.tsx:13), one query per image.`,
         ),
-        wt(
-          'useHtmlPreview',
-          web('query/preview-assets.ts'),
-          19,
-          `HTML preview (html-preview.tsx:15) inlines up to 64 referenced assets, one request each, awaited one at a time (domain/html-assets.ts:45). The query key includes the whole HTML text.`,
-        ),
       ],
       steps: [
         s(
@@ -2585,7 +2579,59 @@ const files: Area = {
       runner: 'operations',
       gitCommands: READABLE_GIT,
       tables: INVENTORY_READ,
-      cost: '4 + 4W Git processes per asset; an HTML preview with A assets costs A times that, serially.',
+      cost: '4 + 4W Git processes per asset. Image previews only since step 5d; an HTML preview reads its assets through files.preview-assets.',
+    },
+    {
+      id: 'files.preview-assets',
+      title: "Read a previewed document's assets",
+      endpoint: {
+        method: 'POST',
+        path: '/api/worktrees/:worktreeId/preview-assets',
+        source: at(route('read-preview-assets.ts'), 21),
+      },
+      webTriggers: [
+        wt(
+          'useHtmlPreview',
+          web('query/preview-assets.ts'),
+          19,
+          `HTML preview (html-preview.tsx:15) asks once per round of discovery — the document's own references, then whatever its stylesheets named — instead of once per asset. The query key includes the whole HTML text.`,
+        ),
+      ],
+      steps: [
+        s(
+          'route',
+          'readPreviewAssets',
+          `Carries the document the assets belong to, which is what bounds the request, and up to 64 paths.`,
+          route('read-preview-assets.ts'),
+          21,
+        ),
+        s(
+          'application',
+          'Application.previewAssets',
+          `Queues on operations.`,
+          APP,
+          698,
+        ),
+        operationsStep(`Serialized with all main-queue work.`),
+        s(
+          'use-case',
+          'ReadPreviewAssets.execute',
+          `Refuses any path outside the document's folder, deduplicates, and reads sequentially against a shared 16 MiB budget so a request for sixty-four large files stops at the cap rather than allocating its way there.`,
+          caseFile('read-preview-assets.ts'),
+          42,
+        ),
+        s(
+          'filesystem',
+          'NodeFileReader.readBytes',
+          `The same guarded read as a single asset: extension allow-list, 10 MiB, no final symlink, path rechecked after the bytes.`,
+          caseFile('read-preview-assets.ts'),
+          104,
+        ),
+      ],
+      runner: 'operations',
+      gitCommands: READABLE_GIT,
+      tables: INVENTORY_READ,
+      cost: 'One request per round of discovery rather than one per asset. Measured against the old path on 64 assets of 64 KiB: 64 requests and 171 ms became 1 request and 101 ms, for the same 5.3 MiB — it removes admissions and latency, not bytes.',
     },
     {
       id: 'files.edit',
@@ -2753,6 +2799,11 @@ const files: Area = {
     },
   ],
   decisions: [
+    {
+      title: 'A preview runs scripts and can still send itself away',
+      summary: `An \`.html\` file previews from \`srcdoc\` in an opaque-origin sandbox with a prepended policy of \`default-src 'none'\`, so it makes no network request of its own: assets are carried inside it as \`data:\` URLs and references are bounded to the document's own folder, in the rewriter and again in the read. What the sandbox does not stop is the frame navigating itself, which no directive in this set governs, so a script can put what it can see into an address and go there. Scripts were kept because an agent's report is worth reading with its charts working; the leak is written down and the banner above the preview says it.`,
+      doc: doc('html-preview-sandbox.md'),
+    },
     {
       title: 'Guarded, bounded reads with identity checks before and after',
       summary: `The server assumes trusted local writers but still refuses symlink traversal, checks the checkout identity around reads and rejects observed changes with CONTENT_CHANGED. Results are observations, not snapshots, and every read pays a Git worktree listing twice.`,
