@@ -34,6 +34,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
   execFileSync('git', ['-C', path, 'worktree', 'add', '-b', 'review', linked]);
   await writeFile(join(linked, 'notes.txt'), 'after\n');
   const server = await createServer({ dataDirectory, token });
+  await server.refreshed();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     async function request(url: string, method = 'GET', body?: unknown) {
@@ -114,6 +115,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     await request('/inventory/refresh', 'POST');
     await server.close();
     const restarted = await createServer({ dataDirectory, token });
+    await restarted.refreshed();
     try {
       const headers = { authorization: `Bearer ${token}` };
       const restored = await restarted.inject({

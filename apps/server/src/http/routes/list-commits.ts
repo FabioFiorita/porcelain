@@ -25,14 +25,18 @@ export function listCommits(
     },
     async (request) =>
       toCommitPageResponse(
-        await options.application.listCommits(request.params.worktreeId, {
-          ...(request.query.limit !== undefined
-            ? { limit: request.query.limit }
-            : {}),
-          ...(request.query.cursor !== undefined
-            ? { cursor: request.query.cursor }
-            : {}),
-        }),
+        await options.application.listCommits(
+          request.params.worktreeId,
+          {
+            ...(request.query.limit !== undefined
+              ? { limit: request.query.limit }
+              : {}),
+            ...(request.query.cursor !== undefined
+              ? { cursor: request.query.cursor }
+              : {}),
+          },
+          request.disconnected,
+        ),
       ),
   );
 }

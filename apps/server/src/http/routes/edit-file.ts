@@ -23,6 +23,10 @@ export function editFile(
       bodyLimit: 8 * 1024 * 1024,
     },
     (request) =>
-      options.application.editFile(request.params.worktreeId, request.body),
+      options.application.editFile(
+        request.params.worktreeId,
+        request.body,
+        request.disconnected,
+      ),
   );
 }

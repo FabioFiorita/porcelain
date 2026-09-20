@@ -24,7 +24,11 @@ export function prepareStashPop(
     },
     async (request) =>
       toGitActionPreparation(
-        await options.application.prepareStashPop(request.params, request.body),
+        await options.application.prepareStashPop(
+          request.params,
+          request.body,
+          request.disconnected,
+        ),
       ),
   );
 }

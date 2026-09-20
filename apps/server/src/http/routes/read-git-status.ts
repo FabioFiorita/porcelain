@@ -23,7 +23,10 @@ export function readGitStatus(
     },
     async (request) =>
       toGitStatusResponse(
-        await options.application.gitStatus(request.params.worktreeId),
+        await options.application.gitStatus(
+          request.params.worktreeId,
+          request.disconnected,
+        ),
       ),
   );
 }

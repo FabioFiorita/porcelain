@@ -21,6 +21,11 @@ export class InventoryRepository implements InventoryStore {
       .run();
   }
 
+  markAllUnavailable(): void {
+    this.db.update(projects).set({ available: false }).run();
+    this.db.update(worktrees).set({ available: false }).run();
+  }
+
   read(): Inventory {
     return this.db.transaction((tx) => {
       const environment = tx.select().from(environments).get();

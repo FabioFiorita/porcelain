@@ -24,10 +24,14 @@ export function preparePull(
     },
     async (request) =>
       toGitActionPreparation(
-        await options.application.preparePull(request.params, {
-          ...request.body,
-          strategy: request.body.strategy ?? 'ff-only',
-        }),
+        await options.application.preparePull(
+          request.params,
+          {
+            ...request.body,
+            strategy: request.body.strategy ?? 'ff-only',
+          },
+          request.disconnected,
+        ),
       ),
   );
 }

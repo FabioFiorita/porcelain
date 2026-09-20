@@ -14,7 +14,7 @@ import type {
 // L = commits per history page. Process counts are Git child processes.
 
 const APP = 'apps/server/src/app.ts';
-const RUNNER = 'apps/server/src/lifecycle/operation-runner.ts';
+const RUNNER = 'apps/server/src/lifecycle/lanes.ts';
 const COORDINATOR = 'apps/server/src/lifecycle/git-action-coordinator.ts';
 const route = (file: string) => `apps/server/src/http/routes/${file}`;
 const caseFile = (file: string) => `apps/server/src/use-cases/${file}`;
@@ -136,7 +136,7 @@ const historyGuard = (when: string) =>
   `rev-parse --git-common-dir; rev-parse --absolute-git-dir; rev-parse --git-path shallow; git --version (inspectHistoryCheckout, ${when})`;
 
 const operationsStep = (what: string): Step =>
-  s('runner', 'OperationRunner.run (operations)', what, RUNNER, 37);
+  s('runner', 'Lanes.run (repository lane)', what, RUNNER, 37);
 
 // ---------------------------------------------------------------------------
 // connection
@@ -631,7 +631,7 @@ const inventory: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.run (discovery)',
+          'Lanes.run (filesystem lane)',
           `Single-lane queue for discovery only.`,
           RUNNER,
           37,
@@ -696,7 +696,7 @@ const inventory: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.run (browsing)',
+          'Lanes.run (filesystem lane)',
           `Single-lane queue for folder browsing.`,
           RUNNER,
           37,
@@ -822,7 +822,7 @@ const inventory: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.run (summaries)',
+          'Lanes.run (repository lane)',
           `Single lane for all worktrees; 30 s deadline from enqueue.`,
           RUNNER,
           37,
@@ -2733,7 +2733,7 @@ const files: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.runOwned (operations)',
+          'Lanes.run (write, until settled) (operations)',
           `Same queue; settles only after the write unwinds.`,
           RUNNER,
           68,
@@ -3382,7 +3382,7 @@ function executeFlow(a: ActionSpec): Flow {
       ),
       s(
         'runner',
-        'OperationRunner.runOwned (operations)',
+        'Lanes.run (write, until settled) (operations)',
         `Queues execution with a 120 s deadline that includes queue wait; HTTP disconnect does not cancel it.`,
         COORDINATOR,
         84,
@@ -3800,7 +3800,7 @@ const gitActions: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.runOwned (drafting)',
+          'Lanes.run (write, until settled) (drafting)',
           `Single lane for generation, 120 s deadline; does not hold the main queue.`,
           APP,
           252,
@@ -3865,7 +3865,7 @@ const gitActions: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.run (drafting)',
+          'Lanes.unqueued (supervised)',
           `Waits behind any running draft generation.`,
           RUNNER,
           37,
@@ -4480,7 +4480,7 @@ const lifecycle: Area = {
   id: 'lifecycle',
   title: 'Server lifecycle and queues',
   webSurface: `None directly. It sets startup time, request latency (queue wait) and shutdown behaviour for every surface.`,
-  summary: `The CLI ensures a token file, claims the data directory with an exclusive server.lock, opens SQLite (migration history check, WAL, migrate), recovers unfinished Git receipts and rescans every project before listening. Almost all work then flows through one serialized OperationRunner, 'operations', whose 30 s deadline starts at enqueue; discovery, browsing, summaries and drafting have their own single-lane runners. Shutdown drains HTTP for 5 s, waits for queued work, then closes SQLite and releases the lock. The working tree adds diagnostics channels for queue events and SQL, but not for Git processes.`,
+  summary: `The CLI ensures a token file, claims the data directory with an exclusive server.lock, opens SQLite (migration history check, WAL, migrate), recovers unfinished Git receipts and rescans every project before listening. Almost all work then flows through one serialized Lanes, 'operations', whose 30 s deadline starts at enqueue; discovery, browsing, summaries and drafting have their own single-lane runners. Shutdown drains HTTP for 5 s, waits for queued work, then closes SQLite and releases the lock. The working tree adds diagnostics channels for queue events and SQL, but not for Git processes.`,
   flows: [
     {
       id: 'lifecycle.startup',
@@ -4642,7 +4642,7 @@ const lifecycle: Area = {
       steps: [
         s(
           'runner',
-          'OperationRunner.run',
+          'Lanes.run',
           `Combines shutdown, a timeout created at enqueue and the caller signal, then chains after the previous operation.`,
           RUNNER,
           37,
@@ -4656,7 +4656,7 @@ const lifecycle: Area = {
         ),
         s(
           'runner',
-          'OperationRunner.runOwned',
+          'Lanes.run (write, until settled)',
           `Same lane; the operation runs even if aborted while queued and the promise settles only after cleanup.`,
           RUNNER,
           68,

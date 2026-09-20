@@ -296,7 +296,7 @@ export const serverSpecAudits: SpecAudit[] = [
     real: [
       'ExecuteGitAction, PrepareGitAction, AcceptGitAction',
       'GitActionCoordinator',
-      'OperationRunner',
+      'Lanes',
     ],
     fakes: [
       'GitActionStore (in-memory with failure switches)',

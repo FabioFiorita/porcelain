@@ -51,6 +51,7 @@ describe('Application', () => {
   }
   async function open(dataDirectory: string) {
     const app = await openApplication({ dataDirectory });
+    await app.ready();
     applications.push(app);
     return app;
   }
@@ -159,6 +160,7 @@ describe('Application', () => {
           return new Git(path);
         },
       });
+      await app.ready();
       applications.push(app);
       const { project: original } = await app.register(first.main);
       firstUnavailable = true;
@@ -324,6 +326,7 @@ describe('Application', () => {
           },
         }),
       });
+      await app.ready();
       applications.push(app);
       await app.register(f.main);
       const before = app.inventory();
@@ -351,6 +354,7 @@ describe('Application', () => {
           },
         }),
       });
+      // Startup does not wait for a repository, so this never blocks here.
       applications.push(app);
       const controller = new AbortController();
       const registration = app.register(f.main, controller.signal);
@@ -486,6 +490,7 @@ describe('Application', () => {
           },
         }),
       });
+      await app.ready();
       applications.push(app);
       const { project } = await app.register(f.main);
       const worktree = project.worktrees[0];

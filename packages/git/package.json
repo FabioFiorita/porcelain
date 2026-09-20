@@ -37,6 +37,7 @@
     "./interfaces/git-factory": "./src/interfaces/git-factory.ts",
     "./interfaces/git-session": "./src/interfaces/git-session.ts",
     "./interfaces/inspection-factory": "./src/interfaces/inspection-factory.ts",
+    "./interfaces/status-reader": "./src/interfaces/status-reader.ts",
     "./read-git-version": "./src/read-git-version.ts",
     "./read-history": "./src/read-history.ts",
     "./run-git": "./src/run-git.ts",

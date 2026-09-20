@@ -258,3 +258,47 @@ it('cancels discovery when its browser request disconnects', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('cancels an admitted read when its client disconnects', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-read-disconnect-'));
+  const entered = Promise.withResolvers<void>();
+  const cancelled = Promise.withResolvers<void>();
+  const server = await createServer({
+    dataDirectory: root,
+    projectHome: root,
+    token,
+    projectFolders: {
+      // Browsing reaches the application through the request's own signal, so
+      // this proves the transport supplies one for work already admitted.
+      read: (_path, signal) =>
+        new Promise((_resolve, reject) => {
+          if (!signal) throw new Error('Missing cancellation');
+          signal.addEventListener(
+            'abort',
+            () => {
+              cancelled.resolve();
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+          entered.resolve();
+        }),
+    },
+  });
+  const leaving = new AbortController();
+  try {
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const response = fetch(
+      `${address}/api/projects/folders?path=${encodeURIComponent(root)}`,
+      { headers, signal: leaving.signal },
+    ).catch((error: unknown) => error);
+    await entered.promise;
+    leaving.abort();
+    await cancelled.promise;
+    expect(await response).toMatchObject({ name: 'AbortError' });
+  } finally {
+    leaving.abort();
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

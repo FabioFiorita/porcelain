@@ -31,6 +31,7 @@ describe('Project removal HTTP workflow', () => {
     const linked = join(root, 'linked');
     const dataDirectory = join(root, 'state');
     const server = await createServer({ dataDirectory, token });
+    await server.refreshed();
     try {
       execFileSync('git', ['init', '-b', 'main', path], { env: environment });
       execFileSync('git', ['init', '-b', 'main', otherPath], {
@@ -174,6 +175,7 @@ describe('Project removal HTTP workflow', () => {
       );
       await server.close();
       const restarted = await createServer({ dataDirectory, token });
+      await restarted.refreshed();
       try {
         expect(
           (
@@ -234,6 +236,7 @@ describe('Project removal HTTP workflow', () => {
   it('authenticates before validation and rejects removal of a recovery-blocked project', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-remove-errors-'));
     const server = await createServer({ dataDirectory: root, token });
+    await server.refreshed();
     try {
       expect(
         (await server.inject({ method: 'DELETE', url: '/projects/invalid' }))

@@ -20,7 +20,7 @@ export async function commitDraftRoutes(
   api.get(
     '/git/commit-models',
     { schema: { response: { ...errorResponses, 200: commitModelsSchema } } },
-    async () => options.application.commitModels(),
+    async (request) => options.application.commitModels(request.disconnected),
   );
   api.post(
     '/projects/:projectId/worktrees/:worktreeId/git/commit-draft',

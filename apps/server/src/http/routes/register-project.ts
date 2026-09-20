@@ -24,7 +24,10 @@ export async function registerProjectRoute(
       },
     },
     async (request) => {
-      const { project } = await options.application.register(request.body.path);
+      const { project } = await options.application.register(
+        request.body.path,
+        request.disconnected,
+      );
       return toProjectResponse(project);
     },
   );

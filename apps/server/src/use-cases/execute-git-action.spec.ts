@@ -3,7 +3,7 @@ import { RequestGitSession } from '@porcelain/git/git-session';
 import type { GitActionWriter } from '@porcelain/git/interfaces/git-action-writer';
 import { describe, expect, it } from 'vitest';
 import { GitActionCoordinator } from '../lifecycle/git-action-coordinator.ts';
-import { OperationRunner } from '../lifecycle/operation-runner.ts';
+import { Lanes } from '../lifecycle/lanes.ts';
 import type {
   GitActionPreparation,
   GitActionReceipt,
@@ -185,9 +185,10 @@ describe('Git action execution', () => {
       state.writes.push(receipt);
       return { receipt, created: true };
     };
-    const runner = new OperationRunner(() => {}, 30_000);
+    const runner = new Lanes({ deadlineMs: 30_000 });
     const coordinator = new GitActionCoordinator(
       runner,
+      () => 'repository',
       new PrepareGitAction(
         inventory,
         store,
@@ -201,7 +202,7 @@ describe('Git action execution', () => {
     const scope = { projectId: 'project', worktreeId: 'worktree' };
     coordinator.submit(scope, 'commit', 'first', 'first-preparation');
     coordinator.submit(scope, 'commit', 'second', 'second-preparation');
-    await runner.runOwned(async () => {}, 30_000);
+    await runner.run('repository', 'write', async () => {});
     expect(state.launched).toBe(1);
     expect(coordinator.receipt('first')).toMatchObject({
       state: 'indeterminate',
@@ -229,9 +230,10 @@ describe('Git action execution', () => {
       await release.promise;
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
     };
-    const runner = new OperationRunner(() => {}, 30_000);
+    const runner = new Lanes({ deadlineMs: 30_000 });
     const coordinator = new GitActionCoordinator(
       runner,
+      () => 'repository',
       new PrepareGitAction(
         inventory,
         store,
@@ -270,5 +272,97 @@ describe('Git action execution', () => {
       ),
     ).toThrow();
     await runner.close();
+  });
+
+  it('finishes both receipts when the lane closes while one action is queued', async () => {
+    const { state, inventory, store, git, useCase } = fixture();
+    const release = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    git.execute = async () => {
+      started.resolve();
+      await release.promise;
+      return { state: 'completed' } as never;
+    };
+    const runner = new Lanes({ deadlineMs: 30_000 });
+    const coordinator = new GitActionCoordinator(
+      runner,
+      () => 'repository',
+      new PrepareGitAction(
+        inventory,
+        store,
+        () => git,
+        () => 'preparation',
+      ),
+      new AcceptGitAction(store),
+      useCase,
+      store,
+    );
+    const scope = { projectId: 'project', worktreeId: 'worktree' };
+    coordinator.submit(scope, 'commit', 'first', 'first-preparation');
+    await started.promise;
+    coordinator.submit(scope, 'commit', 'second', 'second-preparation');
+    const closing = runner.close();
+    release.resolve();
+    await closing;
+    // Both actions were accepted, so both must be finished in storage: the
+    // queued one is recorded without ever launching Git. Accepting persists a
+    // running receipt first, so what matters is the state they end in.
+    expect(
+      state.writes.filter((written) => written.state !== 'running'),
+    ).toHaveLength(2);
+  });
+
+  it('waits for a refused action to finish its receipt before closing resources', async () => {
+    const { state, inventory, store, git, useCase } = fixture();
+    const release = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    const finalizing = Promise.withResolvers<void>();
+    git.execute = async () => {
+      started.resolve();
+      await release.promise;
+      return { state: 'completed' } as never;
+    };
+    let released = false;
+    const runner = new Lanes({
+      deadlineMs: 30_000,
+      closeResources: () => {
+        released = true;
+      },
+    });
+    const execute = useCase.execute.bind(useCase);
+    useCase.execute = async (receipt, session, signal) => {
+      // The refused action is finalized with an aborted signal; hold it there
+      // so closing has something still running to wait for.
+      if (signal.aborted) await finalizing.promise;
+      return execute(receipt, session, signal);
+    };
+    const coordinator = new GitActionCoordinator(
+      runner,
+      () => 'repository',
+      new PrepareGitAction(
+        inventory,
+        store,
+        () => git,
+        () => 'preparation',
+      ),
+      new AcceptGitAction(store),
+      useCase,
+      store,
+    );
+    const scope = { projectId: 'project', worktreeId: 'worktree' };
+    coordinator.submit(scope, 'commit', 'first', 'first-preparation');
+    await started.promise;
+    coordinator.submit(scope, 'commit', 'second', 'second-preparation');
+    const closing = runner.close();
+    release.resolve();
+    await new Promise((tick) => setTimeout(tick, 30));
+    // The refused action is still recording its receipt, so nothing may close.
+    expect(released).toBe(false);
+    finalizing.resolve();
+    await closing;
+    expect(released).toBe(true);
+    expect(
+      state.writes.filter((written) => written.state !== 'running'),
+    ).toHaveLength(2);
   });
 });

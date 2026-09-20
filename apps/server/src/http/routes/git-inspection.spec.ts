@@ -201,3 +201,64 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it('aborts the signal a route passes into its lane when the client disconnects', async () => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), 'porcelain-request-disconnect-')),
+  );
+  const path = join(root, 'checkout');
+  await mkdir(path);
+  execFileSync('git', ['init', '-b', 'main', path], { stdio: 'ignore' });
+  const entered = Promise.withResolvers<void>();
+  const cancelled = Promise.withResolvers<void>();
+  const server = await createServer({
+    dataDirectory: join(root, 'state'),
+    token,
+    inspectionGit: () => ({
+      // The signal here is the one the request hook created and the route
+      // handed to the lane; a queued caller is removed by the same signal.
+      readStatus: (signal) =>
+        new Promise((_resolve, reject) => {
+          if (!signal) throw new Error('Missing cancellation');
+          signal.addEventListener(
+            'abort',
+            () => {
+              cancelled.resolve();
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+          entered.resolve();
+        }),
+      readDiff: async () => ({ kind: 'binary' }),
+      readDiffs: async () => [],
+    }),
+  });
+  const leaving = new AbortController();
+  try {
+    const registered = projectResponseSchema.parse(
+      (
+        await server.inject({
+          method: 'POST',
+          url: '/projects',
+          headers,
+          payload: { path },
+        })
+      ).json(),
+    );
+    const worktreeId = registered.worktrees[0]?.id;
+    const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const response = fetch(
+      `${address}/api/worktrees/${worktreeId}/git/status`,
+      { headers, signal: leaving.signal },
+    ).catch((error: unknown) => error);
+    await entered.promise;
+    leaving.abort();
+    await cancelled.promise;
+    expect(await response).toMatchObject({ name: 'AbortError' });
+  } finally {
+    leaving.abort();
+    await server.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 20_000);

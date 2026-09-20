@@ -29,6 +29,7 @@ export function readGitDiff(
           request.params.worktreeId,
           request.body.expectedStatusToken,
           request.body.change,
+          request.disconnected,
         ),
       ),
   );

@@ -24,7 +24,11 @@ export function preparePush(
     },
     async (request) =>
       toGitActionPreparation(
-        await options.application.preparePush(request.params, request.body),
+        await options.application.preparePush(
+          request.params,
+          request.body,
+          request.disconnected,
+        ),
       ),
   );
 }

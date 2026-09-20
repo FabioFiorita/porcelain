@@ -27,6 +27,7 @@ export function prepareStashApply(
         await options.application.prepareStashApply(
           request.params,
           request.body,
+          request.disconnected,
         ),
       ),
   );

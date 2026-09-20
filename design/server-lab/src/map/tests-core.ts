@@ -1261,14 +1261,10 @@ export const coreSpecAudits: SpecAudit[] = [
 
   // --------------------------------------------------------- apps/server/lifecycle
   {
-    file: 'apps/server/src/lifecycle/operation-runner.spec.ts',
+    file: 'apps/server/src/lifecycle/lanes.spec.ts',
     areas: ['lifecycle'],
     kind: 'unit',
-    real: [
-      'OperationRunner',
-      'AbortSignal timers',
-      'diagnostics_channel (new)',
-    ],
+    real: ['Lanes', 'AbortSignal timers', 'diagnostics_channel (new)'],
     fakes: ['operations are promises controlled by the test'],
     tests: [
       {
@@ -1703,9 +1699,9 @@ export const coreAreaSummaries: AreaTestSummary[] = [
     area: 'lifecycle',
     verdict: 'adequate',
     summary:
-      'Startup and shutdown are tested for real: loopback binding, directory ownership across symlink aliases, lock release after bind or database failure, bounded shutdown with a stalled client, and migration guards that leave the database byte-identical. The weak spot is the OperationRunner behaviour that shapes latency: one shared queue for most requests, deadlines that start at enqueue, and no deduplication are untested. Operation and SQL diagnostics channels are being added in the working tree with minimal tests.',
+      'Startup and shutdown are tested for real: loopback binding, directory ownership across symlink aliases, lock release after bind or database failure, bounded shutdown with a stalled client, and migration guards that leave the database byte-identical. The weak spot is the Lanes behaviour that shapes latency: one shared queue for most requests, deadlines that start at enqueue, and no deduplication are untested. Operation and SQL diagnostics channels are being added in the working tree with minimal tests.',
     missing: [
-      'OperationRunner: an operation queued behind 25 s of work with a 30 s deadline still gets its full budget once started, or the enqueue-time deadline is explicit and tested.',
+      'Lanes: an operation queued behind 25 s of work with a 30 s deadline still gets its full budget once started, or the enqueue-time deadline is explicit and tested.',
       'Application level: listing comments completes under N ms while an evidence read of 500 files is running (both share the operations queue today).',
       'Identical concurrent evidence or summary requests for one worktree execute once.',
       'Startup with 20 registered projects is listening within N ms, and unavailable repositories do not delay listen.',

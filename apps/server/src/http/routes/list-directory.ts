@@ -28,6 +28,7 @@ export function listDirectory(
         await options.application.listDirectory(
           request.params.worktreeId,
           request.query.path,
+          request.disconnected,
         ),
       ),
   );

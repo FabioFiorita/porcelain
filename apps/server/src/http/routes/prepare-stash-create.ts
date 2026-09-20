@@ -27,6 +27,7 @@ export function prepareStashCreate(
         await options.application.prepareStashCreate(
           request.params,
           request.body,
+          request.disconnected,
         ),
       ),
   );

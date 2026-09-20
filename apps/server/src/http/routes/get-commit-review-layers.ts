@@ -26,6 +26,7 @@ export function getCommitReviewLayers(
       options.application.commitReviewLayers(
         request.params.projectId,
         request.params.oid,
+        request.disconnected,
       ),
   );
 }

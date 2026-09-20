@@ -24,7 +24,11 @@ export function prepareFetch(
     },
     async (request) =>
       toGitActionPreparation(
-        await options.application.prepareFetch(request.params, request.body),
+        await options.application.prepareFetch(
+          request.params,
+          request.body,
+          request.disconnected,
+        ),
       ),
   );
 }

@@ -27,6 +27,7 @@ export function associateCommitReviewLayers(
         request.params.projectId,
         request.params.oid,
         request.body,
+        request.disconnected,
       ),
   );
 }

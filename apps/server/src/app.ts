@@ -34,7 +34,8 @@ import type { FileWriter } from './filesystem/interfaces/file-writer.ts';
 import type { ProjectFolders } from './filesystem/interfaces/project-folders.ts';
 import { NodeProjectFolders } from './filesystem/project-folders.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
-import { OperationRunner } from './lifecycle/operation-runner.ts';
+import { Lanes } from './lifecycle/lanes.ts';
+import { SharedReads } from './lifecycle/shared-reads.ts';
 import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { CommitReviewLayerRepository } from './repositories/commit-review-layer-repository.ts';
@@ -74,9 +75,14 @@ import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
 import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
 import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
+import { resolveInspectionWorktree } from './use-cases/resolve-inspection-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
 import { UploadArtifact } from './use-cases/upload-artifact.ts';
+
+const READ_CAPACITY = 4;
+/** A model call is slow and reaches outside; it never holds a lane. */
+const GENERATOR_DEADLINE_MS = 120_000;
 
 export async function openApplication(options: {
   dataDirectory: string;
@@ -96,31 +102,38 @@ export async function openApplication(options: {
   const { operationTimeoutMs } = applicationSettingsSchema.parse(options);
   options.signal?.throwIfAborted();
   const database = openDatabase(options.dataDirectory);
-  const operations = new OperationRunner(
-    () => database.close(),
-    operationTimeoutMs,
-    'operations',
-  );
-  const discovery = new OperationRunner(
-    () => {},
-    operationTimeoutMs,
-    'discovery',
-  );
-  const browsing = new OperationRunner(
-    () => {},
-    operationTimeoutMs,
-    'browsing',
-  );
-  const summaries = new OperationRunner(
-    () => {},
-    operationTimeoutMs,
-    'summaries',
-  );
-  const drafting = new OperationRunner(() => {}, 120_000, 'drafting');
+  const lanes = new Lanes({
+    deadlineMs: operationTimeoutMs,
+    readCapacity: READ_CAPACITY,
+    closeResources: () => database.close(),
+  });
+  /** Work that belongs to no repository: browsing and discovery. */
+  const FILESYSTEM = 'filesystem';
+  /** Reconciling the inventory has one owner, whoever asked for it. */
+  const INVENTORY = 'inventory';
+  let firstRefreshFailure: unknown;
+  const sharedReads = new SharedReads();
   try {
     const layers = new ReviewLayerRepository(database.db);
     const replaceLayers = new ReplaceReviewLayers(layers);
     const store = new InventoryRepository(database.db);
+    /** Database work answers immediately; it never enters a lane. */
+    const stored = async <T>(read: () => T): Promise<T> => {
+      lanes.assertOpen();
+      return read();
+    };
+
+    /** The repository a worktree belongs to: one lane per repository. */
+    const laneOf = (worktreeId: string) => {
+      try {
+        return resolveInspectionWorktree(store, worktreeId).repositoryIdentity;
+      } catch {
+        return 'unresolved';
+      }
+    };
+    const projectLaneOf = (projectId: string) =>
+      store.read().projects.find((entry) => entry.id === projectId)
+        ?.repositoryIdentity ?? 'unresolved';
     const removeProject = new RemoveProject(
       new ProjectRemovalRepository(database.db),
     );
@@ -189,7 +202,8 @@ export async function openApplication(options: {
       readFileStamps,
     );
     const actions = new GitActionCoordinator(
-      operations,
+      lanes,
+      projectLaneOf,
       new PrepareGitAction(store, actionStore, actionGit, randomUUID, evidence),
       new AcceptGitAction(actionStore),
       new ExecuteGitAction(
@@ -218,7 +232,22 @@ export async function openApplication(options: {
       reviewed,
       listReviewedFiles,
     );
-    await operations.run((signal) => refresh.execute(signal), options.signal);
+    // Availability is persisted, so a project that was reachable at the last
+    // shutdown would otherwise keep reporting so while a hung refresh runs.
+    store.markAllUnavailable();
+    const firstRefresh = lanes
+      .run(INVENTORY, 'write', ({ signal }) => refresh.execute(signal), {
+        callerSignal: options.signal,
+      })
+      .then(
+        () => undefined,
+        (cause: unknown) => {
+          // A repository that cannot be read is data, already recorded as
+          // unavailable. Anything else is a fault and must not look like
+          // success to whoever waits for the first refresh.
+          firstRefreshFailure = cause;
+        },
+      );
     const comments = new CommentThreads(
       new CommentRepository(database.db),
       store,
@@ -231,102 +260,83 @@ export async function openApplication(options: {
       comments,
       status,
     );
+
     return {
       reviewSummary: (worktreeId, signal) =>
-        summaries.run(
-          (ownedSignal) =>
+        lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: ownedSignal }) =>
             summary.execute(worktreeId, new RequestGitSession(), ownedSignal),
-          signal,
+          { callerSignal: signal },
         ),
       commitModels: (signal) =>
-        drafting.run(
-          (operationSignal) => generator.models(operationSignal),
-          signal,
-        ),
+        lanes.unqueued((operationSignal) => generator.models(operationSignal), {
+          callerSignal: signal,
+          deadlineMs: GENERATOR_DEADLINE_MS,
+        }),
       draftCommits: async (scope, input, signal) => {
         scope = structuredClone(scope);
         input = structuredClone(input);
-        const captured = await operations.run(
-          (operationSignal) =>
+        const captured = await lanes.run(
+          projectLaneOf(scope.projectId),
+          'read',
+          ({ signal: operationSignal }) =>
             commitDrafts.capture(
               scope,
               input,
               new RequestGitSession(),
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         );
-        const result = await drafting.runOwned(
+        const result = await lanes.unqueued(
           (operationSignal) =>
             commitDrafts.generate(captured, input, operationSignal),
-          120_000,
-          signal,
+          { callerSignal: signal, deadlineMs: GENERATOR_DEADLINE_MS },
         );
-        await operations.run(
-          (operationSignal) =>
+        await lanes.run(
+          projectLaneOf(scope.projectId),
+          'read',
+          ({ signal: operationSignal }) =>
             commitDrafts.verify(
               scope,
               captured.fingerprint,
               new RequestGitSession(),
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         );
         return result;
       },
       prepareFetch: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'fetch' }, signal),
-      executeFetch: (scope, input, signal) =>
-        actions.submit(
-          scope,
-          'fetch',
-          input.requestId,
-          input.preparationId,
-          signal,
-        ),
+      executeFetch: (scope, input) =>
+        actions.submit(scope, 'fetch', input.requestId, input.preparationId),
       preparePull: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'pull' }, signal),
-      executePull: (scope, input, signal) =>
-        actions.submit(
-          scope,
-          'pull',
-          input.requestId,
-          input.preparationId,
-          signal,
-        ),
+      executePull: (scope, input) =>
+        actions.submit(scope, 'pull', input.requestId, input.preparationId),
       preparePush: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'push' }, signal),
-      executePush: (scope, input, signal) =>
-        actions.submit(
-          scope,
-          'push',
-          input.requestId,
-          input.preparationId,
-          signal,
-        ),
+      executePush: (scope, input) =>
+        actions.submit(scope, 'push', input.requestId, input.preparationId),
       prepareCommit: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'commit' }, signal),
-      executeCommit: (scope, input, signal) =>
-        actions.submit(
-          scope,
-          'commit',
-          input.requestId,
-          input.preparationId,
-          signal,
-        ),
+      executeCommit: (scope, input) =>
+        actions.submit(scope, 'commit', input.requestId, input.preparationId),
       prepareStashCreate: (scope, input, signal) =>
         actions.prepareAction(
           scope,
           { ...input, action: 'stash-create' },
           signal,
         ),
-      executeStashCreate: (scope, input, signal) =>
+      executeStashCreate: (scope, input) =>
         actions.submit(
           scope,
           'stash-create',
           input.requestId,
           input.preparationId,
-          signal,
         ),
       prepareStashApply: (scope, input, signal) =>
         actions.prepareAction(
@@ -334,32 +344,39 @@ export async function openApplication(options: {
           { ...input, action: 'stash-apply' },
           signal,
         ),
-      executeStashApply: (scope, input, signal) =>
+      executeStashApply: (scope, input) =>
         actions.submit(
           scope,
           'stash-apply',
           input.requestId,
           input.preparationId,
-          signal,
         ),
       prepareStashPop: (scope, input, signal) =>
         actions.prepareAction(scope, { ...input, action: 'stash-pop' }, signal),
-      executeStashPop: (scope, input, signal) =>
+      executeStashPop: (scope, input) =>
         actions.submit(
           scope,
           'stash-pop',
           input.requestId,
           input.preparationId,
-          signal,
         ),
       gitActionReceipt: (requestId) => actions.receipt(requestId),
+      // Sharing sits above the lane: a second identical read joins the first
+      // rather than taking a read permit of its own.
       gitStatus: (worktreeId, signal) =>
-        operations.run(
-          (operationSignal) =>
-            status.execute(
-              worktreeId,
-              new RequestGitSession(),
-              operationSignal,
+        sharedReads.run(
+          `status\0${laneOf(worktreeId)}\0${worktreeId}`,
+          (shared) =>
+            lanes.run(
+              laneOf(worktreeId),
+              'read',
+              ({ signal: operationSignal }) =>
+                status.execute(
+                  worktreeId,
+                  new RequestGitSession(),
+                  operationSignal,
+                ),
+              { callerSignal: shared },
             ),
           signal,
         ),
@@ -369,8 +386,10 @@ export async function openApplication(options: {
           oldPath: selection.oldPath,
           newPath: selection.newPath,
         };
-        return operations.run(
-          (operationSignal) =>
+        return lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
             diff.execute(
               worktreeId,
               expectedStatusToken,
@@ -378,148 +397,175 @@ export async function openApplication(options: {
               new RequestGitSession(),
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         );
       },
       reviewEvidence: (worktreeId, signal) =>
-        operations.run(
-          (operationSignal) =>
+        lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
             evidence.execute(
               worktreeId,
               new RequestGitSession(),
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         ),
-      listReviewedFiles: (worktreeId, signal) =>
-        operations.run(
-          async () => listReviewedFiles.execute(worktreeId),
-          signal,
-        ),
+      listReviewedFiles: (worktreeId) =>
+        stored(() => listReviewedFiles.execute(worktreeId)),
       setReviewedFile: (worktreeId, input, signal) => {
         const submitted = { ...input };
-        return operations.run(
-          (operationSignal) =>
+        return lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
             setReviewedFile.execute(
               worktreeId,
               submitted,
               new RequestGitSession(),
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         );
       },
-      removeReviewedFile: (worktreeId, path, signal) =>
-        operations.run(
-          async () => removeReviewedFile.execute(worktreeId, path),
-          signal,
-        ),
+      removeReviewedFile: (worktreeId, path) =>
+        stored(() => removeReviewedFile.execute(worktreeId, path)),
       fileTree: (worktreeId, signal) =>
-        operations.run(
-          (operationSignal) => fileTree.execute(worktreeId, operationSignal),
-          signal,
+        lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
+            fileTree.execute(worktreeId, operationSignal),
+          { callerSignal: signal },
         ),
       editFile: (worktreeId, command, signal) => {
         const submitted = { ...command };
-        return operations.runOwned(
-          (operationSignal) =>
+        return lanes.run(
+          laneOf(worktreeId),
+          'write',
+          ({ signal: operationSignal }) =>
             editFile.execute(worktreeId, submitted, operationSignal),
-          operationTimeoutMs,
-          signal,
+          { callerSignal: signal },
         );
       },
       listDirectory: (id: string, path: string, signal?: AbortSignal) =>
-        operations.run(
-          (operationSignal) => list.execute(id, path, operationSignal),
-          signal,
+        lanes.run(
+          laneOf(id),
+          'read',
+          ({ signal: operationSignal }) =>
+            list.execute(id, path, operationSignal),
+          { callerSignal: signal },
         ),
       readAsset: (id, path, signal) =>
-        operations.run(
-          (operationSignal) => asset.execute(id, path, operationSignal),
-          signal,
+        lanes.run(
+          laneOf(id),
+          'read',
+          ({ signal: operationSignal }) =>
+            asset.execute(id, path, operationSignal),
+          { callerSignal: signal },
         ),
       readTextFile: (id: string, path: string, signal?: AbortSignal) =>
-        operations.run(
-          (operationSignal) => read.execute(id, path, operationSignal),
-          signal,
+        lanes.run(
+          laneOf(id),
+          'read',
+          ({ signal: operationSignal }) =>
+            read.execute(id, path, operationSignal),
+          { callerSignal: signal },
         ),
       removeProject: (projectId, signal) =>
-        operations.run(async () => {
-          actions.assertProjectRemovable(projectId);
-          return removeProject.execute(projectId);
-        }, signal),
+        lanes.run(
+          projectLaneOf(projectId),
+          'write',
+          async () => {
+            actions.assertProjectRemovable(projectId);
+            return removeProject.execute(projectId);
+          },
+          { callerSignal: signal },
+        ),
       discoverProjects: (signal) =>
-        discovery.run(
-          (operationSignal) => finder.discover(operationSignal),
-          signal,
+        lanes.run(
+          FILESYSTEM,
+          'read',
+          ({ signal: operationSignal }) => finder.discover(operationSignal),
+          { callerSignal: signal },
         ),
       browseProjectFolders: (path, signal) =>
-        browsing.run(
-          (operationSignal) => finder.browse(path, operationSignal),
-          signal,
+        lanes.run(
+          FILESYSTEM,
+          'read',
+          ({ signal: operationSignal }) => finder.browse(path, operationSignal),
+          { callerSignal: signal },
         ),
       inventory: () => {
-        operations.assertOpen();
+        lanes.assertOpen();
         return store.read();
       },
       register: (checkout: string, signal?: AbortSignal) =>
-        operations.run((operationSignal) => {
-          return register.execute(checkout, operationSignal);
-        }, signal),
+        lanes.run(
+          INVENTORY,
+          'write',
+          ({ signal: operationSignal }) =>
+            register.execute(checkout, operationSignal),
+          { callerSignal: signal },
+        ),
       refresh: (signal?: AbortSignal) =>
-        operations.run((operationSignal) => {
-          return refresh.execute(operationSignal);
-        }, signal),
+        lanes.run(
+          INVENTORY,
+          'write',
+          ({ signal: operationSignal }) => refresh.execute(operationSignal),
+          { callerSignal: signal },
+        ),
       listCommits: (worktreeId, request, signal) => {
         const submitted = { ...request };
-        return operations.run(
-          (operationSignal) =>
+        return lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
             listCommits.execute(worktreeId, submitted, operationSignal),
-          signal,
+          { callerSignal: signal },
         );
       },
       inspectCommitChanges: (worktreeId, request, signal) => {
         const submitted = { ...request };
-        return operations.run(
-          (operationSignal) =>
+        return lanes.run(
+          laneOf(worktreeId),
+          'read',
+          ({ signal: operationSignal }) =>
             inspectCommitChanges.execute(
               worktreeId,
               submitted,
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         );
       },
-      listFilePreferences: (projectId, signal) =>
-        operations.run(async () => listPreferences.execute(projectId), signal),
-      setFilePreference: (projectId, change, signal) => {
+      listFilePreferences: (projectId) =>
+        stored(() => listPreferences.execute(projectId)),
+      setFilePreference: (projectId, change) => {
         const intent = {
           path: change.path,
           flag: change.flag,
           value: change.value,
         };
-        return operations.run(
-          async () => setPreference.execute(projectId, intent),
-          signal,
-        );
+        return stored(() => setPreference.execute(projectId, intent));
       },
       comments: async (command, signal) => {
         const snapshot = structuredClone(command);
         if (snapshot.kind === 'list') {
-          operations.assertOpen();
+          lanes.assertOpen();
           signal?.throwIfAborted();
           return comments.execute(snapshot);
         }
-        return operations.run(async () => comments.execute(snapshot), signal);
+        return stored(() => comments.execute(snapshot));
       },
-      commitReviewLayers: (projectId, commitOid, signal) => {
+      commitReviewLayers: (projectId, commitOid) => {
         const params = commitReviewLayerParamsSchema.parse({
           projectId,
           oid: commitOid,
         });
-        return operations.run(
-          async () => getCommitLayers.execute(params.projectId, params.oid),
-          signal,
+        return stored(() =>
+          getCommitLayers.execute(params.projectId, params.oid),
         );
       },
       associateCommitReviewLayers: (projectId, commitOid, request, signal) => {
@@ -528,19 +574,21 @@ export async function openApplication(options: {
           oid: commitOid,
         });
         const input = associateCommitReviewLayersSchema.parse(request);
-        return operations.run(
-          async (operationSignal) =>
+        return lanes.run(
+          projectLaneOf(params.projectId),
+          'read',
+          ({ signal: operationSignal }) =>
             associateLayers.execute(
               params.projectId,
               params.oid,
               input,
               operationSignal,
             ),
-          signal,
+          { callerSignal: signal },
         );
       },
       reviewLayers: (worktreeId) => {
-        operations.assertOpen();
+        lanes.assertOpen();
         return layers.read(
           reviewLayerParamsSchema.parse({ worktreeId }).worktreeId,
         );
@@ -551,7 +599,7 @@ export async function openApplication(options: {
           expectedRevision: revision,
           layers: value,
         });
-        return operations.run(async () =>
+        return stored(() =>
           replaceLayers.execute(
             params.worktreeId,
             input.expectedRevision,
@@ -559,43 +607,25 @@ export async function openApplication(options: {
           ),
         );
       },
-      uploadArtifact: (worktreeId, input, signal) => {
+      uploadArtifact: (worktreeId, input) => {
         const submitted = { name: input.name, content: input.content };
-        return operations.run(
-          async () => uploadArtifact.execute(worktreeId, submitted),
-          signal,
-        );
+        return stored(() => uploadArtifact.execute(worktreeId, submitted));
       },
-      listArtifacts: (worktreeId, signal) =>
-        operations.run(async () => listArtifacts.execute(worktreeId), signal),
-      getArtifact: (worktreeId, artifactId, signal) =>
-        operations.run(
-          async () => getArtifact.execute(worktreeId, artifactId),
-          signal,
-        ),
-      deleteArtifact: (worktreeId, artifactId, signal) =>
-        operations.run(
-          async () => deleteArtifact.execute(worktreeId, artifactId),
-          signal,
-        ),
-      close: async () => {
-        await Promise.all([
-          discovery.close(),
-          browsing.close(),
-          drafting.close(),
-          summaries.close(),
-        ]);
-        await operations.close();
+      listArtifacts: (worktreeId) =>
+        stored(() => listArtifacts.execute(worktreeId)),
+      getArtifact: (worktreeId, artifactId) =>
+        stored(() => getArtifact.execute(worktreeId, artifactId)),
+      deleteArtifact: (worktreeId, artifactId) =>
+        stored(() => deleteArtifact.execute(worktreeId, artifactId)),
+      /** Resolves once the first refresh has settled, however it settled. */
+      ready: async () => {
+        await firstRefresh;
+        if (firstRefreshFailure !== undefined) throw firstRefreshFailure;
       },
+      close: () => lanes.close(),
     };
   } catch (error) {
-    await Promise.all([
-      discovery.close(),
-      browsing.close(),
-      drafting.close(),
-      summaries.close(),
-    ]);
-    await operations.close();
+    await lanes.close();
     throw error;
   }
 }

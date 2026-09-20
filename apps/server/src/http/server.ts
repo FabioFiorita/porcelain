@@ -5,6 +5,18 @@ import {
 } from '@fastify/type-provider-zod';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { openApplication } from '../app.ts';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** Aborts when the client goes away, so queued work can be dropped. */
+    disconnected: AbortSignal;
+  }
+  interface FastifyInstance {
+    /** Resolves once the first refresh at startup has settled. */
+    refreshed(): Promise<void>;
+  }
+}
+
 import {
   absolutePathSchema,
   serverSettingsSchema,
@@ -75,7 +87,26 @@ export async function createServer(options: ServerOptions) {
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
     return reply.code(response.statusCode).send(response.body);
   });
+  // One disconnect signal per request, so an abandoned request is removed
+  // from its lane instead of running for a client that has gone.
+  server.decorateRequest('disconnected');
+  server.addHook('onRequest', (request, reply, done) => {
+    const controller = new AbortController();
+    request.disconnected = controller.signal;
+    // Only the response socket closing means the client has gone; a request
+    // body stream ends on every ordinary request.
+    reply.raw.on('close', () => {
+      if (!reply.raw.writableEnded)
+        controller.abort(
+          new DOMException('The request was abandoned', 'AbortError'),
+        );
+    });
+    done();
+  });
   const application = await openApplication(applicationOptions);
+  // The server listens without waiting for any repository; this lets a caller
+  // that needs the settled inventory wait for the first refresh explicitly.
+  server.decorate('refreshed', () => application.ready());
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   const apiOptions = { application, token };

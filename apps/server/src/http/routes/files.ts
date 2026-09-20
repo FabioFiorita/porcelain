@@ -28,6 +28,10 @@ export async function fileRoutes(
         response: { ...errorResponses, 200: fileTreeSchema },
       },
     },
-    (request) => options.application.fileTree(request.params.worktreeId),
+    (request) =>
+      options.application.fileTree(
+        request.params.worktreeId,
+        request.disconnected,
+      ),
   );
 }

@@ -8,10 +8,12 @@ import type { AcceptGitAction } from '../use-cases/accept-git-action.ts';
 import { GitActionNotFoundError } from '../use-cases/errors/git-action-not-found-error.ts';
 import type { ExecuteGitAction } from '../use-cases/execute-git-action.ts';
 import type { PrepareGitAction } from '../use-cases/prepare-git-action.ts';
-import type { OperationRunner } from './operation-runner.ts';
+import { ApplicationClosedError } from './errors/application-closed-error.ts';
+import type { Lanes } from './lanes.ts';
 
 export class GitActionCoordinator {
-  private readonly operations: OperationRunner;
+  private readonly lanes: Lanes;
+  private readonly laneFor: (projectId: string) => string;
   private readonly prepare: PrepareGitAction;
   private readonly accept: AcceptGitAction;
   private readonly execute: ExecuteGitAction;
@@ -19,13 +21,15 @@ export class GitActionCoordinator {
   private readonly failures = new Set<string>();
   private readonly failedProjects = new Set<string>();
   constructor(
-    operations: OperationRunner,
+    lanes: Lanes,
+    laneFor: (projectId: string) => string,
     prepare: PrepareGitAction,
     accept: AcceptGitAction,
     execute: ExecuteGitAction,
     store: GitActionStore,
   ) {
-    this.operations = operations;
+    this.lanes = lanes;
+    this.laneFor = laneFor;
     this.prepare = prepare;
     this.accept = accept;
     this.execute = execute;
@@ -43,34 +47,40 @@ export class GitActionCoordinator {
     if (this.failedProjects.has(scope.projectId))
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
     const submitted = structuredClone({ scope, intent });
-    return this.operations.run(async (operationSignal) => {
-      if (this.failedProjects.has(submitted.scope.projectId))
-        throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
-      try {
-        return await this.prepare.execute(
-          submitted.scope,
-          submitted.intent,
-          new RequestGitSession(),
-          operationSignal,
-        );
-      } catch (error) {
-        if (
-          error instanceof GitActionRejectedError &&
-          error.reason === 'PROCESS_GROUP_UNCONFIRMED'
-        )
-          this.failedProjects.add(submitted.scope.projectId);
-        throw error;
-      }
-    }, signal);
+    // Preparing inspects through the action process, which owns the refusal
+    // latch, so it runs one at a time like the action it prepares.
+    return this.lanes.run(
+      this.laneFor(submitted.scope.projectId),
+      'write',
+      async ({ signal: operationSignal }) => {
+        if (this.failedProjects.has(submitted.scope.projectId))
+          throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
+        try {
+          return await this.prepare.execute(
+            submitted.scope,
+            submitted.intent,
+            new RequestGitSession(),
+            operationSignal,
+          );
+        } catch (error) {
+          if (
+            error instanceof GitActionRejectedError &&
+            error.reason === 'PROCESS_GROUP_UNCONFIRMED'
+          )
+            this.failedProjects.add(submitted.scope.projectId);
+          throw error;
+        }
+      },
+      { callerSignal: signal },
+    );
   }
   submit(
     scope: GitActionScope,
     action: GitActionIntent['action'],
     requestId: string,
     preparationId: string,
-    signal?: AbortSignal,
   ) {
-    this.operations.assertOpen();
+    this.lanes.assertOpen();
     if (
       this.failedProjects.has(scope.projectId) &&
       !this.store.receipt(requestId)
@@ -83,12 +93,25 @@ export class GitActionCoordinator {
       preparationId,
     );
     if (accepted.created) {
-      void this.operations
-        .runOwned(
-          (operationSignal) =>
+      void this.lanes
+        .run(
+          this.laneFor(accepted.receipt.projectId),
+          'write',
+          ({ signal: operationSignal }) =>
             this.executeOwned(accepted.receipt, operationSignal),
-          120_000,
-          signal,
+          { deadlineMs: 120_000, untilSettled: true },
+        )
+        .catch(() =>
+          // The receipt was persisted as running before admission, so a
+          // refused admission still has to finish it. Nothing has launched
+          // Git, so an aborted signal records it without running anything,
+          // and the lane waits for this before releasing its resources.
+          this.lanes.finish(() =>
+            this.executeOwned(
+              accepted.receipt,
+              AbortSignal.abort(new ApplicationClosedError()),
+            ),
+          ),
         )
         .catch(() => {});
     }
@@ -110,7 +133,7 @@ export class GitActionCoordinator {
     }
   }
   receipt(requestId: string) {
-    this.operations.assertOpen();
+    this.lanes.assertOpen();
     const receipt = this.store.receipt(requestId);
     if (!receipt) throw new GitActionNotFoundError();
     return this.failures.has(requestId)

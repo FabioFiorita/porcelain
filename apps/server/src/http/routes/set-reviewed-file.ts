@@ -26,6 +26,7 @@ export function setReviewedFile(
       options.application.setReviewedFile(
         request.params.worktreeId,
         request.body,
+        request.disconnected,
       ),
   );
 }

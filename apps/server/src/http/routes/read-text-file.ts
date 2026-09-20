@@ -28,6 +28,7 @@ export function readTextFile(
       options.application.readAsset(
         request.params.worktreeId,
         request.query.path,
+        request.disconnected,
       ),
   );
 
@@ -45,6 +46,7 @@ export function readTextFile(
         await options.application.readTextFile(
           request.params.worktreeId,
           request.query.path,
+          request.disconnected,
         ),
       ),
   );

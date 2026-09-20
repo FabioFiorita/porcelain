@@ -16,8 +16,10 @@ export async function refreshInventoryRoute(
         response: { ...errorResponses, 200: inventoryResponseSchema },
       },
     },
-    async () => {
-      const { inventory } = await options.application.refresh();
+    async (request) => {
+      const { inventory } = await options.application.refresh(
+        request.disconnected,
+      );
       return toInventoryResponse(inventory);
     },
   );

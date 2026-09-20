@@ -21,7 +21,10 @@ export function evidenceRoute(
     },
     async (request) =>
       toEvidenceResponse(
-        await options.application.reviewEvidence(request.params.worktreeId),
+        await options.application.reviewEvidence(
+          request.params.worktreeId,
+          request.disconnected,
+        ),
       ),
   );
 }

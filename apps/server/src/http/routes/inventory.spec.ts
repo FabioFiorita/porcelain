@@ -19,6 +19,7 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
   const server = await createServer({ dataDirectory, token });
+  await server.refreshed();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     const register = await fetch(`${address}/projects`, {
@@ -51,6 +52,7 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
     expect(initial.headers['cache-control']).toBe('no-store');
     await server.close();
     const restarted = await createServer({ dataDirectory, token });
+    await restarted.refreshed();
     try {
       expect(
         (
@@ -96,6 +98,7 @@ it('rejects unauthenticated operations before validation or discovery and saniti
       },
     }),
   });
+  await server.refreshed();
   try {
     for (const [method, url] of [
       ['GET', '/inventory'],
@@ -162,6 +165,7 @@ it('reports an uninspectable checkout without returning Git diagnostics', async 
     dataDirectory: join(root, 'state'),
     token,
   });
+  await server.refreshed();
   try {
     const response = await server.inject({
       method: 'POST',

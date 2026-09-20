@@ -275,5 +275,7 @@ export interface Application {
     artifactId: string,
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
+  /** Resolves once the first refresh at startup has settled. */
+  ready(): Promise<void>;
   close(): Promise<void>;
 }

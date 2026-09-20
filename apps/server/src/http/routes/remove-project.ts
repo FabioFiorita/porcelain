@@ -21,6 +21,9 @@ export function removeProject(
       },
     },
     async (request) =>
-      options.application.removeProject(request.params.projectId),
+      options.application.removeProject(
+        request.params.projectId,
+        request.disconnected,
+      ),
   );
 }

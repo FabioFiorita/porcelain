@@ -103,9 +103,15 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   expect(await first.exited).toBe(0);
   const second = launch(dataDirectory);
   const secondAddress = await second.address();
-  expect(
-    await (await fetch(`${secondAddress}/inventory`, { headers })).json(),
-  ).toEqual(before);
+  // The server listens before any repository has answered, so a restart shows
+  // the project unavailable until its first refresh lands.
+  await expect
+    .poll(
+      async () =>
+        (await fetch(`${secondAddress}/inventory`, { headers })).json(),
+      { timeout: 10_000 },
+    )
+    .toEqual(before);
   await rm(path, { recursive: true });
   const refreshed = await fetch(`${secondAddress}/inventory/refresh`, {
     method: 'POST',

@@ -28,6 +28,8 @@ export class ReadReviewSummary {
     );
     let pendingFiles: number;
     if (marks.size === 0) {
+      // Background work reads on its own: joining a foreground group would
+      // hand its wait to a request that would otherwise be answered.
       const { status } = await this.status.execute(worktreeId, session, signal);
       pendingFiles = new Set(
         status.changes.map((change) =>

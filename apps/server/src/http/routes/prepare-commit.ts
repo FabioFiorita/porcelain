@@ -24,7 +24,11 @@ export function prepareCommit(
     },
     async (request) =>
       toGitActionPreparation(
-        await options.application.prepareCommit(request.params, request.body),
+        await options.application.prepareCommit(
+          request.params,
+          request.body,
+          request.disconnected,
+        ),
       ),
   );
 }

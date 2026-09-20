@@ -33,6 +33,7 @@ export function inspectCommitChanges(
               ? { parent: request.query.parent }
               : {}),
           },
+          request.disconnected,
         ),
       ),
   );

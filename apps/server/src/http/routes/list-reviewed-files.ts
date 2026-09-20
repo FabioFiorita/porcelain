@@ -22,7 +22,10 @@ export function listReviewedFiles(
       },
     },
     async (request) =>
-      options.application.reviewSummary(request.params.worktreeId),
+      options.application.reviewSummary(
+        request.params.worktreeId,
+        request.disconnected,
+      ),
   );
   api.get(
     '/worktrees/:worktreeId/reviewed',
