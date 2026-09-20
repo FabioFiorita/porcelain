@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { homedir } from 'node:os';
 import {
   associateCommitReviewLayersSchema,
   commitReviewLayerParamsSchema,
@@ -92,7 +91,8 @@ export async function openApplication(options: {
   inspectionGit?: InspectionFactory;
   files?: FileReader;
   projectFolders?: ProjectFolders;
-  projectHome?: string;
+  /** Where discovery and browsing start; the composition root resolves it. */
+  projectHome: string;
   commitGenerator?: CommitGenerator;
   fileWriter?: FileWriter;
   now?: () => string;
@@ -155,7 +155,7 @@ export async function openApplication(options: {
       options.projectFolders ?? new NodeProjectFolders(),
       git,
       store,
-      options.projectHome ?? homedir(),
+      options.projectHome,
     );
     // Read once here rather than per history request; a missing Git still
     // surfaces on the request that needs it, so startup is unaffected.
@@ -550,14 +550,14 @@ export async function openApplication(options: {
         };
         return stored(() => setPreference.execute(projectId, intent));
       },
-      comments: async (command, signal) => {
+      comments: async (command, principal, signal) => {
         const snapshot = structuredClone(command);
         if (snapshot.kind === 'list') {
           lanes.assertOpen();
           signal?.throwIfAborted();
-          return comments.execute(snapshot);
+          return comments.execute(snapshot, principal);
         }
-        return stored(() => comments.execute(snapshot));
+        return stored(() => comments.execute(snapshot, principal));
       },
       commitReviewLayers: (projectId, commitOid) => {
         const params = commitReviewLayerParamsSchema.parse({

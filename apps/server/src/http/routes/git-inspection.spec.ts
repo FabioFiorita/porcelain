@@ -33,18 +33,19 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
   execFileSync('git', ['-C', path, 'add', '.']);
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   try {
     const registered = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
     const project = projectResponseSchema.parse(registered.json());
     const worktreeId = project.worktrees[0]?.id;
-    const endpoint = `/worktrees/${worktreeId}/git`;
+    const endpoint = `/api/worktrees/${worktreeId}/git`;
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     const response = await fetch(`${address}${endpoint}/status`, { headers });
     expect(response.status).toBe(200);
@@ -84,7 +85,7 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
         (
           await server.inject({
             method,
-            url: `/worktrees/not-a-uuid/git/${suffix}`,
+            url: `/api/worktrees/not-a-uuid/git/${suffix}`,
             headers,
           })
         ).statusCode,
@@ -94,7 +95,7 @@ it('serves status and selected diffs over authenticated loopback HTTP and reject
       (
         await server.inject({
           method: 'GET',
-          url: '/worktrees/00000000-0000-4000-8000-000000000000/git/status',
+          url: '/api/worktrees/00000000-0000-4000-8000-000000000000/git/status',
           headers,
         })
       ).statusCode,
@@ -156,6 +157,7 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
   });
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
     inspectionGit: () => ({
       readStatus: async () => {
@@ -168,12 +170,12 @@ it('maps inspection limits, unsupported paths and infrastructure failures withou
   try {
     const registered = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
     const project = projectResponseSchema.parse(registered.json());
-    const url = `/worktrees/${project.worktrees[0]?.id}/git/status`;
+    const url = `/api/worktrees/${project.worktrees[0]?.id}/git/status`;
     for (const [error, code, statusCode] of [
       [failure, 'INSPECTION_LIMIT', 413],
       [new UnsupportedGitFiltersError(), 'UNSUPPORTED_GIT_FILTERS', 422],
@@ -213,6 +215,7 @@ it('aborts the signal a route passes into its lane when the client disconnects',
   const cancelled = Promise.withResolvers<void>();
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
     inspectionGit: () => ({
       // The signal here is the one the request hook created and the route
@@ -240,7 +243,7 @@ it('aborts the signal a route passes into its lane when the client disconnects',
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path },
         })

@@ -42,7 +42,7 @@ export function ConsolePage({ initial }: { initial?: string }) {
   const [mode, setMode] = useState<'http' | 'mcp'>('http');
   const selected =
     routes.find((route) => key(route) === initial) ??
-    routes.find((route) => route.url === '/inventory');
+    routes.find((route) => route.url === '/api/inventory');
   const groups = useMemo(() => {
     const known = new Set<string>();
     const result = areas.map((area) => {
@@ -160,7 +160,7 @@ function useInventory() {
   return useQuery({
     queryKey: ['console-inventory'],
     queryFn: async () =>
-      (await porcelain('GET', '/inventory', { origin: 'setup' }))
+      (await porcelain('GET', '/api/inventory', { origin: 'setup' }))
         .data as Inventory,
     staleTime: 10_000,
   });
@@ -424,7 +424,7 @@ function ParamInput({
 type Tool = { name: string; description?: string; inputSchema?: unknown };
 
 async function mcp(method: string, params?: unknown, run?: string) {
-  const response = await porcelain('POST', '/mcp', {
+  const response = await porcelain('POST', '/api/mcp', {
     origin: 'mcp',
     run,
     headers: { accept: 'application/json, text/event-stream' },

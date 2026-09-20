@@ -5,11 +5,14 @@ import {
 } from '@fastify/type-provider-zod';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { openApplication } from '../app.ts';
+import type { Principal } from '../models/principal.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
     /** Aborts when the client goes away, so queued work can be dropped. */
     disconnected: AbortSignal;
+    /** Who is calling, decided by the door this request arrived through. */
+    principal: Principal;
   }
   interface FastifyInstance {
     /** Resolves once the first refresh at startup has settled. */
@@ -17,11 +20,16 @@ declare module 'fastify' {
   }
 }
 
+import type { Application } from '../application.ts';
 import {
   absolutePathSchema,
   serverSettingsSchema,
 } from '../config/server-settings.ts';
 import { toErrorResponse } from './mappers/error-response.ts';
+import {
+  checkRequestOrigin,
+  type OriginPolicy,
+} from './middlewares/request-origin.ts';
 import { artifactRoutes } from './routes/artifacts.ts';
 import { browserSessionRoutes } from './routes/browser-session.ts';
 import { commentRoutes } from './routes/comments.ts';
@@ -39,17 +47,20 @@ import { reviewLayerRoutes } from './routes/review-layers.ts';
 import { reviewedFileRoutes } from './routes/reviewed-files.ts';
 import { registerStaticFiles } from './static-files.ts';
 
+export type NetworkServerOptions = {
+  application: Application;
+  token: string;
+  webRoot?: string;
+} & Partial<OriginPolicy>;
+
 type ServerOptions = Parameters<typeof openApplication>[0] & {
   token: string;
   webRoot?: string;
-};
+} & Partial<OriginPolicy>;
 
 function registerApiRoutes(
   server: FastifyInstance,
-  options: {
-    application: Awaited<ReturnType<typeof openApplication>>;
-    token: string;
-  },
+  options: { application: Application; token: string },
 ) {
   server.register(browserSessionRoutes, options);
   server.register(healthRoute);
@@ -68,11 +79,18 @@ function registerApiRoutes(
   server.register(gitInspectionRoutes, options);
 }
 
-export async function createServer(options: ServerOptions) {
+/**
+ * The network listener: viewers and agents, everything under one `/api`
+ * prefix.  It does not own the application's lifetime — the runtime that
+ * builds both listeners closes the application exactly once, so closing this
+ * one cannot pull the database out from under the owner socket.
+ */
+export function createNetworkServer(options: NetworkServerOptions) {
   const {
+    application,
     token: configuredToken,
     webRoot: configuredWebRoot,
-    ...applicationOptions
+    allowedHosts = [],
   } = options;
   const { token } = serverSettingsSchema.parse({ token: configuredToken });
   const webRoot =
@@ -90,7 +108,12 @@ export async function createServer(options: ServerOptions) {
   // One disconnect signal per request, so an abandoned request is removed
   // from its lane instead of running for a client that has gone.
   server.decorateRequest('disconnected');
+  // Every request carries a principal; each door sets its own.
+  server.decorateRequest('principal');
   server.addHook('onRequest', (request, reply, done) => {
+    // Anonymous until a door's authentication hook says otherwise. Public
+    // routes never run one, so this is the value they keep.
+    request.principal = { kind: 'anonymous' };
     const controller = new AbortController();
     request.disconnected = controller.signal;
     // Only the response socket closing means the client has gone; a request
@@ -103,20 +126,37 @@ export async function createServer(options: ServerOptions) {
     });
     done();
   });
-  const application = await openApplication(applicationOptions);
+  // Before anything reads the request: a page in the owner's browser must not
+  // be able to reach this server by name, or write across origins.
+  server.addHook('onRequest', checkRequestOrigin({ allowedHosts }));
   // The server listens without waiting for any repository; this lets a caller
   // that needs the settled inventory wait for the first refresh explicitly.
   server.decorate('refreshed', () => application.ready());
-  server.addHook('preClose', async () => application.close());
-  server.addHook('onClose', async () => application.close());
-  const apiOptions = { application, token };
-  registerApiRoutes(server, apiOptions);
   server.register(
     async (api) => {
-      registerApiRoutes(api, apiOptions);
+      registerApiRoutes(api, { application, token });
     },
     { prefix: '/api' },
   );
   if (webRoot !== undefined) registerStaticFiles(server, { webRoot });
+  return server;
+}
+
+/**
+ * A network listener that opens and owns its own application.  The composite
+ * runtime does not use this; it exists for callers that want one listener and
+ * nothing else, which is every test and the server lab.
+ */
+export async function createServer(options: ServerOptions) {
+  const { token, webRoot, allowedHosts, ...applicationOptions } = options;
+  const application = await openApplication(applicationOptions);
+  const server = createNetworkServer({
+    application,
+    token,
+    ...(webRoot === undefined ? {} : { webRoot }),
+    ...(allowedHosts === undefined ? {} : { allowedHosts }),
+  });
+  server.addHook('preClose', async () => application.close());
+  server.addHook('onClose', async () => application.close());
   return server;
 }

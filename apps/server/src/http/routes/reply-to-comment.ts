@@ -6,6 +6,7 @@ import {
 } from '@porcelain/contracts/comments';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
+import { callerOf } from '../principal.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
 export function replyToComment(
@@ -23,11 +24,9 @@ export function replyToComment(
       },
     },
     async (request) =>
-      options.application.comments({
-        kind: 'reply',
-        author: 'reviewer',
-        ...request.params,
-        ...request.body,
-      }),
+      options.application.comments(
+        { kind: 'reply', ...request.params, ...request.body },
+        callerOf(request),
+      ),
   );
 }

@@ -15,20 +15,24 @@ it('persists authenticated discussion across refresh, unavailability and restart
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
   const dataDirectory = join(root, 'state');
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   try {
     const project = projectResponseSchema.parse(
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path },
         })
       ).json(),
     );
     const worktreeId = project.worktrees[0]?.id;
-    const url = `/worktrees/${worktreeId}/comments`;
+    const url = `/api/worktrees/${worktreeId}/comments`;
     expect(
       (await server.inject({ method: 'GET', url, headers })).json(),
     ).toEqual([]);
@@ -107,11 +111,23 @@ it('persists authenticated discussion across refresh, unavailability and restart
         })
       ).json(),
     ).toEqual(resolved.json());
-    await server.inject({ method: 'POST', url: '/inventory/refresh', headers });
+    await server.inject({
+      method: 'POST',
+      url: '/api/inventory/refresh',
+      headers,
+    });
     await rename(path, join(root, 'moved'));
-    await server.inject({ method: 'POST', url: '/inventory/refresh', headers });
+    await server.inject({
+      method: 'POST',
+      url: '/api/inventory/refresh',
+      headers,
+    });
     await server.close();
-    const restarted = await createServer({ dataDirectory, token });
+    const restarted = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       const result = await restarted.inject({ method: 'GET', url, headers });
       expect(result.statusCode).toBe(200);
@@ -135,8 +151,12 @@ it('persists authenticated discussion across refresh, unavailability and restart
 });
 it('authenticates every operation and rejects malformed anchors, bodies and cross-scope targets safely', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-comments-errors-'));
-  const server = await createServer({ dataDirectory: root, token });
-  const url = '/worktrees/00000000-0000-4000-8000-000000000001/comments';
+  const server = await createServer({
+    dataDirectory: root,
+    projectHome: root,
+    token,
+  });
+  const url = '/api/worktrees/00000000-0000-4000-8000-000000000001/comments';
   const threadUrl = `${url}/00000000-0000-4000-8000-000000000002`;
   try {
     for (const [method, route] of [
@@ -231,6 +251,7 @@ it('assigns reviewer authorship and the application clock without trusting publi
   const timestamp = '2026-09-14T02:03:04.000Z';
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
     now: () => timestamp,
   });
@@ -239,7 +260,7 @@ it('assigns reviewer authorship and the application clock without trusting publi
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path },
         })
@@ -247,7 +268,7 @@ it('assigns reviewer authorship and the application clock without trusting publi
     );
     const worktreeId = project.worktrees[0]?.id;
     if (!worktreeId) throw new Error('Missing worktree');
-    const url = `/worktrees/${worktreeId}/comments`;
+    const url = `/api/worktrees/${worktreeId}/comments`;
     for (const payload of [
       {
         anchor: { kind: 'file', filePath: 'a.ts' },

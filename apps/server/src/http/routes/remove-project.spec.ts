@@ -30,7 +30,11 @@ describe('Project removal HTTP workflow', () => {
     const otherPath = join(root, 'other');
     const linked = join(root, 'linked');
     const dataDirectory = join(root, 'state');
-    const server = await createServer({ dataDirectory, token });
+    const server = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     await server.refreshed();
     try {
       execFileSync('git', ['init', '-b', 'main', path], { env: environment });
@@ -68,16 +72,16 @@ describe('Project removal HTTP workflow', () => {
         return response.json();
       }
       const project = projectResponseSchema.parse(
-        await request('/projects', 'POST', { path }),
+        await request('/api/projects', 'POST', { path }),
       );
       const other = projectResponseSchema.parse(
-        await request('/projects', 'POST', { path: otherPath }),
+        await request('/api/projects', 'POST', { path: otherPath }),
       );
       const initial = inventoryResponseSchema.parse(
-        await request('/inventory'),
+        await request('/api/inventory'),
       );
       for (const worktree of [...project.worktrees, ...other.worktrees]) {
-        const base = `/worktrees/${worktree.id}`;
+        const base = `/api/worktrees/${worktree.id}`;
         await request(`${base}/review-layers`, 'PUT', {
           expectedRevision: 0,
           layers: [
@@ -98,7 +102,7 @@ describe('Project removal HTTP workflow', () => {
         });
       }
       for (const owner of [project, other]) {
-        await request(`/projects/${owner.id}/file-preferences`, 'PUT', {
+        await request(`/api/projects/${owner.id}/file-preferences`, 'PUT', {
           path: 'notes.txt',
           flag: 'pinned',
           value: true,
@@ -106,10 +110,12 @@ describe('Project removal HTTP workflow', () => {
       }
       // External worktree removal must not make its retained data escape project deletion.
       git(path, ['worktree', 'remove', linked]);
-      await request('/inventory/refresh', 'POST');
-      expect(await request(`/projects/${project.id}/file-preferences`)).toEqual(
-        { preferences: [{ path: 'notes.txt', pinned: true, hidden: false }] },
-      );
+      await request('/api/inventory/refresh', 'POST');
+      expect(
+        await request(`/api/projects/${project.id}/file-preferences`),
+      ).toEqual({
+        preferences: [{ path: 'notes.txt', pinned: true, hidden: false }],
+      });
       const head = git(path, ['rev-parse', 'HEAD']);
       const index = await readFile(join(path, '.git', 'index'));
       const worktrees = git(path, ['worktree', 'list', '--porcelain']);
@@ -134,13 +140,13 @@ describe('Project removal HTTP workflow', () => {
           JSON.stringify({ projectId: project.id }),
           1,
         );
-        expect(await request(`/projects/${project.id}`, 'DELETE')).toEqual({
+        expect(await request(`/api/projects/${project.id}`, 'DELETE')).toEqual({
           deleted: true,
         });
-        expect(await request(`/projects/${project.id}`, 'DELETE')).toEqual({
+        expect(await request(`/api/projects/${project.id}`, 'DELETE')).toEqual({
           deleted: false,
         });
-        expect(await request('/inventory')).toEqual({
+        expect(await request('/api/inventory')).toEqual({
           ...initial,
           projects: [other],
         });
@@ -174,14 +180,18 @@ describe('Project removal HTTP workflow', () => {
         'uncommitted\n',
       );
       await server.close();
-      const restarted = await createServer({ dataDirectory, token });
+      const restarted = await createServer({
+        dataDirectory,
+        projectHome: dataDirectory,
+        token,
+      });
       await restarted.refreshed();
       try {
         expect(
           (
             await restarted.inject({
               method: 'GET',
-              url: '/inventory',
+              url: '/api/inventory',
               headers,
             })
           ).json(),
@@ -190,14 +200,14 @@ describe('Project removal HTTP workflow', () => {
           (
             await restarted.inject({
               method: 'POST',
-              url: '/projects',
+              url: '/api/projects',
               headers,
               payload: { path },
             })
           ).json(),
         );
         expect(registered.id).not.toBe(project.id);
-        const base = `/worktrees/${registered.worktrees[0]?.id}`;
+        const base = `/api/worktrees/${registered.worktrees[0]?.id}`;
         for (const [suffix, expected] of [
           ['comments', []],
           ['artifacts', []],
@@ -209,7 +219,7 @@ describe('Project removal HTTP workflow', () => {
                 method: 'GET',
                 url:
                   suffix === 'file-preferences'
-                    ? `/projects/${registered.id}/${suffix}`
+                    ? `/api/projects/${registered.id}/${suffix}`
                     : `${base}/${suffix}`,
                 headers,
               })
@@ -235,18 +245,26 @@ describe('Project removal HTTP workflow', () => {
 
   it('authenticates before validation and rejects removal of a recovery-blocked project', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-remove-errors-'));
-    const server = await createServer({ dataDirectory: root, token });
+    const server = await createServer({
+      dataDirectory: root,
+      projectHome: root,
+      token,
+    });
     await server.refreshed();
     try {
       expect(
-        (await server.inject({ method: 'DELETE', url: '/projects/invalid' }))
-          .statusCode,
+        (
+          await server.inject({
+            method: 'DELETE',
+            url: '/api/projects/invalid',
+          })
+        ).statusCode,
       ).toBe(401);
       expect(
         (
           await server.inject({
             method: 'DELETE',
-            url: '/projects/invalid',
+            url: '/api/projects/invalid',
             headers,
           })
         ).statusCode,
@@ -257,7 +275,7 @@ describe('Project removal HTTP workflow', () => {
         (
           await server.inject({
             method: 'POST',
-            url: '/projects',
+            url: '/api/projects',
             headers,
             payload: { path },
           })
@@ -271,7 +289,7 @@ describe('Project removal HTTP workflow', () => {
       }
       const response = await server.inject({
         method: 'DELETE',
-        url: `/projects/${project.id}`,
+        url: `/api/projects/${project.id}`,
         headers,
       });
       expect(response.statusCode).toBe(409);
@@ -281,7 +299,7 @@ describe('Project removal HTTP workflow', () => {
       expect(response.headers['cache-control']).toBe('no-store');
       expect(
         (
-          await server.inject({ method: 'GET', url: '/inventory', headers })
+          await server.inject({ method: 'GET', url: '/api/inventory', headers })
         ).json().projects,
       ).toEqual([project]);
     } finally {

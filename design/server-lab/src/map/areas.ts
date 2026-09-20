@@ -146,7 +146,7 @@ const connection: Area = {
   id: 'connection',
   title: 'Connection and auth',
   webSurface: `Login screen, session restore on page reload, Disconnect in settings. Every browser request carries the session cookie and the x-porcelain-browser header.`,
-  summary: `One bearer token protects every API route; there is one trusted principal. Browsers trade the token once, on GET /inventory with the browser header, for a 30-day HMAC-signed HttpOnly cookie scoped to /api, and afterwards send only the cookie. Agents and portable clients keep sending the bearer. Every route is registered twice, at / and at /api, and /health is public.`,
+  summary: `One bearer token protects every API route; there is one trusted principal. Browsers trade the token once, on GET /api/inventory with the browser header, for a 30-day HMAC-signed HttpOnly cookie scoped to /api, and afterwards send only the cookie. Agents and portable clients keep sending the bearer. Every route is registered once, under /api, and /health is public. Before authentication, one hook validates the Host header and rejects a foreign Origin on unsafe methods, and every request carries a principal from the door it arrived through — anonymous until a credential upgrades it.`,
   flows: [
     {
       id: 'connection.authenticate',
@@ -184,7 +184,7 @@ const connection: Area = {
         s(
           'route',
           'setBrowserSession',
-          `On GET /inventory or /api/inventory with the browser header, issues the 30-day cookie (Path=/api, HttpOnly, SameSite=Strict).`,
+          `On GET /api/inventory with the browser header, issues the 30-day cookie (Path=/api, HttpOnly, SameSite=Strict).`,
           'apps/server/src/http/middlewares/authenticate.ts',
           24,
         ),
@@ -200,7 +200,7 @@ const connection: Area = {
       title: 'Restore browser session',
       endpoint: {
         method: 'GET',
-        path: '/session',
+        path: '/api/session',
         source: at(route('browser-session.ts'), 16),
       },
       webTriggers: [
@@ -208,13 +208,13 @@ const connection: Area = {
           'WorkspaceProvider restore effect',
           web('query/workspace-provider.tsx'),
           151,
-          `Once on app mount (skipped with the playground bridge), 15 s timeout. Success seeds the inventory cache and immediately invalidates it (workspace-provider.tsx:103), which triggers POST /inventory/refresh.`,
+          `Once on app mount (skipped with the playground bridge), 15 s timeout. Success seeds the inventory cache and immediately invalidates it (workspace-provider.tsx:103), which triggers POST /api/inventory/refresh.`,
         ),
       ],
       steps: [
         s(
           'route',
-          'browserSessionRoutes GET /session',
+          'browserSessionRoutes GET /api/session',
           `Authenticates, disables caching and maps the stored inventory.`,
           route('browser-session.ts'),
           15,
@@ -244,7 +244,7 @@ const connection: Area = {
       title: 'Clear browser session',
       endpoint: {
         method: 'DELETE',
-        path: '/session',
+        path: '/api/session',
         source: at(route('browser-session.ts'), 27),
       },
       webTriggers: [
@@ -258,7 +258,7 @@ const connection: Area = {
       steps: [
         s(
           'route',
-          'DELETE /session',
+          'DELETE /api/session',
           `Requires only the browser header, then expires the cookie.`,
           route('browser-session.ts'),
           27,
@@ -282,7 +282,7 @@ const connection: Area = {
       title: 'Health check',
       endpoint: {
         method: 'GET',
-        path: '/health',
+        path: '/api/health',
         source: at(route('health.ts'), 7),
       },
       webTriggers: [],
@@ -350,19 +350,24 @@ const connection: Area = {
       doc: doc('web-foundation.md'),
     },
     {
-      title: 'Every route registered at / and /api',
-      summary: `The browser uses /api (same origin, cookie path) while agents and tests use bare paths. The cost is two route tables and auth code that special-cases both spellings.`,
-      source: at('apps/server/src/http/server.ts', 82),
+      title: 'Routes exist once, under /api',
+      summary: `One prefix for browsers, agents and tests, matching the cookie path. The alternative, keeping bare paths as an alias, would have preserved two route tables and auth code that special-cases both spellings.`,
+      source: at('apps/server/src/http/server.ts', 132),
+    },
+    {
+      title: 'The door decides the principal, and it is never absent',
+      summary: `The network hook assigns an anonymous principal before anything reads the request; authentication upgrades it to a viewer, and the MCP door to an agent. Routes convert it to an authenticated caller or fail closed, so a use case cannot receive a caller that was never identified.`,
+      source: at('apps/server/src/http/principal.ts', 11),
     },
   ],
   observations: [
     {
-      kind: 'complexity',
-      title: 'Routes exist twice, at / and /api',
-      detail: `registerApiRoutes runs on the root and again under the /api prefix. The cookie path is /api, so bare routes are bearer-only, and authenticate checks both /inventory spellings to issue the cookie. One prefix would halve the route table and remove the special case.`,
+      kind: 'good',
+      title: 'Routes exist once, at /api',
+      detail: `registerApiRoutes runs inside a single /api prefix. The cookie path is /api, so the browser session covers every route, and authenticate recognizes only /api/inventory when issuing the cookie.`,
       sources: [
-        at('apps/server/src/http/server.ts', 82),
-        at('apps/server/src/http/server.ts', 85),
+        at('apps/server/src/http/server.ts', 132),
+        at('apps/server/src/http/middlewares/authenticate.ts', 30),
         at('apps/server/src/http/middlewares/authenticate.ts', 21),
         at('apps/server/src/http/middlewares/browser-session.ts', 37),
       ],
@@ -405,14 +410,14 @@ const inventory: Area = {
   id: 'inventory',
   title: 'Projects and worktrees',
   webSurface: `Left sidebar: projects and worktrees with pending-file and open-thread badges, the add-project dialog (suggestions and folder picker), and Remove project.`,
-  summary: `Inventory is SQLite rows for projects and worktrees, rebuilt from git worktree list and matched by filesystem identity. The web almost never uses the stored snapshot: every inventory query run (mount, window focus, reconnect) calls POST /inventory/refresh, which rescans every project with Git on the operations queue. The sidebar also requests one review summary per available worktree, one at a time, on the separate summaries queue. A summary is a status read, or a full evidence read once the worktree has any reviewed mark.`,
+  summary: `Inventory is SQLite rows for projects and worktrees, rebuilt from git worktree list and matched by filesystem identity. The web almost never uses the stored snapshot: every inventory query run (mount, window focus, reconnect) calls POST /api/inventory/refresh, which rescans every project with Git on the operations queue. The sidebar also requests one review summary per available worktree, one at a time, on the separate summaries queue. A summary is a status read, or a full evidence read once the worktree has any reviewed mark.`,
   flows: [
     {
       id: 'inventory.read',
       title: 'Read stored inventory (login)',
       endpoint: {
         method: 'GET',
-        path: '/inventory',
+        path: '/api/inventory',
         source: at(route('get-inventory.ts'), 13),
       },
       webTriggers: [
@@ -420,7 +425,7 @@ const inventory: Area = {
           'useConnect',
           web('query/connection.ts'),
           24,
-          `Login only: sends the typed token with the browser header, which also issues the session cookie. Later reads go through POST /inventory/refresh.`,
+          `Login only: sends the typed token with the browser header, which also issues the session cookie. Later reads go through POST /api/inventory/refresh.`,
         ),
       ],
       steps: [
@@ -456,7 +461,7 @@ const inventory: Area = {
       title: 'Refresh inventory from Git',
       endpoint: {
         method: 'POST',
-        path: '/inventory/refresh',
+        path: '/api/inventory/refresh',
         source: at(route('refresh-inventory.ts'), 13),
       },
       webTriggers: [
@@ -534,7 +539,7 @@ const inventory: Area = {
       title: 'Register a project',
       endpoint: {
         method: 'POST',
-        path: '/projects',
+        path: '/api/projects',
         source: at(route('register-project.ts'), 17),
       },
       webTriggers: [
@@ -603,7 +608,7 @@ const inventory: Area = {
       title: 'Suggest nearby repositories',
       endpoint: {
         method: 'GET',
-        path: '/projects/discover',
+        path: '/api/projects/discover',
         source: at(route('project-locations.ts'), 18),
       },
       webTriggers: [
@@ -668,7 +673,7 @@ const inventory: Area = {
       title: 'Browse server folders',
       endpoint: {
         method: 'GET',
-        path: '/projects/folders',
+        path: '/api/projects/folders',
         source: at(route('project-locations.ts'), 30),
       },
       webTriggers: [
@@ -728,7 +733,7 @@ const inventory: Area = {
       title: 'Remove a project',
       endpoint: {
         method: 'DELETE',
-        path: '/projects/:projectId',
+        path: '/api/projects/:projectId',
         source: at(route('remove-project.ts'), 16),
       },
       webTriggers: [
@@ -794,7 +799,7 @@ const inventory: Area = {
       title: 'Sidebar review summary per worktree',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/review-summary',
+        path: '/api/worktrees/:worktreeId/review-summary',
         source: at(route('list-reviewed-files.ts'), 17),
       },
       webTriggers: [
@@ -1016,7 +1021,7 @@ const changes: Area = {
       title: 'Read working-tree status',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/git/status',
+        path: '/api/worktrees/:worktreeId/git/status',
         source: at(route('read-git-status.ts'), 17),
       },
       webTriggers: [
@@ -1062,7 +1067,7 @@ const changes: Area = {
       title: 'Read one file diff',
       endpoint: {
         method: 'POST',
-        path: '/worktrees/:worktreeId/git/diff',
+        path: '/api/worktrees/:worktreeId/git/diff',
         source: at(route('read-git-diff.ts'), 18),
       },
       webTriggers: [],
@@ -1131,7 +1136,7 @@ const changes: Area = {
       title: 'Read review evidence for all changed files',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/evidence',
+        path: '/api/worktrees/:worktreeId/evidence',
         source: at(route('evidence.ts'), 15),
       },
       webTriggers: [
@@ -1225,7 +1230,7 @@ const changes: Area = {
       title: 'List reviewed marks',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/reviewed',
+        path: '/api/worktrees/:worktreeId/reviewed',
         source: at(route('list-reviewed-files.ts'), 28),
       },
       webTriggers: [
@@ -1280,7 +1285,7 @@ const changes: Area = {
       title: 'Mark a file reviewed',
       endpoint: {
         method: 'PUT',
-        path: '/worktrees/:worktreeId/reviewed',
+        path: '/api/worktrees/:worktreeId/reviewed',
         source: at(route('set-reviewed-file.ts'), 17),
       },
       webTriggers: [
@@ -1354,7 +1359,7 @@ const changes: Area = {
       title: 'Unmark a file',
       endpoint: {
         method: 'DELETE',
-        path: '/worktrees/:worktreeId/reviewed',
+        path: '/api/worktrees/:worktreeId/reviewed',
         source: at(route('remove-reviewed-file.ts'), 17),
       },
       webTriggers: [
@@ -1562,7 +1567,7 @@ const reviewLayers: Area = {
       title: 'Read live layers',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/review-layers',
+        path: '/api/worktrees/:worktreeId/review-layers',
         source: at(route('get-review-layers.ts'), 16),
       },
       webTriggers: [
@@ -1609,7 +1614,7 @@ const reviewLayers: Area = {
       title: 'Replace live layers',
       endpoint: {
         method: 'PUT',
-        path: '/worktrees/:worktreeId/review-layers',
+        path: '/api/worktrees/:worktreeId/review-layers',
         source: at(route('replace-review-layers.ts'), 17),
       },
       webTriggers: [],
@@ -1653,7 +1658,7 @@ const reviewLayers: Area = {
       title: 'Read layers archived for a commit',
       endpoint: {
         method: 'GET',
-        path: '/projects/:projectId/commits/:oid/review-layers',
+        path: '/api/projects/:projectId/commits/:oid/review-layers',
         source: at(route('get-commit-review-layers.ts'), 15),
       },
       webTriggers: [
@@ -1708,7 +1713,7 @@ const reviewLayers: Area = {
       title: 'Associate live layers with a commit',
       endpoint: {
         method: 'PUT',
-        path: '/projects/:projectId/commits/:oid/review-layers',
+        path: '/api/projects/:projectId/commits/:oid/review-layers',
         source: at(route('associate-commit-review-layers.ts'), 16),
       },
       webTriggers: [],
@@ -1862,7 +1867,7 @@ const reviewLayers: Area = {
     {
       kind: 'complexity',
       title: 'The association endpoint has no caller',
-      detail: `PUT /projects/:projectId/commits/:oid/review-layers is not used by the web, the client package or MCP. Commits made outside Porcelain therefore never get archived layers today.`,
+      detail: `PUT /api/projects/:projectId/commits/:oid/review-layers is not used by the web, the client package or MCP. Commits made outside Porcelain therefore never get archived layers today.`,
       sources: [at(route('associate-commit-review-layers.ts'), 15)],
       confidence: 'verified',
     },
@@ -1912,7 +1917,7 @@ const comments: Area = {
       title: 'List threads',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/comments',
+        path: '/api/worktrees/:worktreeId/comments',
         source: at(route('list-comment-threads.ts'), 16),
       },
       webTriggers: [
@@ -1963,7 +1968,7 @@ const comments: Area = {
       title: 'Create a thread',
       endpoint: {
         method: 'POST',
-        path: '/worktrees/:worktreeId/comments',
+        path: '/api/worktrees/:worktreeId/comments',
         source: at(route('create-comment-thread.ts'), 17),
       },
       webTriggers: [
@@ -2025,7 +2030,7 @@ const comments: Area = {
       title: 'Reply to a thread',
       endpoint: {
         method: 'POST',
-        path: '/worktrees/:worktreeId/comments/:threadId/replies',
+        path: '/api/worktrees/:worktreeId/comments/:threadId/replies',
         source: at(route('reply-to-comment.ts'), 17),
       },
       webTriggers: [
@@ -2075,7 +2080,7 @@ const comments: Area = {
       title: 'Resolve or reopen a thread',
       endpoint: {
         method: 'PUT',
-        path: '/worktrees/:worktreeId/comments/:threadId/resolution',
+        path: '/api/worktrees/:worktreeId/comments/:threadId/resolution',
         source: at(route('resolve-comment-thread.ts'), 17),
       },
       webTriggers: [
@@ -2201,7 +2206,7 @@ const artifacts: Area = {
       title: 'Upload an artifact',
       endpoint: {
         method: 'POST',
-        path: '/worktrees/:worktreeId/artifacts',
+        path: '/api/worktrees/:worktreeId/artifacts',
         source: at(route('upload-artifact.ts'), 19),
       },
       webTriggers: [],
@@ -2258,7 +2263,7 @@ const artifacts: Area = {
       title: 'List artifact metadata',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/artifacts',
+        path: '/api/worktrees/:worktreeId/artifacts',
         source: at(route('list-artifacts.ts'), 17),
       },
       webTriggers: [
@@ -2312,7 +2317,7 @@ const artifacts: Area = {
       title: 'Read artifact content',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/artifacts/:artifactId',
+        path: '/api/worktrees/:worktreeId/artifacts/:artifactId',
         source: at(route('get-artifact.ts'), 17),
       },
       webTriggers: [
@@ -2364,7 +2369,7 @@ const artifacts: Area = {
       title: 'Delete an artifact',
       endpoint: {
         method: 'DELETE',
-        path: '/worktrees/:worktreeId/artifacts/:artifactId',
+        path: '/api/worktrees/:worktreeId/artifacts/:artifactId',
         source: at(route('delete-artifact.ts'), 16),
       },
       webTriggers: [],
@@ -2484,7 +2489,7 @@ const files: Area = {
       title: 'Read the whole file tree',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/file-tree',
+        path: '/api/worktrees/:worktreeId/file-tree',
         source: at(route('files.ts'), 24),
       },
       webTriggers: [
@@ -2550,7 +2555,7 @@ const files: Area = {
       title: 'List one folder',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/directory',
+        path: '/api/worktrees/:worktreeId/directory',
         source: at(route('list-directory.ts'), 18),
       },
       webTriggers: [
@@ -2597,7 +2602,7 @@ const files: Area = {
       title: 'Read a text file',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/text',
+        path: '/api/worktrees/:worktreeId/text',
         source: at(route('read-text-file.ts'), 35),
       },
       webTriggers: [
@@ -2651,7 +2656,7 @@ const files: Area = {
       title: 'Read a binary asset from the worktree',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/asset',
+        path: '/api/worktrees/:worktreeId/asset',
         source: at(route('read-text-file.ts'), 19),
       },
       webTriggers: [
@@ -2711,7 +2716,7 @@ const files: Area = {
       title: 'Write, create, move or trash a file',
       endpoint: {
         method: 'POST',
-        path: '/worktrees/:worktreeId/files',
+        path: '/api/worktrees/:worktreeId/files',
         source: at(route('edit-file.ts'), 16),
       },
       webTriggers: [
@@ -2764,7 +2769,7 @@ const files: Area = {
       title: 'List file preferences',
       endpoint: {
         method: 'GET',
-        path: '/projects/:projectId/file-preferences',
+        path: '/api/projects/:projectId/file-preferences',
         source: at(route('list-file-preferences.ts'), 16),
       },
       webTriggers: [
@@ -2819,7 +2824,7 @@ const files: Area = {
       title: 'Set a pin or hide flag',
       endpoint: {
         method: 'PUT',
-        path: '/projects/:projectId/file-preferences',
+        path: '/api/projects/:projectId/file-preferences',
         source: at(route('set-file-preference.ts'), 17),
       },
       webTriggers: [
@@ -2980,7 +2985,7 @@ const history: Area = {
       title: 'List a page of commits',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/commits',
+        path: '/api/worktrees/:worktreeId/commits',
         source: at(route('list-commits.ts'), 18),
       },
       webTriggers: [
@@ -3061,7 +3066,7 @@ const history: Area = {
       title: 'Inspect a commit',
       endpoint: {
         method: 'GET',
-        path: '/worktrees/:worktreeId/commits/:oid/changes',
+        path: '/api/worktrees/:worktreeId/commits/:oid/changes',
         source: at(route('inspect-commit-changes.ts'), 18),
       },
       webTriggers: [
@@ -3266,7 +3271,7 @@ function prepareFlow(a: ActionSpec): Flow {
     title: `Prepare ${a.label}`,
     endpoint: {
       method: 'POST',
-      path: `/projects/:projectId/worktrees/:worktreeId/git/${a.segment}/prepare`,
+      path: `/api/projects/:projectId/worktrees/:worktreeId/git/${a.segment}/prepare`,
       source: at(route(a.prepareFile), 17),
     },
     webTriggers: [a.web],
@@ -3333,7 +3338,7 @@ function executeFlow(a: ActionSpec): Flow {
     title: `Execute ${a.label}`,
     endpoint: {
       method: 'POST',
-      path: `/projects/:projectId/worktrees/:worktreeId/git/${a.segment}`,
+      path: `/api/projects/:projectId/worktrees/:worktreeId/git/${a.segment}`,
       source: at(route(a.executeFile), 18),
     },
     webTriggers: [
@@ -3711,7 +3716,7 @@ const gitActions: Area = {
       title: 'Read a Git action receipt',
       endpoint: {
         method: 'GET',
-        path: '/git-action-requests/:requestId',
+        path: '/api/git-action-requests/:requestId',
         source: at(route('get-git-action-receipt.ts'), 15),
       },
       webTriggers: [
@@ -3762,7 +3767,7 @@ const gitActions: Area = {
       title: 'Generate a commit draft with a coding CLI',
       endpoint: {
         method: 'POST',
-        path: '/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
+        path: '/api/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
         source: at(route('commit-drafts.ts'), 26),
       },
       webTriggers: [
@@ -3837,7 +3842,7 @@ const gitActions: Area = {
       title: 'List available commit models',
       endpoint: {
         method: 'GET',
-        path: '/git/commit-models',
+        path: '/api/git/commit-models',
         source: at(route('commit-drafts.ts'), 21),
       },
       webTriggers: [
@@ -4005,7 +4010,7 @@ const mcpStep = (tool: string, line: number, what: string): Step =>
 const mcpEntry = (): Step =>
   s(
     'route',
-    'POST /mcp',
+    'POST /api/mcp',
     `Bearer-only, no Origin header; one fresh MCP server and transport per request.`,
     route('mcp.ts'),
     16,
@@ -4015,15 +4020,15 @@ const mcp: Area = {
   id: 'mcp',
   title: 'MCP agent endpoint',
   webSurface: `None directly. Agent results appear in the web as review layers, comments and handoff artifacts.`,
-  summary: `POST /mcp builds a fresh MCP server and Streamable HTTP transport per request (JSON responses, no sessions) and maps 11 tools onto Application methods. It requires a bearer token and rejects any request that carries an Origin header. Tools share the browser's queues and costs: git_status, review_evidence and read_file are Git-heavy reads on the operations queue; inventory, read_layers and list_comments are synchronous SQLite reads.`,
+  summary: `POST /api/mcp builds a fresh MCP server and Streamable HTTP transport per request (JSON responses, no sessions) and maps 11 tools onto Application methods. It requires a bearer token and rejects any request that carries an Origin header. Tools share the browser's queues and costs: git_status, review_evidence and read_file are Git-heavy reads on the operations queue; inventory, read_layers and list_comments are synchronous SQLite reads.`,
   flows: [
     {
       id: 'mcp.endpoint',
       title: 'MCP Streamable HTTP endpoint',
       endpoint: {
         method: 'POST',
-        path: '/mcp',
-        source: at(route('mcp.ts'), 17),
+        path: '/api/mcp',
+        source: at(route('mcp.ts'), 18),
       },
       webTriggers: [],
       steps: [
@@ -4060,7 +4065,8 @@ const mcp: Area = {
       gitCommands: [],
       tables: [],
       cost: 'Per request: one McpServer with 11 tools and one transport; small next to the tool work.',
-      notes: 'Registered at /mcp and /api/mcp; body limit 6 MiB + 4 KiB.',
+      notes:
+        'Registered once, at /api/mcp; body limit 6 MiB + 4 KiB. The bearer grants the agent principal, which is what attributes its comments.',
     },
     {
       id: 'mcp.inventory',
@@ -4480,7 +4486,7 @@ const lifecycle: Area = {
   id: 'lifecycle',
   title: 'Server lifecycle and queues',
   webSurface: `None directly. It sets startup time, request latency (queue wait) and shutdown behaviour for every surface.`,
-  summary: `The CLI ensures a token file, claims the data directory with an exclusive server.lock, opens SQLite (migration history check, WAL, migrate), recovers unfinished Git receipts and rescans every project before listening. Almost all work then flows through one serialized Lanes, 'operations', whose 30 s deadline starts at enqueue; discovery, browsing, summaries and drafting have their own single-lane runners. Shutdown drains HTTP for 5 s, waits for queued work, then closes SQLite and releases the lock. The working tree adds diagnostics channels for queue events and SQL, but not for Git processes.`,
+  summary: `The CLI ensures a token file, then one composite runtime verifies the data directory is owner-only, takes a crash-released startup lock, claims the owner socket, opens SQLite (migration history check, WAL, migrate), recovers unfinished Git receipts and rescans every project before listening on both doors: HTTP under /api and a 0600 Unix socket for owner operations. Almost all work then flows through one serialized Lanes, 'operations', whose 30 s deadline starts at enqueue; discovery, browsing, summaries and drafting have their own single-lane runners. Shutdown drains both listeners for 5 s, waits for queued work, then closes the application exactly once. The working tree adds diagnostics channels for queue events and SQL, but not for Git processes.`,
   flows: [
     {
       id: 'lifecycle.startup',
@@ -4510,17 +4516,24 @@ const lifecycle: Area = {
         ),
         s(
           'application',
-          'startLocalServer',
-          `Claims the data directory, creates the Fastify server, then listens.`,
-          'apps/server/src/cli/start-local-server.ts',
-          13,
+          'startRuntime',
+          `Claims the directory and socket under the startup lock, builds both listeners, and owns the application's lifetime.`,
+          'apps/server/src/lifecycle/runtime.ts',
+          75,
         ),
         s(
           'application',
-          'createServer',
-          `Opens the application before registering routes at / and /api.`,
+          'createNetworkServer',
+          `Registers every route once under /api, behind the Host and Origin checks.`,
           'apps/server/src/http/server.ts',
-          59,
+          85,
+        ),
+        s(
+          'application',
+          'createOwnerServer',
+          `Serves status on the Unix socket only; reaching it is the credential.`,
+          'apps/server/src/http/owner-server.ts',
+          22,
         ),
         s(
           'application',
@@ -4572,17 +4585,31 @@ const lifecycle: Area = {
       steps: [
         s(
           'filesystem',
-          'claimDataDirectory',
-          `mkdir 0700, realpath, then create server.lock exclusively and write the PID.`,
-          'apps/server/src/lifecycle/claim-data-directory.ts',
+          'prepareDataDirectory',
+          `mkdir 0700, realpath, then refuse any directory another user owns or can reach, because mkdir never tightens an existing one.`,
+          'apps/server/src/lifecycle/data-directory.ts',
           12,
         ),
         s(
           'filesystem',
-          'openOwnershipFile',
-          `An existing lock means another owner (or a crash) and startup fails.`,
-          'apps/server/src/lifecycle/claim-data-directory.ts',
-          38,
+          'acquireStartupLock',
+          `An exclusive SQLite transaction on startup.lock serializes claim-then-bind; fcntl means the kernel releases it if the holder dies.`,
+          'apps/server/src/lifecycle/startup-lock.ts',
+          22,
+        ),
+        s(
+          'filesystem',
+          'ownerSocketInUse',
+          `Only a server that answers proves the directory is taken; a socket nothing listens on is what a crash leaves.`,
+          'apps/server/src/lifecycle/owner-socket.ts',
+          31,
+        ),
+        s(
+          'filesystem',
+          'restrictOwnerSocket',
+          `chmod 0600 and confirm it before the owner door counts as ready.`,
+          'apps/server/src/lifecycle/owner-socket.ts',
+          52,
         ),
       ],
       runner: 'none',
@@ -4590,7 +4617,7 @@ const lifecycle: Area = {
       tables: [],
       cost: 'Constant.',
       notes:
-        'Release unlinks the lock after resources close; a crash leaves it for manual removal.',
+        'Nothing is held for the process lifetime and a crash needs no cleanup: the startup lock dies with its holder, and the next start removes a socket that no longer answers.',
     },
     {
       id: 'lifecycle.migrations',
@@ -4727,17 +4754,17 @@ const lifecycle: Area = {
         ),
         s(
           'application',
-          'closeServer',
-          `Closes the listener and force-closes connections after 5 s.`,
-          'apps/server/src/cli/start-local-server.ts',
-          51,
+          'closeListener',
+          `Closes a listener and force-closes its connections after 5 s.`,
+          'apps/server/src/lifecycle/runtime.ts',
+          40,
         ),
         s(
           'application',
-          'preClose / onClose hooks',
-          `Close the application.`,
-          'apps/server/src/http/server.ts',
-          79,
+          'shutDown',
+          `Network door first, then the application drains, then the owner socket last: its absence is what frees the directory, so it cannot go before the database has closed.`,
+          'apps/server/src/lifecycle/runtime.ts',
+          56,
         ),
         s(
           'runner',
@@ -4748,10 +4775,10 @@ const lifecycle: Area = {
         ),
         s(
           'filesystem',
-          'release',
-          `Unlinks server.lock.`,
-          'apps/server/src/lifecycle/claim-data-directory.ts',
-          12,
+          'owner listener close',
+          `Node unlinks the socket it bound; a refused start never removes a live one.`,
+          'apps/server/src/lifecycle/runtime.ts',
+          64,
         ),
       ],
       runner: 'operations',
@@ -4762,8 +4789,8 @@ const lifecycle: Area = {
   ],
   decisions: [
     {
-      title: 'Explicit configuration, exclusive lock, no stale takeover',
-      summary: `Startup validates host, port, token and an absolute data directory, and one executable owns a data directory through server.lock. PIDs are not trusted to prove a dead owner, so a crash needs manual cleanup; OS-level locking is deferred to Electron or service supervision.`,
+      title: 'Explicit configuration, a crash-released lock, no stale takeover',
+      summary: `Startup validates host, port, token and an absolute data directory. One server owns a data directory, proved by the owner socket answering rather than by a PID. The claim-then-bind window is serialized by an OS-released advisory lock, so two starters cannot both decide a socket is stale and the second delete the first's live one — and a crash leaves nothing to remove by hand.`,
       doc: doc('0005-local-server-startup.md'),
     },
     {

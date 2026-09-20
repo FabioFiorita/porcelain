@@ -48,7 +48,7 @@ export class ReadReviewSummary {
       worktreeId,
       pendingFiles,
       openThreads: this.comments
-        .execute({ kind: 'list', worktreeId })
+        .list(worktreeId)
         .filter((thread) => !thread.resolved).length,
     };
   }

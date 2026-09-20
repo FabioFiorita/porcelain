@@ -662,7 +662,7 @@ export const serverSpecAudits: SpecAudit[] = [
     ],
     gaps: [
       'Refresh cost is not bounded (10 git processes for one project with 4 checkouts, 24 with 11, measured).',
-      'GET /inventory is cheap (no git), but nothing pins that, so a regression that refreshes on read would pass.',
+      'GET /api/inventory is cheap (no git), but nothing pins that, so a regression that refreshes on read would pass.',
     ],
     verdict: 'adequate',
   },
@@ -1334,9 +1334,9 @@ export const serverSpecAudits: SpecAudit[] = [
         asserts: 'Health over fetch, listener closed afterwards.',
       },
       {
-        name: 'keeps the browser API under /api while retaining root API compatibility',
+        name: 'keeps the browser API under /api',
         asserts:
-          'Cookie Path=/api, session works with the cookie, root routes still accept bearer tokens.',
+          'Cookie Path=/api, session works with the cookie, and routes exist only under the prefix.',
       },
       {
         name: 'uses the Zod response serializer to remove undeclared fields',
@@ -1400,14 +1400,14 @@ export const serverSpecAudits: SpecAudit[] = [
       {
         name: 'persists browser authentication across restart, requires CSRF headers, and expires sessions',
         asserts:
-          'HttpOnly/SameSite=Strict/30-day cookie without the token; cookie alone is 401 without the browser header; a tampered cookie is 401; DELETE /session needs the header and clears the cookie; the same cookie still works after restart; expiry after 31 days.',
+          'HttpOnly/SameSite=Strict/30-day cookie without the token; cookie alone is 401 without the browser header; a tampered cookie is 401; DELETE /api/session needs the header and clears the cookie; the same cookie still works after restart; expiry after 31 days.',
       },
     ],
     strengths: [
       'Covers CSRF header, tampering and expiry for the HMAC cookie.',
     ],
     gaps: [
-      'The test reuses the cookie after DELETE /session and expects 200 after restart: logout only clears the browser copy, and a copied cookie stays valid for 30 days. The spec encodes that rather than questioning it.',
+      'The test reuses the cookie after DELETE /api/session and expects 200 after restart: logout only clears the browser copy, and a copied cookie stays valid for 30 days. The spec encodes that rather than questioning it.',
       'Token rotation (restart with a different token must invalidate old cookies) is not tested.',
     ],
     verdict: 'adequate',
@@ -1494,7 +1494,7 @@ export const serverAreaSummaries: AreaTestSummary[] = [
       'Cold GET /evidence for 200 changed files spawns at most N git processes (count with a PATH wrapper like createIsolatedGit; today 258).',
       'A warm GET /evidence spawns at most 13 git processes and reads no diffs, using the real readFileStamps.',
       'While one file keeps changing (agent editing), evidence re-reads only that file instead of every changed file.',
-      'A single POST /git/diff spawns at most N processes (today 35: two full status reads plus the diff).',
+      'A single POST /api/git/diff spawns at most N processes (today 35: two full status reads plus the diff).',
       'Aborting the browser request for /evidence or /git/diff aborts the queued or running Git work (routes do not pass the request signal today).',
       'Two concurrent cold /evidence requests for one worktree compute it once.',
       'A real repository with more than 2000 changes returns 413 INSPECTION_LIMIT over HTTP.',

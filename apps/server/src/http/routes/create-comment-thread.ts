@@ -6,6 +6,7 @@ import {
 } from '@porcelain/contracts/comments';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
+import { callerOf } from '../principal.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
 export function createCommentThread(
@@ -23,11 +24,9 @@ export function createCommentThread(
       },
     },
     async (request) =>
-      options.application.comments({
-        kind: 'create',
-        author: 'reviewer',
-        ...request.params,
-        ...request.body,
-      }),
+      options.application.comments(
+        { kind: 'create', ...request.params, ...request.body },
+        callerOf(request),
+      ),
   );
 }

@@ -24,11 +24,15 @@ describe('Artifacts', () => {
     const path = join(root, 'project');
     await mkdir(path);
     execFileSync('git', ['init', '-b', 'main', path]);
-    const options = { dataDirectory: join(root, 'state'), token };
+    const options = {
+      dataDirectory: join(root, 'state'),
+      projectHome: join(root, 'state'),
+      token,
+    };
     const server = await createServer(options);
     const response = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
@@ -40,7 +44,7 @@ describe('Artifacts', () => {
       path,
       options,
       server,
-      collection: `/worktrees/${worktree.id}/artifacts`,
+      collection: `/api/worktrees/${worktree.id}/artifacts`,
       worktreeId: worktree.id,
     };
   }
@@ -69,7 +73,7 @@ describe('Artifacts', () => {
       expect(await readdir(f.path)).toEqual(['.git']);
       await f.server.inject({
         method: 'POST',
-        url: '/inventory/refresh',
+        url: '/api/inventory/refresh',
         headers,
       });
       await f.server.close();
@@ -104,14 +108,14 @@ describe('Artifacts', () => {
           (
             await restarted.inject({
               method: 'POST',
-              url: '/projects',
+              url: '/api/projects',
               headers,
               payload: { path: otherPath },
             })
           ).json(),
         ).worktrees[0];
         if (!other) throw new Error('Missing second worktree');
-        const otherCollection = `/worktrees/${other.id}/artifacts`;
+        const otherCollection = `/api/worktrees/${other.id}/artifacts`;
         expect(
           (
             await restarted.inject({
@@ -198,7 +202,7 @@ describe('Artifacts', () => {
         expect(response.headers['cache-control']).toBe('no-store');
       }
       for (const method of ['POST', 'GET', 'DELETE'] as const) {
-        const url = `/worktrees/${randomUUID()}/artifacts${method === 'DELETE' ? `/${randomUUID()}` : ''}`;
+        const url = `/api/worktrees/${randomUUID()}/artifacts${method === 'DELETE' ? `/${randomUUID()}` : ''}`;
         expect(
           (
             await f.server.inject({
@@ -369,16 +373,16 @@ describe('Artifacts', () => {
       ]);
       await f.server.inject({
         method: 'POST',
-        url: '/inventory/refresh',
+        url: '/api/inventory/refresh',
         headers,
       });
       const inventory = (
-        await f.server.inject({ method: 'GET', url: '/inventory', headers })
+        await f.server.inject({ method: 'GET', url: '/api/inventory', headers })
       ).json();
       const project = projectResponseSchema.parse(inventory.projects[0]);
       const worktree = project.worktrees.find((entry) => !entry.main);
       if (!worktree) throw new Error('Missing linked worktree');
-      const collection = `/worktrees/${worktree.id}/artifacts`;
+      const collection = `/api/worktrees/${worktree.id}/artifacts`;
       const uploaded = await f.server.inject({
         method: 'POST',
         url: collection,
@@ -389,7 +393,7 @@ describe('Artifacts', () => {
       execFileSync('git', ['-C', f.path, 'worktree', 'remove', linked]);
       await f.server.inject({
         method: 'POST',
-        url: '/inventory/refresh',
+        url: '/api/inventory/refresh',
         headers,
       });
       for (const [method, url] of [

@@ -1,4 +1,4 @@
-type CommentAuthor = 'reviewer' | 'agent';
+export type CommentAuthor = 'reviewer' | 'agent';
 
 type CommentComparison =
   | { kind: 'worktree'; scope: 'staged' | 'unstaged' | 'untracked' }
@@ -40,14 +40,12 @@ export type CommentCommand =
       worktreeId: string;
       anchor: CommentAnchor;
       body: string;
-      author: CommentAuthor;
     }
   | {
       kind: 'reply';
       worktreeId: string;
       threadId: string;
       body: string;
-      author: CommentAuthor;
     }
   | {
       kind: 'resolve';

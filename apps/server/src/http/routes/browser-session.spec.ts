@@ -7,10 +7,14 @@ import { createServer } from '../server.ts';
 it('persists browser authentication across restart, requires CSRF headers, and expires sessions', async () => {
   const dataDirectory = await mkdtemp(join(tmpdir(), 'browser-session-'));
   const token = 'disposable-browser-session-token-123456';
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   try {
     const login = await server.inject({
-      url: '/inventory',
+      url: '/api/inventory',
       headers: {
         authorization: `Bearer ${token}`,
         'x-porcelain-browser': '1',
@@ -26,13 +30,13 @@ it('persists browser authentication across restart, requires CSRF headers, and e
       cookie: cookie.split(';')[0] ?? '',
       'x-porcelain-browser': '1',
     };
-    expect((await server.inject({ url: '/session', headers })).statusCode).toBe(
-      200,
-    );
+    expect(
+      (await server.inject({ url: '/api/session', headers })).statusCode,
+    ).toBe(200);
     expect(
       (
         await server.inject({
-          url: '/inventory',
+          url: '/api/inventory',
           headers: { cookie: headers.cookie },
         })
       ).statusCode,
@@ -41,7 +45,7 @@ it('persists browser authentication across restart, requires CSRF headers, and e
       (
         await server.inject({
           method: 'POST',
-          url: '/inventory/refresh',
+          url: '/api/inventory/refresh',
           headers: { cookie: headers.cookie },
         })
       ).statusCode,
@@ -50,7 +54,7 @@ it('persists browser authentication across restart, requires CSRF headers, and e
       (
         await server.inject({
           method: 'POST',
-          url: '/inventory/refresh',
+          url: '/api/inventory/refresh',
           headers,
         })
       ).statusCode,
@@ -58,7 +62,7 @@ it('persists browser authentication across restart, requires CSRF headers, and e
     expect(
       (
         await server.inject({
-          url: '/session',
+          url: '/api/session',
           headers: {
             ...headers,
             cookie: `${headers.cookie.slice(0, -1)}${headers.cookie.endsWith('a') ? 'b' : 'a'}`,
@@ -70,35 +74,39 @@ it('persists browser authentication across restart, requires CSRF headers, and e
       (
         await server.inject({
           method: 'DELETE',
-          url: '/session',
+          url: '/api/session',
           headers: { cookie: headers.cookie },
         })
       ).statusCode,
     ).toBe(403);
     const logout = await server.inject({
       method: 'DELETE',
-      url: '/session',
+      url: '/api/session',
       headers,
     });
     expect(logout.statusCode).toBe(204);
     expect(logout.headers['set-cookie']).toContain('Max-Age=0');
     await server.close();
-    const restarted = await createServer({ dataDirectory, token });
+    const restarted = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       expect(
-        (await restarted.inject({ url: '/session', headers })).statusCode,
+        (await restarted.inject({ url: '/api/session', headers })).statusCode,
       ).toBe(200);
       vi.spyOn(Date, 'now').mockReturnValue(
         Date.now() + 31 * 24 * 60 * 60 * 1000,
       );
       expect(
-        (await restarted.inject({ url: '/session', headers })).statusCode,
+        (await restarted.inject({ url: '/api/session', headers })).statusCode,
       ).toBe(401);
       vi.restoreAllMocks();
       expect(
         (
           await restarted.inject({
-            url: '/inventory',
+            url: '/api/inventory',
             headers: { authorization: `Bearer ${token}` },
           })
         ).statusCode,

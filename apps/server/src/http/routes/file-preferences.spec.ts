@@ -19,17 +19,21 @@ it('persists independent file and folder intent through retry, refresh, unavaila
   const dataDirectory = join(root, 'state');
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   try {
     const registered = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
     const project = projectResponseSchema.parse(registered.json());
     const id = project.id;
-    const url = `/projects/${id}/file-preferences`;
+    const url = `/api/projects/${id}/file-preferences`;
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     const set = async (
       filePath: string,
@@ -66,7 +70,7 @@ it('persists independent file and folder intent through retry, refresh, unavaila
       (
         await server.inject({
           method: 'POST',
-          url: '/inventory/refresh',
+          url: '/api/inventory/refresh',
           headers,
         })
       ).statusCode,
@@ -92,14 +96,18 @@ it('persists independent file and folder intent through retry, refresh, unavaila
       (
         await server.inject({
           method: 'POST',
-          url: '/inventory/refresh',
+          url: '/api/inventory/refresh',
           headers,
         })
       ).statusCode,
     ).toBe(200);
     await set('absent/child.ts', 'pinned', true);
     await server.close();
-    const reopened = await createServer({ dataDirectory, token });
+    const reopened = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       expect(
         (await reopened.inject({ method: 'GET', url, headers })).json(),
@@ -124,6 +132,7 @@ it('isolates projects and rejects unauthenticated, noncanonical, unknown identit
   );
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   try {
@@ -134,14 +143,14 @@ it('isolates projects and rejects unauthenticated, noncanonical, unknown identit
       execFileSync('git', ['init', '-b', 'main', path]);
       const response = await server.inject({
         method: 'POST',
-        url: '/projects',
+        url: '/api/projects',
         headers,
         payload: { path },
       });
       const project = projectResponseSchema.parse(response.json());
       ids.push(project.id);
     }
-    const url = `/projects/${ids[0]}/file-preferences`;
+    const url = `/api/projects/${ids[0]}/file-preferences`;
     const payload = { path: 'file.ts', flag: 'pinned', value: true };
     expect(
       (await server.inject({ method: 'PUT', url, payload: { invalid: true } }))
@@ -156,7 +165,7 @@ it('isolates projects and rejects unauthenticated, noncanonical, unknown identit
       (
         await server.inject({
           method: 'GET',
-          url: `/projects/${ids[1]}/file-preferences`,
+          url: `/api/projects/${ids[1]}/file-preferences`,
           headers,
         })
       ).json(),
@@ -203,7 +212,7 @@ it('isolates projects and rejects unauthenticated, noncanonical, unknown identit
     for (const method of ['GET', 'PUT'] as const) {
       const response = await server.inject({
         method,
-        url: '/projects/00000000-0000-4000-8000-000000000000/file-preferences',
+        url: '/api/projects/00000000-0000-4000-8000-000000000000/file-preferences',
         headers,
         ...(method === 'PUT' ? { payload } : {}),
       });
@@ -232,11 +241,15 @@ it('returns a safe capacity conflict and permits clearing then adding through HT
   const path = join(root, 'project');
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
-  const initial = await createServer({ dataDirectory, token });
+  const initial = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   try {
     const registered = await initial.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
@@ -256,9 +269,13 @@ it('returns a safe capacity conflict and permits clearing then adding through HT
     } finally {
       database.close();
     }
-    const server = await createServer({ dataDirectory, token });
+    const server = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
-      const url = `/projects/${projectId}/file-preferences`;
+      const url = `/api/projects/${projectId}/file-preferences`;
       const overflow = await server.inject({
         method: 'PUT',
         url,

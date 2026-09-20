@@ -39,19 +39,20 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
   git('-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'second');
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   try {
     const registered = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
     const project = projectResponseSchema.parse(registered.json());
     const worktreeId = project.worktrees[0]?.id;
     if (!worktreeId) throw new Error('Missing worktree');
-    const url = `/worktrees/${worktreeId}/commits`;
+    const url = `/api/worktrees/${worktreeId}/commits`;
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     const listing = await fetch(`${address}${url}?limit=1`, { headers });
     expect(listing.status).toBe(200);
@@ -102,7 +103,8 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
       });
       expect(response.statusCode).toBe(401);
     }
-    const unknown = '/worktrees/00000000-0000-4000-8000-000000000000/commits';
+    const unknown =
+      '/api/worktrees/00000000-0000-4000-8000-000000000000/commits';
     for (const target of [unknown, `${unknown}/${oid}/changes`]) {
       const response = await server.inject({
         method: 'GET',
@@ -140,7 +142,11 @@ it('lists and inspects registered history through authenticated loopback HTTP wi
     });
     expect(JSON.stringify(limited.json())).not.toContain(path);
     await rm(path, { recursive: true, force: true });
-    await server.inject({ method: 'POST', url: '/inventory/refresh', headers });
+    await server.inject({
+      method: 'POST',
+      url: '/api/inventory/refresh',
+      headers,
+    });
     expect(
       (await server.inject({ method: 'GET', url, headers })).statusCode,
     ).toBe(422);

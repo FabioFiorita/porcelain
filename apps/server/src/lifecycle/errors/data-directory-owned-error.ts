@@ -1,7 +1,8 @@
 export class DataDirectoryOwnedError extends Error {
-  constructor(cause: unknown) {
+  constructor(directory: string, cause?: unknown) {
     super(
-      'The data directory has an ownership file. See the startup recovery instructions.',
+      `Another Porcelain server is using ${directory}. ` +
+        'Stop it before starting a second one.',
       { cause },
     );
     this.name = 'DataDirectoryOwnedError';

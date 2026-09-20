@@ -11,9 +11,13 @@ import { fileQuerySchema } from '@porcelain/contracts/files';
 import { replaceReviewLayersSchema } from '@porcelain/contracts/review-layers';
 import { z } from 'zod';
 import type { Application } from '../../application.ts';
+import type { AuthenticatedPrincipal } from '../../models/principal.ts';
 import { toErrorResponse } from '../mappers/error-response.ts';
 
-export function createReviewMcpServer(application: Application) {
+export function createReviewMcpServer(
+  application: Application,
+  principal: AuthenticatedPrincipal,
+) {
   const server = new McpServer(
     { name: 'porcelain', version: '1.0.0' },
     {
@@ -84,7 +88,9 @@ export function createReviewMcpServer(application: Application) {
       annotations: { readOnlyHint: true },
     },
     async (input, { signal }) =>
-      result(() => application.comments({ ...input, kind: 'list' }, signal)),
+      result(() =>
+        application.comments({ ...input, kind: 'list' }, principal, signal),
+      ),
   );
   server.registerTool(
     'create_comment',
@@ -95,10 +101,7 @@ export function createReviewMcpServer(application: Application) {
     },
     async (input, { signal }) =>
       result(() =>
-        application.comments(
-          { ...input, kind: 'create', author: 'agent' },
-          signal,
-        ),
+        application.comments({ ...input, kind: 'create' }, principal, signal),
       ),
   );
   server.registerTool(
@@ -109,10 +112,7 @@ export function createReviewMcpServer(application: Application) {
     },
     async (input, { signal }) =>
       result(() =>
-        application.comments(
-          { ...input, kind: 'reply', author: 'agent' },
-          signal,
-        ),
+        application.comments({ ...input, kind: 'reply' }, principal, signal),
       ),
   );
   server.registerTool(
@@ -122,7 +122,9 @@ export function createReviewMcpServer(application: Application) {
       inputSchema: commentThreadScopeSchema.extend(resolveCommentSchema.shape),
     },
     async (input, { signal }) =>
-      result(() => application.comments({ ...input, kind: 'resolve' }, signal)),
+      result(() =>
+        application.comments({ ...input, kind: 'resolve' }, principal, signal),
+      ),
   );
   server.registerTool(
     'read_layers',

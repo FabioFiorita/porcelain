@@ -1,4 +1,8 @@
 import { expect, it } from 'vitest';
+
+const reviewer = { kind: 'viewer', deviceId: null } as const;
+const agent = { kind: 'agent' } as const;
+
 import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type { CommentThread } from '../models/comment-thread.ts';
 import type { Inventory } from '../models/inventory.ts';
@@ -71,9 +75,9 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
   const comments = new CommentThreads(store, inventory, () =>
     String(++sequence),
   );
-  expect(comments.execute({ kind: 'list', worktreeId: 'worktree' })).toEqual(
-    [],
-  );
+  expect(
+    comments.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer),
+  ).toEqual([]);
   const anchor = {
     kind: 'codeRange' as const,
     filePath: 'src/a.ts',
@@ -83,46 +87,61 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
     contentFingerprint: 'opaque',
     side: 'deletions' as const,
   };
-  const [thread] = comments.execute({
-    kind: 'create',
-    worktreeId: 'worktree',
-    anchor,
-    body: '  original\n',
-    author: 'agent',
-  });
+  const [thread] = comments.execute(
+    {
+      kind: 'create',
+      worktreeId: 'worktree',
+      anchor,
+      body: '  original\n',
+    },
+    agent,
+  );
   if (!thread) throw new Error('Expected thread');
   const originalMessageId = thread.messages[0]?.id;
   anchor.startLine = 99;
-  comments.execute({
-    kind: 'reply',
-    worktreeId: 'worktree',
-    threadId: thread.id,
-    body: 'first',
-    author: 'reviewer',
-  });
-  const resolved = comments.execute({
-    kind: 'resolve',
-    worktreeId: 'worktree',
-    threadId: thread.id,
-    resolved: true,
-  });
-  expect(
-    comments.execute({
+  comments.execute(
+    {
+      kind: 'reply',
+      worktreeId: 'worktree',
+      threadId: thread.id,
+      body: 'first',
+    },
+    reviewer,
+  );
+  const resolved = comments.execute(
+    {
       kind: 'resolve',
       worktreeId: 'worktree',
       threadId: thread.id,
       resolved: true,
-    }),
+    },
+    reviewer,
+  );
+  expect(
+    comments.execute(
+      {
+        kind: 'resolve',
+        worktreeId: 'worktree',
+        threadId: thread.id,
+        resolved: true,
+      },
+      reviewer,
+    ),
   ).toEqual(resolved);
-  comments.execute({
-    kind: 'reply',
-    worktreeId: 'worktree',
-    threadId: thread.id,
-    body: 'second',
-    author: 'agent',
-  });
+  comments.execute(
+    {
+      kind: 'reply',
+      worktreeId: 'worktree',
+      threadId: thread.id,
+      body: 'second',
+    },
+    agent,
+  );
   inventory.state.projects = [];
-  const [retained] = comments.execute({ kind: 'list', worktreeId: 'worktree' });
+  const [retained] = comments.execute(
+    { kind: 'list', worktreeId: 'worktree' },
+    reviewer,
+  );
   expect(retained).toMatchObject({
     resolved: true,
     anchor: {
@@ -138,33 +157,40 @@ it('preserves literal anchors and reply order, isolates scope, and sets resoluti
   });
   expect(new Set(retained?.messages.map((message) => message.id)).size).toBe(3);
   expect(
-    comments.execute({
-      kind: 'resolve',
-      worktreeId: 'worktree',
-      threadId: thread.id,
-      resolved: false,
-    })[0]?.resolved,
+    comments.execute(
+      {
+        kind: 'resolve',
+        worktreeId: 'worktree',
+        threadId: thread.id,
+        resolved: false,
+      },
+      reviewer,
+    )[0]?.resolved,
   ).toBe(false);
-  expect(() => comments.execute({ kind: 'list', worktreeId: 'other' })).toThrow(
-    WorktreeNotFoundError,
-  );
   expect(() =>
-    comments.execute({
-      kind: 'reply',
-      worktreeId: 'other',
-      threadId: thread.id,
-      body: 'no',
-      author: 'reviewer',
-    }),
+    comments.execute({ kind: 'list', worktreeId: 'other' }, reviewer),
+  ).toThrow(WorktreeNotFoundError);
+  expect(() =>
+    comments.execute(
+      {
+        kind: 'reply',
+        worktreeId: 'other',
+        threadId: thread.id,
+        body: 'no',
+      },
+      reviewer,
+    ),
   ).toThrow(CommentTargetNotFoundError);
   expect(() =>
-    comments.execute({
-      kind: 'create',
-      worktreeId: 'worktree',
-      anchor: { ...anchor, startLine: 2 },
-      body: 'no',
-      author: 'reviewer',
-    }),
+    comments.execute(
+      {
+        kind: 'create',
+        worktreeId: 'worktree',
+        anchor: { ...anchor, startLine: 2 },
+        body: 'no',
+      },
+      reviewer,
+    ),
   ).toThrow(CommentTargetNotFoundError);
 });
 
@@ -178,42 +204,50 @@ it('bounds thread and message additions without blocking resolution at capacity 
     worktreeId: 'worktree',
     anchor: { kind: 'file' as const, filePath: 'a' },
     body: 'text',
-    author: 'reviewer' as const,
   };
-  const [first] = comments.execute(create);
+  const [first] = comments.execute(create, reviewer);
   if (!first) throw new Error('Missing thread');
   store.list = () => {
     throw new Error('Mutations must not load all threads');
   };
-  for (let count = 1; count < 100; count++) comments.execute(create);
-  expect(() => comments.execute(create)).toThrow('Comment capacity exceeded');
+  for (let count = 1; count < 100; count++) comments.execute(create, reviewer);
+  expect(() => comments.execute(create, reviewer)).toThrow(
+    'Comment capacity exceeded',
+  );
   for (let count = 1; count < 100; count++)
-    comments.execute({
-      kind: 'reply',
-      worktreeId: 'worktree',
-      threadId: first.id,
-      body: 'reply',
-      author: 'reviewer',
-    });
+    comments.execute(
+      {
+        kind: 'reply',
+        worktreeId: 'worktree',
+        threadId: first.id,
+        body: 'reply',
+      },
+      reviewer,
+    );
   const before = structuredClone(store.rows);
   expect(() =>
-    comments.execute({
-      kind: 'reply',
-      worktreeId: 'worktree',
-      threadId: first.id,
-      body: 'overflow',
-      author: 'reviewer',
-    }),
+    comments.execute(
+      {
+        kind: 'reply',
+        worktreeId: 'worktree',
+        threadId: first.id,
+        body: 'overflow',
+      },
+      reviewer,
+    ),
   ).toThrow('Comment capacity exceeded');
   expect(store.rows).toEqual(before);
   for (const resolved of [true, false])
     expect(
-      comments.execute({
-        kind: 'resolve',
-        worktreeId: 'worktree',
-        threadId: first.id,
-        resolved,
-      })[0]?.resolved,
+      comments.execute(
+        {
+          kind: 'resolve',
+          worktreeId: 'worktree',
+          threadId: first.id,
+          resolved,
+        },
+        reviewer,
+      )[0]?.resolved,
     ).toBe(resolved);
 });
 
@@ -243,31 +277,38 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
   expect(store.usage('worktree').bytes).toBe(1048576);
   expect(thread.messages.length).toBeLessThan(100);
   expect(() =>
-    comments.execute({
-      kind: 'reply',
-      worktreeId: 'worktree',
-      threadId: thread.id,
-      body: '界',
-      author: 'reviewer',
-    }),
+    comments.execute(
+      {
+        kind: 'reply',
+        worktreeId: 'worktree',
+        threadId: thread.id,
+        body: '界',
+      },
+      reviewer,
+    ),
   ).toThrow('Comment capacity exceeded');
   expect(() =>
-    comments.execute({
-      kind: 'create',
-      worktreeId: 'worktree',
-      anchor: { kind: 'file', filePath: 'b' },
-      body: 'x',
-      author: 'reviewer',
-    }),
+    comments.execute(
+      {
+        kind: 'create',
+        worktreeId: 'worktree',
+        anchor: { kind: 'file', filePath: 'b' },
+        body: 'x',
+      },
+      reviewer,
+    ),
   ).toThrow('Comment capacity exceeded');
   expect(store.find('worktree', thread.id)).toEqual(thread);
   for (const resolved of [true, false])
-    comments.execute({
-      kind: 'resolve',
-      worktreeId: 'worktree',
-      threadId: thread.id,
-      resolved,
-    });
+    comments.execute(
+      {
+        kind: 'resolve',
+        worktreeId: 'worktree',
+        threadId: thread.id,
+        resolved,
+      },
+      reviewer,
+    );
   expect(store.find('worktree', thread.id)).toEqual(thread);
   expect(
     commentStorageSize({
@@ -297,24 +338,58 @@ it('preserves comparison targets through storage and rejects mutable commit anch
     comparison: { kind: 'commit' as const, parent: 2 },
     revision: 'a'.repeat(40),
   };
-  comments.execute({
-    kind: 'create',
-    worktreeId: 'worktree',
-    author: 'reviewer',
-    body: 'Second parent',
-    anchor,
-  });
-  expect(
-    comments.execute({ kind: 'list', worktreeId: 'worktree' })[0]?.anchor,
-  ).toEqual(anchor);
-  expect(() =>
-    comments.execute({
+  comments.execute(
+    {
       kind: 'create',
       worktreeId: 'worktree',
-      author: 'reviewer',
-      body: 'Invalid',
-      anchor: { ...anchor, revision: 'HEAD' },
-    }),
+      body: 'Second parent',
+      anchor,
+    },
+    reviewer,
+  );
+  expect(
+    comments.execute({ kind: 'list', worktreeId: 'worktree' }, reviewer)[0]
+      ?.anchor,
+  ).toEqual(anchor);
+  expect(() =>
+    comments.execute(
+      {
+        kind: 'create',
+        worktreeId: 'worktree',
+        body: 'Invalid',
+        anchor: { ...anchor, revision: 'HEAD' },
+      },
+      reviewer,
+    ),
   ).toThrow();
   expect(store.list('worktree')).toHaveLength(1);
+});
+
+it('takes authorship from the principal, never from the command', () => {
+  const store = new MemoryComments();
+  let id = 0;
+  const comments = new CommentThreads(store, new MemoryInventory(), () =>
+    String(++id),
+  );
+  const create = {
+    kind: 'create' as const,
+    worktreeId: 'worktree',
+    anchor: { kind: 'file' as const, filePath: 'a.ts' },
+    body: 'text',
+  };
+  // The owner works through the same door a paired viewer does.
+  for (const [principal, author] of [
+    [reviewer, 'reviewer'],
+    [{ kind: 'owner' } as const, 'reviewer'],
+    [agent, 'agent'],
+  ] as const) {
+    const [thread] = comments.execute(create, principal);
+    expect(thread?.messages[0]?.author).toBe(author);
+    if (!thread) throw new Error('Missing thread');
+    const [replied] = comments.execute(
+      { kind: 'reply', worktreeId: 'worktree', threadId: thread.id, body: 'r' },
+      principal,
+    );
+    expect(replied?.messages[1]?.author).toBe(author);
+  }
 });

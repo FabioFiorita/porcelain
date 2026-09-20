@@ -19,6 +19,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
   const headers = { authorization: `Bearer ${token}` };
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   const client = new Client({ name: 'fixture-agent', version: '1.0.0' });
@@ -27,7 +28,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path },
         })
@@ -38,7 +39,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     expect(
       (
-        await fetch(`${address}/mcp`, {
+        await fetch(`${address}/api/mcp`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: '{}',
@@ -47,7 +48,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
     ).toBe(401);
     expect(
       (
-        await fetch(`${address}/mcp`, {
+        await fetch(`${address}/api/mcp`, {
           method: 'POST',
           headers: {
             ...headers,
@@ -59,7 +60,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
       ).status,
     ).toBe(403);
     const transport = new StreamableHTTPClientTransport(
-      new URL(`${address}/mcp`),
+      new URL(`${address}/api/mcp`),
       { requestInit: { headers } },
     );
     await client.connect(transport as Parameters<typeof client.connect>[0]);
@@ -79,7 +80,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
       (
         await server.inject({
           method: 'GET',
-          url: `/worktrees/${worktreeId}/comments`,
+          url: `/api/worktrees/${worktreeId}/comments`,
           headers,
         })
       ).json(),
@@ -88,7 +89,7 @@ it('serves MCP tools with agent attribution, revision checks and explicit bearer
     expect(threads[0]?.messages[0]?.author).toBe('agent');
     await server.inject({
       method: 'POST',
-      url: `/worktrees/${worktreeId}/comments/${threadId}/replies`,
+      url: `/api/worktrees/${worktreeId}/comments/${threadId}/replies`,
       headers,
       payload: { body: 'Explain the choice.' },
     });

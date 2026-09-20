@@ -46,7 +46,11 @@ it('preserves ordered subsets for external split commits across live edits, work
     await writeFile(join(path, name), 'before\n');
   commit(path, 'Initial');
   git(path, 'worktree', 'add', '-b', 'review', linked);
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
     async function request(
@@ -68,13 +72,13 @@ it('preserves ordered subsets for external split commits across live edits, work
       return response.json();
     }
     const project = projectResponseSchema.parse(
-      await request('/projects', 'POST', { path }),
+      await request('/api/projects', 'POST', { path }),
     );
     const sourceWorktreeId = project.worktrees.find(
       (worktree) => !worktree.main,
     )?.id;
     if (!sourceWorktreeId) throw new Error('Missing linked worktree');
-    const liveUrl = `/worktrees/${sourceWorktreeId}/review-layers`;
+    const liveUrl = `/api/worktrees/${sourceWorktreeId}/review-layers`;
     const layers = [
       {
         id: randomUUID(),
@@ -96,8 +100,8 @@ it('preserves ordered subsets for external split commits across live edits, work
     const firstOid = commit(linked, 'External first part');
     await writeFile(join(linked, 'b.txt'), 'second commit\n');
     const secondOid = commit(linked, 'External second part');
-    const firstUrl = `/projects/${project.id}/commits/${firstOid}/review-layers`;
-    const secondUrl = `/projects/${project.id}/commits/${secondOid}/review-layers`;
+    const firstUrl = `/api/projects/${project.id}/commits/${firstOid}/review-layers`;
+    const secondUrl = `/api/projects/${project.id}/commits/${secondOid}/review-layers`;
     expect(await request(firstUrl)).toBeNull();
     const firstInput = {
       sourceWorktreeId,
@@ -144,7 +148,7 @@ it('preserves ordered subsets for external split commits across live edits, work
     expect(second).toMatchObject({ layers: [layers[0]] });
     expect(await request(liveUrl)).toEqual(live);
     const inspected = await request(
-      `/worktrees/${sourceWorktreeId}/commits/${firstOid}/changes`,
+      `/api/worktrees/${sourceWorktreeId}/commits/${firstOid}/changes`,
     );
     expect(inspected).toMatchObject({
       changes: expect.arrayContaining([
@@ -153,9 +157,9 @@ it('preserves ordered subsets for external split commits across live edits, work
     });
     execFileSync('git', ['clone', linked, clone], { env: environment });
     const other = projectResponseSchema.parse(
-      await request('/projects', 'POST', { path: clone }),
+      await request('/api/projects', 'POST', { path: clone }),
     );
-    const otherUrl = `/projects/${other.id}/commits/${firstOid}/review-layers`;
+    const otherUrl = `/api/projects/${other.id}/commits/${firstOid}/review-layers`;
     expect(await request(otherUrl)).toBeNull();
     expect(await request(otherUrl, 'PUT', firstInput, 404)).toMatchObject({
       code: 'WORKTREE_NOT_FOUND',
@@ -171,11 +175,15 @@ it('preserves ordered subsets for external split commits across live edits, work
       await request(firstUrl, 'PUT', { ...firstInput, sourceRevision: 2 }, 409),
     ).toMatchObject({ code: 'COMMIT_REVIEW_LAYER_CONFLICT' });
     git(path, 'worktree', 'remove', linked);
-    await request('/inventory/refresh', 'POST');
+    await request('/api/inventory/refresh', 'POST');
     expect(await request(firstUrl)).toEqual(first);
     expect(await request(firstUrl, 'PUT', firstInput)).toEqual(first);
     await server.close();
-    const reopened = await createServer({ dataDirectory, token });
+    const reopened = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       for (const [url, expected] of [
         [firstUrl, first],
@@ -189,7 +197,7 @@ it('preserves ordered subsets for external split commits across live edits, work
         (
           await reopened.inject({
             method: 'DELETE',
-            url: `/projects/${project.id}`,
+            url: `/api/projects/${project.id}`,
             headers,
           })
         ).json(),
@@ -215,9 +223,13 @@ it('preserves ordered subsets for external split commits across live edits, work
 
 it('authenticates before validating association identities and rejects ambiguous path selections', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-commit-layer-errors-'));
-  const server = await createServer({ dataDirectory: root, token });
+  const server = await createServer({
+    dataDirectory: root,
+    projectHome: root,
+    token,
+  });
   try {
-    const invalid = '/projects/invalid/commits/HEAD/review-layers';
+    const invalid = '/api/projects/invalid/commits/HEAD/review-layers';
     for (const method of ['GET', 'PUT'] as const) {
       expect((await server.inject({ method, url: invalid })).statusCode).toBe(
         401,
@@ -226,7 +238,7 @@ it('authenticates before validating association identities and rejects ambiguous
         (await server.inject({ method, url: invalid, headers })).statusCode,
       ).toBe(400);
     }
-    const url = `/projects/${randomUUID()}/commits/${'a'.repeat(40)}/review-layers`;
+    const url = `/api/projects/${randomUUID()}/commits/${'a'.repeat(40)}/review-layers`;
     const input = {
       sourceWorktreeId: randomUUID(),
       sourceRevision: 1,
@@ -302,6 +314,7 @@ it('binds review order to the chosen merge parent and uses committed rename and 
   const mergeOid = git('rev-parse', 'HEAD');
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   try {
@@ -309,7 +322,7 @@ it('binds review order to the chosen merge parent and uses committed rename and 
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path },
         })
@@ -329,13 +342,13 @@ it('binds review order to the chosen merge parent and uses committed rename and 
     };
     const live = await server.inject({
       method: 'PUT',
-      url: `/worktrees/${sourceWorktreeId}/review-layers`,
+      url: `/api/worktrees/${sourceWorktreeId}/review-layers`,
       headers,
       payload: { expectedRevision: 0, layers: [layer] },
     });
     expect(live.statusCode).toBe(200);
     const url = (oid: string) =>
-      `/projects/${project.id}/commits/${oid}/review-layers`;
+      `/api/projects/${project.id}/commits/${oid}/review-layers`;
     const associate = (
       oid: string,
       references: typeof layer.files,

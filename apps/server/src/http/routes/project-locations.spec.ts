@@ -159,7 +159,7 @@ it('authenticates and validates before reading any server folders', async () => 
   });
   try {
     for (const url of [
-      '/projects/discover',
+      '/api/projects/discover',
       '/api/projects/folders?path=relative',
     ]) {
       expect((await server.inject({ url })).statusCode).toBe(401);

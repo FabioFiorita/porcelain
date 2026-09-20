@@ -1,4 +1,3 @@
-import { homedir } from 'node:os';
 import {
   dirname,
   isAbsolute,
@@ -15,6 +14,7 @@ import {
 const defaultHost = '127.0.0.1';
 const defaultPort = 3000;
 const defaultTokenFileName = 'admin-token';
+const wildcardHosts = new Set(['0.0.0.0', '::']);
 
 /** Environment variables consumed by the installed and repository launchers. */
 export type ServeEnvironment = {
@@ -26,19 +26,32 @@ export type ServeEnvironment = {
 
 export type ServeSettings = {
   dataDirectory: string;
+  projectHome: string;
   tokenFile: string;
   host: string;
   port: number;
   webRoot: string;
+  allowedHosts: string[];
 };
+
+export type StatusSettings = {
+  dataDirectory: string;
+};
+
+export type CliCommand =
+  | { command: 'help' }
+  | { command: 'serve'; settings: ServeSettings }
+  | { command: 'status'; settings: StatusSettings };
 
 type ServeArguments = {
   dataDirectory?: string;
   tokenFile?: string;
   host?: string;
   port?: number;
+  allowHosts: string[];
   lan: boolean;
   help: boolean;
+  command: 'serve' | 'status';
 };
 
 export class ServeConfigurationError extends Error {
@@ -101,11 +114,18 @@ function parseHost(value: string, source: string): string {
 }
 
 function parseArguments(args: readonly string[]): ServeArguments {
-  const parsed: ServeArguments = { lan: false, help: false };
+  const parsed: ServeArguments = {
+    lan: false,
+    help: false,
+    allowHosts: [],
+    command: 'serve',
+  };
   let index = 0;
   const command = args[0];
-  if (command === 'serve') index = 1;
-  else if (command === 'help' || command === '--help' || command === '-h') {
+  if (command === 'serve' || command === 'status') {
+    parsed.command = command;
+    index = 1;
+  } else if (command === 'help' || command === '--help' || command === '-h') {
     parsed.help = true;
     return parsed;
   } else if (
@@ -151,6 +171,12 @@ function parseArguments(args: readonly string[]): ServeArguments {
       index = option.nextIndex;
       continue;
     }
+    if (argument === '--allow-host' || argument?.startsWith('--allow-host=')) {
+      const option = optionValue(args, index, '--allow-host');
+      parsed.allowHosts.push(parseHost(option.value, '--allow-host'));
+      index = option.nextIndex;
+      continue;
+    }
     if (argument === '--port' || argument?.startsWith('--port=')) {
       const option = optionValue(args, index, '--port');
       parsed.port = parsePort(option.value, '--port');
@@ -192,27 +218,30 @@ function tokenFileFor(
   return join(dataDirectory, defaultTokenFileName);
 }
 
-/** Parse `serve` arguments without reading or writing any state. */
-export function parseServeSettings(
-  args: readonly string[] = [],
-  environment: ServeEnvironment = process.env,
-  homeDirectory: string = homedir(),
+/**
+ * Parse arguments without reading or writing any state.  The home directory is
+ * a required argument rather than a default read here: resolving it is the
+ * composition root's job, so nothing below it can reach the real home by
+ * forgetting a parameter.
+ */
+export function parseCliArguments(
+  args: readonly string[],
+  environment: ServeEnvironment,
+  homeDirectory: string,
   webRoot: string = defaultWebRoot,
-): ServeSettings | { help: true } {
+): CliCommand {
   const parsed = parseArguments(args);
-  if (parsed.help) return { help: true };
+  if (parsed.help) return { command: 'help' };
 
   const dataDirectory = dataDirectoryFor(parsed, environment, homeDirectory);
-  const tokenFile = tokenFileFor(parsed, environment, dataDirectory);
   if (parsePath(dataDirectory).root === dataDirectory)
     throw new ServeConfigurationError(
       'The data directory cannot be the filesystem root',
     );
-  if (resolve(tokenFile) === resolve(dataDirectory, 'server.lock'))
-    throw new ServeConfigurationError(
-      'The token file cannot be the server ownership file',
-    );
+  if (parsed.command === 'status')
+    return { command: 'status', settings: { dataDirectory } };
 
+  const tokenFile = tokenFileFor(parsed, environment, dataDirectory);
   const host = parsed.lan
     ? '0.0.0.0'
     : (parsed.host ??
@@ -224,12 +253,27 @@ export function parseServeSettings(
     (environment.PORCELAIN_PORT
       ? parsePort(environment.PORCELAIN_PORT, 'PORCELAIN_PORT')
       : defaultPort);
+  // A name the server was told to listen on is a name it may answer to; a
+  // wildcard is not a name, and the connection's own address is accepted
+  // separately.
+  const allowedHosts = [
+    ...new Set(
+      [...(parsed.host && !wildcardHosts.has(host) ? [host] : [])].concat(
+        parsed.allowHosts,
+      ),
+    ),
+  ];
 
   return {
-    dataDirectory,
-    tokenFile,
-    host,
-    port,
-    webRoot: parseAbsolutePath(webRoot, 'web root'),
+    command: 'serve',
+    settings: {
+      dataDirectory,
+      projectHome: homeDirectory,
+      tokenFile,
+      host,
+      port,
+      webRoot: parseAbsolutePath(webRoot, 'web root'),
+      allowedHosts,
+    },
   };
 }

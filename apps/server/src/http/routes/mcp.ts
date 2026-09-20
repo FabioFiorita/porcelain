@@ -4,6 +4,7 @@ import type { Application } from '../../application.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 import { createReviewMcpServer } from '../mcp/review-server.ts';
 import { authenticate } from '../middlewares/authenticate.ts';
+import { callerOf } from '../principal.ts';
 
 export async function mcpRoutes(
   server: FastifyInstance,
@@ -12,7 +13,9 @@ export async function mcpRoutes(
   server.addHook('onRequest', async (request) => {
     if (!request.headers.authorization) throw new UnauthorizedError();
   });
-  server.addHook('onRequest', authenticate(options.token));
+  // The agent door: a caller reaching it with the bearer token is an agent,
+  // whatever it claims in a payload.
+  server.addHook('onRequest', authenticate(options.token, { kind: 'agent' }));
   server.all(
     '/mcp',
     { bodyLimit: 6 * 1024 * 1024 + 4096 },
@@ -24,7 +27,7 @@ export async function mcpRoutes(
         });
       if (request.method !== 'POST')
         return reply.header('Allow', 'POST').code(405).send();
-      const mcp = createReviewMcpServer(options.application);
+      const mcp = createReviewMcpServer(options.application, callerOf(request));
       const transport = new StreamableHTTPServerTransport({
         enableJsonResponse: true,
       });

@@ -15,17 +15,21 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
   const dataDirectory = join(root, 'state');
   const path = join(root, 'repo');
   execFileSync('git', ['init', '-b', 'main', path]);
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   try {
     const registered = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
     const worktreeId = projectResponseSchema.parse(registered.json())
       .worktrees[0]?.id;
-    const url = `/worktrees/${worktreeId}/review-layers`;
+    const url = `/api/worktrees/${worktreeId}/review-layers`;
     const layers = [
       {
         id: randomUUID(),
@@ -127,7 +131,11 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
       payload: { expectedRevision: 2, layers: [layers[0], layers[0]] },
     });
     expect(duplicate.statusCode).toBe(400);
-    await server.inject({ method: 'POST', url: '/inventory/refresh', headers });
+    await server.inject({
+      method: 'POST',
+      url: '/api/inventory/refresh',
+      headers,
+    });
     expect(
       (await server.inject({ method: 'GET', url, headers })).json(),
     ).toEqual(updated.json());
@@ -135,13 +143,17 @@ it('stores ordered metadata with atomic revision conflicts, refresh retention an
       (
         await server.inject({
           method: 'GET',
-          url: `/worktrees/${randomUUID()}/review-layers`,
+          url: `/api/worktrees/${randomUUID()}/review-layers`,
           headers,
         })
       ).statusCode,
     ).toBe(404);
     await server.close();
-    const restarted = await createServer({ dataDirectory, token });
+    const restarted = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       expect(
         (await restarted.inject({ method: 'GET', url, headers })).json(),

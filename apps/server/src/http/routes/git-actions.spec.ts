@@ -47,7 +47,7 @@ describe('Git actions HTTP', () => {
           (
             await server.inject({
               method: 'GET',
-              url: `/git-action-requests/${requestId}`,
+              url: `/api/git-action-requests/${requestId}`,
               headers,
             })
           ).json<{ state: string }>().state,
@@ -57,7 +57,7 @@ describe('Git actions HTTP', () => {
     return (
       await server.inject({
         method: 'GET',
-        url: `/git-action-requests/${requestId}`,
+        url: `/api/git-action-requests/${requestId}`,
         headers,
       })
     ).json();
@@ -75,10 +75,14 @@ describe('Git actions HTTP', () => {
     await writeFile(join(checkout, 'file'), 'base\n');
     await git('add', 'file');
     await git('commit', '-m', 'base');
-    server = await createServer({ dataDirectory: join(root, 'data'), token });
+    server = await createServer({
+      dataDirectory: join(root, 'data'),
+      projectHome: join(root, 'data'),
+      token,
+    });
     const response = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path: checkout },
     });
@@ -86,7 +90,7 @@ describe('Git actions HTTP', () => {
       id: string;
       worktrees: { id: string }[];
     }>();
-    prefix = `/projects/${project.id}/worktrees/${project.worktrees[0]?.id}/git`;
+    prefix = `/api/projects/${project.id}/worktrees/${project.worktrees[0]?.id}/git`;
   });
   afterEach(async () => {
     await server.close();
@@ -140,7 +144,7 @@ describe('Git actions HTTP', () => {
     const diff = vi.spyOn(InspectionGit.prototype, 'readDiffs');
     try {
       const response = await server.inject({
-        url: `/worktrees/${prefix.split('/')[4]}/review-summary`,
+        url: `/api/worktrees/${prefix.split('/')[5]}/review-summary`,
         headers,
       });
       expect(response.statusCode).toBe(200);
@@ -162,7 +166,7 @@ describe('Git actions HTTP', () => {
         await gate.promise;
         return original.call(this, signal);
       });
-    const url = `/worktrees/${prefix.split('/')[4]}`;
+    const url = `/api/worktrees/${prefix.split('/')[5]}`;
     const summary = server
       .inject({ url: `${url}/review-summary`, headers })
       .then((response) => response);
@@ -196,7 +200,7 @@ describe('Git actions HTTP', () => {
         await gate.promise;
         return original.call(this, changes, signal);
       });
-    const url = `/worktrees/${prefix.split('/')[4]}`;
+    const url = `/api/worktrees/${prefix.split('/')[5]}`;
     const evidence = server
       .inject({ url: `${url}/evidence`, headers })
       .then((response) => response);
@@ -224,7 +228,7 @@ describe('Git actions HTTP', () => {
     const settled = new Date(Date.now() - 60_000);
     for (const name of ['file', 'other'])
       await utimes(join(checkout, name), settled, settled);
-    const url = `/worktrees/${prefix.split('/')[4]}`;
+    const url = `/api/worktrees/${prefix.split('/')[5]}`;
     const evidence = (
       await server.inject({ url: `${url}/evidence`, headers })
     ).json();
@@ -269,8 +273,8 @@ describe('Git actions HTTP', () => {
   });
 
   it('counts current unreviewed files and unresolved comments in the review summary', async () => {
-    const worktreeId = prefix.split('/')[4];
-    const url = `/worktrees/${worktreeId}`;
+    const worktreeId = prefix.split('/')[5];
+    const url = `/api/worktrees/${worktreeId}`;
     await writeFile(join(checkout, 'file'), 'review me\n');
     const readSummary = async () =>
       (await server.inject({ url: `${url}/review-summary`, headers })).json();
@@ -317,9 +321,9 @@ describe('Git actions HTTP', () => {
       await git('add', 'file');
       await writeFile(join(checkout, 'file'), 'unstaged\n');
       await writeFile(join(checkout, 'other'), 'remaining\n');
-      const worktreeId = prefix.split('/')[4];
-      const projectId = prefix.split('/')[2];
-      const layerUrl = `/worktrees/${worktreeId}/review-layers`;
+      const worktreeId = prefix.split('/')[5];
+      const projectId = prefix.split('/')[3];
+      const layerUrl = `/api/worktrees/${worktreeId}/review-layers`;
       const layerId = randomUUID();
       const files = [
         { path: 'file', scope: 'staged', note: 'Staged explanation' },
@@ -360,7 +364,7 @@ describe('Git actions HTTP', () => {
         reviewLayersUpdated: true,
       });
       const oid = await git('rev-parse', 'HEAD');
-      const snapshotUrl = `/projects/${projectId}/commits/${oid}/review-layers`;
+      const snapshotUrl = `/api/projects/${projectId}/commits/${oid}/review-layers`;
       const snapshot = await server.inject({ url: snapshotUrl, headers });
       expect(snapshot.statusCode, snapshot.body).toBe(200);
       expect(snapshot.json().layers[0]).toMatchObject({
@@ -407,7 +411,7 @@ describe('Git actions HTTP', () => {
     ).toBe(400);
     const missing = await server.inject({
       method: 'GET',
-      url: `/git-action-requests/${randomUUID()}`,
+      url: `/api/git-action-requests/${randomUUID()}`,
       headers,
     });
     expect(missing.statusCode).toBe(404);
@@ -455,7 +459,11 @@ describe('Git actions HTTP', () => {
     });
     expect(reuse.statusCode, reuse.body).toBe(409);
     await server.close();
-    server = await createServer({ dataDirectory: join(root, 'data'), token });
+    server = await createServer({
+      dataDirectory: join(root, 'data'),
+      projectHome: join(root, 'data'),
+      token,
+    });
     expect(await outcome(requestId)).toMatchObject({ state: 'succeeded' });
     expect(await git('rev-list', '--count', 'HEAD')).toBe('2');
   });
@@ -567,7 +575,7 @@ describe('Git actions HTTP', () => {
     await expect.poll(async () => readFile(marker, 'utf8')).toBe('ready');
     const running = await server.inject({
       method: 'GET',
-      url: `/git-action-requests/${requestId}`,
+      url: `/api/git-action-requests/${requestId}`,
       headers,
     });
     expect(running.json()).toMatchObject({
@@ -585,7 +593,11 @@ describe('Git actions HTTP', () => {
       ).statusCode,
     ).toBe(202);
     await server.close();
-    server = await createServer({ dataDirectory: join(root, 'data'), token });
+    server = await createServer({
+      dataDirectory: join(root, 'data'),
+      projectHome: join(root, 'data'),
+      token,
+    });
     const interrupted = await outcome(requestId);
     expect(interrupted).toMatchObject({
       state: 'indeterminate',

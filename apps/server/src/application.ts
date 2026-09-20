@@ -40,6 +40,7 @@ import type {
   GitActionScope,
 } from './models/git-action.ts';
 import type { Inventory } from './models/inventory.ts';
+import type { AuthenticatedPrincipal } from './models/principal.ts';
 import type { Project } from './models/project.ts';
 import type {
   ProjectDiscovery,
@@ -233,6 +234,7 @@ export interface Application {
   ): Promise<FilePreference[]>;
   comments(
     command: CommentCommand,
+    principal: AuthenticatedPrincipal,
     signal?: AbortSignal,
   ): Promise<CommentThread[]>;
   commitReviewLayers(

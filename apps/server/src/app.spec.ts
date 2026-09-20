@@ -50,7 +50,10 @@ describe('Application', () => {
     return { root, main, linked, dataDirectory };
   }
   async function open(dataDirectory: string) {
-    const app = await openApplication({ dataDirectory });
+    const app = await openApplication({
+      dataDirectory,
+      projectHome: dataDirectory,
+    });
     await app.ready();
     applications.push(app);
     return app;
@@ -154,6 +157,7 @@ describe('Application', () => {
       let firstUnavailable = false;
       const app = await openApplication({
         dataDirectory: first.dataDirectory,
+        projectHome: first.dataDirectory,
         git: (path) => {
           if (firstUnavailable && [first.main, first.linked].includes(path))
             throw new Error('Unrelated project was inspected');
@@ -319,6 +323,7 @@ describe('Application', () => {
       let failure: Error | undefined;
       const app = await openApplication({
         dataDirectory: f.dataDirectory,
+        projectHome: f.dataDirectory,
         git: (path) => ({
           listWorktrees: (signal) => {
             if (failure) return Promise.reject(failure);
@@ -346,6 +351,7 @@ describe('Application', () => {
       const release = Promise.withResolvers<void>();
       const app = await openApplication({
         dataDirectory: f.dataDirectory,
+        projectHome: f.dataDirectory,
         git: () => ({
           listWorktrees: async () => {
             started.resolve();
@@ -379,7 +385,11 @@ describe('Application', () => {
       const f = await fixture();
       const signal = AbortSignal.abort();
       await expect(
-        openApplication({ dataDirectory: f.dataDirectory, signal }),
+        openApplication({
+          dataDirectory: f.dataDirectory,
+          projectHome: f.dataDirectory,
+          signal,
+        }),
       ).rejects.toBe(signal.reason);
       await expect(access(f.dataDirectory)).rejects.toMatchObject({
         code: 'ENOENT',
@@ -480,6 +490,7 @@ describe('Application', () => {
       let block = false;
       const app = await openApplication({
         dataDirectory: f.dataDirectory,
+        projectHome: f.dataDirectory,
         git: (path) => ({
           listWorktrees: async (signal) => {
             if (block) {

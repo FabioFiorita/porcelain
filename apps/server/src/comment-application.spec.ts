@@ -3,6 +3,9 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
+
+const reviewer = { kind: 'viewer', deviceId: null } as const;
+
 import { openApplication } from './app.ts';
 import type { CommentCommand } from './models/comment-thread.ts';
 import { InvalidCommentError } from './use-cases/errors/invalid-comment-error.ts';
@@ -12,7 +15,10 @@ it('rejects invalid application input without persistence and captures command i
   const path = join(root, 'repo');
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
-  const app = await openApplication({ dataDirectory: join(root, 'state') });
+  const app = await openApplication({
+    dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
+  });
   try {
     const { project } = await app.register(path);
     const worktreeId = project.worktrees[0]?.id;
@@ -20,7 +26,6 @@ it('rejects invalid application input without persistence and captures command i
     const create = {
       kind: 'create' as const,
       worktreeId,
-      author: 'reviewer' as const,
       anchor: {
         kind: 'codeRange' as const,
         filePath: 'a.ts',
@@ -29,7 +34,7 @@ it('rejects invalid application input without persistence and captures command i
       },
       body: 'original',
     };
-    const pending = app.comments(create);
+    const pending = app.comments(create, reviewer);
     create.anchor.startLine = 100;
     create.body = 'mutated';
     const [created] = await pending;
@@ -38,7 +43,7 @@ it('rejects invalid application input without persistence and captures command i
       anchor: { startLine: 1 },
       messages: [{ body: 'original' }],
     });
-    const before = await app.comments({ kind: 'list', worktreeId });
+    const before = await app.comments({ kind: 'list', worktreeId }, reviewer);
     const invalid: CommentCommand[] = [
       ...['', ' ', 'x'.repeat(16001), 'a\0'].map((body) => ({
         ...create,
@@ -60,15 +65,16 @@ it('rejects invalid application input without persistence and captures command i
         kind: 'reply',
         worktreeId,
         threadId: created.id,
-        author: 'reviewer',
         body: ' ',
       },
     ];
     for (const command of invalid)
-      await expect(app.comments(command)).rejects.toBeInstanceOf(
+      await expect(app.comments(command, reviewer)).rejects.toBeInstanceOf(
         InvalidCommentError,
       );
-    expect(await app.comments({ kind: 'list', worktreeId })).toEqual(before);
+    expect(await app.comments({ kind: 'list', worktreeId }, reviewer)).toEqual(
+      before,
+    );
   } finally {
     await app.close();
     await rm(root, { recursive: true, force: true });

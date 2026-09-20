@@ -5,7 +5,7 @@ import {
   readFile,
   realpath,
   rm,
-  unlink,
+  stat,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -80,11 +80,11 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   const first = launch(dataDirectory);
   const address = await first.address();
   expect(new URL(address).hostname).toBe('127.0.0.1');
-  expect(await (await fetch(`${address}/health`)).json()).toEqual({
+  expect(await (await fetch(`${address}/api/health`)).json()).toEqual({
     status: 'ok',
   });
-  expect((await fetch(`${address}/inventory`)).status).toBe(401);
-  const registered = await fetch(`${address}/projects`, {
+  expect((await fetch(`${address}/api/inventory`)).status).toBe(401);
+  const registered = await fetch(`${address}/api/projects`, {
     method: 'POST',
     headers: { ...headers, 'content-type': 'application/json' },
     body: JSON.stringify({ path }),
@@ -92,13 +92,13 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   expect(registered.status).toBe(200);
   const project = projectResponseSchema.parse(await registered.json());
   const before = inventoryResponseSchema.parse(
-    await (await fetch(`${address}/inventory`, { headers })).json(),
+    await (await fetch(`${address}/api/inventory`, { headers })).json(),
   );
   expect(before.projects).toEqual([project]);
   const competitor = launch(dataDirectory);
   expect(await competitor.exited).toBe(1);
   expect(competitor.output.stdout).toBe('');
-  expect(competitor.output.stderr).toContain('ownership file');
+  expect(competitor.output.stderr).toContain('Another Porcelain server');
   first.child.kill('SIGTERM');
   expect(await first.exited).toBe(0);
   const second = launch(dataDirectory);
@@ -108,12 +108,12 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   await expect
     .poll(
       async () =>
-        (await fetch(`${secondAddress}/inventory`, { headers })).json(),
+        (await fetch(`${secondAddress}/api/inventory`, { headers })).json(),
       { timeout: 10_000 },
     )
     .toEqual(before);
   await rm(path, { recursive: true });
-  const refreshed = await fetch(`${secondAddress}/inventory/refresh`, {
+  const refreshed = await fetch(`${secondAddress}/api/inventory/refresh`, {
     method: 'POST',
     headers,
   });
@@ -172,23 +172,26 @@ it('serves the configured SPA and the /api namespace from one process', async ()
   }
 });
 
-it('retains a crash ownership file until explicit operator recovery', async () => {
+it('restarts after a crash with no operator recovery step', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-crash-'));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
   const server = launch(root);
   await server.address();
   server.child.kill('SIGKILL');
   await server.exited;
-  const lock = await readFile(join(root, 'server.lock'), 'utf8');
-  const retry = launch(root);
-  expect(await retry.exited).toBe(1);
-  expect(await readFile(join(root, 'server.lock'), 'utf8')).toBe(lock);
-  // The fixture process is confirmed dead; model the documented operator recovery.
-  await unlink(join(root, 'server.lock'));
+  // A killed server leaves its socket behind and nothing releases it by hand.
+  expect((await stat(join(root, 'server.sock'))).isSocket()).toBe(true);
   const recovered = launch(root);
-  await recovered.address();
+  const address = await recovered.address();
+  expect(await (await fetch(`${address}/api/health`)).json()).toEqual({
+    status: 'ok',
+  });
   recovered.child.kill('SIGTERM');
   expect(await recovered.exited).toBe(0);
+  // A clean stop takes the socket with it.
+  await expect(stat(join(root, 'server.sock'))).rejects.toMatchObject({
+    code: 'ENOENT',
+  });
 });
 
 it('exits unsuccessfully on invalid configuration without leaking its token or creating state', async () => {

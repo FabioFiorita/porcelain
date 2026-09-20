@@ -21,6 +21,7 @@ async function fixture(readStatus: (signal?: AbortSignal) => Promise<unknown>) {
   execFileSync('git', ['init', '-b', 'main', path], { stdio: 'ignore' });
   const app = await openApplication({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     inspectionGit: () => ({
       readStatus: readStatus as never,
       readDiff: async () => ({ kind: 'binary' }),

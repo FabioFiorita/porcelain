@@ -8,6 +8,7 @@ import { ApplicationClosedError } from '../../lifecycle/errors/application-close
 import { CommitDraftError } from '../../use-cases/errors/commit-draft-error.ts';
 import { WorktreeChangedError } from '../../use-cases/errors/worktree-changed-error.ts';
 import { WorktreeNotFoundError } from '../../use-cases/errors/worktree-not-found-error.ts';
+import { ForbiddenOriginError } from '../errors/forbidden-origin-error.ts';
 import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 import { toFileErrorResponse } from './file-error-response.ts';
 import { toGitActionErrorResponse } from './git-action-error-response.ts';
@@ -69,6 +70,12 @@ export function toErrorResponse(error: unknown) {
     return {
       statusCode: 401,
       body: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+    };
+  }
+  if (error instanceof ForbiddenOriginError) {
+    return {
+      statusCode: 403,
+      body: { code: 'FORBIDDEN_ORIGIN', message: error.message },
     };
   }
   if (isInvalidRequest(error)) {

@@ -55,6 +55,7 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
   };
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
     inspectionGit: () => ({
       readStatus: async () => observation,
@@ -74,7 +75,7 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path: checkout },
         })
@@ -82,7 +83,7 @@ it('serves exact evidence, persists worktree marks, rejects stale fingerprints, 
     );
     const worktreeId = registered.worktrees[0]?.id;
     if (!worktreeId) throw new Error('Expected registered worktree');
-    const base = `/worktrees/${worktreeId}`;
+    const base = `/api/worktrees/${worktreeId}`;
 
     const evidenceResponse = await server.inject({
       method: 'GET',

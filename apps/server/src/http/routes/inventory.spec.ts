@@ -18,11 +18,15 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
   const dataDirectory = join(root, 'state');
   await mkdir(path);
   execFileSync('git', ['init', '-b', 'main', path]);
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   await server.refreshed();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
-    const register = await fetch(`${address}/projects`, {
+    const register = await fetch(`${address}/api/projects`, {
       method: 'POST',
       headers: { ...headers, 'content-type': 'application/json' },
       body: JSON.stringify({ path }),
@@ -36,14 +40,14 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
     ]);
     const duplicate = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path },
     });
     expect(duplicate.json()).toEqual(project);
     const initial = await server.inject({
       method: 'GET',
-      url: '/inventory',
+      url: '/api/inventory',
       headers,
     });
     const inventory = inventoryResponseSchema.parse(initial.json());
@@ -51,18 +55,26 @@ it('registers, refreshes and persists inventory through authenticated HTTP', asy
     expect(inventory.projects).toEqual([project]);
     expect(initial.headers['cache-control']).toBe('no-store');
     await server.close();
-    const restarted = await createServer({ dataDirectory, token });
+    const restarted = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     await restarted.refreshed();
     try {
       expect(
         (
-          await restarted.inject({ method: 'GET', url: '/inventory', headers })
+          await restarted.inject({
+            method: 'GET',
+            url: '/api/inventory',
+            headers,
+          })
         ).json(),
       ).toEqual(inventory);
       await rename(path, join(root, 'moved'));
       const refreshed = await restarted.inject({
         method: 'POST',
-        url: '/inventory/refresh',
+        url: '/api/inventory/refresh',
         headers,
       });
       expect(refreshed.statusCode).toBe(200);
@@ -90,6 +102,7 @@ it('rejects unauthenticated operations before validation or discovery and saniti
   let calls = 0;
   const server = await createServer({
     dataDirectory: root,
+    projectHome: root,
     token,
     git: () => ({
       listWorktrees: async () => {
@@ -101,9 +114,9 @@ it('rejects unauthenticated operations before validation or discovery and saniti
   await server.refreshed();
   try {
     for (const [method, url] of [
-      ['GET', '/inventory'],
-      ['POST', '/projects'],
-      ['POST', '/inventory/refresh'],
+      ['GET', '/api/inventory'],
+      ['POST', '/api/projects'],
+      ['POST', '/api/inventory/refresh'],
     ] as const) {
       for (const authorization of [
         '',
@@ -130,7 +143,7 @@ it('rejects unauthenticated operations before validation or discovery and saniti
     ]) {
       const response = await server.inject({
         method: 'POST',
-        url: '/projects',
+        url: '/api/projects',
         headers,
         payload,
       });
@@ -143,7 +156,7 @@ it('rejects unauthenticated operations before validation or discovery and saniti
     expect(calls).toBe(0);
     const failure = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path: '/fixture' },
     });
@@ -163,13 +176,14 @@ it('reports an uninspectable checkout without returning Git diagnostics', async 
   const root = await mkdtemp(join(tmpdir(), 'porcelain-api-unavailable-'));
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   await server.refreshed();
   try {
     const response = await server.inject({
       method: 'POST',
-      url: '/projects',
+      url: '/api/projects',
       headers,
       payload: { path: root },
     });
@@ -180,7 +194,7 @@ it('reports an uninspectable checkout without returning Git diagnostics', async 
     });
     expect(
       (
-        await server.inject({ method: 'GET', url: '/inventory', headers })
+        await server.inject({ method: 'GET', url: '/api/inventory', headers })
       ).json().projects,
     ).toEqual([]);
   } finally {

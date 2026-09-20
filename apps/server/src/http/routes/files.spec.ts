@@ -45,13 +45,14 @@ describe('Files HTTP', () => {
     execFileSync('git', ['init', '-b', 'main', path]);
     const server = await createServer({
       dataDirectory: join(root, 'state'),
+      projectHome: join(root, 'state'),
       token,
       ...options,
     });
     try {
       const registered = await server.inject({
         method: 'POST',
-        url: '/projects',
+        url: '/api/projects',
         headers,
         payload: { path },
       });
@@ -69,7 +70,7 @@ describe('Files HTTP', () => {
     await fixture(async (server, root, path, id) => {
       const bytes = Buffer.from([137, 80, 78, 71, 0, 255]);
       await writeFile(join(path, 'image.png'), bytes);
-      const url = `/worktrees/${id}/asset?path=image.png`;
+      const url = `/api/worktrees/${id}/asset?path=image.png`;
       expect((await server.inject({ url })).statusCode).toBe(401);
       const response = await server.inject({ url, headers });
       expect(response.statusCode).toBe(200);
@@ -82,7 +83,7 @@ describe('Files HTTP', () => {
       await symlink(join(root, 'outside.png'), join(path, 'link.png'));
       for (const target of ['../outside.png', 'link.png', '.git/config']) {
         const rejected = await server.inject({
-          url: `/worktrees/${id}/asset?path=${encodeURIComponent(target)}`,
+          url: `/api/worktrees/${id}/asset?path=${encodeURIComponent(target)}`,
           headers,
         });
         expect(rejected.statusCode).toBeGreaterThanOrEqual(400);
@@ -94,7 +95,7 @@ describe('Files HTTP', () => {
       expect(
         (
           await server.inject({
-            url: `/worktrees/${id}/asset?path=huge.png`,
+            url: `/api/worktrees/${id}/asset?path=huge.png`,
             headers,
           })
         ).json().code,
@@ -108,7 +109,7 @@ describe('Files HTTP', () => {
       await writeFile(join(path, 'src', 'app.ts'), 'olá\r\n');
       const address = await server.listen({ host: '127.0.0.1', port: 0 });
       const listing = await fetch(
-        `${address}/worktrees/${id}/directory?path=src`,
+        `${address}/api/worktrees/${id}/directory?path=src`,
         { headers },
       );
       expect(listing.status).toBe(200);
@@ -121,7 +122,7 @@ describe('Files HTTP', () => {
         entries: [{ name: 'app.ts', kind: 'file' }],
       });
       const reading = await fetch(
-        `${address}/worktrees/${id}/text?path=src%2Fapp.ts`,
+        `${address}/api/worktrees/${id}/text?path=src%2Fapp.ts`,
         { headers },
       );
       expect(reading.status).toBe(200);
@@ -145,6 +146,7 @@ describe('Files HTTP', () => {
     let reads = 0;
     const server = await createServer({
       dataDirectory: root,
+      projectHome: root,
       token,
       files: {
         list: async () => {
@@ -161,7 +163,7 @@ describe('Files HTTP', () => {
       for (const operation of ['directory', 'text']) {
         const response = await server.inject({
           method: 'GET',
-          url: `/worktrees/invalid/${operation}?path=%2e%2e%2fprivate`,
+          url: `/api/worktrees/invalid/${operation}?path=%2e%2e%2fprivate`,
         });
         expect(response.statusCode).toBe(401);
         expect(response.json()).toEqual({
@@ -181,7 +183,7 @@ describe('Files HTTP', () => {
       ]) {
         const response = await server.inject({
           method: 'GET',
-          url: `/worktrees/${id}/text?${query}`,
+          url: `/api/worktrees/${id}/text?${query}`,
           headers,
         });
         expect(response.statusCode).toBe(400);
@@ -192,7 +194,7 @@ describe('Files HTTP', () => {
       }
       const missing = await server.inject({
         method: 'GET',
-        url: `/worktrees/${id}/directory?path=`,
+        url: `/api/worktrees/${id}/directory?path=`,
         headers,
       });
       expect(missing.statusCode).toBe(404);
@@ -212,7 +214,7 @@ describe('Files HTTP', () => {
       const read = (file: string) =>
         server.inject({
           method: 'GET',
-          url: `/worktrees/${id}/text?path=${encodeURIComponent(file)}`,
+          url: `/api/worktrees/${id}/text?path=${encodeURIComponent(file)}`,
           headers,
         });
       expect((await read('%2e%2e')).json().text).toBe(
@@ -227,7 +229,7 @@ describe('Files HTTP', () => {
       expect((await read('missing')).statusCode).toBe(404);
       const listing = await server.inject({
         method: 'GET',
-        url: `/worktrees/${id}/directory?path=`,
+        url: `/api/worktrees/${id}/directory?path=`,
         headers,
       });
       expect(listing.json().entries).not.toContainEqual({
@@ -238,7 +240,7 @@ describe('Files HTTP', () => {
 
   it('rejects missing or replaced checkouts and known unavailable inventory', async () =>
     fixture(async (server, root, path, id) => {
-      const url = `/worktrees/${id}/directory?path=`;
+      const url = `/api/worktrees/${id}/directory?path=`;
       await rename(path, join(root, 'moved'));
       expect(
         (await server.inject({ method: 'GET', url, headers })).json().code,
@@ -251,7 +253,7 @@ describe('Files HTTP', () => {
       await rm(path, { recursive: true });
       await server.inject({
         method: 'POST',
-        url: '/inventory/refresh',
+        url: '/api/inventory/refresh',
         headers,
       });
       expect(
@@ -281,7 +283,7 @@ describe('Files HTTP', () => {
           });
           const response = await server.inject({
             method: 'GET',
-            url: `/worktrees/${id}/text?path=file`,
+            url: `/api/worktrees/${id}/text?path=file`,
             headers,
           });
           expect(response.statusCode).toBe(status);
@@ -295,7 +297,7 @@ describe('Files HTTP', () => {
         failure = new Error('/private/secret');
         const response = await server.inject({
           method: 'GET',
-          url: `/worktrees/${id}/directory?path=`,
+          url: `/api/worktrees/${id}/directory?path=`,
           headers,
         });
         expect(response.statusCode).toBe(500);
@@ -347,7 +349,7 @@ describe('Files HTTP', () => {
       await writeFile(join(linked, 'file'), 'linked');
       const refresh = await server.inject({
         method: 'POST',
-        url: '/inventory/refresh',
+        url: '/api/inventory/refresh',
         headers,
       });
       const project = projectResponseSchema.parse(refresh.json().projects[0]);
@@ -361,7 +363,7 @@ describe('Files HTTP', () => {
       ]) {
         const response = await server.inject({
           method: 'GET',
-          url: `/worktrees/${id}/text?path=file`,
+          url: `/api/worktrees/${id}/text?path=file`,
           headers,
         });
         expect(response.statusCode).toBe(200);
@@ -378,7 +380,7 @@ describe('Files HTTP', () => {
       await symlink('src/a.ts', join(path, 'link'));
       const tree = await server.inject({
         method: 'GET',
-        url: `/worktrees/${id}/file-tree`,
+        url: `/api/worktrees/${id}/file-tree`,
         headers,
       });
       expect(tree.statusCode).toBe(200);
@@ -411,7 +413,7 @@ describe('Files HTTP', () => {
       };
       const saved = await server.inject({
         method: 'POST',
-        url: `/worktrees/${id}/files`,
+        url: `/api/worktrees/${id}/files`,
         headers,
         payload,
       });
@@ -421,7 +423,7 @@ describe('Files HTTP', () => {
       );
       const stale = await server.inject({
         method: 'POST',
-        url: `/worktrees/${id}/files`,
+        url: `/api/worktrees/${id}/files`,
         headers,
         payload: { ...payload, text: 'stale overwrite' },
       });
@@ -430,7 +432,7 @@ describe('Files HTTP', () => {
       for (const invalid of ['../outside', '.git/config', '/tmp/outside']) {
         const response = await server.inject({
           method: 'POST',
-          url: `/worktrees/${id}/files`,
+          url: `/api/worktrees/${id}/files`,
           headers,
           payload: { kind: 'create', path: invalid, entryKind: 'file' },
         });

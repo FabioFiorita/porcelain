@@ -37,7 +37,11 @@ it('persists unconfirmed cleanup before a second accepted action can launch', as
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
     },
   };
-  const options = { dataDirectory: join(root, 'data'), actionGit: () => git };
+  const options = {
+    dataDirectory: join(root, 'data'),
+    projectHome: join(root, 'data'),
+    actionGit: () => git,
+  };
   const app = await openApplication(options);
   try {
     const { project } = await app.register(checkout);
@@ -103,7 +107,11 @@ it('persists an inspection quarantine even though preparation has no request rec
       throw new Error('Must not execute');
     },
   };
-  const options = { dataDirectory: join(root, 'data'), actionGit: () => git };
+  const options = {
+    dataDirectory: join(root, 'data'),
+    projectHome: join(root, 'data'),
+    actionGit: () => git,
+  };
   const app = await openApplication(options);
   try {
     const { project } = await app.register(checkout);

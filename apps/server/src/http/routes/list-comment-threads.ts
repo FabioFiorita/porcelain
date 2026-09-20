@@ -5,6 +5,7 @@ import {
 } from '@porcelain/contracts/comments';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
+import { callerOf } from '../principal.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
 export function listCommentThreads(
@@ -21,6 +22,9 @@ export function listCommentThreads(
       },
     },
     async (request) =>
-      options.application.comments({ kind: 'list', ...request.params }),
+      options.application.comments(
+        { kind: 'list', ...request.params },
+        callerOf(request),
+      ),
   );
 }

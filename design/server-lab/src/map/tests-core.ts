@@ -1303,48 +1303,79 @@ export const coreSpecAudits: SpecAudit[] = [
     verdict: 'adequate',
   },
   {
-    file: 'apps/server/src/lifecycle/start-local-server.spec.ts',
+    file: 'apps/server/src/lifecycle/runtime.spec.ts',
     areas: ['lifecycle', 'connection'],
     kind: 'http',
     real: [
       'HTTP server on loopback',
+      'Unix socket owner listener',
       'raw TCP socket',
       'sqlite',
-      'filesystem ownership lock',
+      'child processes for crash simulation',
     ],
     fakes: [],
     tests: [
       {
-        name: 'bounds shutdown when a client never finishes its request body',
+        name: 'serves both doors, restricts the owner socket, and releases them on close',
         asserts:
-          'close() completes, the stalled socket is closed and a restart succeeds.',
+          'Binds 127.0.0.1; /api/health ok; owner /status absent on TCP; socket mode 0600; status JSON matches; double close safe; socket gone after close.',
+      },
+      {
+        name: 'keeps owner and network doors on separate transports',
+        asserts:
+          'TCP /status falls through to the app shell and never returns owner state, with or without a bearer; /api/*, /index.html and / are 404 on the socket.',
+      },
+      {
+        name: 'refuses a second server while one answers, including through an alias',
+        asserts:
+          'A symlinked data directory rejects DataDirectoryOwnedError and the live server is untouched.',
+      },
+      {
+        name: 'makes a contender wait for a starter that has claimed but not bound',
+        asserts:
+          'A contender decides nothing until the winner releases the startup lock, then finds a live server instead of deleting its socket.',
+      },
+      {
+        name: 'replaces a socket left behind by a crash without any manual cleanup',
+        asserts:
+          'A socket from a SIGKILLed child is removed and rebound; status answers.',
+      },
+      {
+        name: 'refuses a data directory other users can reach',
+        asserts:
+          'Mode 0755 rejects DataDirectoryInsecureError before any database exists; 0700 starts.',
+      },
+      {
+        name: 'fails clearly when the socket path exceeds the platform limit',
+        asserts: 'SocketPathTooLongError rather than a raw bind failure.',
+      },
+      {
+        name: 'leaves nothing running when either door fails to bind',
+        asserts:
+          'EADDRINUSE leaves no socket; a blocked socket path closes the bound network listener; the directory starts afterwards.',
       },
       {
         name: 'rejects invalid configuration before creating state',
         asserts:
-          '8 bad configurations throw; no lock or database created; pre-aborted start rejects.',
-      },
-      {
-        name: 'owns a directory across aliases, serves loopback HTTP, and releases it on close',
-        asserts:
-          'Binds 127.0.0.1; health ok; symlink alias rejects DataDirectoryOwnedError; double close safe; restart works.',
+          '8 bad configurations throw; no database created; pre-aborted start rejects.',
       },
       {
         name: 'binds an explicitly configured host without changing the default',
         asserts: 'Listens on 127.0.0.2 and serves health.',
       },
       {
-        name: 'releases ownership after bind or database failure so startup can be retried',
+        name: 'bounds shutdown when a client never finishes its request body',
         asserts:
-          'EADDRINUSE and corrupt sqlite both leave no server.lock behind.',
+          'close() completes, the stalled socket is closed and a restart succeeds.',
       },
     ],
     strengths: [
-      'Real sockets and lock files; the failure cleanup paths are tested, not only the happy path.',
+      'Real sockets, real modes and a real SIGKILLed child; the claim/bind race and both partial-bind orders are tested, not only the happy path.',
     ],
     gaps: [
       'Startup refreshes inventory (listWorktrees for every registered project, serially, 2 + 2 per worktree git processes) before listening; no test bounds startup time with many or unavailable projects.',
       'Shutdown while a git action or a long evidence read is running is not covered here.',
+      'The directory check covers the data directory itself, not a world-writable ancestor that could let it be replaced.',
     ],
     verdict: 'strong',
   },
@@ -1595,7 +1626,7 @@ export const coreAreaSummaries: AreaTestSummary[] = [
       'Loopback binding, host override, token-protected routes (401 in the playground e2e) and client-side error mapping are tested with real sockets or exact assertions. Token-file creation and permissions live in scripts/serve.spec.ts, outside this scope. Client fixtures are hand-written, so server response drift is caught only by HTTP specs.',
     missing: [
       'Client contract test: feed each client function responses recorded from the real server (for example the playground) instead of hand-written JSON.',
-      'runCli/runLocalServer: SIGINT during startup releases server.lock and never prints the token (apps/server/src/cli only tests argument parsing).',
+      'runCli/runLocalServer: SIGINT during startup releases the startup lock and the owner socket, and never prints the token (apps/server/src/cli tests argument parsing and status).',
       'Startup with 20 registered projects, 3 on unavailable paths, is listening within N ms (refresh runs listWorktrees for each project, serially, before listen).',
     ],
   },

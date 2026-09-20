@@ -102,6 +102,7 @@ async function fixture(
   const { root, checkout } = await repository(changedFiles);
   const server = await createServer({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     token,
   });
   try {
@@ -109,7 +110,7 @@ async function fixture(
       (
         await server.inject({
           method: 'POST',
-          url: '/projects',
+          url: '/api/projects',
           headers,
           payload: { path: checkout },
         })
@@ -120,13 +121,14 @@ async function fixture(
     const coldServer = async () => {
       const cold = await createServer({
         dataDirectory: join(root, 'cold-state'),
+        projectHome: join(root, 'cold-state'),
         token,
       });
       const registeredCold = projectResponseSchema.parse(
         (
           await cold.inject({
             method: 'POST',
-            url: '/projects',
+            url: '/api/projects',
             headers,
             payload: { path: checkout },
           })
@@ -177,7 +179,7 @@ describe('Git process budgets', () => {
         counts[changedFiles] = await measure(async () => {
           const response = await server.inject({
             method: 'GET',
-            url: `/worktrees/${worktreeId}/evidence`,
+            url: `/api/worktrees/${worktreeId}/evidence`,
             headers,
           });
           expect(response.statusCode).toBe(200);
@@ -202,7 +204,7 @@ describe('Git process budgets', () => {
         (
           await server.inject({
             method: 'GET',
-            url: `/worktrees/${worktreeId}/evidence`,
+            url: `/api/worktrees/${worktreeId}/evidence`,
             headers,
           })
         ).json(),
@@ -211,7 +213,7 @@ describe('Git process budgets', () => {
       const spawned = await measure(async () => {
         const response = await server.inject({
           method: 'PUT',
-          url: `/worktrees/${worktreeId}/reviewed`,
+          url: `/api/worktrees/${worktreeId}/reviewed`,
           headers,
           payload: {
             path: evidence.path,
@@ -232,7 +234,7 @@ describe('Git process budgets', () => {
         const coldSpawned = await measure(async () => {
           const response = await cold.server.inject({
             method: 'PUT',
-            url: `/worktrees/${cold.worktreeId}/reviewed`,
+            url: `/api/worktrees/${cold.worktreeId}/reviewed`,
             headers,
             payload: {
               path: evidence.path,
@@ -257,7 +259,7 @@ describe('Git process budgets', () => {
         (
           await server.inject({
             method: 'GET',
-            url: `/worktrees/${worktreeId}/git/status`,
+            url: `/api/worktrees/${worktreeId}/git/status`,
             headers,
           })
         ).json(),
@@ -270,7 +272,7 @@ describe('Git process budgets', () => {
       const spawned = await measure(async () => {
         const response = await server.inject({
           method: 'POST',
-          url: `/worktrees/${worktreeId}/git/diff`,
+          url: `/api/worktrees/${worktreeId}/git/diff`,
           headers,
           payload: {
             expectedStatusToken: status.statusToken,
@@ -293,7 +295,7 @@ describe('Git process budgets', () => {
       const spawned = await measure(async () => {
         const response = await server.inject({
           method: 'GET',
-          url: `/worktrees/${worktreeId}/text?path=file-0.ts`,
+          url: `/api/worktrees/${worktreeId}/text?path=file-0.ts`,
           headers,
         });
         expect(response.statusCode).toBe(200);

@@ -33,7 +33,11 @@ it('keeps review metadata together across Git inspection, refresh and a server r
   const linked = join(root, 'linked');
   execFileSync('git', ['-C', path, 'worktree', 'add', '-b', 'review', linked]);
   await writeFile(join(linked, 'notes.txt'), 'after\n');
-  const server = await createServer({ dataDirectory, token });
+  const server = await createServer({
+    dataDirectory,
+    projectHome: dataDirectory,
+    token,
+  });
   await server.refreshed();
   try {
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
@@ -50,15 +54,15 @@ it('keeps review metadata together across Git inspection, refresh and a server r
       return response.json();
     }
     const project = projectResponseSchema.parse(
-      await request('/projects', 'POST', { path }),
+      await request('/api/projects', 'POST', { path }),
     );
     const inventory = inventoryResponseSchema.parse(
-      await request('/inventory'),
+      await request('/api/inventory'),
     );
     expect(inventory.projects).toEqual([project]);
     const worktreeId = project.worktrees.find((worktree) => !worktree.main)?.id;
     expect(worktreeId).toBeDefined();
-    const base = `/worktrees/${worktreeId}`;
+    const base = `/api/worktrees/${worktreeId}`;
     expect(await request(`${base}/directory?path=`)).toMatchObject({
       entries: expect.arrayContaining([
         expect.objectContaining({ name: 'notes.txt' }),
@@ -76,7 +80,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
       commits: [expect.objectContaining({ subject: 'Initial' })],
     });
     const preferences = await request(
-      `/projects/${project.id}/file-preferences`,
+      `/api/projects/${project.id}/file-preferences`,
       'PUT',
       {
         path: 'notes.txt',
@@ -86,11 +90,11 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     );
     // Registering through either checkout resolves to the same project preferences.
     const linkedProject = projectResponseSchema.parse(
-      await request('/projects', 'POST', { path: linked }),
+      await request('/api/projects', 'POST', { path: linked }),
     );
     expect(linkedProject.id).toBe(project.id);
     expect(
-      await request(`/projects/${linkedProject.id}/file-preferences`),
+      await request(`/api/projects/${linkedProject.id}/file-preferences`),
     ).toEqual(preferences);
     const layers = await request(`${base}/review-layers`, 'PUT', {
       expectedRevision: 0,
@@ -112,15 +116,19 @@ it('keeps review metadata together across Git inspection, refresh and a server r
         content: '<h1>Review</h1>',
       }),
     );
-    await request('/inventory/refresh', 'POST');
+    await request('/api/inventory/refresh', 'POST');
     await server.close();
-    const restarted = await createServer({ dataDirectory, token });
+    const restarted = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     await restarted.refreshed();
     try {
       const headers = { authorization: `Bearer ${token}` };
       const restored = await restarted.inject({
         method: 'GET',
-        url: '/inventory',
+        url: '/api/inventory',
         headers,
       });
       expect(restored.statusCode).toBe(200);
@@ -134,7 +142,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
           method: 'GET',
           url:
             suffix === 'file-preferences'
-              ? `/projects/${project.id}/${suffix}`
+              ? `/api/projects/${project.id}/${suffix}`
               : `${base}/${suffix}`,
           headers,
         });

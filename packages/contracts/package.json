@@ -19,7 +19,8 @@
     "./commit-review-layers": "./src/commit-review-layers.ts",
     "./reviewed-files": "./src/reviewed-files.ts",
     "./evidence": "./src/evidence.ts",
-    "./commit-draft": "./src/commit-draft.ts"
+    "./commit-draft": "./src/commit-draft.ts",
+    "./owner": "./src/owner.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

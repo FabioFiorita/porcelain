@@ -1,6 +1,13 @@
 import { readStartupSettings } from './config/startup-settings.ts';
-import { DataDirectoryOwnedError } from './lifecycle/errors/data-directory-owned-error.ts';
-import { startLocalServer } from './lifecycle/start-local-server.ts';
+import { startRuntime } from './lifecycle/runtime.ts';
+
+/** Startup failures the operator can act on, as opposed to a bug. */
+const actionable = new Set([
+  'DataDirectoryOwnedError',
+  'DataDirectoryInsecureError',
+  'OwnerSocketUnreadableError',
+  'SocketPathTooLongError',
+]);
 
 const shutdown = new AbortController();
 const requestShutdown = () => shutdown.abort();
@@ -8,7 +15,7 @@ process.on('SIGINT', requestShutdown);
 process.on('SIGTERM', requestShutdown);
 
 try {
-  const server = await startLocalServer(
+  const server = await startRuntime(
     readStartupSettings(process.env),
     shutdown.signal,
   );
@@ -24,7 +31,7 @@ try {
 } catch (error) {
   if (error !== shutdown.signal.reason) {
     process.stderr.write(
-      error instanceof DataDirectoryOwnedError
+      error instanceof Error && actionable.has(error.name)
         ? `${error.message}\n`
         : 'Server startup or shutdown failed. Check configuration, data directory, and port availability.\n',
     );

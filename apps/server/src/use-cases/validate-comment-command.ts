@@ -58,8 +58,6 @@ function validAnchor(anchor: CommentThread['anchor']): boolean {
 }
 export function validateCommentCommand(command: CommentCommand): void {
   if (command.kind === 'create' || command.kind === 'reply') {
-    if (command.author !== 'reviewer' && command.author !== 'agent')
-      throw new InvalidCommentError();
     if (
       command.body.length > 16000 ||
       command.body.trim().length === 0 ||

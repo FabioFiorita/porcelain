@@ -33,6 +33,7 @@ beforeEach(async () => {
     .mockResolvedValue([{ message: 'Add first file', paths: ['a.ts'] }]);
   application = await openApplication({
     dataDirectory: join(root, 'state'),
+    projectHome: join(root, 'state'),
     commitGenerator: {
       async models() {
         return [];

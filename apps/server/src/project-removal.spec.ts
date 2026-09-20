@@ -39,6 +39,7 @@ describe('Project removal and Git operation lifecycle', () => {
     };
     const app = await openApplication({
       dataDirectory: join(root, 'state'),
+      projectHome: join(root, 'state'),
       actionGit: () => writer,
     });
     try {
@@ -101,6 +102,7 @@ describe('Project removal and Git operation lifecycle', () => {
     const dataDirectory = join(root, 'state');
     const app = await openApplication({
       dataDirectory,
+      projectHome: dataDirectory,
       actionGit: () => writer,
     });
     const db = new DatabaseSync(join(dataDirectory, 'inventory.sqlite'));

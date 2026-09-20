@@ -11,6 +11,7 @@ describe('HTTP server', () => {
     const entered = Promise.withResolvers<void>();
     const server = await createServer({
       dataDirectory,
+      projectHome: dataDirectory,
       token: 'fixture-token-with-at-least-32-characters',
       git: () => ({
         listWorktrees: (signal) =>
@@ -24,7 +25,7 @@ describe('HTTP server', () => {
     });
     try {
       const address = await server.listen({ host: '127.0.0.1', port: 0 });
-      const response = fetch(`${address}/projects`, {
+      const response = fetch(`${address}/api/projects`, {
         method: 'POST',
         headers: {
           authorization: 'Bearer fixture-token-with-at-least-32-characters',
@@ -46,18 +47,22 @@ describe('HTTP server', () => {
     try {
       const server = await createServer({
         dataDirectory,
+        projectHome: dataDirectory,
         token: 'fixture-token-with-at-least-32-characters',
       });
       try {
         expect(server.server.listening).toBe(false);
-        const response = await server.inject({ method: 'GET', url: '/health' });
+        const response = await server.inject({
+          method: 'GET',
+          url: '/api/health',
+        });
         expect(response.statusCode).toBe(200);
         expect(healthResponseSchema.parse(response.json())).toEqual({
           status: 'ok',
         });
         expect(response.json()).toEqual({ status: 'ok' });
         expect(
-          (await server.inject({ method: 'GET', url: '/inventory' }))
+          (await server.inject({ method: 'GET', url: '/api/inventory' }))
             .statusCode,
         ).toBe(401);
       } finally {
@@ -66,6 +71,7 @@ describe('HTTP server', () => {
       // Application lifecycle releases persistence so it can be opened again.
       const reopened = await createServer({
         dataDirectory,
+        projectHome: dataDirectory,
         token: 'fixture-token-with-at-least-32-characters',
       });
       await reopened.close();
@@ -79,11 +85,12 @@ describe('HTTP server', () => {
     try {
       const server = await createServer({
         dataDirectory,
+        projectHome: dataDirectory,
         token: 'fixture-token-with-at-least-32-characters',
       });
       try {
         const address = await server.listen({ host: '127.0.0.1', port: 0 });
-        const response = await fetch(`${address}/health`);
+        const response = await fetch(`${address}/api/health`);
         expect(response.status).toBe(200);
         expect(await response.json()).toEqual({ status: 'ok' });
       } finally {
@@ -100,7 +107,11 @@ describe('HTTP server', () => {
       join(tmpdir(), 'porcelain-api-prefix-'),
     );
     const token = 'fixture-token-with-at-least-32-characters';
-    const server = await createServer({ dataDirectory, token });
+    const server = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       expect(
         (await server.inject({ method: 'GET', url: '/api/health' })).json(),
@@ -138,7 +149,7 @@ describe('HTTP server', () => {
         (
           await server.inject({
             method: 'GET',
-            url: '/inventory',
+            url: '/api/inventory',
             headers: { authorization: `Bearer ${token}` },
           })
         ).statusCode,
@@ -156,6 +167,7 @@ describe('HTTP server', () => {
     try {
       const server = await createServer({
         dataDirectory,
+        projectHome: dataDirectory,
         token: 'fixture-token-with-at-least-32-characters',
       });
       try {
@@ -184,6 +196,7 @@ describe('HTTP server', () => {
     );
     const server = await createServer({
       dataDirectory,
+      projectHome: dataDirectory,
       token: 'fixture-token-with-at-least-32-characters',
     });
     try {
@@ -200,7 +213,7 @@ describe('HTTP server', () => {
       });
       const unauthorized = await server.inject({
         method: 'GET',
-        url: '/inventory',
+        url: '/api/inventory',
       });
       expect(unauthorized.statusCode).toBe(401);
       expect(unauthorized.headers['www-authenticate']).toBe('Bearer');
@@ -219,11 +232,15 @@ describe('HTTP server', () => {
       join(tmpdir(), 'porcelain-json-errors-'),
     );
     const token = 'fixture-token-with-at-least-32-characters';
-    const server = await createServer({ dataDirectory, token });
+    const server = await createServer({
+      dataDirectory,
+      projectHome: dataDirectory,
+      token,
+    });
     try {
       const response = await server.inject({
         method: 'POST',
-        url: '/projects',
+        url: '/api/projects',
         headers: {
           authorization: `Bearer ${token}`,
           'content-type': 'application/json',

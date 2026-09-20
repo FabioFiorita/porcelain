@@ -1,8 +1,10 @@
 import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type {
+  CommentAuthor,
   CommentCommand,
   CommentThread,
 } from '../models/comment-thread.ts';
+import type { AuthenticatedPrincipal } from '../models/principal.ts';
 import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { CommentLimitExceededError } from './errors/comment-limit-exceeded-error.ts';
@@ -45,14 +47,19 @@ export class CommentThreads {
     )
       throw new CommentLimitExceededError();
   }
-  execute(command: CommentCommand): CommentThread[] {
+  /** Reading threads has no author, so it needs no principal. */
+  list(worktreeId: string): CommentThread[] {
+    const threads = this.store.list(worktreeId);
+    if (threads.length === 0 && !this.hasWorktree(worktreeId))
+      throw new WorktreeNotFoundError();
+    return threads;
+  }
+  execute(
+    command: CommentCommand,
+    principal: AuthenticatedPrincipal,
+  ): CommentThread[] {
     validateCommentCommand(command);
-    if (command.kind === 'list') {
-      const threads = this.store.list(command.worktreeId);
-      if (threads.length === 0 && !this.hasWorktree(command.worktreeId))
-        throw new WorktreeNotFoundError();
-      return threads;
-    }
+    if (command.kind === 'list') return this.list(command.worktreeId);
     if (command.kind === 'create') {
       if (!this.hasWorktree(command.worktreeId))
         throw new CommentTargetNotFoundError();
@@ -65,7 +72,7 @@ export class CommentThreads {
           {
             id: this.newId(),
             body: command.body,
-            author: command.author,
+            author: authorFor(principal),
             createdAt: this.now(),
           },
         ],
@@ -85,7 +92,7 @@ export class CommentThreads {
               {
                 id: this.newId(),
                 body: command.body,
-                author: command.author,
+                author: authorFor(principal),
                 createdAt: this.now(),
               },
             ],
@@ -94,5 +101,20 @@ export class CommentThreads {
     if (command.kind === 'reply') this.assertCapacity(updated, thread);
     this.store.save(updated);
     return [updated];
+  }
+}
+
+/**
+ * Authorship is the door the caller came through, decided here rather than in
+ * a route: a transport that could name its own author would make the principal
+ * decorative.
+ */
+function authorFor(principal: AuthenticatedPrincipal): CommentAuthor {
+  switch (principal.kind) {
+    case 'agent':
+      return 'agent';
+    case 'owner':
+    case 'viewer':
+      return 'reviewer';
   }
 }
