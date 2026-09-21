@@ -1,5 +1,5 @@
 import type { LiveNotice } from '@porcelain/contracts/live-updates';
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryFilters } from '@tanstack/react-query';
 import type { Api } from '../api/api';
 import type { Receipt } from '../domain/git-action';
 import type { ReviewScope } from '../domain/review';
@@ -82,6 +82,32 @@ const GIT_SURFACES = new Set([
   'reviewed-layers',
 ]);
 
+async function refreshActionQueries(
+  client: QueryClient,
+  filters: QueryFilters,
+) {
+  const active = client
+    .getQueryCache()
+    .findAll(filters)
+    .filter((query) => query.isActive());
+  await client.invalidateQueries(filters);
+  // Navigation can cancel an observed read without rejecting invalidation.
+  // Finish that read even when its view is no longer mounted.
+  await Promise.all(
+    active.map(async (query) => {
+      if (query.state.isInvalidated && query.state.status === 'success') {
+        // A discard may legitimately remove an open file. Its read error belongs
+        // to that surface and must not hide the successful action's restore UI.
+        await query.fetch().catch(() => undefined);
+      }
+      if (query.state.isInvalidated && query.state.status === 'success')
+        throw new Error(
+          'Git state refresh was interrupted. Check the action again.',
+        );
+    }),
+  );
+}
+
 async function invalidateSurfaces(
   client: QueryClient,
   environmentId: string,
@@ -127,8 +153,12 @@ export async function refreshGitReceipt(
       receipt.action === 'fetch' || receipt.action === 'push'
         ? new Set(['git-status', 'changes', 'history', 'branches'])
         : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
-    await invalidateSurfaces(client, environmentId, receipt, surfaces);
-    await client.invalidateQueries({
+    const prefix = queryKeys.review(environmentId, receipt);
+    await refreshActionQueries(client, {
+      queryKey: prefix,
+      predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
+    });
+    await refreshActionQueries(client, {
       queryKey: queryKeys.inventory(environmentId),
       exact: true,
     });

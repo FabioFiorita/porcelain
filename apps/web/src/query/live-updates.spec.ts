@@ -250,71 +250,129 @@ it('keeps an in-flight worktree subscribed after navigation and recovers its com
   }
 });
 
-it('finishes an action only after its refreshed changes are available', async () => {
-  const client = new QueryClient();
-  const controller = new AbortController();
-  const operations = createOperationStore();
-  const key = operationKey(scope, 'create-branch');
-  operations.set(key, {
-    ...scope,
-    requestId: 'branch-request',
-    request: {
+it.each([false, true])(
+  'finishes an action only after refreshed changes, including navigation: %s',
+  async (navigate) => {
+    const client = new QueryClient();
+    const controller = new AbortController();
+    const operations = createOperationStore();
+    const key = operationKey(scope, 'create-branch');
+    operations.set(key, {
+      ...scope,
       requestId: 'branch-request',
-      input: { action: 'create-branch', branch: 'new-branch', switchTo: true },
-      expected: {
-        headOid: null,
-        branch: 'main',
-        inProgress: null,
-        mergeHeadOid: null,
+      request: {
+        requestId: 'branch-request',
+        input: {
+          action: 'create-branch',
+          branch: 'new-branch',
+          switchTo: true,
+        },
+        expected: {
+          headOid: null,
+          branch: 'main',
+          inProgress: null,
+          mergeHeadOid: null,
+        },
       },
-    },
+    });
+    let startRead = () => {};
+    const started = new Promise<void>((resolve) => {
+      startRead = resolve;
+    });
+    let finishRead = (_value: { branch: string }) => {};
+    const refreshed = new Promise<{ branch: string }>((resolve) => {
+      finishRead = resolve;
+    });
+    const changesKey = queryKeys.reviewSurface(environmentId, scope, [
+      'changes',
+    ]);
+    client.setQueryData(changesKey, { branch: 'main' });
+    const observer = new QueryObserver(client, {
+      queryKey: changesKey,
+      queryFn: ({ signal }) => {
+        signal.throwIfAborted();
+        startRead();
+        return refreshed;
+      },
+      staleTime: Number.POSITIVE_INFINITY,
+    });
+    const unsubscribe = observer.subscribe(() => undefined);
+    const api = createMockApi(createMockStore());
+    let handlers: Parameters<LiveUpdatePort['connect']>[0] | undefined;
+    api.liveUpdates.connect = (options) => {
+      handlers = options;
+      return { subscribe: () => undefined };
+    };
+    const disconnect = connectLiveQueries(api, client, {
+      environmentId,
+      controller,
+      operations,
+    });
+    const receipt: Receipt = {
+      ...scope,
+      requestId: 'branch-request',
+      action: 'create-branch',
+      state: 'succeeded',
+      progress: [],
+      acceptedAt: 1,
+      finishedAt: 2,
+    };
+    try {
+      const finished = operations.wait(key, controller.signal);
+      handlers?.onNotice({ type: 'git-action', ...scope, receipt });
+      await started;
+      if (navigate) {
+        unsubscribe();
+        await vi.waitFor(() =>
+          expect(client.getQueryState(changesKey)?.fetchStatus).toBe(
+            'fetching',
+          ),
+        );
+      }
+      expect(operations.get(key)?.receipt?.state).not.toBe('succeeded');
+      finishRead({ branch: 'new-branch' });
+      await finished;
+      expect(client.getQueryData(changesKey)).toEqual({ branch: 'new-branch' });
+    } finally {
+      finishRead({ branch: 'new-branch' });
+      unsubscribe();
+      disconnect();
+      controller.abort();
+      client.clear();
+    }
+  },
+);
+
+it('keeps successful discard completion available when the open file no longer exists', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
   });
-  let startRead = () => {};
-  const started = new Promise<void>((resolve) => {
-    startRead = resolve;
+  const textKey = queryKeys.reviewSurface(environmentId, scope, [
+    'text',
+    'removed.txt',
+  ]);
+  const unsubscribe = observe(client, textKey, () => {
+    throw new Error('File no longer exists');
   });
-  let finishRead = (_value: { branch: string }) => {};
-  const refreshed = new Promise<{ branch: string }>((resolve) => {
-    finishRead = resolve;
-  });
-  const changesKey = queryKeys.reviewSurface(environmentId, scope, ['changes']);
-  const unsubscribe = observe(client, changesKey, () => {
-    startRead();
-    return refreshed;
-  });
-  const api = createMockApi(createMockStore());
-  let handlers: Parameters<LiveUpdatePort['connect']>[0] | undefined;
-  api.liveUpdates.connect = (options) => {
-    handlers = options;
-    return { subscribe: () => undefined };
-  };
-  const disconnect = connectLiveQueries(api, client, {
-    environmentId,
-    controller,
-    operations,
-  });
-  const receipt: Receipt = {
-    ...scope,
-    requestId: 'branch-request',
-    action: 'create-branch',
-    state: 'succeeded',
-    progress: [],
-    acceptedAt: 1,
-    finishedAt: 2,
-  };
   try {
-    const finished = operations.wait(key, controller.signal);
-    handlers?.onNotice({ type: 'git-action', ...scope, receipt });
-    await started;
-    expect(operations.get(key)?.receipt?.state).not.toBe('succeeded');
-    finishRead({ branch: 'new-branch' });
-    await finished;
-    expect(client.getQueryData(changesKey)).toEqual({ branch: 'new-branch' });
+    await expect(
+      applyLiveNotice(client, environmentId, {
+        type: 'git-action',
+        ...scope,
+        receipt: {
+          ...scope,
+          requestId: 'discard-request',
+          action: 'discard',
+          state: 'succeeded',
+          progress: [],
+          acceptedAt: 1,
+          finishedAt: 2,
+        },
+      }),
+    ).resolves.toBeUndefined();
+    expect(client.getQueryState(textKey)?.status).toBe('error');
   } finally {
-    finishRead({ branch: 'new-branch' });
     unsubscribe();
-    disconnect();
-    controller.abort();
     client.clear();
   }
 });
