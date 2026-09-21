@@ -35,17 +35,20 @@ export async function inspectActionTarget(
   await inspectActionConfig(process, signal);
   const headOid = await readOptionalActionOid(process, 'HEAD', signal);
   const branchResult = await process.execute(
-    ['symbolic-ref', '--quiet', '--short', 'HEAD'],
+    ['symbolic-ref', '--quiet', 'HEAD'],
     signal,
   );
   const branchFailure = processFailure(branchResult);
   if (branchFailure?.state === 'indeterminate')
     throw new GitActionRejectedError(branchFailure.reason ?? 'GIT_REJECTED');
-  const branch =
+  const branchRef =
     branchResult.exitCode === 0
       ? branchResult.stdout.toString('utf8').trimEnd()
       : null;
-  if (headOid !== expected.headOid || branch !== expected.branch)
+  const displayedBranch = branchRef?.startsWith('refs/heads/')
+    ? branchRef.slice('refs/heads/'.length)
+    : branchRef;
+  if (headOid !== expected.headOid || displayedBranch !== expected.branch)
     throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
 
   const network =
@@ -103,7 +106,7 @@ export async function inspectActionTarget(
     ...(remote ? { remote } : {}),
     preview: {
       headOid,
-      branch,
+      branch: branchRef,
       staged: false,
       trackedChanges,
       untrackedCount,

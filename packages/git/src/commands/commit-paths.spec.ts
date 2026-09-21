@@ -24,7 +24,7 @@ it('keeps the real index lock and temporary index when commit process ownership 
             : args.includes('rev-parse')
               ? `${'a'.repeat(40)}\n`
               : args.includes('symbolic-ref')
-                ? 'main\n'
+                ? 'refs/heads/main\n'
                 : args.includes('ls-files')
                   ? 'file\0'
                   : '',
@@ -45,7 +45,7 @@ it('keeps the real index lock and temporary index when commit process ownership 
           intent: { action: 'commit', message: 'test', paths: ['file'] },
           preview: {
             headOid: 'a'.repeat(40),
-            branch: 'main',
+            branch: 'refs/heads/main',
             staged: true,
             trackedChanges: true,
             untrackedCount: 0,

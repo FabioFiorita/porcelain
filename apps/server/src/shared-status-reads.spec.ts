@@ -26,6 +26,13 @@ async function fixture(readStatus: (signal?: AbortSignal) => Promise<unknown>) {
     inspectionGit: () =>
       fakeInspection({
         readStatus: readStatus as never,
+        readBranchDetails: async () => ({
+          remoteName: null,
+          sourceRef: null,
+          upstreamOid: null,
+          stashes: [],
+          headCommit: { subject: 'Fixture commit' },
+        }),
         readDiff: async () => ({ kind: 'binary' }),
         readDiffs: async () => [],
       }),
@@ -41,7 +48,7 @@ async function fixture(readStatus: (signal?: AbortSignal) => Promise<unknown>) {
   };
 }
 
-it('answers two identical status reads in flight with one Git read', async () => {
+it('shares one underlying status read across simultaneous action-status requests', async () => {
   const blocked = Promise.withResolvers<void>();
   let reads = 0;
   const f = await fixture(async () => {
@@ -53,7 +60,9 @@ it('answers two identical status reads in flight with one Git read', async () =>
     const first = f.app.gitStatus(f.worktreeId);
     const second = f.app.gitStatus(f.worktreeId);
     blocked.resolve();
-    await Promise.all([first, second]);
+    const results = await Promise.all([first, second]);
+    for (const result of results)
+      expect(result.status.headCommit).toEqual({ subject: 'Fixture commit' });
     // The second joined the first instead of reading, or taking a permit.
     expect(reads).toBe(1);
   } finally {

@@ -65,7 +65,7 @@ export async function commitPaths(
         : null;
     const headOid = await readOptionalActionOid(process, 'HEAD', signal);
     const branchResult = await process.execute(
-      ['symbolic-ref', '--quiet', '--short', 'HEAD'],
+      ['symbolic-ref', '--quiet', 'HEAD'],
       signal,
     );
     const branch =

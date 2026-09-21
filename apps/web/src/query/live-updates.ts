@@ -95,6 +95,8 @@ async function invalidateSurfaces(
   });
 }
 
+const receiptRefreshes = new WeakMap<QueryClient, Map<string, Promise<void>>>();
+
 export async function refreshGitReceipt(
   client: QueryClient,
   environmentId: string,
@@ -106,15 +108,37 @@ export async function refreshGitReceipt(
     receipt.state === 'no-change'
   )
     return;
-  const surfaces =
-    receipt.action === 'fetch' || receipt.action === 'push'
-      ? new Set(['git-status', 'changes', 'history', 'branches'])
-      : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
-  await invalidateSurfaces(client, environmentId, receipt, surfaces);
-  await client.invalidateQueries({
-    queryKey: queryKeys.inventory(environmentId),
-    exact: true,
-  });
+  let pending = receiptRefreshes.get(client);
+  if (!pending) {
+    pending = new Map();
+    receiptRefreshes.set(client, pending);
+  }
+  const key = JSON.stringify([
+    environmentId,
+    receipt.projectId,
+    receipt.worktreeId,
+    receipt.requestId,
+  ]);
+  const existing = pending.get(key);
+  if (existing) return existing;
+  // HTTP and live delivery must await the same post-action read.
+  const refresh = (async () => {
+    const surfaces =
+      receipt.action === 'fetch' || receipt.action === 'push'
+        ? new Set(['git-status', 'changes', 'history', 'branches'])
+        : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
+    await invalidateSurfaces(client, environmentId, receipt, surfaces);
+    await client.invalidateQueries({
+      queryKey: queryKeys.inventory(environmentId),
+      exact: true,
+    });
+  })();
+  pending.set(key, refresh);
+  try {
+    await refresh;
+  } finally {
+    pending.delete(key);
+  }
 }
 
 export async function applyLiveNotice(
@@ -185,15 +209,20 @@ export function connectLiveQueries(
           requestId: operation.requestId,
           signal: connection.controller.signal,
         })
-        .then((receipt) => {
-          if (connection.controller.signal.aborted) return;
-          connection.operations?.accept(receipt);
-          return applyLiveNotice(client, connection.environmentId, {
+        .then(async (receipt) => {
+          if (connection.controller.signal.aborted || lifecycle.signal.aborted)
+            return;
+          await applyLiveNotice(client, connection.environmentId, {
             type: 'git-action',
             projectId: receipt.projectId,
             worktreeId: receipt.worktreeId,
             receipt,
           });
+          if (
+            !connection.controller.signal.aborted &&
+            !lifecycle.signal.aborted
+          )
+            connection.operations?.accept(receipt);
         })
         .catch(() => {
           /* Retain the request for explicit recovery if the reconnect read fails. */
@@ -204,9 +233,16 @@ export function connectLiveQueries(
     signal: AbortSignal.any([connection.controller.signal, lifecycle.signal]),
     onNotice: (notice) => {
       if (notice.type === 'ready') recoverPending();
-      if (notice.type === 'git-action')
-        connection.operations?.accept(notice.receipt);
-      void applyLiveNotice(client, connection.environmentId, notice);
+      void applyLiveNotice(client, connection.environmentId, notice).then(
+        () => {
+          if (
+            notice.type === 'git-action' &&
+            !connection.controller.signal.aborted &&
+            !lifecycle.signal.aborted
+          )
+            connection.operations?.accept(notice.receipt);
+        },
+      );
     },
     onReconnect: () => {
       void client.invalidateQueries({ type: 'active' });

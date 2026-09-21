@@ -34,8 +34,9 @@ export function useGitAction(scope: ReviewScope, action: GitAction) {
       receipt.requestId !== operations.get(key)?.requestId
     )
       throw new Error('Receipt identity mismatch');
-    if (operations.accept(receipt))
-      await refreshGitReceipt(client, connection.environmentId, receipt);
+    await refreshGitReceipt(client, connection.environmentId, receipt);
+    connection.controller.signal.throwIfAborted();
+    operations.accept(receipt);
     return receipt;
   }
   const execution = useMutation({

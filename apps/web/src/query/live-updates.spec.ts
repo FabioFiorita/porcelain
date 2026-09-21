@@ -249,3 +249,72 @@ it('keeps an in-flight worktree subscribed after navigation and recovers its com
     client.clear();
   }
 });
+
+it('finishes an action only after its refreshed changes are available', async () => {
+  const client = new QueryClient();
+  const controller = new AbortController();
+  const operations = createOperationStore();
+  const key = operationKey(scope, 'create-branch');
+  operations.set(key, {
+    ...scope,
+    requestId: 'branch-request',
+    request: {
+      requestId: 'branch-request',
+      input: { action: 'create-branch', branch: 'new-branch', switchTo: true },
+      expected: {
+        headOid: null,
+        branch: 'main',
+        inProgress: null,
+        mergeHeadOid: null,
+      },
+    },
+  });
+  let startRead = () => {};
+  const started = new Promise<void>((resolve) => {
+    startRead = resolve;
+  });
+  let finishRead = (_value: { branch: string }) => {};
+  const refreshed = new Promise<{ branch: string }>((resolve) => {
+    finishRead = resolve;
+  });
+  const changesKey = queryKeys.reviewSurface(environmentId, scope, ['changes']);
+  const unsubscribe = observe(client, changesKey, () => {
+    startRead();
+    return refreshed;
+  });
+  const api = createMockApi(createMockStore());
+  let handlers: Parameters<LiveUpdatePort['connect']>[0] | undefined;
+  api.liveUpdates.connect = (options) => {
+    handlers = options;
+    return { subscribe: () => undefined };
+  };
+  const disconnect = connectLiveQueries(api, client, {
+    environmentId,
+    controller,
+    operations,
+  });
+  const receipt: Receipt = {
+    ...scope,
+    requestId: 'branch-request',
+    action: 'create-branch',
+    state: 'succeeded',
+    progress: [],
+    acceptedAt: 1,
+    finishedAt: 2,
+  };
+  try {
+    const finished = operations.wait(key, controller.signal);
+    handlers?.onNotice({ type: 'git-action', ...scope, receipt });
+    await started;
+    expect(operations.get(key)?.receipt?.state).not.toBe('succeeded');
+    finishRead({ branch: 'new-branch' });
+    await finished;
+    expect(client.getQueryData(changesKey)).toEqual({ branch: 'new-branch' });
+  } finally {
+    finishRead({ branch: 'new-branch' });
+    unsubscribe();
+    disconnect();
+    controller.abort();
+    client.clear();
+  }
+});

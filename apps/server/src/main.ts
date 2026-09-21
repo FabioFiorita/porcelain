@@ -1,5 +1,4 @@
 import { readStartupSettings } from './config/startup-settings.ts';
-import { startRuntime } from './lifecycle/runtime.ts';
 
 /** Startup failures the operator can act on, as opposed to a bug. */
 const actionable = new Set([
@@ -15,10 +14,9 @@ process.on('SIGINT', requestShutdown);
 process.on('SIGTERM', requestShutdown);
 
 try {
-  const server = await startRuntime(
-    readStartupSettings(process.env),
-    shutdown.signal,
-  );
+  const settings = readStartupSettings(process.env);
+  const { startRuntime } = await import('./lifecycle/runtime.ts');
+  const server = await startRuntime(settings, shutdown.signal);
   if (!shutdown.signal.aborted) {
     process.stdout.write(`${JSON.stringify({ address: server.address })}\n`);
     await new Promise<void>((resolve) => {

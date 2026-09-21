@@ -227,8 +227,31 @@ describe('Playground workflow', () => {
         child.kill('SIGTERM');
       await exited;
     });
-    await vi.waitFor(() => expect(stdout, stderr).toContain('\n'), {
-      timeout: 30_000,
+    // A cold generated profile performs the full repository seed. This is a
+    // workflow check, not a 30-second performance budget for shared CI runners.
+    await new Promise<void>((resolve, reject) => {
+      const ready = () => {
+        if (!stdout.includes('\n')) return;
+        cleanup();
+        resolve();
+      };
+      const failed = () => {
+        cleanup();
+        reject(new Error(`Playground exited before readiness: ${stderr}`));
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Playground did not become ready: ${stderr}`));
+      }, 60_000);
+      const cleanup = () => {
+        clearTimeout(timer);
+        child.stdout.off('data', ready);
+        child.off('close', failed);
+      };
+      child.stdout.on('data', ready);
+      child.once('close', failed);
+      if (child.exitCode !== null || child.signalCode !== null) failed();
+      else ready();
     });
     expect(stderr).toContain('Generating the app playground base');
     const info = JSON.parse(stdout.trim()) as {
@@ -279,5 +302,5 @@ describe('Playground workflow', () => {
       code: 'ENOENT',
     });
     expect(await readdir(parent)).toEqual(['.cache']);
-  }, 40_000);
+  }, 75_000);
 });
