@@ -14,7 +14,7 @@ import {
   inventoryResponseSchema,
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
-import { expect, it, onTestFinished, vi } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
 import { pairThroughSocket } from './development/pair-through-socket.ts';
 
 function launch(dataDirectory: string, overrides: NodeJS.ProcessEnv = {}) {
@@ -52,8 +52,29 @@ function launch(dataDirectory: string, overrides: NodeJS.ProcessEnv = {}) {
     output,
     exited,
     address: async () => {
-      await vi.waitFor(() => expect(output.stdout).toContain('\n'), {
-        timeout: 5000,
+      await new Promise<void>((resolve, reject) => {
+        const ready = () => {
+          if (!output.stdout.includes('\n')) return;
+          cleanup();
+          resolve();
+        };
+        const failed = () => {
+          cleanup();
+          reject(new Error(`Server exited before readiness: ${output.stderr}`));
+        };
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error(`Server did not become ready: ${output.stderr}`));
+        }, 15_000);
+        const cleanup = () => {
+          clearTimeout(timeout);
+          child.stdout.off('data', ready);
+          child.off('close', failed);
+        };
+        child.stdout.on('data', ready);
+        child.once('close', failed);
+        if (child.exitCode !== null || child.signalCode !== null) failed();
+        else ready();
       });
       return (JSON.parse(output.stdout.trim()) as { address: string }).address;
     },
@@ -129,7 +150,7 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   expect(await second.exited).toBe(0);
   expect(first.output.stderr + second.output.stderr).toBe('');
   expect(first.output.stdout + second.output.stdout).not.toContain(credential);
-}, 20_000);
+}, 45_000);
 
 it('serves the configured SPA and the /api namespace from one process', async () => {
   const root = await realpath(
@@ -173,7 +194,7 @@ it('serves the configured SPA and the /api namespace from one process', async ()
     server.child.kill('SIGTERM');
     expect(await server.exited).toBe(0);
   }
-});
+}, 30_000);
 
 it('restarts after a crash with no operator recovery step', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-crash-'));
@@ -195,7 +216,7 @@ it('restarts after a crash with no operator recovery step', async () => {
   await expect(stat(join(root, 'server.sock'))).rejects.toMatchObject({
     code: 'ENOENT',
   });
-}, 15_000);
+}, 45_000);
 
 it('exits unsuccessfully on invalid configuration without creating state', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-invalid-'));

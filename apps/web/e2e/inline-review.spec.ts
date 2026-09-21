@@ -18,12 +18,19 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
   // The heading arrives with the change; the diff itself is a second read, and
   // hovering a row while the body is still arriving moves it out from under
   // the pointer. Wait for the line being commented on to actually be there.
-  const line = page.locator('[data-column-number]').first();
+  const line = page.locator('[data-column-number="1"]').first();
   await expect(page.getByText('# Accessibility review')).toBeVisible();
   await expect(line).toBeVisible();
-  await line.hover();
   const utility = page.locator('[data-utility-button]').first();
-  await expect(utility).toBeVisible();
+  // Live updates can replace the virtualized row after the first pointer move.
+  // Re-enter the displayed row, rather than waiting on an abandoned hover.
+  await expect(async () => {
+    await page
+      .getByRole('heading', { name: 'accessibility.md', exact: true })
+      .hover();
+    await line.hover();
+    await expect(utility).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
   await utility.click();
   const body = `Please clarify this line ${test.info().project.name}`;
   await page.getByRole('textbox', { name: 'Comment', exact: true }).fill(body);
