@@ -3547,20 +3547,6 @@ const gitActions: Area = {
 // mcp
 // ---------------------------------------------------------------------------
 
-const MCP_SERVER = 'apps/server/src/http/mcp/review-server.ts';
-
-const _mcpStep = (tool: string, line: number, what: string): Step =>
-  s('route', `MCP tool ${tool}`, what, MCP_SERVER, line);
-
-const _mcpEntry = (): Step =>
-  s(
-    'route',
-    'POST /mcp on the owner socket',
-    `Reached only through the local socket; one fresh MCP server and transport per request.`,
-    'apps/server/src/http/owner-routes.ts',
-    70,
-  );
-
 const mcp: Area = {
   id: 'mcp',
   title: 'Agent MCP',

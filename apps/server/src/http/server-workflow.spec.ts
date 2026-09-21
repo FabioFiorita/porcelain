@@ -7,6 +7,7 @@ import {
   inventoryResponseSchema,
   projectResponseSchema,
 } from '@porcelain/contracts/inventory';
+import { reviewReadResponseSchema } from '@porcelain/contracts/review';
 import { expect, it } from 'vitest';
 import { pairDevice, pairingReach } from './helpers/paired-server.ts';
 import { createServer } from './server.ts';
@@ -163,7 +164,9 @@ it('keeps review metadata together across Git inspection, refresh and a server r
         if (suffix === 'review') {
           // A read renews the capability expiry; the stored publication is unchanged.
           expect(actual.review.summary.url).toMatch(/^\/review-summaries\//);
-          actual.review.summary.url = expected.review.summary.url;
+          const saved = reviewReadResponseSchema.parse(expected).review;
+          expect(saved).not.toBeNull();
+          actual.review.summary.url = saved?.summary.url;
         }
         expect(actual).toEqual(expected);
       }

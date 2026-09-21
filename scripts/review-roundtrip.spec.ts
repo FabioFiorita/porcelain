@@ -7,6 +7,8 @@ import { promisify } from 'node:util';
 import { expect, it } from 'vitest';
 import { pairThroughSocket } from '../apps/server/src/development/pair-through-socket.ts';
 import { startRuntime } from '../apps/server/src/lifecycle/runtime.ts';
+import { commentThreadsSchema } from '../packages/contracts/src/comments.ts';
+import { projectResponseSchema } from '../packages/contracts/src/inventory.ts';
 
 it('round-trips publication, reviewer feedback and revision through the real agent command', async () => {
   const root = await mkdtemp(join(tmpdir(), 'p-review-'));
@@ -56,8 +58,11 @@ it('round-trips publication, reviewer feedback and revision through the real age
       expect(response.ok).toBe(true);
       return response.json();
     };
-    const project = await request('/projects', { path: repository });
-    const worktreeId = project.worktrees[0].id;
+    const project = projectResponseSchema.parse(
+      await request('/projects', { path: repository }),
+    );
+    const worktreeId = project.worktrees[0]?.id;
+    if (!worktreeId) throw new Error('Missing fixture worktree');
     const main = resolve('apps/server/src/cli/main.ts');
     const tool = async (name: string, args: unknown = {}) => {
       const child = spawn(
@@ -144,10 +149,13 @@ it('round-trips publication, reviewer feedback and revision through the real age
     expect(published.notExplained).toEqual([]);
     const summary = await fetch(`${runtime.address}${published.summary.url}`);
     expect(await summary.text()).toContain('Explain the answer');
-    const [thread] = await request(`/worktrees/${worktreeId}/comments`, {
-      anchor: { kind: 'file', filePath: 'behavior.ts' },
-      body: 'Explain why two is correct.',
-    });
+    const [thread] = commentThreadsSchema.parse(
+      await request(`/worktrees/${worktreeId}/comments`, {
+        anchor: { kind: 'file', filePath: 'behavior.ts' },
+        body: 'Explain why two is correct.',
+      }),
+    );
+    if (!thread) throw new Error('Missing created thread');
     expect(await tool('list_comments')).toContainEqual(
       expect.objectContaining({ id: thread.id }),
     );
@@ -155,8 +163,10 @@ it('round-trips publication, reviewer feedback and revision through the real age
       threadId: thread.id,
       body: 'Two represents the two supported inputs.',
     });
-    const comments = await request(`/worktrees/${worktreeId}/comments`);
-    expect(comments[0].messages.at(-1)).toMatchObject({
+    const comments = commentThreadsSchema.parse(
+      await request(`/worktrees/${worktreeId}/comments`),
+    );
+    expect(comments[0]?.messages.at(-1)).toMatchObject({
       author: 'agent',
       body: 'Two represents the two supported inputs.',
     });
