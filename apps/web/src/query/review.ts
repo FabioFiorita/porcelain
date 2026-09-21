@@ -443,9 +443,12 @@ function isWorktreeChangedError(error: unknown) {
  * and stashes. Those cost two more Git processes and only an action uses them,
  * so this is read when the action panel opens, not when a worktree does.
  */
-export function useGitStatus(scope: ReviewScope) {
-  const { api, connection } = useConnectedContext();
-  const query = useQuery({
+export function gitStatusQuery(
+  scope: ReviewScope,
+  api: ReturnType<typeof useConnectedContext>['api'],
+  connection: ReturnType<typeof useConnectedContext>['connection'],
+) {
+  return {
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'git-status',
     ]),
@@ -455,6 +458,13 @@ export function useGitStatus(scope: ReviewScope) {
       request.signal.throwIfAborted();
       return data;
     },
+  };
+}
+
+export function useGitStatus(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  const query = useQuery({
+    ...gitStatusQuery(scope, api, connection),
     throwOnError: false,
   });
   return { status: query.data, pending: query.isPending };

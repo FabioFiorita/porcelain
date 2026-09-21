@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDownIcon,
   GitBranchIcon,
@@ -24,9 +25,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/components/ui/toast';
 import type { ActionInput, GitAction } from '../../domain/git-action';
-import { comparisons, type ReviewScope } from '../../domain/review';
+import {
+  comparisons,
+  type ReviewScope,
+  type Status,
+} from '../../domain/review';
 import { useGitAction } from '../../query/git-actions';
-import { useRefreshGitLook, useReviewOverview } from '../../query/review';
+import {
+  gitStatusQuery,
+  useRefreshGitLook,
+  useReviewOverview,
+} from '../../query/review';
+import { useConnectedContext } from '../../query/workspace-provider';
 import { usePreferences } from '../workspace/preferences';
 import { BranchDialog } from './branch-dialog';
 import {
@@ -51,12 +61,13 @@ type NetworkAction = 'fetch' | 'pull' | 'push';
 /** Fetch, pull and push use the branch the reviewer is already looking at. */
 function networkInput(
   action: NetworkAction,
-  status: GitActionStatus,
+  branch: Status['branch'],
   strategy: 'merge' | 'rebase',
 ): ActionInput {
-  const name = status.branch?.name?.replace(/^refs\/heads\//, '') ?? 'main';
-  const ref = `refs/heads/${name}`;
-  const remoteName = status.branch?.upstream?.split('/')[0] || 'origin';
+  const name = branch?.name?.replace(/^refs\/heads\//, '') ?? 'main';
+  const ref = branch?.sourceRef ?? `refs/heads/${name}`;
+  const remoteName =
+    branch?.remoteName || branch?.upstream?.split('/')[0] || 'origin';
   if (action === 'fetch') return { action, remoteName, sourceRef: ref };
   if (action === 'pull')
     return { action, remoteName, sourceRef: ref, strategy };
@@ -64,7 +75,7 @@ function networkInput(
     action,
     remoteName,
     destinationRef: ref,
-    allowCreate: status.branch?.upstream == null,
+    allowCreate: branch?.upstream == null,
   };
 }
 
@@ -83,6 +94,8 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const overview = useReviewOverview(scope);
   const refreshLook = useRefreshGitLook(scope);
   const { preferences } = usePreferences();
+  const client = useQueryClient();
+  const { api, connection } = useConnectedContext();
   const fetchAction = useGitAction(scope, 'fetch');
   const pullAction = useGitAction(scope, 'pull');
   const pushAction = useGitAction(scope, 'push');
@@ -121,10 +134,13 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
           : pushAction;
     const label =
       next === 'fetch' ? 'Fetch' : next === 'pull' ? 'Pull' : 'Push';
-    void runner
-      .run(
-        networkInput(next, status, preferences.pullStrategy),
-        expectationFor(status),
+    void client
+      .fetchQuery(gitStatusQuery(scope, api, connection))
+      .then((details) =>
+        runner.run(
+          networkInput(next, details.branch, preferences.pullStrategy),
+          expectationFor(status, [], details.branch?.upstreamOid ?? null),
+        ),
       )
       .then((receipt) => {
         toast.add({
