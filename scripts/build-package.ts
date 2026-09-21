@@ -17,10 +17,15 @@ export const packageOutput = join(repositoryRoot, 'dist-porcelain');
 
 const runtimeDependencies = [
   '@fastify/type-provider-zod',
+  '@fastify/websocket',
+  '@modelcontextprotocol/sdk',
+  '@parcel/watcher',
   'better-sqlite3',
-  'trash',
   'drizzle-orm',
   'fastify',
+  'qrcode-terminal',
+  'trash',
+  'ws',
   'zod',
 ] as const;
 
@@ -164,6 +169,9 @@ npx @fabiofiorita/porcelain@latest serve
 
 # Permit other devices on the local network to connect:
 npx @fabiofiorita/porcelain@latest serve --lan
+
+# Install this exact CLI version as a user service:
+npx @fabiofiorita/porcelain@latest service install --lan
 \`\`\`
 
 State lives in \`~/.porcelain/\`; pass \`--data-directory\` to keep it somewhere
@@ -177,6 +185,17 @@ whole command with that device's own origin already filled in. \`porcelain devic
 \`porcelain revoke <id>\` ends it. Coding agents connect over MCP with
 \`porcelain mcp\`, which needs no credential: it reaches a local socket only a
 process on this machine can open.
+
+## Background service
+
+\`porcelain service install|status|update|uninstall\` manages a systemd user
+service on Linux or a LaunchAgent on macOS. Install and update persist the
+invoked package version outside the npx cache. Updates stop the service and
+back up SQLite before the new runtime can migrate it. An older CLI refuses to
+replace a newer runtime unless \`service update --allow-downgrade\` is explicit.
+Uninstall removes the service and runtime while retaining data, configuration,
+logs and database backups. Run service commands as the regular user, never
+with sudo. On macOS the LaunchAgent runs only while that user is logged in.
 
 ## Repository development
 

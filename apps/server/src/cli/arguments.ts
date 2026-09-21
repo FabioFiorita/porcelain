@@ -35,6 +35,17 @@ export type StatusSettings = {
   dataDirectory: string;
 };
 
+type ServiceAction = 'install' | 'status' | 'update' | 'uninstall';
+
+export type ServiceSettings = {
+  action: ServiceAction;
+  allowDowngrade: boolean;
+  dataDirectory: string;
+  host: string;
+  port: number;
+  allowedHosts: string[];
+};
+
 type PairSettings = {
   dataDirectory: string;
   labels: string[];
@@ -54,7 +65,8 @@ export type CliCommand =
   | { command: 'pair'; settings: PairSettings }
   | { command: 'devices'; settings: StatusSettings }
   | { command: 'revoke'; settings: RevokeSettings }
-  | { command: 'mcp'; settings: StatusSettings };
+  | { command: 'mcp'; settings: StatusSettings }
+  | { command: 'service'; settings: ServiceSettings };
 
 type ServeArguments = {
   dataDirectory?: string;
@@ -65,6 +77,8 @@ type ServeArguments = {
   operands: string[];
   lan: boolean;
   help: boolean;
+  allowDowngrade: boolean;
+  serviceAction?: ServiceAction;
   command: CliCommand['command'];
 };
 
@@ -159,6 +173,7 @@ function parseArguments(args: readonly string[]): ServeArguments {
   const parsed: ServeArguments = {
     lan: false,
     help: false,
+    allowDowngrade: false,
     allowHosts: [],
     addresses: [],
     operands: [],
@@ -166,7 +181,21 @@ function parseArguments(args: readonly string[]): ServeArguments {
   };
   let index = 0;
   const command = args[0];
-  if (
+  if (command === 'service') {
+    parsed.command = command;
+    const action = args[1];
+    if (
+      action !== 'install' &&
+      action !== 'status' &&
+      action !== 'update' &&
+      action !== 'uninstall'
+    )
+      throw new ServeConfigurationError(
+        'service needs one action: install, status, update, or uninstall',
+      );
+    parsed.serviceAction = action;
+    index = 2;
+  } else if (
     command === 'serve' ||
     command === 'status' ||
     command === 'pair' ||
@@ -196,6 +225,10 @@ function parseArguments(args: readonly string[]): ServeArguments {
     }
     if (argument === '--lan') {
       parsed.lan = true;
+      continue;
+    }
+    if (argument === '--allow-downgrade') {
+      parsed.allowDowngrade = true;
       continue;
     }
     if (
@@ -250,6 +283,26 @@ function parseArguments(args: readonly string[]): ServeArguments {
   }
   if (parsed.lan && parsed.host !== undefined)
     throw new ServeConfigurationError('--lan cannot be combined with --host');
+  if (parsed.command === 'service') {
+    if (parsed.operands.length > 0)
+      throw new ServeConfigurationError('service does not accept operands');
+    if (parsed.addresses.length > 0)
+      throw new ServeConfigurationError('--address is not a service option');
+    if (parsed.allowDowngrade && parsed.serviceAction !== 'update')
+      throw new ServeConfigurationError(
+        '--allow-downgrade is only valid with service update',
+      );
+    if (
+      parsed.serviceAction !== 'install' &&
+      (parsed.lan ||
+        parsed.host !== undefined ||
+        parsed.port !== undefined ||
+        parsed.allowHosts.length > 0)
+    )
+      throw new ServeConfigurationError(
+        'serve options are only valid with service install',
+      );
+  }
   return parsed;
 }
 
@@ -339,6 +392,19 @@ export function parseCliArguments(
       ),
     ),
   ];
+
+  if (parsed.command === 'service')
+    return {
+      command: 'service',
+      settings: {
+        action: parsed.serviceAction ?? 'status',
+        allowDowngrade: parsed.allowDowngrade,
+        dataDirectory,
+        host,
+        port,
+        allowedHosts,
+      },
+    };
 
   return {
     command: 'serve',

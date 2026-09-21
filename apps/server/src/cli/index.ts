@@ -16,6 +16,7 @@ Commands:
   devices                  List pending pairing links and paired devices
   revoke <id>              Revoke a pending link or a paired device
   mcp                      Serve MCP over the local socket, for an agent
+  service <action>         Install, inspect, update, or uninstall the user service
   help                     Show this help
 
 Options:
@@ -25,5 +26,6 @@ Options:
   --address <origin>       Origin a pairing link points at (repeatable)
   --port <port>            Listen port (default: 3000)
   --data-directory <path>  Persistent state directory (default: ~/.porcelain)
+  --allow-downgrade        Permit service update to an older invoked CLI version
   -h, --help               Show this help
 `;

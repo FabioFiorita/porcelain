@@ -180,6 +180,25 @@ packageAcceptance(
       const bin = join(install, 'node_modules/.bin/porcelain');
       expect((await lstat(bin)).isSymbolicLink()).toBe(true);
       expect(await readlink(bin)).toContain('bin/porcelain.js');
+      const installedManifest = JSON.parse(
+        await readFile(
+          join(install, 'node_modules/@fabiofiorita/porcelain/package.json'),
+          'utf8',
+        ),
+      ) as { dependencies?: Record<string, string> };
+      expect(installedManifest.dependencies).toMatchObject({
+        '@parcel/watcher': expect.any(String),
+        '@modelcontextprotocol/sdk': expect.any(String),
+        '@fastify/websocket': expect.any(String),
+        ws: expect.any(String),
+      });
+      expect(
+        execFileSync(bin, ['help'], {
+          cwd,
+          env: isolatedGitEnvironment(),
+          encoding: 'utf8',
+        }),
+      ).toContain('service <action>');
 
       const launch = () => {
         const output = { stdout: '', stderr: '' };
@@ -317,11 +336,11 @@ packageAcceptance(
         { headers },
       );
       expect(status.status).toBe(200);
-      const reviewLayers = await fetch(
-        `${firstAddress}/api/worktrees/${worktree.id}/review-layers`,
+      const review = await fetch(
+        `${firstAddress}/api/worktrees/${worktree.id}/review`,
         { headers },
       );
-      expect(reviewLayers.status).toBe(200);
+      expect(review.status).toBe(200);
       await stopServer({
         child: firstLaunch.child,
         address: firstAddress,

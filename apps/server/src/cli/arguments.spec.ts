@@ -178,3 +178,47 @@ it('takes exactly one id to revoke', () => {
     settings: { id: 'device-id' },
   });
 });
+
+it('parses service actions and keeps install settings separate from update safety', () => {
+  const home = '/fixture/home';
+  expect(
+    parseCliArguments(
+      [
+        'service',
+        'install',
+        '--lan',
+        '--port',
+        '4737',
+        '--allow-host',
+        'porcelain.example.test',
+      ],
+      {},
+      home,
+    ),
+  ).toEqual({
+    command: 'service',
+    settings: {
+      action: 'install',
+      allowDowngrade: false,
+      dataDirectory: '/fixture/home/.porcelain',
+      host: '0.0.0.0',
+      port: 4737,
+      allowedHosts: ['porcelain.example.test'],
+    },
+  });
+  expect(
+    parseCliArguments(['service', 'update', '--allow-downgrade'], {}, home),
+  ).toMatchObject({
+    command: 'service',
+    settings: { action: 'update', allowDowngrade: true },
+  });
+  expect(() => parseCliArguments(['service'], {}, home)).toThrow(
+    'install, status, update, or uninstall',
+  );
+  expect(() =>
+    parseCliArguments(['service', 'status', '--port', '4000'], {}, home),
+  ).toThrow('only valid with service install');
+  expect(() =>
+    parseCliArguments(['service', 'install', '--allow-downgrade'], {}, home),
+  ).toThrow('only valid with service update');
+});

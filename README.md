@@ -40,3 +40,18 @@ device has open.
 
 To assemble the plain-Node package used by `npx @fabiofiorita/porcelain serve`, run
 `pnpm build:package`; it writes the ignored publishable package to `dist-porcelain/`.
+
+The package can keep Porcelain running for the current user on Linux or macOS:
+
+```sh
+npx @fabiofiorita/porcelain@latest service install --lan
+npx @fabiofiorita/porcelain@latest service status
+npx @fabiofiorita/porcelain@latest service update
+npx @fabiofiorita/porcelain@latest service uninstall
+```
+
+Linux uses a systemd user unit and attempts to enable lingering. If policy
+requires administrator permission, install prints the exact `loginctl` command
+to run. macOS uses a LaunchAgent and runs while the user is logged in. Updates
+back up SQLite before migration and refuse downgrades unless
+`--allow-downgrade` is explicit. Uninstall retains data and configuration.

@@ -9,6 +9,7 @@ import {
 import { type LauncherDependencies, runLocalServer } from './launcher.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
 import { OwnerRequestError } from './owner-client.ts';
+import { runServiceCommand, ServiceCommandError } from './service.ts';
 import { installShutdownSignals } from './signals.ts';
 import { reportStatus, statusExitCodes } from './status.ts';
 
@@ -22,6 +23,7 @@ export type CliDependencies = LauncherDependencies & {
 function formatStartupError(error: unknown): string {
   if (error instanceof ServeConfigurationError) return error.message;
   if (error instanceof OwnerRequestError) return error.message;
+  if (error instanceof ServiceCommandError) return error.message;
   if (
     error instanceof Error &&
     (error.name === 'DataDirectoryOwnedError' ||
@@ -92,6 +94,13 @@ export async function runCli(
     }
     if (parsed.command === 'mcp') {
       await runMcpBridge(parsed.settings.dataDirectory);
+      return;
+    }
+    if (parsed.command === 'service') {
+      await runServiceCommand(parsed.settings, {
+        homeDirectory: dependencies.homeDirectory ?? homedir(),
+        stdout,
+      });
       return;
     }
     await runLocalServer(parsed.settings, controller.signal, dependencies);
