@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
@@ -10,6 +11,7 @@ export const webTestConfiguration = defineConfig({
 
 export default defineConfig({
   ...webTestConfiguration,
+  plugins: [react(), tailwindcss()],
   test: {
     name: 'browser',
     include: ['src/**/*.spec.tsx', 'src/domain/html-assets.spec.ts'],

@@ -955,19 +955,6 @@ const inventory: Area = {
       confidence: 'verified',
     },
     {
-      kind: 'complexity',
-      title: 'Four different answers to "does this worktree exist"',
-      detail: `Reviewed marks check project_worktrees (retained after disappearance), review layers check the active worktrees table, comments and artifacts check the inventory snapshot, Git reads also require availability and a metadata identity. A worktree that vanished from Git behaves differently on each surface.`,
-      sources: [
-        at(repo('reviewed-file-repository.ts'), 17),
-        at(repo('review-layer-repository.ts'), 16),
-        at(caseFile('comment-threads.ts'), 29),
-        at(caseFile('assert-artifact-scope.ts'), 4),
-        at(caseFile('resolve-inspection-worktree.ts'), 5),
-      ],
-      confidence: 'verified',
-    },
-    {
       kind: 'correctness',
       title: 'Project name can be the wrong folder',
       detail: `A new project is named basename(dirname(commonDirectory)). That is the checkout folder only when the Git directory is checkout/.git; with a separate git dir the name is whatever folder contains the Git directory. Naming from the origin remote is step 4b.`,
@@ -1568,231 +1555,128 @@ const changes: Area = {
 
 const reviewLayers: Area = {
   id: 'review-layers',
-  title: 'Review layers',
-  webSurface: `Changes tab grouping and order (layers published by agents), the Changes/Review label, and archived layers on a History commit document.`,
-  summary: `Agents publish one ordered, revisioned layer set per worktree and replace it whole. Reads are synchronous SQLite outside the queue, and the web reads layers with every status fetch. A commit executed through Porcelain moves committed files from the live set into an immutable per-commit snapshot. An explicit association endpoint also exists, but nothing calls it.`,
+  title: 'Published reviews',
+  webSurface:
+    'Review summary, behavior layers, diagrams, step code and layer marks.',
+  summary:
+    'One optimistic atomic publication owns summary HTML and behavior layers. Pointers resolve against current code, committed steps fold, and uncovered changes remain visible. Layer marks track code fingerprints independently from file marks.',
   flows: [
     {
       id: 'review-layers.read',
-      title: 'Read live layers',
+      title: 'Read review',
       endpoint: {
         method: 'GET',
-        path: '/api/worktrees/:worktreeId/review-layers',
-        source: at(route('get-review-layers.ts'), 16),
+        path: '/api/worktrees/:worktreeId/review',
+        source: {
+          path: 'apps/server/src/http/routes/published-review.ts',
+        },
       },
       webTriggers: [
-        wt(
-          'useChangesOptions',
-          web('query/review.ts'),
-          103,
-          `Fetched in parallel with every status read (packages/client/src/review.ts:128), so it follows the status triggers: worktree open, every focus and reconnect, file edits and Git receipts.`,
-        ),
+        {
+          hook: 'usePublishedReview',
+          source: {
+            path: 'apps/web/src/query/published-review.ts',
+          },
+          when: 'Open review and live notices; renew expiring summary capabilities.',
+        },
       ],
       steps: [
-        s(
-          'route',
-          'getReviewLayers',
-          `Validates the worktree ID.`,
-          route('get-review-layers.ts'),
-          15,
-        ),
-        s(
-          'application',
-          'Application.reviewLayers',
-          `assertOpen, then a synchronous read; no queue.`,
-          APP,
-          514,
-        ),
-        s(
-          'repository',
-          'ReviewLayerRepository.read',
-          `Returns the stored set, or revision 0 if the worktree is in active inventory.`,
-          repo('review-layer-repository.ts'),
-          16,
-        ),
+        {
+          layer: 'route',
+          name: 'publishedReviewRoutes',
+          source: {
+            path: 'apps/server/src/http/routes/published-review.ts',
+          },
+          what: 'Validate the request and authenticated worktree scope.',
+        },
+        {
+          layer: 'use-case',
+          name: 'PublishedReview.read',
+          source: {
+            path: 'apps/server/src/use-cases/published-review.ts',
+          },
+          what: 'Capture or resolve exact code pointers and compute uncovered changes.',
+        },
+        {
+          layer: 'repository',
+          name: 'ReviewRepository',
+          source: {
+            path: 'apps/server/src/repositories/review-repository.ts',
+          },
+          what: 'Read or atomically replace the latest publication under its expected revision.',
+        },
       ],
       runner: 'none',
       gitCommands: [],
       tables: [
-        { name: 'review_layer_sets', access: 'read' },
-        { name: 'worktrees', access: 'read' },
+        {
+          name: 'reviews',
+          access: 'read',
+        },
       ],
-      cost: 'One or two selects; payload grows with layers (at most 2000 references).',
+      cost: 'Reads changed files and diffs for current diagnostics; unavailable Git leaves the saved publication readable.',
     },
     {
-      id: 'review-layers.replace',
-      title: 'Replace live layers',
+      id: 'review-layers.publish',
+      title: 'Publish review',
       endpoint: {
         method: 'PUT',
-        path: '/api/worktrees/:worktreeId/review-layers',
-        source: at(route('replace-review-layers.ts'), 17),
+        path: '/api/worktrees/:worktreeId/review',
+        source: {
+          path: 'apps/server/src/http/routes/published-review.ts',
+        },
       },
       webTriggers: [],
       steps: [
-        s(
-          'route',
-          'replaceReviewLayers',
-          `1 MiB body limit; bounded schema.`,
-          route('replace-review-layers.ts'),
-          16,
-        ),
-        s(
-          'application',
-          'Application.replaceReviewLayers',
-          `Parses input, then queues on operations without a caller signal.`,
-          APP,
-          520,
-        ),
-        operationsStep(`Waits behind queued Git work.`),
-        s(
-          'repository',
-          'ReviewLayerRepository.replace',
-          `Immediate transaction: checks expectedRevision, writes revision + 1.`,
-          repo('review-layer-repository.ts'),
-          39,
-        ),
+        {
+          layer: 'route',
+          name: 'publishedReviewRoutes',
+          source: {
+            path: 'apps/server/src/http/routes/published-review.ts',
+          },
+          what: 'Validate the request and authenticated worktree scope.',
+        },
+        {
+          layer: 'use-case',
+          name: 'PublishedReview.publish',
+          source: {
+            path: 'apps/server/src/use-cases/published-review.ts',
+          },
+          what: 'Capture or resolve exact code pointers and compute uncovered changes.',
+        },
+        {
+          layer: 'repository',
+          name: 'ReviewRepository',
+          source: {
+            path: 'apps/server/src/repositories/review-repository.ts',
+          },
+          what: 'Read or atomically replace the latest publication under its expected revision.',
+        },
       ],
-      runner: 'operations',
+      runner: 'none',
       gitCommands: [],
       tables: [
-        { name: 'review_layer_sets', access: 'read' },
-        { name: 'worktrees', access: 'read' },
-        { name: 'review_layer_sets', access: 'write' },
+        {
+          name: 'reviews',
+          access: 'write',
+        },
       ],
-      cost: 'One immediate transaction; latency is queue wait.',
-      notes:
-        'Used by the MCP replace_layers tool; the web never writes layers.',
-    },
-    {
-      id: 'review-layers.complete-on-commit',
-      title: 'Archive committed layers after a Porcelain commit',
-      webTriggers: [
-        wt(
-          'useGitAction(commit).run',
-          web('views/review/commit-form.tsx'),
-          33,
-          `Indirect: runs inside the commit execution after Git reports success.`,
-        ),
-      ],
-      steps: [
-        s(
-          'use-case',
-          'ExecuteGitAction.execute',
-          `After a successful commit with a new HEAD, calls the review completion and records reviewLayersUpdated.`,
-          caseFile('execute-git-action.ts'),
-          57,
-        ),
-        s(
-          'use-case',
-          'CompleteCommitReview.execute',
-          `Skips worktrees without layers; otherwise inspects the new commit.`,
-          caseFile('complete-commit-review.ts'),
-          25,
-        ),
-        s(
-          'git',
-          'CommitGit.readCommitFiles',
-          `Reads the committed paths against the first parent.`,
-          caseFile('complete-commit-review.ts'),
-          35,
-        ),
-        s(
-          'repository',
-          'ReviewLayerRepository.replace',
-          `Writes back the layers the commit did not carry, with revision + 1.`,
-          repo('review-layer-repository.ts'),
-          39,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [
-        'show --raw -z --format=<the page format> --diff-merges=first-parent <oid>',
-      ],
-      tables: [
-        { name: 'review_layer_sets', access: 'read' },
-        ...INVENTORY_READ,
-        { name: 'project_worktrees', access: 'read' },
-        { name: 'commit_review_layer_sets', access: 'write' },
-        { name: 'review_layer_sets', access: 'write' },
-      ],
-      cost: '11 Git processes after each Porcelain commit in a worktree with layers.',
-      notes:
-        'A failure only sets reviewLayersUpdated=false on the receipt; the commit stands.',
+      cost: 'Reads changed files and diffs for current diagnostics; unavailable Git leaves the saved publication readable.',
     },
   ],
   decisions: [
     {
-      title: 'Whole-set replace with a revision',
-      summary: `Agents replace the complete ordered set and pass expectedRevision, which gives optimistic concurrency without merge rules. Metadata never reads Git, so it cannot claim to cover all changes; Changes stays authoritative and unassigned files remain visible. References can go stale silently.`,
-      doc: doc('review-layer-metadata.md'),
-    },
-    {
-      title: 'Immutable per-commit snapshots by explicit association',
-      summary: `A project stores one snapshot per commit OID, created by an explicit caller assertion that is checked only for path membership. Automatic association during commit execution is described as deferred because it needs content identities and an ambiguity policy.`,
-      doc: doc('review-layer-metadata.md'),
-    },
-    {
-      title: 'Layer reads bypass the queue',
-      summary: `Layers are read often by agents and by every status fetch, and they are pure SQLite, so reads skip the operations queue. Writes stay queued for ordering.`,
-      source: at(APP, 514),
-    },
-    {
-      title: 'Completion runs inside the commit receipt',
-      summary: `Porcelain commits carry review order into History without a client step. The rule is path membership plus scope (staged references, or all references when the commit selected paths), and any failure is folded into a receipt flag.`,
-      source: at(caseFile('execute-git-action.ts'), 57),
+      title: 'Latest publication, no commit snapshots',
+      summary:
+        'Git stores commits; the latest review explains the work as a whole. Replacing it invalidates its previous summary capability.',
+      doc: 'docs/decisions/artifact-storage.md',
     },
   ],
-  observations: [
-    {
-      kind: 'question',
-      title: 'Documents say commit association is deferred; code does it',
-      detail: `review-layer-metadata.md says automatic association during commit execution is deferred, and git-action-contracts.md says local mutations do not associate layers with commits. CompleteCommitReview is wired into every successful Porcelain commit.`,
-      sources: [
-        at(doc('review-layer-metadata.md'), 79),
-        at(doc('git-action-contracts.md'), 29),
-        at(APP, 198),
-        at(caseFile('execute-git-action.ts'), 57),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'correctness',
-      title: 'Completion matches paths, not content',
-      detail: `A layer file counts as committed when its path is in the commit and either the commit selected paths or the reference scope is staged. With staged and unstaged edits in one file, an index commit moves the staged reference and keeps the unstaged one; a path-selected commit moves both even if the reviewed content differs from what was committed.`,
-      sources: [at(caseFile('complete-commit-review.ts'), 35)],
-      confidence: 'likely',
-    },
-    {
-      kind: 'performance',
-      title: 'Completing a commit reads only the paths',
-      detail: `It needs the names of the files the commit carried and nothing else, so it reads the file list, which holds no patches: one Git process, where the old whole-commit inspection cost nine. The per-commit review surface it used to write to was removed in step 5c; clearing the live layers is what remains.`,
-      sources: [
-        at(git('commands/read-commit-files.ts'), 43),
-        at(caseFile('complete-commit-review.ts'), 40),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'good',
-      title: 'Revisions re-checked inside immediate transactions',
-      detail: `Replace re-reads the revision inside BEGIN IMMEDIATE, so concurrent writers cannot lose updates even across connections.`,
-      sources: [at(repo('review-layer-repository.ts'), 39)],
-      confidence: 'verified',
-    },
-  ],
+  observations: [],
 };
 
-// ---------------------------------------------------------------------------
-// comments
-// ---------------------------------------------------------------------------
-
 const commentWriteWeb = (hook: string, line: number, when: string) =>
-  wt(
-    hook,
-    web('query/comments.ts'),
-    line,
-    `${when} Commands are serialized per worktree (enqueueComment, comments.ts:72); the result is merged into the cache and the worktree list is invalidated, because answering a reply is what puts its dot out.`,
-  );
+  wt(hook, web('query/comments.ts'), line, when);
 
 const comments: Area = {
   id: 'comments',
@@ -2085,281 +1969,23 @@ const comments: Area = {
 
 const artifacts: Area = {
   id: 'artifacts',
-  title: 'Artifacts',
-  webSurface: `Handoff tab (handoff.md summary and handoff.html report) and artifact documents opened from the review sidebar.`,
-  summary: `Agents upload UTF-8 text artifacts, mainly handoff.md and handoff.html, through MCP or HTTP; content lives in SQLite rows. All four operations use the operations queue even though none touches Git. Quotas are global to the environment (256 artifacts, 16 MiB) with no eviction, and nothing in the web or MCP can delete. Worktree file assets (/asset) belong to Files, not here.`,
-  flows: [
-    {
-      id: 'artifacts.upload',
-      title: 'Upload an artifact',
-      endpoint: {
-        method: 'POST',
-        path: '/api/worktrees/:worktreeId/artifacts',
-        source: at(route('upload-artifact.ts'), 19),
-      },
-      webTriggers: [],
-      steps: [
-        s(
-          'route',
-          'strict UTF-8 JSON parser',
-          `Replaces the default parser for this route group and rejects malformed bytes.`,
-          route('artifacts.ts'),
-          20,
-        ),
-        s(
-          'route',
-          'uploadArtifact',
-          `Body limit is 6 MiB + 4 KiB for 1 MiB of content; returns 201 metadata.`,
-          route('upload-artifact.ts'),
-          18,
-        ),
-        s(
-          'application',
-          'Application.uploadArtifact',
-          `Copies name and content and queues on operations.`,
-          APP,
-          534,
-        ),
-        operationsStep(`Waits behind queued Git work.`),
-        s(
-          'use-case',
-          'UploadArtifact.execute',
-          `Checks the worktree is in inventory and validates Unicode and size.`,
-          caseFile('upload-artifact.ts'),
-          17,
-        ),
-        s(
-          'repository',
-          'ArtifactRepository.create',
-          `Immediate transaction: global count and byte sum, then insert.`,
-          repo('artifact-repository.ts'),
-          24,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [
-        ...INVENTORY_READ,
-        { name: 'artifacts', access: 'read' },
-        { name: 'artifacts', access: 'write' },
-      ],
-      cost: 'Inventory read, one aggregate over all artifacts, one insert.',
-      notes: 'Called by the MCP publish_artifact tool; no web caller.',
-    },
-    {
-      id: 'artifacts.list',
-      title: 'List artifact metadata',
-      endpoint: {
-        method: 'GET',
-        path: '/api/worktrees/:worktreeId/artifacts',
-        source: at(route('list-artifacts.ts'), 17),
-      },
-      webTriggers: [
-        wt(
-          'useArtifacts / useArtifactsOverview',
-          web('query/review.ts'),
-          126,
-          `On worktree open: review-workspace (review-workspace.tsx:276), review-sidebar (181), review index (review-index.tsx:71) and the handoff tab (handoff-artifact.tsx:36). ${FOCUS}`,
-        ),
-      ],
-      steps: [
-        s(
-          'route',
-          'listArtifacts',
-          `Maps metadata, never content.`,
-          route('list-artifacts.ts'),
-          16,
-        ),
-        s(
-          'application',
-          'Application.listArtifacts',
-          `Queues on operations.`,
-          APP,
-          541,
-        ),
-        operationsStep(
-          `Queued behind status and evidence when a worktree opens.`,
-        ),
-        s(
-          'use-case',
-          'ListArtifacts.execute',
-          `Checks the worktree is in inventory.`,
-          caseFile('list-artifacts.ts'),
-          15,
-        ),
-        s(
-          'repository',
-          'ArtifactRepository.list',
-          `Indexed select, oldest first.`,
-          repo('artifact-repository.ts'),
-          51,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [...INVENTORY_READ, { name: 'artifacts', access: 'read' }],
-      cost: 'Inventory read and one indexed select; latency is queue wait.',
-    },
-    {
-      id: 'artifacts.get',
-      title: 'Read artifact content',
-      endpoint: {
-        method: 'GET',
-        path: '/api/worktrees/:worktreeId/artifacts/:artifactId',
-        source: at(route('get-artifact.ts'), 17),
-      },
-      webTriggers: [
-        wt(
-          'useArtifactContents',
-          web('query/review.ts'),
-          173,
-          `One query per artifact ID: the handoff summary (handoff-artifact.tsx:46) and any opened artifact (artifact-document.tsx:27). ${FOCUS}`,
-        ),
-      ],
-      steps: [
-        s(
-          'route',
-          'getArtifact',
-          `Always JSON with nosniff, even for HTML.`,
-          route('get-artifact.ts'),
-          16,
-        ),
-        s(
-          'application',
-          'Application.getArtifact',
-          `Queues on operations.`,
-          APP,
-          543,
-        ),
-        operationsStep(`Queued behind Git work.`),
-        s(
-          'use-case',
-          'GetArtifact.execute',
-          `Checks inventory and matches artifact ID with worktree ID.`,
-          caseFile('get-artifact.ts'),
-          16,
-        ),
-        s(
-          'repository',
-          'ArtifactRepository.get',
-          `Reads the row including content.`,
-          repo('artifact-repository.ts'),
-          59,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [...INVENTORY_READ, { name: 'artifacts', access: 'read' }],
-      cost: 'One row, up to 1 MiB of content.',
-    },
-    {
-      id: 'artifacts.delete',
-      title: 'Delete an artifact',
-      endpoint: {
-        method: 'DELETE',
-        path: '/api/worktrees/:worktreeId/artifacts/:artifactId',
-        source: at(route('delete-artifact.ts'), 16),
-      },
-      webTriggers: [],
-      steps: [
-        s(
-          'route',
-          'deleteArtifact',
-          `Returns { deleted }.`,
-          route('delete-artifact.ts'),
-          15,
-        ),
-        s(
-          'application',
-          'Application.deleteArtifact',
-          `Queues on operations.`,
-          APP,
-          548,
-        ),
-        operationsStep(`Queued behind Git work.`),
-        s(
-          'use-case',
-          'DeleteArtifact.execute',
-          `Checks inventory, then deletes by worktree and ID.`,
-          caseFile('delete-artifact.ts'),
-          15,
-        ),
-        s(
-          'repository',
-          'ArtifactRepository.delete',
-          `One delete statement.`,
-          repo('artifact-repository.ts'),
-          66,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [...INVENTORY_READ, { name: 'artifacts', access: 'write' }],
-      cost: 'One delete.',
-      notes: 'No web or MCP caller.',
-    },
-  ],
+  title: 'Summary isolation',
+  webSurface: 'The published review summary iframe.',
+  summary:
+    'Independent artifacts were retired. The review owns one summary served through an expiring capability and an opaque-origin sandbox. Migration 0008 removes obsolete artifact and per-commit layer tables; comments and file marks survive.',
+  flows: [],
   decisions: [
     {
-      title: 'Inert artifacts in SQLite with fixed global quotas',
-      summary: `Metadata and content commit together in one row; names are opaque data and retrieval is always JSON, so nothing executes server-side. Quotas count rows from worktrees that disappeared, there is no reclamation, and upload retries create duplicates.`,
-      doc: doc('artifact-storage.md'),
-    },
-    {
-      title: 'handoff.md and handoff.html are the agent handoff',
-      summary: `Agents publish a short markdown summary and an optional HTML report; the web builds its handoff tab from those names. Re-publishing adds another row with the same name rather than replacing it.`,
-      doc: 'docs/agent-review.md',
-    },
-    {
-      title: 'Strict UTF-8 parsing for artifact routes',
-      summary: `The default JSON parser silently replaces invalid bytes, so the artifact group installs a fatal decoder. The override is local to the group.`,
-      source: at(route('artifacts.ts'), 20),
+      title: 'HTML has no browser API authority',
+      summary:
+        'The response and iframe enforce sandbox isolation. The parent accepts layer navigation only from its own frame.',
+      source: {
+        path: 'apps/server/src/http/routes/review-summary.ts',
+      },
     },
   ],
-  observations: [
-    {
-      kind: 'correctness',
-      title: 'The handoff tab shows the oldest handoff',
-      detail: `The list is ordered oldest first and the handoff tab takes the first artifact named handoff.md or handoff.html. When an agent re-publishes, the web keeps showing the first version, and neither web nor MCP can delete the old one.`,
-      sources: [
-        at(repo('artifact-repository.ts'), 56),
-        at(web('views/review/handoff-artifact.tsx'), 37),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'risk',
-      title: 'Global quota with no eviction and no delete control',
-      detail: `256 artifacts and 16 MiB per environment, summed over all rows including vanished worktrees. Agents publish a handoff per review and duplicates accumulate; once full, every upload in every worktree returns 409, and the only remedy is an HTTP DELETE that nothing calls.`,
-      sources: [
-        at('apps/server/src/models/artifact.ts', 12),
-        at(repo('artifact-repository.ts'), 28),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'performance',
-      title: 'SQLite-only operations wait behind Git',
-      detail: `All four artifact operations use operations.run. Opening a worktree queues the artifact list behind status and evidence, so the handoff tab appears only after the Git reads finish.`,
-      sources: [at(APP, 534), at(APP, 541)],
-      confidence: 'verified',
-    },
-    {
-      kind: 'good',
-      title: 'Inert by construction',
-      detail: `nosniff on every response, JSON-only retrieval, strict UTF-8 and well-formed Unicode checks keep uploaded HTML as data on the server side.`,
-      sources: [
-        at(route('artifacts.ts'), 17),
-        at(caseFile('upload-artifact.ts'), 17),
-      ],
-      confidence: 'verified',
-    },
-  ],
+  observations: [],
 };
-
-// ---------------------------------------------------------------------------
-// files
-// ---------------------------------------------------------------------------
 
 const READABLE_GIT: string[] = [
   ...readableGit('before'),
@@ -3923,10 +3549,10 @@ const gitActions: Area = {
 
 const MCP_SERVER = 'apps/server/src/http/mcp/review-server.ts';
 
-const mcpStep = (tool: string, line: number, what: string): Step =>
+const _mcpStep = (tool: string, line: number, what: string): Step =>
   s('route', `MCP tool ${tool}`, what, MCP_SERVER, line);
 
-const mcpEntry = (): Step =>
+const _mcpEntry = (): Step =>
   s(
     'route',
     'POST /mcp on the owner socket',
@@ -3937,464 +3563,165 @@ const mcpEntry = (): Step =>
 
 const mcp: Area = {
   id: 'mcp',
-  title: 'MCP agent endpoint',
-  webSurface: `None directly. Agent results appear in the web as review layers, comments and handoff artifacts.`,
-  summary: `The agent door is the owner socket, not the network. POST /mcp there builds a fresh MCP server and Streamable HTTP transport per request (JSON responses, no sessions) and maps 11 tools onto Application methods. There is no secret to hold: reaching the socket means passing the data directory's permissions, which is the same authority the owner has at a terminal, and the porcelain mcp command bridges an agent's stdio to it. Tools share the browser's queues and costs: git_status, review_evidence and read_file are Git-heavy reads on the operations queue; inventory, read_layers and list_comments are synchronous SQLite reads.`,
+  title: 'Agent MCP',
+  webSurface: 'Agents publish reviews and share comment threads with the web.',
+  summary:
+    'The real CLI bridges stdio to the private owner socket without credentials. Six cwd-scoped tools and a review-guide resource form the agent interface. Agents use their own filesystem tools to inspect code.',
   flows: [
     {
-      id: 'mcp.endpoint',
-      title: 'MCP Streamable HTTP endpoint',
+      id: 'mcp.publish_review',
+      title: 'publish review',
+      mcpTool: {
+        name: 'publish_review',
+        source: {
+          path: 'apps/server/src/http/mcp/review-server.ts',
+        },
+      },
       webTriggers: [],
       steps: [
-        s(
-          'agent-cli',
-          'porcelain mcp',
-          `Bridges the agent's stdio to the socket, adding the Accept header the Streamable HTTP transport requires and treating an empty body as a notification's answer.`,
-          'apps/server/src/cli/mcp-bridge.ts',
-          20,
-        ),
-        s(
-          'route',
-          'registerOwnerRoutes POST /mcp',
-          `On the owner socket only. Nothing re-checks a credential here: reaching the socket is the authority.`,
-          'apps/server/src/http/owner-routes.ts',
-          70,
-        ),
-        s(
-          'route',
-          'createReviewMcpServer',
-          `Registers 11 tools with Zod schemas from the shared contracts.`,
-          'apps/server/src/http/owner-routes.ts',
-          74,
-        ),
-        s(
-          'route',
-          'StreamableHTTPServerTransport.handleRequest',
-          `Hijacks the reply, handles one JSON-RPC exchange, then closes the server.`,
-          'apps/server/src/http/owner-routes.ts',
-          80,
-        ),
+        {
+          layer: 'route',
+          name: 'createReviewMcpServer',
+          source: {
+            path: 'apps/server/src/http/mcp/review-server.ts',
+          },
+          what: 'Resolve the registered worktree from the agent working directory, then call the owning operation.',
+        },
       ],
       runner: 'none',
       gitCommands: [],
       tables: [],
-      cost: 'Per request: one McpServer with 11 tools and one transport; small next to the tool work.',
-      notes:
-        'Not on the network door at all: POST /api/mcp is 404. The socket grants the agent principal, which is what attributes its comments.',
+      cost: 'Worktree resolution lists registered projects; the owning operation determines the remaining cost.',
     },
     {
-      id: 'mcp.inventory',
-      title: 'Tool: inventory',
-      mcpTool: { name: 'inventory', source: at(MCP_SERVER, 24) },
+      id: 'mcp.read_review',
+      title: 'read review',
+      mcpTool: {
+        name: 'read_review',
+        source: {
+          path: 'apps/server/src/http/mcp/review-server.ts',
+        },
+      },
       webTriggers: [],
       steps: [
-        mcpEntry(),
-        mcpStep('inventory', 24, `Returns registered projects and worktrees.`),
-        s(
-          'application',
-          'Application.inventory',
-          `Synchronous SQLite read, no queue.`,
-          APP,
-          433,
-        ),
+        {
+          layer: 'route',
+          name: 'createReviewMcpServer',
+          source: {
+            path: 'apps/server/src/http/mcp/review-server.ts',
+          },
+          what: 'Resolve the registered worktree from the agent working directory, then call the owning operation.',
+        },
       ],
       runner: 'none',
       gitCommands: [],
-      tables: INVENTORY_READ,
-      cost: 'Three selects. Returns the stored snapshot; agents never trigger a Git refresh.',
-    },
-    {
-      id: 'mcp.git_status',
-      title: 'Tool: git_status',
-      mcpTool: { name: 'git_status', source: at(MCP_SERVER, 33) },
-      webTriggers: [],
-      steps: [
-        mcpEntry(),
-        mcpStep('git_status', 33, `Passes the MCP request signal.`),
-        s(
-          'application',
-          'Application.gitStatus',
-          `Queues on the repository lane, like the web.`,
-          APP,
-          565,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        ...STATUS_STEPS,
-      ],
-      runner: 'operations',
-      gitCommands: GIT_STATUS,
-      tables: INVENTORY_READ,
-      cost: '8 Git processes, as changes.status.',
-    },
-    {
-      id: 'mcp.review_changes',
-      title: 'Tool: review_changes',
-      mcpTool: { name: 'review_changes', source: at(MCP_SERVER, 44) },
-      webTriggers: [],
-      steps: [
-        mcpEntry(),
-        mcpStep(
-          'review_changes',
-          44,
-          `Returns the change list: a fingerprint and the comparison identities per path, for anchored comments.`,
-        ),
-        s(
-          'application',
-          'Application.changes',
-          `Queues on the repository lane, the same read the web makes.`,
-          APP,
-          582,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        s(
-          'use-case',
-          'ReadWorktreeChanges.execute',
-          `Same path as changes.list.`,
-          caseFile('read-worktree-changes.ts'),
-          50,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: CHANGES_GIT,
-      tables: INVENTORY_READ,
-      cost: '7 Git processes, and no content is read: the agent has its own files.',
-    },
-    {
-      id: 'mcp.read_file',
-      title: 'Tool: read_file',
-      mcpTool: { name: 'read_file', source: at(MCP_SERVER, 67) },
-      webTriggers: [],
-      steps: [
-        mcpEntry(),
-        mcpStep(
-          'read_file',
-          67,
-          `Returns UTF-8 text and a content fingerprint for anchoring comments.`,
-        ),
-        s(
-          'application',
-          'Application.readTextFile',
-          `Queues on operations.`,
-          APP,
-          413,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        readableStep('before', caseFile('read-text-file.ts'), 19),
-        s(
-          'filesystem',
-          'NodeFileReader.readBytes',
-          `Guarded read up to 1 MiB.`,
-          fsys('file-reader.ts'),
-          75,
-        ),
-        readableStep('after', caseFile('read-text-file.ts'), 29),
-      ],
-      runner: 'operations',
-      gitCommands: READABLE_GIT,
-      tables: INVENTORY_READ,
-      cost: '4 + 4W Git processes per file.',
+      tables: [],
+      cost: 'Worktree resolution lists registered projects; the owning operation determines the remaining cost.',
     },
     {
       id: 'mcp.list_comments',
-      title: 'Tool: list_comments',
-      mcpTool: { name: 'list_comments', source: at(MCP_SERVER, 78) },
+      title: 'list comments',
+      mcpTool: {
+        name: 'list_comments',
+        source: {
+          path: 'apps/server/src/http/mcp/review-server.ts',
+        },
+      },
       webTriggers: [],
       steps: [
-        mcpEntry(),
-        mcpStep(
-          'list_comments',
-          78,
-          `Lists threads with replies and resolved state.`,
-        ),
-        s(
-          'application',
-          'Application.comments (list)',
-          `Synchronous SQLite read, no queue.`,
-          APP,
-          478,
-        ),
-        s(
-          'repository',
-          'CommentRepository.list',
-          `Rows by worktree in creation order.`,
-          repo('comment-repository.ts'),
-          11,
-        ),
+        {
+          layer: 'route',
+          name: 'createReviewMcpServer',
+          source: {
+            path: 'apps/server/src/http/mcp/review-server.ts',
+          },
+          what: 'Resolve the registered worktree from the agent working directory, then call the owning operation.',
+        },
       ],
       runner: 'none',
       gitCommands: [],
-      tables: [{ name: 'comment_threads', access: 'read' }],
-      cost: 'One select.',
+      tables: [],
+      cost: 'Worktree resolution lists registered projects; the owning operation determines the remaining cost.',
     },
     {
       id: 'mcp.create_comment',
-      title: 'Tool: create_comment',
-      mcpTool: { name: 'create_comment', source: at(MCP_SERVER, 89) },
+      title: 'create comment',
+      mcpTool: {
+        name: 'create_comment',
+        source: {
+          path: 'apps/server/src/http/mcp/review-server.ts',
+        },
+      },
       webTriggers: [],
       steps: [
-        mcpEntry(),
-        mcpStep('create_comment', 89, `Creates a thread with author 'agent'.`),
-        s(
-          'application',
-          'Application.comments (create)',
-          `Queues on operations.`,
-          APP,
-          478,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        s(
-          'use-case',
-          'CommentThreads.execute',
-          `Validates, checks inventory and capacity, saves.`,
-          caseFile('comment-threads.ts'),
-          57,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [
-        ...INVENTORY_READ,
-        { name: 'comment_threads', access: 'read' },
-        { name: 'comment_threads', access: 'write' },
-      ],
-      cost: 'Inventory read, one aggregate, one insert.',
-    },
-    {
-      id: 'mcp.reply_to_comment',
-      title: 'Tool: reply_to_comment',
-      mcpTool: { name: 'reply_to_comment', source: at(MCP_SERVER, 104) },
-      webTriggers: [],
-      steps: [
-        mcpEntry(),
-        mcpStep(
-          'reply_to_comment',
-          104,
-          `Appends a reply with author 'agent'.`,
-        ),
-        s(
-          'application',
-          'Application.comments (reply)',
-          `Queues on operations.`,
-          APP,
-          478,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        s(
-          'use-case',
-          'CommentThreads.execute',
-          `Finds the thread, appends, checks capacity, saves.`,
-          caseFile('comment-threads.ts'),
-          77,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [
-        { name: 'comment_threads', access: 'read' },
-        { name: 'comment_threads', access: 'write' },
-      ],
-      cost: 'Find, aggregate, upsert.',
-    },
-    {
-      id: 'mcp.resolve_comment',
-      title: 'Tool: resolve_comment',
-      mcpTool: { name: 'resolve_comment', source: at(MCP_SERVER, 118) },
-      webTriggers: [],
-      steps: [
-        mcpEntry(),
-        mcpStep('resolve_comment', 118, `Resolves or reopens a thread.`),
-        s(
-          'application',
-          'Application.comments (resolve)',
-          `Queues on operations.`,
-          APP,
-          478,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        s(
-          'use-case',
-          'CommentThreads.execute',
-          `Sets resolved and saves.`,
-          caseFile('comment-threads.ts'),
-          77,
-        ),
-      ],
-      runner: 'operations',
-      gitCommands: [],
-      tables: [
-        { name: 'comment_threads', access: 'read' },
-        { name: 'comment_threads', access: 'write' },
-      ],
-      cost: 'Find and upsert.',
-    },
-    {
-      id: 'mcp.read_layers',
-      title: 'Tool: read_layers',
-      mcpTool: { name: 'read_layers', source: at(MCP_SERVER, 127) },
-      webTriggers: [],
-      steps: [
-        mcpEntry(),
-        mcpStep(
-          'read_layers',
-          127,
-          `Returns layers and the revision to pass to replace_layers.`,
-        ),
-        s(
-          'application',
-          'Application.reviewLayers',
-          `Synchronous SQLite read, no queue.`,
-          APP,
-          514,
-        ),
-        s(
-          'repository',
-          'ReviewLayerRepository.read',
-          `Stored set or revision 0.`,
-          repo('review-layer-repository.ts'),
-          16,
-        ),
+        {
+          layer: 'route',
+          name: 'createReviewMcpServer',
+          source: {
+            path: 'apps/server/src/http/mcp/review-server.ts',
+          },
+          what: 'Resolve the registered worktree from the agent working directory, then call the owning operation.',
+        },
       ],
       runner: 'none',
       gitCommands: [],
-      tables: [
-        { name: 'review_layer_sets', access: 'read' },
-        { name: 'worktrees', access: 'read' },
-      ],
-      cost: 'One or two selects.',
+      tables: [],
+      cost: 'Worktree resolution lists registered projects; the owning operation determines the remaining cost.',
     },
     {
-      id: 'mcp.replace_layers',
-      title: 'Tool: replace_layers',
-      mcpTool: { name: 'replace_layers', source: at(MCP_SERVER, 138) },
+      id: 'mcp.reply_to_comment',
+      title: 'reply to comment',
+      mcpTool: {
+        name: 'reply_to_comment',
+        source: {
+          path: 'apps/server/src/http/mcp/review-server.ts',
+        },
+      },
       webTriggers: [],
       steps: [
-        mcpEntry(),
-        mcpStep(
-          'replace_layers',
-          138,
-          `Publishes the ordered layer set with the expected revision; the MCP signal is not passed on.`,
-        ),
-        s(
-          'application',
-          'Application.replaceReviewLayers',
-          `Queues on operations.`,
-          APP,
-          520,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        s(
-          'repository',
-          'ReviewLayerRepository.replace',
-          `Immediate transaction with a revision check.`,
-          repo('review-layer-repository.ts'),
-          39,
-        ),
+        {
+          layer: 'route',
+          name: 'createReviewMcpServer',
+          source: {
+            path: 'apps/server/src/http/mcp/review-server.ts',
+          },
+          what: 'Resolve the registered worktree from the agent working directory, then call the owning operation.',
+        },
       ],
-      runner: 'operations',
+      runner: 'none',
       gitCommands: [],
-      tables: [
-        { name: 'review_layer_sets', access: 'read' },
-        { name: 'review_layer_sets', access: 'write' },
-      ],
-      cost: 'One immediate transaction. The web sees the new layers only on its next status fetch (focus or invalidation).',
+      tables: [],
+      cost: 'Worktree resolution lists registered projects; the owning operation determines the remaining cost.',
     },
     {
-      id: 'mcp.publish_artifact',
-      title: 'Tool: publish_artifact',
-      mcpTool: { name: 'publish_artifact', source: at(MCP_SERVER, 150) },
+      id: 'mcp.resolve_comment',
+      title: 'resolve comment',
+      mcpTool: {
+        name: 'resolve_comment',
+        source: {
+          path: 'apps/server/src/http/mcp/review-server.ts',
+        },
+      },
       webTriggers: [],
       steps: [
-        mcpEntry(),
-        mcpStep(
-          'publish_artifact',
-          150,
-          `Uploads handoff.md, handoff.html or another UTF-8 artifact.`,
-        ),
-        s(
-          'application',
-          'Application.uploadArtifact',
-          `Queues on operations.`,
-          APP,
-          534,
-        ),
-        operationsStep(`Shares the lane with every browser request.`),
-        s(
-          'repository',
-          'ArtifactRepository.create',
-          `Global quota check and insert.`,
-          repo('artifact-repository.ts'),
-          24,
-        ),
+        {
+          layer: 'route',
+          name: 'createReviewMcpServer',
+          source: {
+            path: 'apps/server/src/http/mcp/review-server.ts',
+          },
+          what: 'Resolve the registered worktree from the agent working directory, then call the owning operation.',
+        },
       ],
-      runner: 'operations',
+      runner: 'none',
       gitCommands: [],
-      tables: [
-        ...INVENTORY_READ,
-        { name: 'artifacts', access: 'read' },
-        { name: 'artifacts', access: 'write' },
-      ],
-      cost: 'One aggregate and one insert; always adds a new row, even for an existing name.',
+      tables: [],
+      cost: 'Worktree resolution lists registered projects; the owning operation determines the remaining cost.',
     },
   ],
-  decisions: [
-    {
-      title:
-        'Agents connect over MCP through the owner socket; nothing is pushed',
-      summary: `Agents run in their own tools and only publish layers, artifacts and comments here; the reviewer tells the agent when to read comments. Simple and decoupled, but agents learn about new comments only by polling.`,
-      doc: 'docs/agent-review.md',
-    },
-    {
-      title: 'Stateless MCP server per request',
-      summary: `Each POST gets a new server and transport with JSON responses, so there is no session state to own or clean up. It also rules out server-to-agent notifications.`,
-      source: at('apps/server/src/http/owner-routes.ts', 74),
-    },
-    {
-      title: 'The agent door is a local socket, not a network route',
-      summary: `No browser can reach a Unix socket, and no credential grants the agent principal, so nothing stolen from a browser can drive agent tools. It also means remote agents are out of scope until there is a reason to change that.`,
-      source: at('apps/server/src/lifecycle/owner-socket.ts', 1),
-    },
-  ],
-  observations: [
-    {
-      kind: 'performance',
-      title: 'Agents and the reviewer share one lane',
-      detail: `git_status, review_evidence, read_file and every MCP write use operations.run, so an agent polling evidence delays the reviewer's clicks and the reverse.`,
-      sources: [at(MCP_SERVER, 41), at(MCP_SERVER, 54), at(APP, 366)],
-      confidence: 'verified',
-    },
-    {
-      kind: 'good',
-      title: 'review_changes is the read the web makes',
-      detail: `The tool answers with the same change list the review surface reads — 7 Git processes, no content — rather than a shape of its own. An agent has its own files; what it needs here is the fingerprint to anchor a comment to.`,
-      sources: [
-        at(MCP_SERVER, 51),
-        at(caseFile('read-worktree-changes.ts'), 50),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'question',
-      title: 'Agent surface has gaps the server already supports',
-      detail: `There is no tool for deleting or replacing an artifact, or for commit history, although an HTTP endpoint exists for the first. Re-published handoffs pile up (see artifacts).`,
-      sources: [at(MCP_SERVER, 150), at(route('delete-artifact.ts'), 15)],
-      confidence: 'verified',
-    },
-    {
-      kind: 'good',
-      title: 'Tight agent boundary',
-      detail: `Local socket at mode 0600, per-request server, errors mapped to the same safe API errors as HTTP.`,
-      sources: [
-        at('apps/server/src/lifecycle/owner-socket.ts', 1),
-        at(MCP_SERVER, 163),
-      ],
-      confidence: 'verified',
-    },
-  ],
+  decisions: [],
+  observations: [],
 };
-
-// ---------------------------------------------------------------------------
-// lifecycle
-// ---------------------------------------------------------------------------
 
 const lifecycle: Area = {
   id: 'lifecycle',

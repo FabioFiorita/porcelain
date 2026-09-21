@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-react';
 import type { Api } from '../api/api';
 import { createMockStore } from '../api/inventory/mock';
 import { createMockApi } from '../api/mock-api';
+import { publishedReviewFixture } from '../api/review/published-fixture';
 import type { ReviewScope } from '../domain/review';
 import { createQueryClient } from './client';
 import { useCreateComment, useReplyComment } from './comments';
@@ -16,13 +17,7 @@ import {
 } from './review';
 import { useWorkspaceContext, WorkspaceProvider } from './workspace-provider';
 
-/**
- * The sidebar's dot rides with the worktree list, so anything that changes
- * what the dot says has to reach that list. A commit and an answered reply
- * depend on state only the server holds, so they ask for it again. Marking
- * does not: everything that decides the dot is already in cache, and asking
- * would make marking one file cost a listing of every project.
- */
+/** Published layer marks own the review dot; plain file marks remain independent. */
 function harness(onReads: () => void) {
   const store = createMockStore();
   const base = createMockApi(store);
@@ -43,6 +38,11 @@ function harness(onReads: () => void) {
     (entry) => entry.available && !entry.main,
   );
   if (!project || !worktree) throw new Error('Missing fixture worktree');
+  store.publishedReviews[worktree.id] = publishedReviewFixture(
+    worktree.id,
+    store.inventory.environmentId,
+  );
+  worktree.status = 'pending';
   return {
     store,
     api,
@@ -92,7 +92,7 @@ async function run(
   return screen;
 }
 
-it('moves the dot from the mark itself, without asking for the worktree list', async () => {
+it('keeps the published-layer dot pending when one plain file is marked', async () => {
   let reads = 0;
   const { api, scope } = harness(() => {
     reads += 1;
@@ -112,8 +112,7 @@ it('moves the dot from the mark itself, without asking for the worktree list', a
   );
   const before = reads;
   await screen.getByRole('button', { name: 'Act' }).click();
-  // Layers are published and most of their files are still unmarked, so one
-  // mark says pending — worked out here, not fetched.
+  // A file mark does not mark its published layer.
   await expect
     .element(screen.getByLabelText('Dot'))
     .toHaveTextContent('pending');
@@ -168,7 +167,7 @@ it('asks for the worktree list again once a reply is answered', async () => {
   await vi.waitFor(() => expect(reads).toBeGreaterThan(before));
 });
 
-it('turns the dot to reviewed after marking everything, still without a list read', async () => {
+it('keeps the published-layer dot pending even when all plain files are marked', async () => {
   let reads = 0;
   const { api, scope } = harness(() => {
     reads += 1;
@@ -188,10 +187,10 @@ it('turns the dot to reviewed after marking everything, still without a list rea
   );
   const before = reads;
   await screen.getByRole('button', { name: 'Act' }).click();
-  // Every file of every published layer is marked, so the handoff is done.
+  // Bulk file marks do not silently review the agent explanation.
   await expect
     .element(screen.getByLabelText('Dot'))
-    .toHaveTextContent('reviewed');
+    .toHaveTextContent('pending');
   expect(reads).toBe(before);
 });
 

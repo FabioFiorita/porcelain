@@ -132,12 +132,14 @@ test('recovers a saved comment whose first response is lost without duplicating 
     await route.continue();
   });
 
-  const line = page.locator('[data-column-number]').first();
-  await expect(line).toBeVisible();
-  await line.hover();
-  const utility = page.locator('[data-utility-button]').first();
-  await expect(utility).toBeVisible();
-  await utility.click();
+  // This case exercises retry identity. The preceding case covers line anchors;
+  // use the stable file composer here instead of a hover beside its saved thread.
+  await page
+    .getByRole('button', {
+      name: 'Comment on docs/accessibility.md (staged · added)',
+      exact: true,
+    })
+    .click();
   const body = `Lost response ${test.info().project.name}`;
   await page.getByRole('textbox', { name: 'Comment', exact: true }).fill(body);
   await page

@@ -159,7 +159,13 @@ it('keeps review metadata together across Git inspection, refresh and a server r
           headers,
         });
         expect(response.statusCode).toBe(200);
-        expect(response.json()).toEqual(expected);
+        const actual = response.json();
+        if (suffix === 'review') {
+          // A read renews the capability expiry; the stored publication is unchanged.
+          expect(actual.review.summary.url).toMatch(/^\/review-summaries\//);
+          actual.review.summary.url = expected.review.summary.url;
+        }
+        expect(actual).toEqual(expected);
       }
     } finally {
       await restarted.close();

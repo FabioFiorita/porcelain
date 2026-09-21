@@ -969,54 +969,7 @@ export const serverSpecAudits: SpecAudit[] = [
     ],
     verdict: 'strong',
   },
-  {
-    file: 'apps/server/src/http/routes/review-layers.spec.ts',
-    areas: ['review-layers'],
-    kind: 'http',
-    real: [
-      'git init',
-      'sqlite',
-      'fastify inject and loopback fetch',
-      'restart',
-    ],
-    fakes: [],
-    tests: [
-      {
-        name: 'stores ordered metadata with atomic revision conflicts, refresh retention and restart durability over HTTP',
-        asserts:
-          'Two concurrent PUTs at revision 0 give exactly one 200 and one 409; reorder round-trips; eight bad paths and duplicates are 400; refresh and restart keep exact bodies; unknown worktree 404.',
-      },
-    ],
-    strengths: [
-      'Real optimistic-concurrency race and exact body equality across refresh and restart.',
-    ],
-    gaps: [
-      'Size limits (number of layers, files, note length) are not exercised.',
-      'Layers that reference files no longer in the change set are neither reported nor tested.',
-    ],
-    verdict: 'strong',
-  },
-  {
-    file: 'apps/server/src/use-cases/replace-review-layers.spec.ts',
-    areas: ['review-layers'],
-    kind: 'unit',
-    real: ['ReplaceReviewLayers'],
-    fakes: ['ReviewLayerStore that throws on read and on replace'],
-    tests: [
-      {
-        name: 'keeps conflict handling with the atomic storage owner without retrying stale intent',
-        asserts:
-          'No preflight read, one replace attempt at the submitted revision, the conflict propagates.',
-      },
-    ],
-    strengths: [
-      'Pins a deliberate design choice (no read-then-write race, no retry).',
-    ],
-    gaps: [
-      'The use case is a thin delegate, so this spec protects little on its own; real behavior is in the route spec.',
-    ],
-    verdict: 'adequate',
-  },
+
   {
     file: 'apps/server/src/http/routes/comments.spec.ts',
     areas: ['comments'],
@@ -1115,85 +1068,7 @@ export const serverSpecAudits: SpecAudit[] = [
     ],
     verdict: 'adequate',
   },
-  {
-    file: 'apps/server/src/http/routes/artifacts.spec.ts',
-    areas: ['artifacts'],
-    kind: 'http',
-    real: [
-      'git',
-      'sqlite (also opened directly with ArtifactRepository)',
-      'loopback fetch and inject',
-      'restart',
-    ],
-    fakes: [],
-    tests: [
-      {
-        name: 'uploads and retrieves inert HTML over real authenticated JSON, preserving content through refresh and restart outside Git',
-        asserts:
-          'Nothing written to the checkout, JSON content type with nosniff and no-store, exact content after restart, cross-worktree isolation, idempotent delete.',
-      },
-      {
-        name: 'authenticates all artifact routes before parsing and rejects unknown scope and caller path fields',
-        asserts:
-          '401 before JSON parsing, 404 for unknown worktree, 400 for a path field and an encoded traversal id.',
-      },
-      {
-        name: 'rejects malformed UTF-8 and Unicode, bounds request bytes, and accepts exact content limit with escaped JSON',
-        asserts:
-          'Invalid UTF-8, lone surrogate, over-limit and oversized bodies are 400; exactly the byte limit is accepted.',
-      },
-      {
-        name: 'reports aggregate quota exhaustion safely through HTTP and permits recovery by deletion',
-        asserts:
-          '16 full artifacts then 409 ARTIFACT_QUOTA_EXCEEDED; deletion frees quota.',
-      },
-      {
-        name: 'retains removed worktree storage while denying access through its absent inventory identity',
-        asserts:
-          'After worktree removal every route is 404 while the row still exists in SQLite.',
-      },
-    ],
-    strengths: [
-      'Byte-exact limits, quota recovery and XSS-inert delivery are all checked over real HTTP.',
-    ],
-    gaps: [
-      'Uploads use the shared operations queue; an agent publishing during a slow evidence read or commit hook is not tested.',
-      'Listing with 16 x 1 MiB artifacts is not checked to stay metadata-only (the repository selects metadata columns, but nothing pins it).',
-    ],
-    verdict: 'strong',
-  },
-  {
-    file: 'apps/server/src/use-cases/artifacts.spec.ts',
-    areas: ['artifacts'],
-    kind: 'unit',
-    real: ['Upload/List/Get/DeleteArtifact validation'],
-    fakes: ['ArtifactStore (vi.fn)', 'InventoryStore'],
-    tests: [
-      {
-        name: 'accepts inert display names and counts UTF-8 bytes for unavailable registered worktrees',
-        asserts:
-          'Emoji counted as 4 bytes; upload allowed while the worktree is unavailable.',
-      },
-      {
-        name: 'rejects invalid Unicode, empty content, excessive names and the byte limit before persistence',
-        asserts:
-          'Six invalid inputs never reach the store; exactly the limit is accepted.',
-      },
-      {
-        name: 'requires registered scope for every operation without touching artifact storage',
-        asserts: 'Unknown worktree throws before any store call.',
-      },
-      {
-        name: 'returns scoped metadata, reports missing content and makes repeated deletion harmless',
-        asserts: 'Pass-through list/get, ArtifactNotFoundError, deleted:false.',
-      },
-    ],
-    strengths: ['Validation-before-persistence is asserted with call spies.'],
-    gaps: [
-      'Mostly duplicated by the route spec; quota logic lives in the repository and is not reached here.',
-    ],
-    verdict: 'adequate',
-  },
+
   {
     file: 'apps/server/src/http/routes/files.spec.ts',
     areas: ['files'],

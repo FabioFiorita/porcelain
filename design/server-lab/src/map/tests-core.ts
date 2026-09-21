@@ -791,25 +791,6 @@ export const coreSpecAudits: SpecAudit[] = [
     ],
     verdict: 'adequate',
   },
-  {
-    file: 'packages/contracts/src/review-layers.spec.ts',
-    areas: ['review-layers'],
-    kind: 'unit',
-    real: ['zod schema'],
-    fakes: [],
-    tests: [
-      {
-        name: 'bounds metadata and rejects duplicate identities and references without normalizing paths',
-        asserts:
-          'Same path under two scopes allowed; duplicate ids/refs, blank or long title, long summary/note/path, 501 files, 101 layers, 2,500 total refs, bad revisions and unknown scope rejected.',
-      },
-    ],
-    strengths: [
-      'Every documented bound, including the aggregate reference cap, tested at its edge.',
-    ],
-    gaps: ['Response schema untested (minor).'],
-    verdict: 'strong',
-  },
 
   // --------------------------------------------------------------- packages/client
   {
@@ -1501,32 +1482,7 @@ export const coreSpecAudits: SpecAudit[] = [
   },
 
   // ------------------------------------------------------ apps/server/repositories
-  {
-    file: 'apps/server/src/repositories/artifact-repository.spec.ts',
-    areas: ['artifacts'],
-    kind: 'integration',
-    real: ['sqlite', 'SQL triggers to abort writes'],
-    fakes: [],
-    tests: [
-      {
-        name: 'enforces aggregate byte and record quotas transactionally across worktrees and reclaims deleted capacity',
-        asserts:
-          'ArtifactQuotaError at byte and count limits; scoped delete; capacity reclaimed.',
-      },
-      {
-        name: 'keeps metadata and content consistent when SQLite aborts writes or deletion, and survives reopening',
-        asserts:
-          'Aborted insert leaves nothing; aborted delete keeps content; reopen reads the same row.',
-      },
-    ],
-    strengths: [
-      'Real transactional failure injection via triggers; both quota dimensions at their limits.',
-    ],
-    gaps: [
-      'Concurrent uploads near the quota from two connections not tested (immediate transactions should hold).',
-    ],
-    verdict: 'strong',
-  },
+
   {
     file: 'apps/server/src/repositories/comment-repository.spec.ts',
     areas: ['comments'],
@@ -1689,25 +1645,6 @@ export const coreSpecAudits: SpecAudit[] = [
     strengths: ['Exact eviction order and retention semantics.'],
     gaps: [
       'Marks for files that are no longer changed are never pruned except by the cap, so a long-lived worktree silently evicts real marks once stale ones accumulate; tested as a mechanism, not as user impact.',
-    ],
-    verdict: 'strong',
-  },
-  {
-    file: 'apps/server/src/repositories/review-layer-repository.spec.ts',
-    areas: ['review-layers'],
-    kind: 'integration',
-    real: ['sqlite with two connections', 'InventoryRepository'],
-    fakes: [],
-    tests: [
-      {
-        name: 'protects revisions across SQLite connections and retains metadata after inventory replacement/removal',
-        asserts:
-          'Revision 0 on both; stale replace rejects ReviewLayerConflictError; layers survive inventory rewrite and removal; unknown worktree rejects.',
-      },
-    ],
-    strengths: ['Optimistic concurrency checked across two real connections.'],
-    gaps: [
-      'Maximum payload (100 layers, 2,500 refs in one JSON column) not timed.',
     ],
     verdict: 'strong',
   },
