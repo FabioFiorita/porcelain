@@ -13,6 +13,7 @@
     "./dtos/git-diff": "./src/dtos/git-diff.ts",
     "./dtos/git-failure": "./src/dtos/git-failure.ts",
     "./commands/list-tracked-paths": "./src/commands/list-tracked-paths.ts",
+    "./commands/list-ignored-paths": "./src/commands/list-ignored-paths.ts",
     "./commands/check-ignored": "./src/commands/check-ignored.ts",
     "./dtos/git-status": "./src/dtos/git-status.ts",
     "./dtos/line-range": "./src/dtos/line-range.ts",

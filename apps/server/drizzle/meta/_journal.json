@@ -43,6 +43,13 @@
       "when": 1789909823222,
       "tag": "0005_names_and_status",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789996071293,
+      "tag": "0006_stale_reviewed_files",
+      "breakpoints": true
     }
   ]
 }

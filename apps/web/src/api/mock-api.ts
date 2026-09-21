@@ -3,6 +3,7 @@ import { createCommentsMock } from './comments/mock';
 import { createFilePreferencesMock } from './file-preferences/mock';
 import { createGitActionsMock } from './git-actions/mock';
 import { createInventoryMock, type createMockStore } from './inventory/mock';
+import { createLiveUpdatesMock } from './live-updates/mock';
 import { createPairingMock } from './pairing/mock';
 import { createReviewMock } from './review/mock';
 import { createSessionMock } from './session/mock';
@@ -14,6 +15,7 @@ export function createMockApi(store: ReturnType<typeof createMockStore>): Api {
     comments: createCommentsMock(store),
     filePreferences: createFilePreferencesMock(store),
     inventory: createInventoryMock(store),
+    liveUpdates: createLiveUpdatesMock(),
     review: createReviewMock(store),
     gitActions: createGitActionsMock(store),
   };

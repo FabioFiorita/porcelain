@@ -6,11 +6,8 @@ export function createQueryClient() {
       queries: {
         staleTime: Infinity,
         retry: false,
-        // Porcelain is a companion to tools changing the checkout. Returning
-        // to the window or reconnecting is the natural refresh boundary; the
-        // UI should never make the user hunt for reload buttons.
-        refetchOnWindowFocus: 'always',
-        refetchOnReconnect: 'always',
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
       },
       mutations: { retry: false },
     },

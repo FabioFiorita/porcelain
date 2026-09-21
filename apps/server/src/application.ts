@@ -13,6 +13,7 @@ import type {
   GitStatusObservation,
 } from '@porcelain/git/dtos/git-status';
 import type { LineRange } from '@porcelain/git/dtos/line-range';
+import type { LiveConnection } from './lifecycle/live-updates.ts';
 import type {
   Artifact,
   ArtifactMetadata,
@@ -64,6 +65,11 @@ import type {
 import type { PreviewAsset } from './use-cases/read-preview-assets.ts';
 
 export interface Application {
+  liveUpdates(
+    send: (
+      notice: import('@porcelain/contracts/live-updates').LiveNotice,
+    ) => void,
+  ): LiveConnection;
   /** Every name quick open can offer, read once per opening. */
   worktreePaths(
     worktreeId: string,

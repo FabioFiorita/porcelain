@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
 import { projects } from '../db/schema/projects.ts';
+import { reviewedFiles } from '../db/schema/reviewed-files.ts';
 import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import {
   MAX_REVIEWED_MARKS,
@@ -95,6 +96,48 @@ it('removes a mark idempotently without affecting another path', async () => {
         fingerprint: 'b'.repeat(64),
         reviewedAt: '2026-09-13T00:00:00.000Z',
       },
+    ]);
+  } finally {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it('invalidates marks below a changed directory without touching siblings', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'porcelain-reviewed-stale-'));
+  const database = openDatabase(directory);
+  try {
+    const store = new ReviewedFileRepository(database.db);
+    store.set(
+      'worktree',
+      'src/a.ts',
+      'a'.repeat(64),
+      '2026-09-13T00:00:00.000Z',
+    );
+    store.set(
+      'worktree',
+      'src/nested/b.ts',
+      'b'.repeat(64),
+      '2026-09-13T00:00:00.000Z',
+    );
+    store.set(
+      'worktree',
+      'docs/a.md',
+      'c'.repeat(64),
+      '2026-09-13T00:00:00.000Z',
+    );
+
+    store.invalidate('worktree', ['src']);
+
+    expect(
+      database.db
+        .select({ path: reviewedFiles.path, stale: reviewedFiles.stale })
+        .from(reviewedFiles)
+        .all(),
+    ).toEqual([
+      { path: 'src/a.ts', stale: true },
+      { path: 'src/nested/b.ts', stale: true },
+      { path: 'docs/a.md', stale: false },
     ]);
   } finally {
     database.close();

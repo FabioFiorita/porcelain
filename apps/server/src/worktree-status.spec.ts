@@ -104,12 +104,23 @@ it('reports reviewed when every file the layers name has been marked', async () 
   // Reviewed, waiting for a commit. Still a layer state: the handoff is live
   // until a commit archives it.
   expect(await f.dot()).toBe('reviewed');
-  // The known limit of asking marks alone: the agent edits a file that was
-  // already marked and this stays `reviewed`, because noticing would cost a
-  // status read per worktree — the cost this replaced. Step 6's file watcher
-  // is where that signal becomes free and turns it back to `pending`.
+  const live = f.app.liveUpdates(() => undefined);
+  await live.subscribe({
+    type: 'subscribe',
+    projects: [f.project.id],
+    worktrees: [
+      { projectId: f.project.id, worktreeId: f.worktreeId, paths: [] },
+    ],
+  });
+  // The watcher makes the persisted sidebar interpretation conservative as
+  // soon as content moves; reading the fresh changes keeps the old mark so the
+  // file itself appears stale rather than losing the reviewer's history.
   await writeFile(join(f.checkout, 'notes.txt'), 'third\n');
-  expect(await f.dot()).toBe('reviewed');
+  await expect.poll(() => f.dot()).toBe('pending');
+  expect(
+    (await f.app.listReviewedFiles(f.worktreeId)).marks[0]?.fingerprint,
+  ).toBe(fingerprint);
+  live.close();
   // Unmarking is enough to make it pending again without any Git read.
   await f.app.removeReviewedFile(f.worktreeId, 'notes.txt');
   expect(await f.dot()).toBe('pending');

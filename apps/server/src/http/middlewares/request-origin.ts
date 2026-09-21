@@ -55,7 +55,10 @@ function effectivePort(scheme: string, port: string | undefined): string {
   return port ?? defaultPorts[scheme] ?? '';
 }
 
-export function checkRequestOrigin(policy: OriginPolicy) {
+export function checkRequestOrigin(
+  policy: OriginPolicy,
+  options: { requireSameOrigin?: boolean } = {},
+) {
   return async (request: FastifyRequest) => {
     const authority = requestAuthority(request);
     if (authority === null)
@@ -72,10 +75,14 @@ export function checkRequestOrigin(policy: OriginPolicy) {
       throw new ForbiddenOriginError(
         `This server does not answer to the host ${authority.hostname}`,
       );
-    if (safeMethods.has(request.method)) return;
+    if (safeMethods.has(request.method) && !options.requireSameOrigin) return;
     const origin = request.headers.origin;
     // A client that sends no Origin is not a browser acting for another site.
-    if (origin === undefined) return;
+    if (origin === undefined) {
+      if (options.requireSameOrigin)
+        throw new ForbiddenOriginError('The Origin header is required');
+      return;
+    }
     if (origin === 'null')
       throw new ForbiddenOriginError('An opaque origin cannot write');
     let parsed: URL;

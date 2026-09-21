@@ -3,6 +3,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from '@fastify/type-provider-zod';
+import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { openApplication } from '../app.ts';
 import type { Principal } from '../models/principal.ts';
@@ -38,6 +39,7 @@ import { gitActionRoutes } from './routes/git-actions.ts';
 import { gitInspectionRoutes } from './routes/git-inspection.ts';
 import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
+import { liveUpdateRoutes } from './routes/live-updates.ts';
 import { pairRoutes } from './routes/pair.ts';
 import { changeRoutes } from './routes/read-changes.ts';
 import { reviewLayerRoutes } from './routes/review-layers.ts';
@@ -55,8 +57,9 @@ type ServerOptions = Parameters<typeof openApplication>[0] & {
 
 function registerApiRoutes(
   server: FastifyInstance,
-  options: { application: Application },
+  options: { application: Application } & OriginPolicy,
 ) {
+  server.register(liveUpdateRoutes, options);
   server.register(browserSessionRoutes, options);
   server.register(healthRoute, options);
   server.register(pairRoutes, options);
@@ -93,6 +96,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
+  server.register(websocket, { options: { maxPayload: 64 * 1024 } });
   server.setErrorHandler(async (error, _request, reply) => {
     const response = toErrorResponse(error);
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
@@ -127,7 +131,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   server.decorate('refreshed', () => application.ready());
   server.register(
     async (api) => {
-      registerApiRoutes(api, { application });
+      registerApiRoutes(api, { application, allowedHosts });
     },
     { prefix: '/api' },
   );
@@ -148,7 +152,6 @@ export async function createServer(options: ServerOptions) {
     ...(webRoot === undefined ? {} : { webRoot }),
     ...(allowedHosts === undefined ? {} : { allowedHosts }),
   });
-  server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   // The caller owns this instance and its application together; exposing it
   // lets a test pair a device the way a browser does. It is on the returned

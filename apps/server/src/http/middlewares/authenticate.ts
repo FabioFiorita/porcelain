@@ -31,7 +31,10 @@ export function authenticate(options: AuthenticateOptions) {
     );
     if (!device) throw new UnauthorizedError();
     request.principal = { kind: 'viewer', deviceId: device.deviceId };
-    holdUntilRevoked(reply, application, device.deviceId);
+    // An upgraded response is not the WebSocket lifetime. Its route registers
+    // the socket itself; holding reply.raw here would race that graceful close
+    // with a TCP destroy and turn revocation into an unexplained 1006.
+    if (!request.ws) holdUntilRevoked(reply, application, device.deviceId);
     // Every cookie request renews the window, so a browser in constant use is
     // never logged out by age.
     if (deviceCookie(request) === credential)

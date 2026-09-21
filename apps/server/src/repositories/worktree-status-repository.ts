@@ -42,6 +42,7 @@ export class WorktreeStatusRepository implements WorktreeStatusStore {
                 SELECT 1 FROM reviewed_files AS mark
                 WHERE mark.worktree_id = sets.worktree_id
                   AND mark.path = json_extract(file.value, '$.path')
+                  AND mark.stale = 0
               )
             )
             THEN 'pending'

@@ -53,7 +53,7 @@ function useReviewData<T>(
   read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
   refetchInterval: number | false = false,
   /** For a read whose answer cannot change: a commit, keyed by its id. */
-  onFocus: 'always' | false = 'always',
+  onFocus: 'always' | false = false,
 ) {
   return useSuspenseQuery({
     ...useReviewOptions(scope, key, read),
@@ -257,11 +257,15 @@ function textFileOptions(
   };
 }
 
-export function useTextFile(scope: ReviewScope, path: string, active: boolean) {
+export function useTextFile(
+  scope: ReviewScope,
+  path: string,
+  _active: boolean,
+) {
   const context = useConnectedContext();
   return useSuspenseQuery({
     ...textFileOptions(context, scope, path),
-    refetchInterval: active ? 3000 : false,
+    refetchInterval: false,
   }).data;
 }
 /**

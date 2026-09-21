@@ -75,7 +75,7 @@ export class ReviewedFileRepository implements ReviewedFileStore {
           .values({ worktreeId, path, fingerprint, reviewedAt })
           .onConflictDoUpdate({
             target: [reviewedFiles.worktreeId, reviewedFiles.path],
-            set: { fingerprint, reviewedAt },
+            set: { fingerprint, reviewedAt, stale: false },
           })
           .run();
       },
@@ -94,5 +94,73 @@ export class ReviewedFileRepository implements ReviewedFileStore {
         ),
       )
       .run();
+  }
+
+  invalidate(worktreeId: string, paths?: readonly string[]): void {
+    const selected = paths ? [...new Set(paths)] : null;
+    if (selected?.length === 0) return;
+    if (!selected) {
+      this.db
+        .update(reviewedFiles)
+        .set({ stale: true })
+        .where(eq(reviewedFiles.worktreeId, worktreeId))
+        .run();
+      return;
+    }
+    this.db.transaction((tx) => {
+      const marks = tx
+        .select({ path: reviewedFiles.path })
+        .from(reviewedFiles)
+        .where(eq(reviewedFiles.worktreeId, worktreeId))
+        .all();
+      for (const mark of marks) {
+        if (
+          !selected.some(
+            (path) => mark.path === path || mark.path.startsWith(`${path}/`),
+          )
+        )
+          continue;
+        tx.update(reviewedFiles)
+          .set({ stale: true })
+          .where(
+            and(
+              eq(reviewedFiles.worktreeId, worktreeId),
+              eq(reviewedFiles.path, mark.path),
+            ),
+          )
+          .run();
+      }
+    });
+  }
+
+  reconcile(
+    worktreeId: string,
+    fingerprints: ReadonlyMap<string, string | null>,
+  ): void {
+    this.db.transaction((tx) => {
+      const marks = tx
+        .select({
+          path: reviewedFiles.path,
+          fingerprint: reviewedFiles.fingerprint,
+          stale: reviewedFiles.stale,
+        })
+        .from(reviewedFiles)
+        .where(eq(reviewedFiles.worktreeId, worktreeId))
+        .all();
+      for (const mark of marks) {
+        const fingerprint = fingerprints.get(mark.path);
+        const stale = fingerprint !== mark.fingerprint;
+        if (stale === mark.stale) continue;
+        tx.update(reviewedFiles)
+          .set({ stale })
+          .where(
+            and(
+              eq(reviewedFiles.worktreeId, worktreeId),
+              eq(reviewedFiles.path, mark.path),
+            ),
+          )
+          .run();
+      }
+    });
   }
 }

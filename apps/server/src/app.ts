@@ -38,6 +38,7 @@ import { DeviceDirectory } from './lifecycle/device-directory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { Lanes } from './lifecycle/lanes.ts';
 import { LaunchLimit } from './lifecycle/launch-limit.ts';
+import { LiveUpdates } from './lifecycle/live-updates.ts';
 import { SharedReads } from './lifecycle/shared-reads.ts';
 import { WorktreeDirectory } from './lifecycle/worktree-directory.ts';
 import type { Project } from './models/project.ts';
@@ -443,6 +444,11 @@ export async function openApplication(options: {
       generator,
     );
     const reviewed = new ReviewedFileRepository(database.db);
+    const live = new LiveUpdates({
+      worktrees,
+      reviewed,
+      projects: () => store.read().projects,
+    });
     const listReviewedFiles = new ListReviewedFiles(reviewed, worktrees);
     const setReviewedFile = new SetReviewedFile(
       reviewed,
@@ -593,12 +599,20 @@ export async function openApplication(options: {
         lanes.run(
           laneOf(worktreeId),
           'read',
-          ({ signal: operationSignal }) =>
-            changes.execute(
+          async ({ signal: operationSignal }) => {
+            const answer = await changes.execute(
               worktreeId,
               new RequestGitSession(),
               operationSignal,
-            ),
+            );
+            reviewed.reconcile(
+              worktreeId,
+              new Map(
+                answer.changes.map((entry) => [entry.path, entry.fingerprint]),
+              ),
+            );
+            return answer;
+          },
           { callerSignal: signal },
         ),
       changeDiffs: (
@@ -655,25 +669,33 @@ export async function openApplication(options: {
         ),
       setReviewedFile: (worktreeId, input, signal) => {
         const submitted = { ...input };
-        return lanes.run(
-          laneOf(worktreeId),
-          'read',
-          ({ signal: operationSignal }) =>
-            setReviewedFile.execute(
-              worktreeId,
-              submitted,
-              new RequestGitSession(),
-              operationSignal,
-            ),
-          { callerSignal: signal },
-        );
+        return lanes
+          .run(
+            laneOf(worktreeId),
+            'read',
+            ({ signal: operationSignal }) =>
+              setReviewedFile.execute(
+                worktreeId,
+                submitted,
+                new RequestGitSession(),
+                operationSignal,
+              ),
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            live.publishWorktree(worktreeId, 'reviewed');
+            return answer;
+          });
       },
       removeReviewedFile: (worktreeId, path, signal) =>
         forWorktree(
           (operationSignal) =>
             removeReviewedFile.execute(worktreeId, path, operationSignal),
           signal,
-        ),
+        ).then((answer) => {
+          live.publishWorktree(worktreeId, 'reviewed');
+          return answer;
+        }),
       worktreePaths: (worktreeId, signal) =>
         lanes.run(
           laneOf(worktreeId),
@@ -684,13 +706,22 @@ export async function openApplication(options: {
         ),
       editFile: (worktreeId, command, signal) => {
         const submitted = { ...command };
-        return lanes.run(
-          laneOf(worktreeId),
-          'write',
-          ({ signal: operationSignal }) =>
-            editFile.execute(worktreeId, submitted, operationSignal),
-          { callerSignal: signal },
-        );
+        return lanes
+          .run(
+            laneOf(worktreeId),
+            'write',
+            ({ signal: operationSignal }) =>
+              editFile.execute(worktreeId, submitted, operationSignal),
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            const paths =
+              submitted.kind === 'move'
+                ? [submitted.path, submitted.destination]
+                : [submitted.path];
+            live.noteFiles(worktreeId, paths);
+            return answer;
+          });
       },
       listDirectory: (id: string, path: string, signal?: AbortSignal) =>
         lanes.run(
@@ -727,40 +758,53 @@ export async function openApplication(options: {
           { callerSignal: signal },
         ),
       removeProject: (projectId, signal) =>
-        lanes.run(
-          projectLaneOf(projectId),
-          'write',
-          async () => {
-            const removal = removeProject.execute(projectId);
-            if (removal.deleted) {
-              // The checkouts stay on disk, so the directory would go on
-              // resolving ids for a project that is gone.
-              directory.forget(projectId);
-              // Its refusal latch went with it; the coordinator must not keep
-              // refusing actions for an id that no longer exists.
-              actions.forget(projectId);
-            }
-            return removal;
-          },
-          { callerSignal: signal },
-        ),
+        lanes
+          .run(
+            projectLaneOf(projectId),
+            'write',
+            async () => {
+              const removal = removeProject.execute(projectId);
+              if (removal.deleted) {
+                // The checkouts stay on disk, so the directory would go on
+                // resolving ids for a project that is gone.
+                directory.forget(projectId);
+                // Its refusal latch went with it; the coordinator must not keep
+                // refusing actions for an id that no longer exists.
+                actions.forget(projectId);
+              }
+              return removal;
+            },
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            if (answer.deleted) live.publish({ type: 'inventory' });
+            return answer;
+          }),
       renameProject: async (projectId, name, signal) => {
         // Parsed here, not only at the route: a name reaches storage the same
         // way whichever door it came through.
         const input = renameProjectRequestSchema.parse({ name });
-        return lanes.run(
-          INVENTORY,
-          'write',
-          async () => renameProject.execute(projectId, input.name),
-          { callerSignal: signal },
-        );
+        return lanes
+          .run(
+            INVENTORY,
+            'write',
+            async () => renameProject.execute(projectId, input.name),
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            live.publish({ type: 'inventory' });
+            return answer;
+          });
       },
       markCommentsSeen: (worktreeId, throughRevision, signal) =>
         forWorktree(
           (operationSignal) =>
             markSeen.execute(worktreeId, throughRevision, operationSignal),
           signal,
-        ),
+        ).then((answer) => {
+          live.publishWorktree(worktreeId, 'comments');
+          return answer;
+        }),
       discoverProjects: (signal) =>
         lanes.run(
           FILESYSTEM,
@@ -788,34 +832,39 @@ export async function openApplication(options: {
           { callerSignal: signal },
         ),
       register: async (checkout: string, signal?: AbortSignal) =>
-        lanes.run(
-          INVENTORY,
-          'write',
-          async ({ signal: operationSignal }) => {
-            const registered = await register.execute(
-              checkout,
-              operationSignal,
-            );
-            // The reply carries the sidebar's dots too: a repository added
-            // back keeps whatever review data it already had.
-            const dots = statuses.status(
-              registered.project.worktrees.map((worktree) => worktree.id),
-            );
-            return {
-              ...registered,
-              project: {
-                ...registered.project,
-                worktrees: registered.project.worktrees.map((worktree) => ({
-                  ...worktree,
-                  status: dots.get(worktree.id) ?? null,
-                })),
-              },
-            };
-          },
-          // Registering re-lists the projects that claim these paths, so it
-          // waits on the same waves an inventory read does.
-          { callerSignal: signal },
-        ),
+        lanes
+          .run(
+            INVENTORY,
+            'write',
+            async ({ signal: operationSignal }) => {
+              const registered = await register.execute(
+                checkout,
+                operationSignal,
+              );
+              // The reply carries the sidebar's dots too: a repository added
+              // back keeps whatever review data it already had.
+              const dots = statuses.status(
+                registered.project.worktrees.map((worktree) => worktree.id),
+              );
+              return {
+                ...registered,
+                project: {
+                  ...registered.project,
+                  worktrees: registered.project.worktrees.map((worktree) => ({
+                    ...worktree,
+                    status: dots.get(worktree.id) ?? null,
+                  })),
+                },
+              };
+            },
+            // Registering re-lists the projects that claim these paths, so it
+            // waits on the same waves an inventory read does.
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            live.publish({ type: 'inventory' });
+            return answer;
+          }),
       listCommits: (worktreeId, request, signal) => {
         const submitted = { ...request };
         return lanes.run(
@@ -854,7 +903,16 @@ export async function openApplication(options: {
           flag: change.flag,
           value: change.value,
         };
-        return stored(() => setPreference.execute(projectId, intent));
+        return stored(() => setPreference.execute(projectId, intent)).then(
+          (answer) => {
+            live.publish({
+              type: 'project',
+              projectId,
+              change: 'preferences',
+            });
+            return answer;
+          },
+        );
       },
       comments: async (command, principal, signal) => {
         const snapshot = structuredClone(command);
@@ -868,13 +926,18 @@ export async function openApplication(options: {
               comments.execute(snapshot, principal, operationSignal),
             signal,
           );
-        return lanes.run(
-          laneOf(snapshot.worktreeId),
-          'write',
-          ({ signal: operationSignal }) =>
-            comments.execute(snapshot, principal, operationSignal),
-          { callerSignal: signal },
-        );
+        return lanes
+          .run(
+            laneOf(snapshot.worktreeId),
+            'write',
+            ({ signal: operationSignal }) =>
+              comments.execute(snapshot, principal, operationSignal),
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            live.publishWorktree(snapshot.worktreeId, 'comments');
+            return answer;
+          });
       },
       reviewLayers: async (worktreeId, signal) => {
         const params = reviewLayerParamsSchema.parse({ worktreeId });
@@ -900,7 +963,10 @@ export async function openApplication(options: {
               operationSignal,
             ),
           signal,
-        );
+        ).then((answer) => {
+          live.publishWorktree(worktreeId, 'layers');
+          return answer;
+        });
       },
       uploadArtifact: (worktreeId, input, signal) => {
         const submitted = { name: input.name, content: input.content };
@@ -908,7 +974,10 @@ export async function openApplication(options: {
           (operationSignal) =>
             uploadArtifact.execute(worktreeId, submitted, operationSignal),
           signal,
-        );
+        ).then((answer) => {
+          live.publishWorktree(worktreeId, 'artifacts');
+          return answer;
+        });
       },
       listArtifacts: (worktreeId, signal) =>
         forWorktree(
@@ -927,7 +996,11 @@ export async function openApplication(options: {
           (operationSignal) =>
             deleteArtifact.execute(worktreeId, artifactId, operationSignal),
           signal,
-        ),
+        ).then((answer) => {
+          if (answer.deleted) live.publishWorktree(worktreeId, 'artifacts');
+          return answer;
+        }),
+      liveUpdates: (send) => live.connect(send),
       /** Resolves once the first refresh has settled, however it settled. */
       ready: async () => {
         await firstRefresh;
@@ -952,6 +1025,7 @@ export async function openApplication(options: {
         } catch {
           // A failed final flush costs precision in "last seen", never access.
         }
+        await live.close();
         await lanes.close();
       },
     };

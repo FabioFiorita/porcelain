@@ -16,6 +16,7 @@ import type { Inventory } from '../domain/inventory';
 import { REQUEST_TIMEOUT_MS } from '../lib/request-timeout';
 import { retainedFileDrafts } from './file-drafts';
 import { queryKeys } from './keys';
+import { connectLiveQueries } from './live-updates';
 import { createOperationStore, type OperationStore } from './operation-store';
 
 type ConnectedRequest = { signal: AbortSignal };
@@ -81,6 +82,10 @@ export function WorkspaceProvider({
     window.addEventListener('beforeunload', leaving);
     return () => window.removeEventListener('beforeunload', leaving);
   }, [connection]);
+  useEffect(() => {
+    if (!connection) return;
+    return connectLiveQueries(api, queryClient, connection);
+  }, [api, connection, queryClient]);
   // Lifecycle identity: every successful connection/disconnect invalidates older attempts.
   const generation = useRef(0);
   const beginConnection = useCallback(

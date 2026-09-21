@@ -6,7 +6,7 @@ import { playgroundBridge } from './development/playground-bridge.ts';
 
 const target = process.env.PORCELAIN_API_TARGET;
 // Routes exist once, under `/api`, so the dev proxy forwards them unchanged.
-const proxy = target ? { '/api': { target } } : undefined;
+const proxy = target ? { '/api': { target, ws: true } } : undefined;
 
 export default defineConfig(({ command, isPreview }) => {
   const socketPath = process.env.PORCELAIN_PLAYGROUND_SOCKET;
