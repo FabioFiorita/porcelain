@@ -1,4 +1,9 @@
-import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  FileQuestionIcon,
+  MessageSquareIcon,
+  RotateCcwIcon,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,10 +19,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { CommentAnchor, CommentThread } from '../../domain/comments';
 import type { DocumentRef } from '../../domain/documents';
-import { entryKey } from '../../domain/documents';
+import { entryKey, UNEXPLAINED } from '../../domain/documents';
 import {
   basename,
   type ChangeList,
+  notExplainedLabel,
   type ReviewChangeItem,
   type ReviewScope,
   type ReviewStatus,
@@ -144,6 +150,23 @@ function LayersView({
             {layer.title}
           </button>
         ))}
+        {review && (
+          <button
+            type="button"
+            className={ROW}
+            aria-pressed={activeEntry === 'unexplained'}
+            onClick={() => onOpen(UNEXPLAINED)}
+          >
+            <FileQuestionIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 truncate">
+              Not explained
+              <span className="text-muted-foreground">
+                {' · '}
+                {notExplainedLabel(review.notExplained) ?? 'nothing'}
+              </span>
+            </span>
+          </button>
+        )}
         {review && (
           <p className="px-2 pt-4 pb-1 text-xs text-muted-foreground">
             Changed files

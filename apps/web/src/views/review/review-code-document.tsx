@@ -21,6 +21,7 @@ import { CodeDocument, type CodeEntry } from './code-document';
 import { changeId, diffEntry, fileEntry } from './diff-entries';
 import { ImagePreview } from './image-preview';
 import { InlineComposer } from './inline-composer';
+import { focusPatch, type LineSpan } from './patch-focus';
 import { ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
 
@@ -28,6 +29,7 @@ export function ReviewCodeDocument({
   scope,
   paths,
   files = [],
+  focus,
   header,
   commentRequest,
   toolbar,
@@ -35,6 +37,8 @@ export function ReviewCodeDocument({
   scope: ReviewScope;
   paths?: readonly string[];
   files?: readonly { path: string; note?: string }[];
+  /** New-side line ranges. A textual diff is cut down to the lines near them. */
+  focus?: Readonly<Record<string, readonly LineSpan[]>>;
   header?: () => ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
@@ -114,7 +118,7 @@ export function ReviewCodeDocument({
         ];
       }
       if (change.scope === 'unmerged' || !change.supported) return [];
-      const content = patchOf(change);
+      const content = focusedDiff(patchOf(change), focus?.[item.path]);
       const entry = content ? diffEntry(change, content) : null;
       const note = notes.get(item.path);
       return entry
@@ -173,6 +177,28 @@ export function ReviewCodeDocument({
       {...(toolbar ? { toolbar } : {})}
     />
   );
+}
+
+const focusedPatches = new WeakMap<object, Map<string, DiffContent>>();
+
+/** A fresh object would reparse the patch on every render, so the cut is cached on the source. */
+function focusedDiff(
+  content: DiffContent | undefined,
+  spans: readonly LineSpan[] | undefined,
+): DiffContent | undefined {
+  if (!content || !spans?.length || content.kind !== 'text') return content;
+  const key = spans
+    .map((span) => `${span.startLine}-${span.endLine}`)
+    .join(',');
+  let cached = focusedPatches.get(content);
+  const hit = cached?.get(key);
+  if (hit) return hit;
+  const patch = focusPatch(content.patch, spans);
+  const next = patch ? { ...content, patch } : content;
+  cached ??= new Map();
+  cached.set(key, next);
+  focusedPatches.set(content, cached);
+  return next;
 }
 
 /** Only a tracked comparison has hunks to ask for. */

@@ -16,6 +16,7 @@ import type {
   TextResponse,
 } from '@porcelain/contracts/files';
 import type { GitStatusResponse } from '@porcelain/contracts/git-status';
+import type { ReviewResponse as PublishedReview } from '@porcelain/contracts/review';
 import type {
   ReviewedMark as ReviewedMarkResponse,
   ReviewedMarksResponse as ReviewedMarksResponseContract,
@@ -147,3 +148,31 @@ export type {
   ReviewResponse,
   ReviewStep,
 } from '@porcelain/contracts/review';
+
+type NotExplained = PublishedReview['notExplained'][number];
+
+/** "12 lines in 3 files", "1 binary file", or both. Null when nothing is left out. */
+export function notExplainedLabel(
+  entries: readonly NotExplained[],
+): string | null {
+  const count = (total: number, noun: string) =>
+    `${total} ${noun}${total === 1 ? '' : 's'}`;
+  const text = entries.filter((entry) => entry.binary !== true);
+  const binary = entries.length - text.length;
+  const lineCount = text.reduce(
+    (total, entry) =>
+      total +
+      entry.ranges.reduce(
+        (sum, range) => sum + range.endLine - range.startLine + 1,
+        0,
+      ),
+    0,
+  );
+  const parts = [
+    ...(text.length > 0
+      ? [`${count(lineCount, 'line')} in ${count(text.length, 'file')}`]
+      : []),
+    ...(binary > 0 ? [count(binary, 'binary file')] : []),
+  ];
+  return parts.length === 0 ? null : parts.join(' and ');
+}

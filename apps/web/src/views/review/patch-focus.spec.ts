@@ -1,6 +1,6 @@
 import { parsePatchFiles } from '@pierre/diffs';
 import { describe, expect, it } from 'vitest';
-import { contextPatch, focusPatch } from './patch-focus';
+import { contextPatch, focusPatch, spansLabel } from './patch-focus';
 
 describe('step code ranges', () => {
   it('preserves real old and new line offsets when cutting a replacement', () => {
@@ -24,5 +24,14 @@ describe('step code ranges', () => {
     expect(patch).toContain('@@ -42,2 +42,2 @@\n first\n second');
     expect(patch).toContain('+++ "b/a\\n\\"quoted.ts"');
     expect(parsePatchFiles(patch)[0]?.files).toHaveLength(1);
+  });
+  it('names one line and a run of lines', () => {
+    expect(spansLabel([{ startLine: 6, endLine: 6 }])).toBe('Line 6');
+    expect(
+      spansLabel([
+        { startLine: 6, endLine: 10 },
+        { startLine: 40, endLine: 40 },
+      ]),
+    ).toBe('Lines 6–10, 40');
   });
 });

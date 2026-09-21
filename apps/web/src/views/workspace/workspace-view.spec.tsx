@@ -930,10 +930,10 @@ describe('git actions', () => {
 
   it('reports a refused action without executing it', async () => {
     const screen = await renderReview();
-    await openAction(screen, /Restore a stash and keep it/);
+    await openAction(screen, /Restore, then remove a stash/);
     await screen.getByRole('textbox', { name: 'Stash' }).fill('a'.repeat(40));
     await clickThrough(screen.getByLabelText('Restore staged changes'));
-    await clickThrough(screen.getByRole('button', { name: 'Apply stash' }));
+    await clickThrough(screen.getByRole('button', { name: 'Pop stash' }));
     await expect
       .element(screen.getByRole('status').filter({ hasText: 'rejected' }))
       .toMatchTextContent('not simulated in the mock');
@@ -947,6 +947,7 @@ describe('git actions', () => {
     const screen = await renderReview();
     await openAction(screen, /Commit selected files/);
     await screen.getByLabelText('Message').fill('Selected files');
+    await screen.getByRole('button', { name: 'Edit', exact: true }).click();
     for (const file of screen.getByRole('checkbox').all())
       await clickThrough(file);
     await expect

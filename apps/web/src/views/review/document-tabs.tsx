@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Columns2Icon,
   FileDiffIcon,
+  FileQuestionIcon,
   FileTextIcon,
   GitCommitHorizontalIcon,
   LayersIcon,
@@ -50,6 +51,12 @@ function describeTab(key: string, layers: readonly Layer[]) {
       return layers.length > 0
         ? { Icon: LayersIcon, title: 'Review', hint: 'Review summary' }
         : { Icon: FileDiffIcon, title: 'Changes', hint: 'All changes' };
+    case 'unexplained':
+      return {
+        Icon: FileQuestionIcon,
+        title: 'Not explained',
+        hint: 'Changes outside the review',
+      };
     case 'layer': {
       const index = layers.findIndex((layer) => layer.id === ref.layerId);
       const title = layers[index]?.title ?? 'Layer';

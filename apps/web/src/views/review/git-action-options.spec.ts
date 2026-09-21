@@ -43,7 +43,7 @@ describe('Git action options', () => {
     ).toEqual([
       ['Commit', ['commit', 'amend']],
       ['Sync', ['push', 'pull', 'fetch']],
-      ['Stash', ['stash-create', 'stash-apply', 'stash-pop']],
+      ['Stash', ['stash-create', 'stash-pop']],
       ['Branch', ['switch-branch', 'create-branch']],
     ]);
   });

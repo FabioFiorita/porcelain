@@ -143,11 +143,12 @@ test('reviews generated groups and commits them sequentially', async ({
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: 'Commit', exact: true }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
   for (const checkbox of await dialog.getByRole('checkbox').all())
     await checkbox.uncheck();
   await dialog.getByLabel('group-a.txt', { exact: true }).check();
   await dialog.getByLabel('group-b.txt', { exact: true }).check();
-  await dialog.getByRole('button', { name: 'Use groups', exact: true }).click();
+  await dialog.getByRole('tab', { name: 'Use groups', exact: true }).click();
   await expect(dialog.getByLabel('Message for commit 1')).toBeVisible();
   await dialog
     .getByLabel('Commit for group-b.txt')

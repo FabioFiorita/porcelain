@@ -132,15 +132,12 @@ function ScopedFileNavigation({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-1 px-3">
-        <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-          {`${visiblePaths.filter((path) => !path.endsWith('/')).length} shown`}{' '}
-          · {changed.size} changed
-        </p>
+      <div className="flex shrink-0 items-center gap-1 px-2 pt-2 pb-1">
         {/* The tree only knows the folders somebody opened, so finding a file
             by name is its own thing, and reads every name only when asked. */}
         <QuickOpen
           scope={scope}
+          prominent
           onOpen={(path) => {
             setRequested((current) => union(current, fileTreeAncestors(path)));
             onOpen({ kind: 'file', path });

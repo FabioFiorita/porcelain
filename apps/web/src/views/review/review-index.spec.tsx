@@ -168,6 +168,7 @@ describe('review index', () => {
   });
 
   it('keeps ordered layers alongside changed files', async () => {
+    const onOpen = vi.fn();
     const screen = await render(
       <ReviewIndex
         scope={{
@@ -175,7 +176,7 @@ describe('review index', () => {
           worktreeId: list.worktreeId,
         }}
         activeEntry={undefined}
-        onOpen={vi.fn()}
+        onOpen={onOpen}
       />,
     );
 
@@ -184,6 +185,8 @@ describe('review index', () => {
         screen.getByRole('button', { name: /A clearer review experience/ }),
       )
       .toBeVisible();
+    await screen.getByRole('button', { name: /Not explained/ }).click();
+    expect(onOpen).toHaveBeenCalledWith({ kind: 'unexplained' });
     await expect.element(screen.getByText('Changed files')).toBeVisible();
     await expect
       .element(

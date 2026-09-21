@@ -217,7 +217,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
               </DialogTitle>
               <DialogDescription>
                 {selected?.id === 'commit' || selected?.id === 'amend'
-                  ? 'Choose the files and message for this commit.'
+                  ? 'Committed steps fold away in the review and show up in History.'
                   : 'Review the options before running this action.'}
               </DialogDescription>
             </DialogHeader>

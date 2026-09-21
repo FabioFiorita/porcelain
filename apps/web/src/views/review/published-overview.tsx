@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '../../domain/documents';
-import type { ReviewResponse } from '../../domain/review';
+import { type OpenDocument, UNEXPLAINED } from '../../domain/documents';
+import { notExplainedLabel, type ReviewResponse } from '../../domain/review';
 import { useTheme } from '../workspace/theme';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkdownView } from './markdown-view';
@@ -103,29 +103,17 @@ export function PublishedOverview({
               ))}
             </section>
             {review.notExplained.length > 0 && (
-              <section aria-label="Not explained">
-                <h2 className="text-sm font-medium">Not explained</h2>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  These changes are outside the published explanation.
-                </p>
-                {review.notExplained.map((gap) => (
-                  <Button
-                    key={gap.path}
-                    variant="ghost"
-                    className="h-auto max-w-full justify-start whitespace-normal text-left"
-                    onClick={() => onOpen({ kind: 'change', path: gap.path })}
-                  >
-                    {gap.path}
-                    {gap.ranges.length > 0
-                      ? ` · ${gap.ranges.map((range) => `${range.startLine}–${range.endLine}`).join(', ')}`
-                      : gap.binary
-                        ? ' · Binary change'
-                        : gap.deleted
-                          ? ' · Deleted'
-                          : ''}
-                  </Button>
-                ))}
-              </section>
+              <Button
+                variant="outline"
+                className="h-auto justify-start whitespace-normal text-left"
+                onClick={() => onOpen(UNEXPLAINED)}
+              >
+                Not explained
+                <span className="text-muted-foreground">
+                  {' · '}
+                  {notExplainedLabel(review.notExplained)}
+                </span>
+              </Button>
             )}
           </div>
         </div>

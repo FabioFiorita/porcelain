@@ -43,14 +43,14 @@ export type GitActionOption = {
 export const gitActions = [
   {
     id: 'commit',
-    label: 'Commit',
+    label: 'Commit…',
     description: 'Commit selected files',
     icon: GitCommitHorizontalIcon,
     group: 'commit',
   },
   {
     id: 'amend',
-    label: 'Amend last commit',
+    label: 'Amend last commit…',
     description: 'Replace the latest commit',
     icon: HistoryIcon,
     group: 'commit',
@@ -78,7 +78,7 @@ export const gitActions = [
   },
   {
     id: 'stash-create',
-    label: 'Create stash',
+    label: 'Stash changes',
     description: 'Set aside local changes',
     icon: ArchiveIcon,
     group: 'stash',
@@ -130,7 +130,7 @@ export const gitActionGroups = [
   {
     id: 'stash',
     label: 'Stash',
-    actions: [gitActions[5], gitActions[6], gitActions[7]],
+    actions: [gitActions[5], gitActions[7]],
   },
   {
     id: 'branch',

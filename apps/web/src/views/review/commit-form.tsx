@@ -1,14 +1,19 @@
-import { PlusIcon, SparklesIcon } from 'lucide-react';
+import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
   NativeSelect,
+  NativeSelectOptGroup,
   NativeSelectOption,
 } from '@/components/ui/native-select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { commitFiles } from '../../domain/commit-files';
-import { resolveCommitModel } from '../../domain/commit-model';
+import {
+  groupedCommitModels,
+  resolveCommitModel,
+} from '../../domain/commit-model';
 import type { CommitDraft } from '../../domain/git-action';
 import type { ReviewScope } from '../../domain/review';
 import { createId } from '../../lib/id';
@@ -18,6 +23,7 @@ import {
   useGitAction,
 } from '../../query/git-actions';
 import { usePreferences } from '../workspace/preferences';
+import { FileTypeIcon } from './file-type-icon';
 import {
   changedSinceLooked,
   expectationFor,
@@ -47,12 +53,17 @@ export function CommitForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const git = useGitAction(scope, action);
+  const [mode, setMode] = useState<'single' | 'amend' | 'groups'>(
+    action === 'amend' ? 'amend' : 'single',
+  );
+  const commitAction = mode === 'amend' ? 'amend' : 'commit';
+  const git = useGitAction(scope, commitAction);
   const generator = useCommitDraft(scope);
   const models = useCommitModels();
-  const { preferences } = usePreferences();
+  const { preferences, setPreference } = usePreferences();
   const model = resolveCommitModel(models.data, preferences.commitModel);
   const [message, setMessage] = useState(initialMessage);
+  const [editingFiles, setEditingFiles] = useState(false);
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
@@ -135,7 +146,7 @@ export function CommitForm({
         setDraftToken(status.statusToken);
       }
       const pending =
-        action === 'amend'
+        commitAction === 'amend'
           ? [{ id: 'single', message: text, paths }]
           : groups
             ? groups.filter((group) => !done.has(group.id))
@@ -146,7 +157,7 @@ export function CommitForm({
       for (const group of pending) {
         if (
           !group.message.trim() ||
-          (action !== 'amend' &&
+          (commitAction !== 'amend' &&
             status.inProgress !== 'merge' &&
             !group.paths.length)
         )
@@ -154,7 +165,7 @@ export function CommitForm({
         setActiveGroup(group.id);
         const result = await git.run(
           {
-            action,
+            action: commitAction,
             message: group.message,
             paths: group.paths,
           },
@@ -195,7 +206,7 @@ export function CommitForm({
       ? groups
           .filter((group) => !done.has(group.id))
           .some((group) => !group.message.trim() || !group.paths.length)
-      : (action !== 'amend' &&
+      : (commitAction !== 'amend' &&
           status.inProgress !== 'merge' &&
           !paths.length) ||
         (!message.trim() && (!model || !paths.length));
@@ -213,37 +224,120 @@ export function CommitForm({
         }
       }}
     >
-      <p className="text-xs text-muted-foreground">
-        {status.branch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}{' '}
-        · {paths.length} selected files
-      </p>
+      <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-[12.5px]">
+        <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="truncate font-medium">
+          {status.branch?.name?.replace(/^refs\/heads\//, '') ??
+            'Detached HEAD'}
+        </span>
+        {status.branch?.upstream != null && (
+          <span className="ml-auto shrink-0 text-muted-foreground">
+            {status.branch.ahead} ahead · {status.branch.behind} behind
+          </span>
+        )}
+      </div>
+      {status.inProgress !== 'merge' && (
+        <Tabs
+          value={mode}
+          onValueChange={(value) => {
+            const next = value as typeof mode;
+            setMode(next);
+            if (next === 'single') {
+              setGroups(null);
+              setDraftToken(null);
+            }
+            if (next === 'groups' && groups === null && !working)
+              void generate('groups');
+          }}
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="single" className="flex-1" disabled={working}>
+              Single commit
+            </TabsTrigger>
+            <TabsTrigger value="amend" className="flex-1" disabled={working}>
+              Amend last
+            </TabsTrigger>
+            <TabsTrigger
+              value="groups"
+              className="flex-1"
+              disabled={working || !model || !paths.length}
+            >
+              Use groups
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
       <fieldset
         disabled={working || uncertain}
         className="flex min-w-0 flex-col gap-3"
       >
-        {groups === null || action === 'amend' ? (
+        {mode !== 'groups' ? (
           <>
-            <div className="max-h-40 overflow-auto rounded-lg border p-2">
-              {files.map(({ path }) => (
-                <label
-                  key={path}
-                  className="flex min-w-0 items-center gap-2 rounded px-2 py-1 text-xs hover:bg-muted"
+            <div className="flex items-center gap-1.5 text-[12.5px]">
+              <span className="font-medium">
+                {commitAction === 'amend' ? 'Files to add' : 'Files'}
+              </span>
+              <span className="text-muted-foreground tabular-nums">
+                ({paths.length} of {files.length})
+              </span>
+              {commitAction === 'commit' && files.length > 0 && (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  className="ml-auto"
+                  disabled={working}
+                  onClick={() => setEditingFiles((current) => !current)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={!excluded.has(path)}
-                    onChange={(event) =>
-                      setExcluded((current) => {
-                        const next = new Set(current);
-                        if (event.target.checked) next.delete(path);
-                        else next.add(path);
-                        return next;
-                      })
-                    }
-                  />
-                  <span className="truncate">{path}</span>
-                </label>
-              ))}
+                  {editingFiles ? 'Done' : 'Edit'}
+                </Button>
+              )}
+            </div>
+            <div className="max-h-40 overflow-auto rounded-xl border p-1">
+              {files.map((file) => {
+                const included = !excluded.has(file.path);
+                const choosing = commitAction === 'amend' || editingFiles;
+                const body = (
+                  <>
+                    <FileTypeIcon
+                      path={file.path}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{file.path}</span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {included ? file.kind.replaceAll('-', ' ') : 'Excluded'}
+                    </span>
+                  </>
+                );
+                return choosing ? (
+                  <label
+                    key={file.path}
+                    className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-xs hover:bg-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={file.path}
+                      checked={included}
+                      onChange={(event) =>
+                        setExcluded((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.delete(file.path);
+                          else next.add(file.path);
+                          return next;
+                        })
+                      }
+                    />
+                    {body}
+                  </label>
+                ) : (
+                  <div
+                    key={file.path}
+                    className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-xs"
+                  >
+                    {body}
+                  </div>
+                );
+              })}
             </div>
             <Field>
               <FieldLabel htmlFor="commit-message">Message</FieldLabel>
@@ -256,8 +350,8 @@ export function CommitForm({
                 placeholder="Describe what changed and why"
               />
             </Field>
-            <div className="flex flex-wrap items-center gap-2">
-              {action === 'commit' && (
+            {commitAction === 'commit' && (
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -268,26 +362,44 @@ export function CommitForm({
                   <SparklesIcon />
                   Generate with AI
                 </Button>
-              )}
-              {action === 'commit' && status.inProgress !== 'merge' && (
-                <Button
-                  type="button"
-                  variant="ghost"
+                <NativeSelect
+                  aria-label="Commit model"
+                  className="w-auto max-w-48"
                   size="sm"
-                  disabled={!model || !paths.length}
-                  onClick={() => void generate('groups')}
+                  value={model ?? ''}
+                  disabled={!models.data?.length}
+                  onChange={(event) =>
+                    setPreference('commitModel', event.target.value)
+                  }
                 >
-                  Use groups
-                </Button>
-              )}
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
-                {models.data?.find((entry) => entry.id === model)?.label ??
-                  (models.data?.length
-                    ? 'Choose a commit model in Settings'
-                    : 'No coding CLI available')}
-              </span>
-            </div>
+                  {!model && (
+                    <NativeSelectOption value="" disabled>
+                      {models.data?.length
+                        ? 'Choose a model'
+                        : 'No coding CLI available'}
+                    </NativeSelectOption>
+                  )}
+                  {groupedCommitModels(
+                    models.data?.filter(
+                      (entry) => !entry.id.endsWith(':default'),
+                    ) ?? [],
+                  ).map(([provider, entries]) => (
+                    <NativeSelectOptGroup key={provider} label={provider}>
+                      {entries.map((entry) => (
+                        <NativeSelectOption key={entry.id} value={entry.id}>
+                          {entry.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelectOptGroup>
+                  ))}
+                </NativeSelect>
+              </div>
+            )}
           </>
+        ) : groups === null ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            {error ? 'Groups were not proposed.' : 'Proposing commits…'}
+          </p>
         ) : (
           <>
             {groups.map((group, index) => (
@@ -468,7 +580,7 @@ export function CommitForm({
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        {action === 'amend'
+        {commitAction === 'amend'
           ? `Amending replaces the last commit${replacedSubject ? `: ${replacedSubject}` : ''}. ${status.branch?.upstream && status.branch.ahead === 0 ? 'This commit is already on the known upstream; amending rewrites shared history.' : 'Unselected staged changes stay staged.'}`
           : status.inProgress === 'merge'
             ? 'This finishes the merge and commits every staged resolution, including staged files outside your selection.'
@@ -549,12 +661,12 @@ export function CommitForm({
         {working
           ? generator.isPending
             ? 'Generating…'
-            : action === 'amend'
+            : commitAction === 'amend'
               ? 'Amending…'
               : 'Committing…'
-          : groups && action === 'commit'
+          : groups && commitAction === 'commit'
             ? 'Commit groups in order'
-            : action === 'amend'
+            : commitAction === 'amend'
               ? 'Amend last commit'
               : 'Commit selected files'}
       </Button>

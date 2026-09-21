@@ -16,9 +16,6 @@ it('opens layers and uncovered changes without rendering all file diffs', async 
   const screen = await render(
     <PublishedOverview review={review} onOpen={onOpen} />,
   );
-  await expect
-    .element(screen.getByRole('heading', { name: 'Not explained' }))
-    .toBeVisible();
   await screen
     .getByRole('button', { name: /A clearer review experience/ })
     .click();
@@ -26,11 +23,8 @@ it('opens layers and uncovered changes without rendering all file diffs', async 
     kind: 'layer',
     layerId: review.layers[0]?.id,
   });
-  await screen.getByRole('button', { name: /src\/styles\/theme.css/ }).click();
-  expect(onOpen).toHaveBeenLastCalledWith({
-    kind: 'change',
-    path: 'src/styles/theme.css',
-  });
+  await screen.getByRole('button', { name: /Not explained/ }).click();
+  expect(onOpen).toHaveBeenLastCalledWith({ kind: 'unexplained' });
   await expect
     .element(screen.getByTestId('review-document'))
     .not.toBeInTheDocument();

@@ -82,6 +82,16 @@ function joinRun(run: Walked[]): string[] {
  * `context` unchanged lines around them. Hunks that miss every span are dropped;
  * null when nothing is left. A patch with no hunks (a mode change) is returned as is.
  */
+/** "Lines 12–18, 40" for a list of ranges. */
+export function spansLabel(spans: readonly LineSpan[]): string {
+  const parts = spans.map((span) =>
+    span.startLine === span.endLine
+      ? `${span.startLine}`
+      : `${span.startLine}–${span.endLine}`,
+  );
+  return `${spans.length === 1 && spans[0]?.startLine === spans[0]?.endLine ? 'Line' : 'Lines'} ${parts.join(', ')}`;
+}
+
 export function focusPatch(
   patch: string,
   spans: readonly LineSpan[],

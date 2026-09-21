@@ -47,7 +47,7 @@ it('warns that a stash leaves the handoff empty', async () => {
     </PreferencesProvider>,
   );
   await expect.element(screen.getByText(/handoff stays empty/u)).toBeVisible();
-  await screen.getByRole('button', { name: 'Create stash' }).click();
+  await screen.getByRole('button', { name: 'Stash changes' }).click();
   await vi.waitFor(() =>
     expect(run).toHaveBeenCalledWith(
       {

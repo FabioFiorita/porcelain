@@ -15,6 +15,7 @@ import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
+import { UnexplainedDocument } from './unexplained-document';
 
 export function DocumentView({
   scope,
@@ -61,6 +62,8 @@ function DocumentContent({
           onOpen={onOpen}
         />
       );
+    case 'unexplained':
+      return <UnexplainedDocument scope={scope} />;
     case 'change':
       return <ChangeDocument scope={scope} path={document.path} />;
     case 'file':

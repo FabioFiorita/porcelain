@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { entryKey, HANDOFF, parseEntry } from './documents';
+import { entryKey, HANDOFF, parseEntry, UNEXPLAINED } from './documents';
 
 describe('document references', () => {
   it('round trips every supported document kind', () => {
     const refs = [
       HANDOFF,
+      UNEXPLAINED,
       { kind: 'layer', layerId: 'layer-1' },
       { kind: 'change', path: 'src/app.tsx' },
       { kind: 'file', path: 'README.md' },

@@ -6,16 +6,20 @@ import type { CommentAnchor } from './comments';
 export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'layer'; layerId: string }
+  | { kind: 'unexplained' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
   | { kind: 'commit'; oid: string };
 
 export const HANDOFF: DocumentRef = { kind: 'handoff' };
+export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
 
 export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'handoff':
       return 'handoff';
+    case 'unexplained':
+      return 'unexplained';
     case 'layer':
       return `layer:${ref.layerId}`;
     case 'change':
@@ -31,6 +35,7 @@ export function entryKey(ref: DocumentRef): string {
 export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry == null || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;
+  if (entry === 'unexplained') return UNEXPLAINED;
 
   const separator = entry.indexOf(':');
   if (separator <= 0) return null;
