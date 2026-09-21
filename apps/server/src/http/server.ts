@@ -152,6 +152,10 @@ export async function createServer(options: ServerOptions) {
     ...(webRoot === undefined ? {} : { webRoot }),
     ...(allowedHosts === undefined ? {} : { allowedHosts }),
   });
+  // Cancel application work before Fastify waits for in-flight HTTP requests.
+  // Application shutdown closes its live-client registry before releasing
+  // lanes; the websocket plugin then closes the upgraded transport sockets.
+  server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
   // The caller owns this instance and its application together; exposing it
   // lets a test pair a device the way a browser does. It is on the returned

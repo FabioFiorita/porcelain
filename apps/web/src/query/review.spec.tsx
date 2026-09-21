@@ -12,6 +12,7 @@ import type {
 } from '../domain/review';
 import { createQueryClient } from './client';
 import { queryKeys } from './keys';
+import { applyLiveNotice } from './live-updates';
 import {
   mergeReviewChanges,
   useChangeDiffs,
@@ -520,7 +521,7 @@ describe('review change queries', () => {
     expect(setCalls).toBe(1);
   });
 
-  it('keeps a reviewed mutation when an older focus read resolves last', async () => {
+  it('keeps a reviewed mutation when an older live refresh resolves last', async () => {
     const store = createMockStore();
     const baseApi = createMockApi(store);
     let listCalls = 0;
@@ -560,8 +561,11 @@ describe('review change queries', () => {
     );
     const path = (await screen.getByLabelText('Mutation path').element())
       .textContent;
-    focusManager.setFocused(false);
-    focusManager.setFocused(true);
+    const refresh = applyLiveNotice(
+      queryClient,
+      store.inventory.environmentId,
+      { type: 'worktree', ...scope, change: 'reviewed' },
+    );
     await readStartedPromise;
     await screen.getByRole('button', { name: 'Mark one' }).click();
 
@@ -574,6 +578,7 @@ describe('review change queries', () => {
       ).toContainEqual(expect.objectContaining({ path })),
     );
     releaseRead();
+    await refresh;
     await vi.waitFor(() =>
       expect(queryClient.getQueryState(key)?.fetchStatus).toBe('idle'),
     );

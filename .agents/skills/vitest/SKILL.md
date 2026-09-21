@@ -21,6 +21,9 @@ For a focused built-app check, run
 `pnpm --filter @porcelain/web test:smoke e2e/<file>.spec.ts --project=desktop`.
 This builds the current source before Playwright; invoking `playwright test`
 directly reuses the existing build and can silently test stale UI.
+Run focused Vitest files with `pnpm exec vitest run <paths>`; do not insert `--`
+before paths. When changing shared lifecycle hooks or query defaults, include
+the owning module's existing specs as well as the new feature specs.
 Do not import `@testing-library/*`. Do not use `fireEvent`. Do not set
 `// @vitest-environment jsdom`. If production code needs `DOMParser` or other
 browser APIs, the spec runs in Browser Mode.
