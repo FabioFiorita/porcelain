@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { CommitGenerator } from '../agents/interfaces/commit-generator.ts';
 import { openApplication } from '../app.ts';
@@ -16,6 +17,7 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'porcelain-commit-drafts-'));
   checkout = join(root, 'repo');
   await mkdir(checkout);
+  vi.stubEnv('PATH', `${await createIsolatedGit(root)}:${process.env.PATH}`);
   vi.stubEnv('HOME', root);
   vi.stubEnv('XDG_CONFIG_HOME', root);
   execFileSync('git', ['init', '-b', 'main', checkout], { stdio: 'ignore' });

@@ -1,5 +1,13 @@
+import { realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import { webTestConfiguration } from './apps/web/vitest.config.ts';
+
+// macOS's default temporary path is both symlinked and too long for nested
+// owner sockets. Fixtures need a short, canonical root on both supported OSes.
+process.env.TMPDIR = realpathSync(
+  process.platform === 'darwin' ? '/tmp' : tmpdir(),
+);
 
 const coverage = {
   provider: 'istanbul' as const,

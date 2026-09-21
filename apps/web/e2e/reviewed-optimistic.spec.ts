@@ -11,9 +11,13 @@ test('marks immediately and rolls back when background validation rejects the fi
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: /^accessibility.md/ }).click();
   const name = 'docs/accessibility.md';
-  const mark = page
-    .getByRole('button', { name: `Mark ${name} as reviewed`, exact: true })
-    .first();
+  const toolbar = page.getByTestId('document-toolbar').filter({
+    has: page.getByRole('heading', { name: 'accessibility.md', exact: true }),
+  });
+  const mark = toolbar.getByRole('button', {
+    name: `Mark ${name} as reviewed`,
+    exact: true,
+  });
   await expect(mark).toBeVisible();
   await page.waitForLoadState('networkidle');
   let release!: () => void;
@@ -42,12 +46,10 @@ test('marks immediately and rolls back when background validation rejects the fi
   try {
     await mark.click();
     await expect(
-      page
-        .getByRole('button', {
-          name: `Unmark ${name} as unreviewed`,
-          exact: true,
-        })
-        .first(),
+      toolbar.getByRole('button', {
+        name: `Unmark ${name} as unreviewed`,
+        exact: true,
+      }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(extra).toBe(0);
     release();

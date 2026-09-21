@@ -47,49 +47,63 @@ test('streams external edits, goes idle without polling, and bounds reconnect re
   await page.waitForTimeout(3_500);
   expect(idleRequests).toBe(0);
 
-  const marked = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'PUT' &&
-      new URL(response.url()).pathname.endsWith('/reviewed'),
-  );
-  await mark.click();
-  expect((await marked).ok()).toBe(true);
-  const unmark = toolbar.getByRole('button', {
-    name: `Unmark ${path} as unreviewed`,
-    exact: true,
-  });
-  await expect(unmark).toBeVisible();
   const absolute = join(worktreePath, path);
   const original = await readFile(absolute, 'utf8');
-  await writeFile(absolute, `${original}\nLive edit\n`);
-  const stale = toolbar.getByRole('button', {
-    name: `Mark changed ${path} as reviewed`,
-    exact: true,
-  });
-  await expect(stale).toBeVisible({ timeout: 8_000 });
+  let reviewedUrl: string | undefined;
+  try {
+    const marked = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PUT' &&
+        new URL(response.url()).pathname.endsWith('/reviewed'),
+    );
+    await mark.click();
+    const markedResponse = await marked;
+    reviewedUrl = markedResponse.url();
+    expect(markedResponse.ok()).toBe(true);
+    const unmark = toolbar.getByRole('button', {
+      name: `Unmark ${path} as unreviewed`,
+      exact: true,
+    });
+    await expect(unmark).toBeVisible();
+    await writeFile(absolute, `${original}\nLive edit\n`);
+    const stale = toolbar.getByRole('button', {
+      name: `Mark changed ${path} as reviewed`,
+      exact: true,
+    });
+    await expect(stale).toBeVisible({ timeout: 8_000 });
 
-  const markedAgain = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'PUT' &&
-      new URL(response.url()).pathname.endsWith('/reviewed'),
-  );
-  await stale.click();
-  expect((await markedAgain).ok()).toBe(true);
-  await expect(unmark).toBeEnabled();
-  await expect.poll(() => sockets.length).toBe(1);
-  let reconnectReads = 0;
-  page.on('request', (request) => {
-    const url = new URL(request.url());
-    if (url.pathname.endsWith('/changes')) reconnectReads += 1;
-  });
-  const firstSocket = sockets[0];
-  if (!firstSocket) throw new Error('Live socket was not established');
-  await firstSocket.close({ code: 1001, reason: 'Reconnect proof' });
-  await writeFile(absolute, `${original}\nChanged while offline\n`);
-  releaseReconnect();
-  await expect.poll(() => sockets.length, { timeout: 12_000 }).toBe(2);
-  await expect(stale).toBeVisible({ timeout: 12_000 });
-  await expect.poll(() => reconnectReads).toBeGreaterThanOrEqual(1);
-  await page.waitForTimeout(500);
-  expect(reconnectReads).toBeLessThanOrEqual(2);
+    const markedAgain = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PUT' &&
+        new URL(response.url()).pathname.endsWith('/reviewed'),
+    );
+    await stale.click();
+    expect((await markedAgain).ok()).toBe(true);
+    await expect(unmark).toBeEnabled();
+    await expect.poll(() => sockets.length).toBe(1);
+    let reconnectReads = 0;
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (url.pathname.endsWith('/changes')) reconnectReads += 1;
+    });
+    const firstSocket = sockets[0];
+    if (!firstSocket) throw new Error('Live socket was not established');
+    await firstSocket.close({ code: 1001, reason: 'Reconnect proof' });
+    await writeFile(absolute, `${original}\nChanged while offline\n`);
+    releaseReconnect();
+    await expect.poll(() => sockets.length, { timeout: 12_000 }).toBe(2);
+    await expect(stale).toBeVisible({ timeout: 12_000 });
+    await expect.poll(() => reconnectReads).toBeGreaterThanOrEqual(1);
+    await page.waitForTimeout(500);
+    expect(reconnectReads).toBeLessThanOrEqual(2);
+  } finally {
+    releaseReconnect();
+    await writeFile(absolute, original);
+    if (reviewedUrl) {
+      const removed = await page.request.delete(
+        `${reviewedUrl}?path=${encodeURIComponent(path)}`,
+      );
+      expect(removed.ok()).toBe(true);
+    }
+  }
 });

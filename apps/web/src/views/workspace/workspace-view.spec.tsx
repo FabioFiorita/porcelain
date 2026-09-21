@@ -1,4 +1,3 @@
-import { focusManager } from '@tanstack/react-query';
 import type { ComponentProps, ReactNode } from 'react';
 import {
   afterAll,
@@ -14,6 +13,7 @@ import { createMockStore } from '../../api/inventory/mock';
 import { reportUnauthorized } from '../../api/unauthorized';
 import type { Inventory } from '../../domain/inventory';
 import { queryKeys } from '../../query/keys';
+import { applyLiveNotice } from '../../query/live-updates';
 import { renderWorkspace } from '../../test/render';
 
 const mediaListeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -172,7 +172,6 @@ beforeAll(async () => {
 afterEach(async () => {
   Reflect.deleteProperty(window, 'innerWidth');
   await page.viewport(1280, 800);
-  focusManager.setFocused(undefined);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
     if (key?.startsWith('porcelain.tabs.')) localStorage.removeItem(key);
@@ -185,9 +184,13 @@ afterAll(() => {
 
 type WorkspaceScreen = Awaited<ReturnType<typeof renderWorkspace>>;
 
-function refocusWindow() {
-  focusManager.setFocused(false);
-  focusManager.setFocused(true);
+function refreshInventory(
+  screen: WorkspaceScreen,
+  environmentId = screen.store.inventory.environmentId,
+) {
+  return applyLiveNotice(screen.queryClient, environmentId, {
+    type: 'inventory',
+  });
 }
 
 function setViewportWidth(width: number) {
@@ -276,13 +279,13 @@ describe('workspace through the inventory port', () => {
     expect(restoring.queryClient.getQueryCache().getAll()).toEqual([]);
   });
 
-  it('refreshes authoritative inventory when the window regains focus', async () => {
+  it('refreshes authoritative inventory on a live notice', async () => {
     const screen = await renderWorkspace();
     await expect
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
     // Reading the inventory is the rescan now, so the count is whatever the
-    // mount did; what matters is that focusing causes another one.
+    // mount did; what matters is that the live notice causes another one.
     await vi.waitFor(() =>
       expect(screen.store.refreshCount).toBeGreaterThan(0),
     );
@@ -290,14 +293,14 @@ describe('workspace through the inventory port', () => {
     const project = screen.store.inventory.projects[0];
     if (!project) throw new Error('Missing fixture project');
     project.name = 'Renamed project';
-    refocusWindow();
+    await refreshInventory(screen);
     await expect
       .element(screen.getByRole('heading', { name: 'Renamed project' }))
       .toBeVisible();
     expect(screen.store.refreshCount).toBeGreaterThan(listedOnMount);
   });
 
-  it('retains inventory after a failed focus refresh and recovers on the next focus', async () => {
+  it('retains inventory after a failed live refresh and recovers on the next notice', async () => {
     // Connect first: reading the inventory is the listing, so a store that
     // failed from the start would never show a workspace to retain.
     const store = createMockStore();
@@ -306,7 +309,7 @@ describe('workspace through the inventory port', () => {
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
     store.refreshFailed = true;
-    refocusWindow();
+    await refreshInventory(screen);
     await vi.waitFor(() =>
       expect(
         screen.queryClient.getQueryState(
@@ -318,7 +321,7 @@ describe('workspace through the inventory port', () => {
       .element(screen.getByRole('heading', { name: 'Porcelain', level: 3 }))
       .toBeVisible();
     store.refreshFailed = false;
-    refocusWindow();
+    await refreshInventory(screen);
     await vi.waitFor(() =>
       expect(
         screen.queryClient.getQueryState(
@@ -337,7 +340,7 @@ describe('workspace through the inventory port', () => {
     screen.store.inventory.environmentId =
       '641a8628-1cd6-4562-81a2-9c05fba76b4a';
     screen.store.inventory.projects = [];
-    refocusWindow();
+    await refreshInventory(screen, connectedEnvironmentId);
     await vi.waitFor(() =>
       expect(
         screen.queryClient.getQueryState(

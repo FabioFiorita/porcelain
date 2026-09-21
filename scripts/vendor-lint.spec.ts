@@ -39,7 +39,8 @@ function lint(path: string, source: string) {
 
 test('keeps vendor accessibility exceptions out of application components', () => {
   const source = 'export const control = <div role="button" />;';
-  expect(lint('apps/web/src/components/ui/control.tsx', source).status).toBe(0);
+  const vendor = lint('apps/web/src/components/ui/control.tsx', source);
+  expect(vendor.status, vendor.stderr).toBe(0);
   const application = lint('apps/web/src/components/control.tsx', source);
   expect(application.status).not.toBe(0);
   expect(application.stderr).toContain('useFocusableInteractive');

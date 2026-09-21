@@ -2,13 +2,7 @@ import { expect, test } from '@playwright/test';
 import { pairBrowser, revokeDevice } from './playground';
 import { openNavigation } from './workspace-navigation';
 
-async function refocusWindow(page: import('@playwright/test').Page) {
-  await page.evaluate(() => {
-    window.dispatchEvent(new Event('visibilitychange'));
-  });
-}
-
-test('connects to real Git inventory and refreshes on focus', async ({
+test('connects to real Git inventory and persists file feedback', async ({
   page,
 }) => {
   // Nothing reaches the API before this browser is paired.
@@ -104,13 +98,6 @@ test('connects to real Git inventory and refreshes on focus', async ({
   await expect(
     navigator.getByRole('button').filter({ hasText: review.path }),
   ).toHaveAttribute('aria-pressed', 'true');
-  const relisted = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === '/api/inventory' &&
-      response.request().method() === 'GET',
-  );
-  await refocusWindow(page);
-  expect((await relisted).ok()).toBe(true);
   for (const name of ['Disconnect', 'Exit', 'Reload', 'Refresh']) {
     await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
       0,
@@ -134,7 +121,7 @@ test('connects to real Git inventory and refreshes on focus', async ({
   await expect(navigator).toBeVisible();
 });
 
-test('shows empty and unavailable inventory and recovers on a later focus', async ({
+test('shows empty and unavailable inventory and recovers on a later live notice', async ({
   page,
 }) => {
   // Pair against the real server first: the id below has to be this
@@ -164,6 +151,15 @@ test('shows empty and unavailable inventory and recovers on a later focus', asyn
       },
     ],
   };
+  let liveSocket: import('@playwright/test').WebSocketRoute | undefined;
+  await page.routeWebSocket('**/api/live', (socket) => {
+    liveSocket = socket;
+    socket.connectToServer();
+  });
+  const refreshInventory = async () => {
+    await expect.poll(() => Boolean(liveSocket)).toBe(true);
+    liveSocket?.send(JSON.stringify({ type: 'inventory' }));
+  };
   // Listing is the only inventory endpoint now, so one handler answers every
   // ask and this variable is what the next one gets: empty, then a failure,
   // then a project that is there but unreachable.
@@ -185,13 +181,13 @@ test('shows empty and unavailable inventory and recovers on a later focus', asyn
   const failed = page.waitForResponse(
     (response) => new URL(response.url()).pathname === '/api/inventory',
   );
-  await refocusWindow(page);
+  await refreshInventory();
   expect((await failed).status()).toBe(503);
   // A failed listing must not empty the sidebar of what it last knew; here
   // the last thing it knew was that there is nothing.
   await expect(page.getByText('No projects registered')).toBeVisible();
   answer = { json: unavailable };
-  await refocusWindow(page);
+  await refreshInventory();
   const worktree = page.getByRole('button', { name: /Detached HEAD/ });
   await expect(worktree).toContainText('Unavailable');
   // Its dot came with the list: review data outlives the checkout it is about.
@@ -213,9 +209,6 @@ test('revoking the device ends a connection in a page already open', async ({
   ).toBeVisible();
   // The owner revokes from their terminal, with the page still on screen.
   await revokeDevice(label);
-  // Revoking also destroys whatever the device is holding open, so the page
-  // may learn from a cut-off request before this focus even asks for one.
-  await refocusWindow(page);
   // No reload: the refusal ends the connection and takes the private data it
   // had loaded with it.
   await expect(

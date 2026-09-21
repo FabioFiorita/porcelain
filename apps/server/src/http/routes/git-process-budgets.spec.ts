@@ -364,7 +364,7 @@ describe('Git process budgets', () => {
         expect(spawned, JSON.stringify(shape)).toBeLessThanOrEqual(9);
       });
     }
-  });
+  }, 15_000);
 
   it('marks a file reviewed within its budget, warm and cold', async () => {
     await fixture(

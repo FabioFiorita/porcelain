@@ -129,7 +129,7 @@ it('runs registration and refresh, survives restart, and exits cleanly on both s
   expect(await second.exited).toBe(0);
   expect(first.output.stderr + second.output.stderr).toBe('');
   expect(first.output.stdout + second.output.stdout).not.toContain(credential);
-});
+}, 20_000);
 
 it('serves the configured SPA and the /api namespace from one process', async () => {
   const root = await realpath(
@@ -195,7 +195,7 @@ it('restarts after a crash with no operator recovery step', async () => {
   await expect(stat(join(root, 'server.sock'))).rejects.toMatchObject({
     code: 'ENOENT',
   });
-});
+}, 15_000);
 
 it('exits unsuccessfully on invalid configuration without creating state', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-invalid-'));

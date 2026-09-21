@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { createIsolatedGit } from '@porcelain/git/fixtures/isolated-git';
+import { afterEach, expect, it, vi } from 'vitest';
 import { openApplication } from './app.ts';
 
 const roots: string[] = [];
@@ -29,6 +30,7 @@ function git(path: string, ...args: string[]) {
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-status-'));
   roots.push(root);
+  vi.stubEnv('PATH', `${await createIsolatedGit(root)}:${process.env.PATH}`);
   const checkout = join(root, 'atlas');
   await mkdir(checkout);
   git(checkout, 'init', '-b', 'main');
@@ -51,6 +53,7 @@ async function fixture() {
 
 afterEach(async () => {
   for (const app of applications.splice(0)) await app.close();
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0))
     await rm(root, { recursive: true, force: true });
 });

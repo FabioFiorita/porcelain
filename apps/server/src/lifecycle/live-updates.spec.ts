@@ -1,4 +1,9 @@
-import type { AsyncSubscription, Event, Options } from '@parcel/watcher';
+import {
+  type AsyncSubscription,
+  type Event,
+  subscribe as nativeSubscribe,
+  type Options,
+} from '@parcel/watcher';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ReviewedFileStore } from '../repositories/interfaces/reviewed-file-store.ts';
 import type { ResolveWorktree } from '../use-cases/resolve-worktree.ts';
@@ -330,7 +335,15 @@ it('rebuilds the native watch after a directory becomes unignored', async () => 
   await writeFile(join(root, '.gitignore'), 'generated/\n');
   await writeFile(join(root, 'generated', 'output.txt'), 'ignored\n');
   const notices: unknown[] = [];
+  let worktreeSubscriptions = 0;
   const live = new LiveUpdates({
+    watcher: {
+      subscribe: async (path, callback, options) => {
+        const subscription = await nativeSubscribe(path, callback, options);
+        if (path === root) worktreeSubscriptions += 1;
+        return subscription;
+      },
+    },
     worktrees: {
       inProject: async () => ({
         id: worktreeId,
@@ -363,15 +376,19 @@ it('rebuilds the native watch after a directory becomes unignored', async () => 
     });
     notices.length = 0;
     await writeFile(join(root, '.gitignore'), '# generated is visible\n');
-    await vi.waitFor(() =>
-      expect(notices).toContainEqual({
-        type: 'worktree',
-        projectId,
-        worktreeId,
-        change: 'files',
-      }),
+    await vi.waitFor(
+      () =>
+        expect(notices).toContainEqual({
+          type: 'worktree',
+          projectId,
+          worktreeId,
+          change: 'files',
+        }),
+      { timeout: 3_000 },
     );
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await vi.waitFor(() => expect(worktreeSubscriptions).toBe(2), {
+      timeout: 3_000,
+    });
     notices.length = 0;
     await writeFile(join(root, 'generated', 'output.txt'), 'visible\n');
     await vi.waitFor(

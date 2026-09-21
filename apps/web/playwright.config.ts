@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+
+process.env.TMPDIR = realpathSync(
+  process.platform === 'darwin' ? '/tmp' : tmpdir(),
+);
 
 // Each viewport project gets its own playground server and repository.
 process.env.PORCELAIN_PLAYGROUND_INFO ??= join(

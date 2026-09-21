@@ -351,17 +351,21 @@ describe('CommitGit', () => {
    */
   it('says a history is too wide to continue rather than reporting an end', async () => {
     const { root } = await repository(1);
-    const heads: string[] = [];
-    for (let index = 0; index < 101; index += 1) {
-      const branch = `wide-${index}`;
-      git(root, 'checkout', '-q', '-b', branch, 'main');
-      await writeFile(join(root, `${branch}.txt`), branch);
-      git(root, 'add', '.');
-      git(root, 'commit', '-m', branch);
-      heads.push(branch);
-    }
-    git(root, 'checkout', '-q', 'main');
-    git(root, 'merge', '--no-ff', '-m', 'octopus', ...heads);
+    const base = git(root, 'rev-parse', 'HEAD');
+    const tree = git(root, 'rev-parse', 'HEAD^{tree}');
+    // History width needs real commit parents, not 101 worktree checkouts.
+    const heads = Array.from({ length: 101 }, (_, index) =>
+      git(root, 'commit-tree', tree, '-p', base, '-m', `wide-${index}`),
+    );
+    const merge = git(
+      root,
+      'commit-tree',
+      tree,
+      ...heads.flatMap((head) => ['-p', head]),
+      '-m',
+      'octopus',
+    );
+    git(root, 'update-ref', 'refs/heads/main', merge);
     const reader = new CommitGit(await checkout(root));
 
     const page = await reader.listCommits({ limit: 1 });
