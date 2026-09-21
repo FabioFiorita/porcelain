@@ -154,11 +154,15 @@ it('does not claim the whole review is complete when a file cannot be reviewed',
     .not.toBeInTheDocument();
 });
 
-it('labels a stale file Review again', async () => {
+it('announces a changed file to assistive technology when reviewing again', async () => {
   const screen = await render(
     <ReviewedControl {...controlProps} status="stale" />,
   );
   await expect
-    .element(screen.getByRole('button', { name: 'Mark README.md as reviewed' }))
+    .element(
+      screen.getByRole('button', {
+        name: 'Mark changed README.md as reviewed',
+      }),
+    )
     .toHaveTextContent('Review again');
 });

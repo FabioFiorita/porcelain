@@ -17,6 +17,10 @@ See [test environments](../../../docs/decisions/test-environments.md).
 | End-to-end | Built app and a disposable real API | Playwright in `apps/web/e2e` |
 
 Browser Mode uses `vitest-browser-react` and `vitest/browser` in Chromium.
+For a focused built-app check, run
+`pnpm --filter @porcelain/web test:smoke e2e/<file>.spec.ts --project=desktop`.
+This builds the current source before Playwright; invoking `playwright test`
+directly reuses the existing build and can silently test stale UI.
 Do not import `@testing-library/*`. Do not use `fireEvent`. Do not set
 `// @vitest-environment jsdom`. If production code needs `DOMParser` or other
 browser APIs, the spec runs in Browser Mode.
@@ -42,17 +46,29 @@ assert visibility then `(await locator.element()).click()`.
 
 1. Role, then label, then placeholder
 2. Visible text when the role is generic
-3. Test id only when the control has no accessible name
+3. A stable test id when semantic scoping cannot distinguish repeated controls, or for nonsemantic surfaces such as a graph. Keep interactive controls accessibly named.
 4. Use DOM queries when the target has no accessibility representation, such as SVG sprite ids.
 
 Locators retry and are strict: `getByText('Item')` does not match `Item 1`.
 Do not wrap them in `waitFor`. Scope with locator chaining
 (`screen.getByRole('alertdialog').getByRole('button', { name: 'Cancel' })`).
+Inspect the rendered role/name before inventing a selector: `title` and accessible
+name can differ. Scope repeated controls to their panel instead of using `.first()`
+to silence ambiguity. A test id identifies a target; assert its visible result or
+accessible state separately.
 
 ## Waiting
 
 Do not flush work with `await Promise.resolve()`, `await act(() => {})`, or a
 fixed `setTimeout`.
+
+For end-to-end races, establish the stimulus: await the write response before an
+external edit; explicitly close and observe the WebSocket for reconnect tests
+(Chromium offline mode may leave localhost sockets open). Gate the competing
+operation rather than racing a retry timer. Fixed observation windows are appropriate
+when proving absence or a request-rate bound, not as a substitute for readiness.
+On failure, inspect the retained Playwright trace and request/response before
+changing production code or increasing a timeout.
 
 | Goal | API |
 | --- | --- |

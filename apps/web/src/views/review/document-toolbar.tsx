@@ -18,6 +18,7 @@ export function DocumentToolbar({
 }) {
   return (
     <header
+      data-testid="document-toolbar"
       className={cn(
         'flex h-11 shrink-0 items-center gap-2.5 border-b px-3.5',
         className,

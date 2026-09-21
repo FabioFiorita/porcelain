@@ -52,6 +52,11 @@ export function ReviewedControl({
     );
 
   const reviewed = status === 'reviewed';
+  const label = reviewed
+    ? `Unmark ${path} as unreviewed`
+    : status === 'stale'
+      ? `Mark changed ${path} as reviewed`
+      : `Mark ${path} as reviewed`;
   const submit = async () => {
     try {
       if (reviewed) await unmark.submit(path);
@@ -76,14 +81,8 @@ export function ReviewedControl({
         )}
         aria-pressed={reviewed}
         disabled={pending}
-        aria-label={`${reviewed ? 'Unmark' : 'Mark'} ${path} ${reviewed ? 'as unreviewed' : 'as reviewed'}`}
-        title={
-          reviewed
-            ? `Unmark ${path} as reviewed`
-            : status === 'stale'
-              ? `Mark changed ${path} as reviewed`
-              : `Mark ${path} as reviewed`
-        }
+        aria-label={label}
+        title={label}
         onClick={() => void submit()}
       >
         {pending ? (

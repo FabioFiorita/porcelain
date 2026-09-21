@@ -24,9 +24,13 @@ test('streams external edits, goes idle without polling, and bounds reconnect re
   await page.getByRole('button', { name: /^review / }).click();
   await page.getByRole('button', { name: /^accessibility\.md/ }).click();
   const path = 'docs/accessibility.md';
-  const mark = page
-    .getByRole('button', { name: `Mark ${path} as reviewed`, exact: true })
-    .first();
+  const toolbar = page.getByTestId('document-toolbar').filter({
+    has: page.getByRole('heading', { name: 'accessibility.md', exact: true }),
+  });
+  const mark = toolbar.getByRole('button', {
+    name: `Mark ${path} as reviewed`,
+    exact: true,
+  });
   await expect(mark).toBeVisible();
   await page.waitForLoadState('networkidle');
 
@@ -50,28 +54,37 @@ test('streams external edits, goes idle without polling, and bounds reconnect re
   );
   await mark.click();
   expect((await marked).ok()).toBe(true);
-  const unmark = page
-    .getByRole('button', {
-      name: `Unmark ${path} as unreviewed`,
-      exact: true,
-    })
-    .first();
+  const unmark = toolbar.getByRole('button', {
+    name: `Unmark ${path} as unreviewed`,
+    exact: true,
+  });
   await expect(unmark).toBeVisible();
   const absolute = join(worktreePath, path);
   const original = await readFile(absolute, 'utf8');
   await writeFile(absolute, `${original}\nLive edit\n`);
-  const stale = page.getByTitle(`Mark changed ${path} as reviewed`).first();
+  const stale = toolbar.getByRole('button', {
+    name: `Mark changed ${path} as reviewed`,
+    exact: true,
+  });
   await expect(stale).toBeVisible({ timeout: 8_000 });
 
+  const markedAgain = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'PUT' &&
+      new URL(response.url()).pathname.endsWith('/reviewed'),
+  );
   await stale.click();
-  await expect(unmark).toBeVisible();
+  expect((await markedAgain).ok()).toBe(true);
+  await expect(unmark).toBeEnabled();
   await expect.poll(() => sockets.length).toBe(1);
   let reconnectReads = 0;
   page.on('request', (request) => {
     const url = new URL(request.url());
     if (url.pathname.endsWith('/changes')) reconnectReads += 1;
   });
-  await sockets[0]?.close({ code: 1001, reason: 'Reconnect proof' });
+  const firstSocket = sockets[0];
+  if (!firstSocket) throw new Error('Live socket was not established');
+  await firstSocket.close({ code: 1001, reason: 'Reconnect proof' });
   await writeFile(absolute, `${original}\nChanged while offline\n`);
   releaseReconnect();
   await expect.poll(() => sockets.length, { timeout: 12_000 }).toBe(2);
