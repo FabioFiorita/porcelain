@@ -357,7 +357,7 @@ export class PorcelainService {
   readonly #nodeExecutable: string;
   readonly #healthCheck: (dataDirectory: string) => Promise<boolean>;
   readonly #environmentPath: string;
-  readonly #beforeLockPublish?: () => Promise<void>;
+  readonly #beforeLockPublish: (() => Promise<void>) | undefined;
 
   constructor(homeDirectory: string, dependencies: ServiceDependencies) {
     const uid = dependencies.uid ?? process.getuid?.();
