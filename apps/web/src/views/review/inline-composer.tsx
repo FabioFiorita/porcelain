@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { CommentAnchor } from '../../domain/comments';
@@ -18,12 +18,30 @@ export function InlineComposer({
 }) {
   const id = useId();
   const [body, setBody] = useState('');
+  const pending = useRef<
+    { body: string; threadId: string; messageId: string } | undefined
+  >(undefined);
   const mutation = useCreateComment(scope);
   const valid = body.trim().length > 0 && !body.includes('\0');
   const submit = async () => {
     if (!valid || mutation.isPending) return;
+    const intent =
+      pending.current?.body === body
+        ? pending.current
+        : {
+            body,
+            threadId: crypto.randomUUID(),
+            messageId: crypto.randomUUID(),
+          };
+    pending.current = intent;
     try {
-      await mutation.submit({ anchor, body });
+      await mutation.submit({
+        anchor,
+        body,
+        threadId: intent.threadId,
+        messageId: intent.messageId,
+      });
+      pending.current = undefined;
       onClose();
     } catch {
       /* Retain the draft; the mutation supplies the error. */
@@ -48,7 +66,10 @@ export function InlineComposer({
         value={body}
         maxLength={16000}
         disabled={mutation.isPending}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => {
+          pending.current = undefined;
+          setBody(event.target.value);
+        }}
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
             event.preventDefault();

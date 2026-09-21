@@ -1,4 +1,3 @@
-import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type {
   CommentAuthor,
   CommentCommand,
@@ -7,7 +6,6 @@ import type {
 } from '../models/comment-thread.ts';
 import type { AuthenticatedPrincipal } from '../models/principal.ts';
 import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
-import { CommentLimitExceededError } from './errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from './errors/comment-target-not-found-error.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateCommentCommand } from './validate-comment-command.ts';
@@ -36,18 +34,6 @@ export class CommentThreads {
   private async assertWorktree(worktreeId: string, signal?: AbortSignal) {
     await this.worktrees.known(worktreeId, signal);
   }
-  private assertCapacity(next: CommentThread, previous?: CommentThread): void {
-    const usage = this.store.usage(next.worktreeId);
-    if (
-      (!previous && usage.threads >= 100) ||
-      next.messages.length > 100 ||
-      usage.bytes -
-        (previous ? commentStorageSize(previous) : 0) +
-        commentStorageSize(next) >
-        1048576
-    )
-      throw new CommentLimitExceededError();
-  }
   /** Reading threads has no author, so it needs no principal. */
   async list(
     worktreeId: string,
@@ -67,46 +53,36 @@ export class CommentThreads {
     await this.worktrees.forWriting(command.worktreeId, signal);
     if (command.kind === 'create') {
       const thread: CommentThread = {
-        id: this.newId(),
+        id: command.threadId ?? this.newId(),
         worktreeId: command.worktreeId,
         anchor: structuredClone(command.anchor),
         resolved: false,
         messages: [
           {
-            id: this.newId(),
+            id: command.messageId ?? this.newId(),
             body: command.body,
             author: authorFor(principal),
             createdAt: this.now(),
           },
         ],
       };
-      this.assertCapacity(thread);
-      return [this.store.save(thread)];
+      return [this.store.create(thread)];
     }
-    const thread = this.store.find(command.worktreeId, command.threadId);
-    if (!thread) throw new CommentTargetNotFoundError();
-    // Resolving what is already resolved changes nothing, so it is not a
-    // write: a revision means the discussion moved, and the dot and the seen
-    // marker both measure from it.
-    if (command.kind === 'resolve' && thread.resolved === command.resolved)
-      return [thread];
     const updated =
       command.kind === 'reply'
-        ? {
-            ...thread,
-            messages: [
-              ...thread.messages,
-              {
-                id: this.newId(),
-                body: command.body,
-                author: authorFor(principal),
-                createdAt: this.now(),
-              },
-            ],
-          }
-        : { ...thread, resolved: command.resolved };
-    if (command.kind === 'reply') this.assertCapacity(updated, thread);
-    return [this.store.save(updated)];
+        ? this.store.reply(command.worktreeId, command.threadId, {
+            id: command.messageId ?? this.newId(),
+            body: command.body,
+            author: authorFor(principal),
+            createdAt: this.now(),
+          })
+        : this.store.resolve(
+            command.worktreeId,
+            command.threadId,
+            command.resolved,
+          );
+    if (!updated) throw new CommentTargetNotFoundError();
+    return [updated];
   }
 }
 

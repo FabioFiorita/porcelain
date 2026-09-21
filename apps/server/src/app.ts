@@ -916,28 +916,15 @@ export async function openApplication(options: {
       },
       comments: async (command, principal, signal) => {
         const snapshot = structuredClone(command);
-        // A thread is read, appended to and written back, so two replies sent
-        // at once would otherwise both start from the same thread and one
-        // would be lost. Writing alone also keeps them in the order the
-        // server accepted them, which is what a discussion means.
-        if (snapshot.kind === 'list')
-          return forWorktree(
-            (operationSignal) =>
-              comments.execute(snapshot, principal, operationSignal),
-            signal,
-          );
-        return lanes
-          .run(
-            laneOf(snapshot.worktreeId),
-            'write',
-            ({ signal: operationSignal }) =>
-              comments.execute(snapshot, principal, operationSignal),
-            { callerSignal: signal },
-          )
-          .then((answer) => {
+        return forWorktree(
+          (operationSignal) =>
+            comments.execute(snapshot, principal, operationSignal),
+          signal,
+        ).then((answer) => {
+          if (snapshot.kind !== 'list')
             live.publishWorktree(snapshot.worktreeId, 'comments');
-            return answer;
-          });
+          return answer;
+        });
       },
       reviewLayers: async (worktreeId, signal) => {
         const params = reviewLayerParamsSchema.parse({ worktreeId });

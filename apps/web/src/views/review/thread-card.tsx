@@ -1,6 +1,6 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CheckIcon, RotateCcwIcon, SparklesIcon, UserIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
@@ -151,6 +151,9 @@ export function ThreadCard({
   const [replying, setReplying] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [body, setBody] = useState('');
+  const pendingReply = useRef<{ body: string; messageId: string } | undefined>(
+    undefined,
+  );
   const reply = useReplyComment(scope);
   const resolve = useResolveComment(scope);
   const state = threadState(thread);
@@ -216,9 +219,19 @@ export function ThreadCard({
       onSubmit={(event) => {
         event.preventDefault();
         if (!body.trim() || body.includes('\0') || reply.isPending) return;
+        const intent =
+          pendingReply.current?.body === body
+            ? pendingReply.current
+            : { body, messageId: crypto.randomUUID() };
+        pendingReply.current = intent;
         void reply
-          .submit({ threadId: thread.id, body })
+          .submit({
+            threadId: thread.id,
+            body,
+            messageId: intent.messageId,
+          })
           .then(() => {
+            pendingReply.current = undefined;
             setBody('');
             setReplying(false);
           })
@@ -234,7 +247,10 @@ export function ThreadCard({
             maxLength={16000}
             required
             disabled={reply.isPending}
-            onChange={(event) => setBody(event.target.value)}
+            onChange={(event) => {
+              pendingReply.current = undefined;
+              setBody(event.target.value);
+            }}
             placeholder="Add a reply…"
           />
         </Field>

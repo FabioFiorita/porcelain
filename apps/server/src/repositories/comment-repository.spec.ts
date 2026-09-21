@@ -6,6 +6,7 @@ import { openDatabase } from '../db/connection.ts';
 import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type { CommentThread } from '../models/comment-thread.ts';
 import type { RegisteredProject } from '../models/project.ts';
+import { CommentIdentityConflictError } from '../use-cases/errors/comment-identity-conflict-error.ts';
 import { CommentRepository } from './comment-repository.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 
@@ -38,14 +39,41 @@ it('retains creation order and discussions after inventory removes their worktre
         },
       ],
     };
-    const second = { ...first, id: 'a-second' };
-    store.save(first);
-    store.save(second);
-    // Every write is handed the next revision, across worktrees: the number
-    // the owner acknowledges must never be reused.
-    expect(store.save({ ...first, resolved: true })).toMatchObject({
+    const firstMessage = first.messages[0];
+    if (!firstMessage) throw new Error('Expected the fixture message');
+    const second = {
+      ...first,
+      id: 'a-second',
+      messages: [{ ...firstMessage, id: 'second-message' }],
+    };
+    const secondMessage = second.messages[0];
+    if (!secondMessage) throw new Error('Expected the second fixture message');
+    store.create(first);
+    store.create(second);
+    // Every retained write advances the discussion revision the owner sees.
+    expect(store.resolve('worktree', first.id, true)).toMatchObject({
       revision: 3,
     });
+    expect(store.create(first)).toMatchObject({
+      id: first.id,
+      resolved: true,
+      revision: 3,
+    });
+    expect(() => store.create({ ...first, worktreeId: 'other' })).toThrow(
+      CommentIdentityConflictError,
+    );
+    expect(() =>
+      store.reply('worktree', second.id, {
+        ...secondMessage,
+        id: firstMessage.id,
+      }),
+    ).toThrow(CommentIdentityConflictError);
+    expect(() =>
+      store.reply('worktree', first.id, {
+        ...firstMessage,
+        author: 'agent',
+      }),
+    ).toThrow(CommentIdentityConflictError);
     expect(store.find('worktree', first.id)).toEqual({
       ...first,
       resolved: true,
@@ -54,7 +82,9 @@ it('retains creation order and discussions after inventory removes their worktre
     expect(store.find('other', first.id)).toBeUndefined();
     expect(store.usage('worktree')).toEqual({
       threads: 2,
-      bytes: commentStorageSize(first) + commentStorageSize(second),
+      bytes:
+        commentStorageSize({ ...first, resolved: true }) +
+        commentStorageSize(second),
     });
     expect(store.usage('other')).toEqual({ threads: 0, bytes: 0 });
     // Threads are keyed by worktree id and owe nothing to the project record:

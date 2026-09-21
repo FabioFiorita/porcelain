@@ -204,21 +204,37 @@ it('moves every stored worktree id to its derived one, payloads included', async
 
       // The payloads. A column that moved while its JSON did not would return
       // an id nothing resolves, which is why these are asserted and not counts.
-      const threads = query<{ worktree_id: string; data: string }>(
-        'SELECT worktree_id, data FROM comment_threads ORDER BY id',
-      );
-      const byId = new Map(
-        threads.map((row) => [
-          (JSON.parse(row.data) as { id: string }).id,
-          row,
-        ]),
-      );
+      const threads = query<{
+        id: string;
+        worktree_id: string;
+        anchor: string;
+      }>('SELECT id, worktree_id, anchor FROM comment_threads ORDER BY id');
+      const byId = new Map(threads.map((row) => [row.id, row]));
       const migrated = byId.get('mapped-thread');
       expect(migrated?.worktree_id).toBe(derived);
-      expect(JSON.parse(migrated?.data ?? '{}').worktreeId).toBe(derived);
-      // Nothing else about the thread moved.
-      expect(JSON.parse(migrated?.data ?? '{}').messages).toEqual(
-        thread(derived, 'mapped-thread').messages,
+      expect(JSON.parse(migrated?.anchor ?? '{}')).toEqual(
+        thread(derived, 'mapped-thread').anchor,
+      );
+      // Nothing else about the thread moved, and the denormalized message
+      // scope followed the same mapping as its parent.
+      expect(
+        query<{
+          id: string;
+          worktree_id: string;
+          body: string;
+          author: string;
+          created_at: string | null;
+        }>(
+          "SELECT id, worktree_id, body, author, created_at FROM comment_messages WHERE thread_id = 'mapped-thread'",
+        ),
+      ).toEqual(
+        thread(derived, 'mapped-thread').messages.map((message) => ({
+          id: message.id,
+          worktree_id: derived,
+          body: message.body,
+          author: message.author,
+          created_at: message.createdAt,
+        })),
       );
 
       expect(
@@ -246,7 +262,6 @@ it('moves every stored worktree id to its derived one, payloads included', async
       // path or dropped. They are disclosed, not silently lost.
       const unmapped = byId.get('unrecorded-thread');
       expect(unmapped?.worktree_id).toBe(unrecorded);
-      expect(JSON.parse(unmapped?.data ?? '{}').worktreeId).toBe(unrecorded);
       expect(byId.get('departed-thread')?.worktree_id).toBe(departed);
 
       // Everything with review data has a presence row, and nothing has begun

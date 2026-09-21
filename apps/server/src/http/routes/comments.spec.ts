@@ -37,24 +37,36 @@ it('persists authenticated discussion across refresh, unavailability and restart
       (await server.inject({ method: 'GET', url, headers })).json(),
     ).toEqual([]);
     const address = await server.listen({ host: '127.0.0.1', port: 0 });
+    const threadId = '00000000-0000-4000-8000-000000000101';
+    const messageId = '00000000-0000-4000-8000-000000000102';
+    const createBody = {
+      threadId,
+      messageId,
+      anchor: {
+        kind: 'codeRange',
+        filePath: 'notes:today.txt',
+        startLine: 1,
+        endLine: 3,
+        revision: 'opaque-revision',
+        contentFingerprint: 'opaque-fingerprint',
+      },
+      body: '<script>plain text</script>',
+    };
     const created = await fetch(`${address}${url}`, {
       method: 'POST',
       headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        anchor: {
-          kind: 'codeRange',
-          filePath: 'notes:today.txt',
-          startLine: 1,
-          endLine: 3,
-          revision: 'opaque-revision',
-          contentFingerprint: 'opaque-fingerprint',
-        },
-        body: '<script>plain text</script>',
-      }),
+      body: JSON.stringify(createBody),
     });
     expect(created.status).toBe(200);
     const [thread] = commentThreadsSchema.parse(await created.json());
     if (!thread) throw new Error('Missing thread');
+    const retried = await fetch(`${address}${url}`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify(createBody),
+    });
+    expect(retried.status).toBe(200);
+    expect(commentThreadsSchema.parse(await retried.json())).toEqual([thread]);
     for (let count = 1; count < 100; count++) {
       expect(
         (
@@ -81,6 +93,16 @@ it('persists authenticated discussion across refresh, unavailability and restart
       code: 'COMMENT_LIMIT_EXCEEDED',
       message: 'Comment capacity exceeded',
     });
+    const retryAtCapacity = await server.inject({
+      method: 'POST',
+      url,
+      headers,
+      payload: createBody,
+    });
+    expect(retryAtCapacity.statusCode).toBe(200);
+    expect(commentThreadsSchema.parse(retryAtCapacity.json())).toEqual([
+      thread,
+    ]);
     const replyUrl = `${url}/${thread.id}/replies`;
     const resolutionUrl = `${url}/${thread.id}/resolution`;
     const replies = await Promise.all(
@@ -136,11 +158,11 @@ it('persists authenticated discussion across refresh, unavailability and restart
         commentThreadsSchema.parse(resolved.json())[0],
       );
       expect(commentThreadsSchema.parse(result.json())).toHaveLength(100);
-      expect(
-        commentThreadsSchema
-          .parse(result.json())[0]
-          ?.messages.map((message) => message.body),
-      ).toEqual(['<script>plain text</script>', 'one', 'two']);
+      const bodies = commentThreadsSchema
+        .parse(result.json())[0]
+        ?.messages.map((message) => message.body);
+      expect(bodies?.[0]).toBe('<script>plain text</script>');
+      expect(new Set(bodies?.slice(1))).toEqual(new Set(['one', 'two']));
     } finally {
       await restarted.close();
     }

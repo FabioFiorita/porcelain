@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const apiErrorSchema = z.object({
   code: z.enum([
     'COMMENT_LIMIT_EXCEEDED',
+    'COMMENT_ID_CONFLICT',
     'STALE_PREPARATION',
     'REQUEST_MISMATCH',
     'CHECKOUT_BUSY',

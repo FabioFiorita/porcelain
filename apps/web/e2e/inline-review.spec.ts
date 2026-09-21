@@ -105,3 +105,60 @@ test('posts a line comment on the exact comparison, reloads it, and reveals it f
     page.getByText('Binary file discussion', { exact: true }),
   ).toBeVisible();
 });
+
+test('recovers a saved comment whose first response is lost without duplicating it', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await page.goto('/');
+  await pairBrowser(page);
+  await openNavigation(page);
+  await page.getByRole('button', { name: /^review / }).click();
+  await page.getByRole('button', { name: /^accessibility.md/ }).click();
+  await expect(page.getByText('# Accessibility review')).toBeVisible();
+
+  const submitted: unknown[] = [];
+  let commentsPath = '';
+  await page.route('**/api/worktrees/*/comments', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    submitted.push(route.request().postDataJSON());
+    commentsPath = new URL(route.request().url()).pathname;
+    if (submitted.length === 1) {
+      const saved = await route.fetch();
+      expect(saved.ok()).toBe(true);
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+
+  const line = page.locator('[data-column-number]').first();
+  await expect(line).toBeVisible();
+  await line.hover();
+  const utility = page.locator('[data-utility-button]').first();
+  await expect(utility).toBeVisible();
+  await utility.click();
+  const body = `Lost response ${test.info().project.name}`;
+  await page.getByRole('textbox', { name: 'Comment', exact: true }).fill(body);
+  await page
+    .locator('form')
+    .filter({
+      has: page.getByRole('textbox', { name: 'Comment', exact: true }),
+    })
+    .getByRole('button', { name: 'Comment', exact: true })
+    .click();
+
+  await expect(
+    page.getByRole('textbox', { name: 'Comment', exact: true }),
+  ).toHaveCount(0);
+  expect(submitted).toHaveLength(2);
+  expect(submitted[1]).toEqual(submitted[0]);
+  const discussion = await page.request.get(commentsPath);
+  expect(discussion.ok()).toBe(true);
+  const matching = (await discussion.json()).flatMap(
+    (thread: { messages: Array<{ body: string }> }) =>
+      thread.messages.filter((message) => message.body === body),
+  );
+  expect(matching).toHaveLength(1);
+  await expect(page.getByText(body, { exact: true })).toBeVisible();
+});

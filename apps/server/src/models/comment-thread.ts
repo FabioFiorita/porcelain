@@ -19,7 +19,7 @@ type CommentAnchor = {
       side?: 'additions' | 'deletions' | undefined;
     }
 );
-type CommentMessage = {
+export type CommentMessage = {
   id: string;
   body: string;
   author: CommentAuthor;
@@ -41,6 +41,8 @@ export type CommentCommand =
   | {
       kind: 'create';
       worktreeId: string;
+      threadId?: string | undefined;
+      messageId?: string | undefined;
       anchor: CommentAnchor;
       body: string;
     }
@@ -48,6 +50,7 @@ export type CommentCommand =
       kind: 'reply';
       worktreeId: string;
       threadId: string;
+      messageId?: string | undefined;
       body: string;
     }
   | {

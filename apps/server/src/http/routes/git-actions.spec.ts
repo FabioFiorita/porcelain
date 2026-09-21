@@ -137,7 +137,7 @@ describe('Git actions HTTP', () => {
     },
   );
 
-  it('reads comments without waiting for a slow change list', async () => {
+  it('reads and posts comments without waiting for a slow change list', async () => {
     await writeFile(join(checkout, 'file'), 'changed\n');
     const started = Promise.withResolvers<void>();
     const gate = Promise.withResolvers<void>();
@@ -156,6 +156,21 @@ describe('Git actions HTTP', () => {
       const response = await server.inject({ url: `${url}/comments`, headers });
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual([]);
+      const posted = await server.inject({
+        method: 'POST',
+        url: `${url}/comments`,
+        headers,
+        payload: {
+          threadId: randomUUID(),
+          messageId: randomUUID(),
+          anchor: { kind: 'file', filePath: 'file' },
+          body: 'Database work stays responsive',
+        },
+      });
+      expect(posted.statusCode, posted.body).toBe(200);
+      expect(posted.json()[0]?.messages[0]?.body).toBe(
+        'Database work stays responsive',
+      );
     } finally {
       gate.resolve();
       await changes;

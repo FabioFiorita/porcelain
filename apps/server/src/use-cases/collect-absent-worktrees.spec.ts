@@ -54,21 +54,11 @@ async function fixture() {
       .values({
         id: `thread-${worktreeId}`,
         worktreeId,
+        anchor: { kind: 'file', filePath: 'notes.txt' },
+        resolved: false,
         revision: 1,
-        data: {
-          id: `thread-${worktreeId}`,
-          worktreeId,
-          anchor: { kind: 'file', filePath: 'notes.txt' },
-          resolved: false,
-          messages: [
-            {
-              id: `message-${worktreeId}`,
-              body: 'Worth a look',
-              author: 'reviewer',
-              createdAt: '2026-01-01T00:00:00.000Z',
-            },
-          ],
-        },
+        lastAgentRevision: null,
+        sizeBytes: 1,
       })
       .run();
     database.db

@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useEffect } from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { createMockStore, mockEnvironmentId } from '../../api/inventory/mock';
 import { createMockApi } from '../../api/mock-api';
@@ -72,6 +72,8 @@ async function renderThread(resolved: boolean) {
   );
 }
 
+afterEach(() => vi.restoreAllMocks());
+
 describe('ThreadCard resolution mutations', () => {
   it('announces a failed resolve mutation', async () => {
     const screen = await renderThread(false);
@@ -91,5 +93,23 @@ describe('ThreadCard resolution mutations', () => {
     await expect
       .element(screen.getByRole('alert'))
       .toMatchTextContent('Comments are unavailable');
+  });
+
+  it('reuses the pending message id when the owner retries an unchanged reply', async () => {
+    const screen = await renderThread(false);
+    await screen.getByRole('button', { name: 'Reply' }).click();
+    await screen.getByRole('textbox', { name: 'Reply' }).fill('Please retry');
+    const randomUUID = vi.spyOn(crypto, 'randomUUID');
+
+    await screen.getByRole('button', { name: 'Post reply' }).click();
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('Comments are unavailable');
+    await screen.getByRole('button', { name: 'Post reply' }).click();
+    await expect
+      .element(screen.getByRole('alert'))
+      .toMatchTextContent('Comments are unavailable');
+
+    expect(randomUUID).toHaveBeenCalledTimes(1);
   });
 });

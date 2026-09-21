@@ -7,6 +7,7 @@ import { commentStorageSize } from '../models/comment-storage-size.ts';
 import type { CommentThread } from '../models/comment-thread.ts';
 import type { CommentStore } from '../repositories/interfaces/comment-store.ts';
 import { CommentThreads } from './comment-threads.ts';
+import { CommentLimitExceededError } from './errors/comment-limit-exceeded-error.ts';
 import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 import { fakeWorktrees } from './helpers/fake-worktrees.ts';
 
@@ -46,11 +47,63 @@ class MemoryComments implements CommentStore {
       bytes: rows.reduce((sum, row) => sum + commentStorageSize(row.thread), 0),
     };
   }
-  save(thread: CommentThread) {
+  private save(thread: CommentThread) {
     this.revision += 1;
     const stored = structuredClone(thread);
     this.rows.set(thread.id, { thread: stored, revision: this.revision });
     return { ...structuredClone(stored), revision: this.revision };
+  }
+  create(thread: CommentThread) {
+    const existing = this.rows.get(thread.id);
+    if (existing)
+      return {
+        ...structuredClone(existing.thread),
+        revision: existing.revision,
+      };
+    const usage = this.usage(thread.worktreeId);
+    if (
+      usage.threads >= 100 ||
+      usage.bytes + commentStorageSize(thread) > 1048576
+    )
+      throw new CommentLimitExceededError();
+    return this.save(thread);
+  }
+  reply(
+    worktreeId: string,
+    threadId: string,
+    message: CommentThread['messages'][number],
+  ) {
+    const row = this.rows.get(threadId);
+    if (!row || row.thread.worktreeId !== worktreeId) return undefined;
+    const duplicate = [...this.rows.values()]
+      .flatMap((entry) =>
+        entry.thread.messages.map((item) => ({ item, thread: entry.thread })),
+      )
+      .find(({ item }) => item.id === message.id);
+    if (duplicate)
+      return {
+        ...structuredClone(duplicate.thread),
+        revision: this.rows.get(duplicate.thread.id)?.revision ?? 0,
+      };
+    const next = {
+      ...row.thread,
+      messages: [...row.thread.messages, structuredClone(message)],
+    };
+    const usage = this.usage(worktreeId);
+    if (
+      next.messages.length > 100 ||
+      usage.bytes - commentStorageSize(row.thread) + commentStorageSize(next) >
+        1048576
+    )
+      throw new CommentLimitExceededError();
+    return this.save(next);
+  }
+  resolve(worktreeId: string, threadId: string, resolved: boolean) {
+    const row = this.rows.get(threadId);
+    if (!row || row.thread.worktreeId !== worktreeId) return undefined;
+    if (row.thread.resolved === resolved)
+      return { ...structuredClone(row.thread), revision: row.revision };
+    return this.save({ ...row.thread, resolved });
   }
 }
 /**
@@ -289,7 +342,7 @@ it('enforces the UTF-8 serialized aggregate budget and allows resolution at exac
     const remaining = 1048576 - commentStorageSize(thread);
     message.body = 'x'.repeat(Math.min(16000, remaining));
   }
-  store.save(thread);
+  store.create(thread);
   const comments = new CommentThreads(store, worktrees(), () => 'new-id');
   expect(store.usage('worktree').bytes).toBe(1048576);
   expect(thread.messages.length).toBeLessThan(100);

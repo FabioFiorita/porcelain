@@ -169,13 +169,13 @@ export function useReplyComment(scope: ReviewScope) {
   const client = useQueryClient();
   return asMutation(
     useMutation({
-      mutationFn: ({ threadId, body }: ReplyCommentInput) =>
+      mutationFn: ({ threadId, body, messageId }: ReplyCommentInput) =>
         enqueueComment(context, async () => {
           const request = context.request();
           const result = await context.api.reply({
             ...request,
             threadId,
-            input: { body },
+            input: { body, messageId },
           });
           request.signal.throwIfAborted();
           const scoped = assertCommentScope(result, scope.worktreeId);

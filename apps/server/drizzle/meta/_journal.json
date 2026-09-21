@@ -50,6 +50,13 @@
       "when": 1789996071293,
       "tag": "0006_stale_reviewed_files",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790000000000,
+      "tag": "0007_normalize_comment_messages",
+      "breakpoints": true
     }
   ]
 }

@@ -43,6 +43,51 @@ async function createLegacyDatabase(directory: string, data: unknown) {
   return databasePath;
 }
 
+async function createPreNormalizationDatabase(
+  directory: string,
+  thread: { id: string; worktreeId: string },
+) {
+  const databasePath = join(directory, 'inventory.sqlite');
+  const database = new DatabaseSync(databasePath);
+  try {
+    database.function('porcelain_worktree_id', (_project, _identity) => null);
+    const journal = JSON.parse(
+      await readFile(join(migrationsPath, 'meta/_journal.json'), 'utf8'),
+    ) as { entries: Array<{ idx: number; tag: string; when: number }> };
+    const previous = journal.entries.filter((entry) => entry.idx < 7);
+    for (const entry of previous)
+      database.exec(
+        await readFile(join(migrationsPath, `${entry.tag}.sql`), 'utf8'),
+      );
+    database.exec(
+      'CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric);',
+    );
+    for (const entry of previous) {
+      const source = await readFile(
+        join(migrationsPath, `${entry.tag}.sql`),
+        'utf8',
+      );
+      database
+        .prepare(
+          'INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)',
+        )
+        .run(createHash('sha256').update(source).digest('hex'), entry.when);
+    }
+    database
+      .prepare(
+        'INSERT INTO comment_threads (id, worktree_id, data, revision, last_agent_revision) VALUES (?, ?, ?, 40, 32)',
+      )
+      .run(thread.id, thread.worktreeId, JSON.stringify(thread));
+    database
+      .prepare(
+        'INSERT INTO comment_reads (worktree_id, seen_through) VALUES (?, 31)',
+      )
+      .run(thread.worktreeId);
+  } finally {
+    database.close();
+  }
+}
+
 it('backfills legacy authors, preserves evidence/order/content and reopens safely', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-comment-migration-'));
   const fixedTimestamp = '2026-09-14T01:00:00.000Z';
@@ -131,6 +176,68 @@ it('backfills legacy authors, preserves evidence/order/content and reopens safel
       ]);
     } finally {
       reopened.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it('normalizes an existing discussion without changing revisions, seen state, or messages', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-comment-normalize-'));
+  const historical = {
+    id: 'historical-thread',
+    worktreeId: 'historical-worktree',
+    anchor: {
+      kind: 'codeRange',
+      filePath: 'src/a.ts',
+      startLine: 2,
+      endLine: 4,
+      side: 'deletions',
+      contentFingerprint: 'old-fingerprint',
+    },
+    resolved: true,
+    messages: [
+      {
+        id: 'historical-first',
+        body: 'historical text\nwith unicode 🌳',
+        author: 'reviewer',
+      },
+      {
+        id: 'historical-agent',
+        body: 'agent reply',
+        author: 'agent',
+        createdAt: '2026-09-19T00:00:00.000Z',
+      },
+    ],
+  };
+  await createPreNormalizationDatabase(root, historical);
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const database = openDatabase(root);
+      try {
+        expect(
+          new CommentRepository(database.db).list(historical.worktreeId),
+        ).toEqual([{ ...historical, revision: 40 }]);
+        expect(
+          database.db.$client
+            .prepare(
+              'SELECT last_agent_revision FROM comment_threads WHERE id = ?',
+            )
+            .get(historical.id),
+        ).toEqual({ last_agent_revision: 32 });
+        expect(
+          database.db.$client
+            .prepare(
+              'SELECT seen_through FROM comment_reads WHERE worktree_id = ?',
+            )
+            .get(historical.worktreeId),
+        ).toEqual({ seen_through: 31 });
+        expect(
+          database.db.$client.prepare('PRAGMA foreign_key_check').all(),
+        ).toEqual([]);
+      } finally {
+        database.close();
+      }
     }
   } finally {
     await rm(root, { recursive: true, force: true });

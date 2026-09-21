@@ -5,6 +5,7 @@ import { UnsupportedGitFiltersError } from '@porcelain/git/errors/unsupported-gi
 import { UnsupportedPathEncodingError } from '@porcelain/git/errors/unsupported-path-encoding-error';
 import { FileInspectionError } from '../../filesystem/errors/file-inspection-error.ts';
 import { ApplicationClosedError } from '../../lifecycle/errors/application-closed-error.ts';
+import { CommentIdentityConflictError } from '../../use-cases/errors/comment-identity-conflict-error.ts';
 import { CommitDraftError } from '../../use-cases/errors/commit-draft-error.ts';
 import { InvalidDeviceDetailsError } from '../../use-cases/errors/invalid-device-details-error.ts';
 import { InvalidPairingAddressError } from '../../use-cases/errors/invalid-pairing-address-error.ts';
@@ -20,6 +21,11 @@ import { toHistoryErrorResponse } from './history-error-response.ts';
 import { toStorageErrorResponse } from './storage-error-response.ts';
 
 export function toErrorResponse(error: unknown) {
+  if (error instanceof CommentIdentityConflictError)
+    return {
+      statusCode: 409,
+      body: { code: 'COMMENT_ID_CONFLICT', message: error.message },
+    };
   if (error instanceof CommitDraftError)
     return {
       statusCode: 422,

@@ -26,7 +26,7 @@ export function createCommentsClient(
     method = body === undefined ? 'GET' : 'POST',
   ) {
     try {
-      const response = await transport(path, {
+      const init: RequestInit = {
         method,
         ...(body === undefined
           ? {}
@@ -36,7 +36,14 @@ export function createCommentsClient(
         redirect: 'error',
         credentials: 'same-origin',
         cache: 'no-store',
-      });
+      };
+      let response: Response;
+      try {
+        response = await transport(path, init);
+      } catch (first) {
+        if (body === undefined || input.signal.aborted) throw first;
+        response = await transport(path, init);
+      }
       if (response.status === 401) throw new UnauthorizedError();
       if (!response.ok)
         throw new ConnectionError(
@@ -60,21 +67,33 @@ export function createCommentsClient(
     list: (input: Request) => request(input),
     create: (
       input: Request & {
-        input: Parameters<typeof createCommentThreadSchema.parse>[0];
+        input: ReturnType<typeof createCommentThreadSchema.parse>;
       },
-    ) => request(input, commentsPath(input), input.input),
+    ) => {
+      const submitted = createCommentThreadSchema.parse({
+        ...input.input,
+        threadId: input.input.threadId ?? crypto.randomUUID(),
+        messageId: input.input.messageId ?? crypto.randomUUID(),
+      });
+      return request(input, commentsPath(input), submitted);
+    },
     reply: (
       input: Request & {
         threadId: string;
-        input: Parameters<typeof replyToCommentSchema.parse>[0];
+        input: ReturnType<typeof replyToCommentSchema.parse>;
       },
-    ) =>
-      request(
+    ) => {
+      const submitted = replyToCommentSchema.parse({
+        ...input.input,
+        messageId: input.input.messageId ?? crypto.randomUUID(),
+      });
+      return request(
         input,
         `${commentsPath(input)}/${encodeURIComponent(input.threadId)}/replies`,
-        input.input,
+        submitted,
         replyToCommentSchema,
-      ),
+      );
+    },
     resolve: (
       input: Request & {
         threadId: string;

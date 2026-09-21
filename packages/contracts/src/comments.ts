@@ -65,10 +65,15 @@ const body = z
   .max(16000)
   .refine((value) => value.trim().length > 0 && !value.includes('\0'));
 export const createCommentThreadSchema = z.strictObject({
+  threadId: z.uuid().optional(),
+  messageId: z.uuid().optional(),
   anchor: commentAnchorSchema,
   body,
 });
-export const replyToCommentSchema = z.strictObject({ body });
+export const replyToCommentSchema = z.strictObject({
+  messageId: z.uuid().optional(),
+  body,
+});
 export const resolveCommentSchema = z.strictObject({ resolved: z.boolean() });
 export const commentScopeSchema = z.strictObject({
   worktreeId: worktreeIdSchema,

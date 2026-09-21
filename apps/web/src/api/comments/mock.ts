@@ -55,13 +55,13 @@ export function createCommentsMock(
       const input = createCommentThreadSchema.parse(request.input);
       request.signal.throwIfAborted();
       const thread = {
-        id: createId(),
+        id: input.threadId ?? createId(),
         worktreeId: request.worktreeId,
         anchor: input.anchor,
         resolved: false,
         messages: [
           {
-            id: createId(),
+            id: input.messageId ?? createId(),
             body: input.body,
             author: 'reviewer' as const,
             createdAt: new Date().toISOString(),
@@ -88,7 +88,7 @@ export function createCommentsMock(
         messages: [
           ...thread.messages,
           {
-            id: createId(),
+            id: input.messageId ?? createId(),
             body: input.body,
             author: 'reviewer' as const,
             createdAt: new Date().toISOString(),

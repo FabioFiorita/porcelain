@@ -86,7 +86,7 @@ export function createReviewMcpServer(
     'create_comment',
     {
       description:
-        'Create an agent review thread on a file or code range. For precise placement include comparison and content fingerprint from the reviewed changes.',
+        'Create an agent review thread on a file or code range. Supply stable threadId and messageId UUIDs so retrying the same call is safe. For precise placement include comparison and content fingerprint from the reviewed changes.',
       inputSchema: commentScopeSchema.extend(createCommentThreadSchema.shape),
     },
     async (input, { signal }) =>
@@ -97,7 +97,8 @@ export function createReviewMcpServer(
   server.registerTool(
     'reply_to_comment',
     {
-      description: 'Reply to a reviewer or agent thread.',
+      description:
+        'Reply to a reviewer or agent thread. Supply a stable messageId UUID so retrying the same call is safe.',
       inputSchema: commentThreadScopeSchema.extend(replyToCommentSchema.shape),
     },
     async (input, { signal }) =>
