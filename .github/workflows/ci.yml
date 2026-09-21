@@ -32,7 +32,7 @@ jobs:
       - run: npx --yes pnpm@12.3.4 check:boundaries
       - run: npx --yes pnpm@12.3.4 check:unused
   specs:
-    name: Specs and coverage (${{ matrix.os }})
+    name: Specs (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -47,12 +47,18 @@ jobs:
         with:
           node-version-file: .node-version
       - run: npx --yes pnpm@12.3.4 install --frozen-lockfile
-      - run: npx --yes pnpm@12.3.4 --filter @porcelain/web exec playwright install --with-deps chromium
-      - run: npx --yes pnpm@12.3.4 test:coverage
+      - if: runner.os == 'Linux'
+        run: npx --yes pnpm@12.3.4 --filter @porcelain/web exec playwright install --with-deps chromium
+      # Linux owns aggregate coverage and browser integration. macOS exercises
+      # native filesystem, socket, process and Git behavior without duplicating it.
+      - if: runner.os == 'Linux'
+        run: npx --yes pnpm@12.3.4 test:coverage
+      - if: runner.os == 'macOS'
+        run: npx --yes pnpm@12.3.4 exec vitest run --project node
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: coverage-${{ matrix.os }}
+          name: test-results-${{ matrix.os }}
           path: coverage/
           if-no-files-found: warn
           retention-days: 7

@@ -434,7 +434,26 @@ export class LiveUpdates {
       ignored.every((path, index) => path === entry.ignored[index])
     )
       return;
-    const subscription = await this.subscribeWorktree(entry, ignored);
+    // Inotify caches the directory tree while any subscription holds it. Release
+    // the old watch first so newly unignored directories enter the rebuilt tree.
+    await entry.subscription.unsubscribe();
+    let subscription: parcelWatcher.AsyncSubscription;
+    try {
+      subscription = await this.subscribeWorktree(entry, ignored);
+    } catch (error) {
+      const restored = await this.subscribeWorktree(entry, entry.ignored);
+      if (
+        this.closed ||
+        this.worktreeWatches.get(entry.worktreeId) !== entry ||
+        entry.clients.size === 0
+      ) {
+        await restored.unsubscribe();
+      } else {
+        entry.subscription = restored;
+        this.queueFiles(entry, []);
+      }
+      throw error;
+    }
     if (
       this.closed ||
       this.worktreeWatches.get(entry.worktreeId) !== entry ||
@@ -443,11 +462,11 @@ export class LiveUpdates {
       await subscription.unsubscribe();
       return;
     }
-    const previous = entry.subscription;
     entry.subscription = subscription;
     entry.ignored = [...ignored];
-    await previous.unsubscribe();
     await this.refreshSupplements(entry);
+    // Re-read after the replacement to cover edits during the subscription gap.
+    this.queueFiles(entry, []);
   }
 
   private removeClient(client: ClientState, worktreeId: string): void {

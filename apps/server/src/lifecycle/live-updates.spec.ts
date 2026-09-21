@@ -336,10 +336,21 @@ it('rebuilds the native watch after a directory becomes unignored', async () => 
   await writeFile(join(root, 'generated', 'output.txt'), 'ignored\n');
   const notices: unknown[] = [];
   let worktreeSubscriptions = 0;
+  const nativePaths: string[] = [];
   const live = new LiveUpdates({
     watcher: {
       subscribe: async (path, callback, options) => {
-        const subscription = await nativeSubscribe(path, callback, options);
+        const subscription = await nativeSubscribe(
+          path,
+          (error, events) => {
+            nativePaths.push(...events.map((event) => event.path));
+            callback(error, events);
+          },
+          {
+            ...options,
+            backend: process.platform === 'linux' ? 'inotify' : 'fs-events',
+          },
+        );
         if (path === root) worktreeSubscriptions += 1;
         return subscription;
       },
@@ -390,7 +401,13 @@ it('rebuilds the native watch after a directory becomes unignored', async () => 
       timeout: 3_000,
     });
     notices.length = 0;
+    nativePaths.length = 0;
     await writeFile(join(root, 'generated', 'output.txt'), 'visible\n');
+    await vi.waitFor(
+      () =>
+        expect(nativePaths).toContain(join(root, 'generated', 'output.txt')),
+      { timeout: 3_000 },
+    );
     await vi.waitFor(
       () =>
         expect(notices).toContainEqual({
@@ -413,3 +430,57 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+
+it('releases a restored watch when its last client leaves during replacement failure', async () => {
+  vi.useFakeTimers();
+  const restored = deferred<AsyncSubscription>();
+  const unsubscribe = vi.fn(async () => undefined);
+  let callback: ((error: Error | null, events: Event[]) => unknown) | undefined;
+  const subscribe = vi.fn(
+    async (_root: string, onEvent: NonNullable<typeof callback>) => {
+      if (subscribe.mock.calls.length === 1) {
+        callback = onEvent;
+        return { unsubscribe: vi.fn(async () => undefined) };
+      }
+      if (subscribe.mock.calls.length === 2)
+        throw new Error('Replacement failed');
+      return restored.promise;
+    },
+  );
+  const live = new LiveUpdates({
+    watcher: { subscribe },
+    worktrees: {
+      inProject: async () => ({
+        id: worktreeId,
+        projectId,
+        path: '/fixture/worktree',
+        commonDirectory: '/fixture/repository.git',
+      }),
+    } as unknown as ResolveWorktree,
+    reviewed: {
+      list: () => [],
+      set: vi.fn(),
+      remove: vi.fn(),
+      invalidate: vi.fn(),
+      reconcile: vi.fn(),
+    },
+    ignoredPaths: vi
+      .fn()
+      .mockResolvedValueOnce(['generated'])
+      .mockResolvedValue([]),
+    projects: () => [],
+  });
+  const client = live.connect(() => undefined);
+  await client.subscribe({
+    type: 'subscribe',
+    projects: [],
+    worktrees: [{ projectId, worktreeId, paths: [] }],
+  });
+  callback?.(null, [{ type: 'update', path: '/fixture/worktree/.gitignore' }]);
+  await vi.advanceTimersByTimeAsync(150);
+  expect(subscribe).toHaveBeenCalledTimes(3);
+  client.close();
+  restored.resolve({ unsubscribe });
+  await live.close();
+  expect(unsubscribe).toHaveBeenCalledOnce();
+});

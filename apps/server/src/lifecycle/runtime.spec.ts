@@ -509,21 +509,17 @@ describe('Runtime', () => {
   it('offers only the address it bound when given one', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-runtime-single-'));
     const runtime = await startRuntime(
-      await settings(root, { host: '127.0.0.2' }),
+      await settings(root, { host: '127.0.0.1' }),
     );
     try {
       const port = Number(new URL(runtime.address).port);
       const [issued] = await runtime.issuePairing(
         ['iPhone'],
-        [`http://127.0.0.2:${port}`],
+        [`http://127.0.0.1:${port}`],
       );
       expect(issued).toBeDefined();
-      // A server bound to one loopback address does not answer on another, and
-      // `localhost` resolves to 127.0.0.1, not to this one.
-      for (const origin of [
-        `http://127.0.0.1:${port}`,
-        `http://localhost:${port}`,
-      ])
+      // Binding one loopback address must not authorize other addresses.
+      for (const origin of [`http://127.0.0.2:${port}`, `http://[::1]:${port}`])
         await expect(
           runtime.issuePairing(['iPhone'], [origin]),
           origin,
@@ -536,11 +532,9 @@ describe('Runtime', () => {
 
   it('binds an explicitly configured host without changing the default', async () => {
     const root = await mkdtemp(join(tmpdir(), 'porcelain-runtime-host-'));
-    const runtime = await startRuntime(
-      await settings(root, { host: '127.0.0.2' }),
-    );
+    const runtime = await startRuntime(await settings(root, { host: '::1' }));
     try {
-      expect(new URL(runtime.address).hostname).toBe('127.0.0.2');
+      expect(new URL(runtime.address).hostname).toBe('[::1]');
       expect(
         await (await fetch(`${runtime.address}/api/health`)).json(),
       ).toMatchObject({ status: 'ok' });

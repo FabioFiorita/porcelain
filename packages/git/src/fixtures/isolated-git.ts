@@ -5,7 +5,10 @@ import { promisify } from 'node:util';
 
 // Production deliberately removes inherited Git configuration overrides. Keep
 // fixture isolation at its executable boundary, rather than weakening that policy.
-export async function createIsolatedGit(root: string): Promise<string> {
+export async function createIsolatedGit(
+  root: string,
+  options: { global?: boolean } = {},
+): Promise<string> {
   const { stdout } = await promisify(execFile)('which', ['git']);
   const executable = stdout.trim().replaceAll("'", "'\\''");
   const directory = join(root, 'isolated-git-bin');
@@ -13,7 +16,7 @@ export async function createIsolatedGit(root: string): Promise<string> {
   const wrapper = join(directory, 'git');
   await writeFile(
     wrapper,
-    `#!/bin/sh\nexport GIT_CONFIG_NOSYSTEM=1\nexec '${executable}' "$@"\n`,
+    `#!/bin/sh\nexport GIT_CONFIG_NOSYSTEM=1\n${options.global === false ? 'export GIT_CONFIG_GLOBAL=/dev/null\n' : ''}exec '${executable}' "$@"\n`,
   );
   await chmod(wrapper, 0o700);
   return directory;

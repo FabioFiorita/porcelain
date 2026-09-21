@@ -30,10 +30,15 @@ function git(path: string, ...args: string[]) {
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-status-'));
   roots.push(root);
-  vi.stubEnv('PATH', `${await createIsolatedGit(root)}:${process.env.PATH}`);
+  vi.stubEnv(
+    'PATH',
+    `${await createIsolatedGit(root, { global: false })}:${process.env.PATH}`,
+  );
   const checkout = join(root, 'atlas');
   await mkdir(checkout);
   git(checkout, 'init', '-b', 'main');
+  git(checkout, 'config', 'user.name', 'Fixture');
+  git(checkout, 'config', 'user.email', 'fixture@example.invalid');
   await writeFile(join(checkout, 'notes.txt'), 'first\n');
   git(checkout, 'add', 'notes.txt');
   git(checkout, 'commit', '-m', 'Fixture');
@@ -76,11 +81,15 @@ it('shows review ready while layers are live, and stops when a commit archives t
   // already marked, and the dot must not go dark for work that is still live.
   const scope = { projectId: f.project.id, worktreeId: f.worktreeId };
   const preparation = await f.app.prepareCommit(scope, { message: 'Reviewed' });
+  const requestId = randomUUID();
   f.app.executeCommit(scope, {
-    requestId: randomUUID(),
+    requestId,
     preparationId: preparation.id,
   });
-  await expect.poll(() => f.dot()).toBeNull();
+  await expect
+    .poll(() => f.app.gitActionReceipt(requestId), { timeout: 5_000 })
+    .toMatchObject({ state: 'succeeded' });
+  expect(await f.dot()).toBeNull();
 });
 
 it('reports reviewed when every file the layers name has been marked', async () => {

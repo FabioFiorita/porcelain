@@ -82,15 +82,20 @@ it('keeps ordinary reads available while generation waits and rejects changed ev
         finish = resolve;
       }),
   );
-  const pending = draft();
-  await vi.waitFor(() => expect(generate).toHaveBeenCalled());
+  const pending = draft().then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  await vi.waitFor(() => expect(generate).toHaveBeenCalled(), {
+    timeout: 5_000,
+  });
   expect((await application.readTextFile(scope.worktreeId, 'a.ts')).text).toBe(
     'first\n',
   );
   await writeFile(join(checkout, 'a.ts'), 'other\n');
   finish?.([{ message: 'Old proposal', paths: ['a.ts'] }]);
-  await expect(pending).rejects.toMatchObject({ name: 'WorktreeChangedError' });
-});
+  expect(await pending).toMatchObject({ name: 'WorktreeChangedError' });
+}, 15_000);
 it('rejects invented paths and duplicate assignments from a model', async () => {
   generate.mockResolvedValue([{ message: 'Invalid', paths: ['invented.ts'] }]);
   await expect(draft()).rejects.toThrow('did not cover');

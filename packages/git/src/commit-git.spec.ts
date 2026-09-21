@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
 import {
   appendFile,
   mkdtemp,
@@ -414,17 +413,16 @@ describe('CommitGit', () => {
   });
 
   it('refuses a path that is not valid UTF-8 rather than mangling it', async () => {
-    const { root, reader } = await repository();
-    // A name that is not valid UTF-8, written as raw bytes.
-    writeFileSync(
-      Buffer.concat([
-        Buffer.from(`${root}/`),
+    const { root, reader } = await repository(1);
+    // Git can carry malformed paths even on filesystems that reject them.
+    const blob = git(root, 'rev-parse', 'HEAD:file.txt');
+    execFileSync('git', ['-C', root, 'update-index', '-z', '--index-info'], {
+      input: Buffer.concat([
+        Buffer.from(`100644 ${blob}\t`),
         Buffer.from([0xff]),
-        Buffer.from('.txt'),
+        Buffer.from('.txt\0'),
       ]),
-      'x',
-    );
-    git(root, 'add', '-A');
+    });
     git(root, 'commit', '-m', 'odd name');
     const oid = git(root, 'rev-parse', 'HEAD');
     await expect(reader.readCommitFiles({ oid })).rejects.toBeInstanceOf(

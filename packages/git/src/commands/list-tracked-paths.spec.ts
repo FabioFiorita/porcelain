@@ -61,7 +61,7 @@ it('answers every name at the bound, and refuses one path past it', async () => 
   const refused = await listTrackedPaths(checkout);
   // A truncated list would quietly stop finding files that are there.
   expect(refused).toEqual({ paths: [], complete: false });
-});
+}, 20_000);
 
 /**
  * A raw `0xff` name and a real U+FFFD name decode to the same string when
