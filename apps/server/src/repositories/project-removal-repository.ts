@@ -1,16 +1,15 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { artifacts } from '../db/schema/artifacts.ts';
 import { commentReads } from '../db/schema/comment-reads.ts';
 import { commentThreads } from '../db/schema/comment-threads.ts';
-import { commitReviewLayerSets } from '../db/schema/commit-review-layer-sets.ts';
 import { filePreferences } from '../db/schema/file-preferences.ts';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionPreparations } from '../db/schema/git-action-preparations.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
 import { projects } from '../db/schema/projects.ts';
-import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
+import { reviewedLayers } from '../db/schema/reviewed-layers.ts';
+import { reviews } from '../db/schema/reviews.ts';
 import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import type { ProjectRemovalStore } from './interfaces/project-removal-store.ts';
 
@@ -35,22 +34,19 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
           .select({ id: worktreePresence.worktreeId })
           .from(worktreePresence)
           .where(eq(worktreePresence.projectId, projectId));
-        tx.delete(artifacts).where(inArray(artifacts.worktreeId, owned)).run();
         tx.delete(commentThreads)
           .where(inArray(commentThreads.worktreeId, owned))
           .run();
         tx.delete(filePreferences)
           .where(eq(filePreferences.projectId, projectId))
           .run();
-        tx.delete(commitReviewLayerSets)
-          .where(eq(commitReviewLayerSets.projectId, projectId))
-          .run();
-        tx.delete(reviewLayerSets)
-          .where(inArray(reviewLayerSets.worktreeId, owned))
-          .run();
         tx.delete(reviewedFiles)
           .where(inArray(reviewedFiles.worktreeId, owned))
           .run();
+        tx.delete(reviewedLayers)
+          .where(inArray(reviewedLayers.worktreeId, owned))
+          .run();
+        tx.delete(reviews).where(inArray(reviews.worktreeId, owned)).run();
         tx.delete(commentReads)
           .where(inArray(commentReads.worktreeId, owned))
           .run();

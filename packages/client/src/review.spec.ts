@@ -42,35 +42,8 @@ describe('review transport', () => {
     const failure: typeof fetch = async () =>
       new Response('private diagnostic', { status: 500 });
     await expect(
-      createReviewClient(failure, '/api').artifacts(scope),
+      createReviewClient(failure, '/api').review(scope),
     ).rejects.toThrow('This review surface could not be loaded');
-  });
-  it('loads artifact content through the scoped artifact endpoint', async () => {
-    const artifactId = '901a8628-1cd6-4562-81a2-9c05fba76b4a';
-    const transport: typeof fetch = async (input, init) => {
-      expect(String(input)).toBe(
-        `/api/worktrees/${scope.worktreeId}/artifacts/${artifactId}`,
-      );
-      expect(init?.method).toBeUndefined();
-      expect(init?.headers).not.toHaveProperty('authorization');
-      return Response.json({
-        id: artifactId,
-        worktreeId: scope.worktreeId,
-        name: 'handoff.html',
-        sizeBytes: 24,
-        createdAt: '2026-09-13T10:00:00.000Z',
-        content: '<h1>Ready</h1>',
-      });
-    };
-    await expect(
-      createReviewClient(transport, '/api').artifact({
-        ...scope,
-        artifactId,
-      }),
-    ).resolves.toMatchObject({
-      id: artifactId,
-      content: '<h1>Ready</h1>',
-    });
   });
   it('adds a selected merge parent to the commit files request', async () => {
     const oid = 'a'.repeat(40);
@@ -179,12 +152,6 @@ describe('review transport', () => {
           branch: null,
           changes: [],
         });
-      if (String(input).endsWith('/review-layers'))
-        return Response.json({
-          worktreeId: scope.worktreeId,
-          revision: 0,
-          layers: [],
-        });
       if (String(input).includes('/reviewed?path=')) {
         expect(init?.method).toBe('DELETE');
         return Response.json({ worktreeId: scope.worktreeId, marks: [] });
@@ -201,8 +168,8 @@ describe('review transport', () => {
     };
     const client = createReviewClient(transport, '/api');
     await expect(client.changes(scope)).resolves.toMatchObject({
-      changes: { worktreeId: scope.worktreeId, changes: [] },
-      layers: { worktreeId: scope.worktreeId, layers: [] },
+      worktreeId: scope.worktreeId,
+      changes: [],
     });
     // The hunks are their own request, made against the observation the list
     // was read at and naming the exact comparisons asked for.
@@ -239,7 +206,6 @@ describe('review transport', () => {
     ).resolves.toEqual({ worktreeId: scope.worktreeId, marks: [] });
     expect(calls).toEqual([
       `/api/worktrees/${scope.worktreeId}/changes`,
-      `/api/worktrees/${scope.worktreeId}/review-layers`,
       `/api/worktrees/${scope.worktreeId}/changes/diffs`,
       `/api/worktrees/${scope.worktreeId}/reviewed`,
       `/api/worktrees/${scope.worktreeId}/reviewed`,

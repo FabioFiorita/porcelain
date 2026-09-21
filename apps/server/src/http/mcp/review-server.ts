@@ -1,161 +1,195 @@
+import { resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { uploadArtifactRequestSchema } from '@porcelain/contracts/artifacts';
 import {
-  commentScopeSchema,
-  commentThreadScopeSchema,
   createCommentThreadSchema,
   replyToCommentSchema,
   resolveCommentSchema,
 } from '@porcelain/contracts/comments';
-import { fileQuerySchema } from '@porcelain/contracts/files';
-import { replaceReviewLayersSchema } from '@porcelain/contracts/review-layers';
+import { publishReviewSchema } from '@porcelain/contracts/review';
 import { z } from 'zod';
 import type { Application } from '../../application.ts';
 import type { AuthenticatedPrincipal } from '../../models/principal.ts';
 import { toErrorResponse } from '../mappers/error-response.ts';
 
+const scopeSchema = z.strictObject({
+  cwd: z.string().min(1).max(4096).optional(),
+});
+
+const GUIDE = `# Publishing a Porcelain review
+
+Tell the behavior from entry point to outcome. Keep layers short and ordered; use lanes for the parts crossed (for example Web, Route, Use case, Storage). A changed step points at code this change alters. A context step points at unchanged code needed to understand the path. Prefer one or two sentences per step and finish the summary with the verification that actually ran.
+
+The summary is one complete HTML document up to 10 MiB. It runs in an opaque sandbox with scripts, forms, popups and modals. Network resources such as high-quality CDN fonts and libraries are allowed, but the page cannot access Porcelain login state or APIs. Use CSS variables --porcelain-background and --porcelain-foreground. Link to layers with #layer-N, where N is the 1-based published order; Porcelain handles navigation. Do not embed credentials.
+
+Publish replaces the entire latest review under expectedRevision. Read first, preserve anything still intended, then publish. Unresolved pointers are returned as changed. Not explained is computed by Porcelain from changed lines outside changed steps.`;
+
 export function createReviewMcpServer(
   application: Application,
   principal: AuthenticatedPrincipal,
+  defaultCwd: string,
 ) {
   const server = new McpServer(
     { name: 'porcelain', version: '1.0.0' },
     {
       instructions:
-        'Porcelain is a review workspace. Use inventory to find a registered worktree. Publish ordered review layers and a concise handoff.md artifact; handoff.html can contain a readable report. Read reviewer comments when asked. Nothing is pushed to other agents. Comments created through these tools are attributed to the agent.',
+        'Publish and discuss the review for the registered worktree containing this MCP process cwd. Read porcelain://review-guide before publishing. Shell and editor tools remain the source for reading code.',
     },
   );
-  server.registerTool(
-    'inventory',
+  server.registerResource(
+    'review-guide',
+    'porcelain://review-guide',
     {
-      description: 'List registered projects and worktrees.',
-      inputSchema: z.strictObject({}),
-      annotations: { readOnlyHint: true },
+      title: 'Porcelain review writing and design guide',
+      mimeType: 'text/markdown',
     },
-    // The application answers with the listing's diagnostics beside the
-    // inventory; the tool's shape is the inventory alone.
-    async () => result(async () => (await application.inventory()).inventory),
+    async (uri) => ({
+      contents: [{ uri: uri.href, mimeType: 'text/markdown', text: GUIDE }],
+    }),
   );
   server.registerTool(
-    'git_status',
-    {
-      description:
-        'Read current changes and branch state in a registered worktree.',
-      inputSchema: commentScopeSchema,
-      annotations: { readOnlyHint: true },
-    },
-    async ({ worktreeId }, { signal }) =>
-      result(() => application.gitStatus(worktreeId, signal)),
-  );
-  server.registerTool(
-    'review_changes',
+    'publish_review',
     {
       description:
-        'Read per-file review fingerprints and comparison identities for precise comments.',
-      inputSchema: commentScopeSchema,
-      annotations: { readOnlyHint: true },
+        'Atomically replace the latest summary, diagram and review layers. Read the current revision first.',
+      inputSchema: scopeSchema.extend(publishReviewSchema.shape),
     },
-    async ({ worktreeId }, { signal }) =>
-      result(() => application.changes(worktreeId, signal)),
+    async ({ cwd, ...input }, { signal }) =>
+      result(async () => {
+        const worktreeId = await worktreeFor(
+          application,
+          cwd ?? defaultCwd,
+          signal,
+        );
+        return application.publishReview(worktreeId, input, signal);
+      }),
   );
   server.registerTool(
-    'read_file',
+    'read_review',
     {
       description:
-        'Read a UTF-8 file and its content fingerprint without following symlinks.',
-      inputSchema: commentScopeSchema.extend(fileQuerySchema.shape),
+        'Read the latest published review, resolved pointers and uncovered changed lines.',
+      inputSchema: scopeSchema,
       annotations: { readOnlyHint: true },
     },
-    async ({ worktreeId, path }, { signal }) =>
-      result(() => application.readTextFile(worktreeId, path, signal)),
+    async ({ cwd }, { signal }) =>
+      result(async () => {
+        const worktreeId = await worktreeFor(
+          application,
+          cwd ?? defaultCwd,
+          signal,
+        );
+        return application.review(worktreeId, signal);
+      }),
   );
   server.registerTool(
     'list_comments',
     {
-      description:
-        'Read review threads, replies and resolved state for a worktree.',
-      inputSchema: commentScopeSchema,
+      description: 'Read review threads, replies and resolved state.',
+      inputSchema: scopeSchema,
       annotations: { readOnlyHint: true },
     },
-    async (input, { signal }) =>
-      result(() =>
-        application.comments({ ...input, kind: 'list' }, principal, signal),
-      ),
+    async ({ cwd }, { signal }) =>
+      result(async () => {
+        const worktreeId = await worktreeFor(
+          application,
+          cwd ?? defaultCwd,
+          signal,
+        );
+        return application.comments(
+          { kind: 'list', worktreeId },
+          principal,
+          signal,
+        );
+      }),
   );
   server.registerTool(
     'create_comment',
     {
       description:
-        'Create an agent review thread on a file or code range. Supply stable threadId and messageId UUIDs so retrying the same call is safe. For precise placement include comparison and content fingerprint from the reviewed changes.',
-      inputSchema: commentScopeSchema.extend(createCommentThreadSchema.shape),
+        'Create an agent review thread on a file or code range. Stable optional IDs make retries idempotent.',
+      inputSchema: scopeSchema.extend(createCommentThreadSchema.shape),
     },
-    async (input, { signal }) =>
-      result(() =>
-        application.comments({ ...input, kind: 'create' }, principal, signal),
-      ),
+    async ({ cwd, ...input }, { signal }) =>
+      result(async () => {
+        const worktreeId = await worktreeFor(
+          application,
+          cwd ?? defaultCwd,
+          signal,
+        );
+        return application.comments(
+          { kind: 'create', worktreeId, ...input },
+          principal,
+          signal,
+        );
+      }),
   );
   server.registerTool(
     'reply_to_comment',
     {
       description:
-        'Reply to a reviewer or agent thread. Supply a stable messageId UUID so retrying the same call is safe.',
-      inputSchema: commentThreadScopeSchema.extend(replyToCommentSchema.shape),
+        'Reply to a review thread. Stable optional messageId makes retries idempotent.',
+      inputSchema: scopeSchema.extend({
+        threadId: z.uuid(),
+        ...replyToCommentSchema.shape,
+      }),
     },
-    async (input, { signal }) =>
-      result(() =>
-        application.comments({ ...input, kind: 'reply' }, principal, signal),
-      ),
+    async ({ cwd, ...input }, { signal }) =>
+      result(async () => {
+        const worktreeId = await worktreeFor(
+          application,
+          cwd ?? defaultCwd,
+          signal,
+        );
+        return application.comments(
+          { kind: 'reply', worktreeId, ...input },
+          principal,
+          signal,
+        );
+      }),
   );
   server.registerTool(
     'resolve_comment',
     {
       description: 'Resolve or reopen a review thread.',
-      inputSchema: commentThreadScopeSchema.extend(resolveCommentSchema.shape),
+      inputSchema: scopeSchema.extend({
+        threadId: z.uuid(),
+        ...resolveCommentSchema.shape,
+      }),
     },
-    async (input, { signal }) =>
-      result(() =>
-        application.comments({ ...input, kind: 'resolve' }, principal, signal),
-      ),
-  );
-  server.registerTool(
-    'read_layers',
-    {
-      description:
-        'Read ordered review layers and their revision before replacing them.',
-      inputSchema: commentScopeSchema,
-      annotations: { readOnlyHint: true },
-    },
-    async ({ worktreeId }, { signal }) =>
-      result(() => application.reviewLayers(worktreeId, signal)),
-  );
-  server.registerTool(
-    'replace_layers',
-    {
-      description:
-        'Publish ordered layers with titles, summaries and file notes. Preserve unrelated layers and supply the revision returned by read_layers.',
-      inputSchema: commentScopeSchema.extend(replaceReviewLayersSchema.shape),
-    },
-    async ({ worktreeId, expectedRevision, layers }, { signal }) =>
-      result(() =>
-        application.replaceReviewLayers(
-          worktreeId,
-          expectedRevision,
-          layers,
+    async ({ cwd, ...input }, { signal }) =>
+      result(async () => {
+        const worktreeId = await worktreeFor(
+          application,
+          cwd ?? defaultCwd,
           signal,
-        ),
-      ),
-  );
-  server.registerTool(
-    'publish_artifact',
-    {
-      description:
-        'Publish a UTF-8 review artifact such as handoff.md or handoff.html. Markdown should give a short explanation and verification results.',
-      inputSchema: commentScopeSchema.extend(uploadArtifactRequestSchema.shape),
-    },
-    async ({ worktreeId, ...input }, { signal }) =>
-      result(() => application.uploadArtifact(worktreeId, input, signal)),
+        );
+        return application.comments(
+          { kind: 'resolve', worktreeId, ...input },
+          principal,
+          signal,
+        );
+      }),
   );
   return server;
+}
+
+async function worktreeFor(
+  application: Application,
+  cwd: string,
+  signal?: AbortSignal,
+) {
+  const target = resolve(cwd);
+  const inventory = (await application.inventory(signal)).inventory;
+  const selected = inventory.projects
+    .flatMap((project) => project.worktrees)
+    .filter(
+      (worktree) =>
+        target === worktree.path || target.startsWith(`${worktree.path}${sep}`),
+    )
+    .sort((left, right) => right.path.length - left.path.length)[0];
+  if (!selected)
+    throw new Error('No registered Porcelain worktree contains this cwd');
+  return selected.id;
 }
 
 async function result(operation: () => unknown) {

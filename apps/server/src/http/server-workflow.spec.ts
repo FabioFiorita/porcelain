@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { artifactMetadataSchema } from '@porcelain/contracts/artifacts';
 import {
   inventoryResponseSchema,
   projectResponseSchema,
@@ -97,13 +96,25 @@ it('keeps review metadata together across Git inspection, refresh and a server r
     expect(
       await request(`/api/projects/${linkedProject.id}/file-preferences`),
     ).toEqual(preferences);
-    const layers = await request(`${base}/review-layers`, 'PUT', {
+    const review = await request(`${base}/review`, 'PUT', {
       expectedRevision: 0,
+      summaryHtml: '<!doctype html><title>Review</title>',
       layers: [
         {
           id: randomUUID(),
           title: 'Review',
-          files: [{ path: 'notes.txt', scope: 'unstaged' }],
+          summary: 'Review notes.',
+          lanes: ['Code'],
+          steps: [
+            {
+              id: randomUUID(),
+              lane: 0,
+              title: 'Notes',
+              text: 'The notes changed.',
+              kind: 'changed',
+              pointer: { path: 'notes.txt', startLine: 1, endLine: 1 },
+            },
+          ],
         },
       ],
     });
@@ -111,12 +122,6 @@ it('keeps review metadata together across Git inspection, refresh and a server r
       anchor: { kind: 'file', filePath: 'notes.txt' },
       body: 'Explain this change',
     });
-    const artifact = artifactMetadataSchema.parse(
-      await request(`${base}/artifacts`, 'POST', {
-        name: 'Explanation',
-        content: '<h1>Review</h1>',
-      }),
-    );
     const before = inventoryResponseSchema.parse(
       await request('/api/inventory'),
     );
@@ -142,7 +147,7 @@ it('keeps review metadata together across Git inspection, refresh and a server r
       expect(inventoryResponseSchema.parse(restored.json())).toEqual(before);
       for (const [suffix, expected] of [
         ['file-preferences', preferences],
-        ['review-layers', layers],
+        ['review', review],
         ['comments', comments],
       ] as const) {
         const response = await restarted.inject({
@@ -156,13 +161,6 @@ it('keeps review metadata together across Git inspection, refresh and a server r
         expect(response.statusCode).toBe(200);
         expect(response.json()).toEqual(expected);
       }
-      const stored = await restarted.inject({
-        method: 'GET',
-        url: `${base}/artifacts/${artifact.id}`,
-        headers,
-      });
-      expect(stored.statusCode).toBe(200);
-      expect(stored.json()).toMatchObject({ content: '<h1>Review</h1>' });
     } finally {
       await restarted.close();
     }

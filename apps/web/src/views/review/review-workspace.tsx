@@ -40,8 +40,9 @@ import type { RevealComment } from '../../domain/comments';
 import type { OpenDocument } from '../../domain/documents';
 import { entryKey, parseEntry } from '../../domain/documents';
 import type { Project } from '../../domain/inventory';
-import type { Artifact, Layers, Surface } from '../../domain/review';
-import { useArtifactsOverview, useReviewOverview } from '../../query/review';
+import type { Surface } from '../../domain/review';
+import { usePublishedReview } from '../../query/published-review';
+import { useReviewOverview } from '../../query/review';
 import { SHORTCUTS } from '../workspace/shortcuts';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
@@ -273,11 +274,11 @@ function DocumentArea({
   tabControls: ReactNode;
 }) {
   const overview = useReviewOverview(scope);
-  const artifacts = useArtifactsOverview(scope);
-  const layers = overview?.layers.layers ?? [];
+  const published = usePublishedReview(scope);
+  const layers = published.data?.active ? published.data.layers : [];
   const hasHandoff =
-    overview != null &&
-    (overview.changes.changes.length > 0 || layers.length > 0);
+    Boolean(published.data?.active) ||
+    (overview != null && overview.changes.changes.length > 0);
   const layout = useTabLayout({
     worktreeId,
     entry,
@@ -296,7 +297,6 @@ function DocumentArea({
     setFocused,
     scope,
     layers,
-    artifacts,
     hasHandoff,
     onOpen,
     navigationTrigger,
@@ -329,7 +329,6 @@ function PaneView({
   setFocused,
   scope,
   layers,
-  artifacts,
   hasHandoff,
   onOpen,
   navigationTrigger,
@@ -344,8 +343,10 @@ function PaneView({
   focused: boolean;
   setFocused: (pane: PaneIndex) => void;
   scope: { projectId: string; worktreeId: string };
-  layers: Layers['layers'];
-  artifacts: readonly Artifact[];
+  layers: readonly Pick<
+    import('../../domain/review').ReviewLayer,
+    'id' | 'title'
+  >[];
   hasHandoff: boolean;
   onOpen: OpenDocument;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
@@ -414,7 +415,6 @@ function PaneView({
         pinned={pane.pinned}
         active={pane.active}
         layers={layers}
-        artifacts={artifacts}
         side={split ? (index === 0 ? 'left' : 'right') : null}
         focused={focused}
         onActivate={(key) => layout.activate(index, key)}

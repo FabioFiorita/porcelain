@@ -4,11 +4,13 @@ import {
   HistoryIcon,
   ListChecksIcon,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OpenDocument } from '../../domain/documents';
 import type { ReviewScope, Surface } from '../../domain/review';
-import { useArtifacts, useHasReviewLayers } from '../../query/review';
+import { usePublishedReview } from '../../query/published-review';
+import { useHasReviewLayers } from '../../query/review';
 import { FileNavigation } from './file-navigation';
 import { HistoryNavigation } from './history-navigation';
 import { ReviewBoundary } from './review-boundary';
@@ -119,18 +121,15 @@ function SidebarSurface({
   available: boolean;
   onOpen: OpenDocument;
 }) {
-  if (!available && surface === 'changes')
-    return (
-      <ScrollArea className="h-full">
-        <ReviewBoundary>
-          <ArchivedArtifacts scope={scope} onOpen={onOpen} />
-        </ReviewBoundary>
-      </ScrollArea>
-    );
-
+  const published = usePublishedReview(scope);
   if (!available)
     return (
       <div className="p-3">
+        {published.data && surface === 'changes' && (
+          <Button variant="ghost" onClick={() => onOpen({ kind: 'handoff' })}>
+            Saved review
+          </Button>
+        )}
         <ReviewEmpty
           title="Worktree unavailable"
           description="Restore the checkout and return to Porcelain to browse its files and Git state."
@@ -168,44 +167,5 @@ function SidebarSurface({
     <div className="h-full">{content}</div>
   ) : (
     <ScrollArea className="h-full">{content}</ScrollArea>
-  );
-}
-
-function ArchivedArtifacts({
-  scope,
-  onOpen,
-}: {
-  scope: ReviewScope;
-  onOpen: OpenDocument;
-}) {
-  const artifacts = useArtifacts(scope);
-  if (artifacts.length === 0)
-    return (
-      <div className="p-3">
-        <ReviewEmpty
-          title="Worktree unavailable"
-          description="No stored agent reports are available for this checkout."
-        />
-      </div>
-    );
-  return (
-    <div className="flex flex-col gap-1 p-2">
-      <p className="px-2 py-1 text-xs text-muted-foreground">
-        Stored agent reports
-      </p>
-      {artifacts.map((artifact) => (
-        <button
-          key={artifact.id}
-          type="button"
-          className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-accent"
-          onClick={() => onOpen({ kind: 'artifact', artifactId: artifact.id })}
-        >
-          <span className="min-w-0 flex-1 truncate">{artifact.name}</span>
-          <span className="text-xs text-muted-foreground">
-            {artifact.sizeBytes.toLocaleString()} bytes
-          </span>
-        </button>
-      ))}
-    </div>
   );
 }

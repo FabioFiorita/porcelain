@@ -1,3 +1,9 @@
+vi.mock('../../query/published-review', () => ({
+  usePublishedReview: () => ({ data: null, isPending: false, isError: false }),
+  useLayerMarks: vi.fn(),
+  useStepLines: vi.fn(),
+}));
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import type { CommitFile } from '../../domain/review';

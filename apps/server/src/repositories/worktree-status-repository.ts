@@ -32,16 +32,16 @@ export class WorktreeStatusRepository implements WorktreeStatusStore {
     const rows = this.db.all<{ worktree_id: string; status: WorktreeStatus }>(
       sql`
         SELECT
-          sets.worktree_id AS worktree_id,
+          review.worktree_id AS worktree_id,
           CASE
             WHEN EXISTS (
               SELECT 1
-              FROM json_each(sets.layers) AS layer,
-                   json_each(layer.value, '$.files') AS file
+              FROM json_each(review.layers) AS layer
               WHERE NOT EXISTS (
-                SELECT 1 FROM reviewed_files AS mark
-                WHERE mark.worktree_id = sets.worktree_id
-                  AND mark.path = json_extract(file.value, '$.path')
+                SELECT 1 FROM reviewed_layers AS mark
+                WHERE mark.worktree_id = review.worktree_id
+                  AND mark.layer_id = json_extract(layer.value, '$.id')
+                  AND mark.fingerprint = json_extract(layer.value, '$.fingerprint')
                   AND mark.stale = 0
               )
             )
@@ -50,15 +50,15 @@ export class WorktreeStatusRepository implements WorktreeStatusStore {
             -- worked through, so they stay pending.
             WHEN EXISTS (
               SELECT 1
-              FROM json_each(sets.layers) AS layer,
-                   json_each(layer.value, '$.files') AS file
+              FROM json_each(review.layers) AS layer
             )
             THEN 'reviewed'
             ELSE 'pending'
           END AS status
-        FROM review_layer_sets AS sets
-        WHERE sets.worktree_id IN (${wanted})
-          AND json_array_length(sets.layers) > 0
+        FROM reviews AS review
+        WHERE review.worktree_id IN (${wanted})
+          AND review.active = 1
+          AND json_array_length(review.layers) > 0
 
         UNION ALL
 

@@ -19,6 +19,7 @@ function exchange(
   socketPath: string,
   message: unknown,
   timeoutMs: number,
+  cwd: string,
 ): Promise<Answer> {
   const payload = JSON.stringify(message);
   return new Promise((resolve, reject) => {
@@ -33,6 +34,7 @@ function exchange(
           accept,
           'content-type': 'application/json',
           'content-length': Buffer.byteLength(payload),
+          'x-porcelain-cwd': cwd,
         },
       },
       (response) => {
@@ -98,7 +100,12 @@ export async function runMcpBridge(
     }
     const id = idOf(message);
     try {
-      const answer = await exchange(socketPath, message, timeoutMs);
+      const answer = await exchange(
+        socketPath,
+        message,
+        timeoutMs,
+        process.cwd(),
+      );
       // A notification is accepted with 202 and no body, and expects no reply.
       if (answer.body.trim().length === 0) continue;
       if (answer.status !== 200) {

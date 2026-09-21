@@ -423,12 +423,6 @@ export function CommitForm({
           {receipt.state}
         </p>
       )}
-      {receipt?.reviewLayersUpdated === false && (
-        <p role="alert" className="text-sm text-amber-700 dark:text-amber-300">
-          Commit saved, but its review notes could not move to History. The
-          original notes are still available in Changes.
-        </p>
-      )}
       {uncertain && !receipt && <p role="status">Outcome not yet confirmed</p>}
       {error ? (
         <p role="alert" className="text-sm text-destructive">

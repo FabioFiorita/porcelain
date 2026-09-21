@@ -39,7 +39,6 @@ describe('document tab keyboard controls', () => {
 
 describe('document tab presentation', () => {
   it('uses the prototype icons and label for layers and reports', async () => {
-    const reportId = 'afa08127-5c27-46bf-9d06-e8401f2aa102';
     const layerId = 'bf4f1c6b-2b54-423b-a9b5-7c40112b3101';
     const actions = {
       onActivate: vi.fn(),
@@ -52,19 +51,10 @@ describe('document tab presentation', () => {
 
     const screen = await render(
       <DocumentTabs
-        tabs={[`artifact:${reportId}`, `layer:${layerId}`]}
+        tabs={['handoff', `layer:${layerId}`]}
         pinned={[]}
-        active={`artifact:${reportId}`}
-        layers={[{ id: layerId, title: 'Review layer', files: [] }]}
-        artifacts={[
-          {
-            id: reportId,
-            worktreeId: '629a86281cd6456281a29c05fba76b4b',
-            name: 'handoff.html',
-            sizeBytes: 120,
-            createdAt: '2026-09-12T15:20:00Z',
-          },
-        ]}
+        active={'handoff'}
+        layers={[{ id: layerId, title: 'Review layer' }]}
         side={null}
         focused
         {...actions}
@@ -72,12 +62,12 @@ describe('document tab presentation', () => {
     );
 
     await expect
-      .element(screen.getByRole('tab', { name: /Report/ }))
+      .element(screen.getByRole('tab', { name: /Review Close Review/ }))
       .toBeVisible();
     await expect
       .element(screen.getByRole('tab', { name: /1\. Review layer/ }))
       .toBeVisible();
-    expect(screen.container.querySelector('svg.lucide-newspaper')).toBeTruthy();
+    expect(screen.container.querySelector('svg.lucide-layers')).toBeTruthy();
     expect(
       screen.container.querySelector('svg.lucide-square-stack'),
     ).toBeTruthy();

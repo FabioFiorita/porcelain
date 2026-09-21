@@ -1,4 +1,9 @@
 import type {
+  PublishReview,
+  ReviewResponse,
+} from '@porcelain/contracts/review';
+import type { ReviewedLayerMark } from '@porcelain/contracts/reviewed-files';
+import type {
   CommitDiffsRequest,
   CommitFiles,
   CommitFilesRequest,
@@ -14,11 +19,6 @@ import type {
 } from '@porcelain/git/dtos/git-status';
 import type { LineRange } from '@porcelain/git/dtos/line-range';
 import type { LiveConnection } from './lifecycle/live-updates.ts';
-import type {
-  Artifact,
-  ArtifactMetadata,
-  ArtifactUpload,
-} from './models/artifact.ts';
 import type { ChangeList } from './models/change.ts';
 import type {
   CommentCommand,
@@ -53,7 +53,6 @@ import type {
   ProjectDiscovery,
   ProjectFolder,
 } from './models/project-location.ts';
-import type { ReviewLayer, ReviewLayers } from './models/review-layers.ts';
 import type {
   ReviewedMark,
   SetReviewedFileInput,
@@ -303,32 +302,34 @@ export interface Application {
     principal: AuthenticatedPrincipal,
     signal?: AbortSignal,
   ): Promise<StoredCommentThread[]>;
-  reviewLayers(worktreeId: string, signal?: AbortSignal): Promise<ReviewLayers>;
-  replaceReviewLayers(
-    worktreeId: string,
-    expectedRevision: number,
-    layers: ReviewLayer[],
-    signal?: AbortSignal,
-  ): Promise<ReviewLayers>;
-  uploadArtifact(
-    worktreeId: string,
-    input: ArtifactUpload,
-    signal?: AbortSignal,
-  ): Promise<ArtifactMetadata>;
-  listArtifacts(
+  review(
     worktreeId: string,
     signal?: AbortSignal,
-  ): Promise<ArtifactMetadata[]>;
-  getArtifact(
+  ): Promise<ReviewResponse | null>;
+  publishReview(
     worktreeId: string,
-    artifactId: string,
+    input: PublishReview,
     signal?: AbortSignal,
-  ): Promise<Artifact>;
-  deleteArtifact(
+  ): Promise<ReviewResponse>;
+  reviewSummary(
+    token: string,
+    expires: number,
+    signature: string,
+  ): string | null;
+  listReviewedLayers(
     worktreeId: string,
-    artifactId: string,
     signal?: AbortSignal,
-  ): Promise<{ deleted: boolean }>;
+  ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
+  setReviewedLayer(
+    worktreeId: string,
+    input: { layerId: string; fingerprint: string; reviewed: true },
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
+  removeReviewedLayer(
+    worktreeId: string,
+    layerId: string,
+    signal?: AbortSignal,
+  ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
   /**
    * Resolve a device credential without touching the database, and move its
    * last-seen time forward. Returns the device id, or null for every failure

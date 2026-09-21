@@ -8,7 +8,7 @@ import { WorktreeNotFoundError } from './errors/worktree-not-found-error.ts';
 /**
  * The one answer to "does this worktree exist?".
  *
- * Reviewed marks, layers, comments, artifacts and Git reads all ask here, so
+ * Reviewed marks, published reviews, comments and Git reads all ask here, so
  * they cannot disagree. Two questions are kept apart on purpose:
  *
  * - **Known** — Git lists it, so review data may be written for it.

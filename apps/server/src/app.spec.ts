@@ -61,6 +61,33 @@ describe('Application', () => {
     applications.push(app);
     return app;
   }
+  async function publishFixtureReview(
+    app: Awaited<ReturnType<typeof openApplication>>,
+    worktreeId: string,
+  ) {
+    return app.publishReview(worktreeId, {
+      expectedRevision: 0,
+      summaryHtml: '<!doctype html><title>Review</title>',
+      layers: [
+        {
+          id: randomUUID(),
+          title: 'Review',
+          summary: 'Fixture review.',
+          lanes: ['Code'],
+          steps: [
+            {
+              id: randomUUID(),
+              lane: 0,
+              title: 'Notes',
+              text: 'Fixture pointer.',
+              kind: 'context',
+              pointer: { path: 'notes.txt', startLine: 1, endLine: 1 },
+            },
+          ],
+        },
+      ],
+    });
+  }
   afterEach(async () => {
     for (const app of applications.splice(0)) await app.close();
     for (const root of roots.splice(0))
@@ -316,13 +343,7 @@ describe('Application', () => {
       const app = await open(f.dataDirectory);
       const { project: before } = await app.register(f.main);
       const linked = before.worktrees[1]?.id ?? '';
-      await app.replaceReviewLayers(linked, 0, [
-        {
-          id: '0f7a1a55-bd1e-4b0a-9ad4-96a3f6c2e5d8',
-          title: 'Review',
-          files: [{ path: 'notes.txt', scope: 'unstaged' }],
-        },
-      ]);
+      await publishFixtureReview(app, linked);
       await rm(f.linked, { recursive: true });
       const gitInventory = git(f.main, 'worktree', 'list', '--porcelain');
       expect(gitInventory).toContain('prunable');
@@ -403,13 +424,7 @@ describe('Application', () => {
       const { project: before } = await app.register(f.main);
       const linked = before.worktrees[1]?.id ?? '';
       // Review data is what gives a worktree a presence row to measure from.
-      await app.replaceReviewLayers(linked, 0, [
-        {
-          id: '6f1a6bd2-3f3e-4a55-9f0f-3f6ea1a4a7c2',
-          title: 'Review',
-          files: [{ path: 'notes.txt', scope: 'unstaged' }],
-        },
-      ]);
+      await publishFixtureReview(app, linked);
       // Read only while the application is closed: a second connection to a
       // live WAL database can answer from an older snapshot.
       const presence = async (
@@ -802,7 +817,7 @@ describe('Application', () => {
       // An id the directory has never seen costs a listing, so this SQLite
       // read is parked in Git when shutdown begins. Resuming after the
       // database closed would be a read through a dangling handle.
-      const pending = app.listArtifacts('0'.repeat(32));
+      const pending = app.review('0'.repeat(32));
       await started.promise;
       const closing = app.close();
       release.resolve();
@@ -811,26 +826,44 @@ describe('Application', () => {
       applications.splice(applications.indexOf(app), 1);
     });
 
-    it('persists submitted artifact values when the caller mutates them after the call', async () => {
+    it('persists submitted review values when the caller mutates them after the call', async () => {
       const f = await fixture();
       const app = await open(f.dataDirectory);
       const { project } = await app.register(f.main);
       const worktree = project.worktrees[0];
       if (!worktree) throw new Error('Missing fixture worktree');
-      const input = { name: 'submitted.html', content: '<p>Submitted 😀</p>' };
-      const submitted = { ...input };
-      // An upload asks the resolver before it stores anything — a stat and two
-      // small file reads, or a listing for an id the directory has not seen —
-      // so the caller's object is still theirs to change while the write is
-      // pending. This is that window, not a queue: artifact work takes no
-      // lane.
-      const upload = app.uploadArtifact(worktree.id, input);
-      input.name = 'mutated.html';
-      input.content = '<script>mutated()</script>';
-      const artifact = await upload;
-      expect(await app.getArtifact(worktree.id, artifact.id)).toMatchObject({
-        ...submitted,
-        sizeBytes: Buffer.byteLength(submitted.content),
+      const input = {
+        expectedRevision: 0,
+        summaryHtml: '<p>Submitted 😀</p>',
+        layers: [
+          {
+            id: randomUUID(),
+            title: 'Submitted',
+            summary: 'Submitted review.',
+            lanes: ['Code'],
+            steps: [
+              {
+                id: randomUUID(),
+                lane: 0,
+                title: 'Pointer',
+                text: 'Submitted pointer.',
+                kind: 'context' as const,
+                pointer: { path: 'missing.ts', startLine: 1, endLine: 1 },
+              },
+            ],
+          },
+        ],
+      };
+      const submitted = structuredClone(input);
+      const publishing = app.publishReview(worktree.id, input);
+      input.summaryHtml = '<script>mutated()</script>';
+      const firstLayer = input.layers[0];
+      if (!firstLayer) throw new Error('Missing fixture layer');
+      firstLayer.title = 'Mutated';
+      await publishing;
+      expect(await app.review(worktree.id)).toMatchObject({
+        summary: { byteLength: Buffer.byteLength(submitted.summaryHtml) },
+        layers: [{ title: 'Submitted' }],
       });
     });
   });

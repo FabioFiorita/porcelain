@@ -31,7 +31,8 @@ export function liveSubscription(client: QueryClient, environmentId: string) {
       (surface === 'text' ||
         surface === 'directory' ||
         surface === 'asset' ||
-        surface === 'html-preview') &&
+        surface === 'html-preview' ||
+        surface === 'step-lines') &&
       typeof path === 'string'
     )
       entry.paths.add(path);
@@ -62,8 +63,19 @@ const FILE_SURFACES = new Set([
   'git-status',
   'asset',
   'html-preview',
+  'review',
+  'step-lines',
+  'reviewed-layers',
 ]);
-const GIT_SURFACES = new Set(['changes', 'git-status', 'history', 'paths']);
+const GIT_SURFACES = new Set([
+  'changes',
+  'git-status',
+  'history',
+  'paths',
+  'review',
+  'step-lines',
+  'reviewed-layers',
+]);
 
 async function invalidateSurfaces(
   client: QueryClient,
@@ -118,14 +130,12 @@ export async function applyLiveNotice(
   }
   const surfaces =
     notice.change === 'reviewed'
-      ? new Set(['reviewed'])
+      ? new Set(['reviewed', 'reviewed-layers'])
       : notice.change === 'comments'
         ? new Set(['comments'])
-        : notice.change === 'layers'
-          ? new Set(['changes'])
-          : new Set(['artifacts', 'artifact']);
+        : new Set(['review', 'reviewed-layers']);
   await invalidateSurfaces(client, environmentId, notice, surfaces);
-  if (notice.change !== 'artifacts') await inventory();
+  await inventory();
 }
 
 export function connectLiveQueries(

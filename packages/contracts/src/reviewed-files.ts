@@ -27,3 +27,27 @@ export const setReviewedRequestSchema = z.strictObject({
 export type ReviewedMark = z.infer<typeof reviewedMarkSchema>;
 export type ReviewedMarksResponse = z.infer<typeof reviewedMarksResponseSchema>;
 export type SetReviewedRequest = z.infer<typeof setReviewedRequestSchema>;
+
+export const reviewedLayerMarkSchema = z.strictObject({
+  layerId: z.uuid(),
+  fingerprint: fingerprintSchema,
+  reviewedAt: z.string().datetime(),
+  stale: z.boolean(),
+});
+export const reviewedLayerMarksResponseSchema = z.strictObject({
+  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
+  marks: z.array(reviewedLayerMarkSchema).max(100),
+});
+export const setReviewedLayerRequestSchema = z.strictObject({
+  layerId: z.uuid(),
+  reviewed: z.literal(true),
+  fingerprint: fingerprintSchema,
+});
+export const reviewedLayerQuerySchema = z.strictObject({ layerId: z.uuid() });
+export type ReviewedLayerMark = z.infer<typeof reviewedLayerMarkSchema>;
+export type ReviewedLayerMarksResponse = z.infer<
+  typeof reviewedLayerMarksResponseSchema
+>;
+export type SetReviewedLayerRequest = z.infer<
+  typeof setReviewedLayerRequestSchema
+>;

@@ -5,7 +5,6 @@ import type { GitSession } from '@porcelain/git/interfaces/git-session';
 import type { GitActionReceipt } from '../models/git-action.ts';
 import type { GitActionStore } from '../repositories/interfaces/git-action-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import type { CompleteCommitReview } from './complete-commit-review.ts';
 import { resolveActionCheckout } from './resolve-action-worktree.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
@@ -14,19 +13,21 @@ export class ExecuteGitAction {
   private readonly worktrees: ResolveWorktree;
   private readonly store: GitActionStore;
   private readonly git: GitActionWriterFactory;
-  private readonly review: CompleteCommitReview | undefined;
+  private readonly refreshReview:
+    | ((worktreeId: string, signal: AbortSignal) => Promise<void>)
+    | undefined;
   constructor(
     inventory: InventoryStore,
     worktrees: ResolveWorktree,
     store: GitActionStore,
     git: GitActionWriterFactory,
-    review?: CompleteCommitReview,
+    refreshReview?: (worktreeId: string, signal: AbortSignal) => Promise<void>,
   ) {
     this.inventory = inventory;
     this.worktrees = worktrees;
     this.store = store;
     this.git = git;
-    this.review = review;
+    this.refreshReview = refreshReview;
   }
   async execute(
     receipt: GitActionReceipt,
@@ -61,31 +62,17 @@ export class ExecuteGitAction {
     );
     if (outcome.reason === 'PROCESS_GROUP_UNCONFIRMED')
       this.store.blockProject(receipt.projectId);
-    let reviewLayersUpdated: boolean | undefined;
-    const intent = this.store.preparation(receipt.preparationId)?.intent;
     if (
-      this.review &&
-      intent?.action === 'commit' &&
-      outcome.state === 'succeeded' &&
-      outcome.result?.headOid
-    ) {
-      try {
-        await this.review.execute(
-          receipt,
-          outcome.result.headOid,
-          intent,
-          signal,
-        );
-        reviewLayersUpdated = true;
-      } catch {
-        // Git already succeeded; metadata failure must never invite another commit.
-        reviewLayersUpdated = false;
-      }
-    }
+      this.refreshReview &&
+      receipt.action === 'commit' &&
+      outcome.state === 'succeeded'
+    )
+      await this.refreshReview(receipt.worktreeId, signal).catch(
+        () => undefined,
+      );
     this.store.finish({
       ...receipt,
       ...outcome,
-      ...(reviewLayersUpdated === undefined ? {} : { reviewLayersUpdated }),
       finishedAt: Date.now(),
     });
   }

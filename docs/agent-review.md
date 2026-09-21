@@ -1,23 +1,19 @@
-# Agent review handoff
+# Publishing a review from an agent
 
-Porcelain serves MCP over its owner socket, not the network, and `porcelain mcp` bridges an
-agent's stdio to it. Configure the coding agent with that command, for example:
+Porcelain serves MCP over its local owner socket. `porcelain mcp` bridges an agent's stdio to it:
 
 ```sh
 claude mcp add porcelain -- porcelain mcp
 ```
 
-There is no credential to configure. Reaching the socket means passing the data directory's
-permissions, which is the authority you already have at that terminal — so an agent on this
-machine needs no secret, and nothing off it can reach the agent tools at all.
+Start the agent in the registered checkout. The bridge supplies its working directory; tools can
+also target another registered checkout explicitly. No separate agent credential is needed:
+access to the private owner socket is the authority.
 
-An agent finds the registered worktree with `inventory`, reads current layers and
-revision with `read_layers`, then publishes ordered layers with `replace_layers`.
-Keep summaries and file notes short. `publish_artifact` accepts `handoff.md` for the
-code-facing summary and verification, and `handoff.html` for a readable report.
+Read the `porcelain://review-guide` MCP resource for publishing instructions and examples. Use the
+agent's own filesystem and Git tools to inspect code. Publish the summary and behavior layers as
+one review, using the revision returned by `read_review` to protect against overwriting newer work.
 
-Use `review_changes` or `read_file` for the fingerprints used by anchored comments.
-`list_comments`, `create_comment`, `reply_to_comment`, and `resolve_comment` share
-threads with the web app. MCP messages are attributed to the agent; HTTP messages
-to the reviewer. Nothing is pushed to coding sessions: ask the agent to read and
-address your comments when ready.
+Comments are shared with the web app. MCP messages are attributed to the agent; browser messages
+to the reviewer. Nothing is pushed into coding sessions: ask the agent to read and address comments
+when ready.

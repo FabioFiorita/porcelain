@@ -152,9 +152,7 @@ describe('continuous review document', () => {
       const screen = await render(
         <ReviewCodeDocument
           scope={scope}
-          files={[
-            { path: 'README.md', scope: 'unstaged', note: 'Read this first.' },
-          ]}
+          files={[{ path: 'README.md', note: 'Read this first.' }]}
         />,
       );
       await expect.element(screen.getByText('Read this first.')).toBeVisible();

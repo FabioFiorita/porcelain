@@ -1,39 +1,19 @@
-import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import type { RevealComment } from '../../domain/comments';
 import type { DocumentRef, OpenDocument } from '../../domain/documents';
 import { entryKey } from '../../domain/documents';
 import type { ReviewScope } from '../../domain/review';
-import { reviewProgress } from '../../domain/review';
-import {
-  useChanges,
-  usePrefetchReview,
-  useReviewChanges,
-} from '../../query/review';
-import { ArtifactDocument } from './artifact-document';
+import { usePublishedReview } from '../../query/published-review';
+import { useReviewChanges } from '../../query/review';
 import { CommitDocument } from './commit-document';
 import { DocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
-import { HandoffSummary } from './handoff-artifact';
-import { MarkdownView } from './markdown-view';
+import { PublishedLayer } from './published-layer';
+import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
-
-function ProgressPill({ done, total }: { done: number; total: number }) {
-  return (
-    <div className="hidden items-center gap-2 text-[11px] text-muted-foreground md:flex">
-      <Progress
-        value={total === 0 ? 0 : (done / total) * 100}
-        className="w-20"
-        aria-label={`${done} of ${total} files reviewed`}
-      />
-      <span className="tabular-nums">
-        {done}/{total}
-      </span>
-    </div>
-  );
-}
 
 export function DocumentView({
   scope,
@@ -73,7 +53,13 @@ function DocumentContent({
     case 'handoff':
       return <HandoffDocument scope={scope} onOpen={onOpen} />;
     case 'layer':
-      return <LayerDocument scope={scope} layerId={document.layerId} />;
+      return (
+        <LayerDocument
+          scope={scope}
+          layerId={document.layerId}
+          onOpen={onOpen}
+        />
+      );
     case 'change':
       return <ChangeDocument scope={scope} path={document.path} />;
     case 'file':
@@ -82,10 +68,6 @@ function DocumentContent({
       );
     case 'commit':
       return <CommitDocument scope={scope} oid={document.oid} />;
-    case 'artifact':
-      return (
-        <ArtifactDocument scope={scope} artifactId={document.artifactId} />
-      );
   }
 }
 
@@ -96,53 +78,31 @@ function HandoffDocument({
   scope: ReviewScope;
   onOpen: OpenDocument;
 }) {
-  usePrefetchReview(scope);
-  const { changes: list, layers } = useChanges(scope);
-  const changes = useReviewChanges(scope);
-  const paths = uniquePaths([
-    ...list.changes.map((entry) => entry.path),
-    ...layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
-  ]);
-  const reviewBuilt = layers.layers.length > 0;
-  const progress = reviewProgress(paths, changes);
+  const published = usePublishedReview(scope);
+  if (published.isPending)
+    return (
+      <p role="status" className="p-4 text-sm">
+        Loading review…
+      </p>
+    );
+  if (published.isError)
+    return <PublicationFailure retry={() => void published.refetch()} />;
+  if (published.data?.active)
+    return <PublishedOverview review={published.data} onOpen={onOpen} />;
+  return <PlainChangesDocument scope={scope} />;
+}
 
+function PlainChangesDocument({ scope }: { scope: ReviewScope }) {
+  const changes = useReviewChanges(scope);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
+        scope={scope}
         toolbar={(collapseControl) => (
-          <DocumentToolbar
-            title={reviewBuilt ? 'Handoff' : 'Changes'}
-            subtitle={
-              reviewBuilt
-                ? `${layers.layers.length} ${layers.layers.length === 1 ? 'layer' : 'layers'} · ${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
-                : `${paths.length} ${paths.length === 1 ? 'file' : 'files'}`
-            }
-          >
-            <ProgressPill {...progress} />
+          <DocumentToolbar title="Changes" subtitle={`${changes.length} files`}>
             {collapseControl}
             <MarkAllReviewed scope={scope} entries={changes} />
           </DocumentToolbar>
-        )}
-        scope={scope}
-        files={layers.layers.flatMap((layer) => layer.files)}
-        header={() => (
-          <>
-            {paths.length === 0 && (
-              <div className="grid min-h-48 place-items-center p-6">
-                <ReviewEmpty
-                  title="No changes"
-                  description="This worktree matches its last commit."
-                />
-              </div>
-            )}
-            {reviewBuilt && (
-              <HandoffSummary
-                scope={scope}
-                layers={layers.layers}
-                onOpen={onOpen}
-              />
-            )}
-          </>
         )}
       />
     </div>
@@ -152,52 +112,38 @@ function HandoffDocument({
 function LayerDocument({
   scope,
   layerId,
+  onOpen,
 }: {
   scope: ReviewScope;
   layerId: string;
+  onOpen: OpenDocument;
 }) {
-  const { layers } = useChanges(scope);
-  const layer = layers.layers.find((candidate) => candidate.id === layerId);
-  const layerPaths = uniquePaths(layer?.files.map((file) => file.path) ?? []);
-  const changes = useReviewChanges(scope, layerPaths);
-
+  const published = usePublishedReview(scope);
+  const layer = published.data?.layers.find(
+    (candidate) => candidate.id === layerId,
+  );
+  if (published.isPending)
+    return (
+      <p role="status" className="p-4 text-sm">
+        Loading layer…
+      </p>
+    );
+  if (published.isError)
+    return <PublicationFailure retry={() => void published.refetch()} />;
   if (!layer)
     return (
       <ReviewEmpty
         title="Layer no longer present"
-        description="Choose a layer that is still present in the current review."
+        description="Choose a layer in the current review."
       />
     );
-
-  const progress = reviewProgress(layerPaths, changes);
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ReviewCodeDocument
-        toolbar={(collapseControl) => (
-          <DocumentToolbar
-            title={`${layers.layers.indexOf(layer) + 1}. ${layer.title}`}
-            subtitle={`Layer · ${layerPaths.length} ${layerPaths.length === 1 ? 'file' : 'files'}`}
-          >
-            <ProgressPill {...progress} />
-            {collapseControl}
-            <MarkAllReviewed scope={scope} entries={changes} kind="layer" />
-          </DocumentToolbar>
-        )}
-        scope={scope}
-        paths={layerPaths}
-        files={layer.files}
-        header={() =>
-          layer.summary == null ? null : (
-            <div className="mx-4 mt-3 rounded-xl border bg-muted/30 px-4 py-3">
-              <MarkdownView
-                text={layer.summary}
-                className="mt-1 max-w-[78ch] text-muted-foreground"
-              />
-            </div>
-          )
-        }
-      />
-    </div>
+    <PublishedLayer
+      key={`${layerId}:${published.data?.revision}`}
+      scope={scope}
+      layer={layer}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -236,6 +182,16 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
   );
 }
 
-function uniquePaths(paths: readonly string[]) {
-  return [...new Set(paths.filter(Boolean))];
+function PublicationFailure({ retry }: { retry: () => void }) {
+  return (
+    <div className="flex flex-col items-center p-4">
+      <ReviewEmpty
+        title="Review could not be loaded"
+        description="The saved publication could not be read."
+      />
+      <Button variant="outline" onClick={retry}>
+        Retry review
+      </Button>
+    </div>
+  );
 }

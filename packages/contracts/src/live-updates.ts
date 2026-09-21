@@ -35,14 +35,7 @@ export const liveNoticeSchema = z.discriminatedUnion('type', [
     type: z.literal('worktree'),
     projectId: z.uuid(),
     worktreeId: worktreeIdSchema,
-    change: z.enum([
-      'files',
-      'git',
-      'reviewed',
-      'comments',
-      'layers',
-      'artifacts',
-    ]),
+    change: z.enum(['files', 'git', 'reviewed', 'comments', 'review']),
   }),
 ]);
 

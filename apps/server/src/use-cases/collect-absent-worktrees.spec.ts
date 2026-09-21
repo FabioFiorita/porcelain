@@ -3,10 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
-import { artifacts } from '../db/schema/artifacts.ts';
 import { commentThreads } from '../db/schema/comment-threads.ts';
-import { reviewLayerSets } from '../db/schema/review-layer-sets.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
+import { reviews } from '../db/schema/reviews.ts';
 import type { RegisteredProject } from '../models/project.ts';
 import { InventoryRepository } from '../repositories/inventory-repository.ts';
 import { WorktreePresenceRepository } from '../repositories/worktree-presence-repository.ts';
@@ -39,14 +38,15 @@ async function fixture() {
   for (const worktreeId of ['gone', 'kept']) {
     presence.record(worktreeId, project.id);
     database.db
-      .insert(artifacts)
+      .insert(reviews)
       .values({
-        id: `artifact-${worktreeId}`,
         worktreeId,
-        name: 'Review',
-        content: 'data',
-        sizeBytes: 4,
-        createdAt: '2026-01-01',
+        revision: 1,
+        publishedAt: '2026-01-01T00:00:00.000Z',
+        summaryHtml: '<title>Review</title>',
+        summaryToken: `summary-${worktreeId}`,
+        summarySecret: 'secret',
+        layers: [],
       })
       .run();
     database.db
@@ -60,10 +60,6 @@ async function fixture() {
         lastAgentRevision: null,
         sizeBytes: 1,
       })
-      .run();
-    database.db
-      .insert(reviewLayerSets)
-      .values({ worktreeId, revision: 1, layers: [] })
       .run();
     database.db
       .insert(reviewedFiles)
@@ -86,17 +82,10 @@ async function fixture() {
     /** Every worktree id that still has review data of any kind. */
     remaining() {
       const ids = [
-        ...database.db
-          .select({ id: artifacts.worktreeId })
-          .from(artifacts)
-          .all(),
+        ...database.db.select({ id: reviews.worktreeId }).from(reviews).all(),
         ...database.db
           .select({ id: commentThreads.worktreeId })
           .from(commentThreads)
-          .all(),
-        ...database.db
-          .select({ id: reviewLayerSets.worktreeId })
-          .from(reviewLayerSets)
           .all(),
         ...database.db
           .select({ id: reviewedFiles.worktreeId })

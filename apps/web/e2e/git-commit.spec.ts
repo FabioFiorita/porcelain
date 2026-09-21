@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
+import type { ReviewLayer } from '@porcelain/contracts/review';
 import { pairBrowser, playgroundInfo } from './playground';
 import { openNavigation } from './workspace-navigation';
 
@@ -31,26 +32,30 @@ test('commits the selected new file and leaves other staged changes in place', a
   const worktree = project?.worktrees.find(
     (entry: { path: string }) => entry.path === worktreePath,
   );
-  const layerUrl = `/api/worktrees/${worktree.id}/review-layers`;
-  const source = await (await page.request.get(layerUrl)).json();
-  const layers = source.layers.map((layer: { files: { path: string }[] }) => ({
-    ...layer,
-    files: layer.files.filter((file) => file.path !== 'notes.txt'),
-  }));
-  const response = await page.request.put(layerUrl, {
+  const reviewUrl = `/api/worktrees/${worktree.id}/review`;
+  const { review: source } = await (await page.request.get(reviewUrl)).json();
+  const originalSummary = await (
+    await page.request.get(source.summary.url)
+  ).text();
+  const layerId = randomUUID();
+  const response = await page.request.put(reviewUrl, {
     data: {
       expectedRevision: source.revision,
+      summaryHtml: '<h1>Review notes</h1>',
       layers: [
-        ...layers,
         {
-          id: randomUUID(),
+          id: layerId,
           title: 'Preserve review explanation',
           summary: 'Why these notes matter',
-          files: [
+          lanes: ['Notes'],
+          steps: [
             {
-              path: 'notes.txt',
-              scope: 'unstaged',
-              note: 'This explanation must remain in History.',
+              id: randomUUID(),
+              title: 'Review notes',
+              text: 'This explanation remains in the latest review after commit.',
+              lane: 0,
+              kind: 'changed',
+              pointer: { path: 'notes.txt', startLine: 1, endLine: 1 },
             },
           ],
         },
@@ -86,21 +91,41 @@ test('commits the selected new file and leaves other staged changes in place', a
     page.getByRole('heading', { name: /^[0-9a-f]{7}$/ }),
   ).toBeVisible();
 
-  // Step 5c removed the per-commit review surface, so a commit no longer keeps
-  // a copy of the notes it carried: the route is gone and the explanation is
-  // cleared from the live layers along with the file it described. This
-  // assertion records that loss rather than hiding it.
-  const head = (await git('rev-parse', 'HEAD')).trim();
-  const archived = await page.request.get(
-    `/api/projects/${project.id}/commits/${head}/review-layers`,
+  const { review: afterCommit } = await (
+    await page.request.get(reviewUrl)
+  ).json();
+  expect(afterCommit.active).toBe(false);
+  expect(afterCommit.layers[0].id).toBe(layerId);
+  expect(afterCommit.layers[0].steps[0].location.state).toBe('committed');
+  expect(afterCommit.layers[0].steps[0].text).toContain(
+    'remains in the latest review',
   );
-  expect(archived.status()).toBe(404);
-  const afterCommit = await (await page.request.get(layerUrl)).json();
-  expect(
-    afterCommit.layers.flatMap(
-      (layer: { files: { path: string }[] }) => layer.files,
-    ),
-  ).not.toContainEqual(expect.objectContaining({ path: 'notes.txt' }));
+  // Restore the shared playground publication for subsequent navigation specs.
+  const restored = await page.request.put(reviewUrl, {
+    data: {
+      expectedRevision: afterCommit.revision,
+      summaryHtml: originalSummary.replace(
+        /<style id="porcelain-theme">[\s\S]*?<\/script>/,
+        '',
+      ),
+      layers: source.layers.map(
+        ({ fingerprint: _fingerprint, steps, ...layer }: ReviewLayer) => ({
+          ...layer,
+          steps: steps.map(({ location: _location, pointer, ...step }) => ({
+            ...step,
+            pointer: {
+              path: pointer.path,
+              startLine: pointer.startLine,
+              endLine: pointer.endLine,
+              ...(pointer.symbol ? { symbol: pointer.symbol } : {}),
+            },
+          })),
+        }),
+      ),
+      ...(source.diagram ? { diagram: source.diagram } : {}),
+    },
+  });
+  expect(restored.ok()).toBeTruthy();
 });
 
 test('reviews generated groups and commits them sequentially', async ({

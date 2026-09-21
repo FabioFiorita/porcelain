@@ -68,13 +68,20 @@ it('completes initialize and tools/list over the socket with no secret', async (
     expect(tools.error).toBeUndefined();
     expect(
       tools.result.tools.map((tool: { name: string }) => tool.name),
-    ).toContain('inventory');
+    ).toEqual([
+      'publish_review',
+      'read_review',
+      'list_comments',
+      'create_comment',
+      'reply_to_comment',
+      'resolve_comment',
+    ]);
   } finally {
     await server.close();
   }
 }, 20000);
 
-it('calls a tool and is attributed to the agent, not the owner', async () => {
+it('calls a cwd-scoped tool through the real stdio bridge', async () => {
   const server = await running('porcelain-bridge-tool-');
   try {
     const out: string[] = [];
@@ -96,19 +103,19 @@ it('calls a tool and is attributed to the agent, not the owner', async () => {
           jsonrpc: '2.0',
           id: 2,
           method: 'tools/call',
-          params: { name: 'inventory', arguments: {} },
+          params: {
+            name: 'read_review',
+            arguments: { cwd: join(server.root, 'missing') },
+          },
         },
       ]),
       (line) => out.push(line),
     );
     const called = JSON.parse(out.at(-1) ?? '{}');
     expect(called.error).toBeUndefined();
-    expect(called.result.isError).not.toBe(true);
-    // An agent asked for the inventory, so it gets the inventory: the server's
-    // own listing diagnostics are not part of this tool's answer.
-    expect(JSON.parse(called.result.content[0].text)).toEqual({
-      environmentId: expect.any(String),
-      projects: expect.any(Array),
+    expect(called.result.isError).toBe(true);
+    expect(JSON.parse(called.result.content[0].text)).toMatchObject({
+      code: 'INTERNAL_ERROR',
     });
   } finally {
     await server.close();

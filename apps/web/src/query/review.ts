@@ -12,13 +12,11 @@ import {
 } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import type { ReviewPort, ReviewRequest } from '../api/review/port';
-import type { Inventory } from '../domain/inventory';
 import type {
   ChangeList,
   ChangeSelection,
   DiffContent,
   ExpectedFile,
-  Layers,
   ReviewChangeItem,
   ReviewedMarksResponse,
   ReviewScope,
@@ -28,6 +26,7 @@ import type {
 import { isFingerprintable, reviewMark, reviewStatus } from '../domain/review';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
+import { usePublishedReview } from './published-review';
 import { enqueueReviewed } from './reviewed-queue';
 import { useConnectedContext } from './workspace-provider';
 
@@ -97,11 +96,7 @@ export function useReviewOverview(scope: ReviewScope) {
  * Changes label while this shared query is loading or has failed.
  */
 export function useHasReviewLayers(scope: ReviewScope) {
-  return useQuery({
-    ...useChangesOptions(scope),
-    select: (data) => data.layers.layers.length > 0,
-    throwOnError: false,
-  }).data;
+  return usePublishedReview(scope).data?.active ?? false;
 }
 
 function useChangesOptions(scope: ReviewScope) {
@@ -122,8 +117,7 @@ function useChangesOptions(scope: ReviewScope) {
       request.signal.throwIfAborted();
       if (
         data.changes.environmentId !== connection.environmentId ||
-        data.changes.worktreeId !== scope.worktreeId ||
-        data.layers.worktreeId !== scope.worktreeId
+        data.changes.worktreeId !== scope.worktreeId
       )
         throw new ConnectionError(
           'The review context changed. Reopen Porcelain to continue safely.',
@@ -131,29 +125,6 @@ function useChangesOptions(scope: ReviewScope) {
       return data;
     },
   };
-}
-
-export function useArtifacts(scope: ReviewScope) {
-  return useReviewData(scope, ['artifacts'], (api, request) =>
-    api.artifacts(request),
-  );
-}
-export function useArtifactsOverview(scope: ReviewScope) {
-  const { api, connection } = useConnectedContext();
-  return (
-    useQuery({
-      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-        'artifacts',
-      ]),
-      queryFn: async ({ signal }) => {
-        const request = connection.request(signal);
-        const data = await api.review.artifacts({ ...scope, ...request });
-        request.signal.throwIfAborted();
-        return data;
-      },
-      throwOnError: false,
-    }).data ?? []
-  );
 }
 
 function useReviewedOptions(scope: ReviewScope) {
@@ -170,31 +141,6 @@ export function usePrefetchReview(scope: ReviewScope) {
   usePrefetchQuery(useReviewedOptions(scope));
 }
 
-/** Fetch only the content for the currently available artifact tabs. */
-export function useArtifactContents(
-  scope: ReviewScope,
-  artifactIds: readonly string[],
-) {
-  const { api, connection } = useConnectedContext();
-  return useSuspenseQueries({
-    queries: artifactIds.map((artifactId) => ({
-      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-        'artifact',
-        artifactId,
-      ]),
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const request = connection.request(signal);
-        const data = await api.review.artifact({
-          ...scope,
-          ...request,
-          artifactId,
-        });
-        request.signal.throwIfAborted();
-        return data;
-      },
-    })),
-  }).map((result) => result.data);
-}
 export function reviewErrorMessage(error: unknown) {
   return error instanceof ConnectionError
     ? error.message
@@ -544,62 +490,6 @@ function useReviewedContext(scope: ReviewScope) {
   };
 }
 
-type ReviewedContext = ReturnType<typeof useReviewedContext>;
-
-/**
- * The sidebar's dot after a mark, worked out from what is already here.
- *
- * Marking cannot publish layers and cannot take away the agent's last word,
- * so the only move it can make is between pending and reviewed, and both the
- * published layers and the marks are in cache. Invalidating the worktree list
- * instead would make marking one file cost a listing of every project — the
- * cost the dot was introduced to avoid.
- */
-function patchWorktreeStatus(
-  client: ReturnType<typeof useQueryClient>,
-  context: ReviewedContext,
-  marks: ReviewedMarksResponse,
-) {
-  const cached = client.getQueryData<{ layers: Layers }>(context.changesKey);
-  if (!cached) {
-    // Nothing to decide from: ask for the list rather than guess at the dot.
-    void client.invalidateQueries({ queryKey: context.inventoryKey });
-    return;
-  }
-  const published = cached.layers.layers;
-  const files = published.flatMap((layer) =>
-    layer.files.map((file) => file.path),
-  );
-  const marked = new Set(marks.marks.map((mark) => mark.path));
-  const status =
-    published.length === 0
-      ? null
-      : files.length === 0 || files.some((path) => !marked.has(path))
-        ? ('pending' as const)
-        : ('reviewed' as const);
-  client.setQueryData<Inventory>(context.inventoryKey, (current) =>
-    current
-      ? {
-          ...current,
-          projects: current.projects.map((project) =>
-            project.id === context.scope.projectId
-              ? {
-                  ...project,
-                  worktrees: project.worktrees.map((worktree) =>
-                    worktree.id === context.scope.worktreeId &&
-                    // A reply is newer than the handoff and outranks it.
-                    worktree.status !== 'replied'
-                      ? { ...worktree, status }
-                      : worktree,
-                  ),
-                }
-              : project,
-          ),
-        }
-      : current,
-  );
-}
-
 export type MarkReviewedInput = Pick<
   SetReviewedRequest,
   'path' | 'fingerprint'
@@ -620,7 +510,6 @@ export function useMarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           return result;
         }),
-      onSuccess: (result) => patchWorktreeStatus(client, context, result),
     }),
   );
 }
@@ -637,7 +526,6 @@ export function useUnmarkReviewed(scope: ReviewScope) {
           request.signal.throwIfAborted();
           return result;
         }),
-      onSuccess: (result) => patchWorktreeStatus(client, context, result),
     }),
   );
 }
@@ -711,13 +599,6 @@ export function useMarkAllReviewed(scope: ReviewScope) {
           }
         }
         return report;
-      },
-      onSuccess: (report) => {
-        // Once, at the end: one bulk pass is one move of the dot however many
-        // files it covered. The marks it left are the ones now in cache.
-        const marks = client.getQueryData<ReviewedMarksResponse>(context.key);
-        if (report.marked.length > 0 && marks)
-          patchWorktreeStatus(client, context, marks);
       },
     }),
   );

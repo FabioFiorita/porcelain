@@ -116,7 +116,6 @@ export const gitActionReceiptSchema = z.strictObject({
       'PROCESS_GROUP_UNCONFIRMED',
     ])
     .optional(),
-  reviewLayersUpdated: z.boolean().optional(),
   result: z
     .strictObject({
       headOid: oidSchema.optional(),

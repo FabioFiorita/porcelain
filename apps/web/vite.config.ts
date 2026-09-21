@@ -5,8 +5,10 @@ import { defineConfig } from 'vite';
 import { playgroundBridge } from './development/playground-bridge.ts';
 
 const target = process.env.PORCELAIN_API_TARGET;
-// Routes exist once, under `/api`, so the dev proxy forwards them unchanged.
-const proxy = target ? { '/api': { target, ws: true } } : undefined;
+// The capability URL serves sandboxed HTML outside the authenticated API.
+const proxy = target
+  ? { '/api': { target, ws: true }, '/review-summaries': { target } }
+  : undefined;
 
 export default defineConfig(({ command, isPreview }) => {
   const socketPath = process.env.PORCELAIN_PLAYGROUND_SOCKET;

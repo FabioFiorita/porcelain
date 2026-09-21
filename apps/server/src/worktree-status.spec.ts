@@ -56,6 +56,34 @@ async function fixture() {
   return { app, checkout, project, worktreeId, dot };
 }
 
+async function publishReview(
+  f: Awaited<ReturnType<typeof fixture>>,
+  kind: 'changed' | 'context' = 'changed',
+) {
+  return f.app.publishReview(f.worktreeId, {
+    expectedRevision: 0,
+    summaryHtml: '<!doctype html><title>Review</title>',
+    layers: [
+      {
+        id: randomUUID(),
+        title: 'Read this first',
+        summary: 'Review the changed notes.',
+        lanes: ['Code'],
+        steps: [
+          {
+            id: randomUUID(),
+            lane: 0,
+            title: 'Notes',
+            text: 'The notes changed.',
+            kind,
+            pointer: { path: 'notes.txt', startLine: 1, endLine: 1 },
+          },
+        ],
+      },
+    ],
+  });
+}
+
 afterEach(async () => {
   for (const app of applications.splice(0)) await app.close();
   vi.unstubAllEnvs();
@@ -68,13 +96,7 @@ it('shows review ready while layers are live, and stops when a commit archives t
   expect(await f.dot()).toBeNull();
   await writeFile(join(f.checkout, 'notes.txt'), 'second\n');
   git(f.checkout, 'add', 'notes.txt');
-  await f.app.replaceReviewLayers(f.worktreeId, 0, [
-    {
-      id: randomUUID(),
-      title: 'Read this first',
-      files: [{ path: 'notes.txt', scope: 'staged' }],
-    },
-  ]);
+  await publishReview(f);
   expect(await f.dot()).toBe('pending');
   // Committing archives the layers, which is what puts the dot out. Marking
   // files reviewed deliberately does not: an agent can edit a path you
@@ -96,20 +118,12 @@ it('reports reviewed when every file the layers name has been marked', async () 
   const f = await fixture();
   await writeFile(join(f.checkout, 'notes.txt'), 'second\n');
   git(f.checkout, 'add', 'notes.txt');
-  await f.app.replaceReviewLayers(f.worktreeId, 0, [
-    {
-      id: randomUUID(),
-      title: 'Read this first',
-      files: [{ path: 'notes.txt', scope: 'staged' }],
-    },
-  ]);
+  const review = await publishReview(f);
   expect(await f.dot()).toBe('pending');
-  const { changes } = await f.app.changes(f.worktreeId);
-  const fingerprint = changes.find(
-    (entry) => entry.path === 'notes.txt',
-  )?.fingerprint;
-  await f.app.setReviewedFile(f.worktreeId, {
-    path: 'notes.txt',
+  const layer = review.layers[0];
+  const fingerprint = layer?.fingerprint;
+  await f.app.setReviewedLayer(f.worktreeId, {
+    layerId: layer?.id ?? '',
     reviewed: true,
     fingerprint: fingerprint ?? '',
   });
@@ -130,11 +144,11 @@ it('reports reviewed when every file the layers name has been marked', async () 
   await writeFile(join(f.checkout, 'notes.txt'), 'third\n');
   await expect.poll(() => f.dot()).toBe('pending');
   expect(
-    (await f.app.listReviewedFiles(f.worktreeId)).marks[0]?.fingerprint,
+    (await f.app.listReviewedLayers(f.worktreeId)).marks[0]?.fingerprint,
   ).toBe(fingerprint);
   live.close();
   // Unmarking is enough to make it pending again without any Git read.
-  await f.app.removeReviewedFile(f.worktreeId, 'notes.txt');
+  await f.app.removeReviewedLayer(f.worktreeId, layer?.id ?? '');
   expect(await f.dot()).toBe('pending');
 });
 
@@ -216,9 +230,7 @@ it('shows the agent replied until the owner says how far they have read', async 
 
 it('lets a reply outrank published layers, and an answer of your own count as read', async () => {
   const f = await fixture();
-  await f.app.replaceReviewLayers(f.worktreeId, 0, [
-    { id: randomUUID(), title: 'Handoff', files: [] },
-  ]);
+  await publishReview(f, 'context');
   const [thread] = await f.app.comments(
     {
       kind: 'create',

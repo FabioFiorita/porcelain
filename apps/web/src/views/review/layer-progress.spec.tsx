@@ -1,197 +1,92 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReviewedLayerMark } from '@porcelain/contracts/reviewed-files';
+import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
-import type { Change, ChangeList, ReviewChangeItem } from '../../domain/review';
-import { DocumentView } from './documents';
+import { publishedReviewFixture } from '../../api/review/published-fixture';
+import { PublishedLayer } from './published-layer';
 
 const state = vi.hoisted(() => ({
-  changes: [] as ReviewChangeItem[],
-  bulkEntries: [] as ReviewChangeItem[],
+  marks: [] as ReviewedLayerMark[],
+  mutate: vi.fn(),
+  failed: false,
 }));
-
-const scope = {
-  projectId: 'project',
-  worktreeId: 'worktree',
-};
-
-const staged: Extract<Change, { kind: string }> = {
-  scope: 'staged',
-  kind: 'modified',
-  oldPath: 'same.ts',
-  newPath: 'same.ts',
-  oldMode: '100644',
-  newMode: '100644',
-  oldOid: null,
-  newOid: null,
-  supported: true,
-};
-const unstaged = { ...staged, scope: 'unstaged' as const };
-const otherLayerChange: Extract<Change, { kind: string }> = {
-  scope: 'unstaged',
-  kind: 'modified',
-  oldPath: 'other.ts',
-  newPath: 'other.ts',
-  oldMode: '100644',
-  newMode: '100644',
-  oldOid: null,
-  newOid: null,
-  supported: true,
-};
-
-const list: ChangeList = {
-  environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
-  worktreeId: scope.worktreeId,
-  statusToken: 'a'.repeat(64),
-  headOid: 'b'.repeat(40),
-  branch: null,
-  changes: [
-    {
-      path: 'same.ts',
-      fingerprint: 'c'.repeat(64),
-      comparisons: [staged, unstaged],
+vi.mock('../../query/published-review', () => ({
+  usePublishedReview: () => ({ data: null }),
+  useLayerMarks: () => ({
+    marks: {
+      data: { marks: state.marks },
+      isPending: false,
+      isError: state.failed,
     },
-    {
-      path: 'other.ts',
-      fingerprint: 'c'.repeat(64),
-      comparisons: [otherLayerChange],
-    },
-  ],
-};
-
-const layer = {
-  id: 'layer-a',
-  title: 'First layer',
-  files: [
-    { path: 'same.ts', scope: 'staged' as const },
-    { path: 'same.ts', scope: 'unstaged' as const },
-    { path: 'missing.ts', scope: 'unstaged' as const },
-  ],
-};
-
-function changeEntry(
-  path: string,
-  reviewStatus: ReviewChangeItem['reviewStatus'],
-  change: Extract<Change, { kind: string }> = staged,
-): ReviewChangeItem {
-  return {
-    path,
-    fingerprint: 'c'.repeat(64),
-    comparisons: [change],
-    environmentId: list.environmentId,
-    worktreeId: list.worktreeId,
-    statusToken: list.statusToken,
-    reviewStatus,
-  };
-}
-
-vi.mock('../../query/review', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../query/review')>()),
-  useChanges: () => ({
-    changes: list,
-    layers: {
-      worktreeId: scope.worktreeId,
-      revision: 1,
-      layers: [layer],
-    },
+    toggle: { mutate: state.mutate, isPending: false, isError: false },
   }),
-  // The real hook narrows to the paths it is given, so the fake does too:
-  // what this spec asks is whether the layer view asks for its own files.
-  useReviewChanges: (_scope: unknown, paths?: readonly string[]) =>
-    paths
-      ? state.changes.filter((entry) => paths.includes(entry.path))
-      : state.changes,
+  useStepLines: () => ({ data: undefined, isPending: false }),
 }));
-vi.mock('./reviewed-control', () => ({
-  MarkAllReviewed: ({ entries }: { entries: readonly ReviewChangeItem[] }) => {
-    state.bulkEntries = [...entries];
-    return <button type="button">Mark layer reviewed</button>;
-  },
-  ReviewedControl: () => null,
+vi.mock('../../query/review', async (original) => ({
+  ...(await original<typeof import('../../query/review')>()),
+  useReviewChanges: () => [],
+  useChangeDiffs: () => ({ diffs: new Map() }),
+  selectionKey: () => '',
 }));
-vi.mock('./review-code-document', () => ({
-  ReviewCodeDocument: ({
-    paths,
-    header,
-    toolbar,
-  }: {
-    paths?: readonly string[];
-    header?: () => React.ReactNode;
-    toolbar?: (control: React.ReactNode) => React.ReactNode;
-  }) => (
-    <div data-testid="code-document">
-      {toolbar?.(null)}
-      {paths?.map((path) => (
-        <span key={path}>{path}</span>
-      ))}
-      {header?.()}
-    </div>
-  ),
-}));
-vi.mock('../../query/history', () => ({
-  useHistory: () => ({ commits: [] }),
-}));
-vi.mock('../workspace/preferences', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../workspace/preferences')>()),
-  usePreferences: () => ({
-    preferences: { markdownDefault: 'reader', htmlDefault: 'preview' },
-  }),
-}));
-
-function renderLayer() {
-  return render(
-    <DocumentView
-      scope={scope}
-      document={{ kind: 'layer', layerId: layer.id }}
-      onOpen={vi.fn()}
-    />,
-  );
-}
-
+const source = publishedReviewFixture('worktree', 'environment').layers[0];
+if (!source) throw new Error('Missing layer fixture');
+const layer = { ...source, steps: [] };
+const view = () => (
+  <PublishedLayer
+    scope={{ projectId: 'project', worktreeId: 'worktree' }}
+    layer={layer}
+    onOpen={vi.fn()}
+  />
+);
 afterEach(() => {
-  state.changes = [];
-  state.bulkEntries = [];
+  state.marks = [];
+  state.failed = false;
+  state.mutate.mockReset();
 });
 
-describe('layer review progress', () => {
-  it('counts declared missing paths and excludes changes from other layers', async () => {
-    state.changes = [
-      changeEntry('same.ts', 'reviewed'),
-      changeEntry('other.ts', 'reviewed', otherLayerChange),
-    ];
-
-    const screen = await renderLayer();
-
-    await expect.element(screen.getByText('1/2')).toBeVisible();
-    await expect
-      .element(
-        screen.getByRole('progressbar', { name: '1 of 2 files reviewed' }),
-      )
-      .toBeInTheDocument();
-    expect(state.bulkEntries.map((entry) => entry.path)).toEqual(['same.ts']);
-    await expect
-      .element(screen.getByRole('button', { name: 'Mark layer reviewed' }))
-      .toBeVisible();
+it('marks the exact displayed layer fingerprint', async () => {
+  const screen = await render(view());
+  await screen
+    .getByRole('button', { name: 'Mark layer reviewed', exact: true })
+    .click();
+  expect(state.mutate).toHaveBeenCalledWith({
+    layerId: layer.id,
+    fingerprint: layer.fingerprint,
+    reviewed: false,
   });
-
-  it('updates the toolbar counter when reviewed marks change', async () => {
-    state.changes = [
-      changeEntry('same.ts', 'unreviewed'),
-      changeEntry('missing.ts', 'unreviewed', unstaged),
-    ];
-    const view = await renderLayer();
-
-    await expect.element(view.getByText('0/2')).toBeVisible();
-    state.changes = [
-      changeEntry('same.ts', 'reviewed'),
-      changeEntry('missing.ts', 'reviewed', unstaged),
-    ];
-    await view.rerender(
-      <DocumentView
-        scope={scope}
-        document={{ kind: 'layer', layerId: layer.id }}
-        onOpen={vi.fn()}
-      />,
-    );
-
-    await expect.element(view.getByText('2/2')).toBeVisible();
+});
+it('does not show a stale mark as reviewed even when its saved fingerprint matches', async () => {
+  state.marks = [
+    {
+      layerId: layer.id,
+      fingerprint: layer.fingerprint,
+      reviewedAt: new Date().toISOString(),
+      stale: false,
+    },
+  ];
+  const screen = await render(view());
+  await expect
+    .element(screen.getByRole('button', { name: 'Reviewed', exact: true }))
+    .toHaveAttribute('aria-pressed', 'true');
+  state.marks = state.marks.map((mark) => ({ ...mark, stale: true }));
+  await screen.rerender(view());
+  const button = screen.getByRole('button', {
+    name: 'Mark changed layer reviewed',
   });
+  await expect.element(button).toHaveAttribute('aria-pressed', 'false');
+  await button.click();
+  expect(state.mutate).toHaveBeenCalledWith({
+    layerId: layer.id,
+    fingerprint: layer.fingerprint,
+    reviewed: false,
+  });
+});
+it('disables marking if its current status could not be read', async () => {
+  state.failed = true;
+  const screen = await render(view());
+  await expect
+    .element(
+      screen.getByRole('button', { name: 'Mark layer reviewed', exact: true }),
+    )
+    .toBeDisabled();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 });

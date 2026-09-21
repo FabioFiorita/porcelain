@@ -28,7 +28,6 @@ import {
   checkRequestOrigin,
   type OriginPolicy,
 } from './middlewares/request-origin.ts';
-import { artifactRoutes } from './routes/artifacts.ts';
 import { browserSessionRoutes } from './routes/browser-session.ts';
 import { commentRoutes } from './routes/comments.ts';
 import { commitDraftRoutes } from './routes/commit-drafts.ts';
@@ -41,9 +40,11 @@ import { healthRoute } from './routes/health.ts';
 import { inventoryRoutes } from './routes/inventory.ts';
 import { liveUpdateRoutes } from './routes/live-updates.ts';
 import { pairRoutes } from './routes/pair.ts';
+import { publishedReviewRoutes } from './routes/published-review.ts';
 import { changeRoutes } from './routes/read-changes.ts';
-import { reviewLayerRoutes } from './routes/review-layers.ts';
+import { reviewSummaryRoute } from './routes/review-summary.ts';
 import { reviewedFileRoutes } from './routes/reviewed-files.ts';
+import { reviewedLayerRoutes } from './routes/reviewed-layers.ts';
 import { registerStaticFiles } from './static-files.ts';
 
 export type NetworkServerOptions = {
@@ -65,10 +66,10 @@ function registerApiRoutes(
   server.register(pairRoutes, options);
   server.register(gitActionRoutes, options);
   server.register(commitDraftRoutes, options);
-  server.register(artifactRoutes, options);
-  server.register(reviewLayerRoutes, options);
   server.register(changeRoutes, options);
   server.register(reviewedFileRoutes, options);
+  server.register(reviewedLayerRoutes, options);
+  server.register(publishedReviewRoutes, options);
   server.register(commentRoutes, options);
   server.register(filePreferenceRoutes, options);
   server.register(fileRoutes, options);
@@ -135,6 +136,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
     },
     { prefix: '/api' },
   );
+  reviewSummaryRoute(server, { application });
   if (webRoot !== undefined) registerStaticFiles(server, { webRoot });
   return server;
 }

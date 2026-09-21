@@ -82,23 +82,31 @@ describe('Project removal HTTP workflow', () => {
       );
       for (const worktree of [...project.worktrees, ...other.worktrees]) {
         const base = `/api/worktrees/${worktree.id}`;
-        await request(`${base}/review-layers`, 'PUT', {
+        await request(`${base}/review`, 'PUT', {
           expectedRevision: 0,
+          summaryHtml: '<title>Review</title>',
           layers: [
             {
               id: randomUUID(),
               title: 'Review',
-              files: [{ path: 'notes.txt', scope: 'unstaged' }],
+              summary: 'Review the current changes.',
+              lanes: ['Code'],
+              steps: [
+                {
+                  id: randomUUID(),
+                  lane: 0,
+                  title: 'Notes',
+                  text: 'Review the project notes.',
+                  kind: 'context',
+                  pointer: { path: 'notes.txt', startLine: 1, endLine: 1 },
+                },
+              ],
             },
           ],
         });
         await request(`${base}/comments`, 'POST', {
           anchor: { kind: 'file', filePath: 'notes.txt' },
           body: 'Review this',
-        });
-        await request(`${base}/artifacts`, 'POST', {
-          name: 'Review',
-          content: '<h1>Review</h1>',
         });
       }
       for (const owner of [project, other]) {
@@ -160,9 +168,8 @@ describe('Project removal HTTP workflow', () => {
           ],
         });
         for (const table of [
-          'review_layer_sets',
+          'reviews',
           'comment_threads',
-          'artifacts',
           // Presence is what ties review data to a project now.
           'worktree_presence',
         ]) {
@@ -231,7 +238,6 @@ describe('Project removal HTTP workflow', () => {
         const base = `/api/worktrees/${registered.worktrees[0]?.id}`;
         for (const [suffix, expected] of [
           ['comments', []],
-          ['artifacts', []],
           ['file-preferences', { preferences: [] }],
         ] as const)
           expect(
@@ -250,11 +256,11 @@ describe('Project removal HTTP workflow', () => {
           (
             await restarted.inject({
               method: 'GET',
-              url: `${base}/review-layers`,
+              url: `${base}/review`,
               headers,
             })
           ).json(),
-        ).toMatchObject({ revision: 0, layers: [] });
+        ).toEqual({ review: null });
       } finally {
         await restarted.close();
       }

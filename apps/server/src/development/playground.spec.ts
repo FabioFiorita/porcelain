@@ -8,6 +8,7 @@ import {
   createCommentThreadSchema,
 } from '@porcelain/contracts/comments';
 import { inventoryResponseSchema } from '@porcelain/contracts/inventory';
+import { reviewReadResponseSchema } from '@porcelain/contracts/review';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { pairThroughSocket } from './pair-through-socket.ts';
 
@@ -89,44 +90,36 @@ describe('Playground workflow', () => {
       );
       expect(seededThreads[0]?.messages).toHaveLength(2);
       expect(seededThreads[0]?.anchor.filePath).toBe('src/task-store.mjs');
-      expect(
-        await (await fetch(`${base}/review-layers`, { headers })).json(),
-      ).toMatchObject({
+      const published = reviewReadResponseSchema.parse(
+        await (await fetch(`${base}/review`, { headers })).json(),
+      ).review;
+      expect(published).toMatchObject({
+        active: true,
+        diagram: { before: {}, after: {} },
         layers: [
           {
             title: 'Prepare release documentation',
             summary:
               'Release documents collect the reviewer-facing checklist and accessibility notes.',
-            files: [
+            steps: [
               {
-                path: 'docs/release-checklist.md',
-                note: 'The renamed checklist is the release entry point.',
+                pointer: { path: 'docs/release-checklist.md' },
+                text: 'The renamed checklist is the release entry point.',
               },
               {
-                path: 'docs/accessibility.md',
-                note: 'Captures the keyboard and narrow-screen checks.',
+                pointer: { path: 'docs/accessibility.md' },
+                text: 'Captures the keyboard and status-announcement checks.',
               },
-              { path: 'README.md' },
             ],
           },
           {
             title: 'Polish the board',
             summary:
               'Keep the board readable while the release changes are reviewed.',
-            files: [{ path: 'src/styles.css' }, { path: 'README.md' }],
+            steps: [{ pointer: { path: 'src/styles.css' } }],
           },
         ],
       });
-      // The per-commit review surface was removed in step 5c: the playground
-      // no longer seeds it and the route is gone.
-      expect(
-        (
-          await fetch(
-            `${address}/api/projects/${info.projectId}/commits/${info.reviewCommitOid}/review-layers`,
-            { headers },
-          )
-        ).status,
-      ).toBe(404);
       expect(
         await (
           await fetch(
@@ -140,22 +133,9 @@ describe('Playground workflow', () => {
           { path: '.cache', pinned: false, hidden: true },
         ]),
       });
-      const artifacts = (await (
-        await fetch(`${base}/artifacts`, { headers })
-      ).json()) as { id: string; name: string }[];
-      expect(artifacts.map((artifact) => artifact.name)).toEqual(
-        expect.arrayContaining(['handoff.html', 'handoff.md']),
-      );
-      const report = artifacts.find(
-        (artifact) => artifact.name === 'handoff.html',
-      );
       expect(
-        await (
-          await fetch(`${base}/artifacts/${report?.id}`, { headers })
-        ).json(),
-      ).toMatchObject({
-        content: expect.stringContaining('Fieldnotes launch review'),
-      });
+        await (await fetch(`${address}${published?.summary.url}`)).text(),
+      ).toContain('Fieldnotes launch review');
       const route = '/api/worktrees/{worktreeId}/comments';
       const example = createCommentThreadSchema.parse({
         anchor: { kind: 'file', filePath: 'src/task-store.mjs' },
@@ -280,14 +260,16 @@ describe('Playground workflow', () => {
       worktrees.find((worktree) => worktree.id === info.worktreeId)?.branch,
     ).toBe('refs/heads/review');
     expect(
-      await (
-        await fetch(
-          `${info.address}/api/worktrees/${info.worktreeId}/review-layers`,
-          {
-            headers,
-          },
-        )
-      ).json(),
+      reviewReadResponseSchema.parse(
+        await (
+          await fetch(
+            `${info.address}/api/worktrees/${info.worktreeId}/review`,
+            {
+              headers,
+            },
+          )
+        ).json(),
+      ).review,
     ).toMatchObject({
       layers: [{ title: 'Prepare release documentation' }, {}],
     });

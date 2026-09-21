@@ -1,19 +1,6 @@
-import {
-  CheckIcon,
-  FileTextIcon,
-  ListTreeIcon,
-  MessageSquareIcon,
-  RotateCcwIcon,
-} from 'lucide-react';
+import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty';
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -22,7 +9,6 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -30,22 +16,19 @@ import type { CommentAnchor, CommentThread } from '../../domain/comments';
 import type { DocumentRef } from '../../domain/documents';
 import { entryKey } from '../../domain/documents';
 import {
-  type Artifact,
   basename,
   type ChangeList,
-  type Layers,
   type ReviewChangeItem,
   type ReviewScope,
   type ReviewStatus,
-  reviewProgress,
 } from '../../domain/review';
 import {
   useComments,
   useMarkCommentsSeen,
   usePrefetchComments,
 } from '../../query/comments';
+import { usePublishedReview } from '../../query/published-review';
 import {
-  useArtifacts,
   useChanges,
   usePrefetchReview,
   useReviewChanges,
@@ -68,10 +51,11 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReview(scope);
   usePrefetchComments(scope);
-  const { changes: list, layers } = useChanges(scope);
+  const { changes: list } = useChanges(scope);
+  const published = usePublishedReview(scope);
+  const review = published.data?.active ? published.data : null;
   const { threads } = useComments(scope);
   const changes = useReviewChanges(scope);
-  const artifacts = useArtifacts(scope);
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
   return (
@@ -84,7 +68,7 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
         >
           <TabsList className="h-8 w-full">
             <TabsTrigger value="layers" className="flex-1 text-xs">
-              {layers.layers.length > 0 ? 'Layers' : 'Changed files'}
+              {review ? 'Layers' : 'Changed files'}
             </TabsTrigger>
             <TabsTrigger value="comments" className="flex-1 gap-1.5 text-xs">
               Comments
@@ -106,10 +90,9 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
           activeEntry={activeEntry}
           onOpen={onOpen}
           list={list}
-          layers={layers}
+          review={review}
           changes={changes}
           threads={threads}
-          artifacts={artifacts}
         />
       ) : (
         <CommentsView
@@ -127,180 +110,70 @@ function LayersView({
   activeEntry,
   onOpen,
   list,
-  layers,
+  review,
   changes,
   threads,
-  artifacts,
 }: Props & {
   list: ChangeList;
-  layers: Layers;
+  review: import('../../domain/review').ReviewResponse | null | undefined;
   changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
-  artifacts: readonly Artifact[];
 }) {
-  const paths = uniquePaths([
-    ...list.changes.map((entry) => entry.path),
-    ...layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
-  ]);
-  const layered = new Set(
-    layers.layers.flatMap((layer) => layer.files.map((file) => file.path)),
-  );
-  const loose = paths.filter((path) => !layered.has(path));
+  const paths = list.changes.map((entry) => entry.path);
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
-  const scopesByPath = new Map(
-    list.changes.map((entry) => [
-      entry.path,
-      [...new Set(entry.comparisons.map((change) => change.scope))],
-    ]),
-  );
-  const progress = reviewProgress(paths, changes);
-  const isActive = (ref: DocumentRef) => activeEntry === entryKey(ref);
-  const reviewBuilt = layers.layers.length > 0;
-
-  if (paths.length === 0 && layers.layers.length === 0) {
-    return (
-      <ScrollArea className="h-0 min-h-0 flex-1">
-        <div className="p-2">
-          <div className="grid min-h-48 place-items-center p-6">
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia>
-                  <ListTreeIcon className="size-5 text-muted-foreground" />
-                </EmptyMedia>
-                <EmptyTitle>No changes</EmptyTitle>
-                <EmptyDescription>
-                  This worktree matches its last commit.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          </div>
-          {artifacts.length > 0 && (
-            <ArtifactLinks
-              artifacts={artifacts}
-              activeEntry={activeEntry}
-              onOpen={onOpen}
-            />
-          )}
-        </div>
-      </ScrollArea>
-    );
-  }
-
-  const openThreads = (path: string) =>
-    threads.filter(
-      (thread) =>
-        thread.anchor.filePath === path &&
-        thread.anchor.revision == null &&
-        !thread.resolved,
-    ).length;
-
-  const fileRow = (path: string, note?: string) => (
-    <ChangeRow
-      key={path}
-      path={path}
-      note={note}
-      scopes={scopesByPath.get(path) ?? []}
-      reviewStatus={changeByPath.get(path)?.reviewStatus}
-      commentCount={openThreads(path)}
-      active={isActive({ kind: 'change', path })}
-      onOpen={onOpen}
-      indented={reviewBuilt}
-    />
-  );
-
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2">
         <button
           type="button"
-          aria-pressed={isActive({ kind: 'handoff' })}
+          className={ROW}
+          aria-pressed={activeEntry === 'handoff'}
           onClick={() => onOpen({ kind: 'handoff' })}
-          className={cn(
-            ROW,
-            'mb-2 flex-col items-stretch gap-1.5 py-2',
-            isActive({ kind: 'handoff' }) && 'bg-accent',
-          )}
         >
-          <span className="flex items-center gap-1.5 font-medium">
-            {reviewBuilt ? 'The whole handoff' : 'All changes'}
-            <span className="ml-auto text-[11px] font-normal text-muted-foreground tabular-nums">
-              {progress.done} of {progress.total} reviewed
-            </span>
-          </span>
-          <Progress
-            value={
-              progress.total === 0 ? 0 : (progress.done / progress.total) * 100
-            }
-            aria-label={`${progress.done} of ${progress.total} files reviewed`}
-          />
+          {review ? 'Review summary' : 'All changes'}
         </button>
-
-        {layers.layers.map((layer, index) => {
-          const ref: DocumentRef = { kind: 'layer', layerId: layer.id };
-          const layerPaths = uniquePaths(layer.files.map((file) => file.path));
-          const layerProgress = reviewProgress(layerPaths, changes);
-          const commentCount = layerPaths.reduce(
-            (total, path) => total + openThreads(path),
-            0,
-          );
-          return (
-            <section key={layer.id} className="mb-2">
-              <button
-                type="button"
-                aria-pressed={isActive(ref)}
-                onClick={() => onOpen(ref)}
-                className={cn(ROW, isActive(ref) && 'bg-accent')}
-              >
-                <span className="grid size-4.5 shrink-0 place-items-center rounded bg-muted text-[10px] text-muted-foreground">
-                  {index + 1}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-medium">
-                  {layer.title}
-                </span>
-                {commentCount > 0 && (
-                  <span className="flex shrink-0 items-center gap-0.5 text-[10.5px] text-muted-foreground">
-                    <MessageSquareIcon className="size-3" />
-                    {commentCount}
-                  </span>
-                )}
-                <span className="shrink-0 text-[10.5px] text-muted-foreground tabular-nums">
-                  {layerPaths.length}
-                </span>
-                <span className="shrink-0 text-[10.5px] text-muted-foreground tabular-nums">
-                  {layerProgress.done}/{layerProgress.total}
-                </span>
-              </button>
-              {layer.files
-                .map((file) => file.path)
-                .filter((path, index, all) => all.indexOf(path) === index)
-                .map((path) => {
-                  const note = layer.files.find(
-                    (file) => file.path === path,
-                  )?.note;
-                  return fileRow(path, note);
-                })}
-            </section>
-          );
-        })}
-
-        {loose.length > 0 && (
-          <section className="mb-2">
-            {reviewBuilt && (
-              <p className="px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                Not in a layer
-              </p>
-            )}
-            {loose.map((path) => fileRow(path))}
-          </section>
+        {review?.layers.map((layer, index) => (
+          <button
+            key={layer.id}
+            type="button"
+            className={ROW}
+            aria-pressed={activeEntry === `layer:${layer.id}`}
+            onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
+          >
+            <span className="text-muted-foreground">{index + 1}.</span>
+            {layer.title}
+          </button>
+        ))}
+        {review && (
+          <p className="px-2 pt-4 pb-1 text-xs text-muted-foreground">
+            Changed files
+          </p>
         )}
-
-        {artifacts.length > 0 && (
-          <ArtifactLinks
-            artifacts={artifacts}
-            activeEntry={activeEntry}
+        {paths.length === 0 && (
+          <p className="p-3 text-sm text-muted-foreground">No changes</p>
+        )}
+        {paths.map((path) => (
+          <ChangeRow
+            key={path}
+            path={path}
+            note={undefined}
+            scopes={[
+              ...new Set(
+                list.changes
+                  .find((entry) => entry.path === path)
+                  ?.comparisons.map((change) => change.scope),
+              ),
+            ]}
+            reviewStatus={changeByPath.get(path)?.reviewStatus}
+            commentCount={
+              threads.filter(
+                (thread) => thread.anchor.filePath === path && !thread.resolved,
+              ).length
+            }
+            active={activeEntry === entryKey({ kind: 'change', path })}
             onOpen={onOpen}
           />
-        )}
+        ))}
       </div>
     </ScrollArea>
   );
@@ -383,40 +256,6 @@ function reviewStatusLabel(status: ReviewStatus | undefined) {
   if (status === 'reviewed') return 'Reviewed';
   if (status === 'stale') return 'Changed since review';
   return 'Not reviewed';
-}
-
-function ArtifactLinks({
-  artifacts,
-  activeEntry,
-  onOpen,
-}: {
-  artifacts: readonly Artifact[];
-  activeEntry: string | undefined;
-  onOpen: OpenDocument;
-}) {
-  return (
-    <section className="flex flex-col gap-0.5 border-t pt-2">
-      <p className="px-2 py-1 text-xs text-muted-foreground">From the agent</p>
-      {artifacts.map((artifact) => {
-        const ref: DocumentRef = { kind: 'artifact', artifactId: artifact.id };
-        return (
-          <button
-            key={artifact.id}
-            type="button"
-            aria-pressed={activeEntry === entryKey(ref)}
-            className={cn(ROW, activeEntry === entryKey(ref) && 'bg-accent')}
-            onClick={() => onOpen(ref)}
-          >
-            <FileTextIcon className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{artifact.name}</span>
-            <span className="text-[10.5px] text-muted-foreground">
-              {artifact.sizeBytes.toLocaleString()} bytes
-            </span>
-          </button>
-        );
-      })}
-    </section>
-  );
 }
 
 function CommentsView({
@@ -548,8 +387,4 @@ function CommentsView({
 
 function lastActivity(thread: CommentThread) {
   return thread.messages.at(-1)?.createdAt ?? '';
-}
-
-function uniquePaths(paths: readonly string[]) {
-  return [...new Set(paths.filter(Boolean))];
 }

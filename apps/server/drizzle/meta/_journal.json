@@ -57,6 +57,13 @@
       "when": 1790000000000,
       "tag": "0007_normalize_comment_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790001000000,
+      "tag": "0008_published_reviews",
+      "breakpoints": true
     }
   ]
 }

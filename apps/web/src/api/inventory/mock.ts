@@ -129,8 +129,6 @@ export function createMockStore(scenario: MockScenario = 'populated') {
         );
         if (scenario === 'review-empty' || worktree.main) {
           fixture.git.comparisons = [];
-          fixture.layers.layers = [];
-          fixture.artifacts = [];
         }
         if (scenario === 'review-empty') {
           fixture.files = {};
@@ -146,6 +144,14 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     ),
   );
   return {
+    reviewedLayers: {} as Record<
+      string,
+      import('@porcelain/contracts/reviewed-files').ReviewedLayerMarksResponse['marks']
+    >,
+    publishedReviews: {} as Record<
+      string,
+      import('@porcelain/contracts/review').ReviewResponse
+    >,
     // A mock browser starts with its device cookie; 'unpaired' is the one
     // that has none.
     paired: scenario !== 'unpaired',
@@ -162,7 +168,7 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     reviewed,
     reviewFailed: scenario === 'review-failed',
     changesFailed: false,
-    artifactsFailed: false,
+    publishedReviewFailed: false,
     diffsFailed: false,
     reviewedFailed: false,
     reviewedSetFailed: false,

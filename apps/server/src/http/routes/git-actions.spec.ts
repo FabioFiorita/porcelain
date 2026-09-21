@@ -227,33 +227,38 @@ describe('Git actions HTTP', () => {
   });
 
   it.each([false, true])(
-    'clears the layer notes a commit carried and preserves the rest (selected: %s)',
+    'keeps the latest published review and marks it inactive after a commit (selected: %s)',
     async (selected) => {
       await writeFile(join(checkout, 'file'), 'staged\n');
       await git('add', 'file');
       await writeFile(join(checkout, 'file'), 'unstaged\n');
       await writeFile(join(checkout, 'other'), 'remaining\n');
       const worktreeId = prefix.split('/')[5];
-      const projectId = prefix.split('/')[3];
-      const layerUrl = `/api/worktrees/${worktreeId}/review-layers`;
+      const reviewUrl = `/api/worktrees/${worktreeId}/review`;
       const layerId = randomUUID();
-      const files = [
-        { path: 'file', scope: 'staged', note: 'Staged explanation' },
-        { path: 'file', scope: 'unstaged', note: 'Working explanation' },
-        { path: 'other', scope: 'unstaged', note: 'Remaining explanation' },
-      ];
       const written = await server.inject({
         method: 'PUT',
-        url: layerUrl,
+        url: reviewUrl,
         headers,
         payload: {
           expectedRevision: 0,
+          summaryHtml: '<title>Review</title>',
           layers: [
             {
               id: layerId,
               title: 'Review intent',
               summary: 'Why this changes',
-              files,
+              lanes: ['Code'],
+              steps: [
+                {
+                  id: randomUUID(),
+                  lane: 0,
+                  title: 'Reviewed file',
+                  text: 'The file contains the change being committed.',
+                  kind: 'changed',
+                  pointer: { path: 'file', startLine: 1, endLine: 1 },
+                },
+              ],
             },
           ],
         },
@@ -273,26 +278,18 @@ describe('Git actions HTTP', () => {
       const completed = await outcome(requestId);
       expect(completed).toMatchObject({
         state: 'succeeded',
-        reviewLayersUpdated: true,
       });
-      // Only the work the commit carried leaves the live layers; the rest is
-      // still waiting to be reviewed. Step 5c removed the per-commit copy of
-      // the notes, not this.
-      const remaining = await server.inject({ url: layerUrl, headers });
-      expect(remaining.json()).toMatchObject({
-        revision: 2,
-        layers: [{ files: selected ? files.slice(2) : files.slice(1) }],
+      const latest = await server.inject({ url: reviewUrl, headers });
+      expect(latest.json()).toMatchObject({
+        review: {
+          revision: 1,
+          // A normal commit carries the staged version, leaving the pointer's
+          // newer working version active. A selected-file commit carries the
+          // complete selected file, so the published step is now committed.
+          active: !selected,
+          layers: [{ id: layerId }],
+        },
       });
-      // And the surface that used to keep them under the commit is gone.
-      const oid = await git('rev-parse', 'HEAD');
-      expect(
-        (
-          await server.inject({
-            url: `/api/projects/${projectId}/commits/${oid}/review-layers`,
-            headers,
-          })
-        ).statusCode,
-      ).toBe(404);
     },
   );
 

@@ -194,13 +194,10 @@ it('moves every stored worktree id to its derived one, payloads included', async
         ),
       ).toEqual([{ worktree_id: derived }]);
       expect(
-        query<{ worktree_id: string }>(
-          'SELECT worktree_id FROM review_layer_sets',
+        query<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE name IN ('review_layer_sets', 'artifacts', 'commit_review_layer_sets')",
         ),
-      ).toEqual([{ worktree_id: derived }]);
-      expect(
-        query<{ worktree_id: string }>('SELECT worktree_id FROM artifacts'),
-      ).toEqual([{ worktree_id: derived }]);
+      ).toEqual([]);
 
       // The payloads. A column that moved while its JSON did not would return
       // an id nothing resolves, which is why these are asserted and not counts.
@@ -237,13 +234,6 @@ it('moves every stored worktree id to its derived one, payloads included', async
         })),
       );
 
-      expect(
-        JSON.parse(
-          query<{ data: string }>(
-            'SELECT data FROM commit_review_layer_sets',
-          )[0]?.data ?? '{}',
-        ).sourceWorktreeId,
-      ).toBe(derived);
       expect(
         JSON.parse(
           query<{ value: string }>(

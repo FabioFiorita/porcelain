@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { renameProjectRequestSchema } from '@porcelain/contracts/inventory';
 import {
-  replaceReviewLayersSchema,
-  reviewLayerParamsSchema,
-} from '@porcelain/contracts/review-layers';
+  publishReviewSchema,
+  reviewParamsSchema,
+} from '@porcelain/contracts/review';
+import { setReviewedLayerRequestSchema } from '@porcelain/contracts/reviewed-files';
 import { ActionGit } from '@porcelain/git/action-git';
 import { checkIgnored } from '@porcelain/git/commands/check-ignored';
 import { listTrackedPaths } from '@porcelain/git/commands/list-tracked-paths';
@@ -42,28 +43,24 @@ import { LiveUpdates } from './lifecycle/live-updates.ts';
 import { SharedReads } from './lifecycle/shared-reads.ts';
 import { WorktreeDirectory } from './lifecycle/worktree-directory.ts';
 import type { Project } from './models/project.ts';
-import { ArtifactRepository } from './repositories/artifact-repository.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
 import { GitActionRepository } from './repositories/git-action-repository.ts';
 import { InventoryRepository } from './repositories/inventory-repository.ts';
 import { PairingRepository } from './repositories/pairing-repository.ts';
 import { ProjectRemovalRepository } from './repositories/project-removal-repository.ts';
-import { ReviewLayerRepository } from './repositories/review-layer-repository.ts';
+import { ReviewRepository } from './repositories/review-repository.ts';
 import { ReviewedFileRepository } from './repositories/reviewed-file-repository.ts';
+import { ReviewedLayerRepository } from './repositories/reviewed-layer-repository.ts';
 import { WorktreePresenceRepository } from './repositories/worktree-presence-repository.ts';
 import { WorktreeStatusRepository } from './repositories/worktree-status-repository.ts';
 import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { CollectAbsentWorktrees } from './use-cases/collect-absent-worktrees.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { CommitDrafts } from './use-cases/commit-drafts.ts';
-import { CompleteCommitReview } from './use-cases/complete-commit-review.ts';
-import { DeleteArtifact } from './use-cases/delete-artifact.ts';
 import { EditFile } from './use-cases/edit-file.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
 import { FindProjects } from './use-cases/find-projects.ts';
-import { GetArtifact } from './use-cases/get-artifact.ts';
-import { ListArtifacts } from './use-cases/list-artifacts.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
 import { ListDirectory } from './use-cases/list-directory.ts';
 import { ListFilePreferences } from './use-cases/list-file-preferences.ts';
@@ -75,6 +72,10 @@ import {
 import { MarkCommentsSeen } from './use-cases/mark-comments-seen.ts';
 import { Pairing, type PairingReach } from './use-cases/pairing.ts';
 import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
+import {
+  PublishedReview,
+  verifySummarySignature,
+} from './use-cases/published-review.ts';
 import { ReadAsset } from './use-cases/read-asset.ts';
 import { ReadChangeDiffs } from './use-cases/read-change-diffs.ts';
 import { ReadChangeLines } from './use-cases/read-change-lines.ts';
@@ -87,11 +88,9 @@ import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
 import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
 import { RenameProject } from './use-cases/rename-project.ts';
-import { ReplaceReviewLayers } from './use-cases/replace-review-layers.ts';
 import { ResolveWorktree } from './use-cases/resolve-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
-import { UploadArtifact } from './use-cases/upload-artifact.ts';
 
 const READ_CAPACITY = 4;
 /**
@@ -161,7 +160,6 @@ export async function openApplication(options: {
   let firstRefreshFailure: unknown;
   const sharedReads = new SharedReads();
   try {
-    const layers = new ReviewLayerRepository(database.db);
     const store = new InventoryRepository(database.db);
     // The lane deadline counts projects; a lane asserts it is open before it
     // asks, so this never reads a closed database.
@@ -184,7 +182,6 @@ export async function openApplication(options: {
       options.now ? () => Date.parse(options.now?.() ?? '') : undefined,
     );
     const worktrees = new ResolveWorktree(directory, store, presence);
-    const replaceLayers = new ReplaceReviewLayers(layers, worktrees);
 
     /**
      * Every project, with the worktrees Git lists for it right now.
@@ -342,11 +339,6 @@ export async function openApplication(options: {
       }
     }, COLLECTION_INTERVAL_MS);
     collection.unref();
-    const artifacts = new ArtifactRepository(database.db);
-    const uploadArtifact = new UploadArtifact(artifacts, worktrees);
-    const listArtifacts = new ListArtifacts(artifacts, worktrees);
-    const getArtifact = new GetArtifact(artifacts, worktrees);
-    const deleteArtifact = new DeleteArtifact(artifacts, worktrees);
     const finder = new FindProjects(
       options.projectFolders ?? new NodeProjectFolders(),
       git,
@@ -412,6 +404,18 @@ export async function openApplication(options: {
       inspection,
       files,
     );
+    const reviewStore = new ReviewRepository(database.db);
+    const publishedReview = new PublishedReview(
+      reviewStore,
+      worktrees,
+      read,
+      changes,
+      changeDiffs,
+      () => store.read().environmentId,
+      () => new RequestGitSession(),
+      options.now,
+    );
+    const reviewedLayers = new ReviewedLayerRepository(database.db);
     const actions = new GitActionCoordinator(
       lanes,
       projectLaneOf,
@@ -429,7 +433,9 @@ export async function openApplication(options: {
         worktrees,
         actionStore,
         actionGit,
-        new CompleteCommitReview(store, worktrees, layers, commitGit),
+        async (worktreeId, signal) => {
+          await publishedReview.read(worktreeId, signal);
+        },
       ),
       actionStore,
     );
@@ -447,6 +453,7 @@ export async function openApplication(options: {
     const live = new LiveUpdates({
       worktrees,
       reviewed,
+      reviewedLayers,
       projects: () => store.read().projects,
     });
     const listReviewedFiles = new ListReviewedFiles(reviewed, worktrees);
@@ -926,65 +933,68 @@ export async function openApplication(options: {
           return answer;
         });
       },
-      reviewLayers: async (worktreeId, signal) => {
-        const params = reviewLayerParamsSchema.parse({ worktreeId });
-        // Reading layers asks the same existence question as everything else,
-        // so an id Git does not list is not found rather than empty.
+      review: (worktreeId, signal) => {
+        const params = reviewParamsSchema.parse({ worktreeId });
+        return forWorktree(
+          (operationSignal) =>
+            publishedReview.read(params.worktreeId, operationSignal),
+          signal,
+        );
+      },
+      publishReview: (worktreeId, value, signal) => {
+        const params = reviewParamsSchema.parse({ worktreeId });
+        const input = publishReviewSchema.parse(structuredClone(value));
+        return forWorktree(
+          (operationSignal) =>
+            publishedReview.publish(params.worktreeId, input, operationSignal),
+          signal,
+        ).then((answer) => {
+          live.publishWorktree(worktreeId, 'review');
+          return answer;
+        });
+      },
+      reviewSummary: (token, expires, signature) => {
+        lanes.assertOpen();
+        const summary = publishedReview.summary(token);
+        if (
+          summary === null ||
+          !verifySummarySignature(
+            summary.summarySecret,
+            token,
+            expires,
+            signature,
+          )
+        )
+          return null;
+        return summary.summaryHtml;
+      },
+      listReviewedLayers: (worktreeId, signal) =>
+        forWorktree(async (operationSignal) => {
+          await worktrees.known(worktreeId, operationSignal);
+          return { worktreeId, marks: reviewedLayers.list(worktreeId) };
+        }, signal),
+      setReviewedLayer: (worktreeId, value, signal) => {
+        const input = setReviewedLayerRequestSchema.parse(value);
         return forWorktree(async (operationSignal) => {
-          await worktrees.known(params.worktreeId, operationSignal);
-          return layers.read(params.worktreeId);
-        }, signal);
-      },
-      replaceReviewLayers: async (worktreeId, revision, value, signal) => {
-        const params = reviewLayerParamsSchema.parse({ worktreeId });
-        const input = replaceReviewLayersSchema.parse({
-          expectedRevision: revision,
-          layers: value,
-        });
-        return forWorktree(
-          (operationSignal) =>
-            replaceLayers.execute(
-              params.worktreeId,
-              input.expectedRevision,
-              input.layers,
-              operationSignal,
-            ),
-          signal,
-        ).then((answer) => {
-          live.publishWorktree(worktreeId, 'layers');
+          await worktrees.forWriting(worktreeId, operationSignal);
+          reviewedLayers.set(worktreeId, {
+            layerId: input.layerId,
+            fingerprint: input.fingerprint,
+            reviewedAt: options.now?.() ?? new Date().toISOString(),
+          });
+          return { worktreeId, marks: reviewedLayers.list(worktreeId) };
+        }, signal).then((answer) => {
+          live.publishWorktree(worktreeId, 'reviewed');
           return answer;
         });
       },
-      uploadArtifact: (worktreeId, input, signal) => {
-        const submitted = { name: input.name, content: input.content };
-        return forWorktree(
-          (operationSignal) =>
-            uploadArtifact.execute(worktreeId, submitted, operationSignal),
-          signal,
-        ).then((answer) => {
-          live.publishWorktree(worktreeId, 'artifacts');
-          return answer;
-        });
-      },
-      listArtifacts: (worktreeId, signal) =>
-        forWorktree(
-          (operationSignal) =>
-            listArtifacts.execute(worktreeId, operationSignal),
-          signal,
-        ),
-      getArtifact: (worktreeId, artifactId, signal) =>
-        forWorktree(
-          (operationSignal) =>
-            getArtifact.execute(worktreeId, artifactId, operationSignal),
-          signal,
-        ),
-      deleteArtifact: (worktreeId, artifactId, signal) =>
-        forWorktree(
-          (operationSignal) =>
-            deleteArtifact.execute(worktreeId, artifactId, operationSignal),
-          signal,
-        ).then((answer) => {
-          if (answer.deleted) live.publishWorktree(worktreeId, 'artifacts');
+      removeReviewedLayer: (worktreeId, layerId, signal) =>
+        forWorktree(async (operationSignal) => {
+          await worktrees.forWriting(worktreeId, operationSignal);
+          reviewedLayers.remove(worktreeId, layerId);
+          return { worktreeId, marks: reviewedLayers.list(worktreeId) };
+        }, signal).then((answer) => {
+          live.publishWorktree(worktreeId, 'reviewed');
           return answer;
         }),
       liveUpdates: (send) => live.connect(send),

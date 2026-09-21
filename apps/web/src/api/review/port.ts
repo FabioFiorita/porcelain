@@ -1,6 +1,4 @@
 import type {
-  Artifact,
-  ArtifactContent,
   ChangeDiffs,
   ChangeDiffsRequest,
   ChangeLines,
@@ -11,7 +9,6 @@ import type {
   FileEdit,
   FileEditResult,
   History,
-  Layers,
   PreviewAssets,
   ReviewedMarksResponse,
   ReviewScope,
@@ -24,6 +21,12 @@ export type ReviewRequest = ReviewScope & {
   signal: AbortSignal;
 };
 export type ReviewPort = {
+  reviewedLayers: ReturnType<
+    typeof import('@porcelain/client/review').createReviewClient
+  >['reviewedLayers'];
+  review: (
+    request: ReviewRequest,
+  ) => Promise<import('@porcelain/contracts/review').ReviewResponse | null>;
   asset: (
     request: ReviewRequest & { path: string },
   ) => Promise<import('@porcelain/contracts/files').AssetResponse>;
@@ -60,13 +63,10 @@ export type ReviewPort = {
     },
   ) => Promise<CommitDiffs>;
   directory: (request: ReviewRequest & { path: string }) => Promise<Directory>;
-  changes: (
-    request: ReviewRequest,
-  ) => Promise<{ changes: ChangeList; layers: Layers }>;
+  changes: (request: ReviewRequest) => Promise<{ changes: ChangeList }>;
   history: (
     request: ReviewRequest & { after?: string[]; tip?: string },
   ) => Promise<History>;
-  artifacts: (request: ReviewRequest) => Promise<Artifact[]>;
   reviewed: {
     list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
     set: (
@@ -76,7 +76,4 @@ export type ReviewPort = {
       request: ReviewRequest & { path: string },
     ) => Promise<ReviewedMarksResponse>;
   };
-  artifact: (
-    request: ReviewRequest & { artifactId: string },
-  ) => Promise<ArtifactContent>;
 };

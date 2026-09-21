@@ -1,9 +1,5 @@
 import { apiErrorSchema } from '@porcelain/contracts/api-error';
 import {
-  artifactContentSchema,
-  artifactListSchema,
-} from '@porcelain/contracts/artifacts';
-import {
   type ChangeDiffsRequest,
   changeDiffsResponseSchema,
   changeLinesResponseSchema,
@@ -24,9 +20,16 @@ import {
   worktreePathsSchema,
 } from '@porcelain/contracts/files';
 import { gitStatusResponseSchema } from '@porcelain/contracts/git-status';
-import { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import {
+  type PublishReview,
+  publishReviewSchema,
+  reviewReadResponseSchema,
+} from '@porcelain/contracts/review';
+import {
+  reviewedLayerMarksResponseSchema,
   reviewedMarksResponseSchema,
+  type SetReviewedLayerRequest,
+  setReviewedLayerRequestSchema,
   setReviewedRequestSchema,
 } from '@porcelain/contracts/reviewed-files';
 import { ConnectionError } from './errors/connection-error.ts';
@@ -162,13 +165,18 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
         `directory?${new URLSearchParams({ path: request.path })}`,
         directoryResponseSchema,
       ),
-    changes: async (request: Request) => {
-      const [changes, layers] = await Promise.all([
-        read(request, 'changes', changesResponseSchema),
-        read(request, 'review-layers', reviewLayersResponseSchema),
-      ]);
-      return { changes, layers };
-    },
+    changes: (request: Request) =>
+      read(request, 'changes', changesResponseSchema),
+    review: async (request: Request) =>
+      (await read(request, 'review', reviewReadResponseSchema)).review,
+    publishReview: (request: Request & { input: PublishReview }) =>
+      read(
+        request,
+        'review',
+        reviewReadResponseSchema,
+        publishReviewSchema.parse(request.input),
+        'PUT',
+      ).then((answer) => answer.review),
     history: (request: Request & { after?: string[]; tip?: string }) =>
       read(
         request,
@@ -179,8 +187,6 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
         )}`,
         commitPageResponseSchema,
       ),
-    artifacts: (request: Request) =>
-      read(request, 'artifacts', artifactListSchema),
     reviewed: {
       list: (request: Request) =>
         read(request, 'reviewed', reviewedMarksResponseSchema),
@@ -205,11 +211,29 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
           'DELETE',
         ),
     },
-    artifact: (request: Request & { artifactId: string }) =>
-      read(
-        request,
-        `artifacts/${encodeURIComponent(request.artifactId)}`,
-        artifactContentSchema,
-      ),
+    reviewedLayers: {
+      list: (request: Request) =>
+        read(request, 'reviewed-layers', reviewedLayerMarksResponseSchema),
+      set: (
+        request: Request & {
+          input: SetReviewedLayerRequest;
+        },
+      ) =>
+        read(
+          request,
+          'reviewed-layers',
+          reviewedLayerMarksResponseSchema,
+          setReviewedLayerRequestSchema.parse(request.input),
+          'PUT',
+        ),
+      remove: (request: Request & { layerId: string }) =>
+        read(
+          request,
+          `reviewed-layers?${new URLSearchParams({ layerId: request.layerId })}`,
+          reviewedLayerMarksResponseSchema,
+          undefined,
+          'DELETE',
+        ),
+    },
   };
 }

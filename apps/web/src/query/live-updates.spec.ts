@@ -101,3 +101,28 @@ it('subscribes every inventory project and includes active ignored-file paths', 
   });
   unsubscribe();
 });
+
+it('refreshes publication, step code and layer marks together after a file notice', async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const reads = ['review', 'step-lines', 'reviewed-layers'].map((surface) => ({
+    surface,
+    read: vi.fn(() => ({})),
+  }));
+  const unsubscribes = reads.map(({ surface, read }) =>
+    observe(
+      client,
+      queryKeys.reviewSurface(environmentId, scope, [surface]),
+      read,
+    ),
+  );
+  await applyLiveNotice(client, environmentId, {
+    type: 'worktree',
+    projectId,
+    worktreeId,
+    change: 'files',
+  });
+  for (const { read } of reads) expect(read).toHaveBeenCalledOnce();
+  for (const unsubscribe of unsubscribes) unsubscribe();
+});

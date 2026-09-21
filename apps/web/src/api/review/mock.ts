@@ -1,5 +1,6 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import { RequestError } from '@porcelain/client/errors/request-error';
+import { setReviewedLayerRequestSchema } from '@porcelain/contracts/reviewed-files';
 import type {
   Change,
   ChangeList,
@@ -45,6 +46,54 @@ export function createReviewMock(
     return structuredClone(fixture);
   }
   return {
+    reviewedLayers: {
+      async list(request) {
+        request.signal.throwIfAborted();
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(
+            store.reviewedLayers[request.worktreeId] ?? [],
+          ),
+        };
+      },
+      async set(request) {
+        request.signal.throwIfAborted();
+        const input = setReviewedLayerRequestSchema.parse(request.input);
+        const marks = (store.reviewedLayers[request.worktreeId] ?? []).filter(
+          (mark) => mark.layerId !== input.layerId,
+        );
+        marks.push({
+          layerId: input.layerId,
+          fingerprint: input.fingerprint,
+          reviewedAt: new Date().toISOString(),
+          stale: false,
+        });
+        store.reviewedLayers[request.worktreeId] = marks;
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(marks),
+        };
+      },
+      async remove(request) {
+        request.signal.throwIfAborted();
+        const marks = (store.reviewedLayers[request.worktreeId] ?? []).filter(
+          (mark) => mark.layerId !== request.layerId,
+        );
+        store.reviewedLayers[request.worktreeId] = marks;
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(marks),
+        };
+      },
+    },
+    async review(request) {
+      await context(request);
+      if (store.publishedReviewFailed)
+        throw new ConnectionError('Published review could not be loaded.');
+      return structuredClone(
+        store.publishedReviews[request.worktreeId] ?? null,
+      );
+    },
     async previewAssets(request) {
       await context(request);
       return {
@@ -250,19 +299,10 @@ export function createReviewMock(
         );
       return {
         changes: mockChangeList(request.worktreeId, data),
-        layers: data.layers,
       };
     },
     async history(request) {
       return (await context(request)).history;
-    },
-    async artifacts(request) {
-      const { artifacts } = await context(request);
-      if (store.artifactsFailed)
-        throw new ConnectionError(
-          'This review surface could not be loaded. Refresh and try again.',
-        );
-      return artifacts.map(({ content: _content, ...metadata }) => metadata);
     },
     reviewed: {
       async list(request) {
@@ -320,13 +360,6 @@ export function createReviewMock(
           marks: structuredClone(nextMarks),
         };
       },
-    },
-    async artifact(request) {
-      const { artifacts } = await context(request);
-      const artifact = artifacts.find((item) => item.id === request.artifactId);
-      if (!artifact)
-        throw new ConnectionError('This artifact is no longer available.');
-      return artifact;
     },
   };
 }

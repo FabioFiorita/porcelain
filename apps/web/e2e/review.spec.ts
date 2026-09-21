@@ -144,7 +144,7 @@ test('keyboard focus selects which split pane receives document shortcuts', asyn
   const rightTabs = page.getByRole('tablist', {
     name: 'Open documents, right pane',
   });
-  await leftTabs.getByRole('tab', { name: /Handoff/ }).focus();
+  await leftTabs.getByRole('tab', { name: /Review Close Review/ }).focus();
   await page.keyboard.press('Alt+w');
 
   await expect(leftTabs.getByRole('tab', { name: /README\.md/ })).toHaveCount(
@@ -251,7 +251,7 @@ test('selected diff rows match worktree selection in both themes', async ({
   }
 });
 
-test('inspects staged changes, commit history and artifact metadata from the real server', async ({
+test('inspects staged changes, commit history and the published summary from the real server', async ({
   page,
 }) => {
   await connect(page);
@@ -327,12 +327,10 @@ test('inspects staged changes, commit history and artifact metadata from the rea
   await page
     .getByRole('tab', { name: /^(Review|Changes)$/, exact: true })
     .click();
-  await page.getByRole('button', { name: /The whole handoff/ }).click();
   await page
-    .getByTestId('review-document')
-    .getByRole('button', { name: 'Open report' })
+    .getByTestId('review-sidebar')
+    .getByRole('button', { name: 'Review summary', exact: true })
     .click();
-  await expect(page.getByRole('heading', { name: 'Report' })).toBeVisible();
   // Agent HTML renders in an opaque-origin sandbox, so its text is only
   // reachable through the frame.
   await expect(

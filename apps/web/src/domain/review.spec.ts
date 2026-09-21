@@ -1,61 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { reviewFixture } from '../api/review/fixtures';
 import {
-  artifactKind,
-  changePath,
-  groupChanges,
   orderReviewChanges,
   reviewMark,
   reviewProgress,
   reviewStatus,
 } from './review';
-
-it('uses layer/file order and keeps unassigned and stale metadata from hiding real changes', () => {
-  const { git, layers } = reviewFixture(
-    '801a86281cd6456281a29c05fba76b4a',
-    '7fe18f78-1477-4c19-a42b-cdd42f862151',
-    'refs/heads/main',
-  );
-  layers.layers[0]?.files.unshift({ path: 'missing.ts', scope: 'staged' });
-  const list = {
-    environmentId: git.environmentId,
-    worktreeId: git.worktreeId,
-    statusToken: git.statusToken,
-    headOid: git.headOid,
-    branch: git.branch,
-    changes: [...new Set(git.comparisons.map(changePath))].map((path) => ({
-      path,
-      fingerprint: null,
-      comparisons: git.comparisons.filter(
-        (change) => changePath(change) === path,
-      ),
-    })),
-  };
-  const groups = groupChanges(list, layers);
-  expect(groups.map((group) => group.title)).toEqual([
-    'A clearer review experience',
-    'Refine the foundation',
-    'Unassigned',
-  ]);
-  expect(groups[1]?.changes.map(changePath)).toEqual([
-    'src/domain/review.ts',
-    'src/styles/theme.css',
-  ]);
-  expect(groups.flatMap((group) => group.changes)).toHaveLength(
-    git.comparisons.length,
-  );
-});
-
-describe('artifact format selection', () => {
-  it('uses extensions and recognizable content when artifact names are titles', () => {
-    expect(artifactKind('notes.md', 'plain')).toBe('markdown');
-    expect(artifactKind('Launch report', '<!doctype html><html />')).toBe(
-      'html',
-    );
-    expect(artifactKind('Keyboard audit', '# Keyboard audit')).toBe('markdown');
-    expect(artifactKind('Design study', 'Ordinary notes')).toBe('text');
-  });
-});
 
 describe('reviewed change state', () => {
   const fingerprint = 'a'.repeat(64);

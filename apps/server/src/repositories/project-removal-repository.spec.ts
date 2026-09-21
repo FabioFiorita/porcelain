@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it, onTestFinished } from 'vitest';
 import { openDatabase } from '../db/connection.ts';
-import { artifacts } from '../db/schema/artifacts.ts';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
 import { reviewedFiles } from '../db/schema/reviewed-files.ts';
+import { reviews } from '../db/schema/reviews.ts';
 import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import type { RegisteredProject } from '../models/project.ts';
 import { InventoryRepository } from './inventory-repository.ts';
@@ -42,14 +42,15 @@ async function fixture() {
     })
     .run();
   database.db
-    .insert(artifacts)
+    .insert(reviews)
     .values({
-      id: 'artifact',
       worktreeId: 'worktree',
-      name: 'Review',
-      content: 'data',
-      sizeBytes: 4,
-      createdAt: '2026-01-01',
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      summaryHtml: '<title>Review</title>',
+      summaryToken: 'summary',
+      summarySecret: 'secret',
+      layers: [],
     })
     .run();
   database.db
@@ -102,7 +103,7 @@ describe('Project removal persistence', () => {
       // still refuses actions, but not for a project that no longer exists.
       expect(store.remove(project.id)).toEqual({ deleted: true });
       expect(inventory.read().projects).toEqual([]);
-      expect(database.db.select().from(artifacts).all()).toEqual([]);
+      expect(database.db.select().from(reviews).all()).toEqual([]);
       expect(database.db.select().from(reviewedFiles).all()).toEqual([]);
       expect(database.db.select().from(gitActionBlocks).all()).toEqual([]);
       expect(database.db.select().from(gitActionReceipts).all()).toEqual([]);
@@ -118,13 +119,13 @@ describe('Project removal persistence', () => {
       );
       expect(() => store.remove(project.id)).toThrow('fixture failure');
       expect(inventory.read().projects).toEqual([project]);
-      expect(database.db.select().from(artifacts).all()).toMatchObject([
-        { content: 'data' },
+      expect(database.db.select().from(reviews).all()).toMatchObject([
+        { summaryHtml: '<title>Review</title>' },
       ]);
       expect(database.db.select().from(reviewedFiles).all()).toHaveLength(1);
       connection.exec('DROP TRIGGER reject_removal');
       expect(store.remove(project.id)).toEqual({ deleted: true });
-      expect(database.db.select().from(artifacts).all()).toEqual([]);
+      expect(database.db.select().from(reviews).all()).toEqual([]);
       expect(database.db.select().from(reviewedFiles).all()).toEqual([]);
     } finally {
       connection.close();

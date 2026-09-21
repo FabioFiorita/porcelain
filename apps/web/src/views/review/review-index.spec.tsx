@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { publishedReviewFixture } from '../../api/review/published-fixture';
 import type { CommentThread } from '../../domain/comments';
 import { type DocumentRef, entryKey } from '../../domain/documents';
 import type { Change, ChangeList } from '../../domain/review';
@@ -70,28 +71,7 @@ vi.mock('../../query/review', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../query/review')>()),
   useChanges: () => ({
     changes: list,
-    layers: {
-      worktreeId: list.worktreeId,
-      revision: 1,
-      layers: [
-        {
-          id: 'bf4f1c6b-2b54-423b-a9b5-7c40112b3101',
-          title: 'A clearer review experience',
-          files: [
-            {
-              path: 'src/components/review-panel.tsx',
-              scope: 'staged',
-            },
-            {
-              path: 'src/components/empty-state.tsx',
-              scope: 'unstaged',
-            },
-          ],
-        },
-      ],
-    },
   }),
-  useArtifacts: () => [],
   usePrefetchReview: () => {},
   useReviewChanges: () => [],
   useMarkAllReviewed: () => ({
@@ -100,6 +80,11 @@ vi.mock('../../query/review', async (importOriginal) => ({
     isSuccess: false,
     error: null,
     reset: vi.fn(),
+  }),
+}));
+vi.mock('../../query/published-review', () => ({
+  usePublishedReview: () => ({
+    data: publishedReviewFixture(list.worktreeId, list.environmentId),
   }),
 }));
 vi.mock('../../query/comments', async (importOriginal) => ({
@@ -180,7 +165,7 @@ describe('review index', () => {
     expect((await row.element()).className).not.toContain('workspace-choice');
   });
 
-  it('keeps layer order and compact file counts visible', async () => {
+  it('keeps ordered layers alongside changed files', async () => {
     const screen = await render(
       <ReviewIndex
         scope={{
@@ -197,8 +182,12 @@ describe('review index', () => {
         screen.getByRole('button', { name: /A clearer review experience/ }),
       )
       .toBeVisible();
-    await expect.element(screen.getByText('2')).toBeVisible();
-    await expect.element(screen.getByText(/The whole handoff/)).toBeVisible();
+    await expect.element(screen.getByText('Changed files')).toBeVisible();
+    await expect
+      .element(
+        screen.getByRole('button', { name: 'Review summary', exact: true }),
+      )
+      .toBeVisible();
   });
 
   it('acknowledges the discussion only once every thread has been shown', async () => {

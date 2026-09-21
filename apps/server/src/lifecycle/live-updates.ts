@@ -59,6 +59,11 @@ type ProjectWatch = {
 export class LiveUpdates {
   private readonly worktrees: ResolveWorktree;
   private readonly reviewed: ReviewedFileStore;
+  private readonly reviewedLayers:
+    | {
+        invalidate(worktreeId: string, paths?: readonly string[]): void;
+      }
+    | undefined;
   private readonly watcher: ParcelWatcher;
   private readonly ignoredPaths: typeof listIgnoredPaths;
   private readonly projects: () => readonly ListableProject[];
@@ -73,12 +78,16 @@ export class LiveUpdates {
   constructor(options: {
     worktrees: ResolveWorktree;
     reviewed: ReviewedFileStore;
+    reviewedLayers?: {
+      invalidate(worktreeId: string, paths?: readonly string[]): void;
+    };
     watcher?: ParcelWatcher;
     ignoredPaths?: typeof listIgnoredPaths;
     projects: () => readonly ListableProject[];
   }) {
     this.worktrees = options.worktrees;
     this.reviewed = options.reviewed;
+    this.reviewedLayers = options.reviewedLayers;
     this.watcher = options.watcher ?? parcelWatcher;
     this.ignoredPaths = options.ignoredPaths ?? listIgnoredPaths;
     this.projects = options.projects;
@@ -146,6 +155,7 @@ export class LiveUpdates {
     const watched = this.worktreeWatches.get(worktreeId);
     if (!watched) return;
     this.reviewed.invalidate(worktreeId, paths);
+    this.reviewedLayers?.invalidate(worktreeId, paths);
     this.publishWorktree(worktreeId, 'files');
   }
 
@@ -336,6 +346,10 @@ export class LiveUpdates {
         entry.worktreeId,
         changed.length ? changed : undefined,
       );
+      this.reviewedLayers?.invalidate(
+        entry.worktreeId,
+        changed.length ? changed : undefined,
+      );
       this.publish({
         type: 'worktree',
         projectId: entry.projectId,
@@ -361,6 +375,7 @@ export class LiveUpdates {
       for (const watched of this.worktreeWatches.values()) {
         if (watched.projectId !== projectId) continue;
         this.reviewed.invalidate(watched.worktreeId);
+        this.reviewedLayers?.invalidate(watched.worktreeId);
         this.publish({
           type: 'worktree',
           projectId,

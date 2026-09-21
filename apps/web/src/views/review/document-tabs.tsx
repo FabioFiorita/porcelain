@@ -8,7 +8,6 @@ import {
   GitCommitHorizontalIcon,
   LayersIcon,
   ListXIcon,
-  NewspaperIcon,
   PinIcon,
   PinOffIcon,
   SquareStackIcon,
@@ -28,17 +27,11 @@ import {
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { parseEntry } from '../../domain/documents';
-import {
-  type Artifact,
-  basename,
-  type Layers,
-  shortOid,
-} from '../../domain/review';
+import { basename, shortOid } from '../../domain/review';
 import { SHORTCUTS } from '../workspace/shortcuts';
 import { FileTypeIcon } from './file-type-icon';
-import { HANDOFF_ARTIFACT_NAMES } from './handoff-artifact';
 
-type Layer = Layers['layers'][number];
+type Layer = Pick<import('../../domain/review').ReviewLayer, 'id' | 'title'>;
 type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;
 
 const fileTypeIcon = (path: string): TabIcon =>
@@ -50,16 +43,12 @@ const fileTypeIcon = (path: string): TabIcon =>
     );
   };
 
-function describeTab(
-  key: string,
-  layers: readonly Layer[],
-  artifacts: readonly Artifact[],
-) {
+function describeTab(key: string, layers: readonly Layer[]) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
     case 'handoff':
       return layers.length > 0
-        ? { Icon: LayersIcon, title: 'Handoff', hint: 'The whole handoff' }
+        ? { Icon: LayersIcon, title: 'Review', hint: 'Review summary' }
         : { Icon: FileDiffIcon, title: 'Changes', hint: 'All changes' };
     case 'layer': {
       const index = layers.findIndex((layer) => layer.id === ref.layerId);
@@ -88,16 +77,6 @@ function describeTab(
         title: shortOid(ref.oid),
         hint: `Commit ${ref.oid}`,
       };
-    case 'artifact': {
-      const artifact = artifacts.find((item) => item.id === ref.artifactId);
-      const name = artifact?.name ?? 'Artifact';
-      return {
-        Icon:
-          name === HANDOFF_ARTIFACT_NAMES.html ? NewspaperIcon : FileTextIcon,
-        title: name === HANDOFF_ARTIFACT_NAMES.html ? 'Report' : name,
-        hint: `${name} · from the agent`,
-      };
-    }
     default:
       return { Icon: FileTextIcon, title: key, hint: key };
   }
@@ -117,7 +96,6 @@ export function DocumentTabs({
   pinned,
   active,
   layers,
-  artifacts = [],
   side,
   focused,
   leading,
@@ -128,7 +106,6 @@ export function DocumentTabs({
   pinned: readonly string[];
   active: string | null;
   layers: readonly Layer[];
-  artifacts?: readonly Artifact[];
   side: 'left' | 'right' | null;
   focused: boolean;
   leading?: ReactNode;
@@ -172,7 +149,6 @@ export function DocumentTabs({
                     pinned={isPinned}
                     hasUnpinned={tabs.some((item) => !pinned.includes(item))}
                     layers={layers}
-                    artifacts={artifacts}
                     side={side}
                     {...actions}
                   />
@@ -207,7 +183,6 @@ function DocumentTab({
   pinned,
   hasUnpinned,
   layers,
-  artifacts,
   side,
   onActivate,
   onClose,
@@ -221,10 +196,9 @@ function DocumentTab({
   pinned: boolean;
   hasUnpinned: boolean;
   layers: readonly Layer[];
-  artifacts: readonly Artifact[];
   side: 'left' | 'right' | null;
 }) {
-  const { Icon, title, hint } = describeTab(tabKey, layers, artifacts);
+  const { Icon, title, hint } = describeTab(tabKey, layers);
   const tabRef = useRef<HTMLDivElement>(null);
   const openToSideLabel =
     side == null

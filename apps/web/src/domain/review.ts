@@ -1,8 +1,4 @@
 import type {
-  ArtifactContentResponse,
-  ArtifactMetadataResponse,
-} from '@porcelain/contracts/artifacts';
-import type {
   ChangeDiffsRequest as ChangeDiffsRequestContract,
   ChangeDiffsResponse,
   ChangeLinesResponse,
@@ -20,7 +16,6 @@ import type {
   TextResponse,
 } from '@porcelain/contracts/files';
 import type { GitStatusResponse } from '@porcelain/contracts/git-status';
-import type { reviewLayersResponseSchema } from '@porcelain/contracts/review-layers';
 import type {
   ReviewedMark as ReviewedMarkResponse,
   ReviewedMarksResponse as ReviewedMarksResponseContract,
@@ -30,10 +25,7 @@ import type {
 export type Directory = DirectoryResponse;
 export type PreviewAssets = PreviewAssetsResponse;
 export type History = CommitPageResponse;
-export type Artifact = ArtifactMetadataResponse;
-export type ArtifactContent = ArtifactContentResponse;
 export type Status = GitStatusResponse;
-export type Layers = ReturnType<typeof reviewLayersResponseSchema.parse>;
 export type ChangeList = ChangesResponse;
 export type FileChange = FileChangeResponse;
 export type Change = FileChange['comparisons'][number];
@@ -66,10 +58,6 @@ export function changePath(change: Change) {
     ? change.path
     : (change.newPath ?? change.oldPath ?? '');
 }
-function changeKey(change: Change) {
-  return JSON.stringify([change.scope, changePath(change)]);
-}
-
 export function orderReviewChanges<T extends { path: string }>(
   changes: readonly T[],
   files: readonly { path: string }[],
@@ -141,49 +129,6 @@ export function shortOid(oid: string) {
   return oid.slice(0, 7);
 }
 
-export type ArtifactKind = 'html' | 'markdown' | 'text';
-
-export function artifactKind(name: string, content = ''): ArtifactKind {
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
-  if (lower.endsWith('.md') || lower.endsWith('.mdx')) return 'markdown';
-  const leading = content.trimStart();
-  const lowerLeading = leading.toLowerCase();
-  if (
-    lowerLeading.startsWith('<!doctype html') ||
-    lowerLeading.startsWith('<html')
-  )
-    return 'html';
-  if (/^#{1,6}\s/u.test(leading)) return 'markdown';
-  return 'text';
-}
-export function groupChanges(list: ChangeList, layers: Layers) {
-  const all = comparisons(list);
-  const assigned = new Set(
-    layers.layers.flatMap((layer) =>
-      layer.files.map((file) => JSON.stringify([file.scope, file.path])),
-    ),
-  );
-  const groups = layers.layers.flatMap((layer) => {
-    const changes = layer.files.flatMap((file) =>
-      all.filter(
-        (change) =>
-          change.scope === file.scope && changePath(change) === file.path,
-      ),
-    );
-    return changes.length
-      ? [{ id: layer.id, title: layer.title, changes }]
-      : [];
-  });
-  const unassigned = all.filter((change) => !assigned.has(changeKey(change)));
-  return [
-    ...groups,
-    ...(unassigned.length
-      ? [{ id: 'unassigned', title: 'Unassigned', changes: unassigned }]
-      : []),
-  ];
-}
-
 export type TextFile = TextResponse;
 export type CommitFiles = CommitFilesResponse;
 export type CommitFile = CommitFilesResponse['files'][number];
@@ -194,3 +139,11 @@ export type {
   FileEditResult,
   WorktreePaths,
 } from '@porcelain/contracts/files';
+
+export type {
+  Diagram,
+  DiagramBox,
+  ReviewLayer,
+  ReviewResponse,
+  ReviewStep,
+} from '@porcelain/contracts/review';

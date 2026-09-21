@@ -75,7 +75,15 @@ export function registerOwnerRoutes(
     async (request, reply) => {
       if (request.method !== 'POST')
         return reply.header('Allow', 'POST').code(405).send();
-      const mcp = createReviewMcpServer(options.application, { kind: 'agent' });
+      const cwd =
+        typeof request.headers['x-porcelain-cwd'] === 'string'
+          ? request.headers['x-porcelain-cwd']
+          : process.cwd();
+      const mcp = createReviewMcpServer(
+        options.application,
+        { kind: 'agent' },
+        cwd,
+      );
       const transport = new StreamableHTTPServerTransport({
         enableJsonResponse: true,
       });

@@ -9,10 +9,6 @@ describe('document references', () => {
       { kind: 'change', path: 'src/app.tsx' },
       { kind: 'file', path: 'README.md' },
       { kind: 'commit', oid: 'a'.repeat(40) },
-      {
-        kind: 'artifact',
-        artifactId: '901a8628-1cd6-4562-81a2-9c05fba76b4a',
-      },
     ] as const;
 
     for (const ref of refs) {
@@ -26,5 +22,8 @@ describe('document references', () => {
     expect(parseEntry('commit:not-an-oid')).toBeNull();
     expect(parseEntry('file:')).toBeNull();
     expect(parseEntry('artifact:handoff.html')).toBeNull();
+    expect(
+      parseEntry('artifact:901a8628-1cd6-4562-81a2-9c05fba76b4a'),
+    ).toBeNull();
   });
 });

@@ -4,7 +4,6 @@
   "type": "module",
   "exports": {
     "./api-error": "./src/api-error.ts",
-    "./artifacts": "./src/artifacts.ts",
     "./comments": "./src/comments.ts",
     "./commit-changes": "./src/commit-changes.ts",
     "./commit-draft": "./src/commit-draft.ts",
@@ -20,7 +19,7 @@
     "./live-updates": "./src/live-updates.ts",
     "./owner": "./src/owner.ts",
     "./pairing": "./src/pairing.ts",
-    "./review-layers": "./src/review-layers.ts",
+    "./review": "./src/review.ts",
     "./reviewed-files": "./src/reviewed-files.ts",
     "./worktree-id": "./src/worktree-id.ts"
   },

@@ -9,7 +9,7 @@ import type {
   ReviewChangeItem,
   ReviewScope,
 } from '../../domain/review';
-import { type Layers, orderReviewChanges } from '../../domain/review';
+import { orderReviewChanges } from '../../domain/review';
 import { useComments } from '../../query/comments';
 import {
   selectionKey,
@@ -34,7 +34,7 @@ export function ReviewCodeDocument({
 }: {
   scope: ReviewScope;
   paths?: readonly string[];
-  files?: Layers['layers'][number]['files'];
+  files?: readonly { path: string; note?: string }[];
   header?: () => ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;

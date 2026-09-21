@@ -10,6 +10,7 @@ import {
 } from 'vitest';
 import { type Locator, page } from 'vitest/browser';
 import { createMockStore } from '../../api/inventory/mock';
+import { publishedReviewFixture } from '../../api/review/published-fixture';
 import { reportUnauthorized } from '../../api/unauthorized';
 import type { Inventory } from '../../domain/inventory';
 import { queryKeys } from '../../query/keys';
@@ -626,7 +627,7 @@ describe('worktree review navigation', () => {
     const screen = await renderReview();
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     await expect
-      .element(screen.getByRole('heading', { name: 'Handoff' }))
+      .element(screen.getByRole('heading', { name: 'Changes' }))
       .toBeVisible();
     getItem.mockRestore();
   });
@@ -692,7 +693,7 @@ describe('worktree review navigation', () => {
       await remainingReviewRetries.first().click();
     }
     const recovered = screen.getByRole('button', {
-      name: /A clearer review experience/,
+      name: /^review-panel.tsx.*staged/,
     });
     await expect.element(recovered.first()).toBeVisible();
     expect(recovered.all().length).toBeGreaterThan(0);
@@ -702,14 +703,14 @@ describe('worktree review navigation', () => {
     expect(
       sidebar
         .getByRole('tab', {
-          name: /^(Review|Files|History)$/,
+          name: /^(Changes|Files|History)$/,
         })
         .all(),
     ).toHaveLength(3);
   });
-  it('keeps file documents and Git controls available when artifacts fail', async () => {
+  it('keeps file documents and Git controls available when publication reads fail', async () => {
     const store = createMockStore();
-    store.artifactsFailed = true;
+    store.publishedReviewFailed = true;
     const screen = await renderReview(store);
     await screen.getByRole('button', { name: /agent\/review/ }).click();
     const sidebar = screen.getByTestId('review-sidebar');
@@ -723,52 +724,62 @@ describe('worktree review navigation', () => {
       .element(screen.getByRole('button', { name: 'Git actions' }))
       .toBeVisible();
   });
-  it('keeps stored artifacts reachable for an unavailable worktree', async () => {
-    const screen = await renderReview();
+  it('keeps a saved review reachable for an unavailable worktree', async () => {
+    const store = createMockStore();
+    const worktreeId = '629a86281cd6456281a29c05fba76b4d';
+    store.publishedReviews[worktreeId] = {
+      ...publishedReviewFixture(worktreeId, store.inventory.environmentId),
+      diagnostics: 'unavailable',
+    };
+    const screen = await renderReview(store);
     await screen
       .getByRole('button', { name: /archive\/initial-prototype/ })
       .click();
+    await screen
+      .getByTestId('review-sidebar')
+      .getByRole('button', { name: 'Saved review' })
+      .click();
     await expect
-      .element(screen.getByText('Stored agent reports'))
+      .element(
+        screen
+          .getByRole('region', { name: 'Published review' })
+          .getByTitle('Review summary'),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(/code locations and coverage could not be checked/),
+      )
+      .toBeVisible();
+  });
+  it('opens published layers from a summary beside the plain changed files', async () => {
+    const store = createMockStore();
+    const worktreeId = '629a86281cd6456281a29c05fba76b4b';
+    store.publishedReviews[worktreeId] = publishedReviewFixture(
+      worktreeId,
+      store.inventory.environmentId,
+    );
+    const screen = await renderReview(store);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await expect
+      .element(
+        screen
+          .getByRole('region', { name: 'Published review' })
+          .getByTitle('Review summary'),
+      )
       .toBeVisible();
     await screen
       .getByTestId('review-sidebar')
-      .getByRole('button', {
-        name: /Keyboard accessibility audit/,
-      })
+      .getByRole('button', { name: /A clearer review experience/ })
       .click();
-    const headings = screen.getByRole('heading', {
-      name: 'Keyboard accessibility audit',
-    });
-    await expect.element(headings.first()).toBeVisible();
-    expect(headings.all()).toHaveLength(2);
-  });
-  it('renders the report in an opaque-origin sandboxed frame', async () => {
-    const screen = await renderReview();
-    await screen.getByRole('button', { name: /agent\/review/ }).click();
-    await screen.getByRole('button', { name: /The whole handoff/ }).click();
-    const reportButtons = screen.getByRole('button', {
-      name: /Launch review report/,
-    });
-    await expect.element(reportButtons.first()).toBeVisible();
-    await reportButtons.first().click();
-
     await expect
-      .element(screen.getByRole('heading', { name: 'Launch review report' }))
+      .element(
+        screen.getByRole('button', {
+          name: 'Mark layer reviewed',
+          exact: true,
+        }),
+      )
       .toBeVisible();
-    const frame = screen.getByTitle('Launch review report');
-    await expect.element(frame).toBeVisible();
-    expect((await frame.element()).tagName).toBe('IFRAME');
-    await expect.element(frame).toHaveAttribute('sandbox', 'allow-scripts');
-    await expect
-      .element(frame)
-      .toHaveAttribute('referrerpolicy', 'no-referrer');
-    await expect
-      .element(frame)
-      .toHaveAttribute(
-        'srcdoc',
-        expect.stringContaining('Fieldnotes launch review'),
-      );
   });
   it.each([false, true])(
     'commits selected files and recovers without repeating the action (lost response: %s)',
