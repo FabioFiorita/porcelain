@@ -9,6 +9,9 @@ export function toGitStatusResponse(
     worktreeId: result.worktreeId,
     statusToken: result.status.statusToken,
     headOid: result.status.headOid,
+    inProgress: result.status.inProgress ?? null,
+    mergeHeadOid: result.status.mergeHeadOid ?? null,
+    headCommit: result.status.headCommit ?? null,
     ...(result.status.branch ? { branch: result.status.branch } : {}),
     consistency: 'best-effort',
     changes: result.status.changes.map((change) => {

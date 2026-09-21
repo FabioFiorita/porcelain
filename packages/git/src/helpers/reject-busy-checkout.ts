@@ -6,7 +6,10 @@ import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 export async function rejectBusyCheckout(
   process: GitProcessRunner,
   signal: AbortSignal,
-): Promise<void> {
+  allowMerge = false,
+  ignoreIndexLock = false,
+): Promise<'merge' | null> {
+  let merge = false;
   for (const name of [
     'MERGE_HEAD',
     'CHERRY_PICK_HEAD',
@@ -30,6 +33,12 @@ export async function rejectBusyCheckout(
         continue;
       throw error;
     }
+    if (name === 'MERGE_HEAD' && allowMerge) {
+      merge = true;
+      continue;
+    }
+    if (name === 'index.lock' && ignoreIndexLock) continue;
     throw new GitActionRejectedError('CHECKOUT_BUSY');
   }
+  return merge ? 'merge' : null;
 }

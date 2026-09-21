@@ -19,6 +19,7 @@ export async function fetchBranch(
   const fetched = await process.execute(
     [
       'fetch',
+      '--progress',
       '--no-tags',
       '--no-prune',
       '--no-prune-tags',

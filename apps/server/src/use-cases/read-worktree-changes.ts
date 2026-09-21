@@ -95,6 +95,8 @@ export class ReadWorktreeChanges {
       worktreeId,
       statusToken: observed.statusToken,
       headOid: observed.headOid,
+      inProgress: observed.inProgress ?? null,
+      mergeHeadOid: observed.mergeHeadOid ?? null,
       branch: observed.branch
         ? {
             name: observed.branch.name,
@@ -105,5 +107,51 @@ export class ReadWorktreeChanges {
         : null,
       changes,
     };
+  }
+
+  /** Fingerprint only named logical paths; unrelated working content is never read. */
+  async fingerprints(
+    worktreeId: string,
+    paths: readonly string[],
+    session: GitSession,
+    signal?: AbortSignal,
+  ): Promise<Map<string, string>> {
+    signal?.throwIfAborted();
+    const { worktree, checkout } = await resolveCheckoutSession(
+      this.worktrees,
+      this.store,
+      session,
+      worktreeId,
+      signal,
+    );
+    const reader = this.inspection(checkout);
+    const observed = await reader.readStatus(signal);
+    const wanted = new Set(paths);
+    const selected = observed.changes.filter((change) =>
+      wanted.has(logicalPath(change)),
+    );
+    const { sides } = await observeWorktreeSides(
+      reader,
+      this.files,
+      worktree.path,
+      selected,
+      signal,
+    );
+    const byPath = new Map<string, GitChange[]>();
+    for (const change of selected) {
+      const path = logicalPath(change);
+      byPath.set(path, [...(byPath.get(path) ?? []), change]);
+    }
+    await this.worktrees.reachable(worktreeId, signal);
+    return new Map(
+      [...byPath].flatMap(([path, comparisons]) => {
+        const fingerprint = fingerprintChange(
+          path,
+          orderComparisons(comparisons),
+          (file) => sides.get(file),
+        );
+        return fingerprint ? [[path, fingerprint] as const] : [];
+      }),
+    );
   }
 }

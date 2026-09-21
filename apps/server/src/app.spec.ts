@@ -697,6 +697,11 @@ describe('Application', () => {
             await release.promise;
             return { state: 'succeeded', refreshRequired: false };
           },
+          executeDirect: async () => {
+            writing.resolve();
+            await release.promise;
+            return { state: 'succeeded', refreshRequired: false };
+          },
         }),
       });
       await app.ready();
@@ -716,13 +721,19 @@ describe('Application', () => {
       // A commit is running, which holds this repository's lane as a writer,
       // so the three reads below are admitted only after it finishes: the
       // caller has a long window to mutate the objects it passed.
-      const preparation = await app.prepareCommit(
+      void app.runGitAction(
         { projectId: project.id, worktreeId },
-        { message: 'blocking' },
-      );
-      void app.executeCommit(
-        { projectId: project.id, worktreeId },
-        { requestId: randomUUID(), preparationId: preparation.id },
+        {
+          requestId: randomUUID(),
+          input: { action: 'commit', message: 'blocking', paths: ['file'] },
+          expected: {
+            headOid: oid,
+            branch: 'main',
+            inProgress: null,
+            mergeHeadOid: null,
+            files: [],
+          },
+        },
       );
       await writing.promise;
       const page = app.listCommits(worktreeId, pageRequest);

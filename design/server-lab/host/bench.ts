@@ -124,14 +124,14 @@ const readChanges = async (api: Api, scope: Scope): Promise<ChangeList> => {
 
 const selectWorktree = async (api: Api, scope: Scope) => {
   const w = `/api/worktrees/${scope.worktreeId}`;
-  // The change list and layers, reviewed marks, comments, artifacts. No diffs:
+  // The change list, publication, reviewed marks and comments. No diffs:
   // those are read per document, as the reader opens them.
   await Promise.all([
     api('GET', `${w}/changes`),
-    api('GET', `${w}/review-layers`),
+    api('GET', `${w}/review`),
     api('GET', `${w}/reviewed`),
     api('GET', `${w}/comments`),
-    api('GET', `${w}/artifacts`),
+    api('GET', `${w}/reviewed-layers`),
   ]);
 };
 

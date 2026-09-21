@@ -29,10 +29,20 @@ type Connection = {
 
 function createConnection(environmentId: string): Connection {
   const controller = new AbortController();
+  let storage: Storage | undefined;
+  try {
+    storage = window.sessionStorage;
+  } catch {
+    /* Session storage can be disabled by the browser. */
+  }
   return {
     environmentId,
     controller,
-    operations: createOperationStore(),
+    operations: createOperationStore(
+      storage
+        ? { storage, key: `porcelain-git-requests:${environmentId}` }
+        : undefined,
+    ),
     request: (signal) => ({
       signal: AbortSignal.any([
         controller.signal,
@@ -124,6 +134,7 @@ export function WorkspaceProvider({
               'Save or discard unsaved file drafts before disconnecting.',
             );
       await api.session.disconnect();
+      connection?.operations.clear();
       connection?.controller.abort();
       void queryClient.cancelQueries();
       queryClient.clear();
@@ -148,6 +159,7 @@ export function WorkspaceProvider({
       onUnauthorized(() => {
         generation.current += 1;
         setConnection((current) => {
+          current?.operations.clear();
           current?.controller.abort();
           return null;
         });

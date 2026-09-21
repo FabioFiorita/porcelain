@@ -117,10 +117,21 @@ function conflict(record: string): GitChange {
   const code = fields[1];
   if (!code || !['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU'].includes(code))
     throw new InvalidGitStatusError();
+  const modes = fields.slice(3, 7);
+  const oids = fields.slice(7, 10);
+  if (
+    modes.length !== 4 ||
+    modes.some((mode) => !/^[0-7]{6}$/.test(mode)) ||
+    oids.length !== 3 ||
+    oids.some((oid) => !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(oid))
+  )
+    throw new InvalidGitStatusError();
   return {
     scope: 'unmerged',
     path: path(fields.slice(10).join(' ')),
     conflict: code as 'DD' | 'AU' | 'UD' | 'UA' | 'DU' | 'AA' | 'UU',
+    modes: modes as [string, string, string, string],
+    oids: oids as [string, string, string],
   };
 }
 

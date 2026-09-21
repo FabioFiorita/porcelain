@@ -25,12 +25,15 @@ describe('Git action options', () => {
   it('keeps only current API actions and groups them by intent', () => {
     expect(gitActions.map((action) => action.id)).toEqual([
       'commit',
+      'amend',
       'push',
       'pull',
       'fetch',
       'stash-create',
       'stash-apply',
       'stash-pop',
+      'switch-branch',
+      'create-branch',
     ]);
     expect(
       gitActionGroups.map((group) => [
@@ -38,9 +41,10 @@ describe('Git action options', () => {
         group.actions.map((action) => action.id),
       ]),
     ).toEqual([
-      ['Commit', ['commit']],
+      ['Commit', ['commit', 'amend']],
       ['Sync', ['push', 'pull', 'fetch']],
       ['Stash', ['stash-create', 'stash-apply', 'stash-pop']],
+      ['Branch', ['switch-branch', 'create-branch']],
     ]);
   });
 

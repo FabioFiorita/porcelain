@@ -35,44 +35,25 @@ type Capture = {
 export class CommitDrafts {
   private readonly inventory: InventoryStore;
   private readonly worktrees: ResolveWorktree;
-  private readonly git: GitActionWriterFactory;
   private readonly changes: ReadWorktreeChanges;
-  private readonly diffs: ReadChangeDiffs;
   private readonly files: FileReader;
   private readonly generator: CommitGenerator;
+  private readonly git: GitActionWriterFactory;
   constructor(
     inventory: InventoryStore,
     worktrees: ResolveWorktree,
     git: GitActionWriterFactory,
     changes: ReadWorktreeChanges,
-    diffs: ReadChangeDiffs,
+    _diffs: ReadChangeDiffs,
     files: FileReader,
     generator: CommitGenerator,
   ) {
     this.inventory = inventory;
     this.worktrees = worktrees;
-    this.git = git;
     this.changes = changes;
-    this.diffs = diffs;
     this.files = files;
     this.generator = generator;
-  }
-  private async inspect(
-    scope: GitActionScope,
-    session: GitSession,
-    signal: AbortSignal,
-  ) {
-    const { checkout } = await resolveActionCheckout(
-      this.worktrees,
-      this.inventory,
-      session,
-      scope,
-      signal,
-    );
-    return this.git(checkout).inspect(
-      { action: 'commit', message: 'Draft commit' },
-      signal,
-    );
+    this.git = git;
   }
   async capture(
     scope: GitActionScope,
@@ -80,7 +61,6 @@ export class CommitDrafts {
     session: GitSession,
     signal: AbortSignal,
   ): Promise<Capture> {
-    const before = await this.inspect(scope, session, signal);
     const observed = await this.changes.execute(
       scope.worktreeId,
       session,
@@ -103,24 +83,17 @@ export class CommitDrafts {
         'Select readable changed files to generate a commit draft.',
       );
     const prompt = JSON.stringify(
-      await this.contents(
-        scope,
-        observed.statusToken,
-        selected,
-        session,
-        signal,
-      ),
+      await this.contents(scope, observed.headOid, selected, session, signal),
     );
     if (Buffer.byteLength(prompt) > 1024 * 1024)
       throw new CommitDraftError(
         'Select fewer files to generate a commit draft.',
       );
-    await this.verify(scope, before.fingerprint, session, signal);
     // The selected content leaves the process for the commit generator, so
     // confirm it still came from the checkout this request verified.
     await session.confirmAll(signal);
     return {
-      fingerprint: before.fingerprint,
+      fingerprint: observed.statusToken,
       paths,
       bundles: selected.map((entry) =>
         [...new Set([entry.path, ...changedPaths(entry)])].filter((path) =>
@@ -138,7 +111,7 @@ export class CommitDrafts {
   /** What each selected file changed, with the content that shows it. */
   private async contents(
     scope: GitActionScope,
-    statusToken: string,
+    headOid: string | null,
     selected: readonly FileChange[],
     session: GitSession,
     signal: AbortSignal,
@@ -168,36 +141,39 @@ export class CommitDrafts {
       throw new CommitDraftError(
         'Select fewer files to generate a commit draft.',
       );
-    const patches = new Map<string, unknown>();
-    if (selections.length > 0) {
-      const read = await this.diffs.execute(
-        scope.worktreeId,
-        statusToken,
-        diffable.map((entry) => ({
-          path: entry.path,
-          fingerprint: entry.fingerprint,
-        })),
-        selections,
-        session,
+    const { checkout } = await resolveActionCheckout(
+      this.worktrees,
+      this.inventory,
+      session,
+      scope,
+      signal,
+    );
+    const writer = this.git(checkout);
+    const readSelectedDiff = writer.readSelectedDiff?.bind(writer);
+    let patch = '';
+    if (diffable.length > 0) {
+      if (!readSelectedDiff)
+        throw new CommitDraftError('Commit drafting is unavailable.');
+      patch = await readSelectedDiff(
+        headOid,
+        [
+          ...new Set(
+            diffable.flatMap((entry) => [entry.path, ...changedPaths(entry)]),
+          ),
+        ],
         signal,
       );
-      for (const { selection, content } of read.diffs)
-        patches.set(keyOf(selection), content);
     }
     const untracked = await this.untracked(scope, selected, session, signal);
-    return selected.map((entry) => ({
-      path: entry.path,
-      fingerprint: entry.fingerprint,
-      comparisons: entry.comparisons.map((change) => ({
-        change,
-        content:
-          change.scope === 'staged' || change.scope === 'unstaged'
-            ? patches.get(keyOf(change))
-            : change.scope === 'untracked'
-              ? untracked.get(change.path)
-              : { kind: 'omitted', reason: 'conflict' },
+    return {
+      files: selected.map((entry) => ({
+        path: entry.path,
+        fingerprint: entry.fingerprint,
+        comparisons: entry.comparisons,
       })),
-    }));
+      patch,
+      untracked: Object.fromEntries(untracked),
+    };
   }
 
   /**
@@ -278,17 +254,6 @@ export class CommitDrafts {
       );
     return { groups, expectedFiles: capture.expectedFiles };
   }
-  async verify(
-    scope: GitActionScope,
-    fingerprint: string,
-    session: GitSession,
-    signal: AbortSignal,
-  ) {
-    if (
-      (await this.inspect(scope, session, signal)).fingerprint !== fingerprint
-    )
-      throw new WorktreeChangedError();
-  }
 }
 
 function changedPaths(entry: FileChange) {
@@ -299,12 +264,4 @@ function changedPaths(entry: FileChange) {
           (path): path is string => path !== null,
         ),
   );
-}
-
-function keyOf(change: {
-  scope: string;
-  oldPath: string | null;
-  newPath: string | null;
-}) {
-  return `${change.scope}\n${change.oldPath}\n${change.newPath}`;
 }

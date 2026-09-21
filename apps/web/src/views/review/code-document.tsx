@@ -46,6 +46,7 @@ import {
 import { usePreferences } from '../workspace/preferences';
 import { SHORTCUTS } from '../workspace/shortcuts';
 import { useTheme } from '../workspace/theme';
+import { DiscardButton } from './discard';
 import { useDocumentInteraction } from './document-interaction';
 import { InlineComposer } from './inline-composer';
 import { anchorLabel, ThreadCard } from './thread-card';
@@ -429,6 +430,25 @@ function CodeSurface({
               {basename(selectionAnchor.filePath)} ·{' '}
               {anchorLabel(selectionAnchor)}
             </span>
+            {scope &&
+              selectionAnchor.kind === 'codeRange' &&
+              selectionAnchor.comparison?.kind === 'worktree' &&
+              selectionAnchor.side !== 'deletions' &&
+              (selectionAnchor.comparison.scope === 'staged' ||
+                selectionAnchor.comparison.scope === 'unstaged') && (
+                <span className="pointer-events-auto">
+                  <DiscardButton
+                    scope={scope}
+                    path={selectionAnchor.filePath}
+                    hunk={{
+                      scope: selectionAnchor.comparison.scope,
+                      startLine: selectionAnchor.startLine,
+                      endLine: selectionAnchor.endLine,
+                    }}
+                    variant="compact"
+                  />
+                </span>
+              )}
           </div>
         )
       )}

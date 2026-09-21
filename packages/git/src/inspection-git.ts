@@ -41,9 +41,13 @@ export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
     return readSubmoduleHeads(this.session, paths, signal);
   }
 
-  async readBranchDetails(branch: string | null, signal?: AbortSignal) {
+  async readBranchDetails(
+    branch: string | null,
+    headOid: string | null,
+    signal?: AbortSignal,
+  ) {
     await this.session.verify(signal);
-    return readBranchDetails(this.session, branch, signal);
+    return readBranchDetails(this.session, branch, headOid, signal);
   }
 
   async readLines(range: Omit<LineRange, 'at'>, signal?: AbortSignal) {

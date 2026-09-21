@@ -1,11 +1,15 @@
 import type { LiveNotice } from '@porcelain/contracts/live-updates';
 import type { QueryClient } from '@tanstack/react-query';
 import type { Api } from '../api/api';
+import type { Receipt } from '../domain/git-action';
+import type { ReviewScope } from '../domain/review';
 import { queryKeys } from './keys';
+import { isTerminal, type OperationStore } from './operation-store';
 
 type Connection = {
   environmentId: string;
   controller: AbortController;
+  operations?: OperationStore;
 };
 
 type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
@@ -71,6 +75,7 @@ const GIT_SURFACES = new Set([
   'changes',
   'git-status',
   'history',
+  'branches',
   'paths',
   'review',
   'step-lines',
@@ -80,7 +85,7 @@ const GIT_SURFACES = new Set([
 async function invalidateSurfaces(
   client: QueryClient,
   environmentId: string,
-  notice: Extract<LiveNotice, { type: 'worktree' }>,
+  notice: ReviewScope,
   surfaces: ReadonlySet<string>,
 ) {
   const prefix = queryKeys.review(environmentId, notice);
@@ -90,12 +95,38 @@ async function invalidateSurfaces(
   });
 }
 
+export async function refreshGitReceipt(
+  client: QueryClient,
+  environmentId: string,
+  receipt: Receipt,
+) {
+  if (
+    !isTerminal(receipt) ||
+    receipt.state === 'rejected' ||
+    receipt.state === 'no-change'
+  )
+    return;
+  const surfaces =
+    receipt.action === 'fetch' || receipt.action === 'push'
+      ? new Set(['git-status', 'changes', 'history', 'branches'])
+      : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
+  await invalidateSurfaces(client, environmentId, receipt, surfaces);
+  await client.invalidateQueries({
+    queryKey: queryKeys.inventory(environmentId),
+    exact: true,
+  });
+}
+
 export async function applyLiveNotice(
   client: QueryClient,
   environmentId: string,
   notice: LiveNotice,
 ) {
   if (notice.type === 'ready' || notice.type === 'heartbeat') return;
+  if (notice.type === 'git-action') {
+    await refreshGitReceipt(client, environmentId, notice.receipt);
+    return;
+  }
   if (notice.type === 'inventory') {
     await client.invalidateQueries({
       queryKey: queryKeys.inventory(environmentId),
@@ -144,13 +175,42 @@ export function connectLiveQueries(
   connection: Connection,
 ) {
   const lifecycle = new AbortController();
+  const recoverPending = () => {
+    for (const operation of connection.operations?.list() ?? []) {
+      if (operation.receipt && isTerminal(operation.receipt)) continue;
+      void api.gitActions
+        .receipt({
+          projectId: operation.projectId,
+          worktreeId: operation.worktreeId,
+          requestId: operation.requestId,
+          signal: connection.controller.signal,
+        })
+        .then((receipt) => {
+          if (connection.controller.signal.aborted) return;
+          connection.operations?.accept(receipt);
+          return applyLiveNotice(client, connection.environmentId, {
+            type: 'git-action',
+            projectId: receipt.projectId,
+            worktreeId: receipt.worktreeId,
+            receipt,
+          });
+        })
+        .catch(() => {
+          /* Retain the request for explicit recovery if the reconnect read fails. */
+        });
+    }
+  };
   const live = api.liveUpdates.connect({
     signal: AbortSignal.any([connection.controller.signal, lifecycle.signal]),
     onNotice: (notice) => {
+      if (notice.type === 'ready') recoverPending();
+      if (notice.type === 'git-action')
+        connection.operations?.accept(notice.receipt);
       void applyLiveNotice(client, connection.environmentId, notice);
     },
     onReconnect: () => {
       void client.invalidateQueries({ type: 'active' });
+      recoverPending();
     },
   });
   let queued = false;
@@ -158,6 +218,21 @@ export function connectLiveQueries(
   const send = () => {
     queued = false;
     const subscription = liveSubscription(client, connection.environmentId);
+    for (const operation of connection.operations?.list() ?? []) {
+      if (operation.receipt && isTerminal(operation.receipt)) continue;
+      if (
+        !subscription.worktrees.some(
+          (entry) =>
+            entry.worktreeId === operation.worktreeId &&
+            entry.projectId === operation.projectId,
+        )
+      )
+        subscription.worktrees.push({
+          projectId: operation.projectId,
+          worktreeId: operation.worktreeId,
+          paths: [],
+        });
+    }
     const serialized = JSON.stringify(subscription);
     if (serialized === sent) return;
     sent = serialized;
@@ -169,9 +244,11 @@ export function connectLiveQueries(
     queueMicrotask(send);
   };
   const unsubscribe = client.getQueryCache().subscribe(changed);
+  const unsubscribeOperations = connection.operations?.subscribe(changed);
   changed();
   return () => {
     unsubscribe();
+    unsubscribeOperations?.();
     lifecycle.abort();
   };
 }

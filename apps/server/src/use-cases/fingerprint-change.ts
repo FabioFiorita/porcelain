@@ -47,9 +47,17 @@ function side(
   comparison: GitChange,
   worktree: (path: string) => WorktreeSide | undefined,
 ): unknown {
-  if (comparison.scope === 'unmerged')
-    // A conflict is not a state anyone can have finished reviewing.
-    return null;
+  if (comparison.scope === 'unmerged') {
+    const observed = worktree(comparison.path);
+    return {
+      scope: 'unmerged',
+      path: comparison.path,
+      conflict: comparison.conflict,
+      modes: comparison.modes,
+      oids: comparison.oids,
+      worktree: workingSide(observed) ?? { missing: true },
+    };
+  }
   if (comparison.scope === 'untracked') {
     const observed = worktree(comparison.path);
     const working = workingSide(observed);

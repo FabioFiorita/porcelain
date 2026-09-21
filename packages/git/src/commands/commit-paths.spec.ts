@@ -14,13 +14,20 @@ it('keeps the real index lock and temporary index when commit process ownership 
     async execute(args) {
       if (args.includes('commit'))
         throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
+      const gitPath = args.at(-1) ?? '';
       return {
         stdout: Buffer.from(
-          args.includes('rev-parse')
-            ? index
-            : args.includes('ls-files')
-              ? 'file\0'
-              : '',
+          args.includes('--git-path')
+            ? gitPath === 'index'
+              ? index
+              : join(root, gitPath)
+            : args.includes('rev-parse')
+              ? `${'a'.repeat(40)}\n`
+              : args.includes('symbolic-ref')
+                ? 'main\n'
+                : args.includes('ls-files')
+                  ? 'file\0'
+                  : '',
         ),
         exitCode: args.includes('diff') ? 1 : 0,
         started: true,
@@ -38,7 +45,7 @@ it('keeps the real index lock and temporary index when commit process ownership 
           intent: { action: 'commit', message: 'test', paths: ['file'] },
           preview: {
             headOid: 'a'.repeat(40),
-            branch: 'refs/heads/main',
+            branch: 'main',
             staged: true,
             trackedChanges: true,
             untrackedCount: 0,

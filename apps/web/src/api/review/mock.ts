@@ -163,6 +163,9 @@ export function createReviewMock(
         statusToken: data.git.statusToken,
         consistency: 'best-effort',
         headOid: data.git.headOid,
+        inProgress: null,
+        mergeHeadOid: null,
+        headCommit: data.git.headOid ? { subject: 'Previous commit' } : null,
         ...(data.git.branch
           ? {
               branch: {
@@ -410,6 +413,8 @@ function mockChangeList(worktreeId: string, data: ReviewFixture): ChangeList {
     worktreeId,
     statusToken: data.git.statusToken,
     headOid: data.git.headOid,
+    inProgress: null,
+    mergeHeadOid: null,
     branch: data.git.branch,
     changes,
   };

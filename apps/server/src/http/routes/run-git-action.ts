@@ -1,25 +1,28 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { apiErrorSchema } from '@porcelain/contracts/api-error';
 import {
-  gitActionExecutionRequestSchema,
   gitActionReceiptSchema,
   gitActionScopeSchema,
+  runGitActionRequestSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
-import { gitActionStatus } from '../mappers/git-action-response.ts';
+import {
+  gitActionStatus,
+  toGitActionReceipt,
+} from '../mappers/git-action-response.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
-export function executeStashCreate(
+export function runGitAction(
   server: FastifyInstance,
   options: { application: Application },
 ) {
   server.withTypeProvider<ZodTypeProvider>().post(
-    '/projects/:projectId/worktrees/:worktreeId/git/stash/create',
+    '/projects/:projectId/worktrees/:worktreeId/git/actions',
     {
       schema: {
         params: gitActionScopeSchema,
-        body: gitActionExecutionRequestSchema,
+        body: runGitActionRequestSchema,
         response: {
           ...errorResponses,
           200: gitActionReceiptSchema,
@@ -29,12 +32,13 @@ export function executeStashCreate(
         },
       },
     },
-    async (request, reply) => {
-      const receipt = options.application.executeStashCreate(
+    (request, reply) => {
+      const receipt = options.application.runGitAction(
         request.params,
         request.body,
       );
-      return reply.code(gitActionStatus(receipt)).send(receipt);
+      reply.code(gitActionStatus(receipt));
+      return toGitActionReceipt(receipt);
     },
   );
 }

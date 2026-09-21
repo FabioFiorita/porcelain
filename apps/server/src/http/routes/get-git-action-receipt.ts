@@ -5,6 +5,7 @@ import {
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
+import { toGitActionReceipt } from '../mappers/git-action-response.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
 export function getGitActionReceipt(
@@ -20,6 +21,8 @@ export function getGitActionReceipt(
       },
     },
     async (request) =>
-      options.application.gitActionReceipt(request.params.requestId),
+      toGitActionReceipt(
+        options.application.gitActionReceipt(request.params.requestId),
+      ),
   );
 }

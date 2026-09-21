@@ -91,6 +91,30 @@ export function useReviewOverview(scope: ReviewScope) {
   return useQuery({ ...useChangesOptions(scope), throwOnError: false }).data;
 }
 
+/** Read the current changes for an explicit recovery action, even after its view unmounted. */
+export function useReadCurrentChanges(scope: ReviewScope) {
+  const client = useQueryClient();
+  const options = useChangesOptions(scope);
+  return async () =>
+    (await client.fetchQuery({ ...options, staleTime: 0 })).changes;
+}
+
+export function useRefreshGitLook(scope: ReviewScope) {
+  const readChanges = useReadCurrentChanges(scope);
+  const client = useQueryClient();
+  const { connection } = useConnectedContext();
+  return async () => {
+    const changes = await readChanges();
+    await client.invalidateQueries({
+      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+        'git-status',
+      ]),
+      exact: true,
+    });
+    return changes;
+  };
+}
+
 /**
  * A published layer turns the Changes surface into a review. Keep the plain
  * Changes label while this shared query is loading or has failed.

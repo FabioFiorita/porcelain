@@ -22,6 +22,7 @@ export async function observeWorktreeSides(
   const wanted = new Map<string, boolean>();
   for (const change of changes) {
     if (change.scope === 'untracked') wanted.set(change.path, false);
+    if (change.scope === 'unmerged') wanted.set(change.path, false);
     if (change.scope !== 'unstaged' || change.kind === 'deleted') continue;
     if (change.newPath) wanted.set(change.newPath, change.newMode === '160000');
   }

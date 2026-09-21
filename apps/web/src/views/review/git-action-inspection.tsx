@@ -10,9 +10,14 @@ import { Textarea } from '@/components/ui/textarea';
 import type { ActionInput, GitAction } from '../../domain/git-action';
 import type { ReviewScope } from '../../domain/review';
 import { useGitAction } from '../../query/git-actions';
-import { reviewErrorMessage, useGitStatus } from '../../query/review';
+import { useGitStatus } from '../../query/review';
 import { usePreferences } from '../workspace/preferences';
 import { CommitForm } from './commit-form';
+import {
+  changedSinceLooked,
+  expectationFor,
+  gitErrorMessage,
+} from './git-action-feedback';
 import { type GitActionStatus, gitActions } from './git-action-options';
 
 export function GitActionInspection({
@@ -20,14 +25,37 @@ export function GitActionInspection({
   entry,
   status,
   onBusy,
+  onLookAgain,
 }: {
   scope: ReviewScope;
   entry: GitAction;
   status: GitActionStatus;
   onBusy: (busy: boolean) => void;
+  onLookAgain?: (() => Promise<void>) | undefined;
 }) {
+  if (
+    entry === 'switch-branch' ||
+    entry === 'create-branch' ||
+    entry === 'discard'
+  )
+    return null;
+  if (entry === 'amend')
+    return (
+      <AmendForm
+        scope={scope}
+        status={status}
+        onBusy={onBusy}
+        onLookAgain={onLookAgain}
+      />
+    );
   return entry === 'commit' ? (
-    <CommitForm scope={scope} status={status} onBusy={onBusy} />
+    <CommitForm
+      scope={scope}
+      status={status}
+      action={entry}
+      onBusy={onBusy}
+      onLookAgain={onLookAgain}
+    />
   ) : (
     <RemoteActionForm
       key={entry}
@@ -35,6 +63,40 @@ export function GitActionInspection({
       action={entry}
       status={status}
       onBusy={onBusy}
+      onLookAgain={onLookAgain}
+    />
+  );
+}
+
+function AmendForm({
+  scope,
+  status,
+  onBusy,
+  onLookAgain,
+}: {
+  scope: ReviewScope;
+  status: GitActionStatus;
+  onBusy: (busy: boolean) => void;
+  onLookAgain?: (() => Promise<void>) | undefined;
+}) {
+  const details = useGitStatus(scope);
+  if (details.pending) return <p role="status">Reading last commit…</p>;
+  if (!details.status?.headCommit)
+    return (
+      <p role="alert">
+        The last commit could not be read. Close and try again.
+      </p>
+    );
+  const head = details.status.headCommit;
+  return (
+    <CommitForm
+      scope={scope}
+      action="amend"
+      status={status}
+      initialMessage={[head.subject, head.body].filter(Boolean).join('\n\n')}
+      replacedSubject={head.subject}
+      onBusy={onBusy}
+      onLookAgain={onLookAgain}
     />
   );
 }
@@ -50,11 +112,16 @@ function RemoteActionForm({
   action,
   status,
   onBusy,
+  onLookAgain,
 }: {
   scope: ReviewScope;
-  action: Exclude<GitAction, 'commit'>;
+  action: Exclude<
+    GitAction,
+    'commit' | 'amend' | 'switch-branch' | 'create-branch' | 'discard'
+  >;
   status: GitActionStatus;
   onBusy: (busy: boolean) => void;
+  onLookAgain?: (() => Promise<void>) | undefined;
 }) {
   const details = useGitStatus(scope);
   if (details.pending)
@@ -67,8 +134,13 @@ function RemoteActionForm({
     <ActionForm
       scope={scope}
       action={action}
-      status={details.status ?? status}
+      status={{
+        ...status,
+        branch: details.status?.branch ?? status.branch,
+      }}
+      expectedStatus={status}
       onBusy={onBusy}
+      onLookAgain={onLookAgain}
     />
   );
 }
@@ -77,12 +149,19 @@ function ActionForm({
   scope,
   action,
   status,
+  expectedStatus = status,
   onBusy,
+  onLookAgain,
 }: {
   scope: ReviewScope;
-  action: Exclude<GitAction, 'commit'>;
+  action: Exclude<
+    GitAction,
+    'commit' | 'amend' | 'switch-branch' | 'create-branch' | 'discard'
+  >;
   status: GitActionStatus;
+  expectedStatus?: GitActionStatus;
   onBusy: (busy: boolean) => void;
+  onLookAgain?: (() => Promise<void>) | undefined;
 }) {
   const git = useGitAction(scope, action);
   const { preferences } = usePreferences();
@@ -95,24 +174,25 @@ function ActionForm({
       `refs/heads/${branch?.name?.replace(/^refs\/heads\//, '') ?? 'main'}`,
   );
   const [stashOid, setStash] = useState(branch?.stashes?.[0]?.oid ?? '');
-  const [option, setOption] = useState(false);
+  const [option, setOption] = useState(action === 'stash-create');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const outcome = git.operation?.receipt;
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const remote = action === 'push' || action === 'pull' || action === 'fetch';
+  const stash = action.startsWith('stash-');
   function input(): ActionInput {
     switch (action) {
       case 'push':
-        return { remoteName, destinationRef: ref, allowCreate: option };
+        return { action, remoteName, destinationRef: ref, allowCreate: option };
       case 'pull':
-        return { remoteName, sourceRef: ref, strategy };
+        return { action, remoteName, sourceRef: ref, strategy };
       case 'fetch':
-        return { remoteName, sourceRef: ref };
+        return { action, remoteName, sourceRef: ref };
       case 'stash-create':
-        return { message, includeUntracked: option };
+        return { action, message, includeUntracked: option };
       default:
-        return { stashOid, restoreIndex: option };
+        return { action, stashOid, restoreIndex: option };
     }
   }
   return (
@@ -125,7 +205,17 @@ function ActionForm({
         onBusy(true);
         setError(null);
         void git
-          .run(input())
+          .run(
+            input(),
+            expectationFor(
+              expectedStatus,
+              stash
+                ? (expectedStatus.files?.map((file) => file.path) ?? [])
+                : [],
+              remote ? (branch?.upstreamOid ?? null) : undefined,
+              stash,
+            ),
+          )
           .catch(setError)
           .finally(() => {
             setBusy(false);
@@ -139,8 +229,9 @@ function ActionForm({
       >
         {action === 'stash-create' && (
           <p className="text-xs text-muted-foreground">
-            Every change, new files included, is set aside. The handoff stays
-            empty until you pop the stash.
+            {option
+              ? 'Tracked changes and new files are set aside. The handoff stays empty until you restore the stash.'
+              : 'Tracked changes are set aside. New files stay in the worktree.'}
           </p>
         )}
         {action === 'stash-create' && (
@@ -223,15 +314,19 @@ function ActionForm({
         <p className="text-xs text-muted-foreground">
           {strategy === 'merge'
             ? 'Pull merges upstream changes into this branch.'
-            : 'Pull rebases local commits onto upstream, rewriting their commit IDs.'}
+            : strategy === 'rebase'
+              ? 'Pull rebases local commits onto upstream, rewriting their commit IDs.'
+              : 'Pull only moves forward when there are no diverging local commits.'}
         </p>
       )}
       {outcome && (
         <p role="status" className="text-sm">
           {outcome.state}
-          {outcome.reason
-            ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
-            : ''}
+          {outcome.message
+            ? ` · ${outcome.message}`
+            : outcome.reason
+              ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
+              : ''}
         </p>
       )}
       {action === 'pull' && outcome?.state === 'conflicted' && (
@@ -246,9 +341,26 @@ function ActionForm({
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
-          {reviewErrorMessage(error)}
+          {gitErrorMessage(error)}
         </p>
       ) : null}
+      {outcome && changedSinceLooked(outcome) && onLookAgain && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            setError(null);
+            void onLookAgain()
+              .then(() => git.startNew())
+              .catch(setError)
+              .finally(() => setBusy(false));
+          }}
+        >
+          Look again
+        </Button>
+      )}
       {git.operation && !busy && (
         <Button
           type="button"
@@ -261,7 +373,12 @@ function ActionForm({
           Check outcome
         </Button>
       )}
-      <Button type="submit" disabled={busy || uncertain}>
+      <Button
+        type="submit"
+        disabled={
+          busy || uncertain || Boolean(outcome && changedSinceLooked(outcome))
+        }
+      >
         {busy
           ? 'Working…'
           : gitActions.find((entry) => entry.id === action)?.label}

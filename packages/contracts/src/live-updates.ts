@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { gitActionReceiptSchema } from './git-actions.ts';
 import { worktreeIdSchema } from './worktree-id.ts';
 
 const relativePathSchema = z
@@ -26,6 +27,12 @@ export const liveNoticeSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ready') }),
   z.strictObject({ type: z.literal('heartbeat') }),
   z.strictObject({ type: z.literal('inventory') }),
+  z.strictObject({
+    type: z.literal('git-action'),
+    projectId: z.uuid(),
+    worktreeId: worktreeIdSchema,
+    receipt: gitActionReceiptSchema,
+  }),
   z.strictObject({
     type: z.literal('project'),
     projectId: z.uuid(),

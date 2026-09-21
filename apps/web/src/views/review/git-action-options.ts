@@ -4,7 +4,10 @@ import {
   ArchiveRestoreIcon,
   ArrowDownIcon,
   ArrowUpIcon,
+  GitBranchIcon,
+  GitBranchPlusIcon,
   GitCommitHorizontalIcon,
+  HistoryIcon,
 } from 'lucide-react';
 import type { GitAction } from '../../domain/git-action';
 import type { Change, Status } from '../../domain/review';
@@ -18,11 +21,15 @@ export type GitBranchStatus = NonNullable<Status['branch']>;
  */
 export type GitActionStatus = {
   statusToken: string;
+  inProgress?: 'merge' | 'rebase' | null;
+  mergeHeadOid?: string | null;
+  headOid?: string | null;
   changes: readonly Change[];
+  files?: readonly { path: string; fingerprint: string | null }[];
   branch?: GitBranchStatus | null | undefined;
 };
 
-type GitActionGroupId = 'commit' | 'sync' | 'stash';
+type GitActionGroupId = 'commit' | 'sync' | 'stash' | 'branch';
 
 export type GitActionOption = {
   readonly id: GitAction;
@@ -39,6 +46,13 @@ export const gitActions = [
     label: 'Commit',
     description: 'Commit selected files',
     icon: GitCommitHorizontalIcon,
+    group: 'commit',
+  },
+  {
+    id: 'amend',
+    label: 'Amend last commit',
+    description: 'Replace the latest commit',
+    icon: HistoryIcon,
     group: 'commit',
   },
   {
@@ -83,6 +97,20 @@ export const gitActions = [
     icon: ArchiveRestoreIcon,
     group: 'stash',
   },
+  {
+    id: 'switch-branch',
+    label: 'Switch branch',
+    description: 'Check out another local branch',
+    icon: GitBranchIcon,
+    group: 'branch',
+  },
+  {
+    id: 'create-branch',
+    label: 'Create branch',
+    description: 'Start a branch from the current commit',
+    icon: GitBranchPlusIcon,
+    group: 'branch',
+  },
 ] as const satisfies readonly GitActionOption[];
 
 export type GitActionGroup = {
@@ -93,16 +121,21 @@ export type GitActionGroup = {
 
 /** Menu sections keep commit, remote sync and handoff actions distinct. */
 export const gitActionGroups = [
-  { id: 'commit', label: 'Commit', actions: [gitActions[0]] },
+  { id: 'commit', label: 'Commit', actions: [gitActions[0], gitActions[1]] },
   {
     id: 'sync',
     label: 'Sync',
-    actions: [gitActions[1], gitActions[2], gitActions[3]],
+    actions: [gitActions[2], gitActions[3], gitActions[4]],
   },
   {
     id: 'stash',
     label: 'Stash',
-    actions: [gitActions[4], gitActions[5], gitActions[6]],
+    actions: [gitActions[5], gitActions[6], gitActions[7]],
+  },
+  {
+    id: 'branch',
+    label: 'Branch',
+    actions: [gitActions[8], gitActions[9]],
   },
 ] as const satisfies readonly GitActionGroup[];
 
@@ -117,18 +150,27 @@ function hasConflicts(status: GitActionStatus) {
 /**
  * A hard blocker is only returned when the status gives us enough information
  * to know an action cannot run. Missing optional branch data leaves the action
- * selectable: the existing preparation request remains the source of truth.
+ * selectable: the server validates the exact request before running it.
  */
 export function gitActionBlocker(
   action: GitAction,
   status: GitActionStatus,
 ): string | null {
   const branch = branchStatus(status);
+  if (status.inProgress === 'rebase')
+    return 'Continue or abort the rebase in a terminal.';
+  if (status.inProgress === 'merge' && action !== 'commit')
+    return 'Finish or abort the merge first.';
+  if (status.inProgress === 'merge' && !status.mergeHeadOid)
+    return 'Finish this merge in a terminal.';
   switch (action) {
     case 'commit':
-      return hasConflicts(status)
+      return hasConflicts(status) && status.inProgress !== 'merge'
         ? 'Resolve the conflicts before committing.'
         : null;
+    case 'amend':
+      if (hasConflicts(status)) return 'Resolve the conflicts before amending.';
+      return status.headOid == null ? 'There is no commit to amend.' : null;
     case 'push':
       if (!branch) return null;
       if (branch.name == null)
@@ -152,6 +194,11 @@ export function gitActionBlocker(
       return branch?.stashes && branch.stashes.length === 0
         ? 'No stash is available.'
         : null;
+    case 'switch-branch':
+    case 'create-branch':
+      return null;
+    case 'discard':
+      return null;
   }
 }
 
@@ -164,9 +211,17 @@ export function gitActionReason(
   status: GitActionStatus,
 ): string | null {
   const branch = branchStatus(status);
+  if (status.inProgress === 'rebase')
+    return 'Continue or abort the rebase in a terminal.';
+  if (status.inProgress === 'merge' && action !== 'commit')
+    return 'Finish or abort the merge first.';
   switch (action) {
     case 'commit':
       return status.changes.length ? null : 'Nothing to commit.';
+    case 'amend':
+      return status.changes.length
+        ? 'Choose which changed files to add to the last commit.'
+        : 'Change the last commit message.';
     case 'push':
       return branch == null
         ? 'Enter the configured remote and full branch ref.'
@@ -183,6 +238,14 @@ export function gitActionReason(
     case 'stash-apply':
     case 'stash-pop':
       return branch?.stashes == null ? 'Enter a full stash object ID.' : null;
+    case 'switch-branch':
+      return status.changes.length
+        ? 'Uncommitted files come along unless Git refuses the switch.'
+        : null;
+    case 'create-branch':
+      return 'Starts at the currently displayed commit.';
+    case 'discard':
+      return null;
   }
 }
 
@@ -196,7 +259,17 @@ export type PrimaryGitAction =
  * branch tracking selects pull or push when the worktree is clean.
  */
 export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
-  if (status.changes.length > 0) return { kind: 'commit', label: 'Commit' };
+  if (
+    status.inProgress === 'rebase' ||
+    (status.inProgress === 'merge' && !status.mergeHeadOid)
+  )
+    return {
+      kind: 'hint',
+      label: 'Git recovery',
+      hint: 'Finish or abort this operation in a terminal.',
+    };
+  if (status.inProgress === 'merge' || status.changes.length > 0)
+    return { kind: 'commit', label: 'Commit' };
 
   const branch = branchStatus(status);
   if (branch == null)

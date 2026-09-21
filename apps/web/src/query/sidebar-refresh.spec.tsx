@@ -14,6 +14,7 @@ import {
   useMarkAllReviewed,
   useMarkReviewed,
   useReviewChanges,
+  useReviewOverview,
 } from './review';
 import { useWorkspaceContext, WorkspaceProvider } from './workspace-provider';
 
@@ -126,7 +127,29 @@ it('asks for the worktree list again once a commit archives the layers', async (
   });
   const screen = await run(api, () => {
     const git = useGitAction(scope, 'commit');
-    return () => git.run({ message: 'Reviewed' });
+    const overview = useReviewOverview(scope);
+    return () => {
+      if (!overview) throw new Error('Missing overview');
+      const changes = overview.changes;
+      return git.run(
+        {
+          action: 'commit',
+          message: 'Reviewed',
+          paths: changes.changes.map((file) => file.path),
+        },
+        {
+          inProgress: null,
+          mergeHeadOid: null,
+          headOid: changes.headOid,
+          branch: changes.branch?.name ?? null,
+          files: changes.changes.flatMap((file) =>
+            file.fingerprint
+              ? [{ path: file.path, fingerprint: file.fingerprint }]
+              : [],
+          ),
+        },
+      );
+    };
   });
   const before = reads;
   await screen.getByRole('button', { name: 'Act' }).click();

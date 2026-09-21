@@ -71,7 +71,7 @@ async function fixture() {
 }
 
 describe('Project removal persistence', () => {
-  it.each(['running', 'indeterminate', 'block'] as const)(
+  it.each(['running', 'interrupted', 'block'] as const)(
     'removes the project and its records when a Git operation is %s',
     async (state) => {
       const { database, inventory, store } = await fixture();
@@ -87,7 +87,6 @@ describe('Project removal persistence', () => {
             requestId: 'request',
             value: {
               requestId: 'request',
-              preparationId: 'preparation',
               projectId: project.id,
               worktreeId: 'worktree',
               action: 'commit',

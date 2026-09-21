@@ -47,6 +47,7 @@ export async function pushBranch(
       '-c',
       'push.autoSetupRemote=false',
       'push',
+      '--progress',
       '--porcelain',
       '--no-follow-tags',
       '--recurse-submodules=no',

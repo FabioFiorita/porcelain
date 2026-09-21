@@ -151,6 +151,10 @@ async function stopDescendants(
 export class GitActionRunner {
   private readonly checkout: string;
   private unconfirmed = false;
+  private progress: ((line: string) => void) | undefined;
+  setProgressListener(listener?: (line: string) => void): void {
+    this.progress = listener;
+  }
 
   constructor(checkout: string) {
     this.checkout = checkout;
@@ -190,6 +194,7 @@ export class GitActionRunner {
       failure: undefined as GitFailure | undefined,
     };
     const output: Buffer[] = [];
+    const errors: Buffer[] = [];
     const interrupt = () => {
       state.interrupted = true;
       if (child.pid) signalGroup(child.pid, 'SIGKILL');
@@ -203,7 +208,18 @@ export class GitActionRunner {
       } else if (retain) output.push(chunk);
     };
     child.stdout.on('data', (chunk: Buffer) => consume(chunk, true));
-    child.stderr.on('data', (chunk: Buffer) => consume(chunk, false));
+    let progressRemainder = '';
+    child.stderr.on('data', (chunk: Buffer) => {
+      consume(chunk, false);
+      if (state.bytes <= GIT_POLICY.outputLimitBytes) errors.push(chunk);
+      if (this.progress) {
+        const parts = (progressRemainder + chunk.toString('utf8')).split(
+          /[\r\n]/,
+        );
+        progressRemainder = parts.pop() ?? '';
+        for (const line of parts) if (line.trim()) this.progress(line.trim());
+      }
+    });
     child.stdin.on('error', () => {});
     child.stdin.end(input);
     signal.addEventListener('abort', interrupt, { once: true });
@@ -217,6 +233,8 @@ export class GitActionRunner {
         // Exit, rather than close: a descendant may inherit the pipes indefinitely.
         child.once('exit', (code) => resolve(code));
       });
+      if (this.progress && progressRemainder.trim())
+        this.progress(progressRemainder.trim());
       const cleanupDeadline = Date.now() + 5000;
       const cleanupSignal = AbortSignal.timeout(5000);
       const descendantsPresent = child.pid ? signalGroup(child.pid, 0) : false;
@@ -239,6 +257,7 @@ export class GitActionRunner {
       }
       return {
         stdout: Buffer.concat(output),
+        stderr: Buffer.concat(errors),
         exitCode,
         started: state.started,
         interrupted: state.interrupted,

@@ -96,6 +96,28 @@ it('returns all large stdout bytes and the final tail after the Git process exit
   }
 });
 
+it('reports complete stderr progress lines while an action is running', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'porcelain-action-progress-'));
+  const script = join(root, 'progress.cjs');
+  await writeFile(
+    script,
+    `process.stderr.write('Counting 1\\rCounting 2\\nDone');`,
+  );
+  try {
+    const git = new GitActionRunner(root);
+    const lines: string[] = [];
+    git.setProgressListener((line) => lines.push(line));
+    const result = await git.execute(
+      ['-c', `alias.fixture=!"${process.execPath}" "${script}"`, 'fixture'],
+      AbortSignal.timeout(5000),
+    );
+    expect(result.exitCode).toBe(0);
+    expect(lines).toEqual(['Counting 1', 'Counting 2', 'Done']);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it('stops an action that outgrows the shared output cap and names the failure', async () => {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-action-cap-'));
   try {

@@ -4,8 +4,9 @@ import {
   commitModelsSchema,
 } from '@porcelain/contracts/commit-draft';
 import {
-  gitActionPreparationSchema,
+  branchesResponseSchema,
   gitActionReceiptSchema,
+  type RunGitActionRequest,
 } from '@porcelain/contracts/git-actions';
 import { ConnectionError } from './errors/connection-error.ts';
 
@@ -14,10 +15,6 @@ type Request = {
   projectId: string;
   worktreeId: string;
 };
-type Action = ReturnType<typeof gitActionPreparationSchema.parse>['action'];
-function actionPath(action: Action) {
-  return action.replace('stash-', 'stash/');
-}
 export function createGitActionsClient(
   transport: typeof fetch,
   endpoint: string,
@@ -65,6 +62,15 @@ export function createGitActionsClient(
   const prefix = (request: Request) =>
     `/projects/${encodeURIComponent(request.projectId)}/worktrees/${encodeURIComponent(request.worktreeId)}/git`;
   return {
+    run: (request: Request & { input: RunGitActionRequest }) =>
+      send(
+        request,
+        `${prefix(request)}/actions`,
+        gitActionReceiptSchema,
+        request.input,
+      ),
+    branches: (request: Request) =>
+      send(request, `${prefix(request)}/branches`, branchesResponseSchema),
     models: (request: Pick<Request, 'signal'>) =>
       send(request, '/git/commit-models', commitModelsSchema),
     draft: (
@@ -78,31 +84,30 @@ export function createGitActionsClient(
         commitDraftResponseSchema,
         request.input,
       ),
-    prepare: (request: Request & { action: Action; input: unknown }) =>
-      send(
-        request,
-        `${prefix(request)}/${actionPath(request.action)}/prepare`,
-        gitActionPreparationSchema,
-        request.input,
-      ),
-    execute: (
-      request: Request & {
-        action: Action;
-        preparationId: string;
-        requestId: string;
-      },
-    ) =>
-      send(
-        request,
-        `${prefix(request)}/${actionPath(request.action)}`,
-        gitActionReceiptSchema,
-        { preparationId: request.preparationId, requestId: request.requestId },
-      ),
     receipt: (request: Request & { requestId: string }) =>
       send(
         request,
         `/git-action-requests/${encodeURIComponent(request.requestId)}`,
         gitActionReceiptSchema,
       ),
+    dismissInterrupted: async (
+      request: Request & { requestId: string },
+    ): Promise<void> => {
+      const response = await transport(
+        endpoint +
+          `${prefix(request)}/interrupted/${encodeURIComponent(request.requestId)}`,
+        {
+          method: 'DELETE',
+          signal: request.signal,
+          redirect: 'error',
+          credentials: 'same-origin',
+          cache: 'no-store',
+        },
+      );
+      if (!response.ok)
+        throw new ConnectionError(
+          'The interrupted action could not be dismissed.',
+        );
+    },
   };
 }

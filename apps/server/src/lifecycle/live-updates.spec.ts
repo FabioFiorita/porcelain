@@ -171,6 +171,22 @@ it('watches registered project metadata with no selected worktree', async () => 
     projects: [projectId],
     worktrees: [],
   });
+  const receipt = {
+    requestId: '00000000-0000-4000-8000-000000000002',
+    projectId,
+    worktreeId,
+    action: 'commit' as const,
+    state: 'running' as const,
+    progress: [],
+    acceptedAt: Date.now(),
+  };
+  live.publish({ type: 'git-action', projectId, worktreeId, receipt });
+  expect(notices).toContainEqual({
+    type: 'git-action',
+    projectId,
+    worktreeId,
+    receipt,
+  });
   callback?.(null, [
     { type: 'create', path: '/fixture/repository.git/worktrees/new' },
   ]);

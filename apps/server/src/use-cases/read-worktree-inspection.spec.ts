@@ -92,7 +92,16 @@ describe('Worktree inspection use cases', () => {
   it('returns status using the registered checkout and identity with typed adapters', async () => {
     const git: InspectionFactory = (checkout) => {
       expect(checkout.path).toBe('/fixture');
-      return fakeInspection({ readStatus: async () => observation });
+      return fakeInspection({
+        readStatus: async () => observation,
+        readBranchDetails: async () => ({
+          remoteName: null,
+          sourceRef: null,
+          upstreamOid: null,
+          stashes: [],
+          headCommit: null,
+        }),
+      });
     };
     expect(
       await new ReadWorktreeStatus(store(), worktrees(), git).execute(
@@ -102,19 +111,17 @@ describe('Worktree inspection use cases', () => {
     ).toEqual({
       environmentId: 'environment',
       worktreeId: 'worktree',
-      status: observation,
+      status: { ...observation, headCommit: null },
     });
   });
 
-  /**
-   * Detached: there is no upstream to name, so the action UI's two extra
-   * processes are not spent. The fake throws on that read to prove it.
-   */
-  it('reads branch details only when there is a branch', async () => {
+  it('adds branch details and the current commit message', async () => {
     const details = {
       remoteName: 'origin',
       sourceRef: 'refs/heads/main',
+      upstreamOid: null,
       stashes: [],
+      headCommit: { subject: 'Current subject' },
     };
     const git: InspectionFactory = () =>
       fakeInspection({
@@ -128,18 +135,24 @@ describe('Worktree inspection use cases', () => {
         },
       });
     expect(
-      (
-        await new ReadWorktreeStatus(store(), worktrees(), git).execute(
-          'worktree',
-          new RequestGitSession(async () => {}),
-        )
-      ).status.branch,
-    ).toEqual({
-      name: 'main',
-      upstream: null,
-      ahead: 0,
-      behind: 0,
-      ...details,
+      await new ReadWorktreeStatus(store(), worktrees(), git).execute(
+        'worktree',
+        new RequestGitSession(async () => {}),
+      ),
+    ).toMatchObject({
+      status: {
+        headCommit: { subject: 'Current subject' },
+        branch: {
+          name: 'main',
+          upstream: null,
+          ahead: 0,
+          behind: 0,
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+          upstreamOid: null,
+          stashes: [],
+        },
+      },
     });
   });
 
@@ -362,6 +375,13 @@ describe('Worktree inspection use cases', () => {
           await checkout.verify();
           return observation;
         },
+        readBranchDetails: async () => ({
+          remoteName: null,
+          sourceRef: null,
+          upstreamOid: null,
+          stashes: [],
+          headCommit: null,
+        }),
         readDiffs: async () => [{ kind: 'binary' }],
       });
     };

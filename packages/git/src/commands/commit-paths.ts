@@ -9,6 +9,8 @@ import {
 import { dirname, join } from 'node:path';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { readOptionalActionOid } from '../helpers/read-optional-action-oid.ts';
+import { rejectBusyCheckout } from '../helpers/reject-busy-checkout.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from './action-outcome.ts';
 import { readActionCommand } from './read-action-command.ts';
@@ -17,9 +19,18 @@ export async function commitPaths(
   process: GitProcessRunner,
   preparation: GitActionCommand,
   signal: AbortSignal,
+  verifyTarget?: () => Promise<void>,
 ): Promise<GitActionOutcome> {
   const intent = preparation.intent;
-  if (intent.action !== 'commit' || !intent.paths?.length)
+  if (
+    (intent.action !== 'commit' && intent.action !== 'amend') ||
+    !intent.paths
+  )
+    throw new Error('Invalid selected commit');
+  const messageOnly = intent.action === 'amend' && intent.paths.length === 0;
+  const merging =
+    intent.action === 'commit' && preparation.preview.inProgress === 'merge';
+  if (intent.action === 'commit' && intent.paths.length === 0 && !merging)
     throw new Error('Invalid selected commit');
   if (
     intent.paths.length > 2000 ||
@@ -47,6 +58,28 @@ export async function commitPaths(
   let published = false;
   let preserve = false;
   try {
+    const inProgress = await rejectBusyCheckout(process, signal, true, true);
+    const mergeHeadOid =
+      inProgress === 'merge'
+        ? await readOptionalActionOid(process, 'MERGE_HEAD', signal)
+        : null;
+    const headOid = await readOptionalActionOid(process, 'HEAD', signal);
+    const branchResult = await process.execute(
+      ['symbolic-ref', '--quiet', '--short', 'HEAD'],
+      signal,
+    );
+    const branch =
+      branchResult.exitCode === 0
+        ? branchResult.stdout.toString('utf8').trimEnd()
+        : null;
+    if (
+      headOid !== preparation.preview.headOid ||
+      branch !== preparation.preview.branch ||
+      inProgress !== (preparation.preview.inProgress ?? null) ||
+      mergeHeadOid !== (preparation.preview.mergeHeadOid ?? null)
+    )
+      throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
+    await verifyTarget?.();
     temporary = await mkdtemp(join(dirname(indexPath), 'porcelain-index-'));
     const indexFile = join(temporary, 'index');
     const original = await readFile(indexPath).catch((error: unknown) => {
@@ -83,31 +116,40 @@ export async function commitPaths(
       if (addFailure) return addFailure;
     }
     await writeFile(pathsFile, `${intent.paths.join('\0')}\0`);
-    const changed = await run([
-      'diff',
-      '--cached',
-      '--quiet',
-      '--no-ext-diff',
-      '--no-textconv',
-      '--',
-      ...intent.paths,
-    ]);
-    if (!changed.interrupted && changed.exitCode === 0)
-      return { state: 'no-change', refreshRequired: false };
-    if (changed.interrupted || changed.exitCode !== 1)
-      return (
-        processFailure(changed) ?? { state: 'rejected', refreshRequired: true }
-      );
-    // Git's --only updates selected paths while retaining the other staged entries.
-    // An isolated index also lets new files participate without touching the real index on rejection.
+    if (!messageOnly && !merging) {
+      const changed = await run([
+        'diff',
+        '--cached',
+        '--quiet',
+        '--no-ext-diff',
+        '--no-textconv',
+        '--',
+        ...intent.paths,
+      ]);
+      if (!changed.interrupted && changed.exitCode === 0)
+        return { state: 'no-change', refreshRequired: false };
+      if (changed.interrupted || changed.exitCode !== 1)
+        return (
+          processFailure(changed) ?? {
+            state: 'rejected',
+            refreshRequired: true,
+          }
+        );
+    }
+    // Ordinary commits use `--only` in the private index. A merge instead
+    // commits its complete index after selected resolutions have been staged.
+    // Empty-path amend uses `--only` without a pathspec, which rewrites only
+    // HEAD's message and leaves staged changes outside the commit.
     const committed = await run(
       [
         'commit',
-        '--only',
+        ...(intent.action === 'amend' ? ['--amend'] : []),
+        ...(!merging ? ['--only'] : []),
         '--file=-',
         '--cleanup=verbatim',
-        `--pathspec-from-file=${pathsFile}`,
-        '--pathspec-file-nul',
+        ...(!merging && !messageOnly
+          ? [`--pathspec-from-file=${pathsFile}`, '--pathspec-file-nul']
+          : []),
       ],
       signal,
       intent.message,
@@ -121,7 +163,7 @@ export async function commitPaths(
         AbortSignal.timeout(5000),
       )
     ).trimEnd();
-    if (head !== preparation.preview.headOid) {
+    if (head !== preparation.preview.headOid && !messageOnly) {
       await lock.writeFile(await readFile(indexFile));
       await lock.sync();
       await lock.close();
@@ -129,7 +171,13 @@ export async function commitPaths(
       published = true;
     }
     if (failure) return failure;
-    return published
+    if (head === preparation.preview.headOid)
+      return {
+        state: 'indeterminate',
+        reason: 'OUTCOME_UNKNOWN',
+        refreshRequired: true,
+      };
+    return published || messageOnly
       ? { state: 'succeeded', result: { headOid: head }, refreshRequired: true }
       : {
           state: 'indeterminate',

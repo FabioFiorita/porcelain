@@ -3,7 +3,7 @@ export type GitActionIntent =
       action: 'pull';
       remoteName: string;
       sourceRef: string;
-      strategy?: 'ff-only' | 'merge' | 'rebase';
+      strategy?: 'ff-only' | 'merge' | 'rebase' | undefined;
     }
   | { action: 'fetch'; remoteName: string; sourceRef: string }
   | {
@@ -18,12 +18,39 @@ export type GitActionIntent =
       paths?: string[] | undefined;
       expectedFiles?: { path: string; fingerprint: string }[] | undefined;
     }
+  | {
+      action: 'amend';
+      message: string;
+      paths: string[];
+    }
   | { action: 'stash-create'; message: string; includeUntracked: boolean }
   | {
       action: 'stash-apply' | 'stash-pop';
       stashOid: string;
       restoreIndex: boolean;
-    };
+    }
+  | {
+      action: 'discard';
+      path: string;
+      hunk?:
+        | {
+            scope: 'staged' | 'unstaged';
+            startLine: number;
+            endLine: number;
+          }
+        | undefined;
+    }
+  | { action: 'switch-branch'; branch: string }
+  | { action: 'create-branch'; branch: string; switchTo: boolean };
+
+export type GitActionExpectation = {
+  headOid: string | null;
+  branch: string | null;
+  inProgress: 'merge' | 'rebase' | null;
+  mergeHeadOid: string | null;
+  upstreamOid?: string | null | undefined;
+  files?: { path: string; fingerprint: string }[] | undefined;
+};
 
 export type GitActionPreview = {
   headOid: string | null;
@@ -31,11 +58,14 @@ export type GitActionPreview = {
   staged: boolean;
   trackedChanges: boolean;
   untrackedCount: number;
+  inProgress?: 'merge' | null | undefined;
+  mergeHeadOid?: string | null | undefined;
   destination?: string;
   trackingOid?: string | null;
   stashOid?: string;
 };
 export type GitActionReason =
+  | 'CHANGED_SINCE_LOOKED'
   | 'STALE_PREPARATION'
   | 'REQUEST_MISMATCH'
   | 'CHECKOUT_BUSY'
@@ -52,6 +82,9 @@ type GitActionResult = {
   destinationRef?: string;
   stashOid?: string;
   stashRetained?: boolean;
+  restoreStashOid?: string;
+  restoreIndex?: boolean;
+  branch?: string;
 };
 export type GitActionCommand = {
   id: string;
@@ -64,8 +97,10 @@ export type GitActionOutcome = {
     | 'no-change'
     | 'rejected'
     | 'conflicted'
-    | 'indeterminate';
+    | 'indeterminate'
+    | 'interrupted';
   reason?: GitActionReason;
+  message?: string;
   result?: GitActionResult;
   refreshRequired: boolean;
 };

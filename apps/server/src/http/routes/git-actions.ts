@@ -2,21 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
 import { authenticate } from '../middlewares/authenticate.ts';
 import { preventCaching } from '../middlewares/prevent-caching.ts';
-import { executeCommit } from './execute-commit.ts';
-import { executeFetch } from './execute-fetch.ts';
-import { executePull } from './execute-pull.ts';
-import { executePush } from './execute-push.ts';
-import { executeStashApply } from './execute-stash-apply.ts';
-import { executeStashCreate } from './execute-stash-create.ts';
-import { executeStashPop } from './execute-stash-pop.ts';
+import { dismissInterruptedGitAction } from './dismiss-interrupted-git-action.ts';
 import { getGitActionReceipt } from './get-git-action-receipt.ts';
-import { prepareCommit } from './prepare-commit.ts';
-import { prepareFetch } from './prepare-fetch.ts';
-import { preparePull } from './prepare-pull.ts';
-import { preparePush } from './prepare-push.ts';
-import { prepareStashApply } from './prepare-stash-apply.ts';
-import { prepareStashCreate } from './prepare-stash-create.ts';
-import { prepareStashPop } from './prepare-stash-pop.ts';
+import { listGitBranches } from './list-git-branches.ts';
+import { runGitAction } from './run-git-action.ts';
 
 export async function gitActionRoutes(
   server: FastifyInstance,
@@ -24,19 +13,8 @@ export async function gitActionRoutes(
 ) {
   server.addHook('onRequest', authenticate(options));
   server.addHook('onSend', preventCaching);
-  preparePull(server, options);
-  executePull(server, options);
-  prepareFetch(server, options);
-  executeFetch(server, options);
-  preparePush(server, options);
-  executePush(server, options);
-  prepareCommit(server, options);
-  executeCommit(server, options);
-  prepareStashCreate(server, options);
-  executeStashCreate(server, options);
-  prepareStashApply(server, options);
-  executeStashApply(server, options);
-  prepareStashPop(server, options);
-  executeStashPop(server, options);
+  runGitAction(server, options);
+  listGitBranches(server, options);
   getGitActionReceipt(server, options);
+  dismissInterruptedGitAction(server, options);
 }

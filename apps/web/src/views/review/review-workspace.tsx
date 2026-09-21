@@ -44,9 +44,11 @@ import type { Surface } from '../../domain/review';
 import { usePublishedReview } from '../../query/published-review';
 import { useReviewOverview } from '../../query/review';
 import { SHORTCUTS } from '../workspace/shortcuts';
+import { ConflictGuidance } from './conflict-guidance';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { GitButton } from './git-button';
+import { InterruptedActionNotice } from './interrupted-action-notice';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
 import { type PaneIndex, useTabLayout } from './use-tab-layout';
@@ -209,6 +211,8 @@ export function ReviewWorkspace({
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
         >
           <ReviewBoundary>
+            <InterruptedActionNotice scope={scope} />
+            <ConflictGuidance scope={scope} onOpen={open} />
             <DocumentArea
               reveal={reveal}
               scope={scope}

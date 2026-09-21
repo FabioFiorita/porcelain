@@ -1,119 +1,114 @@
 import { ConnectionError } from '@porcelain/client/errors/connection-error';
-import type { Preparation, Receipt } from '../../domain/git-action';
+import type { ActionInput, Receipt } from '../../domain/git-action';
 import { changePath } from '../../domain/review';
 import { createId } from '../../lib/id';
 import type { createMockStore } from '../inventory/mock';
+import { createReviewMock } from '../review/mock';
 import type { GitActionsPort } from './port';
 export function createGitActionsMock(
   store: ReturnType<typeof createMockStore>,
 ): GitActionsPort {
-  const prepared = new Map<
-    string,
-    {
-      preparation: Preparation;
-      worktreeId: string;
-      projectId: string;
-      input: Parameters<GitActionsPort['prepare']>[0]['input'];
-    }
-  >();
+  const requests = new Map<string, string>();
   const receipts = new Map<string, Receipt>();
   return {
     async models() {
       return [{ id: 'codex:gpt-5.6-luna', label: 'Fixture model' }];
     },
-    async draft({ input }) {
+    async draft(request) {
+      const { input } = request;
+      const { changes } = await createReviewMock(store).changes(request);
       return {
         groups: [{ message: 'Review workspace changes', paths: input.paths }],
-        expectedFiles: [],
+        expectedFiles: changes.changes.flatMap((file) =>
+          input.paths.includes(file.path) && file.fingerprint
+            ? [{ path: file.path, fingerprint: file.fingerprint }]
+            : [],
+        ),
       };
     },
-    async prepare(request) {
+    async branches(request) {
       request.signal.throwIfAborted();
       const data = store.review[request.worktreeId];
       if (!data) throw new ConnectionError('Mock worktree unavailable.');
-      if (request.action === 'stash-apply' || request.action === 'stash-pop')
-        throw new ConnectionError(
-          'Stash apply and pop are not simulated in this mock. The live adapter supports preparing these actions with a known stash object ID.',
-        );
-      const preparation: Preparation = {
-        preparationId: createId(),
-        expiresAt: Date.now() + 300_000,
-        action: request.action,
-        preview: {
-          headOid: data.git.headOid,
-          branch:
-            data.history.snapshot?.head.kind === 'detached'
-              ? null
-              : (data.history.snapshot?.head.ref ?? null),
-          staged: data.git.comparisons.some(
-            (change) => change.scope === 'staged',
-          ),
-          trackedChanges: data.git.comparisons.some(
-            (change) => change.scope === 'unstaged',
-          ),
-          untrackedCount: data.git.comparisons.filter(
-            (change) => change.scope === 'untracked',
-          ).length,
-          ...('remoteName' in request.input
-            ? { destination: `Mock ${request.input.remoteName}` }
-            : {}),
-        },
+      const name = data.git.branch?.name ?? null;
+      return {
+        current: name,
+        branches: name
+          ? [
+              {
+                name,
+                upstream: data.git.branch?.upstream ?? null,
+                lastCommitAt:
+                  data.history.commits[0]?.author.timestamp ??
+                  new Date(0).toISOString(),
+                checkedOutElsewhere: false,
+              },
+            ]
+          : [],
       };
-      prepared.set(preparation.preparationId, {
-        preparation,
-        worktreeId: request.worktreeId,
-        projectId: request.projectId,
-        input: request.input,
-      });
-      return structuredClone(preparation);
     },
-    async execute(request) {
+    async run(request) {
       request.signal.throwIfAborted();
-      const existing = receipts.get(request.requestId);
+      const { requestId, input, expected } = request.input;
+      const identity = JSON.stringify([
+        request.projectId,
+        request.worktreeId,
+        input,
+        expected,
+      ]);
+      const existing = receipts.get(requestId);
       if (existing) {
-        if (existing.preparationId !== request.preparationId)
+        if (requests.get(requestId) !== identity)
           throw new ConnectionError('Request mismatch.');
         return structuredClone(existing);
       }
-      const saved = prepared.get(request.preparationId);
       const data = store.review[request.worktreeId];
-      if (
-        !saved ||
-        !data ||
-        saved.worktreeId !== request.worktreeId ||
-        saved.projectId !== request.projectId ||
-        saved.preparation.action !== request.action
-      )
-        throw new ConnectionError('Preparation is unavailable.');
-      prepared.delete(request.preparationId);
-      const stale = saved.preparation.expiresAt < Date.now();
+      if (!data) throw new ConnectionError('Mock worktree unavailable.');
+      const unsupported = [
+        'stash-apply',
+        'stash-pop',
+        'discard',
+        'switch-branch',
+        'create-branch',
+      ].includes(input.action);
+      const stale = expected.headOid !== data.git.headOid;
       const noChange =
-        request.action === 'commit' &&
+        input.action === 'commit' &&
         !data.git.comparisons.some((change) =>
-          'paths' in saved.input && saved.input.paths
-            ? saved.input.paths.includes(changePath(change))
-            : change.scope === 'staged',
+          input.paths.includes(changePath(change)),
         );
       const receipt: Receipt = {
-        requestId: request.requestId,
-        preparationId: request.preparationId,
+        requestId,
         projectId: request.projectId,
         worktreeId: request.worktreeId,
-        action: request.action,
-        state: mockReceiptState(stale, noChange),
-        refreshRequired: !stale && !noChange,
+        action: input.action,
+        state: unsupported ? 'rejected' : mockReceiptState(stale, noChange),
+        ...(unsupported
+          ? {
+              reason: 'UNSUPPORTED_CONFIGURATION' as const,
+              message:
+                'This action needs a real Git repository; it is not simulated in the mock.',
+            }
+          : {}),
+        progress: [],
         acceptedAt: Date.now(),
         finishedAt: Date.now(),
       };
-      if (receipt.state === 'succeeded')
-        applyMockAction(data, saved.input, request.action);
-      receipts.set(request.requestId, receipt);
-      store.actionCount += 1;
+      if (receipt.state === 'succeeded') {
+        applyMockAction(data, input, input.action);
+        if (data.git.headOid) receipt.result = { headOid: data.git.headOid };
+      }
+      requests.set(requestId, identity);
+      receipts.set(requestId, receipt);
+      if (receipt.state === 'succeeded') store.actionCount += 1;
       if (store.loseActionResponse)
         throw new ConnectionError(
           'Mock response lost. Check the receipt to recover the outcome.',
         );
       return structuredClone(receipt);
+    },
+    async dismissInterrupted(request) {
+      request.signal.throwIfAborted();
     },
     async receipt(request) {
       request.signal.throwIfAborted();
@@ -129,14 +124,15 @@ export function createGitActionsMock(
 
 function applyMockAction(
   data: ReturnType<typeof createMockStore>['review'][string],
-  input: Parameters<GitActionsPort['prepare']>[0]['input'],
-  action: Preparation['action'],
+  input: ActionInput,
+  action: ActionInput['action'],
 ) {
-  if (action === 'commit') {
+  if (action === 'commit' || action === 'amend') {
     const oid = createId().replaceAll('-', '').padEnd(40, '0');
     const message = 'message' in input ? input.message : 'Mock commit';
     const [subject = '', ...bodyLines] = message.split('\n');
     const bodyText = bodyLines.join('\n').trim();
+    if (action === 'amend') data.history.commits.shift();
     data.history.commits.unshift({
       oid,
       parentOids: data.git.headOid ? [data.git.headOid] : [],

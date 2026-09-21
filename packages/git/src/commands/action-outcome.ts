@@ -16,11 +16,14 @@ export function processFailure(
         : 'PROCESS_GROUP_UNCONFIRMED',
       refreshRequired: result.started,
     };
-  if (result.exitCode !== 0)
+  if (result.exitCode !== 0) {
+    const message = result.stderr?.toString('utf8').trim();
     return {
       state: 'rejected',
       reason: 'GIT_REJECTED',
+      ...(message ? { message } : {}),
       refreshRequired: result.started,
     };
+  }
   return undefined;
 }

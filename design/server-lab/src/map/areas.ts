@@ -2718,829 +2718,123 @@ const history: Area = {
 // git-actions
 // ---------------------------------------------------------------------------
 
-/** ActionGit.inspect: about 21 processes plus reading every working file. */
-const INSPECT_GIT: string[] = [
-  'rev-parse --absolute-git-dir; rev-parse --git-common-dir (verifyCheckout)',
-  'rev-parse --git-path x7 (MERGE_HEAD, CHERRY_PICK_HEAD, REVERT_HEAD, rebase-merge, rebase-apply, sequencer, index.lock)',
-  'config --null --list; rev-parse --git-path hooks (then reads every hook file)',
-  'rev-parse --verify --quiet HEAD; symbolic-ref --quiet HEAD',
-  'ls-files --stage -z; rev-parse --git-path index (then reads the whole index file)',
-  'status --porcelain=v1 -z --untracked-files=all',
-  'diff --cached --name-only -z; diff --name-only -z',
-  'ls-files --others --exclude-standard -z',
-  'ls-files -z --cached --others --exclude-standard (then reads every listed file: at most 10,000 paths and 32 MiB)',
-  'stash list',
-];
-
-const REMOTE_GIT: string[] = [
-  'check-ref-format; remote get-url [--push] --all; [push without allowCreate] ls-remote --get-url; check-ref-format; config --null --list (inspectActionRemote)',
-  'rev-parse --verify --quiet <remote tracking ref>',
-];
-
-const STASH_GIT: string[] = [
-  'ls-files --others --ignored --exclude-standard -z; ls-tree -r <stash>; rev-parse --verify --quiet <stash>^3; [ls-tree -r <stash>^3] (checkStashCollisions)',
-];
-
-const INSPECT_STEPS: Step[] = [
-  s(
-    'git',
-    'ActionGit.inspect',
-    `Verifies checkout identity, then captures the action state.`,
-    git('action-git.ts'),
-    25,
-  ),
-  s(
-    'git',
-    'rejectBusyCheckout',
-    `Asks Git for seven marker paths and lstats each (merge, rebase, sequencer, index.lock).`,
-    git('helpers/reject-busy-checkout.ts'),
-    6,
-  ),
-  s(
-    'git',
-    'inspectActionState',
-    `Reads config and hooks, HEAD, branch, index, status, staged/unstaged/untracked sets and the stash log.`,
-    git('commands/inspect-action-state.ts'),
-    17,
-  ),
-  s(
-    'filesystem',
-    'hashActionFiles',
-    `Reads and hashes the content of every tracked and untracked file; rejects above 10,000 paths or 32 MiB.`,
-    git('commands/inspect-action-files.ts'),
-    8,
-  ),
-];
-
-const ACTION_PREPARE_TABLES: Flow['tables'] = [
-  { name: 'git_action_blocks', access: 'read' },
-  { name: 'git_action_receipts', access: 'read' },
-  ...INVENTORY_READ,
-  { name: 'git_action_preparations', access: 'write' },
-];
-
-const ACTION_EXECUTE_TABLES: Flow['tables'] = [
-  { name: 'git_action_receipts', access: 'read' },
-  { name: 'git_action_preparations', access: 'read' },
-  { name: 'git_action_blocks', access: 'read' },
-  { name: 'git_action_preparations', access: 'write' },
-  { name: 'git_action_receipts', access: 'write' },
-  ...INVENTORY_READ,
-  { name: 'git_action_blocks', access: 'write' },
-];
-
-type ActionSpec = {
-  id: string;
-  label: string;
-  segment: string;
-  prepareFile: string;
-  executeFile: string;
-  appPrepare: number;
-  appExecute: number;
-  method: string;
-  web: WebTrigger;
-  prepareExtraSteps: Step[];
-  prepareExtraGit: string[];
-  prepareCost: string;
-  prepareNotes?: string;
-  executeStep: Step;
-  executeGit: string[];
-  executeExtraSteps?: Step[];
-  executeExtraTables?: Flow['tables'];
-  executeCost: string;
-};
-
-function prepareFlow(a: ActionSpec): Flow {
-  return {
-    id: `git-actions.prepare-${a.id}`,
-    title: `Prepare ${a.label}`,
-    endpoint: {
-      method: 'POST',
-      path: `/api/projects/:projectId/worktrees/:worktreeId/git/${a.segment}/prepare`,
-      source: at(route(a.prepareFile), 17),
-    },
-    webTriggers: [a.web],
-    steps: [
-      s(
-        'route',
-        `prepare${a.method}`,
-        `Strict body; returns { preparationId, expiresAt, action, preview }.`,
-        route(a.prepareFile),
-        16,
-      ),
-      s(
-        'application',
-        `Application.prepare${a.method}`,
-        `Adds the action name to the intent.`,
-        APP,
-        a.appPrepare,
-      ),
-      s(
-        'application',
-        'GitActionCoordinator.prepareAction',
-        `Rejects projects blocked in memory, copies the input and queues.`,
-        COORDINATOR,
-        37,
-      ),
-      operationsStep(
-        `Waits behind every earlier main-queue operation; 30 s deadline from enqueue.`,
-      ),
-      s(
-        'use-case',
-        'PrepareGitAction.execute',
-        `Checks the durable block, resolves the worktree and inspects.`,
-        caseFile('prepare-git-action.ts'),
-        32,
-      ),
-      s(
-        'repository',
-        'GitActionRepository.isBlocked',
-        `Reads the block row, then loads and parses every stored receipt.`,
-        repo('git-action-repository.ts'),
-        87,
-      ),
-      ...INSPECT_STEPS,
-      ...a.prepareExtraSteps,
-      s(
-        'repository',
-        'GitActionRepository.savePreparation',
-        `Stores intent, state fingerprint and preview; expires after 5 minutes.`,
-        repo('git-action-repository.ts'),
-        18,
-      ),
-    ],
-    runner: 'operations',
-    gitCommands: [...INSPECT_GIT, ...a.prepareExtraGit],
-    tables: ACTION_PREPARE_TABLES,
-    cost: a.prepareCost,
-    ...(a.prepareNotes ? { notes: a.prepareNotes } : {}),
-  };
-}
-
-function executeFlow(a: ActionSpec): Flow {
-  return {
-    id: `git-actions.execute-${a.id}`,
-    title: `Execute ${a.label}`,
-    endpoint: {
-      method: 'POST',
-      path: `/api/projects/:projectId/worktrees/:worktreeId/git/${a.segment}`,
-      source: at(route(a.executeFile), 18),
-    },
-    webTriggers: [
-      wt(
-        `useGitAction(${a.id}).run`,
-        web('query/git-actions.ts'),
-        66,
-        `Right after a successful prepare. A request ID is stored in the connection's operation store before sending (git-actions.ts:72-73); the receipt is then polled every 500 ms, and a receipt with refreshRequired invalidates every query of the project (git-actions.ts:52-58).`,
-      ),
-    ],
-    steps: [
-      s(
-        'route',
-        `execute${a.method}`,
-        `Returns the receipt immediately: 202 while running, 200/409/503 when already final.`,
-        route(a.executeFile),
-        17,
-      ),
-      s(
-        'application',
-        `Application.execute${a.method}`,
-        `Hands off to the coordinator without awaiting Git.`,
-        APP,
-        a.appExecute,
-      ),
-      s(
-        'application',
-        'GitActionCoordinator.submit',
-        `Accepts synchronously, then schedules the owned execution.`,
-        COORDINATOR,
-        64,
-      ),
-      s(
-        'use-case',
-        'AcceptGitAction.execute',
-        `Reuses the receipt of a repeated request ID; otherwise checks block, expiry, scope and action.`,
-        caseFile('accept-git-action.ts'),
-        11,
-      ),
-      s(
-        'repository',
-        'GitActionRepository.accept',
-        `Consumes the preparation and inserts a running receipt in one immediate transaction.`,
-        repo('git-action-repository.ts'),
-        35,
-      ),
-      s(
-        'runner',
-        'Lanes.run (write, until settled) (operations)',
-        `Queues execution with a 120 s deadline that includes queue wait; HTTP disconnect does not cancel it.`,
-        COORDINATOR,
-        84,
-      ),
-      s(
-        'use-case',
-        'ExecuteGitAction.execute',
-        `Re-checks block and expiry, inspects again and requires the same fingerprint, marks refreshRequired, then runs Git.`,
-        caseFile('execute-git-action.ts'),
-        100,
-      ),
-      a.executeStep,
-      ...(a.executeExtraSteps ?? []),
-      s(
-        'repository',
-        'GitActionRepository.finish',
-        `Stores the final receipt; an unconfirmed process group also blocks the project.`,
-        caseFile('execute-git-action.ts'),
-        76,
-      ),
-    ],
-    runner: 'operations',
-    gitCommands: [
-      ...INSPECT_GIT.map((command) => `${command} (re-inspect)`),
-      ...a.executeGit,
-    ],
-    tables: [...ACTION_EXECUTE_TABLES, ...(a.executeExtraTables ?? [])],
-    cost: a.executeCost,
-  };
-}
-
-const gitMenuTrigger = (id: string) =>
-  wt(
-    `useGitAction(${id}).run`,
-    web('views/review/git-action-inspection.tsx'),
-    52,
-    `User confirms the action in the inspection dialog opened from the Git button menu (git-button.tsx:50). run() (query/git-actions.ts:95) prepares, executes and polls.`,
-  );
-
-const ACTION_SPECS: ActionSpec[] = [
-  {
-    id: 'fetch',
-    label: 'fetch',
-    segment: 'fetch',
-    prepareFile: 'prepare-fetch.ts',
-    executeFile: 'execute-fetch.ts',
-    appPrepare: 265,
-    appExecute: 267,
-    method: 'Fetch',
-    web: gitMenuTrigger('fetch'),
-    prepareExtraSteps: [
-      s(
-        'git',
-        'inspectActionRemote',
-        `Validates refs, the single remote URL profile and credential helpers.`,
-        git('commands/inspect-action-remote.ts'),
-        8,
-      ),
-    ],
-    prepareExtraGit: REMOTE_GIT,
-    prepareCost:
-      'About 27 Git processes plus reading every tracked and untracked file.',
-    executeStep: s(
-      'git',
-      'fetchBranch',
-      `Fetches one branch into a temporary ref, checks ancestry and conditionally moves the tracking ref.`,
-      git('commands/fetch-branch.ts'),
-      9,
-    ),
-    executeGit: [
-      ...REMOTE_GIT.map((command) => `${command} (re-inspect)`),
-      'fetch --no-tags --no-prune --no-recurse-submodules --no-write-fetch-head <remote> <src>:refs/porcelain/fetch/<id>',
-      'rev-parse --verify <temp>^{commit}; merge-base --is-ancestor; update-ref <tracking> <new> <old>; update-ref -d <temp>',
-    ],
-    executeCost:
-      'About 27 processes to re-inspect plus about 5 for the fetch; network time dominates.',
-  },
-  {
-    id: 'pull',
-    label: 'pull',
-    segment: 'pull',
-    prepareFile: 'prepare-pull.ts',
-    executeFile: 'execute-pull.ts',
-    appPrepare: 275,
-    appExecute: 277,
-    method: 'Pull',
-    web: gitMenuTrigger('pull'),
-    prepareExtraSteps: [
-      s(
-        'git',
-        'inspectActionRemote',
-        `Validates refs, remote URL and helpers; pull also requires a clean checkout.`,
-        git('commands/inspect-action-remote.ts'),
-        8,
-      ),
-    ],
-    prepareExtraGit: REMOTE_GIT,
-    prepareCost: 'About 27 Git processes plus reading every working file.',
-    prepareNotes: `The route defaults a missing strategy to ff-only (prepare-pull.ts:29); the web sends its stored merge or rebase preference.`,
-    executeStep: s(
-      'git',
-      'pullBranch',
-      `Fetches into a temporary ref, re-checks HEAD and cleanliness, then merges or rebases and verifies the result.`,
-      git('commands/pull-branch.ts'),
-      10,
-    ),
-    executeGit: [
-      ...REMOTE_GIT.map((command) => `${command} (re-inspect)`),
-      'fetch into refs/porcelain/fetch/<id> (as fetch)',
-      'rev-parse --verify HEAD; symbolic-ref --quiet HEAD; status --porcelain=v1 (still clean)',
-      'merge-base --is-ancestor (fast-forward checks)',
-      'merge --ff-only|--ff --no-edit <candidate>  or  rebase --no-autostash <candidate>',
-      'rev-parse --verify HEAD; merge-base --is-ancestor (result check)',
-    ],
-    executeCost:
-      'About 27 processes to re-inspect plus about 10 for fetch and integration.',
-  },
-  {
-    id: 'push',
-    label: 'push',
-    segment: 'push',
-    prepareFile: 'prepare-push.ts',
-    executeFile: 'execute-push.ts',
-    appPrepare: 285,
-    appExecute: 287,
-    method: 'Push',
-    web: gitMenuTrigger('push'),
-    prepareExtraSteps: [
-      s(
-        'git',
-        'inspectActionRemote',
-        `Validates the push URL; without allowCreate also resolves the lookup URL.`,
-        git('commands/inspect-action-remote.ts'),
-        8,
-      ),
-    ],
-    prepareExtraGit: REMOTE_GIT,
-    prepareCost:
-      'About 27 Git processes plus reading every working file, although push sends commits, not files.',
-    executeStep: s(
-      'git',
-      'pushBranch',
-      `Without allowCreate checks the destination exists, then pushes the captured HEAD.`,
-      git('commands/push-branch.ts'),
-      8,
-    ),
-    executeGit: [
-      ...REMOTE_GIT.map((command) => `${command} (re-inspect)`),
-      '[allowCreate false] ls-remote --get-url; ls-remote --heads <url> <ref>',
-      'push --porcelain --no-follow-tags --recurse-submodules=no <remote> <head>:<ref>',
-    ],
-    executeCost: 'About 27 processes to re-inspect plus up to 3 for the push.',
-  },
-  {
-    id: 'commit',
-    label: 'commit',
-    segment: 'commit',
-    prepareFile: 'prepare-commit.ts',
-    executeFile: 'execute-commit.ts',
-    appPrepare: 295,
-    appExecute: 297,
-    method: 'Commit',
-    web: wt(
-      'useGitAction(commit).run',
-      web('views/review/commit-form.tsx'),
-      33,
-      `Commit form submit; includes expectedFiles from a generated draft when present (commit-form.tsx:120).`,
-    ),
-    prepareExtraSteps: [
-      s(
-        'use-case',
-        'ReadWorktreeEvidence.execute',
-        `With expectedFiles: full evidence read to compare each file fingerprint.`,
-        caseFile('prepare-git-action.ts'),
-        61,
-      ),
-      s(
-        'git',
-        'ActionGit.inspect (again)',
-        `With expectedFiles: inspects a second time and requires the same fingerprint.`,
-        caseFile('prepare-git-action.ts'),
-        74,
-      ),
-    ],
-    prepareExtraGit: [
-      '[expectedFiles] full evidence read: 13 on a cache hit, about 34 + N on a miss',
-      '[expectedFiles] the whole inspection again (about 21 + every working file)',
-    ],
-    prepareCost:
-      'About 21 processes and one full file hash; with expectedFiles about 55 + N processes and two full file hashes.',
-    executeStep: s(
-      'git',
-      'commitIndex',
-      `Commits the index with the message on stdin, or selected paths through a temporary index and commit --only.`,
-      git('commands/commit-index.ts'),
-      7,
-    ),
-    executeGit: [
-      'commit --file=- --cleanup=verbatim; rev-parse --verify HEAD',
-      '[selected paths] rev-parse --git-path index; ls-files; add --all --pathspec-file-nul into a temporary index; diff --cached --quiet; commit --only; rev-parse --verify HEAD',
-      '[worktree has layers] history guard x2, cat-file, diff-tree x2 (CompleteCommitReview, 11)',
-    ],
-    executeExtraSteps: [
-      s(
-        'use-case',
-        'CompleteCommitReview.execute',
-        `Moves committed layer references into a commit snapshot (see review-layers).`,
-        caseFile('execute-git-action.ts'),
-        64,
-      ),
-    ],
-    executeExtraTables: [
-      { name: 'review_layer_sets', access: 'write' },
-      { name: 'commit_review_layer_sets', access: 'write' },
-    ],
-    executeCost:
-      'About 21 processes to re-inspect, 2 to 6 for the commit (hooks and signing run inside), and 11 more when the worktree has layers.',
-  },
-  {
-    id: 'stash-create',
-    label: 'stash create',
-    segment: 'stash/create',
-    prepareFile: 'prepare-stash-create.ts',
-    executeFile: 'execute-stash-create.ts',
-    appPrepare: 305,
-    appExecute: 311,
-    method: 'StashCreate',
-    web: gitMenuTrigger('stash-create'),
-    prepareExtraSteps: [],
-    prepareExtraGit: [],
-    prepareCost: 'About 21 Git processes plus reading every working file.',
-    executeStep: s(
-      'git',
-      'createStash',
-      `Runs stash push and reads the new stash OID.`,
-      git('commands/create-stash.ts'),
-      6,
-    ),
-    executeGit: [
-      'stash push [--include-untracked] --message <message>',
-      'rev-parse --verify refs/stash',
-    ],
-    executeCost: 'About 21 processes to re-inspect plus 2.',
-  },
-  {
-    id: 'stash-apply',
-    label: 'stash apply',
-    segment: 'stash/apply',
-    prepareFile: 'prepare-stash-apply.ts',
-    executeFile: 'execute-stash-apply.ts',
-    appPrepare: 319,
-    appExecute: 325,
-    method: 'StashApply',
-    web: gitMenuTrigger('stash-apply'),
-    prepareExtraSteps: [
-      s(
-        'git',
-        'checkStashCollisions',
-        `Rejects stashes whose untracked files would collide with ignored files.`,
-        git('commands/check-stash-collisions.ts'),
-        6,
-      ),
-    ],
-    prepareExtraGit: STASH_GIT,
-    prepareCost: 'About 25 Git processes plus reading every working file.',
-    executeStep: s(
-      'git',
-      'applyStash',
-      `Applies the verified stash OID and reports conflicts; keeps the stash.`,
-      git('commands/apply-stash.ts'),
-      8,
-    ),
-    executeGit: [
-      ...STASH_GIT.map((command) => `${command} (re-inspect)`),
-      'stash apply [--index] <oid>',
-      'ls-files --unmerged -z',
-    ],
-    executeCost: 'About 25 processes to re-inspect plus 2.',
-  },
-  {
-    id: 'stash-pop',
-    label: 'stash pop',
-    segment: 'stash/pop',
-    prepareFile: 'prepare-stash-pop.ts',
-    executeFile: 'execute-stash-pop.ts',
-    appPrepare: 333,
-    appExecute: 335,
-    method: 'StashPop',
-    web: gitMenuTrigger('stash-pop'),
-    prepareExtraSteps: [
-      s(
-        'git',
-        'checkStashCollisions',
-        `Rejects stashes whose untracked files would collide with ignored files.`,
-        git('commands/check-stash-collisions.ts'),
-        6,
-      ),
-    ],
-    prepareExtraGit: STASH_GIT,
-    prepareCost: 'About 25 Git processes plus reading every working file.',
-    executeStep: s(
-      'git',
-      'applyStash + removeAppliedStash',
-      `Applies, then revalidates the reflog and drops exactly that entry.`,
-      git('commands/remove-applied-stash.ts'),
-      7,
-    ),
-    executeGit: [
-      ...STASH_GIT.map((command) => `${command} (re-inspect)`),
-      'stash apply [--index] <oid>; ls-files --unmerged -z',
-      'stash list (revalidate); stash drop <selector>; stash list (confirm)',
-    ],
-    executeCost: 'About 25 processes to re-inspect plus 5.',
-  },
-];
-
 const gitActions: Area = {
   id: 'git-actions',
   title: 'Git actions',
-  webSurface: `Git button and its menu (fetch, pull, push, stash create, apply, pop), the commit form with AI commit drafts, and the commit model setting.`,
-  summary: `Every action is two requests: prepare inspects the checkout and stores a preparation with a state fingerprint; execute consumes it, writes a receipt and runs the action later on the operations queue after inspecting again. Inspection is heavy: about 21 Git processes plus hashing the content of every tracked and untracked file (at most 10,000 paths and 32 MiB). The web polls the receipt every 500 ms and, when refresh is required, invalidates every query of the project. Commit drafts inspect three times, read full evidence and run a coding CLI on a separate drafting queue.`,
+  webSurface:
+    'Commit, sync, stash, branches and recoverable discard from the review workspace.',
+  summary:
+    'One request admits a durable action. The repository lane checks the displayed branch and the files or refs the action depends on; receipts and progress arrive over the live connection.',
   flows: [
-    ...ACTION_SPECS.flatMap((spec) => [prepareFlow(spec), executeFlow(spec)]),
+    {
+      id: 'git-actions.run',
+      title: 'Run a Git action',
+      endpoint: {
+        method: 'POST',
+        path: '/api/projects/:projectId/worktrees/:worktreeId/git/actions',
+        source: { path: route('run-git-action.ts') },
+      },
+      webTriggers: [],
+      steps: [
+        {
+          layer: 'route',
+          name: 'runGitAction',
+          source: { path: route('run-git-action.ts') },
+          what: 'Validate the action, displayed expectation and request ID.',
+        },
+        {
+          layer: 'application',
+          name: 'GitActionCoordinator',
+          source: { path: COORDINATOR },
+          what: 'Admit or recover the same durable request and schedule work on its repository lane.',
+        },
+        {
+          layer: 'use-case',
+          name: 'ExecuteGitAction',
+          source: { path: caseFile('execute-git-action.ts') },
+          what: 'Resolve checkout identity, check expectations and finalize the receipt.',
+        },
+        {
+          layer: 'git',
+          name: 'ActionGit',
+          source: { path: git('action-git.ts') },
+          what: 'Run the selected Git operation and report bounded progress.',
+        },
+      ],
+      runner: 'operations',
+      gitCommands: [],
+      tables: [{ name: 'git_action_receipts', access: 'write' }],
+      cost: 'Depends on the selected action; targeted checks replace whole-checkout preparation.',
+    },
     {
       id: 'git-actions.receipt',
-      title: 'Read a Git action receipt',
+      title: 'Recover a receipt',
       endpoint: {
         method: 'GET',
         path: '/api/git-action-requests/:requestId',
-        source: at(route('get-git-action-receipt.ts'), 15),
+        source: { path: route('get-git-action-receipt.ts') },
       },
-      webTriggers: [
-        wt(
-          'useGitAction.run polling',
-          web('query/git-actions.ts'),
-          107,
-          `Every 500 ms while the receipt is running, plus the explicit recovery check (git-actions.ts:83) for uncertain outcomes.`,
-        ),
-      ],
+      webTriggers: [],
       steps: [
-        s(
-          'route',
-          'getGitActionReceipt',
-          `Readable even while the project is blocked.`,
-          route('get-git-action-receipt.ts'),
-          14,
-        ),
-        s(
-          'application',
-          'Application.gitActionReceipt',
-          `No queue: reads the receipt directly.`,
-          APP,
-          343,
-        ),
-        s(
-          'application',
-          'GitActionCoordinator.receipt',
-          `Reports in-memory failures as indeterminate.`,
-          COORDINATOR,
-          110,
-        ),
-        s(
-          'repository',
-          'GitActionRepository.receipt',
-          `Primary-key read of the JSON receipt.`,
-          repo('git-action-repository.ts'),
-          28,
-        ),
+        {
+          layer: 'repository',
+          name: 'GitActionRepository',
+          source: { path: repo('git-action-repository.ts') },
+          what: 'Read the scoped durable receipt without replaying Git.',
+        },
       ],
       runner: 'none',
       gitCommands: [],
       tables: [{ name: 'git_action_receipts', access: 'read' }],
-      cost: 'One primary-key read; independent of the queue.',
+      cost: 'A scoped SQLite read.',
     },
     {
-      id: 'git-actions.commit-draft',
-      title: 'Generate a commit draft with a coding CLI',
+      id: 'git-actions.branches',
+      title: 'List branches',
+      endpoint: {
+        method: 'GET',
+        path: '/api/projects/:projectId/worktrees/:worktreeId/git/branches',
+        source: { path: route('list-git-branches.ts') },
+      },
+      webTriggers: [],
+      steps: [
+        {
+          layer: 'git',
+          name: 'List branches',
+          source: { path: git('commands/manage-branch.ts') },
+          what: 'Report branch names, upstreams and worktree occupancy.',
+        },
+      ],
+      runner: 'operations',
+      gitCommands: [],
+      tables: [],
+      cost: 'Git ref and worktree metadata; no working-file content.',
+    },
+    {
+      id: 'git-actions.draft',
+      title: 'Draft a commit',
       endpoint: {
         method: 'POST',
         path: '/api/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
-        source: at(route('commit-drafts.ts'), 26),
+        source: { path: route('commit-drafts.ts') },
       },
-      webTriggers: [
-        wt(
-          'useCommitDraft',
-          web('query/git-actions.ts'),
-          150,
-          `Generate button in the commit form (commit-form.tsx:34); no automatic retry. The route aborts the work when the socket closes.`,
-        ),
-      ],
+      webTriggers: [],
       steps: [
-        s(
-          'route',
-          'commitDraftRoutes POST commit-draft',
-          `Ties an abort signal to socket close.`,
-          route('commit-drafts.ts'),
-          25,
-        ),
-        s(
-          'application',
-          'Application.draftCommits',
-          `Capture on operations, generate on drafting, verify on operations.`,
-          APP,
-          244,
-        ),
-        operationsStep(
-          `Capture holds the main queue for inspection and evidence.`,
-        ),
-        s(
-          'use-case',
-          'CommitDrafts.capture',
-          `Inspects, reads full evidence, checks the expected status token and selected paths, inspects again.`,
-          caseFile('commit-drafts.ts'),
-          42,
-        ),
-        s(
-          'runner',
-          'Lanes.run (write, until settled) (drafting)',
-          `Single lane for generation, 120 s deadline; does not hold the main queue.`,
-          APP,
-          252,
-        ),
-        s(
-          'agent-cli',
-          'CliCommitGenerator.generate',
-          `Spawns codex exec or claude --print in its own process group with a JSON schema; prompt carries the selected evidence (up to 1 MiB).`,
-          'apps/server/src/agents/cli-commit-generator.ts',
-          72,
-        ),
-        s(
-          'use-case',
-          'CommitDrafts.verify',
-          `Inspects once more and rejects if the working tree changed.`,
-          caseFile('commit-drafts.ts'),
-          141,
-        ),
+        {
+          layer: 'use-case',
+          name: 'CommitDrafts',
+          source: { path: caseFile('commit-drafts.ts') },
+          what: 'Read the chosen files and ask the selected agent for editable commit messages.',
+        },
       ],
-      runner: 'drafting',
-      gitCommands: [
-        ...INSPECT_GIT.map((command) => `${command} (capture)`),
-        'full evidence read: 13 on a cache hit, about 34 + N on a miss',
-        'the whole inspection again inside capture (about 21 + every working file)',
-        'the whole inspection a third time in verify (about 21 + every working file)',
-      ],
-      tables: INVENTORY_READ,
-      cost: 'About 76 Git processes, three full working-file hashes, one coding CLI run of up to 120 s.',
-      notes:
-        'Capture and verify run on the operations queue; only generation uses the drafting queue.',
-    },
-    {
-      id: 'git-actions.commit-models',
-      title: 'List available commit models',
-      endpoint: {
-        method: 'GET',
-        path: '/api/git/commit-models',
-        source: at(route('commit-drafts.ts'), 21),
-      },
-      webTriggers: [
-        wt(
-          'useCommitModels',
-          web('query/git-actions.ts'),
-          138,
-          `Commit form (commit-form.tsx:35) and settings dialog (commit-model-setting.tsx:14). staleTime 60 s, but the global focus policy 'always' still refetches on focus. Its signal drops the 15 s request timeout (git-actions.ts:145).`,
-        ),
-      ],
-      steps: [
-        s(
-          'route',
-          'commitDraftRoutes GET commit-models',
-          `No parameters.`,
-          route('commit-drafts.ts'),
-          20,
-        ),
-        s(
-          'application',
-          'Application.commitModels',
-          `Runs on the drafting queue.`,
-          APP,
-          239,
-        ),
-        s(
-          'runner',
-          'Lanes.unqueued (supervised)',
-          `Waits behind any running draft generation.`,
-          RUNNER,
-          37,
-        ),
-        s(
-          'filesystem',
-          'CliCommitGenerator.models',
-          `Scans PATH for codex and claude and reads the Codex models cache.`,
-          'apps/server/src/agents/cli-commit-generator.ts',
-          33,
-        ),
-      ],
-      runner: 'drafting',
+      runner: 'none',
       gitCommands: [],
       tables: [],
-      cost: 'A PATH scan and one small JSON read; latency can be a whole draft generation (up to 120 s).',
+      cost: 'Selected-file diff and cancellable model generation.',
     },
   ],
-  decisions: [
-    {
-      title: 'Prepare, confirm, execute, with durable receipts',
-      summary: `The reviewer confirms an exact prepared action, and receipts stop duplicate admission across retries and restarts; there are no automatic retries or rollbacks. The price is two round trips, a full re-inspection before execution and conservative indeterminate outcomes.`,
-      doc: doc('git-action-contracts.md'),
-    },
-    {
-      title: 'Fingerprint the whole working tree',
-      summary: `Preparation hashes config, hooks, index, refs and the content of every working file, so any external write between prepare and execute is detected under a paused-writer assumption. Repositories above 10,000 paths or 32 MiB of working content cannot use any action.`,
-      doc: doc('git-action-contracts.md'),
-    },
-    {
-      title: 'Process-group supervision and project quarantine',
-      summary: `Git runs in its own process group; if the group cannot be confirmed gone, or a launched action was interrupted by a restart, the project is blocked for further mutations. There is no unblock API by design: safety over availability.`,
-      doc: doc('git-action-contracts.md'),
-    },
-    {
-      title: 'Request identity before sending; receipts drive refresh',
-      summary: `The web stores a request ID before execute and offers no resubmit for uncertain outcomes; refreshRequired invalidates the whole project because linked worktrees share Git state. Correct, but it refetches every linked worktree after each action.`,
-      doc: doc('web-review-sidebar.md'),
-    },
-    {
-      title: 'Uncertain operations live in the connection, not the Query cache',
-      summary: `A request ID survives navigation within a connection and disappears with it. It does not survive a page reload.`,
-      doc: doc('web-client-layers.md'),
-    },
-    {
-      title: 'LLM generation off the main queue',
-      summary: `Capture and verify need consistent Git state and stay on operations, while the up-to-120 s CLI call runs on the drafting queue, so reads are not blocked during generation. Drafting is itself single-lane.`,
-      source: at(APP, 244),
-    },
-  ],
-  observations: [
-    {
-      kind: 'performance',
-      title: 'Every inspection re-reads the whole working tree',
-      detail: `hashActionFiles reads every tracked and untracked file on each inspect. A commit with expected files inspects twice in prepare plus a full evidence read, once more in execute; a draft inspects three times plus evidence. All of it runs on the main queue.`,
-      sources: [
-        at(git('commands/inspect-action-files.ts'), 8),
-        at(caseFile('prepare-git-action.ts'), 61),
-        at(caseFile('prepare-git-action.ts'), 74),
-        at(caseFile('execute-git-action.ts'), 100),
-        at(caseFile('commit-drafts.ts'), 47),
-        at(caseFile('commit-drafts.ts'), 146),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'risk',
-      title: 'Repositories over 10,000 files cannot run any Git action',
-      detail: `The file hash rejects above 10,000 paths or 32 MiB with UNSUPPORTED_CONFIGURATION, including fetch and push, which do not touch working files. Documented, but a hard product limit.`,
-      sources: [
-        at(git('commands/inspect-action-files.ts'), 22),
-        at(git('commands/inspect-action-files.ts'), 44),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'performance',
-      title: 'isBlocked scans every receipt ever stored',
-      detail: `isBlocked loads and JSON-parses every row of git_action_receipts on each prepare, accept and execute. Receipts and preparations are never pruned except by project removal, so this grows forever.`,
-      sources: [
-        at(repo('git-action-repository.ts'), 87),
-        at(repo('project-removal-repository.ts'), 22),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'risk',
-      title: 'A crash during an action quarantines the project for good',
-      detail: `On startup, running receipts that had launched become PROCESS_GROUP_UNCONFIRMED; isBlocked then stays true, and project removal also refuses. No code path clears it; recovery means editing SQLite by hand.`,
-      sources: [
-        at(repo('git-action-repository.ts'), 106),
-        at(repo('git-action-repository.ts'), 87),
-        at(repo('project-removal-repository.ts'), 33),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'performance',
-      title: 'A finished action refetches the whole project',
-      detail: `A receipt with refreshRequired invalidates the project prefix: status, evidence, summaries, trees, history and artifacts of every linked worktree refetch, all through the main queue.`,
-      sources: [
-        at(web('query/git-actions.ts'), 52),
-        at(web('query/keys.ts'), 11),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'performance',
-      title: 'The model list waits behind a draft',
-      detail: `commitModels uses the drafting queue that a generation holds for up to 120 s, and the web query has no timeout, so the model picker can spin for the whole generation.`,
-      sources: [
-        at(APP, 239),
-        at(APP, 252),
-        at(web('query/git-actions.ts'), 145),
-      ],
-      confidence: 'verified',
-    },
-    {
-      kind: 'good',
-      title: 'Admission is durable and idempotent',
-      detail: `Accept consumes the preparation and inserts the receipt in one immediate transaction; a repeated request ID returns the same receipt, and execution is not tied to the HTTP connection.`,
-      sources: [at(repo('git-action-repository.ts'), 35), at(COORDINATOR, 84)],
-      confidence: 'verified',
-    },
-  ],
+  decisions: [],
+  observations: [],
 };
 
 // ---------------------------------------------------------------------------

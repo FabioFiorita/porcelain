@@ -24,10 +24,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { GitAction } from '../../domain/git-action';
 import { comparisons, type ReviewScope } from '../../domain/review';
-import { useReviewOverview } from '../../query/review';
+import { useRefreshGitLook, useReviewOverview } from '../../query/review';
+import { BranchDialog } from './branch-dialog';
 import { GitActionInspection } from './git-action-inspection';
 import {
   branchStatus,
+  type GitActionStatus,
   gitActionBlocker,
   gitActionGroups,
   gitActionReason,
@@ -48,14 +50,25 @@ const plural = (count: number, noun: string) =>
  */
 export function GitButton({ scope }: { scope: ReviewScope }) {
   const overview = useReviewOverview(scope);
+  const refreshLook = useRefreshGitLook(scope);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
+  const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
+    null,
+  );
   if (overview == null) return null;
   // What an action needs to be decided; the panel reads the rest when it opens.
   const status = {
     statusToken: overview.changes.statusToken,
+    inProgress: overview.changes.inProgress,
+    mergeHeadOid: overview.changes.mergeHeadOid,
+    headOid: overview.changes.headOid,
     branch: overview.changes.branch,
     changes: comparisons(overview.changes),
+    files: overview.changes.changes.map(({ path, fingerprint }) => ({
+      path,
+      fingerprint,
+    })),
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
@@ -64,7 +77,10 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const primaryTip = primaryTooltip(primary, status);
   const branch = branchStatus(status);
 
-  const choose = (next: GitAction) => setAction(next);
+  const choose = (next: GitAction) => {
+    setOpenedStatus(status);
+    setAction(next);
+  };
 
   return (
     <>
@@ -169,7 +185,17 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
         </DropdownMenu>
       </fieldset>
 
-      {action != null && (
+      {action === 'switch-branch' || action === 'create-branch' ? (
+        <BranchDialog
+          scope={scope}
+          open
+          mode={action === 'switch-branch' ? 'switch' : 'create'}
+          status={openedStatus ?? status}
+          onOpenChange={(open) => {
+            if (!open) setAction(null);
+          }}
+        />
+      ) : action != null ? (
         <Dialog
           open
           disablePointerDismissal
@@ -185,23 +211,40 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
               <DialogTitle>
                 {selected?.id === 'commit'
                   ? 'Commit changes'
-                  : (selected?.label ?? 'Git action')}
+                  : selected?.id === 'amend'
+                    ? 'Amend last commit'
+                    : (selected?.label ?? 'Git action')}
               </DialogTitle>
               <DialogDescription>
-                {selected?.id === 'commit'
+                {selected?.id === 'commit' || selected?.id === 'amend'
                   ? 'Choose the files and message for this commit.'
-                  : 'Prepare and review the operation before confirming it.'}
+                  : 'Review the options before running this action.'}
               </DialogDescription>
             </DialogHeader>
             <GitActionInspection
               scope={scope}
               entry={action}
-              status={status}
+              status={openedStatus ?? status}
               onBusy={setBusy}
+              onLookAgain={async () => {
+                const changes = await refreshLook();
+                setOpenedStatus({
+                  statusToken: changes.statusToken,
+                  headOid: changes.headOid,
+                  branch: changes.branch,
+                  inProgress: changes.inProgress,
+                  mergeHeadOid: changes.mergeHeadOid,
+                  changes: comparisons(changes),
+                  files: changes.changes.map(({ path, fingerprint }) => ({
+                    path,
+                    fingerprint,
+                  })),
+                });
+              }}
             />
           </DialogContent>
         </Dialog>
-      )}
+      ) : null}
     </>
   );
 }

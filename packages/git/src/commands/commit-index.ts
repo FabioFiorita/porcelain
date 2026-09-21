@@ -8,11 +8,15 @@ export async function commitIndex(
   process: GitProcessRunner,
   preparation: GitActionCommand,
   signal: AbortSignal,
+  verifyTarget?: () => Promise<void>,
 ): Promise<GitActionOutcome> {
-  if (preparation.intent.action !== 'commit')
+  if (
+    preparation.intent.action !== 'commit' &&
+    preparation.intent.action !== 'amend'
+  )
     throw new Error('Invalid commit intent');
   if (preparation.intent.paths)
-    return commitPaths(process, preparation, signal);
+    return commitPaths(process, preparation, signal, verifyTarget);
   if (!preparation.preview.staged)
     return { state: 'no-change', refreshRequired: false };
   const command = await process.execute(

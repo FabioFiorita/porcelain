@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { gitActionSchema } from './git-actions.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 import {
   gitChangeSchema,
@@ -38,7 +39,19 @@ export const changesResponseSchema = z.strictObject({
     .string()
     .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
     .nullable(),
+  inProgress: z.enum(['merge', 'rebase']).nullable(),
+  mergeHeadOid: z
+    .string()
+    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    .nullable(),
   branch: changeListBranchSchema.nullable(),
+  interrupted: z
+    .strictObject({
+      requestId: z.uuid(),
+      action: gitActionSchema,
+      gitState: z.string(),
+    })
+    .optional(),
   changes: z.array(fileChangeSchema).max(2000),
 });
 

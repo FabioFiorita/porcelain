@@ -1,4 +1,5 @@
 import type {
+  GitActionExpectation,
   GitActionIntent,
   GitActionOutcome,
   GitActionPreview,
@@ -14,9 +15,13 @@ export type GitActionPreparation = GitActionScope & {
 export type GitActionReceipt = GitActionScope &
   Omit<GitActionOutcome, 'state'> & {
     requestId: string;
-    preparationId: string;
+    intent?: GitActionIntent;
+    expected?: GitActionExpectation;
+    requestFingerprint?: string;
     action: GitActionIntent['action'];
     state: GitActionOutcome['state'] | 'running';
+    progress?: string[];
     acceptedAt: number;
     finishedAt?: number;
+    dismissedAt?: number;
   };

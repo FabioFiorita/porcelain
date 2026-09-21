@@ -129,13 +129,17 @@ describe('fingerprinting a change', () => {
     );
   });
 
-  it('refuses to fingerprint a conflict or a side it could not establish', () => {
+  it('fingerprints conflict stages and refuses an ordinary side it could not establish', () => {
     const conflict: GitChange = {
       scope: 'unmerged',
       path: 'file.ts',
       conflict: 'UU',
+      modes: ['100644', '100644', '100644', '100644'],
+      oids: ['a'.repeat(40), 'b'.repeat(40), 'c'.repeat(40)],
     };
-    expect(fingerprintChange('file.ts', [conflict], none)).toBeNull();
+    expect(fingerprintChange('file.ts', [conflict], none)).toEqual(
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+    );
     // Unreadable working file: nothing to hash, so nothing to mark.
     expect(fingerprintChange('file.ts', [unstaged], none)).toBeNull();
     expect(

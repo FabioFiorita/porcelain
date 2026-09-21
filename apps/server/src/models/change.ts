@@ -1,3 +1,4 @@
+import type { GitActionReceipt } from '@porcelain/contracts/git-actions';
 import type { GitChange } from '@porcelain/git/dtos/git-status';
 
 /**
@@ -21,6 +22,8 @@ export type ChangeList = {
   worktreeId: string;
   statusToken: string;
   headOid: string | null;
+  inProgress: 'merge' | 'rebase' | null;
+  mergeHeadOid: string | null;
   /**
    * What the same status already printed. The remote name and stashes an
    * action needs are not here: they cost two more Git processes and only the
@@ -32,5 +35,10 @@ export type ChangeList = {
     ahead: number;
     behind: number;
   } | null;
+  interrupted?: {
+    requestId: string;
+    action: GitActionReceipt['action'];
+    gitState: string;
+  };
   changes: FileChange[];
 };

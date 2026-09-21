@@ -73,6 +73,11 @@ export const gitStatusResponseSchema = z.object({
       behind: z.number().int().nonnegative(),
       remoteName: z.string().nullable().optional(),
       sourceRef: z.string().nullable().optional(),
+      upstreamOid: z
+        .string()
+        .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+        .nullable()
+        .optional(),
       stashes: z
         .array(
           z.object({
@@ -87,6 +92,17 @@ export const gitStatusResponseSchema = z.object({
   headOid: z
     .string()
     .regex(/^[a-f0-9]{40,64}$/)
+    .nullable(),
+  inProgress: z.enum(['merge', 'rebase']).nullable(),
+  mergeHeadOid: z
+    .string()
+    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    .nullable(),
+  headCommit: z
+    .strictObject({
+      subject: z.string(),
+      body: z.string().optional(),
+    })
     .nullable(),
   changes: z.array(gitChangeSchema).max(2000),
 });

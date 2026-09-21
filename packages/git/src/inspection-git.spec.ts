@@ -306,7 +306,17 @@ describe('InspectionGit', () => {
       git('commit', '-am', 'main');
       expect(() => git('merge', 'other')).toThrow();
       expect((await reader.readStatus()).changes).toEqual([
-        { scope: 'unmerged', path: 'file', conflict: 'UU' },
+        {
+          scope: 'unmerged',
+          path: 'file',
+          conflict: 'UU',
+          modes: ['100644', '100644', '100644', '100644'],
+          oids: [
+            expect.stringMatching(/^[a-f0-9]{40}$/),
+            expect.stringMatching(/^[a-f0-9]{40}$/),
+            expect.stringMatching(/^[a-f0-9]{40}$/),
+          ],
+        },
       ]);
       await rename(join(checkout, '.git'), join(root, 'original-metadata'));
       git('init', '-b', 'main');

@@ -102,11 +102,24 @@ it('shows review ready while layers are live, and stops when a commit archives t
   // files reviewed deliberately does not: an agent can edit a path you
   // already marked, and the dot must not go dark for work that is still live.
   const scope = { projectId: f.project.id, worktreeId: f.worktreeId };
-  const preparation = await f.app.prepareCommit(scope, { message: 'Reviewed' });
   const requestId = randomUUID();
-  f.app.executeCommit(scope, {
+  const status = await f.app.gitStatus(f.worktreeId);
+  const listed = await f.app.changes(f.worktreeId);
+  f.app.runGitAction(scope, {
     requestId,
-    preparationId: preparation.id,
+    input: { action: 'commit', message: 'Reviewed', paths: ['notes.txt'] },
+    expected: {
+      headOid: status.status.headOid,
+      branch: status.status.branch?.name ?? null,
+      inProgress: status.status.inProgress ?? null,
+      mergeHeadOid: status.status.mergeHeadOid ?? null,
+      files: listed.changes
+        .filter((entry) => entry.path === 'notes.txt')
+        .map((entry) => ({
+          path: entry.path,
+          fingerprint: entry.fingerprint as string,
+        })),
+    },
   });
   await expect
     .poll(() => f.app.gitActionReceipt(requestId), { timeout: 5_000 })

@@ -35,6 +35,7 @@ import type {
 } from './filesystem/interfaces/worktree-files.ts';
 import { NodeProjectFolders } from './filesystem/project-folders.ts';
 import { readWorktreeFiles, stampPath } from './filesystem/worktree-files.ts';
+import { toGitActionReceipt } from './http/mappers/git-action-response.ts';
 import { DeviceDirectory } from './lifecycle/device-directory.ts';
 import { GitActionCoordinator } from './lifecycle/git-action-coordinator.ts';
 import { Lanes } from './lifecycle/lanes.ts';
@@ -42,6 +43,7 @@ import { LaunchLimit } from './lifecycle/launch-limit.ts';
 import { LiveUpdates } from './lifecycle/live-updates.ts';
 import { SharedReads } from './lifecycle/shared-reads.ts';
 import { WorktreeDirectory } from './lifecycle/worktree-directory.ts';
+import type { CommitModel } from './models/commit-draft.ts';
 import type { Project } from './models/project.ts';
 import { CommentRepository } from './repositories/comment-repository.ts';
 import { FilePreferenceRepository } from './repositories/file-preference-repository.ts';
@@ -54,11 +56,11 @@ import { ReviewedFileRepository } from './repositories/reviewed-file-repository.
 import { ReviewedLayerRepository } from './repositories/reviewed-layer-repository.ts';
 import { WorktreePresenceRepository } from './repositories/worktree-presence-repository.ts';
 import { WorktreeStatusRepository } from './repositories/worktree-status-repository.ts';
-import { AcceptGitAction } from './use-cases/accept-git-action.ts';
 import { CollectAbsentWorktrees } from './use-cases/collect-absent-worktrees.ts';
 import { CommentThreads } from './use-cases/comment-threads.ts';
 import { CommitDrafts } from './use-cases/commit-drafts.ts';
 import { EditFile } from './use-cases/edit-file.ts';
+import { CommitDraftError } from './use-cases/errors/commit-draft-error.ts';
 import { ExecuteGitAction } from './use-cases/execute-git-action.ts';
 import { FindProjects } from './use-cases/find-projects.ts';
 import { ListCommits } from './use-cases/list-commits.ts';
@@ -71,7 +73,6 @@ import {
 } from './use-cases/list-worktree-paths.ts';
 import { MarkCommentsSeen } from './use-cases/mark-comments-seen.ts';
 import { Pairing, type PairingReach } from './use-cases/pairing.ts';
-import { PrepareGitAction } from './use-cases/prepare-git-action.ts';
 import {
   PublishedReview,
   verifySummarySignature,
@@ -88,6 +89,7 @@ import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
 import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
 import { RenameProject } from './use-cases/rename-project.ts';
+import { resolveActionCheckout } from './use-cases/resolve-action-worktree.ts';
 import { ResolveWorktree } from './use-cases/resolve-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
@@ -416,18 +418,16 @@ export async function openApplication(options: {
       options.now,
     );
     const reviewedLayers = new ReviewedLayerRepository(database.db);
+    const reviewed = new ReviewedFileRepository(database.db);
+    const live = new LiveUpdates({
+      worktrees,
+      reviewed,
+      reviewedLayers,
+      projects: () => store.read().projects,
+    });
     const actions = new GitActionCoordinator(
       lanes,
       projectLaneOf,
-      new PrepareGitAction(
-        store,
-        worktrees,
-        actionStore,
-        actionGit,
-        randomUUID,
-        changes,
-      ),
-      new AcceptGitAction(actionStore),
       new ExecuteGitAction(
         store,
         worktrees,
@@ -436,10 +436,20 @@ export async function openApplication(options: {
         async (worktreeId, signal) => {
           await publishedReview.read(worktreeId, signal);
         },
+        changes,
       ),
       actionStore,
+      (receipt) =>
+        live.publish({
+          type: 'git-action',
+          projectId: receipt.projectId,
+          worktreeId: receipt.worktreeId,
+          receipt: toGitActionReceipt(receipt),
+        }),
     );
     const generator = options.commitGenerator ?? new CliCommitGenerator();
+    let modelList: Promise<CommitModel[]> | undefined;
+    const activeDrafts = new Set<string>();
     const commitDrafts = new CommitDrafts(
       store,
       worktrees,
@@ -449,13 +459,6 @@ export async function openApplication(options: {
       files,
       generator,
     );
-    const reviewed = new ReviewedFileRepository(database.db);
-    const live = new LiveUpdates({
-      worktrees,
-      reviewed,
-      reviewedLayers,
-      projects: () => store.read().projects,
-    });
     const listReviewedFiles = new ListReviewedFiles(reviewed, worktrees);
     const setReviewedFile = new SetReviewedFile(
       reviewed,
@@ -492,97 +495,64 @@ export async function openApplication(options: {
     );
 
     return {
-      commitModels: (signal) =>
-        lanes.unqueued((operationSignal) => generator.models(operationSignal), {
-          callerSignal: signal,
-          deadlineMs: GENERATOR_DEADLINE_MS,
-        }),
+      runGitAction: (scope, request) => actions.run(scope, request),
+      gitBranches: (scope, signal) =>
+        lanes.run(
+          projectLaneOf(scope.projectId),
+          'read',
+          async ({ signal: operationSignal }) => {
+            const { checkout } = await resolveActionCheckout(
+              worktrees,
+              store,
+              new RequestGitSession(),
+              scope,
+              operationSignal,
+            );
+            const writer = actionGit(checkout);
+            if (!writer.listBranches)
+              throw new Error('Branch listing is unavailable');
+            return writer.listBranches(operationSignal);
+          },
+          { callerSignal: signal },
+        ),
+      commitModels: (_signal) =>
+        (modelList ??= lanes.unqueued(
+          (operationSignal) => generator.models(operationSignal),
+          { deadlineMs: GENERATOR_DEADLINE_MS },
+        )),
       draftCommits: async (scope, input, signal) => {
         scope = structuredClone(scope);
         input = structuredClone(input);
-        const captured = await lanes.run(
-          projectLaneOf(scope.projectId),
-          'read',
-          ({ signal: operationSignal }) =>
-            commitDrafts.capture(
-              scope,
-              input,
-              new RequestGitSession(),
-              operationSignal,
-            ),
-          { callerSignal: signal },
-        );
-        const result = await lanes.unqueued(
-          (operationSignal) =>
-            commitDrafts.generate(captured, input, operationSignal),
-          { callerSignal: signal, deadlineMs: GENERATOR_DEADLINE_MS },
-        );
-        await lanes.run(
-          projectLaneOf(scope.projectId),
-          'read',
-          ({ signal: operationSignal }) =>
-            commitDrafts.verify(
-              scope,
-              captured.fingerprint,
-              new RequestGitSession(),
-              operationSignal,
-            ),
-          { callerSignal: signal },
-        );
-        return result;
+        if (activeDrafts.has(scope.worktreeId))
+          throw new CommitDraftError(
+            'A commit draft is already running for this worktree.',
+          );
+        activeDrafts.add(scope.worktreeId);
+        try {
+          const captured = await lanes.run(
+            projectLaneOf(scope.projectId),
+            'read',
+            ({ signal: operationSignal }) =>
+              commitDrafts.capture(
+                scope,
+                input,
+                new RequestGitSession(),
+                operationSignal,
+              ),
+            { callerSignal: signal },
+          );
+          return await lanes.unqueued(
+            (operationSignal) =>
+              commitDrafts.generate(captured, input, operationSignal),
+            { callerSignal: signal, deadlineMs: GENERATOR_DEADLINE_MS },
+          );
+        } finally {
+          activeDrafts.delete(scope.worktreeId);
+        }
       },
-      prepareFetch: (scope, input, signal) =>
-        actions.prepareAction(scope, { ...input, action: 'fetch' }, signal),
-      executeFetch: (scope, input) =>
-        actions.submit(scope, 'fetch', input.requestId, input.preparationId),
-      preparePull: (scope, input, signal) =>
-        actions.prepareAction(scope, { ...input, action: 'pull' }, signal),
-      executePull: (scope, input) =>
-        actions.submit(scope, 'pull', input.requestId, input.preparationId),
-      preparePush: (scope, input, signal) =>
-        actions.prepareAction(scope, { ...input, action: 'push' }, signal),
-      executePush: (scope, input) =>
-        actions.submit(scope, 'push', input.requestId, input.preparationId),
-      prepareCommit: (scope, input, signal) =>
-        actions.prepareAction(scope, { ...input, action: 'commit' }, signal),
-      executeCommit: (scope, input) =>
-        actions.submit(scope, 'commit', input.requestId, input.preparationId),
-      prepareStashCreate: (scope, input, signal) =>
-        actions.prepareAction(
-          scope,
-          { ...input, action: 'stash-create' },
-          signal,
-        ),
-      executeStashCreate: (scope, input) =>
-        actions.submit(
-          scope,
-          'stash-create',
-          input.requestId,
-          input.preparationId,
-        ),
-      prepareStashApply: (scope, input, signal) =>
-        actions.prepareAction(
-          scope,
-          { ...input, action: 'stash-apply' },
-          signal,
-        ),
-      executeStashApply: (scope, input) =>
-        actions.submit(
-          scope,
-          'stash-apply',
-          input.requestId,
-          input.preparationId,
-        ),
-      prepareStashPop: (scope, input, signal) =>
-        actions.prepareAction(scope, { ...input, action: 'stash-pop' }, signal),
-      executeStashPop: (scope, input) =>
-        actions.submit(
-          scope,
-          'stash-pop',
-          input.requestId,
-          input.preparationId,
-        ),
       gitActionReceipt: (requestId) => actions.receipt(requestId),
+      dismissInterrupted: (scope, requestId) =>
+        actions.dismissInterrupted(scope, requestId),
       // Sharing sits above the lane: a second identical read joins the first
       // rather than taking a read permit of its own.
       gitStatus: (worktreeId, signal) =>
@@ -618,7 +588,27 @@ export async function openApplication(options: {
                 answer.changes.map((entry) => [entry.path, entry.fingerprint]),
               ),
             );
-            return answer;
+            const interrupted = actions.interrupted(worktreeId);
+            if (!interrupted) return answer;
+            const branch = answer.branch?.name ?? 'detached HEAD';
+            const conflicts = answer.changes.filter((change) =>
+              change.comparisons.some(
+                (comparison) => comparison.scope === 'unmerged',
+              ),
+            ).length;
+            const state = conflicts
+              ? `${conflicts} unresolved ${conflicts === 1 ? 'path remains' : 'paths remain'} on ${branch}.`
+              : answer.changes.length
+                ? `${answer.changes.length} changed ${answer.changes.length === 1 ? 'path remains' : 'paths remain'} on ${branch}.`
+                : `The worktree is clean on ${branch}.`;
+            return {
+              ...answer,
+              interrupted: {
+                requestId: interrupted.requestId,
+                action: interrupted.action,
+                gitState: state,
+              },
+            };
           },
           { callerSignal: signal },
         ),
@@ -777,7 +767,6 @@ export async function openApplication(options: {
                 directory.forget(projectId);
                 // Its refusal latch went with it; the coordinator must not keep
                 // refusing actions for an id that no longer exists.
-                actions.forget(projectId);
               }
               return removal;
             },

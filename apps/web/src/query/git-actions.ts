@@ -3,136 +3,87 @@ import { useCallback, useSyncExternalStore } from 'react';
 import type {
   ActionInput,
   CommitDraftInput,
+  Expectation,
   GitAction,
   Receipt,
 } from '../domain/git-action';
 import type { ReviewScope } from '../domain/review';
 import { createId } from '../lib/id';
 import { queryKeys } from './keys';
+import { refreshGitReceipt } from './live-updates';
 import { asMutation } from './mutation';
+import { isTerminal, operationKey } from './operation-store';
 import { useConnectedContext } from './workspace-provider';
-
-const terminalStates: Receipt['state'][] = [
-  'succeeded',
-  'no-change',
-  'rejected',
-  'conflicted',
-];
 
 export function useGitAction(scope: ReviewScope, action: GitAction) {
   const { api, connection } = useConnectedContext();
   const client = useQueryClient();
   const { operations } = connection;
-  const key = JSON.stringify([scope.projectId, scope.worktreeId, action]);
+  const key = operationKey(scope, action);
   const operation = useSyncExternalStore(
     operations.subscribe,
     useCallback(() => operations.get(key), [operations, key]),
   );
   const request = () => ({ ...scope, ...connection.request() });
   async function accept(receipt: Receipt) {
-    if (connection.controller.signal.aborted) return;
-    const expected = operations.get(key);
+    connection.controller.signal.throwIfAborted();
     if (
-      !expected ||
-      expected.requestId !== receipt.requestId ||
-      expected.preparationId !== receipt.preparationId
+      receipt.projectId !== scope.projectId ||
+      receipt.worktreeId !== scope.worktreeId ||
+      receipt.action !== action ||
+      receipt.requestId !== operations.get(key)?.requestId
     )
       throw new Error('Receipt identity mismatch');
-    if (
-      receipt.worktreeId !== scope.worktreeId ||
-      receipt.projectId !== scope.projectId ||
-      receipt.action !== action
-    )
-      throw new Error('Receipt context mismatch');
-    operations.set(key, {
-      requestId: receipt.requestId,
-      preparationId: receipt.preparationId,
-      receipt,
-    });
-    if (receipt.refreshRequired) {
-      await client.invalidateQueries({
-        queryKey: queryKeys.reviewProject(
-          connection.environmentId,
-          scope.projectId,
-        ),
-      });
-      // A commit archives the review layers, which is what puts the sidebar's
-      // dot out; the dot arrives with the worktree list, not with the review.
-      await client.invalidateQueries({
-        queryKey: queryKeys.inventory(connection.environmentId),
-      });
-    }
+    if (operations.accept(receipt))
+      await refreshGitReceipt(client, connection.environmentId, receipt);
+    return receipt;
   }
-  // Preparation reads and captures state; it has no Git/cache effects.
-  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation
-  const preparation = useMutation({
-    mutationFn: (input: ActionInput) =>
-      api.gitActions.prepare({ ...request(), action, input }),
-  });
   const execution = useMutation({
-    mutationFn: async (preparationId: string) => {
-      if (operations.get(key))
+    mutationFn: async ({
+      input,
+      expected,
+    }: {
+      input: ActionInput;
+      expected: Expectation;
+    }) => {
+      const previous = operations.get(key);
+      if (previous && (!previous.receipt || !isTerminal(previous.receipt)))
         throw new Error(
           'Check the existing receipt before starting another operation.',
         );
-      const requestId = createId();
-      operations.set(key, { requestId, preparationId });
-      return api.gitActions.execute({
-        ...request(),
-        action,
-        preparationId,
-        requestId,
+      if (input.action !== action) throw new Error('Action mismatch');
+      const body = { requestId: createId(), input, expected };
+      operations.set(key, {
+        ...scope,
+        requestId: body.requestId,
+        request: body,
       });
+      await accept(await api.gitActions.run({ ...request(), input: body }));
+      return operations.wait(key, connection.controller.signal);
     },
-    onSuccess: accept,
   });
   const recovery = useMutation({
     mutationFn: async () => {
-      if (!operation) throw new Error('No operation to recover');
-      return api.gitActions.receipt({
-        ...request(),
-        requestId: operation.requestId,
-      });
-    },
-    onSuccess: accept,
-  });
-  const terminal =
-    operation?.receipt && terminalStates.includes(operation.receipt.state);
-  async function run(input: ActionInput): Promise<Receipt> {
-    const previous = operations.get(key);
-    if (
-      previous &&
-      (!previous.receipt || !terminalStates.includes(previous.receipt.state))
-    )
-      throw new Error(
-        'Check the existing receipt before starting another operation.',
+      const current = operations.get(key);
+      if (!current) throw new Error('No operation to recover');
+      // Same request ID and payload recover both a lost response and a request
+      // that never reached the server. The server enforces durable deduplication.
+      await accept(
+        await api.gitActions.run({ ...request(), input: current.request }),
       );
-    if (previous) operations.set(key, null);
-    const prepared = await preparation.mutateAsync(input);
-    let receipt = await execution.mutateAsync(prepared.preparationId);
-    while (receipt.state === 'running') {
-      await new Promise<void>((resolve) => setTimeout(resolve, 500));
-      connection.controller.signal.throwIfAborted();
-      receipt = await api.gitActions.receipt({
-        ...request(),
-        requestId: receipt.requestId,
-      });
-      await accept(receipt);
-    }
-    return receipt;
-  }
+      return operations.wait(key, connection.controller.signal);
+    },
+  });
+  const terminal = operation?.receipt && isTerminal(operation.receipt);
   return {
-    run,
-    cancelPreparation: () => preparation.reset(),
-    prepare: asMutation(preparation),
-    preparation: preparation.data,
+    run: (input: ActionInput, expected: Expectation) =>
+      execution.mutateAsync({ input, expected }),
     execute: asMutation(execution),
     recover: asMutation(recovery),
     operation,
     startNew: () => {
       if (terminal) {
         operations.set(key, null);
-        preparation.reset();
         execution.reset();
         recovery.reset();
       }
@@ -159,8 +110,49 @@ export function useCommitDraft(scope: ReviewScope) {
   // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation
   return asMutation(
     useMutation({
-      mutationFn: (input: CommitDraftInput) =>
-        api.gitActions.draft({ ...scope, ...connection.request(), input }),
+      mutationFn: ({
+        signal,
+        ...input
+      }: CommitDraftInput & { signal?: AbortSignal }) =>
+        api.gitActions.draft({
+          ...scope,
+          ...connection.request(signal),
+          input,
+        }),
+    }),
+  );
+}
+
+export function useBranches(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  return useQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'branches',
+    ]),
+    queryFn: ({ signal }) =>
+      api.gitActions.branches({ ...scope, ...connection.request(signal) }),
+    staleTime: 0,
+  });
+}
+
+export function useDismissInterrupted(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  const client = useQueryClient();
+  return asMutation(
+    useMutation({
+      mutationFn: (requestId: string) =>
+        api.gitActions.dismissInterrupted({
+          ...scope,
+          ...connection.request(),
+          requestId,
+        }),
+      onSuccess: () =>
+        client.invalidateQueries({
+          queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+            'changes',
+          ]),
+          exact: true,
+        }),
     }),
   );
 }

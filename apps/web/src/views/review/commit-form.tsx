@@ -1,5 +1,5 @@
 import { PlusIcon, SparklesIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
@@ -17,36 +17,58 @@ import {
   useCommitModels,
   useGitAction,
 } from '../../query/git-actions';
-import { reviewErrorMessage } from '../../query/review';
 import { usePreferences } from '../workspace/preferences';
+import {
+  changedSinceLooked,
+  expectationFor,
+  gitErrorMessage,
+  receiptFailed,
+  receiptWords,
+} from './git-action-feedback';
 import type { GitActionStatus } from './git-action-options';
 
 type Group = CommitDraft['groups'][number] & { id: string };
+const isAbort = (error: unknown) =>
+  error instanceof DOMException && error.name === 'AbortError';
 export function CommitForm({
   scope,
   status,
+  action = 'commit',
   onBusy,
+  onLookAgain,
+  initialMessage = '',
+  replacedSubject,
 }: {
   scope: ReviewScope;
   status: GitActionStatus;
+  action?: 'commit' | 'amend';
+  initialMessage?: string;
+  replacedSubject?: string;
   onBusy: (busy: boolean) => void;
+  onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const git = useGitAction(scope, 'commit');
+  const git = useGitAction(scope, action);
   const generator = useCommitDraft(scope);
   const models = useCommitModels();
   const { preferences } = usePreferences();
   const model = resolveCommitModel(models.data, preferences.commitModel);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialMessage);
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
   const [groups, setGroups] = useState<Group[] | null>(null);
-  const [expectedFiles, setExpectedFiles] = useState<
-    CommitDraft['expectedFiles']
-  >([]);
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [ownHead, setOwnHead] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [draftToken, setDraftToken] = useState<string | null>(null);
+  const drafts = useRef(new Set<AbortController>());
+  useEffect(() => {
+    const active = drafts.current;
+    return () => {
+      for (const controller of active) controller.abort();
+      active.clear();
+    };
+  }, []);
   const files = commitFiles(status.changes);
   const paths = [
     ...new Set(
@@ -58,22 +80,26 @@ export function CommitForm({
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const receipt = git.operation?.receipt;
   const working = busy || generator.isPending;
-  function setWorking(value: boolean) {
-    setBusy(value);
-    onBusy(value);
+  async function draft(input: Parameters<typeof generator.submit>[0]) {
+    const controller = new AbortController();
+    drafts.current.add(controller);
+    try {
+      return await generator.submit({ ...input, signal: controller.signal });
+    } finally {
+      drafts.current.delete(controller);
+    }
   }
   async function generate(mode: 'message' | 'groups') {
     if (!model || !paths.length || working) return;
-    setWorking(true);
+    setBusy(true);
     setError(null);
     try {
-      const result = await generator.submit({
+      const result = await draft({
         mode,
         model,
         paths,
         expectedStatusToken: status.statusToken,
       });
-      setExpectedFiles(result.expectedFiles);
       setDraftToken(status.statusToken);
       setDone(new Set());
       setActiveGroup(null);
@@ -83,21 +109,22 @@ export function CommitForm({
       } else
         setGroups(result.groups.map((group) => ({ ...group, id: createId() })));
     } catch (error) {
-      setError(error);
+      if (!isAbort(error)) setError(error);
     } finally {
-      setWorking(false);
+      setBusy(false);
     }
   }
   async function commit() {
     if (working || uncertain) return;
-    setWorking(true);
+    setBusy(true);
     setError(null);
+    let writing = false;
     try {
       let text = message;
       if (groups === null && !text.trim()) {
         if (!model || !paths.length)
           throw new Error('Give every commit a message and at least one file.');
-        const result = await generator.submit({
+        const result = await draft({
           mode: 'message',
           model,
           paths,
@@ -105,34 +132,54 @@ export function CommitForm({
         });
         text = result.groups[0]?.message ?? '';
         setMessage(text);
-        setExpectedFiles(result.expectedFiles);
         setDraftToken(status.statusToken);
       }
-      const pending = groups
-        ? groups.filter((group) => !done.has(group.id))
-        : [{ id: 'single', message: text, paths }];
+      const pending =
+        action === 'amend'
+          ? [{ id: 'single', message: text, paths }]
+          : groups
+            ? groups.filter((group) => !done.has(group.id))
+            : [{ id: 'single', message: text, paths }];
+      let expectedHead = ownHead ?? status.headOid ?? null;
+      writing = true;
+      onBusy(true);
       for (const group of pending) {
-        if (!group.message.trim() || !group.paths.length)
+        if (
+          !group.message.trim() ||
+          (action !== 'amend' &&
+            status.inProgress !== 'merge' &&
+            !group.paths.length)
+        )
           throw new Error('Give every commit a message and at least one file.');
         setActiveGroup(group.id);
-        const result = await git.run({
-          message: group.message,
-          paths: group.paths,
-          expectedFiles: expectedFiles.filter((file) =>
-            group.paths.includes(file.path),
+        const result = await git.run(
+          {
+            action,
+            message: group.message,
+            paths: group.paths,
+          },
+          expectationFor(
+            { ...status, headOid: expectedHead },
+            status.inProgress === 'merge'
+              ? (status.files?.map((file) => file.path) ?? [])
+              : group.paths,
+            undefined,
+            true,
           ),
-        });
-        if (result.state !== 'succeeded' && result.state !== 'no-change')
-          throw new Error(
-            `Commit ${result.state}: ${result.reason?.replaceAll('_', ' ').toLowerCase() ?? 'check the current state'}`,
-          );
+        );
+        if (receiptFailed(result)) throw new Error(receiptWords(result));
+        if (result.result?.headOid) {
+          expectedHead = result.result.headOid;
+          setOwnHead(expectedHead);
+        }
         setDone((current) => new Set([...current, group.id]));
         setActiveGroup(null);
       }
     } catch (error) {
-      setError(error);
+      if (!isAbort(error)) setError(error);
     } finally {
-      setWorking(false);
+      if (writing) onBusy(false);
+      setBusy(false);
     }
   }
   const staleDraft =
@@ -148,7 +195,10 @@ export function CommitForm({
       ? groups
           .filter((group) => !done.has(group.id))
           .some((group) => !group.message.trim() || !group.paths.length)
-      : !paths.length || (!message.trim() && !model);
+      : (action !== 'amend' &&
+          status.inProgress !== 'merge' &&
+          !paths.length) ||
+        (!message.trim() && (!model || !paths.length));
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -164,14 +214,14 @@ export function CommitForm({
       }}
     >
       <p className="text-xs text-muted-foreground">
-        {status.branch?.name ?? 'Current branch'} · {paths.length} selected
-        files
+        {status.branch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}{' '}
+        · {paths.length} selected files
       </p>
       <fieldset
         disabled={working || uncertain}
         className="flex min-w-0 flex-col gap-3"
       >
-        {groups === null ? (
+        {groups === null || action === 'amend' ? (
           <>
             <div className="max-h-40 overflow-auto rounded-lg border p-2">
               {files.map(({ path }) => (
@@ -207,25 +257,29 @@ export function CommitForm({
               />
             </Field>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!model || !paths.length}
-                onClick={() => void generate('message')}
-              >
-                <SparklesIcon />
-                Generate with AI
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={!model || !paths.length}
-                onClick={() => void generate('groups')}
-              >
-                Use groups
-              </Button>
+              {action === 'commit' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!model || !paths.length}
+                  onClick={() => void generate('message')}
+                >
+                  <SparklesIcon />
+                  Generate with AI
+                </Button>
+              )}
+              {action === 'commit' && status.inProgress !== 'merge' && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!model || !paths.length}
+                  onClick={() => void generate('groups')}
+                >
+                  Use groups
+                </Button>
+              )}
               <span className="min-w-0 truncate text-xs text-muted-foreground">
                 {models.data?.find((entry) => entry.id === model)?.label ??
                   (models.data?.length
@@ -397,7 +451,6 @@ export function CommitForm({
                   size="sm"
                   onClick={() => {
                     setGroups(null);
-                    setExpectedFiles([]);
                     setDraftToken(null);
                   }}
                 >
@@ -415,20 +468,49 @@ export function CommitForm({
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        Selected files use their current contents. Other staged files stay
-        staged. Pause other writers while committing.
+        {action === 'amend'
+          ? `Amending replaces the last commit${replacedSubject ? `: ${replacedSubject}` : ''}. ${status.branch?.upstream && status.branch.ahead === 0 ? 'This commit is already on the known upstream; amending rewrites shared history.' : 'Unselected staged changes stay staged.'}`
+          : status.inProgress === 'merge'
+            ? 'This finishes the merge and commits every staged resolution, including staged files outside your selection.'
+            : 'Selected files use their current contents. Other staged files stay staged.'}
       </p>
       {receipt && (
-        <p role="status" className="text-sm">
-          {receipt.state}
-        </p>
+        <div role="status" className="text-sm">
+          <p>{receipt.state}</p>
+          {receipt.progress.map((line) => (
+            <p key={line} className="text-xs text-muted-foreground">
+              {line}
+            </p>
+          ))}
+        </div>
       )}
       {uncertain && !receipt && <p role="status">Outcome not yet confirmed</p>}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
-          {reviewErrorMessage(error)}
+          {gitErrorMessage(error)}
         </p>
       ) : null}
+      {receipt && changedSinceLooked(receipt) && onLookAgain && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={working}
+          onClick={() => {
+            setBusy(true);
+            setError(null);
+            void onLookAgain()
+              .then(() => {
+                git.startNew();
+                setOwnHead(null);
+                setDraftToken(null);
+              })
+              .catch(setError)
+              .finally(() => setBusy(false));
+          }}
+        >
+          Look again
+        </Button>
+      )}
       {git.operation && !working && (
         <Button
           type="button"
@@ -457,18 +539,24 @@ export function CommitForm({
         disabled={
           working ||
           uncertain ||
+          Boolean(receipt && changedSinceLooked(receipt)) ||
           blocker ||
-          status.changes.some((change) => change.scope === 'unmerged') ||
+          (status.inProgress !== 'merge' &&
+            status.changes.some((change) => change.scope === 'unmerged')) ||
           Boolean(groups?.every((group) => done.has(group.id)))
         }
       >
         {working
           ? generator.isPending
             ? 'Generating…'
-            : 'Committing…'
-          : groups
+            : action === 'amend'
+              ? 'Amending…'
+              : 'Committing…'
+          : groups && action === 'commit'
             ? 'Commit groups in order'
-            : 'Commit selected files'}
+            : action === 'amend'
+              ? 'Amend last commit'
+              : 'Commit selected files'}
       </Button>
     </form>
   );

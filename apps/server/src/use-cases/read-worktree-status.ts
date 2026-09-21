@@ -37,14 +37,30 @@ export class ReadWorktreeStatus {
     const reader = this.git(checkout);
     const status = await reader.readStatus(signal);
     signal?.throwIfAborted();
-    // Detached: there is no upstream to name and no action that wants one.
-    if (!status.branch) return { environmentId, worktreeId, status };
-    const details = await reader.readBranchDetails(status.branch.name, signal);
+    const details = await reader.readBranchDetails(
+      status.branch?.name ?? null,
+      status.headOid,
+      signal,
+    );
     signal?.throwIfAborted();
     return {
       environmentId,
       worktreeId,
-      status: { ...status, branch: { ...status.branch, ...details } },
+      status: {
+        ...status,
+        headCommit: details.headCommit,
+        ...(status.branch
+          ? {
+              branch: {
+                ...status.branch,
+                remoteName: details.remoteName,
+                sourceRef: details.sourceRef,
+                upstreamOid: details.upstreamOid,
+                stashes: details.stashes,
+              },
+            }
+          : {}),
+      },
     };
   }
 }

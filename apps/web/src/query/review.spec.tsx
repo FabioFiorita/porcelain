@@ -291,6 +291,8 @@ describe('review change queries', () => {
       environmentId: '7fe18f78-1477-4c19-a42b-cdd42f862151',
       worktreeId: scope.worktreeId,
       statusToken: 'c'.repeat(64),
+      inProgress: null,
+      mergeHeadOid: null,
       headOid: null,
       branch: null,
       changes: [

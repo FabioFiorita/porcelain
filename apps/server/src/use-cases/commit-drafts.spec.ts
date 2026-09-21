@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -60,19 +61,28 @@ async function draft() {
     expectedStatusToken: status.statusToken,
   });
 }
-it('returns guarded drafts and rejects content changed after generation before preparing a commit', async () => {
+it('returns guarded drafts whose targeted action check rejects later content', async () => {
   const result = await draft();
   expect(result.groups[0]?.message).toBe('Add first file');
   await writeFile(join(checkout, 'a.ts'), 'other\n');
-  await expect(
-    application.prepareCommit(scope, {
-      message: 'Add first file',
-      paths: ['a.ts'],
-      expectedFiles: result.expectedFiles,
-    }),
-  ).rejects.toMatchObject({ reason: 'STALE_PREPARATION' });
+  const { status } = await application.gitStatus(scope.worktreeId);
+  const requestId = randomUUID();
+  application.runGitAction(scope, {
+    requestId,
+    input: { action: 'commit', message: 'Add first file', paths: ['a.ts'] },
+    expected: {
+      headOid: status.headOid,
+      branch: status.branch?.name ?? null,
+      inProgress: status.inProgress ?? null,
+      mergeHeadOid: status.mergeHeadOid ?? null,
+      files: result.expectedFiles,
+    },
+  });
+  await expect
+    .poll(() => application.gitActionReceipt(requestId))
+    .toMatchObject({ state: 'rejected', reason: 'CHANGED_SINCE_LOOKED' });
 });
-it('keeps ordinary reads available while generation waits and rejects changed evidence at completion', async () => {
+it('keeps ordinary reads available and returns the captured fingerprints without re-inspecting after generation', async () => {
   let finish:
     | ((value: { message: string; paths: string[] }[]) => void)
     | undefined;
@@ -82,10 +92,7 @@ it('keeps ordinary reads available while generation waits and rejects changed ev
         finish = resolve;
       }),
   );
-  const pending = draft().then(
-    () => undefined,
-    (error: unknown) => error,
-  );
+  const pending = draft();
   await vi.waitFor(() => expect(generate).toHaveBeenCalled(), {
     timeout: 5_000,
   });
@@ -94,7 +101,10 @@ it('keeps ordinary reads available while generation waits and rejects changed ev
   );
   await writeFile(join(checkout, 'a.ts'), 'other\n');
   finish?.([{ message: 'Old proposal', paths: ['a.ts'] }]);
-  expect(await pending).toMatchObject({ name: 'WorktreeChangedError' });
+  expect(await pending).toMatchObject({
+    groups: [{ message: 'Old proposal', paths: ['a.ts'] }],
+    expectedFiles: [{ path: 'a.ts', fingerprint: expect.any(String) }],
+  });
 }, 15_000);
 it('rejects invented paths and duplicate assignments from a model', async () => {
   generate.mockResolvedValue([{ message: 'Invalid', paths: ['invented.ts'] }]);

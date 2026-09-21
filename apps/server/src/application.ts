@@ -1,4 +1,8 @@
 import type {
+  BranchesResponse,
+  RunGitActionRequest,
+} from '@porcelain/contracts/git-actions';
+import type {
   PublishReview,
   ReviewResponse,
 } from '@porcelain/contracts/review';
@@ -11,7 +15,6 @@ import type {
   CommitPageRequest,
 } from '@porcelain/git/dtos/commit-history';
 import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
-import type { GitActionIntent } from '@porcelain/git/dtos/git-action';
 import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
 import type {
   GitChangeSelection,
@@ -35,11 +38,7 @@ import type {
   FilePreference,
   FilePreferenceChange,
 } from './models/file-preference.ts';
-import type {
-  GitActionPreparation,
-  GitActionReceipt,
-  GitActionScope,
-} from './models/git-action.ts';
+import type { GitActionReceipt, GitActionScope } from './models/git-action.ts';
 import type { Inventory } from './models/inventory.ts';
 import type {
   AccessListing,
@@ -64,6 +63,14 @@ import type {
 import type { PreviewAsset } from './use-cases/read-preview-assets.ts';
 
 export interface Application {
+  runGitAction(
+    scope: GitActionScope,
+    request: RunGitActionRequest,
+  ): GitActionReceipt;
+  gitBranches(
+    scope: GitActionScope,
+    signal?: AbortSignal,
+  ): Promise<BranchesResponse>;
   liveUpdates(
     send: (
       notice: import('@porcelain/contracts/live-updates').LiveNotice,
@@ -85,77 +92,8 @@ export interface Application {
     input: CommitDraftInput,
     signal?: AbortSignal,
   ): Promise<CommitDraft>;
-  prepareFetch(
-    scope: GitActionScope,
-    input: Omit<Extract<GitActionIntent, { action: 'fetch' }>, 'action'>,
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executeFetch(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
-  preparePull(
-    scope: GitActionScope,
-    input: Omit<Extract<GitActionIntent, { action: 'pull' }>, 'action'>,
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executePull(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
-  preparePush(
-    scope: GitActionScope,
-    input: Omit<Extract<GitActionIntent, { action: 'push' }>, 'action'>,
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executePush(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
-  prepareCommit(
-    scope: GitActionScope,
-    input: Omit<Extract<GitActionIntent, { action: 'commit' }>, 'action'>,
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executeCommit(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
-  prepareStashCreate(
-    scope: GitActionScope,
-    input: Omit<Extract<GitActionIntent, { action: 'stash-create' }>, 'action'>,
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executeStashCreate(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
-  prepareStashApply(
-    scope: GitActionScope,
-    input: { stashOid: string; restoreIndex: boolean },
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executeStashApply(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
-  prepareStashPop(
-    scope: GitActionScope,
-    input: { stashOid: string; restoreIndex: boolean },
-    signal?: AbortSignal,
-  ): Promise<GitActionPreparation>;
-  executeStashPop(
-    scope: GitActionScope,
-    input: { requestId: string; preparationId: string },
-    signal?: AbortSignal,
-  ): GitActionReceipt;
   gitActionReceipt(requestId: string): GitActionReceipt;
+  dismissInterrupted(scope: GitActionScope, requestId: string): void;
 
   gitStatus(
     worktreeId: string,

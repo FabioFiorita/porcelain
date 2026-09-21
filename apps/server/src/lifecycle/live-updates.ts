@@ -122,6 +122,16 @@ export class LiveUpdates {
   }
 
   publish(notice: LiveNotice): void {
+    if (notice.type === 'git-action') {
+      const recipients = new Set<ClientState>();
+      const project = this.projectWatches.get(notice.projectId);
+      for (const client of project?.clients ?? []) recipients.add(client);
+      const worktree = this.worktreeWatches.get(notice.worktreeId);
+      if (worktree?.projectId === notice.projectId)
+        for (const client of worktree.clients.keys()) recipients.add(client);
+      for (const client of recipients) client.send(notice);
+      return;
+    }
     if (notice.type === 'worktree') {
       const watched = this.worktreeWatches.get(notice.worktreeId);
       if (!watched || watched.projectId !== notice.projectId) return;

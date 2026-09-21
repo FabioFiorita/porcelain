@@ -1,29 +1,20 @@
+import type {
+  GitActionExpectation,
+  GitActionIntent,
+} from '@porcelain/git/dtos/git-action';
 import { GitActionRejectedError } from '@porcelain/git/errors/git-action-rejected-error';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { gitActionBlocks } from '../db/schema/git-action-blocks.ts';
 import { gitActionPreparations } from '../db/schema/git-action-preparations.ts';
 import { gitActionReceipts } from '../db/schema/git-action-receipts.ts';
-import type {
-  GitActionPreparation,
-  GitActionReceipt,
-} from '../models/git-action.ts';
+import type { GitActionReceipt } from '../models/git-action.ts';
 import type { GitActionStore } from './interfaces/git-action-store.ts';
 
 export class GitActionRepository implements GitActionStore {
   private readonly db: BetterSQLite3Database;
   constructor(db: BetterSQLite3Database) {
     this.db = db;
-  }
-  savePreparation(value: GitActionPreparation): void {
-    this.db.insert(gitActionPreparations).values({ id: value.id, value }).run();
-  }
-  preparation(id: string): GitActionPreparation | undefined {
-    return this.db
-      .select()
-      .from(gitActionPreparations)
-      .where(eq(gitActionPreparations.id, id))
-      .get()?.value;
   }
   receipt(id: string): GitActionReceipt | undefined {
     return this.db
@@ -32,40 +23,43 @@ export class GitActionRepository implements GitActionStore {
       .where(eq(gitActionReceipts.requestId, id))
       .get()?.value;
   }
-  accept(value: GitActionReceipt): {
-    receipt: GitActionReceipt;
-    created: boolean;
-  } {
+  acceptDirect(
+    scope: { projectId: string; worktreeId: string },
+    requestId: string,
+    intent: GitActionIntent,
+    expected: GitActionExpectation,
+    requestFingerprint: string,
+  ): { receipt: GitActionReceipt; created: boolean } {
     return this.db.transaction(
       () => {
-        const previous = this.receipt(value.requestId);
+        this.prune();
+        const previous = this.receipt(requestId);
         if (previous) {
           if (
-            previous.preparationId !== value.preparationId ||
-            previous.projectId !== value.projectId ||
-            previous.worktreeId !== value.worktreeId ||
-            previous.action !== value.action
+            previous.projectId !== scope.projectId ||
+            previous.worktreeId !== scope.worktreeId ||
+            previous.requestFingerprint !== requestFingerprint
           )
             throw new GitActionRejectedError('REQUEST_MISMATCH');
           return { receipt: previous, created: false };
         }
-        const preparation = this.db
-          .select()
-          .from(gitActionPreparations)
-          .where(eq(gitActionPreparations.id, value.preparationId))
-          .get();
-        if (!preparation || preparation.consumed)
-          throw new GitActionRejectedError('STALE_PREPARATION');
-        this.db
-          .update(gitActionPreparations)
-          .set({ consumed: true })
-          .where(eq(gitActionPreparations.id, value.preparationId))
-          .run();
+        const receipt: GitActionReceipt = {
+          ...scope,
+          requestId,
+          action: intent.action,
+          intent,
+          expected,
+          requestFingerprint,
+          state: 'running',
+          progress: [],
+          refreshRequired: false,
+          acceptedAt: Date.now(),
+        };
         this.db
           .insert(gitActionReceipts)
-          .values({ requestId: value.requestId, value })
+          .values({ requestId, value: receipt })
           .run();
-        return { receipt: value, created: true };
+        return { receipt, created: true };
       },
       { behavior: 'immediate' },
     );
@@ -77,31 +71,45 @@ export class GitActionRepository implements GitActionStore {
       .where(eq(gitActionReceipts.requestId, value.requestId))
       .run();
   }
-  blockProject(projectId: string): void {
-    this.db
-      .insert(gitActionBlocks)
-      .values({ projectId })
-      .onConflictDoNothing()
-      .run();
-  }
-  isBlocked(projectId: string): boolean {
-    if (
-      this.db
-        .select()
-        .from(gitActionBlocks)
-        .where(eq(gitActionBlocks.projectId, projectId))
-        .get()
-    )
-      return true;
+  interrupted(worktreeId: string): GitActionReceipt | undefined {
     return this.db
-      .select()
+      .select({ value: gitActionReceipts.value })
       .from(gitActionReceipts)
-      .all()
-      .some(
-        ({ value }) =>
-          value.projectId === projectId &&
-          value.reason === 'PROCESS_GROUP_UNCONFIRMED',
-      );
+      .where(
+        sql`json_extract(${gitActionReceipts.value}, '$.worktreeId') = ${worktreeId}
+          AND json_extract(${gitActionReceipts.value}, '$.state') = 'interrupted'
+          AND json_extract(${gitActionReceipts.value}, '$.dismissedAt') IS NULL`,
+      )
+      .orderBy(
+        sql`CAST(json_extract(${gitActionReceipts.value}, '$.finishedAt') AS INTEGER) DESC`,
+      )
+      .get()?.value;
+  }
+  dismissInterrupted(
+    scope: { projectId: string; worktreeId: string },
+    requestId: string,
+  ): void {
+    const receipt = this.receipt(requestId);
+    if (
+      !receipt ||
+      receipt.projectId !== scope.projectId ||
+      receipt.worktreeId !== scope.worktreeId ||
+      receipt.state !== 'interrupted'
+    )
+      throw new GitActionRejectedError('REQUEST_MISMATCH');
+    this.finish({ ...receipt, dismissedAt: Date.now() });
+  }
+  running(projectId: string): boolean {
+    return (
+      this.db
+        .select({ requestId: gitActionReceipts.requestId })
+        .from(gitActionReceipts)
+        .where(
+          sql`json_extract(${gitActionReceipts.value}, '$.projectId') = ${projectId}
+            AND json_extract(${gitActionReceipts.value}, '$.state') = 'running'`,
+        )
+        .get() !== undefined
+    );
   }
   recover(): void {
     this.db.transaction(() => {
@@ -109,14 +117,29 @@ export class GitActionRepository implements GitActionStore {
         if (value.state === 'running')
           this.finish({
             ...value,
-            state: 'indeterminate',
-            reason: value.refreshRequired
-              ? 'PROCESS_GROUP_UNCONFIRMED'
-              : 'OUTCOME_UNKNOWN',
+            state: 'interrupted',
+            reason: 'OUTCOME_UNKNOWN',
             refreshRequired: true,
             finishedAt: Date.now(),
           });
       }
+      this.prune();
+      this.db.delete(gitActionBlocks).run();
     });
+  }
+  private prune(): void {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    this.db
+      .delete(gitActionReceipts)
+      .where(
+        sql`CAST(json_extract(${gitActionReceipts.value}, '$.finishedAt') AS INTEGER) < ${cutoff}`,
+      )
+      .run();
+    this.db
+      .delete(gitActionPreparations)
+      .where(
+        sql`CAST(json_extract(${gitActionPreparations.value}, '$.expiresAt') AS INTEGER) < ${cutoff}`,
+      )
+      .run();
   }
 }

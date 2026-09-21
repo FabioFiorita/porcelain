@@ -149,6 +149,8 @@ describe('review transport', () => {
           worktreeId: scope.worktreeId,
           statusToken: 'b'.repeat(64),
           headOid: null,
+          inProgress: null,
+          mergeHeadOid: null,
           branch: null,
           changes: [],
         });
@@ -214,33 +216,41 @@ describe('review transport', () => {
   });
   it('preserves a conflict receipt and its request identity instead of treating it as a retryable write failure', async () => {
     const requestId = '801a8628-1cd6-4562-81a2-9c05fba76b4b';
-    const preparationId = '801a8628-1cd6-4562-81a2-9c05fba76b4c';
+    const actionRequest = {
+      requestId,
+      input: {
+        action: 'stash-pop' as const,
+        stashOid: 'a'.repeat(40),
+        restoreIndex: false,
+      },
+      expected: {
+        headOid: 'b'.repeat(40),
+        branch: 'main',
+        inProgress: null,
+        mergeHeadOid: null,
+        files: [],
+      },
+    };
     const transport: typeof fetch = async (input, init) => {
-      expect(String(input)).toContain('/git/stash/pop');
-      expect(JSON.parse(String(init?.body))).toEqual({
-        requestId,
-        preparationId,
-      });
+      expect(String(input)).toContain('/git/actions');
+      expect(JSON.parse(String(init?.body))).toEqual(actionRequest);
       return Response.json(
         {
           requestId,
-          preparationId,
           projectId: scope.projectId,
           worktreeId: scope.worktreeId,
           action: 'stash-pop',
           state: 'conflicted',
-          refreshRequired: true,
+          progress: [],
           acceptedAt: 1,
           reason: 'GIT_REJECTED',
         },
         { status: 409 },
       );
     };
-    const receipt = await createGitActionsClient(transport, '/api').execute({
+    const receipt = await createGitActionsClient(transport, '/api').run({
       ...scope,
-      requestId,
-      preparationId,
-      action: 'stash-pop',
+      input: actionRequest,
     });
     expect(receipt.state).toBe('conflicted');
     expect(receipt.requestId).toBe(requestId);

@@ -171,6 +171,7 @@ beforeAll(async () => {
   }));
 });
 afterEach(async () => {
+  sessionStorage.clear();
   Reflect.deleteProperty(window, 'innerWidth');
   await page.viewport(1280, 800);
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
@@ -804,13 +805,15 @@ describe('worktree review navigation', () => {
         await expect
           .element(screen.getByText('Outcome not yet confirmed'))
           .toBeVisible();
+        await expect
+          .element(screen.getByRole('dialog'))
+          .toHaveAttribute('aria-busy', 'false');
         await clickThrough(screen.getByRole('button', { name: 'Close' }));
         await expect
           .element(
             screen.getByRole('button', { name: 'Prepare another action' }),
           )
           .not.toBeInTheDocument();
-        await screen.getByRole('tab', { name: 'Files' }).click();
         await screen.getByRole('button', { name: 'Git actions' }).click();
         await screen
           .getByRole('menuitem', { name: /Commit selected files/ })
@@ -925,15 +928,15 @@ describe('git actions', () => {
     expect(screen.store.actionCount).toBe(1);
   });
 
-  it('reports a preparation the environment refuses without starting an operation', async () => {
+  it('reports a refused action without executing it', async () => {
     const screen = await renderReview();
     await openAction(screen, /Restore a stash and keep it/);
     await screen.getByRole('textbox', { name: 'Stash' }).fill('a'.repeat(40));
     await clickThrough(screen.getByLabelText('Restore staged changes'));
     await clickThrough(screen.getByRole('button', { name: 'Apply stash' }));
     await expect
-      .element(screen.getByRole('alert'))
-      .toMatchTextContent('not simulated in this mock');
+      .element(screen.getByRole('status').filter({ hasText: 'rejected' }))
+      .toMatchTextContent('not simulated in the mock');
     await expect
       .element(screen.getByRole('button', { name: /^Confirm/ }))
       .not.toBeInTheDocument();
@@ -1052,7 +1055,7 @@ describe('review surfaces', () => {
 });
 
 describe('git action cache consequences', () => {
-  it('invalidates cached review surfaces for the affected project only', async () => {
+  it('invalidates the affected worktree without refreshing sibling worktrees', async () => {
     const screen = await renderWorkspace();
     const [project, otherProject] = screen.store.inventory.projects;
     const worktree = project?.worktrees[1];
@@ -1060,6 +1063,12 @@ describe('git action cache consequences', () => {
     const unrelated = otherProject?.worktrees[0];
     if (!project || !otherProject || !worktree || !sibling || !unrelated)
       throw new Error('Missing fixture review scopes');
+    const affectedKey = queryKeys.reviewSurface(
+      screen.store.inventory.environmentId,
+      { projectId: project.id, worktreeId: worktree.id },
+      ['text', 'cached-file.ts'],
+    );
+    screen.queryClient.setQueryData(affectedKey, {});
     const siblingKey = queryKeys.reviewSurface(
       screen.store.inventory.environmentId,
       { projectId: project.id, worktreeId: sibling.id },
@@ -1097,8 +1106,11 @@ describe('git action cache consequences', () => {
       .toBeVisible();
     expect(screen.store.actionCount).toBe(1);
 
-    expect(screen.queryClient.getQueryState(siblingKey)?.isInvalidated).toBe(
+    expect(screen.queryClient.getQueryState(affectedKey)?.isInvalidated).toBe(
       true,
+    );
+    expect(screen.queryClient.getQueryState(siblingKey)?.isInvalidated).toBe(
+      false,
     );
     expect(screen.queryClient.getQueryState(unrelatedKey)?.isInvalidated).toBe(
       false,

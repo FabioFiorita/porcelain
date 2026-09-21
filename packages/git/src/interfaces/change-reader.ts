@@ -18,10 +18,15 @@ export interface ChangeReader {
   ): Promise<Map<string, string>>;
   readBranchDetails(
     branch: string | null,
+    headOid: string | null,
     signal?: AbortSignal,
-  ): Promise<
-    Required<Pick<GitBranchStatus, 'remoteName' | 'sourceRef' | 'stashes'>>
-  >;
+  ): Promise<{
+    remoteName: string | null;
+    sourceRef: string | null;
+    upstreamOid: string | null;
+    stashes: NonNullable<GitBranchStatus['stashes']>;
+    headCommit: { subject: string; body?: string } | null;
+  }>;
   /** The lines of a path at the last commit. The working file is not here. */
   readLines(
     range: Omit<LineRange, 'at'>,
