@@ -1,7 +1,13 @@
 # Porcelain
 
 A review workspace for code produced by agents working in other tools.
+Porcelain helps a developer understand changes, discuss them with the agent, and review code
+without switching into an editor. Agents run in other tools; Porcelain does not run them or
+provide a general-purpose IDE. Each server owns its repositories and private review data.
+
 We are building the server and web experience first; Electron and mobile follow.
+Code, contracts and tests describe what is implemented. Agreed upcoming work is tracked in
+[Notion](https://app.notion.com/p/3db4ccb1d6b8806bb85dcdff97f82df9).
 
 With Node from `.node-version` installed:
 
@@ -13,7 +19,6 @@ pnpm dev
 Open <http://127.0.0.1:5173> to review a disposable sample project through the real server.
 Ctrl+C stops the processes and removes the sample state.
 
-- [Product intent](docs/product.md)
 - [Development](docs/development.md)
 - [Architecture](docs/architecture.md)
 

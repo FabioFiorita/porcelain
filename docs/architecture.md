@@ -20,5 +20,6 @@ state and mutation consequences, domain code owns pure presentation rules, and A
 transport. TanStack Query is authoritative for cached server data. See the
 [web decision](decisions/web-client-layers.md) for the rationale.
 
-The [product scope](product.md) describes intended capabilities, including work still to build.
-[Decisions](decisions) record identity, storage and safety tradeoffs that are not apparent from code.
+The README describes product purpose; active Notion tasks describe agreed changes still to build.
+[Decisions](decisions) preserve reasoning and constraints that are not apparent from code.
+Prefer the owning implementation and executable boundaries when tracing current behavior.

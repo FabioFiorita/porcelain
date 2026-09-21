@@ -1,8 +1,8 @@
 # Checkout-bound Git actions
 
-Status: accepted server boundary. Browser, Electron, mobile controls and remote deployment remain
-separate work. The [architecture](../architecture.md) and [inventory HTTP boundary](0004-inventory-http.md)
-continue to own dependency direction, authentication and environment/worktree identity.
+Status: implemented server and browser boundary. The [architecture](../architecture.md) and
+[inventory HTTP boundary](0004-inventory-http.md) own dependency direction, authentication and
+environment/worktree identity.
 
 ## Scope
 
@@ -47,7 +47,7 @@ cleaned automatically after conflicts or failures.
 ## HTTP contracts
 
 Schemas live in `@porcelain/contracts/git-actions`; internal models and preparation evidence remain
-server-private. Every route is bearer-authenticated before parsing and disables response caching.
+server-private. Every route authenticates the paired device before parsing and disables response caching.
 Unknown fields, arbitrary arguments, raw URLs/checkout paths, short ref names, and NUL messages are
 rejected. IDs use UUIDs; object IDs support SHA-1 and SHA-256. Messages have a 16 KiB UTF-8 limit.
 

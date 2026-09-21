@@ -30,7 +30,7 @@ Node units, Vitest Browser Mode for views, Playwright for the built app.
 pnpm exec vitest run packages/git/src/commit-git.spec.ts
 pnpm exec vitest run apps/web/src/views/workspace/workspace-view.spec.tsx
 pnpm exec biome check path/to/changed-file.ts
-pnpm typecheck
+pnpm --filter @porcelain/server typecheck
 ```
 
 `pnpm test:coverage` runs Vitest with the thresholds in
@@ -38,7 +38,9 @@ pnpm typecheck
 View specs collect coverage in Chromium via istanbul; those percentages are
 lower than jsdom/v8 counts for the same files.
 `pnpm verify` runs the full checks, including browser smoke; CI owns routine full verification.
-React Doctor runs explicitly and in CI, without a blocking commit hook.
+Run focused checks for the changed behavior. Reserve a local full run for integration questions
+that focused checks cannot answer, with one owner for its ports, fixtures and coverage output.
+React Doctor runs when relevant and in CI, without a blocking commit hook.
 
 Install Chromium once, then run focused Browser Mode files or smoke as usual:
 
@@ -87,9 +89,8 @@ fragment, which browsers never send — so the code stays out of request lines, 
 `Referer` headers. The browser then holds an HttpOnly cookie no script can read, renewed on
 every use and good for 90 days of disuse. `porcelain devices` lists pending links and paired
 devices; `porcelain revoke <id>` ends either one at once, including any request that device is
-holding open. Revoking is the only way to end a device's access: the server can expire a browser's
-cookie (`DELETE /api/session`), but no control in the web app calls it today, and expiring a cookie
-would not revoke the device anyway.
+holding open. Disconnect clears the browser session cookie; it does not revoke the device credential.
+Use `porcelain revoke` to revoke the device itself.
 
 `--host <host>` and `--port <port>` are also available. `--lan` is shorthand for `--host
 0.0.0.0`; it cannot be combined with `--host`. Use `--data-directory <absolute-path>` when a
@@ -135,5 +136,6 @@ by directory permissions.
 
 Drizzle owns the schema and migrations. Run `pnpm --filter @porcelain/server db:generate`, review
 and commit the generated migration files. Startup applies migrations; do not use `drizzle-kit push`
-against application state. The rebuild is unreleased, so the baseline can be regenerated and tested
-with fresh disposable data. Add upgrade compatibility only when there is a supported release to upgrade.
+against application state. Preserve existing installation data with forward migrations; do not rewrite
+applied migrations or regenerate the baseline. Test upgrades with isolated copies or generated fixtures, never installed
+state. An unreleased package does not make the owner’s existing comments and marks disposable.

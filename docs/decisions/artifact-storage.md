@@ -11,8 +11,8 @@ service, executable HTML response, rendering endpoint, public URL, sharing, or c
 
 Every operation requires a worktree ID currently present in registered inventory. An unavailable
 registered worktree may still access its stored artifacts: storage does not inspect its checkout.
-An artifact ID is always matched together with its worktree ID. The configured bearer token grants
-access to all registered worktrees; these are context boundaries, not separate user permissions.
+An artifact ID is always matched together with its worktree ID. A paired device can access all
+registered worktrees; these are context boundaries, not separate user permissions.
 
 Inventory refresh deletes and reinserts worktree rows. Artifact rows therefore deliberately do not
 reference those transient rows with a cascading foreign key. Refresh, moves that retain inventory
@@ -45,7 +45,7 @@ upload retries create new IDs and are not deduplicated. Deletion is safe to retr
 
 ## HTTP contract
 
-All routes authenticate before parsing and use the existing bearer-token trust model. All responses
+All routes authenticate the paired device before parsing. All responses
 are non-cacheable. Artifact responses include `X-Content-Type-Options: nosniff`.
 Schemas are exported through `@porcelain/contracts/artifacts`; persistence models remain private.
 

@@ -1,12 +1,6 @@
 ---
 name: vitest
-description: >
-  Write Porcelain specs in three layers: Node units, Vitest Browser Mode for
-  views, Playwright for the built app. Never jsdom, happy-dom, fireEvent, or
-  Testing Library. Use when adding or changing *.spec.ts or *.spec.tsx files,
-  fireEvent, userEvent, waitFor, Promise.resolve, Testing Library, jsdom,
-  happy-dom, browser mode, locators, or component tests. Use when the user
-  runs /vitest.
+description: Write or review Porcelain tests using Node Vitest, Vitest Browser Mode, and Playwright. Use for test changes or test-environment problems.
 ---
 
 # Vitest specs
@@ -49,8 +43,7 @@ assert visibility then `(await locator.element()).click()`.
 1. Role, then label, then placeholder
 2. Visible text when the role is generic
 3. Test id only when the control has no accessible name
-4. Never `querySelector` for assertions unless the node is not in the
-   accessibility tree (SVG sprite ids)
+4. Use DOM queries when the target has no accessibility representation, such as SVG sprite ids.
 
 Locators retry and are strict: `getByText('Item')` does not match `Item 1`.
 Do not wrap them in `waitFor`. Scope with locator chaining
@@ -84,7 +77,6 @@ the only proof. Do not snapshot markup.
 ## Vitest TypeScript
 
 - Import `describe`, `it`, `expect`, `vi` from `vitest`.
-- `it` / `it.each` in application specs. Do not mix `test` and `it` in one file.
 - `vi.hoisted` + `vi.mock`. If a mock hides sibling exports, spread
   `importOriginal`.
 - Workspace shell: `const screen = await renderWorkspace(store)`.

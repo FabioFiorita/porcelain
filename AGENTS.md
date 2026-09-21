@@ -1,29 +1,40 @@
 # Porcelain
 
-Porcelain is a review workspace beside coding agents, not an IDE or agent runner.
-The current priority is a usable server and web app. Electron and mobile come later.
-See [product intent](docs/product.md) and [decisions](docs/decisions) when relevant;
-code and configuration own implementation details.
+Porcelain is a review workspace beside coding agents. Build a usable server and web app;
+Electron and mobile follow. See the README for product purpose and development entry points.
 
-Follow the owning code and use plain TypeScript. Keep server operations separate from
-HTTP and persistence, with explicit dependencies. In the web app, views use query hooks
-and domain types; query code owns API calls, errors and cache updates. Compose the existing
-shadcn components. Avoid speculative packages, frameworks and shared abstractions.
+Use judgment. Treat implementation suggestions as proposals: if a simpler approach better
+serves the outcome, explain the tradeoff and recommend it. Resolve routine choices independently;
+discuss material changes to product behavior or architecture. Do not preserve complexity merely
+because it exists or add layers to demonstrate architectural sophistication.
 
-Use `pnpm dev` for the real server and web with disposable sample repositories.
-Tests and development fixtures must use isolated state, never installed `~/.porcelain`,
-real credentials or work projects. Stop only task-owned processes.
+Follow the owning code and use plain TypeScript. Keep server operations separate from HTTP and
+persistence, with explicit dependencies. Web views use query hooks and domain types; query code
+owns API calls, errors and cache updates. Compose existing components and share abstractions only
+when implemented consumers need them.
 
-Carry authorized work through implementation and focused verification. Use reasonable
-judgment for routine choices; discuss changes to product scope or major architecture.
-Protect changed behavior with meaningful tests. Follow the vitest skill for spec
-APIs and environments. CI owns full verification; run checks proportional to the
-change locally and report what remains unverified.
+Use `pnpm dev` for the real server and web with disposable sample repositories. Tests and fixtures
+must use isolated state, never installed `~/.porcelain`, real credentials or work projects.
+Stop only task-owned processes. Preserve unrelated work.
 
-For a nontrivial change, use one fresh read-only reviewer after focused checks pass.
-Bound review to correctness, regressions and architecture, including whether tests protect
-plausible failures. No sub-delegation or routine rerunning of successful checks.
+Own the requested outcome through implementation and focused verification. Test observable behavior
+and plausible failures through the real entry point. For a bug fix, demonstrate that its regression
+test detects the original failure. Use the vitest skill when writing or reviewing specs. Measure
+performance claims with the relevant budgets or benchmark; report remaining limitations honestly.
+CI owns full verification. Run affected checks locally, and repeat or broaden them only for changes,
+failures or unresolved concerns. One agent owns any shared full-suite run; avoid concurrent runs
+against the same ports, fixtures or coverage directory.
 
-Preserve unrelated work and commit completed changes. Do not push, publish or open a PR
-without explicit authorization. Keep documentation short: intent, meaningful tradeoffs,
-and contributor workflows, rather than descriptions of what the code already says.
+Use one fresh read-only reviewer when a change risks data loss, unauthorized access or subtle
+consistency failures, including paths, identity, concurrency, credentials and migrations. Scope it
+to concrete failures and their tests. Recheck findings after fixes; do not restart the whole review.
+Routine documentation, copy and mechanical changes need no separate review. No review sub-delegation.
+
+Code, contracts, tests and configuration describe implementation. The active Notion task records
+agreed upcoming work; it is not a second implementation manual. Keep local reasoning beside the
+code. Retain decision documents only for durable tradeoffs and constraints that a maintainer could
+otherwise misunderstand. Rewrite or remove superseded guidance instead of appending another account.
+Do not maintain field catalogs, control-flow descriptions or completed task checklists in docs.
+Keep temporary plans and research outside the repository.
+
+Commit completed scoped changes. Do not push, publish or open a PR without explicit authorization.

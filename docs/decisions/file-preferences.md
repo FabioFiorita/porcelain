@@ -5,7 +5,7 @@ Status: accepted first slice.
 Pin and hide intent belongs to a project ID within its environment. Flags are independent;
 paths need not exist and unavailable registered projects remain editable. Preferences do not
 edit the filesystem, filter Git Changes, imply recursive flag inheritance, or grant agents a
-preference-mutation operation. There is no UI, sharing, or custom ordering in this slice.
+preference-mutation operation. There is no sharing or custom ordering.
 
 `GET /projects/:projectId/file-preferences` lists saved flags in binary path order.
 `PUT` at the same route accepts exactly `{ path, flag, value }`, where `flag` is `pinned`
@@ -15,7 +15,7 @@ Each project can add paths until it has 2000 saved paths. Adding another path at
 409 FILE_PREFERENCE_LIMIT_REACHED; updating or clearing existing flags remains available.
 Clearing the last flag frees a slot. The repository checks capacity and writes in one immediate
 SQLite transaction, so separate writers cannot both claim the final slot.
-Both routes require the configured bearer token and a registered project ID, regardless of
+Both routes require an authenticated paired device and a registered project ID, regardless of
 availability. Unknown identity is a safe 404 PROJECT_NOT_FOUND. The existing single trusted
 principal authentication model applies; separate human and agent credential roles are not
 introduced. No MCP operation exposes these preferences.
@@ -34,7 +34,3 @@ application serialization, deadlines, and shutdown behavior.
 
 [Explicit project removal](project-removal.md) defines the user-requested deletion exception to retention,
 including associated review data and operation recovery constraints.
-
-Superseded, 2026-09-20: the shared bearer token is gone. These routes authenticate the
-device that paired, like every other route. See
-[pairing and device credentials](../development.md#persistent-server).

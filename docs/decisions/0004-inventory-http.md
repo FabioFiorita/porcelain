@@ -1,67 +1,7 @@
-# 0004: Inventory HTTP boundary
+# Inventory HTTP boundary
 
-Status: accepted.
+Every inventory operation is authenticated before request parsing or application access. A browser uses the credential of its paired device through an HttpOnly cookie. Agents enter through the local owner socket, whose data-directory permissions are the credential. Health and pairing entry points are the deliberately public exceptions.
 
-The server factory requires a configured bearer token. Inventory routes authenticate before parsing
-request bodies or accessing application operations. Health remains public. Tokens must contain at least
-32 URL-safe characters (letters, digits, dot, underscore, tilde, hyphen); provisioning must generate
-cryptographically random tokens. Length validation alone does not establish entropy. Tokens are supplied
-by the caller, never returned by the API, and remain outside the inventory database.
+Registration accepts a server-side checkout path and is idempotent. Discovery and folder browsing are bounded conveniences rather than a complete machine index; direct path entry remains available. Inventory exposes stable Porcelain identities and last-known unavailable entries, while filesystem identity evidence and Git administrative paths remain server-private.
 
-There is one trusted principal per server in this slice: possession of the token grants access to
-register any checkout the server process can inspect. Tokens do not identify individual users.
-Pairing, token provisioning and rotation UX, TLS, CORS for separately hosted browser clients, and
-remote listener supervision remain separate work. The [local executable](0005-local-server-startup.md)
-defaults to loopback; an explicit validated host can opt into LAN access. Bearer tokens require a
-protected transport outside disposable loopback tests. The factory does not open a listener.
-
-## Operations
-
-| Method and path | Request | Success |
-| --- | --- | --- |
-| GET /inventory | No body | 200 inventory snapshot |
-| GET /projects/discover | No body | 200 nearby repository suggestions |
-| GET /projects/folders | Optional absolute server-side folder `path`; defaults to home | 200 child folders and repository status |
-| POST /projects | JSON object with absolute server-side checkout path in `path` | 200 registered project |
-| PATCH /projects/:projectId | JSON object with `name`, 1-100 characters, no control characters | 200 the project's id and name |
-
-Registration returns 200 for both a new project and an already registered project. Relative paths,
-unknown request fields, empty paths, and NUL-containing paths are rejected. Absolute-path interpretation
-belongs to the server platform, not the client. A successful registration does not inspect unrelated
-projects. GET lists worktrees from Git on the way out, so there is no second, mutating way to ask.
-
-Project discovery and folder browsing use the same authenticated server access as registration.
-They inspect the server filesystem without registering projects. Discovery is bounded around the
-server user's home and known project locations; it is a convenience, not a complete machine index.
-Folder browsing and direct path entry remain available for repositories outside those suggestions.
-
-Inventory includes environment identity and projects with IDs, names, availability, and worktrees.
-Worktrees expose IDs, paths, main-checkout status, branches, availability, and the sidebar's
-status: review layers waiting to be read, a reply the owner has not seen, or nothing. That status
-is read from SQLite with the list, so the sidebar costs no extra request and no Git. Internal filesystem
-identity evidence and Git metadata directory paths are excluded by explicit HTTP mappers and response
-schemas. Unavailable entries retain last-known information. No multi-environment aggregation occurs
-on the server.
-
-The schemas in `packages/contracts` own public request/response data. Server models remain private.
-The shared client transport will consume these contracts when introduced.
-
-## Failures and evidence
-
-Responses use public codes: 401 UNAUTHORIZED, 400 INVALID_REQUEST, 422 REPOSITORY_UNAVAILABLE,
-503 SERVICE_UNAVAILABLE for application shutdown/cancellation/deadline, and 500 INTERNAL_ERROR
-for unexpected failures. Raw exception messages, paths from diagnostics, causes, and stacks are not
-returned. Inventory route responses disable caching. Internal discovery diagnostics remain server-owned.
-
-Operations retain application deadlines. Discovery and folder browsing run independently of writes
-and cancel when their HTTP client disconnects. Disconnecting does not roll back an accepted write;
-a client uncertain about registration can retry and receive the existing project identity. A listing may
-record some projects as reachable before a later one fails, as defined by the inventory decision.
-
-HTTP integration specs cover authentication, invalid input, safe failures, duplicate registration,
-restart persistence, unavailable repositories, and real loopback registration. They do not establish
-production TLS, remote access, or browser/Electron/mobile behavior.
-
-Superseded, 2026-09-20: the shared bearer token is gone. A device redeems a single-use
-pairing link for its own credential, and the browser holds that credential as an HttpOnly
-cookie. See [pairing and device credentials](../development.md#persistent-server).
+Responses use shared contracts and fixed public errors. Errors never expose raw diagnostics, diagnostic paths, causes, or stacks, and authenticated responses are not cached. A disconnected read can be cancelled. Disconnecting cannot roll back a write the application already accepted, so mutating operations define their own retry or receipt semantics.

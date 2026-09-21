@@ -67,7 +67,7 @@ Both layer states end only when a commit archives the layers. `reviewed` means "
 as of when it was marked": it is read from marks alone, so it cannot notice the agent editing a file
 that was already marked. Noticing would cost a status read per worktree, which is the cost this dot
 replaced. The file watcher in step 6 gives that signal for free, and flipping `reviewed` back to
-`pending` belongs there.
+`pending` requires live-update work that has not been implemented yet.
 
 Both states come from one SQLite statement covering every worktree, returned with the worktree list,
 so the sidebar costs no request of its own and no Git. The count it replaced cost a status read per

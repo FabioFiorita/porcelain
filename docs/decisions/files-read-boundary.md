@@ -34,9 +34,8 @@ paths, symlink targets, causes or stacks. Authentication runs before validation 
 The existing application operation queue and deadline apply; startup, locking and HTTP disconnect
 behavior remain governed by their owning decisions.
 
-This slice introduces no preferences, edits, indexing, events or UI. Contracts live at
-`@porcelain/contracts/files`; filesystem operations remain a server adapter with explicit injectable
-interfaces. Disposable integration specs own filesystem and HTTP proof on supported server platforms.
+Contracts live at `@porcelain/contracts/files`; filesystem operations remain a server adapter with
+explicit injectable interfaces. File mutations use the narrower guarantees below.
 
 ## Folders on demand, and what a mutation can promise (2026-09-20)
 
