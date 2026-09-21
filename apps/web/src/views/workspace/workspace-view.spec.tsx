@@ -914,18 +914,11 @@ describe('git actions', () => {
     await menuClosed(screen);
   }
 
-  it('uses the remote destination and executes a push once', async () => {
+  it('pushes without asking for a remote or a ref', async () => {
     const screen = await renderReview();
     await openAction(screen, /Send committed changes/);
-    await expect.element(screen.getByLabelText('Remote')).toHaveValue('origin');
-    await clickThrough(
-      screen.getByLabelText('Create the remote branch if needed'),
-    );
-    await clickThrough(screen.getByRole('button', { name: 'Push' }));
-    await expect
-      .element(screen.getByRole('status').filter({ hasText: 'succeeded' }))
-      .toBeVisible();
-    expect(screen.store.actionCount).toBe(1);
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(screen.store.actionCount).toBe(1));
   });
 
   it('reports a refused action without executing it', async () => {

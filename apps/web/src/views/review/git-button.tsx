@@ -22,10 +22,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { GitAction } from '../../domain/git-action';
+import { toast } from '@/components/ui/toast';
+import type { ActionInput, GitAction } from '../../domain/git-action';
 import { comparisons, type ReviewScope } from '../../domain/review';
+import { useGitAction } from '../../query/git-actions';
 import { useRefreshGitLook, useReviewOverview } from '../../query/review';
+import { usePreferences } from '../workspace/preferences';
 import { BranchDialog } from './branch-dialog';
+import {
+  expectationFor,
+  gitErrorMessage,
+  receiptFailed,
+  receiptWords,
+} from './git-action-feedback';
 import { GitActionInspection } from './git-action-inspection';
 import {
   branchStatus,
@@ -36,6 +45,28 @@ import {
   gitActions,
   primaryGitAction,
 } from './git-action-options';
+
+type NetworkAction = 'fetch' | 'pull' | 'push';
+
+/** Fetch, pull and push use the branch the reviewer is already looking at. */
+function networkInput(
+  action: NetworkAction,
+  status: GitActionStatus,
+  strategy: 'merge' | 'rebase',
+): ActionInput {
+  const name = status.branch?.name?.replace(/^refs\/heads\//, '') ?? 'main';
+  const ref = `refs/heads/${name}`;
+  const remoteName = status.branch?.upstream?.split('/')[0] || 'origin';
+  if (action === 'fetch') return { action, remoteName, sourceRef: ref };
+  if (action === 'pull')
+    return { action, remoteName, sourceRef: ref, strategy };
+  return {
+    action,
+    remoteName,
+    destinationRef: ref,
+    allowCreate: status.branch?.upstream == null,
+  };
+}
 
 const ICONS: Record<GitAction, LucideIcon> = Object.fromEntries(
   gitActions.map((action) => [action.id, action.icon]),
@@ -51,6 +82,10 @@ const plural = (count: number, noun: string) =>
 export function GitButton({ scope }: { scope: ReviewScope }) {
   const overview = useReviewOverview(scope);
   const refreshLook = useRefreshGitLook(scope);
+  const { preferences } = usePreferences();
+  const fetchAction = useGitAction(scope, 'fetch');
+  const pullAction = useGitAction(scope, 'pull');
+  const pushAction = useGitAction(scope, 'push');
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
@@ -77,7 +112,41 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const primaryTip = primaryTooltip(primary, status);
   const branch = branchStatus(status);
 
+  const runNetwork = (next: NetworkAction) => {
+    const runner =
+      next === 'fetch'
+        ? fetchAction
+        : next === 'pull'
+          ? pullAction
+          : pushAction;
+    const label =
+      next === 'fetch' ? 'Fetch' : next === 'pull' ? 'Pull' : 'Push';
+    void runner
+      .run(
+        networkInput(next, status, preferences.pullStrategy),
+        expectationFor(status),
+      )
+      .then((receipt) => {
+        toast.add({
+          title: receiptFailed(receipt) ? `${label} did not run` : label,
+          description: receiptWords(receipt),
+          type: receiptFailed(receipt) ? 'error' : 'success',
+        });
+      })
+      .catch((error: unknown) => {
+        toast.add({
+          title: `${label} did not run`,
+          description: gitErrorMessage(error),
+          type: 'error',
+        });
+      });
+  };
+
   const choose = (next: GitAction) => {
+    if (next === 'fetch' || next === 'pull' || next === 'push') {
+      runNetwork(next);
+      return;
+    }
     setOpenedStatus(status);
     setAction(next);
   };
@@ -98,7 +167,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
           className="rounded-e-none border-e-0 aria-disabled:cursor-default aria-disabled:opacity-60 aria-disabled:hover:bg-background dark:aria-disabled:hover:bg-transparent"
           onClick={() => {
             if (primary.kind === 'commit') choose('commit');
-            else if (primary.kind === 'run') choose(primary.action);
+            else if (primary.kind === 'run') runNetwork(primary.action);
           }}
         >
           <PrimaryIcon className="size-3.5" />
@@ -218,7 +287,9 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
               <DialogDescription>
                 {selected?.id === 'commit' || selected?.id === 'amend'
                   ? 'Committed steps fold away in the review and show up in History.'
-                  : 'Review the options before running this action.'}
+                  : selected?.id === 'stash-pop'
+                    ? 'Its changes come back into the working tree and the stash is dropped.'
+                    : 'Every change, new files included, is set aside until you pop the stash.'}
               </DialogDescription>
             </DialogHeader>
             <GitActionInspection
