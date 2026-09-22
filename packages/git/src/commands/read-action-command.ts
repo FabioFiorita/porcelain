@@ -6,8 +6,9 @@ export async function readActionCommand(
   process: GitProcessRunner,
   args: string[],
   signal: AbortSignal,
+  input?: string,
 ): Promise<string> {
-  const result = await process.execute(args, signal);
+  const result = await process.execute(args, signal, input);
   const failure = processFailure(result);
   if (failure)
     throw new GitActionRejectedError(failure.reason ?? 'GIT_REJECTED');

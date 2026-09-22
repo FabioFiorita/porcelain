@@ -27,6 +27,8 @@ it('isolates runner system filters without changing production configuration rej
   );
   await chmod(externalGit, 0o700);
   await execute(realGit, ['init', root]);
+  // The filter only refuses an action where a file is assigned to it.
+  await writeFile(join(root, '.gitattributes'), '* filter=fixture\n');
   vi.stubEnv('HOME', root);
   vi.stubEnv('XDG_CONFIG_HOME', root);
   vi.stubEnv('PATH', `${externalBin}:${process.env.PATH}`);

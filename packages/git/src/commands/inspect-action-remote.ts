@@ -1,6 +1,5 @@
 import type { GitActionIntent } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import { validateHttpsCredentialHelpers } from '../helpers/validate-https-credential-helpers.ts';
 import { validateRemoteProfile } from '../helpers/validate-remote-profile.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { readActionCommand } from './read-action-command.ts';
@@ -52,22 +51,9 @@ export async function inspectActionRemote(
     ).trimEnd();
     if (lookupUrl !== urls[0]) throw ambiguousRewrite();
   }
-  if (urls[0].startsWith('https:')) await verifyHttpsHelpers(process, signal);
   const trackingRef = `refs/remotes/${intent.remoteName}/${ref.slice('refs/heads/'.length)}`;
   await readActionCommand(process, ['check-ref-format', trackingRef], signal);
   return { name: intent.remoteName, url: urls[0], trackingRef, display };
-}
-
-async function verifyHttpsHelpers(
-  process: GitProcessRunner,
-  signal: AbortSignal,
-): Promise<void> {
-  const config = await readActionCommand(
-    process,
-    ['config', '--null', '--list'],
-    signal,
-  );
-  validateHttpsCredentialHelpers(config);
 }
 
 /** A push URL that another url.<base>.insteadOf rule rewrites again. */

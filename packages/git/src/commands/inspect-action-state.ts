@@ -21,7 +21,7 @@ export async function inspectActionState(
   signal: AbortSignal,
 ): Promise<GitActionSnapshot> {
   await rejectBusyCheckout(process, signal);
-  const config = await inspectActionConfig(process, signal);
+  const config = await inspectActionConfig(process, signal, intent.action);
   const headOid = await readOptionalActionOid(process, 'HEAD', signal);
   const branchResult = await process.execute(
     ['symbolic-ref', '--quiet', 'HEAD'],

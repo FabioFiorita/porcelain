@@ -23,9 +23,13 @@ conflict resolution, automatic retry, terminal, credential provisioning or gener
 
 Push requires attached, born HEAD. Commit supports an unborn branch and returns no-change for an
 empty staged scope. Detached commit, integration operations, unmerged entries and occupied index locks
-are rejected. Configured conversion filters, sparse checkout, partial clones and submodule index entries
-are unsupported in this slice. Unused system/global conversion-filter definitions also reject;
-production does not disable that configuration policy. Fetch/push allow dirty files; they send/read Git commits, not working files.
+are rejected. Sparse checkout, partial clones and submodule index entries are unsupported in this
+slice. A conversion filter rejects an action only when a tracked or new file is assigned to a filter
+with a non-empty command: Git LFS configures its filter for every repository on the machine, and a
+repository that stores no LFS files must keep working. The check guards what Porcelain takes from the
+checkout, so fetch and push skip it. Files that a pull, branch switch or stash brings in go through the
+owner's filter as they would in a terminal, and `git status` may run a clean filter to recheck a file.
+Fetch/push allow dirty files; they send/read Git commits, not working files.
 Local mutations do not associate review layers with commits; that remains the Changes/History contract.
 
 The browser stores an explicit Merge/Rebase preference, defaulting to Merge. Rebase rewrites local
@@ -148,11 +152,11 @@ ambiguous successive push URL rewrites and custom remote upload/receive commands
 rejection names the setting or path that caused it and says what the owner can do, usually removing
 the setting or running the action from a terminal.
 
-HTTPS permits exact `cache` and `store` credential helpers, respecting explicit empty chain resets.
-Unknown helper commands, helper arguments, shell helpers and `osxkeychain` are rejected before transport.
-Keychain access controls can prompt, so it is not classified as noninteractive. Matching is conservative
-across credential contexts; an unsupported unrelated context can also reject preparation. Existing
-Git TLS and proxy policy remains in force. No certificate/host-key acceptance or credential creation occurs.
+HTTPS uses the owner's configured credential helpers, like SSH configuration: `gh auth git-credential`,
+a keychain or Git Credential Manager are trusted local programs. Terminal and askpass prompts are
+disabled and Git Credential Manager runs non-interactively, so a helper without an answer makes the
+action fail instead of waiting. A helper that opens its own window, such as a keychain unlock, is not
+prevented; the action deadline bounds it. Existing Git TLS and proxy policy remains in force. No certificate/host-key acceptance or credential creation occurs.
 
 SSH follows the owner's own setup, as other Git clients do: a repository's `core.sshCommand` when set,
 otherwise system `ssh` with `~/.ssh/config`. A repository's `.git/config` is local configuration that a

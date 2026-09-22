@@ -666,33 +666,13 @@ writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify(await adapter.execut
       },
     );
 
-    it('rejects hidden credential-helper chains, interactive keychain and multiple push targets before transport', async () => {
+    it('rejects multiple push targets before transport', async () => {
       await git(
         'remote',
         'add',
         'fixture',
         'https://fixture.invalid/repository',
       );
-      await git('config', '--add', 'credential.helper', '');
-      await git('config', '--add', 'credential.helper', '!exit 42');
-      await git('config', '--add', 'credential.helper', 'store');
-      await expect(
-        prepare({
-          action: 'fetch',
-          remoteName: 'fixture',
-          sourceRef: 'refs/heads/main',
-        }),
-      ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
-      await git('config', '--unset-all', 'credential.helper');
-      await git('config', '--add', 'credential.helper', '');
-      await git('config', '--add', 'credential.helper', 'osxkeychain');
-      await expect(
-        prepare({
-          action: 'fetch',
-          remoteName: 'fixture',
-          sourceRef: 'refs/heads/main',
-        }),
-      ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
       await git(
         'remote',
         'set-url',
@@ -719,107 +699,129 @@ writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify(await adapter.execut
       ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
     });
 
-    it('fetches over disposable HTTPS with existing stored credentials and configured TLS trust', async () => {
-      const remote = join(root, 'https-remote.git');
-      await git('init', '--bare', remote);
-      await git('push', remote, 'refs/heads/main:refs/heads/main');
-      await execute('git', ['-C', remote, 'update-server-info']);
-      const key = join(root, 'key.pem');
-      const cert = join(root, 'cert.pem');
-      const config = join(root, 'openssl.cnf');
-      await writeFile(
-        config,
-        '[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=v3\n[dn]\nCN=localhost\n[v3]\nsubjectAltName=DNS:localhost\n',
-      );
-      await execute('openssl', [
-        'req',
-        '-x509',
-        '-newkey',
-        'rsa:2048',
-        '-nodes',
-        '-days',
-        '1',
-        '-keyout',
-        key,
-        '-out',
-        cert,
-        '-config',
-        config,
-      ]);
-      const authentication = { challenged: false, accepted: false };
-      const server = createHttpsServer(
-        { key: await readFile(key), cert: await readFile(cert) },
-        (request, response) => {
-          if (
-            request.headers.authorization !==
-            `Basic ${Buffer.from('fixture:disposable').toString('base64')}`
-          ) {
-            authentication.challenged = true;
-            response.writeHead(401, {
-              'www-authenticate': 'Basic realm="fixture"',
-            });
-            response.end();
-            return;
-          }
-          authentication.accepted = true;
-          const pathname = new URL(request.url ?? '/', 'https://localhost')
-            .pathname;
-          const path = join(remote, pathname);
-          if (relative(remote, path).startsWith('..')) {
-            response.writeHead(404);
-            response.end();
-            return;
-          }
-          void readFile(path).then(
-            (body) => {
-              response.writeHead(200, { 'content-type': 'text/plain' });
-              response.end(body);
-            },
-            () => {
+    it.each([
+      { helper: 'store', fetched: true },
+      {
+        helper:
+          '!f() { test "$1" = get && printf "username=fixture\\npassword=disposable\\n"; }; f',
+        fetched: true,
+      },
+      // With no answer from the helper, Git would ask; it must fail instead.
+      { helper: '!true', fetched: false },
+    ])(
+      "fetches over disposable HTTPS through the owner's credential helper $helper, or fails without one",
+      async ({ helper, fetched }) => {
+        const remote = join(root, 'https-remote.git');
+        await git('init', '--bare', remote);
+        await git('push', remote, 'refs/heads/main:refs/heads/main');
+        await execute('git', ['-C', remote, 'update-server-info']);
+        const key = join(root, 'key.pem');
+        const cert = join(root, 'cert.pem');
+        const config = join(root, 'openssl.cnf');
+        await writeFile(
+          config,
+          '[req]\nprompt=no\ndistinguished_name=dn\nx509_extensions=v3\n[dn]\nCN=localhost\n[v3]\nsubjectAltName=DNS:localhost\n',
+        );
+        await execute('openssl', [
+          'req',
+          '-x509',
+          '-newkey',
+          'rsa:2048',
+          '-nodes',
+          '-days',
+          '1',
+          '-keyout',
+          key,
+          '-out',
+          cert,
+          '-config',
+          config,
+        ]);
+        const authentication = { challenged: false, accepted: false };
+        const server = createHttpsServer(
+          { key: await readFile(key), cert: await readFile(cert) },
+          (request, response) => {
+            if (
+              request.headers.authorization !==
+              `Basic ${Buffer.from('fixture:disposable').toString('base64')}`
+            ) {
+              authentication.challenged = true;
+              response.writeHead(401, {
+                'www-authenticate': 'Basic realm="fixture"',
+              });
+              response.end();
+              return;
+            }
+            authentication.accepted = true;
+            const pathname = new URL(request.url ?? '/', 'https://localhost')
+              .pathname;
+            const path = join(remote, pathname);
+            if (relative(remote, path).startsWith('..')) {
               response.writeHead(404);
               response.end();
-            },
+              return;
+            }
+            void readFile(path).then(
+              (body) => {
+                response.writeHead(200, { 'content-type': 'text/plain' });
+                response.end(body);
+              },
+              () => {
+                response.writeHead(404);
+                response.end();
+              },
+            );
+          },
+        );
+        await new Promise<void>((resolve) =>
+          server.listen(0, '127.0.0.1', resolve),
+        );
+        try {
+          const address = server.address();
+          if (!address || typeof address === 'string')
+            throw new Error('Missing address');
+          await writeFile(
+            join(root, '.git-credentials'),
+            `https://fixture:disposable@localhost:${address.port}\n`,
+            { mode: 0o600 },
           );
-        },
-      );
-      await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve),
-      );
-      try {
-        const address = server.address();
-        if (!address || typeof address === 'string')
-          throw new Error('Missing address');
-        await writeFile(
-          join(root, '.git-credentials'),
-          `https://fixture:disposable@localhost:${address.port}\n`,
-          { mode: 0o600 },
-        );
-        await git('config', '--add', 'credential.helper', '');
-        await git('config', '--add', 'credential.helper', 'store');
-        await git('config', 'http.sslCAInfo', cert);
-        await git(
-          'remote',
-          'add',
-          'fixture',
-          `https://localhost:${address.port}`,
-        );
-        expect(
-          await act({
+          await git('config', '--add', 'credential.helper', '');
+          await git('config', '--add', 'credential.helper', helper);
+          await git('config', 'http.sslCAInfo', cert);
+          await git(
+            'remote',
+            'add',
+            'fixture',
+            `https://localhost:${address.port}`,
+          );
+          const outcome = await act({
             action: 'fetch',
             remoteName: 'fixture',
             sourceRef: 'refs/heads/main',
-          }),
-        ).toMatchObject({ state: 'succeeded' });
-        expect(authentication).toEqual({ challenged: true, accepted: true });
-        expect(await git('rev-parse', 'refs/remotes/fixture/main')).toBe(
-          await git('rev-parse', 'HEAD'),
-        );
-      } finally {
-        await new Promise<void>((resolve, reject) =>
-          server.close((error) => (error ? reject(error) : resolve())),
-        );
-      }
-    });
+          });
+          expect(authentication).toEqual({
+            challenged: true,
+            accepted: fetched,
+          });
+          if (fetched) {
+            expect(outcome).toMatchObject({ state: 'succeeded' });
+            expect(await git('rev-parse', 'refs/remotes/fixture/main')).toBe(
+              await git('rev-parse', 'HEAD'),
+            );
+          } else
+            expect(outcome).toMatchObject({
+              reason: 'GIT_REJECTED',
+              message: expect.stringContaining(
+                "could not read Username for 'https://localhost",
+              ),
+            });
+        } finally {
+          await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve())),
+          );
+        }
+      },
+    );
 
     it('rejects fetch rewinds and divergent pushes without replacing their target refs', async () => {
       const remote = join(root, 'remote.git');
@@ -976,19 +978,80 @@ writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify(await adapter.execut
       );
     });
 
-    it('continues to reject configured conversion filters before mutation', async () => {
-      await git(
-        'config',
-        'filter.fixture.clean',
-        'fixture-filter-not-executed',
+    it('refuses a configured conversion filter only where a tracked or new file is assigned to it', async () => {
+      const marker = join(root, 'filter-ran');
+      await git('config', 'filter.fixture.clean', `touch '${marker}'; cat`);
+      await writeFile(join(checkout, 'file'), 'unfiltered\n');
+      expect(
+        await act({
+          action: 'commit',
+          message: 'no assigned files',
+          paths: ['file'],
+        }),
+      ).toMatchObject({ state: 'succeeded' });
+      expect(existsSync(marker)).toBe(false);
+
+      await writeFile(
+        join(checkout, '.gitattributes'),
+        '*.psd filter=fixture\n',
       );
+      await mkdir(join(checkout, 'assets'));
+      await writeFile(join(checkout, 'assets/design.psd'), 'large\n');
+      const refusal = {
+        reason: 'UNSUPPORTED_CONFIGURATION',
+        detail: expect.stringContaining(
+          '`assets/design.psd` goes through the filter that `filter.fixture.clean` runs',
+        ),
+      };
       await expect(
-        prepare({ action: 'commit', message: 'unsupported filter' }),
+        act({
+          action: 'commit',
+          message: 'new assigned file',
+          paths: ['file'],
+        }),
+      ).rejects.toMatchObject(refusal);
+      // New, inside a new folder, and then tracked through a filter-free index, the file is still assigned.
+      await git('-c', 'filter.fixture.clean=', 'add', 'assets/design.psd');
+      await git('-c', 'filter.fixture.clean=', 'commit', '-m', 'tracked');
+      await expect(
+        act({
+          action: 'stash-create',
+          message: 'stash',
+          includeUntracked: true,
+        }),
+      ).rejects.toMatchObject(refusal);
+      expect(existsSync(marker)).toBe(false);
+
+      // Fetch never converts files, and an emptied command switches a filter off.
+      const remote = join(root, 'remote.git');
+      await git('init', '--bare', remote);
+      await git('remote', 'add', 'fixture', remote);
+      await git('push', 'fixture', 'main');
+      expect(
+        await act({
+          action: 'fetch',
+          remoteName: 'fixture',
+          sourceRef: 'refs/heads/main',
+        }),
+      ).toMatchObject({ state: 'no-change' });
+      await git('config', 'filter.fixture.clean', '');
+      await writeFile(join(checkout, 'file'), 'switched off\n');
+      expect(
+        await act({ action: 'commit', message: 'filter off', paths: ['file'] }),
+      ).toMatchObject({ state: 'succeeded' });
+      expect(await git('show', 'HEAD:file')).toBe('switched off');
+    });
+
+    it('refuses a filter whose name an attribute pathspec cannot express', async () => {
+      await git('config', 'filter.lfs.v2.process', 'fixture-filter-not-run');
+      await expect(
+        prepare({ action: 'commit', message: 'dotted filter' }),
       ).rejects.toMatchObject({
         reason: 'UNSUPPORTED_CONFIGURATION',
-        detail: expect.stringContaining('filter.fixture.clean'),
+        detail: expect.stringContaining(
+          '`filter.lfs.v2.process`, a filter Porcelain cannot look up by name',
+        ),
       });
-      expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
     });
   });
 });

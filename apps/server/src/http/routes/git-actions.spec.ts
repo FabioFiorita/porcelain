@@ -205,7 +205,7 @@ describe('direct Git actions HTTP', () => {
   });
 
   it('names the configuration key that refuses an action', async () => {
-    await git('config', 'filter.fixture.process', 'fixture-filter-not-run');
+    await git('config', 'remote.backup.mirror', 'true');
     await writeFile(join(checkout, 'file'), 'selected\n');
     const refused = await run(
       { action: 'commit', message: 'refused', paths: ['file'] },
@@ -215,7 +215,7 @@ describe('direct Git actions HTTP', () => {
       state: 'rejected',
       reason: 'UNSUPPORTED_CONFIGURATION',
       message: expect.stringMatching(
-        /^Git config sets `filter\.fixture\.process`\. .* Run this action from a terminal instead\.$/,
+        /^Git config sets `remote\.backup\.mirror`, .* Run this action from a terminal instead\.$/,
       ),
     });
     expect(await git('rev-list', '--count', 'HEAD')).toBe('1');

@@ -5,8 +5,6 @@ const TERMINAL = 'Run this action from a terminal instead.';
 /** Why each unsupported setting blocks an action, keyed by the lowercased name Git lists. */
 function unsupportedSetting(key: string, value: string): string | undefined {
   const name = key.toLowerCase();
-  if (/^filter\..*\.(clean|smudge|process)$/.test(name))
-    return `Git config sets \`${key}\`. Porcelain does not run conversion filters, so it cannot check the content it would commit or restore. ${TERMINAL}`;
   if (/^remote\..*\.(vcs|uploadpack|receivepack)$/.test(name))
     return `Git config sets \`${key}\`, which replaces the program Git runs for this remote. Remove it with \`git config --unset ${key}\`, or run this action from a terminal.`;
   if (/^remote\..*\.mirror$/.test(name) && value !== 'false')

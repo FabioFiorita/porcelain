@@ -32,7 +32,7 @@ export async function inspectActionTarget(
       : null;
   if (mergeHeadOid !== expected.mergeHeadOid)
     throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-  await inspectActionConfig(process, signal);
+  await inspectActionConfig(process, signal, intent.action);
   const headOid = await readOptionalActionOid(process, 'HEAD', signal);
   const branchResult = await process.execute(
     ['symbolic-ref', '--quiet', 'HEAD'],
