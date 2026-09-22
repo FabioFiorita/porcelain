@@ -146,6 +146,10 @@ it('round-trips publication, reviewer feedback and revision through the real age
     };
     const published = await tool('publish_review', publication);
     expect(published.revision).toBe(1);
+    expect(published.warnings).toEqual([
+      expect.stringContaining('No authored CSS was detected'),
+    ]);
+    expect((await tool('read_review')).warnings).toBeUndefined();
     expect(published.notExplained).toEqual([]);
     const summary = await fetch(`${runtime.address}${published.summary.url}`);
     expect(await summary.text()).toContain('Explain the answer');
@@ -173,9 +177,11 @@ it('round-trips publication, reviewer feedback and revision through the real age
     const revised = await tool('publish_review', {
       ...publication,
       expectedRevision: 1,
-      summaryHtml: '<h1>Two supported inputs</h1>',
+      summaryHtml:
+        '<style>body { color: #222; background: #fff; }</style><h1>Two supported inputs</h1>',
     });
     expect(revised.revision).toBe(2);
+    expect(revised.warnings).toBeUndefined();
     expect(
       (await fetch(`${runtime.address}${published.summary.url}`)).status,
     ).toBe(404);

@@ -19,7 +19,11 @@ const GUIDE = `# Publishing a Porcelain review
 
 Tell the behavior from entry point to outcome. Keep layers short and ordered; use lanes for the parts crossed (for example Web, Route, Use case, Storage). A changed step points at code this change alters. A context step points at unchanged code needed to understand the path. Prefer one or two sentences per step and finish the summary with the verification that actually ran.
 
-The summary is one complete HTML document up to 10 MiB. It runs in an opaque sandbox with scripts, forms, popups and modals. Network resources such as high-quality CDN fonts and libraries are allowed, but the page cannot access Porcelain login state or APIs. Use CSS variables --porcelain-background and --porcelain-foreground. Link to layers with #layer-N, where N is the 1-based published order; Porcelain handles navigation. Do not embed credentials.
+The summary is one complete HTML document up to 10 MiB. It runs in an opaque sandbox with scripts, forms, popups and modals. Network resources such as high-quality CDN fonts and libraries are allowed, but the page cannot access Porcelain login state or APIs. Link to layers with #layer-N, where N is the 1-based published order; Porcelain handles navigation. Do not embed credentials.
+
+You own the summary's design and must include CSS. Inspect the reviewed application's existing styles, theme tokens and components before authoring it. Where possible, match that application's colors, background, typography and visual language, rather than Porcelain's chrome. If the project has no visual style, choose a coherent, readable design. Style the layer navigation as well as the content; use clear headings, spacing and a readable content width that works in narrow panes. Do not rely on browser-default links or merely add a token CSS rule to satisfy the warning.
+
+Porcelain displays your HTML as authored; it does not design the review for you. The optional --porcelain-background and --porcelain-foreground variables and the document's data-theme (light or dark) are available for theme integration, not a required palette. Preview the rendered summary, check contrast, navigation and overflow, and report if you could not visually verify it. Publishing without detectable CSS returns an advisory warning; it does not reject the review or certify visual quality when CSS is present.
 
 Publish replaces the entire latest review under expectedRevision. Read first, preserve anything still intended, then publish. Unresolved pointers are returned as changed. Not explained is computed by Porcelain from changed lines outside changed steps.`;
 
@@ -50,7 +54,7 @@ export function createReviewMcpServer(
     'publish_review',
     {
       description:
-        'Atomically replace the latest summary, diagram and review layers. Read the current revision first.',
+        'Atomically replace the latest summary, diagram and review layers. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning.',
       inputSchema: scopeSchema.extend(publishReviewSchema.shape),
     },
     async ({ cwd, ...input }, { signal }) =>
@@ -60,7 +64,13 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        return application.publishReview(worktreeId, input, signal);
+        const review = await application.publishReview(
+          worktreeId,
+          input,
+          signal,
+        );
+        const warning = summaryStyleWarning(input.summaryHtml);
+        return warning ? { ...review, warnings: [warning] } : review;
       }),
   );
   server.registerTool(
@@ -210,4 +220,22 @@ async function result(operation: () => unknown) {
       ],
     };
   }
+}
+
+/** Advisory presence check only; runtime-generated styles and visual quality need agent inspection. */
+export function summaryStyleWarning(html: string): string | undefined {
+  const markup = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const hasCss =
+    /<style\b[^>]*>\s*[^<\s][\s\S]*?<\/style\s*>/i.test(markup) ||
+    /<[^>]+\sstyle\s*=\s*(?:"[^"\s][^"]*"|'[^'\s][^']*'|[^\s"'=<>`]+)/i.test(
+      markup,
+    ) ||
+    /<link\b(?=[^>]*\brel\s*=\s*(?:"[^"<>]*\bstylesheet\b[^"<>]*"|'[^'<>]*\bstylesheet\b[^'<>]*'|stylesheet(?=\s|\/?>)))[^>]*>/i.test(
+      markup,
+    );
+  if (!hasCss)
+    return 'No authored CSS was detected in the summary HTML. The review was published. Add CSS and republish, matching the reviewed application’s colors, background, typography and components where possible. Style the layer links and content hierarchy, then visually verify the result. If styles are generated at runtime, verify that they load correctly.';
 }
