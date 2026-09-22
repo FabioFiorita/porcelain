@@ -20,6 +20,8 @@ import type { ReviewResponse as PublishedReview } from '@porcelain/contracts/rev
 import type {
   ReviewedMark as ReviewedMarkResponse,
   ReviewedMarksResponse as ReviewedMarksResponseContract,
+  SetReviewedBulkRequest as SetReviewedBulkRequestContract,
+  SetReviewedBulkResponse as SetReviewedBulkResponseContract,
   SetReviewedRequest as SetReviewedRequestContract,
 } from '@porcelain/contracts/reviewed-files';
 
@@ -40,6 +42,8 @@ export type ExpectedFile = ChangeDiffsRequest['expectedFiles'][number];
 export type ReviewedMark = ReviewedMarkResponse;
 export type ReviewedMarksResponse = ReviewedMarksResponseContract;
 export type SetReviewedRequest = SetReviewedRequestContract;
+export type SetReviewedBulkRequest = SetReviewedBulkRequestContract;
+export type SetReviewedBulkResponse = SetReviewedBulkResponseContract;
 export type ReviewStatus = 'unreviewed' | 'reviewed' | 'stale';
 export type ReviewChangeItem = FileChange & {
   environmentId: string;

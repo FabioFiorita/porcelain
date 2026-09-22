@@ -93,6 +93,7 @@ import { resolveActionCheckout } from './use-cases/resolve-action-worktree.ts';
 import { ResolveWorktree } from './use-cases/resolve-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
 import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
+import { SetReviewedFiles } from './use-cases/set-reviewed-files.ts';
 
 const READ_CAPACITY = 4;
 /**
@@ -466,6 +467,12 @@ export async function openApplication(options: {
       changes,
       listReviewedFiles,
     );
+    const setReviewedFiles = new SetReviewedFiles(
+      reviewed,
+      worktrees,
+      changes,
+      listReviewedFiles,
+    );
     const removeReviewedFile = new RemoveReviewedFile(
       reviewed,
       worktrees,
@@ -672,6 +679,28 @@ export async function openApplication(options: {
             'read',
             ({ signal: operationSignal }) =>
               setReviewedFile.execute(
+                worktreeId,
+                submitted,
+                new RequestGitSession(),
+                operationSignal,
+              ),
+            { callerSignal: signal },
+          )
+          .then((answer) => {
+            live.publishWorktree(worktreeId, 'reviewed');
+            return answer;
+          });
+      },
+      setReviewedFiles: (worktreeId, input, signal) => {
+        const submitted = {
+          files: input.files.map((file) => ({ ...file })),
+        };
+        return lanes
+          .run(
+            laneOf(worktreeId),
+            'read',
+            ({ signal: operationSignal }) =>
+              setReviewedFiles.execute(
                 worktreeId,
                 submitted,
                 new RequestGitSession(),

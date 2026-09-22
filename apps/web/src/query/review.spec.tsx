@@ -9,6 +9,7 @@ import type {
   Change,
   ChangeList,
   ReviewedMarksResponse,
+  SetReviewedBulkResponse,
 } from '../domain/review';
 import { createQueryClient } from './client';
 import { queryKeys } from './keys';
@@ -414,23 +415,22 @@ describe('review change queries', () => {
       reviewedAt: '2026-09-12T00:00:00.000Z',
     };
     store.reviewed[scope.worktreeId] = [oldMark];
-    let setCalls = 0;
     const api: Api = {
       ...baseApi,
       review: {
         ...baseApi.review,
         reviewed: {
           ...baseApi.review.reviewed,
-          async set(request) {
-            setCalls += 1;
-            const result = await baseApi.review.reviewed.set(request);
-            if (setCalls === 1) {
-              await baseApi.review.reviewed.remove({
-                ...request,
-                path: oldMark.path,
-              });
-            }
-            return result;
+          async setAll(request) {
+            const result = await baseApi.review.reviewed.setAll(request);
+            await baseApi.review.reviewed.remove({
+              ...request,
+              path: oldMark.path,
+            });
+            return {
+              ...result,
+              marks: result.marks.filter((mark) => mark.path !== oldMark.path),
+            };
           },
         },
       },
@@ -589,7 +589,7 @@ describe('review change queries', () => {
     ).toContainEqual(expect.objectContaining({ path }));
   });
 
-  it('reports a request timeout after earlier successes and keeps their cache snapshot', async () => {
+  it('reports a timed-out mark-all without storing a partial review', async () => {
     const store = createMockStore();
     const baseApi = createMockApi(store);
     const timeout = new AbortController();
@@ -601,18 +601,15 @@ describe('review change queries', () => {
         ...baseApi.review,
         reviewed: {
           ...baseApi.review.reviewed,
-          async set(request) {
+          setAll(request) {
             setCalls += 1;
-            if (setCalls === 2) {
-              await new Promise<never>((_, reject) => {
-                request.signal.addEventListener(
-                  'abort',
-                  () => reject(request.signal.reason),
-                  { once: true },
-                );
-              });
-            }
-            return baseApi.review.reviewed.set(request);
+            return new Promise<SetReviewedBulkResponse>((_, reject) => {
+              request.signal.addEventListener(
+                'abort',
+                () => reject(request.signal.reason),
+                { once: true },
+              );
+            });
           },
         },
       },
@@ -621,18 +618,19 @@ describe('review change queries', () => {
     const { queryClient, screen } = await renderReview(store, api);
     await expect.element(screen.getByLabelText('Change paths')).toBeVisible();
     await screen.getByRole('button', { name: 'Mark all' }).click();
-    await vi.waitFor(() => expect(setCalls).toBe(2));
+    await vi.waitFor(() => expect(setCalls).toBe(1));
     timeout.abort(new DOMException('The request timed out.', 'TimeoutError'));
 
     await expect
       .element(screen.getByLabelText('Bulk result'))
-      .toHaveTextContent('1/0/5');
+      .toMatchTextContent(/^error:/);
     const snapshot = queryClient.getQueryData<ReviewedMarksResponse>(
       queryKeys.reviewSurface(store.inventory.environmentId, scope, [
         'reviewed',
       ]),
     );
-    expect(snapshot?.marks).toHaveLength(1);
+    expect(snapshot?.marks ?? []).toEqual([]);
+    expect(store.reviewed[scope.worktreeId] ?? []).toEqual([]);
   });
 
   it('stops bulk review on connection cancellation instead of reporting success', async () => {
@@ -646,7 +644,7 @@ describe('review change queries', () => {
         ...baseApi.review,
         reviewed: {
           ...baseApi.review.reviewed,
-          async set(request) {
+          async setAll(request) {
             setCalls += 1;
             await new Promise<never>((_, reject) => {
               request.signal.addEventListener(
@@ -655,7 +653,7 @@ describe('review change queries', () => {
                 { once: true },
               );
             });
-            return baseApi.review.reviewed.set(request);
+            return baseApi.review.reviewed.setAll(request);
           },
         },
       },

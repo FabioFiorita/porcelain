@@ -9,3 +9,7 @@ export type SetReviewedFileInput = {
   reviewed: true;
   fingerprint: string;
 };
+
+export type SetReviewedFilesInput = {
+  files: { path: string; fingerprint: string }[];
+};

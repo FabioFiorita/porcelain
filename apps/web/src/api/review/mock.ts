@@ -182,6 +182,7 @@ export function createReviewMock(
                     message: 'On agent/review: fixture stash',
                   },
                 ],
+                discarded: store.discardedBackups,
               },
             }
           : {}),
@@ -354,6 +355,48 @@ export function createReviewMock(
         return {
           worktreeId: request.worktreeId,
           marks: structuredClone(marks),
+        };
+      },
+      async setAll(request) {
+        const data = await context(request);
+        if (store.reviewedSetFailed)
+          throw new ConnectionError(
+            'The file could not be marked as reviewed. Try again.',
+          );
+        const marks = store.reviewed[request.worktreeId] ?? [];
+        store.reviewed[request.worktreeId] = marks;
+        const marked: string[] = [];
+        const conflicts: { path: string; reason: 'stale' | 'missing' }[] = [];
+        const seen = new Set<string>();
+        for (const file of request.input.files) {
+          if (seen.has(file.path)) continue;
+          seen.add(file.path);
+          const current = mockChangeList(request.worktreeId, data).changes.find(
+            (entry) => entry.path === file.path,
+          );
+          if (!current) {
+            conflicts.push({ path: file.path, reason: 'missing' });
+            continue;
+          }
+          if (current.fingerprint !== file.fingerprint) {
+            conflicts.push({ path: file.path, reason: 'stale' });
+            continue;
+          }
+          const mark: ReviewedMark = {
+            path: file.path,
+            fingerprint: file.fingerprint,
+            reviewedAt: new Date().toISOString(),
+          };
+          const index = marks.findIndex((item) => item.path === mark.path);
+          if (index === -1) marks.push(mark);
+          else marks[index] = mark;
+          marked.push(file.path);
+        }
+        return {
+          worktreeId: request.worktreeId,
+          marks: structuredClone(marks),
+          marked,
+          conflicts,
         };
       },
       async remove(request) {

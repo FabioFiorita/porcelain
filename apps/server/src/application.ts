@@ -55,6 +55,7 @@ import type {
 import type {
   ReviewedMark,
   SetReviewedFileInput,
+  SetReviewedFilesInput,
 } from './models/reviewed-file.ts';
 import type {
   ChangeDiff,
@@ -145,6 +146,16 @@ export interface Application {
     input: SetReviewedFileInput,
     signal?: AbortSignal,
   ): Promise<{ worktreeId: string; marks: ReviewedMark[] }>;
+  setReviewedFiles(
+    worktreeId: string,
+    input: SetReviewedFilesInput,
+    signal?: AbortSignal,
+  ): Promise<{
+    worktreeId: string;
+    marks: ReviewedMark[];
+    marked: string[];
+    conflicts: { path: string; reason: 'stale' | 'missing' }[];
+  }>;
   removeReviewedFile(
     worktreeId: string,
     path: string,

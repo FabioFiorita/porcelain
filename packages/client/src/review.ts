@@ -29,6 +29,8 @@ import {
   reviewedLayerMarksResponseSchema,
   reviewedMarksResponseSchema,
   type SetReviewedLayerRequest,
+  setReviewedBulkRequestSchema,
+  setReviewedBulkResponseSchema,
   setReviewedLayerRequestSchema,
   setReviewedRequestSchema,
 } from '@porcelain/contracts/reviewed-files';
@@ -200,6 +202,18 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
           'reviewed',
           reviewedMarksResponseSchema,
           setReviewedRequestSchema.parse(request.input),
+          'PUT',
+        ),
+      setAll: (
+        request: Request & {
+          input: Parameters<typeof setReviewedBulkRequestSchema.parse>[0];
+        },
+      ) =>
+        read(
+          request,
+          'reviewed-bulk',
+          setReviewedBulkResponseSchema,
+          setReviewedBulkRequestSchema.parse(request.input),
           'PUT',
         ),
       remove: (request: Request & { path: string }) =>

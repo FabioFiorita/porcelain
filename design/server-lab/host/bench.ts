@@ -280,12 +280,18 @@ export const benchSteps: Step[] = [
       const marked = (await readChanges(api, scope)).changes
         .filter((entry) => entry.fingerprint)
         .slice(0, 10);
-      for (const entry of marked)
-        await api('PUT', `/api/worktrees/${scope.worktreeId}/reviewed`, {
-          path: entry.path,
-          reviewed: true,
-          fingerprint: entry.fingerprint,
-        });
+      const response = await api(
+        'PUT',
+        `/api/worktrees/${scope.worktreeId}/reviewed-bulk`,
+        {
+          files: marked.map((entry) => ({
+            path: entry.path,
+            fingerprint: entry.fingerprint,
+          })),
+        },
+      );
+      if (response.status !== 200)
+        throw new Error(`Marking the files failed (${response.status}).`);
     },
   },
   {

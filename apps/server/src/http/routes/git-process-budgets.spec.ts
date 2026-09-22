@@ -420,6 +420,42 @@ describe('Git process budgets', () => {
     );
   });
 
+  it('marks every changed file in one request, at the cost of one change read', async () => {
+    await fixture(2, async (server, worktreeId, measure, headers) => {
+      const changes = changesResponseSchema.parse(
+        (
+          await server.inject({
+            method: 'GET',
+            url: `/api/worktrees/${worktreeId}/changes`,
+            headers,
+          })
+        ).json(),
+      ).changes;
+      const files = changes.flatMap((entry) =>
+        entry.fingerprint
+          ? [{ path: entry.path, fingerprint: entry.fingerprint }]
+          : [],
+      );
+      expect(files).toHaveLength(2);
+      const spawned = await measure(async () => {
+        const response = await server.inject({
+          method: 'PUT',
+          url: `/api/worktrees/${worktreeId}/reviewed-bulk`,
+          headers,
+          payload: { files },
+        });
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.json()).toMatchObject({
+          marked: expect.arrayContaining(files.map((file) => file.path)),
+          conflicts: [],
+        });
+      });
+      // Two separate marks would each read the change list. One bulk mark
+      // reads it once, so the count stays inside a single mark's ceiling.
+      expect(spawned).toBeLessThanOrEqual(9);
+    });
+  });
+
   /**
    * A page used to cost about 62 processes — one `cat-file` for every commit
    * in it — and every later page re-walked from the tip with `--skip`.

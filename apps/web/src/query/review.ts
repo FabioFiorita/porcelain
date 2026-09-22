@@ -27,7 +27,7 @@ import { isFingerprintable, reviewMark, reviewStatus } from '../domain/review';
 import { queryKeys } from './keys';
 import { asMutation } from './mutation';
 import { usePublishedReview } from './published-review';
-import { enqueueReviewed } from './reviewed-queue';
+import { enqueueReviewed, enqueueReviewedMany } from './reviewed-queue';
 import { useConnectedContext } from './workspace-provider';
 
 function useReviewOptions<T>(
@@ -594,6 +594,7 @@ export function useMarkAllReviewed(scope: ReviewScope) {
         const uniqueEntries = [
           ...new Map(entries.map((entry) => [entry.path, entry])).values(),
         ];
+        const files: { path: string; fingerprint: string }[] = [];
         for (const entry of uniqueEntries) {
           if (entry.reviewStatus === 'reviewed') {
             report.skipped.push({
@@ -602,41 +603,40 @@ export function useMarkAllReviewed(scope: ReviewScope) {
             });
             continue;
           }
-          if (!isFingerprintable(entry)) {
+          if (!isFingerprintable(entry) || entry.fingerprint == null) {
             report.skipped.push({
               path: entry.path,
               reason: 'not-fingerprintable',
             });
             continue;
           }
-          try {
-            await enqueueReviewed(
-              context,
-              client,
-              { path: entry.path, fingerprint: entry.fingerprint },
-              async () => {
-                const request = context.request();
-                const result = await context.api.set({
-                  ...request,
-                  input: {
-                    path: entry.path,
-                    reviewed: true,
-                    fingerprint: entry.fingerprint,
-                  },
-                });
-                request.signal.throwIfAborted();
-                return result;
-              },
-            );
-            report.marked.push(entry.path);
-          } catch (error) {
-            // The connection controller represents user cancellation. A
-            // request-local timeout should be reported for this path and let
-            // the remaining paths continue, preserving earlier snapshots.
-            if (context.connection.controller.signal.aborted) throw error;
-            report.failed.push({ path: entry.path, error });
-          }
+          files.push({ path: entry.path, fingerprint: entry.fingerprint });
         }
+        if (files.length === 0) return report;
+        const response = await enqueueReviewedMany(
+          context,
+          client,
+          files,
+          async () => {
+            const request = context.request();
+            const result = await context.api.setAll({
+              ...request,
+              input: { files },
+            });
+            request.signal.throwIfAborted();
+            return result;
+          },
+        );
+        report.marked.push(...response.marked);
+        for (const conflict of response.conflicts)
+          report.failed.push({
+            path: conflict.path,
+            error: new Error(
+              conflict.reason === 'missing'
+                ? 'That file is no longer in the change list.'
+                : 'The file changed since it was shown.',
+            ),
+          });
         return report;
       },
     }),

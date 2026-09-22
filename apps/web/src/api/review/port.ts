@@ -12,6 +12,8 @@ import type {
   PreviewAssets,
   ReviewedMarksResponse,
   ReviewScope,
+  SetReviewedBulkRequest,
+  SetReviewedBulkResponse,
   SetReviewedRequest,
   Status,
   TextFile,
@@ -72,6 +74,9 @@ export type ReviewPort = {
     set: (
       request: ReviewRequest & { input: SetReviewedRequest },
     ) => Promise<ReviewedMarksResponse>;
+    setAll: (
+      request: ReviewRequest & { input: SetReviewedBulkRequest },
+    ) => Promise<SetReviewedBulkResponse>;
     remove: (
       request: ReviewRequest & { path: string },
     ) => Promise<ReviewedMarksResponse>;

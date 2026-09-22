@@ -18,6 +18,30 @@ export function enqueueReviewed(
   change: { path: string; fingerprint?: string },
   operation: () => Promise<ReviewedMarksResponse>,
 ) {
+  return enqueueReviewedOperation(context, client, [change], operation);
+}
+
+export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
+  context: {
+    connection: { controller: AbortController };
+    key: readonly unknown[];
+  },
+  client: QueryClient,
+  changes: readonly { path: string; fingerprint?: string }[],
+  operation: () => Promise<T>,
+) {
+  return enqueueReviewedOperation(context, client, changes, operation);
+}
+
+function enqueueReviewedOperation<T extends ReviewedMarksResponse>(
+  context: {
+    connection: { controller: AbortController };
+    key: readonly unknown[];
+  },
+  client: QueryClient,
+  changes: readonly { path: string; fingerprint?: string }[],
+  operation: () => Promise<T>,
+) {
   const signal = context.connection.controller.signal;
   signal.throwIfAborted();
   let entries = queues.get(context.connection);
@@ -36,8 +60,11 @@ export function enqueueReviewed(
     entries.set(hash, queue);
   }
   const current = queue;
-  const intent: Intent = { ...change, reviewedAt: new Date().toISOString() };
-  current.pending.push(intent);
+  const intents: Intent[] = changes.map((change) => ({
+    ...change,
+    reviewedAt: new Date().toISOString(),
+  }));
+  current.pending.push(...intents);
   const publish = () => {
     if (signal.aborted || !current.confirmed) return;
     const marks = new Map(
@@ -65,12 +92,17 @@ export function enqueueReviewed(
     await ready;
     try {
       const response = await operation();
-      current.confirmed = response;
+      current.confirmed = {
+        worktreeId: response.worktreeId,
+        marks: response.marks,
+      };
       return response;
     } finally {
       if (!signal.aborted)
         await client.cancelQueries({ queryKey: context.key, exact: true });
-      current.pending = current.pending.filter((pending) => pending !== intent);
+      current.pending = current.pending.filter(
+        (pending) => !intents.includes(pending),
+      );
       publish();
     }
   });
