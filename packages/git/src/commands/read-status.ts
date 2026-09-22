@@ -1,3 +1,4 @@
+import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import { readInProgress } from '../helpers/read-in-progress.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { parseGitStatus } from '../mappers/parse-git-status.ts';
@@ -48,6 +49,7 @@ export async function readBranchDetails(
   sourceRef: string | null;
   upstreamOid: string | null;
   stashes: { oid: string; message: string }[];
+  discarded: { oid: string; path: string; kind: 'hunk' | 'rename' }[];
   headCommit: { subject: string; body?: string } | null;
 }> {
   const checkout = session.path;
@@ -112,8 +114,132 @@ export async function readBranchDetails(
             .trimEnd() || null
         : null,
     stashes,
+    discarded: await readDiscarded(checkout, signal),
     headCommit,
   };
+}
+
+/**
+ * Hunk and rename discards live under refs/porcelain/discarded, not in the
+ * stash list. Each backup's object id is its own, so restoring one does not
+ * retire another copy of the same patch.
+ */
+async function readDiscarded(
+  checkout: string,
+  signal?: AbortSignal,
+): Promise<{ oid: string; path: string; kind: 'hunk' | 'rename' }[]> {
+  const listed = (
+    await runInspection(
+      checkout,
+      [
+        'for-each-ref',
+        '--sort=-creatordate',
+        '--count=50',
+        '--format=%(objectname)%00%(refname)',
+        'refs/porcelain/discarded/',
+      ],
+      signal,
+      { maxBytes: 64 * 1024 },
+    )
+  )
+    .toString('utf8')
+    .trimEnd()
+    .split('\n')
+    .filter(Boolean)
+    .flatMap((line) => {
+      const [oid = '', ref = ''] = line.split('\0');
+      return /^[0-9a-f]{40}$/.test(oid) &&
+        ref.startsWith('refs/porcelain/discarded/')
+        ? [{ oid }]
+        : [];
+    });
+  if (listed.length === 0) return [];
+  let batch: Buffer;
+  try {
+    batch = await runInspection(checkout, ['cat-file', '--batch'], signal, {
+      maxBytes: 4 * 1024 * 1024,
+      input: Buffer.from(`${listed.map((entry) => entry.oid).join('\n')}\n`),
+    });
+  } catch (cause) {
+    if (!(cause instanceof InspectionLimitError)) throw cause;
+    return listed.map((entry) => ({
+      oid: entry.oid,
+      path: 'discarded change',
+      kind: 'hunk' as const,
+    }));
+  }
+  const bodies = readObjectBatch(
+    batch,
+    listed.map((entry) => entry.oid),
+  );
+  return listed.flatMap((entry) => {
+    const body = bodies.get(entry.oid);
+    if (body == null) return [];
+    const described = describeDiscard(body);
+    return described ? [{ oid: entry.oid, ...described }] : [];
+  });
+}
+
+function readObjectBatch(output: Buffer, oids: readonly string[]) {
+  const bodies = new Map<string, string>();
+  let offset = 0;
+  for (const oid of oids) {
+    const headerEnd = output.indexOf(0x0a, offset);
+    if (headerEnd < 0) break;
+    const header = output.subarray(offset, headerEnd).toString('utf8');
+    offset = headerEnd + 1;
+    const missing = header.endsWith(' missing');
+    if (missing) continue;
+    const match = /^[0-9a-f]+ \w+ (\d+)$/.exec(header);
+    if (!match?.[1]) break;
+    const size = Number(match[1]);
+    bodies.set(oid, output.subarray(offset, offset + size).toString('utf8'));
+    offset += size + 1;
+  }
+  return bodies;
+}
+
+function describeDiscard(
+  content: string,
+): { path: string; kind: 'hunk' | 'rename' } | null {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'porcelainDiscard' in parsed &&
+      parsed.porcelainDiscard === 1
+    ) {
+      const path =
+        'path' in parsed && typeof parsed.path === 'string'
+          ? parsed.path
+          : pathFromDiff(
+              `${'cached' in parsed ? parsed.cached : ''}\n${'unstaged' in parsed ? parsed.unstaged : ''}`,
+            );
+      if (!path) return null;
+      return {
+        path,
+        kind: 'kind' in parsed && parsed.kind === 'rename' ? 'rename' : 'hunk',
+      };
+    }
+  } catch {
+    // Older hunk backups are the patch itself.
+  }
+  const path = pathFromDiff(content);
+  return path ? { path, kind: 'hunk' } : null;
+}
+
+function pathFromDiff(diff: string): string | null {
+  const match = /^diff --git a\/(.+) b\/(.+)$/m.exec(diff);
+  const path = match?.[2];
+  if (
+    !path ||
+    path.includes(' ') ||
+    path.startsWith('/') ||
+    path.includes('..')
+  )
+    return null;
+  return path;
 }
 
 function parseHeadCommit(output: Buffer) {

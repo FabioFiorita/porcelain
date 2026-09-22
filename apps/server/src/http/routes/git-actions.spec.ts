@@ -393,6 +393,69 @@ describe('direct Git actions HTTP', () => {
     );
   });
 
+  it('lists each discarded hunk after a later status read and restores one without retiring the other', async () => {
+    await writeFile(join(checkout, 'file'), 'one\ntwo\nthree\n');
+    await git('add', 'file');
+    await git('commit', '-m', 'three lines');
+    const discardHunk = async () => {
+      await writeFile(join(checkout, 'file'), 'ONE\ntwo\nthree\n');
+      const submitted = await run(
+        {
+          action: 'discard',
+          path: 'file',
+          hunk: { scope: 'unstaged', startLine: 1, endLine: 1 },
+        },
+        await snapshot(['file']),
+      );
+      expect(await outcome(submitted.requestId)).toMatchObject({
+        state: 'succeeded',
+      });
+    };
+    await discardHunk();
+    await discardHunk();
+    const readDiscarded = async () => {
+      const response = await server.inject({
+        url: `/api/worktrees/${worktreeId}/git/status`,
+        headers,
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const discarded = response.json<{
+        branch?: {
+          discarded?: { oid: string; path: string; kind: string }[];
+        };
+      }>().branch?.discarded;
+      if (!discarded) throw new Error('Missing discarded backups');
+      return discarded;
+    };
+    const listed = await readDiscarded();
+    expect(listed).toHaveLength(2);
+    expect(new Set(listed.map((item) => item.oid)).size).toBe(2);
+    expect(listed).toEqual([
+      expect.objectContaining({ path: 'file', kind: 'hunk' }),
+      expect.objectContaining({ path: 'file', kind: 'hunk' }),
+    ]);
+    const [first] = listed;
+    if (!first) throw new Error('Missing first backup');
+    const restored = await run(
+      {
+        action: 'stash-apply',
+        stashOid: first.oid,
+        restoreIndex: false,
+      },
+      await snapshot(['file']),
+    );
+    expect(await outcome(restored.requestId)).toMatchObject({
+      state: 'succeeded',
+    });
+    expect(await readFile(join(checkout, 'file'), 'utf8')).toBe(
+      'ONE\ntwo\nthree\n',
+    );
+    const remaining = await readDiscarded();
+    expect(remaining.map((item) => item.oid)).toEqual(
+      listed.filter((item) => item.oid !== first.oid).map((item) => item.oid),
+    );
+  });
+
   it('refuses partial hunk ranges and discards an exact staged hunk', async () => {
     await writeFile(join(checkout, 'file'), 'one\ntwo\nthree\n');
     await git('add', 'file');

@@ -86,6 +86,16 @@ export const gitStatusResponseSchema = z.object({
           }),
         )
         .optional(),
+      discarded: z
+        .array(
+          z.object({
+            oid: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
+            path: gitPathSchema,
+            kind: z.enum(['hunk', 'rename']),
+          }),
+        )
+        .max(50)
+        .optional(),
     })
     .optional(),
   consistency: z.literal('best-effort'),

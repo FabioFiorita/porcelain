@@ -924,6 +924,26 @@ describe('git actions', () => {
     await menuClosed(screen);
   }
 
+  it('restores a discarded hunk from the Git menu', async () => {
+    const store = createMockStore();
+    store.discardedBackups = [
+      { oid: 'e'.repeat(40), path: 'notes.txt', kind: 'hunk' },
+    ];
+    const screen = await renderReview(store);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen.getByRole('button', { name: 'Git actions' }).click();
+    await screen
+      .getByRole('menuitem', { name: /Restore discarded hunk of notes.txt/ })
+      .click();
+    await vi.waitFor(() =>
+      expect(screen.store.lastAction?.input).toMatchObject({
+        action: 'stash-apply',
+        stashOid: 'e'.repeat(40),
+      }),
+    );
+    expect(screen.store.discardedBackups).toEqual([]);
+  });
+
   it('pushes without asking for a remote or a ref', async () => {
     const screen = await renderReview();
     await openAction(screen, /Send committed changes/);

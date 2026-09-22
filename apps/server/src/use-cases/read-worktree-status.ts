@@ -57,6 +57,7 @@ export class ReadWorktreeStatus {
                 sourceRef: details.sourceRef,
                 upstreamOid: details.upstreamOid,
                 stashes: details.stashes,
+                discarded: details.discarded,
               },
             }
           : {}),

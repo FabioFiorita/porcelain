@@ -40,6 +40,11 @@ export type GitBranchStatus = {
   sourceRef?: string | null;
   upstreamOid?: string | null;
   stashes?: { oid: string; message: string }[];
+  discarded?: {
+    oid: string;
+    path: string;
+    kind: 'hunk' | 'rename';
+  }[];
 };
 
 export interface GitStatusObservation {

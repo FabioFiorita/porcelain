@@ -3,6 +3,7 @@ import {
   GitBranchIcon,
   GitCommitHorizontalIcon,
   type LucideIcon,
+  Undo2Icon,
 } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -129,6 +130,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const fetchAction = useGitAction(scope, 'fetch');
   const pullAction = useGitAction(scope, 'pull');
   const pushAction = useGitAction(scope, 'push');
+  const restoreDiscardedAction = useGitAction(scope, 'stash-apply');
   const [busy, setBusy] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
@@ -229,6 +231,56 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
           type: 'error',
         });
       });
+  };
+
+  const restoreDiscarded = async (item: {
+    oid: string;
+    path: string;
+    kind: 'hunk' | 'rename';
+  }) => {
+    setMenuOpen(false);
+    let looked = details.status;
+    if (!looked) {
+      setDetailsEnabled(true);
+      looked = await details.read();
+    }
+    if (!looked) {
+      toast.add({
+        title: 'Could not restore the discarded change',
+        description: 'The worktree status is still loading. Try again.',
+        type: 'error',
+      });
+      return;
+    }
+    const label =
+      item.kind === 'rename'
+        ? `rename of ${item.path}`
+        : `hunk of ${item.path}`;
+    try {
+      const receipt = await restoreDiscardedAction.run(
+        {
+          action: 'stash-apply',
+          stashOid: item.oid,
+          restoreIndex: item.kind === 'rename',
+        },
+        expectationFor(looked, [item.path], undefined, true),
+      );
+      toast.add({
+        title: receiptFailed(receipt)
+          ? `Could not restore the discarded ${label}`
+          : `Restored the discarded ${label}`,
+        description: receiptFailed(receipt) ? (
+          <GitActionMessage text={receiptWords(receipt)} />
+        ) : undefined,
+        type: receiptFailed(receipt) ? 'error' : 'success',
+      });
+    } catch (error) {
+      toast.add({
+        title: `Could not restore the discarded ${label}`,
+        description: <GitActionMessage text={gitErrorMessage(error)} />,
+        type: 'error',
+      });
+    }
   };
 
   const choose = (next: GitAction) => {
@@ -395,6 +447,34 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
                 )}
               </Fragment>
             ))}
+            {(branch?.discarded?.length ?? 0) > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Discarded</DropdownMenuLabel>
+                  {branch?.discarded?.map((item) => {
+                    const label =
+                      item.kind === 'rename'
+                        ? `Restore discarded rename of ${item.path}`
+                        : `Restore discarded hunk of ${item.path}`;
+                    return (
+                      <DropdownMenuItem
+                        key={item.oid}
+                        onClick={() => void restoreDiscarded(item)}
+                      >
+                        <Undo2Icon />
+                        <span className="flex min-w-0 flex-col">
+                          <span>{label}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Kept until you restore it
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </fieldset>

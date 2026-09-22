@@ -99,6 +99,7 @@ describe('Worktree inspection use cases', () => {
           sourceRef: null,
           upstreamOid: null,
           stashes: [],
+          discarded: [],
           headCommit: null,
         }),
       });
@@ -121,6 +122,7 @@ describe('Worktree inspection use cases', () => {
       sourceRef: 'refs/heads/main',
       upstreamOid: null,
       stashes: [],
+      discarded: [],
       headCommit: { subject: 'Current subject' },
     };
     const git: InspectionFactory = () =>
@@ -380,6 +382,7 @@ describe('Worktree inspection use cases', () => {
           sourceRef: null,
           upstreamOid: null,
           stashes: [],
+          discarded: [],
           headCommit: null,
         }),
         readDiffs: async () => [{ kind: 'binary' }],

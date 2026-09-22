@@ -166,6 +166,11 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     actionGate: null as Promise<void> | null,
     nextActionState: null as 'interrupted' | null,
     statusReadCount: 0,
+    discardedBackups: [] as {
+      oid: string;
+      path: string;
+      kind: 'hunk' | 'rename';
+    }[],
     lastAction: null as {
       input: ActionInput;
       expected: Expectation;

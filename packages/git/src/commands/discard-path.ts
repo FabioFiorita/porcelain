@@ -33,15 +33,15 @@ export async function discardPath(
           'The selected lines cover only part of a change. Select the whole change to discard it.',
       });
     if (!selection) throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-    const recovery =
-      intent.hunk.scope === 'staged'
-        ? JSON.stringify({
-            porcelainDiscard: 1,
-            cached: selection,
-            unstaged: '',
-            zero: true,
-          })
-        : selection;
+    const recovery = JSON.stringify({
+      porcelainDiscard: 1,
+      id: command.id,
+      path: intent.path,
+      kind: 'hunk',
+      cached: intent.hunk.scope === 'staged' ? selection : '',
+      unstaged: intent.hunk.scope === 'staged' ? '' : selection,
+      zero: true,
+    });
     const created = await process.execute(
       ['hash-object', '-w', '--stdin'],
       signal,
@@ -128,6 +128,9 @@ export async function discardPath(
     );
     const recovery = JSON.stringify({
       porcelainDiscard: 1,
+      id: command.id,
+      path: intent.path,
+      kind: 'rename',
       cached,
       unstaged,
     });

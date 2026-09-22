@@ -25,6 +25,7 @@ export interface ChangeReader {
     sourceRef: string | null;
     upstreamOid: string | null;
     stashes: NonNullable<GitBranchStatus['stashes']>;
+    discarded: NonNullable<GitBranchStatus['discarded']>;
     headCommit: { subject: string; body?: string } | null;
   }>;
   /** The lines of a path at the last commit. The working file is not here. */

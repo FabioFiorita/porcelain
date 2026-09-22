@@ -31,6 +31,7 @@ async function fixture(readStatus: (signal?: AbortSignal) => Promise<unknown>) {
           sourceRef: null,
           upstreamOid: null,
           stashes: [],
+          discarded: [],
           headCommit: { subject: 'Fixture commit' },
         }),
         readDiff: async () => ({ kind: 'binary' }),

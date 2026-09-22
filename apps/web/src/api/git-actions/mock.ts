@@ -66,13 +66,18 @@ export function createGitActionsMock(
       if (!data) throw new ConnectionError('Mock worktree unavailable.');
       store.lastAction = structuredClone({ input, expected });
       if (store.actionGate) await store.actionGate;
-      const unsupported = [
-        'stash-apply',
-        'stash-pop',
-        'discard',
-        'switch-branch',
-        'create-branch',
-      ].includes(input.action);
+      const discardedRestore =
+        input.action === 'stash-apply' &&
+        store.discardedBackups.some((item) => item.oid === input.stashOid);
+      const unsupported =
+        !discardedRestore &&
+        [
+          'stash-apply',
+          'stash-pop',
+          'discard',
+          'switch-branch',
+          'create-branch',
+        ].includes(input.action);
       const stale = expected.headOid !== data.git.headOid;
       const noChange =
         input.action === 'commit' &&
@@ -100,6 +105,10 @@ export function createGitActionsMock(
       };
       if (receipt.state === 'succeeded') {
         applyMockAction(data, input, input.action);
+        if (discardedRestore)
+          store.discardedBackups = store.discardedBackups.filter(
+            (item) => item.oid !== input.stashOid,
+          );
         if (data.git.headOid) receipt.result = { headOid: data.git.headOid };
       }
       requests.set(requestId, identity);
