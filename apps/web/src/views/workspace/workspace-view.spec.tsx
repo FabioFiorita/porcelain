@@ -685,6 +685,16 @@ describe('worktree review navigation', () => {
     });
     await expect.element(failedReviewRetries.first()).toBeVisible();
     expect(failedReviewRetries.all().length).toBeGreaterThan(0);
+    const alertBounds = sidebar
+      .getByRole('alert')
+      .element()
+      .getBoundingClientRect();
+    const tabsBounds = sidebar
+      .getByRole('tablist')
+      .element()
+      .getBoundingClientRect();
+    expect(Math.abs(alertBounds.left - tabsBounds.left)).toBeLessThan(1);
+    expect(Math.abs(alertBounds.right - tabsBounds.right)).toBeLessThan(1);
     store.changesFailed = false;
     await failedReviewRetries.first().click();
     const remainingReviewRetries = screen.getByRole('button', {

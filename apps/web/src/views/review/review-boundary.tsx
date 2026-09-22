@@ -15,21 +15,23 @@ class ReviewErrorBoundary extends Component<
   override render() {
     if (this.state.error)
       return (
-        <Alert className="my-3">
-          <AlertDescription>
-            {reviewErrorMessage(this.state.error)}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                this.props.reset();
-                this.setState({ error: null });
-              }}
-            >
-              Try again
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <div className="px-1.5 py-3">
+          <Alert>
+            <AlertDescription>
+              {reviewErrorMessage(this.state.error)}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  this.props.reset();
+                  this.setState({ error: null });
+                }}
+              >
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
       );
     return this.props.children;
   }

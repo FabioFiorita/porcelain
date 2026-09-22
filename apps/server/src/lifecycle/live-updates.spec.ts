@@ -101,6 +101,10 @@ it('shares worktree and project watchers, groups bursts, and releases the last c
     '/fixture/worktree/.git',
     '/fixture/worktree/node_modules',
   ]);
+  if (process.platform === 'linux')
+    expect(roots.every((entry) => entry.options?.backend === 'inotify')).toBe(
+      true,
+    );
   worktree.callback(null, [
     { type: 'update', path: '/fixture/worktree/src/a.ts' },
     { type: 'update', path: '/fixture/worktree/src/b.ts' },
@@ -362,10 +366,7 @@ it('rebuilds the native watch after a directory becomes unignored', async () => 
             nativePaths.push(...events.map((event) => event.path));
             callback(error, events);
           },
-          {
-            ...options,
-            backend: process.platform === 'linux' ? 'inotify' : 'fs-events',
-          },
+          options,
         );
         if (path === root) worktreeSubscriptions += 1;
         return subscription;
@@ -497,6 +498,39 @@ it('releases a restored watch when its last client leaves during replacement fai
   expect(subscribe).toHaveBeenCalledTimes(3);
   client.close();
   restored.resolve({ unsubscribe });
+  await live.close();
+  expect(unsubscribe).toHaveBeenCalledOnce();
+});
+
+it('contains watcher release failures when a browser disconnects', async () => {
+  const unsubscribe = vi.fn(async () => {
+    throw new Error('Watchman is poisoned');
+  });
+  const live = new LiveUpdates({
+    worktrees: {} as ResolveWorktree,
+    reviewed: {
+      list: () => [],
+      set: vi.fn(),
+      remove: vi.fn(),
+      invalidate: vi.fn(),
+      reconcile: vi.fn(),
+    },
+    watcher: { subscribe: async () => ({ unsubscribe }) },
+    projects: () => [
+      {
+        id: projectId,
+        commonDirectory: '/fixture/repository.git',
+        repositoryIdentity: 'repository',
+      },
+    ],
+  });
+  const client = live.connect(() => undefined);
+  await client.subscribe({
+    type: 'subscribe',
+    projects: [projectId],
+    worktrees: [],
+  });
+  client.close();
   await live.close();
   expect(unsubscribe).toHaveBeenCalledOnce();
 });

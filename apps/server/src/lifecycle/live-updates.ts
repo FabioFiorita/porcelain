@@ -302,6 +302,11 @@ export class LiveUpdates {
         );
       },
       {
+        // Watchman filters events after crawling ignored trees. Inotify skips
+        // those trees and keeps this server independent of a shared daemon.
+        ...(process.platform === 'linux'
+          ? { backend: 'inotify' as const }
+          : {}),
         ignore: [
           join(entry.root, '.git'),
           ...ignored.map((path) => join(entry.root, path)),
@@ -327,6 +332,9 @@ export class LiveUpdates {
           if (!error && events.length > 0) this.queueGit(projectId, entry);
         },
         {
+          ...(process.platform === 'linux'
+            ? { backend: 'inotify' as const }
+            : {}),
           ignore: [
             join(entry.commonDirectory, 'objects'),
             join(entry.commonDirectory, 'lfs', 'objects'),
@@ -540,8 +548,11 @@ export class LiveUpdates {
   }
 
   private trackStop(stop: Promise<void>): void {
-    this.pendingStops.add(stop);
-    void stop.finally(() => this.pendingStops.delete(stop));
+    // A failed native release must not become an unhandled rejection when
+    // a browser disconnects. Still wait for the attempt during shutdown.
+    const settled = stop.catch(() => undefined);
+    this.pendingStops.add(settled);
+    void settled.then(() => this.pendingStops.delete(settled));
   }
 
   private updateRegistry(update: () => Promise<void>): Promise<void> {
