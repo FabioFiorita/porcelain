@@ -91,6 +91,11 @@ describe('Git action options', () => {
     expect(gitActionBlocker('push', clean)).toBeNull();
     expect(gitActionReason('commit', clean)).toContain('Nothing to commit');
 
+    const noUpstream = baseStatus();
+    noUpstream.branch = branch({ upstream: null });
+    expect(gitActionBlocker('pull', noUpstream)).toContain('No upstream');
+    expect(gitActionBlocker('fetch', noUpstream)).toContain('No upstream');
+
     const conflicted = baseStatus();
     conflicted.changes = [
       { scope: 'unmerged', path: 'conflicted.ts', conflict: 'UU' },

@@ -1,6 +1,11 @@
 import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
   NativeSelect,
@@ -31,7 +36,7 @@ import {
   receiptFailed,
   receiptWords,
 } from './git-action-feedback';
-import type { GitActionStatus } from './git-action-options';
+import { type GitActionStatus, gitActionBlocker } from './git-action-options';
 
 type Group = CommitDraft['groups'][number] & { id: string };
 const isAbort = (error: unknown) =>
@@ -43,12 +48,14 @@ export function CommitForm({
   onBusy,
   onLookAgain,
   initialMessage = '',
+  lastCommitMessage = '',
   replacedSubject,
 }: {
   scope: ReviewScope;
   status: GitActionStatus;
   action?: 'commit' | 'amend';
   initialMessage?: string;
+  lastCommitMessage?: string;
   replacedSubject?: string;
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
@@ -62,9 +69,15 @@ export function CommitForm({
   const models = useCommitModels();
   const { preferences, setPreference } = usePreferences();
   const model = resolveCommitModel(models.data, preferences.commitModel);
-  const [message, setMessage] = useState(initialMessage);
+  const [message, setMessage] = useState(
+    action === 'commit' ? initialMessage : '',
+  );
+  const [amendMessage, setAmendMessage] = useState(
+    action === 'amend' ? initialMessage : lastCommitMessage,
+  );
   const [editingFiles, setEditingFiles] = useState(false);
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set());
+  const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -81,13 +94,22 @@ export function CommitForm({
     };
   }, []);
   const files = commitFiles(status.changes);
-  const paths = [
+  const commitPaths = [
     ...new Set(
       files
         .filter((file) => !excluded.has(file.path))
         .flatMap((file) => file.paths),
     ),
   ];
+  const amendPaths = [
+    ...new Set(
+      files
+        .filter((file) => added.has(file.path))
+        .flatMap((file) => file.paths),
+    ),
+  ];
+  const paths = commitAction === 'amend' ? amendPaths : commitPaths;
+  const currentMessage = commitAction === 'amend' ? amendMessage : message;
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const receipt = git.operation?.receipt;
   const working = busy || generator.isPending;
@@ -100,15 +122,15 @@ export function CommitForm({
       drafts.current.delete(controller);
     }
   }
-  async function generate(mode: 'message' | 'groups') {
-    if (!model || !paths.length || working) return;
+  async function generate(mode: 'message' | 'groups', selectedPaths = paths) {
+    if (!model || !selectedPaths.length || working) return;
     setBusy(true);
     setError(null);
     try {
       const result = await draft({
         mode,
         model,
-        paths,
+        paths: selectedPaths,
         expectedStatusToken: status.statusToken,
       });
       setDraftToken(status.statusToken);
@@ -131,8 +153,10 @@ export function CommitForm({
     setError(null);
     let writing = false;
     try {
-      let text = message;
-      if (groups === null && !text.trim()) {
+      let text = currentMessage;
+      if (mode !== 'groups' && !text.trim()) {
+        if (commitAction === 'amend')
+          throw new Error('Give the amended commit a message.');
         if (!model || !paths.length)
           throw new Error('Give every commit a message and at least one file.');
         const result = await draft({
@@ -148,7 +172,7 @@ export function CommitForm({
       const pending =
         commitAction === 'amend'
           ? [{ id: 'single', message: text, paths }]
-          : groups
+          : mode === 'groups' && groups
             ? groups.filter((group) => !done.has(group.id))
             : [{ id: 'single', message: text, paths }];
       let expectedHead = ownHead ?? status.headOid ?? null;
@@ -194,7 +218,10 @@ export function CommitForm({
     }
   }
   const staleDraft =
-    draftToken != null && done.size === 0 && draftToken !== status.statusToken;
+    commitAction === 'commit' &&
+    draftToken != null &&
+    done.size === 0 &&
+    draftToken !== status.statusToken;
   const leftUncommitted = groups
     ? files.filter(
         (file) => !groups.some((group) => group.paths.includes(file.path)),
@@ -202,14 +229,16 @@ export function CommitForm({
     : [];
   const blocker = staleDraft
     ? true
-    : groups
+    : mode === 'groups' && groups
       ? groups
           .filter((group) => !done.has(group.id))
           .some((group) => !group.message.trim() || !group.paths.length)
-      : (commitAction !== 'amend' &&
-          status.inProgress !== 'merge' &&
-          !paths.length) ||
-        (!message.trim() && (!model || !paths.length));
+      : commitAction === 'amend'
+        ? !currentMessage.trim()
+        : (status.inProgress !== 'merge' && !paths.length) ||
+          (!currentMessage.trim() && (!model || !paths.length));
+  const commitModeBlocker = gitActionBlocker('commit', status);
+  const amendModeBlocker = gitActionBlocker('amend', status);
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -224,6 +253,16 @@ export function CommitForm({
         }
       }}
     >
+      <DialogHeader>
+        <DialogTitle>
+          {commitAction === 'amend' ? 'Amend last commit' : 'Commit changes'}
+        </DialogTitle>
+        <DialogDescription>
+          {commitAction === 'amend'
+            ? 'The last commit is replaced by one with this message and the files you add.'
+            : 'Committed steps fold away in the review and show up in History.'}
+        </DialogDescription>
+      </DialogHeader>
       <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-[12.5px]">
         <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium">
@@ -247,20 +286,33 @@ export function CommitForm({
               setDraftToken(null);
             }
             if (next === 'groups' && groups === null && !working)
-              void generate('groups');
+              void generate('groups', commitPaths);
           }}
         >
           <TabsList className="w-full">
-            <TabsTrigger value="single" className="flex-1" disabled={working}>
+            <TabsTrigger
+              value="single"
+              className="flex-1"
+              disabled={working || commitModeBlocker != null}
+            >
               Single commit
             </TabsTrigger>
-            <TabsTrigger value="amend" className="flex-1" disabled={working}>
+            <TabsTrigger
+              value="amend"
+              className="flex-1"
+              disabled={working || amendModeBlocker != null}
+            >
               Amend last
             </TabsTrigger>
             <TabsTrigger
               value="groups"
               className="flex-1"
-              disabled={working || !model || !paths.length}
+              disabled={
+                working ||
+                commitModeBlocker != null ||
+                !model ||
+                !commitPaths.length
+              }
             >
               Use groups
             </TabsTrigger>
@@ -295,7 +347,10 @@ export function CommitForm({
             </div>
             <div className="max-h-40 overflow-auto rounded-xl border p-1">
               {files.map((file) => {
-                const included = !excluded.has(file.path);
+                const included =
+                  commitAction === 'amend'
+                    ? added.has(file.path)
+                    : !excluded.has(file.path);
                 const choosing = commitAction === 'amend' || editingFiles;
                 const body = (
                   <>
@@ -305,7 +360,11 @@ export function CommitForm({
                     />
                     <span className="min-w-0 flex-1 truncate">{file.path}</span>
                     <span className="shrink-0 text-muted-foreground">
-                      {included ? file.kind.replaceAll('-', ' ') : 'Excluded'}
+                      {included
+                        ? file.kind.replaceAll('-', ' ')
+                        : commitAction === 'amend'
+                          ? 'Not added'
+                          : 'Excluded'}
                     </span>
                   </>
                 );
@@ -318,14 +377,22 @@ export function CommitForm({
                       type="checkbox"
                       aria-label={file.path}
                       checked={included}
-                      onChange={(event) =>
-                        setExcluded((current) => {
-                          const next = new Set(current);
-                          if (event.target.checked) next.delete(file.path);
-                          else next.add(file.path);
-                          return next;
-                        })
-                      }
+                      onChange={(event) => {
+                        if (commitAction === 'amend')
+                          setAdded((current) => {
+                            const next = new Set(current);
+                            if (event.target.checked) next.add(file.path);
+                            else next.delete(file.path);
+                            return next;
+                          });
+                        else
+                          setExcluded((current) => {
+                            const next = new Set(current);
+                            if (event.target.checked) next.delete(file.path);
+                            else next.add(file.path);
+                            return next;
+                          });
+                      }}
                     />
                     {body}
                   </label>
@@ -343,8 +410,12 @@ export function CommitForm({
               <FieldLabel htmlFor="commit-message">Message</FieldLabel>
               <Textarea
                 id="commit-message"
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
+                value={currentMessage}
+                onChange={(event) => {
+                  if (commitAction === 'amend')
+                    setAmendMessage(event.target.value);
+                  else setMessage(event.target.value);
+                }}
                 rows={4}
                 maxLength={16384}
                 placeholder="Describe what changed and why"
@@ -655,7 +726,9 @@ export function CommitForm({
           blocker ||
           (status.inProgress !== 'merge' &&
             status.changes.some((change) => change.scope === 'unmerged')) ||
-          Boolean(groups?.every((group) => done.has(group.id)))
+          Boolean(
+            mode === 'groups' && groups?.every((group) => done.has(group.id)),
+          )
         }
       >
         {working

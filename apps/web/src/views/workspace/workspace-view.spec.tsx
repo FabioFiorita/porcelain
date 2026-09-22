@@ -919,12 +919,95 @@ describe('git actions', () => {
     await openAction(screen, /Send committed changes/);
     await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
     await vi.waitFor(() => expect(screen.store.actionCount).toBe(1));
+    expect(screen.store.lastAction).toMatchObject({
+      input: {
+        action: 'push',
+        remoteName: 'origin',
+        destinationRef: 'refs/heads/agent/review',
+        allowCreate: true,
+      },
+      expected: {
+        headOid: 'a'.repeat(40),
+        branch: 'agent/review',
+        upstreamOid: null,
+      },
+    });
+  });
+
+  it('blocks fetch and pull until the branch has an upstream', async () => {
+    const screen = await renderReview();
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    expect(screen.store.statusReadCount).toBe(0);
+    await screen.getByRole('button', { name: 'Git actions' }).click();
+    await vi.waitFor(() => expect(screen.store.statusReadCount).toBe(1));
+    await expect
+      .element(screen.getByRole('menuitem', { name: /Bring in upstream/ }))
+      .toBeDisabled();
+    await expect
+      .element(
+        screen.getByRole('menuitem', { name: /Update a remote-tracking/ }),
+      )
+      .toBeDisabled();
+    expect(screen.store.actionCount).toBe(0);
+  });
+
+  it('runs against the upstream that was displayed before the click', async () => {
+    const store = createMockStore();
+    const data = store.review['629a86281cd6456281a29c05fba76b4b'];
+    if (!data?.git.branch) throw new Error('Review fixture branch is missing');
+    data.git.comparisons = [];
+    data.git.branch.upstream = 'origin/main';
+    data.git.branch.behind = 1;
+    const screen = await renderReview(store);
+    await screen.getByRole('button', { name: /agent\/review/ }).click();
+    await screen.getByRole('button', { name: 'Git actions' }).click();
+    const pull = screen.getByRole('menuitem', { name: /Bring in upstream/ });
+    await expect.element(pull).not.toBeDisabled();
+    data.git.branch.upstream = 'backup/main';
+    await pull.click();
+    await vi.waitFor(() => expect(screen.store.actionCount).toBe(1));
+    expect(screen.store.lastAction).toMatchObject({
+      input: {
+        action: 'pull',
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
+      },
+      expected: { upstreamOid: 'a'.repeat(40) },
+    });
+  });
+
+  it('shows progress and blocks another Git action while push is running', async () => {
+    const store = createMockStore();
+    let release = () => {};
+    store.actionGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const screen = await renderReview(store);
+    await openAction(screen, /Send committed changes/);
+    await expect.element(screen.getByText('Pushing…')).toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: 'Git actions' }))
+      .toBeDisabled();
+    release();
+    await vi.waitFor(() => expect(screen.store.actionCount).toBe(1));
+  });
+
+  it('stops showing progress when a network action is interrupted', async () => {
+    const store = createMockStore();
+    store.nextActionState = 'interrupted';
+    const screen = await renderReview(store);
+    await openAction(screen, /Send committed changes/);
+    await vi.waitFor(() => expect(screen.store.lastAction).not.toBeNull());
+    await expect
+      .element(screen.getByRole('button', { name: 'Git actions' }))
+      .not.toBeDisabled();
+    await expect.element(screen.getByText('Pushing…')).not.toBeInTheDocument();
   });
 
   it('reports a refused action without executing it', async () => {
     const screen = await renderReview();
     await openAction(screen, /Restore, then remove a stash/);
-    await screen.getByRole('textbox', { name: 'Stash' }).fill('a'.repeat(40));
+    await expect.element(screen.getByLabelText('Stash')).toBeVisible();
     await clickThrough(screen.getByLabelText('Restore staged changes'));
     await clickThrough(screen.getByRole('button', { name: 'Pop stash' }));
     await expect

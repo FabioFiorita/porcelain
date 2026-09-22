@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { PreferencesProvider } from '../workspace/preferences';
 import { CommitForm } from './commit-form';
 
@@ -46,22 +48,33 @@ const status = {
   files: [{ path: 'src/file.ts', fingerprint: 'b'.repeat(64) }],
 };
 
+function CommitDialogFixture({ children }: { children: ReactNode }) {
+  return (
+    <Dialog open>
+      <DialogContent>{children}</DialogContent>
+    </Dialog>
+  );
+}
+
 afterEach(() => {
   state.draftPending = false;
   vi.clearAllMocks();
 });
 
-it('amends with the displayed HEAD and selected fingerprint', async () => {
+it('starts amend with no working files selected', async () => {
   const screen = await render(
     <PreferencesProvider>
-      <CommitForm
-        action="amend"
-        scope={{ projectId: 'project', worktreeId: 'worktree' }}
-        status={status}
-        onBusy={() => {}}
-      />
+      <CommitDialogFixture>
+        <CommitForm
+          action="amend"
+          scope={{ projectId: 'project', worktreeId: 'worktree' }}
+          status={status}
+          onBusy={() => {}}
+        />
+      </CommitDialogFixture>
     </PreferencesProvider>,
   );
+  await expect.element(screen.getByLabelText('src/file.ts')).not.toBeChecked();
   await screen.getByLabelText('Message').fill('Refine the last commit');
   await screen.getByRole('button', { name: 'Amend last commit' }).click();
   await vi.waitFor(() =>
@@ -69,17 +82,46 @@ it('amends with the displayed HEAD and selected fingerprint', async () => {
       {
         action: 'amend',
         message: 'Refine the last commit',
-        paths: ['src/file.ts'],
+        paths: [],
       },
       {
         inProgress: null,
         mergeHeadOid: null,
         headOid: 'a'.repeat(40),
         branch: 'main',
-        files: [{ path: 'src/file.ts', fingerprint: 'b'.repeat(64) }],
+        files: [],
       },
     ),
   );
+});
+
+it('keeps commit and amend messages and file selections separate', async () => {
+  const screen = await render(
+    <PreferencesProvider>
+      <CommitDialogFixture>
+        <CommitForm
+          scope={{ projectId: 'project', worktreeId: 'worktree' }}
+          status={status}
+          lastCommitMessage={'Previous subject\n\nPrevious body'}
+          replacedSubject="Previous subject"
+          onBusy={() => {}}
+        />
+      </CommitDialogFixture>
+    </PreferencesProvider>,
+  );
+  await screen.getByLabelText('Message').fill('New commit message');
+  await screen.getByRole('tab', { name: 'Amend last' }).click();
+  await expect
+    .element(screen.getByLabelText('Message'))
+    .toHaveValue('Previous subject\n\nPrevious body');
+  await expect.element(screen.getByLabelText('src/file.ts')).not.toBeChecked();
+  await screen.getByLabelText('src/file.ts').click();
+  await screen.getByRole('tab', { name: 'Single commit' }).click();
+  await expect
+    .element(screen.getByLabelText('Message'))
+    .toHaveValue('New commit message');
+  await screen.getByRole('button', { name: 'Edit' }).click();
+  await expect.element(screen.getByLabelText('src/file.ts')).toBeChecked();
 });
 
 it('aborts draft generation on close without marking a Git write busy', async () => {
@@ -96,11 +138,13 @@ it('aborts draft generation on close without marking a Git write busy', async ()
   const onBusy = vi.fn();
   const screen = await render(
     <PreferencesProvider>
-      <CommitForm
-        scope={{ projectId: 'project', worktreeId: 'worktree' }}
-        status={status}
-        onBusy={onBusy}
-      />
+      <CommitDialogFixture>
+        <CommitForm
+          scope={{ projectId: 'project', worktreeId: 'worktree' }}
+          status={status}
+          onBusy={onBusy}
+        />
+      </CommitDialogFixture>
     </PreferencesProvider>,
   );
   await screen.getByRole('button', { name: 'Generate with AI' }).click();
@@ -113,14 +157,16 @@ it('aborts draft generation on close without marking a Git write busy', async ()
 it('amends only the message with an explicit empty file expectation', async () => {
   const screen = await render(
     <PreferencesProvider>
-      <CommitForm
-        action="amend"
-        scope={{ projectId: 'project', worktreeId: 'worktree' }}
-        status={{ ...status, changes: [], files: [] }}
-        initialMessage={'Previous subject\n\nPrevious body'}
-        replacedSubject="Previous subject"
-        onBusy={() => {}}
-      />
+      <CommitDialogFixture>
+        <CommitForm
+          action="amend"
+          scope={{ projectId: 'project', worktreeId: 'worktree' }}
+          status={{ ...status, changes: [], files: [] }}
+          initialMessage={'Previous subject\n\nPrevious body'}
+          replacedSubject="Previous subject"
+          onBusy={() => {}}
+        />
+      </CommitDialogFixture>
     </PreferencesProvider>,
   );
   await expect
@@ -142,22 +188,46 @@ it('amends only the message with an explicit empty file expectation', async () =
   );
 });
 
+it('requires an explicit message when amending', async () => {
+  const screen = await render(
+    <PreferencesProvider>
+      <CommitDialogFixture>
+        <CommitForm
+          action="amend"
+          scope={{ projectId: 'project', worktreeId: 'worktree' }}
+          status={{ ...status, changes: [], files: [] }}
+          initialMessage="Previous subject"
+          replacedSubject="Previous subject"
+          onBusy={() => {}}
+        />
+      </CommitDialogFixture>
+    </PreferencesProvider>,
+  );
+  await screen.getByLabelText('Message').fill('');
+  await expect
+    .element(screen.getByRole('button', { name: 'Amend last commit' }))
+    .toBeDisabled();
+  expect(run).not.toHaveBeenCalled();
+});
+
 it('shows whole-index merge scope and protects all displayed files in its expectation', async () => {
   const screen = await render(
     <PreferencesProvider>
-      <CommitForm
-        scope={{ projectId: 'project', worktreeId: 'worktree' }}
-        status={{
-          ...status,
-          inProgress: 'merge',
-          mergeHeadOid: 'e'.repeat(40),
-          files: [
-            ...status.files,
-            { path: 'other.ts', fingerprint: 'd'.repeat(64) },
-          ],
-        }}
-        onBusy={() => {}}
-      />
+      <CommitDialogFixture>
+        <CommitForm
+          scope={{ projectId: 'project', worktreeId: 'worktree' }}
+          status={{
+            ...status,
+            inProgress: 'merge',
+            mergeHeadOid: 'e'.repeat(40),
+            files: [
+              ...status.files,
+              { path: 'other.ts', fingerprint: 'd'.repeat(64) },
+            ],
+          }}
+          onBusy={() => {}}
+        />
+      </CommitDialogFixture>
     </PreferencesProvider>,
   );
   await expect

@@ -1,4 +1,4 @@
-import { execFile, execFileSync, spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { devNull } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
@@ -9,7 +9,6 @@ import { GitActionRejectedError } from './errors/git-action-rejected-error.ts';
 import { GitCommandError } from './errors/git-command-error.ts';
 import { gitActionEnvironment } from './git-action-environment.ts';
 import { baseGitEnvironment } from './git-environment.ts';
-import { safeSshIdentity } from './helpers/safe-ssh-command.ts';
 
 const execute = promisify(execFile);
 
@@ -161,26 +160,6 @@ export class GitActionRunner {
     this.checkout = checkout;
   }
 
-  /** One allowed identity from the repository, cached for every process in the action. */
-  private sshIdentity(): string | undefined {
-    if (this.identityRead) return this.identity;
-    this.identityRead = true;
-    try {
-      const command = execFileSync(
-        'git',
-        ['-C', this.checkout, 'config', '--get', 'core.sshCommand'],
-        { encoding: 'utf8', env: baseGitEnvironment(), timeout: 5_000 },
-      ).trim();
-      this.identity = safeSshIdentity(command)?.identity;
-    } catch {
-      this.identity = undefined;
-    }
-    return this.identity;
-  }
-
-  private identityRead = false;
-  private identity: string | undefined;
-
   async execute(
     args: string[],
     signal: AbortSignal,
@@ -201,7 +180,7 @@ export class GitActionRunner {
       ],
       {
         env: {
-          ...gitActionEnvironment(this.sshIdentity()),
+          ...gitActionEnvironment(),
           ...(options?.indexFile ? { GIT_INDEX_FILE: options.indexFile } : {}),
         },
         detached: true,

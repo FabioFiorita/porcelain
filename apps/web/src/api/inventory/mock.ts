@@ -2,6 +2,7 @@ import { ConnectionError } from '@porcelain/client/errors/connection-error';
 import { UnauthorizedError } from '@porcelain/client/errors/unauthorized-error';
 import type { CommentThread } from '../../domain/comments';
 import type { FilePreference } from '../../domain/file-preferences';
+import type { ActionInput, Expectation } from '../../domain/git-action';
 import type {
   Inventory,
   ProjectDiscovery,
@@ -162,6 +163,13 @@ export function createMockStore(scenario: MockScenario = 'populated') {
     filePreferencesFailed: false,
     commentsFailed: false,
     actionCount: 0,
+    actionGate: null as Promise<void> | null,
+    nextActionState: null as 'interrupted' | null,
+    statusReadCount: 0,
+    lastAction: null as {
+      input: ActionInput;
+      expected: Expectation;
+    } | null,
     loseActionResponse: false,
     inventory,
     review,

@@ -156,6 +156,7 @@ export function createReviewMock(
       };
     },
     async status(request) {
+      store.statusReadCount += 1;
       const data = await context(request);
       return {
         environmentId: data.git.environmentId,
@@ -170,9 +171,17 @@ export function createReviewMock(
           ? {
               branch: {
                 ...data.git.branch,
-                remoteName: 'origin',
-                sourceRef: `refs/heads/${data.git.branch.name}`,
-                stashes: [],
+                remoteName: data.git.branch.upstream?.split('/')[0] ?? null,
+                sourceRef: data.git.branch.upstream
+                  ? `refs/heads/${data.git.branch.upstream.split('/').slice(1).join('/')}`
+                  : null,
+                upstreamOid: data.git.branch.upstream ? data.git.headOid : null,
+                stashes: [
+                  {
+                    oid: 'd'.repeat(40),
+                    message: 'On agent/review: fixture stash',
+                  },
+                ],
               },
             }
           : {}),

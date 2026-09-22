@@ -180,13 +180,14 @@ export function gitActionBlocker(
         ? null
         : 'No local commits to push.';
     case 'pull':
+      if (branch?.upstream == null) return 'No upstream branch to pull from.';
       if (status.changes.length)
         return 'Commit or stash local changes before pulling.';
       if (branch?.name === null)
         return 'Detached HEAD: check out a branch before pulling.';
       return null;
     case 'fetch':
-      return null;
+      return branch?.upstream == null ? 'No upstream branch to fetch.' : null;
     case 'stash-create':
       return null;
     case 'stash-apply':

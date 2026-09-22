@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,24 +44,17 @@ export function GitActionInspection({
     entry === 'discard'
   )
     return null;
-  if (entry === 'amend')
+  if (entry === 'commit' || entry === 'amend')
     return (
-      <AmendForm
+      <CommitActionForm
         scope={scope}
+        action={entry}
         status={status}
         onBusy={onBusy}
         onLookAgain={onLookAgain}
       />
     );
-  return entry === 'commit' ? (
-    <CommitForm
-      scope={scope}
-      status={status}
-      action={entry}
-      onBusy={onBusy}
-      onLookAgain={onLookAgain}
-    />
-  ) : (
+  return (
     <RemoteActionForm
       key={entry}
       scope={scope}
@@ -68,36 +66,72 @@ export function GitActionInspection({
   );
 }
 
-function AmendForm({
+function CommitActionForm({
   scope,
+  action,
   status,
   onBusy,
   onLookAgain,
 }: {
   scope: ReviewScope;
+  action: 'commit' | 'amend';
   status: GitActionStatus;
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
   const details = useGitStatus(scope);
-  if (details.pending) return <p role="status">Reading last commit…</p>;
-  if (!details.status?.headCommit)
+  if (details.pending)
     return (
-      <p role="alert">
-        The last commit could not be read. Close and try again.
-      </p>
+      <>
+        <CommitInspectionHeader action={action} />
+        <p role="status">Reading commit details…</p>
+      </>
     );
-  const head = details.status.headCommit;
+  if (action === 'amend' && !details.status?.headCommit)
+    return (
+      <>
+        <CommitInspectionHeader action={action} />
+        <p role="alert">
+          The last commit could not be read. Close and try again.
+        </p>
+      </>
+    );
+  const head = details.status?.headCommit;
   return (
     <CommitForm
       scope={scope}
-      action="amend"
-      status={status}
-      initialMessage={[head.subject, head.body].filter(Boolean).join('\n\n')}
-      replacedSubject={head.subject}
+      action={action}
+      status={{
+        ...status,
+        branch: details.status?.branch ?? status.branch,
+      }}
+      initialMessage={
+        action === 'amend' && head
+          ? [head.subject, head.body].filter(Boolean).join('\n\n')
+          : ''
+      }
+      lastCommitMessage={
+        head ? [head.subject, head.body].filter(Boolean).join('\n\n') : ''
+      }
+      {...(head ? { replacedSubject: head.subject } : {})}
       onBusy={onBusy}
       onLookAgain={onLookAgain}
     />
+  );
+}
+
+function CommitInspectionHeader({ action }: { action: 'commit' | 'amend' }) {
+  return (
+    <DialogHeader>
+      <DialogTitle>
+        {action === 'amend' ? 'Amend last commit' : 'Commit changes'}
+      </DialogTitle>
+      <DialogDescription>
+        {action === 'amend'
+          ? 'The last commit is replaced by one with this message and the files you add.'
+          : 'Committed steps fold away in the review and show up in History.'}
+      </DialogDescription>
+    </DialogHeader>
   );
 }
 

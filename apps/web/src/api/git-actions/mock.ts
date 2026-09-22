@@ -64,6 +64,8 @@ export function createGitActionsMock(
       }
       const data = store.review[request.worktreeId];
       if (!data) throw new ConnectionError('Mock worktree unavailable.');
+      store.lastAction = structuredClone({ input, expected });
+      if (store.actionGate) await store.actionGate;
       const unsupported = [
         'stash-apply',
         'stash-pop',
@@ -82,7 +84,9 @@ export function createGitActionsMock(
         projectId: request.projectId,
         worktreeId: request.worktreeId,
         action: input.action,
-        state: unsupported ? 'rejected' : mockReceiptState(stale, noChange),
+        state: unsupported
+          ? 'rejected'
+          : (store.nextActionState ?? mockReceiptState(stale, noChange)),
         ...(unsupported
           ? {
               reason: 'UNSUPPORTED_CONFIGURATION' as const,

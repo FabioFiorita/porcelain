@@ -461,13 +461,18 @@ export function gitStatusQuery(
   };
 }
 
-export function useGitStatus(scope: ReviewScope) {
+export function useGitStatus(scope: ReviewScope, enabled = true) {
   const { api, connection } = useConnectedContext();
   const query = useQuery({
     ...gitStatusQuery(scope, api, connection),
+    enabled,
     throwOnError: false,
   });
-  return { status: query.data, pending: query.isPending };
+  return {
+    status: query.data,
+    pending: enabled && query.isPending,
+    read: async () => (await query.refetch()).data,
+  };
 }
 
 /**

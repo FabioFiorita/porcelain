@@ -866,5 +866,17 @@ describe('ActionGit', () => {
       ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
       expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
     });
+
+    it('rejects a repository-selected SSH executable or identity', async () => {
+      await git(
+        'config',
+        'core.sshCommand',
+        'ssh -i /home/example/.ssh/another-account',
+      );
+      await expect(
+        prepare({ action: 'commit', message: 'unsupported SSH override' }),
+      ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
+      expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
+    });
   });
 });

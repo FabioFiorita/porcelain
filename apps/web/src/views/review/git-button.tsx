@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDownIcon,
   GitBranchIcon,
@@ -23,6 +22,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import type { ActionInput, GitAction } from '../../domain/git-action';
 import {
@@ -31,12 +37,12 @@ import {
   type Status,
 } from '../../domain/review';
 import { useGitAction } from '../../query/git-actions';
+import { isTerminal } from '../../query/operation-store';
 import {
-  gitStatusQuery,
+  useGitStatus,
   useRefreshGitLook,
   useReviewOverview,
 } from '../../query/review';
-import { useConnectedContext } from '../../query/workspace-provider';
 import { usePreferences } from '../workspace/preferences';
 import { BranchDialog } from './branch-dialog';
 import {
@@ -64,13 +70,32 @@ function networkInput(
   branch: Status['branch'],
   strategy: 'merge' | 'rebase',
 ): ActionInput {
-  const name = branch?.name?.replace(/^refs\/heads\//, '') ?? 'main';
-  const ref = branch?.sourceRef ?? `refs/heads/${name}`;
-  const remoteName =
-    branch?.remoteName || branch?.upstream?.split('/')[0] || 'origin';
-  if (action === 'fetch') return { action, remoteName, sourceRef: ref };
-  if (action === 'pull')
-    return { action, remoteName, sourceRef: ref, strategy };
+  if (!branch?.name)
+    throw new Error('Check out a branch before using the remote.');
+  const name = branch.name.replace(/^refs\/heads\//, '');
+  if (action === 'fetch' || action === 'pull') {
+    if (!branch?.upstream || !branch.remoteName || !branch.sourceRef)
+      throw new Error('Configure an upstream branch first.');
+    const upstream = `${branch.remoteName}/${branch.sourceRef.replace(/^refs\/heads\//, '')}`;
+    if (upstream !== branch.upstream)
+      throw new Error(
+        'The configured upstream changed. Review it and try again.',
+      );
+    if (action === 'fetch')
+      return {
+        action,
+        remoteName: branch.remoteName,
+        sourceRef: branch.sourceRef,
+      };
+    return {
+      action,
+      remoteName: branch.remoteName,
+      sourceRef: branch.sourceRef,
+      strategy,
+    };
+  }
+  const ref = branch.sourceRef ?? `refs/heads/${name}`;
+  const remoteName = branch.remoteName ?? 'origin';
   return {
     action,
     remoteName,
@@ -86,20 +111,25 @@ const ICONS: Record<GitAction, LucideIcon> = Object.fromEntries(
 const plural = (count: number, noun: string) =>
   `${count} ${noun}${count === 1 ? '' : 's'}`;
 
+const networkLabel = (action: NetworkAction) =>
+  action === 'fetch' ? 'Fetching' : action === 'pull' ? 'Pulling' : 'Pushing';
+
 /**
  * Git actions stay attached to the document tabs. The first half is the
  * likely next action; the chevron keeps every current API action discoverable.
  */
 export function GitButton({ scope }: { scope: ReviewScope }) {
   const overview = useReviewOverview(scope);
+  const [detailsEnabled, setDetailsEnabled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const details = useGitStatus(scope, detailsEnabled);
   const refreshLook = useRefreshGitLook(scope);
   const { preferences } = usePreferences();
-  const client = useQueryClient();
-  const { api, connection } = useConnectedContext();
   const fetchAction = useGitAction(scope, 'fetch');
   const pullAction = useGitAction(scope, 'pull');
   const pushAction = useGitAction(scope, 'push');
   const [busy, setBusy] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
@@ -111,7 +141,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
     inProgress: overview.changes.inProgress,
     mergeHeadOid: overview.changes.mergeHeadOid,
     headOid: overview.changes.headOid,
-    branch: overview.changes.branch,
+    branch: details.status?.branch ?? overview.changes.branch,
     changes: comparisons(overview.changes),
     files: overview.changes.changes.map(({ path, fingerprint }) => ({
       path,
@@ -124,25 +154,66 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
     primary.kind === 'run' ? ICONS[primary.action] : GitCommitHorizontalIcon;
   const primaryTip = primaryTooltip(primary, status);
   const branch = branchStatus(status);
+  const runners = { fetch: fetchAction, pull: pullAction, push: pushAction };
+  const running = (
+    Object.entries(runners) as [NetworkAction, typeof fetchAction][]
+  )
+    .map(([name, runner]) => ({ name, operation: runner.operation }))
+    .find(
+      ({ operation }) =>
+        operation != null &&
+        (!operation.receipt || !isTerminal(operation.receipt)),
+    );
 
-  const runNetwork = (next: NetworkAction) => {
-    const runner =
-      next === 'fetch'
-        ? fetchAction
-        : next === 'pull'
-          ? pullAction
-          : pushAction;
+  const runNetwork = async (next: NetworkAction) => {
+    const runner = runners[next];
     const label =
       next === 'fetch' ? 'Fetch' : next === 'pull' ? 'Pull' : 'Push';
-    void client
-      .fetchQuery(gitStatusQuery(scope, api, connection))
-      .then((details) =>
-        runner.run(
-          networkInput(next, details.branch, preferences.pullStrategy),
-          expectationFor(status, [], details.branch?.upstreamOid ?? null),
-        ),
+    const displayedBranch = status.branch;
+    let looked = details.status;
+    if (!looked) {
+      setDetailsEnabled(true);
+      looked = await details.read();
+      if (
+        looked &&
+        (looked.branch?.name !== displayedBranch?.name ||
+          looked.branch?.upstream !== displayedBranch?.upstream)
+      ) {
+        toast.add({
+          title: `${label} did not run`,
+          description: 'The branch target changed. Review it and try again.',
+          type: 'error',
+        });
+        return;
+      }
+    }
+    if (!looked) {
+      toast.add({
+        title: `${label} did not run`,
+        description: 'The branch target is still loading. Try again.',
+        type: 'error',
+      });
+      return;
+    }
+    let input: ActionInput;
+    try {
+      input = networkInput(next, looked.branch, preferences.pullStrategy);
+    } catch (error) {
+      toast.add({
+        title: `${label} did not run`,
+        description: gitErrorMessage(error),
+        type: 'error',
+      });
+      return;
+    }
+    setProgressOpen(true);
+    void runner
+      .run(
+        input,
+        expectationFor(looked, [], looked.branch?.upstreamOid ?? null),
       )
       .then((receipt) => {
+        setProgressOpen(false);
         toast.add({
           title: receiptFailed(receipt) ? `${label} did not run` : label,
           description: receiptWords(receipt),
@@ -150,6 +221,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
         });
       })
       .catch((error: unknown) => {
+        setProgressOpen(false);
         toast.add({
           title: `${label} did not run`,
           description: gitErrorMessage(error),
@@ -160,7 +232,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
 
   const choose = (next: GitAction) => {
     if (next === 'fetch' || next === 'pull' || next === 'push') {
-      runNetwork(next);
+      void runNetwork(next);
       return;
     }
     setOpenedStatus(status);
@@ -173,22 +245,70 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
         aria-label="Git controls"
         className="m-0 flex shrink-0 border-0 p-0"
       >
-        <Button
-          variant="outline"
-          size="icon-sm"
-          aria-label={primary.label}
-          title={primaryTip}
-          disabled={primary.kind === 'hint'}
-          focusableWhenDisabled
-          className="rounded-e-none border-e-0 aria-disabled:cursor-default aria-disabled:opacity-60 aria-disabled:hover:bg-background dark:aria-disabled:hover:bg-transparent"
-          onClick={() => {
-            if (primary.kind === 'commit') choose('commit');
-            else if (primary.kind === 'run') runNetwork(primary.action);
+        <Popover
+          open={running != null && progressOpen}
+          onOpenChange={(open) => {
+            if (running) setProgressOpen(open);
           }}
         >
-          <PrimaryIcon className="size-3.5" />
-        </Button>
-        <DropdownMenu>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label={
+                  running
+                    ? `${networkLabel(running.name)} in progress: show progress`
+                    : primary.label
+                }
+                title={
+                  running
+                    ? `${networkLabel(running.name)} in progress`
+                    : primaryTip
+                }
+                disabled={running == null && primary.kind === 'hint'}
+                focusableWhenDisabled
+                className="rounded-e-none border-e-0 aria-disabled:cursor-default aria-disabled:opacity-60 aria-disabled:hover:bg-background dark:aria-disabled:hover:bg-transparent"
+                onClick={() => {
+                  if (running) return;
+                  if (primary.kind === 'commit') choose('commit');
+                  else if (primary.kind === 'run')
+                    void runNetwork(primary.action);
+                }}
+              />
+            }
+          >
+            {running ? (
+              <Spinner className="size-3.5" />
+            ) : (
+              <PrimaryIcon className="size-3.5" />
+            )}
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 gap-2 rounded-2xl p-3">
+            <PopoverTitle className="flex items-center gap-2 text-[12.5px]">
+              <Spinner className="size-3.5" />
+              {running ? `${networkLabel(running.name)}…` : 'Git action…'}
+            </PopoverTitle>
+            <ol className="flex flex-col gap-0.5 font-mono text-[11px] leading-4">
+              {running?.operation?.receipt?.progress.length ? (
+                running.operation.receipt.progress.slice(-4).map((line) => (
+                  <li key={line} className="truncate" title={line}>
+                    {line}
+                  </li>
+                ))
+              ) : (
+                <li className="text-muted-foreground">Waiting for Git…</li>
+              )}
+            </ol>
+          </PopoverContent>
+        </Popover>
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => {
+            setMenuOpen(open);
+            if (open) setDetailsEnabled(true);
+          }}
+        >
           <DropdownMenuTrigger
             render={
               <Button
@@ -197,6 +317,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
                 aria-label="Git actions"
                 title="Git actions menu"
                 className="rounded-s-none"
+                disabled={running != null}
               />
             }
           >
@@ -224,7 +345,14 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker = gitActionBlocker(candidate.id, status);
+                    const network =
+                      candidate.id === 'fetch' ||
+                      candidate.id === 'pull' ||
+                      candidate.id === 'push';
+                    const blocker =
+                      network && details.pending
+                        ? 'Reading the configured upstream.'
+                        : gitActionBlocker(candidate.id, status);
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     const Icon = ICONS[candidate.id];
@@ -292,22 +420,16 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
             aria-busy={busy}
             className="max-h-[min(90svh,48rem)] overflow-y-auto sm:max-w-2xl"
           >
-            <DialogHeader>
-              <DialogTitle>
-                {selected?.id === 'commit'
-                  ? 'Commit changes'
-                  : selected?.id === 'amend'
-                    ? 'Amend last commit'
-                    : (selected?.label ?? 'Git action')}
-              </DialogTitle>
-              <DialogDescription>
-                {selected?.id === 'commit' || selected?.id === 'amend'
-                  ? 'Committed steps fold away in the review and show up in History.'
-                  : selected?.id === 'stash-pop'
+            {selected?.id !== 'commit' && selected?.id !== 'amend' && (
+              <DialogHeader>
+                <DialogTitle>{selected?.label ?? 'Git action'}</DialogTitle>
+                <DialogDescription>
+                  {selected?.id === 'stash-pop'
                     ? 'Its changes come back into the working tree and the stash is dropped.'
                     : 'Every change, new files included, is set aside until you pop the stash.'}
-              </DialogDescription>
-            </DialogHeader>
+                </DialogDescription>
+              </DialogHeader>
+            )}
             <GitActionInspection
               scope={scope}
               entry={action}

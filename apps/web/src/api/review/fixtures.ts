@@ -55,7 +55,12 @@ export function reviewFixture(
     statusToken: 'a'.repeat(64),
     headOid: 'a'.repeat(40),
     branch: branch
-      ? { name: branch, upstream: null, ahead: 0, behind: 0 }
+      ? {
+          name: branch,
+          upstream: null as string | null,
+          ahead: 0,
+          behind: 0,
+        }
       : null,
     comparisons,
   };
