@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { pairBrowser, playgroundInfo } from './playground';
@@ -105,5 +105,51 @@ test('streams external edits, goes idle without polling, and bounds reconnect re
       );
       expect(removed.ok()).toBe(true);
     }
+  }
+});
+
+test('restores a review after repeated reloads and shows external files without navigating', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await pairBrowser(page);
+  await openNavigation(page);
+  await page.getByRole('button', { name: /^review / }).click();
+  const sidebar = page.getByRole('complementary', { name: 'Review sidebar' });
+  const existing = sidebar.getByRole('button', { name: /^accessibility\.md/ });
+  await expect(existing).toBeVisible();
+  const reviewUrl = page.url();
+  const failures: string[] = [];
+  page.on('response', (response) => {
+    if (
+      new URL(response.url()).pathname.startsWith('/api/') &&
+      response.status() >= 400
+    )
+      failures.push(`${response.status()} ${new URL(response.url()).pathname}`);
+  });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.reload();
+    await expect(existing).toBeVisible();
+    await expect(sidebar.getByRole('alert')).toHaveCount(0);
+    expect(page.url()).toBe(reviewUrl);
+  }
+  const { worktreePath } = await playgroundInfo<{ worktreePath: string }>();
+  const file = join(worktreePath, 'refresh-live-check.txt');
+  let navigations = 0;
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) navigations += 1;
+  });
+  try {
+    await writeFile(file, 'Created outside the browser after reloading.\n', {
+      flag: 'wx',
+    });
+    await expect(
+      sidebar.getByRole('button', { name: /^refresh-live-check\.txt/ }),
+    ).toBeVisible({ timeout: 8_000 });
+    await expect(sidebar.getByRole('alert')).toHaveCount(0);
+    expect(navigations).toBe(0);
+    expect(failures).toEqual([]);
+  } finally {
+    await rm(file, { force: true });
   }
 });
