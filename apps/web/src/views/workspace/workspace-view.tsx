@@ -23,7 +23,7 @@ const PlaygroundAutoConnect =
     : null;
 
 export function WorkspaceView() {
-  const { connected } = useConnection();
+  const { connected, restoring } = useConnection();
   const body = (
     <>
       {PlaygroundAutoConnect && (
@@ -32,13 +32,19 @@ export function WorkspaceView() {
         </Suspense>
       )}
       <Suspense fallback={<WorkspacePending />}>
-        {connected ? <ConnectedWorkspace /> : <NotPaired />}
+        {connected ? (
+          <ConnectedWorkspace />
+        ) : restoring ? (
+          <WorkspacePending />
+        ) : (
+          <NotPaired />
+        )}
       </Suspense>
     </>
   );
   return (
     <>
-      {connected ? (
+      {connected || restoring ? (
         <div>{body}</div>
       ) : (
         <DisconnectedPage>{body}</DisconnectedPage>

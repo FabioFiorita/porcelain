@@ -13,10 +13,16 @@ export function connectionErrorMessage(error: unknown) {
 }
 
 export function useConnection() {
-  const { connection, disconnect, disconnectError, disconnectPending } =
-    useWorkspaceContext();
+  const {
+    connection,
+    restoring,
+    disconnect,
+    disconnectError,
+    disconnectPending,
+  } = useWorkspaceContext();
   return {
     connected: connection !== null,
+    restoring,
     disconnect,
     disconnectError,
     disconnectPending,

@@ -56,6 +56,7 @@ function createConnection(environmentId: string): Connection {
 type WorkspaceContext = {
   api: Api;
   connection: Connection | null;
+  restoring: boolean;
   beginConnection: (
     automatic?: boolean,
   ) => ((inventory: Inventory) => boolean) | null;
@@ -76,6 +77,7 @@ export function WorkspaceProvider({
   const [disconnectError, setDisconnectError] = useState<Error | null>(null);
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [restoring, setRestoring] = useState(true);
   useEffect(() => {
     if (!connection) return;
     const leaving = (event: BeforeUnloadEvent) => {
@@ -117,6 +119,7 @@ export function WorkspaceProvider({
           queryKey: queryKeys.inventory(inventory.environmentId),
         });
         setConnection(createConnection(inventory.environmentId));
+        setRestoring(false);
         return true;
       };
     },
@@ -139,6 +142,7 @@ export function WorkspaceProvider({
       void queryClient.cancelQueries();
       queryClient.clear();
       setConnection(null);
+      setRestoring(false);
     } catch (error) {
       setDisconnectError(
         error instanceof ConnectionError
@@ -158,6 +162,7 @@ export function WorkspaceProvider({
     () =>
       onUnauthorized(() => {
         generation.current += 1;
+        setRestoring(false);
         setConnection((current) => {
           current?.operations.clear();
           current?.controller.abort();
@@ -184,6 +189,8 @@ export function WorkspaceProvider({
         complete(inventory);
       } catch {
         // Expired sessions and temporary outages leave manual login available.
+      } finally {
+        if (!controller.signal.aborted) setRestoring(false);
       }
     };
     void restore();
@@ -194,6 +201,7 @@ export function WorkspaceProvider({
     () => ({
       api,
       connection,
+      restoring,
       beginConnection,
       disconnect,
       disconnectError,
@@ -202,6 +210,7 @@ export function WorkspaceProvider({
     [
       api,
       connection,
+      restoring,
       beginConnection,
       disconnect,
       disconnectError,
