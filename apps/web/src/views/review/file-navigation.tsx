@@ -137,7 +137,6 @@ function ScopedFileNavigation({
             by name is its own thing, and reads every name only when asked. */}
         <QuickOpen
           scope={scope}
-          prominent
           onOpen={(path) => {
             setRequested((current) => union(current, fileTreeAncestors(path)));
             onOpen({ kind: 'file', path });

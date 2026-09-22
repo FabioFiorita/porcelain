@@ -39,7 +39,10 @@ test('browses folders while search is slow, and says so when it fails', async ({
     // would look the same from the screen, so count it instead.
     expect(asked).toBe(0);
 
-    await page.getByRole('button', { name: 'Go to file…' }).click();
+    await expect(page.getByRole('button', { name: 'Go to file…' })).toHaveCount(
+      0,
+    );
+    await page.keyboard.press('ControlOrMeta+p');
     await expect.poll(() => asked).toBe(1);
     await expect(page.getByText('Reading file names…')).toBeVisible();
     release();
