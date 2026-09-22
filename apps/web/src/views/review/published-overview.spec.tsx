@@ -7,28 +7,34 @@ import { PublishedOverview } from './published-overview';
 
 vi.mock('../workspace/theme', () => ({ useTheme: () => ({ dark: false }) }));
 
-it('opens layers and uncovered changes without rendering all file diffs', async () => {
-  const review = publishedReviewFixture(
-    'a'.repeat(32),
-    '641a8628-1cd6-4562-81a2-9c05fba76b4a',
-  );
-  const onOpen = vi.fn();
-  const screen = await render(
-    <PublishedOverview review={review} onOpen={onOpen} />,
-  );
-  await screen
-    .getByRole('button', { name: /A clearer review experience/ })
-    .click();
-  expect(onOpen).toHaveBeenLastCalledWith({
-    kind: 'layer',
-    layerId: review.layers[0]?.id,
-  });
-  await screen.getByRole('button', { name: /Not explained/ }).click();
-  expect(onOpen).toHaveBeenLastCalledWith({ kind: 'unexplained' });
-  await expect
-    .element(screen.getByTestId('review-document'))
-    .not.toBeInTheDocument();
-});
+it.each([900, 360])(
+  'lets the summary fill a %ipx pane without duplicate layer cards',
+  async (width) => {
+    const review = publishedReviewFixture(
+      'a'.repeat(32),
+      '641a8628-1cd6-4562-81a2-9c05fba76b4a',
+    );
+    const screen = await render(
+      <div data-testid="pane" style={{ height: 720, width, display: 'flex' }}>
+        <PublishedOverview review={review} onOpen={vi.fn()} />
+      </div>,
+    );
+    const pane = screen.getByTestId('pane').element();
+    const frame = pane.querySelector('iframe');
+    if (!frame) throw new Error('Missing summary');
+    expect(frame.getBoundingClientRect().height).toBeGreaterThan(600);
+    expect(
+      Math.abs(
+        frame.getBoundingClientRect().bottom -
+          pane.getBoundingClientRect().bottom,
+      ),
+    ).toBeLessThan(1);
+    expect(frame.getBoundingClientRect().width).toBe(width);
+    await expect
+      .element(screen.getByRole('region', { name: 'Review layers' }))
+      .not.toBeInTheDocument();
+  },
+);
 
 it('switches before and after diagrams and opens a linked layer', async () => {
   const review = publishedReviewFixture(

@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type OpenDocument, UNEXPLAINED } from '../../domain/documents';
-import { notExplainedLabel, type ReviewResponse } from '../../domain/review';
+import type { OpenDocument } from '../../domain/documents';
+import type { ReviewResponse } from '../../domain/review';
 import { useTheme } from '../workspace/theme';
 import { DocumentToolbar } from './document-toolbar';
-import { MarkdownView } from './markdown-view';
 import { type Graph, ReviewDiagram } from './review-diagram';
 
 export function PublishedOverview({
@@ -81,42 +79,7 @@ export function PublishedOverview({
           />
         </>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <SummaryFrame review={review} onOpen={onOpen} />
-          <div className="mx-auto max-w-4xl space-y-6 p-4">
-            <section aria-label="Review layers" className="space-y-2">
-              {review.layers.map((layer, index) => (
-                <button
-                  key={layer.id}
-                  type="button"
-                  onClick={() => onOpen({ kind: 'layer', layerId: layer.id })}
-                  className="block w-full rounded-lg bg-muted/30 p-3 text-left hover:bg-accent"
-                >
-                  <h2 className="text-sm font-medium">
-                    {index + 1}. {layer.title}
-                  </h2>
-                  <MarkdownView
-                    text={layer.summary}
-                    className="mt-1 text-sm text-muted-foreground"
-                  />
-                </button>
-              ))}
-            </section>
-            {review.notExplained.length > 0 && (
-              <Button
-                variant="outline"
-                className="h-auto justify-start whitespace-normal text-left"
-                onClick={() => onOpen(UNEXPLAINED)}
-              >
-                Not explained
-                <span className="text-muted-foreground">
-                  {' · '}
-                  {notExplainedLabel(review.notExplained)}
-                </span>
-              </Button>
-            )}
-          </div>
-        </div>
+        <SummaryFrame review={review} onOpen={onOpen} />
       )}
     </section>
   );
@@ -159,7 +122,7 @@ function SummaryFrame({
       src={`${review.summary.url}#theme=${dark ? 'dark' : 'light'}`}
       sandbox="allow-scripts allow-forms allow-popups allow-modals"
       referrerPolicy="no-referrer"
-      className="block min-h-[28rem] w-full border-0"
+      className="block min-h-0 w-full flex-1 border-0"
       style={{ colorScheme: dark ? 'dark' : 'light' }}
     />
   );
