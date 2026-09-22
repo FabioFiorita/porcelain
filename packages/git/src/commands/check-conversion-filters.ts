@@ -62,6 +62,11 @@ async function checkConversionFilters(
 /**
  * The request's conversion-filter answer. The check scans every tracked file,
  * so it runs once per request rather than before and after each read.
+ *
+ * The answer is not reused on the next request. A remembered "no filters"
+ * result would be permission to run a filter configured in between, and the
+ * sources that can add one include global and system Git config, which the
+ * worktree watcher does not see.
  */
 export function sessionConversionFilters(
   session: CheckoutSession,

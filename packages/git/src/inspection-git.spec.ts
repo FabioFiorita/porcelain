@@ -549,6 +549,19 @@ describe('InspectionGit', () => {
       await expect(readFile(marker)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
+    it('sees a filter added after an earlier request found none', async () => {
+      const { checkout, git, request } = await fixture();
+      await writeFile(join(checkout, 'file'), 'base\n');
+      git('add', '.');
+      git('commit', '-m', 'base');
+      await writeFile(join(checkout, 'file'), 'working\n');
+      await request().readStatus();
+      await writeFile(join(checkout, '.gitattributes'), 'file filter=probe\n');
+      await expect(request().readStatus()).rejects.toBeInstanceOf(
+        UnsupportedGitFiltersError,
+      );
+    });
+
     it('allows unused configured filters without invoking them', async () => {
       const { root, checkout, git, reader } = await fixture();
       await writeFile(join(checkout, 'file'), 'base\n');

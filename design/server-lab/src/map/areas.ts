@@ -1338,7 +1338,7 @@ const changes: Area = {
           'useMarkAllReviewed',
           web('query/review.ts'),
           489,
-          `Mark all: one PUT per unreviewed fingerprintable file, strictly one after another; the dot moves once at the end.`,
+          `Mark all: one PUT of the unreviewed fingerprintable files. A stale fingerprint is reported and left unmarked; the rest of the request still marks.`,
         ),
       ],
       steps: [
@@ -1387,7 +1387,7 @@ const changes: Area = {
         { name: 'reviewed_files', access: 'read' },
         { name: 'reviewed_files', access: 'write' },
       ],
-      cost: `7 Git processes per file, flat. Mark all of F files is F sequential requests; step 6's watcher is what can make the check free.`,
+      cost: `7 Git processes for one file, and the same order for mark all: one shared change read, not one read per file.`,
     },
     {
       id: 'changes.reviewed-remove',
@@ -1498,7 +1498,7 @@ const changes: Area = {
     {
       kind: 'performance',
       title: 'The filter check is now the floor',
-      detail: `Of the 7 processes a change list costs, 3 are the conversion-filter check and 2 are the identity guard: only 2 are the reading itself. The check lists and attribute-checks every tracked path, so it grows with repository size while the rest does not. It is paid rather than cached on purpose — a cached "no filters" answer is permission to run a filter someone configured in between — and step 6's watcher is what can make it free.`,
+      detail: `Of the 7 processes a change list costs, 3 are the conversion-filter check and 2 are the identity guard: only 2 are the reading itself. The check lists and attribute-checks every tracked path, so it grows with repository size while the rest does not. It is paid on every request rather than cached: a remembered "no filters" answer would be permission to run a filter configured afterwards, and the worktree watcher cannot see global or system Git config.`,
       sources: [
         at(git('commands/check-conversion-filters.ts'), 26),
         at(git('commands/read-status.ts'), 6),
@@ -1519,7 +1519,7 @@ const changes: Area = {
     {
       kind: 'performance',
       title: 'Marking is not free, and says so',
-      detail: `A mark reads the change list again and refuses a fingerprint that no longer matches, so it costs 7 processes rather than 0. The alternative was accepting a mark for content nobody saw. "Mark all" is still one request per file, in order. Step 6's watcher is what makes the check free.`,
+      detail: `A mark reads the change list again and refuses a fingerprint that no longer matches, so one file costs 7 processes rather than 0. The alternative was accepting a mark for content nobody saw. Mark all sends every file in one request and shares that read; a file whose fingerprint moved is left unmarked.`,
       sources: [
         at(caseFile('set-reviewed-file.ts'), 36),
         at(web('query/review.ts'), 489),
