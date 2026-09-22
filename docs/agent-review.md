@@ -16,4 +16,5 @@ one review, using the revision returned by `read_review` to protect against over
 
 Comments are shared with the web app. MCP messages are attributed to the agent; browser messages
 to the reviewer. Nothing is pushed into coding sessions: ask the agent to read and address comments
-when ready.
+when ready. `list_comments` then returns unresolved threads whose latest message is not from the
+agent. Pass `scope: "all"` to include every thread.

@@ -10,22 +10,27 @@ import { z } from 'zod';
 import type { Application } from '../../application.ts';
 import type { AuthenticatedPrincipal } from '../../models/principal.ts';
 import { toErrorResponse } from '../mappers/error-response.ts';
+import { REVIEW_GUIDE } from './review-guide.ts';
 
 const scopeSchema = z.strictObject({
   cwd: z.string().min(1).max(4096).optional(),
 });
 
-const GUIDE = `# Publishing a Porcelain review
-
-Tell the behavior from entry point to outcome. Keep layers short and ordered; use lanes for the parts crossed (for example Web, Route, Use case, Storage). A changed step points at code this change alters. A context step points at unchanged code needed to understand the path. Prefer one or two sentences per step and finish the summary with the verification that actually ran.
-
-The summary is one complete HTML document up to 10 MiB. It runs in an opaque sandbox with scripts, forms, popups and modals. Network resources such as high-quality CDN fonts and libraries are allowed, but the page cannot access Porcelain login state or APIs. Link to layers with #layer-N, where N is the 1-based published order; Porcelain handles navigation. Do not embed credentials.
-
-You own the summary's design and must include CSS. Inspect the reviewed application's existing styles, theme tokens and components before authoring it. Where possible, match that application's colors, background, typography and visual language, rather than Porcelain's chrome. If the project has no visual style, choose a coherent, readable design. Style the layer navigation as well as the content; use clear headings, spacing and a readable content width that works in narrow panes. Do not rely on browser-default links or merely add a token CSS rule to satisfy the warning.
-
-Porcelain displays your HTML as authored; it does not design the review for you. The optional --porcelain-background and --porcelain-foreground variables and the document's data-theme (light or dark) are available for theme integration, not a required palette. Preview the rendered summary, check contrast, navigation and overflow, and report if you could not visually verify it. Publishing without detectable CSS returns an advisory warning; it does not reject the review or certify visual quality when CSS is present.
-
-Publish replaces the entire latest review under expectedRevision. Read first, preserve anything still intended, then publish. Unresolved pointers are returned as changed. Not explained is computed by Porcelain from changed lines outside changed steps.`;
+/**
+ * Threads the agent still has to answer. A resolved thread, and a thread whose
+ * latest message is already the agent's, is someone else's turn.
+ */
+export function commentsForAgent<
+  T extends {
+    resolved: boolean;
+    messages: readonly { author: string }[];
+  },
+>(threads: readonly T[], scope: 'waiting' | 'all' = 'waiting'): T[] {
+  if (scope === 'all') return [...threads];
+  return threads.filter(
+    (thread) => !thread.resolved && thread.messages.at(-1)?.author !== 'agent',
+  );
+}
 
 export function createReviewMcpServer(
   application: Application,
@@ -47,7 +52,9 @@ export function createReviewMcpServer(
       mimeType: 'text/markdown',
     },
     async (uri) => ({
-      contents: [{ uri: uri.href, mimeType: 'text/markdown', text: GUIDE }],
+      contents: [
+        { uri: uri.href, mimeType: 'text/markdown', text: REVIEW_GUIDE },
+      ],
     }),
   );
   server.registerTool(
@@ -94,22 +101,26 @@ export function createReviewMcpServer(
   server.registerTool(
     'list_comments',
     {
-      description: 'Read review threads, replies and resolved state.',
-      inputSchema: scopeSchema,
+      description:
+        'Read review threads waiting for the agent. Omit scope, or pass waiting, for unresolved threads whose latest message is not from the agent. Pass all to include every thread.',
+      inputSchema: scopeSchema.extend({
+        scope: z.enum(['waiting', 'all']).optional(),
+      }),
       annotations: { readOnlyHint: true },
     },
-    async ({ cwd }, { signal }) =>
+    async ({ cwd, scope }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
           application,
           cwd ?? defaultCwd,
           signal,
         );
-        return application.comments(
+        const threads = await application.comments(
           { kind: 'list', worktreeId },
           principal,
           signal,
         );
+        return commentsForAgent(threads, scope ?? 'waiting');
       }),
   );
   server.registerTool(

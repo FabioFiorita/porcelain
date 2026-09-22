@@ -167,6 +167,37 @@ it('round-trips publication, reviewer feedback and revision through the real age
       threadId: thread.id,
       body: 'Two represents the two supported inputs.',
     });
+    const created = commentThreadsSchema.parse(
+      await request(`/worktrees/${worktreeId}/comments`, {
+        anchor: { kind: 'file', filePath: 'behavior.ts' },
+        body: 'One more question.',
+      }),
+    );
+    const stillWaiting = created.find((item) =>
+      item.messages.some((message) => message.body === 'One more question.'),
+    );
+    if (!stillWaiting) throw new Error('Missing waiting thread');
+    expect(
+      (await tool('list_comments')).map((item: { id: string }) => item.id),
+    ).toEqual([stillWaiting.id]);
+    expect(
+      (await tool('list_comments', { scope: 'waiting' })).map(
+        (item: { id: string }) => item.id,
+      ),
+    ).toEqual([stillWaiting.id]);
+    expect(
+      (await tool('list_comments', { scope: 'all' }))
+        .map((item: { id: string }) => item.id)
+        .sort(),
+    ).toEqual([thread.id, stillWaiting.id].sort());
+    await tool('resolve_comment', {
+      threadId: stillWaiting.id,
+      resolved: true,
+    });
+    expect(await tool('list_comments')).toEqual([]);
+    expect(await tool('list_comments', { scope: 'all' })).toContainEqual(
+      expect.objectContaining({ id: stillWaiting.id, resolved: true }),
+    );
     const comments = commentThreadsSchema.parse(
       await request(`/worktrees/${worktreeId}/comments`),
     );
