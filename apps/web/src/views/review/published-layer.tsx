@@ -41,6 +41,7 @@ export function PublishedLayer({
   const [shown, setShown] = useState(10);
   const [focus, setFocus] = useState<string>();
   const steps = layer.steps.slice(0, shown);
+  const selectedStep = layer.steps.find((step) => step.id === focus);
   const graph = useMemo<Graph>(
     () => ({
       lanes: layer.lanes,
@@ -112,19 +113,38 @@ export function PublishedLayer({
         </p>
       )}
       {view === 'graph' ? (
-        <ReviewDiagram
-          graph={graph}
-          onBoxClick={(box) => {
-            setShown(
-              Math.max(
-                shown,
-                layer.steps.findIndex((step) => step.id === box.id) + 1,
-              ),
-            );
-            setFocus(box.id);
-            setView('code');
-          }}
-        />
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <ReviewDiagram
+            graph={graph}
+            className="min-w-0"
+            onBoxClick={(box) => setFocus(box.id)}
+          />
+          {selectedStep && (
+            <section
+              aria-label="Selected step code"
+              className="flex min-h-0 min-w-0 flex-1 flex-col border-t md:border-t-0 md:border-l"
+            >
+              <div className="flex shrink-0 justify-end px-3 py-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFocus(undefined)}
+                >
+                  Close code
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-auto p-4">
+                <LayerSteps
+                  scope={scope}
+                  layer={layer}
+                  steps={[selectedStep]}
+                  focus={undefined}
+                  onOpen={onOpen}
+                />
+              </div>
+            </section>
+          )}
+        </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto p-4">
           <MarkdownView
@@ -341,8 +361,8 @@ function Step({
           Committed · Show code
         </Button>
       ) : entries.length > 0 ? (
-        <div className="flex h-80 min-h-0 flex-col">
-          <CodeDocument scope={scope} entries={entries} />
+        <div className="flex min-w-0 flex-col">
+          <CodeDocument scope={scope} entries={entries} fullHeight />
         </div>
       ) : (
         <p role="status" className="text-sm text-muted-foreground">

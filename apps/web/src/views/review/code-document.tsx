@@ -96,6 +96,8 @@ type Props = {
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
   disableFileHeader?: boolean;
+  /** Let short embedded snippets grow inside their parent scroll region. */
+  fullHeight?: boolean;
   headerActions?: ReactNode;
   onToggleReviewed?: (entry: CodeEntry) => void;
 };
@@ -143,6 +145,7 @@ function CodeSurface({
   threads,
   commentRequest,
   disableFileHeader = false,
+  fullHeight = false,
   headerActions,
   onToggleReviewed,
 }: Props & { threads: readonly CommentThread[] }) {
@@ -331,7 +334,7 @@ function CodeSurface({
       diffStyle: preferences.diffStyle,
       diffIndicators: 'classic',
       hunkSeparators: 'line-info',
-      stickyHeaders: !disableFileHeader,
+      stickyHeaders: !disableFileHeader && !fullHeight,
       disableFileHeader,
       enableLineSelection: true,
       enableGutterUtility: scope !== undefined,
@@ -357,7 +360,7 @@ function CodeSurface({
       ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
       layout: {
         paddingTop: disableFileHeader ? 0 : 12,
-        paddingBottom: 160,
+        paddingBottom: fullHeight ? 12 : 160,
         gap: 12,
       },
     }),
@@ -366,6 +369,7 @@ function CodeSurface({
       preferences.diffStyle,
       preferences.lineOverflow,
       disableFileHeader,
+      fullHeight,
       scope,
       byId,
       entries,
@@ -526,7 +530,11 @@ function CodeSurface({
             );
           }}
           options={options}
-          className="min-h-0 flex-1 overflow-auto"
+          className={
+            fullHeight
+              ? 'flex-none overflow-visible'
+              : 'min-h-0 flex-1 overflow-auto'
+          }
           {...(header ? { renderCodeViewHeader: header } : {})}
           renderHeaderPrefix={(item) => {
             const entry = byId.get(item.id);

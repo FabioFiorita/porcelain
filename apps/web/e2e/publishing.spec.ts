@@ -98,8 +98,17 @@ test('reviews published behavior, navigates its graph, and invalidates a mark af
     .getByRole('button', { name: 'Accessibility checks', exact: true })
     .press('Enter');
   await expect(
-    layer.getByRole('tab', { name: 'Code', exact: true }),
+    layer.getByRole('tab', { name: 'Graph', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
+  const codePane = layer.getByRole('region', { name: 'Selected step code' });
+  await expect(
+    codePane.getByRole('heading', { name: 'Accessibility checks' }),
+  ).toBeVisible();
+  await expect(codePane.locator('diffs-container')).toBeVisible();
+  await expect(
+    layer.getByRole('button', { name: 'Accessibility checks', exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('layer-graph-code.png') });
   await layer
     .getByRole('button', { name: 'Mark layer reviewed', exact: true })
     .click();
