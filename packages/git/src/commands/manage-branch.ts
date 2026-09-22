@@ -16,8 +16,12 @@ export async function manageBranch(
     ['check-ref-format', '--branch', intent.branch],
     signal,
   );
-  if (valid.exitCode !== 0 || valid.interrupted)
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+  const invalid = processFailure(valid);
+  if (invalid?.state === 'indeterminate') return invalid;
+  if (invalid)
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      detail: `\`${intent.branch}\` is not a valid branch name. Choose another name.`,
+    });
   const args =
     intent.action === 'switch-branch'
       ? ['switch', '--no-guess', intent.branch]

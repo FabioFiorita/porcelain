@@ -28,7 +28,10 @@ export async function discardPath(
     );
     const selection = selectedHunk(diff, intent.hunk);
     if (selection === 'partial')
-      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+        detail:
+          'The selected lines cover only part of a change. Select the whole change to discard it.',
+      });
     if (!selection) throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
     const recovery =
       intent.hunk.scope === 'staged'

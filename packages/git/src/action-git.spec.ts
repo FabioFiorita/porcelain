@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import {
   chmod,
   mkdir,
@@ -18,6 +19,12 @@ import type { GitActionCommand, GitActionIntent } from './dtos/git-action.ts';
 import { createIsolatedGit } from './fixtures/isolated-git.ts';
 import { Git } from './git.ts';
 import { RequestGitSession } from './git-session.ts';
+
+const sshd = '/usr/sbin/sshd';
+// Debian's sshd refuses to start without its privilege separation directory,
+// which exists once the system service has been set up.
+const sshdAvailable =
+  existsSync(sshd) && (process.platform !== 'linux' || existsSync('/run/sshd'));
 
 describe('ActionGit', () => {
   const execute = promisify(execFile);
@@ -517,33 +524,147 @@ describe('ActionGit', () => {
       expect(await git('show', 'HEAD:first')).toBe('first');
     });
 
-    it('uses SSH batch and existing host-key policy with a disposable transport substitute', async () => {
+    it("runs the repository's core.sshCommand with its arguments, and gives it no terminal even when the server has one", async () => {
       const remote = join(root, 'ssh-remote.git');
       await git('init', '--bare', remote);
-      const bin = join(root, 'bin');
-      await mkdir(bin);
-      const ssh = join(bin, 'ssh');
+      const ssh = join(root, 'account ssh');
+      const identity = join(root, 'keys', 'second account');
       const argumentsPath = join(root, 'ssh-arguments');
+      const terminalPath = join(root, 'terminal');
+      const resultPath = join(root, 'result.json');
       await writeFile(
         ssh,
-        `#!/bin/sh\nprintf '%s\\n' "$@" > '${argumentsPath}'\nfor argument in "$@"; do last="$argument"; done\ncase "$last" in git-receive-pack*|git-upload-pack*) exec /bin/sh -c "$last";; *) exit 0;; esac\n`,
+        `#!/bin/sh\nprintf '%s\\n' "$@" > '${argumentsPath}'\nif (exec 3</dev/tty) 2>/dev/null; then echo opened; else echo unavailable; fi >> '${terminalPath}'\nfor argument in "$@"; do last="$argument"; done\ncase "$last" in git-receive-pack*|git-upload-pack*) exec /bin/sh -c "$last";; *) exit 0;; esac\n`,
       );
       await chmod(ssh, 0o700);
-      vi.stubEnv('PATH', `${bin}:${process.env.PATH}`);
+      await git('config', 'core.sshCommand', `'${ssh}' -i '${identity}'`);
       await git('remote', 'add', 'fixture', `ssh://fixture.invalid${remote}`);
+      // The action runs in a process that owns a pseudo-terminal, as a server
+      // started from a shell does. It records that it can open that terminal
+      // before running the push, so an unavailable one below means Git's ssh
+      // was cut off from it rather than that there was none to open.
+      const server = join(root, 'server.ts');
+      await writeFile(
+        server,
+        `import { appendFileSync, closeSync, openSync, writeFileSync } from 'node:fs';
+import { ActionGit } from ${JSON.stringify(join(import.meta.dirname, 'action-git.ts'))};
+import { Git } from ${JSON.stringify(join(import.meta.dirname, 'git.ts'))};
+import { RequestGitSession } from ${JSON.stringify(join(import.meta.dirname, 'git-session.ts'))};
+closeSync(openSync('/dev/tty', 'r'));
+appendFileSync(${JSON.stringify(terminalPath)}, 'opened\\n');
+const checkout = ${JSON.stringify(checkout)};
+const { repository } = await new Git(checkout).listWorktrees();
+const adapter = new ActionGit(
+  new RequestGitSession().checkout(checkout, repository.worktrees[0].metadataIdentity, repository.repositoryIdentity),
+);
+const intent = { action: 'push', remoteName: 'fixture', destinationRef: 'refs/heads/main', allowCreate: true };
+const snapshot = await adapter.inspect(intent, AbortSignal.timeout(15_000));
+const command = { id: crypto.randomUUID(), intent, preview: snapshot.preview };
+writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify(await adapter.execute(command, snapshot, AbortSignal.timeout(15_000))));
+`,
+      );
+      await execute(
+        'python3',
+        [
+          '-c',
+          'import pty, sys; sys.exit(pty.spawn(sys.argv[1:]) >> 8)',
+          process.execPath,
+          server,
+        ],
+        { env: process.env, timeout: 30_000 },
+      );
+      expect(JSON.parse(await readFile(resultPath, 'utf8'))).toMatchObject({
+        state: 'succeeded',
+      });
+      // Git may start the command more than once, e.g. `-G` to identify it.
+      expect(await readFile(terminalPath, 'utf8')).toMatch(
+        /^opened\n(unavailable\n)+$/,
+      );
+      const args = (await readFile(argumentsPath, 'utf8'))
+        .trimEnd()
+        .split('\n');
+      expect(args.slice(0, 2)).toEqual(['-i', identity]);
+      expect(args).toContain('fixture.invalid');
+      expect(args.at(-1)).toBe(`git-receive-pack '${remote}'`);
       expect(
-        await act({
-          action: 'push',
-          remoteName: 'fixture',
-          destinationRef: 'refs/heads/main',
-          allowCreate: true,
-        }),
-      ).toMatchObject({ state: 'succeeded' });
-      const args = await readFile(argumentsPath, 'utf8');
-      expect(args).toContain('-oBatchMode=yes');
-      expect(args).toContain('-oStrictHostKeyChecking=yes');
-      expect(args).toContain('-oNumberOfPasswordPrompts=0');
+        await execute('git', ['-C', remote, 'rev-parse', 'refs/heads/main']),
+      ).toMatchObject({ stdout: `${await git('rev-parse', 'HEAD')}\n` });
     });
+
+    it.skipIf(!sshdAvailable)(
+      'fails through real ssh on an unknown host key or a refused key instead of prompting',
+      async () => {
+        const remote = join(root, 'ssh-remote.git');
+        await git('init', '--bare', remote);
+        const hostKey = join(root, 'host key');
+        const identity = join(root, 'account key');
+        for (const key of [hostKey, identity])
+          await execute('ssh-keygen', [
+            '-q',
+            '-t',
+            'ed25519',
+            '-N',
+            '',
+            '-f',
+            key,
+          ]);
+        const authorizedKeys = join(root, 'authorized_keys');
+        const knownHosts = join(root, 'known_hosts');
+        const serverConfig = join(root, 'sshd_config');
+        const clientConfig = join(root, 'ssh_config');
+        // A disposable sshd answers over the proxy's pipes, so nothing listens
+        // and nothing from the owner's ~/.ssh or agent takes part. It stands in
+        // for a remote host, so it runs outside the action's process group.
+        // Both cases end before a session, which would run the owner's shell.
+        await writeFile(
+          serverConfig,
+          `HostKey "${hostKey}"\nAuthorizedKeysFile "${authorizedKeys}"\nUsePAM no\nStrictModes no\nPermitUserRC no\nPidFile none\n`,
+        );
+        await writeFile(
+          clientConfig,
+          `Host fixture.invalid\n  ProxyCommand perl -MPOSIX -e "POSIX::setsid(); exec @ARGV" ${sshd} -i -f "${serverConfig}"\n  UserKnownHostsFile "${knownHosts}"\n  GlobalKnownHostsFile /dev/null\n  IdentityAgent none\n  IdentitiesOnly yes\n`,
+        );
+        await git(
+          'config',
+          'core.sshCommand',
+          `ssh -F '${clientConfig}' -i '${identity}'`,
+        );
+        await git('remote', 'add', 'fixture', `ssh://fixture.invalid${remote}`);
+        const push = () =>
+          act({
+            action: 'push',
+            remoteName: 'fixture',
+            destinationRef: 'refs/heads/main',
+            allowCreate: true,
+          });
+
+        expect(await push()).toMatchObject({
+          state: 'indeterminate',
+          reason: 'GIT_REJECTED',
+          message: expect.stringContaining('Host key verification failed'),
+        });
+        const hostPublic = await readFile(`${hostKey}.pub`, 'utf8');
+        await writeFile(
+          knownHosts,
+          `fixture.invalid ${hostPublic.split(' ').slice(0, 2).join(' ')}\n`,
+        );
+        expect(await push()).toMatchObject({
+          state: 'indeterminate',
+          reason: 'GIT_REJECTED',
+          message: expect.stringContaining('Permission denied'),
+        });
+        expect(
+          (
+            await execute('git', [
+              '-C',
+              remote,
+              'for-each-ref',
+              '--format=%(refname)',
+            ])
+          ).stdout,
+        ).toBe('');
+      },
+    );
 
     it('rejects hidden credential-helper chains, interactive keychain and multiple push targets before transport', async () => {
       await git(
@@ -863,19 +984,10 @@ describe('ActionGit', () => {
       );
       await expect(
         prepare({ action: 'commit', message: 'unsupported filter' }),
-      ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
-      expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
-    });
-
-    it('rejects a repository-selected SSH executable or identity', async () => {
-      await git(
-        'config',
-        'core.sshCommand',
-        'ssh -i /home/example/.ssh/another-account',
-      );
-      await expect(
-        prepare({ action: 'commit', message: 'unsupported SSH override' }),
-      ).rejects.toMatchObject({ reason: 'UNSUPPORTED_CONFIGURATION' });
+      ).rejects.toMatchObject({
+        reason: 'UNSUPPORTED_CONFIGURATION',
+        detail: expect.stringContaining('filter.fixture.clean'),
+      });
       expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
     });
   });

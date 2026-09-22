@@ -7,7 +7,8 @@ export function toGitActionErrorResponse(error: unknown) {
       statusCode: 409,
       body: {
         code: error.reason,
-        message: 'Git action unavailable; refresh and prepare again',
+        message:
+          error.detail ?? 'Git action unavailable; refresh and prepare again',
       },
     };
   if (error instanceof GitActionNotFoundError)

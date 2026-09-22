@@ -52,6 +52,7 @@ import {
   receiptWords,
 } from './git-action-feedback';
 import { GitActionInspection } from './git-action-inspection';
+import { GitActionMessage } from './git-action-message';
 import {
   branchStatus,
   type GitActionStatus,
@@ -201,7 +202,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
     } catch (error) {
       toast.add({
         title: `${label} did not run`,
-        description: gitErrorMessage(error),
+        description: <GitActionMessage text={gitErrorMessage(error)} />,
         type: 'error',
       });
       return;
@@ -216,7 +217,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
         setProgressOpen(false);
         toast.add({
           title: receiptFailed(receipt) ? `${label} did not run` : label,
-          description: receiptWords(receipt),
+          description: <GitActionMessage text={receiptWords(receipt)} />,
           type: receiptFailed(receipt) ? 'error' : 'success',
         });
       })
@@ -224,7 +225,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
         setProgressOpen(false);
         toast.add({
           title: `${label} did not run`,
-          description: gitErrorMessage(error),
+          description: <GitActionMessage text={gitErrorMessage(error)} />,
           type: 'error',
         });
       });

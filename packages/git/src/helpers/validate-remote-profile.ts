@@ -16,6 +16,11 @@ export function validateRemoteProfile(url: string): string {
       throw new Error('Unsupported remote');
     return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
   } catch (cause) {
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', { cause });
+    // The URL is not repeated: an unsupported one may hold a password.
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      cause,
+      detail:
+        'The remote URL is not one Porcelain can use. It supports a local path, SSH, and HTTPS without a user name, password or query in the URL. Change it with `git remote set-url`, or run this action from a terminal.',
+    });
   }
 }

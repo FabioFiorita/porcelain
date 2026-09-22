@@ -204,6 +204,23 @@ describe('direct Git actions HTTP', () => {
     expect(await git('rev-list', '--count', 'HEAD')).toBe('2');
   });
 
+  it('names the configuration key that refuses an action', async () => {
+    await git('config', 'filter.fixture.process', 'fixture-filter-not-run');
+    await writeFile(join(checkout, 'file'), 'selected\n');
+    const refused = await run(
+      { action: 'commit', message: 'refused', paths: ['file'] },
+      await snapshot(['file']),
+    );
+    expect(await outcome(refused.requestId)).toMatchObject({
+      state: 'rejected',
+      reason: 'UNSUPPORTED_CONFIGURATION',
+      message: expect.stringMatching(
+        /^Git config sets `filter\.fixture\.process`\. .* Run this action from a terminal instead\.$/,
+      ),
+    });
+    expect(await git('rev-list', '--count', 'HEAD')).toBe('1');
+  });
+
   it('commits a selected file without reading an unrelated oversized change', async () => {
     await writeFile(join(checkout, 'file'), 'selected\n');
     const expected = await snapshot(['file']);
@@ -392,6 +409,8 @@ describe('direct Git actions HTTP', () => {
     expect(await outcome(partial.requestId)).toMatchObject({
       state: 'rejected',
       reason: 'UNSUPPORTED_CONFIGURATION',
+      message:
+        'The selected lines cover only part of a change. Select the whole change to discard it.',
     });
     expect(await readFile(join(checkout, 'file'), 'utf8')).toBe(
       'ONE\nTWO\nthree\n',

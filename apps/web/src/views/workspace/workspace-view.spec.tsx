@@ -1021,7 +1021,7 @@ describe('git actions', () => {
     await clickThrough(screen.getByLabelText('Restore staged changes'));
     await clickThrough(screen.getByRole('button', { name: 'Pop stash' }));
     await expect
-      .element(screen.getByRole('status').filter({ hasText: 'rejected' }))
+      .element(screen.getByRole('alert'))
       .toMatchTextContent('not simulated in the mock');
     await expect
       .element(screen.getByRole('button', { name: /^Confirm/ }))

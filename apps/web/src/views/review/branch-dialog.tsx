@@ -22,6 +22,7 @@ import {
   receiptFailed,
   receiptWords,
 } from './git-action-feedback';
+import { GitActionError } from './git-action-message';
 import type { GitActionStatus } from './git-action-options';
 
 export function BranchDialog({
@@ -158,11 +159,7 @@ export function BranchDialog({
             </label>
           </>
         )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        {error && <GitActionError text={error} />}
         {git.operation?.receipt?.progress.map((line) => (
           <p key={line} role="status" className="text-xs text-muted-foreground">
             {line}

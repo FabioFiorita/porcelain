@@ -1,4 +1,4 @@
-import { TriangleAlertIcon, Undo2Icon } from 'lucide-react';
+import { Undo2Icon } from 'lucide-react';
 import { useState } from 'react';
 import {
   AlertDialog,
@@ -27,6 +27,7 @@ import {
   receiptFailed,
   receiptWords,
 } from './git-action-feedback';
+import { GitActionError } from './git-action-message';
 import type { GitActionStatus } from './git-action-options';
 
 export function DiscardButton({
@@ -217,15 +218,9 @@ export function DiscardButton({
             {path}
           </p>
           {error && (
-            <p role="alert" className="flex gap-2 text-sm text-destructive">
-              <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
-              <span>
-                {error.text}
-                {error.moved
-                  ? ' Look at the diff again before discarding.'
-                  : ''}
-              </span>
-            </p>
+            <GitActionError text={error.text}>
+              {error.moved ? ' Look at the diff again before discarding.' : ''}
+            </GitActionError>
           )}
           {discard.operation?.receipt?.progress.map((line) => (
             <p

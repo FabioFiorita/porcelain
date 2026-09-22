@@ -22,7 +22,9 @@ import {
   changedSinceLooked,
   expectationFor,
   gitErrorMessage,
+  receiptFailed,
 } from './git-action-feedback';
+import { GitActionError } from './git-action-message';
 import { type GitActionStatus, gitActions } from './git-action-options';
 
 export function GitActionInspection({
@@ -353,7 +355,11 @@ function ActionForm({
               : 'Pull only moves forward when there are no diverging local commits.'}
         </p>
       )}
-      {outcome && (
+      {outcome?.message &&
+      receiptFailed(outcome) &&
+      outcome.state !== 'conflicted' ? (
+        <GitActionError text={outcome.message} />
+      ) : outcome ? (
         <p role="status" className="text-sm">
           {outcome.state}
           {outcome.message
@@ -362,7 +368,7 @@ function ActionForm({
               ? ` · ${outcome.reason.replaceAll('_', ' ').toLowerCase()}`
               : ''}
         </p>
-      )}
+      ) : null}
       {action === 'pull' && outcome?.state === 'conflicted' && (
         <p role="alert" className="text-sm">
           Pull stopped with conflicts. In this worktree, run{' '}
@@ -373,11 +379,7 @@ function ActionForm({
         </p>
       )}
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {gitErrorMessage(error)}
-        </p>
-      ) : null}
+      {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
       {outcome && changedSinceLooked(outcome) && onLookAgain && (
         <Button
           type="button"

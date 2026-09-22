@@ -36,6 +36,7 @@ import {
   receiptFailed,
   receiptWords,
 } from './git-action-feedback';
+import { GitActionError } from './git-action-message';
 import { type GitActionStatus, gitActionBlocker } from './git-action-options';
 
 type Group = CommitDraft['groups'][number] & { id: string };
@@ -657,7 +658,7 @@ export function CommitForm({
             ? 'This finishes the merge and commits every staged resolution, including staged files outside your selection.'
             : 'Selected files use their current contents. Other staged files stay staged.'}
       </p>
-      {receipt && (
+      {receipt && !(error && receiptFailed(receipt)) && (
         <div role="status" className="text-sm">
           <p>{receipt.state}</p>
           {receipt.progress.map((line) => (
@@ -668,11 +669,7 @@ export function CommitForm({
         </div>
       )}
       {uncertain && !receipt && <p role="status">Outcome not yet confirmed</p>}
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {gitErrorMessage(error)}
-        </p>
-      ) : null}
+      {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
       {receipt && changedSinceLooked(receipt) && onLookAgain && (
         <Button
           type="button"

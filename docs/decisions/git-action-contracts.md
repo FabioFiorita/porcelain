@@ -97,7 +97,9 @@ is conservative uncertainty and never triggers rollback or retry.
 
 Git runs in its own process group with closed stdin except commit message input, bounded/drained
 output and a five-second group-cleanup budget. Cancellation kills the owned group; the implementation
-waits for its disappearance. An unconfirmed group blocks further project mutations, including queued
+waits for its disappearance. After Git exits, the group gets 250 ms to empty on its own, because Git can
+exit just before a child it has signalled, such as `ssh` after a failed transport. Anything still
+running then is killed and makes the outcome uncertain. An unconfirmed group blocks further project mutations, including queued
 work. Preparation failures also persist this block even before a request receipt exists. Failed block/receipt
 persistence additionally blocks the project in memory before the queue advances. On restart, unfinished launched receipts similarly block the project because restart does not
 prove an orphan stopped; unfinished unlaunched receipts become indeterminate without replay. There
@@ -142,7 +144,9 @@ not atomic deletion by OID. No raw reflog editing or compensating cleanup is per
 
 Supported destinations are configured absolute filesystem remotes, HTTPS URLs without embedded
 credentials/query strings, and ordinary SSH URLs/scp syntax. Effective URL rewrites are inspected;
-ambiguous successive push URL rewrites, custom remote upload/receive commands and `core.sshCommand` are rejected.
+ambiguous successive push URL rewrites and custom remote upload/receive commands are rejected. Every
+rejection names the setting or path that caused it and says what the owner can do, usually removing
+the setting or running the action from a terminal.
 
 HTTPS permits exact `cache` and `store` credential helpers, respecting explicit empty chain resets.
 Unknown helper commands, helper arguments, shell helpers and `osxkeychain` are rejected before transport.
@@ -150,9 +154,16 @@ Keychain access controls can prompt, so it is not classified as noninteractive. 
 across credential contexts; an unsupported unrelated context can also reject preparation. Existing
 Git TLS and proxy policy remains in force. No certificate/host-key acceptance or credential creation occurs.
 
-SSH uses system `ssh` with BatchMode, strict host-key checking and password prompts disabled. Existing
-SSH config routing/identities remain available; ProxyCommand/Match executables are trusted configuration,
-not universally contained or prevented from showing UI. Askpass/editor variables cannot open interactive
+SSH follows the owner's own setup, as other Git clients do: a repository's `core.sshCommand` when set,
+otherwise system `ssh` with `~/.ssh/config`. A repository's `.git/config` is local configuration that a
+clone never copies, so choosing an account there with `ssh -i <key>` has the same trust as
+`~/.ssh/config`, and ProxyCommand/Match executables likewise. Porcelain adds no SSH flags. Instead,
+prompts are unavailable: Git runs in its own session with no controlling terminal, and askpass is
+disabled (`SSH_ASKPASS_REQUIRE=never`). An unknown host key therefore fails host-key verification,
+and a refused key fails authentication instead of waiting. Without BatchMode, OpenSSH may still offer
+up to three empty passwords to a server that accepts password authentication, which counts toward a
+server's failed-login limit (for example fail2ban) before it gives up. These executables
+are not contained or prevented from showing their own UI. Askpass/editor variables cannot open interactive
 prompts through Git's standard paths. Hooks/signing policy is preserved; failed signing never falls back
 to unsigned commits. Arbitrary configured signers/hooks remain subject to the same trusted-executable limit.
 
@@ -161,8 +172,10 @@ to unsigned commits. Arbitrary configured signers/hooks remain subject to the sa
 Colocated specs cover real disposable Git, SQLite and loopback HTTP: index-only commits, hook/signing
 failures, stash scope/application/pop conflicts and reflog shifts, explicit fetch/push, content/config
 changes, duplicate/restart receipts, socket loss/shutdown, and owned process-group cancellation.
-HTTPS proof uses a disposable TLS service and fixture credential store. SSH proof uses a local transport
-substitute to verify flags and Git exchange; it does not establish real SSH authentication interoperability.
+HTTPS proof uses a disposable TLS service and fixture credential store. SSH proof runs the repository
+command from a server holding a pseudo-terminal and shows that the command cannot open it. Real `ssh`,
+talking to a disposable `sshd` over a ProxyCommand, shows that an unknown host key and a refused key both
+fail rather than wait. That spec is skipped where `sshd` cannot run.
 No production credentials, projects or network remotes are fixtures. UI/native workflows, real remote
 interoperability and Linux execution require their own observed proof before those claims are made.
 

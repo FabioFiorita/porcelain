@@ -172,3 +172,36 @@ it('refuses every later command once descendants could not be confirmed stopped'
     await rm(root, { recursive: true, force: true });
   }
 }, 20_000);
+
+it.each([
+  { lingers: 0.05, interrupted: false, finished: 'finished\n' },
+  { lingers: 2, interrupted: true, finished: null },
+])(
+  'lets a descendant ending $lingers s after Git finish on its own, and otherwise stops it (interrupted: $interrupted)',
+  async ({ lingers, interrupted, finished }) => {
+    const root = await mkdtemp(join(tmpdir(), 'porcelain-action-grace-'));
+    const marker = join(root, 'finished');
+    try {
+      const git = new GitActionRunner(root);
+      // As `ssh` does after a failed transport, the child is still ending when
+      // Git itself exits.
+      const result = await git.execute(
+        [
+          '-c',
+          `alias.fixture=!(sleep ${lingers}; echo finished > '${marker}') >/dev/null 2>&1 &`,
+          'fixture',
+        ],
+        AbortSignal.timeout(10_000),
+      );
+      expect(result).toMatchObject({
+        exitCode: 0,
+        interrupted,
+        descendantsStopped: true,
+      });
+      await new Promise((resolve) => setTimeout(resolve, lingers * 1000));
+      expect(await readFile(marker, 'utf8').catch(() => null)).toBe(finished);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);

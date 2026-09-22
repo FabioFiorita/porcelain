@@ -104,6 +104,9 @@ export class ExecuteGitAction {
             : signal.aborted
               ? 'DEADLINE_EXCEEDED'
               : 'GIT_REJECTED',
+        ...(error instanceof GitActionRejectedError && error.detail
+          ? { message: error.detail }
+          : {}),
         refreshRequired: false,
       };
     }

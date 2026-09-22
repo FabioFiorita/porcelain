@@ -1,8 +1,8 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from './action-outcome.ts';
+import { ambiguousRewrite } from './inspect-action-remote.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function pushBranch(
@@ -28,8 +28,7 @@ export async function pushBranch(
         signal,
       )
     ).trimEnd();
-    if (inspectedUrl !== snapshot.remote.url)
-      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+    if (inspectedUrl !== snapshot.remote.url) throw ambiguousRewrite();
     const refs = await readActionCommand(
       process,
       ['ls-remote', '--heads', snapshot.remote.url, intent.destinationRef],

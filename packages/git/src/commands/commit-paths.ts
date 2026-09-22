@@ -42,7 +42,10 @@ export async function commitPaths(
         path.split('/').some((part) => ['', '.', '..', '.git'].includes(part)),
     )
   )
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      detail:
+        'Porcelain commits at most 2,000 files at once, each inside the checkout and outside `.git`. Select fewer files and try again.',
+    });
   const indexPath = (
     await readActionCommand(
       process,

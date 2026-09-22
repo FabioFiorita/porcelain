@@ -130,6 +130,20 @@ function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
   }
 }
 
+/**
+ * Whether the group is still occupied once a short grace has passed. Git can
+ * exit a moment before a child it has just signalled: after a failed
+ * transport, `ssh` is still ending when Git's own exit arrives.
+ */
+async function descendantsRemain(pid: number): Promise<boolean> {
+  const deadline = Date.now() + 250;
+  while (signalGroup(pid, 0)) {
+    if (Date.now() >= deadline) return true;
+    await delay(10);
+  }
+  return false;
+}
+
 async function stopDescendants(
   pid: number,
   deadline: number,
@@ -237,7 +251,9 @@ export class GitActionRunner {
         this.progress(progressRemainder.trim());
       const cleanupDeadline = Date.now() + 5000;
       const cleanupSignal = AbortSignal.timeout(5000);
-      const descendantsPresent = child.pid ? signalGroup(child.pid, 0) : false;
+      const descendantsPresent = child.pid
+        ? await descendantsRemain(child.pid)
+        : false;
       if (descendantsPresent) state.interrupted = true;
       const groupStopped = child.pid
         ? await stopDescendants(child.pid, cleanupDeadline)

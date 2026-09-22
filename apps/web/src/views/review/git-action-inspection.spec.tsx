@@ -6,7 +6,11 @@ import { GitActionInspection } from './git-action-inspection';
 
 const { run, receipt } = vi.hoisted(() => ({
   run: vi.fn().mockResolvedValue({ state: 'succeeded' }),
-  receipt: { state: 'conflicted', reason: undefined as string | undefined },
+  receipt: {
+    state: 'conflicted',
+    reason: undefined as string | undefined,
+    message: undefined as string | undefined,
+  },
 }));
 // Branch details are their own read, made when this panel opens.
 vi.mock('../../query/review', async (importOriginal) => ({
@@ -28,6 +32,7 @@ vi.mock('../../query/git-actions', async (importOriginal) => ({
 afterEach(() => {
   receipt.state = 'conflicted';
   receipt.reason = undefined;
+  receipt.message = undefined;
   window.localStorage.clear();
   vi.clearAllMocks();
 });
@@ -157,4 +162,31 @@ it('reads a new expectation after Look again instead of repeating the stale requ
       },
     ),
   );
+});
+
+it('names the setting that refused an action as code in its explanation', async () => {
+  receipt.state = 'rejected';
+  receipt.reason = 'UNSUPPORTED_CONFIGURATION';
+  receipt.message =
+    'Git config sets `filter.lfs.process`. Porcelain does not run conversion filters. Run this action from a terminal instead.';
+  const screen = await render(
+    <PreferencesProvider>
+      <GitActionInspection
+        scope={{ projectId: 'project', worktreeId: 'worktree' }}
+        entry="fetch"
+        onBusy={() => {}}
+        status={{ statusToken: 'a'.repeat(64), changes: [] }}
+      />
+    </PreferencesProvider>,
+  );
+  const alert = screen.getByRole('alert');
+  await expect
+    .element(alert)
+    .toHaveTextContent(
+      'Git config sets filter.lfs.process. Porcelain does not run conversion filters. Run this action from a terminal instead.',
+    );
+  await expect
+    .element(alert.getByText('filter.lfs.process', { exact: true }))
+    .toHaveProperty('tagName', 'CODE');
+  await expect.element(screen.getByRole('status')).not.toBeInTheDocument();
 });

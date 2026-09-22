@@ -11,11 +11,16 @@ export async function inspectActionRemote(
   signal: AbortSignal,
 ) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(intent.remoteName))
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      detail:
+        'Porcelain only uses remotes named with letters, digits, dots, dashes and underscores. Rename the remote with `git remote rename`, or run this action from a terminal.',
+    });
   const ref =
     intent.action === 'push' ? intent.destinationRef : intent.sourceRef;
   if (!ref.startsWith('refs/heads/'))
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      detail: `Porcelain only fetches and pushes branches, and \`${ref}\` is not one. Run this action from a terminal.`,
+    });
   await readActionCommand(process, ['check-ref-format', ref], signal);
   const urls = (
     await readActionCommand(
@@ -33,7 +38,9 @@ export async function inspectActionRemote(
     .trimEnd()
     .split('\n');
   if (urls.length !== 1 || !urls[0])
-    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      detail: `Remote ${intent.remoteName} has ${urls[0] ? urls.length : 'no'} ${intent.action === 'push' ? 'push ' : ''}URLs, and Porcelain needs exactly one. Check \`remote.${intent.remoteName}.url\`${intent.action === 'push' ? ` and \`remote.${intent.remoteName}.pushurl\`` : ''} with \`git remote -v\`, or run this action from a terminal.`,
+    });
   const display = validateRemoteProfile(urls[0]);
   if (intent.action === 'push' && !intent.allowCreate) {
     const lookupUrl = (
@@ -43,8 +50,7 @@ export async function inspectActionRemote(
         signal,
       )
     ).trimEnd();
-    if (lookupUrl !== urls[0])
-      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+    if (lookupUrl !== urls[0]) throw ambiguousRewrite();
   }
   if (urls[0].startsWith('https:')) await verifyHttpsHelpers(process, signal);
   const trackingRef = `refs/remotes/${intent.remoteName}/${ref.slice('refs/heads/'.length)}`;
@@ -62,4 +68,12 @@ async function verifyHttpsHelpers(
     signal,
   );
   validateHttpsCredentialHelpers(config);
+}
+
+/** A push URL that another url.<base>.insteadOf rule rewrites again. */
+export function ambiguousRewrite(): GitActionRejectedError {
+  return new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+    detail:
+      'Git config rewrites this remote URL more than once through `url.<base>.insteadOf`, so the push destination is ambiguous. Remove the extra rewrite, or run this action from a terminal.',
+  });
 }

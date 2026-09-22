@@ -30,7 +30,9 @@ export async function inspectActionConfig(
       const path = join(hooks, name);
       const info = await lstat(path);
       if (!info.isFile() || info.size > 1024 * 1024)
-        throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION');
+        throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+          detail: `The \`${name}\` hook is ${info.isFile() ? 'larger than 1 MB' : 'not a regular file'}, so Porcelain cannot check it before an action. Replace it with a regular file, or run this action from a terminal.`,
+        });
       hash
         .update(name)
         .update(String(info.mode))
