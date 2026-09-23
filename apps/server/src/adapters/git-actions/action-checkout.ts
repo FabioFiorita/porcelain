@@ -7,28 +7,39 @@ import {
   type EnvironmentReader,
 } from '../projects/checkout-session.ts';
 
-type ProjectWorktrees<T extends CheckoutWorktree> =
-  CheckoutWorktreeReader<T> & {
-    inProject(
-      projectId: string,
-      worktreeId: string,
-      signal?: AbortSignal,
-    ): Promise<unknown>;
-  };
+export type ActionWorktrees = CheckoutWorktreeReader & {
+  inProject(
+    projectId: string,
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<unknown>;
+};
 
-export async function resolveActionCheckout<T extends CheckoutWorktree>(
-  worktrees: ProjectWorktrees<T>,
-  store: EnvironmentReader,
-  session: GitSession,
-  scope: GitActionScope,
-  signal?: AbortSignal,
-) {
-  await worktrees.inProject(scope.projectId, scope.worktreeId, signal);
-  return resolveCheckoutSession(
-    worktrees,
-    store,
-    session,
-    scope.worktreeId,
-    signal,
-  );
+export class ActionCheckouts {
+  private readonly worktrees: ActionWorktrees;
+  private readonly environment: EnvironmentReader;
+
+  constructor(worktrees: ActionWorktrees, environment: EnvironmentReader) {
+    this.worktrees = worktrees;
+    this.environment = environment;
+  }
+
+  async resolve(
+    scope: GitActionScope,
+    session: GitSession,
+    signal?: AbortSignal,
+  ): Promise<{
+    checkout: ReturnType<GitSession['checkout']>;
+    worktree: CheckoutWorktree;
+  }> {
+    await this.worktrees.inProject(scope.projectId, scope.worktreeId, signal);
+    const { checkout, worktree } = await resolveCheckoutSession(
+      this.worktrees,
+      this.environment,
+      session,
+      scope.worktreeId,
+      signal,
+    );
+    return { checkout, worktree };
+  }
 }

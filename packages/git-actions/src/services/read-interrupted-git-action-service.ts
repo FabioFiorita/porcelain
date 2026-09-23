@@ -1,14 +1,21 @@
-import type { GitActionReceipt } from '../models/git-action.ts';
-import type { GitActionStore } from '../ports/git-action-store.ts';
+import type { ReadInterruptedGitActionInput } from '../models/git-action-operations.ts';
+import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
+import type { InterruptedGitActionStore } from '../ports/interrupted-git-action-store.ts';
+import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
 export class ReadInterruptedGitActionService {
-  private readonly store: Pick<GitActionStore, 'interrupted'>;
+  private readonly interruptedGitActionStore: InterruptedGitActionStore;
 
-  constructor(store: Pick<GitActionStore, 'interrupted'>) {
-    this.store = store;
+  constructor(interruptedGitActionStore: InterruptedGitActionStore) {
+    this.interruptedGitActionStore = interruptedGitActionStore;
   }
 
-  execute(worktreeId: string): GitActionReceipt | undefined {
-    return this.store.interrupted(worktreeId);
+  execute(
+    input: ReadInterruptedGitActionInput,
+  ): GitActionReceiptView | undefined {
+    const receipt = this.interruptedGitActionStore.latestUndismissed(
+      input.worktreeId,
+    );
+    return receipt && gitActionReceiptView(receipt);
   }
 }

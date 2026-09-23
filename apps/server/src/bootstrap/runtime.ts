@@ -3,8 +3,8 @@ import { networkInterfaces } from 'node:os';
 import type { FastifyInstance } from 'fastify';
 import type { z } from 'zod';
 import type {
-  CommitGeneratorPort,
-  CommitModelCatalogPort,
+  CommitDraftWriter,
+  CommitModelReader,
 } from '@porcelain/git-actions/ports';
 import { openApplication } from './compose-server.ts';
 import type { ServerCapabilities } from './server-capabilities.ts';
@@ -23,7 +23,7 @@ import { acquireStartupLock } from './startup-lock.ts';
 
 export type RuntimeDependencies = {
   fileWriter?: FileWriter;
-  commitGenerator?: CommitGeneratorPort & CommitModelCatalogPort;
+  commitGenerator?: CommitDraftWriter & CommitModelReader;
   onClaimed?: () => Promise<void> | void;
   onNetworkBound?: (address: string) => Promise<void> | void;
 };

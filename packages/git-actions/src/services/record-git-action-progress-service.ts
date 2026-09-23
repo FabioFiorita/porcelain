@@ -1,21 +1,27 @@
-import type { GitActionReceipt } from '../models/git-action.ts';
-import type { GitActionStore } from '../ports/git-action-store.ts';
+import type { RecordGitActionProgressInput } from '../models/git-action-operations.ts';
+import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
+import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
+
+const PROGRESS_LINES = 200;
 
 export class RecordGitActionProgressService {
-  private readonly store: Pick<GitActionStore, 'receipt' | 'finish'>;
+  private readonly gitActionReceiptStore: GitActionReceiptStore;
 
-  constructor(store: Pick<GitActionStore, 'receipt' | 'finish'>) {
-    this.store = store;
+  constructor(gitActionReceiptStore: GitActionReceiptStore) {
+    this.gitActionReceiptStore = gitActionReceiptStore;
   }
 
-  execute(requestId: string, line: string): GitActionReceipt | undefined {
-    const current = this.store.receipt(requestId);
+  execute(
+    input: RecordGitActionProgressInput,
+  ): GitActionReceiptView | undefined {
+    const current = this.gitActionReceiptStore.read(input.requestId);
     if (current?.state !== 'running') return undefined;
     const updated = {
       ...current,
-      progress: [...(current.progress ?? []), line].slice(-200),
+      progress: [...current.progress, input.line].slice(-PROGRESS_LINES),
     };
-    this.store.finish(updated);
-    return updated;
+    this.gitActionReceiptStore.save(updated);
+    return gitActionReceiptView(updated);
   }
 }

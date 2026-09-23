@@ -1,17 +1,19 @@
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
-import type { GitActionReceipt } from '../models/git-action.ts';
-import type { GitActionStore } from '../ports/git-action-store.ts';
+import type { ReadGitActionReceiptInput } from '../models/git-action-operations.ts';
+import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
+import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
 export class ReadGitActionReceiptService {
-  private readonly store: Pick<GitActionStore, 'receipt'>;
+  private readonly gitActionReceiptStore: GitActionReceiptStore;
 
-  constructor(store: Pick<GitActionStore, 'receipt'>) {
-    this.store = store;
+  constructor(gitActionReceiptStore: GitActionReceiptStore) {
+    this.gitActionReceiptStore = gitActionReceiptStore;
   }
 
-  execute(requestId: string): GitActionReceipt {
-    const receipt = this.store.receipt(requestId);
+  execute(input: ReadGitActionReceiptInput): GitActionReceiptView {
+    const receipt = this.gitActionReceiptStore.read(input.requestId);
     if (!receipt) throw new GitActionNotFoundError();
-    return receipt;
+    return gitActionReceiptView(receipt);
   }
 }

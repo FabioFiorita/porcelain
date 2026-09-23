@@ -1,22 +1,30 @@
-import type { GitActionScope } from '@porcelain/git-actions/models';
+import type {
+  DismissInterruptedGitActionParams,
+  DismissInterruptedGitActionResponse,
+} from '@porcelain/contracts/git-actions';
 import type { DismissInterruptedGitActionService } from '@porcelain/git-actions/services';
 import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class DismissInterruptedGitActionController {
+  private readonly dismissInterruptedGitAction: DismissInterruptedGitActionService;
   private readonly lanes: Lanes;
-  private readonly dismiss: DismissInterruptedGitActionService;
 
-  constructor(lanes: Lanes, dismiss: DismissInterruptedGitActionService) {
+  constructor(
+    dismissInterruptedGitAction: DismissInterruptedGitActionService,
+    lanes: Lanes,
+  ) {
+    this.dismissInterruptedGitAction = dismissInterruptedGitAction;
     this.lanes = lanes;
-    this.dismiss = dismiss;
   }
 
-  execute(input: GitActionScope & { requestId: string }): { dismissed: true } {
+  execute(
+    input: DismissInterruptedGitActionParams,
+    context: OperationContext,
+  ): DismissInterruptedGitActionResponse {
+    context.signal?.throwIfAborted();
     this.lanes.assertOpen();
-    this.dismiss.execute(
-      { projectId: input.projectId, worktreeId: input.worktreeId },
-      input.requestId,
-    );
+    this.dismissInterruptedGitAction.execute(input);
     return { dismissed: true };
   }
 }

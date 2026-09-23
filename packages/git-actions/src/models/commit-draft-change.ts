@@ -2,12 +2,12 @@ export type CommitDraftComparison =
   | {
       scope: 'staged' | 'unstaged';
       kind: 'added' | 'modified' | 'deleted' | 'renamed' | 'type-changed';
-      oldPath: string | null;
-      newPath: string | null;
+      oldPath: string | undefined;
+      newPath: string | undefined;
       oldMode: string;
       newMode: string;
-      oldOid: string | null;
-      newOid: string | null;
+      oldOid: string | undefined;
+      newOid: string | undefined;
       supported: boolean;
     }
   | { scope: 'untracked'; path: string }
@@ -21,20 +21,20 @@ export type CommitDraftComparison =
 
 export type CommitDraftChange = {
   path: string;
-  fingerprint: string | null;
+  fingerprint: string | undefined;
   comparisons: CommitDraftComparison[];
 };
 
 export type CommitDraftObservation = {
   statusToken: string;
-  headOid: string | null;
+  headOid: string | undefined;
   changes: CommitDraftChange[];
 };
 
 export type CommitDraftUntrackedContent =
   | {
       kind: 'file';
-      contentFingerprint?: string;
+      contentFingerprint?: string | undefined;
       worktreeId: string;
       path: string;
       encoding: 'utf-8';

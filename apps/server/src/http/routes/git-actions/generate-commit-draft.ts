@@ -22,21 +22,10 @@ export function generateCommitDraft(
         response: { ...errorResponses, 200: generateCommitDraftResponseSchema },
       },
     },
-    async (request, reply) => {
-      const controller = new AbortController();
-      const closed = () => {
-        if (!reply.raw.writableFinished) controller.abort();
-      };
-      reply.raw.once('close', closed);
-      try {
-        return await options.controller.execute(
-          request.params,
-          request.body,
-          controller.signal,
-        );
-      } finally {
-        reply.raw.removeListener('close', closed);
-      }
-    },
+    async (request) =>
+      options.controller.execute(
+        { ...request.params, ...request.body },
+        { signal: request.disconnected },
+      ),
   );
 }

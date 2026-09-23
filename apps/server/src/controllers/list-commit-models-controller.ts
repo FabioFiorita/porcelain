@@ -1,21 +1,32 @@
-import type { CommitModel } from '@porcelain/git-actions/models';
+import type { ListCommitModelsResponse } from '@porcelain/contracts/git-actions';
 import type { ListCommitModelsService } from '@porcelain/git-actions/services';
 import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
+
+export type ListCommitModelsOptions = { deadlineMs: number };
 
 export class ListCommitModelsController {
+  private readonly listCommitModels: ListCommitModelsService;
   private readonly lanes: Lanes;
-  private readonly list: ListCommitModelsService;
-  private models: Promise<CommitModel[]> | undefined;
+  private readonly options: ListCommitModelsOptions;
 
-  constructor(lanes: Lanes, list: ListCommitModelsService) {
+  constructor(
+    listCommitModels: ListCommitModelsService,
+    lanes: Lanes,
+    options: ListCommitModelsOptions,
+  ) {
+    this.listCommitModels = listCommitModels;
     this.lanes = lanes;
-    this.list = list;
+    this.options = options;
   }
 
-  execute(_signal?: AbortSignal): Promise<CommitModel[]> {
-    return (this.models ??= this.lanes.unqueued(
-      (signal) => this.list.execute(signal),
-      { deadlineMs: 120_000 },
-    ));
+  execute(
+    input: Record<never, never>,
+    context: OperationContext,
+  ): Promise<ListCommitModelsResponse> {
+    return this.lanes.unqueued(
+      (signal) => this.listCommitModels.execute(input, signal),
+      { callerSignal: context.signal, deadlineMs: this.options.deadlineMs },
+    );
   }
 }

@@ -1,21 +1,19 @@
+import type { DismissInterruptedGitActionController } from '../controllers/dismiss-interrupted-git-action-controller.ts';
+import type { GenerateCommitDraftController } from '../controllers/generate-commit-draft-controller.ts';
+import type { ListCommitModelsController } from '../controllers/list-commit-models-controller.ts';
+import type { ListGitBranchesController } from '../controllers/list-git-branches-controller.ts';
+import type { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
+import type { RunGitActionController } from '../controllers/run-git-action-controller.ts';
 import type {
-  ListGitBranchesResponse,
-  RunGitActionRequest,
-} from '@porcelain/contracts/git-actions';
-import type {
-  CommitDraft,
-  CommitDraftInput,
-  CommitModel,
-  GitActionScope,
-} from '@porcelain/git-actions/models';
-import type { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
-import type { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
-import type { ListFilePreferencesController } from '../controllers/list-file-preferences-controller.ts';
-import type { ReadInventoryController } from '../controllers/read-inventory-controller.ts';
-import type { RegisterProjectController } from '../controllers/register-project-controller.ts';
-import type { RemoveProjectController } from '../controllers/remove-project-controller.ts';
-import type { RenameProjectController } from '../controllers/rename-project-controller.ts';
-import type { SetFilePreferenceController } from '../controllers/set-file-preference-controller.ts';
+  BrowseProjectFoldersResponse,
+  DiscoverProjectsResponse,
+  Project,
+  ProjectParams,
+  ReadInventoryResponse,
+  RemoveProjectResponse,
+  RenameProjectRequest,
+  RenameProjectResponse,
+} from '@porcelain/contracts/projects';
 import type {
   EditFileRequest,
   EditFileResponse,
@@ -35,6 +33,10 @@ import type {
   CommentCommand,
   StoredCommentThread,
 } from '@porcelain/reviews/models';
+import type {
+  FilePreference,
+  FilePreferenceChange,
+} from '@porcelain/projects/models';
 import type {
   AccessListing,
   DeviceRegistration,
@@ -84,38 +86,18 @@ export interface ServerCapabilities {
       context: { signal?: AbortSignal | undefined },
     ): Promise<import('@porcelain/contracts/changes').ReadCommitDiffsResponse>;
   };
-  runGitActionController: {
-    execute(
-      scope: GitActionScope,
-      request: RunGitActionRequest,
-    ): import('@porcelain/git-actions/models').GitActionReceiptView;
-  };
-  readGitActionReceiptController: {
-    execute(
-      requestId: string,
-    ): import('@porcelain/git-actions/models').GitActionReceiptView;
-  };
-  dismissInterruptedGitActionController: {
-    execute(input: GitActionScope & { requestId: string }): {
-      dismissed: true;
-    };
-  };
-  listGitBranchesController: {
-    execute(
-      scope: GitActionScope,
-      signal?: AbortSignal,
-    ): Promise<ListGitBranchesResponse>;
-  };
-  listCommitModelsController: {
-    execute(): Promise<CommitModel[]>;
-  };
-  generateCommitDraftController: {
-    execute(
-      scope: GitActionScope,
-      input: CommitDraftInput,
-      signal?: AbortSignal,
-    ): Promise<CommitDraft>;
-  };
+  runGitActionController: Pick<RunGitActionController, 'execute'>;
+  readGitActionReceiptController: Pick<
+    ReadGitActionReceiptController,
+    'execute'
+  >;
+  dismissInterruptedGitActionController: Pick<
+    DismissInterruptedGitActionController,
+    'execute'
+  >;
+  listGitBranchesController: Pick<ListGitBranchesController, 'execute'>;
+  listCommitModelsController: Pick<ListCommitModelsController, 'execute'>;
+  generateCommitDraftController: Pick<GenerateCommitDraftController, 'execute'>;
   readChangesController: {
     execute(
       input: { worktreeId: string },
@@ -250,17 +232,48 @@ export interface ServerCapabilities {
       context: { signal?: AbortSignal },
     ): Promise<SetReviewedFilesResult>;
   };
-  projects: Pick<RenameProjectController, 'execute'>;
-  removeProjectController: Pick<RemoveProjectController, 'execute'>;
-  listFilePreferencesController: Pick<ListFilePreferencesController, 'execute'>;
-  setFilePreferenceController: Pick<SetFilePreferenceController, 'execute'>;
-  readInventoryController: Pick<ReadInventoryController, 'execute'>;
-  discoverProjectsController: Pick<DiscoverProjectsController, 'execute'>;
-  browseProjectFoldersController: Pick<
-    BrowseProjectFoldersController,
-    'execute'
-  >;
-  registerProjectController: Pick<RegisterProjectController, 'execute'>;
+  projects: {
+    execute(
+      input: ProjectParams & RenameProjectRequest,
+      context: { signal?: AbortSignal },
+    ): Promise<RenameProjectResponse>;
+  };
+  removeProjectController: {
+    execute(
+      input: ProjectParams,
+      context: { signal?: AbortSignal },
+    ): Promise<RemoveProjectResponse>;
+  };
+  listFilePreferencesController: {
+    execute(input: {
+      projectId: string;
+    }): Promise<{ preferences: FilePreference[] }>;
+  };
+  setFilePreferenceController: {
+    execute(
+      input: FilePreferenceChange & { projectId: string },
+    ): Promise<{ preferences: FilePreference[] }>;
+  };
+  readInventoryController: {
+    execute(context: { signal?: AbortSignal }): Promise<ReadInventoryResponse>;
+  };
+  discoverProjectsController: {
+    execute(context: {
+      signal?: AbortSignal;
+    }): Promise<DiscoverProjectsResponse>;
+  };
+  browseProjectFoldersController: {
+    execute(
+      input: { path?: string },
+      context: { signal?: AbortSignal },
+    ): Promise<BrowseProjectFoldersResponse>;
+  };
+  registerProjectController: {
+    execute(
+      input: { path: string },
+      context: { signal?: AbortSignal },
+    ): Promise<Project>;
+  };
   listDirectoryController: {
     execute(
       input: { worktreeId: string; path: string },

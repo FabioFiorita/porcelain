@@ -112,14 +112,25 @@ export const gitActionIntentSchema = z.discriminatedUnion('action', [
   }),
 ]);
 
-export const gitActionExpectationSchema = z.strictObject({
-  headOid: oidSchema.nullable(),
-  branch: z.string().nullable(),
-  inProgress: z.enum(['merge', 'rebase']).nullable(),
-  mergeHeadOid: oidSchema.nullable(),
-  upstreamOid: oidSchema.nullable().optional(),
-  files: z.array(expectedFileSchema).max(2000).optional(),
-});
+export const gitActionExpectationSchema = z
+  .strictObject({
+    headOid: oidSchema.nullable(),
+    branch: z.string().nullable(),
+    inProgress: z.enum(['merge', 'rebase']).nullable(),
+    mergeHeadOid: oidSchema.nullable(),
+    upstreamOid: oidSchema.nullable().optional(),
+    files: z.array(expectedFileSchema).max(2000).optional(),
+  })
+  .transform((expected) => ({
+    headOid: expected.headOid ?? undefined,
+    branch: expected.branch ?? undefined,
+    inProgress: expected.inProgress ?? undefined,
+    mergeHeadOid: expected.mergeHeadOid ?? undefined,
+    ...(expected.upstreamOid === undefined
+      ? {}
+      : { upstream: { oid: expected.upstreamOid ?? undefined } }),
+    ...(expected.files === undefined ? {} : { files: expected.files }),
+  }));
 
 export const gitActionReceiptSchema = z.object({
   requestId: z.uuid(),
@@ -190,12 +201,21 @@ export const dismissInterruptedGitActionResponseSchema = z.object({
   dismissed: z.literal(true),
 });
 
+const absentAsNullSchema = z.codec(
+  z.string().nullable(),
+  z.string().optional(),
+  {
+    decode: (value) => value ?? undefined,
+    encode: (value) => value ?? null,
+  },
+);
+
 export const listGitBranchesResponseSchema = z.object({
-  current: z.string().nullable(),
+  current: absentAsNullSchema,
   branches: z.array(
     z.object({
       name: z.string(),
-      upstream: z.string().nullable(),
+      upstream: absentAsNullSchema,
       lastCommitAt: z.string(),
       checkedOutElsewhere: z.boolean(),
     }),

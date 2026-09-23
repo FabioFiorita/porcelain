@@ -1,0 +1,12 @@
+export { commitExpectsSelectedFiles } from './commit-expects-selected-files.ts';
+export { commitGroupsCoverSelection } from './commit-groups-cover-selection.ts';
+export { commitSelectsPaths } from './commit-selects-paths.ts';
+export { discardExpectsItsPath } from './discard-expects-its-path.ts';
+export { expectedFilesAreUnique } from './expected-files-are-unique.ts';
+export { expectsWholeChangeList } from './expects-whole-change-list.ts';
+export { gitActionReceiptView } from './git-action-receipt-view.ts';
+export { mergeExpectationAgrees } from './merge-expectation-agrees.ts';
+export { sameGitActionRequest } from './same-git-action-request.ts';
+export { networkActionExpectsUpstream } from './network-action-expects-upstream.ts';
+export { stashExpectsFiles } from './stash-expects-files.ts';
+export { targetMatchesExpectation } from './target-matches-expectation.ts';

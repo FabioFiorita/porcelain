@@ -1,84 +1,131 @@
-import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
-import {
-  gitActionReceiptView,
-  type GitActionReceipt,
-  type GitActionReceiptView,
-  type GitActionScope,
-} from '@porcelain/git-actions/models';
+import type {
+  GitActionScope,
+  RunGitActionRequest,
+  RunGitActionResponse,
+} from '@porcelain/contracts/git-actions';
+import type { GitActionRun } from '@porcelain/git-actions/models';
 import type {
   AcceptGitActionService,
-  ExecuteGitActionService,
-  ReadGitActionReceiptService,
+  CheckWorktreeService,
+  ExpireGitActionReceiptsService,
+  FinishGitActionService,
   RecordGitActionProgressService,
+  RunGitActionService,
 } from '@porcelain/git-actions/services';
-import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
+
+export type PublishedReviewRefresh = {
+  execute(
+    input: { worktreeId: string },
+    context: OperationContext,
+  ): Promise<unknown>;
+};
+
+export type RunGitActionOptions = { deadlineMs: number };
 
 export class RunGitActionController {
+  private readonly checkWorktree: CheckWorktreeService;
+  private readonly expireGitActionReceipts: ExpireGitActionReceiptsService;
+  private readonly acceptGitAction: AcceptGitActionService;
+  private readonly runGitAction: RunGitActionService;
+  private readonly recordGitActionProgress: RecordGitActionProgressService;
+  private readonly finishGitAction: FinishGitActionService;
+  private readonly refreshPublishedReview: PublishedReviewRefresh;
   private readonly lanes: Lanes;
-  private readonly laneFor: (projectId: string) => string;
-  private readonly accept: AcceptGitActionService;
-  private readonly executeAction: ExecuteGitActionService;
-  private readonly readReceipt: ReadGitActionReceiptService;
-  private readonly progress: RecordGitActionProgressService;
-  private readonly publish: ((receipt: GitActionReceipt) => void) | undefined;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
+  private readonly options: RunGitActionOptions;
 
   constructor(
+    checkWorktree: CheckWorktreeService,
+    expireGitActionReceipts: ExpireGitActionReceiptsService,
+    acceptGitAction: AcceptGitActionService,
+    runGitAction: RunGitActionService,
+    recordGitActionProgress: RecordGitActionProgressService,
+    finishGitAction: FinishGitActionService,
+    refreshPublishedReview: PublishedReviewRefresh,
     lanes: Lanes,
-    laneFor: (projectId: string) => string,
-    accept: AcceptGitActionService,
-    executeAction: ExecuteGitActionService,
-    readReceipt: ReadGitActionReceiptService,
-    progress: RecordGitActionProgressService,
-    publish?: (receipt: GitActionReceipt) => void,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
+    options: RunGitActionOptions,
   ) {
+    this.checkWorktree = checkWorktree;
+    this.expireGitActionReceipts = expireGitActionReceipts;
+    this.acceptGitAction = acceptGitAction;
+    this.runGitAction = runGitAction;
+    this.recordGitActionProgress = recordGitActionProgress;
+    this.finishGitAction = finishGitAction;
+    this.refreshPublishedReview = refreshPublishedReview;
     this.lanes = lanes;
-    this.laneFor = laneFor;
-    this.accept = accept;
-    this.executeAction = executeAction;
-    this.readReceipt = readReceipt;
-    this.progress = progress;
-    this.publish = publish;
+    this.laneKeys = laneKeys;
+    this.events = events;
+    this.options = options;
   }
 
-  execute(
-    scope: GitActionScope,
-    request: RunGitActionRequest,
-  ): GitActionReceiptView {
-    this.lanes.assertOpen();
-    const accepted = this.accept.execute(
-      scope,
-      request.requestId,
-      request.input,
-      request.expected,
+  async execute(
+    input: GitActionScope & RunGitActionRequest,
+    context: OperationContext,
+  ): Promise<RunGitActionResponse> {
+    await this.lanes.unqueued(
+      (signal) =>
+        this.checkWorktree.execute({ worktreeId: input.worktreeId }, signal),
+      { callerSignal: context.signal },
     );
-    if (accepted.created) {
-      this.publish?.(accepted.receipt);
-      void this.lanes
-        .run(
-          this.laneFor(scope.projectId),
-          'write',
-          ({ signal }) => this.executeOwned(accepted.receipt, signal),
-          { deadlineMs: 120_000, untilSettled: true },
-        )
-        .catch(() =>
-          this.lanes.finish(() =>
-            this.executeOwned(
-              accepted.receipt,
-              AbortSignal.abort(new ApplicationClosedError()),
-            ),
-          ),
-        )
-        .catch(() => {});
+    this.expireGitActionReceipts.execute({});
+    const accepted = this.acceptGitAction.execute({
+      projectId: input.projectId,
+      worktreeId: input.worktreeId,
+      requestId: input.requestId,
+      intent: input.input,
+      expected: input.expected,
+    });
+    if (accepted.run) {
+      this.events.gitActionChanged(accepted.receipt);
+      this.runInBackground(accepted.run);
     }
-    return gitActionReceiptView(this.readReceipt.execute(request.requestId));
+    return accepted.receipt;
   }
 
-  private async executeOwned(receipt: GitActionReceipt, signal: AbortSignal) {
-    await this.executeAction.execute(receipt, signal, (line) => {
-      const updated = this.progress.execute(receipt.requestId, line);
-      if (updated) this.publish?.(updated);
-    });
-    this.publish?.(this.readReceipt.execute(receipt.requestId));
+  private runInBackground(run: GitActionRun): void {
+    void this.lanes
+      .run(
+        this.laneKeys.project(run.projectId),
+        'write',
+        ({ signal }) => this.settle(run, signal),
+        { deadlineMs: this.options.deadlineMs, untilSettled: true },
+      )
+      .catch(() =>
+        this.lanes.finish(() => this.settle(run, AbortSignal.abort())),
+      )
+      .catch(() => undefined);
+  }
+
+  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
+    const ran = await this.runGitAction.execute(
+      {
+        run,
+        onProgress: (line) => {
+          const updated = this.recordGitActionProgress.execute({
+            requestId: run.requestId,
+            line,
+          });
+          if (updated) this.events.gitActionChanged(updated);
+        },
+      },
+      signal,
+    );
+    if (ran.reviewStale)
+      await this.refreshPublishedReview
+        .execute({ worktreeId: run.worktreeId }, { signal })
+        .catch(() => undefined);
+    this.events.gitActionChanged(
+      this.finishGitAction.execute({
+        requestId: run.requestId,
+        outcome: ran.outcome,
+      }),
+    );
   }
 }

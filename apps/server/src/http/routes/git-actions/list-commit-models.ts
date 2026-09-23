@@ -16,6 +16,7 @@ export function listCommitModels(
         response: { ...errorResponses, 200: listCommitModelsResponseSchema },
       },
     },
-    async () => options.controller.execute(),
+    async (request) =>
+      options.controller.execute({}, { signal: request.disconnected }),
   );
 }
