@@ -1,9 +1,15 @@
 import { z } from 'zod';
 import { oidListSchema, oidSchema } from '../shared/oid.ts';
+import { absentAsNull } from './absent-as-null.ts';
+
+const oidCursorSchema = z.codec(oidListSchema, z.array(oidSchema), {
+  decode: (list) => list.split(','),
+  encode: (oids) => oids.join(','),
+});
 
 export const listCommitsQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
-  after: oidListSchema.optional(),
+  after: oidCursorSchema.optional(),
   tip: oidSchema.optional(),
 });
 
@@ -19,19 +25,19 @@ export const commitSummarySchema = z.object({
   author: z.object({ name: z.string(), timestamp: z.string() }),
   subject: z.string(),
   subjectTruncated: z.boolean(),
-  body: z.string().nullable(),
+  body: absentAsNull(z.string()),
   bodyTruncated: z.boolean(),
   refs: z.array(z.string()),
 });
 
 export const listCommitsResponseSchema = z.object({
-  snapshot: z
-    .object({ tipOid: oidSchema.nullable(), head: commitHeadSchema })
-    .nullable(),
+  snapshot: absentAsNull(
+    z.object({ tipOid: absentAsNull(oidSchema), head: commitHeadSchema }),
+  ),
   commits: z.array(commitSummarySchema).max(100),
-  nextAfter: z.array(oidSchema).max(100).nullable(),
-  tip: oidSchema.nullable(),
-  boundary: z.enum(['shallow', 'wide']).nullable(),
+  nextAfter: absentAsNull(z.array(oidSchema).max(100)),
+  tip: absentAsNull(oidSchema),
+  boundary: absentAsNull(z.enum(['shallow', 'wide'])),
   restarted: z.boolean(),
 });
 

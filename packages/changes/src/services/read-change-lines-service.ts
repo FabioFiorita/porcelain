@@ -1,40 +1,41 @@
-import type { ChangeLineRange, ChangeLines } from '../models/change-lines.ts';
+import type { ChangeLines } from '../models/change-lines.ts';
+import type { ReadChangeLinesInput } from '../models/operation-inputs.ts';
 import type { ChangeLinesReader } from '../ports/change-lines-reader.ts';
 
 const MAX_LINES = 2000;
 
 export class ReadChangeLinesService {
-  private readonly reader: ChangeLinesReader;
+  private readonly changeLinesReader: ChangeLinesReader;
 
-  constructor(reader: ChangeLinesReader) {
-    this.reader = reader;
+  constructor(changeLinesReader: ChangeLinesReader) {
+    this.changeLinesReader = changeLinesReader;
   }
 
   async execute(
-    environmentId: string,
-    worktreeId: string,
-    range: ChangeLineRange,
+    input: ReadChangeLinesInput,
     signal?: AbortSignal,
   ): Promise<ChangeLines> {
+    const { worktreeId, path, from, at } = input;
+    const to = Math.min(input.to, from + MAX_LINES - 1);
+    const text =
+      at === 'head'
+        ? await this.changeLinesReader.readHeadText(worktreeId, path, signal)
+        : await this.changeLinesReader.readWorktreeText(
+            worktreeId,
+            path,
+            signal,
+          );
     signal?.throwIfAborted();
-    const from = Math.max(1, Math.trunc(range.from));
-    const to = Math.min(Math.trunc(range.to), from + MAX_LINES - 1);
-    const all =
-      range.at === 'head'
-        ? await this.reader.readHeadLines(range.path, from, to, signal)
-        : (await this.reader.readWorktreeText(range.path, signal)).split('\n');
-    signal?.throwIfAborted();
-    await this.reader.confirmReachable(worktreeId, signal);
-    if (all.length > 1 && all.at(-1) === '') all.pop();
-    const last = Math.min(all.length, to);
+    const lines = text.split('\n');
+    const count =
+      lines.length > 1 && lines.at(-1) === '' ? lines.length - 1 : lines.length;
+    const last = Math.min(count, to);
     return {
-      environmentId,
-      worktreeId,
-      at: range.at,
-      path: range.path,
+      at,
+      path,
       from,
       to: Math.max(from - 1, last),
-      lines: last < from ? [] : all.slice(from - 1, last),
+      lines: last < from ? [] : lines.slice(from - 1, last),
     };
   }
 }

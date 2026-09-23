@@ -1,17 +1,30 @@
 import { randomUUID } from 'node:crypto';
-import type { PairingReach } from '@porcelain/access/models';
+import {
+  IssuePairingService,
+  ListAccessService,
+  ReadEnvironmentService,
+  RedeemPairingService,
+  RevokeAccessService,
+} from '@porcelain/access/services';
+import type { PairingReach } from '@porcelain/access/ports';
 import {
   AgentGenerationError,
   CliCommitGenerator,
 } from '@porcelain/agents/commit-planning';
-import {
-  ReadChangeLinesService,
-  ReadChangeDiffsService,
-  ReadChangeFingerprintsService,
-  ReadWorktreeChangesService,
-  ReadWorktreeStatusService,
-} from '@porcelain/changes/services';
 import { FileInspectionError } from '@porcelain/files/errors';
+import {
+  EditFileService,
+  ListDirectoryService,
+  ListWorktreePathsService,
+  ReadAssetService,
+  ReadPreviewAssetsService,
+  ReadTextFileService,
+} from '@porcelain/files/services';
+import type {
+  FileReader,
+  FileWriter,
+  IgnoredEntries,
+} from '@porcelain/files/ports';
 import { CommitDraftError } from '@porcelain/git-actions/errors';
 import { gitActionReceiptView } from '@porcelain/git-actions/models';
 import {
@@ -28,13 +41,20 @@ import {
   RecordGitActionProgressService,
 } from '@porcelain/git-actions/services';
 import { ActionGit } from '@porcelain/git/actions';
+import { checkIgnored } from '@porcelain/git/inspection';
+import { listTrackedPaths } from '@porcelain/git/inspection';
 import { CommitGit } from '@porcelain/git/history';
 import type { DiscoveryIssue } from '@porcelain/git/discovery';
 import { Git, isRepositoryUnavailable } from '@porcelain/git/discovery';
-import { RequestGitSession } from '@porcelain/git/inspection';
+import { RequestGitSession } from '@porcelain/git/actions';
 import { InspectionGit } from '@porcelain/git/inspection';
-import type { GitSession } from '@porcelain/git/inspection';
-import type { ExpectedFile as ExpectedChangeFile } from '@porcelain/changes/models';
+import type {
+  ChangeComparison,
+  ChangeSelection,
+  ExpectedFile as ExpectedChangeFile,
+  ReadChangesResult,
+} from '@porcelain/changes/models';
+import { conflictSchema } from '@porcelain/contracts/changes';
 import {
   BrowseProjectFoldersService,
   CollectAbsentWorktreesService,
@@ -53,18 +73,13 @@ import type {
   CommitModelCatalogPort,
 } from '@porcelain/git-actions/ports';
 import type { ServerCapabilities } from './server-capabilities.ts';
-import { composeFiles } from './compose-files.ts';
-import { createChangeLinesReader } from '../adapters/changes/change-lines-reader.ts';
-import { createChangeStatusReader } from '../adapters/changes/change-status-reader.ts';
-import { createChangeInspectionReader } from '../adapters/changes/change-inspection-reader.ts';
-import { CommitHistoryAdapter } from '../adapters/git/commit-history-adapter.ts';
-import { ListCommitsController } from '../controllers/list-commits-controller.ts';
-import { ReadCommitFilesController } from '../controllers/read-commit-files-controller.ts';
-import { ReadCommitDiffsController } from '../controllers/read-commit-diffs-controller.ts';
-import { ReadChangesController } from '../controllers/read-changes-controller.ts';
-import { ReadChangeDiffsController } from '../controllers/read-change-diffs-controller.ts';
-import { ReadChangeLinesController } from '../controllers/read-change-lines-controller.ts';
-import { ReadGitStatusController } from '../controllers/read-git-status-controller.ts';
+import {
+  createTrackedPathsReader,
+  type TrackedPaths,
+} from '../adapters/files/tracked-paths-reader.ts';
+import { createReadableWorktrees } from '../adapters/files/readable-worktrees.ts';
+import { composeChanges } from './compose-changes.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
 import { ActionExecutionAdapter } from '../adapters/git-actions/action-execution-adapter.ts';
 import { CommitDraftCaptureAdapter } from '../adapters/git-actions/commit-draft-capture-adapter.ts';
 import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
@@ -81,6 +96,11 @@ import { ListReviewedFilesController } from '../controllers/list-reviewed-files-
 import { RemoveReviewedFileController } from '../controllers/remove-reviewed-file-controller.ts';
 import { SetReviewedFileController } from '../controllers/set-reviewed-file-controller.ts';
 import { SetReviewedFilesController } from '../controllers/set-reviewed-files-controller.ts';
+import { RedeemPairingController } from '../controllers/redeem-pairing-controller.ts';
+import { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
+import { ListAccessController } from '../controllers/list-access-controller.ts';
+import { RevokeAccessController } from '../controllers/revoke-access-controller.ts';
+import { ReadHealthController } from '../controllers/read-health-controller.ts';
 import { PublishReviewController } from '../controllers/publish-review-controller.ts';
 import { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
 import { ReadReviewSummaryController } from '../controllers/read-review-summary-controller.ts';
@@ -88,15 +108,10 @@ import { ListReviewedLayersController } from '../controllers/list-reviewed-layer
 import { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
 import { RemoveReviewedLayerController } from '../controllers/remove-reviewed-layer-controller.ts';
 import { applicationSettingsSchema } from '../config/application-settings.ts';
-import { FileReaderAdapter } from '../adapters/files/file-reader-adapter.ts';
+import { NodeFileReader } from '../adapters/files/file-reader.ts';
+import { NodeFileWriter } from '../adapters/files/file-writer.ts';
 import { NodeProjectFolders } from '../adapters/files/project-folders.ts';
-import {
-  readWorktreeFiles,
-  stampPath,
-  type StampPath,
-  type WorktreeFiles,
-} from '../adapters/files/worktree-files.ts';
-import { DeviceDirectoryAdapter } from '../adapters/access/device-directory-adapter.ts';
+import { DeviceDirectory } from '../adapters/access/device-directory.ts';
 import { LiveUpdates } from '../adapters/events/live-updates.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
@@ -119,12 +134,21 @@ import { ReadInventoryController } from '../controllers/read-inventory-controlle
 import { RegisterProjectController } from '../controllers/register-project-controller.ts';
 import { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
 import { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
+import { ListDirectoryController } from '../controllers/list-directory-controller.ts';
+import { ReadTextFileController } from '../controllers/read-text-file-controller.ts';
+import { ReadFileAssetController } from '../controllers/read-file-asset-controller.ts';
+import { ReadPreviewAssetsController } from '../controllers/read-preview-assets-controller.ts';
+import { EditFileController } from '../controllers/edit-file-controller.ts';
+import { ListWorktreePathsController } from '../controllers/list-worktree-paths-controller.ts';
 import { resolveActionCheckout } from '../adapters/git-actions/action-checkout.ts';
 import { ResolveWorktree } from '../adapters/projects/resolve-worktree.ts';
 import { SetFilePreferenceService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
-import { createDeviceStore } from '@porcelain/storage/access';
-import { composeAccess } from './compose-access.ts';
+import {
+  createDeviceStore,
+  createEnvironmentIdentityStore,
+  createPairingGrantStore,
+} from '@porcelain/storage/access';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import {
@@ -162,12 +186,14 @@ export async function openApplication(options: {
   actionGit?: GitActionWriterFactory;
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
-  worktreeFiles?: WorktreeFiles;
-  stampPath?: StampPath;
+  files?: FileReader;
+  ignoredEntries?: (root: string) => IgnoredEntries;
+  trackedPaths?: TrackedPaths;
   projectFolders?: ProjectFolders;
   projectHome: string;
   pairingReach?: () => PairingReach;
   commitGenerator?: CommitGeneratorPort & CommitModelCatalogPort;
+  fileWriter?: FileWriter;
   now?: () => string;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
@@ -289,14 +315,13 @@ export async function openApplication(options: {
     const preferences = createFilePreferenceStore(session);
     const listPreferences = new ListFilePreferencesService(store, preferences);
     const setPreference = new SetFilePreferenceService(store, preferences);
-    const deviceDirectory = new DeviceDirectoryAdapter(
-      createDeviceStore(session),
-    );
-    const access = composeAccess({
-      session,
-      lanes,
-      deviceStore: deviceDirectory,
-      pairingReachReader: {
+    const pairingGrants = createPairingGrantStore(session);
+    const deviceStore = createDeviceStore(session);
+    const deviceDirectory = new DeviceDirectory(deviceStore);
+    const issuePairing = new IssuePairingService(
+      pairingGrants,
+      createEnvironmentIdentityStore(session),
+      {
         current:
           options.pairingReach ??
           (() => ({
@@ -304,7 +329,32 @@ export async function openApplication(options: {
             policy: { allowedHosts: [], localAddresses: [] },
           })),
       },
-    });
+    );
+    const listAccess = new ListAccessService(pairingGrants, deviceStore);
+    const redeemPairing = new RedeemPairingService(
+      pairingGrants,
+      deviceDirectory,
+    );
+    const redeemPairingController = new RedeemPairingController(
+      redeemPairing,
+      stored,
+    );
+    const issuePairingController = new IssuePairingController(
+      issuePairing,
+      stored,
+    );
+    const listAccessController = new ListAccessController(listAccess, stored);
+    const readHealthController = new ReadHealthController(
+      new ReadEnvironmentService(createEnvironmentIdentityStore(session)),
+    );
+    const revokeAccess = new RevokeAccessService(
+      pairingGrants,
+      deviceDirectory,
+    );
+    const revokeAccessController = new RevokeAccessController(
+      revokeAccess,
+      stored,
+    );
     const lastSeenFlush = setInterval(
       () => deviceDirectory.flush(),
       LAST_SEEN_FLUSH_MS,
@@ -343,50 +393,28 @@ export async function openApplication(options: {
     void readGitVersion().catch(() => undefined);
     const commitGit =
       options.commitGit ?? ((checkout) => new CommitGit(checkout));
-    const commitHistory = new CommitHistoryAdapter(
-      worktrees,
-      () => store.read().environmentId,
-      commitGit,
+    const files = options.files ?? new NodeFileReader();
+    const readableWorktrees = createReadableWorktrees(worktrees);
+    const list = new ListDirectoryService(
+      readableWorktrees,
+      files,
+      options.ignoredEntries ??
+        ((root) => (paths, signal) => checkIgnored(root, paths, signal)),
     );
-    const files = new FileReaderAdapter(worktrees);
-    const {
-      readTextFileService: read,
-      listDirectoryController,
-      readTextFileController,
-      readFileAssetController,
-      readPreviewAssetsController,
-      editFileController,
-      listWorktreePathsController,
-    } = composeFiles({
-      lanes,
-      laneKeys: {
-        inventory: () => INVENTORY,
-        filesystem: () => FILESYSTEM,
-        project: projectLaneOf,
-        worktree: laneOf,
-      },
-      events: {
-        inventoryChanged: () => live.publish({ type: 'inventory' }),
-        projectChanged: (projectId, change) =>
-          live.publish({ type: 'project', projectId, change }),
-        worktreeChanged: (worktreeId, change) =>
-          live.publishWorktree(worktreeId, change),
-        filesChanged: (worktreeId, paths) => live.noteFiles(worktreeId, paths),
-        gitActionChanged: (receipt) =>
-          live.publish({
-            type: 'git-action',
-            projectId: receipt.projectId,
-            worktreeId: receipt.worktreeId,
-            receipt,
-          }),
-      },
-      worktreeAccess: {
-        known: (worktreeId, signal) => worktrees.reachable(worktreeId, signal),
-        forWriting: (worktreeId, signal) =>
-          worktrees.reachable(worktreeId, signal),
-      },
-      worktreeCheckouts: worktrees,
-    });
+    const read = new ReadTextFileService(readableWorktrees, files);
+    const asset = new ReadAssetService(readableWorktrees, new NodeFileReader());
+    const previewAssets = new ReadPreviewAssetsService(
+      readableWorktrees,
+      new NodeFileReader(),
+    );
+    const worktreePaths = new ListWorktreePathsService(
+      readableWorktrees,
+      createTrackedPathsReader(options.trackedPaths ?? listTrackedPaths),
+    );
+    const editFile = new EditFileService(
+      readableWorktrees,
+      options.fileWriter ?? new NodeFileWriter(),
+    );
     const register = new RegisterProjectService(
       store,
       projectRepositories,
@@ -394,63 +422,6 @@ export async function openApplication(options: {
     );
     const inspection =
       options.inspectionGit ?? ((checkout) => new InspectionGit(checkout));
-    const statusReader = createChangeStatusReader(store, worktrees, inspection);
-    const linesReader = createChangeLinesReader(
-      store,
-      worktrees,
-      inspection,
-      files,
-    );
-    const worktreeFiles = options.worktreeFiles ?? readWorktreeFiles;
-    const inspectChanges = createChangeInspectionReader(
-      store,
-      worktrees,
-      inspection,
-      worktreeFiles,
-      options.stampPath ?? stampPath,
-    );
-    const changes = {
-      execute: (
-        worktreeId: string,
-        gitSession: GitSession,
-        signal?: AbortSignal,
-      ) =>
-        new ReadWorktreeChangesService(
-          inspectChanges(worktreeId, gitSession),
-        ).execute(worktreeId, signal),
-      fingerprints: (
-        worktreeId: string,
-        paths: readonly string[],
-        gitSession: GitSession,
-        signal?: AbortSignal,
-      ) =>
-        new ReadChangeFingerprintsService(
-          inspectChanges(worktreeId, gitSession),
-        ).execute(worktreeId, paths, signal),
-    };
-    const changeDiffs = {
-      execute: (
-        worktreeId: string,
-        expectedStatusToken: string,
-        expectedFiles: readonly ExpectedChangeFile[],
-        selections: readonly {
-          scope: 'staged' | 'unstaged';
-          oldPath: string | null;
-          newPath: string | null;
-        }[],
-        gitSession: GitSession,
-        signal?: AbortSignal,
-      ) =>
-        new ReadChangeDiffsService(
-          inspectChanges(worktreeId, gitSession),
-        ).execute(
-          worktreeId,
-          expectedStatusToken,
-          expectedFiles,
-          selections,
-          signal,
-        ),
-    };
     const reviewStore = createReviewStore(session);
     const reviewDiagnostics = new AssembleReviewDiagnosticsService();
     const resolvePublishedReview = new ResolvePublishedReviewService(
@@ -458,16 +429,12 @@ export async function openApplication(options: {
     );
     const reviewEvidence = {
       readChanges: (worktreeId: string, signal?: AbortSignal) =>
-        changes.execute(worktreeId, new RequestGitSession(), signal),
+        changes.read(worktreeId, signal),
       readDiffs: (
         worktreeId: string,
         statusToken: string,
         expectedFiles: readonly ExpectedChangeFile[],
-        selections: readonly {
-          scope: 'staged' | 'unstaged';
-          oldPath: string | null;
-          newPath: string | null;
-        }[],
+        selections: readonly ChangeSelection[],
         signal?: AbortSignal,
       ) =>
         changeDiffs.execute(
@@ -475,7 +442,6 @@ export async function openApplication(options: {
           statusToken,
           expectedFiles,
           selections,
-          new RequestGitSession(),
           signal,
         ),
     };
@@ -610,11 +576,203 @@ export async function openApplication(options: {
         ({ signal: operationSignal }) => operation(operationSignal),
         { callerSignal: signal },
       );
+    const runWorktreeWrite = <T>(
+      worktreeId: string,
+      operation: (signal: AbortSignal) => Promise<T>,
+      signal?: AbortSignal,
+    ) =>
+      lanes.run(
+        laneOf(worktreeId),
+        'write',
+        ({ signal: operationSignal }) => operation(operationSignal),
+        { callerSignal: signal },
+      );
+    const listDirectoryController = new ListDirectoryController(
+      list,
+      runWorktreeRead,
+    );
+    const readTextFileController = new ReadTextFileController(
+      read,
+      runWorktreeRead,
+    );
+    const readFileAssetController = new ReadFileAssetController(
+      asset,
+      runWorktreeRead,
+    );
+    const readPreviewAssetsController = new ReadPreviewAssetsController(
+      previewAssets,
+      runWorktreeRead,
+    );
+    const editFileController = new EditFileController(
+      editFile,
+      runWorktreeWrite,
+      (worktreeId, paths) => live.noteFiles(worktreeId, paths),
+    );
+    const listWorktreePathsController = new ListWorktreePathsController(
+      worktreePaths,
+      runWorktreeRead,
+    );
     const acceptAction = new AcceptGitActionService(actionStore);
     const readActionReceipt = new ReadGitActionReceiptService(actionStore);
     const readInterruptedAction = new ReadInterruptedGitActionService(
       actionStore,
     );
+    const laneKeys: LaneKeys = {
+      inventory: () => INVENTORY,
+      filesystem: () => FILESYSTEM,
+      project: projectLaneOf,
+      worktree: laneOf,
+    };
+    const changesDomain = composeChanges({
+      session,
+      lanes,
+      laneKeys,
+      sharedReads,
+      worktreeAccess: worktrees,
+      reachableWorktrees: worktrees,
+      inventory: store,
+      inspection,
+      commitGit,
+      files,
+      reviewedFileStore: reviewed,
+      readInterruptedGitAction: readInterruptedAction,
+    });
+    const changeServices = changesDomain.services;
+    const legacyComparison = (comparison: ChangeComparison) => {
+      if (comparison.scope === 'untracked') return comparison;
+      if (comparison.scope === 'unmerged')
+        return {
+          ...comparison,
+          conflict: conflictSchema.encode(comparison.conflict),
+        };
+      return {
+        ...comparison,
+        oldPath: comparison.oldPath ?? null,
+        newPath: comparison.newPath ?? null,
+        oldOid: comparison.oldOid ?? null,
+        newOid: comparison.newOid ?? null,
+      };
+    };
+    const changes = {
+      read: async (
+        worktreeId: string,
+        signal?: AbortSignal,
+      ): Promise<ReadChangesResult> => {
+        await changeServices.confirmWorktree.execute({ worktreeId }, signal);
+        const status = await changeServices.readWorktreeStatus.execute(
+          { worktreeId },
+          signal,
+        );
+        const observed = await changeServices.readChangeFingerprints.execute(
+          { worktreeId, comparisons: status.changes, paths: undefined },
+          signal,
+        );
+        await changeServices.confirmWorktree.execute({ worktreeId }, signal);
+        return {
+          environmentId: changeServices.readEnvironment.execute(),
+          worktreeId,
+          statusToken: status.statusToken,
+          headOid: status.headOid,
+          inProgress: status.inProgress,
+          mergeHeadOid: status.mergeHeadOid,
+          branch: status.branch,
+          changes: observed.changes,
+        };
+      },
+      execute: async (
+        worktreeId: string,
+        _session: unknown,
+        signal?: AbortSignal,
+      ) => {
+        const list = await changes.read(worktreeId, signal);
+        return {
+          statusToken: list.statusToken,
+          headOid: list.headOid ?? null,
+          changes: list.changes.map((change) => ({
+            path: change.path,
+            fingerprint: change.fingerprint ?? null,
+            comparisons: change.comparisons.map(legacyComparison),
+          })),
+        };
+      },
+      fingerprints: async (
+        worktreeId: string,
+        paths: readonly string[],
+        _session: unknown,
+        signal?: AbortSignal,
+      ) => {
+        const status = await changeServices.readWorktreeStatus.execute(
+          { worktreeId },
+          signal,
+        );
+        const observed = await changeServices.readChangeFingerprints.execute(
+          { worktreeId, comparisons: status.changes, paths },
+          signal,
+        );
+        await changeServices.confirmWorktree.execute({ worktreeId }, signal);
+        return new Map(
+          observed.changes.flatMap(({ path, fingerprint }) =>
+            fingerprint === undefined ? [] : [[path, fingerprint] as const],
+          ),
+        );
+      },
+    };
+    const changeDiffs = {
+      execute: async (
+        worktreeId: string,
+        expectedStatusToken: string,
+        expectedFiles: readonly ExpectedChangeFile[],
+        selections: readonly ChangeSelection[],
+        signal?: AbortSignal,
+      ) => {
+        await changeServices.confirmWorktree.execute({ worktreeId }, signal);
+        const before = await changeServices.readWorktreeStatus.execute(
+          { worktreeId },
+          signal,
+        );
+        const selected = changeServices.selectDiffComparisons.execute({
+          expectedFiles,
+          selections,
+          status: before,
+        });
+        const observed = await changeServices.readChangeFingerprints.execute(
+          { worktreeId, comparisons: before.changes, paths: selected.paths },
+          signal,
+        );
+        changeServices.confirmDiffObservation.execute({
+          expectedStatusToken,
+          expectedFiles,
+          statusToken: before.statusToken,
+          fingerprints: observed,
+          previousStamp: undefined,
+        });
+        const diffs = await changeServices.readChangeDiffs.execute(
+          { worktreeId, comparisons: selected.comparisons },
+          signal,
+        );
+        const after = await changeServices.readWorktreeStatus.execute(
+          { worktreeId },
+          signal,
+        );
+        changeServices.confirmDiffObservation.execute({
+          expectedStatusToken,
+          expectedFiles,
+          statusToken: after.statusToken,
+          fingerprints: await changeServices.readChangeFingerprints.execute(
+            { worktreeId, comparisons: after.changes, paths: selected.paths },
+            signal,
+          ),
+          previousStamp: observed.stamp,
+        });
+        await changeServices.confirmWorktree.execute({ worktreeId }, signal);
+        return {
+          environmentId: changeServices.readEnvironment.execute(),
+          worktreeId,
+          statusToken: before.statusToken,
+          diffs,
+        };
+      },
+    };
     const dismissInterruptedAction = new DismissInterruptedGitActionService(
       actionStore,
     );
@@ -758,9 +916,9 @@ export async function openApplication(options: {
       signal: AbortSignal,
     ) => changes.execute(worktreeId, session, signal);
     const confirmReviewedSession = (
-      session: RequestGitSession,
+      _session: RequestGitSession,
       signal: AbortSignal,
-    ) => session.confirmAll(signal);
+    ) => changesDomain.sessions.for(signal).confirmAll(signal);
     const setReviewedFileController = new SetReviewedFileController(
       worktrees,
       setReviewedFile,
@@ -807,87 +965,14 @@ export async function openApplication(options: {
       forWorktree,
       (worktreeId) => live.publishWorktree(worktreeId, 'comments'),
     );
-    const runChangesRead = <T>(
-      worktreeId: string,
-      operation: (signal: AbortSignal) => Promise<T>,
-      callerSignal?: AbortSignal,
-    ) =>
-      lanes.run(laneOf(worktreeId), 'read', ({ signal }) => operation(signal), {
-        callerSignal,
-      });
-    const runStatusRead = <T>(
-      worktreeId: string,
-      operation: (signal: AbortSignal) => Promise<T>,
-      callerSignal?: AbortSignal,
-    ) =>
-      sharedReads.run(
-        `status\0${laneOf(worktreeId)}\0${worktreeId}`,
-        (sharedSignal) => runChangesRead(worktreeId, operation, sharedSignal),
-        callerSignal,
-      );
-    const readChangesController = new ReadChangesController(
-      (worktreeId) =>
-        new ReadWorktreeChangesService(
-          inspectChanges(worktreeId, new RequestGitSession()),
-        ),
-      runChangesRead,
-      (worktreeId, fingerprints) =>
-        reviewed.reconcile(worktreeId, new Map(fingerprints)),
-      (worktreeId) => readInterruptedAction.execute(worktreeId),
-    );
-    const readChangeDiffsController = new ReadChangeDiffsController(
-      (worktreeId) =>
-        new ReadChangeDiffsService(
-          inspectChanges(worktreeId, new RequestGitSession()),
-        ),
-      runChangesRead,
-    );
-    const readChangeLinesController = new ReadChangeLinesController(
-      async (worktreeId, signal) => {
-        const { environmentId, reader } = await linesReader(
-          worktreeId,
-          new RequestGitSession(),
-          signal,
-        );
-        return { environmentId, service: new ReadChangeLinesService(reader) };
-      },
-      runChangesRead,
-    );
-    const readGitStatusController = new ReadGitStatusController(
-      async (worktreeId, signal) => {
-        const { environmentId, reader } = await statusReader(
-          worktreeId,
-          new RequestGitSession(),
-          signal,
-        );
-        return {
-          environmentId,
-          service: new ReadWorktreeStatusService(reader),
-        };
-      },
-      runStatusRead,
-    );
-    const listCommitsController = new ListCommitsController(
-      commitHistory,
-      runChangesRead,
-    );
-    const readCommitFilesController = new ReadCommitFilesController(
-      commitHistory,
-      runChangesRead,
-    );
-    const readCommitDiffsController = new ReadCommitDiffsController(
-      commitHistory,
-      runChangesRead,
-    );
-
     return {
-      listCommitsController,
-      readCommitFilesController,
-      readCommitDiffsController,
-      readChangesController,
-      readChangeDiffsController,
-      readChangeLinesController,
-      readGitStatusController,
+      listCommitsController: changesDomain.listCommitsController,
+      readCommitFilesController: changesDomain.readCommitFilesController,
+      readCommitDiffsController: changesDomain.readCommitDiffsController,
+      readChangesController: changesDomain.readChangesController,
+      readChangeDiffsController: changesDomain.readChangeDiffsController,
+      readChangeLinesController: changesDomain.readChangeLinesController,
+      readGitStatusController: changesDomain.readGitStatusController,
       readPublishedReviewController,
       publishReviewController,
       readReviewSummaryController,
@@ -900,11 +985,11 @@ export async function openApplication(options: {
       removeReviewedFileController,
       setReviewedFileController,
       setReviewedFilesController,
-      redeemPairingController: access.redeemPairingController,
-      issuePairingController: access.issuePairingController,
-      listAccessController: access.listAccessController,
-      revokeAccessController: access.revokeAccessController,
-      readHealthController: access.readHealthController,
+      redeemPairingController,
+      issuePairingController,
+      listAccessController,
+      revokeAccessController,
+      readHealthController,
       projects: renameProjectController,
       removeProjectController,
       listFilePreferencesController,
@@ -936,15 +1021,12 @@ export async function openApplication(options: {
         }
       },
       authenticateDevice: (credential, address) =>
-        access.authenticateDeviceController.execute(
-          { credential, address: address ?? undefined },
-          {},
-        ) ?? null,
+        deviceDirectory.authenticate(credential, address),
       holdForDevice: (deviceId, connection) =>
-        deviceDirectory.hold(deviceId, connection),
+        deviceDirectory.register(deviceId, connection),
       issuePairing: (labels, addresses) =>
-        access.issuePairingController
-          .execute({ labels: [...labels], addresses: [...addresses] }, {})
+        issuePairingController
+          .execute({ labels: [...labels], addresses: [...addresses] })
           .then(({ grants }) => grants),
       close: async () => {
         clearInterval(lastSeenFlush);

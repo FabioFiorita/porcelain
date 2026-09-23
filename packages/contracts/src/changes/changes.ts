@@ -3,10 +3,10 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { absentAsNull } from './absent-as-null.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
 
-// Duplicated from git-actions/git-actions.ts so this folder imports only shared.
 export const gitActionSchema = z.enum([
   'fetch',
   'pull',
@@ -23,13 +23,13 @@ export const gitActionSchema = z.enum([
 
 export const fileChangeSchema = z.object({
   path: relativePathSchema,
-  fingerprint: fingerprintSchema.nullable(),
+  fingerprint: absentAsNull(fingerprintSchema),
   comparisons: z.array(gitChangeSchema).min(1),
 });
 
 export const changeListBranchSchema = z.object({
-  name: z.string().nullable(),
-  upstream: z.string().nullable(),
+  name: absentAsNull(z.string()),
+  upstream: absentAsNull(z.string()),
   ahead: z.number().int().nonnegative(),
   behind: z.number().int().nonnegative(),
 });
@@ -38,10 +38,10 @@ export const readChangesResponseSchema = z.object({
   environmentId: z.uuid(),
   worktreeId: worktreeIdSchema,
   statusToken: fingerprintSchema,
-  headOid: oidSchema.nullable(),
-  inProgress: z.enum(['merge', 'rebase']).nullable(),
-  mergeHeadOid: oidSchema.nullable(),
-  branch: changeListBranchSchema.nullable(),
+  headOid: absentAsNull(oidSchema),
+  inProgress: absentAsNull(z.enum(['merge', 'rebase'])),
+  mergeHeadOid: absentAsNull(oidSchema),
+  branch: absentAsNull(changeListBranchSchema),
   interrupted: z
     .object({
       requestId: z.uuid(),
@@ -58,7 +58,7 @@ export const readChangeDiffsRequestSchema = z.strictObject({
     .array(
       z.strictObject({
         path: relativePathSchema,
-        fingerprint: fingerprintSchema.nullable(),
+        fingerprint: absentAsNull(fingerprintSchema),
       }),
     )
     .min(1)
@@ -78,12 +78,14 @@ export const readChangeDiffsResponseSchema = z.object({
   ),
 });
 
-export const readChangeLinesQuerySchema = z.strictObject({
-  path: relativePathSchema,
-  from: z.coerce.number().int().min(1),
-  to: z.coerce.number().int().min(1),
-  at: z.enum(['head', 'worktree']),
-});
+export const readChangeLinesQuerySchema = z
+  .strictObject({
+    path: relativePathSchema,
+    from: z.coerce.number().int().min(1),
+    to: z.coerce.number().int().min(1),
+    at: z.enum(['head', 'worktree']),
+  })
+  .refine((range) => range.to >= range.from);
 
 export const readChangeLinesResponseSchema = z.object({
   environmentId: z.uuid(),

@@ -1,58 +1,57 @@
-import type { ReadCommitDiffsResponse } from '@porcelain/contracts/changes';
-import type { CommitHistoryReader } from '../runtime/commit-history-reader.ts';
-
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  ConfirmCommitService,
+  ConfirmWorktreeService,
+  ReadCommitDiffsService,
+} from '@porcelain/changes/services';
+import type {
+  ReadCommitDiffsParams,
+  ReadCommitDiffsRequest,
+  ReadCommitDiffsResponse,
+} from '@porcelain/contracts/changes';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadCommitDiffsController {
-  private readonly history: CommitHistoryReader;
-  private readonly run: RunWorktreeRead;
+  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly confirmCommit: ConfirmCommitService;
+  private readonly readCommitDiffs: ReadCommitDiffsService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
-  constructor(history: CommitHistoryReader, run: RunWorktreeRead) {
-    this.history = history;
-    this.run = run;
+  constructor(
+    confirmWorktree: ConfirmWorktreeService,
+    confirmCommit: ConfirmCommitService,
+    readCommitDiffs: ReadCommitDiffsService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+  ) {
+    this.confirmWorktree = confirmWorktree;
+    this.confirmCommit = confirmCommit;
+    this.readCommitDiffs = readCommitDiffs;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: {
-      worktreeId: string;
-      oid: string;
-      parent?: number | undefined;
-      paths: string[][];
-    },
-    context: { signal?: AbortSignal | undefined },
+    input: ReadCommitDiffsParams & ReadCommitDiffsRequest,
+    context: OperationContext,
   ): Promise<ReadCommitDiffsResponse> {
     const { worktreeId, oid, parent, paths } = input;
-    return this.run(
-      worktreeId,
-      async (signal) => {
-        const sections = await this.history.readCommitDiffs(
-          worktreeId,
-          {
-            oid,
-            ...(parent === undefined ? {} : { parent }),
-            paths: paths.flat(),
-          },
+    return this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.confirmCommit.execute({ worktreeId, oid, parent }, signal);
+        const diffs = await this.readCommitDiffs.execute(
+          { worktreeId, oid, parent, paths },
           signal,
         );
-        return {
-          commitOid: oid,
-          diffs: paths.map((entry) => ({
-            paths: [...entry],
-            content:
-              sections === null
-                ? { kind: 'omitted' as const, reason: 'size-limit' as const }
-                : (sections.get(entry.join('\0')) ?? {
-                    kind: 'metadata-only' as const,
-                    patch: '',
-                  }),
-          })),
-        };
+        await this.confirmWorktree.execute({ worktreeId }, signal);
+        return diffs;
       },
-      context.signal,
+      { callerSignal: context.signal },
     );
   }
 }

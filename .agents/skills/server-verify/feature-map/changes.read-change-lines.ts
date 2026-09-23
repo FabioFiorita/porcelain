@@ -19,9 +19,9 @@ const lines = (session: Session, query: Record<string, string | number>) => ({
 export default defineFeature({
   feature: 'changes.read-change-lines',
   reaches: 'GET /api/worktrees/:worktreeId/changes/lines',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    "A reviewer reads a line range of a file either as committed at head or as it is in the worktree, to expand context around a diff. The range is clamped to the file's length and the answer states the range it actually returned.",
+    "A reviewer reads a line range of a file either as committed at head or as it is in the worktree, to expand context around a diff. The range is clamped to the file's length and the answer states the range it actually returned. A range that ends before it starts is invalid input.",
   cases: [
     defineCase({
       name: 'worktree and head versions',
@@ -63,6 +63,15 @@ export default defineFeature({
       name: 'reversed range',
       request: (session) =>
         lines(session, { path: 'README.md', from: 5, to: 1, at: 'head' }),
+      expect({ response, check }) {
+        check('status', 400, response.status);
+        check('error body', invalidRequest, response.body);
+      },
+    }),
+    defineCase({
+      name: 'a range past the end of the file',
+      request: (session) =>
+        lines(session, { path: 'README.md', from: 5, to: 9, at: 'head' }),
       expect({ response, check }) {
         check('status', 200, response.status);
         const body = record(response.body);

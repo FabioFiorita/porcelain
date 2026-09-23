@@ -1,14 +1,18 @@
-import type { WorktreeEntry } from '../models/change.ts';
-
-export type { WorktreeEntry } from '../models/change.ts';
+import type { WorktreeEntry } from '../models/worktree-side.ts';
 
 export interface WorktreeSideReader {
-  readFiles(
-    root: string,
-    paths: readonly string[],
-  ): Promise<Map<string, WorktreeEntry>>;
-  readSubmoduleHeads(
+  readEntries(
+    worktreeId: string,
     paths: readonly string[],
     signal?: AbortSignal,
-  ): Promise<Map<string, string>>;
+  ): Promise<ReadonlyMap<string, WorktreeEntry>>;
+  readSubmoduleHeads(
+    worktreeId: string,
+    paths: readonly string[],
+    signal?: AbortSignal,
+  ): Promise<ReadonlyMap<string, string>>;
+  readStagingStamp(
+    worktreeId: string,
+    signal?: AbortSignal,
+  ): Promise<string | undefined>;
 }

@@ -1,17 +1,13 @@
 import type { FileChange } from './change.ts';
+import type { BranchStatus } from './change-status.ts';
 
 export type ReadChangesResult = {
   environmentId: string;
   worktreeId: string;
   statusToken: string;
-  headOid: string | null;
-  inProgress: 'merge' | 'rebase' | null;
-  mergeHeadOid: string | null;
-  branch: {
-    name: string | null;
-    upstream: string | null;
-    ahead: number;
-    behind: number;
-  } | null;
-  changes: (Omit<FileChange, 'fingerprint'> & { fingerprint: string | null })[];
+  headOid: string | undefined;
+  inProgress: 'merge' | 'rebase' | undefined;
+  mergeHeadOid: string | undefined;
+  branch: BranchStatus | undefined;
+  changes: FileChange[];
 };

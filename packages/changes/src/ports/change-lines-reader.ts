@@ -1,10 +1,12 @@
 export interface ChangeLinesReader {
-  readHeadLines(
+  readHeadText(
+    worktreeId: string,
     path: string,
-    from: number,
-    to: number,
     signal?: AbortSignal,
-  ): Promise<string[]>;
-  readWorktreeText(path: string, signal?: AbortSignal): Promise<string>;
-  confirmReachable(worktreeId: string, signal?: AbortSignal): Promise<void>;
+  ): Promise<string>;
+  readWorktreeText(
+    worktreeId: string,
+    path: string,
+    signal?: AbortSignal,
+  ): Promise<string>;
 }

@@ -42,6 +42,7 @@ export {
 } from './commit-history.ts';
 export { gitDiffContentSchema, type GitDiffContent } from './git-diff.ts';
 export {
+  conflictSchema,
   gitChangeSchema,
   gitChangeSelectionSchema,
   ordinaryChangeSchema,

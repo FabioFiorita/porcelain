@@ -1,86 +1,94 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type {
+  ConfirmWorktreeService,
+  DescribeWorktreeStateService,
+  ReadChangeFingerprintsService,
+  ReadWorktreeStatusService,
+  ReconcileReviewedFilesService,
+} from '@porcelain/changes/services';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
-import type { ReadWorktreeChangesService } from '@porcelain/changes/services';
-
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
-
-type InterruptedAction = Pick<
-  NonNullable<ReadChangesResponse['interrupted']>,
-  'requestId' | 'action'
->;
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadChangesController {
-  private readonly createRead: (
-    worktreeId: string,
-  ) => ReadWorktreeChangesService;
-  private readonly runRead: RunWorktreeRead;
-  private readonly reconcile: (
-    worktreeId: string,
-    fingerprints: ReadonlyMap<string, string | null>,
-  ) => void;
-  private readonly interrupted: (
-    worktreeId: string,
-  ) => InterruptedAction | undefined;
+  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly readWorktreeStatus: ReadWorktreeStatusService;
+  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly reconcileReviewedFiles: ReconcileReviewedFilesService;
+  private readonly readInterruptedGitAction: ReadInterruptedGitActionService;
+  private readonly describeWorktreeState: DescribeWorktreeStateService;
+  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
-    createRead: (worktreeId: string) => ReadWorktreeChangesService,
-    runRead: RunWorktreeRead,
-    reconcile: (
-      worktreeId: string,
-      fingerprints: ReadonlyMap<string, string | null>,
-    ) => void,
-    interrupted: (worktreeId: string) => InterruptedAction | undefined,
+    confirmWorktree: ConfirmWorktreeService,
+    readWorktreeStatus: ReadWorktreeStatusService,
+    readChangeFingerprints: ReadChangeFingerprintsService,
+    reconcileReviewedFiles: ReconcileReviewedFilesService,
+    readInterruptedGitAction: ReadInterruptedGitActionService,
+    describeWorktreeState: DescribeWorktreeStateService,
+    readEnvironment: ReadEnvironmentService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
-    this.createRead = createRead;
-    this.runRead = runRead;
-    this.reconcile = reconcile;
-    this.interrupted = interrupted;
+    this.confirmWorktree = confirmWorktree;
+    this.readWorktreeStatus = readWorktreeStatus;
+    this.readChangeFingerprints = readChangeFingerprints;
+    this.reconcileReviewedFiles = reconcileReviewedFiles;
+    this.readInterruptedGitAction = readInterruptedGitAction;
+    this.describeWorktreeState = describeWorktreeState;
+    this.readEnvironment = readEnvironment;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: { worktreeId: string },
-    context: { signal?: AbortSignal },
+    input: WorktreeParams,
+    context: OperationContext,
   ): Promise<ReadChangesResponse> {
     const { worktreeId } = input;
-    return this.runRead(
-      worktreeId,
-      async (signal) => {
-        const answer = await this.createRead(worktreeId).execute(
-          worktreeId,
+    return this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.confirmWorktree.execute({ worktreeId }, signal);
+        const status = await this.readWorktreeStatus.execute(
+          { worktreeId },
           signal,
         );
-        this.reconcile(
-          worktreeId,
-          new Map(
-            answer.changes.map((entry) => [entry.path, entry.fingerprint]),
-          ),
+        const { changes } = await this.readChangeFingerprints.execute(
+          { worktreeId, comparisons: status.changes, paths: undefined },
+          signal,
         );
-        const interrupted = this.interrupted(worktreeId);
-        if (!interrupted) return answer;
-        const branch = answer.branch?.name ?? 'detached HEAD';
-        const conflicts = answer.changes.filter((change) =>
-          change.comparisons.some(
-            (comparison) => comparison.scope === 'unmerged',
-          ),
-        ).length;
-        const state = conflicts
-          ? `${conflicts} unresolved ${conflicts === 1 ? 'path remains' : 'paths remain'} on ${branch}.`
-          : answer.changes.length
-            ? `${answer.changes.length} changed ${answer.changes.length === 1 ? 'path remains' : 'paths remain'} on ${branch}.`
-            : `The worktree is clean on ${branch}.`;
+        await this.confirmWorktree.execute({ worktreeId }, signal);
+        this.reconcileReviewedFiles.execute({ worktreeId, changes });
+        const interrupted = this.readInterruptedGitAction.execute(worktreeId);
         return {
-          ...answer,
-          interrupted: {
-            requestId: interrupted.requestId,
-            action: interrupted.action,
-            gitState: state,
-          },
+          environmentId: this.readEnvironment.execute(),
+          worktreeId,
+          statusToken: status.statusToken,
+          headOid: status.headOid,
+          inProgress: status.inProgress,
+          mergeHeadOid: status.mergeHeadOid,
+          branch: status.branch,
+          changes,
+          ...(interrupted && {
+            interrupted: {
+              requestId: interrupted.requestId,
+              action: interrupted.action,
+              gitState: this.describeWorktreeState.execute({
+                changes,
+                branch: status.branch,
+              }),
+            },
+          }),
         };
       },
-      context.signal,
+      { callerSignal: context.signal },
     );
   }
 }

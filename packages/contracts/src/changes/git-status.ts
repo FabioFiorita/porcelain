@@ -3,24 +3,64 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { absentAsNull } from './absent-as-null.ts';
+
+const conflictKinds = {
+  DD: 'both-deleted',
+  AU: 'added-by-us',
+  UD: 'deleted-by-them',
+  UA: 'added-by-them',
+  DU: 'deleted-by-us',
+  AA: 'both-added',
+  UU: 'both-modified',
+} as const;
+
+const conflictCodes = {
+  'both-deleted': 'DD',
+  'added-by-us': 'AU',
+  'deleted-by-them': 'UD',
+  'added-by-them': 'UA',
+  'deleted-by-us': 'DU',
+  'both-added': 'AA',
+  'both-modified': 'UU',
+} as const;
+
+export const conflictSchema = z.codec(
+  z.enum(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
+  z.enum([
+    'both-deleted',
+    'added-by-us',
+    'deleted-by-them',
+    'added-by-them',
+    'deleted-by-us',
+    'both-added',
+    'both-modified',
+  ]),
+  {
+    decode: (code) => conflictKinds[code],
+    encode: (kind) => conflictCodes[kind],
+  },
+);
 
 export const gitChangeSelectionSchema = z
   .strictObject({
     scope: z.enum(['staged', 'unstaged']),
-    oldPath: relativePathSchema.nullable(),
-    newPath: relativePathSchema.nullable(),
+    oldPath: absentAsNull(relativePathSchema),
+    newPath: absentAsNull(relativePathSchema),
   })
-  .refine((change) => change.oldPath !== null || change.newPath !== null);
+  .refine(
+    (change) => change.oldPath !== undefined || change.newPath !== undefined,
+  );
 
 export const ordinaryChangeSchema = z.object({
   scope: z.enum(['staged', 'unstaged']),
   kind: z.enum(['added', 'modified', 'deleted', 'renamed', 'type-changed']),
-  oldPath: relativePathSchema.nullable(),
-  newPath: relativePathSchema.nullable(),
+  oldPath: absentAsNull(relativePathSchema),
+  newPath: absentAsNull(relativePathSchema),
   oldMode: z.string().regex(/^[0-7]{6}$/),
   newMode: z.string().regex(/^[0-7]{6}$/),
-  oldOid: oidSchema.nullable(),
-  newOid: oidSchema.nullable(),
+  oldOid: absentAsNull(oidSchema),
+  newOid: absentAsNull(oidSchema),
   supported: z.boolean(),
 });
 
@@ -32,7 +72,7 @@ export const untrackedChangeSchema = z.object({
 export const unmergedChangeSchema = z.object({
   scope: z.literal('unmerged'),
   path: relativePathSchema,
-  conflict: z.enum(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
+  conflict: conflictSchema,
 });
 
 export const gitChangeSchema = z.union([
@@ -47,16 +87,14 @@ export const readGitStatusResponseSchema = z.object({
   statusToken: fingerprintSchema,
   branch: z
     .object({
-      name: z.string().nullable(),
-      upstream: z.string().nullable(),
+      name: absentAsNull(z.string()),
+      upstream: absentAsNull(z.string()),
       ahead: z.number().int().nonnegative(),
       behind: z.number().int().nonnegative(),
-      remoteName: z.string().nullable().optional(),
-      sourceRef: z.string().nullable().optional(),
-      upstreamOid: oidSchema.nullable().optional(),
-      stashes: z
-        .array(z.object({ oid: oidSchema, message: z.string() }))
-        .optional(),
+      remoteName: absentAsNull(z.string()),
+      sourceRef: absentAsNull(z.string()),
+      upstreamOid: absentAsNull(oidSchema),
+      stashes: z.array(z.object({ oid: oidSchema, message: z.string() })),
       discarded: z
         .array(
           z.object({
@@ -65,17 +103,16 @@ export const readGitStatusResponseSchema = z.object({
             kind: z.enum(['hunk', 'rename']),
           }),
         )
-        .max(50)
-        .optional(),
+        .max(50),
     })
     .optional(),
   consistency: z.literal('best-effort'),
-  headOid: oidSchema.nullable(),
-  inProgress: z.enum(['merge', 'rebase']).nullable(),
-  mergeHeadOid: oidSchema.nullable(),
-  headCommit: z
-    .object({ subject: z.string(), body: z.string().optional() })
-    .nullable(),
+  headOid: absentAsNull(oidSchema),
+  inProgress: absentAsNull(z.enum(['merge', 'rebase'])),
+  mergeHeadOid: absentAsNull(oidSchema),
+  headCommit: absentAsNull(
+    z.object({ subject: z.string(), body: z.string().optional() }),
+  ),
   changes: z.array(gitChangeSchema).max(2000),
 });
 

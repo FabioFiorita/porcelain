@@ -24,11 +24,7 @@ export function listCommits(
     },
     async (request) =>
       options.controller.execute(
-        {
-          ...request.params,
-          ...request.query,
-          after: request.query.after?.split(','),
-        },
+        { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),
   );

@@ -28,9 +28,9 @@ const files = (
 export default defineFeature({
   feature: 'changes.read-commit-files',
   reaches: 'GET /api/worktrees/:worktreeId/commits/:oid/files',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    'A reviewer lists the files one commit changed, compared with a chosen parent (the first by default) or with the empty tree for a root commit, including renames. A parent the commit does not have is an invalid history request; a commit the repository does not have is reported as an unavailable history snapshot.',
+    'A reviewer lists the files one commit changed, compared with a chosen parent (the first by default) or with the empty tree for a root commit, including renames. A parent the commit does not have is an invalid history request; a commit the repository does not have is not found.',
   cases: [
     defineCase({
       name: 'rename against the first parent',
@@ -115,14 +115,10 @@ export default defineFeature({
         },
       ],
       expect({ responses, check }) {
-        check('unknown commit status', 422, responses[0]?.status);
+        check('unknown commit status', 404, responses[0]?.status);
         check(
           'unknown commit error body',
-          apiError(
-            422,
-            'Unprocessable Entity',
-            'History snapshot is unavailable; start a new listing',
-          ),
+          apiError(404, 'Not Found', 'Commit not found'),
           responses[0]?.body,
         );
         check('malformed status', 400, responses[1]?.status);
