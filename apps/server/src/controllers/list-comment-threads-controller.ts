@@ -1,4 +1,7 @@
-import type { ListCommentThreadsResponse } from '@porcelain/contracts/reviews';
+import type {
+  CommentThreadScope,
+  ListCommentThreadsResponse,
+} from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
   CheckWorktreeAccessService,
@@ -27,10 +30,10 @@ export class ListCommentThreadsController {
   }
 
   execute(
-    input: WorktreeParams,
+    input: WorktreeParams & { scope?: CommentThreadScope | undefined },
     context: OperationContext,
   ): Promise<ListCommentThreadsResponse> {
-    const { worktreeId } = input;
+    const { worktreeId, scope } = input;
     return this.lanes.run(
       this.laneKeys.worktree(worktreeId),
       'read',
@@ -39,7 +42,7 @@ export class ListCommentThreadsController {
           { worktreeId, intent: 'read' },
           signal,
         );
-        return this.listCommentThreads.execute({ worktreeId });
+        return this.listCommentThreads.execute({ worktreeId, scope });
       },
       { callerSignal: context.signal },
     );

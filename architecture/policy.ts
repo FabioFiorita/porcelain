@@ -220,13 +220,19 @@ function classifyServer(inside: string) {
   if (inside.startsWith('adapters/')) return classified('gateway', owner);
   if (inside.startsWith('installer/')) return classified('installer', owner);
   if (inside.startsWith('config/')) return classified('config', owner);
-  if (inside === 'cli/main.ts') return classified('bootstrap', owner);
+  if (inside === 'cli/main.ts' || inside === 'cli/index.ts')
+    return classified('bootstrap', owner);
   if (inside.startsWith('cli/')) return classified('transport', owner);
   if (inside.startsWith('http/')) {
     const http = inside.slice('http/'.length);
     if (
-      /^(?:scopes|hooks|routes|mcp)\//.test(http) ||
-      http === 'schemas/error-responses.ts'
+      /^(?:scopes|hooks|routes|mcp|protocol)\//.test(http) ||
+      [
+        'schemas/error-responses.ts',
+        'error-handler.ts',
+        'static-files.ts',
+        'principal.ts',
+      ].includes(http)
     )
       return classified('transport', owner);
     if (http === 'status-policy.ts') return classified('status-policy', owner);

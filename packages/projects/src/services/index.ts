@@ -17,5 +17,6 @@ export { RecordWorktreePresenceService } from './record-worktree-presence-servic
 export { RegisterProjectService } from './register-project-service.ts';
 export { RemoveProjectService } from './remove-project-service.ts';
 export { RenameProjectService } from './rename-project-service.ts';
+export { ResolveWorktreeByPathService } from './resolve-worktree-by-path-service.ts';
 export { SetFilePreferenceService } from './set-file-preference-service.ts';
 export { UpdateProjectAvailabilityService } from './update-project-availability-service.ts';

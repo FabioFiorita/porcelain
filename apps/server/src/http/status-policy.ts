@@ -1,4 +1,5 @@
 import { STATUS_CODES } from 'node:http';
+import { HttpError } from '@fastify/sensible';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
@@ -14,6 +15,7 @@ import {
   WorktreeUnavailableError as ChangesWorktreeUnavailableError,
 } from '@porcelain/changes/errors';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
+import type { ApiError } from '@porcelain/contracts/shared';
 import {
   ContentChangedError,
   CrossDeviceMoveError,
@@ -71,6 +73,7 @@ import {
   FilePreferenceLimitError,
   FolderNotFoundError,
   FolderNotReadableError,
+  NoWorktreeAtPathError,
   ProjectNotFoundError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
@@ -83,6 +86,7 @@ import {
   DuplicateStepIdError,
   ReviewConflictError,
   ReviewedMarkConflictError,
+  ReviewSummaryNotFoundError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
   UnknownArrowStepError,
@@ -98,6 +102,12 @@ type StatusRule = {
   errors: readonly ErrorClass[];
   statusCode: number;
   message?: string;
+  withoutBody?: true;
+};
+
+export type StatusResponse = {
+  statusCode: number;
+  body: ApiError | undefined;
 };
 
 const invalidRequest = 'Invalid request';
@@ -150,9 +160,11 @@ const rules: readonly StatusRule[] = [
       PathNotFoundError,
       FolderNotFoundError,
       GitActionNotFoundError,
+      NoWorktreeAtPathError,
     ],
     statusCode: 404,
   },
+  { errors: [ReviewSummaryNotFoundError], statusCode: 404, withoutBody: true },
   {
     errors: [CommentTargetNotFoundError],
     statusCode: 404,
@@ -269,7 +281,7 @@ const rules: readonly StatusRule[] = [
   },
 ];
 
-function response(statusCode: number, message: string) {
+function response(statusCode: number, message: string): StatusResponse {
   return {
     statusCode,
     body: { statusCode, error: STATUS_CODES[statusCode] ?? 'Error', message },
@@ -286,7 +298,12 @@ export function gitActionReceiptStatus(
   return 200;
 }
 
-export function toStatusResponse(error: unknown) {
+function isHttpError(error: unknown): error is HttpError {
+  return error instanceof HttpError;
+}
+
+export function toStatusResponse(error: unknown): StatusResponse {
+  if (isHttpError(error)) return response(error.statusCode, error.message);
   if (error instanceof GitActionRejectedError)
     return response(
       409,
@@ -296,6 +313,8 @@ export function toStatusResponse(error: unknown) {
     const rule = rules.find((entry) =>
       entry.errors.some((errorClass) => error instanceof errorClass),
     );
+    if (rule?.withoutBody)
+      return { statusCode: rule.statusCode, body: undefined };
     if (rule) return response(rule.statusCode, rule.message ?? error.message);
     if ('validation' in error) return response(400, invalidRequest);
   }

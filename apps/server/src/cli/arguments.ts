@@ -6,20 +6,21 @@ import {
   resolve,
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 import {
   absolutePathSchema,
   listenHostSchema,
 } from '../config/server-settings.ts';
+import {
+  defaultDataDirectoryName,
+  defaultListenHost,
+  defaultListenPort,
+  readEnvironmentSettings,
+  type EnvironmentSettings,
+  type PorcelainEnvironment,
+} from '../config/startup-settings.ts';
 
-const defaultHost = '127.0.0.1';
-const defaultPort = 3000;
 const wildcardHosts = new Set(['0.0.0.0', '::']);
-
-export type ServeEnvironment = {
-  PORCELAIN_DATA_DIRECTORY?: string;
-  PORCELAIN_HOST?: string;
-  PORCELAIN_PORT?: string;
-};
 
 export type ServeSettings = {
   dataDirectory: string;
@@ -79,10 +80,6 @@ type ServeArguments = {
   serviceAction?: ServiceAction;
   command: CliCommand['command'];
 };
-
-export class ServeConfigurationError extends Error {
-  override readonly name = 'ServeConfigurationError';
-}
 
 const defaultWebRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -297,27 +294,26 @@ function parseArguments(args: readonly string[]): ServeArguments {
 
 function dataDirectoryFor(
   parsed: ServeArguments,
-  environment: ServeEnvironment,
+  environment: EnvironmentSettings,
   homeDirectory: string,
 ): string {
-  if (parsed.dataDirectory) return parsed.dataDirectory;
-  if (environment.PORCELAIN_DATA_DIRECTORY)
-    return parseAbsolutePath(
-      environment.PORCELAIN_DATA_DIRECTORY,
-      'PORCELAIN_DATA_DIRECTORY',
-    );
-  return join(homeDirectory, '.porcelain');
+  return (
+    parsed.dataDirectory ??
+    environment.dataDirectory ??
+    join(homeDirectory, defaultDataDirectoryName)
+  );
 }
 
 export function parseCliArguments(
   args: readonly string[],
-  environment: ServeEnvironment,
+  variables: PorcelainEnvironment,
   homeDirectory: string,
   webRoot: string = defaultWebRoot,
 ): CliCommand {
   const parsed = parseArguments(args);
   if (parsed.help) return { command: 'help' };
 
+  const environment = readEnvironmentSettings(variables);
   const dataDirectory = dataDirectoryFor(parsed, environment, homeDirectory);
   if (parsePath(dataDirectory).root === dataDirectory)
     throw new ServeConfigurationError(
@@ -356,21 +352,14 @@ export function parseCliArguments(
 
   const host = parsed.lan
     ? '0.0.0.0'
-    : (parsed.host ??
-      (environment.PORCELAIN_HOST
-        ? parseHost(environment.PORCELAIN_HOST, 'PORCELAIN_HOST')
-        : defaultHost));
-  const port =
-    parsed.port ??
-    (environment.PORCELAIN_PORT
-      ? parsePort(environment.PORCELAIN_PORT, 'PORCELAIN_PORT')
-      : defaultPort);
+    : (parsed.host ?? environment.host ?? defaultListenHost);
+  const port = parsed.port ?? environment.port ?? defaultListenPort;
   const allowedHosts = [
-    ...new Set(
-      [...(parsed.host && !wildcardHosts.has(host) ? [host] : [])].concat(
-        parsed.allowHosts,
-      ),
-    ),
+    ...new Set([
+      ...(parsed.host && !wildcardHosts.has(host) ? [host] : []),
+      ...parsed.allowHosts,
+      ...environment.allowedHosts,
+    ]),
   ];
 
   if (parsed.command === 'service')
@@ -390,10 +379,10 @@ export function parseCliArguments(
     command: 'serve',
     settings: {
       dataDirectory,
-      projectHome: homeDirectory,
+      projectHome: environment.projectHome ?? homeDirectory,
       host,
       port,
-      webRoot: parseAbsolutePath(webRoot, 'web root'),
+      webRoot: parseAbsolutePath(environment.webRoot ?? webRoot, 'web root'),
       allowedHosts,
     },
   };

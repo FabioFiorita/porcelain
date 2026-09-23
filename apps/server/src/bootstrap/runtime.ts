@@ -1,19 +1,21 @@
 import { rmSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import type { FastifyInstance } from 'fastify';
-import type { z } from 'zod';
 import type {
   CommitDraftWriter,
   CommitModelReader,
 } from '@porcelain/git-actions/ports';
 import { openApplication, type ServerApplication } from './compose-server.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
-import { startupSettingsSchema } from '../config/startup-settings.ts';
+import {
+  startupSettingsSchema,
+  type StartupSettingsInput,
+} from '../config/startup-settings.ts';
 import type { IssuePairingResponse } from '@porcelain/contracts/access';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
-import { probeOwnerSocket } from '../http/helpers/owner-socket-client.ts';
-import type { HostPolicy } from '@porcelain/access/models';
+import { probeOwnerSocket } from '../cli/owner-client.ts';
+import type { HostPolicy, RuntimeStatus } from '@porcelain/access/models';
 import { prepareDataDirectory } from './data-directory.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
@@ -77,7 +79,7 @@ function listeningOn(host: string): string[] {
 }
 
 export async function startRuntime(
-  settings: z.input<typeof startupSettingsSchema>,
+  settings: StartupSettingsInput,
   signal?: AbortSignal,
   dependencies: RuntimeDependencies = {},
 ): Promise<Runtime> {
@@ -96,6 +98,11 @@ export async function startRuntime(
     port: 0,
     policy: { allowedHosts, localAddresses: [] },
   };
+  const status: RuntimeStatus = {
+    address: '',
+    dataDirectory: directory,
+    pid: process.pid,
+  };
   const lock = await acquireStartupLock(directory);
   try {
     signal?.throwIfAborted();
@@ -110,6 +117,7 @@ export async function startRuntime(
       dataDirectory: directory,
       projectHome,
       pairingReach: () => reach,
+      runtimeStatus: () => status,
       ...(commitGenerator ? { commitGenerator } : {}),
       ...(signal ? { signal } : {}),
     });
@@ -121,13 +129,11 @@ export async function startRuntime(
       allowedHosts,
     });
     const address = await parts.network.listen({ host, port });
+    status.address = address;
     reach.port = Number(new URL(address).port);
     reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
     await onNetworkBound?.(address);
-    parts.owner = createOwnerServer({
-      application,
-      status: () => ({ address, dataDirectory: directory, pid: process.pid }),
-    });
+    parts.owner = createOwnerServer({ application });
     await parts.owner.listen({ path: socketPath });
     restrictOwnerSocket(socketPath);
     const closing: { started?: Promise<void> } = {};

@@ -1,58 +1,6 @@
-import { request as httpRequest } from 'node:http';
 import { createInterface } from 'node:readline';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
-
-const accept = 'application/json, text/event-stream';
-
-type Answer = { status: number; body: string };
-
-function exchange(
-  socketPath: string,
-  message: unknown,
-  timeoutMs: number,
-  cwd: string,
-): Promise<Answer> {
-  const payload = JSON.stringify(message);
-  return new Promise((resolve, reject) => {
-    const call = httpRequest(
-      {
-        socketPath,
-        path: '/mcp',
-        method: 'POST',
-        timeout: timeoutMs,
-        agent: false,
-        headers: {
-          accept,
-          'content-type': 'application/json',
-          'content-length': Buffer.byteLength(payload),
-          'x-porcelain-cwd': cwd,
-        },
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on('data', (chunk: Buffer) => chunks.push(chunk));
-        response.on('end', () =>
-          resolve({
-            status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString('utf8'),
-          }),
-        );
-      },
-    );
-    call.on('timeout', () =>
-      call.destroy(new Error('The Porcelain server did not answer in time.')),
-    );
-    call.on('error', (error: NodeJS.ErrnoException) =>
-      reject(
-        error.code === 'ENOENT' || error.code === 'ECONNREFUSED'
-          ? new Error('Porcelain is not running.')
-          : error,
-      ),
-    );
-    call.write(payload);
-    call.end();
-  });
-}
+import { relayToOwner } from './owner-client.ts';
 
 function idOf(message: unknown): string | number | null {
   if (message && typeof message === 'object' && 'id' in message) {
@@ -81,11 +29,11 @@ export async function runMcpBridge(
     }
     const id = idOf(message);
     try {
-      const answer = await exchange(
+      const answer = await relayToOwner(
         socketPath,
         message,
-        timeoutMs,
         process.cwd(),
+        timeoutMs,
       );
       if (answer.body.trim().length === 0) continue;
       if (answer.status !== 200) {

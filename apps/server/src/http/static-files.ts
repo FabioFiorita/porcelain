@@ -1,5 +1,3 @@
-import { createReadStream } from 'node:fs';
-import { lstat, realpath, stat } from 'node:fs/promises';
 import {
   basename,
   extname,
@@ -8,7 +6,9 @@ import {
   resolve,
   sep,
 } from 'node:path';
+import { httpErrors } from '@fastify/sensible';
 import type { FastifyInstance } from 'fastify';
+import type { Readable } from 'node:stream';
 
 const noCache = 'no-cache';
 const immutableCache = 'public, max-age=31536000, immutable';
@@ -45,6 +45,13 @@ type StaticFile = {
   path: string;
   size: number;
   fallback: boolean;
+};
+
+export type WebRootFiles = {
+  root: string;
+  file(candidate: string): Promise<{ path: string; size: number } | undefined>;
+  exists(candidate: string): Promise<boolean>;
+  stream(path: string): Readable;
 };
 
 function pathOnly(urlPath: string): string {
@@ -124,68 +131,36 @@ function isClientRoute(urlPath: string): boolean {
   return !basename(normalized).includes('.');
 }
 
-async function existingFile(
-  root: string,
-  candidate: string,
-): Promise<{ path: string; size: number } | null> {
-  let canonicalRoot: string;
-  let canonicalCandidate: string;
-  try {
-    canonicalRoot = await realpath(root);
-    canonicalCandidate = await realpath(candidate);
-  } catch {
-    return null;
-  }
-  if (!pathIsWithin(canonicalRoot, canonicalCandidate)) return null;
-  try {
-    const metadata = await stat(canonicalCandidate);
-    return metadata.isFile()
-      ? { path: canonicalCandidate, size: metadata.size }
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-async function pathExists(candidate: string): Promise<boolean> {
-  try {
-    await lstat(candidate);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function findStaticFile(
-  root: string,
+  files: WebRootFiles,
   urlPath: string,
 ): Promise<StaticFile | null> {
   if (isApiRequestPath(urlPath)) return null;
-  const candidate = resolveStaticPath(root, urlPath);
+  const candidate = resolveStaticPath(files.root, urlPath);
   if (candidate === null) return null;
 
-  const direct = await existingFile(root, candidate);
+  const direct = await files.file(candidate);
   if (direct) return { ...direct, fallback: false };
-  if (await pathExists(candidate)) return null;
+  if (await files.exists(candidate)) return null;
   if (!isClientRoute(urlPath)) return null;
 
-  const shell = resolveStaticPath(root, '/');
+  const shell = resolveStaticPath(files.root, '/');
   if (shell === null) return null;
-  const fallback = await existingFile(root, shell);
+  const fallback = await files.file(shell);
   return fallback ? { ...fallback, fallback: true } : null;
 }
 
-export function registerStaticFiles(
+export function staticFiles(
   server: FastifyInstance,
-  options: { webRoot: string },
+  options: { files: WebRootFiles },
 ) {
   server.route({
     method: ['GET', 'HEAD'],
     url: '/*',
     handler: async (request, reply) => {
       const urlPath = request.raw.url ?? request.url;
-      const file = await findStaticFile(options.webRoot, urlPath);
-      if (file === null) return reply.code(404).send();
+      const file = await findStaticFile(options.files, urlPath);
+      if (file === null) throw httpErrors.notFound();
 
       reply
         .header(
@@ -197,7 +172,7 @@ export function registerStaticFiles(
         .header('Content-Length', String(file.size))
         .type(contentTypeForPath(file.path));
       if (request.method === 'HEAD') return reply.send();
-      return reply.send(createReadStream(file.path));
+      return reply.send(options.files.stream(file.path));
     },
   });
 }

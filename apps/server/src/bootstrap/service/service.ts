@@ -11,7 +11,7 @@ import {
 } from 'node:fs/promises';
 import { delimiter, dirname, join } from 'node:path';
 import { ownerSocketPath } from '../../config/owner-socket-settings.ts';
-import { probeOwnerSocket } from '../../http/helpers/owner-socket-client.ts';
+import { probeOwnerSocket } from '../../cli/owner-client.ts';
 import {
   type CommandRunner,
   runCommand,

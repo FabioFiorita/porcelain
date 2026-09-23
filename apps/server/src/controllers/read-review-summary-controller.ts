@@ -1,6 +1,7 @@
 import type {
   ReadReviewSummaryParams,
   ReadReviewSummaryQuery,
+  ReadReviewSummaryResponse,
 } from '@porcelain/contracts/reviews';
 import type { ReadReviewSummaryService } from '@porcelain/reviews/services';
 import type { Lanes } from '../runtime/lanes.ts';
@@ -18,7 +19,7 @@ export class ReadReviewSummaryController {
   execute(
     input: ReadReviewSummaryParams & ReadReviewSummaryQuery,
     context: OperationContext,
-  ): string | undefined {
+  ): ReadReviewSummaryResponse {
     this.lanes.assertOpen();
     context.signal?.throwIfAborted();
     return this.readReviewSummary.execute(input);

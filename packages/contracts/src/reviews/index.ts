@@ -4,6 +4,7 @@ export {
   commentMessageSchema,
   commentThreadParamsSchema,
   commentThreadSchema,
+  commentThreadScopeSchema,
   createCommentThreadRequestSchema,
   createCommentThreadResponseSchema,
   listCommentThreadsResponseSchema,
@@ -19,6 +20,7 @@ export {
   type CommentMessage,
   type CommentThread,
   type CommentThreadParams,
+  type CommentThreadScope,
   type CreateCommentThreadRequest,
   type CreateCommentThreadResponse,
   type ListCommentThreadsResponse,
@@ -72,6 +74,18 @@ export {
   type ReadReviewSummaryQuery,
   type ReadReviewSummaryResponse,
 } from './review-summary.ts';
+export {
+  createCommentToolRequestSchema,
+  listCommentsToolRequestSchema,
+  publishReviewToolRequestSchema,
+  publishReviewToolResponseSchema,
+  readReviewToolRequestSchema,
+  replyToCommentToolRequestSchema,
+  resolveCommentToolRequestSchema,
+  reviewToolScopeSchema,
+  type PublishReviewToolResponse,
+  type ReviewToolScope,
+} from './review-tools.ts';
 export {
   listReviewedFilesResponseSchema,
   listReviewedLayersResponseSchema,

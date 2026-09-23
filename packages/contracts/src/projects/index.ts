@@ -40,3 +40,9 @@ export {
   type SetFilePreferenceParams,
   type Worktree,
 } from './inventory.ts';
+export {
+  resolveWorktreeByPathRequestSchema,
+  resolveWorktreeByPathResponseSchema,
+  type ResolveWorktreeByPathRequest,
+  type ResolveWorktreeByPathResponse,
+} from './worktree-path.ts';

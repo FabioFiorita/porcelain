@@ -1,10 +1,13 @@
-import { startRuntime } from '../bootstrap/runtime.ts';
+import type { StartupSettingsInput } from '../config/startup-settings.ts';
 import type { ServeSettings } from './arguments.ts';
 
-type StartedRuntime = Awaited<ReturnType<typeof startRuntime>>;
+export type StartServer = (
+  settings: StartupSettingsInput,
+  signal: AbortSignal,
+) => Promise<{ address: string; socketPath: string; close(): Promise<void> }>;
 
 export type LauncherDependencies = {
-  startServer?: typeof startRuntime;
+  startServer: StartServer;
   output?: (message: string) => void;
 };
 
@@ -18,14 +21,13 @@ async function waitForShutdown(signal: AbortSignal): Promise<void> {
 export async function runLocalServer(
   settings: ServeSettings,
   signal: AbortSignal,
-  dependencies: LauncherDependencies = {},
+  dependencies: LauncherDependencies,
 ): Promise<void> {
   const output =
     dependencies.output ??
     ((message: string) => process.stdout.write(`${message}\n`));
-  const start = dependencies.startServer ?? startRuntime;
   signal.throwIfAborted();
-  const server: StartedRuntime = await start(
+  const server = await dependencies.startServer(
     {
       dataDirectory: settings.dataDirectory,
       projectHome: settings.projectHome,

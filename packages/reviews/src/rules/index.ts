@@ -57,3 +57,4 @@ export {
   staleness,
   touchedMarks,
 } from './reviewed-marks.ts';
+export { summaryStyleWarnings } from './summary-style.ts';

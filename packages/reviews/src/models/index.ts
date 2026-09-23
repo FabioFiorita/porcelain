@@ -13,6 +13,7 @@ export type {
   PostedCommentMessage,
 } from './comment-thread.ts';
 export type {
+  CommentThreadScope,
   CreateCommentThreadInput,
   CreateCommentThreadResult,
   ListCommentThreadsInput,

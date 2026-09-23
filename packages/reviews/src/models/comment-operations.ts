@@ -4,7 +4,12 @@ import type {
   CommentWriter,
 } from './comment-thread.ts';
 
-export type ListCommentThreadsInput = { worktreeId: string };
+export type CommentThreadScope = 'all' | 'waiting';
+
+export type ListCommentThreadsInput = {
+  worktreeId: string;
+  scope?: CommentThreadScope | undefined;
+};
 export type ListCommentThreadsResult = CommentThread[];
 
 export type CreateCommentThreadInput = {

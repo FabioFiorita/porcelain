@@ -11,7 +11,7 @@ export type PublishReviewInput = {
   draft: ReviewDraft;
   files: ReviewFiles;
 };
-export type PublishReviewResult = Review;
+export type PublishReviewResult = { review: Review; warnings: string[] };
 
 export type ReadPublishedReviewInput = { worktreeId: string };
 export type ReadPublishedReviewResult = Review | undefined;
@@ -51,7 +51,7 @@ export type ReadReviewSummaryInput = {
   expires: number;
   signature: string;
 };
-export type ReadReviewSummaryResult = string | undefined;
+export type ReadReviewSummaryResult = string;
 
 export type ReadCurrentChangesInput = { worktreeId: string };
 export type ReadCurrentChangesResult = ReadChangesResult;

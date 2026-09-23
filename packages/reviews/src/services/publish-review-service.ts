@@ -11,6 +11,7 @@ import type { SecretSource } from '../ports/secret-source.ts';
 import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
 import { assertReviewDraft } from '../rules/review-draft.ts';
 import { publishedLines } from '../rules/review-evidence.ts';
+import { summaryStyleWarnings } from '../rules/summary-style.ts';
 
 export class PublishReviewService {
   private readonly reviewStore: ReviewStore;
@@ -61,6 +62,6 @@ export class PublishReviewService {
       layers,
     };
     this.reviewStore.save(review);
-    return review;
+    return { review, warnings: summaryStyleWarnings(draft.summaryHtml) };
   }
 }

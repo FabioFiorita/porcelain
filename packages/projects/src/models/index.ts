@@ -53,3 +53,7 @@ export type {
   BrowseProjectFoldersOptions,
   DiscoverProjectsOptions,
 } from './folder-operations.ts';
+export type {
+  ResolveWorktreeByPathInput,
+  ResolveWorktreeByPathResult,
+} from './worktree-path.ts';

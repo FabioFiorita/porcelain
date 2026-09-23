@@ -72,6 +72,7 @@ export const commentThreadParamsSchema = z.strictObject({
   threadId: z.uuid(),
 });
 
+export const commentThreadScopeSchema = z.enum(['waiting', 'all']);
 export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
 export const writtenCommentThreadSchema = z.tuple([commentThreadSchema]);
 
@@ -107,6 +108,7 @@ export type CommentAnchor = z.output<typeof commentAnchorSchema>;
 export type CommentMessage = z.output<typeof commentMessageSchema>;
 export type CommentThread = z.output<typeof commentThreadSchema>;
 export type CommentThreadParams = z.output<typeof commentThreadParamsSchema>;
+export type CommentThreadScope = z.output<typeof commentThreadScopeSchema>;
 export type ListCommentThreadsResponse = z.output<
   typeof listCommentThreadsResponseSchema
 >;

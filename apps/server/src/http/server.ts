@@ -1,74 +1,49 @@
+import sensible from '@fastify/sensible';
 import {
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
 } from '@fastify/type-provider-zod';
 import websocket from '@fastify/websocket';
-import Fastify, { type FastifyInstance } from 'fastify';
-import { openApplication } from '../bootstrap/compose-server.ts';
 import type { Principal } from '@porcelain/contracts/access';
+import Fastify from 'fastify';
+import { WebRootAdapter } from '../adapters/web/web-root-adapter.ts';
+import type { ServerApplication } from '../bootstrap/compose-server.ts';
+import { liveUpdateMessageLimit } from '../config/request-limits.ts';
+import { absolutePathSchema } from '../config/server-settings.ts';
+import { handleError } from './error-handler.ts';
+import { checkRequestOrigin } from './hooks/request-origin.ts';
+import { readReviewSummaryPage } from './routes/reviews/read-review-summary-page.ts';
+import { pairedScope } from './scopes/paired.ts';
+import { publicScope } from './scopes/public.ts';
+import { staticFiles } from './static-files.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
     disconnected: AbortSignal;
     principal: Principal;
   }
-  interface FastifyInstance {
-    refreshed(): Promise<void>;
-  }
 }
-
-import type { ServerApplication } from '../bootstrap/compose-server.ts';
-import { absolutePathSchema } from '../config/server-settings.ts';
-import { toStatusResponse } from './status-policy.ts';
-import {
-  checkRequestOrigin,
-  type OriginPolicy,
-} from './middlewares/request-origin.ts';
-import { pairedRoutes } from './scopes/paired.ts';
-import { publicRoutes } from './scopes/public.ts';
-import { readReviewSummary } from './routes/reviews/read-review-summary.ts';
-import { registerStaticFiles } from './static-files.ts';
 
 export type NetworkServerOptions = {
   application: ServerApplication;
-  webRoot?: string;
-} & Partial<OriginPolicy>;
-
-type ServerOptions = Parameters<typeof openApplication>[0] & {
-  webRoot?: string;
-} & Partial<OriginPolicy>;
-
-function registerApiRoutes(
-  server: FastifyInstance,
-  options: { application: ServerApplication } & OriginPolicy,
-) {
-  server.register(publicRoutes, {
-    application: options.application,
-    liveUpdates: options.application.liveUpdates,
-    allowedHosts: options.allowedHosts,
-  });
-  server.register(pairedRoutes, { application: options.application });
-}
+  webRoot?: string | undefined;
+  allowedHosts?: readonly string[] | undefined;
+};
 
 export function createNetworkServer(options: NetworkServerOptions) {
-  const {
-    application,
-    webRoot: configuredWebRoot,
-    allowedHosts = [],
-  } = options;
+  const { application, allowedHosts = [] } = options;
   const webRoot =
-    configuredWebRoot === undefined
+    options.webRoot === undefined
       ? undefined
-      : absolutePathSchema.parse(configuredWebRoot);
+      : absolutePathSchema.parse(options.webRoot);
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
-  server.register(websocket, { options: { maxPayload: 64 * 1024 } });
-  server.setErrorHandler(async (error, _request, reply) => {
-    const response = toStatusResponse(error);
-    if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
-    return reply.code(response.statusCode).send(response.body);
+  server.setErrorHandler(handleError);
+  server.register(sensible);
+  server.register(websocket, {
+    options: { maxPayload: liveUpdateMessageLimit },
   });
   server.decorateRequest('disconnected');
   server.decorateRequest('principal');
@@ -84,30 +59,26 @@ export function createNetworkServer(options: NetworkServerOptions) {
     });
     done();
   });
-  server.addHook('onRequest', checkRequestOrigin({ allowedHosts }));
-  server.decorate('refreshed', () => application.ready());
+  server.addHook(
+    'onRequest',
+    checkRequestOrigin({
+      checkRequestOriginController: application.checkRequestOriginController,
+      allowedHosts,
+    }),
+  );
   server.register(
     async (api) => {
-      registerApiRoutes(api, { application, allowedHosts });
+      api.register(publicScope, { application, allowedHosts });
+      api.register(pairedScope, { application });
     },
     { prefix: '/api' },
   );
-  readReviewSummary(server, {
+  server.register(readReviewSummaryPage, {
     controller: application.readReviewSummaryController,
   });
-  if (webRoot !== undefined) registerStaticFiles(server, { webRoot });
+  if (webRoot !== undefined)
+    server.register(staticFiles, {
+      files: new WebRootAdapter(webRoot),
+    });
   return server;
-}
-
-export async function createServer(options: ServerOptions) {
-  const { webRoot, allowedHosts, ...applicationOptions } = options;
-  const application = await openApplication(applicationOptions);
-  const server = createNetworkServer({
-    application,
-    ...(webRoot === undefined ? {} : { webRoot }),
-    ...(allowedHosts === undefined ? {} : { allowedHosts }),
-  });
-  server.addHook('preClose', async () => application.close());
-  server.addHook('onClose', async () => application.close());
-  return Object.assign(server, { application });
 }
