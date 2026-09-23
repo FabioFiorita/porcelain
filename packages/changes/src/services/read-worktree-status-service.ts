@@ -1,46 +1,18 @@
-import type { ReadWorktreeStatusResult } from '../models/status-observation.ts';
+import type { ChangeStatusObservation } from '../models/change-status.ts';
+import type { WorktreeInput } from '../models/operation-inputs.ts';
 import type { ChangeStatusReader } from '../ports/change-status-reader.ts';
 
 export class ReadWorktreeStatusService {
-  private readonly reader: ChangeStatusReader;
+  private readonly changeStatusReader: ChangeStatusReader;
 
-  constructor(reader: ChangeStatusReader) {
-    this.reader = reader;
+  constructor(changeStatusReader: ChangeStatusReader) {
+    this.changeStatusReader = changeStatusReader;
   }
 
-  async execute(
-    environmentId: string,
-    worktreeId: string,
+  execute(
+    input: WorktreeInput,
     signal?: AbortSignal,
-  ): Promise<ReadWorktreeStatusResult> {
-    signal?.throwIfAborted();
-    const status = await this.reader.readStatus(signal);
-    signal?.throwIfAborted();
-    const details = await this.reader.readBranchDetails(
-      status.branch?.name ?? undefined,
-      status.headOid,
-      signal,
-    );
-    signal?.throwIfAborted();
-    return {
-      environmentId,
-      worktreeId,
-      status: {
-        ...status,
-        headCommit: details.headCommit,
-        ...(status.branch
-          ? {
-              branch: {
-                ...status.branch,
-                remoteName: details.remoteName,
-                sourceRef: details.sourceRef,
-                upstreamOid: details.upstreamOid,
-                stashes: details.stashes,
-                discarded: details.discarded,
-              },
-            }
-          : {}),
-      },
-    };
+  ): Promise<ChangeStatusObservation> {
+    return this.changeStatusReader.readStatus(input.worktreeId, signal);
   }
 }

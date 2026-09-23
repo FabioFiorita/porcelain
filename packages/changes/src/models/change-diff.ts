@@ -1,7 +1,9 @@
+import type { TrackedComparison } from './change.ts';
+
 export type ChangeSelection = {
   scope: 'staged' | 'unstaged';
-  oldPath: string | null;
-  newPath: string | null;
+  oldPath: string | undefined;
+  newPath: string | undefined;
 };
 
 export type ChangeDiffContent =
@@ -18,7 +20,12 @@ export type ChangeDiff = {
   content: ChangeDiffContent;
 };
 
-export type ExpectedFile = { path: string; fingerprint: string | null };
+export type ExpectedFile = { path: string; fingerprint: string | undefined };
+
+export type DiffSelection = {
+  comparisons: TrackedComparison[];
+  paths: string[];
+};
 
 export type ChangeDiffs = {
   environmentId: string;

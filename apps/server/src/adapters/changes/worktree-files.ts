@@ -3,13 +3,13 @@ import type { BigIntStats } from 'node:fs';
 import { constants } from 'node:fs';
 import { lstat, open, readlink } from 'node:fs/promises';
 import { dirname, join, sep } from 'node:path';
+import type { WorktreeEntry } from '@porcelain/changes/models';
 import {
   inspectPath,
   sameFile,
   unchanged,
   verifyPath,
-} from './inspect-path.ts';
-import type { WorktreeEntry } from '@porcelain/changes/ports';
+} from '../files/inspect-path.ts';
 
 export type WorktreeFiles = (
   root: string,

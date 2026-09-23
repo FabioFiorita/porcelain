@@ -1,73 +1,88 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type {
+  ConfirmWorktreeService,
+  ReadBranchDetailsService,
+  ReadWorktreeStatusService,
+} from '@porcelain/changes/services';
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
-import type { ReadWorktreeStatusService } from '@porcelain/changes/services';
-
-type RunStatusRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
-
-type OpenStatus = (
-  worktreeId: string,
-  signal?: AbortSignal,
-) => Promise<{ environmentId: string; service: ReadWorktreeStatusService }>;
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
+import type { SharedReads } from '../runtime/shared-reads.ts';
 
 export class ReadGitStatusController {
-  private readonly openStatus: OpenStatus;
-  private readonly runRead: RunStatusRead;
+  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly readWorktreeStatus: ReadWorktreeStatusService;
+  private readonly readBranchDetails: ReadBranchDetailsService;
+  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly sharedReads: SharedReads;
 
-  constructor(openStatus: OpenStatus, runRead: RunStatusRead) {
-    this.openStatus = openStatus;
-    this.runRead = runRead;
+  constructor(
+    confirmWorktree: ConfirmWorktreeService,
+    readWorktreeStatus: ReadWorktreeStatusService,
+    readBranchDetails: ReadBranchDetailsService,
+    readEnvironment: ReadEnvironmentService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    sharedReads: SharedReads,
+  ) {
+    this.confirmWorktree = confirmWorktree;
+    this.readWorktreeStatus = readWorktreeStatus;
+    this.readBranchDetails = readBranchDetails;
+    this.readEnvironment = readEnvironment;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.sharedReads = sharedReads;
   }
 
   execute(
-    input: { worktreeId: string },
-    context: { signal?: AbortSignal },
+    input: WorktreeParams,
+    context: OperationContext,
   ): Promise<ReadGitStatusResponse> {
     const { worktreeId } = input;
-    return this.runRead(
-      worktreeId,
-      async (signal) => {
-        signal.throwIfAborted();
-        const { environmentId, service } = await this.openStatus(
-          worktreeId,
-          signal,
-        );
-        const result = await service.execute(environmentId, worktreeId, signal);
-        return {
-          environmentId: result.environmentId,
-          worktreeId: result.worktreeId,
-          statusToken: result.status.statusToken,
-          headOid: result.status.headOid,
-          inProgress: result.status.inProgress ?? null,
-          mergeHeadOid: result.status.mergeHeadOid ?? null,
-          headCommit: result.status.headCommit ?? null,
-          ...(result.status.branch ? { branch: result.status.branch } : {}),
-          consistency: 'best-effort',
-          changes: result.status.changes.map((change) => {
-            if (change.scope === 'untracked')
-              return { scope: change.scope, path: change.path };
-            if (change.scope === 'unmerged')
-              return {
-                scope: change.scope,
-                path: change.path,
-                conflict: change.conflict,
-              };
+    const lane = this.laneKeys.worktree(worktreeId);
+    return this.sharedReads.run(
+      `status\0${lane}\0${worktreeId}`,
+      (shared) =>
+        this.lanes.run(
+          lane,
+          'read',
+          async ({ signal }) => {
+            await this.confirmWorktree.execute({ worktreeId }, signal);
+            const status = await this.readWorktreeStatus.execute(
+              { worktreeId },
+              signal,
+            );
+            const details = await this.readBranchDetails.execute(
+              { worktreeId, branch: status.branch, headOid: status.headOid },
+              signal,
+            );
+            await this.confirmWorktree.execute({ worktreeId }, signal);
             return {
-              scope: change.scope,
-              kind: change.kind,
-              oldPath: change.oldPath,
-              newPath: change.newPath,
-              oldMode: change.oldMode,
-              newMode: change.newMode,
-              oldOid: change.oldOid,
-              newOid: change.newOid,
-              supported: change.supported,
+              environmentId: this.readEnvironment.execute(),
+              worktreeId,
+              statusToken: status.statusToken,
+              branch: status.branch && {
+                ...status.branch,
+                remoteName: details.remoteName,
+                sourceRef: details.sourceRef,
+                upstreamOid: details.upstreamOid,
+                stashes: details.stashes,
+                discarded: details.discarded,
+              },
+              consistency: 'best-effort' as const,
+              headOid: status.headOid,
+              inProgress: status.inProgress,
+              mergeHeadOid: status.mergeHeadOid,
+              headCommit: details.headCommit,
+              changes: status.changes,
             };
-          }),
-        };
-      },
+          },
+          { callerSignal: shared },
+        ),
       context.signal,
     );
   }

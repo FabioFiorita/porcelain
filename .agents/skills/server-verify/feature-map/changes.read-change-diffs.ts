@@ -43,9 +43,9 @@ function diffs(
 export default defineFeature({
   feature: 'changes.read-change-diffs',
   reaches: 'POST /api/worktrees/:worktreeId/changes/diffs',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    'A reviewer reads the diffs of selected comparisons, stating the status token and file fingerprints it last saw. If the worktree moved since, or a selection is not one of the stated files, the read is refused as a conflict so the client refreshes first; nothing is read from a newer state than the one the reviewer looked at.',
+    'A reviewer reads the diffs of selected comparisons, stating the status token and file fingerprints it last saw. The selections must cover exactly the stated files, otherwise the request is invalid. If the worktree moved since, the read is refused as a conflict so the client refreshes first; nothing is read from a newer state than the one the reviewer looked at.',
   cases: [
     defineCase({
       name: 'the sample change',
@@ -71,7 +71,41 @@ export default defineFeature({
       },
     }),
     defineCase({
-      name: 'stale status token, stale fingerprint or foreign selection',
+      name: 'a selection that is not one of the stated files',
+      setup: changes,
+      request: (session, state) => ({
+        method: 'POST',
+        path: worktreePath(session, '/changes/diffs'),
+        body: diffs(state.statusToken, sampleFingerprint, {
+          scope: 'staged',
+          oldPath: 'other.md',
+          newPath: 'other.md',
+        }),
+      }),
+      expect({ response, check }) {
+        check('status', 400, response.status);
+        check('error body', invalidRequest, response.body);
+      },
+    }),
+    defineCase({
+      name: 'a stated file whose selection is no longer listed',
+      setup: changes,
+      request: (session, state) => ({
+        method: 'POST',
+        path: worktreePath(session, '/changes/diffs'),
+        body: diffs(state.statusToken, sampleFingerprint, {
+          scope: 'staged',
+          oldPath: 'README.md',
+          newPath: 'README.md',
+        }),
+      }),
+      expect({ response, check }) {
+        check('status', 409, response.status);
+        check('error body', refresh, response.body);
+      },
+    }),
+    defineCase({
+      name: 'stale status token or stale fingerprint',
       setup: changes,
       request: (session, state) => [
         {
@@ -83,15 +117,6 @@ export default defineFeature({
           method: 'POST',
           path: worktreePath(session, '/changes/diffs'),
           body: diffs(state.statusToken, unknownFingerprint),
-        },
-        {
-          method: 'POST',
-          path: worktreePath(session, '/changes/diffs'),
-          body: diffs(state.statusToken, sampleFingerprint, {
-            scope: 'staged',
-            oldPath: 'other.md',
-            newPath: 'other.md',
-          }),
         },
       ],
       expect({ responses, check }) {

@@ -20,18 +20,13 @@ const diffs = (session: Session, oid: string, body: unknown) => ({
   path: worktreePath(session, `/commits/${oid}/diffs`),
   body,
 });
-const uninspectable = apiError(
-  422,
-  'Unprocessable Entity',
-  'Repository could not be inspected',
-);
 
 export default defineFeature({
   feature: 'changes.read-commit-diffs',
   reaches: 'POST /api/worktrees/:worktreeId/commits/:oid/diffs',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    'A reviewer reads the diffs of chosen paths in one commit, each path given alone or as an old and new pair for a rename, against a chosen parent. A pure rename has a metadata-only patch; a path the commit did not touch has an empty metadata-only patch.',
+    'A reviewer reads the diffs of chosen paths in one commit, each path given alone or as an old and new pair for a rename, against a chosen parent. A pure rename has a metadata-only patch; a path the commit did not touch has an empty metadata-only patch. An unknown commit and a parent the commit does not have are refused exactly as the commit files read refuses them.',
   cases: [
     defineCase({
       name: 'modified file and pure rename',
@@ -114,14 +109,18 @@ export default defineFeature({
         diffs(session, head, { parent: 2, paths: [['README.md']] }),
       ],
       expect({ responses, check }) {
-        for (const [index, response] of responses.entries()) {
-          check(`request ${index + 1} status`, 422, response.status);
-          check(
-            `request ${index + 1} error body`,
-            uninspectable,
-            response.body,
-          );
-        }
+        check('unknown commit status', 404, responses[0]?.status);
+        check(
+          'unknown commit error body',
+          apiError(404, 'Not Found', 'Commit not found'),
+          responses[0]?.body,
+        );
+        check('missing parent status', 400, responses[1]?.status);
+        check(
+          'missing parent error body',
+          apiError(400, 'Bad Request', 'Invalid history request'),
+          responses[1]?.body,
+        );
       },
     }),
     defineCase({

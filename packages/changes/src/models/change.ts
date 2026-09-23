@@ -1,37 +1,53 @@
-export type ChangeComparison =
-  | {
-      scope: 'staged' | 'unstaged';
-      kind: 'added' | 'modified' | 'deleted' | 'renamed' | 'type-changed';
-      oldPath: string | null;
-      newPath: string | null;
-      oldMode: string;
-      newMode: string;
-      oldOid: string | null;
-      newOid: string | null;
-      supported: boolean;
-    }
-  | { scope: 'untracked'; path: string }
-  | {
-      scope: 'unmerged';
-      path: string;
-      conflict: 'DD' | 'AU' | 'UD' | 'UA' | 'DU' | 'AA' | 'UU';
-      modes: [string, string, string, string];
-      oids: [string, string, string];
-    };
+export type ChangeKind =
+  | 'added'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'type-changed';
 
-export type WorktreeSide = {
-  digest?: string | undefined;
-  symlink?: string | undefined;
-  submodule?: string | undefined;
+export type ConflictKind =
+  | 'both-deleted'
+  | 'added-by-us'
+  | 'deleted-by-them'
+  | 'added-by-them'
+  | 'deleted-by-us'
+  | 'both-added'
+  | 'both-modified';
+
+export type TrackedComparison = {
+  scope: 'staged' | 'unstaged';
+  kind: ChangeKind;
+  oldPath: string | undefined;
+  newPath: string | undefined;
+  oldMode: string;
+  newMode: string;
+  oldOid: string | undefined;
+  newOid: string | undefined;
+  supported: boolean;
 };
 
-export type WorktreeEntry =
-  | { kind: 'file'; digest: string; stamp: string }
-  | { kind: 'symlink'; target: string; stamp: string }
-  | { kind: 'other' };
+export type UntrackedComparison = { scope: 'untracked'; path: string };
+
+export type UnmergedComparison = {
+  scope: 'unmerged';
+  path: string;
+  conflict: ConflictKind;
+  modes: [string, string, string, string];
+  oids: [string, string, string];
+};
+
+export type ChangeComparison =
+  | TrackedComparison
+  | UntrackedComparison
+  | UnmergedComparison;
 
 export type FileChange = {
   path: string;
   fingerprint: string | undefined;
   comparisons: ChangeComparison[];
+};
+
+export type ChangeFingerprints = {
+  changes: FileChange[];
+  stamp: string;
 };

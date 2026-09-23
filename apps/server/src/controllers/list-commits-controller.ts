@@ -1,44 +1,52 @@
-import type { ListCommitsResponse } from '@porcelain/contracts/changes';
-import type { CommitHistoryReader } from '../runtime/commit-history-reader.ts';
-
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  ConfirmWorktreeService,
+  ListCommitsService,
+} from '@porcelain/changes/services';
+import type {
+  ListCommitsQuery,
+  ListCommitsResponse,
+} from '@porcelain/contracts/changes';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListCommitsController {
-  private readonly history: CommitHistoryReader;
-  private readonly run: RunWorktreeRead;
+  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly listCommits: ListCommitsService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
-  constructor(history: CommitHistoryReader, run: RunWorktreeRead) {
-    this.history = history;
-    this.run = run;
+  constructor(
+    confirmWorktree: ConfirmWorktreeService,
+    listCommits: ListCommitsService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+  ) {
+    this.confirmWorktree = confirmWorktree;
+    this.listCommits = listCommits;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: {
-      worktreeId: string;
-      limit?: number | undefined;
-      after?: string[] | undefined;
-      tip?: string | undefined;
-    },
-    context: { signal?: AbortSignal | undefined },
+    input: WorktreeParams & ListCommitsQuery,
+    context: OperationContext,
   ): Promise<ListCommitsResponse> {
     const { worktreeId, limit, after, tip } = input;
-    return this.run(
-      worktreeId,
-      (signal) =>
-        this.history.listCommits(
-          worktreeId,
-          {
-            ...(limit === undefined ? {} : { limit }),
-            ...(after === undefined ? {} : { after }),
-            ...(tip === undefined ? {} : { tip }),
-          },
+    return this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.confirmWorktree.execute({ worktreeId }, signal);
+        const page = await this.listCommits.execute(
+          { worktreeId, limit, after, tip },
           signal,
-        ),
-      context.signal,
+        );
+        await this.confirmWorktree.execute({ worktreeId }, signal);
+        return page;
+      },
+      { callerSignal: context.signal },
     );
   }
 }
