@@ -1,14 +1,14 @@
-import { basename } from 'node:path';
+import { folderName } from './folder-name.ts';
+
+const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+const SCP_LIKE = /^[^/]*@[^/:]+:(?<path>.*)$/;
 
 export function deriveProjectName(
   originUrl: string | undefined,
   mainCheckoutPath: string,
 ): string {
-  return fromOrigin(originUrl) ?? basename(mainCheckoutPath);
+  return fromOrigin(originUrl) ?? folderName(mainCheckoutPath);
 }
-
-const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
-const SCP_LIKE = /^[^/]*@[^/:]+:(?<path>.*)$/;
 
 function fromOrigin(originUrl: string | undefined): string | undefined {
   if (!originUrl) return undefined;

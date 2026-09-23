@@ -1,6 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  projectParamsSchema,
+  removeProjectParamsSchema,
   removeProjectResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
@@ -16,7 +16,7 @@ export function removeProject(
     '/projects/:projectId',
     {
       schema: {
-        params: projectParamsSchema,
+        params: removeProjectParamsSchema,
         response: { ...errorResponses, 200: removeProjectResponseSchema },
       },
     },

@@ -18,7 +18,6 @@ import {
   ReadWorktreeChangesService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import { FileInspectionError } from '@porcelain/files/errors';
 import {
   EditFileService,
   ListDirectoryService,
@@ -51,19 +50,11 @@ import { ActionGit } from '@porcelain/git/actions';
 import { checkIgnored } from '@porcelain/git/inspection';
 import { listTrackedPaths } from '@porcelain/git/inspection';
 import { CommitGit } from '@porcelain/git/history';
-import type { DiscoveryIssue } from '@porcelain/git/discovery';
-import { Git, isRepositoryUnavailable } from '@porcelain/git/discovery';
+import { Git } from '@porcelain/git/discovery';
 import { RequestGitSession } from '@porcelain/git/actions';
 import { InspectionGit } from '@porcelain/git/inspection';
 import type { GitSession } from '@porcelain/git/inspection';
 import type { ExpectedFile as ExpectedChangeFile } from '@porcelain/changes/models';
-import {
-  BrowseProjectFoldersService,
-  CollectAbsentWorktreesService,
-  DiscoverProjectsService,
-  RegisterProjectService,
-  RenameProjectService,
-} from '@porcelain/projects/services';
 import type { ProjectFolderReader as ProjectFolders } from '@porcelain/projects/ports';
 import type { CommitReaderFactory } from '@porcelain/git/history';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
@@ -100,7 +91,6 @@ import { ListCommitModelsController } from '../controllers/list-commit-models-co
 import { ListGitBranchesController } from '../controllers/list-git-branches-controller.ts';
 import { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
 import { RunGitActionController } from '../controllers/run-git-action-controller.ts';
-import { RenameProjectController } from '../controllers/rename-project-controller.ts';
 import { CommentThreadsController } from '../controllers/comment-threads-controller.ts';
 import { MarkCommentsSeenController } from '../controllers/mark-comments-seen-controller.ts';
 import { ListReviewedFilesController } from '../controllers/list-reviewed-files-controller.ts';
@@ -121,7 +111,6 @@ import { RemoveReviewedLayerController } from '../controllers/remove-reviewed-la
 import { applicationSettingsSchema } from '../config/application-settings.ts';
 import { NodeFileReader } from '../adapters/files/file-reader.ts';
 import { NodeFileWriter } from '../adapters/files/file-writer.ts';
-import { NodeProjectFolders } from '../adapters/files/project-folders.ts';
 import {
   readWorktreeFiles,
   stampPath,
@@ -131,26 +120,14 @@ import {
 import { DeviceDirectory } from '../adapters/access/device-directory.ts';
 import { LiveUpdates } from '../adapters/events/live-updates.ts';
 import { Lanes } from '../runtime/lanes.ts';
-import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
-import { WorktreeDirectory } from '../adapters/git/worktree-directory.ts';
-import type { Project } from '@porcelain/contracts/projects';
 import { CommentThreadsService } from '@porcelain/reviews/services';
-import { ListFilePreferencesService } from '@porcelain/projects/services';
 import {
   ListReviewedFilesService,
   RemoveReviewedFileService,
   SetReviewedFileService,
   SetReviewedFilesService,
 } from '@porcelain/reviews/services';
-import { RemoveProjectService } from '@porcelain/projects/services';
-import { RemoveProjectController } from '../controllers/remove-project-controller.ts';
-import { ListFilePreferencesController } from '../controllers/list-file-preferences-controller.ts';
-import { SetFilePreferenceController } from '../controllers/set-file-preference-controller.ts';
-import { ReadInventoryController } from '../controllers/read-inventory-controller.ts';
-import { RegisterProjectController } from '../controllers/register-project-controller.ts';
-import { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
-import { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
 import { ListDirectoryController } from '../controllers/list-directory-controller.ts';
 import { ReadTextFileController } from '../controllers/read-text-file-controller.ts';
 import { ReadFileAssetController } from '../controllers/read-file-asset-controller.ts';
@@ -158,8 +135,12 @@ import { ReadPreviewAssetsController } from '../controllers/read-preview-assets-
 import { EditFileController } from '../controllers/edit-file-controller.ts';
 import { ListWorktreePathsController } from '../controllers/list-worktree-paths-controller.ts';
 import { resolveActionCheckout } from '../adapters/git-actions/action-checkout.ts';
-import { ResolveWorktree } from '../adapters/projects/resolve-worktree.ts';
-import { SetFilePreferenceService } from '@porcelain/projects/services';
+import { RandomIdSourceAdapter } from '../adapters/projects/random-id-source-adapter.ts';
+import { SystemClockAdapter } from '../adapters/projects/system-clock-adapter.ts';
+import { CollectAbsentWorktreesJob } from '../jobs/collect-absent-worktrees-job.ts';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import { composeProjects } from './compose-projects.ts';
 import { openStorageSession } from '@porcelain/storage';
 import {
   createDeviceStore,
@@ -168,12 +149,7 @@ import {
 } from '@porcelain/storage/access';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
-import {
-  createFilePreferenceStore,
-  createInventoryStore,
-  createProjectRemovalStore,
-  createWorktreePresenceStore,
-} from '@porcelain/storage/projects';
+import { createInventoryStore } from '@porcelain/storage/projects';
 import {
   createCommentStore,
   createReviewedFileStore,
@@ -194,8 +170,6 @@ import {
 
 const READ_CAPACITY = 4;
 const LISTING_LAUNCHES = 4;
-const LAST_SEEN_FLUSH_MS = 60_000;
-const COLLECTION_INTERVAL_MS = 60 * 60_000;
 
 export async function openApplication(options: {
   dataDirectory: string;
@@ -240,70 +214,45 @@ export async function openApplication(options: {
     const store = createInventoryStore(session);
     countProjects = () => store.read().projects.length;
     const git = options.git ?? ((checkout: string) => new Git(checkout));
-    const launches = new LaunchLimit(LISTING_LAUNCHES);
-    const directory = new WorktreeDirectory({
-      git,
-      reads: sharedReads,
-      launches,
-      timeoutMs: projectListingTimeoutMs,
-      projects: () => store.read().projects,
-    });
-    const presence = createWorktreePresenceStore(session);
     const statuses = createWorktreeStatusStore(session);
-    const collectAbsent = new CollectAbsentWorktreesService(
-      presence,
-      options.now ? () => Date.parse(options.now?.() ?? '') : undefined,
-    );
-    const worktrees = new ResolveWorktree(directory, store, presence);
-
-    const listProjects = async (signal?: AbortSignal) => {
-      const registered = store.read().projects;
-      const listings = await Promise.all(
-        registered.map((project) => directory.list(project, signal)),
-      );
-      const issues: DiscoveryIssue[] = [];
-      const projects: Project[] = [];
-      const present = new Set(
-        store.read().projects.map((project) => project.id),
-      );
-      const dots = statuses.status(
-        listings.flatMap((listing) =>
-          listing.worktrees.map((worktree) => worktree.id),
-        ),
-      );
-      for (const [index, project] of registered.entries()) {
-        const listing = listings[index];
-        if (!listing || !present.has(project.id)) continue;
-        const available = listing.failure === undefined;
-        if (available !== project.available)
-          store.save({ ...project, available });
-        issues.push(...listing.issues);
-        if (available && listing.complete) {
-          presence.observe(
-            project.id,
-            listing.worktrees.map((worktree) => worktree.id),
-            options.now?.() ?? new Date().toISOString(),
-          );
-        } else if (listing.failure) {
-          issues.push({
-            path: project.commonDirectory,
-            error: listing.failure,
-          });
-        }
-        projects.push({
-          ...project,
-          available,
-          worktrees: listing.worktrees.map((worktree) => ({
-            ...worktree,
-            status: dots.get(worktree.id) ?? null,
-          })),
-        });
-      }
-      return {
-        inventory: { environmentId: store.read().environmentId, projects },
-        issues,
-      };
+    const laneKeys: LaneKeys = {
+      inventory: () => INVENTORY,
+      filesystem: () => FILESYSTEM,
+      project: (projectId) => projectLaneOf(projectId),
+      worktree: (worktreeId) => laneOf(worktreeId),
     };
+    const events: EventPublisher = {
+      inventoryChanged: () => live.publish({ type: 'inventory' }),
+      projectChanged: (projectId, change) =>
+        live.publish({ type: 'project', projectId, change }),
+      worktreeChanged: (worktreeId, change) =>
+        live.publishWorktree(worktreeId, change),
+      filesChanged: (worktreeId, paths) => live.noteFiles(worktreeId, paths),
+      gitActionChanged: (receipt) =>
+        live.publish({
+          type: 'git-action',
+          projectId: receipt.projectId,
+          worktreeId: receipt.worktreeId,
+          receipt,
+        }),
+    };
+    const projects = composeProjects({
+      session,
+      lanes,
+      laneKeys,
+      events,
+      sharedReads,
+      git,
+      clock: options.now ? { now: options.now } : new SystemClockAdapter(),
+      idSource: new RandomIdSourceAdapter(),
+      worktreeStatusStore: statuses,
+      projectFolderReader: options.projectFolders,
+      projectHome: options.projectHome,
+      projectListingTimeoutMs,
+    });
+    const directory = projects.worktreeDirectory;
+    const worktrees = projects.worktreeAccess;
+
     const stored = async <T>(read: () => T | Promise<T>): Promise<T> => {
       lanes.assertOpen();
       return read();
@@ -317,23 +266,17 @@ export async function openApplication(options: {
         callerSignal: signal,
       });
 
-    const laneOf = (worktreeId: string) =>
+    const laneOf = (worktreeId: string): string =>
       directory.repositoryOf(worktreeId) ?? 'unresolved';
-    const projectLaneOf = (projectId: string) =>
+    const projectLaneOf = (projectId: string): string =>
       store.read().projects.find((entry) => entry.id === projectId)
         ?.repositoryIdentity ?? 'unresolved';
     const markSeen = new MarkCommentsSeenService(statuses);
-    const removeProject = new RemoveProjectService(
-      createProjectRemovalStore(session),
-    );
     const actionStore = createGitActionStore(session);
     actionStore.recover();
     const actionGit =
       options.actionGit ?? ((checkout) => new ActionGit(checkout));
 
-    const preferences = createFilePreferenceStore(session);
-    const listPreferences = new ListFilePreferencesService(store, preferences);
-    const setPreference = new SetFilePreferenceService(store, preferences);
     const pairingGrants = createPairingGrantStore(session);
     const deviceStore = createDeviceStore(session);
     const deviceDirectory = new DeviceDirectory(deviceStore);
@@ -374,41 +317,6 @@ export async function openApplication(options: {
       revokeAccess,
       stored,
     );
-    const lastSeenFlush = setInterval(
-      () => deviceDirectory.flush(),
-      LAST_SEEN_FLUSH_MS,
-    );
-    lastSeenFlush.unref();
-    const collection = setInterval(() => {
-      try {
-        collectAbsent.execute();
-      } catch {}
-    }, COLLECTION_INTERVAL_MS);
-    collection.unref();
-    const folders = options.projectFolders ?? new NodeProjectFolders();
-    const projectRepositories = {
-      inspect: (checkout: string, signal?: AbortSignal) =>
-        git(checkout).listWorktrees(signal),
-      readOriginUrl: async (checkout: string, signal?: AbortSignal) =>
-        (await git(checkout).readOriginUrl(signal)) ?? undefined,
-      isUnavailable: isRepositoryUnavailable,
-    };
-    const browseProjects = new BrowseProjectFoldersService(
-      folders,
-      projectRepositories,
-      options.projectHome,
-    );
-    const discoverProjects = new DiscoverProjectsService(
-      folders,
-      projectRepositories,
-      store,
-      options.projectHome,
-      (error) =>
-        error instanceof FileInspectionError &&
-        ['PATH_NOT_FOUND', 'PATH_NOT_READABLE', 'UNSUPPORTED_PATH'].includes(
-          error.code,
-        ),
-    );
     void readGitVersion().catch(() => undefined);
     const commitGit =
       options.commitGit ?? ((checkout) => new CommitGit(checkout));
@@ -438,11 +346,6 @@ export async function openApplication(options: {
     const editFile = new EditFileService(
       readableWorktrees,
       options.fileWriter ?? new NodeFileWriter(),
-    );
-    const register = new RegisterProjectService(
-      store,
-      projectRepositories,
-      directory,
     );
     const inspection =
       options.inspectionGit ?? ((checkout) => new InspectionGit(checkout));
@@ -580,76 +483,6 @@ export async function openApplication(options: {
       new RemoveReviewedLayerService(reviewedLayers),
       (operation, signal) => forWorktree(operation, signal),
       (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
-    const renameProjectController = new RenameProjectController(
-      new RenameProjectService(store),
-      (operation, signal) =>
-        lanes.run(INVENTORY, 'write', async () => operation(), {
-          callerSignal: signal,
-        }),
-      () => live.publish({ type: 'inventory' }),
-    );
-    const removeProjectController = new RemoveProjectController(
-      removeProject,
-      (projectId, operation, signal) =>
-        lanes.run(projectLaneOf(projectId), 'write', async () => operation(), {
-          callerSignal: signal,
-        }),
-      (projectId) => directory.forget(projectId),
-      () => live.publish({ type: 'inventory' }),
-    );
-    const listFilePreferencesController = new ListFilePreferencesController(
-      listPreferences,
-      stored,
-    );
-    const setFilePreferenceController = new SetFilePreferenceController(
-      setPreference,
-      stored,
-      (projectId) =>
-        live.publish({ type: 'project', projectId, change: 'preferences' }),
-    );
-    const readInventoryController = new ReadInventoryController(
-      async (signal) =>
-        (
-          await lanes.run(
-            INVENTORY,
-            'read',
-            ({ signal: operationSignal }) => listProjects(operationSignal),
-            { callerSignal: signal },
-          )
-        ).inventory,
-    );
-    const discoverProjectsController = new DiscoverProjectsController(
-      (signal) =>
-        lanes.run(
-          FILESYSTEM,
-          'read',
-          ({ signal: operationSignal }) =>
-            discoverProjects.execute(operationSignal),
-          { callerSignal: signal },
-        ),
-    );
-    const browseProjectFoldersController = new BrowseProjectFoldersController(
-      (path, signal) =>
-        lanes.run(
-          FILESYSTEM,
-          'read',
-          ({ signal: operationSignal }) =>
-            browseProjects.execute(path, operationSignal),
-          { callerSignal: signal },
-        ),
-    );
-    const registerProjectController = new RegisterProjectController(
-      register,
-      (ids) => statuses.status(ids),
-      (operation, signal) =>
-        lanes.run(
-          INVENTORY,
-          'write',
-          ({ signal: operationSignal }) => operation(operationSignal),
-          { callerSignal: signal },
-        ),
-      () => live.publish({ type: 'inventory' }),
     );
     const runWorktreeRead = <T>(
       worktreeId: string,
@@ -867,11 +700,12 @@ export async function openApplication(options: {
       runWorktreeRead,
       (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
     );
-    store.markAllUnavailable();
-    const firstRefresh = lanes
-      .run(INVENTORY, 'write', ({ signal }) => listProjects(signal), {
-        callerSignal: options.signal,
-      })
+    const collection = new CollectAbsentWorktreesJob(
+      projects.collectAbsentWorktreesController,
+    );
+    collection.start();
+    const firstRefresh = projects.refreshInventoryController
+      .execute({}, options.signal ? { signal: options.signal } : {})
       .then(
         () => undefined,
         (cause: unknown) => {
@@ -993,14 +827,14 @@ export async function openApplication(options: {
       listAccessController,
       revokeAccessController,
       readHealthController,
-      projects: renameProjectController,
-      removeProjectController,
-      listFilePreferencesController,
-      setFilePreferenceController,
-      readInventoryController,
-      discoverProjectsController,
-      browseProjectFoldersController,
-      registerProjectController,
+      projects: projects.renameProjectController,
+      removeProjectController: projects.removeProjectController,
+      listFilePreferencesController: projects.listFilePreferencesController,
+      setFilePreferenceController: projects.setFilePreferenceController,
+      readInventoryController: projects.readInventoryController,
+      discoverProjectsController: projects.discoverProjectsController,
+      browseProjectFoldersController: projects.browseProjectFoldersController,
+      registerProjectController: projects.registerProjectController,
       listDirectoryController,
       readTextFileController,
       readFileAssetController,
@@ -1032,8 +866,7 @@ export async function openApplication(options: {
           .execute({ labels: [...labels], addresses: [...addresses] })
           .then(({ grants }) => grants),
       close: async () => {
-        clearInterval(lastSeenFlush);
-        clearInterval(collection);
+        collection.stop();
         try {
           deviceDirectory.flush();
         } catch {}

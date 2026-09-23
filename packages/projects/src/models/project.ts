@@ -8,3 +8,8 @@ export interface RegisteredProject {
 }
 
 export type ProjectName = Pick<RegisteredProject, 'id' | 'name'>;
+
+export type Inventory = {
+  environmentId: string;
+  projects: RegisteredProject[];
+};

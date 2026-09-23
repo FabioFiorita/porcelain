@@ -1,25 +1,27 @@
-import type { FilePreference } from '@porcelain/projects/models';
+import type {
+  ListFilePreferencesParams,
+  ListFilePreferencesResponse,
+} from '@porcelain/contracts/projects';
 import type { ListFilePreferencesService } from '@porcelain/projects/services';
-
-type RunStored = <T>(operation: () => T | Promise<T>) => Promise<T>;
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListFilePreferencesController {
   private readonly listFilePreferences: ListFilePreferencesService;
-  private readonly runStored: RunStored;
+  private readonly lanes: Lanes;
 
-  constructor(
-    listFilePreferences: ListFilePreferencesService,
-    runStored: RunStored,
-  ) {
+  constructor(listFilePreferences: ListFilePreferencesService, lanes: Lanes) {
     this.listFilePreferences = listFilePreferences;
-    this.runStored = runStored;
+    this.lanes = lanes;
   }
 
-  execute(input: {
-    projectId: string;
-  }): Promise<{ preferences: FilePreference[] }> {
-    return this.runStored(() => ({
-      preferences: this.listFilePreferences.execute(input.projectId),
-    }));
+  execute(
+    input: ListFilePreferencesParams,
+    context: OperationContext,
+  ): Promise<ListFilePreferencesResponse> {
+    return this.lanes.unqueued(
+      async () => this.listFilePreferences.execute(input),
+      { callerSignal: context.signal },
+    );
   }
 }

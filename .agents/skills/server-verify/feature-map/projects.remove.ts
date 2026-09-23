@@ -23,6 +23,7 @@ export default defineFeature({
     'packages/contracts/src/projects/inventory.ts',
     'apps/server/src/controllers/remove-project-controller.ts',
     'packages/projects/src/services/remove-project-service.ts',
+    'packages/projects/src/services/forget-project-worktrees-service.ts',
     'packages/projects/src/ports/project-removal-store.ts',
     'packages/storage/src/repositories/projects/project-removal-repository.ts',
   ],

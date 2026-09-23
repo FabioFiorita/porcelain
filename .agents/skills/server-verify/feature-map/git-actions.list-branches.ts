@@ -1,5 +1,6 @@
 import { listGitBranchesResponseSchema } from '../../../../packages/contracts/src/git-actions/index.ts';
 import {
+  apiError,
   defineCase,
   defineFeature,
   invalidRequest,
@@ -13,9 +14,9 @@ import { gitPath, worktreeNotFound } from '../scripts/fixture.ts';
 export default defineFeature({
   feature: 'git-actions.list-branches',
   reaches: 'GET /api/projects/:projectId/worktrees/:worktreeId/git/branches',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    "The owner lists a worktree's local branches, to switch or create one: the current branch and, for each branch, its upstream, last commit time and whether another worktree has it checked out. A worktree that is not one of the project's is not found.",
+    "The owner lists a worktree's local branches, to switch or create one: the current branch and, for each branch, its upstream, last commit time and whether another worktree has it checked out. An unknown project is not found, and so is a worktree that is not one of the project's.",
   cases: [
     defineCase({
       name: 'main and a second branch',
@@ -62,14 +63,18 @@ export default defineFeature({
         },
       ],
       expect({ responses, check }) {
-        for (const [index, response] of responses.entries()) {
-          check(`request ${index + 1} status`, 404, response.status);
-          check(
-            `request ${index + 1} error body`,
-            worktreeNotFound,
-            response.body,
-          );
-        }
+        check('unknown project status', 404, responses[0]?.status);
+        check(
+          'unknown project error body',
+          apiError(404, 'Not Found', 'Project not found'),
+          responses[0]?.body,
+        );
+        check('unknown worktree status', 404, responses[1]?.status);
+        check(
+          'unknown worktree error body',
+          worktreeNotFound,
+          responses[1]?.body,
+        );
       },
     }),
     defineCase({

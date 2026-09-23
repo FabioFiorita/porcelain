@@ -2,8 +2,8 @@ import type { ChangeLinesReader } from '@porcelain/changes/ports';
 import type { FileReader } from '@porcelain/files/ports';
 import type { GitSession, InspectionFactory } from '@porcelain/git/inspection';
 import type { InventoryStore } from '@porcelain/projects/ports';
-import { resolveCheckoutSession } from '../git/checkout-session.ts';
-import type { ResolveWorktree } from '../projects/resolve-worktree.ts';
+import { resolveCheckoutSession } from '../projects/checkout-session.ts';
+import type { WorktreeAccessAdapter as ResolveWorktree } from '../projects/worktree-access-adapter.ts';
 
 export function createChangeLinesReader(
   store: InventoryStore,

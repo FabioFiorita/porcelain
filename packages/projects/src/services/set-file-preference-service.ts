@@ -1,46 +1,52 @@
-import { InvalidFilePreferenceError } from '../errors/invalid-file-preference-error.ts';
+import { FilePreferenceLimitError } from '../errors/file-preference-limit-error.ts';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
 import type {
   FilePreference,
-  FilePreferenceChange,
+  FilePreferenceList,
+  SetFilePreferenceInput,
 } from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../ports/file-preference-store.ts';
-import type { ProjectStore } from '../ports/project-store.ts';
+import type { InventoryStore } from '../ports/inventory-store.ts';
+
+const PREFERENCE_LIMIT = 2000;
 
 export class SetFilePreferenceService {
-  private readonly inventory: ProjectStore;
-  private readonly preferences: FilePreferenceStore;
-  constructor(inventory: ProjectStore, preferences: FilePreferenceStore) {
-    this.inventory = inventory;
-    this.preferences = preferences;
+  private readonly inventoryStore: InventoryStore;
+  private readonly filePreferenceStore: FilePreferenceStore;
+
+  constructor(
+    inventoryStore: InventoryStore,
+    filePreferenceStore: FilePreferenceStore,
+  ) {
+    this.inventoryStore = inventoryStore;
+    this.filePreferenceStore = filePreferenceStore;
   }
-  execute(projectId: string, change: FilePreferenceChange): FilePreference[] {
+
+  execute(input: SetFilePreferenceInput): FilePreferenceList {
     if (
-      !change.path ||
-      change.path.length > 4096 ||
-      change.path.includes('\\') ||
-      change.path.includes('\0') ||
-      /^[A-Za-z]:/.test(change.path) ||
-      !change.path
-        .split('/')
-        .every(
-          (part) =>
-            part !== '' &&
-            part !== '.' &&
-            part !== '..' &&
-            part.toLowerCase() !== '.git',
-        ) ||
-      !['pinned', 'hidden'].includes(change.flag) ||
-      typeof change.value !== 'boolean'
-    )
-      throw new InvalidFilePreferenceError();
-    if (
-      !this.inventory
+      !this.inventoryStore
         .read()
-        .projects.some((project) => project.id === projectId)
+        .projects.some((project) => project.id === input.projectId)
     )
       throw new ProjectNotFoundError();
-    this.preferences.set(projectId, change);
-    return this.preferences.list(projectId);
+    const existing = this.filePreferenceStore.find(input.projectId, input.path);
+    const next: FilePreference = {
+      path: input.path,
+      pinned: existing?.pinned ?? false,
+      hidden: existing?.hidden ?? false,
+      [input.flag]: input.value,
+    };
+    if (!next.pinned && !next.hidden) {
+      if (existing)
+        this.filePreferenceStore.remove(input.projectId, input.path);
+    } else {
+      if (
+        !existing &&
+        this.filePreferenceStore.count(input.projectId) >= PREFERENCE_LIMIT
+      )
+        throw new FilePreferenceLimitError();
+      this.filePreferenceStore.save(input.projectId, next);
+    }
+    return { preferences: this.filePreferenceStore.list(input.projectId) };
   }
 }

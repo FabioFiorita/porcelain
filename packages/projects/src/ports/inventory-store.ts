@@ -1,7 +1,7 @@
-import type { RegisteredProject } from '../models/project.ts';
+import type { Inventory, RegisteredProject } from '../models/project.ts';
 
 export interface InventoryStore {
-  read(): { environmentId: string; projects: RegisteredProject[] };
+  read(): Inventory;
   save(project: RegisteredProject): void;
   markAllUnavailable(): void;
 }

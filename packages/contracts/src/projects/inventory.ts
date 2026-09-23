@@ -1,6 +1,26 @@
 import { z } from 'zod';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
+const absentAsNullText = z.codec(
+  z.string().nullable(),
+  z.union([z.string(), z.undefined()]),
+  {
+    decode: (value) => value ?? undefined,
+    encode: (value) => value ?? null,
+  },
+);
+
+const reviewStatusSchema = z.enum(['pending', 'reviewed', 'replied']);
+
+const absentAsNullStatus = z.codec(
+  reviewStatusSchema.nullable(),
+  z.union([reviewStatusSchema, z.undefined()]),
+  {
+    decode: (value) => value ?? undefined,
+    encode: (value) => value ?? null,
+  },
+);
+
 const absolutePathSchema = z
   .string()
   .min(1)
@@ -12,9 +32,9 @@ export const worktreeSchema = z.object({
   id: worktreeIdSchema,
   path: z.string(),
   main: z.boolean(),
-  branch: z.string().nullable(),
+  branch: absentAsNullText,
   available: z.boolean(),
-  status: z.enum(['pending', 'reviewed', 'replied']).nullable(),
+  status: absentAsNullStatus,
 });
 
 export const projectSchema = z.object({
@@ -24,7 +44,12 @@ export const projectSchema = z.object({
   worktrees: z.array(worktreeSchema),
 });
 
-export const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
+const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
+
+export const renameProjectParamsSchema = projectParamsSchema;
+export const removeProjectParamsSchema = projectParamsSchema;
+export const listFilePreferencesParamsSchema = projectParamsSchema;
+export const setFilePreferenceParamsSchema = projectParamsSchema;
 
 export const readInventoryResponseSchema = z.object({
   environmentId: z.uuid(),
@@ -50,7 +75,7 @@ export const browseProjectFoldersQuerySchema = z.strictObject({
 });
 export const browseProjectFoldersResponseSchema = z.object({
   path: z.string(),
-  parent: z.string().nullable(),
+  parent: absentAsNullText,
   directories: z.array(projectLocationSchema),
   repository: z.boolean(),
   truncated: z.boolean(),
@@ -73,7 +98,14 @@ export const renameProjectResponseSchema = z.object({
 
 export type Worktree = z.output<typeof worktreeSchema>;
 export type Project = z.output<typeof projectSchema>;
-export type ProjectParams = z.output<typeof projectParamsSchema>;
+export type RenameProjectParams = z.output<typeof renameProjectParamsSchema>;
+export type RemoveProjectParams = z.output<typeof removeProjectParamsSchema>;
+export type ListFilePreferencesParams = z.output<
+  typeof listFilePreferencesParamsSchema
+>;
+export type SetFilePreferenceParams = z.output<
+  typeof setFilePreferenceParamsSchema
+>;
 export type ReadInventoryResponse = z.output<
   typeof readInventoryResponseSchema
 >;

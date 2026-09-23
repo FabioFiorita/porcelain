@@ -4,8 +4,8 @@ import type { ChangeInspectionReader } from '@porcelain/changes/ports';
 import type { GitSession, InspectionFactory } from '@porcelain/git/inspection';
 import type { StampPath, WorktreeFiles } from '../files/worktree-files.ts';
 import type { InventoryStore } from '@porcelain/projects/ports';
-import { resolveCheckoutSession } from '../git/checkout-session.ts';
-import type { ResolveWorktree } from '../projects/resolve-worktree.ts';
+import { resolveCheckoutSession } from '../projects/checkout-session.ts';
+import type { WorktreeAccessAdapter as ResolveWorktree } from '../projects/worktree-access-adapter.ts';
 
 export function createChangeInspectionReader(
   store: InventoryStore,

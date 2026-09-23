@@ -6,7 +6,7 @@ import type { LiveNotice, LiveSubscription } from '@porcelain/contracts/access';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
 import type {
   ListableProject,
-  ResolvedWorktree,
+  Worktree as ResolvedWorktree,
 } from '@porcelain/projects/models';
 import type { ReviewedFileStore } from '@porcelain/reviews/ports';
 
