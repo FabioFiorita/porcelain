@@ -27,6 +27,6 @@ jobs:
       - run: pnpm lint:server
       - run: pnpm format:server:check
       - run: pnpm test
-      - run: node .agents/skills/server-verify/scripts/verify.ts projects.rename
-      - run: node .agents/skills/server-verify/scripts/verify.ts projects.remove
+      - run: pnpm db:check
+      - run: node .agents/skills/server-verify/scripts/verify.ts --all
       - run: pnpm arch:check

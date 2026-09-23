@@ -68,11 +68,18 @@ describe('RecordWorktreePresenceService', () => {
     expect(presence.expired(later)).toEqual([]);
   });
 
-  it('records nothing from an incomplete listing', () => {
+  it('keeps the worktrees an incomplete listing did reach without marking absences', () => {
     const { presence, record } = setup();
     record(['main', 'feature']);
     record(['main'], { complete: false });
     expect(presence.expired(later)).toEqual([]);
+  });
+
+  it('records a worktree first seen in an incomplete listing', () => {
+    const { presence, record } = setup();
+    record(['feature'], { complete: false });
+    record(['main']);
+    expect(presence.expired(later)).toEqual(['feature']);
   });
 
   it('records nothing while the project is unavailable', () => {

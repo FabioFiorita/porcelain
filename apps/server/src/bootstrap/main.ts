@@ -60,6 +60,7 @@ export async function runCli(
     const exitCode = await runCommand(command, {
       signal: shutdown.signal,
       homeDirectory,
+      searchPath: environment.PATH ?? '',
       startServer: dependencies.startServer ?? startRuntime,
       stdout,
       stderr,

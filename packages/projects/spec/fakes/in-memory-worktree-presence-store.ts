@@ -5,9 +5,13 @@ type Presence = { projectId: string; missingSince: string | undefined };
 export class InMemoryWorktreePresenceStore implements WorktreePresenceStore {
   private readonly rows = new Map<string, Presence>();
 
-  observe(projectId: string, presentIds: string[], at: string): void {
+  record(projectId: string, presentIds: string[]): void {
     for (const worktreeId of presentIds)
       this.rows.set(worktreeId, { projectId, missingSince: undefined });
+  }
+
+  observe(projectId: string, presentIds: string[], at: string): void {
+    this.record(projectId, presentIds);
     for (const [worktreeId, row] of this.rows)
       if (
         row.projectId === projectId &&

@@ -84,24 +84,17 @@
       "indexes": {
         "comment_messages_id": {
           "name": "comment_messages_id",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "isUnique": false
         },
         "comment_messages_thread": {
           "name": "comment_messages_thread",
-          "columns": [
-            "thread_id",
-            "sequence"
-          ],
+          "columns": ["thread_id", "sequence"],
           "isUnique": false
         },
         "comment_messages_worktree": {
           "name": "comment_messages_worktree",
-          "columns": [
-            "worktree_id"
-          ],
+          "columns": ["worktree_id"],
           "isUnique": false
         }
       },
@@ -110,12 +103,8 @@
           "name": "comment_messages_thread_id_comment_threads_id_fk",
           "tableFrom": "comment_messages",
           "tableTo": "comment_threads",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["thread_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -187,16 +176,12 @@
       "indexes": {
         "comment_threads_normalized_id_unique": {
           "name": "comment_threads_normalized_id_unique",
-          "columns": [
-            "id"
-          ],
+          "columns": ["id"],
           "isUnique": true
         },
         "comment_threads_worktree": {
           "name": "comment_threads_worktree",
-          "columns": [
-            "worktree_id"
-          ],
+          "columns": ["worktree_id"],
           "isUnique": false
         }
       },
@@ -336,10 +321,7 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "project_file_preferences_project_id_path_pk": {
-          "columns": [
-            "project_id",
-            "path"
-          ],
+          "columns": ["project_id", "path"],
           "name": "project_file_preferences_project_id_path_pk"
         }
       },
@@ -443,9 +425,7 @@
       "indexes": {
         "pairing_grants_expires": {
           "name": "pairing_grants_expires",
-          "columns": [
-            "expires_at"
-          ],
+          "columns": ["expires_at"],
           "isUnique": false
         }
       },
@@ -510,9 +490,7 @@
       "indexes": {
         "inventory_projects_repository_identity_unique": {
           "name": "inventory_projects_repository_identity_unique",
-          "columns": [
-            "repository_identity"
-          ],
+          "columns": ["repository_identity"],
           "isUnique": true
         }
       },
@@ -577,19 +555,14 @@
       "indexes": {
         "reviewed_files_worktree": {
           "name": "reviewed_files_worktree",
-          "columns": [
-            "worktree_id"
-          ],
+          "columns": ["worktree_id"],
           "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "reviewed_files_worktree_id_path_pk": {
-          "columns": [
-            "worktree_id",
-            "path"
-          ],
+          "columns": ["worktree_id", "path"],
           "name": "reviewed_files_worktree_id_path_pk"
         }
       },
@@ -639,19 +612,14 @@
       "indexes": {
         "reviewed_layers_worktree": {
           "name": "reviewed_layers_worktree",
-          "columns": [
-            "worktree_id"
-          ],
+          "columns": ["worktree_id"],
           "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "reviewed_layers_worktree_id_layer_id_pk": {
-          "columns": [
-            "worktree_id",
-            "layer_id"
-          ],
+          "columns": ["worktree_id", "layer_id"],
           "name": "reviewed_layers_worktree_id_layer_id_pk"
         }
       },
@@ -729,9 +697,7 @@
       "indexes": {
         "reviews_summary_token_unique": {
           "name": "reviews_summary_token_unique",
-          "columns": [
-            "summary_token"
-          ],
+          "columns": ["summary_token"],
           "isUnique": true
         }
       },
@@ -768,9 +734,7 @@
       "indexes": {
         "worktree_presence_project": {
           "name": "worktree_presence_project",
-          "columns": [
-            "project_id"
-          ],
+          "columns": ["project_id"],
           "isUnique": false
         }
       },
@@ -779,12 +743,8 @@
           "name": "worktree_presence_project_id_inventory_projects_id_fk",
           "tableFrom": "worktree_presence",
           "tableTo": "inventory_projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

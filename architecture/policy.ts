@@ -84,6 +84,7 @@ export type Role =
   | 'status-policy'
   | 'controller'
   | 'installer'
+  | 'installer-api'
   | 'domain-api'
   | 'service'
   | 'rule-api'
@@ -218,6 +219,8 @@ function classifyServer(inside: string) {
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
   if (inside.startsWith('runtime/')) return classified('runtime', owner);
   if (inside.startsWith('adapters/')) return classified('gateway', owner);
+  if (inside === 'installer/index.ts')
+    return classified('installer-api', owner);
   if (inside.startsWith('installer/')) return classified('installer', owner);
   if (inside.startsWith('config/')) return classified('config', owner);
   if (inside === 'cli/main.ts' || inside === 'cli/index.ts')
@@ -287,6 +290,7 @@ const everything: readonly Role[] = [
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   transport: new Set([
+    'installer-api',
     'transport',
     'status-policy',
     'controller',
@@ -296,6 +300,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
   controller: new Set(['domain-api', 'model-api', 'contract', 'runtime']),
   installer: new Set(['installer', 'config']),
+  'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),
   'rule-api': new Set(['rule']),
   'model-api': new Set(['model']),

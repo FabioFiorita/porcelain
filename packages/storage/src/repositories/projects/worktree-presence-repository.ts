@@ -18,17 +18,20 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
     this.db = db;
   }
 
+  record(projectId: string, presentIds: string[]): void {
+    if (presentIds.length === 0) return;
+    this.db.transaction(
+      (tx) => {
+        this.upsertPresent(tx, projectId, presentIds);
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
   observe(projectId: string, presentIds: string[], at: string): void {
     this.db.transaction(
       (tx) => {
-        for (const worktreeId of presentIds)
-          tx.insert(worktreePresence)
-            .values({ worktreeId, projectId, missingSince: null })
-            .onConflictDoUpdate({
-              target: worktreePresence.worktreeId,
-              set: { projectId, missingSince: null },
-            })
-            .run();
+        this.upsertPresent(tx, projectId, presentIds);
         tx.update(worktreePresence)
           .set({ missingSince: at })
           .where(
@@ -44,6 +47,21 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
       },
       { behavior: 'immediate' },
     );
+  }
+
+  private upsertPresent(
+    tx: Pick<BetterSQLite3Database, 'insert'>,
+    projectId: string,
+    presentIds: string[],
+  ): void {
+    for (const worktreeId of presentIds)
+      tx.insert(worktreePresence)
+        .values({ worktreeId, projectId, missingSince: null })
+        .onConflictDoUpdate({
+          target: worktreePresence.worktreeId,
+          set: { projectId, missingSince: null },
+        })
+        .run();
   }
 
   expired(before: string): string[] {

@@ -11,23 +11,10 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { z } from 'zod';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const packageOutput = join(repositoryRoot, 'dist-porcelain');
-
-const runtimeDependencies = [
-  '@fastify/type-provider-zod',
-  '@fastify/websocket',
-  '@modelcontextprotocol/sdk',
-  '@parcel/watcher',
-  'better-sqlite3',
-  'drizzle-orm',
-  'fastify',
-  'qrcode-terminal',
-  'trash',
-  'ws',
-  'zod',
-] as const;
 
 const license = `MIT License
 
@@ -53,22 +40,28 @@ SOFTWARE.
 `;
 
 const binSource = `#!/usr/bin/env node
-import { runCli } from '../server/src/cli/main.mjs';
+import { runCli } from '../server/src/bootstrap/main.mjs';
 
 await runCli();
 `;
 
-type PackageJson = {
-  version?: string;
-  description?: string;
-  license?: string;
-  author?: string | { name?: string; email?: string };
-  repository?: unknown;
-  bugs?: unknown;
-  homepage?: string;
-  engines?: { node?: string };
-  dependencies?: Record<string, string>;
-};
+const packageJsonSchema = z.object({
+  version: z.string().optional(),
+  description: z.string().optional(),
+  license: z.string().optional(),
+  author: z
+    .union([
+      z.string(),
+      z.object({ name: z.string().optional(), email: z.string().optional() }),
+    ])
+    .optional(),
+  repository: z.unknown().optional(),
+  bugs: z.unknown().optional(),
+  homepage: z.string().optional(),
+  engines: z.object({ node: z.string().optional() }).optional(),
+  dependencies: z.record(z.string(), z.string()).optional(),
+});
+type PackageJson = z.output<typeof packageJsonSchema>;
 
 function pnpmCommand(): string {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
@@ -116,7 +109,7 @@ async function requiredDirectory(path: string): Promise<void> {
 }
 
 async function readJson(path: string): Promise<PackageJson> {
-  return JSON.parse(await readFile(path, 'utf8')) as PackageJson;
+  return packageJsonSchema.parse(JSON.parse(await readFile(path, 'utf8')));
 }
 
 async function buildWeb(webOutput: string): Promise<void> {
@@ -139,16 +132,19 @@ async function buildWeb(webOutput: string): Promise<void> {
   ]);
 }
 
-async function buildServer(serverOutput: string): Promise<void> {
+async function buildServer(
+  serverOutput: string,
+  externalDependencies: readonly string[],
+): Promise<void> {
   await mkdir(dirname(serverOutput), { recursive: true });
   await build({
-    entryPoints: [join(repositoryRoot, 'apps/server/src/cli/main.ts')],
+    entryPoints: [join(repositoryRoot, 'apps/server/src/bootstrap/main.ts')],
     outfile: serverOutput,
     bundle: true,
     format: 'esm',
     platform: 'node',
     target: 'node24',
-    external: [...runtimeDependencies],
+    external: [...externalDependencies],
     sourcemap: false,
     logLevel: 'info',
   });
@@ -189,13 +185,13 @@ process on this machine can open.
 ## Background service
 
 \`porcelain service install|status|update|uninstall\` manages a systemd user
-service on Linux or a LaunchAgent on macOS. Install and update persist the
+service on Linux. Install and update persist the
 invoked package version outside the npx cache. Updates stop the service and
 back up SQLite before the new runtime can migrate it. An older CLI refuses to
 replace a newer runtime unless \`service update --allow-downgrade\` is explicit.
 Uninstall removes the service and runtime while retaining data, configuration,
 logs and database backups. Run service commands as the regular user, never
-with sudo. On macOS the LaunchAgent runs only while that user is logged in.
+with sudo.
 
 ## Repository development
 
@@ -216,37 +212,31 @@ export async function buildPackage(): Promise<string> {
   const serverPackage = await readJson(
     join(repositoryRoot, 'apps/server/package.json'),
   );
+  const migrations = join(repositoryRoot, 'packages/storage/drizzle');
   for (const input of [
     join(repositoryRoot, 'apps/web/index.html'),
-    join(repositoryRoot, 'apps/server/drizzle/0000_current-schema.sql'),
-    join(repositoryRoot, 'apps/server/drizzle/meta/_journal.json'),
+    join(migrations, 'meta/_journal.json'),
   ])
     await requiredFile(input);
-  await requiredDirectory(join(repositoryRoot, 'apps/server/drizzle/meta'));
+  await requiredDirectory(join(migrations, 'meta'));
 
-  const dependencies: Record<string, string> = {};
-  for (const name of runtimeDependencies) {
-    const version = serverPackage.dependencies?.[name];
-    if (version === undefined || version.startsWith('workspace:'))
-      throw new Error(
-        `Runtime dependency ${name} must be pinned in apps/server/package.json`,
-      );
-    dependencies[name] = version;
-  }
+  const dependencies = Object.fromEntries(
+    Object.entries(serverPackage.dependencies ?? {}).filter(
+      ([, version]) => !version.startsWith('workspace:'),
+    ),
+  );
 
   await rm(packageOutput, { recursive: true, force: true });
   await mkdir(packageOutput, { recursive: true });
 
   const webOutput = join(packageOutput, 'web/dist');
-  const serverOutput = join(packageOutput, 'server/src/cli/main.mjs');
+  const serverOutput = join(packageOutput, 'server/src/bootstrap/main.mjs');
   await buildWeb(webOutput);
   await requiredFile(join(webOutput, 'index.html'));
-  await buildServer(serverOutput);
-  await cp(
-    join(repositoryRoot, 'apps/server/drizzle'),
-    join(packageOutput, 'server/drizzle'),
-    { recursive: true },
-  );
+  await buildServer(serverOutput, Object.keys(dependencies));
+  await cp(migrations, join(packageOutput, 'server/drizzle'), {
+    recursive: true,
+  });
 
   const packageJson = {
     name: '@fabiofiorita/porcelain',

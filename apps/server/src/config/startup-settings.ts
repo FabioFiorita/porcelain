@@ -20,6 +20,7 @@ export const startupSettingsSchema = z.object({
 export type StartupSettingsInput = z.input<typeof startupSettingsSchema>;
 
 export type PorcelainEnvironment = {
+  PATH?: string | undefined;
   PORCELAIN_DATA_DIRECTORY?: string | undefined;
   PORCELAIN_HOST?: string | undefined;
   PORCELAIN_PORT?: string | undefined;

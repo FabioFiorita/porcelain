@@ -9,6 +9,7 @@ import { reportStatus } from './status.ts';
 export type CommandContext = {
   signal: AbortSignal;
   homeDirectory: string;
+  searchPath: string;
   startServer: StartServer;
   stdout: (message: string) => void;
   stderr: (message: string) => void;
@@ -50,6 +51,7 @@ export async function runCommand(
     case 'service':
       await runServiceCommand(command.settings, {
         homeDirectory: context.homeDirectory,
+        searchPath: context.searchPath,
         stdout: context.stdout,
       });
       return 0;

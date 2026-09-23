@@ -20,17 +20,20 @@ export class RecordWorktreePresenceService {
 
   execute(input: RecordWorktreePresenceInput): void {
     const { projectId, available, complete, worktrees } = input.worktrees;
-    if (!available || !complete) return;
+    if (!available) return;
     if (
       !this.inventoryStore
         .read()
         .projects.some((project) => project.id === projectId)
     )
       return;
-    this.worktreePresenceStore.observe(
-      projectId,
-      worktrees.map((worktree) => worktree.id),
-      this.clock.now(),
-    );
+    const presentIds = worktrees.map((worktree) => worktree.id);
+    if (complete)
+      this.worktreePresenceStore.observe(
+        projectId,
+        presentIds,
+        this.clock.now(),
+      );
+    else this.worktreePresenceStore.record(projectId, presentIds);
   }
 }
