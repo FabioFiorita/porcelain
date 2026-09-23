@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./shared": "./src/shared/index.ts",
     "./projects": "./src/projects/index.ts",
     "./changes": "./src/changes/index.ts",
     "./reviews": "./src/reviews/index.ts",

@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  directoryResponseSchema,
-  fileQuerySchema,
-  worktreeParamsSchema,
+  listDirectoryQuerySchema,
+  listDirectoryResponseSchema,
 } from '@porcelain/contracts/files';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ListDirectoryController } from '../../../controllers/list-directory-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -18,8 +18,8 @@ export function listDirectory(
     {
       schema: {
         params: worktreeParamsSchema,
-        querystring: fileQuerySchema,
-        response: { ...errorResponses, 200: directoryResponseSchema },
+        querystring: listDirectoryQuerySchema,
+        response: { ...errorResponses, 200: listDirectoryResponseSchema },
       },
     },
     async (request) =>

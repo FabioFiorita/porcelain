@@ -3,7 +3,7 @@ import {
   type GitActionReceiptView,
 } from '@porcelain/git-actions/models';
 import type { ReadGitActionReceiptService } from '@porcelain/git-actions/services';
-import type { Lanes } from '../runtime/operation-runner.ts';
+import type { Lanes } from '../runtime/lanes.ts';
 
 export class ReadGitActionReceiptController {
   private readonly lanes: Lanes;

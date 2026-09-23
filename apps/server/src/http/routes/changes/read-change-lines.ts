@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  changeLinesQuerySchema,
-  changeLinesResponseSchema,
-  gitWorktreeParamsSchema,
+  readChangeLinesQuerySchema,
+  readChangeLinesResponseSchema,
 } from '@porcelain/contracts/changes';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ReadChangeLinesController } from '../../../controllers/read-change-lines-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,9 +17,9 @@ export function readChangeLines(
     '/worktrees/:worktreeId/changes/lines',
     {
       schema: {
-        params: gitWorktreeParamsSchema,
-        querystring: changeLinesQuerySchema,
-        response: { ...errorResponses, 200: changeLinesResponseSchema },
+        params: worktreeParamsSchema,
+        querystring: readChangeLinesQuerySchema,
+        response: { ...errorResponses, 200: readChangeLinesResponseSchema },
       },
     },
     async (request) =>

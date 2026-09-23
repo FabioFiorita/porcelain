@@ -1,5 +1,5 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { projectDiscoveryResponseSchema } from '@porcelain/contracts/projects';
+import { discoverProjectsResponseSchema } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
 import type { DiscoverProjectsController } from '../../../controllers/discover-projects-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -13,7 +13,7 @@ export function discoverProjects(
     '/projects/discover',
     {
       schema: {
-        response: { ...errorResponses, 200: projectDiscoveryResponseSchema },
+        response: { ...errorResponses, 200: discoverProjectsResponseSchema },
       },
     },
     async (request) =>

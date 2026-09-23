@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  absoluteProjectFolderQuerySchema,
-  projectFolderResponseSchema,
+  browseProjectFoldersQuerySchema,
+  browseProjectFoldersResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
 import type { BrowseProjectFoldersController } from '../../../controllers/browse-project-folders-controller.ts';
@@ -16,8 +16,11 @@ export function browseProjectFolders(
     '/projects/folders',
     {
       schema: {
-        querystring: absoluteProjectFolderQuerySchema,
-        response: { ...errorResponses, 200: projectFolderResponseSchema },
+        querystring: browseProjectFoldersQuerySchema,
+        response: {
+          ...errorResponses,
+          200: browseProjectFoldersResponseSchema,
+        },
       },
     },
     async (request) =>

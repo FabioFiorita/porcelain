@@ -1,9 +1,24 @@
 import { z } from 'zod';
 
-export const reviewSummaryParamsSchema = z.strictObject({ token: z.uuid() });
-export const reviewSummaryQuerySchema = z.strictObject({
+export const readReviewSummaryParamsSchema = z.strictObject({
+  token: z.uuid(),
+});
+export const readReviewSummaryQuerySchema = z.strictObject({
   expires: z.coerce.number().int().positive(),
   signature: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
 });
-export const reviewSummaryHtmlSchema = z.string();
-export const reviewSummaryNotFoundSchema = z.undefined();
+export const readReviewSummaryResponseSchema = z.string();
+export const readReviewSummaryNotFoundResponseSchema = z.undefined();
+
+export type ReadReviewSummaryParams = z.output<
+  typeof readReviewSummaryParamsSchema
+>;
+export type ReadReviewSummaryQuery = z.output<
+  typeof readReviewSummaryQuerySchema
+>;
+export type ReadReviewSummaryResponse = z.output<
+  typeof readReviewSummaryResponseSchema
+>;
+export type ReadReviewSummaryNotFoundResponse = z.output<
+  typeof readReviewSummaryNotFoundResponseSchema
+>;

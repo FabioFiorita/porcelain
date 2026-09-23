@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
-export const healthResponseSchema = z.object({
+export const readHealthResponseSchema = z.object({
   status: z.literal('ok'),
   environmentId: z.string(),
 });
-export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+export type ReadHealthResponse = z.output<typeof readHealthResponseSchema>;

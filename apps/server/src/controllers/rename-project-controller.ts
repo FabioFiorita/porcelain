@@ -1,6 +1,7 @@
 import type {
-  RenameProjectInput,
-  RenameProjectOutput,
+  ProjectParams,
+  RenameProjectRequest,
+  RenameProjectResponse,
 } from '@porcelain/contracts/projects';
 import type { RenameProjectService } from '@porcelain/projects/services';
 
@@ -25,9 +26,9 @@ export class RenameProjectController {
   }
 
   async execute(
-    input: RenameProjectInput,
+    input: ProjectParams & RenameProjectRequest,
     context: { signal?: AbortSignal },
-  ): Promise<RenameProjectOutput> {
+  ): Promise<RenameProjectResponse> {
     const result = await this.runInventoryWrite(
       () => this.renameProject.execute(input.projectId, input.name),
       context.signal,

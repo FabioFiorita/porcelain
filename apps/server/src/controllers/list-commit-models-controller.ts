@@ -1,6 +1,6 @@
 import type { CommitModel } from '@porcelain/git-actions/models';
 import type { ListCommitModelsService } from '@porcelain/git-actions/services';
-import type { Lanes } from '../runtime/operation-runner.ts';
+import type { Lanes } from '../runtime/lanes.ts';
 
 export class ListCommitModelsController {
   private readonly lanes: Lanes;

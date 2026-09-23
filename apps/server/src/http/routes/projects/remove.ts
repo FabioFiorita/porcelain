@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  projectDeletionSchema,
   projectParamsSchema,
+  removeProjectResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
 import type { RemoveProjectController } from '../../../controllers/remove-project-controller.ts';
@@ -17,7 +17,7 @@ export function removeProject(
     {
       schema: {
         params: projectParamsSchema,
-        response: { ...errorResponses, 200: projectDeletionSchema },
+        response: { ...errorResponses, 200: removeProjectResponseSchema },
       },
     },
     async (request) =>

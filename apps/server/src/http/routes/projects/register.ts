@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  absoluteRegisterProjectRequestSchema,
-  projectResponseSchema,
+  registerProjectRequestSchema,
+  registerProjectResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
 import type { RegisterProjectController } from '../../../controllers/register-project-controller.ts';
@@ -16,8 +16,8 @@ export function registerProject(
     '/projects',
     {
       schema: {
-        body: absoluteRegisterProjectRequestSchema,
-        response: { ...errorResponses, 200: projectResponseSchema },
+        body: registerProjectRequestSchema,
+        response: { ...errorResponses, 200: registerProjectResponseSchema },
       },
     },
     async (request) =>

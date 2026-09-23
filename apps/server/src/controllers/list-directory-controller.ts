@@ -1,11 +1,11 @@
-import type { DirectoryResponse } from '@porcelain/contracts/files';
+import type { ListDirectoryResponse } from '@porcelain/contracts/files';
 
 type ListDirectory = {
   execute(
     worktreeId: string,
     path: string,
     signal?: AbortSignal,
-  ): Promise<DirectoryResponse>;
+  ): Promise<ListDirectoryResponse>;
 };
 type RunWorktreeRead = <T>(
   worktreeId: string,
@@ -25,7 +25,7 @@ export class ListDirectoryController {
   execute(
     input: { worktreeId: string; path: string },
     context: { signal?: AbortSignal },
-  ): Promise<DirectoryResponse> {
+  ): Promise<ListDirectoryResponse> {
     return this.runWorktreeRead(
       input.worktreeId,
       (signal) =>

@@ -1,11 +1,14 @@
-import type { FileEdit, FileEditResult } from '@porcelain/contracts/files';
+import type {
+  EditFileRequest,
+  EditFileResponse,
+} from '@porcelain/contracts/files';
 
 type EditFile = {
   execute(
     worktreeId: string,
-    command: FileEdit,
+    command: EditFileRequest,
     signal?: AbortSignal,
-  ): Promise<FileEditResult>;
+  ): Promise<EditFileResponse>;
 };
 type RunWorktreeWrite = <T>(
   worktreeId: string,
@@ -32,9 +35,9 @@ export class EditFileController {
   }
 
   async execute(
-    input: { worktreeId: string; command: FileEdit },
+    input: { worktreeId: string; command: EditFileRequest },
     context: { signal?: AbortSignal },
-  ): Promise<FileEditResult> {
+  ): Promise<EditFileResponse> {
     const submitted = { ...input.command };
     const result = await this.runWorktreeWrite(
       input.worktreeId,

@@ -8,7 +8,7 @@ import type {
   CaptureCommitDraftService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
-import type { Lanes } from '../runtime/operation-runner.ts';
+import type { Lanes } from '../runtime/lanes.ts';
 
 export class GenerateCommitDraftController {
   private readonly lanes: Lanes;

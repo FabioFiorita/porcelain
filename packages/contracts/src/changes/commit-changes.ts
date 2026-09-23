@@ -1,23 +1,18 @@
 import { z } from 'zod';
-import { commitOidSchema, commitSummarySchema } from './commit-history.ts';
+import { oidSchema } from '../shared/oid.ts';
+import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { commitSummarySchema } from './commit-history.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
-import { worktreeIdSchema } from '../projects/worktree-id.ts';
 
-export const commitFilesParamsSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
-  oid: commitOidSchema,
-});
-export const commitFilesQuerySchema = z.strictObject({
-  parent: z.coerce.number().int().min(1).max(1000).optional(),
-});
 const commitComparisonSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('parent'),
     parentNumber: z.number().int().positive(),
-    baseOid: commitOidSchema,
+    baseOid: oidSchema,
   }),
   z.object({ kind: z.literal('empty-tree') }),
 ]);
+
 export const commitFileSchema = z.object({
   oldPath: z.string().nullable(),
   newPath: z.string().nullable(),
@@ -25,20 +20,49 @@ export const commitFileSchema = z.object({
   oldMode: z.string(),
   newMode: z.string(),
 });
-export const commitFilesResponseSchema = z.object({
+
+export const readCommitFilesParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+  oid: oidSchema,
+});
+export const readCommitFilesQuerySchema = z.strictObject({
+  parent: z.coerce.number().int().min(1).max(1000).optional(),
+});
+export const readCommitFilesResponseSchema = z.object({
   commit: commitSummarySchema,
   comparison: commitComparisonSchema,
   files: z.array(commitFileSchema).max(10_000),
 });
-export const commitDiffsRequestSchema = z.strictObject({
+
+export const readCommitDiffsParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+  oid: oidSchema,
+});
+export const readCommitDiffsRequestSchema = z.strictObject({
   parent: z.number().int().min(1).max(1000).optional(),
   paths: z.array(z.array(z.string()).min(1).max(2)).min(1).max(200),
 });
-export const commitDiffsResponseSchema = z.object({
-  commitOid: commitOidSchema,
+export const readCommitDiffsResponseSchema = z.object({
+  commitOid: oidSchema,
   diffs: z.array(
     z.object({ paths: z.array(z.string()), content: gitDiffContentSchema }),
   ),
 });
-export type CommitFilesResponse = z.infer<typeof commitFilesResponseSchema>;
-export type CommitDiffsResponse = z.infer<typeof commitDiffsResponseSchema>;
+
+export type CommitFile = z.output<typeof commitFileSchema>;
+export type ReadCommitFilesParams = z.output<
+  typeof readCommitFilesParamsSchema
+>;
+export type ReadCommitFilesQuery = z.output<typeof readCommitFilesQuerySchema>;
+export type ReadCommitFilesResponse = z.output<
+  typeof readCommitFilesResponseSchema
+>;
+export type ReadCommitDiffsParams = z.output<
+  typeof readCommitDiffsParamsSchema
+>;
+export type ReadCommitDiffsRequest = z.output<
+  typeof readCommitDiffsRequestSchema
+>;
+export type ReadCommitDiffsResponse = z.output<
+  typeof readCommitDiffsResponseSchema
+>;

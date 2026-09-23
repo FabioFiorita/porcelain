@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  fileEditResultSchema,
-  fileEditSchema,
-  worktreeParamsSchema,
+  editFileRequestSchema,
+  editFileResponseSchema,
 } from '@porcelain/contracts/files';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { EditFileController } from '../../../controllers/edit-file-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -18,8 +18,8 @@ export function editFile(
     {
       schema: {
         params: worktreeParamsSchema,
-        body: fileEditSchema,
-        response: { ...errorResponses, 200: fileEditResultSchema },
+        body: editFileRequestSchema,
+        response: { ...errorResponses, 200: editFileResponseSchema },
       },
       bodyLimit: 8 * 1024 * 1024,
     },

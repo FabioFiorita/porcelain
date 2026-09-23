@@ -1,4 +1,4 @@
-import type { CommitDiffsResponse } from '@porcelain/contracts/changes';
+import type { ReadCommitDiffsResponse } from '@porcelain/contracts/changes';
 import type { CommitHistoryReader } from '../runtime/commit-history-reader.ts';
 
 type RunWorktreeRead = <T>(
@@ -24,7 +24,7 @@ export class ReadCommitDiffsController {
       paths: string[][];
     },
     context: { signal?: AbortSignal | undefined },
-  ): Promise<CommitDiffsResponse> {
+  ): Promise<ReadCommitDiffsResponse> {
     const { worktreeId, oid, parent, paths } = input;
     return this.run(
       worktreeId,

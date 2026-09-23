@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  redeemedPairingSchema,
-  redeemPairingSchema,
+  redeemPairingRequestSchema,
+  redeemPairingResponseSchema,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import type { RedeemPairingController } from '../../../controllers/redeem-pairing-controller.ts';
@@ -21,8 +21,8 @@ export function redeemPairing(
     '/pair',
     {
       schema: {
-        body: redeemPairingSchema,
-        response: { ...errorResponses, 200: redeemedPairingSchema },
+        body: redeemPairingRequestSchema,
+        response: { ...errorResponses, 200: redeemPairingResponseSchema },
       },
     },
     async (request, reply) => {

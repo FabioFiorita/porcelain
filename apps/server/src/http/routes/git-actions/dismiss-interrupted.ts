@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  dismissInterruptedResponseSchema,
-  gitActionDismissParamsSchema,
+  dismissInterruptedGitActionParamsSchema,
+  dismissInterruptedGitActionResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { DismissInterruptedGitActionController } from '../../../controllers/dismiss-interrupted-git-action-controller.ts';
@@ -18,8 +18,11 @@ export function dismissInterrupted(
     '/projects/:projectId/worktrees/:worktreeId/git/interrupted/:requestId',
     {
       schema: {
-        params: gitActionDismissParamsSchema,
-        response: { ...errorResponses, 200: dismissInterruptedResponseSchema },
+        params: dismissInterruptedGitActionParamsSchema,
+        response: {
+          ...errorResponses,
+          200: dismissInterruptedGitActionResponseSchema,
+        },
       },
     },
     async (request) => options.controller.execute(request.params),

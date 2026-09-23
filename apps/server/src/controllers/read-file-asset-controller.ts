@@ -1,11 +1,11 @@
-import type { AssetResponse } from '@porcelain/contracts/files';
+import type { ReadFileAssetResponse } from '@porcelain/contracts/files';
 
 type ReadFileAsset = {
   execute(
     worktreeId: string,
     path: string,
     signal?: AbortSignal,
-  ): Promise<AssetResponse>;
+  ): Promise<ReadFileAssetResponse>;
 };
 type RunWorktreeRead = <T>(
   worktreeId: string,
@@ -25,7 +25,7 @@ export class ReadFileAssetController {
   execute(
     input: { worktreeId: string; path: string },
     context: { signal?: AbortSignal },
-  ): Promise<AssetResponse> {
+  ): Promise<ReadFileAssetResponse> {
     return this.runWorktreeRead(
       input.worktreeId,
       (signal) =>

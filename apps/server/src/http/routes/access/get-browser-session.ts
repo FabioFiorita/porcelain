@@ -1,5 +1,5 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { inventoryResponseSchema } from '@porcelain/contracts/projects';
+import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
 import type { ReadInventoryController } from '../../../controllers/read-inventory-controller.ts';
 import {
@@ -22,7 +22,7 @@ export function getBrowserSession(
     {
       onRequest: authenticate(options),
       schema: {
-        response: { ...errorResponses, 200: inventoryResponseSchema },
+        response: { ...errorResponses, 200: readInventoryResponseSchema },
       },
     },
     async (request) =>

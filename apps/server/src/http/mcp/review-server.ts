@@ -1,11 +1,11 @@
 import { resolve, sep } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  createCommentThreadSchema,
-  replyToCommentSchema,
-  resolveCommentSchema,
+  createCommentThreadRequestSchema,
+  replyToCommentRequestSchema,
+  resolveCommentThreadRequestSchema,
 } from '@porcelain/contracts/reviews';
-import { publishReviewSchema } from '@porcelain/contracts/reviews';
+import { publishReviewRequestSchema } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
 import type { CommentThreadsController } from '../../controllers/comment-threads-controller.ts';
 import type { PublishReviewController } from '../../controllers/publish-review-controller.ts';
@@ -68,7 +68,7 @@ export function createReviewMcpServer(
     {
       description:
         'Atomically replace the latest summary, diagram and review layers. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning.',
-      inputSchema: scopeSchema.extend(publishReviewSchema.shape),
+      inputSchema: scopeSchema.extend(publishReviewRequestSchema.shape),
     },
     async ({ cwd, ...input }, { signal }) =>
       result(async () => {
@@ -135,7 +135,7 @@ export function createReviewMcpServer(
     {
       description:
         'Create an agent review thread on a file or code range. Stable optional IDs make retries idempotent.',
-      inputSchema: scopeSchema.extend(createCommentThreadSchema.shape),
+      inputSchema: scopeSchema.extend(createCommentThreadRequestSchema.shape),
     },
     async ({ cwd, ...input }, { signal }) =>
       result(async () => {
@@ -157,7 +157,7 @@ export function createReviewMcpServer(
         'Reply to a review thread. Stable optional messageId makes retries idempotent.',
       inputSchema: scopeSchema.extend({
         threadId: z.uuid(),
-        ...replyToCommentSchema.shape,
+        ...replyToCommentRequestSchema.shape,
       }),
     },
     async ({ cwd, ...input }, { signal }) =>
@@ -179,7 +179,7 @@ export function createReviewMcpServer(
       description: 'Resolve or reopen a review thread.',
       inputSchema: scopeSchema.extend({
         threadId: z.uuid(),
-        ...resolveCommentSchema.shape,
+        ...resolveCommentThreadRequestSchema.shape,
       }),
     },
     async ({ cwd, ...input }, { signal }) =>

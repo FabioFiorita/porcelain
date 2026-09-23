@@ -1,7 +1,14 @@
 import { z } from 'zod';
-import { worktreeIdSchema } from './worktree-id.ts';
+import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-const worktreeSchema = z.object({
+const absolutePathSchema = z
+  .string()
+  .min(1)
+  .max(4096)
+  .startsWith('/')
+  .refine((path) => !path.includes('\0'));
+
+export const worktreeSchema = z.object({
   id: worktreeIdSchema,
   path: z.string(),
   main: z.boolean(),
@@ -10,58 +17,44 @@ const worktreeSchema = z.object({
   status: z.enum(['pending', 'reviewed', 'replied']).nullable(),
 });
 
-export const projectResponseSchema = z.object({
+export const projectSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   available: z.boolean(),
   worktrees: z.array(worktreeSchema),
 });
 
-export const inventoryResponseSchema = z.object({
+export const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
+
+export const readInventoryResponseSchema = z.object({
   environmentId: z.uuid(),
-  projects: z.array(projectResponseSchema),
+  projects: z.array(projectSchema),
 });
 
 export const registerProjectRequestSchema = z.strictObject({
-  path: z
-    .string()
-    .min(1)
-    .max(4096)
-    .refine((path) => !path.includes('\0')),
+  path: absolutePathSchema,
 });
+export const registerProjectResponseSchema = projectSchema;
 
-export const absoluteRegisterProjectRequestSchema = z.strictObject({
-  path: registerProjectRequestSchema.shape.path.startsWith('/'),
-});
-
-export type ProjectResponse = z.infer<typeof projectResponseSchema>;
-export type InventoryResponse = z.infer<typeof inventoryResponseSchema>;
-
-export const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
-export const projectDeletionSchema = z.object({ deleted: z.boolean() });
+export const removeProjectResponseSchema = z.object({ deleted: z.boolean() });
 
 const projectLocationSchema = z.object({ name: z.string(), path: z.string() });
-export const projectDiscoveryResponseSchema = z.object({
+
+export const discoverProjectsResponseSchema = z.object({
   repositories: z.array(projectLocationSchema),
   limited: z.boolean(),
 });
-export const projectFolderResponseSchema = z.object({
+
+export const browseProjectFoldersQuerySchema = z.strictObject({
+  path: absolutePathSchema.optional(),
+});
+export const browseProjectFoldersResponseSchema = z.object({
   path: z.string(),
   parent: z.string().nullable(),
   directories: z.array(projectLocationSchema),
   repository: z.boolean(),
   truncated: z.boolean(),
 });
-export const projectFolderQuerySchema = z.strictObject({
-  path: registerProjectRequestSchema.shape.path.optional(),
-});
-export const absoluteProjectFolderQuerySchema = z.strictObject({
-  path: absoluteRegisterProjectRequestSchema.shape.path.optional(),
-});
-export type ProjectDiscoveryResponse = z.infer<
-  typeof projectDiscoveryResponseSchema
->;
-export type ProjectFolderResponse = z.infer<typeof projectFolderResponseSchema>;
 
 export const renameProjectRequestSchema = z.strictObject({
   name: z
@@ -73,12 +66,36 @@ export const renameProjectRequestSchema = z.strictObject({
       message: 'The name must not contain control characters',
     }),
 });
-export const projectNameResponseSchema = z.strictObject({
+export const renameProjectResponseSchema = z.object({
   id: z.uuid(),
   name: z.string(),
 });
-export type RenameProjectInput = z.output<typeof projectParamsSchema> &
-  z.output<typeof renameProjectRequestSchema>;
-export type RenameProjectOutput = z.output<typeof projectNameResponseSchema>;
-export type RemoveProjectInput = z.output<typeof projectParamsSchema>;
-export type RemoveProjectOutput = z.output<typeof projectDeletionSchema>;
+
+export type Worktree = z.output<typeof worktreeSchema>;
+export type Project = z.output<typeof projectSchema>;
+export type ProjectParams = z.output<typeof projectParamsSchema>;
+export type ReadInventoryResponse = z.output<
+  typeof readInventoryResponseSchema
+>;
+export type RegisterProjectRequest = z.output<
+  typeof registerProjectRequestSchema
+>;
+export type RegisterProjectResponse = z.output<
+  typeof registerProjectResponseSchema
+>;
+export type RemoveProjectResponse = z.output<
+  typeof removeProjectResponseSchema
+>;
+export type DiscoverProjectsResponse = z.output<
+  typeof discoverProjectsResponseSchema
+>;
+export type BrowseProjectFoldersQuery = z.output<
+  typeof browseProjectFoldersQuerySchema
+>;
+export type BrowseProjectFoldersResponse = z.output<
+  typeof browseProjectFoldersResponseSchema
+>;
+export type RenameProjectRequest = z.output<typeof renameProjectRequestSchema>;
+export type RenameProjectResponse = z.output<
+  typeof renameProjectResponseSchema
+>;

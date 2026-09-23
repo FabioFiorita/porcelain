@@ -12,9 +12,7 @@
     "lint:server": "node scripts/server-style.ts lint",
     "format:server:check": "node scripts/server-style.ts format",
     "arch:check": "node scripts/architecture.ts check",
-    "test:architecture": "node --test architecture/oxlint-plugin.spec.mjs architecture/policy.spec.ts",
-    "arch:map": "node scripts/architecture.ts map",
-    "arch:plan": "node scripts/architecture.ts plan",
+    "test": "vitest run --passWithNoTests",
     "dev": "node scripts/dev-server.ts",
     "dev:server": "node scripts/dev-server.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
@@ -28,6 +26,7 @@
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
     "oxlint-tsgolint": "7.0.2002",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
   }
 }

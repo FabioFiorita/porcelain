@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  fileQuerySchema,
-  textResponseSchema,
-  worktreeParamsSchema,
+  readTextFileQuerySchema,
+  readTextFileResponseSchema,
 } from '@porcelain/contracts/files';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ReadTextFileController } from '../../../controllers/read-text-file-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -18,8 +18,8 @@ export function readTextFile(
     {
       schema: {
         params: worktreeParamsSchema,
-        querystring: fileQuerySchema,
-        response: { ...errorResponses, 200: textResponseSchema },
+        querystring: readTextFileQuerySchema,
+        response: { ...errorResponses, 200: readTextFileResponseSchema },
       },
     },
     async (request) =>

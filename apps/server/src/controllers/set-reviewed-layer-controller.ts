@@ -1,5 +1,5 @@
 import type {
-  ReviewedLayerMarksResponse,
+  ListReviewedLayersResponse,
   SetReviewedLayerRequest,
 } from '@porcelain/contracts/reviews';
 import { SetReviewedLayerService } from '@porcelain/reviews/services';
@@ -29,7 +29,7 @@ export class SetReviewedLayerController {
   execute(
     input: { worktreeId: string } & SetReviewedLayerRequest,
     context: { signal?: AbortSignal | undefined },
-  ): Promise<ReviewedLayerMarksResponse> {
+  ): Promise<ListReviewedLayersResponse> {
     return this.run(async (signal) => {
       await this.worktrees.forWriting(input.worktreeId, signal);
       return this.set.execute(input.worktreeId, input);

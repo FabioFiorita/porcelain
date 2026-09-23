@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commitDraftRequestSchema,
-  commitDraftResponseSchema,
+  generateCommitDraftRequestSchema,
+  generateCommitDraftResponseSchema,
   gitActionScopeSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
@@ -18,8 +18,8 @@ export function generateCommitDraft(
     {
       schema: {
         params: gitActionScopeSchema,
-        body: commitDraftRequestSchema,
-        response: { ...errorResponses, 200: commitDraftResponseSchema },
+        body: generateCommitDraftRequestSchema,
+        response: { ...errorResponses, 200: generateCommitDraftResponseSchema },
       },
     },
     async (request, reply) => {

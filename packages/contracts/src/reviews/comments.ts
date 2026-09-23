@@ -1,27 +1,8 @@
 import { z } from 'zod';
-import { worktreeIdSchema } from '../projects/worktree-id.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
+import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-const filePath = z
-  .string()
-  .min(1)
-  .max(4096)
-  .refine(
-    (value) =>
-      !value.includes('\\') &&
-      !value.includes('\0') &&
-      !/^[a-z]:/i.test(value) &&
-      value
-        .split('/')
-        .every(
-          (part) =>
-            part !== '' &&
-            part !== '.' &&
-            part !== '..' &&
-            part.toLowerCase() !== '.git',
-        ),
-    'Expected a normalized relative file path',
-  );
-const comparison = z.discriminatedUnion('kind', [
+const comparisonSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('worktree'),
     scope: z.enum(['staged', 'unstaged', 'untracked']),
@@ -33,19 +14,29 @@ const comparison = z.discriminatedUnion('kind', [
   }),
 ]);
 const evidence = {
-  comparison: comparison.optional(),
+  comparison: comparisonSchema.optional(),
   revision: z.string().min(1).max(256).optional(),
   contentFingerprint: z.string().min(1).max(256).optional(),
 };
+const bodySchema = z
+  .string()
+  .min(1)
+  .max(16000)
+  .refine((value) => value.trim().length > 0 && !value.includes('\0'));
+
 export const commentAuthorSchema = z.enum(['reviewer', 'agent']);
-const commentTimestampSchema = z.string().datetime().optional();
+
 export const commentAnchorSchema = z
   .discriminatedUnion('kind', [
-    z.strictObject({ kind: z.literal('file'), filePath, ...evidence }),
+    z.strictObject({
+      kind: z.literal('file'),
+      filePath: relativePathSchema,
+      ...evidence,
+    }),
     z
       .strictObject({
         kind: z.literal('codeRange'),
-        filePath,
+        filePath: relativePathSchema,
         startLine: z.number().int().min(1).max(2147483647),
         endLine: z.number().int().min(1).max(2147483647),
         side: z.enum(['additions', 'deletions']).optional(),
@@ -59,54 +50,88 @@ export const commentAnchorSchema = z
       ? /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(anchor.revision ?? '')
       : anchor.revision === undefined;
   }, 'The comparison must identify the revision it belongs to');
-const body = z
-  .string()
-  .min(1)
-  .max(16000)
-  .refine((value) => value.trim().length > 0 && !value.includes('\0'));
-export const createCommentThreadSchema = z.strictObject({
-  threadId: z.uuid().optional(),
-  messageId: z.uuid().optional(),
-  anchor: commentAnchorSchema,
-  body,
-});
-export const replyToCommentSchema = z.strictObject({
-  messageId: z.uuid().optional(),
-  body,
-});
-export const resolveCommentSchema = z.strictObject({ resolved: z.boolean() });
-export const commentScopeSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
-});
-export const commentThreadScopeSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
-  threadId: z.uuid(),
-});
-const message = z.strictObject({
+
+export const commentMessageSchema = z.object({
   id: z.uuid(),
-  body,
+  body: bodySchema,
   author: commentAuthorSchema,
-  createdAt: commentTimestampSchema,
+  createdAt: z.iso.datetime().optional(),
 });
-export const commentThreadSchema = z.strictObject({
+
+export const commentThreadSchema = z.object({
   id: z.uuid(),
   worktreeId: worktreeIdSchema,
   anchor: commentAnchorSchema,
   resolved: z.boolean(),
-  messages: z.array(message).min(1),
+  messages: z.array(commentMessageSchema).min(1),
   revision: z.number().int().nonnegative(),
 });
-export const commentThreadsSchema = z.array(commentThreadSchema);
 
-export type CommentAuthor = z.infer<typeof commentAuthorSchema>;
-export type CommentAnchor = z.infer<typeof commentAnchorSchema>;
-export type CommentMessage = z.infer<typeof message>;
-export type CommentThread = z.infer<typeof commentThreadSchema>;
+export const commentThreadParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+  threadId: z.uuid(),
+});
 
-export const seenCommentsRequestSchema = z.strictObject({
+export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
+
+export const createCommentThreadRequestSchema = z.strictObject({
+  threadId: z.uuid().optional(),
+  messageId: z.uuid().optional(),
+  anchor: commentAnchorSchema,
+  body: bodySchema,
+});
+export const createCommentThreadResponseSchema =
+  listCommentThreadsResponseSchema;
+
+export const replyToCommentRequestSchema = z.strictObject({
+  messageId: z.uuid().optional(),
+  body: bodySchema,
+});
+export const replyToCommentResponseSchema = listCommentThreadsResponseSchema;
+
+export const resolveCommentThreadRequestSchema = z.strictObject({
+  resolved: z.boolean(),
+});
+export const resolveCommentThreadResponseSchema =
+  listCommentThreadsResponseSchema;
+
+export const markCommentsSeenRequestSchema = z.strictObject({
   throughRevision: z.number().int().nonnegative(),
 });
-export const seenCommentsResponseSchema = z.strictObject({
+export const markCommentsSeenResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
   seenThrough: z.number().int().nonnegative(),
 });
+
+export type CommentAuthor = z.output<typeof commentAuthorSchema>;
+export type CommentAnchor = z.output<typeof commentAnchorSchema>;
+export type CommentMessage = z.output<typeof commentMessageSchema>;
+export type CommentThread = z.output<typeof commentThreadSchema>;
+export type CommentThreadParams = z.output<typeof commentThreadParamsSchema>;
+export type ListCommentThreadsResponse = z.output<
+  typeof listCommentThreadsResponseSchema
+>;
+export type CreateCommentThreadRequest = z.output<
+  typeof createCommentThreadRequestSchema
+>;
+export type CreateCommentThreadResponse = z.output<
+  typeof createCommentThreadResponseSchema
+>;
+export type ReplyToCommentRequest = z.output<
+  typeof replyToCommentRequestSchema
+>;
+export type ReplyToCommentResponse = z.output<
+  typeof replyToCommentResponseSchema
+>;
+export type ResolveCommentThreadRequest = z.output<
+  typeof resolveCommentThreadRequestSchema
+>;
+export type ResolveCommentThreadResponse = z.output<
+  typeof resolveCommentThreadResponseSchema
+>;
+export type MarkCommentsSeenRequest = z.output<
+  typeof markCommentsSeenRequestSchema
+>;
+export type MarkCommentsSeenResponse = z.output<
+  typeof markCommentsSeenResponseSchema
+>;

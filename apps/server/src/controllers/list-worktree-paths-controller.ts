@@ -1,4 +1,4 @@
-import type { WorktreePaths } from '@porcelain/contracts/files';
+import type { ListWorktreePathsResponse } from '@porcelain/contracts/files';
 import type { ListWorktreePathsService } from '@porcelain/files/services';
 type RunWorktreeRead = <T>(
   worktreeId: string,
@@ -21,7 +21,7 @@ export class ListWorktreePathsController {
   execute(
     input: { worktreeId: string },
     context: { signal?: AbortSignal },
-  ): Promise<WorktreePaths> {
+  ): Promise<ListWorktreePathsResponse> {
     return this.runWorktreeRead(
       input.worktreeId,
       (signal) => this.listWorktreePaths.execute(input.worktreeId, signal),

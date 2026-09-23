@@ -130,11 +130,11 @@ import {
 } from '../adapters/files/worktree-files.ts';
 import { DeviceDirectory } from '../adapters/access/device-directory.ts';
 import { LiveUpdates } from '../adapters/events/live-updates.ts';
-import { Lanes } from '../runtime/operation-runner.ts';
+import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import { WorktreeDirectory } from '../adapters/git/worktree-directory.ts';
-import type { ProjectResponse } from '@porcelain/contracts/projects';
+import type { Project } from '@porcelain/contracts/projects';
 import { CommentThreadsService } from '@porcelain/reviews/services';
 import { ListFilePreferencesService } from '@porcelain/projects/services';
 import {
@@ -262,7 +262,7 @@ export async function openApplication(options: {
         registered.map((project) => directory.list(project, signal)),
       );
       const issues: DiscoveryIssue[] = [];
-      const projects: ProjectResponse[] = [];
+      const projects: Project[] = [];
       const present = new Set(
         store.read().projects.map((project) => project.id),
       );

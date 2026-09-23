@@ -1,4 +1,4 @@
-import type { GitStatusResponse } from '@porcelain/contracts/changes';
+import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { ReadWorktreeStatusService } from '@porcelain/changes/services';
 
 type RunStatusRead = <T>(
@@ -24,7 +24,7 @@ export class ReadGitStatusController {
   execute(
     input: { worktreeId: string },
     context: { signal?: AbortSignal },
-  ): Promise<GitStatusResponse> {
+  ): Promise<ReadGitStatusResponse> {
     const { worktreeId } = input;
     return this.runRead(
       worktreeId,

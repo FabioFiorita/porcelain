@@ -1,4 +1,4 @@
-import type { ReviewedLayerMarksResponse } from '@porcelain/contracts/reviews';
+import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import { ListReviewedLayersService } from '@porcelain/reviews/services';
 import type {
   ReviewWorktreeAccess,
@@ -23,7 +23,7 @@ export class ListReviewedLayersController {
   execute(
     input: { worktreeId: string },
     context: { signal?: AbortSignal | undefined },
-  ): Promise<ReviewedLayerMarksResponse> {
+  ): Promise<ListReviewedLayersResponse> {
     return this.run(async (signal) => {
       await this.worktrees.known(input.worktreeId, signal);
       return this.list.execute(input.worktreeId);

@@ -9,7 +9,8 @@
     "./actions": "./src/actions/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/git"
   },
   "dependencies": {}
 }

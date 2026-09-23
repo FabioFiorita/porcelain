@@ -1,6 +1,6 @@
 import type {
-  ChangeDiffsRequest,
-  ChangeDiffsResponse,
+  ReadChangeDiffsRequest,
+  ReadChangeDiffsResponse,
 } from '@porcelain/contracts/changes';
 import type { ReadChangeDiffsService } from '@porcelain/changes/services';
 
@@ -23,9 +23,9 @@ export class ReadChangeDiffsController {
   }
 
   execute(
-    input: ChangeDiffsRequest & { worktreeId: string },
+    input: ReadChangeDiffsRequest & { worktreeId: string },
     context: { signal?: AbortSignal },
-  ): Promise<ChangeDiffsResponse> {
+  ): Promise<ReadChangeDiffsResponse> {
     const { worktreeId, expectedStatusToken } = input;
     const expectedFiles = input.expectedFiles.map((file) => ({ ...file }));
     const selections = input.selections.map((selection) => ({ ...selection }));

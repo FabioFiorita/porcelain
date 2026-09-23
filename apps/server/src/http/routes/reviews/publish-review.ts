@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  publishReviewSchema,
-  reviewParamsSchema,
-  reviewReadResponseSchema,
+  publishReviewRequestSchema,
+  publishReviewResponseSchema,
 } from '@porcelain/contracts/reviews';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { PublishReviewController } from '../../../controllers/publish-review-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -18,9 +18,9 @@ export function publishReview(
     {
       bodyLimit: 10 * 1024 * 1024 * 6 + 1024 * 1024,
       schema: {
-        params: reviewParamsSchema,
-        body: publishReviewSchema,
-        response: { ...errorResponses, 200: reviewReadResponseSchema },
+        params: worktreeParamsSchema,
+        body: publishReviewRequestSchema,
+        response: { ...errorResponses, 200: publishReviewResponseSchema },
       },
     },
     async (request) => ({

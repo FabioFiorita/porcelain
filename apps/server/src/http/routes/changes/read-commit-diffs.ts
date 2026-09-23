@@ -1,8 +1,8 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commitDiffsRequestSchema,
-  commitDiffsResponseSchema,
-  commitFilesParamsSchema,
+  readCommitDiffsParamsSchema,
+  readCommitDiffsRequestSchema,
+  readCommitDiffsResponseSchema,
 } from '@porcelain/contracts/changes';
 import type { FastifyInstance } from 'fastify';
 import type { ReadCommitDiffsController } from '../../../controllers/read-commit-diffs-controller.ts';
@@ -17,9 +17,9 @@ export function readCommitDiffs(
     '/worktrees/:worktreeId/commits/:oid/diffs',
     {
       schema: {
-        params: commitFilesParamsSchema,
-        body: commitDiffsRequestSchema,
-        response: { ...errorResponses, 200: commitDiffsResponseSchema },
+        params: readCommitDiffsParamsSchema,
+        body: readCommitDiffsRequestSchema,
+        response: { ...errorResponses, 200: readCommitDiffsResponseSchema },
       },
     },
     async (request) =>

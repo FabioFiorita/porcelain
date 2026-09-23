@@ -1,4 +1,4 @@
-import { apiErrorSchema } from '@porcelain/contracts/access';
+import { apiErrorSchema } from '@porcelain/contracts/shared';
 
 export const errorResponses = {
   400: apiErrorSchema,

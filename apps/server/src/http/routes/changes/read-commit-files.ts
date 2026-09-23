@@ -1,8 +1,8 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commitFilesParamsSchema,
-  commitFilesQuerySchema,
-  commitFilesResponseSchema,
+  readCommitFilesParamsSchema,
+  readCommitFilesQuerySchema,
+  readCommitFilesResponseSchema,
 } from '@porcelain/contracts/changes';
 import type { FastifyInstance } from 'fastify';
 import type { ReadCommitFilesController } from '../../../controllers/read-commit-files-controller.ts';
@@ -17,9 +17,9 @@ export function readCommitFiles(
     '/worktrees/:worktreeId/commits/:oid/files',
     {
       schema: {
-        params: commitFilesParamsSchema,
-        querystring: commitFilesQuerySchema,
-        response: { ...errorResponses, 200: commitFilesResponseSchema },
+        params: readCommitFilesParamsSchema,
+        querystring: readCommitFilesQuerySchema,
+        response: { ...errorResponses, 200: readCommitFilesResponseSchema },
       },
     },
     async (request) =>

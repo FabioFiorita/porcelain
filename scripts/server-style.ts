@@ -13,17 +13,19 @@ const packages = readdirSync('packages', { withFileTypes: true })
       entry.name !== 'client' &&
       existsSync(join('packages', entry.name, 'src')),
   )
-  .map((entry) => join('packages', entry.name, 'src'));
+  .flatMap((entry) => [
+    join('packages', entry.name, 'src'),
+    join('packages', entry.name, 'spec'),
+  ]);
 
 const roots = [
   'apps/server/src',
+  'apps/server/spec',
   ...packages,
-  ...(mode === 'lint'
-    ? ['architecture/policy.ts', 'architecture/policy.spec.ts']
-    : ['architecture']),
+  ...(mode === 'lint' ? ['architecture/policy.ts'] : ['architecture']),
   'scripts',
   '.agents/skills/server-verify/scripts',
-];
+].filter((root) => existsSync(root));
 const executable = join(
   'node_modules',
   '.bin',

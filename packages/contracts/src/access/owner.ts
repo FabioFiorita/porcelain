@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
-export const ownerStatusSchema = z.object({
+export const readOwnerStatusResponseSchema = z.object({
   address: z.string(),
   dataDirectory: z.string(),
   pid: z.number().int().positive(),
 });
 
-export type OwnerStatusResponse = z.infer<typeof ownerStatusSchema>;
+export type ReadOwnerStatusResponse = z.output<
+  typeof readOwnerStatusResponseSchema
+>;

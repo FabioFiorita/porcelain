@@ -1,19 +1,69 @@
 ---
 name: server-spec
-description: Design and write behavior-first Porcelain server specs for services, controllers, Git, storage, and contracts. Use when adding or changing meaningful server behavior; use server-verify for HTTP evidence.
+description: Decide whether a Porcelain server unit needs a behaviour spec, derive its cases from the unit's promise, and write it with in-memory fakes. Use when adding or changing a service, rule, parser or sequencing controller; use server-verify for HTTP evidence.
 ---
 
 # Server specs
 
-Before writing a spec, state the behavior in domain terms. Read the feature map for an HTTP-facing feature and the public contract for the package under test. List the successful outcome, expected failures, boundaries, and realistic adversarial attempts. Choose the smallest set of cases that would expose a wrong implementation. Do not target coverage, mirror branches, or test trivial delegation.
+A spec states what a unit promises. Write it from the promise, not from the code: a wrong implementation must fail it, and a reader must learn the behaviour from it without opening the implementation.
 
-For a behavior change, write a failing spec before the fix when a focused spec can express the requirement. A spec should assert an observable result, state change, or domain failure; it should not assert private helper calls or implementation order unless ordering is the contract.
+There are two levels only: these behaviour specs, and feature verification through the real server (`server-verify`).
 
-- Name files `*.spec.ts`. Use `describe` for the subject and operation, then `it` statements that describe behavior.
-- For a service, supply its domain ports and assert its decisions. Never mock the service itself.
-- For a controller, test a meaningful sequence, data handoff, cancellation, or event timing with service fakes. Skip controllers that only forward one call.
-- For Git, use a disposable real repository for command behavior and malformed input for pure parsers. Exercise rejected states and limits. Never depend on the developer's checkout.
-- For storage, use a disposable migrated SQLite database and assert persistence and atomicity through the repository's public port.
-- For Zod contracts, test non-obvious input transformations and rejected wire values. Let TypeScript check typed internal values.
+## 1. Decide whether the unit gets a spec
 
-Run the focused spec with the package's established test command. If no runner or command exists yet, choose and install it as a separate tooling decision before adding specs; do not invent a one-off script. After a server behavior change, also run the relevant `server-verify` feature when mapped and report its HTTP evidence separately from the spec result. Record any untested behavior honestly.
+Spec a unit that decides:
+
+- services and rules;
+- parsers of external output (Git porcelain, model output);
+- controllers whose sequence is itself the behaviour: ordering, event timing, lane choice.
+
+Ask: would a plausible wrong implementation pass without this spec? If not, write none. Coverage is never a reason.
+
+Never spec libraries we chose (Zod parsing, Fastify routing, Drizzle query building), a service or controller that forwards one call, facts TypeScript already enforces, private helpers, or bootstrap wiring.
+
+## 2. Derive the cases before reading the implementation
+
+Read only the promise: the unit's name, its ports, its models and errors, and the feature map entry in `.agents/skills/server-verify/feature-map/` when the unit serves an HTTP feature. List:
+
+1. the success path;
+2. every failure the unit can produce, by error class;
+3. its boundaries: empty, one, the limit, one past the limit;
+4. the adversarial attempts a QA would try: unknown ids, duplicates, traversal paths, malformed or hostile input, repeated or concurrent calls.
+
+Only then open the implementation, to check that nothing in the promise was missed. If the code does something the list does not predict, decide whether the promise or the code is wrong before writing a case for it.
+
+For a behaviour change, write the failing case first when a focused spec can express it.
+
+## 3. Shape
+
+- One `describe` per subject, named after the unit.
+- One `it` per observable behaviour, named as a sentence a reader can check: `keeps the owner's name when discovery runs again`.
+- Assert on the returned result, on state read back through a port, or on the thrown error class (`toThrow(ProjectNotFoundError)`).
+- Assert on calls only when being called exactly once is the promise, and then by reading the calls the fake recorded.
+
+## 4. Doubles
+
+- Hand-write an in-memory fake that implements the port interface and is typed by it. Keep it honest: it stores, returns and fails the way the real adapter would.
+- Time and ids come through `Clock` and `IdSource` ports; the spec passes fakes that return fixed values.
+
+## 5. Real things where the unit is about real things
+
+- Git commands run against a disposable real repository created in a temp directory and removed afterwards. Never read the developer's checkout.
+- Parsers get real captured output, including the malformed and truncated variants Git or the model actually produce.
+- A storage repository gets at most one persistence-and-cascade spec, through its port, on a disposable migrated SQLite database.
+
+## 6. Placement
+
+- `<name>.spec.ts` sits beside the file it describes.
+- Fakes live in `packages/<domain>/spec/fakes/` or `apps/server/spec/fakes/`, outside `src`, so production code cannot import them.
+
+The `spec-*` rules in `architecture/oxlint-plugin.mjs` and the `fake` role in `architecture/policy.ts` enforce the forbidden APIs, names and imports; read them rather than a list here.
+
+## 7. Checklist
+
+1. Every case traces to a line of the promise list from step 2.
+2. Each case would fail against a plausible wrong implementation; delete the ones that would not.
+3. `pnpm test` passes.
+4. `pnpm lint:server` passes.
+5. `pnpm arch:check` and `pnpm typecheck:server` pass.
+6. After a server behaviour change, run the mapped `server-verify` feature and report its HTTP evidence separately from the spec result. State plainly any promise left without a spec and why.

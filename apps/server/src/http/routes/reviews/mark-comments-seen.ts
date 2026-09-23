@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commentScopeSchema,
-  seenCommentsRequestSchema,
-  seenCommentsResponseSchema,
+  markCommentsSeenRequestSchema,
+  markCommentsSeenResponseSchema,
 } from '@porcelain/contracts/reviews';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { MarkCommentsSeenController } from '../../../controllers/mark-comments-seen-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,9 +17,9 @@ export function markCommentsSeen(
     '/worktrees/:worktreeId/comments/seen',
     {
       schema: {
-        params: commentScopeSchema,
-        body: seenCommentsRequestSchema,
-        response: { ...errorResponses, 200: seenCommentsResponseSchema },
+        params: worktreeParamsSchema,
+        body: markCommentsSeenRequestSchema,
+        response: { ...errorResponses, 200: markCommentsSeenResponseSchema },
       },
     },
     async (request) =>

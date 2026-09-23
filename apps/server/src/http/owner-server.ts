@@ -3,7 +3,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from '@fastify/type-provider-zod';
-import { ownerStatusSchema } from '@porcelain/contracts/access';
+import { readOwnerStatusResponseSchema } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
 import type { ServerCapabilities } from '../bootstrap/server-capabilities.ts';
 import { toStatusResponse } from './status-policy.ts';
@@ -33,7 +33,7 @@ export function createOwnerServer(options: {
   });
   server.get(
     '/status',
-    { schema: { response: { 200: ownerStatusSchema } } },
+    { schema: { response: { 200: readOwnerStatusResponseSchema } } },
     async (_request, reply) => {
       reply.header('Cache-Control', 'no-store');
       return options.status();

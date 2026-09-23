@@ -1,3 +1,36 @@
-export * from './inventory.ts';
-export * from './file-preferences.ts';
-export * from './worktree-id.ts';
+export {
+  filePreferenceSchema,
+  listFilePreferencesResponseSchema,
+  setFilePreferenceRequestSchema,
+  setFilePreferenceResponseSchema,
+  type FilePreference,
+  type ListFilePreferencesResponse,
+  type SetFilePreferenceRequest,
+  type SetFilePreferenceResponse,
+} from './file-preferences.ts';
+export {
+  browseProjectFoldersQuerySchema,
+  browseProjectFoldersResponseSchema,
+  discoverProjectsResponseSchema,
+  projectParamsSchema,
+  projectSchema,
+  readInventoryResponseSchema,
+  registerProjectRequestSchema,
+  registerProjectResponseSchema,
+  removeProjectResponseSchema,
+  renameProjectRequestSchema,
+  renameProjectResponseSchema,
+  worktreeSchema,
+  type BrowseProjectFoldersQuery,
+  type BrowseProjectFoldersResponse,
+  type DiscoverProjectsResponse,
+  type Project,
+  type ProjectParams,
+  type ReadInventoryResponse,
+  type RegisterProjectRequest,
+  type RegisterProjectResponse,
+  type RemoveProjectResponse,
+  type RenameProjectRequest,
+  type RenameProjectResponse,
+  type Worktree,
+} from './inventory.ts';

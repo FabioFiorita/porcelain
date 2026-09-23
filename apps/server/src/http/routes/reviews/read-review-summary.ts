@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  reviewSummaryHtmlSchema,
-  reviewSummaryNotFoundSchema,
-  reviewSummaryParamsSchema,
-  reviewSummaryQuerySchema,
+  readReviewSummaryNotFoundResponseSchema,
+  readReviewSummaryParamsSchema,
+  readReviewSummaryQuerySchema,
+  readReviewSummaryResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
 import type { ReadReviewSummaryController } from '../../../controllers/read-review-summary-controller.ts';
@@ -17,11 +17,11 @@ export function readReviewSummary(
     '/review-summaries/:token',
     {
       schema: {
-        params: reviewSummaryParamsSchema,
-        querystring: reviewSummaryQuerySchema,
+        params: readReviewSummaryParamsSchema,
+        querystring: readReviewSummaryQuerySchema,
         response: {
-          200: reviewSummaryHtmlSchema,
-          404: reviewSummaryNotFoundSchema,
+          200: readReviewSummaryResponseSchema,
+          404: readReviewSummaryNotFoundResponseSchema,
         },
       },
     },

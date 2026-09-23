@@ -1,6 +1,6 @@
-import type { InventoryResponse } from '@porcelain/contracts/projects';
+import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
-type ReadInventory = (signal?: AbortSignal) => Promise<InventoryResponse>;
+type ReadInventory = (signal?: AbortSignal) => Promise<ReadInventoryResponse>;
 
 export class ReadInventoryController {
   private readonly readInventory: ReadInventory;
@@ -9,7 +9,7 @@ export class ReadInventoryController {
     this.readInventory = readInventory;
   }
 
-  execute(context: { signal?: AbortSignal }): Promise<InventoryResponse> {
+  execute(context: { signal?: AbortSignal }): Promise<ReadInventoryResponse> {
     return this.readInventory(context.signal);
   }
 }

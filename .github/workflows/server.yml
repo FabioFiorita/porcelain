@@ -8,9 +8,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   server:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
@@ -21,7 +26,7 @@ jobs:
       - run: pnpm typecheck:server
       - run: pnpm lint:server
       - run: pnpm format:server:check
-      - run: pnpm test:architecture
+      - run: pnpm test
       - run: node .agents/skills/server-verify/scripts/verify.ts projects.rename
       - run: node .agents/skills/server-verify/scripts/verify.ts projects.remove
       - run: pnpm arch:check

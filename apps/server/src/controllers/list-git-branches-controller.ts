@@ -3,7 +3,7 @@ import type {
   GitBranches,
 } from '@porcelain/git-actions/models';
 import type { ListGitBranchesService } from '@porcelain/git-actions/services';
-import type { Lanes } from '../runtime/operation-runner.ts';
+import type { Lanes } from '../runtime/lanes.ts';
 
 export class ListGitBranchesController {
   private readonly lanes: Lanes;

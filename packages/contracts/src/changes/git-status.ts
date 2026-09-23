@@ -1,56 +1,37 @@
 import { z } from 'zod';
-import { worktreeIdSchema } from '../projects/worktree-id.ts';
-
-export const gitPathSchema = z
-  .string()
-  .min(1)
-  .max(4096)
-  .refine(
-    (path) =>
-      !path.includes('\0') &&
-      !path.startsWith('/') &&
-      path
-        .split('/')
-        .every((part) => part !== '' && part !== '.' && part !== '..') &&
-      !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(
-        path,
-      ),
-  );
+import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { oidSchema } from '../shared/oid.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
+import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 export const gitChangeSelectionSchema = z
   .strictObject({
     scope: z.enum(['staged', 'unstaged']),
-    oldPath: gitPathSchema.nullable(),
-    newPath: gitPathSchema.nullable(),
+    oldPath: relativePathSchema.nullable(),
+    newPath: relativePathSchema.nullable(),
   })
   .refine((change) => change.oldPath !== null || change.newPath !== null);
 
 export const ordinaryChangeSchema = z.object({
   scope: z.enum(['staged', 'unstaged']),
   kind: z.enum(['added', 'modified', 'deleted', 'renamed', 'type-changed']),
-  oldPath: gitPathSchema.nullable(),
-  newPath: gitPathSchema.nullable(),
+  oldPath: relativePathSchema.nullable(),
+  newPath: relativePathSchema.nullable(),
   oldMode: z.string().regex(/^[0-7]{6}$/),
   newMode: z.string().regex(/^[0-7]{6}$/),
-  oldOid: z
-    .string()
-    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-    .nullable(),
-  newOid: z
-    .string()
-    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-    .nullable(),
+  oldOid: oidSchema.nullable(),
+  newOid: oidSchema.nullable(),
   supported: z.boolean(),
 });
 
 export const untrackedChangeSchema = z.object({
   scope: z.literal('untracked'),
-  path: gitPathSchema,
+  path: relativePathSchema,
 });
 
 export const unmergedChangeSchema = z.object({
   scope: z.literal('unmerged'),
-  path: gitPathSchema,
+  path: relativePathSchema,
   conflict: z.enum(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
 });
 
@@ -60,10 +41,10 @@ export const gitChangeSchema = z.union([
   unmergedChangeSchema,
 ]);
 
-export const gitStatusResponseSchema = z.object({
+export const readGitStatusResponseSchema = z.object({
   environmentId: z.uuid(),
   worktreeId: worktreeIdSchema,
-  statusToken: z.string().regex(/^[a-f0-9]{64}$/),
+  statusToken: fingerprintSchema,
   branch: z
     .object({
       name: z.string().nullable(),
@@ -72,24 +53,15 @@ export const gitStatusResponseSchema = z.object({
       behind: z.number().int().nonnegative(),
       remoteName: z.string().nullable().optional(),
       sourceRef: z.string().nullable().optional(),
-      upstreamOid: z
-        .string()
-        .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-        .nullable()
-        .optional(),
+      upstreamOid: oidSchema.nullable().optional(),
       stashes: z
-        .array(
-          z.object({
-            oid: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
-            message: z.string(),
-          }),
-        )
+        .array(z.object({ oid: oidSchema, message: z.string() }))
         .optional(),
       discarded: z
         .array(
           z.object({
-            oid: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
-            path: gitPathSchema,
+            oid: oidSchema,
+            path: relativePathSchema,
             kind: z.enum(['hunk', 'rename']),
           }),
         )
@@ -98,25 +70,20 @@ export const gitStatusResponseSchema = z.object({
     })
     .optional(),
   consistency: z.literal('best-effort'),
-  headOid: z
-    .string()
-    .regex(/^[a-f0-9]{40,64}$/)
-    .nullable(),
+  headOid: oidSchema.nullable(),
   inProgress: z.enum(['merge', 'rebase']).nullable(),
-  mergeHeadOid: z
-    .string()
-    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-    .nullable(),
+  mergeHeadOid: oidSchema.nullable(),
   headCommit: z
-    .strictObject({
-      subject: z.string(),
-      body: z.string().optional(),
-    })
+    .object({ subject: z.string(), body: z.string().optional() })
     .nullable(),
   changes: z.array(gitChangeSchema).max(2000),
 });
 
-export const gitWorktreeParamsSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
-});
-export type GitStatusResponse = z.infer<typeof gitStatusResponseSchema>;
+export type GitChangeSelection = z.output<typeof gitChangeSelectionSchema>;
+export type OrdinaryChange = z.output<typeof ordinaryChangeSchema>;
+export type UntrackedChange = z.output<typeof untrackedChangeSchema>;
+export type UnmergedChange = z.output<typeof unmergedChangeSchema>;
+export type GitChange = z.output<typeof gitChangeSchema>;
+export type ReadGitStatusResponse = z.output<
+  typeof readGitStatusResponseSchema
+>;

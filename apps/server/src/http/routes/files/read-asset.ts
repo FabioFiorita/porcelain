@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  assetResponseSchema,
-  fileQuerySchema,
-  worktreeParamsSchema,
+  readFileAssetQuerySchema,
+  readFileAssetResponseSchema,
 } from '@porcelain/contracts/files';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ReadFileAssetController } from '../../../controllers/read-file-asset-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -18,8 +18,8 @@ export function readAsset(
     {
       schema: {
         params: worktreeParamsSchema,
-        querystring: fileQuerySchema,
-        response: { ...errorResponses, 200: assetResponseSchema },
+        querystring: readFileAssetQuerySchema,
+        response: { ...errorResponses, 200: readFileAssetResponseSchema },
       },
     },
     async (request) =>

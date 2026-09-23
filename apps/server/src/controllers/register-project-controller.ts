@@ -1,7 +1,7 @@
-import type { ProjectResponse } from '@porcelain/contracts/projects';
+import type { Project } from '@porcelain/contracts/projects';
 
-type RegisteredWorktree = Omit<ProjectResponse['worktrees'][number], 'status'>;
-type RegistrationProject = Omit<ProjectResponse, 'worktrees'> & {
+type RegisteredWorktree = Omit<Project['worktrees'][number], 'status'>;
+type RegistrationProject = Omit<Project, 'worktrees'> & {
   worktrees: RegisteredWorktree[];
 };
 type RegisterProject = {
@@ -12,7 +12,7 @@ type RegisterProject = {
 };
 type WorktreeStatuses = (
   worktreeIds: string[],
-) => ReadonlyMap<string, ProjectResponse['worktrees'][number]['status']>;
+) => ReadonlyMap<string, Project['worktrees'][number]['status']>;
 type RunInventoryWrite = <T>(
   operation: (signal: AbortSignal) => Promise<T>,
   signal?: AbortSignal,
@@ -39,7 +39,7 @@ export class RegisterProjectController {
   async execute(
     input: { path: string },
     context: { signal?: AbortSignal },
-  ): Promise<ProjectResponse> {
+  ): Promise<Project> {
     const project = await this.runInventoryWrite(async (signal) => {
       const registered = await this.registerProject.execute(input.path, signal);
       const statuses = this.worktreeStatuses(

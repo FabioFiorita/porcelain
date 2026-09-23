@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/bootstrap/main.ts",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/server"
   },
   "dependencies": {
     "@fastify/type-provider-zod": "1.0.0",

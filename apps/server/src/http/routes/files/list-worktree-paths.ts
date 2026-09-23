@@ -1,8 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import {
-  worktreeParamsSchema,
-  worktreePathsSchema,
-} from '@porcelain/contracts/files';
+import { listWorktreePathsResponseSchema } from '@porcelain/contracts/files';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ListWorktreePathsController } from '../../../controllers/list-worktree-paths-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,7 +15,7 @@ export function listWorktreePaths(
     {
       schema: {
         params: worktreeParamsSchema,
-        response: { ...errorResponses, 200: worktreePathsSchema },
+        response: { ...errorResponses, 200: listWorktreePathsResponseSchema },
       },
     },
     async (request) =>

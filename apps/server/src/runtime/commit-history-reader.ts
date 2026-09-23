@@ -1,7 +1,7 @@
 import type {
-  CommitDiffsResponse,
-  CommitFilesResponse,
-  CommitPageResponse,
+  ListCommitsResponse,
+  ReadCommitDiffsResponse,
+  ReadCommitFilesResponse,
 } from '@porcelain/contracts/changes';
 
 export type CommitPageInput = {
@@ -22,18 +22,18 @@ export interface CommitHistoryReader {
     worktreeId: string,
     request: CommitPageInput,
     signal?: AbortSignal,
-  ): Promise<CommitPageResponse>;
+  ): Promise<ListCommitsResponse>;
   readCommitFiles(
     worktreeId: string,
     request: CommitFilesInput,
     signal?: AbortSignal,
-  ): Promise<CommitFilesResponse>;
+  ): Promise<ReadCommitFilesResponse>;
   readCommitDiffs(
     worktreeId: string,
     request: CommitDiffsInput,
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<
     string,
-    CommitDiffsResponse['diffs'][number]['content']
+    ReadCommitDiffsResponse['diffs'][number]['content']
   > | null>;
 }

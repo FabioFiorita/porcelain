@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { gitWorktreeParamsSchema } from '@porcelain/contracts/changes';
 import {
-  reviewedLayerMarksResponseSchema,
-  reviewedLayerQuerySchema,
+  removeReviewedLayerQuerySchema,
+  removeReviewedLayerResponseSchema,
 } from '@porcelain/contracts/reviews';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { RemoveReviewedLayerController } from '../../../controllers/remove-reviewed-layer-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,9 +17,9 @@ export function removeReviewedLayer(
     '/worktrees/:worktreeId/reviewed-layers',
     {
       schema: {
-        params: gitWorktreeParamsSchema,
-        querystring: reviewedLayerQuerySchema,
-        response: { ...errorResponses, 200: reviewedLayerMarksResponseSchema },
+        params: worktreeParamsSchema,
+        querystring: removeReviewedLayerQuerySchema,
+        response: { ...errorResponses, 200: removeReviewedLayerResponseSchema },
       },
     },
     async (request) =>

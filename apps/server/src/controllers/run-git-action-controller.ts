@@ -12,7 +12,7 @@ import type {
   RecordGitActionProgressService,
 } from '@porcelain/git-actions/services';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
-import type { Lanes } from '../runtime/operation-runner.ts';
+import type { Lanes } from '../runtime/lanes.ts';
 
 export class RunGitActionController {
   private readonly lanes: Lanes;

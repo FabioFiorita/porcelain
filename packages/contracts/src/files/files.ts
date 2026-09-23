@@ -1,11 +1,14 @@
 import { z } from 'zod';
-import { worktreeIdSchema } from '../projects/worktree-id.ts';
+import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-export const worktreeParamsSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
+const filePathSchema = z.string().max(4096);
+const editablePathSchema = z.string().min(1).max(4096);
+
+export const listDirectoryQuerySchema = z.strictObject({
+  path: filePathSchema,
 });
-export const fileQuerySchema = z.strictObject({ path: z.string().max(4096) });
-export const directoryResponseSchema = z.object({
+export const listDirectoryResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
   path: z.string(),
   entries: z.array(
@@ -17,67 +20,60 @@ export const directoryResponseSchema = z.object({
     }),
   ),
 });
-export const worktreePathsSchema = z.object({
+
+export const listWorktreePathsResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
   paths: z.array(z.string()).max(50_000),
 });
-export const textResponseSchema = z.object({
+
+export const readTextFileQuerySchema = z.strictObject({ path: filePathSchema });
+export const readTextFileResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
   path: z.string(),
   encoding: z.literal('utf-8'),
   byteLength: z.number().int().nonnegative(),
   text: z.string(),
-  contentFingerprint: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/)
-    .optional(),
+  contentFingerprint: fingerprintSchema.optional(),
 });
-export type WorktreePaths = z.infer<typeof worktreePathsSchema>;
-export type DirectoryResponse = z.infer<typeof directoryResponseSchema>;
-export type TextResponse = z.infer<typeof textResponseSchema>;
 
-const editablePath = z.string().min(1).max(4096);
-export const fileEditSchema = z.discriminatedUnion('kind', [
+export const editFileRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('write'),
-    path: editablePath,
+    path: editablePathSchema,
     text: z.string().max(1048576),
-    expectedFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+    expectedFingerprint: fingerprintSchema,
   }),
   z.strictObject({
     kind: z.literal('create'),
-    path: editablePath,
+    path: editablePathSchema,
     entryKind: z.enum(['file', 'directory']),
   }),
   z.strictObject({
     kind: z.literal('move'),
-    path: editablePath,
-    destination: editablePath,
+    path: editablePathSchema,
+    destination: editablePathSchema,
   }),
-  z.strictObject({ kind: z.literal('trash'), path: editablePath }),
+  z.strictObject({ kind: z.literal('trash'), path: editablePathSchema }),
 ]);
-export const fileEditResultSchema = z.object({
+export const editFileResponseSchema = z.object({
   path: z.string(),
-  contentFingerprint: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/)
-    .optional(),
+  contentFingerprint: fingerprintSchema.optional(),
 });
-export type FileEdit = z.infer<typeof fileEditSchema>;
-export type FileEditResult = z.infer<typeof fileEditResultSchema>;
 
-export const assetResponseSchema = z.object({
+export const readFileAssetQuerySchema = z.strictObject({
+  path: filePathSchema,
+});
+export const readFileAssetResponseSchema = z.object({
   path: z.string(),
   mediaType: z.string(),
   base64: z.string(),
 });
-export type AssetResponse = z.infer<typeof assetResponseSchema>;
 
-export const previewAssetsRequestSchema = z.strictObject({
+export const readPreviewAssetsRequestSchema = z.strictObject({
   document: z.string().max(4096),
   paths: z.array(z.string().max(4096)).min(1).max(64),
 });
-export const previewAssetsResponseSchema = z.object({
+export const readPreviewAssetsResponseSchema = z.object({
   assets: z.array(
     z.discriminatedUnion('kind', [
       z.object({
@@ -90,4 +86,25 @@ export const previewAssetsResponseSchema = z.object({
     ]),
   ),
 });
-export type PreviewAssetsResponse = z.infer<typeof previewAssetsResponseSchema>;
+
+export type ListDirectoryQuery = z.output<typeof listDirectoryQuerySchema>;
+export type ListDirectoryResponse = z.output<
+  typeof listDirectoryResponseSchema
+>;
+export type ListWorktreePathsResponse = z.output<
+  typeof listWorktreePathsResponseSchema
+>;
+export type ReadTextFileQuery = z.output<typeof readTextFileQuerySchema>;
+export type ReadTextFileResponse = z.output<typeof readTextFileResponseSchema>;
+export type EditFileRequest = z.output<typeof editFileRequestSchema>;
+export type EditFileResponse = z.output<typeof editFileResponseSchema>;
+export type ReadFileAssetQuery = z.output<typeof readFileAssetQuerySchema>;
+export type ReadFileAssetResponse = z.output<
+  typeof readFileAssetResponseSchema
+>;
+export type ReadPreviewAssetsRequest = z.output<
+  typeof readPreviewAssetsRequestSchema
+>;
+export type ReadPreviewAssetsResponse = z.output<
+  typeof readPreviewAssetsResponseSchema
+>;

@@ -1,6 +1,6 @@
 import type {
-  RemoveProjectInput,
-  RemoveProjectOutput,
+  ProjectParams,
+  RemoveProjectResponse,
 } from '@porcelain/contracts/projects';
 import type { RemoveProjectService } from '@porcelain/projects/services';
 
@@ -29,9 +29,9 @@ export class RemoveProjectController {
   }
 
   async execute(
-    input: RemoveProjectInput,
+    input: ProjectParams,
     context: { signal?: AbortSignal },
-  ): Promise<RemoveProjectOutput> {
+  ): Promise<RemoveProjectResponse> {
     const result = await this.runProjectWrite(
       input.projectId,
       () => {

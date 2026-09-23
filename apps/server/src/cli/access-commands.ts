@@ -1,7 +1,7 @@
 import {
-  accessListingSchema,
-  issuedGrantsSchema,
-  revokedAccessSchema,
+  issuePairingResponseSchema,
+  listAccessResponseSchema,
+  revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
 import qrcode from 'qrcode-terminal';
 import { askOwner } from './owner-client.ts';
@@ -35,7 +35,7 @@ export async function issuePairings(
   output: Output,
   withQr = true,
 ): Promise<void> {
-  const answer = issuedGrantsSchema.parse(
+  const answer = issuePairingResponseSchema.parse(
     await askOwner(dataDirectory, 'POST', '/pairings', { labels, addresses }),
   );
   for (const grant of answer.grants) {
@@ -55,7 +55,7 @@ export async function listAccess(
   dataDirectory: string,
   output: Output,
 ): Promise<void> {
-  const listing = accessListingSchema.parse(
+  const listing = listAccessResponseSchema.parse(
     await askOwner(dataDirectory, 'GET', '/access'),
   );
   if (listing.grants.length > 0) {
@@ -83,7 +83,7 @@ export async function revokeAccess(
   id: string,
   output: Output,
 ): Promise<boolean> {
-  const answer = revokedAccessSchema.parse(
+  const answer = revokeAccessResponseSchema.parse(
     await askOwner(dataDirectory, 'POST', '/access/revoke', { id }),
   );
   if (!answer.revoked) {

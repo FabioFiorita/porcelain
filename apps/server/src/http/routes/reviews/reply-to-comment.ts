@@ -1,8 +1,8 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commentThreadScopeSchema,
-  commentThreadsSchema,
-  replyToCommentSchema,
+  commentThreadParamsSchema,
+  replyToCommentRequestSchema,
+  replyToCommentResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
 import type { CommentThreadsController } from '../../../controllers/comment-threads-controller.ts';
@@ -18,9 +18,9 @@ export function replyToComment(
     '/worktrees/:worktreeId/comments/:threadId/replies',
     {
       schema: {
-        params: commentThreadScopeSchema,
-        body: replyToCommentSchema,
-        response: { ...errorResponses, 200: commentThreadsSchema },
+        params: commentThreadParamsSchema,
+        body: replyToCommentRequestSchema,
+        response: { ...errorResponses, 200: replyToCommentResponseSchema },
       },
     },
     async (request) =>

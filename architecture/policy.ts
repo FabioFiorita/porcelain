@@ -7,27 +7,44 @@ export const domainPackages = [
   'access',
 ] as const;
 
+export type Domain = (typeof domainPackages)[number];
+
+export const domainParts = [
+  'services',
+  'rules',
+  'models',
+  'ports',
+  'errors',
+] as const;
+
+export const gitCapabilities = [
+  'discovery',
+  'inspection',
+  'history',
+  'actions',
+] as const;
+
 export const targetPackageExports: Record<string, Record<string, string>> = {
   ...Object.fromEntries(
     domainPackages.map((name) => [
       name,
       Object.fromEntries(
-        ['services', 'models', 'ports', 'errors'].map((part) => [
-          `./${part}`,
-          `./src/${part}/index.ts`,
-        ]),
+        domainParts.map((part) => [`./${part}`, `./src/${part}/index.ts`]),
       ),
     ]),
   ),
   git: Object.fromEntries(
-    ['discovery', 'inspection', 'history', 'actions'].map((capability) => [
+    gitCapabilities.map((capability) => [
       `./${capability}`,
       `./src/${capability}/index.ts`,
     ]),
   ),
-  contracts: Object.fromEntries(
-    domainPackages.map((name) => [`./${name}`, `./src/${name}/index.ts`]),
-  ),
+  contracts: {
+    './shared': './src/shared/index.ts',
+    ...Object.fromEntries(
+      domainPackages.map((name) => [`./${name}`, `./src/${name}/index.ts`]),
+    ),
+  },
   storage: {
     '.': './src/index.ts',
     ...Object.fromEntries(
@@ -42,91 +59,60 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   },
 };
 
-export type Domain = (typeof domainPackages)[number];
-
-export const migrationOwnership: Record<
-  Domain,
-  {
-    legacyUseCaseFiles: readonly string[];
-    repositories: readonly string[];
-    ports: readonly string[];
-  }
-> = {
-  projects: {
-    legacyUseCaseFiles: [],
-    repositories: [],
-    ports: [],
-  },
-  changes: {
-    legacyUseCaseFiles: [],
-    repositories: [],
-    ports: [],
-  },
-  reviews: {
-    legacyUseCaseFiles: [],
-    repositories: [],
-    ports: [],
-  },
-  files: {
-    legacyUseCaseFiles: [],
-    repositories: [],
-    ports: [],
-  },
-  'git-actions': {
-    legacyUseCaseFiles: [],
-    repositories: [],
-    ports: [],
-  },
-  access: {
-    legacyUseCaseFiles: [],
-    repositories: [],
-    ports: [],
-  },
-};
-
-export const legacySupportRoles = {} as const;
-
-export const gatewayPortOwnership = {
-  projects: [],
-  files: [],
-  'git-actions': [],
-} as const;
+export const requiredServerFiles: readonly string[] = [
+  'apps/server/src/bootstrap/main.ts',
+  'apps/server/src/bootstrap/compose-server.ts',
+  ...domainPackages.map(
+    (name) => `apps/server/src/bootstrap/compose-${name}.ts`,
+  ),
+  'apps/server/src/http/scopes/public.ts',
+  'apps/server/src/http/scopes/paired.ts',
+  'apps/server/src/http/scopes/owner.ts',
+  'apps/server/src/http/status-policy.ts',
+  'apps/server/src/runtime/lanes.ts',
+  'apps/server/src/runtime/shared-reads.ts',
+  'apps/server/src/runtime/launch-limit.ts',
+  'apps/server/src/runtime/lane-keys.ts',
+  'apps/server/src/runtime/event-publisher.ts',
+  'apps/server/src/runtime/operation-context.ts',
+];
 
 export type Role =
   | 'transport'
-  | 'presentation'
   | 'status-policy'
   | 'controller'
+  | 'installer'
   | 'domain-api'
-  | 'domain-error'
-  | 'model-api'
   | 'service'
-  | 'port'
-  | 'port-api'
+  | 'rule-api'
+  | 'rule'
+  | 'model-api'
   | 'model'
-  | 'repository'
+  | 'port-api'
+  | 'port'
+  | 'error-api'
+  | 'error'
   | 'repository-api'
-  | 'gateway'
+  | 'repository'
   | 'gateway-api'
+  | 'gateway'
   | 'runtime'
   | 'bootstrap'
   | 'contract'
   | 'config'
+  | 'fake'
   | 'test';
 
-export type Classification = {
-  role: Role;
-  owner: string;
-  legacy: boolean;
-};
+export type Classification = { role: Role; owner: string };
 
 const domainSet = new Set<string>(domainPackages);
-const gitCapabilities = new Set([
-  'discovery',
-  'inspection',
-  'history',
-  'actions',
-  'shared',
+const gitCapabilitySet = new Set<string>(gitCapabilities);
+const domainApiRoles = new Set<Role>([
+  'domain-api',
+  'rule-api',
+  'model-api',
+  'port-api',
+  'error-api',
 ]);
 
 const gitCapabilityDependencies: Record<string, ReadonlySet<string>> = {
@@ -145,274 +131,211 @@ export function gitCapabilityViolation(
   if (!source.startsWith(prefix) || !target.startsWith(prefix)) return;
   const from = source.slice(prefix.length).split('/')[0] ?? '';
   const to = target.slice(prefix.length).split('/')[0] ?? '';
-  if (from === to || gitCapabilityDependencies[from]?.has(to)) return;
-  return 'git-capability-dependency-order';
+  if (from === to) return;
+  if (!gitCapabilityDependencies[from]?.has(to))
+    return 'git-capability-dependency-order';
+  if (gitCapabilitySet.has(to) && target !== `${prefix}${to}/index.ts`)
+    return 'git-capability-public-api-only';
+  return;
 }
 
-function classified(role: Role, owner: string, legacy = false): Classification {
-  return { role, owner, legacy };
+export function helpersFolderViolation(path: string): string | undefined {
+  return /^(?:packages\/git\/src|apps\/server\/src)\/(?:.*\/)?helpers\//.test(
+    path,
+  )
+    ? 'no-helpers-folder'
+    : undefined;
 }
 
-export function classify(
-  path: string,
-  legacyFiles: ReadonlySet<string>,
-): Classification | undefined {
-  const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
-  if (packageFile) {
-    const name = packageFile[1] ?? '';
-    const inside = packageFile[2] ?? '';
-    if (name === 'client') return undefined;
-    if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', name);
-    if (domainSet.has(name)) {
-      if (inside === 'services/index.ts') return classified('domain-api', name);
-      if (inside === 'errors/index.ts') return classified('domain-error', name);
-      if (inside === 'models/index.ts') return classified('model-api', name);
-      if (inside === 'ports/index.ts') return classified('port-api', name);
-      if (inside.startsWith('services/')) return classified('service', name);
-      if (inside.startsWith('ports/')) return classified('port', name);
-      if (inside.startsWith('errors/')) return classified('model', name);
-      if (inside.startsWith('models/')) return classified('model', name);
-      return undefined;
-    }
-    if (name === 'git') {
-      const capability = inside.split('/')[0] ?? '';
-      if (gitCapabilities.has(capability))
-        return classified(
-          inside.endsWith('/index.ts') ? 'gateway-api' : 'gateway',
-          name,
-        );
-      return legacyFiles.has(path)
-        ? classified('gateway', name, true)
-        : undefined;
-    }
-    if (name === 'agents') {
-      const capability = inside.split('/')[0] ?? '';
-      if (['commit-planning', 'models'].includes(capability))
-        return classified(
-          inside.endsWith('/index.ts') ? 'gateway-api' : 'gateway',
-          name,
-        );
-      if (inside.startsWith('providers/')) return classified('gateway', name);
-      return undefined;
-    }
-    if (name === 'storage') {
-      if (
-        inside === 'index.ts' ||
-        /^repositories\/[^/]+\/index\.ts$/.test(inside)
-      )
-        return classified('repository-api', name);
-      if (inside.startsWith('repositories/') || inside.startsWith('db/'))
-        return classified('repository', name);
-      if (inside.startsWith('models/') || inside.startsWith('ports/'))
-        return classified(
-          inside.startsWith('models/') ? 'model' : 'port',
-          name,
-        );
-      return undefined;
-    }
-    if (name === 'contracts') {
-      const section = inside.split('/')[0] ?? '';
-      if (domainSet.has(section) || legacyFiles.has(path))
-        return classified('contract', name, legacyFiles.has(path));
-      return undefined;
-    }
-    return undefined;
+function classified(role: Role, owner: string): Classification {
+  return { role, owner };
+}
+
+const partRoles: Record<(typeof domainParts)[number], [Role, Role]> = {
+  services: ['service', 'domain-api'],
+  rules: ['rule', 'rule-api'],
+  models: ['model', 'model-api'],
+  ports: ['port', 'port-api'],
+  errors: ['error', 'error-api'],
+};
+
+function classifyDomain(name: string, inside: string) {
+  for (const part of domainParts) {
+    const [role, api] = partRoles[part];
+    if (inside === `${part}/index.ts`) return classified(api, name);
+    if (inside.startsWith(`${part}/`)) return classified(role, name);
   }
+  return;
+}
 
-  if (!path.startsWith('apps/server/src/')) return undefined;
-  const inside = path.slice('apps/server/src/'.length);
-  if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', 'server');
-  if (inside.startsWith('controllers/'))
-    return classified('controller', 'server');
-  if (inside.startsWith('jobs/')) return classified('transport', 'server');
-  if (inside.startsWith('bootstrap/')) return classified('bootstrap', 'server');
-  if (inside.startsWith('runtime/')) return classified('runtime', 'server');
-  if (inside.startsWith('adapters/storage/'))
-    return classified('repository', 'server');
-  if (inside.startsWith('adapters/')) return classified('gateway', 'server');
+function classifyPackage(name: string, inside: string) {
+  if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', name);
+  if (domainSet.has(name)) return classifyDomain(name, inside);
+  const section = inside.split('/')[0] ?? '';
+  if (name === 'git') {
+    if (gitCapabilitySet.has(section))
+      return classified(
+        inside === `${section}/index.ts` ? 'gateway-api' : 'gateway',
+        name,
+      );
+    if (section === 'shared') return classified('gateway', name);
+    return;
+  }
+  if (name === 'agents') {
+    if (['commit-planning', 'models', 'providers'].includes(section))
+      return classified(
+        inside === `${section}/index.ts` ? 'gateway-api' : 'gateway',
+        name,
+      );
+    return;
+  }
+  if (name === 'storage') {
+    if (
+      inside === 'index.ts' ||
+      /^repositories\/[^/]+\/index\.ts$/.test(inside)
+    )
+      return classified('repository-api', name);
+    if (inside.startsWith('repositories/') || inside.startsWith('db/'))
+      return classified('repository', name);
+    return;
+  }
+  if (name === 'contracts') {
+    if (domainSet.has(section) || section === 'shared')
+      return classified('contract', name);
+    return;
+  }
+  return;
+}
+
+function classifyServer(inside: string) {
+  const owner = 'server';
+  if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', owner);
+  if (inside.startsWith('controllers/')) return classified('controller', owner);
+  if (inside.startsWith('jobs/')) return classified('transport', owner);
+  if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
+  if (inside.startsWith('runtime/')) return classified('runtime', owner);
+  if (inside.startsWith('adapters/')) return classified('gateway', owner);
+  if (inside.startsWith('installer/')) return classified('installer', owner);
+  if (inside.startsWith('config/')) return classified('config', owner);
+  if (inside === 'cli/main.ts') return classified('bootstrap', owner);
+  if (inside.startsWith('cli/')) return classified('transport', owner);
   if (inside.startsWith('http/')) {
     const http = inside.slice('http/'.length);
     if (
-      http === 'protocol/clear-browser-session.ts' ||
-      http === 'protocol/live-updates.ts'
+      /^(?:scopes|hooks|routes|mcp)\//.test(http) ||
+      http === 'schemas/error-responses.ts'
     )
-      return classified('transport', 'server');
-    if (http.startsWith('scopes/') || http === 'helpers/paired-server.ts')
-      return classified('bootstrap', 'server');
-    if (
-      /^(routes|mcp|middlewares|helpers|scopes)\//.test(http) ||
-      http === 'owner-routes.ts'
-    )
-      return classified('transport', 'server');
-    if (/^(mappers|schemas|errors)\//.test(http) || http === 'principal.ts')
-      return classified('presentation', 'server');
-    if (http === 'status-policy.ts')
-      return classified('status-policy', 'server');
+      return classified('transport', owner);
+    if (http === 'status-policy.ts') return classified('status-policy', owner);
     if (http === 'server.ts' || http === 'owner-server.ts')
-      return classified('bootstrap', 'server');
-    if (http === 'static-files.ts') return classified('transport', 'server');
-    return undefined;
+      return classified('bootstrap', owner);
+    return;
   }
-  if (inside.startsWith('cli/'))
-    return classified(
-      inside === 'cli/launcher.ts' ||
-        inside === 'cli/index.ts' ||
-        inside === 'cli/main.ts' ||
-        inside === 'cli/service.ts'
-        ? 'bootstrap'
-        : 'transport',
-      'server',
-    );
-  if (inside.startsWith('config/')) return classified('config', 'server');
-  if (!legacyFiles.has(path)) return undefined;
-  if (inside.startsWith('use-cases/errors/'))
-    return classified('model', 'server', true);
-  if (inside.startsWith('use-cases/helpers/'))
-    return classified('test', 'server', true);
-  if (inside.startsWith('use-cases/')) {
-    const name = inside.slice('use-cases/'.length).replace(/\.ts$/, '');
-    const role = legacySupportRoles[name as keyof typeof legacySupportRoles];
-    return classified(role ?? 'service', 'server', true);
-  }
-  if (inside.startsWith('repositories/interfaces/'))
-    return classified('port', 'server', true);
-  if (inside.startsWith('repositories/errors/'))
-    return classified('model', 'server', true);
-  if (inside.startsWith('repositories/') || inside.startsWith('db/'))
-    return classified('repository', 'server', true);
-  if (
-    inside.startsWith('filesystem/interfaces/') ||
-    inside.startsWith('agents/interfaces/')
-  )
-    return classified('port', 'server', true);
-  if (inside.startsWith('filesystem/errors/'))
-    return classified('model', 'server', true);
-  if (inside.startsWith('filesystem/') || inside.startsWith('agents/'))
-    return classified('gateway', 'server', true);
-  if (inside.startsWith('models/')) return classified('model', 'server', true);
-  return undefined;
+  return;
 }
+
+export function classify(path: string): Classification | undefined {
+  const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
+  if (packageFake) return classified('fake', packageFake[1] ?? '');
+  if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
+    return classified('fake', 'server');
+  const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
+  if (packageFile)
+    return classifyPackage(packageFile[1] ?? '', packageFile[2] ?? '');
+  if (path.startsWith('apps/server/src/'))
+    return classifyServer(path.slice('apps/server/src/'.length));
+  return;
+}
+
+const domainInternal: readonly Role[] = [
+  'service',
+  'rule',
+  'model',
+  'port',
+  'error',
+];
+
+const everything: readonly Role[] = [
+  'transport',
+  'status-policy',
+  'controller',
+  'installer',
+  'domain-api',
+  'rule-api',
+  'model-api',
+  'port-api',
+  'error-api',
+  ...domainInternal,
+  'repository-api',
+  'repository',
+  'gateway-api',
+  'gateway',
+  'runtime',
+  'bootstrap',
+  'contract',
+  'config',
+];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   transport: new Set([
     'transport',
-    'presentation',
     'status-policy',
     'controller',
     'contract',
     'config',
   ]),
-  presentation: new Set([
-    'presentation',
-    'contract',
-    'model',
-    'model-api',
-    'domain-error',
-  ]),
-  'status-policy': new Set([
-    'domain-error',
-    'gateway-api',
-    'model',
-    'presentation',
-    'runtime',
-  ]),
+  'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
   controller: new Set(['domain-api', 'model-api', 'contract', 'runtime']),
-  'domain-api': new Set([
-    'service',
-    'port',
-    'port-api',
-    'model',
-    'model-api',
-    'domain-error',
-  ]),
-  'domain-error': new Set(['model']),
+  installer: new Set(['installer', 'config']),
+  'domain-api': new Set(['service']),
+  'rule-api': new Set(['rule']),
   'model-api': new Set(['model']),
-  'port-api': new Set(['port', 'model', 'model-api']),
-  service: new Set(['port', 'model', 'model-api', 'domain-error']),
-  port: new Set(['port', 'model', 'model-api', 'contract']),
-  model: new Set(['model', 'model-api', 'contract']),
-  repository: new Set([
-    'repository',
-    'domain-error',
+  'port-api': new Set(['port']),
+  'error-api': new Set(['error']),
+  service: new Set([
     'port',
     'port-api',
     'model',
     'model-api',
-    'contract',
-    'config',
+    'rule',
+    'rule-api',
+    'error',
+    'error-api',
   ]),
-  'repository-api': new Set(['repository', 'port', 'port-api', 'model']),
+  rule: new Set(['rule', 'model', 'model-api', 'error', 'error-api']),
+  model: new Set(['model', 'model-api']),
+  port: new Set(['port', 'model', 'model-api']),
+  error: new Set(['error']),
+  repository: new Set(['repository', 'port-api', 'model-api']),
+  'repository-api': new Set(['repository', 'port-api', 'model-api']),
   gateway: new Set([
     'gateway',
     'gateway-api',
-    'domain-error',
-    'port',
     'port-api',
-    'model',
     'model-api',
-    'contract',
-    'config',
-  ]),
-  'gateway-api': new Set(['gateway', 'port', 'model']),
-  runtime: new Set([
     'runtime',
-    'port',
-    'model',
-    'model-api',
-    'contract',
     'config',
   ]),
-  bootstrap: new Set([
-    'transport',
-    'presentation',
-    'status-policy',
-    'controller',
-    'domain-api',
-    'domain-error',
-    'model-api',
-    'service',
-    'port',
-    'port-api',
-    'model',
-    'repository',
-    'repository-api',
-    'gateway',
-    'gateway-api',
-    'runtime',
-    'bootstrap',
-    'contract',
-    'config',
-  ]),
+  'gateway-api': new Set(['gateway']),
+  runtime: new Set(['runtime', 'model-api', 'config']),
+  bootstrap: new Set(everything),
   contract: new Set(['contract']),
-  config: new Set(['config', 'contract', 'model']),
-  test: new Set([
-    'transport',
-    'presentation',
-    'controller',
-    'domain-api',
-    'domain-error',
-    'model-api',
-    'service',
-    'port',
-    'port-api',
-    'model',
-    'repository',
-    'repository-api',
-    'gateway',
-    'gateway-api',
-    'runtime',
-    'bootstrap',
-    'contract',
-    'config',
-    'test',
-  ]),
+  config: new Set(['config']),
+  fake: new Set(['port', 'port-api', 'model', 'model-api', 'runtime', 'fake']),
+  test: new Set([...everything, 'fake', 'test']),
 };
 
 export function violation(
   from: Classification,
   to: Classification,
 ): string | undefined {
-  if (from.role === 'test') return undefined;
+  if (from.role === 'test') return;
+  if (
+    from.role === 'fake' &&
+    to.owner !== from.owner &&
+    (from.owner !== 'server' || to.role === 'fake')
+  )
+    return 'fake-imports-own-package-only';
   if (from.owner !== 'server' && to.owner === 'server')
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))
@@ -425,52 +348,45 @@ export function violation(
     return 'domain-cannot-import-another-domain';
   if (domainSet.has(from.owner) && to.owner === 'contracts')
     return 'domain-cannot-import-transport-contract';
-  if (
-    from.owner !== to.owner &&
-    to.owner === 'git' &&
-    to.role !== 'gateway-api'
-  )
-    return 'git-public-api-only';
-  if (
-    from.owner !== to.owner &&
-    domainSet.has(to.owner) &&
-    !['domain-api', 'domain-error', 'model-api', 'port-api'].includes(to.role)
-  )
-    return 'domain-public-api-only';
-  if (
-    from.owner !== to.owner &&
-    to.owner === 'storage' &&
-    to.role !== 'repository-api'
-  )
-    return 'storage-public-api-only';
-  if (
-    from.owner !== to.owner &&
-    to.owner === 'agents' &&
-    to.role !== 'gateway-api'
-  )
-    return 'agents-public-api-only';
+  if (from.owner !== to.owner) {
+    if (to.owner === 'git' && to.role !== 'gateway-api')
+      return 'git-public-api-only';
+    if (domainSet.has(to.owner) && !domainApiRoles.has(to.role))
+      return 'domain-public-api-only';
+    if (to.owner === 'storage' && to.role !== 'repository-api')
+      return 'storage-public-api-only';
+    if (to.owner === 'agents' && to.role !== 'gateway-api')
+      return 'agents-public-api-only';
+  }
   if (!allowedTargets[from.role].has(to.role))
     return `${from.role}-cannot-import-${to.role}`;
-  return undefined;
+  return;
 }
 
+const typedRoles = new Set<Role>([
+  ...domainInternal,
+  ...domainApiRoles,
+  'controller',
+]);
+const boundaryRoles = new Set<Role>([
+  'transport',
+  'status-policy',
+  'contract',
+  'config',
+]);
+const nodeModule =
+  /^(?:node:|(?:fs|path|child_process|crypto|net|http|os)(?:\/|$))/;
+const infrastructureModule =
+  /^(?:zod|fastify|@fastify\/|ws|drizzle-orm|better-sqlite3)(?:\/|$)?/;
+const storageEngineModule =
+  /^(?:better-sqlite3|drizzle-orm(?:\/|$)|node:(?:fs|child_process)(?:\/|$))/;
+
 export function forbiddenExternal(role: Role, module: string): boolean {
-  return (
-    (['controller', 'service', 'port', 'model'].includes(role) &&
-      module === 'zod') ||
-    ([
-      'transport',
-      'presentation',
-      'status-policy',
-      'controller',
-      'service',
-      'port',
-      'model',
-      'contract',
-      'config',
-    ].includes(role) &&
-      /^(?:better-sqlite3|drizzle-orm(?:\/|$)|node:(?:fs(?:\/|$)|child_process(?:\/|$)))/.test(
-        module,
-      ))
-  );
+  if (typedRoles.has(role)) {
+    if ((role === 'rule' || role === 'rule-api') && module === 'node:crypto')
+      return false;
+    return nodeModule.test(module) || infrastructureModule.test(module);
+  }
+  if (boundaryRoles.has(role)) return storageEngineModule.test(module);
+  return false;
 }

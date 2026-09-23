@@ -4,11 +4,13 @@
   "type": "module",
   "exports": {
     "./services": "./src/services/index.ts",
+    "./rules": "./src/rules/index.ts",
     "./models": "./src/models/index.ts",
     "./ports": "./src/ports/index.ts",
     "./errors": "./src/errors/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/access"
   }
 }

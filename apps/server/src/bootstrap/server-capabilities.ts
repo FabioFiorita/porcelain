@@ -1,5 +1,5 @@
 import type {
-  BranchesResponse,
+  ListGitBranchesResponse,
   RunGitActionRequest,
 } from '@porcelain/contracts/git-actions';
 import type {
@@ -9,27 +9,27 @@ import type {
   GitActionScope,
 } from '@porcelain/git-actions/models';
 import type {
-  RemoveProjectInput,
-  RemoveProjectOutput,
-  RenameProjectInput,
-  RenameProjectOutput,
-  InventoryResponse,
-  ProjectResponse,
-  ProjectDiscoveryResponse,
-  ProjectFolderResponse,
+  BrowseProjectFoldersResponse,
+  DiscoverProjectsResponse,
+  Project,
+  ProjectParams,
+  ReadInventoryResponse,
+  RemoveProjectResponse,
+  RenameProjectRequest,
+  RenameProjectResponse,
 } from '@porcelain/contracts/projects';
 import type {
-  AssetResponse,
-  DirectoryResponse,
-  TextResponse,
-  PreviewAssetsResponse,
-  WorktreePaths,
-  FileEdit as FileEditRequest,
-  FileEditResult as FileEditResponse,
+  EditFileRequest,
+  EditFileResponse,
+  ListDirectoryResponse,
+  ListWorktreePathsResponse,
+  ReadFileAssetResponse,
+  ReadPreviewAssetsResponse,
+  ReadTextFileResponse,
 } from '@porcelain/contracts/files';
 import type {
-  PublishReview,
-  ReviewResponse,
+  PublishedReview,
+  PublishReviewRequest,
 } from '@porcelain/contracts/reviews';
 import type { ReviewedLayerMark } from '@porcelain/contracts/reviews';
 import type { LiveSubscription } from '@porcelain/contracts/access';
@@ -54,11 +54,11 @@ import type {
   SetReviewedFilesInput,
 } from '@porcelain/reviews/models';
 import type {
-  ChangeDiffsRequest,
-  ChangeDiffsResponse,
-  ChangeLinesResponse,
-  ChangesResponse,
-  GitStatusResponse,
+  ReadChangeDiffsRequest,
+  ReadChangeDiffsResponse,
+  ReadChangeLinesResponse,
+  ReadChangesResponse,
+  ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
 
 export interface ServerCapabilities {
@@ -71,13 +71,13 @@ export interface ServerCapabilities {
         tip?: string | undefined;
       },
       context: { signal?: AbortSignal | undefined },
-    ): Promise<import('@porcelain/contracts/changes').CommitPageResponse>;
+    ): Promise<import('@porcelain/contracts/changes').ListCommitsResponse>;
   };
   readCommitFilesController: {
     execute(
       input: { worktreeId: string; oid: string; parent?: number | undefined },
       context: { signal?: AbortSignal | undefined },
-    ): Promise<import('@porcelain/contracts/changes').CommitFilesResponse>;
+    ): Promise<import('@porcelain/contracts/changes').ReadCommitFilesResponse>;
   };
   readCommitDiffsController: {
     execute(
@@ -88,7 +88,7 @@ export interface ServerCapabilities {
         paths: string[][];
       },
       context: { signal?: AbortSignal | undefined },
-    ): Promise<import('@porcelain/contracts/changes').CommitDiffsResponse>;
+    ): Promise<import('@porcelain/contracts/changes').ReadCommitDiffsResponse>;
   };
   runGitActionController: {
     execute(
@@ -110,7 +110,7 @@ export interface ServerCapabilities {
     execute(
       scope: GitActionScope,
       signal?: AbortSignal,
-    ): Promise<BranchesResponse>;
+    ): Promise<ListGitBranchesResponse>;
   };
   listCommitModelsController: {
     execute(): Promise<CommitModel[]>;
@@ -126,13 +126,13 @@ export interface ServerCapabilities {
     execute(
       input: { worktreeId: string },
       context: { signal?: AbortSignal },
-    ): Promise<ChangesResponse>;
+    ): Promise<ReadChangesResponse>;
   };
   readChangeDiffsController: {
     execute(
-      input: ChangeDiffsRequest & { worktreeId: string },
+      input: ReadChangeDiffsRequest & { worktreeId: string },
       context: { signal?: AbortSignal },
-    ): Promise<ChangeDiffsResponse>;
+    ): Promise<ReadChangeDiffsResponse>;
   };
   readChangeLinesController: {
     execute(
@@ -144,13 +144,13 @@ export interface ServerCapabilities {
         at: 'head' | 'worktree';
       },
       context: { signal?: AbortSignal },
-    ): Promise<ChangeLinesResponse>;
+    ): Promise<ReadChangeLinesResponse>;
   };
   readGitStatusController: {
     execute(
       input: { worktreeId: string },
       context: { signal?: AbortSignal },
-    ): Promise<GitStatusResponse>;
+    ): Promise<ReadGitStatusResponse>;
   };
   issuePairingController: {
     execute(input: {
@@ -171,13 +171,13 @@ export interface ServerCapabilities {
     execute(
       input: { worktreeId: string },
       context: { signal?: AbortSignal | undefined },
-    ): Promise<ReviewResponse | null>;
+    ): Promise<PublishedReview | null>;
   };
   publishReviewController: {
     execute(
-      input: { worktreeId: string; review: PublishReview },
+      input: { worktreeId: string; review: PublishReviewRequest },
       context: { signal?: AbortSignal | undefined },
-    ): Promise<ReviewResponse>;
+    ): Promise<PublishedReview>;
   };
   readReviewSummaryController: {
     execute(input: {
@@ -210,7 +210,7 @@ export interface ServerCapabilities {
     ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
   };
   readHealthController: {
-    execute(): import('@porcelain/contracts/access').HealthResponse;
+    execute(): import('@porcelain/contracts/access').ReadHealthResponse;
   };
   redeemPairingController: {
     execute(
@@ -258,15 +258,15 @@ export interface ServerCapabilities {
   };
   projects: {
     execute(
-      input: RenameProjectInput,
+      input: ProjectParams & RenameProjectRequest,
       context: { signal?: AbortSignal },
-    ): Promise<RenameProjectOutput>;
+    ): Promise<RenameProjectResponse>;
   };
   removeProjectController: {
     execute(
-      input: RemoveProjectInput,
+      input: ProjectParams,
       context: { signal?: AbortSignal },
-    ): Promise<RemoveProjectOutput>;
+    ): Promise<RemoveProjectResponse>;
   };
   listFilePreferencesController: {
     execute(input: {
@@ -279,60 +279,60 @@ export interface ServerCapabilities {
     ): Promise<{ preferences: FilePreference[] }>;
   };
   readInventoryController: {
-    execute(context: { signal?: AbortSignal }): Promise<InventoryResponse>;
+    execute(context: { signal?: AbortSignal }): Promise<ReadInventoryResponse>;
   };
   discoverProjectsController: {
     execute(context: {
       signal?: AbortSignal;
-    }): Promise<ProjectDiscoveryResponse>;
+    }): Promise<DiscoverProjectsResponse>;
   };
   browseProjectFoldersController: {
     execute(
       input: { path?: string },
       context: { signal?: AbortSignal },
-    ): Promise<ProjectFolderResponse>;
+    ): Promise<BrowseProjectFoldersResponse>;
   };
   registerProjectController: {
     execute(
       input: { path: string },
       context: { signal?: AbortSignal },
-    ): Promise<ProjectResponse>;
+    ): Promise<Project>;
   };
   listDirectoryController: {
     execute(
       input: { worktreeId: string; path: string },
       context: { signal?: AbortSignal },
-    ): Promise<DirectoryResponse>;
+    ): Promise<ListDirectoryResponse>;
   };
   readTextFileController: {
     execute(
       input: { worktreeId: string; path: string },
       context: { signal?: AbortSignal },
-    ): Promise<TextResponse>;
+    ): Promise<ReadTextFileResponse>;
   };
   readFileAssetController: {
     execute(
       input: { worktreeId: string; path: string },
       context: { signal?: AbortSignal },
-    ): Promise<AssetResponse>;
+    ): Promise<ReadFileAssetResponse>;
   };
   readPreviewAssetsController: {
     execute(
       input: { worktreeId: string; document: string; paths: string[] },
       context: { signal?: AbortSignal },
-    ): Promise<PreviewAssetsResponse>;
+    ): Promise<ReadPreviewAssetsResponse>;
   };
   editFileController: {
     execute(
-      input: { worktreeId: string; command: FileEditRequest },
+      input: { worktreeId: string; command: EditFileRequest },
       context: { signal?: AbortSignal },
-    ): Promise<FileEditResponse>;
+    ): Promise<EditFileResponse>;
   };
   listWorktreePathsController: {
     execute(
       input: { worktreeId: string },
       context: { signal?: AbortSignal },
-    ): Promise<WorktreePaths>;
+    ): Promise<ListWorktreePathsResponse>;
   };
   liveUpdates(
     send: (notice: import('@porcelain/contracts/access').LiveNotice) => void,

@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { gitWorktreeParamsSchema } from '@porcelain/contracts/changes';
 import {
-  reviewedMarksResponseSchema,
-  setReviewedRequestSchema,
+  setReviewedFileRequestSchema,
+  setReviewedFileResponseSchema,
 } from '@porcelain/contracts/reviews';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { SetReviewedFileController } from '../../../controllers/set-reviewed-file-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,9 +17,9 @@ export function setReviewedFile(
     '/worktrees/:worktreeId/reviewed',
     {
       schema: {
-        params: gitWorktreeParamsSchema,
-        body: setReviewedRequestSchema,
-        response: { ...errorResponses, 200: reviewedMarksResponseSchema },
+        params: worktreeParamsSchema,
+        body: setReviewedFileRequestSchema,
+        response: { ...errorResponses, 200: setReviewedFileResponseSchema },
       },
     },
     async (request) =>

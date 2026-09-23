@@ -7,10 +7,6 @@ export class LaunchLimit {
     this.capacity = capacity;
   }
 
-  get inFlight() {
-    return this.running;
-  }
-
   async run<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     await this.admit(signal);
     try {

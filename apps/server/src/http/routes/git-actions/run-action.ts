@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  gitActionReceiptOrErrorSchema,
-  gitActionReceiptSchema,
   gitActionScopeSchema,
+  runGitActionRejectedResponseSchema,
   runGitActionRequestSchema,
+  runGitActionResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { RunGitActionController } from '../../../controllers/run-git-action-controller.ts';
@@ -23,10 +23,10 @@ export function runAction(
         body: runGitActionRequestSchema,
         response: {
           ...errorResponses,
-          200: gitActionReceiptSchema,
-          202: gitActionReceiptSchema,
-          409: gitActionReceiptOrErrorSchema,
-          503: gitActionReceiptOrErrorSchema,
+          200: runGitActionResponseSchema,
+          202: runGitActionResponseSchema,
+          409: runGitActionRejectedResponseSchema,
+          503: runGitActionRejectedResponseSchema,
         },
       },
     },

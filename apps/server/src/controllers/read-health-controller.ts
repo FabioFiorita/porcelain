@@ -1,5 +1,5 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { HealthResponse } from '@porcelain/contracts/access';
+import type { ReadHealthResponse } from '@porcelain/contracts/access';
 
 export class ReadHealthController {
   private readonly environment: ReadEnvironmentService;
@@ -8,7 +8,7 @@ export class ReadHealthController {
     this.environment = environment;
   }
 
-  execute(): HealthResponse {
+  execute(): ReadHealthResponse {
     return { status: 'ok', environmentId: this.environment.execute() };
   }
 }

@@ -1,4 +1,4 @@
-import type { ChangeLinesResponse } from '@porcelain/contracts/changes';
+import type { ReadChangeLinesResponse } from '@porcelain/contracts/changes';
 import type { ChangeLineRange } from '@porcelain/changes/models';
 import type { ReadChangeLinesService } from '@porcelain/changes/services';
 
@@ -25,7 +25,7 @@ export class ReadChangeLinesController {
   execute(
     input: ChangeLineRange & { worktreeId: string },
     context: { signal?: AbortSignal },
-  ): Promise<ChangeLinesResponse> {
+  ): Promise<ReadChangeLinesResponse> {
     const { worktreeId, ...range } = input;
     return this.runRead(
       worktreeId,

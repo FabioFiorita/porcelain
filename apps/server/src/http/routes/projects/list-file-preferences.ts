@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  filePreferenceScopeSchema,
-  filePreferencesResponseSchema,
+  listFilePreferencesResponseSchema,
+  projectParamsSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
 import type { ListFilePreferencesController } from '../../../controllers/list-file-preferences-controller.ts';
@@ -16,8 +16,8 @@ export function listFilePreferences(
     '/projects/:projectId/file-preferences',
     {
       schema: {
-        params: filePreferenceScopeSchema,
-        response: { ...errorResponses, 200: filePreferencesResponseSchema },
+        params: projectParamsSchema,
+        response: { ...errorResponses, 200: listFilePreferencesResponseSchema },
       },
     },
     async (request) => options.controller.execute(request.params),

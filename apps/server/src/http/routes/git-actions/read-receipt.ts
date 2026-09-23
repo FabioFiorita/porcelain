@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  gitActionReceiptSchema,
-  gitActionRequestParamsSchema,
+  readGitActionReceiptParamsSchema,
+  readGitActionReceiptResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { ReadGitActionReceiptController } from '../../../controllers/read-git-action-receipt-controller.ts';
@@ -16,8 +16,11 @@ export function readReceipt(
     '/git-action-requests/:requestId',
     {
       schema: {
-        params: gitActionRequestParamsSchema,
-        response: { ...errorResponses, 200: gitActionReceiptSchema },
+        params: readGitActionReceiptParamsSchema,
+        response: {
+          ...errorResponses,
+          200: readGitActionReceiptResponseSchema,
+        },
       },
     },
     async (request) => options.controller.execute(request.params.requestId),

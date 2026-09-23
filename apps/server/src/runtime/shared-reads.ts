@@ -7,10 +7,6 @@ type Group<T> = {
 export class SharedReads {
   private readonly groups = new Map<string, Group<unknown>>();
 
-  get size() {
-    return this.groups.size;
-  }
-
   run<T>(
     key: string,
     work: (signal: AbortSignal) => Promise<T>,

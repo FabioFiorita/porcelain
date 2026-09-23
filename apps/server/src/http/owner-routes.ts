@@ -1,11 +1,11 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
-  accessListingSchema,
-  issuedGrantsSchema,
-  issueGrantsSchema,
-  revokeAccessSchema,
-  revokedAccessSchema,
+  issuePairingRequestSchema,
+  issuePairingResponseSchema,
+  listAccessResponseSchema,
+  revokeAccessRequestSchema,
+  revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import type { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
@@ -38,8 +38,8 @@ export function registerOwnerRoutes(
     '/pairings',
     {
       schema: {
-        body: issueGrantsSchema,
-        response: { ...errorResponses, 200: issuedGrantsSchema },
+        body: issuePairingRequestSchema,
+        response: { ...errorResponses, 200: issuePairingResponseSchema },
       },
     },
     async (request, reply) => {
@@ -49,7 +49,11 @@ export function registerOwnerRoutes(
   );
   api.get(
     '/access',
-    { schema: { response: { ...errorResponses, 200: accessListingSchema } } },
+    {
+      schema: {
+        response: { ...errorResponses, 200: listAccessResponseSchema },
+      },
+    },
     async (_request, reply) => {
       reply.header('Cache-Control', 'no-store');
       return options.listAccessController.execute();
@@ -59,8 +63,8 @@ export function registerOwnerRoutes(
     '/access/revoke',
     {
       schema: {
-        body: revokeAccessSchema,
-        response: { ...errorResponses, 200: revokedAccessSchema },
+        body: revokeAccessRequestSchema,
+        response: { ...errorResponses, 200: revokeAccessResponseSchema },
       },
     },
     async (request, reply) => {

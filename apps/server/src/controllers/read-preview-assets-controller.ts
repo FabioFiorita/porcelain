@@ -1,4 +1,4 @@
-import type { PreviewAssetsResponse } from '@porcelain/contracts/files';
+import type { ReadPreviewAssetsResponse } from '@porcelain/contracts/files';
 
 type ReadPreviewAssets = {
   execute(
@@ -6,7 +6,7 @@ type ReadPreviewAssets = {
     document: string,
     paths: readonly string[],
     signal?: AbortSignal,
-  ): Promise<PreviewAssetsResponse['assets']>;
+  ): Promise<ReadPreviewAssetsResponse['assets']>;
 };
 type RunWorktreeRead = <T>(
   worktreeId: string,
@@ -29,7 +29,7 @@ export class ReadPreviewAssetsController {
   async execute(
     input: { worktreeId: string; document: string; paths: string[] },
     context: { signal?: AbortSignal },
-  ): Promise<PreviewAssetsResponse> {
+  ): Promise<ReadPreviewAssetsResponse> {
     const wanted = [...input.paths];
     const assets = await this.runWorktreeRead(
       input.worktreeId,

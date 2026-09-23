@@ -1,45 +1,49 @@
 import { z } from 'zod';
-import { gitActionSchema } from '../git-actions/git-actions.ts';
+import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { oidSchema } from '../shared/oid.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
+import { worktreeIdSchema } from '../shared/worktree-params.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
-import {
-  gitChangeSchema,
-  gitChangeSelectionSchema,
-  gitPathSchema,
-  gitWorktreeParamsSchema,
-} from './git-status.ts';
+import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
 
-export const fileChangeSchema = z.strictObject({
-  path: gitPathSchema,
-  fingerprint: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/)
-    .nullable(),
+// Duplicated from git-actions/git-actions.ts so this folder imports only shared.
+export const gitActionSchema = z.enum([
+  'fetch',
+  'pull',
+  'push',
+  'commit',
+  'amend',
+  'stash-create',
+  'stash-apply',
+  'stash-pop',
+  'discard',
+  'switch-branch',
+  'create-branch',
+]);
+
+export const fileChangeSchema = z.object({
+  path: relativePathSchema,
+  fingerprint: fingerprintSchema.nullable(),
   comparisons: z.array(gitChangeSchema).min(1),
 });
 
-export const changeListBranchSchema = z.strictObject({
+export const changeListBranchSchema = z.object({
   name: z.string().nullable(),
   upstream: z.string().nullable(),
   ahead: z.number().int().nonnegative(),
   behind: z.number().int().nonnegative(),
 });
 
-export const changesResponseSchema = z.strictObject({
+export const readChangesResponseSchema = z.object({
   environmentId: z.uuid(),
-  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
-  statusToken: z.string().regex(/^[a-f0-9]{64}$/),
-  headOid: z
-    .string()
-    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-    .nullable(),
+  worktreeId: worktreeIdSchema,
+  statusToken: fingerprintSchema,
+  headOid: oidSchema.nullable(),
   inProgress: z.enum(['merge', 'rebase']).nullable(),
-  mergeHeadOid: z
-    .string()
-    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
-    .nullable(),
+  mergeHeadOid: oidSchema.nullable(),
   branch: changeListBranchSchema.nullable(),
   interrupted: z
-    .strictObject({
+    .object({
       requestId: z.uuid(),
       action: gitActionSchema,
       gitState: z.string(),
@@ -48,13 +52,13 @@ export const changesResponseSchema = z.strictObject({
   changes: z.array(fileChangeSchema).max(2000),
 });
 
-export const changeDiffsRequestSchema = z.strictObject({
-  expectedStatusToken: z.string().regex(/^[a-f0-9]{64}$/),
+export const readChangeDiffsRequestSchema = z.strictObject({
+  expectedStatusToken: fingerprintSchema,
   expectedFiles: z
     .array(
       z.strictObject({
-        path: gitPathSchema,
-        fingerprint: fileChangeSchema.shape.fingerprint,
+        path: relativePathSchema,
+        fingerprint: fingerprintSchema.nullable(),
       }),
     )
     .min(1)
@@ -62,37 +66,46 @@ export const changeDiffsRequestSchema = z.strictObject({
   selections: z.array(gitChangeSelectionSchema).min(1).max(200),
 });
 
-export const changeDiffsResponseSchema = z.strictObject({
+export const readChangeDiffsResponseSchema = z.object({
   environmentId: z.uuid(),
-  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
-  statusToken: z.string().regex(/^[a-f0-9]{64}$/),
+  worktreeId: worktreeIdSchema,
+  statusToken: fingerprintSchema,
   diffs: z.array(
-    z.strictObject({
+    z.object({
       selection: gitChangeSelectionSchema,
       content: gitDiffContentSchema,
     }),
   ),
 });
 
-export const changeLinesQuerySchema = z.strictObject({
-  path: gitPathSchema,
+export const readChangeLinesQuerySchema = z.strictObject({
+  path: relativePathSchema,
   from: z.coerce.number().int().min(1),
   to: z.coerce.number().int().min(1),
   at: z.enum(['head', 'worktree']),
 });
 
-export const changeLinesResponseSchema = z.strictObject({
+export const readChangeLinesResponseSchema = z.object({
   environmentId: z.uuid(),
-  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
+  worktreeId: worktreeIdSchema,
   at: z.enum(['head', 'worktree']),
-  path: gitPathSchema,
+  path: relativePathSchema,
   from: z.number().int().nonnegative(),
   to: z.number().int().nonnegative(),
   lines: z.array(z.string()),
 });
 
-export type FileChange = z.infer<typeof fileChangeSchema>;
-export type ChangesResponse = z.infer<typeof changesResponseSchema>;
-export type ChangeDiffsRequest = z.infer<typeof changeDiffsRequestSchema>;
-export type ChangeDiffsResponse = z.infer<typeof changeDiffsResponseSchema>;
-export type ChangeLinesResponse = z.infer<typeof changeLinesResponseSchema>;
+export type GitAction = z.output<typeof gitActionSchema>;
+export type FileChange = z.output<typeof fileChangeSchema>;
+export type ChangeListBranch = z.output<typeof changeListBranchSchema>;
+export type ReadChangesResponse = z.output<typeof readChangesResponseSchema>;
+export type ReadChangeDiffsRequest = z.output<
+  typeof readChangeDiffsRequestSchema
+>;
+export type ReadChangeDiffsResponse = z.output<
+  typeof readChangeDiffsResponseSchema
+>;
+export type ReadChangeLinesQuery = z.output<typeof readChangeLinesQuerySchema>;
+export type ReadChangeLinesResponse = z.output<
+  typeof readChangeLinesResponseSchema
+>;

@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  changeDiffsRequestSchema,
-  changeDiffsResponseSchema,
-  gitWorktreeParamsSchema,
+  readChangeDiffsRequestSchema,
+  readChangeDiffsResponseSchema,
 } from '@porcelain/contracts/changes';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ReadChangeDiffsController } from '../../../controllers/read-change-diffs-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,9 +17,9 @@ export function readChangeDiffs(
     '/worktrees/:worktreeId/changes/diffs',
     {
       schema: {
-        params: gitWorktreeParamsSchema,
-        body: changeDiffsRequestSchema,
-        response: { ...errorResponses, 200: changeDiffsResponseSchema },
+        params: worktreeParamsSchema,
+        body: readChangeDiffsRequestSchema,
+        response: { ...errorResponses, 200: readChangeDiffsResponseSchema },
       },
     },
     async (request) =>

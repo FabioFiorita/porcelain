@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commitPageQuerySchema,
-  commitPageResponseSchema,
-  historyParamsSchema,
+  listCommitsQuerySchema,
+  listCommitsResponseSchema,
 } from '@porcelain/contracts/changes';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ListCommitsController } from '../../../controllers/list-commits-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -17,14 +17,18 @@ export function listCommits(
     '/worktrees/:worktreeId/commits',
     {
       schema: {
-        params: historyParamsSchema,
-        querystring: commitPageQuerySchema,
-        response: { ...errorResponses, 200: commitPageResponseSchema },
+        params: worktreeParamsSchema,
+        querystring: listCommitsQuerySchema,
+        response: { ...errorResponses, 200: listCommitsResponseSchema },
       },
     },
     async (request) =>
       options.controller.execute(
-        { ...request.params, ...request.query },
+        {
+          ...request.params,
+          ...request.query,
+          after: request.query.after?.split(','),
+        },
         { signal: request.disconnected },
       ),
   );

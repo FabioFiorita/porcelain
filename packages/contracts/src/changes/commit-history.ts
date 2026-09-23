@@ -1,29 +1,21 @@
 import { z } from 'zod';
-import { worktreeIdSchema } from '../projects/worktree-id.ts';
+import { oidListSchema, oidSchema } from '../shared/oid.ts';
 
-export const commitOidSchema = z
-  .string()
-  .regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/);
-export const historyParamsSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
-});
-export const commitPageQuerySchema = z.strictObject({
+export const listCommitsQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
-  after: z
-    .string()
-    .regex(/^[0-9a-f]{40}(?:[0-9a-f]{24})?(?:,[0-9a-f]{40}(?:[0-9a-f]{24})?)*$/)
-    .transform((value) => value.split(','))
-    .optional(),
-  tip: commitOidSchema.optional(),
+  after: oidListSchema.optional(),
+  tip: oidSchema.optional(),
 });
-const headSchema = z.discriminatedUnion('kind', [
+
+const commitHeadSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('attached'), ref: z.string() }),
   z.object({ kind: z.literal('detached') }),
   z.object({ kind: z.literal('unborn'), ref: z.string() }),
 ]);
+
 export const commitSummarySchema = z.object({
-  oid: commitOidSchema,
-  parentOids: z.array(commitOidSchema),
+  oid: oidSchema,
+  parentOids: z.array(oidSchema),
   author: z.object({ name: z.string(), timestamp: z.string() }),
   subject: z.string(),
   subjectTruncated: z.boolean(),
@@ -31,14 +23,18 @@ export const commitSummarySchema = z.object({
   bodyTruncated: z.boolean(),
   refs: z.array(z.string()),
 });
-export const commitPageResponseSchema = z.object({
+
+export const listCommitsResponseSchema = z.object({
   snapshot: z
-    .object({ tipOid: commitOidSchema.nullable(), head: headSchema })
+    .object({ tipOid: oidSchema.nullable(), head: commitHeadSchema })
     .nullable(),
   commits: z.array(commitSummarySchema).max(100),
-  nextAfter: z.array(commitOidSchema).max(100).nullable(),
-  tip: commitOidSchema.nullable(),
+  nextAfter: z.array(oidSchema).max(100).nullable(),
+  tip: oidSchema.nullable(),
   boundary: z.enum(['shallow', 'wide']).nullable(),
   restarted: z.boolean(),
 });
-export type CommitPageResponse = z.infer<typeof commitPageResponseSchema>;
+
+export type ListCommitsQuery = z.output<typeof listCommitsQuerySchema>;
+export type CommitSummary = z.output<typeof commitSummarySchema>;
+export type ListCommitsResponse = z.output<typeof listCommitsResponseSchema>;

@@ -1,4 +1,4 @@
-import type { CommitPageResponse } from '@porcelain/contracts/changes';
+import type { ListCommitsResponse } from '@porcelain/contracts/changes';
 import type { CommitHistoryReader } from '../runtime/commit-history-reader.ts';
 
 type RunWorktreeRead = <T>(
@@ -24,7 +24,7 @@ export class ListCommitsController {
       tip?: string | undefined;
     },
     context: { signal?: AbortSignal | undefined },
-  ): Promise<CommitPageResponse> {
+  ): Promise<ListCommitsResponse> {
     const { worktreeId, limit, after, tip } = input;
     return this.run(
       worktreeId,

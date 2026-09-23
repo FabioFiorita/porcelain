@@ -1,9 +1,9 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  previewAssetsRequestSchema,
-  previewAssetsResponseSchema,
-  worktreeParamsSchema,
+  readPreviewAssetsRequestSchema,
+  readPreviewAssetsResponseSchema,
 } from '@porcelain/contracts/files';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ReadPreviewAssetsController } from '../../../controllers/read-preview-assets-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -18,8 +18,8 @@ export function readPreviewAssets(
     {
       schema: {
         params: worktreeParamsSchema,
-        body: previewAssetsRequestSchema,
-        response: { ...errorResponses, 200: previewAssetsResponseSchema },
+        body: readPreviewAssetsRequestSchema,
+        response: { ...errorResponses, 200: readPreviewAssetsResponseSchema },
       },
     },
     async (request) =>

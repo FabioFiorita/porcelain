@@ -1,4 +1,4 @@
-import type { ChangesResponse } from '@porcelain/contracts/changes';
+import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import type { ReadWorktreeChangesService } from '@porcelain/changes/services';
 
 type RunWorktreeRead = <T>(
@@ -8,7 +8,7 @@ type RunWorktreeRead = <T>(
 ) => Promise<T>;
 
 type InterruptedAction = Pick<
-  NonNullable<ChangesResponse['interrupted']>,
+  NonNullable<ReadChangesResponse['interrupted']>,
   'requestId' | 'action'
 >;
 
@@ -43,7 +43,7 @@ export class ReadChangesController {
   execute(
     input: { worktreeId: string },
     context: { signal?: AbortSignal },
-  ): Promise<ChangesResponse> {
+  ): Promise<ReadChangesResponse> {
     const { worktreeId } = input;
     return this.runRead(
       worktreeId,

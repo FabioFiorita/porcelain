@@ -1,30 +1,40 @@
 import { z } from 'zod';
-import { gitPathSchema } from '../changes/git-status.ts';
-export const commitModelsSchema = z.array(
-  z.strictObject({ id: z.string(), label: z.string() }),
+import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
+
+export const listCommitModelsResponseSchema = z.array(
+  z.object({ id: z.string(), label: z.string() }),
 );
-export const commitDraftRequestSchema = z.strictObject({
+
+export const generateCommitDraftRequestSchema = z.strictObject({
   mode: z.enum(['message', 'groups']),
   model: z.string().min(1).max(160),
-  expectedStatusToken: z.string().regex(/^[a-f0-9]{64}$/),
-  paths: z.array(gitPathSchema).min(1).max(2000),
+  expectedStatusToken: fingerprintSchema,
+  paths: z.array(relativePathSchema).min(1).max(2000),
 });
-export const commitDraftResponseSchema = z.strictObject({
+export const generateCommitDraftResponseSchema = z.object({
   groups: z
     .array(
-      z.strictObject({
+      z.object({
         message: z.string().min(1).max(16384),
-        paths: z.array(gitPathSchema).min(1).max(2000),
+        paths: z.array(relativePathSchema).min(1).max(2000),
       }),
     )
     .min(1)
     .max(20),
   expectedFiles: z
     .array(
-      z.strictObject({
-        path: gitPathSchema,
-        fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
-      }),
+      z.object({ path: relativePathSchema, fingerprint: fingerprintSchema }),
     )
     .max(2000),
 });
+
+export type ListCommitModelsResponse = z.output<
+  typeof listCommitModelsResponseSchema
+>;
+export type GenerateCommitDraftRequest = z.output<
+  typeof generateCommitDraftRequestSchema
+>;
+export type GenerateCommitDraftResponse = z.output<
+  typeof generateCommitDraftResponseSchema
+>;

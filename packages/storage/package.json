@@ -11,7 +11,8 @@
     "./reviews": "./src/repositories/reviews/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/storage"
   },
   "dependencies": {
     "@porcelain/access": "workspace:*",

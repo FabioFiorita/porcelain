@@ -1,8 +1,8 @@
-import type { ProjectDiscoveryResponse } from '@porcelain/contracts/projects';
+import type { DiscoverProjectsResponse } from '@porcelain/contracts/projects';
 
 type DiscoverProjects = (
   signal?: AbortSignal,
-) => Promise<ProjectDiscoveryResponse>;
+) => Promise<DiscoverProjectsResponse>;
 
 export class DiscoverProjectsController {
   private readonly discoverProjects: DiscoverProjects;
@@ -13,7 +13,7 @@ export class DiscoverProjectsController {
 
   execute(context: {
     signal?: AbortSignal;
-  }): Promise<ProjectDiscoveryResponse> {
+  }): Promise<DiscoverProjectsResponse> {
     return this.discoverProjects(context.signal);
   }
 }

@@ -3,8 +3,12 @@
     "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2024"],
-    "types": ["node"],
+    "lib": [
+      "ES2024"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -19,8 +23,10 @@
     "noEmit": true
   },
   "include": [
+    "vitest.config.ts",
     "scripts/**/*.ts",
     ".agents/skills/server-verify/scripts/**/*.ts",
+    ".agents/skills/server-verify/feature-map/**/*.ts",
     "architecture/**/*.ts",
     "apps/server/src/adapters/files/node-opendir.d.ts"
   ]

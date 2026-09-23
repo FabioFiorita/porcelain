@@ -13,3 +13,5 @@ export const gitDiffContentSchema = z.discriminatedUnion('kind', [
     ]),
   }),
 ]);
+
+export type GitDiffContent = z.output<typeof gitDiffContentSchema>;

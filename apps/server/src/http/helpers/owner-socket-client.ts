@@ -1,11 +1,11 @@
 import { request as httpRequest } from 'node:http';
 import {
-  type OwnerStatusResponse,
-  ownerStatusSchema,
+  readOwnerStatusResponseSchema,
+  type ReadOwnerStatusResponse,
 } from '@porcelain/contracts/access';
 
 export type OwnerProbe =
-  | { kind: 'running'; status: OwnerStatusResponse }
+  | { kind: 'running'; status: ReadOwnerStatusResponse }
   | { kind: 'absent' }
   | { kind: 'unreadable'; reason: string };
 
@@ -38,7 +38,7 @@ export function probeOwnerSocket(
             );
             return;
           }
-          const parsed = ownerStatusSchema.safeParse(
+          const parsed = readOwnerStatusResponseSchema.safeParse(
             parseJson(Buffer.concat(chunks).toString('utf8')),
           );
           resolve(

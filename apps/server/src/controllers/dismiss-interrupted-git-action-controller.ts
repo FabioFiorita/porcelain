@@ -1,6 +1,6 @@
 import type { GitActionScope } from '@porcelain/git-actions/models';
 import type { DismissInterruptedGitActionService } from '@porcelain/git-actions/services';
-import type { Lanes } from '../runtime/operation-runner.ts';
+import type { Lanes } from '../runtime/lanes.ts';
 
 export class DismissInterruptedGitActionController {
   private readonly lanes: Lanes;

@@ -1,8 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import {
-  reviewParamsSchema,
-  reviewReadResponseSchema,
-} from '@porcelain/contracts/reviews';
+import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ReadPublishedReviewController } from '../../../controllers/read-published-review-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -16,8 +14,8 @@ export function readPublishedReview(
     '/worktrees/:worktreeId/review',
     {
       schema: {
-        params: reviewParamsSchema,
-        response: { ...errorResponses, 200: reviewReadResponseSchema },
+        params: worktreeParamsSchema,
+        response: { ...errorResponses, 200: readPublishedReviewResponseSchema },
       },
     },
     async (request) => ({

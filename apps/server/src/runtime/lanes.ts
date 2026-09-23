@@ -124,10 +124,9 @@ export class Lanes {
 
   constructor(options: LaneOptions) {
     this.capacity = options.readCapacity ?? 4;
+    const { deadlineMs } = options;
     this.deadlineMs =
-      typeof options.deadlineMs === 'function'
-        ? options.deadlineMs
-        : () => options.deadlineMs as number;
+      typeof deadlineMs === 'function' ? deadlineMs : () => deadlineMs;
     this.closeResources = options.closeResources ?? (() => undefined);
   }
 

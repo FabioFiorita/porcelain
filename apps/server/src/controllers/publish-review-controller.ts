@@ -3,7 +3,7 @@ import type {
   ReadChangesResult,
 } from '@porcelain/changes/models';
 import type { ReadTextFileService } from '@porcelain/files/services';
-import type { ReviewResponse } from '@porcelain/contracts/reviews';
+import type { PublishedReview } from '@porcelain/contracts/reviews';
 import type {
   ReviewPatch,
   ReviewPublication,
@@ -65,7 +65,7 @@ export class PublishReviewController {
   execute(
     input: { worktreeId: string; review: ReviewPublication },
     context: { signal?: AbortSignal | undefined },
-  ): Promise<ReviewResponse> {
+  ): Promise<PublishedReview> {
     const { worktreeId } = input;
     return this.runForWorktree(async (signal) => {
       await this.worktrees.forWriting(worktreeId, signal);

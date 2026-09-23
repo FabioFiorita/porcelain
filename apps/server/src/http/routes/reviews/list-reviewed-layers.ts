@@ -1,6 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { gitWorktreeParamsSchema } from '@porcelain/contracts/changes';
-import { reviewedLayerMarksResponseSchema } from '@porcelain/contracts/reviews';
+import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ListReviewedLayersController } from '../../../controllers/list-reviewed-layers-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -14,8 +14,8 @@ export function listReviewedLayers(
     '/worktrees/:worktreeId/reviewed-layers',
     {
       schema: {
-        params: gitWorktreeParamsSchema,
-        response: { ...errorResponses, 200: reviewedLayerMarksResponseSchema },
+        params: worktreeParamsSchema,
+        response: { ...errorResponses, 200: listReviewedLayersResponseSchema },
       },
     },
     async (request) =>

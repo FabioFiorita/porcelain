@@ -1,7 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  branchesResponseSchema,
   gitActionScopeSchema,
+  listGitBranchesResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
 import type { ListGitBranchesController } from '../../../controllers/list-git-branches-controller.ts';
@@ -17,7 +17,7 @@ export function listBranches(
     {
       schema: {
         params: gitActionScopeSchema,
-        response: { ...errorResponses, 200: branchesResponseSchema },
+        response: { ...errorResponses, 200: listGitBranchesResponseSchema },
       },
     },
     async (request) =>
