@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
 import {
   classify,
   forbiddenExternal,
@@ -13,28 +14,36 @@ import {
   type Classification,
 } from '../architecture/policy.ts';
 
-type Dependency = {
-  module: string;
-  resolved: string;
-  couldNotResolve: boolean;
-};
+const dependencySchema = z.object({
+  module: z.string(),
+  resolved: z.string(),
+  couldNotResolve: z.boolean(),
+});
 
-type CruiseReport = {
-  modules: { source: string; dependencies: Dependency[] }[];
-  summary: {
-    totalCruised: number;
-    totalDependenciesCruised: number;
-    violations: {
-      from: string;
-      to: string;
-      rule: { name: string; severity: string };
-    }[];
-  };
-};
+const cruiseReportSchema = z.object({
+  modules: z.array(
+    z.object({ source: z.string(), dependencies: z.array(dependencySchema) }),
+  ),
+  summary: z.object({
+    totalCruised: z.number(),
+    totalDependenciesCruised: z.number(),
+    violations: z.array(
+      z.object({
+        from: z.string(),
+        to: z.string(),
+        rule: z.object({ name: z.string(), severity: z.string() }),
+      }),
+    ),
+  }),
+});
+type CruiseReport = z.output<typeof cruiseReportSchema>;
 
 type Finding = { rule: string; from: string; to: string };
 
-type Manifest = { exports?: Record<string, string> };
+const manifestSchema = z.object({
+  exports: z.record(z.string(), z.string()).optional(),
+});
+type Manifest = z.output<typeof manifestSchema>;
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packageNames = readdirSync(join(repositoryRoot, 'packages'), {
@@ -81,7 +90,9 @@ function scan(sources: readonly string[]): CruiseReport {
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(result.stderr || result.stdout || 'Dependency scan failed');
-  const report = JSON.parse(result.stdout) as CruiseReport;
+  const report: CruiseReport = cruiseReportSchema.parse(
+    JSON.parse(result.stdout),
+  );
   const scanned = new Set(report.modules.map((module) => module.source));
   const missing = sources.filter((file) => !scanned.has(file));
   if (report.summary.totalCruised === 0 || missing.length > 0)
@@ -107,7 +118,7 @@ function scan(sources: readonly string[]): CruiseReport {
 function readManifest(name: string): Manifest | undefined {
   const path = join(repositoryRoot, 'packages', name, 'package.json');
   return existsSync(path)
-    ? (JSON.parse(readFileSync(path, 'utf8')) as Manifest)
+    ? manifestSchema.parse(JSON.parse(readFileSync(path, 'utf8')))
     : undefined;
 }
 
