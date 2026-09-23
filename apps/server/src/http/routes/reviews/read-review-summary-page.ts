@@ -8,7 +8,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import type { ReadReviewSummaryController } from '../../../controllers/read-review-summary-controller.ts';
 
-export function readReviewSummary(
+export function readReviewSummaryPage(
   server: FastifyInstance,
   options: { controller: Pick<ReadReviewSummaryController, 'execute'> },
 ) {
@@ -25,13 +25,8 @@ export function readReviewSummary(
         },
       },
     },
-    async (request, reply) => {
-      const summary = options.controller.execute(
-        { ...request.params, ...request.query },
-        { signal: request.disconnected },
-      );
-      if (summary === undefined) return reply.code(404).send(undefined);
-      return reply
+    async (request, reply) =>
+      reply
         .header('Cache-Control', 'private, no-store')
         .header(
           'Content-Security-Policy',
@@ -39,8 +34,14 @@ export function readReviewSummary(
         )
         .header('Referrer-Policy', 'no-referrer')
         .type('text/html; charset=utf-8')
-        .send(injectBridge(summary));
-    },
+        .send(
+          injectBridge(
+            options.controller.execute(
+              { ...request.params, ...request.query },
+              { signal: request.disconnected },
+            ),
+          ),
+        ),
   );
 }
 

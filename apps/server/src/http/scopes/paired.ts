@@ -43,8 +43,9 @@ import type { SetReviewedLayerController } from '../../controllers/set-reviewed-
 import {
   authenticate,
   type AuthenticateOptions,
-} from '../middlewares/authenticate.ts';
-import { preventCaching } from '../middlewares/prevent-caching.ts';
+} from '../hooks/authenticate.ts';
+import { preventCaching } from '../hooks/prevent-caching.ts';
+import { getBrowserSession } from '../routes/access/get-browser-session.ts';
 import { listCommits } from '../routes/changes/list-commits.ts';
 import { readCommitFiles } from '../routes/changes/read-commit-files.ts';
 import { readCommitDiffs } from '../routes/changes/read-commit-diffs.ts';
@@ -143,12 +144,15 @@ export type PairedControllers = {
   setReviewedLayerController: Pick<SetReviewedLayerController, 'execute'>;
 };
 
-export async function pairedRoutes(
+export async function pairedScope(
   server: FastifyInstance,
   options: { application: PairedControllers & AuthenticateOptions },
 ) {
   server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options.application));
+  server.register(getBrowserSession, {
+    controller: options.application.readInventoryController,
+  });
   server.register(runAction, {
     controller: options.application.runGitActionController,
   });

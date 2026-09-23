@@ -2,7 +2,7 @@ import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
   PublishedReview,
   PublishReviewRequest,
-  PublishReviewResponse,
+  PublishReviewToolResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ResolvedReview } from '@porcelain/reviews/models';
@@ -58,9 +58,9 @@ export class PublishReviewController {
   async execute(
     input: WorktreeParams & { review: PublishReviewRequest },
     context: OperationContext,
-  ): Promise<PublishReviewResponse> {
+  ): Promise<PublishReviewToolResponse> {
     const { worktreeId, review: draft } = input;
-    const resolved = await this.lanes.run(
+    const { resolved, warnings } = await this.lanes.run(
       this.laneKeys.worktree(worktreeId),
       'write',
       async ({ signal }) => {
@@ -72,7 +72,7 @@ export class PublishReviewController {
           { worktreeId, layers: draft.layers },
           signal,
         );
-        const review = this.publishReview.execute({
+        const { review, warnings } = this.publishReview.execute({
           worktreeId,
           draft,
           files: pointed,
@@ -89,18 +89,19 @@ export class PublishReviewController {
           { worktreeId, layers: review.layers, changes },
           signal,
         );
-        return this.resolvePublishedReview.execute({
+        const resolved = this.resolvePublishedReview.execute({
           environmentId: this.readEnvironment.execute({}).environmentId,
           review,
           files,
           changes,
           patches,
         });
+        return { resolved, warnings };
       },
       { callerSignal: context.signal },
     );
     this.events.worktreeChanged(worktreeId, 'review');
-    return { review: this.presented(resolved) };
+    return { review: this.presented(resolved), warnings };
   }
 
   private presented(resolved: ResolvedReview): PublishedReview {

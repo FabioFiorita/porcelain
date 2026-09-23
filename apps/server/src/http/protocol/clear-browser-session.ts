@@ -1,30 +1,21 @@
+import { httpErrors } from '@fastify/sensible';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { clearBrowserSessionResponseSchema } from '@porcelain/contracts/access';
-import { apiErrorSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import { clearDeviceCookie } from '../middlewares/device-cookie.ts';
-import { preventCaching } from '../middlewares/prevent-caching.ts';
+import { clearDeviceCookie } from '../hooks/device-cookie.ts';
+import { errorResponses } from '../schemas/error-responses.ts';
 
-export async function browserSessionRoutes(server: FastifyInstance) {
-  server.addHook('onRequest', preventCaching);
+export function clearBrowserSession(server: FastifyInstance) {
   server.withTypeProvider<ZodTypeProvider>().delete(
     '/session',
     {
       schema: {
-        response: {
-          403: apiErrorSchema,
-          204: clearBrowserSessionResponseSchema,
-        },
+        response: { ...errorResponses, 204: clearBrowserSessionResponseSchema },
       },
     },
     async (request, reply) => {
-      if (request.headers['x-porcelain-browser'] !== '1') {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Browser request header required',
-        });
-      }
+      if (request.headers['x-porcelain-browser'] !== '1')
+        throw httpErrors.forbidden('Browser request header required');
       clearDeviceCookie(reply);
       return reply.code(204).send(undefined);
     },

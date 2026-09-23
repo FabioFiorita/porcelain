@@ -1,4 +1,4 @@
-import type { PairingReach } from '@porcelain/access/models';
+import type { PairingReach, RuntimeStatus } from '@porcelain/access/models';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import type {
   CommitDraftWriter,
@@ -21,6 +21,7 @@ import { createGitActionStore } from '@porcelain/storage/git-actions';
 import { createInventoryStore } from '@porcelain/storage/projects';
 import { DeviceDirectoryAdapter } from '../adapters/access/device-directory-adapter.ts';
 import { PairingReachAdapter } from '../adapters/access/pairing-reach-adapter.ts';
+import { RuntimeStatusReaderAdapter } from '../adapters/access/runtime-status-reader-adapter.ts';
 import { LiveUpdatesAdapter } from '../adapters/events/live-updates-adapter.ts';
 import { CommitGeneratorAdapter } from '../adapters/git-actions/commit-generator-adapter.ts';
 import { LaneKeysAdapter } from '../adapters/projects/lane-keys-adapter.ts';
@@ -64,6 +65,7 @@ export type ApplicationOptions = {
   inspectionGit?: InspectionFactory;
   projectFolderReader?: ProjectFolderReader;
   pairingReach?: () => PairingReach;
+  runtimeStatus?: () => RuntimeStatus;
   commitGenerator?: CommitDraftWriter & CommitModelReader;
   now?: () => string;
   signal?: AbortSignal;
@@ -132,6 +134,14 @@ export async function openApplication(options: ApplicationOptions) {
     deviceActivityStore: devices,
     pairingReachReader: new PairingReachAdapter(
       options.pairingReach ?? (() => NO_REACH),
+    ),
+    runtimeStatusReader: new RuntimeStatusReaderAdapter(
+      options.runtimeStatus ??
+        (() => ({
+          address: '',
+          dataDirectory: options.dataDirectory,
+          pid: process.pid,
+        })),
     ),
   });
   const projects = composeProjects({
@@ -202,12 +212,15 @@ export async function openApplication(options: ApplicationOptions) {
 
   return {
     authenticateDeviceController: access.authenticateDeviceController,
+    checkRequestOriginController: access.checkRequestOriginController,
+    readOwnerStatusController: access.readOwnerStatusController,
     issuePairingController: access.issuePairingController,
     listAccessController: access.listAccessController,
     readHealthController: access.readHealthController,
     redeemPairingController: access.redeemPairingController,
     revokeAccessController: access.revokeAccessController,
     readInventoryController: projects.readInventoryController,
+    resolveWorktreeByPathController: projects.resolveWorktreeByPathController,
     registerProjectController: projects.registerProjectController,
     renameProjectController: projects.renameProjectController,
     removeProjectController: projects.removeProjectController,

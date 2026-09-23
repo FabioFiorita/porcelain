@@ -9,6 +9,7 @@
     "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/server"
   },
   "dependencies": {
+    "@fastify/sensible": "6.0.5",
     "@fastify/type-provider-zod": "1.0.0",
     "@fastify/websocket": "11.3.1",
     "@modelcontextprotocol/sdk": "1.30.0",

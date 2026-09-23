@@ -1,3 +1,6 @@
+import { httpErrors } from '@fastify/sensible';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+
 const capacity = 10;
 const refillPerMs = capacity / 60_000;
 const globalCapacity = 60;
@@ -60,4 +63,19 @@ export class AttemptLimit {
         at: bucket.at,
       });
   }
+}
+
+export function takeAttempt(limit: AttemptLimit) {
+  return async (request: FastifyRequest) => {
+    if (!limit.take(request.ip))
+      throw httpErrors.tooManyRequests(
+        'Too many pairing attempts. Wait a moment and try again.',
+      );
+  };
+}
+
+export function refundSucceededAttempt(limit: AttemptLimit) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (reply.statusCode === 200) limit.refund(request.ip);
+  };
 }

@@ -4,6 +4,10 @@ export type {
   AuthenticatedDevice,
 } from './authenticate-device.ts';
 export type {
+  CheckRequestOriginInput,
+  CheckRequestOriginResult,
+} from './check-request-origin.ts';
+export type {
   Credential,
   CredentialKind,
   CredentialParts,
@@ -35,3 +39,4 @@ export type {
   RedeemPairingResult,
 } from './redeem-pairing.ts';
 export type { RevokeAccessInput, RevokeAccessResult } from './revoke-access.ts';
+export type { ReadOwnerStatusInput, RuntimeStatus } from './runtime-status.ts';

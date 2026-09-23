@@ -5,14 +5,12 @@ import {
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import type { IssuePairingController } from '../../../controllers/issue-pairing-controller.ts';
-import { preventCaching } from '../../middlewares/prevent-caching.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
-export async function issuePairing(
+export function issuePairing(
   server: FastifyInstance,
   options: { controller: Pick<IssuePairingController, 'execute'> },
 ) {
-  server.addHook('onRequest', preventCaching);
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
     '/pairings',

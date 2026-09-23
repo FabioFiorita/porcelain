@@ -1,3 +1,4 @@
+import { ReviewSummaryNotFoundError } from '../errors/review-summary-not-found-error.ts';
 import type {
   ReadReviewSummaryInput,
   ReadReviewSummaryResult,
@@ -30,7 +31,7 @@ export class ReadReviewSummaryService {
         input.signature,
       )
     )
-      return undefined;
+      throw new ReviewSummaryNotFoundError();
     return summary.summaryHtml;
   }
 }

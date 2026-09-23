@@ -1,40 +1,78 @@
-import { readStartupSettings } from '../config/startup-settings.ts';
+import { homedir } from 'node:os';
+import { parseCliArguments } from '../cli/arguments.ts';
+import { runCommand } from '../cli/commands.ts';
+import type { StartServer } from '../cli/launcher.ts';
+import { OwnerRequestError } from '../cli/owner-client.ts';
+import { ServiceCommandError } from '../cli/service.ts';
+import { installShutdownSignals } from '../cli/signals.ts';
+import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
+import { SocketPathTooLongError } from '../config/errors/socket-path-too-long-error.ts';
+import type { PorcelainEnvironment } from '../config/startup-settings.ts';
+import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
+import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
+import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
+import { startRuntime } from './runtime.ts';
 
-const actionable = new Set([
-  'DataDirectoryOwnedError',
-  'DataDirectoryInsecureError',
-  'OwnerSocketUnreadableError',
-  'SocketPathTooLongError',
-]);
+const actionableErrors = [
+  ServeConfigurationError,
+  OwnerRequestError,
+  ServiceCommandError,
+  DataDirectoryOwnedError,
+  DataDirectoryInsecureError,
+  OwnerSocketUnreadableError,
+  SocketPathTooLongError,
+];
 
-const shutdown = new AbortController();
-const requestShutdown = () => shutdown.abort();
-process.on('SIGINT', requestShutdown);
-process.on('SIGTERM', requestShutdown);
+export type CliDependencies = {
+  homeDirectory?: string;
+  webRoot?: string;
+  startServer?: StartServer;
+  stdout?: (message: string) => void;
+  stderr?: (message: string) => void;
+};
 
-try {
-  const settings = readStartupSettings(process.env);
-  const { startRuntime } = await import('./runtime.ts');
-  const server = await startRuntime(settings, shutdown.signal);
-  if (!shutdown.signal.aborted) {
-    process.stdout.write(`${JSON.stringify({ address: server.address })}\n`);
-    await new Promise<void>((resolve) => {
-      shutdown.signal.addEventListener('abort', () => resolve(), {
-        once: true,
-      });
-    });
-  }
-  await server.close();
-} catch (error) {
-  if (error !== shutdown.signal.reason) {
-    process.stderr.write(
-      error instanceof Error && actionable.has(error.name)
-        ? `${error.message}\n`
-        : 'Server startup or shutdown failed. Check configuration, data directory, and port availability.\n',
-    );
-    process.exitCode = 1;
-  }
-} finally {
-  process.off('SIGINT', requestShutdown);
-  process.off('SIGTERM', requestShutdown);
+function failureMessage(error: unknown): string {
+  return actionableErrors.some((actionable) => error instanceof actionable) &&
+    error instanceof Error
+    ? error.message
+    : 'Porcelain could not start. Check the build, data directory, and port.';
 }
+
+export async function runCli(
+  args: readonly string[] = process.argv.slice(2),
+  environment: PorcelainEnvironment = process.env,
+  dependencies: CliDependencies = {},
+): Promise<void> {
+  const shutdown = new AbortController();
+  const stdout =
+    dependencies.stdout ?? ((message: string) => process.stdout.write(message));
+  const stderr =
+    dependencies.stderr ?? ((message: string) => process.stderr.write(message));
+  const removeShutdownSignals = installShutdownSignals(shutdown);
+  try {
+    const homeDirectory = dependencies.homeDirectory ?? homedir();
+    const command = parseCliArguments(
+      args,
+      environment,
+      homeDirectory,
+      dependencies.webRoot,
+    );
+    const exitCode = await runCommand(command, {
+      signal: shutdown.signal,
+      homeDirectory,
+      startServer: dependencies.startServer ?? startRuntime,
+      stdout,
+      stderr,
+    });
+    if (exitCode !== 0) process.exitCode = exitCode;
+  } catch (error) {
+    if (!shutdown.signal.aborted) {
+      stderr(`${failureMessage(error)}\n`);
+      process.exitCode = 1;
+    }
+  } finally {
+    removeShutdownSignals();
+  }
+}
+
+if (import.meta.main) await runCli();

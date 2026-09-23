@@ -8,11 +8,11 @@ import { WebSocket } from 'ws';
 import {
   authenticate,
   type AuthenticateOptions,
-} from '../middlewares/authenticate.ts';
+} from '../hooks/authenticate.ts';
 import {
   checkRequestOrigin,
-  type OriginPolicy,
-} from '../middlewares/request-origin.ts';
+  type RequestOriginOptions,
+} from '../hooks/request-origin.ts';
 import { callerOf } from '../principal.ts';
 
 const PING_MS = 30_000;
@@ -26,18 +26,15 @@ export type LiveUpdatesOptions = {
   };
 };
 
-export async function liveUpdateRoutes(
+export function liveUpdates(
   server: FastifyInstance,
-  options: AuthenticateOptions & LiveUpdatesOptions & OriginPolicy,
+  options: AuthenticateOptions & LiveUpdatesOptions & RequestOriginOptions,
 ) {
   server.get(
     '/live',
     {
       websocket: true,
-      onRequest: [
-        checkRequestOrigin(options, { requireSameOrigin: true }),
-        authenticate(options),
-      ],
+      onRequest: [checkRequestOrigin(options, true), authenticate(options)],
     },
     (socket, request) => {
       const principal = callerOf(request);

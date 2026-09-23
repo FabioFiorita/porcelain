@@ -24,6 +24,7 @@ import {
   RegisterProjectService,
   RemoveProjectService,
   RenameProjectService,
+  ResolveWorktreeByPathService,
   SetFilePreferenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
@@ -47,6 +48,7 @@ import { RefreshInventoryController } from '../controllers/refresh-inventory-con
 import { RegisterProjectController } from '../controllers/register-project-controller.ts';
 import { RemoveProjectController } from '../controllers/remove-project-controller.ts';
 import { RenameProjectController } from '../controllers/rename-project-controller.ts';
+import { ResolveWorktreeByPathController } from '../controllers/resolve-worktree-by-path-controller.ts';
 import { SetFilePreferenceController } from '../controllers/set-file-preference-controller.ts';
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
@@ -105,6 +107,13 @@ export function composeProjects(deps: ProjectsDependencies) {
       recordWorktreePresence,
       readWorktreeStatuses,
       new ComposeInventoryService(inventoryStore),
+      lanes,
+      laneKeys,
+    ),
+    resolveWorktreeByPathController: new ResolveWorktreeByPathController(
+      listRegisteredProjects,
+      listProjectWorktrees,
+      new ResolveWorktreeByPathService(),
       lanes,
       laneKeys,
     ),

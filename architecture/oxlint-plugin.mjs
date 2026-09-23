@@ -9,6 +9,8 @@ const controllerSource = /\/apps\/server\/src\/controllers\//;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
+const pageSource = /-page\.ts$/;
+const pageReplyMethods = new Set(['header', 'type']);
 const parseMethods = new Set([
   'parse',
   'parseAsync',
@@ -163,6 +165,71 @@ function handlerCall(handler) {
     body = body.body[0].argument;
   }
   return body?.type === 'CallExpression' ? body : undefined;
+}
+
+function isStringLiteral(node) {
+  return node.type === 'Literal' && typeof node.value === 'string';
+}
+
+function pageRenderers(program) {
+  return new Set(
+    program.body
+      .map((statement) =>
+        statement.type === 'ExportNamedDeclaration'
+          ? statement.declaration
+          : statement,
+      )
+      .filter(
+        (statement) =>
+          statement?.type === 'FunctionDeclaration' &&
+          statement.id &&
+          statement.params.length === 1,
+      )
+      .map((statement) => statement.id.name),
+  );
+}
+
+function pageSendArgument(handler) {
+  const call = handlerCall(handler);
+  const reply = parameterName(handler.params[1]);
+  if (
+    !call ||
+    !reply ||
+    call.callee.type !== 'MemberExpression' ||
+    call.callee.computed ||
+    memberName(call.callee) !== 'send' ||
+    call.arguments.length !== 1
+  )
+    return undefined;
+  let chain = call.callee.object;
+  while (chain.type === 'CallExpression') {
+    const callee = chain.callee;
+    if (
+      callee.type !== 'MemberExpression' ||
+      callee.computed ||
+      !pageReplyMethods.has(memberName(callee)) ||
+      chain.arguments.length === 0 ||
+      !chain.arguments.every(isStringLiteral)
+    )
+      return undefined;
+    chain = callee.object;
+  }
+  return chain.type === 'Identifier' && chain.name === reply
+    ? call.arguments[0]
+    : undefined;
+}
+
+function isPageBody(argument, renderers) {
+  if (argument?.type !== 'CallExpression') return false;
+  if (isControllerExecute(argument.callee)) return true;
+  const rendered = argument.arguments[0];
+  return (
+    argument.callee.type === 'Identifier' &&
+    renderers.has(argument.callee.name) &&
+    argument.arguments.length === 1 &&
+    rendered.type === 'CallExpression' &&
+    isControllerExecute(rendered.callee)
+  );
 }
 
 const specSource = /\.spec\.ts$/;
@@ -563,10 +630,15 @@ export default {
       create(context) {
         const path = normalizedFilename(context.filename);
         if (!routeSource.test(path)) return {};
+        const page = pageSource.test(path);
         let registrations = 0;
         let controllerCalls = 0;
+        let renderers = new Set();
         const contractSchemas = new Set();
         return {
+          Program(node) {
+            renderers = pageRenderers(node);
+          },
           ImportDeclaration(node) {
             if (
               typeof node.source.value !== 'string' ||
@@ -640,11 +712,18 @@ export default {
                 message:
                   'A feature route needs a literal path, imported contract schemas for input and output, and one arrow handler.',
               });
+            if (handler?.type !== 'ArrowFunctionExpression') return;
+            if (page) {
+              if (!isPageBody(pageSendArgument(handler), renderers))
+                context.report({
+                  node: handler,
+                  message:
+                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.controller.execute(...)) or .send(render(options.controller.execute(...))) where render is a one-parameter function declared in this file.',
+                });
+              return;
+            }
             const call = handlerCall(handler);
-            if (
-              handler?.type === 'ArrowFunctionExpression' &&
-              (!call || !isControllerExecute(call.callee))
-            )
+            if (!call || !isControllerExecute(call.callee))
               context.report({
                 node: handler,
                 message:
