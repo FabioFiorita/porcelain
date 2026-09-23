@@ -8,11 +8,6 @@ import {
   notInArray,
 } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { commentReads } from '../../db/schema/comment-reads.ts';
-import { commentThreads } from '../../db/schema/comment-threads.ts';
-import { reviewedFiles } from '../../db/schema/reviewed-files.ts';
-import { reviewedLayers } from '../../db/schema/reviewed-layers.ts';
-import { reviews } from '../../db/schema/reviews.ts';
 import { worktreePresence } from '../../db/schema/worktree-presence.ts';
 import type { WorktreePresenceStore } from '@porcelain/projects/ports';
 
@@ -69,21 +64,6 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
     if (worktreeIds.length === 0) return;
     this.db.transaction(
       (tx) => {
-        tx.delete(commentThreads)
-          .where(inArray(commentThreads.worktreeId, worktreeIds))
-          .run();
-        tx.delete(reviewedFiles)
-          .where(inArray(reviewedFiles.worktreeId, worktreeIds))
-          .run();
-        tx.delete(reviewedLayers)
-          .where(inArray(reviewedLayers.worktreeId, worktreeIds))
-          .run();
-        tx.delete(reviews)
-          .where(inArray(reviews.worktreeId, worktreeIds))
-          .run();
-        tx.delete(commentReads)
-          .where(inArray(commentReads.worktreeId, worktreeIds))
-          .run();
         tx.delete(worktreePresence)
           .where(inArray(worktreePresence.worktreeId, worktreeIds))
           .run();

@@ -12,6 +12,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check && node scripts/check-migrations.ts",
     "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/storage"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "drizzle-orm": "0.45.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "9.6.0"
+    "@types/better-sqlite3": "9.6.0",
+    "drizzle-kit": "0.31.10"
   }
 }

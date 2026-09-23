@@ -1,67 +1,70 @@
 import { asc, eq, max } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { environments } from '../../db/schema/environments.ts';
-import { projects } from '../../db/schema/projects.ts';
+import type { EnvironmentIdentityStore } from '@porcelain/access/ports';
 import type { Inventory, RegisteredProject } from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
+import { inventoryProjects } from '../../db/schema/inventory-projects.ts';
 import { MissingEnvironmentIdentityError } from '../../models/missing-environment-identity-error.ts';
 
 export class InventoryRepository implements InventoryStore {
   private readonly db: BetterSQLite3Database;
+  private readonly environmentIdentityStore: EnvironmentIdentityStore;
 
-  constructor(db: BetterSQLite3Database) {
+  constructor(
+    db: BetterSQLite3Database,
+    environmentIdentityStore: EnvironmentIdentityStore,
+  ) {
     this.db = db;
+    this.environmentIdentityStore = environmentIdentityStore;
   }
 
   markAllUnavailable(): void {
     this.db.transaction(
       (tx) => {
-        tx.update(projects).set({ available: false }).run();
+        tx.update(inventoryProjects).set({ available: false }).run();
       },
       { behavior: 'immediate' },
     );
   }
 
   read(): Inventory {
-    return this.db.transaction((tx) => {
-      const environment = tx.select().from(environments).get();
-      if (!environment) throw new MissingEnvironmentIdentityError();
-      return {
-        environmentId: environment.id,
-        projects: tx
-          .select()
-          .from(projects)
-          .orderBy(asc(projects.position))
-          .all()
-          .map((project) => ({
-            id: project.id,
-            name: project.name,
-            namedByOwner: project.namedByOwner,
-            commonDirectory: project.commonDirectory,
-            repositoryIdentity: project.repositoryIdentity,
-            available: project.available,
-          })),
-      };
-    });
+    const environmentId = this.environmentIdentityStore.environmentId();
+    if (environmentId === undefined)
+      throw new MissingEnvironmentIdentityError();
+    return {
+      environmentId,
+      projects: this.db
+        .select({
+          id: inventoryProjects.id,
+          name: inventoryProjects.name,
+          namedByOwner: inventoryProjects.namedByOwner,
+          commonDirectory: inventoryProjects.commonDirectory,
+          repositoryIdentity: inventoryProjects.repositoryIdentity,
+          available: inventoryProjects.available,
+        })
+        .from(inventoryProjects)
+        .orderBy(asc(inventoryProjects.position))
+        .all(),
+    };
   }
 
   save(project: RegisteredProject): void {
     this.db.transaction(
       (tx) => {
         const existing = tx
-          .select({ position: projects.position })
-          .from(projects)
-          .where(eq(projects.id, project.id))
+          .select({ position: inventoryProjects.position })
+          .from(inventoryProjects)
+          .where(eq(inventoryProjects.id, project.id))
           .get();
         const position =
           existing?.position ??
           (tx
-            .select({ position: max(projects.position) })
-            .from(projects)
+            .select({ position: max(inventoryProjects.position) })
+            .from(inventoryProjects)
             .get()?.position ?? 0) + 1;
-        tx.insert(projects)
+        tx.insert(inventoryProjects)
           .values({ ...project, position })
-          .onConflictDoUpdate({ target: projects.id, set: project })
+          .onConflictDoUpdate({ target: inventoryProjects.id, set: project })
           .run();
       },
       { behavior: 'immediate' },

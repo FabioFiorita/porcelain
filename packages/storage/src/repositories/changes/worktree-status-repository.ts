@@ -66,28 +66,34 @@ export class WorktreeStatusRepository implements WorktreeStatusStore {
   }
 
   markSeen(worktreeId: string, throughRevision: number): number {
-    return this.db.transaction((tx) => {
-      const current =
-        tx
-          .select({ seenThrough: commentReads.seenThrough })
-          .from(commentReads)
-          .where(eq(commentReads.worktreeId, worktreeId))
-          .get()?.seenThrough ?? 0;
-      const highest =
-        tx
-          .select({ revision: max(commentThreads.revision) })
-          .from(commentThreads)
-          .where(eq(commentThreads.worktreeId, worktreeId))
-          .get()?.revision ?? 0;
-      const seenThrough = Math.max(current, Math.min(throughRevision, highest));
-      tx.insert(commentReads)
-        .values({ worktreeId, seenThrough })
-        .onConflictDoUpdate({
-          target: commentReads.worktreeId,
-          set: { seenThrough },
-        })
-        .run();
-      return seenThrough;
-    });
+    return this.db.transaction(
+      (tx) => {
+        const current =
+          tx
+            .select({ seenThrough: commentReads.seenThrough })
+            .from(commentReads)
+            .where(eq(commentReads.worktreeId, worktreeId))
+            .get()?.seenThrough ?? 0;
+        const highest =
+          tx
+            .select({ revision: max(commentThreads.revision) })
+            .from(commentThreads)
+            .where(eq(commentThreads.worktreeId, worktreeId))
+            .get()?.revision ?? 0;
+        const seenThrough = Math.max(
+          current,
+          Math.min(throughRevision, highest),
+        );
+        tx.insert(commentReads)
+          .values({ worktreeId, seenThrough })
+          .onConflictDoUpdate({
+            target: commentReads.worktreeId,
+            set: { seenThrough },
+          })
+          .run();
+        return seenThrough;
+      },
+      { behavior: 'immediate' },
+    );
   }
 }

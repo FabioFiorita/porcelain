@@ -34,7 +34,11 @@ export class GitActionRepository
     this.db.transaction(
       (tx) => {
         tx.insert(gitActionReceipts)
-          .values({ requestId: receipt.requestId, value: receipt })
+          .values({
+            requestId: receipt.requestId,
+            projectId: receipt.projectId,
+            value: receipt,
+          })
           .run();
       },
       { behavior: 'immediate' },

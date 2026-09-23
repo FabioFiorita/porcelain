@@ -214,9 +214,6 @@ importers:
       '@types/ws':
         specifier: 8.18.1
         version: 8.18.1
-      drizzle-kit:
-        specifier: 0.31.10
-        version: 0.31.10
 
   apps/web:
     dependencies:
@@ -372,6 +369,9 @@ importers:
       '@types/better-sqlite3':
         specifier: 9.6.0
         version: 9.6.0
+      drizzle-kit:
+        specifier: 0.31.10
+        version: 0.31.10
 
 packages:
 
