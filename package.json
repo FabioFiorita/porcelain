@@ -13,7 +13,7 @@
     "format:server:check": "node scripts/server-style.ts format",
     "arch:check": "node scripts/architecture.ts check",
     "test": "vitest run --passWithNoTests",
-    "dev": "node scripts/dev-server.ts",
+    "dev": "pnpm dev:server",
     "dev:server": "node scripts/dev-server.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",

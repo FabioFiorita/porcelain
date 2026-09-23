@@ -25,6 +25,7 @@ const roots = [
   ...(mode === 'lint' ? ['architecture/policy.ts'] : ['architecture']),
   'scripts',
   '.agents/skills/server-verify/scripts',
+  '.agents/skills/server-verify/feature-map',
 ].filter((root) => existsSync(root));
 const executable = join(
   'node_modules',

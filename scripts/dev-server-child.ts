@@ -66,8 +66,12 @@ try {
   });
   if (!paired.ok)
     throw new Error(`Development pairing failed: ${paired.status}`);
-  const { credential } = (await paired.json()) as { credential?: string };
-  if (!credential)
+  const pairing: unknown = await paired.json();
+  const credential =
+    pairing !== null && typeof pairing === 'object' && 'credential' in pairing
+      ? pairing.credential
+      : undefined;
+  if (typeof credential !== 'string' || credential === '')
     throw new Error('Development pairing returned no credential');
   const registered = await fetch(`${server.address}/api/projects`, {
     method: 'POST',

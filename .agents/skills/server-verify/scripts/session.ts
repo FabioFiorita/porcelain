@@ -1,0 +1,571 @@
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { readFile, writeFile } from 'node:fs/promises';
+import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
+import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
+import {
+  isRecord,
+  record,
+  type HttpRequest,
+  type HttpResponse,
+  type LiveConnection,
+  type Phase,
+  type Session,
+} from './feature.ts';
+
+type HttpStep = {
+  phase: Phase;
+  kind: 'http';
+  target: 'network' | 'owner';
+  request: {
+    method: string;
+    path: string;
+    headers: Record<string, string>;
+    body?: unknown;
+  };
+  response?: HttpResponse;
+  error?: string;
+};
+type GitStep = {
+  phase: Phase;
+  kind: 'git';
+  args: string[];
+  output?: string;
+  error?: string;
+};
+type FileStep = { phase: Phase; kind: 'file'; path: string; bytes: number };
+type LiveStep = {
+  phase: Phase;
+  kind: 'live';
+  opened: boolean;
+  sent: unknown[];
+  received: unknown[];
+  closed?: { code: number; reason: string };
+  error?: string;
+};
+export type Step = HttpStep | GitStep | FileStep | LiveStep;
+
+type Manifest = {
+  address: string;
+  repository: string;
+  socketPath: string;
+  credentialFile: string;
+};
+
+const execute = promisify(execFile);
+const quietHeaders = new Set([
+  'date',
+  'connection',
+  'keep-alive',
+  'content-length',
+]);
+const secretKeys = new Set(['credential', 'code', 'link']);
+const readyTimeoutMs = 30_000;
+const stopTimeoutMs = 10_000;
+const requestTimeoutMs = 30_000;
+
+export class Recorder {
+  phase: Phase = 'setup';
+  steps: Step[] = [];
+  readonly cleanups: (() => void)[] = [];
+  private readonly secrets = new Set<string>();
+
+  secret(value: string) {
+    if (value.length >= 6) this.secrets.add(value);
+  }
+
+  harvest(value: unknown) {
+    if (Array.isArray(value)) for (const entry of value) this.harvest(entry);
+    else if (isRecord(value))
+      for (const [key, entry] of Object.entries(value)) {
+        if (secretKeys.has(key) && typeof entry === 'string')
+          this.secret(entry);
+        else this.harvest(entry);
+      }
+  }
+
+  scrub(value: string): string {
+    let result = value;
+    for (const secret of [...this.secrets].sort((a, b) => b.length - a.length))
+      result = result.replaceAll(secret, '[redacted]');
+    return result;
+  }
+
+  redact(value: unknown): unknown {
+    const parsed: unknown = JSON.parse(this.scrub(JSON.stringify(value)));
+    return parsed;
+  }
+}
+
+function headersOf(headers: IncomingHttpHeaders): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers))
+    if (value !== undefined)
+      result[name] = Array.isArray(value) ? value.join('\n') : value;
+  return result;
+}
+
+function parseBody(raw: string, contentType: string | undefined): unknown {
+  if (raw === '') return undefined;
+  if (!contentType?.includes('json')) return raw;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed;
+  } catch {
+    return raw;
+  }
+}
+
+function withQuery(path: string, query: HttpRequest['query']): string {
+  if (!query) return path;
+  const search = new URLSearchParams(
+    Object.entries(query).map(([key, value]): [string, string] => [
+      key,
+      String(value),
+    ]),
+  );
+  return `${path}${path.includes('?') ? '&' : '?'}${search.toString()}`;
+}
+
+function manifestOf(value: unknown): Manifest {
+  const manifest = record(value);
+  const { address, repository, socketPath, credentialFile } = manifest;
+  if (
+    typeof address !== 'string' ||
+    typeof repository !== 'string' ||
+    typeof socketPath !== 'string' ||
+    typeof credentialFile !== 'string'
+  )
+    throw new Error('Isolated server session manifest is incomplete');
+  return { address, repository, socketPath, credentialFile };
+}
+
+function readyManifestPath(line: string): string | undefined {
+  try {
+    const value: unknown = JSON.parse(line);
+    return isRecord(value) && typeof value.manifest === 'string'
+      ? value.manifest
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function waitForReady(
+  child: ChildProcess,
+  output: { stdout: string },
+): Promise<string> {
+  return new Promise((resolveReady, rejectReady) => {
+    let pending = '';
+    const timeout = setTimeout(
+      () =>
+        rejectReady(new Error('Isolated server was not ready in 30 seconds')),
+      readyTimeoutMs,
+    );
+    child.once('error', (error) => {
+      clearTimeout(timeout);
+      rejectReady(error);
+    });
+    child.once('close', (code) => {
+      clearTimeout(timeout);
+      rejectReady(
+        new Error(`Isolated server exited before ready: ${code ?? 'signal'}`),
+      );
+    });
+    child.stdout?.on('data', (chunk: Buffer) => {
+      const value = chunk.toString('utf8');
+      output.stdout += value;
+      pending += value;
+      for (
+        let at = pending.indexOf('\n');
+        at !== -1;
+        at = pending.indexOf('\n')
+      ) {
+        const manifest = readyManifestPath(pending.slice(0, at));
+        pending = pending.slice(at + 1);
+        if (manifest) {
+          clearTimeout(timeout);
+          resolveReady(manifest);
+        }
+      }
+    });
+  });
+}
+
+export class IsolatedServer {
+  readonly address: string;
+  readonly repository: string;
+  readonly projectHome: string;
+  readonly socketPath: string;
+  readonly credential: string;
+  private readonly child: ChildProcess;
+  private readonly exited: Promise<void>;
+  private readonly output: { stdout: string; stderr: string };
+
+  private constructor(
+    child: ChildProcess,
+    exited: Promise<void>,
+    output: { stdout: string; stderr: string },
+    manifest: Manifest,
+    credential: string,
+  ) {
+    this.child = child;
+    this.exited = exited;
+    this.output = output;
+    this.address = manifest.address;
+    this.repository = manifest.repository;
+    this.projectHome = resolve(manifest.repository, '..');
+    this.socketPath = manifest.socketPath;
+    this.credential = credential;
+  }
+
+  static async start(repositoryRoot: string): Promise<IsolatedServer> {
+    const child = spawn(process.execPath, ['scripts/dev-server.ts'], {
+      cwd: repositoryRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const output = { stdout: '', stderr: '' };
+    const exited = new Promise<void>((resolveExit) =>
+      child.once('close', () => resolveExit()),
+    );
+    child.stderr.on('data', (chunk: Buffer) => {
+      output.stderr += chunk.toString('utf8');
+    });
+    try {
+      const manifestPath = await waitForReady(child, output);
+      const manifest = manifestOf(
+        JSON.parse(await readFile(manifestPath, 'utf8')),
+      );
+      const secret = record(
+        JSON.parse(await readFile(manifest.credentialFile, 'utf8')),
+      );
+      if (typeof secret.credential !== 'string' || secret.credential === '')
+        throw new Error('Isolated server wrote no credential');
+      return new IsolatedServer(
+        child,
+        exited,
+        output,
+        manifest,
+        secret.credential,
+      );
+    } catch (error) {
+      child.kill('SIGTERM');
+      await exited;
+      throw error;
+    }
+  }
+
+  logs() {
+    return { ...this.output };
+  }
+
+  async stop(): Promise<string | undefined> {
+    this.child.kill('SIGTERM');
+    let timer: NodeJS.Timeout | undefined;
+    const closed = await Promise.race([
+      this.exited.then(() => true),
+      new Promise<false>((resolveTimeout) => {
+        timer = setTimeout(() => resolveTimeout(false), stopTimeoutMs);
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+    if (closed) return undefined;
+    this.child.kill('SIGKILL');
+    await this.exited;
+    return 'Isolated server did not stop within 10 seconds';
+  }
+
+  session(
+    recorder: Recorder,
+    ids: { projectId: string; worktreeId: string },
+  ): Session {
+    const gitEnv = {
+      PATH: process.env.PATH ?? '/usr/bin:/bin',
+      HOME: join(this.projectHome, 'home'),
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_AUTHOR_NAME: 'Porcelain Verification',
+      GIT_AUTHOR_EMAIL: 'verify@example.invalid',
+      GIT_COMMITTER_NAME: 'Porcelain Verification',
+      GIT_COMMITTER_EMAIL: 'verify@example.invalid',
+      GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
+      GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
+    };
+    const inside = (path: string) => {
+      const absolute = resolve(this.repository, path);
+      if (!absolute.startsWith(`${this.repository}/`))
+        throw new Error(`${path} is outside the sample repository`);
+      return absolute;
+    };
+    return {
+      address: this.address,
+      repository: this.repository,
+      projectHome: this.projectHome,
+      projectId: ids.projectId,
+      worktreeId: ids.worktreeId,
+      send: (request) => this.send(recorder, request),
+      live: () => this.live(recorder),
+      secret: (value) => recorder.secret(value),
+      git: async (...args) => {
+        const step: GitStep = { phase: recorder.phase, kind: 'git', args };
+        recorder.steps.push(step);
+        try {
+          const { stdout } = await execute('git', args, {
+            cwd: this.repository,
+            env: gitEnv,
+          });
+          step.output = stdout;
+          return stdout;
+        } catch (error) {
+          step.error = error instanceof Error ? error.message : String(error);
+          throw error;
+        }
+      },
+      writeFile: async (path, content) => {
+        await writeFile(inside(path), content);
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'file',
+          path,
+          bytes:
+            typeof content === 'string'
+              ? Buffer.byteLength(content)
+              : content.byteLength,
+        });
+      },
+      readFile: (path) => readFile(inside(path), 'utf8'),
+    };
+  }
+
+  private headersFor(request: HttpRequest): Record<string, string> {
+    const headers: Record<string, string> = { ...request.headers };
+    const auth = request.auth ?? 'paired';
+    if ((request.target ?? 'network') === 'owner' || auth === 'none')
+      return headers;
+    if (auth === 'paired') headers.authorization = `Bearer ${this.credential}`;
+    else if ('bearer' in auth) headers.authorization = `Bearer ${auth.bearer}`;
+    else headers.cookie = auth.cookie;
+    return headers;
+  }
+
+  async send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
+    const target = request.target ?? 'network';
+    const path = withQuery(request.path, request.query);
+    const headers = this.headersFor(request);
+    let payload: string | undefined;
+    if (request.rawBody !== undefined) {
+      payload = request.rawBody;
+      if (request.contentType) headers['content-type'] = request.contentType;
+    } else if (request.body !== undefined) {
+      payload = JSON.stringify(request.body);
+      headers['content-type'] = request.contentType ?? 'application/json';
+    }
+    recorder.harvest(request.body);
+    const recordedHeaders = { ...headers };
+    if (recordedHeaders.authorization)
+      recordedHeaders.authorization = 'Bearer [redacted]';
+    if (recordedHeaders.cookie) recordedHeaders.cookie = '[redacted]';
+    const step: HttpStep = {
+      phase: recorder.phase,
+      kind: 'http',
+      target,
+      request: {
+        method: request.method,
+        path,
+        headers: recordedHeaders,
+        ...(request.rawBody !== undefined
+          ? { body: request.rawBody }
+          : request.body === undefined
+            ? {}
+            : { body: request.body }),
+      },
+    };
+    recorder.steps.push(step);
+    try {
+      const response = await this.exchange(
+        target,
+        request.method,
+        path,
+        {
+          ...headers,
+          ...(payload === undefined
+            ? {}
+            : { 'content-length': String(Buffer.byteLength(payload)) }),
+        },
+        payload,
+      );
+      recorder.harvest(response.body);
+      const cookie = /porcelain_device=([^;]+)/.exec(
+        response.headers['set-cookie'] ?? '',
+      );
+      if (cookie?.[1]) recorder.secret(cookie[1]);
+      step.response = {
+        ...response,
+        headers: Object.fromEntries(
+          Object.entries(response.headers).filter(
+            ([name]) => !quietHeaders.has(name),
+          ),
+        ),
+      };
+      return response;
+    } catch (error) {
+      step.error = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+  }
+
+  private exchange(
+    target: 'network' | 'owner',
+    method: string,
+    path: string,
+    headers: Record<string, string>,
+    payload: string | undefined,
+  ): Promise<HttpResponse> {
+    const url = new URL(
+      path,
+      target === 'network' ? this.address : 'http://owner',
+    );
+    return new Promise((resolveResponse, rejectResponse) => {
+      const outgoing = httpRequest(
+        {
+          method,
+          path: `${url.pathname}${url.search}`,
+          headers,
+          timeout: requestTimeoutMs,
+          agent: false,
+          ...(target === 'owner'
+            ? { socketPath: this.socketPath }
+            : { host: url.hostname, port: url.port }),
+        },
+        (incoming) => {
+          const chunks: Buffer[] = [];
+          incoming.on('data', (chunk: Buffer) => chunks.push(chunk));
+          incoming.on('error', rejectResponse);
+          incoming.on('end', () => {
+            const responseHeaders = headersOf(incoming.headers);
+            resolveResponse({
+              status: incoming.statusCode ?? 0,
+              headers: responseHeaders,
+              body: parseBody(
+                Buffer.concat(chunks).toString('utf8'),
+                responseHeaders['content-type'],
+              ),
+            });
+          });
+        },
+      );
+      outgoing.on('upgrade', (incoming, socket) => {
+        socket.destroy();
+        resolveResponse({
+          status: incoming.statusCode ?? 101,
+          headers: headersOf(incoming.headers),
+          body: undefined,
+        });
+      });
+      outgoing.on('timeout', () =>
+        outgoing.destroy(new Error('Request timed out')),
+      );
+      outgoing.on('error', rejectResponse);
+      outgoing.end(payload);
+    });
+  }
+
+  async live(recorder: Recorder): Promise<LiveConnection> {
+    const step: LiveStep = {
+      phase: recorder.phase,
+      kind: 'live',
+      opened: false,
+      sent: [],
+      received: [],
+    };
+    recorder.steps.push(step);
+    const url = new URL('/api/live', this.address);
+    url.protocol = 'ws:';
+    const socket = new WebSocket(url, {
+      headers: {
+        authorization: `Bearer ${this.credential}`,
+        origin: new URL(this.address).origin,
+      },
+    });
+    recorder.cleanups.push(() => socket.close());
+    const received: Record<string, unknown>[] = [];
+    const waiters = new Set<() => boolean>();
+    let closed: { code: number; reason: string } | undefined;
+    const wake = () => {
+      for (const waiter of waiters) waiter();
+    };
+    socket.addEventListener('message', (event) => {
+      const value = record(JSON.parse(String(event.data)));
+      received.push(value);
+      step.received.push(value);
+      wake();
+    });
+    socket.addEventListener('close', (event) => {
+      closed = { code: event.code, reason: event.reason };
+      step.closed = closed;
+      wake();
+    });
+    await new Promise<void>((resolveOpen, rejectOpen) => {
+      socket.addEventListener('open', () => resolveOpen(), { once: true });
+      socket.addEventListener(
+        'error',
+        () => {
+          step.error = 'The live connection failed to open';
+          rejectOpen(new Error(step.error));
+        },
+        { once: true },
+      );
+    });
+    step.opened = true;
+    const wait = <T>(
+      read: () => T | undefined,
+      timeoutMs: number,
+      what: string,
+    ) =>
+      new Promise<T>((resolveWait, rejectWait) => {
+        const timer = setTimeout(() => {
+          waiters.delete(attempt);
+          rejectWait(new Error(`Timed out waiting for ${what}`));
+        }, timeoutMs);
+        function attempt() {
+          const value = read();
+          if (value === undefined) return false;
+          waiters.delete(attempt);
+          clearTimeout(timer);
+          resolveWait(value);
+          return true;
+        }
+        if (!attempt()) waiters.add(attempt);
+      });
+    let consumed = 0;
+    return {
+      send(message) {
+        step.sent.push(message);
+        socket.send(JSON.stringify(message));
+      },
+      next(accept, timeoutMs = 5_000) {
+        return wait(
+          () => {
+            for (let index = consumed; index < received.length; index += 1) {
+              const notice = received[index];
+              if (notice && accept(notice)) {
+                consumed = index + 1;
+                return notice;
+              }
+            }
+            return undefined;
+          },
+          timeoutMs,
+          'a live notice',
+        );
+      },
+      closed(timeoutMs = 5_000) {
+        return wait(() => closed, timeoutMs, 'the live connection to close');
+      },
+      close() {
+        socket.close();
+      },
+    };
+  }
+}

@@ -1,0 +1,148 @@
+import { readChangeDiffsResponseSchema } from '../../../../packages/contracts/src/changes/index.ts';
+import {
+  apiError,
+  defineCase,
+  defineFeature,
+  invalidRequest,
+  record,
+  unknownFingerprint,
+  unknownWorktreeId,
+} from '../scripts/feature.ts';
+import {
+  changes,
+  sampleFingerprint,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
+
+const refresh = apiError(
+  409,
+  'Conflict',
+  'Refresh status and retry inspection',
+);
+const readme = {
+  scope: 'unstaged',
+  oldPath: 'README.md',
+  newPath: 'README.md',
+} as const;
+const patch =
+  'diff --git a/README.md b/README.md\nindex 8a69292..90c6866 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1,3 @@\n # Sample repository\n+\n+A change to review.\n';
+
+function diffs(
+  statusToken: string,
+  fingerprint: string | null,
+  selection: object = readme,
+) {
+  return {
+    expectedStatusToken: statusToken,
+    expectedFiles: [{ path: 'README.md', fingerprint }],
+    selections: [selection],
+  };
+}
+
+export default defineFeature({
+  feature: 'changes.read-change-diffs',
+  reaches: 'POST /api/worktrees/:worktreeId/changes/diffs',
+  intent: 'observed',
+  behaviour:
+    'A reviewer reads the diffs of selected comparisons, stating the status token and file fingerprints it last saw. If the worktree moved since, or a selection is not one of the stated files, the read is refused as a conflict so the client refreshes first; nothing is read from a newer state than the one the reviewer looked at.',
+  cases: [
+    defineCase({
+      name: 'the sample change',
+      setup: changes,
+      request: (session, state) => ({
+        method: 'POST',
+        path: worktreePath(session, '/changes/diffs'),
+        body: diffs(state.statusToken, sampleFingerprint),
+      }),
+      expect({ response, state, session, check, checkContract }) {
+        check('status', 200, response.status);
+        checkContract('contract', readChangeDiffsResponseSchema, response.body);
+        check(
+          'body',
+          {
+            environmentId: record(response.body).environmentId,
+            worktreeId: session.worktreeId,
+            statusToken: state.statusToken,
+            diffs: [{ selection: readme, content: { kind: 'text', patch } }],
+          },
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'stale status token, stale fingerprint or foreign selection',
+      setup: changes,
+      request: (session, state) => [
+        {
+          method: 'POST',
+          path: worktreePath(session, '/changes/diffs'),
+          body: diffs(unknownFingerprint, sampleFingerprint),
+        },
+        {
+          method: 'POST',
+          path: worktreePath(session, '/changes/diffs'),
+          body: diffs(state.statusToken, unknownFingerprint),
+        },
+        {
+          method: 'POST',
+          path: worktreePath(session, '/changes/diffs'),
+          body: diffs(state.statusToken, sampleFingerprint, {
+            scope: 'staged',
+            oldPath: 'other.md',
+            newPath: 'other.md',
+          }),
+        },
+      ],
+      expect({ responses, check }) {
+        for (const [index, response] of responses.entries()) {
+          check(`request ${index + 1} status`, 409, response.status);
+          check(`request ${index + 1} error body`, refresh, response.body);
+        }
+      },
+    }),
+    defineCase({
+      name: 'the worktree moved after the status was read',
+      async setup(session) {
+        const before = await changes(session);
+        await session.writeFile('README.md', 'Edited again\n');
+        return before;
+      },
+      request: (session, state) => ({
+        method: 'POST',
+        path: worktreePath(session, '/changes/diffs'),
+        body: diffs(state.statusToken, sampleFingerprint),
+      }),
+      expect({ response, check }) {
+        check('status', 409, response.status);
+        check('error body', refresh, response.body);
+      },
+    }),
+    defineCase({
+      name: 'invalid input or unknown worktree',
+      setup: changes,
+      request: (session, state) => [
+        {
+          method: 'POST',
+          path: worktreePath(session, '/changes/diffs'),
+          body: {
+            expectedStatusToken: state.statusToken,
+            expectedFiles: [],
+            selections: [],
+          },
+        },
+        {
+          method: 'POST',
+          path: `/api/worktrees/${unknownWorktreeId}/changes/diffs`,
+          body: diffs(state.statusToken, null),
+        },
+      ],
+      expect({ responses, check }) {
+        check('invalid status', 400, responses[0]?.status);
+        check('invalid error body', invalidRequest, responses[0]?.body);
+        check('unknown status', 404, responses[1]?.status);
+        check('unknown error body', worktreeNotFound, responses[1]?.body);
+      },
+    }),
+  ],
+});
