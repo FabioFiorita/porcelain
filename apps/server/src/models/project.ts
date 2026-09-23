@@ -1,13 +1,7 @@
 import type { ResolvedWorktree, WorktreeStatus } from './worktree.ts';
+import type { RegisteredProject } from '@porcelain/projects/models';
 
-export interface RegisteredProject {
-  id: string;
-  name: string;
-  namedByOwner: boolean;
-  commonDirectory: string;
-  repositoryIdentity: string;
-  available: boolean;
-}
+export type { RegisteredProject } from '@porcelain/projects/models';
 
 export interface Project extends RegisteredProject {
   worktrees: (ResolvedWorktree & { status: WorktreeStatus | null })[];

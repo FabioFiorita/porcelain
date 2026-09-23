@@ -76,10 +76,14 @@ try {
   if (!registered.ok)
     throw new Error(`Sample repository registration failed: ${registered.status}`);
 
+  const credentialFile = join(root, 'credential.json');
+  await writeFile(credentialFile, `${JSON.stringify({ credential })}\n`, {
+    mode: 0o600,
+  });
   const manifest = join(root, 'manifest.json');
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(`${JSON.stringify({ manifest, address: server.address, repository })}\n`);

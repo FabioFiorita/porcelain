@@ -1,5 +1,5 @@
 import type { GitDiffResult } from '../dtos/git-diff.ts';
-import type { GitOrdinaryChange } from '../dtos/git-status.ts';
+import type { GitOrdinaryChange } from '../inspection/status.ts';
 
 export interface DiffReader {
   readDiff(

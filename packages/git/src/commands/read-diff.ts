@@ -1,5 +1,5 @@
 import type { GitDiffResult } from '../dtos/git-diff.ts';
-import type { GitOrdinaryChange } from '../dtos/git-status.ts';
+import type { GitOrdinaryChange } from '../inspection/status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { runInspection } from '../read-inspection.ts';

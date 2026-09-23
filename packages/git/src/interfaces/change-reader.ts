@@ -1,4 +1,4 @@
-import type { GitBranchStatus } from '../dtos/git-status.ts';
+import type { GitBranchStatus } from '../inspection/status.ts';
 import type { LineRange } from '../dtos/line-range.ts';
 
 export interface ChangeReader {

@@ -5,12 +5,12 @@ import {
   renameProjectRequestSchema,
 } from '@porcelain/contracts/inventory';
 import type { FastifyInstance } from 'fastify';
-import type { Application } from '../../application.ts';
+import type { RenameProjectController } from '../../controllers/rename-project-controller.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
 export function renameProject(
   server: FastifyInstance,
-  options: { application: Application },
+  options: { projects: Pick<RenameProjectController, 'rename'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.patch(
@@ -23,7 +23,7 @@ export function renameProject(
       },
     },
     async (request) =>
-      options.application.renameProject(
+      options.projects.rename(
         request.params.projectId,
         request.body.name,
         request.disconnected,

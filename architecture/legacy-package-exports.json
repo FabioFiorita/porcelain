@@ -1,9 +1,9 @@
 {
-  "name": "@porcelain/git",
-  "private": true,
-  "type": "module",
-  "exports": {
+  "git": {
     "./action-git": "./src/action-git.ts",
+    "./commands/check-ignored": "./src/commands/check-ignored.ts",
+    "./commands/list-ignored-paths": "./src/commands/list-ignored-paths.ts",
+    "./commands/list-tracked-paths": "./src/commands/list-tracked-paths.ts",
     "./commit-git": "./src/commit-git.ts",
     "./dtos/commit-history": "./src/dtos/commit-history.ts",
     "./dtos/discovered-repository": "./src/dtos/discovered-repository.ts",
@@ -12,9 +12,6 @@
     "./dtos/git-action": "./src/dtos/git-action.ts",
     "./dtos/git-diff": "./src/dtos/git-diff.ts",
     "./dtos/git-failure": "./src/dtos/git-failure.ts",
-    "./commands/list-tracked-paths": "./src/commands/list-tracked-paths.ts",
-    "./commands/list-ignored-paths": "./src/commands/list-ignored-paths.ts",
-    "./commands/check-ignored": "./src/commands/check-ignored.ts",
     "./dtos/line-range": "./src/dtos/line-range.ts",
     "./errors/git-action-rejected-error": "./src/errors/git-action-rejected-error.ts",
     "./errors/git-command-error": "./src/errors/git-command-error.ts",
@@ -32,20 +29,36 @@
     "./errors/unsupported-repository-error": "./src/errors/unsupported-repository-error.ts",
     "./git": "./src/git.ts",
     "./git-session": "./src/git-session.ts",
-    "./inspection": "./src/inspection/index.ts",
+    "./interfaces/change-reader": "./src/interfaces/change-reader.ts",
     "./interfaces/commit-reader": "./src/interfaces/commit-reader.ts",
     "./interfaces/git-action-writer": "./src/interfaces/git-action-writer.ts",
     "./interfaces/git-factory": "./src/interfaces/git-factory.ts",
     "./interfaces/git-session": "./src/interfaces/git-session.ts",
-    "./interfaces/change-reader": "./src/interfaces/change-reader.ts",
     "./interfaces/status-reader": "./src/interfaces/status-reader.ts",
     "./read-git-version": "./src/read-git-version.ts",
     "./read-history": "./src/read-history.ts",
     "./run-git": "./src/run-git.ts",
     "./worktree-registry": "./src/worktree-registry.ts"
   },
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {}
+  "contracts": {
+    "./api-error": "./src/api-error.ts",
+    "./changes": "./src/changes.ts",
+    "./comments": "./src/comments.ts",
+    "./commit-changes": "./src/commit-changes.ts",
+    "./commit-draft": "./src/commit-draft.ts",
+    "./commit-history": "./src/commit-history.ts",
+    "./file-preferences": "./src/file-preferences.ts",
+    "./files": "./src/files.ts",
+    "./git-actions": "./src/git-actions.ts",
+    "./git-diff": "./src/git-diff.ts",
+    "./git-status": "./src/git-status.ts",
+    "./health": "./src/health.ts",
+    "./inventory": "./src/inventory.ts",
+    "./live-updates": "./src/live-updates.ts",
+    "./owner": "./src/owner.ts",
+    "./pairing": "./src/pairing.ts",
+    "./review": "./src/review.ts",
+    "./reviewed-files": "./src/reviewed-files.ts",
+    "./worktree-id": "./src/worktree-id.ts"
+  }
 }

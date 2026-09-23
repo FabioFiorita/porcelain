@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { renameProjectRequestSchema } from '@porcelain/contracts/inventory';
 import {
   publishReviewSchema,
   reviewParamsSchema,
@@ -12,15 +11,17 @@ import { CommitGit } from '@porcelain/git/commit-git';
 import type { DiscoveryIssue } from '@porcelain/git/dtos/discovery-issue';
 import { Git } from '@porcelain/git/git';
 import { RequestGitSession } from '@porcelain/git/git-session';
-import { InspectionGit } from '@porcelain/git/inspection-git';
+import { InspectionGit } from '@porcelain/git/inspection';
+import { RenameProjectService } from '@porcelain/projects/services';
 import type { CommitReaderFactory } from '@porcelain/git/interfaces/commit-reader';
 import type { GitActionWriterFactory } from '@porcelain/git/interfaces/git-action-writer';
 import type { GitFactory } from '@porcelain/git/interfaces/git-factory';
-import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import type { InspectionFactory } from '@porcelain/git/inspection';
 import { readGitVersion } from '@porcelain/git/read-git-version';
 import { CliCommitGenerator } from './agents/cli-commit-generator.ts';
 import type { CommitGenerator } from './agents/interfaces/commit-generator.ts';
 import type { Application } from './application.ts';
+import { RenameProjectController } from './controllers/rename-project-controller.ts';
 import { applicationSettingsSchema } from './config/application-settings.ts';
 import { openDatabase } from './db/connection.ts';
 import { NodeFileReader } from './filesystem/file-reader.ts';
@@ -88,7 +89,6 @@ import { ReadWorktreeStatus } from './use-cases/read-worktree-status.ts';
 import { RegisterProject } from './use-cases/register-project.ts';
 import { RemoveProject } from './use-cases/remove-project.ts';
 import { RemoveReviewedFile } from './use-cases/remove-reviewed-file.ts';
-import { RenameProject } from './use-cases/rename-project.ts';
 import { resolveActionCheckout } from './use-cases/resolve-action-worktree.ts';
 import { ResolveWorktree } from './use-cases/resolve-worktree.ts';
 import { SetFilePreference } from './use-cases/set-file-preference.ts';
@@ -226,7 +226,6 @@ export async function openApplication(options: {
     const projectLaneOf = (projectId: string) =>
       store.read().projects.find((entry) => entry.id === projectId)
         ?.repositoryIdentity ?? 'unresolved';
-    const renameProject = new RenameProject(store);
     const markSeen = new MarkCommentsSeen(worktrees, statuses);
     const removeProject = new RemoveProject(
       new ProjectRemovalRepository(database.db),
@@ -335,6 +334,14 @@ export async function openApplication(options: {
       reviewedLayers,
       projects: () => store.read().projects,
     });
+    const renameProjectController = new RenameProjectController(
+      new RenameProjectService(store),
+      (operation, signal) =>
+        lanes.run(INVENTORY, 'write', async () => operation(), {
+          callerSignal: signal,
+        }),
+      () => live.publish({ type: 'inventory' }),
+    );
     const actions = new GitActionCoordinator(
       lanes,
       projectLaneOf,
@@ -406,6 +413,7 @@ export async function openApplication(options: {
     );
 
     return {
+      projects: renameProjectController,
       runGitAction: (scope, request) => actions.run(scope, request),
       gitBranches: (scope, signal) =>
         lanes.run(
@@ -703,20 +711,6 @@ export async function openApplication(options: {
             if (answer.deleted) live.publish({ type: 'inventory' });
             return answer;
           }),
-      renameProject: async (projectId, name, signal) => {
-        const input = renameProjectRequestSchema.parse({ name });
-        return lanes
-          .run(
-            INVENTORY,
-            'write',
-            async () => renameProject.execute(projectId, input.name),
-            { callerSignal: signal },
-          )
-          .then((answer) => {
-            live.publish({ type: 'inventory' });
-            return answer;
-          });
-      },
       markCommentsSeen: (worktreeId, throughRevision, signal) =>
         forWorktree(
           (operationSignal) =>

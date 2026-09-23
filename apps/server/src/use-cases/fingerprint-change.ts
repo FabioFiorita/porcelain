@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { GitChange } from '@porcelain/git/dtos/git-status';
+import type { GitChange } from '@porcelain/git/inspection';
 
 export type WorktreeSide = {
   digest?: string | undefined;

@@ -5,7 +5,7 @@ import { CommentLimitExceededError } from '../../use-cases/errors/comment-limit-
 import { CommentTargetNotFoundError } from '../../use-cases/errors/comment-target-not-found-error.ts';
 import { InvalidCommentError } from '../../use-cases/errors/invalid-comment-error.ts';
 import { InvalidFilePreferenceError } from '../../use-cases/errors/invalid-file-preference-error.ts';
-import { ProjectNotFoundError } from '../../use-cases/errors/project-not-found-error.ts';
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import { ReviewedMarkConflictError } from '../../use-cases/errors/reviewed-mark-conflict-error.ts';
 export function toStorageErrorResponse(error: unknown) {
   if (error instanceof ReviewedMarkConflictError)

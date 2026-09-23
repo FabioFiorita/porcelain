@@ -1,10 +1,10 @@
-import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
+import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
+import type { ProjectStore } from '../ports/project-store.ts';
 
-export class RenameProject {
-  private readonly store: InventoryStore;
+export class RenameProjectService {
+  private readonly store: ProjectStore;
 
-  constructor(store: InventoryStore) {
+  constructor(store: ProjectStore) {
     this.store = store;
   }
 

@@ -1,5 +1,5 @@
 import type { GitActionReceipt } from '@porcelain/contracts/git-actions';
-import type { GitChange } from '@porcelain/git/dtos/git-status';
+import type { GitChange } from '@porcelain/git/inspection';
 
 export type FileChange = {
   path: string;

@@ -8,6 +8,9 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit && pnpm -r typecheck",
+    "arch:check": "node scripts/architecture.ts check",
+    "arch:map": "node scripts/architecture.ts map",
+    "arch:plan": "node scripts/architecture.ts plan",
     "dev": "node scripts/dev-server.ts",
     "dev:server": "node scripts/dev-server.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
@@ -16,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "24.13.3",
+    "dependency-cruiser": "18.4.0",
     "esbuild": "0.28.2",
     "typescript": "7.0.2"
   }

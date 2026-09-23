@@ -2,7 +2,7 @@ import type { FilePreferenceChange } from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { InvalidFilePreferenceError } from './errors/invalid-file-preference-error.ts';
-import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
 
 export class SetFilePreference {
   private readonly inventory: InventoryStore;

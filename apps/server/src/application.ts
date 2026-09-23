@@ -19,7 +19,7 @@ import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
 import type {
   GitChangeSelection,
   GitStatusObservation,
-} from '@porcelain/git/dtos/git-status';
+} from '@porcelain/git/inspection';
 import type { LineRange } from '@porcelain/git/dtos/line-range';
 import type { LiveConnection } from './lifecycle/live-updates.ts';
 import type { ChangeList } from './models/change.ts';
@@ -64,6 +64,13 @@ import type {
 import type { PreviewAsset } from './use-cases/read-preview-assets.ts';
 
 export interface Application {
+  projects: {
+    rename(
+      projectId: string,
+      name: string,
+      signal?: AbortSignal,
+    ): Promise<{ id: string; name: string }>;
+  };
   runGitAction(
     scope: GitActionScope,
     request: RunGitActionRequest,
@@ -157,11 +164,6 @@ export interface Application {
     projectId: string,
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
-  renameProject(
-    projectId: string,
-    name: string,
-    signal?: AbortSignal,
-  ): Promise<{ id: string; name: string }>;
   markCommentsSeen(
     worktreeId: string,
     throughRevision: number,

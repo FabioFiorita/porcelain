@@ -1,5 +1,5 @@
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
-import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import type { InspectionFactory } from '@porcelain/git/inspection';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';

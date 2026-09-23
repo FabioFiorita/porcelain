@@ -1,6 +1,6 @@
 import type { FilePreferenceStore } from '../repositories/interfaces/file-preference-store.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
-import { ProjectNotFoundError } from './errors/project-not-found-error.ts';
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
 export class ListFilePreferences {
   private readonly inventory: InventoryStore;
   private readonly preferences: FilePreferenceStore;

@@ -18,5 +18,5 @@ export async function inventoryRoutes(
   server.register(getInventoryRoute, { application: options.application });
   server.register(removeProject, { application: options.application });
   server.register(registerProjectRoute, { application: options.application });
-  server.register(renameProject, { application: options.application });
+  server.register(renameProject, { projects: options.application.projects });
 }

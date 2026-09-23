@@ -1,6 +1,6 @@
-import type { GitChange } from '@porcelain/git/dtos/git-status';
+import type { GitChange } from '@porcelain/git/inspection';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
-import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import type { InspectionFactory } from '@porcelain/git/inspection';
 import type { WorktreeFiles } from '../filesystem/interfaces/worktree-files.ts';
 import type { ChangeList, FileChange } from '../models/change.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';

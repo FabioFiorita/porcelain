@@ -1,5 +1,5 @@
-import type { GitChange } from '@porcelain/git/dtos/git-status';
-import type { InspectionReader } from '@porcelain/git/interfaces/inspection-factory';
+import type { GitChange } from '@porcelain/git/inspection';
+import type { InspectionReader } from '@porcelain/git/inspection';
 import type { WorktreeFiles } from '../filesystem/interfaces/worktree-files.ts';
 import type { WorktreeSide } from './fingerprint-change.ts';
 

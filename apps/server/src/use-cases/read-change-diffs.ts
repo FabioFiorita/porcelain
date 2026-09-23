@@ -1,8 +1,8 @@
 import { join } from 'node:path';
 import type { GitDiffResult } from '@porcelain/git/dtos/git-diff';
-import type { GitChangeSelection } from '@porcelain/git/dtos/git-status';
+import type { GitChangeSelection } from '@porcelain/git/inspection';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
-import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import type { InspectionFactory } from '@porcelain/git/inspection';
 import type {
   StampPath,
   WorktreeFiles,

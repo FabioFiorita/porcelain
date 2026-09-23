@@ -3,7 +3,7 @@ import type {
   GitChange,
   GitOrdinaryChange,
   GitStatusObservation,
-} from '../dtos/git-status.ts';
+} from './status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import { InvalidGitStatusError } from '../errors/invalid-git-status-error.ts';
 import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';

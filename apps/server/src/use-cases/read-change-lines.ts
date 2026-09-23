@@ -1,6 +1,6 @@
 import type { LineRange } from '@porcelain/git/dtos/line-range';
 import type { GitSession } from '@porcelain/git/interfaces/git-session';
-import type { InspectionFactory } from '@porcelain/git/interfaces/inspection-factory';
+import type { InspectionFactory } from '@porcelain/git/inspection';
 import type { FileReader } from '../filesystem/interfaces/file-reader.ts';
 import type { InventoryStore } from '../repositories/interfaces/inventory-store.ts';
 import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';

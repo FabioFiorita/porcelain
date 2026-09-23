@@ -1,9 +1,9 @@
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import { readInProgress } from '../helpers/read-in-progress.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
-import { parseGitStatus } from '../mappers/parse-git-status.ts';
+import { parseGitStatus } from './parse-git-status.ts';
 import { runInspection } from '../read-inspection.ts';
-import { sessionConversionFilters } from './check-conversion-filters.ts';
+import { sessionConversionFilters } from '../commands/check-conversion-filters.ts';
 
 export async function readStatus(
   session: CheckoutSession,
