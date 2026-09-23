@@ -1,8 +1,8 @@
 export class InvalidDeviceDetailsError extends Error {
   override readonly name = 'InvalidDeviceDetailsError';
-  constructor(field: string) {
+  constructor() {
     super(
-      `The device ${field} is missing, too long, or contains control characters.`,
+      'The device name or platform is missing, too long, or contains control characters.',
     );
   }
 }

@@ -1,23 +1,51 @@
-import type { IssuedGrant } from '@porcelain/access/models';
-import type { IssuePairingService } from '@porcelain/access/services';
-
-type RunStored = <T>(operation: () => T | Promise<T>) => Promise<T>;
+import type {
+  IssuePairingRequest,
+  IssuePairingResponse,
+} from '@porcelain/contracts/access';
+import type {
+  IssuePairingService,
+  ReadEnvironmentService,
+} from '@porcelain/access/services';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class IssuePairingController {
-  private readonly issue: IssuePairingService;
-  private readonly runStored: RunStored;
+  private readonly readEnvironmentService: ReadEnvironmentService;
+  private readonly issuePairingService: IssuePairingService;
+  private readonly lanes: Lanes;
 
-  constructor(issue: IssuePairingService, runStored: RunStored) {
-    this.issue = issue;
-    this.runStored = runStored;
+  constructor(
+    readEnvironmentService: ReadEnvironmentService,
+    issuePairingService: IssuePairingService,
+    lanes: Lanes,
+  ) {
+    this.readEnvironmentService = readEnvironmentService;
+    this.issuePairingService = issuePairingService;
+    this.lanes = lanes;
   }
 
-  execute(input: {
-    labels: string[];
-    addresses: string[];
-  }): Promise<{ grants: IssuedGrant[] }> {
-    return this.runStored(() => ({
-      grants: this.issue.execute(input.labels, input.addresses),
-    }));
+  execute(
+    input: IssuePairingRequest,
+    context: OperationContext,
+  ): Promise<IssuePairingResponse> {
+    return this.lanes.unqueued(
+      async () => {
+        const { environmentId } = this.readEnvironmentService.execute({});
+        const { grants } = this.issuePairingService.execute(input);
+        return {
+          grants: grants.map(({ grant, code }) => {
+            const fragment = new URLSearchParams({ c: code, e: environmentId });
+            if (grant.addresses.length > 1)
+              fragment.set('a', grant.addresses.join(','));
+            return {
+              grant,
+              code,
+              link: `${grant.addresses[0] ?? ''}/pair#${fragment.toString()}`,
+            };
+          }),
+        };
+      },
+      { callerSignal: context.signal },
+    );
   }
 }

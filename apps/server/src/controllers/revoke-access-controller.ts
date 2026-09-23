@@ -1,20 +1,40 @@
-import type { RevokeAccessService } from '@porcelain/access/services';
-
-type RunStored = <T>(operation: () => T | Promise<T>) => Promise<T>;
+import type {
+  RevokeAccessRequest,
+  RevokeAccessResponse,
+} from '@porcelain/contracts/access';
+import type {
+  RevokeDeviceService,
+  RevokePairingGrantService,
+} from '@porcelain/access/services';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class RevokeAccessController {
-  private readonly revoke: RevokeAccessService;
-  private readonly runStored: RunStored;
+  private readonly revokePairingGrantService: RevokePairingGrantService;
+  private readonly revokeDeviceService: RevokeDeviceService;
+  private readonly lanes: Lanes;
 
-  constructor(revoke: RevokeAccessService, runStored: RunStored) {
-    this.revoke = revoke;
-    this.runStored = runStored;
+  constructor(
+    revokePairingGrantService: RevokePairingGrantService,
+    revokeDeviceService: RevokeDeviceService,
+    lanes: Lanes,
+  ) {
+    this.revokePairingGrantService = revokePairingGrantService;
+    this.revokeDeviceService = revokeDeviceService;
+    this.lanes = lanes;
   }
 
-  execute(input: { id: string }): Promise<{
-    revoked: boolean;
-    kind?: 'grant' | 'device';
-  }> {
-    return this.runStored(() => this.revoke.execute(input.id));
+  execute(
+    input: RevokeAccessRequest,
+    context: OperationContext,
+  ): Promise<RevokeAccessResponse> {
+    return this.lanes.unqueued(
+      async () => {
+        const grant = this.revokePairingGrantService.execute(input);
+        if (grant.revoked) return grant;
+        return this.revokeDeviceService.execute(input);
+      },
+      { callerSignal: context.signal },
+    );
   }
 }

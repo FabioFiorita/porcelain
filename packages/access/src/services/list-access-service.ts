@@ -1,26 +1,61 @@
-import type { AccessListing } from '../models/pairing.ts';
+import type {
+  ListAccessInput,
+  ListAccessResult,
+} from '../models/list-access.ts';
+import type { Clock } from '../ports/clock.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
+import { pairingGrantPending } from '../rules/pairing-grant.ts';
 
 export class ListAccessService {
-  private readonly grants: PairingGrantStore;
-  private readonly devices: DeviceStore;
-  private readonly now: () => number;
+  private readonly pairingGrantStore: PairingGrantStore;
+  private readonly deviceStore: DeviceStore;
+  private readonly clock: Clock;
 
   constructor(
-    grants: PairingGrantStore,
-    devices: DeviceStore,
-    now: () => number = Date.now,
+    pairingGrantStore: PairingGrantStore,
+    deviceStore: DeviceStore,
+    clock: Clock,
   ) {
-    this.grants = grants;
-    this.devices = devices;
-    this.now = now;
+    this.pairingGrantStore = pairingGrantStore;
+    this.deviceStore = deviceStore;
+    this.clock = clock;
   }
 
-  execute(): AccessListing {
+  execute(input: ListAccessInput): ListAccessResult {
+    void input;
+    const now = this.clock.now();
     return {
-      grants: this.grants.listGrants(new Date(this.now()).toISOString()),
-      devices: this.devices.listDevices(),
+      grants: this.pairingGrantStore
+        .list()
+        .filter((grant) => pairingGrantPending(grant, now))
+        .map(({ id, label, addresses, createdAt, expiresAt }) => ({
+          id,
+          label,
+          addresses,
+          createdAt,
+          expiresAt,
+        })),
+      devices: this.deviceStore
+        .list()
+        .filter((device) => device.revokedAt === undefined)
+        .map(
+          ({
+            id,
+            label,
+            platform,
+            createdAt,
+            lastSeenAt,
+            lastSeenAddress,
+          }) => ({
+            id,
+            label,
+            platform,
+            createdAt,
+            lastSeenAt,
+            ...(lastSeenAddress === undefined ? {} : { lastSeenAddress }),
+          }),
+        ),
     };
   }
 }

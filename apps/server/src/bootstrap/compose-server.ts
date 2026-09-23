@@ -1,12 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  IssuePairingService,
-  ListAccessService,
-  ReadEnvironmentService,
-  RedeemPairingService,
-  RevokeAccessService,
-} from '@porcelain/access/services';
-import type { PairingReach } from '@porcelain/access/ports';
+import type { PairingReach } from '@porcelain/access/models';
 import {
   AgentGenerationError,
   CliCommitGenerator,
@@ -107,11 +100,6 @@ import { ListReviewedFilesController } from '../controllers/list-reviewed-files-
 import { RemoveReviewedFileController } from '../controllers/remove-reviewed-file-controller.ts';
 import { SetReviewedFileController } from '../controllers/set-reviewed-file-controller.ts';
 import { SetReviewedFilesController } from '../controllers/set-reviewed-files-controller.ts';
-import { RedeemPairingController } from '../controllers/redeem-pairing-controller.ts';
-import { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
-import { ListAccessController } from '../controllers/list-access-controller.ts';
-import { RevokeAccessController } from '../controllers/revoke-access-controller.ts';
-import { ReadHealthController } from '../controllers/read-health-controller.ts';
 import { PublishReviewController } from '../controllers/publish-review-controller.ts';
 import { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
 import { ReadReviewSummaryController } from '../controllers/read-review-summary-controller.ts';
@@ -128,7 +116,7 @@ import {
   type StampPath,
   type WorktreeFiles,
 } from '../adapters/files/worktree-files.ts';
-import { DeviceDirectory } from '../adapters/access/device-directory.ts';
+import { DeviceDirectoryAdapter } from '../adapters/access/device-directory-adapter.ts';
 import { LiveUpdates } from '../adapters/events/live-updates.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
@@ -161,11 +149,8 @@ import { resolveActionCheckout } from '../adapters/git-actions/action-checkout.t
 import { ResolveWorktree } from '../adapters/projects/resolve-worktree.ts';
 import { SetFilePreferenceService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
-import {
-  createDeviceStore,
-  createEnvironmentIdentityStore,
-  createPairingGrantStore,
-} from '@porcelain/storage/access';
+import { createDeviceStore } from '@porcelain/storage/access';
+import { composeAccess } from './compose-access.ts';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import {
@@ -334,13 +319,14 @@ export async function openApplication(options: {
     const preferences = createFilePreferenceStore(session);
     const listPreferences = new ListFilePreferencesService(store, preferences);
     const setPreference = new SetFilePreferenceService(store, preferences);
-    const pairingGrants = createPairingGrantStore(session);
-    const deviceStore = createDeviceStore(session);
-    const deviceDirectory = new DeviceDirectory(deviceStore);
-    const issuePairing = new IssuePairingService(
-      pairingGrants,
-      createEnvironmentIdentityStore(session),
-      {
+    const deviceDirectory = new DeviceDirectoryAdapter(
+      createDeviceStore(session),
+    );
+    const access = composeAccess({
+      session,
+      lanes,
+      deviceStore: deviceDirectory,
+      pairingReachReader: {
         current:
           options.pairingReach ??
           (() => ({
@@ -348,32 +334,7 @@ export async function openApplication(options: {
             policy: { allowedHosts: [], localAddresses: [] },
           })),
       },
-    );
-    const listAccess = new ListAccessService(pairingGrants, deviceStore);
-    const redeemPairing = new RedeemPairingService(
-      pairingGrants,
-      deviceDirectory,
-    );
-    const redeemPairingController = new RedeemPairingController(
-      redeemPairing,
-      stored,
-    );
-    const issuePairingController = new IssuePairingController(
-      issuePairing,
-      stored,
-    );
-    const listAccessController = new ListAccessController(listAccess, stored);
-    const readHealthController = new ReadHealthController(
-      new ReadEnvironmentService(createEnvironmentIdentityStore(session)),
-    );
-    const revokeAccess = new RevokeAccessService(
-      pairingGrants,
-      deviceDirectory,
-    );
-    const revokeAccessController = new RevokeAccessController(
-      revokeAccess,
-      stored,
-    );
+    });
     const lastSeenFlush = setInterval(
       () => deviceDirectory.flush(),
       LAST_SEEN_FLUSH_MS,
@@ -988,11 +949,11 @@ export async function openApplication(options: {
       removeReviewedFileController,
       setReviewedFileController,
       setReviewedFilesController,
-      redeemPairingController,
-      issuePairingController,
-      listAccessController,
-      revokeAccessController,
-      readHealthController,
+      redeemPairingController: access.redeemPairingController,
+      issuePairingController: access.issuePairingController,
+      listAccessController: access.listAccessController,
+      revokeAccessController: access.revokeAccessController,
+      readHealthController: access.readHealthController,
       projects: renameProjectController,
       removeProjectController,
       listFilePreferencesController,
@@ -1024,12 +985,15 @@ export async function openApplication(options: {
         }
       },
       authenticateDevice: (credential, address) =>
-        deviceDirectory.authenticate(credential, address),
+        access.authenticateDeviceController.execute(
+          { credential, address: address ?? undefined },
+          {},
+        ) ?? null,
       holdForDevice: (deviceId, connection) =>
-        deviceDirectory.register(deviceId, connection),
+        deviceDirectory.hold(deviceId, connection),
       issuePairing: (labels, addresses) =>
-        issuePairingController
-          .execute({ labels: [...labels], addresses: [...addresses] })
+        access.issuePairingController
+          .execute({ labels: [...labels], addresses: [...addresses] }, {})
           .then(({ grants }) => grants),
       close: async () => {
         clearInterval(lastSeenFlush);

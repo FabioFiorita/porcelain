@@ -1,12 +1,4 @@
-import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import {
-  issuePairingRequestSchema,
-  issuePairingResponseSchema,
-  listAccessResponseSchema,
-  revokeAccessRequestSchema,
-  revokeAccessResponseSchema,
-} from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import type { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
 import type { ListAccessController } from '../controllers/list-access-controller.ts';
@@ -16,7 +8,9 @@ import type { PublishReviewController } from '../controllers/publish-review-cont
 import type { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
 import type { CommentThreadsController } from '../controllers/comment-threads-controller.ts';
 import { createReviewMcpServer } from './mcp/review-server.ts';
-import { errorResponses } from './schemas/error-responses.ts';
+import { issuePairing } from './routes/access/issue-pairing.ts';
+import { listAccess } from './routes/access/list-access.ts';
+import { revokeAccess } from './routes/access/revoke-access.ts';
 
 export function registerOwnerRoutes(
   server: FastifyInstance,
@@ -33,45 +27,13 @@ export function registerOwnerRoutes(
     commentThreadsController: Pick<CommentThreadsController, 'execute'>;
   },
 ) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.post(
-    '/pairings',
-    {
-      schema: {
-        body: issuePairingRequestSchema,
-        response: { ...errorResponses, 200: issuePairingResponseSchema },
-      },
-    },
-    async (request, reply) => {
-      reply.header('Cache-Control', 'no-store');
-      return options.issuePairingController.execute(request.body);
-    },
-  );
-  api.get(
-    '/access',
-    {
-      schema: {
-        response: { ...errorResponses, 200: listAccessResponseSchema },
-      },
-    },
-    async (_request, reply) => {
-      reply.header('Cache-Control', 'no-store');
-      return options.listAccessController.execute();
-    },
-  );
-  api.post(
-    '/access/revoke',
-    {
-      schema: {
-        body: revokeAccessRequestSchema,
-        response: { ...errorResponses, 200: revokeAccessResponseSchema },
-      },
-    },
-    async (request, reply) => {
-      reply.header('Cache-Control', 'no-store');
-      return options.revokeAccessController.execute(request.body);
-    },
-  );
+  server.register(issuePairing, {
+    controller: options.issuePairingController,
+  });
+  server.register(listAccess, { controller: options.listAccessController });
+  server.register(revokeAccess, {
+    controller: options.revokeAccessController,
+  });
   server.all(
     '/mcp',
     { bodyLimit: 6 * 1024 * 1024 + 4096 },

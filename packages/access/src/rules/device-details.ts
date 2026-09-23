@@ -2,6 +2,7 @@ import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-erro
 
 const maxLabel = 80;
 const maxPlatform = 120;
+
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.codePointAt(0) ?? 0;
@@ -10,21 +11,21 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
-function checkedText(value: string, field: string, limit: number): string {
+function checkedText(value: string, limit: number): string {
   const trimmed = value.trim();
   if (
     trimmed.length === 0 ||
     trimmed.length > limit ||
     hasControlCharacter(trimmed)
   )
-    throw new InvalidDeviceDetailsError(field);
+    throw new InvalidDeviceDetailsError();
   return trimmed;
 }
 
 export function checkedLabel(value: string): string {
-  return checkedText(value, 'name', maxLabel);
+  return checkedText(value, maxLabel);
 }
 
 export function checkedPlatform(value: string): string {
-  return checkedText(value, 'platform', maxPlatform);
+  return checkedText(value, maxPlatform);
 }

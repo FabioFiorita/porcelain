@@ -1,18 +1,24 @@
-import type { AccessListing } from '@porcelain/access/models';
+import type { ListAccessResponse } from '@porcelain/contracts/access';
 import type { ListAccessService } from '@porcelain/access/services';
-
-type RunStored = <T>(operation: () => T | Promise<T>) => Promise<T>;
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListAccessController {
-  private readonly list: ListAccessService;
-  private readonly runStored: RunStored;
+  private readonly listAccessService: ListAccessService;
+  private readonly lanes: Lanes;
 
-  constructor(list: ListAccessService, runStored: RunStored) {
-    this.list = list;
-    this.runStored = runStored;
+  constructor(listAccessService: ListAccessService, lanes: Lanes) {
+    this.listAccessService = listAccessService;
+    this.lanes = lanes;
   }
 
-  execute(): Promise<AccessListing> {
-    return this.runStored(() => this.list.execute());
+  execute(
+    input: Record<never, never>,
+    context: OperationContext,
+  ): Promise<ListAccessResponse> {
+    return this.lanes.unqueued(
+      async () => this.listAccessService.execute(input),
+      { callerSignal: context.signal },
+    );
   }
 }

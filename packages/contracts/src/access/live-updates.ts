@@ -3,7 +3,6 @@ import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-// Duplicated from git-actions/git-actions.ts so this folder imports only shared.
 const gitActionReceiptSchema = z.object({
   requestId: z.uuid(),
   projectId: z.uuid(),

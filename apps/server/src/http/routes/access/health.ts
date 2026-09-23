@@ -15,6 +15,7 @@ export async function healthRoute(
         response: { 200: readHealthResponseSchema },
       },
     },
-    () => options.controller.execute(),
+    (request) =>
+      options.controller.execute({}, { signal: request.disconnected }),
   );
 }
