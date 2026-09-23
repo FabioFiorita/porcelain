@@ -6,11 +6,10 @@ import type {
   CommitDraftWriter,
   CommitModelReader,
 } from '@porcelain/git-actions/ports';
-import { openApplication } from './compose-server.ts';
-import type { ServerCapabilities } from './server-capabilities.ts';
+import { openApplication, type ServerApplication } from './compose-server.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { startupSettingsSchema } from '../config/startup-settings.ts';
-import type { FileWriter } from '@porcelain/files/ports';
+import type { IssuePairingResponse } from '@porcelain/contracts/access';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { probeOwnerSocket } from '../http/helpers/owner-socket-client.ts';
@@ -22,7 +21,6 @@ import { restrictOwnerSocket } from './owner-socket.ts';
 import { acquireStartupLock } from './startup-lock.ts';
 
 export type RuntimeDependencies = {
-  fileWriter?: FileWriter;
   commitGenerator?: CommitDraftWriter & CommitModelReader;
   onClaimed?: () => Promise<void> | void;
   onNetworkBound?: (address: string) => Promise<void> | void;
@@ -32,7 +30,10 @@ export type Runtime = {
   address: string;
   socketPath: string;
   refreshed(): Promise<void>;
-  issuePairing: ServerCapabilities['issuePairing'];
+  issuePairing(
+    labels: readonly string[],
+    addresses: readonly string[],
+  ): Promise<IssuePairingResponse['grants']>;
   close(): Promise<void>;
 };
 
@@ -49,7 +50,7 @@ async function closeListener(server: FastifyInstance) {
 async function shutDown(parts: {
   network?: FastifyInstance | undefined;
   owner?: FastifyInstance | undefined;
-  application?: ServerCapabilities | undefined;
+  application?: ServerApplication | undefined;
 }) {
   const { network, owner, application } = parts;
   const failures: unknown[] = [];
@@ -85,12 +86,11 @@ export async function startRuntime(
   signal?.throwIfAborted();
   const directory = prepareDataDirectory(dataDirectory);
   const socketPath = ownerSocketPath(directory);
-  const { fileWriter, commitGenerator, onClaimed, onNetworkBound } =
-    dependencies;
+  const { commitGenerator, onClaimed, onNetworkBound } = dependencies;
   const parts: {
     network?: FastifyInstance;
     owner?: FastifyInstance;
-    application?: ServerCapabilities;
+    application?: ServerApplication;
   } = {};
   const reach: { port: number; policy: HostPolicy } = {
     port: 0,
@@ -110,7 +110,6 @@ export async function startRuntime(
       dataDirectory: directory,
       projectHome,
       pairingReach: () => reach,
-      ...(fileWriter ? { fileWriter } : {}),
       ...(commitGenerator ? { commitGenerator } : {}),
       ...(signal ? { signal } : {}),
     });
@@ -136,8 +135,13 @@ export async function startRuntime(
       address,
       socketPath,
       refreshed: () => application.ready(),
-      issuePairing: (labels, addresses) =>
-        application.issuePairing(labels, addresses),
+      issuePairing: async (labels, addresses) =>
+        (
+          await application.issuePairingController.execute(
+            { labels: [...labels], addresses: [...addresses] },
+            {},
+          )
+        ).grants,
       close: () => {
         closing.started ??= shutDown(parts);
         return closing.started;

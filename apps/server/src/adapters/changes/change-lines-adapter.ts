@@ -1,14 +1,20 @@
 import type { ChangeLinesReader } from '@porcelain/changes/ports';
-import type { FileReader } from '@porcelain/files/ports';
 import type { InspectionCheckouts } from './inspection-checkouts.ts';
+
+type TextFileReading = {
+  execute(
+    input: { worktreeId: string; path: string },
+    signal?: AbortSignal,
+  ): Promise<{ text: string }>;
+};
 
 export class ChangeLinesAdapter implements ChangeLinesReader {
   private readonly checkouts: InspectionCheckouts;
-  private readonly files: FileReader;
+  private readonly readTextFile: TextFileReading;
 
-  constructor(checkouts: InspectionCheckouts, files: FileReader) {
+  constructor(checkouts: InspectionCheckouts, readTextFile: TextFileReading) {
     this.checkouts = checkouts;
-    this.files = files;
+    this.readTextFile = readTextFile;
   }
 
   async readHeadText(
@@ -30,11 +36,6 @@ export class ChangeLinesAdapter implements ChangeLinesReader {
     path: string,
     signal?: AbortSignal,
   ): Promise<string> {
-    const { worktree } = await this.checkouts.open(worktreeId, signal);
-    const file = await this.files.read(
-      { worktreeId, root: worktree.path, path },
-      signal,
-    );
-    return file.text;
+    return (await this.readTextFile.execute({ worktreeId, path }, signal)).text;
   }
 }

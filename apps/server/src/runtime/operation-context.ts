@@ -1,1 +1,1 @@
-export type OperationContext = { signal?: AbortSignal };
+export type OperationContext = { signal?: AbortSignal | undefined };

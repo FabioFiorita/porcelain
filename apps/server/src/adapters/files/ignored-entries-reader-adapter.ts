@@ -1,12 +1,15 @@
 import type { IgnoredEntriesReader } from '@porcelain/files/ports';
 import { checkIgnored } from '@porcelain/git/inspection';
-import type { WorktreeCheckouts } from './worktree-checkouts.ts';
+import {
+  knownWorktree,
+  type KnownWorktrees,
+} from '../projects/checkout-session.ts';
 
 export class IgnoredEntriesReaderAdapter implements IgnoredEntriesReader {
-  private readonly worktreeCheckouts: WorktreeCheckouts;
+  private readonly worktrees: KnownWorktrees;
 
-  constructor(worktreeCheckouts: WorktreeCheckouts) {
-    this.worktreeCheckouts = worktreeCheckouts;
+  constructor(worktrees: KnownWorktrees) {
+    this.worktrees = worktrees;
   }
 
   async read(
@@ -14,7 +17,7 @@ export class IgnoredEntriesReaderAdapter implements IgnoredEntriesReader {
     paths: readonly string[],
     signal?: AbortSignal,
   ): Promise<ReadonlySet<string>> {
-    const checkout = await this.worktreeCheckouts.known(worktreeId, signal);
+    const checkout = await knownWorktree(this.worktrees, worktreeId, signal);
     return checkIgnored(checkout.path, paths, signal);
   }
 }

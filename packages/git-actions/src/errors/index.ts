@@ -1,4 +1,3 @@
-export { CommitDraftError } from './commit-draft-error.ts';
 export { CommitDraftSelectionError } from './commit-draft-selection-error.ts';
 export { CommitDraftTooLargeError } from './commit-draft-too-large-error.ts';
 export { CommitDraftUnavailableError } from './commit-draft-unavailable-error.ts';
@@ -18,3 +17,5 @@ export { MissingExpectedFilesError } from './missing-expected-files-error.ts';
 export { MissingUpstreamExpectationError } from './missing-upstream-expectation-error.ts';
 export { UnsupportedCommitModelError } from './unsupported-commit-model-error.ts';
 export { WorktreeChangedError } from './worktree-changed-error.ts';
+export { WorktreeNotFoundError } from './worktree-not-found-error.ts';
+export { WorktreeUnavailableError } from './worktree-unavailable-error.ts';

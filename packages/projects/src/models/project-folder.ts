@@ -10,6 +10,12 @@ export type ProjectFolderContents = {
   truncated: boolean;
 };
 
+export type ProjectFolderRead =
+  | { outcome: 'read'; contents: ProjectFolderContents }
+  | { outcome: 'missing' }
+  | { outcome: 'unreadable' }
+  | { outcome: 'unsupported-name' };
+
 export type ProjectFolder = {
   path: string;
   parent: string | undefined;

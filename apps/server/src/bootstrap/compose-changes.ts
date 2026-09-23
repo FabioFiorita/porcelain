@@ -1,12 +1,8 @@
 import { ReadEnvironmentService } from '@porcelain/access/services';
-import type {
-  ReviewedFileStore,
-  WorktreeAccess,
-} from '@porcelain/changes/ports';
 import {
   ConfirmCommitService,
   ConfirmDiffObservationService,
-  ConfirmWorktreeService,
+  CheckWorktreeService,
   DescribeWorktreeStateService,
   ListCommitsService,
   ReadBranchDetailsService,
@@ -16,14 +12,14 @@ import {
   ReadCommitDiffsService,
   ReadCommitFilesService,
   ReadWorktreeStatusService,
-  ReconcileReviewedFilesService,
   SelectDiffComparisonsService,
 } from '@porcelain/changes/services';
-import type { FileReader } from '@porcelain/files/ports';
+import type { ReadTextFileService } from '@porcelain/files/services';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
+import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { CommitReaderFactory } from '@porcelain/git/history';
 import type { InspectionFactory } from '@porcelain/git/inspection';
-import type { ResolvedWorktree } from '@porcelain/projects/models';
+import type { WorktreeAccess } from '@porcelain/projects/ports';
 import type { StorageSession } from '@porcelain/storage';
 import { createEnvironmentIdentityStore } from '@porcelain/storage/access';
 import { ChangeDiffAdapter } from '../adapters/changes/change-diff-adapter.ts';
@@ -42,47 +38,43 @@ import { ReadCommitFilesController } from '../controllers/read-commit-files-cont
 import { ReadGitStatusController } from '../controllers/read-git-status-controller.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
-import type { SharedReads } from '../runtime/shared-reads.ts';
+import { SharedReads } from '../runtime/shared-reads.ts';
 
 export function composeChanges(deps: {
   session: StorageSession;
   lanes: Lanes;
   laneKeys: LaneKeys;
-  sharedReads: SharedReads;
   worktreeAccess: WorktreeAccess;
-  reachableWorktrees: {
-    reachable(
-      worktreeId: string,
-      signal?: AbortSignal,
-    ): Promise<ResolvedWorktree>;
-  };
   inventory: { read(): { environmentId: string } };
   inspection: InspectionFactory;
   commitGit: CommitReaderFactory;
-  files: FileReader;
-  reviewedFileStore: ReviewedFileStore;
+  readTextFile: ReadTextFileService;
+  reconcileReviewedFiles: ReconcileReviewedFilesService;
   readInterruptedGitAction: ReadInterruptedGitActionService;
 }) {
   const { lanes, laneKeys } = deps;
   const sessions = new OperationGitSessions();
   const checkouts = new InspectionCheckouts(
-    deps.reachableWorktrees,
+    deps.worktreeAccess,
     sessions,
     deps.inspection,
   );
   const changeStatusReader = new ChangeStatusAdapter(checkouts);
   const worktreeSideReader = new WorktreeSideAdapter(checkouts);
   const changeDiffReader = new ChangeDiffAdapter(checkouts);
-  const changeLinesReader = new ChangeLinesAdapter(checkouts, deps.files);
+  const changeLinesReader = new ChangeLinesAdapter(
+    checkouts,
+    deps.readTextFile,
+  );
   const commitHistoryReader = new CommitHistoryAdapter(
-    deps.reachableWorktrees,
+    deps.worktreeAccess,
     deps.inventory,
     deps.commitGit,
   );
   const readEnvironment = new ReadEnvironmentService(
     createEnvironmentIdentityStore(deps.session),
   );
-  const confirmWorktree = new ConfirmWorktreeService(deps.worktreeAccess);
+  const checkWorktree = new CheckWorktreeService(deps.worktreeAccess);
   const readWorktreeStatus = new ReadWorktreeStatusService(changeStatusReader);
   const readBranchDetails = new ReadBranchDetailsService(changeStatusReader);
   const readChangeFingerprints = new ReadChangeFingerprintsService(
@@ -92,9 +84,6 @@ export function composeChanges(deps: {
   const confirmDiffObservation = new ConfirmDiffObservationService();
   const readChangeDiffs = new ReadChangeDiffsService(changeDiffReader);
   const readChangeLines = new ReadChangeLinesService(changeLinesReader);
-  const reconcileReviewedFiles = new ReconcileReviewedFilesService(
-    deps.reviewedFileStore,
-  );
   const describeWorktreeState = new DescribeWorktreeStateService();
   const listCommits = new ListCommitsService(commitHistoryReader);
   const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
@@ -102,10 +91,10 @@ export function composeChanges(deps: {
   const readCommitDiffs = new ReadCommitDiffsService(commitHistoryReader);
   return {
     readChangesController: new ReadChangesController(
-      confirmWorktree,
+      checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
-      reconcileReviewedFiles,
+      deps.reconcileReviewedFiles,
       deps.readInterruptedGitAction,
       describeWorktreeState,
       readEnvironment,
@@ -113,7 +102,7 @@ export function composeChanges(deps: {
       laneKeys,
     ),
     readChangeDiffsController: new ReadChangeDiffsController(
-      confirmWorktree,
+      checkWorktree,
       readWorktreeStatus,
       selectDiffComparisons,
       readChangeFingerprints,
@@ -124,42 +113,42 @@ export function composeChanges(deps: {
       laneKeys,
     ),
     readChangeLinesController: new ReadChangeLinesController(
-      confirmWorktree,
+      checkWorktree,
       readChangeLines,
       readEnvironment,
       lanes,
       laneKeys,
     ),
     readGitStatusController: new ReadGitStatusController(
-      confirmWorktree,
+      checkWorktree,
       readWorktreeStatus,
       readBranchDetails,
       readEnvironment,
       lanes,
       laneKeys,
-      deps.sharedReads,
+      new SharedReads(),
     ),
     listCommitsController: new ListCommitsController(
-      confirmWorktree,
+      checkWorktree,
       listCommits,
       lanes,
       laneKeys,
     ),
     readCommitFilesController: new ReadCommitFilesController(
-      confirmWorktree,
+      checkWorktree,
       readCommitFiles,
       lanes,
       laneKeys,
     ),
     readCommitDiffsController: new ReadCommitDiffsController(
-      confirmWorktree,
+      checkWorktree,
       confirmCommit,
       readCommitDiffs,
       lanes,
       laneKeys,
     ),
     services: {
-      confirmWorktree,
+      checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
       selectDiffComparisons,

@@ -3,7 +3,7 @@ import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import type { ReadHealthController } from '../../../controllers/read-health-controller.ts';
 
-export async function healthRoute(
+export function readHealth(
   server: FastifyInstance,
   options: { controller: Pick<ReadHealthController, 'execute'> },
 ) {

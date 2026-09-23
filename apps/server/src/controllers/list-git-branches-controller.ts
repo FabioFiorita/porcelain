@@ -2,21 +2,31 @@ import type {
   GitActionScope,
   ListGitBranchesResponse,
 } from '@porcelain/contracts/git-actions';
-import type { ListGitBranchesService } from '@porcelain/git-actions/services';
+import type {
+  CheckWorktreeService,
+  ListGitBranchesService,
+} from '@porcelain/git-actions/services';
+import type { CheckProjectService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListGitBranchesController {
+  private readonly checkProject: CheckProjectService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly listGitBranches: ListGitBranchesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
+    checkProject: CheckProjectService,
+    checkWorktree: CheckWorktreeService,
     listGitBranches: ListGitBranchesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
+    this.checkProject = checkProject;
+    this.checkWorktree = checkWorktree;
     this.listGitBranches = listGitBranches;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -29,7 +39,11 @@ export class ListGitBranchesController {
     return this.lanes.run(
       this.laneKeys.project(input.projectId),
       'read',
-      ({ signal }) => this.listGitBranches.execute(input, signal),
+      async ({ signal }) => {
+        this.checkProject.execute({ projectId: input.projectId });
+        await this.checkWorktree.execute(input, signal);
+        return this.listGitBranches.execute(input, signal);
+      },
       { callerSignal: context.signal },
     );
   }

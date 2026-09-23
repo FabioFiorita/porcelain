@@ -2,24 +2,25 @@ import type {
   InspectionFactory,
   InspectionReader,
 } from '@porcelain/git/inspection';
-import type {
-  CheckoutWorktree,
-  CheckoutWorktreeReader,
-} from '../git/checkout-session.ts';
+import type { Worktree } from '@porcelain/projects/models';
+import {
+  openCheckout,
+  type WritableWorktrees,
+} from '../projects/checkout-session.ts';
 import type { OperationGitSessions } from './operation-git-sessions.ts';
 
 export type InspectedCheckout = {
-  worktree: CheckoutWorktree;
+  worktree: Worktree;
   git: InspectionReader;
 };
 
 export class InspectionCheckouts {
-  private readonly worktrees: CheckoutWorktreeReader;
+  private readonly worktrees: WritableWorktrees;
   private readonly sessions: OperationGitSessions;
   private readonly inspection: InspectionFactory;
 
   constructor(
-    worktrees: CheckoutWorktreeReader,
+    worktrees: WritableWorktrees,
     sessions: OperationGitSessions,
     inspection: InspectionFactory,
   ) {
@@ -32,14 +33,12 @@ export class InspectionCheckouts {
     worktreeId: string,
     signal?: AbortSignal,
   ): Promise<InspectedCheckout> {
-    const worktree = await this.worktrees.reachable(worktreeId, signal);
-    const checkout = this.sessions
-      .for(signal)
-      .checkout(
-        worktree.path,
-        worktree.metadataIdentity,
-        worktree.repositoryIdentity,
-      );
+    const { worktree, checkout } = await openCheckout(
+      this.worktrees,
+      this.sessions.for(signal),
+      worktreeId,
+      signal,
+    );
     return { worktree, git: this.inspection(checkout) };
   }
 }

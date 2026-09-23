@@ -9,6 +9,7 @@ export type {
 } from './commit-draft.ts';
 export type {
   CommitDraftChange,
+  ConflictKind,
   CommitDraftComparison,
   CommitDraftObservation,
   CommitDraftUntrackedContent,
@@ -56,4 +57,4 @@ export type {
 export type { GitActionScope } from './git-action-scope.ts';
 export type { GitBranch, GitBranches } from './git-branches.ts';
 export type { ListGitBranchesInput } from './list-git-branches.ts';
-export type { Worktree } from './worktree.ts';
+export type { Worktree, WorktreeCheck } from './worktree.ts';

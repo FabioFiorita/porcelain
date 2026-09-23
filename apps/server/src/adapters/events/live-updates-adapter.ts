@@ -4,10 +4,8 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import * as parcelWatcher from '@parcel/watcher';
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
-import type {
-  ListableProject,
-  Worktree as ResolvedWorktree,
-} from '@porcelain/projects/models';
+import type { ListableProject } from '@porcelain/projects/models';
+import type { WorktreeAccess } from '@porcelain/projects/ports';
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
 import type { EventPublisher } from '../../runtime/event-publisher.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -64,15 +62,6 @@ export type ChangedPathsListener = {
   ): Promise<void>;
 };
 
-type WorktreeResolver = {
-  inProject(
-    projectId: string,
-    worktreeId: string,
-  ): Promise<
-    Pick<ResolvedWorktree, 'projectId' | 'id' | 'path' | 'commonDirectory'>
-  >;
-};
-
 type ClientState = {
   send: Send;
   projects: Set<string>;
@@ -119,7 +108,7 @@ function watchIfPossible(
 }
 
 export class LiveUpdatesAdapter implements EventPublisher {
-  private readonly worktrees: WorktreeResolver;
+  private readonly worktrees: Pick<WorktreeAccess, 'forWriting'>;
   private readonly pathsChanged: ChangedPathsListener;
   private readonly watcher: ParcelWatcher;
   private readonly ignoredPaths: typeof listIgnoredPaths;
@@ -134,7 +123,7 @@ export class LiveUpdatesAdapter implements EventPublisher {
   private closed = false;
 
   constructor(options: {
-    worktrees: WorktreeResolver;
+    worktrees: Pick<WorktreeAccess, 'forWriting'>;
     pathsChanged: ChangedPathsListener;
     projects: () => readonly ListableProject[];
     limits: LiveUpdatesLimits;
@@ -326,8 +315,11 @@ export class LiveUpdatesAdapter implements EventPublisher {
   private async watchWorktree(
     projectId: string,
     worktreeId: string,
-  ): Promise<WorktreeWatch> {
-    const resolved = await this.worktrees.inProject(projectId, worktreeId);
+  ): Promise<WorktreeWatch | undefined> {
+    const check = await this.worktrees.forWriting(worktreeId);
+    if (check.outcome !== 'found' || check.worktree.projectId !== projectId)
+      return undefined;
+    const resolved = check.worktree;
     const entry: WorktreeWatch = {
       projectId: resolved.projectId,
       worktreeId: resolved.id,

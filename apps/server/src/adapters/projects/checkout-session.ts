@@ -1,35 +1,43 @@
-import type { GitSession } from '@porcelain/git/inspection';
+import { RepositoryIdentityMismatchError } from '@porcelain/git/discovery';
+import type { CheckoutSession, GitSession } from '@porcelain/git/inspection';
+import type { Worktree } from '@porcelain/projects/models';
+import type { WorktreeAccess } from '@porcelain/projects/ports';
 
-export type CheckoutWorktree = {
-  path: string;
-  administrativeDirectory: string;
-  metadataIdentity: string;
-  repositoryIdentity: string;
-};
+export type KnownWorktrees = Pick<WorktreeAccess, 'known'>;
 
-export type CheckoutWorktreeReader<
-  T extends CheckoutWorktree = CheckoutWorktree,
-> = {
-  reachable(worktreeId: string, signal?: AbortSignal): Promise<T>;
-};
+export type WritableWorktrees = Pick<WorktreeAccess, 'forWriting'>;
 
-export type EnvironmentReader = {
-  read(): { environmentId: string };
-};
+export type OpenedCheckout = { worktree: Worktree; checkout: CheckoutSession };
 
-export async function resolveCheckoutSession<T extends CheckoutWorktree>(
-  worktrees: CheckoutWorktreeReader<T>,
-  store: EnvironmentReader,
+export async function knownWorktree(
+  worktrees: KnownWorktrees,
+  worktreeId: string,
+  signal?: AbortSignal,
+): Promise<Worktree> {
+  const check = await worktrees.known(worktreeId, signal);
+  if (check.outcome !== 'found') throw new RepositoryIdentityMismatchError();
+  return check.worktree;
+}
+
+export async function reachableWorktree(
+  worktrees: WritableWorktrees,
+  worktreeId: string,
+  signal?: AbortSignal,
+): Promise<Worktree> {
+  const check = await worktrees.forWriting(worktreeId, signal);
+  if (check.outcome !== 'found') throw new RepositoryIdentityMismatchError();
+  return check.worktree;
+}
+
+export async function openCheckout(
+  worktrees: WritableWorktrees,
   session: GitSession,
   worktreeId: string,
   signal?: AbortSignal,
-) {
-  const worktree = await worktrees.reachable(worktreeId, signal);
+): Promise<OpenedCheckout> {
+  const worktree = await reachableWorktree(worktrees, worktreeId, signal);
   return {
-    environmentId: store.read().environmentId,
     worktree,
-    metadataIdentity: worktree.metadataIdentity,
-    repositoryIdentity: worktree.repositoryIdentity,
     checkout: session.checkout(
       worktree.path,
       worktree.metadataIdentity,

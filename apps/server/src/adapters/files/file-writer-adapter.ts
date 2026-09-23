@@ -27,7 +27,10 @@ import {
   unchanged,
   verifyPath,
 } from './inspect-path.ts';
-import type { WorktreeCheckouts } from './worktree-checkouts.ts';
+import {
+  knownWorktree,
+  type KnownWorktrees,
+} from '../projects/checkout-session.ts';
 
 type Source = {
   info: BigIntStats;
@@ -42,10 +45,10 @@ type Destination = {
 };
 
 export class FileWriterAdapter implements FileWriter {
-  private readonly worktreeCheckouts: WorktreeCheckouts;
+  private readonly worktrees: KnownWorktrees;
 
-  constructor(worktreeCheckouts: WorktreeCheckouts) {
-    this.worktreeCheckouts = worktreeCheckouts;
+  constructor(worktrees: KnownWorktrees) {
+    this.worktrees = worktrees;
   }
 
   async write(
@@ -170,7 +173,9 @@ export class FileWriterAdapter implements FileWriter {
     location: FileLocation,
     signal?: AbortSignal,
   ): Promise<CheckoutPath> {
-    const checkout = await this.worktreeCheckouts.known(
+    const checkout = await knownWorktree(
+      this.worktrees,
+
       location.worktreeId,
       signal,
     );

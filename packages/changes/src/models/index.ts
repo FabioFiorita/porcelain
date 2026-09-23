@@ -52,11 +52,10 @@ export type {
   ReadChangeLinesInput,
   ReadCommitDiffsInput,
   ReadCommitFilesInput,
-  ReconcileReviewedFilesInput,
   SelectDiffComparisonsInput,
   WorktreeInput,
 } from './operation-inputs.ts';
-export type { Worktree } from './worktree.ts';
+export type { Worktree, WorktreeCheck } from './worktree.ts';
 export type {
   ObservedSides,
   SidePaths,

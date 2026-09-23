@@ -26,7 +26,7 @@ export type WorktreeLookup = {
 export type WorktreeDirectoryOptions = {
   git: GitFactory;
   inventoryStore: InventoryStore;
-  sharedReads: Pick<SharedReads, 'run'>;
+  sharedReads: Pick<SharedReads<WorktreeListing>, 'run'>;
   launchLimit: Pick<LaunchLimit, 'run'>;
   timeoutMs: number;
   worktreeId: (projectId: string, metadataIdentity: string) => string;

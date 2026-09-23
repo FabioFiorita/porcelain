@@ -10,15 +10,18 @@ import {
   unchanged,
   verifyPath,
 } from './inspect-path.ts';
-import type { WorktreeCheckouts } from './worktree-checkouts.ts';
+import {
+  knownWorktree,
+  type KnownWorktrees,
+} from '../projects/checkout-session.ts';
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 export class FileReaderAdapter implements FileReader {
-  private readonly worktreeCheckouts: WorktreeCheckouts;
+  private readonly worktrees: KnownWorktrees;
 
-  constructor(worktreeCheckouts: WorktreeCheckouts) {
-    this.worktreeCheckouts = worktreeCheckouts;
+  constructor(worktrees: KnownWorktrees) {
+    this.worktrees = worktrees;
   }
 
   async readText(
@@ -44,7 +47,9 @@ export class FileReaderAdapter implements FileReader {
     maxBytes: number,
     signal?: AbortSignal,
   ): Promise<FileRead> {
-    const checkout = await this.worktreeCheckouts.known(
+    const checkout = await knownWorktree(
+      this.worktrees,
+
       location.worktreeId,
       signal,
     );

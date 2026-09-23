@@ -1,6 +1,4 @@
-import { CommitDraftError } from './commit-draft-error.ts';
-
-export class CommitToolMissingError extends CommitDraftError {
+export class CommitToolMissingError extends Error {
   override readonly name = 'CommitToolMissingError';
 
   constructor() {

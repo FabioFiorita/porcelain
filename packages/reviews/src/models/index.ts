@@ -107,4 +107,8 @@ export type {
   SetReviewedLayerInput,
   SetReviewedLayerResult,
 } from './reviewed-mark.ts';
-export type { CheckWorktreeAccessInput, Worktree } from './worktree.ts';
+export type {
+  CheckWorktreeAccessInput,
+  Worktree,
+  WorktreeCheck,
+} from './worktree.ts';

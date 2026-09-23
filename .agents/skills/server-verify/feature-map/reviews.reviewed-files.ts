@@ -24,7 +24,7 @@ const reviewed = (session: Session) => worktreePath(session, '/reviewed');
 const staleMark = apiError(
   409,
   'Conflict',
-  'The reviewed mark is based on a version of the file that has changed',
+  'The reviewed mark is based on a version that has changed',
 );
 const paths = (body: unknown) =>
   list(record(body).marks).map((mark) => record(mark).path);

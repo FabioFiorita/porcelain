@@ -4,20 +4,23 @@ import {
   InspectionLimitError,
   listTrackedPaths,
 } from '@porcelain/git/inspection';
-import type { WorktreeCheckouts } from './worktree-checkouts.ts';
+import {
+  knownWorktree,
+  type KnownWorktrees,
+} from '../projects/checkout-session.ts';
 
 export class WorktreePathsReaderAdapter implements WorktreePathsReader {
-  private readonly worktreeCheckouts: WorktreeCheckouts;
+  private readonly worktrees: KnownWorktrees;
 
-  constructor(worktreeCheckouts: WorktreeCheckouts) {
-    this.worktreeCheckouts = worktreeCheckouts;
+  constructor(worktrees: KnownWorktrees) {
+    this.worktrees = worktrees;
   }
 
   async read(
     worktreeId: string,
     signal?: AbortSignal,
   ): Promise<WorktreePathsRead> {
-    const checkout = await this.worktreeCheckouts.known(worktreeId, signal);
+    const checkout = await knownWorktree(this.worktrees, worktreeId, signal);
     try {
       const listed = await listTrackedPaths(checkout.path, signal);
       return listed.complete

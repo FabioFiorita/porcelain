@@ -12,6 +12,7 @@ import type {
   RecordGitActionProgressService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
+import type { CheckProjectService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
@@ -26,7 +27,12 @@ export type PublishedReviewRefresh = {
 
 export type RunGitActionOptions = { deadlineMs: number };
 
+export type RunGitActionContext = OperationContext & {
+  answered?: (receipt: RunGitActionResponse) => void;
+};
+
 export class RunGitActionController {
+  private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
   private readonly expireGitActionReceipts: ExpireGitActionReceiptsService;
   private readonly acceptGitAction: AcceptGitActionService;
@@ -40,6 +46,7 @@ export class RunGitActionController {
   private readonly options: RunGitActionOptions;
 
   constructor(
+    checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
     expireGitActionReceipts: ExpireGitActionReceiptsService,
     acceptGitAction: AcceptGitActionService,
@@ -52,6 +59,7 @@ export class RunGitActionController {
     events: EventPublisher,
     options: RunGitActionOptions,
   ) {
+    this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
     this.expireGitActionReceipts = expireGitActionReceipts;
     this.acceptGitAction = acceptGitAction;
@@ -67,11 +75,12 @@ export class RunGitActionController {
 
   async execute(
     input: GitActionScope & RunGitActionRequest,
-    context: OperationContext,
+    context: RunGitActionContext,
   ): Promise<RunGitActionResponse> {
+    const scope = { projectId: input.projectId, worktreeId: input.worktreeId };
+    this.checkProject.execute(scope);
     await this.lanes.unqueued(
-      (signal) =>
-        this.checkWorktree.execute({ worktreeId: input.worktreeId }, signal),
+      (signal) => this.checkWorktree.execute(scope, signal),
       { callerSignal: context.signal },
     );
     this.expireGitActionReceipts.execute({});
@@ -86,6 +95,7 @@ export class RunGitActionController {
       this.events.gitActionChanged(accepted.receipt);
       this.runInBackground(accepted.run);
     }
+    context.answered?.(accepted.receipt);
     return accepted.receipt;
   }
 

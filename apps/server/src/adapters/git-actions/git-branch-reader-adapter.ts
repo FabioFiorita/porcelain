@@ -3,10 +3,8 @@ import type {
   GitBranches,
 } from '@porcelain/git-actions/models';
 import type { GitBranchReader } from '@porcelain/git-actions/ports';
-import {
-  RequestGitSession,
-  type GitActionWriterFactory,
-} from '@porcelain/git/actions';
+import type { GitActionWriterFactory } from '@porcelain/git/actions';
+import { RequestGitSession } from '@porcelain/git/inspection';
 import type { ActionCheckouts } from './action-checkout.ts';
 
 export class GitBranchReaderAdapter implements GitBranchReader {

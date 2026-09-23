@@ -52,10 +52,6 @@ export type ReadCommitDiffsInput = ReadCommitFilesInput & {
   paths: string[][];
 };
 
-export type ReconcileReviewedFilesInput = WorktreeInput & {
-  changes: readonly FileChange[];
-};
-
 export type DescribeWorktreeStateInput = {
   changes: readonly FileChange[];
   branch: BranchStatus | undefined;

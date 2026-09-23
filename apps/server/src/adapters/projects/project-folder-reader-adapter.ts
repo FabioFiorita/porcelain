@@ -5,10 +5,9 @@ import type {
   FolderSearch,
   FolderSearchResult,
   ProjectFolderContents,
+  ProjectFolderRead,
 } from '@porcelain/projects/models';
 import type { ProjectFolderReader } from '@porcelain/projects/ports';
-import { decodeDirectoryName } from '../files/decode-directory-name.ts';
-import { mapFilesystemError } from '../files/map-filesystem-error.ts';
 
 const ENTRY_LIMIT = 2000;
 const UNREADABLE_CODES = [
@@ -21,11 +20,9 @@ const UNREADABLE_CODES = [
   'ENXIO',
 ];
 
-type NameDecoder = (name: unknown) => string | undefined;
+const MISSING_CODES = ['ENOENT'];
 
-const strictName: NameDecoder = decodeDirectoryName;
-
-const lenientName: NameDecoder = (name) => {
+function decodedName(name: unknown): string | undefined {
   if (!Buffer.isBuffer(name)) return undefined;
   try {
     return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
@@ -34,7 +31,7 @@ const lenientName: NameDecoder = (name) => {
   } catch {
     return undefined;
   }
-};
+}
 
 function hasCode(error: unknown, codes: readonly string[]): boolean {
   return (
@@ -45,16 +42,16 @@ function hasCode(error: unknown, codes: readonly string[]): boolean {
 }
 
 export class ProjectFolderReaderAdapter implements ProjectFolderReader {
-  async read(
-    path: string,
-    signal?: AbortSignal,
-  ): Promise<ProjectFolderContents> {
+  async read(path: string, signal?: AbortSignal): Promise<ProjectFolderRead> {
     try {
-      const contents = await this.contents(path, strictName, signal);
-      if (!contents) throw new Error('Expected a decodable directory');
-      return contents;
+      const contents = await this.contents(path, signal);
+      return contents
+        ? { outcome: 'read', contents }
+        : { outcome: 'unsupported-name' };
     } catch (error) {
-      return mapFilesystemError(error);
+      if (hasCode(error, MISSING_CODES)) return { outcome: 'missing' };
+      if (hasCode(error, UNREADABLE_CODES)) return { outcome: 'unreadable' };
+      throw error;
     }
   }
 
@@ -113,7 +110,7 @@ export class ProjectFolderReaderAdapter implements ProjectFolderReader {
     signal?: AbortSignal,
   ): Promise<ProjectFolderContents | undefined> {
     try {
-      return await this.contents(path, lenientName, signal);
+      return await this.contents(path, signal);
     } catch (error) {
       signal?.throwIfAborted();
       if (hasCode(error, UNREADABLE_CODES)) return undefined;
@@ -123,7 +120,6 @@ export class ProjectFolderReaderAdapter implements ProjectFolderReader {
 
   private async contents(
     requestedPath: string,
-    decode: NameDecoder,
     signal?: AbortSignal,
   ): Promise<ProjectFolderContents | undefined> {
     signal?.throwIfAborted();
@@ -138,7 +134,7 @@ export class ProjectFolderReaderAdapter implements ProjectFolderReader {
         truncated = true;
         break;
       }
-      const name = decode(entry.name);
+      const name = decodedName(entry.name);
       if (name === undefined) return undefined;
       if (name === '.git') continue;
       const child = join(path, name);

@@ -1,6 +1,11 @@
-import type { ReadChangesResult as InspectedChanges } from '@porcelain/changes/models';
-import { RequestGitSession } from '@porcelain/git/actions';
-import type { GitSession } from '@porcelain/git/inspection';
+import type {
+  ChangeComparison as InspectedComparison,
+  ChangeFingerprints,
+  ChangeStatusObservation,
+  ReadChangeFingerprintsInput,
+  Worktree,
+  WorktreeInput,
+} from '@porcelain/changes/models';
 import type {
   ChangeComparison,
   ReadChangesResult,
@@ -8,24 +13,27 @@ import type {
 import type { WorktreeChangeReader } from '@porcelain/reviews/ports';
 
 type ChangeReading = {
-  execute(
-    worktreeId: string,
-    gitSession: GitSession,
-    signal?: AbortSignal,
-  ): Promise<InspectedChanges>;
+  checkWorktree: {
+    execute(input: WorktreeInput, signal?: AbortSignal): Promise<Worktree>;
+  };
+  readWorktreeStatus: {
+    execute(
+      input: WorktreeInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeStatusObservation>;
+  };
+  readChangeFingerprints: {
+    execute(
+      input: ReadChangeFingerprintsInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeFingerprints>;
+  };
 };
-
-type InspectedComparison =
-  InspectedChanges['changes'][number]['comparisons'][number];
 
 function comparison(entry: InspectedComparison): ChangeComparison {
   if (entry.scope === 'untracked' || entry.scope === 'unmerged')
     return { scope: entry.scope };
-  return {
-    scope: entry.scope,
-    ...(entry.oldPath === null ? {} : { oldPath: entry.oldPath }),
-    ...(entry.newPath === null ? {} : { newPath: entry.newPath }),
-  };
+  return { scope: entry.scope, oldPath: entry.oldPath, newPath: entry.newPath };
 }
 
 export class WorktreeChangeAdapter implements WorktreeChangeReader {
@@ -39,17 +47,22 @@ export class WorktreeChangeAdapter implements WorktreeChangeReader {
     worktreeId: string,
     signal?: AbortSignal,
   ): Promise<ReadChangesResult> {
-    const session = new RequestGitSession();
-    const inspected = await this.changes.execute(worktreeId, session, signal);
-    await session.confirmAll(signal);
+    await this.changes.checkWorktree.execute({ worktreeId }, signal);
+    const status = await this.changes.readWorktreeStatus.execute(
+      { worktreeId },
+      signal,
+    );
+    const { changes } = await this.changes.readChangeFingerprints.execute(
+      { worktreeId, comparisons: status.changes, paths: undefined },
+      signal,
+    );
+    await this.changes.checkWorktree.execute({ worktreeId }, signal);
     return {
-      worktreeId: inspected.worktreeId,
-      statusToken: inspected.statusToken,
-      changes: inspected.changes.map((change) => ({
+      worktreeId,
+      statusToken: status.statusToken,
+      changes: changes.map((change) => ({
         path: change.path,
-        ...(change.fingerprint === null
-          ? {}
-          : { fingerprint: change.fingerprint }),
+        fingerprint: change.fingerprint,
         comparisons: change.comparisons.map(comparison),
       })),
     };

@@ -22,7 +22,7 @@ const layers = (session: Session) => worktreePath(session, '/reviewed-layers');
 const staleMark = apiError(
   409,
   'Conflict',
-  'The reviewed mark is based on a version of the file that has changed',
+  'The reviewed mark is based on a version that has changed',
 );
 const layerId = randomUUID();
 const strayLayerId = randomUUID();

@@ -1,10 +1,16 @@
 import type {
-  ChangeDiffs as InspectedDiffs,
-  ChangeSelection as InspectedSelection,
-  ExpectedFile as InspectedFile,
+  ChangeDiff,
+  ChangeDiffContent as InspectedContent,
+  ChangeFingerprints,
+  ChangeStatusObservation,
+  ConfirmDiffObservationInput,
+  DiffSelection,
+  ReadChangeDiffsInput,
+  ReadChangeFingerprintsInput,
+  SelectDiffComparisonsInput,
+  Worktree,
+  WorktreeInput,
 } from '@porcelain/changes/models';
-import { RequestGitSession } from '@porcelain/git/actions';
-import type { GitSession } from '@porcelain/git/inspection';
 import type {
   ChangeDiffContent,
   ChangeDiffs,
@@ -14,43 +20,44 @@ import type {
 import type { ChangeDiffReader } from '@porcelain/reviews/ports';
 
 type DiffReading = {
-  execute(
-    worktreeId: string,
-    expectedStatusToken: string,
-    expectedFiles: readonly InspectedFile[],
-    selections: readonly InspectedSelection[],
-    gitSession: GitSession,
-    signal?: AbortSignal,
-  ): Promise<InspectedDiffs>;
+  checkWorktree: {
+    execute(input: WorktreeInput, signal?: AbortSignal): Promise<Worktree>;
+  };
+  readWorktreeStatus: {
+    execute(
+      input: WorktreeInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeStatusObservation>;
+  };
+  selectDiffComparisons: {
+    execute(input: SelectDiffComparisonsInput): DiffSelection;
+  };
+  readChangeFingerprints: {
+    execute(
+      input: ReadChangeFingerprintsInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeFingerprints>;
+  };
+  confirmDiffObservation: {
+    execute(input: ConfirmDiffObservationInput): void;
+  };
+  readChangeDiffs: {
+    execute(
+      input: ReadChangeDiffsInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeDiff[]>;
+  };
 };
 
-type InspectedContent = InspectedDiffs['diffs'][number]['content'];
-
-function inspectedSelection(selection: ChangeSelection): InspectedSelection {
-  return {
-    scope: selection.scope,
-    oldPath: selection.oldPath ?? null,
-    newPath: selection.newPath ?? null,
-  };
-}
-
-function reviewSelection(selection: InspectedSelection): ChangeSelection {
-  return {
-    scope: selection.scope,
-    ...(selection.oldPath === null ? {} : { oldPath: selection.oldPath }),
-    ...(selection.newPath === null ? {} : { newPath: selection.newPath }),
-  };
-}
-
-function reviewContent(content: InspectedContent): ChangeDiffContent {
-  return content.kind === 'omitted' ? { kind: 'omitted' } : content;
+function content(inspected: InspectedContent): ChangeDiffContent {
+  return inspected.kind === 'omitted' ? { kind: 'omitted' } : inspected;
 }
 
 export class ChangeDiffAdapter implements ChangeDiffReader {
-  private readonly diffs: DiffReading;
+  private readonly changes: DiffReading;
 
-  constructor(diffs: DiffReading) {
-    this.diffs = diffs;
+  constructor(changes: DiffReading) {
+    this.changes = changes;
   }
 
   async read(
@@ -60,21 +67,59 @@ export class ChangeDiffAdapter implements ChangeDiffReader {
     selections: readonly ChangeSelection[],
     signal?: AbortSignal,
   ): Promise<ChangeDiffs> {
-    const inspected = await this.diffs.execute(
-      worktreeId,
-      statusToken,
-      expectedFiles.map((file) => ({
-        path: file.path,
-        fingerprint: file.fingerprint ?? null,
-      })),
-      selections.map(inspectedSelection),
-      new RequestGitSession(),
+    const expected = expectedFiles.map((file) => ({
+      path: file.path,
+      fingerprint: file.fingerprint,
+    }));
+    await this.changes.checkWorktree.execute({ worktreeId }, signal);
+    const before = await this.changes.readWorktreeStatus.execute(
+      { worktreeId },
       signal,
     );
+    const selected = this.changes.selectDiffComparisons.execute({
+      expectedFiles: expected,
+      selections: selections.map((selection) => ({
+        scope: selection.scope,
+        oldPath: selection.oldPath,
+        newPath: selection.newPath,
+      })),
+      status: before,
+    });
+    const observed = await this.changes.readChangeFingerprints.execute(
+      { worktreeId, comparisons: before.changes, paths: selected.paths },
+      signal,
+    );
+    this.changes.confirmDiffObservation.execute({
+      expectedStatusToken: statusToken,
+      expectedFiles: expected,
+      statusToken: before.statusToken,
+      fingerprints: observed,
+      previousStamp: undefined,
+    });
+    const diffs = await this.changes.readChangeDiffs.execute(
+      { worktreeId, comparisons: selected.comparisons },
+      signal,
+    );
+    const after = await this.changes.readWorktreeStatus.execute(
+      { worktreeId },
+      signal,
+    );
+    const reobserved = await this.changes.readChangeFingerprints.execute(
+      { worktreeId, comparisons: after.changes, paths: selected.paths },
+      signal,
+    );
+    this.changes.confirmDiffObservation.execute({
+      expectedStatusToken: statusToken,
+      expectedFiles: expected,
+      statusToken: after.statusToken,
+      fingerprints: reobserved,
+      previousStamp: observed.stamp,
+    });
+    await this.changes.checkWorktree.execute({ worktreeId }, signal);
     return {
-      diffs: inspected.diffs.map((diff) => ({
-        selection: reviewSelection(diff.selection),
-        content: reviewContent(diff.content),
+      diffs: diffs.map((diff) => ({
+        selection: diff.selection,
+        content: content(diff.content),
       })),
     };
   }

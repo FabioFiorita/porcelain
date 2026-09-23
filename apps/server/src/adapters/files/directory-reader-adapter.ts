@@ -9,15 +9,18 @@ import type {
 } from '@porcelain/files/models';
 import type { DirectoryReader } from '@porcelain/files/ports';
 import { filesystemFailure, inspectPath, verifyPath } from './inspect-path.ts';
-import type { WorktreeCheckouts } from './worktree-checkouts.ts';
+import {
+  knownWorktree,
+  type KnownWorktrees,
+} from '../projects/checkout-session.ts';
 
 const nameDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 export class DirectoryReaderAdapter implements DirectoryReader {
-  private readonly worktreeCheckouts: WorktreeCheckouts;
+  private readonly worktrees: KnownWorktrees;
 
-  constructor(worktreeCheckouts: WorktreeCheckouts) {
-    this.worktreeCheckouts = worktreeCheckouts;
+  constructor(worktrees: KnownWorktrees) {
+    this.worktrees = worktrees;
   }
 
   async list(
@@ -25,7 +28,9 @@ export class DirectoryReaderAdapter implements DirectoryReader {
     maxEntries: number,
     signal?: AbortSignal,
   ): Promise<DirectoryRead> {
-    const checkout = await this.worktreeCheckouts.known(
+    const checkout = await knownWorktree(
+      this.worktrees,
+
       location.worktreeId,
       signal,
     );

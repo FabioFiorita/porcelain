@@ -5,7 +5,6 @@ import type {
   ProjectFolderReader,
   WorktreeStatusStore,
 } from '@porcelain/projects/ports';
-import { deriveWorktreeId } from '@porcelain/projects/rules';
 import {
   BrowseProjectFoldersService,
   CollectAbsentWorktreesService,
@@ -37,8 +36,8 @@ import {
 } from '@porcelain/storage/projects';
 import { ProjectFolderReaderAdapter } from '../adapters/projects/project-folder-reader-adapter.ts';
 import { ProjectRepositoryReaderAdapter } from '../adapters/projects/project-repository-reader-adapter.ts';
-import { WorktreeAccessAdapter } from '../adapters/projects/worktree-access-adapter.ts';
-import { WorktreeDirectoryAdapter } from '../adapters/projects/worktree-directory-adapter.ts';
+import type { WorktreeAccessAdapter } from '../adapters/projects/worktree-access-adapter.ts';
+import type { WorktreeDirectoryAdapter } from '../adapters/projects/worktree-directory-adapter.ts';
 import { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
 import { CollectAbsentWorktreesController } from '../controllers/collect-absent-worktrees-controller.ts';
 import { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
@@ -52,24 +51,20 @@ import { SetFilePreferenceController } from '../controllers/set-file-preference-
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
-import { LaunchLimit } from '../runtime/launch-limit.ts';
-import type { SharedReads } from '../runtime/shared-reads.ts';
-
-const LISTING_LAUNCHES = 4;
 
 export type ProjectsDependencies = {
   session: StorageSession;
   lanes: Lanes;
   laneKeys: LaneKeys;
   events: EventPublisher;
-  sharedReads: SharedReads;
   git: GitFactory;
   clock: Clock;
   idSource: IdSource;
   worktreeStatusStore: WorktreeStatusStore;
   projectFolderReader?: ProjectFolderReader | undefined;
   projectHome: string;
-  projectListingTimeoutMs: number;
+  worktreeDirectory: WorktreeDirectoryAdapter;
+  worktreeAccess: WorktreeAccessAdapter;
 };
 
 export function composeProjects(deps: ProjectsDependencies) {
@@ -80,18 +75,7 @@ export function composeProjects(deps: ProjectsDependencies) {
   const projectFolderReader =
     deps.projectFolderReader ?? new ProjectFolderReaderAdapter();
   const projectRepositoryReader = new ProjectRepositoryReaderAdapter(deps.git);
-  const worktreeDirectory = new WorktreeDirectoryAdapter({
-    git: deps.git,
-    inventoryStore,
-    sharedReads: deps.sharedReads,
-    launchLimit: new LaunchLimit(LISTING_LAUNCHES),
-    timeoutMs: deps.projectListingTimeoutMs,
-    worktreeId: deriveWorktreeId,
-  });
-  const worktreeAccess = new WorktreeAccessAdapter(
-    worktreeDirectory,
-    inventoryStore,
-  );
+  const { worktreeDirectory, worktreeAccess } = deps;
 
   const listRegisteredProjects = new ListRegisteredProjectsService(
     inventoryStore,

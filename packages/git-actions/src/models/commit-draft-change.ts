@@ -1,3 +1,12 @@
+export type ConflictKind =
+  | 'both-deleted'
+  | 'added-by-us'
+  | 'deleted-by-them'
+  | 'added-by-them'
+  | 'deleted-by-us'
+  | 'both-added'
+  | 'both-modified';
+
 export type CommitDraftComparison =
   | {
       scope: 'staged' | 'unstaged';
@@ -14,7 +23,7 @@ export type CommitDraftComparison =
   | {
       scope: 'unmerged';
       path: string;
-      conflict: 'DD' | 'AU' | 'UD' | 'UA' | 'DU' | 'AA' | 'UU';
+      conflict: ConflictKind;
       modes: [string, string, string, string];
       oids: [string, string, string];
     };

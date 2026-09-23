@@ -1,4 +1,3 @@
-import type { WorktreeAccess } from '@porcelain/files/ports';
 import {
   CheckWorktreeService,
   EditFileService,
@@ -8,11 +7,11 @@ import {
   ReadPreviewAssetsService,
   ReadTextFileService,
 } from '@porcelain/files/services';
+import type { WorktreeAccess } from '@porcelain/projects/ports';
 import { DirectoryReaderAdapter } from '../adapters/files/directory-reader-adapter.ts';
 import { FileReaderAdapter } from '../adapters/files/file-reader-adapter.ts';
 import { FileWriterAdapter } from '../adapters/files/file-writer-adapter.ts';
 import { IgnoredEntriesReaderAdapter } from '../adapters/files/ignored-entries-reader-adapter.ts';
-import type { WorktreeCheckouts } from '../adapters/files/worktree-checkouts.ts';
 import { WorktreePathsReaderAdapter } from '../adapters/files/worktree-paths-reader-adapter.ts';
 import { EditFileController } from '../controllers/edit-file-controller.ts';
 import { ListDirectoryController } from '../controllers/list-directory-controller.ts';
@@ -29,19 +28,19 @@ export function composeFiles(deps: {
   laneKeys: LaneKeys;
   events: EventPublisher;
   worktreeAccess: WorktreeAccess;
-  worktreeCheckouts: WorktreeCheckouts;
 }) {
-  const { lanes, laneKeys, events, worktreeCheckouts } = deps;
-  const checkWorktree = new CheckWorktreeService(deps.worktreeAccess);
-  const fileReader = new FileReaderAdapter(worktreeCheckouts);
+  const { lanes, laneKeys, events, worktreeAccess } = deps;
+  const checkWorktree = new CheckWorktreeService(worktreeAccess);
+  const fileReader = new FileReaderAdapter(worktreeAccess);
   const readTextFileService = new ReadTextFileService(fileReader);
   return {
+    fileReader,
     readTextFileService,
     listDirectoryController: new ListDirectoryController(
       checkWorktree,
       new ListDirectoryService(
-        new DirectoryReaderAdapter(worktreeCheckouts),
-        new IgnoredEntriesReaderAdapter(worktreeCheckouts),
+        new DirectoryReaderAdapter(worktreeAccess),
+        new IgnoredEntriesReaderAdapter(worktreeAccess),
       ),
       lanes,
       laneKeys,
@@ -66,7 +65,7 @@ export function composeFiles(deps: {
     ),
     editFileController: new EditFileController(
       checkWorktree,
-      new EditFileService(fileReader, new FileWriterAdapter(worktreeCheckouts)),
+      new EditFileService(fileReader, new FileWriterAdapter(worktreeAccess)),
       lanes,
       laneKeys,
       events,
@@ -74,7 +73,7 @@ export function composeFiles(deps: {
     listWorktreePathsController: new ListWorktreePathsController(
       checkWorktree,
       new ListWorktreePathsService(
-        new WorktreePathsReaderAdapter(worktreeCheckouts),
+        new WorktreePathsReaderAdapter(worktreeAccess),
       ),
       lanes,
       laneKeys,

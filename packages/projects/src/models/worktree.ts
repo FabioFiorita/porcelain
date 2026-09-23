@@ -16,3 +16,8 @@ export interface Worktree {
   commonDirectory: string;
   repositoryIdentity: string;
 }
+
+export type WorktreeCheck =
+  | { outcome: 'found'; worktree: Worktree }
+  | { outcome: 'missing' }
+  | { outcome: 'unavailable' };

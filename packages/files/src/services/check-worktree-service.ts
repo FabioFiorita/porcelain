@@ -1,3 +1,5 @@
+import { WorktreeNotFoundError } from '../errors/worktree-not-found-error.ts';
+import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
 import type { CheckWorktreeInput } from '../models/check-worktree.ts';
 import type { Worktree } from '../models/worktree.ts';
 import type { WorktreeAccess } from '../ports/worktree-access.ts';
@@ -9,9 +11,16 @@ export class CheckWorktreeService {
     this.worktreeAccess = worktreeAccess;
   }
 
-  execute(input: CheckWorktreeInput, signal?: AbortSignal): Promise<Worktree> {
-    return input.purpose === 'writing'
-      ? this.worktreeAccess.forWriting(input.worktreeId, signal)
-      : this.worktreeAccess.known(input.worktreeId, signal);
+  async execute(
+    input: CheckWorktreeInput,
+    signal?: AbortSignal,
+  ): Promise<Worktree> {
+    const check =
+      input.purpose === 'writing'
+        ? await this.worktreeAccess.forWriting(input.worktreeId, signal)
+        : await this.worktreeAccess.known(input.worktreeId, signal);
+    if (check.outcome === 'missing') throw new WorktreeNotFoundError();
+    if (check.outcome === 'unavailable') throw new WorktreeUnavailableError();
+    return check.worktree;
   }
 }

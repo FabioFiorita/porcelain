@@ -1,3 +1,6 @@
+import { FolderNotFoundError } from '../errors/folder-not-found-error.ts';
+import { FolderNotReadableError } from '../errors/folder-not-readable-error.ts';
+import { UnsupportedFolderNameError } from '../errors/unsupported-folder-name-error.ts';
 import type {
   BrowseProjectFoldersInput,
   BrowseProjectFoldersOptions,
@@ -25,10 +28,15 @@ export class BrowseProjectFoldersService {
     input: BrowseProjectFoldersInput,
     signal?: AbortSignal,
   ): Promise<ProjectFolder> {
-    const folder = await this.projectFolderReader.read(
+    const read = await this.projectFolderReader.read(
       input.path ?? this.options.home,
       signal,
     );
+    if (read.outcome === 'missing') throw new FolderNotFoundError();
+    if (read.outcome === 'unreadable') throw new FolderNotReadableError();
+    if (read.outcome === 'unsupported-name')
+      throw new UnsupportedFolderNameError();
+    const folder = read.contents;
     const repository =
       folder.gitMarker &&
       (await this.projectRepositoryReader.find(folder.path, signal)) !==

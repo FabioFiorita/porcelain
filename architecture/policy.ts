@@ -1,3 +1,5 @@
+import { builtinModules } from 'node:module';
+
 export const domainPackages = [
   'projects',
   'changes',
@@ -197,6 +199,7 @@ function classifyPackage(name: string, inside: string) {
       return classified('repository-api', name);
     if (inside.startsWith('repositories/') || inside.startsWith('db/'))
       return classified('repository', name);
+    if (inside.startsWith('models/')) return classified('error', name);
     return;
   }
   if (name === 'contracts') {
@@ -306,8 +309,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   model: new Set(['model', 'model-api']),
   port: new Set(['port', 'model', 'model-api']),
   error: new Set(['error']),
-  repository: new Set(['repository', 'port-api', 'model-api']),
-  'repository-api': new Set(['repository', 'port-api', 'model-api']),
+  repository: new Set(['repository', 'port-api', 'model-api', 'error']),
+  'repository-api': new Set(['repository', 'port-api', 'model-api', 'error']),
   gateway: new Set([
     'gateway',
     'gateway-api',
@@ -374,19 +377,25 @@ const boundaryRoles = new Set<Role>([
   'contract',
   'config',
 ]);
-const nodeModule =
-  /^(?:node:|(?:fs|path|child_process|crypto|net|http|os)(?:\/|$))/;
+const nodeModules = new Set(
+  builtinModules.map((name) => name.replace(/^node:/, '')),
+);
 const infrastructureModule =
   /^(?:zod|fastify|@fastify\/|ws|drizzle-orm|better-sqlite3)(?:\/|$)?/;
 const storageEngineModule =
-  /^(?:better-sqlite3|drizzle-orm(?:\/|$)|node:(?:fs|child_process)(?:\/|$))/;
+  /^(?:better-sqlite3|drizzle-orm|fs|child_process)(?:\/|$)/;
+
+function isNodeModule(name: string): boolean {
+  return nodeModules.has(name) || nodeModules.has(name.split('/')[0] ?? '');
+}
 
 export function forbiddenExternal(role: Role, module: string): boolean {
+  const name = module.replace(/^node:/, '');
   if (typedRoles.has(role)) {
-    if ((role === 'rule' || role === 'rule-api') && module === 'node:crypto')
+    if ((role === 'rule' || role === 'rule-api') && name === 'crypto')
       return false;
-    return nodeModule.test(module) || infrastructureModule.test(module);
+    return isNodeModule(name) || infrastructureModule.test(name);
   }
-  if (boundaryRoles.has(role)) return storageEngineModule.test(module);
+  if (boundaryRoles.has(role)) return storageEngineModule.test(name);
   return false;
 }

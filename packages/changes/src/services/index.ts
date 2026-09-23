@@ -1,6 +1,6 @@
+export { CheckWorktreeService } from './check-worktree-service.ts';
 export { ConfirmDiffObservationService } from './confirm-diff-observation-service.ts';
 export { ConfirmCommitService } from './confirm-commit-service.ts';
-export { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 export { DescribeWorktreeStateService } from './describe-worktree-state-service.ts';
 export { ListCommitsService } from './list-commits-service.ts';
 export { ReadBranchDetailsService } from './read-branch-details-service.ts';
@@ -10,5 +10,4 @@ export { ReadChangeLinesService } from './read-change-lines-service.ts';
 export { ReadCommitDiffsService } from './read-commit-diffs-service.ts';
 export { ReadCommitFilesService } from './read-commit-files-service.ts';
 export { ReadWorktreeStatusService } from './read-worktree-status-service.ts';
-export { ReconcileReviewedFilesService } from './reconcile-reviewed-files-service.ts';
 export { SelectDiffComparisonsService } from './select-diff-comparisons-service.ts';

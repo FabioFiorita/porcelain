@@ -1,6 +1,4 @@
-import { CommitDraftError } from './commit-draft-error.ts';
-
-export class CommitGroupsMismatchError extends CommitDraftError {
+export class CommitGroupsMismatchError extends Error {
   override readonly name = 'CommitGroupsMismatchError';
 
   constructor() {

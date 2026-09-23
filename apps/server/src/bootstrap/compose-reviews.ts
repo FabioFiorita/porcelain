@@ -1,6 +1,6 @@
+import { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadTextFileService } from '@porcelain/files/services';
-import type { ListableProject } from '@porcelain/projects/models';
-import type { WorktreeAccess } from '@porcelain/reviews/ports';
+import type { WorktreeAccess } from '@porcelain/projects/ports';
 import {
   CheckWorktreeAccessService,
   CreateCommentThreadService,
@@ -35,10 +35,8 @@ import {
   createReviewedLayerStore,
   createReviewStore,
 } from '@porcelain/storage/reviews';
-import {
-  LiveUpdatesAdapter,
-  type LiveUpdatesLimits,
-} from '../adapters/events/live-updates-adapter.ts';
+import type { LiveUpdatesLimits } from '../adapters/events/live-updates-adapter.ts';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
 import { ChangeDiffAdapter } from '../adapters/reviews/change-diff-adapter.ts';
 import { ClockAdapter } from '../adapters/reviews/clock-adapter.ts';
 import { IdSourceAdapter } from '../adapters/reviews/id-source-adapter.ts';
@@ -64,25 +62,46 @@ import { SetReviewedFilesController } from '../controllers/set-reviewed-files-co
 import { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
+import type { composeChanges } from './compose-changes.ts';
 
-const LIVE_UPDATE_LIMITS: LiveUpdatesLimits = {
+type ChangesServices = ReturnType<typeof composeChanges>['services'];
+
+export const LIVE_UPDATE_LIMITS: LiveUpdatesLimits = {
   maxConnections: 64,
   maxWatchedWorktrees: 64,
   burstMs: 150,
   heartbeatMs: 25_000,
 };
 
-type LiveUpdatesOptions = ConstructorParameters<typeof LiveUpdatesAdapter>[0];
+export function composeReviewInvalidation(deps: {
+  session: StorageSession;
+  lanes: Lanes;
+  laneKeys: LaneKeys;
+}) {
+  const reviewedFileStore = createReviewedFileStore(deps.session);
+  return {
+    invalidateReviewedMarksController: new InvalidateReviewedMarksController(
+      new InvalidateReviewedMarksService(
+        reviewedFileStore,
+        createReviewedLayerStore(deps.session),
+      ),
+      deps.lanes,
+      deps.laneKeys,
+    ),
+    reconcileReviewedFiles: new ReconcileReviewedFilesService(
+      reviewedFileStore,
+    ),
+  };
+}
 
 export function composeReviews(deps: {
   session: StorageSession;
   lanes: Lanes;
   laneKeys: LaneKeys;
-  worktreeAccess: WorktreeAccess & LiveUpdatesOptions['worktrees'];
-  projects: () => readonly ListableProject[];
+  events: EventPublisher;
+  worktreeAccess: WorktreeAccess;
   readTextFile: ReadTextFileService;
-  readChanges: ConstructorParameters<typeof WorktreeChangeAdapter>[0];
-  readChangeDiffs: ConstructorParameters<typeof ChangeDiffAdapter>[0];
+  changes: ChangesServices;
   now?: (() => string) | undefined;
 }) {
   const { lanes, laneKeys } = deps;
@@ -92,7 +111,7 @@ export function composeReviews(deps: {
   const reviewStore = createReviewStore(deps.session);
   const reviewedFileStore = createReviewedFileStore(deps.session);
   const reviewedLayerStore = createReviewedLayerStore(deps.session);
-  const worktreeChanges = new WorktreeChangeAdapter(deps.readChanges);
+  const worktreeChanges = new WorktreeChangeAdapter(deps.changes);
 
   const checkWorktreeAccess = new CheckWorktreeAccessService(
     deps.worktreeAccess,
@@ -103,12 +122,12 @@ export function composeReviews(deps: {
   const readReviewChanges = new ReadReviewChangesService(worktreeChanges);
   const readCurrentChanges = new ReadCurrentChangesService(worktreeChanges);
   const readReviewPatches = new ReadReviewPatchesService(
-    new ChangeDiffAdapter(deps.readChangeDiffs),
+    new ChangeDiffAdapter(deps.changes),
   );
   const readPublishedReview = new ReadPublishedReviewService(reviewStore);
-  const resolvePublishedReview = new ResolvePublishedReviewService(
+  const resolvePublishedReview = new ResolvePublishedReviewService(clock);
+  const readEnvironment = new ReadEnvironmentService(
     createEnvironmentIdentityStore(deps.session),
-    clock,
   );
   const recordReviewActivity = new RecordReviewActivityService(reviewStore);
   const setReviewedFiles = new SetReviewedFilesService(
@@ -116,25 +135,8 @@ export function composeReviews(deps: {
     clock,
   );
 
-  const invalidateReviewedMarksController =
-    new InvalidateReviewedMarksController(
-      new InvalidateReviewedMarksService(reviewedFileStore, reviewedLayerStore),
-      lanes,
-      laneKeys,
-    );
-  const liveUpdates = new LiveUpdatesAdapter({
-    worktrees: deps.worktreeAccess,
-    pathsChanged: invalidateReviewedMarksController,
-    projects: deps.projects,
-    limits: LIVE_UPDATE_LIMITS,
-  });
-
+  const liveUpdates = deps.events;
   return {
-    liveUpdates,
-    invalidateReviewedMarksController,
-    reconcileReviewedFiles: new ReconcileReviewedFilesService(
-      reviewedFileStore,
-    ),
     listCommentThreadsController: new ListCommentThreadsController(
       checkWorktreeAccess,
       new ListCommentThreadsService(commentStore),
@@ -184,6 +186,7 @@ export function composeReviews(deps: {
       readReviewChanges,
       readReviewPatches,
       resolvePublishedReview,
+      readEnvironment,
       lanes,
       laneKeys,
       liveUpdates,
@@ -196,6 +199,7 @@ export function composeReviews(deps: {
       readReviewFiles,
       resolvePublishedReview,
       recordReviewActivity,
+      readEnvironment,
       lanes,
       laneKeys,
     ),
@@ -206,6 +210,7 @@ export function composeReviews(deps: {
       readReviewFiles,
       resolvePublishedReview,
       recordReviewActivity,
+      readEnvironment,
       lanes,
     ),
     readReviewSummaryController: new ReadReviewSummaryController(

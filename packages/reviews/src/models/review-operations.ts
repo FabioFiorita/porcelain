@@ -32,6 +32,7 @@ export type ReadReviewPatchesInput = {
 export type ReadReviewPatchesResult = ReviewPatch[] | undefined;
 
 export type ResolvePublishedReviewInput = {
+  environmentId: string;
   review: Review;
   files: ReviewFiles;
   changes: ReadChangesResult | undefined;

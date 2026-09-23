@@ -1,9 +1,11 @@
 import type { DeviceSighting, StoredDevice } from '@porcelain/access/models';
-import type { DeviceStore } from '@porcelain/access/ports';
+import type { DeviceActivityStore, DeviceStore } from '@porcelain/access/ports';
 
 export type HeldConnection = { close(): void };
 
-export class DeviceDirectoryAdapter implements DeviceStore {
+export class DeviceDirectoryAdapter
+  implements DeviceStore, DeviceActivityStore
+{
   private readonly deviceStore: DeviceStore;
   private readonly devices = new Map<string, StoredDevice>();
   private readonly unflushed = new Map<string, DeviceSighting>();

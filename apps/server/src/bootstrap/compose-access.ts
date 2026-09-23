@@ -1,6 +1,11 @@
-import type { DeviceStore, PairingReachReader } from '@porcelain/access/ports';
+import type {
+  DeviceActivityStore,
+  DeviceStore,
+  PairingReachReader,
+} from '@porcelain/access/ports';
 import {
   AuthenticateDeviceService,
+  FlushDeviceActivityService,
   IssuePairingService,
   ListAccessService,
   ReadEnvironmentService,
@@ -16,6 +21,7 @@ import {
 import { RandomIdAdapter } from '../adapters/access/random-id-adapter.ts';
 import { SystemClockAdapter } from '../adapters/access/system-clock-adapter.ts';
 import { AuthenticateDeviceController } from '../controllers/authenticate-device-controller.ts';
+import { FlushDeviceActivityController } from '../controllers/flush-device-activity-controller.ts';
 import { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
 import { ListAccessController } from '../controllers/list-access-controller.ts';
 import { ReadHealthController } from '../controllers/read-health-controller.ts';
@@ -27,6 +33,7 @@ export function composeAccess(deps: {
   session: StorageSession;
   lanes: Lanes;
   deviceStore: DeviceStore;
+  deviceActivityStore: DeviceActivityStore;
   pairingReachReader: PairingReachReader;
 }) {
   const clock = new SystemClockAdapter();
@@ -38,6 +45,10 @@ export function composeAccess(deps: {
   return {
     authenticateDeviceController: new AuthenticateDeviceController(
       new AuthenticateDeviceService(deps.deviceStore, clock),
+    ),
+    flushDeviceActivityController: new FlushDeviceActivityController(
+      new FlushDeviceActivityService(deps.deviceActivityStore),
+      deps.lanes,
     ),
     issuePairingController: new IssuePairingController(
       readEnvironmentService,

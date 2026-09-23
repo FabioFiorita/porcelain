@@ -3,7 +3,6 @@ import type {
   ResolvePublishedReviewResult,
 } from '../models/review-operations.ts';
 import type { Clock } from '../ports/clock.ts';
-import type { EnvironmentIdentityStore } from '../ports/environment-identity-store.ts';
 import {
   resolveLayer,
   reviewIsActive,
@@ -18,14 +17,9 @@ import {
 import { reviewChanges } from '../rules/review-evidence.ts';
 
 export class ResolvePublishedReviewService {
-  private readonly environmentIdentityStore: EnvironmentIdentityStore;
   private readonly clock: Clock;
 
-  constructor(
-    environmentIdentityStore: EnvironmentIdentityStore,
-    clock: Clock,
-  ) {
-    this.environmentIdentityStore = environmentIdentityStore;
+  constructor(clock: Clock) {
     this.clock = clock;
   }
 
@@ -45,7 +39,7 @@ export class ResolvePublishedReviewService {
     );
     const expires = summaryExpiry(this.clock.now());
     return {
-      environmentId: this.environmentIdentityStore.environmentId(),
+      environmentId: input.environmentId,
       worktreeId: review.worktreeId,
       revision: review.revision,
       publishedAt: review.publishedAt,

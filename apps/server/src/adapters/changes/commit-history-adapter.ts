@@ -8,39 +8,25 @@ import type {
   CommitSummary,
 } from '@porcelain/changes/models';
 import type { CommitHistoryReader } from '@porcelain/changes/ports';
-import { RepositoryIdentityMismatchError } from '@porcelain/git/discovery';
 import {
   HistorySnapshotUnavailableError,
   HistoryWorktreeUnavailableError,
   type CommitReaderFactory,
   type CommitSummary as GitCommitSummary,
 } from '@porcelain/git/history';
-
-type HistoryWorktree = {
-  id: string;
-  projectId: string;
-  path: string;
-  commonDirectory: string;
-  administrativeDirectory: string;
-  repositoryIdentity: string;
-  metadataIdentity: string;
-};
-
-type HistoryWorktrees = {
-  reachable(worktreeId: string, signal?: AbortSignal): Promise<HistoryWorktree>;
-};
+import type { WritableWorktrees } from '../projects/checkout-session.ts';
 
 type EnvironmentReader = { read(): { environmentId: string } };
 
 type CommitReader = ReturnType<CommitReaderFactory>;
 
 export class CommitHistoryAdapter implements CommitHistoryReader {
-  private readonly worktrees: HistoryWorktrees;
+  private readonly worktrees: WritableWorktrees;
   private readonly environment: EnvironmentReader;
   private readonly git: CommitReaderFactory;
 
   constructor(
-    worktrees: HistoryWorktrees,
+    worktrees: WritableWorktrees,
     environment: EnvironmentReader,
     git: CommitReaderFactory,
   ) {
@@ -138,14 +124,9 @@ export class CommitHistoryAdapter implements CommitHistoryReader {
     signal?: AbortSignal,
   ): Promise<CommitReader> {
     signal?.throwIfAborted();
-    let worktree: HistoryWorktree;
-    try {
-      worktree = await this.worktrees.reachable(worktreeId, signal);
-    } catch (error) {
-      if (error instanceof RepositoryIdentityMismatchError)
-        throw new HistoryWorktreeUnavailableError();
-      throw error;
-    }
+    const check = await this.worktrees.forWriting(worktreeId, signal);
+    if (check.outcome !== 'found') throw new HistoryWorktreeUnavailableError();
+    const { worktree } = check;
     return this.git({
       path: worktree.path,
       commonDirectory: worktree.commonDirectory,

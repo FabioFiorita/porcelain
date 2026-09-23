@@ -30,5 +30,5 @@ export type {
   ReadTextFileInput,
   ReadTextFileResult,
 } from './read-text-file.ts';
-export type { Worktree } from './worktree.ts';
+export type { Worktree, WorktreeCheck } from './worktree.ts';
 export type { WorktreePathsRead } from './worktree-paths.ts';

@@ -1,4 +1,5 @@
 export type { Clock } from './clock.ts';
+export type { DeviceActivityStore } from './device-activity-store.ts';
 export type { DeviceStore } from './device-store.ts';
 export type { EnvironmentIdentityStore } from './environment-identity-store.ts';
 export type { IdSource } from './id-source.ts';

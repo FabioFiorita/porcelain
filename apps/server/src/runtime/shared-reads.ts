@@ -4,21 +4,21 @@ type Group<T> = {
   subscribers: number;
 };
 
-export class SharedReads {
-  private readonly groups = new Map<string, Group<unknown>>();
+export class SharedReads<T> {
+  private readonly groups = new Map<string, Group<T>>();
 
-  run<T>(
+  run(
     key: string,
     work: (signal: AbortSignal) => Promise<T>,
     callerSignal?: AbortSignal,
   ): Promise<T> {
-    const existing = this.groups.get(key) as Group<T> | undefined;
+    const existing = this.groups.get(key);
     const group = existing ?? this.start(key, work);
     group.subscribers += 1;
     return this.attach(key, group, callerSignal);
   }
 
-  private start<T>(key: string, work: (signal: AbortSignal) => Promise<T>) {
+  private start(key: string, work: (signal: AbortSignal) => Promise<T>) {
     const controller = new AbortController();
     const group: Group<T> = {
       controller,
@@ -34,7 +34,7 @@ export class SharedReads {
     return group;
   }
 
-  private attach<T>(
+  private attach(
     key: string,
     group: Group<T>,
     callerSignal?: AbortSignal,

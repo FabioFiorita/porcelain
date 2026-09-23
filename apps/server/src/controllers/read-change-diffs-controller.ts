@@ -1,7 +1,7 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
   ConfirmDiffObservationService,
-  ConfirmWorktreeService,
+  CheckWorktreeService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
@@ -17,7 +17,7 @@ import type { Lanes } from '../runtime/lanes.ts';
 import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadChangeDiffsController {
-  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly selectDiffComparisons: SelectDiffComparisonsService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
@@ -28,7 +28,7 @@ export class ReadChangeDiffsController {
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    confirmWorktree: ConfirmWorktreeService,
+    checkWorktree: CheckWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     selectDiffComparisons: SelectDiffComparisonsService,
     readChangeFingerprints: ReadChangeFingerprintsService,
@@ -38,7 +38,7 @@ export class ReadChangeDiffsController {
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
-    this.confirmWorktree = confirmWorktree;
+    this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.selectDiffComparisons = selectDiffComparisons;
     this.readChangeFingerprints = readChangeFingerprints;
@@ -59,7 +59,7 @@ export class ReadChangeDiffsController {
       this.laneKeys.worktree(worktreeId),
       'read',
       async ({ signal }) => {
-        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute({ worktreeId }, signal);
         const before = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,
@@ -99,9 +99,9 @@ export class ReadChangeDiffsController {
           fingerprints: reobserved,
           previousStamp: observed.stamp,
         });
-        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute({ worktreeId }, signal);
         return {
-          environmentId: this.readEnvironment.execute(),
+          environmentId: this.readEnvironment.execute({}).environmentId,
           worktreeId,
           statusToken: before.statusToken,
           diffs,

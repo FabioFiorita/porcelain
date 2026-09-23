@@ -1,3 +1,4 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
   ReadPublishedReviewService,
@@ -17,6 +18,7 @@ export class RefreshReviewActivityController {
   private readonly readReviewFiles: ReadReviewFilesService;
   private readonly resolvePublishedReview: ResolvePublishedReviewService;
   private readonly recordReviewActivity: RecordReviewActivityService;
+  private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
 
   constructor(
@@ -26,6 +28,7 @@ export class RefreshReviewActivityController {
     readReviewFiles: ReadReviewFilesService,
     resolvePublishedReview: ResolvePublishedReviewService,
     recordReviewActivity: RecordReviewActivityService,
+    readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
   ) {
     this.readPublishedReview = readPublishedReview;
@@ -34,6 +37,7 @@ export class RefreshReviewActivityController {
     this.readReviewFiles = readReviewFiles;
     this.resolvePublishedReview = resolvePublishedReview;
     this.recordReviewActivity = recordReviewActivity;
+    this.readEnvironment = readEnvironment;
     this.lanes = lanes;
   }
 
@@ -56,6 +60,7 @@ export class RefreshReviewActivityController {
           signal,
         );
         const resolved = this.resolvePublishedReview.execute({
+          environmentId: this.readEnvironment.execute({}).environmentId,
           review,
           files,
           changes,

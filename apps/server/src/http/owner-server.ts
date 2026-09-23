@@ -5,7 +5,6 @@ import {
 } from '@fastify/type-provider-zod';
 import { readOwnerStatusResponseSchema } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
-import type { ServerCapabilities } from '../bootstrap/server-capabilities.ts';
 import { toStatusResponse } from './status-policy.ts';
 import { registerOwnerRoutes } from './owner-routes.ts';
 
@@ -15,9 +14,11 @@ export type OwnerStatus = {
   pid: number;
 };
 
+export type OwnerControllers = Parameters<typeof registerOwnerRoutes>[1];
+
 export function createOwnerServer(options: {
   status: () => OwnerStatus;
-  application: ServerCapabilities;
+  application: OwnerControllers;
 }) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);

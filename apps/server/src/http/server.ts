@@ -18,7 +18,7 @@ declare module 'fastify' {
   }
 }
 
-import type { ServerCapabilities } from '../bootstrap/server-capabilities.ts';
+import type { ServerApplication } from '../bootstrap/compose-server.ts';
 import { absolutePathSchema } from '../config/server-settings.ts';
 import { toStatusResponse } from './status-policy.ts';
 import {
@@ -31,7 +31,7 @@ import { readReviewSummary } from './routes/reviews/read-review-summary.ts';
 import { registerStaticFiles } from './static-files.ts';
 
 export type NetworkServerOptions = {
-  application: ServerCapabilities;
+  application: ServerApplication;
   webRoot?: string;
 } & Partial<OriginPolicy>;
 
@@ -41,10 +41,14 @@ type ServerOptions = Parameters<typeof openApplication>[0] & {
 
 function registerApiRoutes(
   server: FastifyInstance,
-  options: { application: ServerCapabilities } & OriginPolicy,
+  options: { application: ServerApplication } & OriginPolicy,
 ) {
-  server.register(publicRoutes, options);
-  server.register(pairedRoutes, options);
+  server.register(publicRoutes, {
+    application: options.application,
+    liveUpdates: options.application.liveUpdates,
+    allowedHosts: options.allowedHosts,
+  });
+  server.register(pairedRoutes, { application: options.application });
 }
 
 export function createNetworkServer(options: NetworkServerOptions) {

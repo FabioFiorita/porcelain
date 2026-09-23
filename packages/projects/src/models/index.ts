@@ -1,5 +1,5 @@
 export type { Inventory, ProjectName, RegisteredProject } from './project.ts';
-export type { ListableProject, Worktree } from './worktree.ts';
+export type { ListableProject, Worktree, WorktreeCheck } from './worktree.ts';
 export type { ProjectWorktrees, WorktreeListing } from './worktree-listing.ts';
 export type { WorktreeStatus, WorktreeStatuses } from './worktree-status.ts';
 export type {
@@ -14,6 +14,7 @@ export type {
   ProjectDiscovery,
   ProjectFolder,
   ProjectFolderContents,
+  ProjectFolderRead,
   ProjectLocation,
 } from './project-folder.ts';
 export type {
@@ -28,6 +29,7 @@ export type {
   SetFilePreferenceInput,
 } from './file-preference.ts';
 export type {
+  CheckProjectInput,
   ForgetProjectWorktreesInput,
   InspectProjectRepositoryInput,
   ListOtherProjectsInput,

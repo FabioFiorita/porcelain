@@ -1,6 +1,6 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  ConfirmWorktreeService,
+  CheckWorktreeService,
   ReadBranchDetailsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -12,24 +12,24 @@ import type { OperationContext } from '../runtime/operation-context.ts';
 import type { SharedReads } from '../runtime/shared-reads.ts';
 
 export class ReadGitStatusController {
-  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readBranchDetails: ReadBranchDetailsService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
-  private readonly sharedReads: SharedReads;
+  private readonly sharedReads: SharedReads<ReadGitStatusResponse>;
 
   constructor(
-    confirmWorktree: ConfirmWorktreeService,
+    checkWorktree: CheckWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readBranchDetails: ReadBranchDetailsService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
     laneKeys: LaneKeys,
-    sharedReads: SharedReads,
+    sharedReads: SharedReads<ReadGitStatusResponse>,
   ) {
-    this.confirmWorktree = confirmWorktree;
+    this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readBranchDetails = readBranchDetails;
     this.readEnvironment = readEnvironment;
@@ -51,7 +51,7 @@ export class ReadGitStatusController {
           lane,
           'read',
           async ({ signal }) => {
-            await this.confirmWorktree.execute({ worktreeId }, signal);
+            await this.checkWorktree.execute({ worktreeId }, signal);
             const status = await this.readWorktreeStatus.execute(
               { worktreeId },
               signal,
@@ -60,9 +60,9 @@ export class ReadGitStatusController {
               { worktreeId, branch: status.branch, headOid: status.headOid },
               signal,
             );
-            await this.confirmWorktree.execute({ worktreeId }, signal);
+            await this.checkWorktree.execute({ worktreeId }, signal);
             return {
-              environmentId: this.readEnvironment.execute(),
+              environmentId: this.readEnvironment.execute({}).environmentId,
               worktreeId,
               statusToken: status.statusToken,
               branch: status.branch && {

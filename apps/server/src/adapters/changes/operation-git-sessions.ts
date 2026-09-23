@@ -1,5 +1,4 @@
-import { RequestGitSession } from '@porcelain/git/actions';
-import type { GitSession } from '@porcelain/git/inspection';
+import { RequestGitSession, type GitSession } from '@porcelain/git/inspection';
 
 export class OperationGitSessions {
   private readonly sessions = new WeakMap<AbortSignal, GitSession>();

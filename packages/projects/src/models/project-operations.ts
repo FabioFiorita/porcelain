@@ -1,5 +1,7 @@
 import type { DiscoveredProjectRepository } from './project-repository.ts';
 
+export type CheckProjectInput = { projectId: string };
+
 export type RenameProjectInput = { projectId: string; name: string };
 
 export type RemoveProjectInput = { projectId: string };

@@ -17,16 +17,18 @@ import { callerOf } from '../principal.ts';
 
 const PING_MS = 30_000;
 
-type LiveProtocolApplication = AuthenticateOptions['application'] & {
-  liveUpdates(send: (notice: LiveNotice) => void): {
-    subscribe(value: LiveSubscription): Promise<void>;
-    close(): void;
+export type LiveUpdatesOptions = {
+  liveUpdates: {
+    connect(send: (notice: LiveNotice) => void): {
+      subscribe(value: LiveSubscription): Promise<void>;
+      close(): void;
+    };
   };
 };
 
 export async function liveUpdateRoutes(
   server: FastifyInstance,
-  options: { application: LiveProtocolApplication } & OriginPolicy,
+  options: AuthenticateOptions & LiveUpdatesOptions & OriginPolicy,
 ) {
   server.get(
     '/live',
@@ -44,16 +46,13 @@ export async function liveUpdateRoutes(
         return;
       }
       let alive = true;
-      const connection = options.application.liveUpdates((notice) => {
+      const connection = options.liveUpdates.connect((notice) => {
         if (socket.readyState === WebSocket.OPEN)
           socket.send(JSON.stringify(notice));
       });
-      const releaseDevice = options.application.holdForDevice(
-        principal.deviceId,
-        {
-          close: () => socket.close(4001, 'Device access revoked'),
-        },
-      );
+      const releaseDevice = options.devices.hold(principal.deviceId, {
+        close: () => socket.close(4001, 'Device access revoked'),
+      });
       const heartbeat = setInterval(() => {
         if (!alive) return socket.terminate();
         alive = false;

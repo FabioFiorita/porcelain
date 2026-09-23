@@ -3,7 +3,55 @@ import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
   InvalidPairingError,
+  MissingEnvironmentIdentityError,
 } from '@porcelain/access/errors';
+import {
+  CommitNotFoundError,
+  IncompleteDiffReadError,
+  SelectionMismatchError,
+  WorktreeChangedError as ChangesWorktreeChangedError,
+  WorktreeNotFoundError as ChangesWorktreeNotFoundError,
+  WorktreeUnavailableError as ChangesWorktreeUnavailableError,
+} from '@porcelain/changes/errors';
+import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
+import {
+  ContentChangedError,
+  CrossDeviceMoveError,
+  DirectoryTooLargeError,
+  EntryExistsError,
+  FileTooLargeError,
+  InvalidMoveError,
+  PathNotFoundError,
+  PathNotReadableError,
+  TrashUnavailableError,
+  UnsupportedAssetTypeError,
+  UnsupportedEntryNameError,
+  UnsupportedTextError,
+  WorktreeNotFoundError as FilesWorktreeNotFoundError,
+  WorktreeUnavailableError as FilesWorktreeUnavailableError,
+} from '@porcelain/files/errors';
+import {
+  CommitDraftSelectionError,
+  CommitDraftTooLargeError,
+  CommitDraftUnavailableError,
+  CommitGenerationFailedError,
+  CommitGroupsMismatchError,
+  CommitToolFailedError,
+  CommitToolMissingError,
+  DiscardExpectationMismatchError,
+  DuplicateExpectedFileError,
+  EmptyCommitSelectionError,
+  ExpectedFilesMismatchError,
+  GitActionNotFoundError,
+  GitActionReceiptMismatchError,
+  MergeExpectationMismatchError,
+  MissingExpectedFilesError,
+  MissingUpstreamExpectationError,
+  UnsupportedCommitModelError,
+  WorktreeChangedError as GitActionWorktreeChangedError,
+  WorktreeNotFoundError as GitActionWorktreeNotFoundError,
+  WorktreeUnavailableError as GitActionWorktreeUnavailableError,
+} from '@porcelain/git-actions/errors';
 import { GitActionRejectedError } from '@porcelain/git/actions';
 import { isRepositoryUnavailable } from '@porcelain/git/discovery';
 import {
@@ -21,73 +69,205 @@ import {
 } from '@porcelain/git/inspection';
 import {
   FilePreferenceLimitError,
-  InvalidFilePreferenceError,
+  FolderNotFoundError,
+  FolderNotReadableError,
   ProjectNotFoundError,
+  UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
 import {
-  FileInspectionError,
-  type FileErrorCode,
-} from '@porcelain/files/errors';
-import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
-import {
+  BoxLaneOutOfRangeError,
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentTargetNotFoundError,
-  InvalidCommentError,
+  DuplicateLayerIdError,
+  DuplicateStepIdError,
   ReviewConflictError,
+  ReviewedMarkConflictError,
+  StepLaneOutOfRangeError,
+  UnknownArrowBoxError,
+  UnknownArrowStepError,
+  WorktreeNotFoundError as ReviewsWorktreeNotFoundError,
+  WorktreeUnavailableError as ReviewsWorktreeUnavailableError,
 } from '@porcelain/reviews/errors';
-import {
-  CommitDraftError,
-  GitActionNotFoundError,
-  GitActionReceiptMismatchError,
-  WorktreeChangedError as GitActionWorktreeChangedError,
-} from '@porcelain/git-actions/errors';
-import { WorktreeChangedError as ChangesWorktreeChangedError } from '@porcelain/changes/errors';
-import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
-import { WorktreeNotFoundError } from '@porcelain/projects/errors';
+import { errorCodes } from 'fastify';
+import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
 
-const fileFailures: Record<
-  FileErrorCode,
-  { statusCode: number; message: string }
-> = {
-  ENTRY_EXISTS: {
-    statusCode: 409,
-    message: 'An entry already exists at that path',
-  },
-  INVALID_REQUEST: { statusCode: 400, message: 'Invalid request' },
-  WORKTREE_NOT_FOUND: { statusCode: 404, message: 'Worktree not found' },
-  REPOSITORY_UNAVAILABLE: {
-    statusCode: 422,
-    message: 'Repository could not be inspected',
-  },
-  PATH_NOT_FOUND: { statusCode: 404, message: 'Path not found' },
-  PATH_NOT_READABLE: { statusCode: 422, message: 'Path could not be read' },
-  UNSUPPORTED_PATH: {
-    statusCode: 422,
-    message: 'Directory contains a name that is not supported UTF-8',
-  },
-  UNSUPPORTED_TEXT: {
-    statusCode: 422,
-    message: 'File is not supported UTF-8 text',
-  },
-  FILE_TOO_LARGE: { statusCode: 422, message: 'File exceeds the read limit' },
-  DIRECTORY_TOO_LARGE: {
-    statusCode: 422,
-    message: 'Directory exceeds the listing limit',
-  },
-  CONTENT_CHANGED: {
-    statusCode: 409,
-    message: 'Content changed; retry the operation',
-  },
-  CROSS_DEVICE: {
-    statusCode: 422,
-    message: 'Destination is on another filesystem; nothing was moved',
-  },
-  TRASH_UNAVAILABLE: {
-    statusCode: 422,
-    message: 'This machine has no trash; nothing was deleted',
-  },
+type ErrorClass = abstract new (...args: never[]) => Error;
+
+type StatusRule = {
+  errors: readonly ErrorClass[];
+  statusCode: number;
+  message?: string;
 };
+
+const invalidRequest = 'Invalid request';
+const repositoryUnavailable = 'Repository could not be inspected';
+const operationUnavailable = 'Operation unavailable';
+
+const rules: readonly StatusRule[] = [
+  {
+    errors: [
+      InvalidPairingAddressError,
+      InvalidDeviceDetailsError,
+      InvalidHistoryRequestError,
+    ],
+    statusCode: 400,
+  },
+  {
+    errors: [
+      errorCodes.FST_ERR_CTP_INVALID_JSON_BODY,
+      errorCodes.FST_ERR_CTP_EMPTY_JSON_BODY,
+      errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE,
+      errorCodes.FST_ERR_CTP_BODY_TOO_LARGE,
+      SelectionMismatchError,
+      InvalidMoveError,
+      DuplicateExpectedFileError,
+      MergeExpectationMismatchError,
+      EmptyCommitSelectionError,
+      ExpectedFilesMismatchError,
+      DiscardExpectationMismatchError,
+      MissingExpectedFilesError,
+      MissingUpstreamExpectationError,
+      DuplicateStepIdError,
+      StepLaneOutOfRangeError,
+      UnknownArrowStepError,
+      BoxLaneOutOfRangeError,
+      UnknownArrowBoxError,
+      DuplicateLayerIdError,
+    ],
+    statusCode: 400,
+    message: invalidRequest,
+  },
+  { errors: [InvalidPairingError], statusCode: 401 },
+  {
+    errors: [
+      ChangesWorktreeNotFoundError,
+      FilesWorktreeNotFoundError,
+      GitActionWorktreeNotFoundError,
+      ReviewsWorktreeNotFoundError,
+      ProjectNotFoundError,
+      CommitNotFoundError,
+      PathNotFoundError,
+      FolderNotFoundError,
+      GitActionNotFoundError,
+    ],
+    statusCode: 404,
+  },
+  {
+    errors: [CommentTargetNotFoundError],
+    statusCode: 404,
+    message: 'Comment target not found',
+  },
+  {
+    errors: [ChangesWorktreeChangedError, GitActionWorktreeChangedError],
+    statusCode: 409,
+    message: 'Refresh status and retry inspection',
+  },
+  {
+    errors: [
+      EntryExistsError,
+      ContentChangedError,
+      CommentIdentityConflictError,
+      ReviewedMarkConflictError,
+    ],
+    statusCode: 409,
+  },
+  {
+    errors: [GitActionReceiptMismatchError],
+    statusCode: 409,
+    message: 'Git action request does not match its receipt',
+  },
+  {
+    errors: [CommentLimitExceededError],
+    statusCode: 409,
+    message: 'Comment capacity exceeded',
+  },
+  {
+    errors: [FilePreferenceLimitError],
+    statusCode: 409,
+    message: 'File preference limit reached',
+  },
+  {
+    errors: [ReviewConflictError],
+    statusCode: 409,
+    message: 'The review changed; reload before retrying',
+  },
+  {
+    errors: [InspectionLimitError],
+    statusCode: 413,
+    message: 'Git inspection exceeds its limit',
+  },
+  {
+    errors: [
+      ChangesWorktreeUnavailableError,
+      FilesWorktreeUnavailableError,
+      GitActionWorktreeUnavailableError,
+      ReviewsWorktreeUnavailableError,
+    ],
+    statusCode: 422,
+    message: repositoryUnavailable,
+  },
+  {
+    errors: [
+      IncompleteDiffReadError,
+      PathNotReadableError,
+      FolderNotReadableError,
+      UnsupportedEntryNameError,
+      UnsupportedFolderNameError,
+      UnsupportedTextError,
+      FileTooLargeError,
+      DirectoryTooLargeError,
+      CrossDeviceMoveError,
+      TrashUnavailableError,
+      UnsupportedAssetTypeError,
+      CommitDraftSelectionError,
+      CommitDraftTooLargeError,
+      CommitDraftUnavailableError,
+      CommitGenerationFailedError,
+      CommitGroupsMismatchError,
+      CommitToolFailedError,
+      CommitToolMissingError,
+      UnsupportedCommitModelError,
+    ],
+    statusCode: 422,
+  },
+  {
+    errors: [UnsupportedGitFiltersError],
+    statusCode: 422,
+    message: 'Git conversion filters are unsupported for worktree inspection',
+  },
+  {
+    errors: [UnsupportedPathEncodingError],
+    statusCode: 422,
+    message: 'Git paths require valid UTF-8',
+  },
+  {
+    errors: [HistoryWorktreeUnavailableError],
+    statusCode: 422,
+    message: 'Worktree is unavailable',
+  },
+  {
+    errors: [HistorySnapshotUnavailableError],
+    statusCode: 422,
+    message: 'History snapshot is unavailable; start a new listing',
+  },
+  {
+    errors: [ReadLimitExceededError],
+    statusCode: 422,
+    message: 'History read exceeds its limit',
+  },
+  {
+    errors: [UnsupportedHistoryDataError],
+    statusCode: 422,
+    message: 'History contains unsupported data',
+  },
+  { errors: [MissingEnvironmentIdentityError], statusCode: 500 },
+  {
+    errors: [ApplicationClosedError, GitTimeoutError],
+    statusCode: 503,
+    message: operationUnavailable,
+  },
+];
 
 function response(statusCode: number, message: string) {
   return {
@@ -96,107 +276,38 @@ function response(statusCode: number, message: string) {
   };
 }
 
-export function gitActionReceiptStatus(value: { state: string }): number {
-  if (value.state === 'running') return 202;
-  if (value.state === 'interrupted') return 503;
-  if (value.state === 'rejected' || value.state === 'conflicted') return 409;
+export function gitActionReceiptStatus(
+  receipt: Pick<RunGitActionResponse, 'state'>,
+): number {
+  if (receipt.state === 'running') return 202;
+  if (receipt.state === 'interrupted') return 503;
+  if (receipt.state === 'rejected' || receipt.state === 'conflicted')
+    return 409;
   return 200;
 }
 
 export function toStatusResponse(error: unknown) {
-  if (error instanceof FileInspectionError) {
-    const failure = fileFailures[error.code];
-    return response(failure.statusCode, failure.message);
-  }
   if (error instanceof GitActionRejectedError)
     return response(
       409,
       error.detail ?? 'Git action unavailable; refresh and prepare again',
     );
-  if (error instanceof GitActionReceiptMismatchError)
-    return response(409, 'Git action request does not match its receipt');
-  if (error instanceof GitActionNotFoundError)
-    return response(404, 'Git action receipt not found');
-  if (error instanceof CommentIdentityConflictError)
-    return response(409, error.message);
-  if (error instanceof CommitDraftError) return response(422, error.message);
-  if (error instanceof UnsupportedGitFiltersError)
-    return response(
-      422,
-      'Git conversion filters are unsupported for worktree inspection',
+  if (error instanceof Error) {
+    const rule = rules.find((entry) =>
+      entry.errors.some((errorClass) => error instanceof errorClass),
     );
-  if (error instanceof WorktreeNotFoundError)
-    return response(404, 'Worktree not found');
-  if (
-    error instanceof GitActionWorktreeChangedError ||
-    error instanceof ChangesWorktreeChangedError
-  )
-    return response(409, 'Refresh status and retry inspection');
-  if (error instanceof InspectionLimitError)
-    return response(413, 'Git inspection exceeds its limit');
-  if (error instanceof UnsupportedPathEncodingError)
-    return response(422, 'Git paths require valid UTF-8');
-  if (error instanceof InvalidHistoryRequestError)
-    return response(400, 'Invalid history request');
-  if (error instanceof HistoryWorktreeUnavailableError)
-    return response(422, 'Worktree is unavailable');
-  if (error instanceof HistorySnapshotUnavailableError)
-    return response(
-      422,
-      'History snapshot is unavailable; start a new listing',
-    );
-  if (error instanceof ReadLimitExceededError)
-    return response(422, 'History read exceeds its limit');
-  if (error instanceof UnsupportedHistoryDataError)
-    return response(422, 'History contains unsupported data');
-  if (error instanceof ReviewedMarkConflictError)
-    return response(
-      409,
-      'The reviewed mark is based on a version of the file that has changed',
-    );
-  if (error instanceof ProjectNotFoundError)
-    return response(404, 'Project not found');
-  if (error instanceof CommentLimitExceededError)
-    return response(409, 'Comment capacity exceeded');
-  if (error instanceof CommentTargetNotFoundError)
-    return response(404, 'Comment target not found');
-  if (error instanceof FilePreferenceLimitError)
-    return response(409, 'File preference limit reached');
-  if (
-    error instanceof InvalidFilePreferenceError ||
-    error instanceof InvalidCommentError
-  )
-    return response(400, 'Invalid request');
-  if (error instanceof ReviewConflictError)
-    return response(409, 'The review changed; reload before retrying');
-  if (error instanceof InvalidPairingError) return response(401, error.message);
-  if (error instanceof InvalidPairingAddressError)
-    return response(400, error.message);
-  if (error instanceof InvalidDeviceDetailsError)
-    return response(400, error.message);
-  if (isInvalidRequest(error)) return response(400, 'Invalid request');
+    if (rule) return response(rule.statusCode, rule.message ?? error.message);
+    if ('validation' in error) return response(400, invalidRequest);
+  }
   if (isRepositoryUnavailable(error))
-    return response(422, 'Repository could not be inspected');
-  if (
-    error instanceof ApplicationClosedError ||
-    error instanceof GitTimeoutError ||
-    (error instanceof Error &&
-      (error.name === 'TimeoutError' || error.name === 'AbortError'))
-  )
-    return response(503, 'Operation unavailable');
+    return response(422, repositoryUnavailable);
+  if (isAbandoned(error)) return response(503, operationUnavailable);
   return response(500, 'Operation failed');
 }
 
-function isInvalidRequest(error: unknown) {
+function isAbandoned(error: unknown) {
   return (
-    error instanceof Error &&
-    ('validation' in error ||
-      ('code' in error &&
-        [
-          'FST_ERR_CTP_INVALID_JSON_BODY',
-          'FST_ERR_CTP_EMPTY_JSON_BODY',
-          'FST_ERR_CTP_INVALID_MEDIA_TYPE',
-          'FST_ERR_CTP_BODY_TOO_LARGE',
-        ].includes(String(error.code))))
+    error instanceof DOMException &&
+    (error.name === 'TimeoutError' || error.name === 'AbortError')
   );
 }

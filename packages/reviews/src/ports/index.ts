@@ -2,7 +2,6 @@ export type { ChangeDiffReader } from './change-diff-reader.ts';
 export type { Clock } from './clock.ts';
 export type { CommentSeenStore } from './comment-seen-store.ts';
 export type { CommentStore } from './comment-store.ts';
-export type { EnvironmentIdentityStore } from './environment-identity-store.ts';
 export type { IdSource } from './id-source.ts';
 export type { ReviewStore } from './review-store.ts';
 export type { ReviewedFileStore } from './reviewed-file-store.ts';

@@ -1,5 +1,5 @@
 import type {
-  ConfirmWorktreeService,
+  CheckWorktreeService,
   ListCommitsService,
 } from '@porcelain/changes/services';
 import type {
@@ -12,18 +12,18 @@ import type { Lanes } from '../runtime/lanes.ts';
 import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListCommitsController {
-  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly listCommits: ListCommitsService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    confirmWorktree: ConfirmWorktreeService,
+    checkWorktree: CheckWorktreeService,
     listCommits: ListCommitsService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
-    this.confirmWorktree = confirmWorktree;
+    this.checkWorktree = checkWorktree;
     this.listCommits = listCommits;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -38,12 +38,12 @@ export class ListCommitsController {
       this.laneKeys.worktree(worktreeId),
       'read',
       async ({ signal }) => {
-        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute({ worktreeId }, signal);
         const page = await this.listCommits.execute(
           { worktreeId, limit, after, tip },
           signal,
         );
-        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute({ worktreeId }, signal);
         return page;
       },
       { callerSignal: context.signal },

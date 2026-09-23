@@ -1,3 +1,4 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
   PublishedReview,
   ReadPublishedReviewResponse,
@@ -25,6 +26,7 @@ export class ReadPublishedReviewController {
   private readonly readReviewFiles: ReadReviewFilesService;
   private readonly resolvePublishedReview: ResolvePublishedReviewService;
   private readonly recordReviewActivity: RecordReviewActivityService;
+  private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -36,6 +38,7 @@ export class ReadPublishedReviewController {
     readReviewFiles: ReadReviewFilesService,
     resolvePublishedReview: ResolvePublishedReviewService,
     recordReviewActivity: RecordReviewActivityService,
+    readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -46,6 +49,7 @@ export class ReadPublishedReviewController {
     this.readReviewFiles = readReviewFiles;
     this.resolvePublishedReview = resolvePublishedReview;
     this.recordReviewActivity = recordReviewActivity;
+    this.readEnvironment = readEnvironment;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -78,6 +82,7 @@ export class ReadPublishedReviewController {
           signal,
         );
         const resolved = this.resolvePublishedReview.execute({
+          environmentId: this.readEnvironment.execute({}).environmentId,
           review,
           files,
           changes,

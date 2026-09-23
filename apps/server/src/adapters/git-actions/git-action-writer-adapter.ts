@@ -7,10 +7,10 @@ import type {
 import type { GitActionWriter } from '@porcelain/git-actions/ports';
 import {
   GitActionRejectedError,
-  RequestGitSession,
   type GitActionExpectation as GitExpectation,
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
+import { RequestGitSession } from '@porcelain/git/inspection';
 import type { ActionCheckouts } from './action-checkout.ts';
 
 export class GitActionWriterAdapter implements GitActionWriter {

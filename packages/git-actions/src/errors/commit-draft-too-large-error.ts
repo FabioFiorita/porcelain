@@ -1,6 +1,4 @@
-import { CommitDraftError } from './commit-draft-error.ts';
-
-export class CommitDraftTooLargeError extends CommitDraftError {
+export class CommitDraftTooLargeError extends Error {
   override readonly name = 'CommitDraftTooLargeError';
 
   constructor() {

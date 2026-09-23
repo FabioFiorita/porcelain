@@ -9,6 +9,10 @@ export type {
   CredentialParts,
 } from './credential.ts';
 export type { Device, DeviceSighting, StoredDevice } from './device.ts';
+export type {
+  FlushDeviceActivityInput,
+  FlushDeviceActivityResult,
+} from './flush-device-activity.ts';
 export type { HostPolicy } from './host-policy.ts';
 export type {
   IssuedPairingGrant,

@@ -2,8 +2,7 @@ import type { WorktreeTextReader } from '@porcelain/reviews/ports';
 
 type TextFileReading = {
   execute(
-    worktreeId: string,
-    path: string,
+    input: { worktreeId: string; path: string },
     signal?: AbortSignal,
   ): Promise<{ text: string }>;
 };
@@ -20,6 +19,6 @@ export class WorktreeTextAdapter implements WorktreeTextReader {
     path: string,
     signal?: AbortSignal,
   ): Promise<string> {
-    return (await this.readTextFile.execute(worktreeId, path, signal)).text;
+    return (await this.readTextFile.execute({ worktreeId, path }, signal)).text;
   }
 }

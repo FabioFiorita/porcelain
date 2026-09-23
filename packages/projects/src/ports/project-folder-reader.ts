@@ -1,11 +1,11 @@
 import type {
   FolderSearch,
   FolderSearchResult,
-  ProjectFolderContents,
+  ProjectFolderRead,
 } from '../models/project-folder.ts';
 
 export interface ProjectFolderReader {
-  read(path: string, signal?: AbortSignal): Promise<ProjectFolderContents>;
+  read(path: string, signal?: AbortSignal): Promise<ProjectFolderRead>;
   search(
     search: FolderSearch,
     signal?: AbortSignal,

@@ -1,6 +1,6 @@
-import type { Worktree } from '../models/worktree.ts';
+import type { WorktreeCheck } from '../models/worktree.ts';
 
 export interface WorktreeAccess {
-  known(worktreeId: string, signal?: AbortSignal): Promise<Worktree>;
-  forWriting(worktreeId: string, signal?: AbortSignal): Promise<Worktree>;
+  known(worktreeId: string, signal?: AbortSignal): Promise<WorktreeCheck>;
+  forWriting(worktreeId: string, signal?: AbortSignal): Promise<WorktreeCheck>;
 }

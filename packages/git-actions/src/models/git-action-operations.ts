@@ -8,7 +8,7 @@ import type {
 } from './git-action-run.ts';
 import type { GitActionScope } from './git-action-scope.ts';
 
-export type CheckWorktreeInput = { worktreeId: string };
+export type CheckWorktreeInput = GitActionScope;
 
 export type ExpireGitActionReceiptsInput = Record<never, never>;
 

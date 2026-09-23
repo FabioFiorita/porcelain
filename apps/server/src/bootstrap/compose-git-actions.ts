@@ -2,7 +2,6 @@ import type { FileReader } from '@porcelain/files/ports';
 import type {
   CommitDraftWriter,
   CommitModelReader,
-  WorktreeAccess,
 } from '@porcelain/git-actions/ports';
 import {
   AcceptGitActionService,
@@ -21,21 +20,17 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
+import type { WorktreeAccess } from '@porcelain/projects/ports';
+import { CheckProjectService } from '@porcelain/projects/services';
 import type { StorageSession } from '@porcelain/storage';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
-import {
-  ActionCheckouts,
-  type ActionWorktrees,
-} from '../adapters/git-actions/action-checkout.ts';
+import { createInventoryStore } from '@porcelain/storage/projects';
+import { ActionCheckouts } from '../adapters/git-actions/action-checkout.ts';
 import { ClockAdapter } from '../adapters/git-actions/clock-adapter.ts';
 import { CommitDraftReaderAdapter } from '../adapters/git-actions/commit-draft-reader-adapter.ts';
 import { GitActionWriterAdapter } from '../adapters/git-actions/git-action-writer-adapter.ts';
 import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
-import {
-  WorktreeFingerprintReaderAdapter,
-  type WorktreeChanges,
-} from '../adapters/git-actions/worktree-fingerprint-reader-adapter.ts';
-import type { EnvironmentReader } from '../adapters/git/checkout-session.ts';
+import { WorktreeFingerprintReaderAdapter } from '../adapters/git-actions/worktree-fingerprint-reader-adapter.ts';
 import { DismissInterruptedGitActionController } from '../controllers/dismiss-interrupted-git-action-controller.ts';
 import { GenerateCommitDraftController } from '../controllers/generate-commit-draft-controller.ts';
 import { ListCommitModelsController } from '../controllers/list-commit-models-controller.ts';
@@ -49,17 +44,21 @@ import {
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
+import type { composeChanges } from './compose-changes.ts';
+
+type ChangesServices = ReturnType<typeof composeChanges>['services'];
+
+const UNTRACKED_DRAFT_READ_BYTES = 1024 * 1024;
 
 export type GitActionsDependencies = {
   session: StorageSession;
   lanes: Lanes;
   laneKeys: LaneKeys;
   events: EventPublisher;
-  worktrees: WorktreeAccess & ActionWorktrees;
-  environment: EnvironmentReader;
+  worktreeAccess: WorktreeAccess;
   actionGit: GitActionWriterFactory;
-  files: Pick<FileReader, 'read'>;
-  changes: WorktreeChanges;
+  fileReader: Pick<FileReader, 'readText'>;
+  changes: ChangesServices;
   refreshPublishedReview: PublishedReviewRefresh;
   commitGenerator: CommitDraftWriter & CommitModelReader;
   gitActionDeadlineMs: number;
@@ -69,14 +68,19 @@ export type GitActionsDependencies = {
 export function composeGitActions(deps: GitActionsDependencies) {
   const store = createGitActionStore(deps.session);
   const clock = new ClockAdapter();
-  const checkouts = new ActionCheckouts(deps.worktrees, deps.environment);
+  const checkouts = new ActionCheckouts(deps.worktreeAccess);
+  const checkProject = new CheckProjectService(
+    createInventoryStore(deps.session),
+  );
+  const checkWorktree = new CheckWorktreeService(deps.worktreeAccess);
   const expireGitActionReceipts = new ExpireGitActionReceiptsService(
     store,
     clock,
   );
   return {
     runGitActionController: new RunGitActionController(
-      new CheckWorktreeService(deps.worktrees),
+      checkProject,
+      checkWorktree,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
       new RunGitActionService(
@@ -101,6 +105,8 @@ export function composeGitActions(deps: GitActionsDependencies) {
         deps.lanes,
       ),
     listGitBranchesController: new ListGitBranchesController(
+      checkProject,
+      checkWorktree,
       new ListGitBranchesService(
         new GitBranchReaderAdapter(checkouts, deps.actionGit),
       ),
@@ -113,12 +119,15 @@ export function composeGitActions(deps: GitActionsDependencies) {
       { deadlineMs: deps.commitModelDeadlineMs },
     ),
     generateCommitDraftController: new GenerateCommitDraftController(
+      checkProject,
+      checkWorktree,
       new CaptureCommitDraftService(
         new CommitDraftReaderAdapter(
           deps.changes,
           checkouts,
           deps.actionGit,
-          deps.files,
+          deps.fileReader,
+          UNTRACKED_DRAFT_READ_BYTES,
         ),
       ),
       new GenerateCommitDraftService(deps.commitGenerator),

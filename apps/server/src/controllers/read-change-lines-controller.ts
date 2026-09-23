@@ -1,6 +1,6 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  ConfirmWorktreeService,
+  CheckWorktreeService,
   ReadChangeLinesService,
 } from '@porcelain/changes/services';
 import type {
@@ -13,20 +13,20 @@ import type { Lanes } from '../runtime/lanes.ts';
 import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadChangeLinesController {
-  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly readChangeLines: ReadChangeLinesService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    confirmWorktree: ConfirmWorktreeService,
+    checkWorktree: CheckWorktreeService,
     readChangeLines: ReadChangeLinesService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
-    this.confirmWorktree = confirmWorktree;
+    this.checkWorktree = checkWorktree;
     this.readChangeLines = readChangeLines;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
@@ -42,11 +42,11 @@ export class ReadChangeLinesController {
       this.laneKeys.worktree(worktreeId),
       'read',
       async ({ signal }) => {
-        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute({ worktreeId }, signal);
         const lines = await this.readChangeLines.execute(input, signal);
-        await this.confirmWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute({ worktreeId }, signal);
         return {
-          environmentId: this.readEnvironment.execute(),
+          environmentId: this.readEnvironment.execute({}).environmentId,
           worktreeId,
           ...lines,
         };

@@ -1,26 +1,31 @@
-import type { ReadChangesResult } from '@porcelain/changes/models';
+import type {
+  ChangeFingerprints,
+  ChangeStatusObservation,
+  FileChange,
+  ReadChangeFingerprintsInput,
+  WorktreeInput,
+} from '@porcelain/changes/models';
 import type { WorktreeFingerprintReader } from '@porcelain/git-actions/ports';
-import { RequestGitSession } from '@porcelain/git/actions';
-import type { GitSession } from '@porcelain/git/inspection';
 
-export type WorktreeChanges = {
-  execute(
-    worktreeId: string,
-    session: GitSession,
-    signal?: AbortSignal,
-  ): Promise<ReadChangesResult>;
-  fingerprints(
-    worktreeId: string,
-    paths: readonly string[],
-    session: GitSession,
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<string, string>>;
+export type WorktreeChangeReading = {
+  readWorktreeStatus: {
+    execute(
+      input: WorktreeInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeStatusObservation>;
+  };
+  readChangeFingerprints: {
+    execute(
+      input: ReadChangeFingerprintsInput,
+      signal?: AbortSignal,
+    ): Promise<ChangeFingerprints>;
+  };
 };
 
 export class WorktreeFingerprintReaderAdapter implements WorktreeFingerprintReader {
-  private readonly changes: WorktreeChanges;
+  private readonly changes: WorktreeChangeReading;
 
-  constructor(changes: WorktreeChanges) {
+  constructor(changes: WorktreeChangeReading) {
     this.changes = changes;
   }
 
@@ -28,29 +33,38 @@ export class WorktreeFingerprintReaderAdapter implements WorktreeFingerprintRead
     worktreeId: string,
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, string | undefined>> {
-    const observed = await this.changes.execute(
-      worktreeId,
-      new RequestGitSession(),
-      signal,
-    );
-    return new Map(
-      observed.changes.map((change) => [
-        change.path,
-        change.fingerprint ?? undefined,
-      ]),
-    );
+    const changes = await this.read(worktreeId, undefined, signal);
+    return new Map(changes.map((change) => [change.path, change.fingerprint]));
   }
 
-  selected(
+  async selected(
     worktreeId: string,
     paths: readonly string[],
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, string>> {
-    return this.changes.fingerprints(
-      worktreeId,
-      paths,
-      new RequestGitSession(),
+    const changes = await this.read(worktreeId, paths, signal);
+    return new Map(
+      changes.flatMap((change): [string, string][] =>
+        change.fingerprint === undefined
+          ? []
+          : [[change.path, change.fingerprint]],
+      ),
+    );
+  }
+
+  private async read(
+    worktreeId: string,
+    paths: readonly string[] | undefined,
+    signal: AbortSignal | undefined,
+  ): Promise<FileChange[]> {
+    const status = await this.changes.readWorktreeStatus.execute(
+      { worktreeId },
       signal,
     );
+    const observed = await this.changes.readChangeFingerprints.execute(
+      { worktreeId, comparisons: status.changes, paths },
+      signal,
+    );
+    return observed.changes;
   }
 }
