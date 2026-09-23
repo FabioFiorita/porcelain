@@ -1,47 +1,49 @@
-import type { ReadPreviewAssetsResponse } from '@porcelain/contracts/files';
-
-type ReadPreviewAssets = {
-  execute(
-    worktreeId: string,
-    document: string,
-    paths: readonly string[],
-    signal?: AbortSignal,
-  ): Promise<ReadPreviewAssetsResponse['assets']>;
-};
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  ReadPreviewAssetsRequest,
+  ReadPreviewAssetsResponse,
+} from '@porcelain/contracts/files';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeService,
+  ReadPreviewAssetsService,
+} from '@porcelain/files/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadPreviewAssetsController {
-  private readonly readPreviewAssets: ReadPreviewAssets;
-  private readonly runWorktreeRead: RunWorktreeRead;
+  private readonly checkWorktree: CheckWorktreeService;
+  private readonly readPreviewAssets: ReadPreviewAssetsService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
-    readPreviewAssets: ReadPreviewAssets,
-    runWorktreeRead: RunWorktreeRead,
+    checkWorktree: CheckWorktreeService,
+    readPreviewAssets: ReadPreviewAssetsService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
+    this.checkWorktree = checkWorktree;
     this.readPreviewAssets = readPreviewAssets;
-    this.runWorktreeRead = runWorktreeRead;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
-  async execute(
-    input: { worktreeId: string; document: string; paths: string[] },
-    context: { signal?: AbortSignal },
+  execute(
+    input: WorktreeParams & ReadPreviewAssetsRequest,
+    context: OperationContext,
   ): Promise<ReadPreviewAssetsResponse> {
-    const wanted = [...input.paths];
-    const assets = await this.runWorktreeRead(
-      input.worktreeId,
-      (signal) =>
-        this.readPreviewAssets.execute(
-          input.worktreeId,
-          input.document,
-          wanted,
-          signal,
-        ),
-      context.signal,
+    const check = { worktreeId: input.worktreeId, purpose: 'reading' } as const;
+    return this.lanes.run(
+      this.laneKeys.worktree(input.worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.checkWorktree.execute(check, signal);
+        const result = await this.readPreviewAssets.execute(input, signal);
+        await this.checkWorktree.execute(check, signal);
+        return result;
+      },
+      { callerSignal: context.signal },
     );
-    return { assets };
   }
 }

@@ -12,19 +12,6 @@ import {
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import { FileInspectionError } from '@porcelain/files/errors';
-import {
-  EditFileService,
-  ListDirectoryService,
-  ListWorktreePathsService,
-  ReadAssetService,
-  ReadPreviewAssetsService,
-  ReadTextFileService,
-} from '@porcelain/files/services';
-import type {
-  FileReader,
-  FileWriter,
-  IgnoredEntries,
-} from '@porcelain/files/ports';
 import { CommitDraftError } from '@porcelain/git-actions/errors';
 import { gitActionReceiptView } from '@porcelain/git-actions/models';
 import {
@@ -41,8 +28,6 @@ import {
   RecordGitActionProgressService,
 } from '@porcelain/git-actions/services';
 import { ActionGit } from '@porcelain/git/actions';
-import { checkIgnored } from '@porcelain/git/inspection';
-import { listTrackedPaths } from '@porcelain/git/inspection';
 import { CommitGit } from '@porcelain/git/history';
 import type { DiscoveryIssue } from '@porcelain/git/discovery';
 import { Git, isRepositoryUnavailable } from '@porcelain/git/discovery';
@@ -68,14 +53,10 @@ import type {
   CommitModelCatalogPort,
 } from '@porcelain/git-actions/ports';
 import type { ServerCapabilities } from './server-capabilities.ts';
+import { composeFiles } from './compose-files.ts';
 import { createChangeLinesReader } from '../adapters/changes/change-lines-reader.ts';
 import { createChangeStatusReader } from '../adapters/changes/change-status-reader.ts';
 import { createChangeInspectionReader } from '../adapters/changes/change-inspection-reader.ts';
-import {
-  createTrackedPathsReader,
-  type TrackedPaths,
-} from '../adapters/files/tracked-paths-reader.ts';
-import { createReadableWorktrees } from '../adapters/files/readable-worktrees.ts';
 import { CommitHistoryAdapter } from '../adapters/git/commit-history-adapter.ts';
 import { ListCommitsController } from '../controllers/list-commits-controller.ts';
 import { ReadCommitFilesController } from '../controllers/read-commit-files-controller.ts';
@@ -107,8 +88,7 @@ import { ListReviewedLayersController } from '../controllers/list-reviewed-layer
 import { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
 import { RemoveReviewedLayerController } from '../controllers/remove-reviewed-layer-controller.ts';
 import { applicationSettingsSchema } from '../config/application-settings.ts';
-import { NodeFileReader } from '../adapters/files/file-reader.ts';
-import { NodeFileWriter } from '../adapters/files/file-writer.ts';
+import { FileReaderAdapter } from '../adapters/files/file-reader-adapter.ts';
 import { NodeProjectFolders } from '../adapters/files/project-folders.ts';
 import {
   readWorktreeFiles,
@@ -139,12 +119,6 @@ import { ReadInventoryController } from '../controllers/read-inventory-controlle
 import { RegisterProjectController } from '../controllers/register-project-controller.ts';
 import { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
 import { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
-import { ListDirectoryController } from '../controllers/list-directory-controller.ts';
-import { ReadTextFileController } from '../controllers/read-text-file-controller.ts';
-import { ReadFileAssetController } from '../controllers/read-file-asset-controller.ts';
-import { ReadPreviewAssetsController } from '../controllers/read-preview-assets-controller.ts';
-import { EditFileController } from '../controllers/edit-file-controller.ts';
-import { ListWorktreePathsController } from '../controllers/list-worktree-paths-controller.ts';
 import { resolveActionCheckout } from '../adapters/git-actions/action-checkout.ts';
 import { ResolveWorktree } from '../adapters/projects/resolve-worktree.ts';
 import { SetFilePreferenceService } from '@porcelain/projects/services';
@@ -188,16 +162,12 @@ export async function openApplication(options: {
   actionGit?: GitActionWriterFactory;
   commitGit?: CommitReaderFactory;
   inspectionGit?: InspectionFactory;
-  files?: FileReader;
   worktreeFiles?: WorktreeFiles;
-  ignoredEntries?: (root: string) => IgnoredEntries;
-  trackedPaths?: TrackedPaths;
   stampPath?: StampPath;
   projectFolders?: ProjectFolders;
   projectHome: string;
   pairingReach?: () => PairingReach;
   commitGenerator?: CommitGeneratorPort & CommitModelCatalogPort;
-  fileWriter?: FileWriter;
   now?: () => string;
   signal?: AbortSignal;
   operationTimeoutMs?: number;
@@ -378,28 +348,45 @@ export async function openApplication(options: {
       () => store.read().environmentId,
       commitGit,
     );
-    const files = options.files ?? new NodeFileReader();
-    const readableWorktrees = createReadableWorktrees(worktrees);
-    const list = new ListDirectoryService(
-      readableWorktrees,
-      files,
-      options.ignoredEntries ??
-        ((root) => (paths, signal) => checkIgnored(root, paths, signal)),
-    );
-    const read = new ReadTextFileService(readableWorktrees, files);
-    const asset = new ReadAssetService(readableWorktrees, new NodeFileReader());
-    const previewAssets = new ReadPreviewAssetsService(
-      readableWorktrees,
-      new NodeFileReader(),
-    );
-    const worktreePaths = new ListWorktreePathsService(
-      readableWorktrees,
-      createTrackedPathsReader(options.trackedPaths ?? listTrackedPaths),
-    );
-    const editFile = new EditFileService(
-      readableWorktrees,
-      options.fileWriter ?? new NodeFileWriter(),
-    );
+    const files = new FileReaderAdapter(worktrees);
+    const {
+      readTextFileService: read,
+      listDirectoryController,
+      readTextFileController,
+      readFileAssetController,
+      readPreviewAssetsController,
+      editFileController,
+      listWorktreePathsController,
+    } = composeFiles({
+      lanes,
+      laneKeys: {
+        inventory: () => INVENTORY,
+        filesystem: () => FILESYSTEM,
+        project: projectLaneOf,
+        worktree: laneOf,
+      },
+      events: {
+        inventoryChanged: () => live.publish({ type: 'inventory' }),
+        projectChanged: (projectId, change) =>
+          live.publish({ type: 'project', projectId, change }),
+        worktreeChanged: (worktreeId, change) =>
+          live.publishWorktree(worktreeId, change),
+        filesChanged: (worktreeId, paths) => live.noteFiles(worktreeId, paths),
+        gitActionChanged: (receipt) =>
+          live.publish({
+            type: 'git-action',
+            projectId: receipt.projectId,
+            worktreeId: receipt.worktreeId,
+            receipt,
+          }),
+      },
+      worktreeAccess: {
+        known: (worktreeId, signal) => worktrees.reachable(worktreeId, signal),
+        forWriting: (worktreeId, signal) =>
+          worktrees.reachable(worktreeId, signal),
+      },
+      worktreeCheckouts: worktrees,
+    });
     const register = new RegisterProjectService(
       store,
       projectRepositories,
@@ -623,42 +610,6 @@ export async function openApplication(options: {
         ({ signal: operationSignal }) => operation(operationSignal),
         { callerSignal: signal },
       );
-    const runWorktreeWrite = <T>(
-      worktreeId: string,
-      operation: (signal: AbortSignal) => Promise<T>,
-      signal?: AbortSignal,
-    ) =>
-      lanes.run(
-        laneOf(worktreeId),
-        'write',
-        ({ signal: operationSignal }) => operation(operationSignal),
-        { callerSignal: signal },
-      );
-    const listDirectoryController = new ListDirectoryController(
-      list,
-      runWorktreeRead,
-    );
-    const readTextFileController = new ReadTextFileController(
-      read,
-      runWorktreeRead,
-    );
-    const readFileAssetController = new ReadFileAssetController(
-      asset,
-      runWorktreeRead,
-    );
-    const readPreviewAssetsController = new ReadPreviewAssetsController(
-      previewAssets,
-      runWorktreeRead,
-    );
-    const editFileController = new EditFileController(
-      editFile,
-      runWorktreeWrite,
-      (worktreeId, paths) => live.noteFiles(worktreeId, paths),
-    );
-    const listWorktreePathsController = new ListWorktreePathsController(
-      worktreePaths,
-      runWorktreeRead,
-    );
     const acceptAction = new AcceptGitActionService(actionStore);
     const readActionReceipt = new ReadGitActionReceiptService(actionStore);
     const readInterruptedAction = new ReadInterruptedGitActionService(

@@ -1,36 +1,49 @@
-import type { ReadTextFileResponse } from '@porcelain/contracts/files';
-
-type ReadTextFile = {
-  execute(
-    worktreeId: string,
-    path: string,
-    signal?: AbortSignal,
-  ): Promise<ReadTextFileResponse>;
-};
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  ReadTextFileQuery,
+  ReadTextFileResponse,
+} from '@porcelain/contracts/files';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeService,
+  ReadTextFileService,
+} from '@porcelain/files/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadTextFileController {
-  private readonly readTextFile: ReadTextFile;
-  private readonly runWorktreeRead: RunWorktreeRead;
+  private readonly checkWorktree: CheckWorktreeService;
+  private readonly readTextFile: ReadTextFileService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
-  constructor(readTextFile: ReadTextFile, runWorktreeRead: RunWorktreeRead) {
+  constructor(
+    checkWorktree: CheckWorktreeService,
+    readTextFile: ReadTextFileService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+  ) {
+    this.checkWorktree = checkWorktree;
     this.readTextFile = readTextFile;
-    this.runWorktreeRead = runWorktreeRead;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: { worktreeId: string; path: string },
-    context: { signal?: AbortSignal },
+    input: WorktreeParams & ReadTextFileQuery,
+    context: OperationContext,
   ): Promise<ReadTextFileResponse> {
-    return this.runWorktreeRead(
-      input.worktreeId,
-      (signal) =>
-        this.readTextFile.execute(input.worktreeId, input.path, signal),
-      context.signal,
+    const check = { worktreeId: input.worktreeId, purpose: 'reading' } as const;
+    return this.lanes.run(
+      this.laneKeys.worktree(input.worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.checkWorktree.execute(check, signal);
+        const result = await this.readTextFile.execute(input, signal);
+        await this.checkWorktree.execute(check, signal);
+        return result;
+      },
+      { callerSignal: context.signal },
     );
   }
 }

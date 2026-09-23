@@ -1,31 +1,46 @@
 import type { ListWorktreePathsResponse } from '@porcelain/contracts/files';
-import type { ListWorktreePathsService } from '@porcelain/files/services';
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeService,
+  ListWorktreePathsService,
+} from '@porcelain/files/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListWorktreePathsController {
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly listWorktreePaths: ListWorktreePathsService;
-  private readonly runWorktreeRead: RunWorktreeRead;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
+    checkWorktree: CheckWorktreeService,
     listWorktreePaths: ListWorktreePathsService,
-    runWorktreeRead: RunWorktreeRead,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
+    this.checkWorktree = checkWorktree;
     this.listWorktreePaths = listWorktreePaths;
-    this.runWorktreeRead = runWorktreeRead;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: { worktreeId: string },
-    context: { signal?: AbortSignal },
+    input: WorktreeParams,
+    context: OperationContext,
   ): Promise<ListWorktreePathsResponse> {
-    return this.runWorktreeRead(
-      input.worktreeId,
-      (signal) => this.listWorktreePaths.execute(input.worktreeId, signal),
-      context.signal,
+    const check = { worktreeId: input.worktreeId, purpose: 'reading' } as const;
+    return this.lanes.run(
+      this.laneKeys.worktree(input.worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.checkWorktree.execute(check, signal);
+        const result = await this.listWorktreePaths.execute(input, signal);
+        await this.checkWorktree.execute(check, signal);
+        return result;
+      },
+      { callerSignal: context.signal },
     );
   }
 }
