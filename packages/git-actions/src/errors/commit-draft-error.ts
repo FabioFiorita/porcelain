@@ -1,1 +1,1 @@
-export class CommitDraftError extends Error {}
+export abstract class CommitDraftError extends Error {}

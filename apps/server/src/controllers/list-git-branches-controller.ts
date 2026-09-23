@@ -1,32 +1,36 @@
 import type {
   GitActionScope,
-  GitBranches,
-} from '@porcelain/git-actions/models';
+  ListGitBranchesResponse,
+} from '@porcelain/contracts/git-actions';
 import type { ListGitBranchesService } from '@porcelain/git-actions/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListGitBranchesController {
+  private readonly listGitBranches: ListGitBranchesService;
   private readonly lanes: Lanes;
-  private readonly laneFor: (projectId: string) => string;
-  private readonly list: ListGitBranchesService;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
+    listGitBranches: ListGitBranchesService,
     lanes: Lanes,
-    laneFor: (projectId: string) => string,
-    list: ListGitBranchesService,
+    laneKeys: LaneKeys,
   ) {
+    this.listGitBranches = listGitBranches;
     this.lanes = lanes;
-    this.laneFor = laneFor;
-    this.list = list;
+    this.laneKeys = laneKeys;
   }
 
-  execute(scope: GitActionScope, signal?: AbortSignal): Promise<GitBranches> {
+  execute(
+    input: GitActionScope,
+    context: OperationContext,
+  ): Promise<ListGitBranchesResponse> {
     return this.lanes.run(
-      this.laneFor(scope.projectId),
+      this.laneKeys.project(input.projectId),
       'read',
-      ({ signal: operationSignal }) =>
-        this.list.execute(scope, operationSignal),
-      { callerSignal: signal },
+      ({ signal }) => this.listGitBranches.execute(input, signal),
+      { callerSignal: context.signal },
     );
   }
 }

@@ -29,11 +29,24 @@ export function runAction(
           503: runGitActionRejectedResponseSchema,
         },
       },
+      preSerialization: async (_request, reply, payload: unknown) => {
+        if (isReceipt(payload)) reply.code(gitActionReceiptStatus(payload));
+        return payload;
+      },
     },
-    async (request, reply) => {
-      const receipt = options.controller.execute(request.params, request.body);
-      reply.code(gitActionReceiptStatus(receipt));
-      return receipt;
-    },
+    async (request) =>
+      options.controller.execute(
+        { ...request.params, ...request.body },
+        { signal: request.disconnected },
+      ),
+  );
+}
+
+function isReceipt(payload: unknown): payload is { state: string } {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'state' in payload &&
+    typeof payload.state === 'string'
   );
 }

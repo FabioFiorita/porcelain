@@ -1,20 +1,20 @@
 import { GitBranchListingUnavailableError } from '../errors/git-branch-listing-unavailable-error.ts';
 import type { GitBranches } from '../models/git-branches.ts';
-import type { GitActionScope } from '../models/git-action.ts';
-import type { GitBranchReaderPort } from '../ports/git-branch-reader-port.ts';
+import type { ListGitBranchesInput } from '../models/list-git-branches.ts';
+import type { GitBranchReader } from '../ports/git-branch-reader.ts';
 
 export class ListGitBranchesService {
-  private readonly reader: GitBranchReaderPort;
+  private readonly gitBranchReader: GitBranchReader;
 
-  constructor(reader: GitBranchReaderPort) {
-    this.reader = reader;
+  constructor(gitBranchReader: GitBranchReader) {
+    this.gitBranchReader = gitBranchReader;
   }
 
   async execute(
-    scope: GitActionScope,
-    signal: AbortSignal,
+    input: ListGitBranchesInput,
+    signal?: AbortSignal,
   ): Promise<GitBranches> {
-    const branches = await this.reader.read(scope, signal);
+    const branches = await this.gitBranchReader.read(input, signal);
     if (!branches) throw new GitBranchListingUnavailableError();
     return branches;
   }

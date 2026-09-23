@@ -1,34 +1,43 @@
-import type { GitActionScope } from '@porcelain/git-actions/models';
-import type { GitBranchReaderPort } from '@porcelain/git-actions/ports';
-import { RequestGitSession } from '@porcelain/git/actions';
-import type { GitActionWriterFactory } from '@porcelain/git/actions';
-import type { GitSession } from '@porcelain/git/inspection';
+import type {
+  GitActionScope,
+  GitBranches,
+} from '@porcelain/git-actions/models';
+import type { GitBranchReader } from '@porcelain/git-actions/ports';
+import {
+  RequestGitSession,
+  type GitActionWriterFactory,
+} from '@porcelain/git/actions';
+import type { ActionCheckouts } from './action-checkout.ts';
 
-type Checkout = Parameters<GitActionWriterFactory>[0];
-
-export class GitBranchReaderAdapter implements GitBranchReaderPort {
-  private readonly resolveCheckout: (
-    scope: GitActionScope,
-    session: GitSession,
-    signal: AbortSignal,
-  ) => Promise<Checkout>;
+export class GitBranchReaderAdapter implements GitBranchReader {
+  private readonly checkouts: ActionCheckouts;
   private readonly git: GitActionWriterFactory;
 
-  constructor(
-    resolveCheckout: (
-      scope: GitActionScope,
-      session: GitSession,
-      signal: AbortSignal,
-    ) => Promise<Checkout>,
-    git: GitActionWriterFactory,
-  ) {
-    this.resolveCheckout = resolveCheckout;
+  constructor(checkouts: ActionCheckouts, git: GitActionWriterFactory) {
+    this.checkouts = checkouts;
     this.git = git;
   }
 
-  async read(scope: GitActionScope, signal: AbortSignal) {
-    const session = new RequestGitSession();
-    const checkout = await this.resolveCheckout(scope, session, signal);
-    return this.git(checkout).listBranches?.(signal);
+  async read(
+    scope: GitActionScope,
+    signal?: AbortSignal,
+  ): Promise<GitBranches | undefined> {
+    const { checkout } = await this.checkouts.resolve(
+      scope,
+      new RequestGitSession(),
+      signal,
+    );
+    const listed = await this.git(checkout).listBranches?.(
+      signal ?? new AbortController().signal,
+    );
+    return (
+      listed && {
+        current: listed.current ?? undefined,
+        branches: listed.branches.map((branch) => ({
+          ...branch,
+          upstream: branch.upstream ?? undefined,
+        })),
+      }
+    );
   }
 }

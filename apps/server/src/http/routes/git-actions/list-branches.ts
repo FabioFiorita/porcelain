@@ -21,6 +21,8 @@ export function listBranches(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, request.disconnected),
+      options.controller.execute(request.params, {
+        signal: request.disconnected,
+      }),
   );
 }

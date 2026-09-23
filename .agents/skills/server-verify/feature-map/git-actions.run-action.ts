@@ -16,6 +16,7 @@ import {
   expectation,
   sampleFingerprint,
   settledReceipt,
+  worktreeNotFound,
 } from '../scripts/fixture.ts';
 
 const run = (
@@ -35,9 +36,9 @@ const branchRequest = {
 export default defineFeature({
   feature: 'git-actions.run-action',
   reaches: 'POST /api/projects/:projectId/worktrees/:worktreeId/git/actions',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    'The owner runs a Git action (fetch, pull, push, commit, amend, stash, discard, switch or create a branch) under a client-chosen request ID, stating what they expect of the worktree (head, branch, in-progress state and, for file actions, file fingerprints). The action is accepted at once (202, running) and runs in the background; its receipt settles as succeeded, no-change, rejected, conflicted or interrupted. If the worktree no longer matches the expectation the action is rejected without touching it. Repeating a request ID returns its receipt (with the status its state maps to) instead of running again; reusing it for a different action is a conflict.',
+    'The owner runs a Git action (fetch, pull, push, commit, amend, stash, discard, switch or create a branch) under a client-chosen request ID, stating what they expect of the worktree (head, branch, in-progress state and, for file actions, file fingerprints). The action is accepted at once (202, running) and runs in the background; its receipt settles as succeeded, no-change, rejected, conflicted or interrupted. A worktree that is not registered is not found, and nothing is accepted. If the worktree no longer matches the expectation the action is rejected without touching it. Repeating a request ID returns its receipt (with the status its state maps to) instead of running again; reusing it for a different action is a conflict.',
   cases: [
     defineCase({
       name: 'create a branch',
@@ -202,19 +203,14 @@ export default defineFeature({
         };
       },
       request: (session, body) => run(session, body, unknownWorktreeId),
-      async expect({ response, state, session, check, checkPartial }) {
-        check('is accepted', 202, response.status);
-        checkPartial(
-          'for the unknown worktree',
-          { worktreeId: unknownWorktreeId, state: 'running' },
-          response.body,
-        );
-        const settled = await settledReceipt(session, state.requestId);
-        checkPartial(
-          'then rejected by Git',
-          { state: 'rejected', reason: 'GIT_REJECTED' },
-          settled.receipt,
-        );
+      async expect({ response, state, session, check }) {
+        check('status', 404, response.status);
+        check('error body', worktreeNotFound, response.body);
+        const receipt = await session.send({
+          method: 'GET',
+          path: `/api/git-action-requests/${state.requestId}`,
+        });
+        check('no receipt was kept', 404, receipt.status);
       },
     }),
     defineCase({

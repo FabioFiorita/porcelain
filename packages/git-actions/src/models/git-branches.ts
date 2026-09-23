@@ -1,9 +1,11 @@
+export type GitBranch = {
+  name: string;
+  upstream: string | undefined;
+  lastCommitAt: string;
+  checkedOutElsewhere: boolean;
+};
+
 export type GitBranches = {
-  current: string | null;
-  branches: {
-    name: string;
-    upstream: string | null;
-    lastCommitAt: string;
-    checkedOutElsewhere: boolean;
-  }[];
+  current: string | undefined;
+  branches: GitBranch[];
 };

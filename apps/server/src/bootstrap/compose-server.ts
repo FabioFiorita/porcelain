@@ -8,10 +8,6 @@ import {
 } from '@porcelain/access/services';
 import type { PairingReach } from '@porcelain/access/ports';
 import {
-  AgentGenerationError,
-  CliCommitGenerator,
-} from '@porcelain/agents/commit-planning';
-import {
   ReadChangeLinesService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
@@ -32,21 +28,6 @@ import type {
   FileWriter,
   IgnoredEntries,
 } from '@porcelain/files/ports';
-import { CommitDraftError } from '@porcelain/git-actions/errors';
-import { gitActionReceiptView } from '@porcelain/git-actions/models';
-import {
-  AcceptGitActionService,
-  AdmitCommitDraftService,
-  CaptureCommitDraftService,
-  DismissInterruptedGitActionService,
-  ExecuteGitActionService,
-  GenerateCommitDraftService,
-  ListCommitModelsService,
-  ListGitBranchesService,
-  ReadGitActionReceiptService,
-  ReadInterruptedGitActionService,
-  RecordGitActionProgressService,
-} from '@porcelain/git-actions/services';
 import { ActionGit } from '@porcelain/git/actions';
 import { checkIgnored } from '@porcelain/git/inspection';
 import { listTrackedPaths } from '@porcelain/git/inspection';
@@ -70,9 +51,10 @@ import type { GitActionWriterFactory } from '@porcelain/git/actions';
 import type { GitFactory } from '@porcelain/git/discovery';
 import type { InspectionFactory } from '@porcelain/git/inspection';
 import { readGitVersion } from '@porcelain/git/discovery';
+import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import type {
-  CommitGeneratorPort,
-  CommitModelCatalogPort,
+  CommitDraftWriter,
+  CommitModelReader,
 } from '@porcelain/git-actions/ports';
 import type { ServerCapabilities } from './server-capabilities.ts';
 import { createChangeLinesReader } from '../adapters/changes/change-lines-reader.ts';
@@ -91,15 +73,6 @@ import { ReadChangesController } from '../controllers/read-changes-controller.ts
 import { ReadChangeDiffsController } from '../controllers/read-change-diffs-controller.ts';
 import { ReadChangeLinesController } from '../controllers/read-change-lines-controller.ts';
 import { ReadGitStatusController } from '../controllers/read-git-status-controller.ts';
-import { ActionExecutionAdapter } from '../adapters/git-actions/action-execution-adapter.ts';
-import { CommitDraftCaptureAdapter } from '../adapters/git-actions/commit-draft-capture-adapter.ts';
-import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
-import { DismissInterruptedGitActionController } from '../controllers/dismiss-interrupted-git-action-controller.ts';
-import { GenerateCommitDraftController } from '../controllers/generate-commit-draft-controller.ts';
-import { ListCommitModelsController } from '../controllers/list-commit-models-controller.ts';
-import { ListGitBranchesController } from '../controllers/list-git-branches-controller.ts';
-import { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
-import { RunGitActionController } from '../controllers/run-git-action-controller.ts';
 import { RenameProjectController } from '../controllers/rename-project-controller.ts';
 import { CommentThreadsController } from '../controllers/comment-threads-controller.ts';
 import { MarkCommentsSeenController } from '../controllers/mark-comments-seen-controller.ts';
@@ -157,7 +130,8 @@ import { ReadFileAssetController } from '../controllers/read-file-asset-controll
 import { ReadPreviewAssetsController } from '../controllers/read-preview-assets-controller.ts';
 import { EditFileController } from '../controllers/edit-file-controller.ts';
 import { ListWorktreePathsController } from '../controllers/list-worktree-paths-controller.ts';
-import { resolveActionCheckout } from '../adapters/git-actions/action-checkout.ts';
+import { CommitGeneratorAdapter } from '../adapters/git-actions/commit-generator-adapter.ts';
+import { composeGitActions } from './compose-git-actions.ts';
 import { ResolveWorktree } from '../adapters/projects/resolve-worktree.ts';
 import { SetFilePreferenceService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
@@ -167,7 +141,6 @@ import {
   createPairingGrantStore,
 } from '@porcelain/storage/access';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
-import { createGitActionStore } from '@porcelain/storage/git-actions';
 import {
   createFilePreferenceStore,
   createInventoryStore,
@@ -211,7 +184,7 @@ export async function openApplication(options: {
   projectFolders?: ProjectFolders;
   projectHome: string;
   pairingReach?: () => PairingReach;
-  commitGenerator?: CommitGeneratorPort & CommitModelCatalogPort;
+  commitGenerator?: CommitDraftWriter & CommitModelReader;
   fileWriter?: FileWriter;
   now?: () => string;
   signal?: AbortSignal;
@@ -326,8 +299,6 @@ export async function openApplication(options: {
     const removeProject = new RemoveProjectService(
       createProjectRemovalStore(session),
     );
-    const actionStore = createGitActionStore(session);
-    actionStore.recover();
     const actionGit =
       options.actionGit ?? ((checkout) => new ActionGit(checkout));
 
@@ -698,132 +669,43 @@ export async function openApplication(options: {
       worktreePaths,
       runWorktreeRead,
     );
-    const acceptAction = new AcceptGitActionService(actionStore);
-    const readActionReceipt = new ReadGitActionReceiptService(actionStore);
-    const readInterruptedAction = new ReadInterruptedGitActionService(
-      actionStore,
-    );
-    const dismissInterruptedAction = new DismissInterruptedGitActionService(
-      actionStore,
-    );
-    const recordActionProgress = new RecordGitActionProgressService(
-      actionStore,
-    );
-    const executeAction = new ExecuteGitActionService(
-      new ActionExecutionAdapter(
-        async (scope, session, signal) =>
-          (
-            await resolveActionCheckout(
-              worktrees,
-              store,
-              session,
-              scope,
-              signal,
-            )
-          ).checkout,
-        actionGit,
-        async (worktreeId, session, signal) =>
-          new Map(
-            (await changes.execute(worktreeId, session, signal)).changes.map(
-              (entry) => [entry.path, entry.fingerprint],
-            ),
-          ),
-        (worktreeId, paths, session, signal) =>
-          changes.fingerprints(worktreeId, paths, session, signal),
-      ),
-      actionStore,
-      async (worktreeId, signal) => {
-        await readPublishedReviewController.execute({ worktreeId }, { signal });
+    const gitActions = composeGitActions({
+      session,
+      lanes,
+      laneKeys: {
+        inventory: () => INVENTORY,
+        filesystem: () => FILESYSTEM,
+        project: projectLaneOf,
+        worktree: laneOf,
       },
-    );
-    const runGitActionController = new RunGitActionController(
-      lanes,
-      projectLaneOf,
-      acceptAction,
-      executeAction,
-      readActionReceipt,
-      recordActionProgress,
-      (receipt) =>
-        live.publish({
-          type: 'git-action',
-          projectId: receipt.projectId,
-          worktreeId: receipt.worktreeId,
-          receipt: gitActionReceiptView(receipt),
-        }),
-    );
-    const readGitActionReceiptController = new ReadGitActionReceiptController(
-      lanes,
-      readActionReceipt,
-    );
-    const dismissInterruptedGitActionController =
-      new DismissInterruptedGitActionController(
-        lanes,
-        dismissInterruptedAction,
-      );
-    const listGitBranchesController = new ListGitBranchesController(
-      lanes,
-      projectLaneOf,
-      new ListGitBranchesService(
-        new GitBranchReaderAdapter(
-          async (scope, session, signal) =>
-            (
-              await resolveActionCheckout(
-                worktrees,
-                store,
-                session,
-                scope,
-                signal,
-              )
-            ).checkout,
-          actionGit,
-        ),
-      ),
-    );
-    const provider = new CliCommitGenerator();
-    const generator: CommitGeneratorPort & CommitModelCatalogPort =
-      options.commitGenerator ?? {
-        models: (signal) => provider.models(signal),
-        generate: async (model, prompt, signal) => {
-          try {
-            return await provider.generate(model, prompt, signal);
-          } catch (error) {
-            signal.throwIfAborted();
-            if (error instanceof AgentGenerationError)
-              throw new CommitDraftError(error.message, { cause: error });
-            throw error;
-          }
-        },
-      };
-    const generateCommitDraft = new GenerateCommitDraftService(generator);
-    const listCommitModelsController = new ListCommitModelsController(
-      lanes,
-      new ListCommitModelsService(generator),
-    );
-    const captureCommitDraft = new CaptureCommitDraftService(
-      new CommitDraftCaptureAdapter(
-        (worktreeId, session, signal) =>
-          changes.execute(worktreeId, session, signal),
-        async (scope, session, signal) => {
-          const { checkout, worktree } = await resolveActionCheckout(
-            worktrees,
-            store,
-            session,
-            scope,
-            signal,
-          );
-          return { checkout, root: worktree.path };
-        },
-        actionGit,
-        files,
-      ),
-    );
-    const generateCommitDraftController = new GenerateCommitDraftController(
-      lanes,
-      projectLaneOf,
-      new AdmitCommitDraftService(),
-      captureCommitDraft,
-      generateCommitDraft,
-    );
+      events: {
+        inventoryChanged: () => live.publish({ type: 'inventory' }),
+        projectChanged: (projectId, change) =>
+          live.publish({ type: 'project', projectId, change }),
+        worktreeChanged: (worktreeId, change) =>
+          live.publishWorktree(worktreeId, change),
+        filesChanged: (worktreeId, paths) => live.noteFiles(worktreeId, paths),
+        gitActionChanged: (receipt) =>
+          live.publish({
+            type: 'git-action',
+            projectId: receipt.projectId,
+            worktreeId: receipt.worktreeId,
+            receipt,
+          }),
+      },
+      worktrees,
+      environment: store,
+      actionGit,
+      files,
+      changes,
+      refreshPublishedReview: readPublishedReviewController,
+      commitGenerator:
+        options.commitGenerator ??
+        new CommitGeneratorAdapter(createCommitPlanner()),
+      gitActionDeadlineMs: 120_000,
+      commitModelDeadlineMs: 120_000,
+    });
+    gitActions.recoverInterruptedGitActionsController.execute({}, {});
     const listReviewedFiles = new ListReviewedFilesService(reviewed);
     const setReviewedFile = new SetReviewedFileService(reviewed, options.now);
     const setReviewedFiles = new SetReviewedFilesService(reviewed, options.now);
@@ -921,7 +803,8 @@ export async function openApplication(options: {
       runChangesRead,
       (worktreeId, fingerprints) =>
         reviewed.reconcile(worktreeId, new Map(fingerprints)),
-      (worktreeId) => readInterruptedAction.execute(worktreeId),
+      (worktreeId) =>
+        gitActions.readInterruptedGitActionService.execute({ worktreeId }),
     );
     const readChangeDiffsController = new ReadChangeDiffsController(
       (worktreeId) =>
@@ -1007,12 +890,13 @@ export async function openApplication(options: {
       readPreviewAssetsController,
       editFileController,
       listWorktreePathsController,
-      runGitActionController,
-      readGitActionReceiptController,
-      dismissInterruptedGitActionController,
-      listGitBranchesController,
-      listCommitModelsController,
-      generateCommitDraftController,
+      runGitActionController: gitActions.runGitActionController,
+      readGitActionReceiptController: gitActions.readGitActionReceiptController,
+      dismissInterruptedGitActionController:
+        gitActions.dismissInterruptedGitActionController,
+      listGitBranchesController: gitActions.listGitBranchesController,
+      listCommitModelsController: gitActions.listCommitModelsController,
+      generateCommitDraftController: gitActions.generateCommitDraftController,
       liveUpdates: (send) => live.connect(send),
       ready: async () => {
         await firstRefresh;

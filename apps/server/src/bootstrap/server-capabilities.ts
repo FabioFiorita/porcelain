@@ -1,13 +1,9 @@
-import type {
-  ListGitBranchesResponse,
-  RunGitActionRequest,
-} from '@porcelain/contracts/git-actions';
-import type {
-  CommitDraft,
-  CommitDraftInput,
-  CommitModel,
-  GitActionScope,
-} from '@porcelain/git-actions/models';
+import type { DismissInterruptedGitActionController } from '../controllers/dismiss-interrupted-git-action-controller.ts';
+import type { GenerateCommitDraftController } from '../controllers/generate-commit-draft-controller.ts';
+import type { ListCommitModelsController } from '../controllers/list-commit-models-controller.ts';
+import type { ListGitBranchesController } from '../controllers/list-git-branches-controller.ts';
+import type { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
+import type { RunGitActionController } from '../controllers/run-git-action-controller.ts';
 import type {
   BrowseProjectFoldersResponse,
   DiscoverProjectsResponse,
@@ -90,38 +86,18 @@ export interface ServerCapabilities {
       context: { signal?: AbortSignal | undefined },
     ): Promise<import('@porcelain/contracts/changes').ReadCommitDiffsResponse>;
   };
-  runGitActionController: {
-    execute(
-      scope: GitActionScope,
-      request: RunGitActionRequest,
-    ): import('@porcelain/git-actions/models').GitActionReceiptView;
-  };
-  readGitActionReceiptController: {
-    execute(
-      requestId: string,
-    ): import('@porcelain/git-actions/models').GitActionReceiptView;
-  };
-  dismissInterruptedGitActionController: {
-    execute(input: GitActionScope & { requestId: string }): {
-      dismissed: true;
-    };
-  };
-  listGitBranchesController: {
-    execute(
-      scope: GitActionScope,
-      signal?: AbortSignal,
-    ): Promise<ListGitBranchesResponse>;
-  };
-  listCommitModelsController: {
-    execute(): Promise<CommitModel[]>;
-  };
-  generateCommitDraftController: {
-    execute(
-      scope: GitActionScope,
-      input: CommitDraftInput,
-      signal?: AbortSignal,
-    ): Promise<CommitDraft>;
-  };
+  runGitActionController: Pick<RunGitActionController, 'execute'>;
+  readGitActionReceiptController: Pick<
+    ReadGitActionReceiptController,
+    'execute'
+  >;
+  dismissInterruptedGitActionController: Pick<
+    DismissInterruptedGitActionController,
+    'execute'
+  >;
+  listGitBranchesController: Pick<ListGitBranchesController, 'execute'>;
+  listCommitModelsController: Pick<ListCommitModelsController, 'execute'>;
+  generateCommitDraftController: Pick<GenerateCommitDraftController, 'execute'>;
   readChangesController: {
     execute(
       input: { worktreeId: string },

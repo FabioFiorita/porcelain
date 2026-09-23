@@ -18,9 +18,9 @@ export default defineFeature({
   feature: 'git-actions.dismiss-interrupted',
   reaches:
     'DELETE /api/projects/:projectId/worktrees/:worktreeId/git/interrupted/:requestId',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    "After an action was interrupted (the server stopped while it ran), the worktree's changes carry an interrupted marker until the owner dismisses it by request ID. Producing an interrupted action needs the server to stop mid-action, which the isolated session cannot do, so only refusals are verified: dismissing a request that is unknown or did not end interrupted is a mismatch conflict.",
+    "After an action was interrupted (the server stopped while it ran), the worktree's changes carry an interrupted marker until the owner dismisses it by request ID. Producing an interrupted action needs the server to stop mid-action, which the isolated session cannot do, so only refusals are verified: an unknown request is not found, and dismissing a request that did not end interrupted is a mismatch conflict.",
   cases: [
     defineCase({
       name: 'unknown request',
@@ -29,8 +29,12 @@ export default defineFeature({
         path: gitPath(session, `/interrupted/${unknownUuid}`),
       }),
       expect({ response, check }) {
-        check('status', 409, response.status);
-        check('error body', mismatch, response.body);
+        check('status', 404, response.status);
+        check(
+          'error body',
+          apiError(404, 'Not Found', 'Git action receipt not found'),
+          response.body,
+        );
       },
     }),
     defineCase({

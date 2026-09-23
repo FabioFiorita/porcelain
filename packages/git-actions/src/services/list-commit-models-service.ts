@@ -1,14 +1,19 @@
 import type { CommitModel } from '../models/commit-draft.ts';
-import type { CommitModelCatalogPort } from '../ports/commit-model-catalog-port.ts';
+import type { ListCommitModelsInput } from '../models/commit-draft-operations.ts';
+import type { CommitModelReader } from '../ports/commit-model-reader.ts';
 
 export class ListCommitModelsService {
-  private readonly catalog: CommitModelCatalogPort;
+  private readonly commitModelReader: CommitModelReader;
 
-  constructor(catalog: CommitModelCatalogPort) {
-    this.catalog = catalog;
+  constructor(commitModelReader: CommitModelReader) {
+    this.commitModelReader = commitModelReader;
   }
 
-  execute(signal: AbortSignal): Promise<CommitModel[]> {
-    return this.catalog.models(signal);
+  execute(
+    input: ListCommitModelsInput,
+    signal?: AbortSignal,
+  ): Promise<CommitModel[]> {
+    void input;
+    return this.commitModelReader.list(signal);
   }
 }
