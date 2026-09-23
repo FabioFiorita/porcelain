@@ -6,6 +6,6 @@ dist/
 .env
 .env.*
 !.env.example
+.turbo/
 
 /dist-porcelain/
-.claude/
