@@ -1,16 +1,16 @@
 import { sql } from 'drizzle-orm';
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-export const projects = sqliteTable(
+export const inventoryProjects = sqliteTable(
   'inventory_projects',
   {
-    id: text().notNull().primaryKey(),
-    name: text().notNull(),
+    id: text('id').notNull().primaryKey(),
+    name: text('name').notNull(),
     namedByOwner: integer('named_by_owner', { mode: 'boolean' }).notNull(),
     commonDirectory: text('common_directory').notNull(),
     repositoryIdentity: text('repository_identity').notNull().unique(),
-    available: integer({ mode: 'boolean' }).notNull(),
-    position: integer().notNull(),
+    available: integer('available', { mode: 'boolean' }).notNull(),
+    position: integer('position').notNull(),
   },
   (table) => [
     check('project_id_present', sql`${table.id} IS NOT NULL`),

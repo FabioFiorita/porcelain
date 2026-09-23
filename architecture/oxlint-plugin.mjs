@@ -166,6 +166,9 @@ function handlerCall(handler) {
 }
 
 const specSource = /\.spec\.ts$/;
+const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
+const storagePublicApi =
+  /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const specPackageEntry = new RegExp(
   `^@porcelain/${domainPackage}/(?:services|rules|models|errors)$`,
@@ -224,6 +227,7 @@ function allowedSpecImport(filename, source) {
     source,
     `file://${path.startsWith('/') ? '' : '/'}${path}`,
   ).pathname;
+  if (storageSpec.test(path)) return storagePublicApi.test(target);
   return /\/spec\/fakes\/.+\.ts$/.test(target);
 }
 
@@ -342,7 +346,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, node:{fs,path,os,child_process} and spec/fakes.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, node:{fs,path,os,child_process} and spec/fakes; a storage spec imports the storage public API instead of fakes.',
             });
         };
         return {

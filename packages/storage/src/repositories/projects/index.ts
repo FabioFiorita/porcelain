@@ -5,7 +5,7 @@ import type {
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
 import { databaseOf, type StorageSession } from '../../db/session.ts';
-import { insertEnvironmentRow } from './environment-row.ts';
+import { EnvironmentIdentityRepository } from '../access/environment-identity-repository.ts';
 import { FilePreferenceRepository } from './file-preference-repository.ts';
 import { InventoryRepository } from './inventory-repository.ts';
 import { ProjectRemovalRepository } from './project-removal-repository.ts';
@@ -13,8 +13,7 @@ import { WorktreePresenceRepository } from './worktree-presence-repository.ts';
 
 export function createInventoryStore(session: StorageSession): InventoryStore {
   const db = databaseOf(session);
-  insertEnvironmentRow(db);
-  return new InventoryRepository(db);
+  return new InventoryRepository(db, new EnvironmentIdentityRepository(db));
 }
 
 export function createProjectRemovalStore(

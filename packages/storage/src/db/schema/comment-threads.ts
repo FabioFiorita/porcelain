@@ -6,12 +6,16 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 import type { CommentThread } from '@porcelain/reviews/models';
+import { worktreePresence } from './worktree-presence.ts';
+
 export const commentThreads = sqliteTable(
   'comment_threads',
   {
     sequence: integer('sequence').primaryKey({ autoIncrement: true }),
     id: text('id').notNull(),
-    worktreeId: text('worktree_id').notNull(),
+    worktreeId: text('worktree_id')
+      .notNull()
+      .references(() => worktreePresence.worktreeId, { onDelete: 'cascade' }),
     anchor: text('anchor', { mode: 'json' })
       .$type<CommentThread['anchor']>()
       .notNull(),
@@ -34,7 +38,9 @@ export const commentMessages = sqliteTable(
     threadId: text('thread_id')
       .notNull()
       .references(() => commentThreads.id, { onDelete: 'cascade' }),
-    worktreeId: text('worktree_id').notNull(),
+    worktreeId: text('worktree_id')
+      .notNull()
+      .references(() => worktreePresence.worktreeId, { onDelete: 'cascade' }),
     body: text('body').notNull(),
     author: text('author').$type<'reviewer' | 'agent'>().notNull(),
     createdAt: text('created_at'),

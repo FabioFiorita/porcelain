@@ -5,7 +5,6 @@
   "scripts": {
     "start": "node src/bootstrap/main.ts",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate",
     "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/server"
   },
   "dependencies": {
@@ -34,7 +33,6 @@
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0",
     "@types/qrcode-terminal": "^0.12.2",
-    "@types/ws": "8.18.1",
-    "drizzle-kit": "0.31.10"
+    "@types/ws": "8.18.1"
   }
 }

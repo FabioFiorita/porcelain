@@ -5,15 +5,18 @@ import {
   sqliteTable,
   text,
 } from 'drizzle-orm/sqlite-core';
+import { worktreePresence } from './worktree-presence.ts';
 
 export const reviewedLayers = sqliteTable(
   'reviewed_layers',
   {
-    worktreeId: text('worktree_id').notNull(),
+    worktreeId: text('worktree_id')
+      .notNull()
+      .references(() => worktreePresence.worktreeId, { onDelete: 'cascade' }),
     layerId: text('layer_id').notNull(),
-    fingerprint: text().notNull(),
+    fingerprint: text('fingerprint').notNull(),
     reviewedAt: text('reviewed_at').notNull(),
-    stale: integer({ mode: 'boolean' }).notNull().default(false),
+    stale: integer('stale', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
     primaryKey({ columns: [table.worktreeId, table.layerId] }),

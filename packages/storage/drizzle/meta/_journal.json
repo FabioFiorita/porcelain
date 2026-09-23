@@ -54,15 +54,29 @@
     {
       "idx": 7,
       "version": "7",
-      "when": 1790000000000,
+      "when": 1790000128000,
       "tag": "0007_normalize_comment_messages",
       "breakpoints": true
     },
     {
       "idx": 8,
       "version": "7",
-      "when": 1790001000000,
+      "when": 1790003964000,
       "tag": "0008_published_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790203978906,
+      "tag": "0009_drop_unused_git_action_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790204021181,
+      "tag": "0010_cascade_deletes_through_foreign_keys",
       "breakpoints": true
     }
   ]

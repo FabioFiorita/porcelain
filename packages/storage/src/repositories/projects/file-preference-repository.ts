@@ -1,13 +1,13 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { filePreferences } from '../../db/schema/file-preferences.ts';
+import { projectFilePreferences } from '../../db/schema/project-file-preferences.ts';
 import type { FilePreference } from '@porcelain/projects/models';
 import type { FilePreferenceStore } from '@porcelain/projects/ports';
 
 const columns = {
-  path: filePreferences.path,
-  pinned: filePreferences.pinned,
-  hidden: filePreferences.hidden,
+  path: projectFilePreferences.path,
+  pinned: projectFilePreferences.pinned,
+  hidden: projectFilePreferences.hidden,
 };
 
 export class FilePreferenceRepository implements FilePreferenceStore {
@@ -20,20 +20,20 @@ export class FilePreferenceRepository implements FilePreferenceStore {
   list(projectId: string): FilePreference[] {
     return this.db
       .select(columns)
-      .from(filePreferences)
-      .where(eq(filePreferences.projectId, projectId))
-      .orderBy(asc(filePreferences.path))
+      .from(projectFilePreferences)
+      .where(eq(projectFilePreferences.projectId, projectId))
+      .orderBy(asc(projectFilePreferences.path))
       .all();
   }
 
   find(projectId: string, path: string): FilePreference | undefined {
     return this.db
       .select(columns)
-      .from(filePreferences)
+      .from(projectFilePreferences)
       .where(
         and(
-          eq(filePreferences.projectId, projectId),
-          eq(filePreferences.path, path),
+          eq(projectFilePreferences.projectId, projectId),
+          eq(projectFilePreferences.path, path),
         ),
       )
       .get();
@@ -43,8 +43,8 @@ export class FilePreferenceRepository implements FilePreferenceStore {
     return (
       this.db
         .select({ total: count() })
-        .from(filePreferences)
-        .where(eq(filePreferences.projectId, projectId))
+        .from(projectFilePreferences)
+        .where(eq(projectFilePreferences.projectId, projectId))
         .get()?.total ?? 0
     );
   }
@@ -52,10 +52,13 @@ export class FilePreferenceRepository implements FilePreferenceStore {
   save(projectId: string, preference: FilePreference): void {
     this.db.transaction(
       (tx) => {
-        tx.insert(filePreferences)
+        tx.insert(projectFilePreferences)
           .values({ projectId, ...preference })
           .onConflictDoUpdate({
-            target: [filePreferences.projectId, filePreferences.path],
+            target: [
+              projectFilePreferences.projectId,
+              projectFilePreferences.path,
+            ],
             set: { pinned: preference.pinned, hidden: preference.hidden },
           })
           .run();
@@ -67,11 +70,11 @@ export class FilePreferenceRepository implements FilePreferenceStore {
   remove(projectId: string, path: string): void {
     this.db.transaction(
       (tx) => {
-        tx.delete(filePreferences)
+        tx.delete(projectFilePreferences)
           .where(
             and(
-              eq(filePreferences.projectId, projectId),
-              eq(filePreferences.path, path),
+              eq(projectFilePreferences.projectId, projectId),
+              eq(projectFilePreferences.path, path),
             ),
           )
           .run();

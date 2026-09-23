@@ -78,7 +78,9 @@ export type ServerApplication = Awaited<ReturnType<typeof openApplication>>;
 export async function openApplication(options: ApplicationOptions) {
   const settings = applicationSettingsSchema.parse(options);
   options.signal?.throwIfAborted();
-  const session = openStorageSession(options.dataDirectory);
+  const session = openStorageSession(options.dataDirectory, {
+    worktreeId: deriveWorktreeId,
+  });
   const inventoryStore = createInventoryStore(session);
   const lanes = new Lanes({
     deadlineMs: () =>

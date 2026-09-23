@@ -1,5 +1,5 @@
 import { index, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import { projects } from './projects.ts';
+import { inventoryProjects } from './inventory-projects.ts';
 
 export const worktreePresence = sqliteTable(
   'worktree_presence',
@@ -7,7 +7,7 @@ export const worktreePresence = sqliteTable(
     worktreeId: text('worktree_id').primaryKey().notNull(),
     projectId: text('project_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => inventoryProjects.id, { onDelete: 'cascade' }),
     missingSince: text('missing_since'),
   },
   (table) => [index('worktree_presence_project').on(table.projectId)],
