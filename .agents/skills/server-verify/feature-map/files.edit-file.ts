@@ -25,9 +25,9 @@ const exists = (session: Session, path: string) =>
 export default defineFeature({
   feature: 'files.edit-file',
   reaches: 'POST /api/worktrees/:worktreeId/files',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    "The owner edits a worktree in place instead of opening an editor: writes a text file only if its content still matches the fingerprint they read, creates a file or folder, moves an entry, or moves it to the machine's trash. Each answers with the resulting path (and the new fingerprint after a write). Writing over changed content, or creating over an existing entry, is a conflict; paths inside .git cannot be touched; escaping paths are invalid.",
+    "The owner edits a worktree in place instead of opening an editor: writes a text file only if its content still matches the fingerprint they read, creates a file or folder, moves an entry, or moves it to the machine's trash. Each answers with the resulting path (and the new fingerprint after a write). Writing over changed content, or creating over an existing entry, is a conflict; paths inside .git and paths that escape the worktree are invalid input.",
   cases: [
     defineCase({
       name: 'write with the current fingerprint',
@@ -160,12 +160,8 @@ export default defineFeature({
           entryKind: 'file',
         }),
       expect({ response, session, check }) {
-        check('status', 422, response.status);
-        check(
-          'error body',
-          apiError(422, 'Unprocessable Entity', 'Path could not be read'),
-          response.body,
-        );
+        check('status', 400, response.status);
+        check('error body', invalidRequest, response.body);
         check(
           'nothing created',
           false,

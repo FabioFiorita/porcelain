@@ -1,25 +1,23 @@
-import { FileInspectionError } from '../errors/file-inspection-error.ts';
-import type { ReachableWorktreeReader } from '../ports/reachable-worktree.ts';
-import type { TrackedPathsReader } from '../ports/tracked-paths-reader.ts';
+import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
+import type {
+  ListWorktreePathsInput,
+  ListWorktreePathsResult,
+} from '../models/list-worktree-paths.ts';
+import type { WorktreePathsReader } from '../ports/worktree-paths-reader.ts';
 
 export class ListWorktreePathsService {
-  private readonly worktrees: ReachableWorktreeReader;
-  private readonly tracked: TrackedPathsReader;
+  private readonly worktreePathsReader: WorktreePathsReader;
 
-  constructor(worktrees: ReachableWorktreeReader, tracked: TrackedPathsReader) {
-    this.worktrees = worktrees;
-    this.tracked = tracked;
+  constructor(worktreePathsReader: WorktreePathsReader) {
+    this.worktreePathsReader = worktreePathsReader;
   }
 
   async execute(
-    worktreeId: string,
+    input: ListWorktreePathsInput,
     signal?: AbortSignal,
-  ): Promise<{ worktreeId: string; paths: string[] }> {
-    const worktree = await this.worktrees.reachable(worktreeId, signal);
-    const listed = await this.tracked.list(worktree.path, signal);
-    if (!listed.complete) throw new FileInspectionError('DIRECTORY_TOO_LARGE');
-    await this.worktrees.reachable(worktreeId, signal);
-    signal?.throwIfAborted();
-    return { worktreeId, paths: listed.paths };
+  ): Promise<ListWorktreePathsResult> {
+    const read = await this.worktreePathsReader.read(input.worktreeId, signal);
+    if (read.kind === 'too-large') throw new DirectoryTooLargeError();
+    return { worktreeId: input.worktreeId, paths: read.paths };
   }
 }

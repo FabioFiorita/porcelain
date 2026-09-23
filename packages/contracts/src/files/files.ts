@@ -1,12 +1,30 @@
 import { z } from 'zod';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-const filePathSchema = z.string().max(4096);
-const editablePathSchema = z.string().min(1).max(4096);
+const MAX_TEXT_BYTES = 1024 * 1024;
+
+function utf8ByteLength(text: string) {
+  let bytes = 0;
+  for (const character of text) {
+    const point = character.codePointAt(0) ?? 0;
+    bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
+  }
+  return bytes;
+}
+
+const directoryPathSchema = z.union([z.literal(''), relativePathSchema]);
+const editableTextSchema = z
+  .string()
+  .max(MAX_TEXT_BYTES)
+  .refine(
+    (text) => !text.includes('\0') && utf8ByteLength(text) <= MAX_TEXT_BYTES,
+    'Expected UTF-8 text without NUL within the write limit',
+  );
 
 export const listDirectoryQuerySchema = z.strictObject({
-  path: filePathSchema,
+  path: directoryPathSchema,
 });
 export const listDirectoryResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
@@ -26,7 +44,9 @@ export const listWorktreePathsResponseSchema = z.object({
   paths: z.array(z.string()).max(50_000),
 });
 
-export const readTextFileQuerySchema = z.strictObject({ path: filePathSchema });
+export const readTextFileQuerySchema = z.strictObject({
+  path: relativePathSchema,
+});
 export const readTextFileResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
   path: z.string(),
@@ -39,21 +59,21 @@ export const readTextFileResponseSchema = z.object({
 export const editFileRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('write'),
-    path: editablePathSchema,
-    text: z.string().max(1048576),
+    path: relativePathSchema,
+    text: editableTextSchema,
     expectedFingerprint: fingerprintSchema,
   }),
   z.strictObject({
     kind: z.literal('create'),
-    path: editablePathSchema,
+    path: relativePathSchema,
     entryKind: z.enum(['file', 'directory']),
   }),
   z.strictObject({
     kind: z.literal('move'),
-    path: editablePathSchema,
-    destination: editablePathSchema,
+    path: relativePathSchema,
+    destination: relativePathSchema,
   }),
-  z.strictObject({ kind: z.literal('trash'), path: editablePathSchema }),
+  z.strictObject({ kind: z.literal('trash'), path: relativePathSchema }),
 ]);
 export const editFileResponseSchema = z.object({
   path: z.string(),
@@ -61,7 +81,7 @@ export const editFileResponseSchema = z.object({
 });
 
 export const readFileAssetQuerySchema = z.strictObject({
-  path: filePathSchema,
+  path: relativePathSchema,
 });
 export const readFileAssetResponseSchema = z.object({
   path: z.string(),
@@ -70,7 +90,7 @@ export const readFileAssetResponseSchema = z.object({
 });
 
 export const readPreviewAssetsRequestSchema = z.strictObject({
-  document: z.string().max(4096),
+  document: relativePathSchema,
   paths: z.array(z.string().max(4096)).min(1).max(64),
 });
 export const readPreviewAssetsResponseSchema = z.object({

@@ -1,36 +1,46 @@
-import { validateFilePath } from '../errors/validate-file-path.ts';
-import { createHash } from 'node:crypto';
-import type { TextContent } from '../models/file-content.ts';
+import { FileTooLargeError } from '../errors/file-too-large-error.ts';
+import type {
+  ReadTextFileInput,
+  ReadTextFileResult,
+} from '../models/read-text-file.ts';
 import type { FileReader } from '../ports/file-reader.ts';
-import type { ReachableWorktreeReader } from '../ports/reachable-worktree.ts';
+import { contentFingerprint } from '../rules/content-fingerprint.ts';
+import { fileFailureError } from '../rules/file-failure-error.ts';
+import { serializedByteLength } from '../rules/serialized-byte-length.ts';
+
+export type ReadTextFileOptions = { maxBytes: number };
+
+const LIMITS: ReadTextFileOptions = { maxBytes: 1024 * 1024 };
 
 export class ReadTextFileService {
-  private readonly worktrees: ReachableWorktreeReader;
-  private readonly files: FileReader;
+  private readonly fileReader: FileReader;
+  private readonly options: ReadTextFileOptions;
 
-  constructor(worktrees: ReachableWorktreeReader, files: FileReader) {
-    this.worktrees = worktrees;
-    this.files = files;
+  constructor(fileReader: FileReader, options: ReadTextFileOptions = LIMITS) {
+    this.fileReader = fileReader;
+    this.options = options;
   }
 
   async execute(
-    worktreeId: string,
-    path: string,
+    input: ReadTextFileInput,
     signal?: AbortSignal,
-  ): Promise<TextContent> {
-    validateFilePath(path, false);
-    const worktree = await this.worktrees.reachable(worktreeId, signal);
-    const result = await this.files.read(
-      { worktreeId, root: worktree.path, path },
+  ): Promise<ReadTextFileResult> {
+    const read = await this.fileReader.readText(
+      input,
+      this.options.maxBytes,
       signal,
     );
-    await this.worktrees.reachable(worktreeId, signal);
-    signal?.throwIfAborted();
-    return {
-      ...result,
-      contentFingerprint: createHash('sha256')
-        .update(result.text)
-        .digest('hex'),
+    if (read.kind === 'too-large') throw new FileTooLargeError();
+    if (read.kind === 'failed') throw fileFailureError(read.failure);
+    const content = {
+      worktreeId: input.worktreeId,
+      path: input.path,
+      encoding: 'utf-8' as const,
+      byteLength: read.byteLength,
+      text: read.text,
     };
+    if (serializedByteLength(content) > this.options.maxBytes)
+      throw new FileTooLargeError();
+    return { ...content, contentFingerprint: contentFingerprint(content.text) };
   }
 }

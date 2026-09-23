@@ -18,9 +18,9 @@ const directory = (session: Session, path?: string) => ({
 export default defineFeature({
   feature: 'files.list-directory',
   reaches: 'GET /api/worktrees/:worktreeId/directory',
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    'A reviewer browses a worktree folder by folder, from the root (empty path). Entries are named with their kind and ignored entries are flagged. The .git folder is never listed or opened. Paths that escape the worktree are invalid; a missing folder is not found.',
+    'A reviewer browses a worktree folder by folder, from the root (empty path). Entries are named with their kind and ignored entries are flagged. The .git folder is never listed, and a path into it is invalid input like any path that escapes the worktree; a missing folder is not found.',
   cases: [
     defineCase({
       name: 'root with an ignored file',
@@ -63,12 +63,8 @@ export default defineFeature({
       name: 'the .git folder',
       request: (session) => directory(session, '.git'),
       expect({ response, check }) {
-        check('status', 422, response.status);
-        check(
-          'error body',
-          apiError(422, 'Unprocessable Entity', 'Path could not be read'),
-          response.body,
-        );
+        check('status', 400, response.status);
+        check('error body', invalidRequest, response.body);
       },
     }),
     defineCase({
