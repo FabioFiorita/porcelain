@@ -1,22 +1,30 @@
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
-import type { FilePreference } from '../models/file-preference.ts';
+import type {
+  FilePreferenceList,
+  ListFilePreferencesInput,
+} from '../models/file-preference.ts';
 import type { FilePreferenceStore } from '../ports/file-preference-store.ts';
-import type { ProjectStore } from '../ports/project-store.ts';
+import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class ListFilePreferencesService {
-  private readonly inventory: ProjectStore;
-  private readonly preferences: FilePreferenceStore;
-  constructor(inventory: ProjectStore, preferences: FilePreferenceStore) {
-    this.inventory = inventory;
-    this.preferences = preferences;
+  private readonly inventoryStore: InventoryStore;
+  private readonly filePreferenceStore: FilePreferenceStore;
+
+  constructor(
+    inventoryStore: InventoryStore,
+    filePreferenceStore: FilePreferenceStore,
+  ) {
+    this.inventoryStore = inventoryStore;
+    this.filePreferenceStore = filePreferenceStore;
   }
-  execute(projectId: string): FilePreference[] {
+
+  execute(input: ListFilePreferencesInput): FilePreferenceList {
     if (
-      !this.inventory
+      !this.inventoryStore
         .read()
-        .projects.some((project) => project.id === projectId)
+        .projects.some((project) => project.id === input.projectId)
     )
       throw new ProjectNotFoundError();
-    return this.preferences.list(projectId);
+    return { preferences: this.filePreferenceStore.list(input.projectId) };
   }
 }

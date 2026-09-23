@@ -1,47 +1,52 @@
 import type {
-  ProjectParams,
+  RemoveProjectParams,
   RemoveProjectResponse,
 } from '@porcelain/contracts/projects';
-import type { RemoveProjectService } from '@porcelain/projects/services';
-
-type RunProjectWrite = <T>(
-  projectId: string,
-  operation: () => T | Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  ForgetProjectWorktreesService,
+  RemoveProjectService,
+} from '@porcelain/projects/services';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class RemoveProjectController {
   private readonly removeProject: RemoveProjectService;
-  private readonly runProjectWrite: RunProjectWrite;
-  private readonly forgetProject: (projectId: string) => void;
-  private readonly publishInventoryChanged: () => void;
+  private readonly forgetProjectWorktrees: ForgetProjectWorktreesService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
 
   constructor(
     removeProject: RemoveProjectService,
-    runProjectWrite: RunProjectWrite,
-    forgetProject: (projectId: string) => void,
-    publishInventoryChanged: () => void,
+    forgetProjectWorktrees: ForgetProjectWorktreesService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
   ) {
     this.removeProject = removeProject;
-    this.runProjectWrite = runProjectWrite;
-    this.forgetProject = forgetProject;
-    this.publishInventoryChanged = publishInventoryChanged;
+    this.forgetProjectWorktrees = forgetProjectWorktrees;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.events = events;
   }
 
-  async execute(
-    input: ProjectParams,
-    context: { signal?: AbortSignal },
+  execute(
+    input: RemoveProjectParams,
+    context: OperationContext,
   ): Promise<RemoveProjectResponse> {
-    const result = await this.runProjectWrite(
-      input.projectId,
-      () => {
-        const answer = this.removeProject.execute(input.projectId);
-        if (answer.deleted) this.forgetProject(input.projectId);
-        return answer;
+    return this.lanes.run(
+      this.laneKeys.project(input.projectId),
+      'write',
+      async () => {
+        const result = this.removeProject.execute(input);
+        if (!result.deleted) return result;
+        this.forgetProjectWorktrees.execute(input);
+        this.events.inventoryChanged();
+        return result;
       },
-      context.signal,
+      { callerSignal: context.signal },
     );
-    if (result.deleted) this.publishInventoryChanged();
-    return result;
   }
 }

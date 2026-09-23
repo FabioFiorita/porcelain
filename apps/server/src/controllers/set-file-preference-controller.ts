@@ -1,37 +1,39 @@
 import type {
-  FilePreference,
-  FilePreferenceChange,
-} from '@porcelain/projects/models';
+  SetFilePreferenceParams,
+  SetFilePreferenceRequest,
+  SetFilePreferenceResponse,
+} from '@porcelain/contracts/projects';
 import type { SetFilePreferenceService } from '@porcelain/projects/services';
-
-type RunStored = <T>(operation: () => T | Promise<T>) => Promise<T>;
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class SetFilePreferenceController {
   private readonly setFilePreference: SetFilePreferenceService;
-  private readonly runStored: RunStored;
-  private readonly publishPreferencesChanged: (projectId: string) => void;
+  private readonly lanes: Lanes;
+  private readonly events: EventPublisher;
 
   constructor(
     setFilePreference: SetFilePreferenceService,
-    runStored: RunStored,
-    publishPreferencesChanged: (projectId: string) => void,
+    lanes: Lanes,
+    events: EventPublisher,
   ) {
     this.setFilePreference = setFilePreference;
-    this.runStored = runStored;
-    this.publishPreferencesChanged = publishPreferencesChanged;
+    this.lanes = lanes;
+    this.events = events;
   }
 
-  async execute(
-    input: FilePreferenceChange & { projectId: string },
-  ): Promise<{ preferences: FilePreference[] }> {
-    const preferences = await this.runStored(() =>
-      this.setFilePreference.execute(input.projectId, {
-        path: input.path,
-        flag: input.flag,
-        value: input.value,
-      }),
+  execute(
+    input: SetFilePreferenceParams & SetFilePreferenceRequest,
+    context: OperationContext,
+  ): Promise<SetFilePreferenceResponse> {
+    return this.lanes.unqueued(
+      async () => {
+        const result = this.setFilePreference.execute(input);
+        this.events.projectChanged(input.projectId, 'preferences');
+        return result;
+      },
+      { callerSignal: context.signal },
     );
-    this.publishPreferencesChanged(input.projectId);
-    return { preferences };
   }
 }

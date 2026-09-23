@@ -1,38 +1,39 @@
-import type { ProjectFolder } from '../models/project-location.ts';
+import type {
+  BrowseProjectFoldersInput,
+  BrowseProjectFoldersOptions,
+} from '../models/folder-operations.ts';
+import type { ProjectFolder } from '../models/project-folder.ts';
 import type { ProjectFolderReader } from '../ports/project-folder-reader.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
 
 export class BrowseProjectFoldersService {
-  private readonly folders: ProjectFolderReader;
-  private readonly repositories: ProjectRepositoryReader;
-  private readonly home: string;
+  private readonly projectFolderReader: ProjectFolderReader;
+  private readonly projectRepositoryReader: ProjectRepositoryReader;
+  private readonly options: BrowseProjectFoldersOptions;
 
   constructor(
-    folders: ProjectFolderReader,
-    repositories: ProjectRepositoryReader,
-    home: string,
+    projectFolderReader: ProjectFolderReader,
+    projectRepositoryReader: ProjectRepositoryReader,
+    options: BrowseProjectFoldersOptions,
   ) {
-    this.folders = folders;
-    this.repositories = repositories;
-    this.home = home;
+    this.projectFolderReader = projectFolderReader;
+    this.projectRepositoryReader = projectRepositoryReader;
+    this.options = options;
   }
 
   async execute(
-    path = this.home,
+    input: BrowseProjectFoldersInput,
     signal?: AbortSignal,
   ): Promise<ProjectFolder> {
-    const folder = await this.folders.read(path, signal);
-    let repository = false;
-    if (folder.gitMarker) {
-      try {
-        await this.repositories.inspect(folder.path, signal);
-        signal?.throwIfAborted();
-        repository = true;
-      } catch (error) {
-        signal?.throwIfAborted();
-        if (!this.repositories.isUnavailable(error)) throw error;
-      }
-    }
+    const folder = await this.projectFolderReader.read(
+      input.path ?? this.options.home,
+      signal,
+    );
+    const repository =
+      folder.gitMarker &&
+      (await this.projectRepositoryReader.find(folder.path, signal)) !==
+        undefined;
+    signal?.throwIfAborted();
     return {
       path: folder.path,
       parent: folder.parent,

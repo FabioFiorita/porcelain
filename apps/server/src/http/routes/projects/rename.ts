@@ -1,6 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  projectParamsSchema,
+  renameProjectParamsSchema,
   renameProjectRequestSchema,
   renameProjectResponseSchema,
 } from '@porcelain/contracts/projects';
@@ -17,7 +17,7 @@ export function renameProject(
     '/projects/:projectId',
     {
       schema: {
-        params: projectParamsSchema,
+        params: renameProjectParamsSchema,
         body: renameProjectRequestSchema,
         response: { ...errorResponses, 200: renameProjectResponseSchema },
       },

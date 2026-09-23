@@ -1,24 +1,23 @@
+import type { CollectAbsentWorktreesResult } from '../models/inventory-operations.ts';
+import { presenceCutoff } from '../rules/presence-cutoff.ts';
+import type { Clock } from '../ports/clock.ts';
 import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 
-export const PRESENCE_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
-
 export class CollectAbsentWorktreesService {
-  private readonly presence: Pick<WorktreePresenceStore, 'expired' | 'collect'>;
-  private readonly now: () => number;
+  private readonly worktreePresenceStore: WorktreePresenceStore;
+  private readonly clock: Clock;
 
-  constructor(
-    presence: Pick<WorktreePresenceStore, 'expired' | 'collect'>,
-    now: () => number = Date.now,
-  ) {
-    this.presence = presence;
-    this.now = now;
+  constructor(worktreePresenceStore: WorktreePresenceStore, clock: Clock) {
+    this.worktreePresenceStore = worktreePresenceStore;
+    this.clock = clock;
   }
 
-  execute(): { collected: string[] } {
-    const expired = this.presence.expired(
-      new Date(this.now() - PRESENCE_GRACE_MS).toISOString(),
+  execute(input: Record<never, never>): CollectAbsentWorktreesResult {
+    void input;
+    const expired = this.worktreePresenceStore.expired(
+      presenceCutoff(this.clock.now()),
     );
-    this.presence.collect(expired);
+    this.worktreePresenceStore.collect(expired);
     return { collected: expired };
   }
 }

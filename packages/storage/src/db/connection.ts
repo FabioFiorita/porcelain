@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { deriveWorktreeId } from '@porcelain/projects/models';
+import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { InvalidDataDirectoryError } from '../models/invalid-data-directory-error.ts';
 import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 import { createSession } from './session.ts';

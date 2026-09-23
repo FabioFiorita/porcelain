@@ -1,25 +1,10 @@
-import type { RegisteredProject } from '../models/project.ts';
-
-export type ProjectWorktree = {
-  id: string;
-  projectId: string;
-  path: string;
-  branch: string | null;
-  main: boolean;
-  available: boolean;
-  metadataIdentity: string;
-  administrativeDirectory: string;
-  commonDirectory: string;
-  repositoryIdentity: string;
-};
+import type { ListableProject } from '../models/worktree.ts';
+import type { WorktreeListing } from '../models/worktree-listing.ts';
 
 export interface ProjectWorktreeReader {
   list(
-    project: RegisteredProject,
+    project: ListableProject,
     signal?: AbortSignal,
-  ): Promise<{
-    worktrees: ProjectWorktree[];
-    issues: { path: string; error: unknown }[];
-    failure?: unknown;
-  }>;
+  ): Promise<WorktreeListing>;
+  forget(projectId: string): void;
 }

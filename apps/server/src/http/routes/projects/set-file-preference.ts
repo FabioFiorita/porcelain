@@ -1,6 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  projectParamsSchema,
+  setFilePreferenceParamsSchema,
   setFilePreferenceRequestSchema,
   setFilePreferenceResponseSchema,
 } from '@porcelain/contracts/projects';
@@ -17,12 +17,15 @@ export function setFilePreference(
     '/projects/:projectId/file-preferences',
     {
       schema: {
-        params: projectParamsSchema,
+        params: setFilePreferenceParamsSchema,
         body: setFilePreferenceRequestSchema,
         response: { ...errorResponses, 200: setFilePreferenceResponseSchema },
       },
     },
     async (request) =>
-      options.controller.execute({ ...request.params, ...request.body }),
+      options.controller.execute(
+        { ...request.params, ...request.body },
+        { signal: request.disconnected },
+      ),
   );
 }

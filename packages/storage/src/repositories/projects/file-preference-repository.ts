@@ -1,67 +1,77 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { filePreferences } from '../../db/schema/file-preferences.ts';
-import type { FilePreferenceChange } from '@porcelain/projects/models';
-import { FilePreferenceLimitError } from '@porcelain/projects/errors';
+import type { FilePreference } from '@porcelain/projects/models';
 import type { FilePreferenceStore } from '@porcelain/projects/ports';
+
+const columns = {
+  path: filePreferences.path,
+  pinned: filePreferences.pinned,
+  hidden: filePreferences.hidden,
+};
 
 export class FilePreferenceRepository implements FilePreferenceStore {
   private readonly db: BetterSQLite3Database;
+
   constructor(db: BetterSQLite3Database) {
     this.db = db;
   }
-  list(projectId: string) {
+
+  list(projectId: string): FilePreference[] {
     return this.db
-      .select({
-        path: filePreferences.path,
-        pinned: filePreferences.pinned,
-        hidden: filePreferences.hidden,
-      })
+      .select(columns)
       .from(filePreferences)
       .where(eq(filePreferences.projectId, projectId))
       .orderBy(asc(filePreferences.path))
       .all();
   }
-  set(projectId: string, change: FilePreferenceChange): void {
+
+  find(projectId: string, path: string): FilePreference | undefined {
+    return this.db
+      .select(columns)
+      .from(filePreferences)
+      .where(
+        and(
+          eq(filePreferences.projectId, projectId),
+          eq(filePreferences.path, path),
+        ),
+      )
+      .get();
+  }
+
+  count(projectId: string): number {
+    return (
+      this.db
+        .select({ total: count() })
+        .from(filePreferences)
+        .where(eq(filePreferences.projectId, projectId))
+        .get()?.total ?? 0
+    );
+  }
+
+  save(projectId: string, preference: FilePreference): void {
     this.db.transaction(
       (tx) => {
-        const scope = eq(filePreferences.projectId, projectId);
-        const existing = tx
-          .select({ path: filePreferences.path })
-          .from(filePreferences)
-          .where(and(scope, eq(filePreferences.path, change.path)))
-          .get();
-        if (!existing) {
-          if (!change.value) return;
-          const stored = tx
-            .select({ total: count() })
-            .from(filePreferences)
-            .where(scope)
-            .get();
-          if (stored && stored.total >= 2000)
-            throw new FilePreferenceLimitError();
-        }
-
         tx.insert(filePreferences)
-          .values({
-            projectId,
-            path: change.path,
-            pinned: false,
-            hidden: false,
-            [change.flag]: change.value,
-          })
+          .values({ projectId, ...preference })
           .onConflictDoUpdate({
             target: [filePreferences.projectId, filePreferences.path],
-            set: { [change.flag]: change.value },
+            set: { pinned: preference.pinned, hidden: preference.hidden },
           })
           .run();
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
+  remove(projectId: string, path: string): void {
+    this.db.transaction(
+      (tx) => {
         tx.delete(filePreferences)
           .where(
             and(
               eq(filePreferences.projectId, projectId),
-              eq(filePreferences.path, change.path),
-              eq(filePreferences.pinned, false),
-              eq(filePreferences.hidden, false),
+              eq(filePreferences.path, path),
             ),
           )
           .run();

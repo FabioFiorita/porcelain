@@ -207,6 +207,7 @@ async function worktreeFor(
 ) {
   const target = resolve(cwd);
   const inventory = await controllers.readInventoryController.execute(
+    {},
     signal === undefined ? {} : { signal },
   );
   const selected = inventory.projects

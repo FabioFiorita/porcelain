@@ -4,23 +4,15 @@ export interface ListableProject {
   repositoryIdentity: string;
 }
 
-export interface ResolvedWorktree {
+export interface Worktree {
   id: string;
   projectId: string;
   path: string;
-  branch: string | null;
+  branch: string | undefined;
   main: boolean;
   available: boolean;
   metadataIdentity: string;
   administrativeDirectory: string;
   commonDirectory: string;
   repositoryIdentity: string;
-}
-
-export interface ProjectListing {
-  projectId: string;
-  worktrees: ResolvedWorktree[];
-  issues: { path: string; error: unknown }[];
-  failure?: unknown;
-  complete: boolean;
 }

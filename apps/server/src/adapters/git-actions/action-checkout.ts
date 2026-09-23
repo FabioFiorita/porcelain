@@ -5,7 +5,7 @@ import {
   type CheckoutWorktree,
   type CheckoutWorktreeReader,
   type EnvironmentReader,
-} from '../git/checkout-session.ts';
+} from '../projects/checkout-session.ts';
 
 type ProjectWorktrees<T extends CheckoutWorktree> =
   CheckoutWorktreeReader<T> & {

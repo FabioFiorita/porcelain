@@ -1,20 +1,25 @@
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
 import type { ProjectName } from '../models/project.ts';
-import type { ProjectStore } from '../ports/project-store.ts';
+import type { RenameProjectInput } from '../models/project-operations.ts';
+import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class RenameProjectService {
-  private readonly store: ProjectStore;
+  private readonly inventoryStore: InventoryStore;
 
-  constructor(store: ProjectStore) {
-    this.store = store;
+  constructor(inventoryStore: InventoryStore) {
+    this.inventoryStore = inventoryStore;
   }
 
-  execute(projectId: string, name: string): ProjectName {
-    const project = this.store
+  execute(input: RenameProjectInput): ProjectName {
+    const project = this.inventoryStore
       .read()
-      .projects.find((entry) => entry.id === projectId);
+      .projects.find((entry) => entry.id === input.projectId);
     if (!project) throw new ProjectNotFoundError();
-    this.store.save({ ...project, name, namedByOwner: true });
-    return { id: project.id, name };
+    this.inventoryStore.save({
+      ...project,
+      name: input.name,
+      namedByOwner: true,
+    });
+    return { id: project.id, name: input.name };
   }
 }

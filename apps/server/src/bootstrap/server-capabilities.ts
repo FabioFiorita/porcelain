@@ -8,16 +8,14 @@ import type {
   CommitModel,
   GitActionScope,
 } from '@porcelain/git-actions/models';
-import type {
-  BrowseProjectFoldersResponse,
-  DiscoverProjectsResponse,
-  Project,
-  ProjectParams,
-  ReadInventoryResponse,
-  RemoveProjectResponse,
-  RenameProjectRequest,
-  RenameProjectResponse,
-} from '@porcelain/contracts/projects';
+import type { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
+import type { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
+import type { ListFilePreferencesController } from '../controllers/list-file-preferences-controller.ts';
+import type { ReadInventoryController } from '../controllers/read-inventory-controller.ts';
+import type { RegisterProjectController } from '../controllers/register-project-controller.ts';
+import type { RemoveProjectController } from '../controllers/remove-project-controller.ts';
+import type { RenameProjectController } from '../controllers/rename-project-controller.ts';
+import type { SetFilePreferenceController } from '../controllers/set-file-preference-controller.ts';
 import type {
   EditFileRequest,
   EditFileResponse,
@@ -32,25 +30,17 @@ import type {
   PublishReviewRequest,
 } from '@porcelain/contracts/reviews';
 import type { ReviewedLayerMark } from '@porcelain/contracts/reviews';
-import type {
-  IssuePairingRequest,
-  IssuePairingResponse,
-  ListAccessResponse,
-  LiveSubscription,
-  ReadHealthResponse,
-  RedeemPairingRequest,
-  RedeemPairingResponse,
-  RevokeAccessRequest,
-  RevokeAccessResponse,
-} from '@porcelain/contracts/access';
+import type { LiveSubscription } from '@porcelain/contracts/access';
 import type {
   CommentCommand,
   StoredCommentThread,
 } from '@porcelain/reviews/models';
 import type {
-  FilePreference,
-  FilePreferenceChange,
-} from '@porcelain/projects/models';
+  AccessListing,
+  DeviceRegistration,
+  IssuedGrant,
+  RedeemedPairing,
+} from '@porcelain/access/models';
 import type {
   ReviewedFilesResult,
   SetReviewedFilesResult,
@@ -157,22 +147,19 @@ export interface ServerCapabilities {
     ): Promise<ReadGitStatusResponse>;
   };
   issuePairingController: {
-    execute(
-      input: IssuePairingRequest,
-      context: { signal?: AbortSignal },
-    ): Promise<IssuePairingResponse>;
+    execute(input: {
+      labels: string[];
+      addresses: string[];
+    }): Promise<{ grants: IssuedGrant[] }>;
   };
   listAccessController: {
-    execute(
-      input: Record<never, never>,
-      context: { signal?: AbortSignal },
-    ): Promise<ListAccessResponse>;
+    execute(): Promise<AccessListing>;
   };
   revokeAccessController: {
-    execute(
-      input: RevokeAccessRequest,
-      context: { signal?: AbortSignal },
-    ): Promise<RevokeAccessResponse>;
+    execute(input: { id: string }): Promise<{
+      revoked: boolean;
+      kind?: 'grant' | 'device';
+    }>;
   };
   readPublishedReviewController: {
     execute(
@@ -217,16 +204,12 @@ export interface ServerCapabilities {
     ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
   };
   readHealthController: {
-    execute(
-      input: Record<never, never>,
-      context: { signal?: AbortSignal },
-    ): ReadHealthResponse;
+    execute(): import('@porcelain/contracts/access').ReadHealthResponse;
   };
   redeemPairingController: {
     execute(
-      input: RedeemPairingRequest,
-      context: { signal?: AbortSignal },
-    ): Promise<RedeemPairingResponse>;
+      input: { code: string } & DeviceRegistration,
+    ): Promise<RedeemedPairing>;
   };
   commentThreadsController: {
     execute(
@@ -267,48 +250,17 @@ export interface ServerCapabilities {
       context: { signal?: AbortSignal },
     ): Promise<SetReviewedFilesResult>;
   };
-  projects: {
-    execute(
-      input: ProjectParams & RenameProjectRequest,
-      context: { signal?: AbortSignal },
-    ): Promise<RenameProjectResponse>;
-  };
-  removeProjectController: {
-    execute(
-      input: ProjectParams,
-      context: { signal?: AbortSignal },
-    ): Promise<RemoveProjectResponse>;
-  };
-  listFilePreferencesController: {
-    execute(input: {
-      projectId: string;
-    }): Promise<{ preferences: FilePreference[] }>;
-  };
-  setFilePreferenceController: {
-    execute(
-      input: FilePreferenceChange & { projectId: string },
-    ): Promise<{ preferences: FilePreference[] }>;
-  };
-  readInventoryController: {
-    execute(context: { signal?: AbortSignal }): Promise<ReadInventoryResponse>;
-  };
-  discoverProjectsController: {
-    execute(context: {
-      signal?: AbortSignal;
-    }): Promise<DiscoverProjectsResponse>;
-  };
-  browseProjectFoldersController: {
-    execute(
-      input: { path?: string },
-      context: { signal?: AbortSignal },
-    ): Promise<BrowseProjectFoldersResponse>;
-  };
-  registerProjectController: {
-    execute(
-      input: { path: string },
-      context: { signal?: AbortSignal },
-    ): Promise<Project>;
-  };
+  projects: Pick<RenameProjectController, 'execute'>;
+  removeProjectController: Pick<RemoveProjectController, 'execute'>;
+  listFilePreferencesController: Pick<ListFilePreferencesController, 'execute'>;
+  setFilePreferenceController: Pick<SetFilePreferenceController, 'execute'>;
+  readInventoryController: Pick<ReadInventoryController, 'execute'>;
+  discoverProjectsController: Pick<DiscoverProjectsController, 'execute'>;
+  browseProjectFoldersController: Pick<
+    BrowseProjectFoldersController,
+    'execute'
+  >;
+  registerProjectController: Pick<RegisterProjectController, 'execute'>;
   listDirectoryController: {
     execute(
       input: { worktreeId: string; path: string },
@@ -359,7 +311,7 @@ export interface ServerCapabilities {
   issuePairing(
     labels: readonly string[],
     addresses: readonly string[],
-  ): Promise<IssuePairingResponse['grants']>;
+  ): Promise<IssuedGrant[]>;
   ready(): Promise<void>;
   close(): Promise<void>;
 }

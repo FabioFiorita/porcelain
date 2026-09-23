@@ -23,42 +23,32 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
     this.db = db;
   }
 
-  record(worktreeId: string, projectId: string): void {
-    this.db
-      .insert(worktreePresence)
-      .values({ worktreeId, projectId, missingSince: null })
-      .onConflictDoUpdate({
-        target: worktreePresence.worktreeId,
-        set: { projectId, missingSince: null },
-      })
-      .run();
-  }
-
   observe(projectId: string, presentIds: string[], at: string): void {
-    this.db.transaction((tx) => {
-      if (presentIds.length > 0)
+    this.db.transaction(
+      (tx) => {
+        for (const worktreeId of presentIds)
+          tx.insert(worktreePresence)
+            .values({ worktreeId, projectId, missingSince: null })
+            .onConflictDoUpdate({
+              target: worktreePresence.worktreeId,
+              set: { projectId, missingSince: null },
+            })
+            .run();
         tx.update(worktreePresence)
-          .set({ missingSince: null })
+          .set({ missingSince: at })
           .where(
             and(
               eq(worktreePresence.projectId, projectId),
-              inArray(worktreePresence.worktreeId, presentIds),
+              isNull(worktreePresence.missingSince),
+              presentIds.length > 0
+                ? notInArray(worktreePresence.worktreeId, presentIds)
+                : undefined,
             ),
           )
           .run();
-      tx.update(worktreePresence)
-        .set({ missingSince: at })
-        .where(
-          and(
-            eq(worktreePresence.projectId, projectId),
-            isNull(worktreePresence.missingSince),
-            presentIds.length > 0
-              ? notInArray(worktreePresence.worktreeId, presentIds)
-              : undefined,
-          ),
-        )
-        .run();
-    });
+      },
+      { behavior: 'immediate' },
+    );
   }
 
   expired(before: string): string[] {
@@ -77,23 +67,28 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
 
   collect(worktreeIds: string[]): void {
     if (worktreeIds.length === 0) return;
-    this.db.transaction((tx) => {
-      tx.delete(commentThreads)
-        .where(inArray(commentThreads.worktreeId, worktreeIds))
-        .run();
-      tx.delete(reviewedFiles)
-        .where(inArray(reviewedFiles.worktreeId, worktreeIds))
-        .run();
-      tx.delete(reviewedLayers)
-        .where(inArray(reviewedLayers.worktreeId, worktreeIds))
-        .run();
-      tx.delete(reviews).where(inArray(reviews.worktreeId, worktreeIds)).run();
-      tx.delete(commentReads)
-        .where(inArray(commentReads.worktreeId, worktreeIds))
-        .run();
-      tx.delete(worktreePresence)
-        .where(inArray(worktreePresence.worktreeId, worktreeIds))
-        .run();
-    });
+    this.db.transaction(
+      (tx) => {
+        tx.delete(commentThreads)
+          .where(inArray(commentThreads.worktreeId, worktreeIds))
+          .run();
+        tx.delete(reviewedFiles)
+          .where(inArray(reviewedFiles.worktreeId, worktreeIds))
+          .run();
+        tx.delete(reviewedLayers)
+          .where(inArray(reviewedLayers.worktreeId, worktreeIds))
+          .run();
+        tx.delete(reviews)
+          .where(inArray(reviews.worktreeId, worktreeIds))
+          .run();
+        tx.delete(commentReads)
+          .where(inArray(commentReads.worktreeId, worktreeIds))
+          .run();
+        tx.delete(worktreePresence)
+          .where(inArray(worktreePresence.worktreeId, worktreeIds))
+          .run();
+      },
+      { behavior: 'immediate' },
+    );
   }
 }
