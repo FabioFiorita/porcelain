@@ -1,4 +1,5 @@
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
+import type { ProjectName } from '../models/project.ts';
 import type { ProjectStore } from '../ports/project-store.ts';
 
 export class RenameProjectService {
@@ -8,7 +9,7 @@ export class RenameProjectService {
     this.store = store;
   }
 
-  execute(projectId: string, name: string) {
+  execute(projectId: string, name: string): ProjectName {
     const project = this.store
       .read()
       .projects.find((entry) => entry.id === projectId);

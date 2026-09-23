@@ -5,8 +5,8 @@ import {
 } from '@fastify/type-provider-zod';
 import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { openApplication } from '../app.ts';
-import type { Principal } from '../models/principal.ts';
+import { openApplication } from '../bootstrap/compose-server.ts';
+import type { Principal } from '@porcelain/contracts/access';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -18,34 +18,20 @@ declare module 'fastify' {
   }
 }
 
-import type { Application } from '../application.ts';
+import type { ServerCapabilities } from '../bootstrap/server-capabilities.ts';
 import { absolutePathSchema } from '../config/server-settings.ts';
-import { toErrorResponse } from './mappers/error-response.ts';
+import { toStatusResponse } from './status-policy.ts';
 import {
   checkRequestOrigin,
   type OriginPolicy,
 } from './middlewares/request-origin.ts';
-import { browserSessionRoutes } from './routes/browser-session.ts';
-import { commentRoutes } from './routes/comments.ts';
-import { commitDraftRoutes } from './routes/commit-drafts.ts';
-import { commitHistoryRoutes } from './routes/commit-history.ts';
-import { filePreferenceRoutes } from './routes/file-preferences.ts';
-import { fileRoutes } from './routes/files.ts';
-import { gitActionRoutes } from './routes/git-actions.ts';
-import { gitInspectionRoutes } from './routes/git-inspection.ts';
-import { healthRoute } from './routes/health.ts';
-import { inventoryRoutes } from './routes/inventory.ts';
-import { liveUpdateRoutes } from './routes/live-updates.ts';
-import { pairRoutes } from './routes/pair.ts';
-import { publishedReviewRoutes } from './routes/published-review.ts';
-import { changeRoutes } from './routes/read-changes.ts';
-import { reviewSummaryRoute } from './routes/review-summary.ts';
-import { reviewedFileRoutes } from './routes/reviewed-files.ts';
-import { reviewedLayerRoutes } from './routes/reviewed-layers.ts';
+import { pairedRoutes } from './scopes/paired.ts';
+import { publicRoutes } from './scopes/public.ts';
+import { readReviewSummary } from './routes/reviews/read-review-summary.ts';
 import { registerStaticFiles } from './static-files.ts';
 
 export type NetworkServerOptions = {
-  application: Application;
+  application: ServerCapabilities;
   webRoot?: string;
 } & Partial<OriginPolicy>;
 
@@ -55,24 +41,10 @@ type ServerOptions = Parameters<typeof openApplication>[0] & {
 
 function registerApiRoutes(
   server: FastifyInstance,
-  options: { application: Application } & OriginPolicy,
+  options: { application: ServerCapabilities } & OriginPolicy,
 ) {
-  server.register(liveUpdateRoutes, options);
-  server.register(browserSessionRoutes, options);
-  server.register(healthRoute, options);
-  server.register(pairRoutes, options);
-  server.register(gitActionRoutes, options);
-  server.register(commitDraftRoutes, options);
-  server.register(changeRoutes, options);
-  server.register(reviewedFileRoutes, options);
-  server.register(reviewedLayerRoutes, options);
-  server.register(publishedReviewRoutes, options);
-  server.register(commentRoutes, options);
-  server.register(filePreferenceRoutes, options);
-  server.register(fileRoutes, options);
-  server.register(inventoryRoutes, options);
-  server.register(commitHistoryRoutes, options);
-  server.register(gitInspectionRoutes, options);
+  server.register(publicRoutes, options);
+  server.register(pairedRoutes, options);
 }
 
 export function createNetworkServer(options: NetworkServerOptions) {
@@ -90,7 +62,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   server.setSerializerCompiler(serializerCompiler);
   server.register(websocket, { options: { maxPayload: 64 * 1024 } });
   server.setErrorHandler(async (error, _request, reply) => {
-    const response = toErrorResponse(error);
+    const response = toStatusResponse(error);
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
     return reply.code(response.statusCode).send(response.body);
   });
@@ -116,7 +88,9 @@ export function createNetworkServer(options: NetworkServerOptions) {
     },
     { prefix: '/api' },
   );
-  reviewSummaryRoute(server, { application });
+  readReviewSummary(server, {
+    controller: application.readReviewSummaryController,
+  });
   if (webRoot !== undefined) registerStaticFiles(server, { webRoot });
   return server;
 }

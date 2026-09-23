@@ -21,9 +21,9 @@ The fixture must discover the ID from the server. It must not rely on a hard-cod
 | Case | Request | Expected response | Observable state |
 | --- | --- | --- | --- |
 | Existing project | A registered project's ID and `"  New name  "` | `200`, same ID, name `"New name"` | Inventory has that project with the new name; its ID and worktrees are unchanged; other projects are unchanged. |
-| Unknown project | A valid UUID absent from inventory and a valid name | `404`, code `PROJECT_NOT_FOUND` | Inventory is unchanged. |
-| Invalid name | Empty or whitespace-only name, more than 100 characters, or a control character | `400`, code `INVALID_REQUEST` | Inventory is unchanged. |
-| Invalid ID | A value that is not a UUID and a valid name | `400`, code `INVALID_REQUEST` | Inventory is unchanged. |
+| Unknown project | A valid UUID absent from inventory and a valid name | `404`, `{ statusCode: 404, error: 'Not Found', message: 'Project not found' }` | Inventory is unchanged. |
+| Invalid name | Empty or whitespace-only name, more than 100 characters, or a control character | `400`, `{ statusCode: 400, error: 'Bad Request', message: 'Invalid request' }` | Inventory is unchanged. |
+| Invalid ID | A value that is not a UUID and a valid name | `400`, `{ statusCode: 400, error: 'Bad Request', message: 'Invalid request' }` | Inventory is unchanged. |
 
 For every case, capture the actual request (with credentials redacted), response status and body, inventory before and after, server logs, and each assertion's result. A failed setup or zero executed assertions is a failed verification.
 
@@ -38,9 +38,9 @@ Run every case in the table through the real HTTP server in an isolated session 
 
 ## Current code locations
 
-- HTTP route: `apps/server/src/http/routes/rename-project.ts`
-- Request and response contracts: `packages/contracts/src/inventory.ts`
+- HTTP route: `apps/server/src/http/routes/projects/rename.ts`
+- Request and response contracts: `packages/contracts/src/projects/inventory.ts`
 - Controller: `apps/server/src/controllers/rename-project-controller.ts`
 - Business operation: `packages/projects/src/services/rename-project-service.ts`
-- Persistence: `apps/server/src/repositories/inventory-repository.ts`
+- Persistence: `packages/storage/src/repositories/projects/inventory-repository.ts`
 - Isolated fixture setup: `scripts/dev-server.ts` and `scripts/dev-server-child.ts`

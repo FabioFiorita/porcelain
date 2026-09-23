@@ -1,0 +1,26 @@
+import { GitCommandError } from '../../shared/errors/git-command-error.ts';
+import { RepositoryIdentityMismatchError } from './repository-identity-mismatch-error.ts';
+import { UnsupportedFilesystemIdentityError } from './unsupported-filesystem-identity-error.ts';
+import { UnsupportedRepositoryError } from './unsupported-repository-error.ts';
+
+export function isRepositoryUnavailable(error: unknown): boolean {
+  if (
+    error instanceof UnsupportedRepositoryError ||
+    error instanceof RepositoryIdentityMismatchError ||
+    error instanceof UnsupportedFilesystemIdentityError
+  )
+    return true;
+  if (error instanceof GitCommandError) {
+    const cause = error.cause;
+    return (
+      cause instanceof Error &&
+      'code' in cause &&
+      typeof cause.code === 'number'
+    );
+  }
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(String(error.code))
+  );
+}

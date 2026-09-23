@@ -1,7 +1,5 @@
-import {
-  ownerSocketPath,
-  probeOwnerSocket,
-} from '../lifecycle/owner-socket.ts';
+import { ownerSocketPath } from '../config/owner-socket-settings.ts';
+import { probeOwnerSocket } from '../http/helpers/owner-socket-client.ts';
 import type { StatusSettings } from './arguments.ts';
 
 export const statusExitCodes = {

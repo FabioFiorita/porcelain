@@ -3,25 +3,12 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./api-error": "./src/api-error.ts",
-    "./comments": "./src/comments.ts",
-    "./commit-changes": "./src/commit-changes.ts",
-    "./commit-draft": "./src/commit-draft.ts",
-    "./commit-history": "./src/commit-history.ts",
-    "./changes": "./src/changes.ts",
-    "./file-preferences": "./src/file-preferences.ts",
-    "./files": "./src/files.ts",
-    "./git-actions": "./src/git-actions.ts",
-    "./git-diff": "./src/git-diff.ts",
-    "./git-status": "./src/git-status.ts",
-    "./health": "./src/health.ts",
-    "./inventory": "./src/inventory.ts",
-    "./live-updates": "./src/live-updates.ts",
-    "./owner": "./src/owner.ts",
-    "./pairing": "./src/pairing.ts",
-    "./review": "./src/review.ts",
-    "./reviewed-files": "./src/reviewed-files.ts",
-    "./worktree-id": "./src/worktree-id.ts"
+    "./projects": "./src/projects/index.ts",
+    "./changes": "./src/changes/index.ts",
+    "./reviews": "./src/reviews/index.ts",
+    "./files": "./src/files/index.ts",
+    "./git-actions": "./src/git-actions/index.ts",
+    "./access": "./src/access/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,5 +1,5 @@
 import { request as httpRequest } from 'node:http';
-import { ownerSocketPath } from '../lifecycle/owner-socket.ts';
+import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 
 export class OwnerRequestError extends Error {
   override readonly name = 'OwnerRequestError';
@@ -77,7 +77,6 @@ function messageFrom(text: string, status: number | undefined): string {
       typeof body.message === 'string'
     )
       return body.message;
-  } catch {
-  }
+  } catch {}
   return `The server answered ${status ?? 'nothing'}.`;
 }

@@ -1,13 +1,13 @@
-import { readDiff, readDiffs } from '../commands/read-diff.ts';
-import { readLines } from '../commands/read-lines.ts';
+import { readDiff, readDiffs } from './commands/read-diff.ts';
+import { readLines } from './commands/read-lines.ts';
 import { readBranchDetails, readStatus } from './read-status.ts';
-import { readSubmoduleHeads } from '../commands/read-submodule-heads.ts';
+import { readSubmoduleHeads } from './commands/read-submodule-heads.ts';
 import type { GitOrdinaryChange } from './status.ts';
-import type { LineRange } from '../dtos/line-range.ts';
-import type { ChangeReader } from '../interfaces/change-reader.ts';
-import type { DiffReader } from '../interfaces/diff-reader.ts';
-import type { CheckoutSession } from '../interfaces/git-session.ts';
-import type { StatusReader } from '../interfaces/status-reader.ts';
+import type { LineRange } from './dtos/line-range.ts';
+import type { ChangeReader } from './interfaces/change-reader.ts';
+import type { DiffReader } from './interfaces/diff-reader.ts';
+import type { CheckoutSession } from './interfaces/git-session.ts';
+import type { StatusReader } from './interfaces/status-reader.ts';
 
 export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
   private readonly session: CheckoutSession;

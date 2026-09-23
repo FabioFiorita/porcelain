@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify';
-import type { Application } from '../../application.ts';
+import type { ServerCapabilities } from '../../bootstrap/server-capabilities.ts';
 
 export async function pairDevice(
   server: FastifyInstance,
-  application: Application,
+  application: ServerCapabilities,
   label = 'Fixture device',
 ): Promise<{ authorization: string }> {
   const [issued] = await application.issuePairing([label], [pairingOrigin]);
@@ -29,7 +29,7 @@ export const pairingReach = () => ({
 
 export async function pairBrowser(
   server: FastifyInstance,
-  application: Application,
+  application: ServerCapabilities,
   label = 'Fixture browser',
 ): Promise<{ cookie: string; setCookie: string }> {
   const [issued] = await application.issuePairing([label], [pairingOrigin]);
@@ -42,7 +42,7 @@ export async function pairBrowser(
   });
   if (redeemed.statusCode !== 200)
     throw new Error(`Pairing failed: ${redeemed.body}`);
-  if ('credential' in (redeemed.json() as object))
+  if ('credential' in redeemed.json())
     throw new Error('A browser must never receive the credential in the body');
   const header = redeemed.headers['set-cookie'];
   const setCookie = Array.isArray(header) ? header[0] : header;

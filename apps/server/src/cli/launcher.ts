@@ -1,4 +1,4 @@
-import { startRuntime } from '../lifecycle/runtime.ts';
+import { startRuntime } from '../bootstrap/runtime.ts';
 import type { ServeSettings } from './arguments.ts';
 
 type StartedRuntime = Awaited<ReturnType<typeof startRuntime>>;

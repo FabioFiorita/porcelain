@@ -4,9 +4,9 @@ import type {
   GitOrdinaryChange,
   GitStatusObservation,
 } from './status.ts';
-import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
-import { InvalidGitStatusError } from '../errors/invalid-git-status-error.ts';
-import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
+import { InspectionLimitError } from './errors/inspection-limit-error.ts';
+import { InvalidGitStatusError } from './errors/invalid-git-status-error.ts';
+import { UnsupportedPathEncodingError } from './errors/unsupported-path-encoding-error.ts';
 
 function decode(output: Buffer): string {
   try {

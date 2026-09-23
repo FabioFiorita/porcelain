@@ -5,7 +5,7 @@ import {
   PorcelainService,
   type ServiceDependencies,
   type ServiceStatus,
-} from '../lifecycle/service/service.ts';
+} from '../bootstrap/service/service.ts';
 import type { ServiceSettings } from './arguments.ts';
 
 export type ServiceCommandDependencies = Partial<ServiceDependencies> & {

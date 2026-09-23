@@ -2,7 +2,10 @@ import { execFile } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { startRuntime, type Runtime } from '../apps/server/src/lifecycle/runtime.ts';
+import {
+  startRuntime,
+  type Runtime,
+} from '../apps/server/src/bootstrap/runtime.ts';
 
 const execute = promisify(execFile);
 const shutdown = new AbortController();
@@ -61,9 +64,11 @@ try {
     body: JSON.stringify({ code: grant.code, platform: 'Development' }),
     signal: shutdown.signal,
   });
-  if (!paired.ok) throw new Error(`Development pairing failed: ${paired.status}`);
+  if (!paired.ok)
+    throw new Error(`Development pairing failed: ${paired.status}`);
   const { credential } = (await paired.json()) as { credential?: string };
-  if (!credential) throw new Error('Development pairing returned no credential');
+  if (!credential)
+    throw new Error('Development pairing returned no credential');
   const registered = await fetch(`${server.address}/api/projects`, {
     method: 'POST',
     headers: {
@@ -74,7 +79,9 @@ try {
     signal: shutdown.signal,
   });
   if (!registered.ok)
-    throw new Error(`Sample repository registration failed: ${registered.status}`);
+    throw new Error(
+      `Sample repository registration failed: ${registered.status}`,
+    );
 
   const credentialFile = join(root, 'credential.json');
   await writeFile(credentialFile, `${JSON.stringify({ credential })}\n`, {
@@ -86,15 +93,19 @@ try {
     `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile }, null, 2)}\n`,
     { mode: 0o600 },
   );
-  process.stdout.write(`${JSON.stringify({ manifest, address: server.address, repository })}\n`);
+  process.stdout.write(
+    `${JSON.stringify({ manifest, address: server.address, repository })}\n`,
+  );
   if (!shutdown.signal.aborted)
     await new Promise<void>((resolve) =>
-      shutdown.signal.addEventListener('abort', () => resolve(), { once: true }),
+      shutdown.signal.addEventListener('abort', () => resolve(), {
+        once: true,
+      }),
     );
 } catch (error) {
   if (!shutdown.signal.aborted) {
     process.stderr.write(
-      `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
+      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
     );
     process.exitCode = 1;
   }

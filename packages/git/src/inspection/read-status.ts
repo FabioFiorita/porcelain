@@ -1,9 +1,9 @@
-import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
-import { readInProgress } from '../helpers/read-in-progress.ts';
-import type { CheckoutSession } from '../interfaces/git-session.ts';
+import { InspectionLimitError } from './errors/inspection-limit-error.ts';
+import { readInProgress } from './helpers/read-in-progress.ts';
+import type { CheckoutSession } from './interfaces/git-session.ts';
 import { parseGitStatus } from './parse-git-status.ts';
-import { runInspection } from '../read-inspection.ts';
-import { sessionConversionFilters } from '../commands/check-conversion-filters.ts';
+import { runInspection } from './read-inspection.ts';
+import { sessionConversionFilters } from './commands/check-conversion-filters.ts';
 
 export async function readStatus(
   session: CheckoutSession,
@@ -202,7 +202,7 @@ function describeDiscard(
         'path' in parsed && typeof parsed.path === 'string'
           ? parsed.path
           : pathFromDiff(
-              `${'cached' in parsed ? parsed.cached : ''}\n${'unstaged' in parsed ? parsed.unstaged : ''}`,
+              `${'cached' in parsed && typeof parsed.cached === 'string' ? parsed.cached : ''}\n${'unstaged' in parsed && typeof parsed.unstaged === 'string' ? parsed.unstaged : ''}`,
             );
       if (!path) return null;
       return {
@@ -210,8 +210,7 @@ function describeDiscard(
         kind: 'kind' in parsed && parsed.kind === 'rename' ? 'rename' : 'hunk',
       };
     }
-  } catch {
-  }
+  } catch {}
   const path = pathFromDiff(content);
   return path ? { path, kind: 'hunk' } : null;
 }

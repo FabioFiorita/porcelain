@@ -7,11 +7,11 @@ import {
   classify,
   domainPackages,
   forbiddenExternal,
+  gitCapabilityViolation,
   gatewayPortOwnership,
-  lifecycleOwnership,
-  lifecycleTargets,
   legacySupportRoles,
   migrationOwnership,
+  targetPackageExports,
   violation,
   type Classification,
 } from '../architecture/policy.ts';
@@ -51,11 +51,17 @@ const sourceRoots = [
 ];
 const legacyFiles = new Set(
   JSON.parse(
-    readFileSync(join(repositoryRoot, 'architecture/legacy-source-paths.json'), 'utf8'),
+    readFileSync(
+      join(repositoryRoot, 'architecture/legacy-source-paths.json'),
+      'utf8',
+    ),
   ) as string[],
 );
 const legacyExports = JSON.parse(
-  readFileSync(join(repositoryRoot, 'architecture/legacy-package-exports.json'), 'utf8'),
+  readFileSync(
+    join(repositoryRoot, 'architecture/legacy-package-exports.json'),
+    'utf8',
+  ),
 ) as Record<string, Record<string, string>>;
 
 function sourceFiles(directory: string): string[] {
@@ -85,9 +91,13 @@ function scan(): CruiseReport {
     throw new Error(result.stderr || result.stdout || 'Dependency scan failed');
   const report = JSON.parse(result.stdout) as CruiseReport;
   const scanned = new Set(report.modules.map((module) => module.source));
-  const missing = sourceRoots.flatMap(sourceFiles).filter((file) => !scanned.has(file));
+  const missing = sourceRoots
+    .flatMap(sourceFiles)
+    .filter((file) => !scanned.has(file));
   if (report.summary.totalCruised === 0 || missing.length > 0)
-    throw new Error(`Dependency scan omitted source files: ${missing.join(', ')}`);
+    throw new Error(
+      `Dependency scan omitted source files: ${missing.join(', ')}`,
+    );
   const unresolved = report.modules.flatMap((module) =>
     module.dependencies
       .filter(
@@ -98,7 +108,9 @@ function scan(): CruiseReport {
       .map((dependency) => `${module.source} -> ${dependency.module}`),
   );
   if (unresolved.length > 0)
-    throw new Error(`Workspace imports did not resolve:\n${unresolved.join('\n')}`);
+    throw new Error(
+      `Workspace imports did not resolve:\n${unresolved.join('\n')}`,
+    );
   return report;
 }
 
@@ -108,15 +120,20 @@ function validateMigrationMap(): void {
     ['apps/server/src/repositories', 'repositories'],
     ['apps/server/src/repositories/interfaces', 'ports'],
   ] as const) {
+    const absolute = join(repositoryRoot, directory);
     const actual = new Set(
-      readdirSync(join(repositoryRoot, directory))
-        .filter((name) => name.endsWith('.ts') && !/\.(?:test|spec)\.ts$/.test(name))
+      (existsSync(absolute) ? readdirSync(absolute) : [])
+        .filter(
+          (name) => name.endsWith('.ts') && !/\.(?:test|spec)\.ts$/.test(name),
+        )
         .map((name) => name.slice(0, -3)),
     );
     const planned = domainPackages.flatMap(
       (domain) => migrationOwnership[domain][key],
     );
-    const duplicates = planned.filter((name, index) => planned.indexOf(name) !== index);
+    const duplicates = planned.filter(
+      (name, index) => planned.indexOf(name) !== index,
+    );
     const missing = [...actual].filter((name) => !planned.includes(name));
     const stale = planned.filter((name) => !actual.has(name));
     if (duplicates.length || missing.length || stale.length)
@@ -126,17 +143,25 @@ function validateMigrationMap(): void {
       );
   }
   const plannedLegacyFiles = new Set(
-    domainPackages.flatMap((domain) => migrationOwnership[domain].legacyUseCaseFiles),
+    domainPackages.flatMap(
+      (domain) => migrationOwnership[domain].legacyUseCaseFiles,
+    ),
   );
   const staleSupportRoles = Object.keys(legacySupportRoles).filter(
     (name) => !plannedLegacyFiles.has(name),
   );
   if (staleSupportRoles.length)
-    throw new Error(`Unmapped legacy support roles: ${staleSupportRoles.join(', ')}`);
+    throw new Error(
+      `Unmapped legacy support roles: ${staleSupportRoles.join(', ')}`,
+    );
   const gatewayPorts = [
-    ...readdirSync(join(repositoryRoot, 'apps/server/src/filesystem/interfaces')),
-    ...readdirSync(join(repositoryRoot, 'apps/server/src/agents/interfaces')),
+    'apps/server/src/filesystem/interfaces',
+    'apps/server/src/agents/interfaces',
   ]
+    .flatMap((directory) => {
+      const path = join(repositoryRoot, directory);
+      return existsSync(path) ? readdirSync(path) : [];
+    })
     .filter((name) => name.endsWith('.ts'))
     .map((name) => name.slice(0, -3));
   const plannedGatewayPorts = new Set<string>(
@@ -152,58 +177,144 @@ function validateMigrationMap(): void {
     throw new Error(
       `Gateway port map is incomplete: unknown=${unknownGatewayPorts.join(', ')}; stale=${staleGatewayPorts.join(', ')}`,
     );
-  const lifecycle = readdirSync(join(repositoryRoot, 'apps/server/src/lifecycle'))
-    .filter((name) => name.endsWith('.ts'));
-  const missingLifecycle = lifecycle.filter((name) => !(name in lifecycleOwnership));
-  if (missingLifecycle.length)
-    throw new Error(`Unclassified lifecycle files: ${missingLifecycle.join(', ')}`);
-  const missingLifecycleTargets = Object.keys(lifecycleOwnership).filter(
-    (name) => !(name in lifecycleTargets),
-  );
-  if (missingLifecycleTargets.length)
-    throw new Error(`Lifecycle targets are missing: ${missingLifecycleTargets.join(', ')}`);
   const staleLegacy = [...legacyFiles].filter(
     (path) => !existsSync(join(repositoryRoot, path)),
   );
   if (staleLegacy.length)
-    throw new Error(`Remove deleted paths from architecture/legacy-source-paths.json: ${staleLegacy.join(', ')}`);
+    throw new Error(
+      `Remove deleted paths from architecture/legacy-source-paths.json: ${staleLegacy.join(', ')}`,
+    );
 }
 
 function validatePackageExports(): void {
-  for (const sourceRoot of sourceRoots.filter((root) => root.startsWith('packages/'))) {
+  for (const sourceRoot of sourceRoots.filter((root) =>
+    root.startsWith('packages/'),
+  )) {
     const name = sourceRoot.split('/')[1] ?? '';
     const manifest = JSON.parse(
-      readFileSync(join(repositoryRoot, 'packages', name, 'package.json'), 'utf8'),
+      readFileSync(
+        join(repositoryRoot, 'packages', name, 'package.json'),
+        'utf8',
+      ),
     ) as { exports?: Record<string, string> };
     const actual = manifest.exports ?? {};
-    const planned: Record<string, string> = Object.fromEntries(
-      domainPackages.includes(name as (typeof domainPackages)[number])
-        ? [
-            ['./services', './src/services/index.ts'],
-            ['./errors', './src/errors/index.ts'],
-            ['./models', './src/models/index.ts'],
-            ['./ports', './src/ports/index.ts'],
-          ]
-        : name === 'git'
-          ? ['discovery', 'inspection', 'history', 'actions'].map((capability) => [
-              `./${capability}`,
-              `./src/${capability}/index.ts`,
-            ])
-          : name === 'contracts'
-            ? domainPackages.map((domain) => [`./${domain}`, `./src/${domain}/index.ts`])
-            : name === 'storage'
-              ? [['.', './src/index.ts']]
-              : [],
-    );
+    const planned = targetPackageExports[name] ?? {};
     for (const [key, target] of Object.entries(actual)) {
-      if (planned[key] === target || legacyExports[name]?.[key] === target) continue;
-      throw new Error(`Unclassified package export: ${name} ${key} -> ${target}`);
+      if (planned[key] === target || legacyExports[name]?.[key] === target)
+        continue;
+      throw new Error(
+        `Unclassified package export: ${name} ${key} -> ${target}`,
+      );
     }
     for (const [key, target] of Object.entries(legacyExports[name] ?? {})) {
       if (actual[key] !== target)
-        throw new Error(`Update stale legacy export: ${name} ${key} -> ${target}`);
+        throw new Error(
+          `Update stale legacy export: ${name} ${key} -> ${target}`,
+        );
     }
   }
+}
+
+function targetStructureFindings(
+  classified: ReadonlyMap<string, Classification>,
+): Finding[] {
+  const result: Finding[] = [];
+  if (legacyFiles.size > 0)
+    result.push({
+      rule: 'legacy-source-inventory-not-empty',
+      from: 'architecture/legacy-source-paths.json',
+      to: `${legacyFiles.size} source files remain`,
+    });
+  for (const [name, entries] of Object.entries(legacyExports)) {
+    const count = Object.keys(entries).length;
+    if (count > 0)
+      result.push({
+        rule: 'legacy-package-exports-not-empty',
+        from: `packages/${name}/package.json`,
+        to: `${count} old exports remain`,
+      });
+  }
+  for (const [name, expected] of Object.entries(targetPackageExports)) {
+    const packageRoot = join(repositoryRoot, 'packages', name);
+    const manifestPath = join(packageRoot, 'package.json');
+    if (!existsSync(manifestPath)) {
+      result.push({
+        rule: 'missing-target-package',
+        from: `packages/${name}`,
+        to: 'package.json',
+      });
+      continue;
+    }
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      exports?: Record<string, string>;
+    };
+    for (const [entry, target] of Object.entries(expected)) {
+      if (
+        manifest.exports?.[entry] !== target ||
+        !existsSync(join(packageRoot, target))
+      )
+        result.push({
+          rule: 'missing-target-export',
+          from: `packages/${name}`,
+          to: `${entry} -> ${target}`,
+        });
+    }
+  }
+  for (const path of [
+    'apps/server/src/bootstrap/compose-server.ts',
+    'apps/server/src/runtime/operation-runner.ts',
+    'apps/server/src/http/scopes/public.ts',
+    'apps/server/src/http/scopes/paired.ts',
+    'apps/server/src/http/status-policy.ts',
+  ]) {
+    if (!existsSync(join(repositoryRoot, path)))
+      result.push({
+        rule: 'missing-server-structure',
+        from: path,
+        to: 'required',
+      });
+  }
+  for (const [path, info] of classified) {
+    if (/^apps\/server\/src\/http\/routes\/[^/]+\.ts$/.test(path))
+      result.push({
+        rule: 'flat-http-route',
+        from: path,
+        to: 'http/routes/<feature>/<operation>.ts or http/scopes/',
+      });
+    if (path.startsWith('apps/server/src/http/mappers/'))
+      result.push({
+        rule: 'legacy-http-mapper',
+        from: path,
+        to: 'Zod contract or domain status policy',
+      });
+    if (path.startsWith('apps/server/src/http/errors/'))
+      result.push({
+        rule: 'legacy-http-error-class',
+        from: path,
+        to: 'Fastify error or domain failure',
+      });
+    if (
+      info.role === 'controller' &&
+      path.startsWith('apps/server/src/controllers/') &&
+      !/-controller\.ts$/.test(path)
+    )
+      result.push({
+        rule: 'controller-file-name',
+        from: path,
+        to: '*-controller.ts',
+      });
+    if (
+      info.role === 'service' &&
+      path.startsWith('packages/') &&
+      !/-service\.ts$/.test(path)
+    )
+      result.push({
+        rule: 'service-file-name',
+        from: path,
+        to: '*-service.ts',
+      });
+  }
+  return result;
 }
 
 function checkedModules(): Map<string, Classification> {
@@ -231,9 +342,20 @@ function findings(
     for (const dependency of module.dependencies) {
       const to = classified.get(dependency.resolved);
       if (to) {
+        const gitRule = gitCapabilityViolation(
+          module.source,
+          dependency.resolved,
+        );
+        if (gitRule)
+          result.push({
+            rule: gitRule,
+            from: module.source,
+            to: dependency.resolved,
+          });
         if (
           from.role === 'transport' &&
-          dependency.resolved === 'apps/server/src/application.ts'
+          dependency.resolved ===
+            'apps/server/src/bootstrap/server-capabilities.ts'
         )
           result.push({
             rule: 'transport-must-use-feature-controller',
@@ -284,7 +406,9 @@ function group(path: string): string | undefined {
 try {
   const mode = process.argv[2];
   if (mode !== 'check' && mode !== 'map' && mode !== 'plan')
-    throw new Error('Usage: pnpm arch:check [--all], pnpm arch:map, or pnpm arch:plan');
+    throw new Error(
+      'Usage: pnpm arch:check [--all], pnpm arch:map, or pnpm arch:plan',
+    );
   validateMigrationMap();
   validatePackageExports();
   if (mode === 'plan') {
@@ -296,17 +420,18 @@ try {
       );
       process.stdout.write(`  services: ${services.join(', ') || '(none)'}\n`);
       for (const key of ['repositories', 'ports'] as const)
-        process.stdout.write(`  ${key}: ${owner[key].join(', ') || '(none)'}\n`);
+        process.stdout.write(
+          `  ${key}: ${owner[key].join(', ') || '(none)'}\n`,
+        );
     }
     process.stdout.write('\nGateway ports:\n');
     for (const [owner, names] of Object.entries(gatewayPortOwnership))
       process.stdout.write(`  ${owner}: ${names.join(', ')}\n`);
-    process.stdout.write('\nLegacy use-cases/ files assigned to other roles:\n');
+    process.stdout.write(
+      '\nLegacy use-cases/ files assigned to other roles:\n',
+    );
     for (const [file, role] of Object.entries(legacySupportRoles))
-      process.stdout.write(`  ${file}.ts -> ${role}\n`);
-    process.stdout.write('\nCurrent lifecycle files:\n');
-    for (const [file, target] of Object.entries(lifecycleTargets))
-      process.stdout.write(`  ${file} -> ${target}\n`);
+      process.stdout.write(`  ${file}.ts -> ${String(role)}\n`);
     process.stdout.write('\nAllowed role imports:\n');
     for (const [role, targets] of Object.entries(allowedTargets))
       process.stdout.write(`  ${role} -> ${[...targets].join(', ')}\n`);
@@ -343,19 +468,28 @@ try {
         edges.set(edge, (edges.get(edge) ?? 0) + 1);
       }
     }
-    for (const [edge, count] of [...edges].sort((a, b) => a[0].localeCompare(b[0])))
+    for (const [edge, count] of [...edges].sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    ))
       process.stdout.write(`${edge} (${count})\n`);
   } else {
-    const violations = findings(report, classified);
+    const violations = [
+      ...findings(report, classified),
+      ...targetStructureFindings(classified),
+    ];
     const byRule = new Map<string, Finding[]>();
     for (const finding of violations) {
       const group = byRule.get(finding.rule) ?? [];
       group.push(finding);
       byRule.set(finding.rule, group);
     }
-    for (const [rule, entries] of [...byRule].sort((a, b) => b[1].length - a[1].length)) {
+    for (const [rule, entries] of [...byRule].sort(
+      (a, b) => b[1].length - a[1].length,
+    )) {
       process.stdout.write(`${rule}: ${entries.length}\n`);
-      for (const entry of process.argv.includes('--all') ? entries : entries.slice(0, 3))
+      for (const entry of process.argv.includes('--all')
+        ? entries
+        : entries.slice(0, 3))
         process.stdout.write(`  ${entry.from} -> ${entry.to}\n`);
       if (!process.argv.includes('--all') && entries.length > 3)
         process.stdout.write(`  ... ${entries.length - 3} more (use --all)\n`);

@@ -4,12 +4,14 @@ import {
   createCommentThreadSchema,
   replyToCommentSchema,
   resolveCommentSchema,
-} from '@porcelain/contracts/comments';
-import { publishReviewSchema } from '@porcelain/contracts/review';
+} from '@porcelain/contracts/reviews';
+import { publishReviewSchema } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
-import type { Application } from '../../application.ts';
-import type { AuthenticatedPrincipal } from '../../models/principal.ts';
-import { toErrorResponse } from '../mappers/error-response.ts';
+import type { CommentThreadsController } from '../../controllers/comment-threads-controller.ts';
+import type { PublishReviewController } from '../../controllers/publish-review-controller.ts';
+import type { ReadPublishedReviewController } from '../../controllers/read-published-review-controller.ts';
+import type { ReadInventoryController } from '../../controllers/read-inventory-controller.ts';
+import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 
 const scopeSchema = z.strictObject({
@@ -29,8 +31,16 @@ export function commentsForAgent<
 }
 
 export function createReviewMcpServer(
-  application: Application,
-  principal: AuthenticatedPrincipal,
+  controllers: {
+    readInventoryController: Pick<ReadInventoryController, 'execute'>;
+    publishReviewController: Pick<PublishReviewController, 'execute'>;
+    readPublishedReviewController: Pick<
+      ReadPublishedReviewController,
+      'execute'
+    >;
+    commentThreadsController: Pick<CommentThreadsController, 'execute'>;
+  },
+  principal: { kind: 'agent' },
   defaultCwd: string,
 ) {
   const server = new McpServer(
@@ -63,14 +73,13 @@ export function createReviewMcpServer(
     async ({ cwd, ...input }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
-          application,
+          controllers,
           cwd ?? defaultCwd,
           signal,
         );
-        const review = await application.publishReview(
-          worktreeId,
-          input,
-          signal,
+        const review = await controllers.publishReviewController.execute(
+          { worktreeId, review: input },
+          { signal },
         );
         const warning = summaryStyleWarning(input.summaryHtml);
         return warning ? { ...review, warnings: [warning] } : review;
@@ -87,11 +96,14 @@ export function createReviewMcpServer(
     async ({ cwd }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
-          application,
+          controllers,
           cwd ?? defaultCwd,
           signal,
         );
-        return application.review(worktreeId, signal);
+        return controllers.readPublishedReviewController.execute(
+          { worktreeId },
+          { signal },
+        );
       }),
   );
   server.registerTool(
@@ -107,14 +119,13 @@ export function createReviewMcpServer(
     async ({ cwd, scope }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
-          application,
+          controllers,
           cwd ?? defaultCwd,
           signal,
         );
-        const threads = await application.comments(
-          { kind: 'list', worktreeId },
-          principal,
-          signal,
+        const threads = await controllers.commentThreadsController.execute(
+          { command: { kind: 'list', worktreeId }, principal },
+          { signal },
         );
         return commentsForAgent(threads, scope ?? 'waiting');
       }),
@@ -129,14 +140,13 @@ export function createReviewMcpServer(
     async ({ cwd, ...input }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
-          application,
+          controllers,
           cwd ?? defaultCwd,
           signal,
         );
-        return application.comments(
-          { kind: 'create', worktreeId, ...input },
-          principal,
-          signal,
+        return controllers.commentThreadsController.execute(
+          { command: { kind: 'create', worktreeId, ...input }, principal },
+          { signal },
         );
       }),
   );
@@ -153,14 +163,13 @@ export function createReviewMcpServer(
     async ({ cwd, ...input }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
-          application,
+          controllers,
           cwd ?? defaultCwd,
           signal,
         );
-        return application.comments(
-          { kind: 'reply', worktreeId, ...input },
-          principal,
-          signal,
+        return controllers.commentThreadsController.execute(
+          { command: { kind: 'reply', worktreeId, ...input }, principal },
+          { signal },
         );
       }),
   );
@@ -176,14 +185,13 @@ export function createReviewMcpServer(
     async ({ cwd, ...input }, { signal }) =>
       result(async () => {
         const worktreeId = await worktreeFor(
-          application,
+          controllers,
           cwd ?? defaultCwd,
           signal,
         );
-        return application.comments(
-          { kind: 'resolve', worktreeId, ...input },
-          principal,
-          signal,
+        return controllers.commentThreadsController.execute(
+          { command: { kind: 'resolve', worktreeId, ...input }, principal },
+          { signal },
         );
       }),
   );
@@ -191,12 +199,16 @@ export function createReviewMcpServer(
 }
 
 async function worktreeFor(
-  application: Application,
+  controllers: {
+    readInventoryController: Pick<ReadInventoryController, 'execute'>;
+  },
   cwd: string,
   signal?: AbortSignal,
 ) {
   const target = resolve(cwd);
-  const inventory = (await application.inventory(signal)).inventory;
+  const inventory = await controllers.readInventoryController.execute(
+    signal === undefined ? {} : { signal },
+  );
   const selected = inventory.projects
     .flatMap((project) => project.worktrees)
     .filter(
@@ -222,7 +234,7 @@ async function result(operation: () => unknown) {
       content: [
         {
           type: 'text' as const,
-          text: JSON.stringify(toErrorResponse(error).body),
+          text: JSON.stringify(toStatusResponse(error).body),
         },
       ],
     };

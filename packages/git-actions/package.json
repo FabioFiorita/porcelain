@@ -1,0 +1,17 @@
+{
+  "name": "@porcelain/git-actions",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./services": "./src/services/index.ts",
+    "./models": "./src/models/index.ts",
+    "./ports": "./src/ports/index.ts",
+    "./errors": "./src/errors/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3"
+  }
+}

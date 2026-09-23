@@ -1,0 +1,28 @@
+{
+  "name": "@porcelain/storage",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./access": "./src/repositories/access/index.ts",
+    "./changes": "./src/repositories/changes/index.ts",
+    "./git-actions": "./src/repositories/git-actions/index.ts",
+    "./projects": "./src/repositories/projects/index.ts",
+    "./reviews": "./src/repositories/reviews/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@porcelain/access": "workspace:*",
+    "@porcelain/changes": "workspace:*",
+    "@porcelain/git-actions": "workspace:*",
+    "@porcelain/projects": "workspace:*",
+    "@porcelain/reviews": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0"
+  }
+}

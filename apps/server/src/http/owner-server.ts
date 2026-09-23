@@ -3,10 +3,10 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from '@fastify/type-provider-zod';
-import { ownerStatusSchema } from '@porcelain/contracts/owner';
+import { ownerStatusSchema } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
-import type { Application } from '../application.ts';
-import { toErrorResponse } from './mappers/error-response.ts';
+import type { ServerCapabilities } from '../bootstrap/server-capabilities.ts';
+import { toStatusResponse } from './status-policy.ts';
 import { registerOwnerRoutes } from './owner-routes.ts';
 
 export type OwnerStatus = {
@@ -17,13 +17,13 @@ export type OwnerStatus = {
 
 export function createOwnerServer(options: {
   status: () => OwnerStatus;
-  application: Application;
+  application: ServerCapabilities;
 }) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
   server.setErrorHandler(async (error, _request, reply) => {
-    const response = toErrorResponse(error);
+    const response = toStatusResponse(error);
     return reply.code(response.statusCode).send(response.body);
   });
   server.decorateRequest('principal');
@@ -39,6 +39,6 @@ export function createOwnerServer(options: {
       return options.status();
     },
   );
-  registerOwnerRoutes(server, { application: options.application });
+  registerOwnerRoutes(server, options.application);
   return server;
 }

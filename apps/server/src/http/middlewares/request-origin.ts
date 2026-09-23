@@ -1,9 +1,5 @@
-import type { FastifyRequest } from 'fastify';
-import {
-  canonicalHostname,
-  hostnameAllowed,
-} from '../../models/origin-policy.ts';
-import { ForbiddenOriginError } from '../errors/forbidden-origin-error.ts';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import { canonicalHostname, hostnameAllowed } from './host-policy.ts';
 
 export type OriginPolicy = {
   allowedHosts: readonly string[];
@@ -48,10 +44,10 @@ export function checkRequestOrigin(
   policy: OriginPolicy,
   options: { requireSameOrigin?: boolean } = {},
 ) {
-  return async (request: FastifyRequest) => {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
     const authority = requestAuthority(request);
     if (authority === null)
-      throw new ForbiddenOriginError('The Host header is missing or malformed');
+      return rejectOrigin(reply, 'The Host header is missing or malformed');
     const local = request.socket.localAddress;
     if (
       !hostnameAllowed(authority.hostname, {
@@ -59,23 +55,24 @@ export function checkRequestOrigin(
         localAddresses: local === undefined ? [] : [local],
       })
     )
-      throw new ForbiddenOriginError(
+      return rejectOrigin(
+        reply,
         `This server does not answer to the host ${authority.hostname}`,
       );
     if (safeMethods.has(request.method) && !options.requireSameOrigin) return;
     const origin = request.headers.origin;
     if (origin === undefined) {
       if (options.requireSameOrigin)
-        throw new ForbiddenOriginError('The Origin header is required');
+        return rejectOrigin(reply, 'The Origin header is required');
       return;
     }
     if (origin === 'null')
-      throw new ForbiddenOriginError('An opaque origin cannot write');
+      return rejectOrigin(reply, 'An opaque origin cannot write');
     let parsed: URL;
     try {
       parsed = new URL(origin);
     } catch {
-      throw new ForbiddenOriginError('The Origin header is malformed');
+      return rejectOrigin(reply, 'The Origin header is malformed');
     }
     const scheme = parsed.protocol.replace(/:$/, '');
     const sameOrigin =
@@ -84,6 +81,14 @@ export function checkRequestOrigin(
       effectivePort(scheme, parsed.port === '' ? undefined : parsed.port) ===
         effectivePort(request.protocol, authority.port);
     if (!sameOrigin)
-      throw new ForbiddenOriginError(`The origin ${origin} cannot write here`);
+      return rejectOrigin(reply, `The origin ${origin} cannot write here`);
   };
+}
+
+function rejectOrigin(reply: FastifyReply, message: string) {
+  return reply.code(403).send({
+    statusCode: 403,
+    error: 'Forbidden',
+    message,
+  });
 }

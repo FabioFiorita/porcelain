@@ -22,6 +22,6 @@
     "scripts/**/*.ts",
     ".agents/skills/server-verify/scripts/**/*.ts",
     "architecture/**/*.ts",
-    "apps/server/src/filesystem/node-opendir.d.ts"
+    "apps/server/src/adapters/files/node-opendir.d.ts"
   ]
 }

@@ -6,3 +6,5 @@ export interface RegisteredProject {
   repositoryIdentity: string;
   available: boolean;
 }
+
+export type ProjectName = Pick<RegisteredProject, 'id' | 'name'>;

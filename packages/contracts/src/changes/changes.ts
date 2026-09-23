@@ -1,0 +1,98 @@
+import { z } from 'zod';
+import { gitActionSchema } from '../git-actions/git-actions.ts';
+import { gitDiffContentSchema } from './git-diff.ts';
+import {
+  gitChangeSchema,
+  gitChangeSelectionSchema,
+  gitPathSchema,
+  gitWorktreeParamsSchema,
+} from './git-status.ts';
+
+export const fileChangeSchema = z.strictObject({
+  path: gitPathSchema,
+  fingerprint: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  comparisons: z.array(gitChangeSchema).min(1),
+});
+
+export const changeListBranchSchema = z.strictObject({
+  name: z.string().nullable(),
+  upstream: z.string().nullable(),
+  ahead: z.number().int().nonnegative(),
+  behind: z.number().int().nonnegative(),
+});
+
+export const changesResponseSchema = z.strictObject({
+  environmentId: z.uuid(),
+  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
+  statusToken: z.string().regex(/^[a-f0-9]{64}$/),
+  headOid: z
+    .string()
+    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    .nullable(),
+  inProgress: z.enum(['merge', 'rebase']).nullable(),
+  mergeHeadOid: z
+    .string()
+    .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/)
+    .nullable(),
+  branch: changeListBranchSchema.nullable(),
+  interrupted: z
+    .strictObject({
+      requestId: z.uuid(),
+      action: gitActionSchema,
+      gitState: z.string(),
+    })
+    .optional(),
+  changes: z.array(fileChangeSchema).max(2000),
+});
+
+export const changeDiffsRequestSchema = z.strictObject({
+  expectedStatusToken: z.string().regex(/^[a-f0-9]{64}$/),
+  expectedFiles: z
+    .array(
+      z.strictObject({
+        path: gitPathSchema,
+        fingerprint: fileChangeSchema.shape.fingerprint,
+      }),
+    )
+    .min(1)
+    .max(200),
+  selections: z.array(gitChangeSelectionSchema).min(1).max(200),
+});
+
+export const changeDiffsResponseSchema = z.strictObject({
+  environmentId: z.uuid(),
+  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
+  statusToken: z.string().regex(/^[a-f0-9]{64}$/),
+  diffs: z.array(
+    z.strictObject({
+      selection: gitChangeSelectionSchema,
+      content: gitDiffContentSchema,
+    }),
+  ),
+});
+
+export const changeLinesQuerySchema = z.strictObject({
+  path: gitPathSchema,
+  from: z.coerce.number().int().min(1),
+  to: z.coerce.number().int().min(1),
+  at: z.enum(['head', 'worktree']),
+});
+
+export const changeLinesResponseSchema = z.strictObject({
+  environmentId: z.uuid(),
+  worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
+  at: z.enum(['head', 'worktree']),
+  path: gitPathSchema,
+  from: z.number().int().nonnegative(),
+  to: z.number().int().nonnegative(),
+  lines: z.array(z.string()),
+});
+
+export type FileChange = z.infer<typeof fileChangeSchema>;
+export type ChangesResponse = z.infer<typeof changesResponseSchema>;
+export type ChangeDiffsRequest = z.infer<typeof changeDiffsRequestSchema>;
+export type ChangeDiffsResponse = z.infer<typeof changeDiffsResponseSchema>;
+export type ChangeLinesResponse = z.infer<typeof changeLinesResponseSchema>;

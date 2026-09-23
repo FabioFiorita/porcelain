@@ -13,7 +13,7 @@ import {
   serveHelp,
   statusExitCodes,
 } from '../apps/server/src/cli/index.ts';
-import type { startRuntime } from '../apps/server/src/lifecycle/runtime.ts';
+import type { startRuntime } from '../apps/server/src/bootstrap/runtime.ts';
 
 export {
   installShutdownSignals,
@@ -147,8 +147,7 @@ export async function runBuildCommand(
         if (child.pid !== undefined && processGroupExists(child.pid)) {
           try {
             signalProcessGroup(child.pid, 'SIGKILL');
-          } catch {
-          }
+          } catch {}
         }
         finish(abortError(signal));
       }, cancellationGraceMs);
@@ -226,8 +225,7 @@ async function assertWebRoot(webRoot: string): Promise<void> {
   try {
     const index = await stat(join(webRoot, 'index.html'));
     if (index.isFile()) return;
-  } catch {
-  }
+  } catch {}
   throw new ServeConfigurationError(
     'The web build did not produce an index.html file',
   );

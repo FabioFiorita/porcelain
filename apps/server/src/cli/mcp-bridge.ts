@@ -1,6 +1,6 @@
 import { request as httpRequest } from 'node:http';
 import { createInterface } from 'node:readline';
-import { ownerSocketPath } from '../lifecycle/owner-socket.ts';
+import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 
 const accept = 'application/json, text/event-stream';
 
@@ -56,7 +56,7 @@ function exchange(
 
 function idOf(message: unknown): string | number | null {
   if (message && typeof message === 'object' && 'id' in message) {
-    const id = (message as { id: unknown }).id;
+    const id = message.id;
     if (typeof id === 'string' || typeof id === 'number') return id;
   }
   return null;
@@ -117,8 +117,7 @@ function failure(id: string | number, body: string): string {
     const parsed: unknown = JSON.parse(body);
     if (parsed && typeof parsed === 'object' && 'jsonrpc' in parsed)
       return JSON.stringify(parsed);
-  } catch {
-  }
+  } catch {}
   return JSON.stringify({
     jsonrpc: '2.0',
     id,

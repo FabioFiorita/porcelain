@@ -1,9 +1,9 @@
 import type { FastifyRequest } from 'fastify';
-import type { AuthenticatedPrincipal } from '../models/principal.ts';
-import { UnauthorizedError } from './errors/unauthorized-error.ts';
+import type { AuthenticatedPrincipal } from '@porcelain/contracts/access';
 
 export function callerOf(request: FastifyRequest): AuthenticatedPrincipal {
   const principal = request.principal;
-  if (principal.kind === 'anonymous') throw new UnauthorizedError();
+  if (principal.kind === 'anonymous')
+    throw new Error('Authenticated route has no principal');
   return principal;
 }

@@ -1,0 +1,20 @@
+import type { ZodTypeProvider } from '@fastify/type-provider-zod';
+import { healthResponseSchema } from '@porcelain/contracts/access';
+import type { FastifyInstance } from 'fastify';
+import type { ReadHealthController } from '../../../controllers/read-health-controller.ts';
+
+export async function healthRoute(
+  server: FastifyInstance,
+  options: { controller: Pick<ReadHealthController, 'execute'> },
+) {
+  const api = server.withTypeProvider<ZodTypeProvider>();
+  api.get(
+    '/health',
+    {
+      schema: {
+        response: { 200: healthResponseSchema },
+      },
+    },
+    () => options.controller.execute(),
+  );
+}

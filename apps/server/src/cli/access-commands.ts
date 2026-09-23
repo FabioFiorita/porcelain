@@ -2,7 +2,7 @@ import {
   accessListingSchema,
   issuedGrantsSchema,
   revokedAccessSchema,
-} from '@porcelain/contracts/pairing';
+} from '@porcelain/contracts/access';
 import qrcode from 'qrcode-terminal';
 import { askOwner } from './owner-client.ts';
 
@@ -12,13 +12,14 @@ export type Output = {
 };
 
 function printable(value: string, limit = 120): string {
-  return [...value]
-    .map((character) => {
-      const code = character.codePointAt(0) ?? 0;
-      return code <= 0x1f || (code >= 0x7f && code <= 0x9f) ? '?' : character;
-    })
-    .join('')
-    .slice(0, limit);
+  return Array.from(
+    new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(value),
+    ({ segment }) => {
+      return /\p{Cc}/u.test(segment) ? '?' : segment;
+    },
+  )
+    .slice(0, limit)
+    .join('');
 }
 
 function qr(link: string): Promise<string> {
@@ -38,10 +39,10 @@ export async function issuePairings(
     await askOwner(dataDirectory, 'POST', '/pairings', { labels, addresses }),
   );
   for (const grant of answer.grants) {
-    output.stdout(`${printable(grant.label, 80)}\n`);
+    output.stdout(`${printable(grant.grant.label, 80)}\n`);
     output.stdout(`${grant.link}\n`);
     if (withQr) output.stdout(`${await qr(grant.link)}\n`);
-    output.stdout(`Expires ${grant.expiresAt}\n\n`);
+    output.stdout(`Expires ${grant.grant.expiresAt}\n\n`);
   }
   output.stdout(
     answer.grants.length === 1

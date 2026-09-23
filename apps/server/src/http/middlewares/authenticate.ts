@@ -1,9 +1,15 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { Application } from '../../application.ts';
-import { UnauthorizedError } from '../errors/unauthorized-error.ts';
 import { deviceCookie, setDeviceCookie } from './device-cookie.ts';
 
-export type AuthenticateOptions = { application: Application };
+export type AuthenticateOptions = {
+  application: {
+    authenticateDevice(
+      credential: string,
+      address: string | null,
+    ): { deviceId: string; idleMs: number } | null;
+    holdForDevice(deviceId: string, connection: { close(): void }): () => void;
+  };
+};
 
 function credentialOf(request: FastifyRequest): string | null {
   const header = request.headers.authorization;
@@ -15,12 +21,12 @@ export function authenticate(options: AuthenticateOptions) {
   const { application } = options;
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const credential = credentialOf(request);
-    if (!credential) throw new UnauthorizedError();
+    if (!credential) return rejectUnauthenticated(reply);
     const device = application.authenticateDevice(
       credential,
       request.ip ?? null,
     );
-    if (!device) throw new UnauthorizedError();
+    if (!device) return rejectUnauthenticated(reply);
     request.principal = { kind: 'viewer', deviceId: device.deviceId };
     if (!request.ws) holdUntilRevoked(reply, application, device.deviceId);
     if (deviceCookie(request) === credential)
@@ -28,9 +34,17 @@ export function authenticate(options: AuthenticateOptions) {
   };
 }
 
+function rejectUnauthenticated(reply: FastifyReply) {
+  return reply.code(401).header('WWW-Authenticate', 'Bearer').send({
+    statusCode: 401,
+    error: 'Unauthorized',
+    message: 'Authentication required',
+  });
+}
+
 function holdUntilRevoked(
   reply: FastifyReply,
-  application: Application,
+  application: AuthenticateOptions['application'],
   deviceId: string,
 ) {
   const release = application.holdForDevice(deviceId, {

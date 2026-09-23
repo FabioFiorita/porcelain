@@ -8,7 +8,11 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit && pnpm -r typecheck",
+    "typecheck:server": "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
+    "lint:server": "node scripts/server-style.ts lint",
+    "format:server:check": "node scripts/server-style.ts format",
     "arch:check": "node scripts/architecture.ts check",
+    "test:architecture": "node --test architecture/oxlint-plugin.spec.mjs architecture/policy.spec.ts",
     "arch:map": "node scripts/architecture.ts map",
     "arch:plan": "node scripts/architecture.ts plan",
     "dev": "node scripts/dev-server.ts",
@@ -21,6 +25,9 @@
     "@types/node": "24.13.3",
     "dependency-cruiser": "18.4.0",
     "esbuild": "0.28.2",
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "oxlint-tsgolint": "7.0.2002",
     "typescript": "7.0.2"
   }
 }

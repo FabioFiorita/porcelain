@@ -1,0 +1,27 @@
+name: Server trust checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm typecheck:server
+      - run: pnpm lint:server
+      - run: pnpm format:server:check
+      - run: pnpm test:architecture
+      - run: node .agents/skills/server-verify/scripts/verify.ts projects.rename
+      - run: node .agents/skills/server-verify/scripts/verify.ts projects.remove
+      - run: pnpm arch:check
