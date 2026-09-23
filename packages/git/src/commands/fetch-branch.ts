@@ -52,7 +52,6 @@ export async function fetchBranch(
     preparation.preview.trackingOid,
     signal,
   ).catch(uncertainFetch);
-  // Never run even cleanup commands after losing ownership of a process group.
   if (outcome.reason === 'PROCESS_GROUP_UNCONFIRMED') return outcome;
   const cleanup = await process
     .execute(

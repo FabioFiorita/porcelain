@@ -245,9 +245,6 @@ function selectedHunk(
   const lines = diff.split(/(?<=\n)/);
   const firstHunk = lines.findIndex((line) => line.startsWith('@@ '));
   if (firstHunk < 0) return null;
-  // A selected hunk no longer represents the whole-file blob ids printed by
-  // `git diff`; retaining the index line would make recovery reject the other
-  // hunks that were deliberately left in place.
   const header = lines
     .slice(0, firstHunk)
     .filter((line) => !line.startsWith('index '));

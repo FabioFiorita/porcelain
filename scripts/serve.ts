@@ -101,7 +101,6 @@ function processGroupExists(pid: number): boolean {
   }
 }
 
-/** Run a task-owned command and await its complete process group on cancellation. */
 export async function runBuildCommand(
   command: string,
   args: readonly string[],
@@ -149,7 +148,6 @@ export async function runBuildCommand(
           try {
             signalProcessGroup(child.pid, 'SIGKILL');
           } catch {
-            // The process may have exited between the check and the kill.
           }
         }
         finish(abortError(signal));
@@ -229,7 +227,6 @@ async function assertWebRoot(webRoot: string): Promise<void> {
     const index = await stat(join(webRoot, 'index.html'));
     if (index.isFile()) return;
   } catch {
-    // Use one bounded diagnostic for a missing or malformed production build.
   }
   throw new ServeConfigurationError(
     'The web build did not produce an index.html file',
@@ -270,8 +267,6 @@ async function main(): Promise<void> {
       return;
     }
     if (parsed.command !== 'serve') {
-      // Pairing and agent commands belong to the installed executable, which
-      // talks to an already-running server; this launcher starts one.
       process.stderr.write(
         `Use the installed porcelain command for ${parsed.command}.\n`,
       );

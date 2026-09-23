@@ -96,17 +96,9 @@ import { SetReviewedFile } from './use-cases/set-reviewed-file.ts';
 import { SetReviewedFiles } from './use-cases/set-reviewed-files.ts';
 
 const READ_CAPACITY = 4;
-/**
- * How many `git worktree list` processes may run at once, over the whole
- * server. Its own policy: it happens to equal the read capacity, but one
- * bounds requests waiting on a repository and this bounds child processes.
- */
 const LISTING_LAUNCHES = 4;
-/** How often a device's last-seen time reaches the database. */
 const LAST_SEEN_FLUSH_MS = 60_000;
-/** Review data outlives its worktree by thirty days; hourly is ample. */
 const COLLECTION_INTERVAL_MS = 60 * 60_000;
-/** A model call is slow and reaches outside; it never holds a lane. */
 const GENERATOR_DEADLINE_MS = 120_000;
 
 export async function openApplication(options: {
@@ -121,9 +113,7 @@ export async function openApplication(options: {
   trackedPaths?: TrackedPaths;
   stampPath?: StampPath;
   projectFolders?: ProjectFolders;
-  /** Where discovery and browsing start; the composition root resolves it. */
   projectHome: string;
-  /** Where this server answers, as the bound listener reports it. */
   pairingReach?: () => PairingReach;
   commitGenerator?: CommitGenerator;
   fileWriter?: FileWriter;
@@ -136,17 +126,7 @@ export async function openApplication(options: {
     applicationSettingsSchema.parse(options);
   options.signal?.throwIfAborted();
   const database = openDatabase(options.dataDirectory);
-  // Set once the inventory store exists; until then there is nothing to count.
   let countProjects = () => 0;
-  /**
-   * Long enough for every wave of projects to reach its own deadline.
-   *
-   * A fixed deadline would abort a request once there are more slow projects
-   * than the launch limit can start at once — which is the failure the
-   * per-project timeout exists to remove. Every lane operation gets this,
-   * because any of them can end up listing: a worktree id the directory has
-   * not seen is resolved by listing every project.
-   */
   const listingBudgetMs = () =>
     Math.ceil(Math.max(countProjects(), 1) / LISTING_LAUNCHES) *
       projectListingTimeoutMs +
@@ -156,20 +136,14 @@ export async function openApplication(options: {
     readCapacity: READ_CAPACITY,
     closeResources: () => database.close(),
   });
-  /** Work that belongs to no repository: browsing and discovery. */
   const FILESYSTEM = 'filesystem';
-  /** Reconciling the inventory has one owner, whoever asked for it. */
   const INVENTORY = 'inventory';
   let firstRefreshFailure: unknown;
   const sharedReads = new SharedReads();
   try {
     const store = new InventoryRepository(database.db);
-    // The lane deadline counts projects; a lane asserts it is open before it
-    // asks, so this never reads a closed database.
     countProjects = () => store.read().projects.length;
     const git = options.git ?? ((checkout: string) => new Git(checkout));
-    // Git is the source of truth for worktrees: this lists them and turns an
-    // id back into one, without SQLite and usually without a Git process.
     const launches = new LaunchLimit(LISTING_LAUNCHES);
     const directory = new WorktreeDirectory({
       git,
@@ -186,32 +160,16 @@ export async function openApplication(options: {
     );
     const worktrees = new ResolveWorktree(directory, store, presence);
 
-    /**
-     * Every project, with the worktrees Git lists for it right now.
-     *
-     * One coalesced `git worktree list` per project. A project that cannot be
-     * listed is recorded unavailable and keeps its last-known worktrees, and
-     * its presence rows are left alone: absence is only ever observed by a
-     * listing that worked.
-     */
     const listProjects = async (signal?: AbortSignal) => {
       const registered = store.read().projects;
-      // Listed together, recorded in stored order: how fast a repository
-      // answers must not decide where it sits in the sidebar.
       const listings = await Promise.all(
         registered.map((project) => directory.list(project, signal)),
       );
       const issues: DiscoveryIssue[] = [];
       const projects: Project[] = [];
-      // Removal runs on the project's own lane, so it can land while these
-      // listings are in flight. Whatever is still registered when they finish
-      // is what this answers with: writing back availability for a project
-      // that has gone would put it back in the sidebar without its data.
       const present = new Set(
         store.read().projects.map((project) => project.id),
       );
-      // One read for every worktree of every project: the dot costs a single
-      // statement, which is what replacing the per-worktree count was for.
       const dots = statuses.status(
         listings.flatMap((listing) =>
           listing.worktrees.map((worktree) => worktree.id),
@@ -224,8 +182,6 @@ export async function openApplication(options: {
         if (available !== project.available)
           store.save({ ...project, available });
         issues.push(...listing.issues);
-        // A listing that is short by a worktree cannot say that worktree is
-        // gone: absence is only ever observed from the whole truth.
         if (available && listing.complete) {
           presence.observe(
             project.id,
@@ -252,48 +208,19 @@ export async function openApplication(options: {
         issues,
       };
     };
-    /**
-     * Long enough for every wave of projects to reach its own deadline.
-     *
-     * A fixed operation deadline would abort the whole request once there are
-     * more slow projects than the launch limit can start at once — which is
-     * the failure the per-project timeout exists to remove.
-     */
-    /** Database work answers immediately; it never enters a lane. */
     const stored = async <T>(read: () => T | Promise<T>): Promise<T> => {
       lanes.assertOpen();
       return read();
     };
 
-    /**
-     * Review data for one worktree.
-     *
-     * The work is SQLite, but asking whether the worktree exists can reach
-     * Git: an id the directory has not seen costs a listing. So it takes an
-     * admission like everything else that might run a process — otherwise it
-     * would run outside the deadline, outside the read budget, and outside
-     * the drain that shutdown waits on before closing the database.
-     */
     const forWorktree = <T>(
       read: (signal: AbortSignal) => T | Promise<T>,
       signal?: AbortSignal,
     ): Promise<T> =>
-      // Unqueued on purpose: a repository permit would put this behind real
-      // Git work, and holding one while several of these run together stops
-      // the reads they trigger from sharing a single answer — the difference
-      // between reselecting a worktree for 16 Git processes and for 155.
       lanes.unqueued(async (operationSignal) => read(operationSignal), {
         callerSignal: signal,
       });
 
-    /**
-     * The repository a worktree belongs to: one lane per repository.
-     *
-     * Lanes are chosen before the work runs, so this answers from what the
-     * directory already knows. An id it has never seen goes to the unresolved
-     * lane and the request itself then fails to resolve, which is the same
-     * outcome as before without making lane choice wait on Git.
-     */
     const laneOf = (worktreeId: string) =>
       directory.repositoryOf(worktreeId) ?? 'unresolved';
     const projectLaneOf = (projectId: string) =>
@@ -313,11 +240,7 @@ export async function openApplication(options: {
     const listPreferences = new ListFilePreferences(store, preferences);
     const setPreference = new SetFilePreference(store, preferences);
     const pairingStore = new PairingRepository(database.db);
-    // Device digests live in memory because the review forbids per-request SQL;
-    // one server owns a data directory, so nothing else can change them.
     const deviceDirectory = new DeviceDirectory(pairingStore);
-    // Where this server answers is a listener fact, so the runtime supplies it;
-    // the application refuses a pairing link aimed anywhere else.
     const pairing = new Pairing(
       pairingStore,
       deviceDirectory,
@@ -325,20 +248,15 @@ export async function openApplication(options: {
       options.pairingReach ??
         (() => ({ port: 0, policy: { allowedHosts: [], localAddresses: [] } })),
     );
-    // Last seen moves per request in memory and reaches SQLite on a timer, so
-    // authentication never writes. Unref'd: it must not hold the process open.
     const lastSeenFlush = setInterval(
       () => deviceDirectory.flush(),
       LAST_SEEN_FLUSH_MS,
     );
     lastSeenFlush.unref();
-    // Listing is what observes absence, so collection follows it on the same
-    // timer rather than on a schedule of its own.
     const collection = setInterval(() => {
       try {
         collectAbsent.execute();
       } catch {
-        // Cleanup is housekeeping: a failure must not take the server with it.
       }
     }, COLLECTION_INTERVAL_MS);
     collection.unref();
@@ -348,19 +266,12 @@ export async function openApplication(options: {
       store,
       options.projectHome,
     );
-    // Read once here rather than per history request; a missing Git still
-    // surfaces on the request that needs it, so startup is unaffected.
     void readGitVersion().catch(() => undefined);
     const commitGit =
       options.commitGit ?? ((checkout) => new CommitGit(checkout));
     const listCommits = new ListCommits(store, worktrees, commitGit);
     const commitFiles = new ReadCommitFiles(store, worktrees, commitGit);
     const files = options.files ?? new NodeFileReader();
-    // The ignore question runs through the same session guard every other Git
-    // read uses, and only for the entries of the folder being opened.
-    // One Git process per folder opened, for the entries of that folder only.
-    // The read that calls it establishes the worktree by stat on both sides
-    // and verifies the directory around it, so this needs no guard of its own.
     const list = new ListDirectory(
       worktrees,
       files,
@@ -399,8 +310,6 @@ export async function openApplication(options: {
       worktreeFiles,
       options.stampPath ?? stampPath,
     );
-    // A snippet of a working file is a file read, through the same no-follow
-    // boundary the Files surface uses and under the same size bound.
     const changeLines = new ReadChangeLines(
       store,
       worktrees,
@@ -478,8 +387,6 @@ export async function openApplication(options: {
       worktrees,
       listReviewedFiles,
     );
-    // Availability is persisted, so a project that was reachable at the last
-    // shutdown would otherwise keep reporting so until a listing answers.
     store.markAllUnavailable();
     const firstRefresh = lanes
       .run(INVENTORY, 'write', ({ signal }) => listProjects(signal), {
@@ -488,9 +395,6 @@ export async function openApplication(options: {
       .then(
         () => undefined,
         (cause: unknown) => {
-          // A repository that cannot be read is data, already recorded as
-          // unavailable. Anything else is a fault and must not look like
-          // success to whoever waits for the first listing.
           firstRefreshFailure = cause;
         },
       );
@@ -560,8 +464,6 @@ export async function openApplication(options: {
       gitActionReceipt: (requestId) => actions.receipt(requestId),
       dismissInterrupted: (scope, requestId) =>
         actions.dismissInterrupted(scope, requestId),
-      // Sharing sits above the lane: a second identical read joins the first
-      // rather than taking a read permit of its own.
       gitStatus: (worktreeId, signal) =>
         sharedReads.run(
           `status\0${laneOf(worktreeId)}\0${worktreeId}`,
@@ -791,11 +693,7 @@ export async function openApplication(options: {
             async () => {
               const removal = removeProject.execute(projectId);
               if (removal.deleted) {
-                // The checkouts stay on disk, so the directory would go on
-                // resolving ids for a project that is gone.
                 directory.forget(projectId);
-                // Its refusal latch went with it; the coordinator must not keep
-                // refusing actions for an id that no longer exists.
               }
               return removal;
             },
@@ -806,8 +704,6 @@ export async function openApplication(options: {
             return answer;
           }),
       renameProject: async (projectId, name, signal) => {
-        // Parsed here, not only at the route: a name reaches storage the same
-        // way whichever door it came through.
         const input = renameProjectRequestSchema.parse({ name });
         return lanes
           .run(
@@ -844,7 +740,6 @@ export async function openApplication(options: {
           ({ signal: operationSignal }) => finder.browse(path, operationSignal),
           { callerSignal: signal },
         ),
-      /** Environment and projects only: no Git, so health can call it. */
       environment: () => {
         lanes.assertOpen();
         return store.read();
@@ -866,8 +761,6 @@ export async function openApplication(options: {
                 checkout,
                 operationSignal,
               );
-              // The reply carries the sidebar's dots too: a repository added
-              // back keeps whatever review data it already had.
               const dots = statuses.status(
                 registered.project.worktrees.map((worktree) => worktree.id),
               );
@@ -882,8 +775,6 @@ export async function openApplication(options: {
                 },
               };
             },
-            // Registering re-lists the projects that claim these paths, so it
-            // waits on the same waves an inventory read does.
             { callerSignal: signal },
           )
           .then((answer) => {
@@ -1016,7 +907,6 @@ export async function openApplication(options: {
           return answer;
         }),
       liveUpdates: (send) => live.connect(send),
-      /** Resolves once the first refresh has settled, however it settled. */
       ready: async () => {
         await firstRefresh;
         if (firstRefreshFailure !== undefined) throw firstRefreshFailure;
@@ -1034,11 +924,9 @@ export async function openApplication(options: {
       close: async () => {
         clearInterval(lastSeenFlush);
         clearInterval(collection);
-        // The last flush has to happen while the database is still open.
         try {
           deviceDirectory.flush();
         } catch {
-          // A failed final flush costs precision in "last seen", never access.
         }
         await live.close();
         await lanes.close();

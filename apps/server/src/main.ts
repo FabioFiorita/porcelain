@@ -1,6 +1,5 @@
 import { readStartupSettings } from './config/startup-settings.ts';
 
-/** Startup failures the operator can act on, as opposed to a bug. */
 const actionable = new Set([
   'DataDirectoryOwnedError',
   'DataDirectoryInsecureError',

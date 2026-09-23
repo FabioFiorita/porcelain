@@ -44,7 +44,6 @@ export function InlineComposer({
       pending.current = undefined;
       onClose();
     } catch {
-      /* Retain the draft; the mutation supplies the error. */
     }
   };
   return (

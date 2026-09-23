@@ -2,14 +2,6 @@ import { InvalidDeviceDetailsError } from './errors/invalid-device-details-error
 
 const maxLabel = 80;
 const maxPlatform = 120;
-/**
- * C0 and C1 controls, including ESC. `porcelain devices` prints these values in
- * the owner's terminal, where an escape sequence could repaint the listing or
- * hide a row, and a paired device chooses its own platform string.
- *
- * Tested by code point rather than a character class: a regex holding literal
- * control characters is exactly what the linter refuses, and rightly.
- */
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
     const code = character.codePointAt(0) ?? 0;

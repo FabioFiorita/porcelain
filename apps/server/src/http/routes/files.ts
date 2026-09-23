@@ -22,8 +22,6 @@ export async function fileRoutes(
   readTextFile(server, options);
   readPreviewAssets(server, options);
   editFile(server, options);
-  // Quick open: every name at once, bounded, read per opening rather than
-  // held — nothing can tell a cache it went stale until step 6's watcher.
   server.withTypeProvider<ZodTypeProvider>().get(
     '/worktrees/:worktreeId/paths',
     {

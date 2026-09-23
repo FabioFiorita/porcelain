@@ -137,12 +137,6 @@ function CommitInspectionHeader({ action }: { action: 'commit' | 'amend' }) {
   );
 }
 
-/**
- * The remote name, source ref and stashes cost two Git processes that say
- * nothing about what changed, so they are read here, when the panel that fills
- * its fields from them opens. The form waits for them rather than starting on
- * defaults it would then have to replace under the person's cursor.
- */
 function RemoteActionForm({
   scope,
   action,

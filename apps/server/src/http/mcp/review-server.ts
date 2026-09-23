@@ -16,10 +16,6 @@ const scopeSchema = z.strictObject({
   cwd: z.string().min(1).max(4096).optional(),
 });
 
-/**
- * Threads the agent still has to answer. A resolved thread, and a thread whose
- * latest message is already the agent's, is someone else's turn.
- */
 export function commentsForAgent<
   T extends {
     resolved: boolean;
@@ -233,7 +229,6 @@ async function result(operation: () => unknown) {
   }
 }
 
-/** Advisory presence check only; runtime-generated styles and visual quality need agent inspection. */
 export function summaryStyleWarning(html: string): string | undefined {
   const markup = html
     .replace(/<!--[\s\S]*?-->/g, '')

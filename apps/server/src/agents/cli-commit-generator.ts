@@ -59,7 +59,6 @@ export class CliCommitGenerator implements CommitGenerator {
               });
         }
       } catch {
-        /* An explicit catalogue model is required for Codex drafts. */
       }
     }
     if (await executable('claude'))
@@ -167,7 +166,6 @@ async function executable(name: string) {
       await access(path, constants.X_OK);
       if ((await stat(path)).isFile()) return path;
     } catch {
-      /* Continue through PATH. */
     }
   }
   return null;

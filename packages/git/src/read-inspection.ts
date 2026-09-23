@@ -7,11 +7,6 @@ import {
   runGitRead,
 } from './run-git.ts';
 
-/**
- * Inspection reads over the one runner. Only the error mapping is inspection's
- * own: a read that outgrows its cap or its deadline is reported as such rather
- * than as a failed command.
- */
 export async function runInspection(
   checkout: string,
   args: readonly string[],

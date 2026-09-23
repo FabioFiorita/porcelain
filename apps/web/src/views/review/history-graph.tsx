@@ -29,7 +29,6 @@ const laneX = (lane: number) => GRAPH_INSET + lane * LANE_WIDTH;
 const laneClass = (lane: number) =>
   LANE_CLASSES[lane % LANE_CLASSES.length] ?? LANE_CLASSES[0];
 
-/** Render the rails and nodes for the currently loaded commit rows. */
 export function HistoryGraph({
   rows,
   width,

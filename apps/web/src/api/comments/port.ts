@@ -19,11 +19,6 @@ export type CommentsPort = {
       input: CommentResolution;
     },
   ) => Promise<CommentThread[]>;
-  /**
-   * Say how far the discussion has actually been read. Sent when it is on
-   * screen, carrying the highest revision displayed — never "everything now",
-   * which would swallow a reply that arrived while the page sat open.
-   */
   seen: (
     request: ReviewRequest & { throughRevision: number },
   ) => Promise<{ worktreeId: string; seenThrough: number }>;

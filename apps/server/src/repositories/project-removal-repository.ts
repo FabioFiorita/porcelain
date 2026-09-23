@@ -24,12 +24,6 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
         if (!tx.select().from(projects).where(eq(projects.id, projectId)).get())
           return { deleted: false };
         const receiptScope = sql`json_extract(${gitActionReceipts.value}, '$.projectId') = ${projectId}`;
-        // Removal is always allowed. It touches no disk, and the repository
-        // can be added back at any time, so an old action that ended without
-        // a confirmed outcome must not leave a project nobody can remove.
-        // Waiting for an action that is *running* is structural: removal is a
-        // writer on that project's lane.
-        // Every worktree this project has review data for.
         const owned = tx
           .select({ id: worktreePresence.worktreeId })
           .from(worktreePresence)
@@ -50,9 +44,6 @@ export class ProjectRemovalRepository implements ProjectRemovalStore {
         tx.delete(commentReads)
           .where(inArray(commentReads.worktreeId, owned))
           .run();
-        // The refusal latch goes with the project it refused for; the table
-        // stays, because it is what stops a second action running against a
-        // repository whose previous process could not be confirmed dead.
         tx.delete(gitActionBlocks)
           .where(eq(gitActionBlocks.projectId, projectId))
           .run();

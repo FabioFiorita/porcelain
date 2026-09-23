@@ -16,15 +16,6 @@ import { reviews } from '../db/schema/reviews.ts';
 import { worktreePresence } from '../db/schema/worktree-presence.ts';
 import type { WorktreePresenceStore } from './interfaces/worktree-presence-store.ts';
 
-/**
- * When a worktree with review data was first observed to be gone.
- *
- * Only a listing that *succeeded* may say a worktree is missing. A project
- * that could not be listed leaves every one of its rows exactly as it was, so
- * an unplugged disk never starts the clock — and a worktree that reappears
- * after a long outage starts its grace period from that first real absence
- * rather than finishing it.
- */
 export class WorktreePresenceRepository implements WorktreePresenceStore {
   private readonly db: BetterSQLite3Database;
 
@@ -55,8 +46,6 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
             ),
           )
           .run();
-      // Only a row without a clock already running starts one, so the grace
-      // period is measured from the first absence rather than the latest.
       tx.update(worktreePresence)
         .set({ missingSince: at })
         .where(
@@ -102,8 +91,6 @@ export class WorktreePresenceRepository implements WorktreePresenceStore {
       tx.delete(commentReads)
         .where(inArray(commentReads.worktreeId, worktreeIds))
         .run();
-      // The presence rows go last: while one exists the data is still
-      // findable, so a crash mid-collection leaves work to redo, not orphans.
       tx.delete(worktreePresence)
         .where(inArray(worktreePresence.worktreeId, worktreeIds))
         .run();

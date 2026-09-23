@@ -79,7 +79,6 @@ export class PublishedReview {
             );
         } catch (error) {
           if (signal?.aborted) throw error;
-          // An unresolved pointer is valid review data and is reported as changed.
         }
         steps.push({ ...structuredClone(step), published });
       }
@@ -447,7 +446,6 @@ function patchLineChanges(patch: string) {
   return { changed, deleted };
 }
 
-/** Map an index-side line through an unstaged patch to its worktree line. */
 export function mapOldLine(patch: string, target: number): number | null {
   let oldLine = 1;
   let newLine = 1;

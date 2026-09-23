@@ -4,12 +4,6 @@ import { resolveReadableWorktree } from './resolve-readable-worktree.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateFilePath } from './validate-file-path.ts';
 
-/**
- * One folder: one directory read, and one Git process to say which of its
- * entries are ignored. Neither grows with what is inside an ignored folder,
- * which is the point — a hundred thousand files under `node_modules` are one
- * dimmed row until somebody opens it.
- */
 export class ListDirectory {
   private readonly worktrees: ResolveWorktree;
   private readonly files: FileReader;

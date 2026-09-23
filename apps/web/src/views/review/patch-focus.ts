@@ -1,8 +1,3 @@
-/**
- * Pure helpers over unified patch text, so a review can show only the part of a
- * file's diff a step (or an unexplained range) is about. Working on the text keeps
- * the real line numbers in the hunk headers, which is what comments anchor to.
- */
 
 export type LineSpan = { startLine: number; endLine: number };
 
@@ -30,7 +25,6 @@ function splitPatch(patch: string): { header: string[]; hunks: PatchHunk[] } {
   return { header, hunks };
 }
 
-/** Git writes a side with no lines as starting on the line before. */
 const hunkHeader = (
   oldStart: number,
   oldCount: number,
@@ -46,7 +40,6 @@ type Walked = {
   position: number;
 };
 
-/** Every hunk line with the old and new line it sits on; a deletion sits where it was. */
 function walk(hunk: PatchHunk): Walked[] {
   let oldLine = hunk.oldStart === 0 ? 1 : hunk.oldStart;
   let newLine = hunk.newStart === 0 ? 1 : hunk.newStart;
@@ -77,12 +70,6 @@ function joinRun(run: Walked[]): string[] {
   ];
 }
 
-/**
- * The patch cut down to the lines near `spans` (new-side line numbers), with
- * `context` unchanged lines around them. Hunks that miss every span are dropped;
- * null when nothing is left. A patch with no hunks (a mode change) is returned as is.
- */
-/** "Lines 12–18, 40" for a list of ranges. */
 export function spansLabel(spans: readonly LineSpan[]): string {
   const parts = spans.map((span) =>
     span.startLine === span.endLine
@@ -109,7 +96,6 @@ export function focusPatch(
   for (const hunk of hunks) {
     let run: Walked[] = [];
     for (const line of walk(hunk)) {
-      // "\ No newline at end of file" belongs to the line before it.
       const keep = line.text.startsWith('\\')
         ? run.length > 0
         : near(line.position);
@@ -124,10 +110,6 @@ export function focusPatch(
   return out.length === header.length ? null : `${out.join('\n')}\n`;
 }
 
-/**
- * Unchanged code shown with its real line numbers: a patch whose one hunk is all
- * context. Rendered unified, it reads as plain code numbered from `startLine`.
- */
 export function contextPatch(
   path: string,
   startLine: number,

@@ -56,7 +56,6 @@ export async function inspectActionRemote(
   return { name: intent.remoteName, url: urls[0], trackingRef, display };
 }
 
-/** A push URL that another url.<base>.insteadOf rule rewrites again. */
 export function ambiguousRewrite(): GitActionRejectedError {
   return new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
     detail:

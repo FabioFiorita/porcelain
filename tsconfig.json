@@ -20,7 +20,6 @@
   },
   "include": [
     "scripts/**/*.ts",
-    "vitest.config.ts",
     "apps/server/src/filesystem/node-opendir.d.ts"
   ]
 }

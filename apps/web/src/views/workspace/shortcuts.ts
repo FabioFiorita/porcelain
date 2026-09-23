@@ -1,4 +1,3 @@
-/** One source for registered hotkeys and the list shown in the dialog. */
 export const SHORTCUTS = {
   saveFile: 'Mod+S',
   toggleNavigator: 'Mod+B',

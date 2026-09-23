@@ -12,16 +12,13 @@ export const directoryResponseSchema = z.object({
     z.object({
       name: z.string(),
       kind: z.enum(['file', 'directory', 'symlink', 'submodule', 'other']),
-      /** Dimmed in the tree; the folder is never walked to find this out. */
       ignored: z.boolean().optional(),
-      /** Where a link points, which is all that is ever read of one. */
       target: z.string().optional(),
     }),
   ),
 });
 export const worktreePathsSchema = z.object({
   worktreeId: worktreeIdSchema,
-  /** Every name quick open can offer, or a refusal if there are too many. */
   paths: z.array(z.string()).max(50_000),
 });
 export const textResponseSchema = z.object({
@@ -76,11 +73,6 @@ export const assetResponseSchema = z.object({
 });
 export type AssetResponse = z.infer<typeof assetResponseSchema>;
 
-/**
- * The assets one previewed HTML file needs. The document is named because it
- * is what bounds the request: the browser has already resolved the references,
- * so a path that left the document's folder arrives looking ordinary.
- */
 export const previewAssetsRequestSchema = z.strictObject({
   document: z.string().max(4096),
   paths: z.array(z.string().max(4096)).min(1).max(64),
@@ -94,8 +86,6 @@ export const previewAssetsResponseSchema = z.object({
         mediaType: z.string(),
         base64: z.string(),
       }),
-      // One answer for every reason: a preview that could tell them apart
-      // could map the worktree by asking.
       z.object({ kind: z.literal('unavailable'), path: z.string() }),
     ]),
   ),

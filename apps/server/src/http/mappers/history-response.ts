@@ -65,11 +65,6 @@ export function toCommitFilesResponse(
   };
 }
 
-/**
- * The diffs asked for, in the order they were asked for. A file Git printed
- * nothing about has no patch rather than a missing entry, so the reader sees
- * "nothing changed here" instead of a gap.
- */
 export function toCommitDiffsResponse(
   commitOid: string,
   paths: readonly (readonly string[])[],

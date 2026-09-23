@@ -83,8 +83,6 @@ export function toErrorResponse(error: unknown) {
     };
   }
   if (error instanceof InvalidPairingError) {
-    // 401, not 404: a distinct code for "no such grant" would tell an attacker
-    // which ids exist.
     return {
       statusCode: 401,
       body: { code: 'INVALID_PAIRING', message: error.message },

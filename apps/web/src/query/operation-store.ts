@@ -12,8 +12,6 @@ export const operationKey = (
   action: string,
 ) => JSON.stringify([scope.projectId, scope.worktreeId, action]);
 
-// Keep uncertain request identities across navigation. Retrying the exact request
-// is safe; inventing a replacement ID after losing its response is not.
 type Persistence = {
   storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
   key: string;
@@ -35,7 +33,6 @@ export function createOperationStore(persistence?: Persistence) {
             );
         }
     } catch {
-      /* Storage may be unavailable or contain an older incompatible payload. */
     }
   }
   const persist = () => {
@@ -48,7 +45,6 @@ export function createOperationStore(persistence?: Persistence) {
         persistence.storage.setItem(persistence.key, JSON.stringify(pending));
       else persistence.storage.removeItem(persistence.key);
     } catch {
-      /* In-memory recovery remains available when browser storage is blocked. */
     }
   };
   const listeners = new Set<() => void>();
@@ -72,7 +68,6 @@ export function createOperationStore(persistence?: Persistence) {
       const key = operationKey(receipt, receipt.action);
       const current = operations.get(key);
       if (!current || current.requestId !== receipt.requestId) return false;
-      // A live completion can arrive before the HTTP running response.
       if (current.receipt && isTerminal(current.receipt)) return false;
       operations.set(key, { ...current, receipt });
       notify();

@@ -21,10 +21,6 @@ export async function listWorktrees(
   known?: { commonDirectory: string },
 ): Promise<DiscoveryResult> {
   const issues: DiscoveryIssue[] = [];
-  // A registered project brings its own common directory, so the only Git
-  // process a listing costs is the listing itself. Identity is still read
-  // from the filesystem below, and the caller still refuses a listing whose
-  // repository is not the one it registered.
   const commonDirectory = await realpath(
     known?.commonDirectory ??
       (
@@ -55,12 +51,6 @@ export async function listWorktrees(
       ?.slice(9);
     if (fields.includes('bare')) throw new UnsupportedRepositoryError();
     if (!path) throw new InvalidWorktreeInventoryError('Missing worktree path');
-    // A checkout folder someone deleted leaves a prunable record behind. It is
-    // not an omission: the administrative directory is still there, so the
-    // worktree still has an identity and an id. Dropping it here would tell
-    // the server that Git had stopped reporting it, which is what starts the
-    // clock on its review data — for a worktree `git worktree repair` can
-    // still bring back.
     const administrativeDirectory =
       index === 0
         ? commonDirectory
@@ -117,8 +107,6 @@ async function inspectWorktree(
     };
   try {
     const metadataIdentity = await identity(administrativeDirectory);
-    // Identity survives an unreachable checkout; availability does not, and
-    // the reason is still reported so the owner learns why.
     const failure = await unreachable(path);
     if (failure)
       return {
@@ -126,7 +114,6 @@ async function inspectWorktree(
         available: false,
         issues: [{ path, error: failure }],
       };
-    // Readable, so the checkout itself must agree it is this worktree.
     if (!(await corroborates(path, administrativeDirectory)))
       return {
         metadataIdentity,
@@ -144,7 +131,6 @@ async function inspectWorktree(
   }
 }
 
-/** Null when the checkout can be read, otherwise why it could not. */
 async function unreachable(path: string): Promise<Error | null> {
   try {
     await stat(path);

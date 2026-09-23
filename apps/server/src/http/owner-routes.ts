@@ -12,11 +12,6 @@ import type { Application } from '../application.ts';
 import { createReviewMcpServer } from './mcp/review-server.ts';
 import { errorResponses } from './schemas/error-responses.ts';
 
-/**
- * Owner operations, served only on the local socket. Reaching this listener
- * means passing the data directory's permissions, so nothing here re-checks a
- * credential — and nothing on the network can issue or revoke a pairing.
- */
 export function registerOwnerRoutes(
   server: FastifyInstance,
   options: { application: Application },
@@ -66,9 +61,6 @@ export function registerOwnerRoutes(
       return options.application.revokeAccess(request.body.id);
     },
   );
-  // The agent door. Reaching the socket proves file access, but authorship
-  // needs the caller to be an agent, so this route says so explicitly rather
-  // than inheriting the owner principal the listener assigns.
   server.all(
     '/mcp',
     { bodyLimit: 6 * 1024 * 1024 + 4096 },
@@ -87,7 +79,6 @@ export function registerOwnerRoutes(
       const transport = new StreamableHTTPServerTransport({
         enableJsonResponse: true,
       });
-      // SDK 1.x disagrees with its own Transport type under exactOptionalPropertyTypes.
       await mcp.connect(transport as Parameters<typeof mcp.connect>[0]);
       reply.hijack();
       reply.raw.setHeader('Cache-Control', 'no-store');

@@ -19,12 +19,6 @@ export class ReadWorktreeStatus {
     this.git = git;
   }
 
-  /**
-   * The status the action UI needs, which is the change list plus the remote
-   * name, source ref and stashes only an action uses. Reading changes does not
-   * come through here, so opening a worktree does not pay for those two extra
-   * processes.
-   */
   async execute(worktreeId: string, session: GitSession, signal?: AbortSignal) {
     signal?.throwIfAborted();
     const { environmentId, checkout } = await resolveCheckoutSession(

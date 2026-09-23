@@ -139,10 +139,6 @@ export async function commitPaths(
           }
         );
     }
-    // Ordinary commits use `--only` in the private index. A merge instead
-    // commits its complete index after selected resolutions have been staged.
-    // Empty-path amend uses `--only` without a pathspec, which rewrites only
-    // HEAD's message and leaves staged changes outside the commit.
     const committed = await run(
       [
         'commit',

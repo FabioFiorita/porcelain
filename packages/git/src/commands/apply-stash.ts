@@ -139,7 +139,6 @@ function parseDiscardBundle(
         zero: 'zero' in parsed && parsed.zero === true,
       };
   } catch {
-    // A hunk recovery object is the patch itself.
   }
   return undefined;
 }

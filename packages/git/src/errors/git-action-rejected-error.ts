@@ -2,7 +2,6 @@ import type { GitActionReason } from '../dtos/git-action.ts';
 
 export class GitActionRejectedError extends Error {
   readonly reason: GitActionReason;
-  /** What blocked the action and what the owner can do, in words for the UI. */
   readonly detail: string | undefined;
   constructor(
     reason: GitActionReason,

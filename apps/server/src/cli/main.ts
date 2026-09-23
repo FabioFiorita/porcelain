@@ -34,12 +34,6 @@ function formatStartupError(error: unknown): string {
   return 'Porcelain could not start. Check the build, data directory, and port.';
 }
 
-/**
- * Run the installed command-line launcher.  The package bin calls this
- * function explicitly; it intentionally does not depend on an argv path guard.
- * This is the composition root: the one place that resolves a default home
- * directory, which everything below it then receives explicitly.
- */
 export async function runCli(
   args: readonly string[] = process.argv.slice(2),
   environment: ServeEnvironment = process.env,

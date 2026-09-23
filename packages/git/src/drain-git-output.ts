@@ -13,8 +13,6 @@ export async function drainGitOutput(
     ]);
     return true;
   } catch {
-    // An escaped descendant may still own a pipe. Never turn its partial output
-    // into a successful result or let it keep the application queue forever.
     return false;
   }
 }

@@ -32,7 +32,6 @@ export function useCodeFolds(key?: string) {
     try {
       localStorage.setItem(state.key, JSON.stringify(folds));
     } catch {
-      /* Reading works without browser storage. */
     }
   }, [folds, state.key]);
   return {

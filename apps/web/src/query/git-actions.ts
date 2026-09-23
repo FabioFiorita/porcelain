@@ -67,8 +67,6 @@ export function useGitAction(scope: ReviewScope, action: GitAction) {
     mutationFn: async () => {
       const current = operations.get(key);
       if (!current) throw new Error('No operation to recover');
-      // Same request ID and payload recover both a lost response and a request
-      // that never reached the server. The server enforces durable deduplication.
       await accept(
         await api.gitActions.run({ ...request(), input: current.request }),
       );
@@ -107,8 +105,6 @@ export function useCommitModels() {
 }
 export function useCommitDraft(scope: ReviewScope) {
   const { api, connection } = useConnectedContext();
-  // Generation returns an editable proposal and does not mutate Git or review state.
-  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation
   return asMutation(
     useMutation({
       mutationFn: ({

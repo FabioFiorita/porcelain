@@ -1,16 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Application } from '../../application.ts';
 
-/**
- * Pair one device against a server built for a test, and return the header it
- * authenticates with.
- *
- * There is no shared secret to hand a test any more, so a test acquires access
- * the way a device does: a grant issued inside the application, redeemed over
- * the same public route a browser uses. Going through the real route is the
- * point — a helper that reached into the store would stop proving that the
- * pairing path works.
- */
 export async function pairDevice(
   server: FastifyInstance,
   application: Application,
@@ -30,10 +20,6 @@ export async function pairDevice(
   return { authorization: `Bearer ${credential}` };
 }
 
-/**
- * Injected servers never bind, so the origin a link may name is stated rather
- * than discovered. Tests pass this as `pairingReach`.
- */
 const pairingOrigin = 'http://127.0.0.1:3000';
 
 export const pairingReach = () => ({
@@ -41,11 +27,6 @@ export const pairingReach = () => ({
   policy: { allowedHosts: [], localAddresses: ['127.0.0.1'] },
 });
 
-/**
- * Pair one device the way a browser does: the credential comes back as an
- * HttpOnly cookie instead of in the body, and the caller gets the cookie
- * header to send with later requests.
- */
 export async function pairBrowser(
   server: FastifyInstance,
   application: Application,

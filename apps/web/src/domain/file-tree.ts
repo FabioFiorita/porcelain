@@ -3,9 +3,7 @@ import type { Directory } from './review';
 export type FileTreeEntry = {
   path: string;
   kind: Directory['entries'][number]['kind'];
-  /** Dimmed; the folder it names is never walked to find this out. */
   ignored?: boolean;
-  /** Where a link points, which is all that is ever read of one. */
   target?: string;
 };
 

@@ -9,9 +9,6 @@ import { createReviewLive } from './review/live';
 import { browserTransport, createSessionLive } from './session/live';
 
 export async function createBootApi(): Promise<Api> {
-  // Every live request goes through the browser transport now: the browser
-  // authenticates with its device cookie and nothing else, in the playground
-  // as well as in a real installation.
   const transport = browserTransport(fetch);
   return {
     session: createSessionLive(transport),

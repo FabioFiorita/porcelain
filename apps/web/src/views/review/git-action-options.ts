@@ -13,12 +13,6 @@ import type { GitAction } from '../../domain/git-action';
 import type { Change, Status } from '../../domain/review';
 
 export type GitBranchStatus = NonNullable<Status['branch']>;
-/**
- * What deciding an action needs: the comparisons, the observation they were
- * read at, and the branch. The change list carries all three. The remote name
- * and stashes are absent from it, and an absent field already means "not known
- * to be blocking" here — the action panel reads them when it opens.
- */
 export type GitActionStatus = {
   statusToken: string;
   inProgress?: 'merge' | 'rebase' | null;
@@ -39,7 +33,6 @@ export type GitActionOption = {
   readonly group: GitActionGroupId;
 };
 
-/** Actions supported by the current API, in the order used by the menu. */
 export const gitActions = [
   {
     id: 'commit',
@@ -119,7 +112,6 @@ export type GitActionGroup = {
   readonly actions: readonly GitActionOption[];
 };
 
-/** Menu sections keep commit, remote sync and handoff actions distinct. */
 export const gitActionGroups = [
   { id: 'commit', label: 'Commit', actions: [gitActions[0], gitActions[1]] },
   {
@@ -147,11 +139,6 @@ function hasConflicts(status: GitActionStatus) {
   return status.changes.some((change) => change.scope === 'unmerged');
 }
 
-/**
- * A hard blocker is only returned when the status gives us enough information
- * to know an action cannot run. Missing optional branch data leaves the action
- * selectable: the server validates the exact request before running it.
- */
 export function gitActionBlocker(
   action: GitAction,
   status: GitActionStatus,
@@ -203,10 +190,6 @@ export function gitActionBlocker(
   }
 }
 
-/**
- * A non-blocking status note explains why an action may produce no change or
- * still needs explicit values. These notes are rendered below each menu row.
- */
 export function gitActionReason(
   action: GitAction,
   status: GitActionStatus,
@@ -255,10 +238,6 @@ export type PrimaryGitAction =
   | { kind: 'run'; action: 'push' | 'pull'; label: string }
   | { kind: 'hint'; label: string; hint: string };
 
-/**
- * Pick the contextual half of the split control. Commit comes first; when
- * branch tracking selects pull or push when the worktree is clean.
- */
 export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
   if (
     status.inProgress === 'rebase' ||

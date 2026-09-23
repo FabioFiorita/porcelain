@@ -52,10 +52,6 @@ type ProjectWatch = {
   timer?: NodeJS.Timeout;
 };
 
-/**
- * One application-owned fanout and watcher registry. Clients share native
- * subscriptions; only the last client leaving releases filesystem resources.
- */
 export class LiveUpdates {
   private readonly worktrees: ResolveWorktree;
   private readonly reviewed: ReviewedFileStore;
@@ -220,8 +216,6 @@ export class LiveUpdates {
             project.commonDirectory,
           );
         } catch {
-          // A saved checkout can be temporarily unavailable. Keep healthy
-          // project watches live and retry this one on the next subscription.
         }
       }
     }
@@ -302,8 +296,6 @@ export class LiveUpdates {
         );
       },
       {
-        // Watchman filters events after crawling ignored trees. Inotify skips
-        // those trees and keeps this server independent of a shared daemon.
         ...(process.platform === 'linux'
           ? { backend: 'inotify' as const }
           : {}),
@@ -453,8 +445,6 @@ export class LiveUpdates {
         });
         entry.supplements.set(directory, watcher);
       } catch {
-        // A file can disappear between stat and watch; its parent event or the
-        // next subscription refresh will retry without taking the channel down.
       }
     }
   }
@@ -467,8 +457,6 @@ export class LiveUpdates {
       ignored.every((path, index) => path === entry.ignored[index])
     )
       return;
-    // Inotify caches the directory tree while any subscription holds it. Release
-    // the old watch first so newly unignored directories enter the rebuilt tree.
     await entry.subscription.unsubscribe();
     let subscription: parcelWatcher.AsyncSubscription;
     try {
@@ -498,7 +486,6 @@ export class LiveUpdates {
     entry.subscription = subscription;
     entry.ignored = [...ignored];
     await this.refreshSupplements(entry);
-    // Re-read after the replacement to cover edits during the subscription gap.
     this.queueFiles(entry, []);
   }
 
@@ -548,8 +535,6 @@ export class LiveUpdates {
   }
 
   private trackStop(stop: Promise<void>): void {
-    // A failed native release must not become an unhandled rejection when
-    // a browser disconnects. Still wait for the attempt during shutdown.
     const settled = stop.catch(() => undefined);
     this.pendingStops.add(settled);
     void settled.then(() => this.pendingStops.delete(settled));

@@ -5,7 +5,6 @@ import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { runInspection } from '../read-inspection.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';
 
-/** One file's patch may be large; the batch holding several of them, more so. */
 const MAX_PATCH_BYTES = 1024 * 1024;
 const MAX_BATCH_BYTES = 32 * 1024 * 1024;
 
@@ -19,22 +18,6 @@ export async function readDiff(
   return result;
 }
 
-/**
- * The patches for several changes, in one Git process per scope — always one,
- * however large the batch or however odd the filenames in it.
- *
- * Git is asked for `--raw -z` alongside the patch, so the same process states
- * which files it is about to print and in what order, with NUL-delimited paths
- * that need no unquoting. Sections are then taken in that order. Matching the
- * `diff --git` header text instead would fail on exactly the names Git has to
- * quote, and falling back to a process per file would undo the reason for
- * batching at the moment it is needed most.
- *
- * The patch is split as bytes and each section decoded on its own, so one file
- * that is not valid UTF-8 is omitted alone rather than spoiling the batch.
- *
- * The request's filter check is reused; it is not repeated around the batch.
- */
 export async function readDiffs(
   session: CheckoutSession,
   changes: readonly GitOrdinaryChange[],
@@ -66,8 +49,7 @@ export async function readDiffs(
       results.set(
         change,
         sections === null
-          ? // The whole scope was larger than a response may be. Every file in
-            // it says so, rather than the server reading each one again.
+          ?
             { kind: 'omitted', reason: 'size-limit' }
           : (sections.get(keyOf(changePaths(change))) ?? {
               kind: 'metadata-only',
@@ -82,14 +64,6 @@ export async function readDiffs(
   });
 }
 
-/**
- * The patches of some of a commit's files, in one Git process.
- *
- * The same reader as the worktree's: the only difference is which two sides
- * Git is asked about. A commit needs none of the worktree's guards — its
- * content cannot change under the read, so the oid is the fingerprint — and
- * none of its conversion filters, which are about the working tree.
- */
 export async function readCommitDiffs(
   checkout: string,
   oid: string,
@@ -114,11 +88,6 @@ function changePaths(change: GitOrdinaryChange) {
 
 const keyOf = (paths: readonly string[]) => paths.join('\0');
 
-/**
- * What two sides a patch is between. A worktree comparison is against the
- * index or the working tree; a commit's is between two objects, which is the
- * only difference in the command — everything after it is shared.
- */
 type DiffComparison =
   | { kind: 'staged' }
   | { kind: 'unstaged' }
@@ -126,11 +95,6 @@ type DiffComparison =
 
 function diffArguments(comparison: DiffComparison, pathspecs: string[]) {
   return [
-    // `diff-tree` is the same diff machinery over two objects rather than the
-    // index or the working tree, and it takes every option below unchanged.
-    // Naming one commit compares it with its first parent; `--root` covers the
-    // commit that has none, and `--diff-merges` the one that has two, so no
-    // base has to be looked up to ask for the usual comparison.
     ...(comparison.kind === 'commit'
       ? [
           'diff-tree',
@@ -151,8 +115,6 @@ function diffArguments(comparison: DiffComparison, pathspecs: string[]) {
     '--src-prefix=a/',
     '--dst-prefix=b/',
     '--no-relative',
-    // The raw entries name the files, in order, without quoting; the patch
-    // that follows prints them in the same order.
     '--raw',
     '-z',
     '--patch',
@@ -166,13 +128,10 @@ function diffArguments(comparison: DiffComparison, pathspecs: string[]) {
   ];
 }
 
-// Literal pathspecs also match descendants. Escaping every codepoint in a
-// glob pathspec forces exact matching, including for a rename foo -> foo/bar.
 function pathspec(path: string) {
   return `:(top,glob)${[...path].map((character) => `\\${character}`).join('')}`;
 }
 
-/** Null when the comparison was larger than one response may carry. */
 async function readSections(
   checkout: string,
   comparison: DiffComparison,
@@ -198,11 +157,6 @@ async function readSections(
   const results = new Map<string, GitDiffResult>();
   let at = 0;
   for (const entry of entries) {
-    // A change of type is printed as a deletion and a creation, so it owns two
-    // sections; everything else owns one. Both halves come from one diff
-    // queue, so anything else is this parser being wrong rather than the
-    // repository — and guessing would show a reviewer one file's changes under
-    // another file's name.
     const owned = entry.status.startsWith('T') ? 2 : 1;
     if (at + owned > sections.length)
       throw new Error('Git described more files than it printed');
@@ -217,10 +171,6 @@ async function readSections(
   return results;
 }
 
-/**
- * The `--raw -z` header: `:<modes> <oids> <status>\0<path>\0`, twice over for
- * a rename, then one empty field, then the patch.
- */
 function splitRaw(output: Buffer) {
   const entries: {
     status: string;
@@ -239,7 +189,6 @@ function splitRaw(output: Buffer) {
   while (at < output.length && output[at] === 0x3a) {
     const meta = field();
     if (meta === null) break;
-    // The status letter is last: R and C name a source and a destination.
     const parts = meta.split(' ');
     const status = parts.at(-1) ?? '';
     const first = field();
@@ -249,18 +198,14 @@ function splitRaw(output: Buffer) {
     entries.push({
       status,
       paths: second === null ? [first] : [...new Set([first, second])],
-      // `:<oldmode> <newmode> <oldoid> <newoid> <status>`; the leading colon
-      // belongs to the first field.
       oldMode: (parts[0] ?? '').slice(1),
       newMode: parts[1] ?? '',
     });
   }
-  // The empty field that closes the raw section.
   if (output[at] === 0) at += 1;
   return { entries, patch: output.subarray(at) };
 }
 
-/** Sections as bytes, so one undecodable file does not spoil the batch. */
 function splitSections(patch: Buffer) {
   const header = Buffer.from('diff --git ');
   const starts: number[] = [];
@@ -286,7 +231,6 @@ function classify(section: Buffer | undefined): GitDiffResult {
   } catch {
     return { kind: 'omitted', reason: 'unsupported-encoding' };
   }
-  // Hunk lines start with +, - or a space, so content cannot match this.
   if (/^Binary files .* differ$/m.test(patch)) return { kind: 'binary' };
   return { kind: /^@@ /m.test(patch) ? 'text' : 'metadata-only', patch };
 }

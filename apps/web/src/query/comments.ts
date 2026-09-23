@@ -46,9 +46,6 @@ async function mergeCommentThreads(
   updated: CommentThread[],
   inventoryKey?: readonly unknown[],
 ) {
-  // A list request may have started before the command and can otherwise
-  // finish after it, restoring an older snapshot over the mutation result.
-  // Cancel only this exact worktree query, then apply the command response.
   await client.cancelQueries({ queryKey: key, exact: true });
   client.setQueryData<CommentThread[]>(key, (current) => {
     if (!current) return [...updated];
@@ -56,19 +53,12 @@ async function mergeCommentThreads(
     for (const thread of updated) byId.set(thread.id, thread);
     return [...byId.values()];
   });
-  // Only passed by the write that can change what the sidebar says: the dot
-  // travels with the worktree list, so that list is what goes stale.
   if (inventoryKey) void client.invalidateQueries({ queryKey: inventoryKey });
 }
 
 type CommentQueue = { tail: Promise<void> };
 const commentQueues = new WeakMap<object, Map<string, CommentQueue>>();
 
-/**
- * Comment commands return snapshots for the affected thread. Serialize
- * commands for one connection and worktree so a delayed response cannot
- * overwrite a later reply or resolution in the cache.
- */
 function enqueueComment<T>(
   context: ReturnType<typeof useCommentContext>,
   operation: () => Promise<T>,
@@ -119,13 +109,6 @@ export function usePrefetchComments(scope: ReviewScope) {
   usePrefetchQuery(useCommentsOptions(scope));
 }
 
-/**
- * Tell the server how far the discussion has been read.
- *
- * Called when the discussion is on screen, with the highest revision it is
- * showing — not "now", which would also acknowledge a reply that arrived
- * after this snapshot and would then never light the dot.
- */
 export function useMarkCommentsSeen(scope: ReviewScope) {
   const context = useCommentContext(scope);
   const client = useQueryClient();
@@ -137,7 +120,6 @@ export function useMarkCommentsSeen(scope: ReviewScope) {
       return result;
     },
     onSuccess: () => {
-      // The dot travels with the worktree list, so that is what changed.
       void client.invalidateQueries({
         queryKey: queryKeys.inventory(context.connection.environmentId),
       });
@@ -179,8 +161,6 @@ export function useReplyComment(scope: ReviewScope) {
           });
           request.signal.throwIfAborted();
           const scoped = assertCommentScope(result, scope.worktreeId);
-          // Answering is reading: a reply of the owner's takes the agent's
-          // last word away, which is what the dot was showing.
           await mergeCommentThreads(
             client,
             context.key,

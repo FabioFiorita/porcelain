@@ -14,7 +14,6 @@ import type { ReadWorktreeChanges } from './read-worktree-changes.ts';
 import { resolveActionCheckout } from './resolve-action-worktree.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
-/** A draft is written from what the person selected, not from a whole tree. */
 const MAX_DRAFT_COMPARISONS = 200;
 
 type Capture = {
@@ -25,13 +24,6 @@ type Capture = {
   expectedFiles: CommitDraft['expectedFiles'];
 };
 
-/**
- * Drafting a commit message is the one read that genuinely wants content for
- * every selected file, so it composes the small reads rather than making the
- * review surface pay for a package it does not open: the change list for
- * fingerprints, one batched diff for the tracked sides, and the file itself
- * for a new one, whose whole content is the change.
- */
 export class CommitDrafts {
   private readonly inventory: InventoryStore;
   private readonly worktrees: ResolveWorktree;
@@ -89,8 +81,6 @@ export class CommitDrafts {
       throw new CommitDraftError(
         'Select fewer files to generate a commit draft.',
       );
-    // The selected content leaves the process for the commit generator, so
-    // confirm it still came from the checkout this request verified.
     await session.confirmAll(signal);
     return {
       fingerprint: observed.statusToken,
@@ -108,7 +98,6 @@ export class CommitDrafts {
     };
   }
 
-  /** What each selected file changed, with the content that shows it. */
   private async contents(
     scope: GitActionScope,
     headOid: string | null,
@@ -116,9 +105,6 @@ export class CommitDrafts {
     session: GitSession,
     signal: AbortSignal,
   ) {
-    // Only tracked comparisons have hunks to ask for; a new file is read as a
-    // file below. The diff read is told which paths it is being asked about,
-    // so the two lists are derived from the same entries.
     const diffable = selected.filter((entry) =>
       entry.comparisons.some(
         (change) => change.scope === 'staged' || change.scope === 'unstaged',
@@ -176,11 +162,6 @@ export class CommitDrafts {
     };
   }
 
-  /**
-   * A new file has no diff — the file is the change — so it is read from the
-   * worktree. Binary or oversized files are named without content rather than
-   * dropped, so the draft does not silently omit a file it committed.
-   */
   private async untracked(
     scope: GitActionScope,
     selected: readonly FileChange[],

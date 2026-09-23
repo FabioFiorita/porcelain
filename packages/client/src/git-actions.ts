@@ -36,7 +36,6 @@ export function createGitActionsClient(
         cache: 'no-store',
       });
       const value: unknown = await response.json();
-      // Execution may return a terminal receipt with a non-2xx HTTP status.
       if (
         response.ok ||
         (typeof value === 'object' && value !== null && 'requestId' in value)

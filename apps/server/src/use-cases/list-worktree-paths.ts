@@ -8,14 +8,6 @@ export type TrackedPaths = (
   signal?: AbortSignal,
 ) => Promise<{ paths: string[]; complete: boolean }>;
 
-/**
- * The names quick open searches, read once per opening.
- *
- * It is not cached: 5a's ruling was to pay a read rather than hold an answer
- * nothing can invalidate, and the watcher in step 6 is what changes that. A
- * repository too large to answer says so — a truncated list would quietly stop
- * finding files that are there.
- */
 export class ListWorktreePaths {
   private readonly worktrees: ResolveWorktree;
   private readonly tracked: TrackedPaths;

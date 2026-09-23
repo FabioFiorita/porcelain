@@ -87,10 +87,6 @@ export class PairingRepository implements PairingStore {
           .get();
         if (!grant || !secretMatches(grant.secretHash, input.secret))
           return null;
-        // Every condition lives in this one update, so two redeemers racing
-        // here cannot both see `changes === 1`. It is also what refuses a grant
-        // the owner revoked, or one whose creation is in the future because the
-        // clock moved backwards.
         const consumed = this.db
           .update(pairingGrants)
           .set({ redeemedAt: input.now })
@@ -105,8 +101,6 @@ export class PairingRepository implements PairingStore {
           )
           .run();
         if (consumed.changes !== 1) return null;
-        // The insert is inside the same transaction: a failure here rolls the
-        // consumption back rather than burning the owner's link.
         const record = {
           id: input.device.id,
           label: input.device.label || grant.label,
@@ -163,9 +157,6 @@ export class PairingRepository implements PairingStore {
             lastSeenAt: entry.lastSeenAt,
             lastSeenAddress: entry.lastSeenAddress,
           })
-          // Only these two fields, and never on a revoked row: a cache entry
-          // that went dirty just before revocation must not write the device
-          // back to life.
           .where(and(eq(devices.id, entry.deviceId), isNull(devices.revokedAt)))
           .run();
     });

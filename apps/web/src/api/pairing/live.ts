@@ -3,12 +3,6 @@ import { healthResponseSchema } from '@porcelain/contracts/health';
 import { inventoryResponseSchema } from '@porcelain/contracts/inventory';
 import type { PairingPort } from './port';
 
-/**
- * A pairing code is live and single use, so the browser proves it is talking
- * to the installation the link was made for *before* it sends the code. The
- * environment id rides in the link and is public on `/api/health`; sending the
- * code first and learning afterwards is the worse trade.
- */
 export function createPairingLive(transport: typeof fetch): PairingPort {
   return {
     async redeem({ code, environmentId, signal }) {
@@ -22,8 +16,6 @@ export function createPairingLive(transport: typeof fetch): PairingPort {
         if (!response.ok) throw new Error(`Health answered ${response.status}`);
         health = await response.json();
       } catch (error) {
-        // Unreachable is a connection failure, not a bad link: the owner can
-        // start the server and open the same link again.
         throw new ConnectionError(
           'Could not reach Porcelain. Check that the server is running, then open the link again.',
           { cause: error },
@@ -46,8 +38,6 @@ export function createPairingLive(transport: typeof fetch): PairingPort {
         redirect: 'error',
         cache: 'no-store',
       });
-      // Invalid, already used and expired are one answer on purpose: telling
-      // them apart tells whoever holds a stolen link which ones are live.
       if (!response.ok)
         throw new ConnectionError(
           'This pairing link is not usable. Ask for a new one.',

@@ -32,7 +32,6 @@ export type ReviewPort = {
   asset: (
     request: ReviewRequest & { path: string },
   ) => Promise<import('@porcelain/contracts/files').AssetResponse>;
-  /** Every asset one previewed document needs, bounded to its own folder. */
   previewAssets: (
     request: ReviewRequest & { document: string; paths: string[] },
   ) => Promise<PreviewAssets>;
@@ -56,7 +55,6 @@ export type ReviewPort = {
   commit: (
     request: ReviewRequest & { oid: string; parent?: number },
   ) => Promise<CommitFiles>;
-  /** The patches of named files, asked for as they come into view. */
   commitDiffs: (
     request: ReviewRequest & {
       oid: string;

@@ -26,15 +26,9 @@ export class CommentThreads {
     this.newId = newId;
     this.now = now;
   }
-  /**
-   * The same question everything else asks. It used to be skipped whenever the
-   * worktree already had threads, so comments could disagree with marks about
-   * whether a worktree was there.
-   */
   private async assertWorktree(worktreeId: string, signal?: AbortSignal) {
     await this.worktrees.known(worktreeId, signal);
   }
-  /** Reading threads has no author, so it needs no principal. */
   async list(
     worktreeId: string,
     signal?: AbortSignal,
@@ -49,7 +43,6 @@ export class CommentThreads {
   ): Promise<StoredCommentThread[]> {
     validateCommentCommand(command);
     if (command.kind === 'list') return this.list(command.worktreeId, signal);
-    // A write: the worktree is recorded as present before anything is stored.
     await this.worktrees.forWriting(command.worktreeId, signal);
     if (command.kind === 'create') {
       const thread: CommentThread = {
@@ -86,11 +79,6 @@ export class CommentThreads {
   }
 }
 
-/**
- * Authorship is the door the caller came through, decided here rather than in
- * a route: a transport that could name its own author would make the principal
- * decorative.
- */
 function authorFor(principal: AuthenticatedPrincipal): CommentAuthor {
   switch (principal.kind) {
     case 'agent':

@@ -15,10 +15,6 @@ async function waitForShutdown(signal: AbortSignal): Promise<void> {
   );
 }
 
-/**
- * Start the configured server and keep it alive until the supplied signal is
- * aborted.  Both `pnpm serve` and the installed package use this lifecycle.
- */
 export async function runLocalServer(
   settings: ServeSettings,
   signal: AbortSignal,
@@ -44,8 +40,6 @@ export async function runLocalServer(
     if (signal.aborted) return;
     output(`Porcelain listening at ${server.address}`);
     output(`Owner socket: ${server.socketPath}`);
-    // Nothing is printed about credentials: there is no shared secret, and a
-    // device pairs with `porcelain pair`.
     output('Pair a device with: porcelain pair <name> --address <origin>');
     await waitForShutdown(signal);
   } finally {

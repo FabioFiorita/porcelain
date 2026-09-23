@@ -68,7 +68,6 @@ function ordinary(
   ];
 }
 
-/** Git prints all zeroes where a side has no object. */
 function empty(oid: string | null) {
   return !oid || /^0+$/.test(oid) ? null : oid;
 }
@@ -104,7 +103,6 @@ function tracked(record: string, previous?: string): GitChange[] {
       previous ?? current,
       indexMode,
       workingMode,
-      // The worktree side has no object id until something hashes it.
       indexOid,
       null,
       submodule,
@@ -160,7 +158,6 @@ export function parseGitStatus(output: Buffer): GitStatusObservation {
     else if (record.startsWith('2 '))
       changes.push(...tracked(record, path(iterator.next().value)));
     else if (record.startsWith('? '))
-      // Git keeps a trailing directory marker for untracked nested repositories.
       changes.push({
         scope: 'untracked',
         path: path(record.slice(2).replace(/\/$/, '')),

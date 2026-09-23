@@ -25,7 +25,6 @@ export const commitFileSchema = z.object({
   oldMode: z.string(),
   newMode: z.string(),
 });
-/** What a commit touched, with no patches: those are read as they are needed. */
 export const commitFilesResponseSchema = z.object({
   commit: commitSummarySchema,
   comparison: commitComparisonSchema,
@@ -33,7 +32,6 @@ export const commitFilesResponseSchema = z.object({
 });
 export const commitDiffsRequestSchema = z.strictObject({
   parent: z.number().int().min(1).max(1000).optional(),
-  /** A file is named by both its sides, so a rename asks for one diff. */
   paths: z.array(z.array(z.string()).min(1).max(2)).min(1).max(200),
 });
 export const commitDiffsResponseSchema = z.object({

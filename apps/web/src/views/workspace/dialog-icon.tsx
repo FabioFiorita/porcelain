@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/** Shared leading icon for workspace dialogs. */
 export function DialogIcon({
   icon: Icon,
   tone = 'default',

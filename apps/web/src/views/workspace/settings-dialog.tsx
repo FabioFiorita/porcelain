@@ -17,10 +17,6 @@ import { DialogIcon } from './dialog-icon';
 import type { Preferences } from './preferences';
 import { usePreferences } from './preferences';
 
-/**
- * The agent door is a local socket, so an agent runs a command rather than
- * calling a URL — and there is no credential to paste anywhere.
- */
 const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 
 function Choice<K extends keyof Preferences>({
@@ -73,7 +69,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** Device-local display preferences supported by the current live client. */
 export function SettingsDialog({
   open,
   onOpenChange,

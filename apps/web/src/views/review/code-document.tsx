@@ -96,7 +96,6 @@ type Props = {
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
   disableFileHeader?: boolean;
-  /** Let short embedded snippets grow inside their parent scroll region. */
   fullHeight?: boolean;
   headerActions?: ReactNode;
   onToggleReviewed?: (entry: CodeEntry) => void;

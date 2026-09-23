@@ -15,13 +15,6 @@ export type OwnerStatus = {
   pid: number;
 };
 
-/**
- * The owner's door.  Reaching this listener means passing the data directory's
- * file permissions, so the caller is the owner and nothing here re-checks a
- * token.  It is a separate instance rather than a transport test on shared
- * routes: owner operations are then unreachable over the network by
- * construction, not by remembering a condition on every route.
- */
 export function createOwnerServer(options: {
   status: () => OwnerStatus;
   application: Application;
@@ -33,7 +26,6 @@ export function createOwnerServer(options: {
     const response = toErrorResponse(error);
     return reply.code(response.statusCode).send(response.body);
   });
-  // Reaching this listener is the credential, so the principal is fixed.
   server.decorateRequest('principal');
   server.addHook('onRequest', (request, _reply, done) => {
     request.principal = { kind: 'owner' };

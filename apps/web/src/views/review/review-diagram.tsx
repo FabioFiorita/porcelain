@@ -33,22 +33,11 @@ import { cn } from '@/lib/utils';
 import type { Diagram, DiagramBox } from '../../domain/review';
 import { usePreferences } from '../workspace/preferences';
 
-/**
- * The diagram Porcelain draws from a review: lanes are horizontal bands read top
- * to bottom, boxes sit side by side in their band, arrows join them. The overview
- * draws the agent's Before/After diagram; a layer draws one from its steps.
- * Ported from the server lab's design diagram.
- */
 
-/** A box plus what only Porcelain knows about it. */
 export type GraphBox = DiagramBox & {
-  /** Committed code: drawn faded. */
   dimmed?: boolean;
-  /** An amber note, e.g. "Code changed since the review was written". */
   warning?: string;
-  /** Clicking opens something (a layer, a step). */
   clickable?: boolean;
-  /** Replaces the kind's icon (a layer's steps are code, not servers). */
   icon?: LucideIcon;
 };
 
@@ -86,10 +75,6 @@ const CHANGE_BADGE = {
   },
 } as const;
 
-/**
- * A first guess at a box's height, so bands stack without overlap before React
- * Flow has measured the real boxes; the layout then reruns with the measured ones.
- */
 const estimateHeight = (box: GraphBox) =>
   26 +
   Math.ceil(box.label.length / 26) * 18 +
@@ -154,7 +139,6 @@ function Box({ data }: NodeProps<Node<BoxData>>) {
       <div className="flex items-start gap-2">
         <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          {/* A long label (a route, a method) takes the whole row and the badge wraps under it. */}
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <span className="max-w-full min-w-0 text-[13px] leading-snug font-medium [overflow-wrap:anywhere]">
               {data.label}
@@ -198,12 +182,6 @@ function Lane({ data }: NodeProps<Node<LaneData>>) {
 
 const nodeTypes = { box: Box, lane: Lane };
 
-/**
- * Boxes are placed band by band, top to bottom. A box sits under the boxes it is
- * joined to in the bands above (the mean of their centres), so arrows run mostly
- * straight down; boxes with nothing above keep the agent's order. An arrow that
- * skips a band and would cross a box there runs down the outer side instead.
- */
 function place(graph: Graph, bands: GraphBox[][]): Map<string, number> {
   const step = BOX_WIDTH + BOX_GAP;
   const centre = new Map<string, number>();
@@ -230,7 +208,6 @@ function place(graph: Graph, bands: GraphBox[][]): Map<string, number> {
     wanted.sort(
       (left, right) => left.want - right.want || left.index - right.index,
     );
-    // Keep the gap between neighbours, then slide the band to sit as close as it can to where it wanted to be.
     const at: number[] = [];
     wanted.forEach((entry, index) => {
       const previous = at[index - 1];
@@ -299,7 +276,6 @@ function layout(graph: Graph, measured: ReadonlyMap<string, number>) {
     }
   });
   const laneOf = new Map(graph.boxes.map((box) => [box.id, box.lane]));
-  /** Whether a box in a band strictly between two lanes stands in the way of a straight drop. */
   const blocked = (from: string, to: string, low: number, high: number) => {
     const span = [
       Math.min(x(from), x(to)),
@@ -313,7 +289,6 @@ function layout(graph: Graph, measured: ReadonlyMap<string, number>) {
         x(box.id) + BOX_WIDTH > (span[0] ?? 0),
     );
   };
-  /** Whether no box of the same band sits further out on that side. */
   const outermost = (id: string, side: 'Left' | 'Right') =>
     !graph.boxes.some(
       (box) =>
@@ -339,7 +314,6 @@ function layout(graph: Graph, measured: ReadonlyMap<string, number>) {
           Math.max(fromLane, toLane),
         )
       ) {
-        // Down the outer side; an end with a neighbour further out leaves or enters through its top or bottom.
         const outer =
           (x(arrow.from) + x(arrow.to)) / 2 + BOX_WIDTH / 2 < middle
             ? 'Left'
@@ -383,7 +357,6 @@ const FLOW_STYLE = {
   '--xy-controls-button-border-color': 'var(--border)',
 } as CSSProperties;
 
-/** Fills its box; the view fits the diagram on open and when the pane is resized. */
 export function ReviewDiagram({
   graph,
   onBoxClick,
@@ -393,7 +366,6 @@ export function ReviewDiagram({
   onBoxClick?: ((box: GraphBox) => void) | undefined;
   className?: string;
 }) {
-  // Box heights as React Flow measured them; bands are laid out again once they are known.
   const [measured, setMeasured] = useState<ReadonlyMap<string, number>>(
     () => new Map(),
   );
@@ -454,7 +426,6 @@ function Canvas({
     return () => cancelAnimationFrame(frame);
   }, [graph, flow]);
 
-  // Refit when the pane changes size (a split, a sidebar toggled).
   useEffect(() => {
     const element = host.current;
     if (element == null) return;
@@ -486,7 +457,6 @@ function Canvas({
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
-        // The wheel scrolls the diagram like a page; zoom with the buttons or a pinch.
         panOnScroll
         zoomOnScroll={false}
         onNodeClick={(_, node) => {

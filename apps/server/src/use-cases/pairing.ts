@@ -23,17 +23,14 @@ import { checkedLabel, checkedPlatform } from './device-details.ts';
 import { InvalidPairingAddressError } from './errors/invalid-pairing-address-error.ts';
 import { InvalidPairingError } from './errors/invalid-pairing-error.ts';
 
-/** Where this server answers, as the bound listener reports it. */
 export type PairingReach = { port: number; policy: HostPolicy };
 
-/** A pairing link is good for fifteen minutes and one redemption. */
 const GRANT_LIFETIME_MS = 15 * 60 * 1000;
 
 export class Pairing {
   private readonly store: PairingStore;
   private readonly directory: DeviceRegistry;
   private readonly inventory: InventoryStore;
-  /** Where this server answers: the same rule the request hook applies. */
   private readonly reachable: () => PairingReach;
   private readonly now: () => number;
 
@@ -51,16 +48,10 @@ export class Pairing {
     this.now = now;
   }
 
-  /**
-   * Issue one link per label. The owner's flow is several devices at once, so
-   * this takes a list rather than making them run the command repeatedly.
-   */
   issue(
     labels: readonly string[],
     addresses: readonly string[],
   ): IssuedGrant[] {
-    // A link with no address is not a link, and one aimed somewhere this server
-    // does not answer hands the fragment to whoever is there instead.
     if (addresses.length === 0) throw new InvalidPairingAddressError('none');
     const reach = this.reachable();
     for (const address of addresses)
@@ -82,27 +73,16 @@ export class Pairing {
         expiresAt,
       });
       const target = addresses[0] ?? '';
-      // The environment id travels with the code so a client can refuse a link
-      // meant for another installation before it sends the secret anywhere.
       const fragment = new URLSearchParams({ c: token, e: environmentId });
       if (addresses.length > 1) fragment.set('a', addresses.join(','));
       return {
         grant: { id, label, addresses: [...addresses], createdAt, expiresAt },
         code: token,
-        // The code rides in the fragment: browsers never send a fragment, so it
-        // stays out of the request line, access logs and Referer headers.
         link: `${target}/pair#${fragment.toString()}`,
       };
     });
   }
 
-  /**
-   * Whether a link may point here. The host is judged by the same rule the
-   * request hook uses, so `--lan` cannot accept a request at an address that
-   * pairing then rejects. The port must be the one bound, because a link is a
-   * promise that the device can reach this server — the hook has no such job
-   * and so does not check it.
-   */
   private answersAt(address: string, reach: PairingReach): boolean {
     let url: URL;
     try {
@@ -125,7 +105,6 @@ export class Pairing {
     };
   }
 
-  /** Revoke a pending grant or a paired device; the owner has one id to hand. */
   revoke(id: string): { revoked: boolean; kind: 'grant' | 'device' | null } {
     const at = new Date(this.now()).toISOString();
     if (this.store.revokeGrant(id, at)) return { revoked: true, kind: 'grant' };

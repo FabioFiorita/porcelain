@@ -16,17 +16,7 @@ export const commentThreads = sqliteTable(
       .$type<CommentThread['anchor']>()
       .notNull(),
     resolved: integer('resolved', { mode: 'boolean' }).notNull(),
-    /**
-     * Rises with writes while a worktree's discussion is retained. It is what
-     * the owner acknowledges having seen: wall-clock time would hide a reply
-     * written between the snapshot they read and the moment they said so.
-     * Cleanup removes that worktree's threads and seen marker together.
-     */
     revision: integer('revision').notNull(),
-    /**
-     * The revision at which the agent had the last word, or null when it did
-     * not. Replying yourself clears it, because answering is seeing.
-     */
     lastAgentRevision: integer('last_agent_revision'),
     sizeBytes: integer('size_bytes').notNull(),
   },

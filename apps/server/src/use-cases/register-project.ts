@@ -25,9 +25,6 @@ export class RegisterProject {
     const { repository: discovered, issues } =
       await this.git(checkout).listWorktrees(signal);
     signal?.throwIfAborted();
-    // A checkout path can move between repositories. Re-list the projects that
-    // claim any of these paths, so a stale claim from a project that has since
-    // changed does not block registering this one.
     const paths = new Set(
       discovered.worktrees.map((worktree) => worktree.path),
     );
@@ -54,8 +51,6 @@ export class RegisterProject {
         (project) =>
           project.repositoryIdentity === discovered.repositoryIdentity,
       );
-    // A name the owner chose is theirs; a derived one is data, so registering
-    // again picks up a repository that has moved host or folder since.
     const name = previous?.namedByOwner
       ? previous.name
       : deriveProjectName(
@@ -73,9 +68,6 @@ export class RegisterProject {
       available: true,
     };
     this.store.save(project);
-    // The registration itself is the first listing, so the reply already
-    // carries the worktrees and their ids: the sidebar has them without a
-    // second request.
     const listing = await this.directory.list(project, signal);
     return {
       project: { ...project, worktrees: listing.worktrees },

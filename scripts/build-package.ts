@@ -211,7 +211,6 @@ edit it by hand.
 `;
 }
 
-/** Build the ignored, npm-publishable package and return its directory. */
 export async function buildPackage(): Promise<string> {
   const rootPackage = await readJson(join(repositoryRoot, 'package.json'));
   const serverPackage = await readJson(
@@ -238,9 +237,6 @@ export async function buildPackage(): Promise<string> {
   await rm(packageOutput, { recursive: true, force: true });
   await mkdir(packageOutput, { recursive: true });
 
-  // Keep the same `.../web/dist` relative layout as the source launcher. This
-  // lets the bundled runtime resolve its web root from import.meta.url without
-  // consulting the caller's cwd.
   const webOutput = join(packageOutput, 'web/dist');
   const serverOutput = join(packageOutput, 'server/src/cli/main.mjs');
   await buildWeb(webOutput);

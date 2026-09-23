@@ -11,8 +11,6 @@ export function isRepositoryUnavailable(error: unknown): boolean {
   )
     return true;
   if (error instanceof GitCommandError) {
-    // Numeric exit codes mean Git ran but could not inspect this repository.
-    // Missing executables, timeouts and cancellation are environment/operation failures.
     const cause = error.cause;
     return (
       cause instanceof Error &&

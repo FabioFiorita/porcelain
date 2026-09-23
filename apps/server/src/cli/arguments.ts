@@ -15,7 +15,6 @@ const defaultHost = '127.0.0.1';
 const defaultPort = 3000;
 const wildcardHosts = new Set(['0.0.0.0', '::']);
 
-/** Environment variables consumed by the installed and repository launchers. */
 export type ServeEnvironment = {
   PORCELAIN_DATA_DIRECTORY?: string;
   PORCELAIN_HOST?: string;
@@ -49,7 +48,6 @@ export type ServiceSettings = {
 type PairSettings = {
   dataDirectory: string;
   labels: string[];
-  /** Origins the link may point at, given explicitly; nothing is discovered. */
   addresses: string[];
 };
 
@@ -86,7 +84,6 @@ export class ServeConfigurationError extends Error {
   override readonly name = 'ServeConfigurationError';
 }
 
-/** The source and packaged layouts both place the web build beside `server/`. */
 const defaultWebRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../web/dist',
@@ -131,11 +128,6 @@ function parseAbsolutePath(value: string, source: string): string {
   }
 }
 
-/**
- * A pairing link points at an origin the owner names. Nothing is discovered:
- * a wildcard bind is not an advertised URL, and the CLI cannot know which of
- * the LAN, Tailscale or a proxy the device should use.
- */
 function parseOrigin(value: string): string {
   let url: URL;
   try {
@@ -243,9 +235,6 @@ function parseArguments(args: readonly string[]): ServeArguments {
       index = option.nextIndex;
       continue;
     }
-    // Removed with the shared token. Named explicitly rather than falling into
-    // "unknown option", because anyone typing it is following old instructions
-    // and needs to know what replaced it.
     if (argument === '--token-file' || argument?.startsWith('--token-file=')) {
       throw new ServeConfigurationError(
         '--token-file is gone: there is no shared access token. Pair a device with: porcelain pair <name> --address <origin>',
@@ -320,12 +309,6 @@ function dataDirectoryFor(
   return join(homeDirectory, '.porcelain');
 }
 
-/**
- * Parse arguments without reading or writing any state.  The home directory is
- * a required argument rather than a default read here: resolving it is the
- * composition root's job, so nothing below it can reach the real home by
- * forgetting a parameter.
- */
 export function parseCliArguments(
   args: readonly string[],
   environment: ServeEnvironment,
@@ -382,9 +365,6 @@ export function parseCliArguments(
     (environment.PORCELAIN_PORT
       ? parsePort(environment.PORCELAIN_PORT, 'PORCELAIN_PORT')
       : defaultPort);
-  // A name the server was told to listen on is a name it may answer to; a
-  // wildcard is not a name, and the connection's own address is accepted
-  // separately.
   const allowedHosts = [
     ...new Set(
       [...(parsed.host && !wildcardHosts.has(host) ? [host] : [])].concat(

@@ -2,7 +2,6 @@ import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 
 const TERMINAL = 'Run this action from a terminal instead.';
 
-/** Why each unsupported setting blocks an action, keyed by the lowercased name Git lists. */
 function unsupportedSetting(key: string, value: string): string | undefined {
   const name = key.toLowerCase();
   if (/^remote\..*\.(vcs|uploadpack|receivepack)$/.test(name))

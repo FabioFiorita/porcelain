@@ -9,9 +9,7 @@ export interface ReviewedFileStore {
     reviewedAt: string,
   ): ReviewedMark;
   remove(worktreeId: string, path: string): void;
-  /** Conservatively stop the sidebar treating watched content as reviewed. */
   invalidate(worktreeId: string, paths?: readonly string[]): void;
-  /** Reconcile conservative watcher invalidations with a fresh change list. */
   reconcile(
     worktreeId: string,
     fingerprints: ReadonlyMap<string, string | null>,

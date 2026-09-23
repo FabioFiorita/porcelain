@@ -5,13 +5,6 @@ import type { ListReviewedFiles } from './list-reviewed-files.ts';
 import type { ReadWorktreeChanges } from './read-worktree-changes.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
-/**
- * Mark every file the reviewer still sees, from one change read.
- *
- * A fingerprint that no longer matches is reported and left unmarked. The
- * worktree is confirmed once, before any mark is stored, so a checkout that
- * moved rejects the whole request and writes nothing.
- */
 export class SetReviewedFiles {
   private readonly reviewed: ReviewedFileStore;
   private readonly worktrees: ResolveWorktree;

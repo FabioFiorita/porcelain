@@ -1,10 +1,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 const name = 'porcelain_device';
-/** Matches the device credential's own 90-day unused lifetime. */
 const duration = 90 * 24 * 60 * 60;
 
-/** The device credential as the browser holds it: HttpOnly, so no script reads it. */
 export function deviceCookie(request: FastifyRequest): string | null {
   const cookies = (request.headers.cookie ?? '')
     .split(';')
@@ -26,12 +24,6 @@ export function setDeviceCookie(
   );
 }
 
-/**
- * Disconnect takes the browser's credential away. The old token-derived
- * `porcelain_session` cookie is not read anywhere any more, so nothing here
- * looks for it; a browser still holding one simply keeps an inert value until
- * it expires on its own.
- */
 export function clearDeviceCookie(reply: FastifyReply) {
   reply.header(
     'Set-Cookie',

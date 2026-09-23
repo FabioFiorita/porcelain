@@ -7,11 +7,6 @@ import { deriveWorktreeId } from '../models/worktree-id.ts';
 import { InvalidDataDirectoryError } from './errors/invalid-data-directory-error.ts';
 import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 
-/**
- * Each executed statement, for development tooling. The trace hook costs a
- * string conversion per statement, so it is installed only when something
- * already subscribes when the database opens.
- */
 const sqlChannel = channel('porcelain:sql');
 
 export type SqlEvent = { sql: string };
@@ -36,10 +31,6 @@ export function openDatabase(dataDirectory: string) {
     database.exec(
       'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;',
     );
-    // Migration 0004 derives worktree ids in SQL. Registering the derivation
-    // here is what lets that migration rewrite every column and JSON payload
-    // inside its own transaction, rather than recording a schema change and
-    // then rewriting ids in a second pass that a crash could skip.
     database.function(
       'porcelain_worktree_id',
       { deterministic: true },

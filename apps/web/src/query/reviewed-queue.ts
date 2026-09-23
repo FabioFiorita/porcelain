@@ -87,7 +87,6 @@ function enqueueReviewedOperation<T extends ReviewedMarksResponse>(
   const ready = client
     .cancelQueries({ queryKey: context.key, exact: true })
     .then(publish);
-  // Keep newer optimistic intents on top of every confirmed server snapshot.
   const result = current.tail.then(async () => {
     await ready;
     try {

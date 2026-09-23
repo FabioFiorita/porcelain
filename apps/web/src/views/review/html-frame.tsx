@@ -1,11 +1,6 @@
 import { cn } from '@/lib/utils';
 import { useTheme } from '../workspace/theme';
 
-/**
- * Agent HTML is rendered in an opaque-origin sandbox. Scripts can make the
- * report interactive, but without same-origin access it cannot reach this
- * page's storage or review API.
- */
 export function HtmlFrame({
   html,
   title,

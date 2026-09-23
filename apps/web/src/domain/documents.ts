@@ -1,8 +1,4 @@
 import type { CommentAnchor } from './comments';
-/**
- * A document is the stable thing shown in a centre pane. Surface navigation
- * only chooses which documents are available; it never owns the document.
- */
 export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'layer'; layerId: string }
@@ -31,7 +27,6 @@ export function entryKey(ref: DocumentRef): string {
   }
 }
 
-/** Unknown entries are discarded, including obsolete git action tabs. */
 export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry == null || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;

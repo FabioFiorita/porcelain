@@ -1,17 +1,9 @@
 import type { CommitSummary, HeadSnapshot } from '../dtos/commit-history.ts';
 import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
 
-/**
- * One `git log` record, seven NUL-separated fields in this order.
- *
- * The subject is a field of its own rather than the first line of the message,
- * so a commit whose message starts with blank lines needs no guessing, and the
- * decorations come with the commit instead of from a second `for-each-ref`.
- */
 export const COMMIT_FORMAT = '%H%x00%P%x00%an%x00%aI%x00%D%x00%s%x00%b';
 export const COMMIT_FIELDS = 7;
 
-/** A commit, with the decoration kept: HEAD is in it, and `refs` is not. */
 export interface ParsedCommit {
   summary: CommitSummary;
   decoration: string;
@@ -52,19 +44,8 @@ export function parseCommitRecord(fields: readonly string[]): ParsedCommit {
   };
 }
 
-/**
- * Every commit of a `git log -z --format=<COMMIT_FORMAT>` answer.
- *
- * Fields and records are both NUL-delimited, so the whole answer is one flat
- * list of fields read in groups of seven. Nothing here has to unquote a name
- * or find a record boundary in text a commit message could imitate.
- */
 export function parseCommitRecords(output: string): ParsedCommit[] {
   const fields = output.split('\0');
-  // `-z` terminates each record, so splitting leaves exactly one empty field
-  // after the last one. Only that one is dropped: the body is the last field
-  // of a record and is itself empty whenever a commit has no body, so taking
-  // every trailing empty would swallow the final commit.
   if (fields.at(-1) === '' && (fields.length - 1) % COMMIT_FIELDS === 0)
     fields.pop();
   if (fields.length % COMMIT_FIELDS !== 0)
@@ -75,12 +56,6 @@ export function parseCommitRecords(output: string): ParsedCommit[] {
   return commits;
 }
 
-/**
- * Where HEAD is, read from the newest commit's decorations.
- *
- * `git log` already prints them, so asking `symbolic-ref` and `rev-parse` for
- * the same answer would be two more processes saying what this one said.
- */
 export function headFromDecoration(
   oid: string,
   decoration: string,
@@ -94,7 +69,6 @@ export function headFromDecoration(
         head: { kind: 'attached', ref: `refs/heads/${attached[1]}` },
       };
   }
-  // A commit nobody's HEAD points at cannot be the tip of this answer.
   throw new UnsupportedHistoryDataError();
 }
 

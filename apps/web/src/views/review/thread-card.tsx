@@ -104,7 +104,6 @@ function ThreadStarter({ thread }: { thread: CommentThread }) {
   );
 }
 
-/** One message rendered with the project's shadcn message and bubble primitives. */
 function ThreadMessage({
   message,
   wide = false,
@@ -138,7 +137,6 @@ function ThreadMessage({
   );
 }
 
-/** A comment thread used by the Review surface and, when requested, its reveal link. */
 export function ThreadCard({
   thread,
   scope,

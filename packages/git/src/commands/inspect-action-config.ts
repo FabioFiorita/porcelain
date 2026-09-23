@@ -50,20 +50,11 @@ export async function inspectActionConfig(
   return hash.digest('hex');
 }
 
-/**
- * A configured conversion filter only matters where a file is assigned to it.
- * Git LFS, for one, configures its filter for every repository on the machine,
- * so the setting alone must not refuse repositories that store no LFS files.
- * Only what Porcelain takes from the checkout is guarded: fetch and push never
- * convert files, and files a pull, switch or stash brings in go through the
- * owner's filter as they would in a terminal.
- */
 async function rejectAssignedFilters(
   process: GitProcessRunner,
   config: string,
   signal: AbortSignal,
 ): Promise<void> {
-  // Git uses a key's last value, and an empty command disables that step.
   const commands = new Map<string, string>();
   for (const record of config.split('\0')) {
     const separator = record.indexOf('\n');
@@ -77,14 +68,11 @@ async function rejectAssignedFilters(
     if (command && !drivers.has(driver)) drivers.set(driver, key);
   }
   if (!drivers.size) return;
-  // A pathspec cannot name every driver; refuse the rare one it cannot.
   for (const [driver, key] of drivers)
     if (!/^[\w-]+$/.test(driver))
       throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
         detail: `Git config sets \`${key}\`, a filter Porcelain cannot look up by name. Run this action from a terminal instead.`,
       });
-  // An attribute pathspec lists only the assigned tracked files, however large
-  // the checkout. It skips new folders, so new files are checked one by one.
   const tracked = await process.execute(
     [
       'ls-files',
@@ -96,7 +84,6 @@ async function rejectAssignedFilters(
     signal,
   );
   const failure = processFailure(tracked);
-  // So many assigned files that the list outgrew its cap is still an answer.
   if (failure && tracked.failure !== 'output-limit')
     throw new GitActionRejectedError(failure.reason ?? 'GIT_REJECTED');
   let path = tracked.stdout.toString('utf8').split('\0')[0];
@@ -127,7 +114,6 @@ async function rejectAssignedFilters(
   });
 }
 
-/** Each path with its `filter` attribute; check-attr never runs the filter. */
 async function filterAttributes(
   process: GitProcessRunner,
   paths: string,

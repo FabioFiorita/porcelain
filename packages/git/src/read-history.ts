@@ -4,12 +4,6 @@ import { ReadLimitExceededError } from './errors/read-limit-exceeded-error.ts';
 import { UnsupportedHistoryDataError } from './errors/unsupported-history-data-error.ts';
 import { classifyGitFailure, runGitRead } from './run-git.ts';
 
-/**
- * History reads over the one runner: literal pathspecs so a path is never read
- * as a pattern, no signature verification, and strict decoding so unusual or
- * corrupted data fails explicitly rather than arriving as replacement
- * characters. Only the error mapping is history's own.
- */
 export async function readHistory(
   checkout: string,
   args: string[],
@@ -52,25 +46,9 @@ function historyFailure(cause: unknown): unknown {
   }
 }
 
-/**
- * Messages Git uses when the revision it was asked about is simply not there.
- *
- * Narrow on purpose: every other fatal failure — a corrupted config, an
- * unreadable object store — exits 128 too, and answering "no" to those would
- * turn a broken repository into an empty one.
- */
 const UNKNOWN_REVISION =
   /(?:not a valid (?:commit name|object name)|unknown revision|bad revision|ambiguous argument)/iu;
 
-/**
- * A history command whose exit status is its answer rather than a failure.
- *
- * `merge-base --is-ancestor` and `rev-parse --verify --quiet` say no by
- * exiting 1. A commit that has been pruned away answers the same question —
- * the history that held it is gone — but Git reports that as a fatal error, so
- * it is only read as "no" when Git says the revision is unknown and the caller
- * asked about one commit rather than about the repository.
- */
 export async function askHistory(
   checkout: string,
   args: string[],

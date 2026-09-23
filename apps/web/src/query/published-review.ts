@@ -24,7 +24,6 @@ export function usePublishedReview(scope: ReviewScope) {
         );
       return review;
     },
-    // Summary capabilities expire after an hour, even without a file event.
     staleTime: 30 * 60 * 1000,
     refetchInterval: 30 * 60 * 1000,
     refetchOnWindowFocus: true,

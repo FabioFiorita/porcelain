@@ -6,7 +6,6 @@ import { spansLabel } from './patch-focus';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 
-/** Changed lines no review step explains, each diff cut down to those lines. */
 export function UnexplainedDocument({ scope }: { scope: ReviewScope }) {
   const published = usePublishedReview(scope);
   const review = published.data?.active ? published.data : null;

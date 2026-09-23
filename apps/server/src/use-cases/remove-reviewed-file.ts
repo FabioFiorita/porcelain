@@ -18,8 +18,6 @@ export class RemoveReviewedFile {
   }
 
   async execute(worktreeId: string, path: string, signal?: AbortSignal) {
-    // Ask before deleting. Listing asks the same question afterwards, but a
-    // request that answers "not found" must not have changed anything first.
     await this.worktrees.known(worktreeId, signal);
     this.reviewed.remove(worktreeId, path);
     return this.list.execute(worktreeId, signal);

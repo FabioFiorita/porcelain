@@ -1,16 +1,3 @@
-/**
- * Lets identical reads that are already in flight share one answer.
- *
- * The work belongs to the group, not to whichever caller arrived first: it has
- * its own signal, so one caller leaving never cancels the read another is
- * waiting for. Nothing is kept once it settles, so this shares work in
- * progress rather than caching answers.
- *
- * Only callers with the same latency expectation share the same key, so a
- * read nobody is waiting on cannot capture one somebody is: attaching to a
- * slow read would hand its wait to a request that would otherwise have been
- * answered.
- */
 type Group<T> = {
   readonly controller: AbortController;
   readonly result: Promise<T>;
@@ -20,15 +7,10 @@ type Group<T> = {
 export class SharedReads {
   private readonly groups = new Map<string, Group<unknown>>();
 
-  /** How many reads are in flight; for tests and tooling. */
   get size() {
     return this.groups.size;
   }
 
-  /**
-   * `key` must contain every input that can change the answer, and a caller
-   * may only join a group it would be allowed to run itself.
-   */
   run<T>(
     key: string,
     work: (signal: AbortSignal) => Promise<T>,
@@ -64,7 +46,6 @@ export class SharedReads {
   ): Promise<T> {
     const leave = () => {
       group.subscribers -= 1;
-      // The work exists for its callers; with none left it has no reason to run.
       if (group.subscribers === 0) {
         this.groups.delete(key);
         group.controller.abort(

@@ -77,7 +77,6 @@ export interface Application {
       notice: import('@porcelain/contracts/live-updates').LiveNotice,
     ) => void,
   ): LiveConnection;
-  /** Every name quick open can offer, read once per opening. */
   worktreePaths(
     worktreeId: string,
     signal?: AbortSignal,
@@ -104,13 +103,7 @@ export interface Application {
     environmentId: string;
     worktreeId: string;
   }>;
-  /** What changed, with a fingerprint per path and no content. */
   changes(worktreeId: string, signal?: AbortSignal): Promise<ChangeList>;
-  /**
-   * The hunks of the files named, in one Git process per scope. The token is
-   * the one the list was read at: a mismatch is refused rather than answered
-   * against a checkout that has moved on.
-   */
   changeDiffs(
     worktreeId: string,
     expectedStatusToken: string,
@@ -123,7 +116,6 @@ export interface Application {
     statusToken: string;
     diffs: ChangeDiff[];
   }>;
-  /** A range of lines, from the last commit or from the working file. */
   changeLines(
     worktreeId: string,
     range: LineRange,
@@ -165,30 +157,17 @@ export interface Application {
     projectId: string,
     signal?: AbortSignal,
   ): Promise<{ deleted: boolean }>;
-  /** The owner names a project; a name they chose is never derived over. */
   renameProject(
     projectId: string,
     name: string,
     signal?: AbortSignal,
   ): Promise<{ id: string; name: string }>;
-  /**
-   * Record how far the owner has read a worktree's discussion. The revision
-   * comes from what was displayed, so a reply that arrived after the snapshot
-   * stays unseen.
-   */
   markCommentsSeen(
     worktreeId: string,
     throughRevision: number,
     signal?: AbortSignal,
   ): Promise<{ worktreeId: string; seenThrough: number }>;
-  /**
-   * Environment and projects, without touching Git.
-   *
-   * Health and pairing need the environment id on every request; asking Git
-   * for a worktree list to answer that would be absurd.
-   */
   environment(): { environmentId: string; projects: RegisteredProject[] };
-  /** Projects with the worktrees Git lists for them right now. */
   inventory(
     signal?: AbortSignal,
   ): Promise<{ inventory: Inventory; issues: DiscoveryIssue[] }>;
@@ -279,16 +258,10 @@ export interface Application {
     layerId: string,
     signal?: AbortSignal,
   ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
-  /**
-   * Resolve a device credential without touching the database, and move its
-   * last-seen time forward. Returns the device id, or null for every failure
-   * alike so nothing here distinguishes unknown from revoked or dormant.
-   */
   authenticateDevice(
     credential: string,
     address: string | null,
   ): { deviceId: string; idleMs: number } | null;
-  /** Register a held response so revoking the device can cut it. */
   holdForDevice(deviceId: string, connection: { close(): void }): () => void;
   issuePairing(
     labels: readonly string[],
@@ -302,7 +275,6 @@ export interface Application {
     code: string,
     registration: DeviceRegistration,
   ): Promise<RedeemedPairing>;
-  /** Resolves once the first refresh at startup has settled. */
   ready(): Promise<void>;
   close(): Promise<void>;
 }

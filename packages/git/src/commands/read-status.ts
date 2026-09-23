@@ -32,13 +32,6 @@ export async function readStatus(
   return { ...parseGitStatus(output), ...operation };
 }
 
-/**
- * The remote name, source ref and stashes the action UI needs.
- *
- * Two processes that say nothing about what changed, which is why they are not
- * part of reading the list of changes: opening a worktree pays for the list,
- * and only opening the action UI pays for these.
- */
 export async function readBranchDetails(
   session: CheckoutSession,
   branch: string | null,
@@ -119,11 +112,6 @@ export async function readBranchDetails(
   };
 }
 
-/**
- * Hunk and rename discards live under refs/porcelain/discarded, not in the
- * stash list. Each backup's object id is its own, so restoring one does not
- * retire another copy of the same patch.
- */
 async function readDiscarded(
   checkout: string,
   signal?: AbortSignal,
@@ -223,7 +211,6 @@ function describeDiscard(
       };
     }
   } catch {
-    // Older hunk backups are the patch itself.
   }
   const path = pathFromDiff(content);
   return path ? { path, kind: 'hunk' } : null;

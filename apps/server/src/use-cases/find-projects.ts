@@ -65,8 +65,6 @@ export class FindProjects {
 
   async discover(signal?: AbortSignal): Promise<ProjectDiscovery> {
     const roots = new Set([this.home]);
-    // Registered repositories suggest where to look. The common directory is
-    // inside the repository, so its grandparent is the folder that holds it.
     for (const project of this.inventory.read().projects) {
       const parent = dirname(dirname(project.commonDirectory));
       if (parent !== parse(parent).root) roots.add(parent);
@@ -75,7 +73,6 @@ export class FindProjects {
     const visited = new Set<string>();
     const identities = new Set<string>();
     const result: ProjectDiscovery = { repositories: [], limited: false };
-    // Discovery is a nearby-repository suggestion, not an unbounded disk scan.
     for (let index = 0; index < queue.length; index++) {
       signal?.throwIfAborted();
       if (index >= 500 || result.repositories.length >= 50) {

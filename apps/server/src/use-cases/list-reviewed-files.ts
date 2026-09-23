@@ -11,8 +11,6 @@ export class ListReviewedFiles {
   }
 
   async execute(worktreeId: string, signal?: AbortSignal) {
-    // The same question everything else asks, so marks cannot disagree with
-    // comments about whether a worktree is there.
     await this.worktrees.known(worktreeId, signal);
     return { worktreeId, marks: this.reviewed.list(worktreeId) };
   }

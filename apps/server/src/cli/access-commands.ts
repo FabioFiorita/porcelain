@@ -11,11 +11,6 @@ export type Output = {
   stderr: (message: string) => void;
 };
 
-/**
- * The printable values come from a paired device, so bound what reaches the
- * terminal. Validation refuses control characters on the way in; this is the
- * second guard, for rows written before it or by another tool.
- */
 function printable(value: string, limit = 120): string {
   return [...value]
     .map((character) => {
@@ -44,7 +39,6 @@ export async function issuePairings(
   );
   for (const grant of answer.grants) {
     output.stdout(`${printable(grant.label, 80)}\n`);
-    // The link is the secret. It is printed and never written to a file by us.
     output.stdout(`${grant.link}\n`);
     if (withQr) output.stdout(`${await qr(grant.link)}\n`);
     output.stdout(`Expires ${grant.expiresAt}\n\n`);

@@ -33,7 +33,6 @@ function createConnection(environmentId: string): Connection {
   try {
     storage = window.sessionStorage;
   } catch {
-    /* Session storage can be disabled by the browser. */
   }
   return {
     environmentId,
@@ -98,7 +97,6 @@ export function WorkspaceProvider({
     if (!connection) return;
     return connectLiveQueries(api, queryClient, connection);
   }, [api, connection, queryClient]);
-  // Lifecycle identity: every successful connection/disconnect invalidates older attempts.
   const generation = useRef(0);
   const beginConnection = useCallback(
     (automatic = false) => {
@@ -112,9 +110,6 @@ export function WorkspaceProvider({
           queryKeys.inventory(inventory.environmentId),
           inventory,
         );
-        // Login and session restore return the server's stored snapshot
-        // without rescanning. Mark the seed stale so the workspace rescans on
-        // mount; otherwise a page reload can never discover a new worktree.
         void queryClient.invalidateQueries({
           queryKey: queryKeys.inventory(inventory.environmentId),
         });
@@ -155,9 +150,6 @@ export function WorkspaceProvider({
       setDisconnectPending(false);
     }
   }, [api, connection, queryClient]);
-  // Losing access is not a per-view failure: whatever the server refused, the
-  // browser is no longer paired, so the connection ends and everything private
-  // that was loaded under it goes with it.
   useEffect(
     () =>
       onUnauthorized(() => {
@@ -173,7 +165,6 @@ export function WorkspaceProvider({
       }),
     [queryClient],
   );
-  // Restore through the API so private data is never shown before authentication.
   useEffect(() => {
     const complete = beginConnection(true);
     if (!complete) return;
@@ -188,7 +179,6 @@ export function WorkspaceProvider({
         signal.throwIfAborted();
         complete(inventory);
       } catch {
-        // Expired sessions and temporary outages leave manual login available.
       } finally {
         if (!controller.signal.aborted) setRestoring(false);
       }
@@ -196,7 +186,6 @@ export function WorkspaceProvider({
     void restore();
     return () => controller.abort();
   }, [api, beginConnection]);
-  // Stable context identity prevents unrelated provider renders from notifying every hook.
   const value = useMemo(
     () => ({
       api,

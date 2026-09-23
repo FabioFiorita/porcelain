@@ -50,10 +50,6 @@ function readStored(key: string): Stored | null {
   }
 }
 
-/**
- * Per-worktree tabs are local UI state. Active tabs remain in the URL so a
- * reload, deep link, or another pane can reproduce the current document.
- */
 export function useTabLayout({
   worktreeId,
   entry,
@@ -133,7 +129,6 @@ export function useTabLayout({
     try {
       localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
-      // Browser storage can be unavailable in private browsing; the UI still works.
     }
     setStored(next);
   };
@@ -199,7 +194,6 @@ export function useTabLayout({
     try {
       localStorage.setItem(storageKey, JSON.stringify(next));
     } catch {
-      // Browser storage can be unavailable in private browsing; the URL still opens.
     }
     setStored(next);
     pending.current[0] = fallback;

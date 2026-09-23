@@ -5,16 +5,6 @@ import { commentThreads } from '../db/schema/comment-threads.ts';
 import type { WorktreeStatus } from '../models/worktree.ts';
 import type { WorktreeStatusStore } from './interfaces/worktree-status-store.ts';
 
-/**
- * What the sidebar's dot says about each worktree, for all of them at once.
- *
- * One statement, no Git: the whole point of replacing the per-worktree file
- * count is that opening the sidebar costs nothing. That is also why `reviewed`
- * means "everything marked, as of when it was marked" — noticing that the
- * agent has since edited an already-marked file would take a status read per
- * worktree, which is the cost this exists to avoid. The file watcher in step 6
- * is where that signal becomes free.
- */
 export class WorktreeStatusRepository implements WorktreeStatusStore {
   private readonly db: BetterSQLite3Database;
 
@@ -71,19 +61,12 @@ export class WorktreeStatusRepository implements WorktreeStatusStore {
           AND thread.last_agent_revision > coalesce(read.seen_through, 0)
       `,
     );
-    // A reply is addressed to the owner and is newer than the handoff that
-    // published the layers, so it wins the one dot there is.
     for (const row of rows)
       if (row.status === 'replied' || !statuses.has(row.worktree_id))
         statuses.set(row.worktree_id, row.status);
     return statuses;
   }
 
-  /**
-   * Never backwards: an older snapshot cannot un-see a newer reply. Never
-   * further than this worktree has actually got, either — a number from
-   * somewhere else must not blind it to every reply that follows.
-   */
   markSeen(worktreeId: string, throughRevision: number): number {
     return this.db.transaction((tx) => {
       const current =

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-/** The compact, shared heading used by review documents. */
 export function DocumentToolbar({
   title,
   titleLabel,
@@ -10,7 +9,6 @@ export function DocumentToolbar({
   className,
 }: {
   title: ReactNode;
-  /** Names the heading when the title renders as several styled parts. */
   titleLabel?: string;
   subtitle?: ReactNode;
   children?: ReactNode;

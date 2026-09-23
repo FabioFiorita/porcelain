@@ -113,7 +113,6 @@ async function acquireManagementLock(
             if (owner.token === token)
               await rm(lock, { recursive: true, force: true });
           } catch {
-            // A missing or replaced lock no longer belongs to this command.
           }
         };
       } catch (error) {
@@ -129,7 +128,6 @@ async function acquireManagementLock(
             typeof owner.createdAt !== 'number' ||
             !processIsAlive(owner.pid);
         } catch {
-          // Locks from older versions may have crashed before writing ownership.
         }
         if (!stale)
           throw new Error(
@@ -219,7 +217,6 @@ async function readMetadata(path: string): Promise<InstalledMetadata | null> {
     )
       return { version: (value as { version: string }).version };
   } catch {
-    // Missing or invalid metadata is repaired by install/update.
   }
   return null;
 }
@@ -706,7 +703,6 @@ export class PorcelainService {
     await this.#manager.uninstall();
     await rm(this.#paths.runtime, { recursive: true, force: true });
     await rm(this.#paths.metadata, { force: true });
-    // Deliberately retain config, logs, backups, and the data directory.
     return true;
   }
 }

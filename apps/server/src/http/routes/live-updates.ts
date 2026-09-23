@@ -35,8 +35,6 @@ export async function liveUpdateRoutes(
         if (socket.readyState === WebSocket.OPEN)
           socket.send(JSON.stringify(notice));
       });
-      // The HTTP reply closes after upgrade, so the ordinary auth hook's hold
-      // cannot represent this socket. This hold lasts for the socket itself.
       const releaseDevice = options.application.holdForDevice(
         principal.deviceId,
         {

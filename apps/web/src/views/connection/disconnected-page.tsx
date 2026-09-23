@@ -1,13 +1,5 @@
 import type { ReactNode } from 'react';
 
-/**
- * The page frame for every screen shown before this browser has access: the
- * not-paired screen and the pairing link's own page.
- *
- * It exists so those screens are not the only ones in the application without
- * a heading, a gutter or a full-height surface — a pairing link that fails is
- * the first thing a new owner sees.
- */
 export function DisconnectedPage({ children }: { children: ReactNode }) {
   return (
     <>

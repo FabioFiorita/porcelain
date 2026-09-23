@@ -6,18 +6,10 @@ import type { ResolveWorktree } from '../resolve-worktree.ts';
 
 export type FakeWorktree = Partial<ResolvedWorktree> & { path: string };
 
-/**
- * A resolver over a fixed list, for tests that are about something other than
- * resolution. It answers exactly as the real one does — including refusing an
- * unreachable worktree with the error the routes map to 422 — so a spec cannot
- * pass against a resolver that is more permissive than production.
- */
 export function fakeWorktrees(
   worktrees: FakeWorktree[] | (() => FakeWorktree[]),
   options: { projectAvailable?: boolean | (() => boolean) } = {},
 ): ResolveWorktree {
-  // A function lets a test change what Git lists between two calls, which is
-  // how a checkout swapped mid-request is expressed.
   const current = () =>
     (typeof worktrees === 'function' ? worktrees() : worktrees).map(
       (worktree, index) => resolve(worktree, index),

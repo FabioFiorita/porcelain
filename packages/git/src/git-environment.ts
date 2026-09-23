@@ -1,8 +1,3 @@
-/**
- * Both modes of the runner start from the caller's environment with every
- * `GIT_*` variable that changes what Git reads removed, so a variable set for
- * the agent's own Git can never redirect Porcelain's.
- */
 export function baseGitEnvironment(): NodeJS.ProcessEnv {
   return {
     ...Object.fromEntries(

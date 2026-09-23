@@ -86,7 +86,6 @@ const message = z.strictObject({
   id: z.uuid(),
   body,
   author: commentAuthorSchema,
-  // Legacy messages have no timestamp. New messages are stamped by the server.
   createdAt: commentTimestampSchema,
 });
 export const commentThreadSchema = z.strictObject({
@@ -95,10 +94,6 @@ export const commentThreadSchema = z.strictObject({
   anchor: commentAnchorSchema,
   resolved: z.boolean(),
   messages: z.array(message).min(1),
-  /**
-   * Rises with every write to this thread. The reader sends back the highest
-   * one it displayed to say what it has actually seen.
-   */
   revision: z.number().int().nonnegative(),
 });
 export const commentThreadsSchema = z.array(commentThreadSchema);

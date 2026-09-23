@@ -179,7 +179,6 @@
   display: block;
 }
 
-/* A single material for workspace chrome; reading surfaces stay opaque. */
 :root {
   --workspace-stage: var(--muted);
   --workspace-selected: var(--background);

@@ -1,25 +1,11 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-/**
- * The address to pair against, which is the one this page was served from.
- *
- * Pairing refuses a link aimed anywhere the server does not answer, and the
- * origin in the address bar is by construction one that it does: the browser
- * is reading this page through it. So the command below is correct for
- * whatever port, LAN address or Tailscale name the owner is actually using,
- * without the server having to discover its own interfaces.
- */
 function pairingAddress() {
   return typeof window === 'undefined'
     ? 'http://127.0.0.1:3000'
     : window.location.origin;
 }
 
-/**
- * What the owner sees when this browser has no credential: there is nothing to
- * type. Access arrives as a link the owner opens on this device, so the screen
- * says how to make one rather than offering a field to paste a secret into.
- */
 export function NotPaired({ reason }: { reason?: string }) {
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-6">

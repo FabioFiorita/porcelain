@@ -37,19 +37,13 @@ export function ReviewCodeDocument({
   scope: ReviewScope;
   paths?: readonly string[];
   files?: readonly { path: string; note?: string }[];
-  /** New-side line ranges. A textual diff is cut down to the lines near them. */
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
   header?: () => ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
-  // An omitted selection means the complete handoff. Selected views filter by
-  // logical path, and every comparison of a selected path is kept (including
-  // a staged and an unstaged change to the same file).
   const items = orderReviewChanges(useReviewChanges(scope, paths), files);
   const statusToken = items[0]?.statusToken ?? '';
-  // The server re-establishes these before it answers, so what the reader is
-  // shown cannot be newer than the fingerprint the mark beside it carries.
   const diffs = useChangeDiffs(
     scope,
     statusToken,
@@ -181,7 +175,6 @@ export function ReviewCodeDocument({
 
 const focusedPatches = new WeakMap<object, Map<string, DiffContent>>();
 
-/** A fresh object would reparse the patch on every render, so the cut is cached on the source. */
 function focusedDiff(
   content: DiffContent | undefined,
   spans: readonly LineSpan[] | undefined,
@@ -201,7 +194,6 @@ function focusedDiff(
   return next;
 }
 
-/** Only a tracked comparison has hunks to ask for. */
 function selectionOf(change: Change): ChangeSelection[] {
   return change.scope === 'staged' || change.scope === 'unstaged'
     ? [
@@ -214,10 +206,6 @@ function selectionOf(change: Change): ChangeSelection[] {
     : [];
 }
 
-/**
- * Hunks arrive after the list of files does, so the document says where it is
- * rather than painting as if there were nothing to show.
- */
 function ContentState({
   failed,
   retry,

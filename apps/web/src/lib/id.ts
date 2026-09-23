@@ -1,10 +1,3 @@
-/**
- * Create an identifier on both secure and plain HTTP origins.
- *
- * Browsers expose `crypto.randomUUID` only in secure contexts (plus
- * localhost). Porcelain is also served over a LAN or tailnet, where
- * `getRandomValues` remains available but `randomUUID` may not be.
- */
 export function createId(): string {
   const webCrypto = globalThis.crypto;
   if (typeof webCrypto?.randomUUID === 'function')

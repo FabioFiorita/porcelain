@@ -22,12 +22,6 @@ export class CommitGit implements CommitReader {
   readCommitFiles(request: CommitFilesRequest, signal?: AbortSignal) {
     return readCommitFiles(this.checkout, request, signal);
   }
-  /**
-   * The patches, in one process, against the same parent the file list used.
-   * Which commit is being compared is named by the request; which parent it is
-   * compared with is Git's own revision syntax, so no base has to be looked up
-   * and no caller can point this at a comparison the list did not come from.
-   */
   async readCommitDiffs(request: CommitDiffsRequest, signal?: AbortSignal) {
     const parent = request.parent ?? 1;
     if (
@@ -48,11 +42,6 @@ export class CommitGit implements CommitReader {
     );
   }
 
-  /**
-   * A read whose result does not leave until the checkout it came from is
-   * confirmed to still be the one this request was authorised for. The
-   * confirmation costs no Git process, so it runs on both sides of the read.
-   */
   private async guarded<T>(read: () => Promise<T>): Promise<T> {
     await confirmHistoryCheckout(this.checkout);
     const result = await read();

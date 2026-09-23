@@ -1,9 +1,5 @@
 import { runInspection } from '../read-inspection.ts';
 
-/**
- * Top-level ignored files and collapsed ignored directories for a recursive
- * watcher. Git applies repository, global and worktree exclude rules here.
- */
 export async function listIgnoredPaths(
   checkout: string,
   signal?: AbortSignal,

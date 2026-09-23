@@ -63,8 +63,6 @@ export function PierreFileTree({
   onOpenDiff: (path: string) => void;
   onSetHidden: (path: string, hidden: boolean) => void;
 }) {
-  // The tree model keeps the callbacks it was built with, so they read the
-  // current props through this ref instead of rebuilding the model.
   const current = {
     paths,
     links,
@@ -274,7 +272,6 @@ export function PierreFileTree({
           target.hasAttribute('data-item-rename-input'),
       );
     if (input?.value !== entryName(pending.path)) return;
-    // Pierre omits onRename when the submitted name is unchanged.
     pendingCreate.current = null;
     void latest.current
       .onCreate(pending.path, pending.kind)

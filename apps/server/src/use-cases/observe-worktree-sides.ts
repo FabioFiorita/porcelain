@@ -3,15 +3,6 @@ import type { InspectionReader } from '@porcelain/git/interfaces/inspection-fact
 import type { WorktreeFiles } from '../filesystem/interfaces/worktree-files.ts';
 import type { WorktreeSide } from './fingerprint-change.ts';
 
-/**
- * The working side of every change that has one.
- *
- * Ordinary paths are read from the filesystem, so a filename Git would have to
- * quote is no different from any other and no Git process is spent. Symlinks
- * are answered from their own target text and never followed. A submodule is a
- * directory, so nothing here can digest it: where it points is asked of Git,
- * and only when a pointer has actually moved.
- */
 export async function observeWorktreeSides(
   reader: InspectionReader,
   files: WorktreeFiles,
@@ -56,7 +47,6 @@ export async function observeWorktreeSides(
   return { sides, stamps };
 }
 
-/** One fingerprint per logical path, over every comparison of that path. */
 export function logicalPath(change: GitChange) {
   if ('path' in change) return change.path;
   return change.newPath ?? change.oldPath ?? '';
@@ -69,11 +59,6 @@ const scopeOrder = {
   unmerged: 3,
 } as const;
 
-/**
- * The canonical order of a path's comparisons. A fingerprint is taken over
- * this order, so anything that re-establishes one has to use it too or it
- * would refuse a file that had not changed at all.
- */
 export function orderComparisons(comparisons: readonly GitChange[]) {
   return comparisons.toSorted((left, right) => {
     const difference = scopeOrder[left.scope] - scopeOrder[right.scope];

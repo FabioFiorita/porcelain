@@ -279,11 +279,6 @@ function WorkspaceDocument({
   );
 }
 
-/**
- * Where to land when nothing is selected: the first worktree with something
- * waiting. The dot already says which those are, so this costs no request —
- * and a worktree whose files are all marked is not waiting for anyone.
- */
 function firstWaitingWorktree(inventory: ReturnType<typeof useInventory>) {
   const worktrees = inventory.projects.flatMap((project) => project.worktrees);
   return (

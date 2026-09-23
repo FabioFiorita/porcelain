@@ -66,7 +66,6 @@ import {
 
 type NetworkAction = 'fetch' | 'pull' | 'push';
 
-/** Fetch, pull and push use the branch the reviewer is already looking at. */
 function networkInput(
   action: NetworkAction,
   branch: Status['branch'],
@@ -116,10 +115,6 @@ const plural = (count: number, noun: string) =>
 const networkLabel = (action: NetworkAction) =>
   action === 'fetch' ? 'Fetching' : action === 'pull' ? 'Pulling' : 'Pushing';
 
-/**
- * Git actions stay attached to the document tabs. The first half is the
- * likely next action; the chevron keeps every current API action discoverable.
- */
 export function GitButton({ scope }: { scope: ReviewScope }) {
   const overview = useReviewOverview(scope);
   const [detailsEnabled, setDetailsEnabled] = useState(false);
@@ -138,7 +133,6 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
     null,
   );
   if (overview == null) return null;
-  // What an action needs to be decided; the panel reads the rest when it opens.
   const status = {
     statusToken: overview.changes.statusToken,
     inProgress: overview.changes.inProgress,

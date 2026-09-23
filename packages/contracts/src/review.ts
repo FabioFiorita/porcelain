@@ -18,7 +18,6 @@ export const codePointerInputSchema = z
   });
 
 export const codePointerSchema = codePointerInputSchema.safeExtend({
-  /** SHA-256 of the exact UTF-8 lines captured when the review was published. */
   textFingerprint: fingerprintSchema,
 });
 
@@ -183,7 +182,6 @@ export const reviewResponseSchema = z.strictObject({
   revision: z.number().int().positive(),
   publishedAt: z.string().datetime(),
   active: z.boolean(),
-  /** Git-derived coverage is best effort and never blocks the stored publication. */
   diagnostics: z.enum(['current', 'unavailable']),
   summary: z.strictObject({
     url: z.string().min(1),

@@ -9,8 +9,6 @@ const migrationConfig = {
   migrationsFolder: fileURLToPath(new URL('../../drizzle/', import.meta.url)),
 };
 
-// Drizzle applies migrations after the latest recorded timestamp. Check the full
-// prefix first so newer or divergent histories cannot silently skip our schema.
 export function assertMigrationHistory(database: Database.Database) {
   const tables = database
     .prepare<[], { name: string }>(

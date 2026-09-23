@@ -126,7 +126,6 @@ export function ReviewWorkspace({
   );
   const setSurface = useCallback(
     (next: Surface) => {
-      // Documents span surfaces. Switching the index must not erase the open tab.
       void navigate({
         search: (previous) => ({ ...previous, surface: next }),
       });

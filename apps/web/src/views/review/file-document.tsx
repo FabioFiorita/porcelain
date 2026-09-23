@@ -41,11 +41,6 @@ export function FileDocument(props: {
   );
 }
 
-/**
- * What a path is comes from its own folder rather than from a listing of the
- * whole worktree: a link is not followed and a submodule is not opened, and
- * knowing that should not cost a walk of everything else.
- */
 function LinkedFileDocument(props: {
   scope: ReviewScope;
   path: string;

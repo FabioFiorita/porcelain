@@ -5,19 +5,11 @@ export type CommitSummary = CommitPageResponse['commits'][number];
 
 export type GraphRow = {
   commit: CommitSummary;
-  /** Lane the commit's node occupies. */
   lane: number;
-  /** Lanes carrying edges away from this row, one per parent. */
   outgoing: number[];
-  /** Commit each lane is waiting for after this row. */
   lanesAfter: (string | null)[];
 };
 
-/**
- * Lay out the loaded commits like `git log --graph`: keep a lane for every
- * parent still waiting to appear and reuse lanes once a branch is consumed.
- * Parent OIDs are enough to show merges even though the API has no ref list.
- */
 export function layoutGraph(commits: readonly CommitSummary[]): GraphRow[] {
   const lanes: (string | null)[] = [];
   const rows: GraphRow[] = [];
@@ -53,12 +45,10 @@ export function shortOid(oid: string) {
   return oid.slice(0, 7);
 }
 
-/** Remove transport-only ref prefixes while retaining remote ownership. */
 export function historyRefLabel(ref: string) {
   return ref.replace(/^refs\/(?:heads|remotes|tags)\//u, '');
 }
 
-/** Format a one-based parent number for merge comparisons. */
 export function ordinal(n: number) {
   const tens = n % 100;
   const suffix =
@@ -68,10 +58,6 @@ export function ordinal(n: number) {
   return `${n}${suffix}`;
 }
 
-/**
- * The history endpoint follows the checked-out branch in its snapshot. Only a
- * page read from the top carries one, which is the page this always has.
- */
 export function historyFollows(
   snapshot: CommitPageResponse['snapshot'],
 ): string {

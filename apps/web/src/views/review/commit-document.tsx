@@ -19,18 +19,8 @@ import { commitEntry } from './diff-entries';
 import { useDocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
 
-/**
- * How many files' patches are read at a time, extended by the control at the
- * foot of the document.
- *
- * One batch is one Git process and one response; a batch that exceeds the
- * reader's size limit marks every file in it unavailable rather than only the
- * file that was too large, which is why it is a good deal smaller than a page
- * of file names.
- */
 const SHOWN_STEP = 25;
 
-/** A file is named by both its sides, so a rename is one diff, not two. */
 const pathList = (file: CommitFile) => [
   ...new Set([file.oldPath, file.newPath].filter((path) => path !== null)),
 ];
@@ -43,8 +33,6 @@ export function CommitDocument({
   scope: ReviewScope;
   oid: string;
 }) {
-  // A merge can be read against any of its parents; all other commits only
-  // have the first parent (or the empty tree for a root commit).
   const { reveal } = useDocumentInteraction();
   const requestedParent =
     reveal?.anchor.comparison?.kind === 'commit'
@@ -60,11 +48,6 @@ export function CommitDocument({
       : requestedParent;
   const [, startTransition] = useTransition();
   const commit = useCommit(scope, oid, parent);
-  // Patches are read for the files that have been reached, not for the whole
-  // commit: a commit touching thousands of files opens as fast as one file.
-  // A new commit, or a new comparison, starts the window again. Derived while
-  // rendering rather than reset in an effect: an effect would fire inside the
-  // transition that changes the parent and undo it.
   const [window, setWindow] = useState({
     of: `${oid}:${parent}`,
     shown: SHOWN_STEP,
@@ -118,7 +101,6 @@ export function CommitDocument({
             subtitle={`${commit.files.length} file${commit.files.length === 1 ? '' : 's'} changed`}
           >
             {commit.commit.parentOids.length > 1 && (
-              // Keep the current diff visible while the other parent is loading.
               <Tabs
                 value={String(parent)}
                 onValueChange={(value) =>
@@ -171,8 +153,6 @@ export function CommitDocument({
         )}
       />
       {more > 0 && (
-        // A commit with more files than this has been read so far. Reading
-        // them all at once is what used to make large commits unopenable.
         <div className="border-t px-4 py-3 text-center">
           <Button
             variant="outline"

@@ -11,8 +11,6 @@ export async function removeAppliedStash(
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
   const result = { stashOid, stashRetained: true };
-  // Git has no atomic delete-by-OID for a stash reflog. Revalidate immediately;
-  // trusted external writers must remain paused through this multi-step operation.
   const current = await readActionCommand(
     process,
     ['stash', 'list', '--format=%H%x00%gd%x00%gs'],

@@ -1,33 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { GitChange } from '@porcelain/git/dtos/git-status';
 
-/**
- * What a reviewer is saying they read, in a form that cannot miss an edit.
- *
- * One fingerprint per path, over every comparison of it, because a file can be
- * staged and edited again: a fingerprint over one side would let the other be
- * marked unseen. Modes are in it too — `100644` to `100755` is a real change
- * that leaves the bytes alone.
- *
- * What each side is:
- *
- * - an index or HEAD object id, which Git printed in the status;
- * - for a working file, a digest of its bytes, read without following links;
- * - for a symlink, its literal target, never the content it points at;
- * - for a submodule, the recorded commit on each side. What changed *inside*
- *   it is not part of the parent's review, and the status deliberately does
- *   not look.
- *
- * `null` means "not markable": the content could not be established at all.
- * Binary files are not in that group — they have a digest like anything else,
- * and an image edit has to be reviewable.
- */
 export type WorktreeSide = {
-  /** A digest of the working file's bytes, when it could be read. */
   digest?: string | undefined;
-  /** The literal target of a symlink, hashed instead of its content. */
   symlink?: string | undefined;
-  /** Where a changed submodule currently points. */
   submodule?: string | undefined;
 };
 
@@ -73,12 +49,10 @@ function side(
     newMode: comparison.newMode,
     oldOid: comparison.oldOid,
   };
-  // The staged side is whole: Git recorded both objects.
   if (comparison.scope === 'staged')
     return comparison.newOid === null && comparison.kind !== 'deleted'
       ? null
       : { ...base, newOid: comparison.newOid };
-  // The unstaged side ends at the working path, which the caller established.
   if (comparison.kind === 'deleted') return { ...base, newOid: null };
   const observed = comparison.newPath
     ? worktree(comparison.newPath)

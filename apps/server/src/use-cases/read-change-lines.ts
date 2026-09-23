@@ -7,19 +7,8 @@ import { resolveCheckoutSession } from './resolve-inspection-worktree.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 import { validateFilePath } from './validate-file-path.ts';
 
-/** A snippet is context beside a review; a whole file is the Files surface. */
 const MAX_LINES = 2000;
 
-/**
- * A range of lines, for the context a behaviour review shows beside a step.
- *
- * `at: 'head'` asks Git, always: the file on disk is neither the revision that
- * was asked for nor byte-identical to it under end-of-line rules. `at:
- * 'worktree'` reads the working file through the same no-follow boundary every
- * other file read uses — a lexically valid path is not a safe one, because its
- * last component or any ancestor can be a symlink pointing out of the
- * checkout. It costs no Git process.
- */
 export class ReadChangeLines {
   private readonly store: InventoryStore;
   private readonly worktrees: ResolveWorktree;
@@ -68,12 +57,8 @@ export class ReadChangeLines {
             )
           ).text.split('\n');
     signal?.throwIfAborted();
-    // About to leave the process: identity is confirmed from the filesystem.
     await this.worktrees.reachable(worktreeId, signal);
-    // A file ending in a newline has that many lines, not one more: the empty
-    // string after the last separator is not a line anybody wrote.
     if (all.length > 1 && all.at(-1) === '') all.pop();
-    // One-based and inclusive, as a reviewer counts lines.
     const last = Math.min(all.length, to);
     return {
       environmentId,

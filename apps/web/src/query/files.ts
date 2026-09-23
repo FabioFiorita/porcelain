@@ -11,15 +11,6 @@ import { useConnectedContext } from './workspace-provider';
 
 const parentOf = (path: string) => path.split('/').slice(0, -1).join('/');
 
-/**
- * What an edit actually changed, and nothing else.
- *
- * Saving used to invalidate every query of the worktree — diffs, layers,
- * comments, history, artifacts — none of which a file edit says anything
- * about. Each operation now names its own: the folders whose contents moved,
- * the text that is no longer what it was, and the change list, which is the
- * one shared answer an edit really does change.
- */
 async function reload(
   client: ReturnType<typeof useQueryClient>,
   environmentId: string,
@@ -40,14 +31,10 @@ async function reload(
     dropped.push(key(['text', input.path]));
   }
   if (input.kind === 'move') {
-    // A move inside one folder names it twice; asking for it twice would
-    // read it twice.
     want(['directory', parentOf(input.path)]);
     want(['directory', parentOf(input.destination)]);
     dropped.push(key(['text', input.path]));
   }
-  // Quick open's name list is no longer the truth after a create, move or
-  // trash; a write leaves it alone.
   if (input.kind !== 'write') want(['paths']);
   for (const queryKey of dropped)
     client.removeQueries({ queryKey, exact: true });
@@ -58,12 +45,6 @@ async function reload(
   );
 }
 
-/**
- * A draft is kept against the path it was opened at. After a move or a trash
- * that path no longer holds that file, so the retained draft has to go with
- * it — otherwise reopening the old name, or recreating it, hands back an
- * editor holding someone else's text.
- */
 function releaseDrafts(
   connection: object,
   scope: ReviewScope,
@@ -81,7 +62,6 @@ function releaseDrafts(
       continue;
     const draft = retained.get(key);
     retained.delete(key);
-    // A move keeps the text under its new name; a trash keeps nothing.
     if (draft && moved !== null)
       retained.set(
         `${prefix}${moved}${key.slice(`${prefix}${input.path}`.length)}`,

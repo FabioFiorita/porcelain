@@ -19,7 +19,6 @@ export type Preferences = {
   htmlDefault: 'preview' | 'source';
 };
 
-/** Preferences are deliberately device-local until the server exposes a contract. */
 const PREFERENCES_STORAGE_KEY = 'porcelain.prototype.preferences';
 
 const DEFAULT_PREFERENCES: Preferences = {
@@ -121,10 +120,6 @@ type PreferencesContext = {
 
 const Context = createContext<PreferencesContext | null>(null);
 
-/**
- * The server owns sessions, projects and review data. These display defaults
- * intentionally stay in localStorage and never become network requests.
- */
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState<Preferences>(readPreferences);
   const systemDark = useSyncExternalStore(
@@ -147,7 +142,6 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         JSON.stringify(preferences),
       );
     } catch {
-      // Private browsing can deny storage; the current session still works.
     }
   }, [preferences]);
 

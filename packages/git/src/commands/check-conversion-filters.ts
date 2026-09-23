@@ -29,7 +29,6 @@ async function checkConversionFilters(
     : await runInspection(checkout, ['ls-files', '-z'], signal, {
         maxBytes: 8 * 1024 * 1024,
       });
-  // check-attr does not run conversion drivers. stdin preserves filename bytes.
   const attributes = await runInspection(
     checkout,
     ['check-attr', '-z', '--stdin', 'filter'],
@@ -38,8 +37,6 @@ async function checkConversionFilters(
   );
   const fields = attributes.toString('utf8').split('\0');
   const assigned = fields.filter((_, index) => index % 3 === 2);
-  // A presently unconfigured assignment is also unsupported: its command can
-  // be configured between this check and Git's working-file conversion.
   if (
     assigned.some(
       (driver) =>
@@ -48,10 +45,6 @@ async function checkConversionFilters(
     )
   )
     throw new UnsupportedGitFiltersError();
-  // Disable discovered commands so an attributes edit cannot launch a known
-  // driver between validation and inspection.
-  // Attribute-state markers can also be literal driver names. Disable those
-  // possible names too, before a concurrent configuration edit.
   return [...new Set([...drivers, ...assigned])].flatMap((driver) =>
     ['clean', 'smudge', 'process'].map(
       (operation) => `filter.${driver}.${operation}=`,
@@ -59,15 +52,6 @@ async function checkConversionFilters(
   );
 }
 
-/**
- * The request's conversion-filter answer. The check scans every tracked file,
- * so it runs once per request rather than before and after each read.
- *
- * The answer is not reused on the next request. A remembered "no filters"
- * result would be permission to run a filter configured in between, and the
- * sources that can add one include global and system Git config, which the
- * worktree watcher does not see.
- */
 export function sessionConversionFilters(
   session: CheckoutSession,
   signal?: AbortSignal,

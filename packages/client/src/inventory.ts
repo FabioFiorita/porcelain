@@ -50,7 +50,6 @@ export async function readInventory(options: {
   }
 }
 
-/** Register a repository path on the machine running the Porcelain server. */
 export async function registerProject(
   options: InventoryRequest & { path: string },
 ) {
@@ -148,7 +147,6 @@ async function readProjectLocation<T>(
   }
 }
 
-/** Name a project. The name is a label; nothing looks a project up by it. */
 export async function renameProject(
   options: InventoryRequest & { projectId: string; name: string },
 ) {

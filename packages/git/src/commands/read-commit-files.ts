@@ -26,23 +26,8 @@ const statuses = {
   T: 'type-changed',
 } as const;
 
-/**
- * A file list this large is a vendored drop rather than a commit anybody
- * reviews, and it is refused rather than truncated: a list that silently stops
- * would hide files that are in the commit.
- */
 const MAX_COMMIT_FILES = 10_000;
 
-/**
- * What a commit changed, in one Git process: its own details and the names of
- * the files, without a single patch.
- *
- * The patches follow one at a time, as they are needed, through the same
- * reader the worktree uses. That is what lets a commit touching a thousand
- * files open as quickly as one touching three — the old read returned every
- * patch at once and refused above a megabyte, so the largest commits, the ones
- * most worth opening carefully, were the ones that could not be opened.
- */
 export async function readCommitFiles(
   checkout: HistoryCheckout,
   request: CommitFilesRequest,
@@ -62,10 +47,6 @@ export async function readCommitFiles(
         '--raw',
         '-z',
         ...DIFF_FLAGS,
-        // A merge prints no file list at all unless it is told which side to
-        // compare against, so it would otherwise open showing nothing changed.
-        // `separate` prints one list per parent, which cannot be told apart
-        // here, so anything but the first parent is read on its own below.
         `--diff-merges=${parent === 1 ? 'first-parent' : 'off'}`,
         `--format=${COMMIT_FORMAT}`,
         request.oid,
@@ -76,22 +57,15 @@ export async function readCommitFiles(
   ).split('\0');
   const commit = parseCommitRecord(fields.slice(0, COMMIT_FIELDS)).summary;
   const parentOid = commit.parentOids[parent - 1] ?? null;
-  // Naming a parent the commit does not have is a request about a comparison
-  // that does not exist. Not naming one is a request for "however this commit
-  // is usually read", which a first commit answers with the empty tree.
   if (request.parent !== undefined && parentOid === null)
     throw new InvalidHistoryRequestError();
   if (parent > 1 && parentOid === null) throw new InvalidHistoryRequestError();
-  // Every read finishes first. Confirming before the second one would leave a
-  // window the confirmation is there to close, and a value awaited inside the
-  // returned object is read after anything written above it.
   const files =
     parent === 1
       ? parseFiles(fields.slice(COMMIT_FIELDS))
       : parseFiles(
           await readAgainstParent(checkout, parentOid, request.oid, signal),
         );
-  // Confirmed before the answer leaves, as every read here is.
   await confirmHistoryCheckout(checkout, signal);
   return {
     commit,
@@ -110,10 +84,6 @@ const DIFF_FLAGS = [
   '--find-renames=50%',
 ];
 
-/**
- * The file list against a parent other than the first, which is the one case
- * `show` cannot answer in the same process as the commit's own details.
- */
 async function readAgainstParent(
   checkout: HistoryCheckout,
   parentOid: string | null,
@@ -139,15 +109,9 @@ async function readAgainstParent(
   return output.split('\0');
 }
 
-/**
- * The `--raw -z` entries that follow the commit's own fields:
- * `:<oldmode> <newmode> <oldoid> <newoid> <status>\0<path>\0`, with a second
- * path for a rename.
- */
 function parseFiles(fields: readonly string[]): CommitFile[] {
   const files: CommitFile[] = [];
   let at = 0;
-  // `show` separates the commit's fields from the raw entries with a newline.
   const meta = () => (fields[at] ?? '').replace(/^\n/u, '');
   while (at < fields.length && meta().startsWith(':')) {
     const header = meta().match(

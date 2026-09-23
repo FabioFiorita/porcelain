@@ -16,7 +16,6 @@ export function validateRemoteProfile(url: string): string {
       throw new Error('Unsupported remote');
     return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
   } catch (cause) {
-    // The URL is not repeated: an unsupported one may hold a password.
     throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
       cause,
       detail:

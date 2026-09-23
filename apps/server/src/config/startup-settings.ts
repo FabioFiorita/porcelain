@@ -4,19 +4,13 @@ import { absolutePathSchema, listenHostSchema } from './server-settings.ts';
 
 export const startupSettingsSchema = z.object({
   dataDirectory: absolutePathSchema,
-  /** Where project discovery and folder browsing start. */
   projectHome: absolutePathSchema,
   port: z.number().int().min(0).max(65535),
   host: listenHostSchema.default('127.0.0.1'),
   webRoot: absolutePathSchema.optional(),
-  /** Host names this server answers to beyond loopback and its own address. */
   allowedHosts: z.array(listenHostSchema).default([]),
 });
 
-/**
- * The raw development entry point is a composition root, so it is one of the
- * few places allowed to resolve a default home directory.
- */
 export function readStartupSettings(environment: NodeJS.ProcessEnv) {
   return startupSettingsSchema.parse({
     dataDirectory: environment.PORCELAIN_DATA_DIRECTORY,

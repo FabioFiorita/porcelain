@@ -20,7 +20,6 @@ export function diffEntry(
   content: DiffContent,
 ): CodeEntry | null {
   if (content.kind === 'binary' || content.kind === 'omitted') return null;
-  // The query keeps its content objects across renders and unchanged refetches.
   let parsed = parsedDiffs.get(content);
   if (!parsed) {
     const version = contentVersion(content.patch);
@@ -62,19 +61,11 @@ export function fileEntry(
   };
 }
 
-/**
- * Turn a textual commit patch into the same Pierre entry used by review diffs.
- *
- * The patch arrives separately from the file it belongs to, so a file whose
- * patch has not been read yet has no entry rather than an empty one.
- */
 export function commitEntry(
   oid: string,
   file: CommitFile,
   content: DiffContent | undefined,
 ): CodeEntry | null {
-  // A gitlink's patch is two lines naming commits in another repository, not
-  // code, and Pierre has nothing useful to draw for it.
   if (file.oldMode === '160000' || file.newMode === '160000') return null;
   if (content?.kind !== 'text') return null;
   const path = file.newPath ?? file.oldPath ?? '';

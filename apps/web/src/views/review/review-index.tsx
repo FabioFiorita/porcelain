@@ -52,7 +52,6 @@ type Props = {
 const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
 
-/** The Review surface: layers in reading order, changed files, and comments. */
 export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReview(scope);
@@ -305,14 +304,6 @@ function CommentsView({
   const empty =
     filter === 'open' ? 'No open comments yet.' : 'Nothing resolved yet.';
 
-  // Reading the discussion is what clears the dot — not fetching it, which
-  // happens on mount and from every code document.
-  //
-  // The acknowledgement is one number per worktree, so it can only be moved
-  // once *everything* below it has been on screen: acknowledging the newest
-  // open thread would otherwise bury an older unread reply sitting in the
-  // resolved list. Both filters therefore have to have been shown for this
-  // same set of threads, and a set that changes starts the proof again.
   const snapshot = threads
     .map((thread) => `${thread.id}:${thread.revision}`)
     .sort()

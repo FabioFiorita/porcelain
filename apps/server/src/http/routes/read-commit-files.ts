@@ -14,11 +14,6 @@ import {
 } from '../mappers/history-response.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 
-/**
- * A commit's files, and then its patches. The list carries no patches at all,
- * so the size of a commit decides how long its list is, not whether it can be
- * opened.
- */
 export function readCommitFiles(
   server: FastifyInstance,
   options: { application: Application },
@@ -50,8 +45,6 @@ export function readCommitFiles(
   api.post(
     '/worktrees/:worktreeId/commits/:oid/diffs',
     {
-      // A read with a body: it names the files wanted, and a rename names two
-      // paths, which a query string cannot carry without quoting rules.
       schema: {
         params: commitFilesParamsSchema,
         body: commitDiffsRequestSchema,

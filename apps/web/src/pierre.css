@@ -1,7 +1,3 @@
-/*
- * Pierre's file-type icons render outside the FileTree shadow root. Keep their
- * palette here so review rows and the Files surface resolve the same icons.
- */
 .pierre-file-icon {
   color-scheme: light;
   color: var(--muted-foreground);

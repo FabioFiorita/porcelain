@@ -1,11 +1,5 @@
 import { extname } from 'node:path';
 
-/**
- * What a preview may load. An extension that is not here is not readable
- * through either asset route, whatever the path: it is what keeps `.env`,
- * `.pem` and anything else unrecognised out of a preview even when it sits
- * beside the document.
- */
 const mediaTypes: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',

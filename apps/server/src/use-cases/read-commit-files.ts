@@ -7,14 +7,6 @@ import type { InventoryStore } from '../repositories/interfaces/inventory-store.
 import { resolveHistoryCheckout } from './resolve-history-checkout.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
-/**
- * Opening a commit, and then its patches one batch at a time.
- *
- * Two reads rather than one because they are wanted at different moments: the
- * list as soon as the commit opens, a patch when it comes into view. A commit
- * cannot change, so the second read needs nothing from the first to know it is
- * looking at the same thing.
- */
 export class ReadCommitFiles {
   private readonly store: InventoryStore;
   private readonly worktrees: ResolveWorktree;

@@ -13,9 +13,6 @@ import { WorkspacePending } from '../views/workspace/workspace-pending';
 import { WorkspaceView } from '../views/workspace/workspace-view';
 
 export function createAppRouter(history?: RouterHistory) {
-  // Theme and appearance belong to every route, not only the workspace: the
-  // pairing screens render before anything is connected and must not be the
-  // one place the owner's dark mode does not apply.
   const rootRoute = createRootRoute({
     component: () => (
       <ThemeProvider>
@@ -50,8 +47,6 @@ export function createAppRouter(history?: RouterHistory) {
     errorComponent: WorkspaceError,
   });
 
-  // Where a pairing link points. The code lives in the fragment, which never
-  // reaches the server, so this route needs no search parameters.
   const pairRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/pair',

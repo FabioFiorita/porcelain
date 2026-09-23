@@ -10,13 +10,10 @@ import type { Principal } from '../models/principal.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
-    /** Aborts when the client goes away, so queued work can be dropped. */
     disconnected: AbortSignal;
-    /** Who is calling, decided by the door this request arrived through. */
     principal: Principal;
   }
   interface FastifyInstance {
-    /** Resolves once the first refresh at startup has settled. */
     refreshed(): Promise<void>;
   }
 }
@@ -78,12 +75,6 @@ function registerApiRoutes(
   server.register(gitInspectionRoutes, options);
 }
 
-/**
- * The network listener: viewers and agents, everything under one `/api`
- * prefix.  It does not own the application's lifetime — the runtime that
- * builds both listeners closes the application exactly once, so closing this
- * one cannot pull the database out from under the owner socket.
- */
 export function createNetworkServer(options: NetworkServerOptions) {
   const {
     application,
@@ -103,19 +94,12 @@ export function createNetworkServer(options: NetworkServerOptions) {
     if (response.statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');
     return reply.code(response.statusCode).send(response.body);
   });
-  // One disconnect signal per request, so an abandoned request is removed
-  // from its lane instead of running for a client that has gone.
   server.decorateRequest('disconnected');
-  // Every request carries a principal; each door sets its own.
   server.decorateRequest('principal');
   server.addHook('onRequest', (request, reply, done) => {
-    // Anonymous until a door's authentication hook says otherwise. Public
-    // routes never run one, so this is the value they keep.
     request.principal = { kind: 'anonymous' };
     const controller = new AbortController();
     request.disconnected = controller.signal;
-    // Only the response socket closing means the client has gone; a request
-    // body stream ends on every ordinary request.
     reply.raw.on('close', () => {
       if (!reply.raw.writableEnded)
         controller.abort(
@@ -124,11 +108,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
     });
     done();
   });
-  // Before anything reads the request: a page in the owner's browser must not
-  // be able to reach this server by name, or write across origins.
   server.addHook('onRequest', checkRequestOrigin({ allowedHosts }));
-  // The server listens without waiting for any repository; this lets a caller
-  // that needs the settled inventory wait for the first refresh explicitly.
   server.decorate('refreshed', () => application.ready());
   server.register(
     async (api) => {
@@ -141,11 +121,6 @@ export function createNetworkServer(options: NetworkServerOptions) {
   return server;
 }
 
-/**
- * A network listener that opens and owns its own application.  The composite
- * runtime does not use this; it exists for callers that want one listener and
- * nothing else, which is every test and the server lab.
- */
 export async function createServer(options: ServerOptions) {
   const { webRoot, allowedHosts, ...applicationOptions } = options;
   const application = await openApplication(applicationOptions);
@@ -154,14 +129,7 @@ export async function createServer(options: ServerOptions) {
     ...(webRoot === undefined ? {} : { webRoot }),
     ...(allowedHosts === undefined ? {} : { allowedHosts }),
   });
-  // Cancel application work before Fastify waits for in-flight HTTP requests.
-  // Application shutdown closes its live-client registry before releasing
-  // lanes; the websocket plugin then closes the upgraded transport sockets.
   server.addHook('preClose', async () => application.close());
   server.addHook('onClose', async () => application.close());
-  // The caller owns this instance and its application together; exposing it
-  // lets a test pair a device the way a browser does. It is on the returned
-  // type rather than on every Fastify instance, because a listener the runtime
-  // built does not own its application and must not appear to.
   return Object.assign(server, { application });
 }

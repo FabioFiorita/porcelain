@@ -28,11 +28,6 @@ function beginInventoryWrite(connection: Connection) {
   return state.nextVersion;
 }
 
-/**
- * Only a successful write advances the applied version. A failed newer
- * operation must not prevent an older, still-valid response from updating
- * the cache.
- */
 function canApplyInventoryWrite(connection: Connection, version: number) {
   if (connection.controller.signal.aborted) return false;
   const state = inventoryWrites.get(connection);
@@ -55,8 +50,6 @@ async function read(api: Api, connection: Connection, signal?: AbortSignal) {
 function inventoryQueryOptions(api: Api, connection: Connection) {
   return queryOptions({
     queryKey: queryKeys.inventory(connection.environmentId),
-    // There is nothing to rescan: the server lists worktrees from Git when it
-    // is asked, so reading the inventory is the refresh.
     queryFn: ({ signal }) => read(api, connection, signal),
   });
 }
@@ -74,8 +67,6 @@ export function useRegisterProject() {
     useMutation<Project, Error, string, InventoryWriteContext>({
       onMutate: () => ({ version: beginInventoryWrite(connection) }),
       mutationFn: async (path: string) => {
-        // A focus refresh may still be reading the old inventory. Cancel it
-        // before the write so its response cannot replace the new project.
         await client.cancelQueries({ queryKey });
         const request = connection.request();
         const project = await api.inventory.register({ ...request, path });
@@ -85,8 +76,6 @@ export function useRegisterProject() {
       onSuccess: async (project, _path, context) => {
         if (!context || !canApplyInventoryWrite(connection, context.version))
           return;
-        // A focus refresh can begin while registration is in flight. Cancel
-        // once more at the commit point before applying the new snapshot.
         await client.cancelQueries({ queryKey });
         client.setQueryData<Inventory>(queryKey, (inventory) => {
           if (
@@ -108,7 +97,6 @@ export function useRegisterProject() {
   );
 }
 
-/** Name a project. The list is the only thing that changes. */
 export function useRenameProject() {
   const { api, connection } = useConnectedContext();
   const client = useQueryClient();

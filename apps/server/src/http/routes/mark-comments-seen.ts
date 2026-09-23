@@ -22,8 +22,6 @@ export function markCommentsSeen(
         response: { ...errorResponses, 200: seenCommentsResponseSchema },
       },
     },
-    // The reader says what it displayed, not "everything until now": a reply
-    // written while the page was open must not be acknowledged unseen.
     async (request) =>
       options.application.markCommentsSeen(
         request.params.worktreeId,

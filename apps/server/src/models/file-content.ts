@@ -9,9 +9,7 @@ export interface DirectoryListing {
   entries: {
     name: string;
     kind: 'file' | 'directory' | 'symlink' | 'submodule' | 'other';
-    /** Dimmed in the tree, and never descended into to find that out. */
     ignored?: boolean;
-    /** Where a link points, which is all this ever reads of one. */
     target?: string;
   }[];
 }

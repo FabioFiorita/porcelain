@@ -1,16 +1,6 @@
 import type { GitBranchStatus } from '../dtos/git-status.ts';
 import type { LineRange } from '../dtos/line-range.ts';
 
-/**
- * The reads a change list needs beyond the status itself: where a changed
- * submodule currently points, and the branch details that only the action UI
- * uses. They are separate from the status because they are separate costs,
- * and each is paid only when something actually needs it.
- *
- * Digesting working files is not here on purpose: that is a filesystem read,
- * and doing it through Git made a filename containing a newline break the
- * whole list.
- */
 export interface ChangeReader {
   readSubmoduleHeads(
     paths: readonly string[],
@@ -28,7 +18,6 @@ export interface ChangeReader {
     discarded: NonNullable<GitBranchStatus['discarded']>;
     headCommit: { subject: string; body?: string } | null;
   }>;
-  /** The lines of a path at the last commit. The working file is not here. */
   readLines(
     range: Omit<LineRange, 'at'>,
     signal?: AbortSignal,

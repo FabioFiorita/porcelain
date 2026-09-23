@@ -62,9 +62,6 @@ export function ReviewedControl({
       if (reviewed) await unmark.submit(path);
       else await mark.submit({ path, fingerprint });
     } catch {
-      // The mutation owns the error state rendered below. Contain the
-      // rejected mutateAsync promise so a failed click is not an unhandled
-      // rejection in the browser.
     }
   };
   return (
@@ -168,7 +165,6 @@ export function MarkAllReviewed({
         try {
           for (const entry of reviewed) await unmark.submit(entry.path);
         } catch {
-          /* Mutation error is rendered below. */
         }
       })();
       return;

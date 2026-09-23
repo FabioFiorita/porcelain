@@ -2,19 +2,10 @@ import { request as httpRequest } from 'node:http';
 import { createInterface } from 'node:readline';
 import { ownerSocketPath } from '../lifecycle/owner-socket.ts';
 
-/** What the Streamable HTTP transport requires of every caller. */
 const accept = 'application/json, text/event-stream';
 
 type Answer = { status: number; body: string };
 
-/**
- * One JSON-RPC exchange over the owner socket.
- *
- * This does not reuse the owner client: the MCP transport refuses any request
- * that does not accept both JSON and an event stream, and it answers a
- * notification with 202 and no body. A request path built for the plain owner
- * routes gets 406 for everything, which is the whole agent door.
- */
 function exchange(
   socketPath: string,
   message: unknown,
@@ -71,15 +62,6 @@ function idOf(message: unknown): string | number | null {
   return null;
 }
 
-/**
- * Bridge an agent's stdio MCP transport to the server's local socket.
- *
- * This is why an agent needs no secret anywhere: `claude mcp add porcelain --
- * porcelain mcp` is the whole configuration, and file permissions on the socket
- * are the authentication. The socket's MCP route declares the caller an agent,
- * so what it writes is attributed to an agent rather than to the owner whose
- * file access got it in.
- */
 export async function runMcpBridge(
   dataDirectory: string,
   input: NodeJS.ReadableStream = process.stdin,
@@ -95,7 +77,6 @@ export async function runMcpBridge(
     try {
       message = JSON.parse(trimmed);
     } catch {
-      // A line that is not JSON-RPC is not ours to answer.
       continue;
     }
     const id = idOf(message);
@@ -106,7 +87,6 @@ export async function runMcpBridge(
         timeoutMs,
         process.cwd(),
       );
-      // A notification is accepted with 202 and no body, and expects no reply.
       if (answer.body.trim().length === 0) continue;
       if (answer.status !== 200) {
         if (id !== null) output(`${failure(id, answer.body)}\n`);
@@ -133,14 +113,11 @@ export async function runMcpBridge(
 }
 
 function failure(id: string | number, body: string): string {
-  // The server may already have answered in JSON-RPC; pass that through rather
-  // than wrapping an error inside an error.
   try {
     const parsed: unknown = JSON.parse(body);
     if (parsed && typeof parsed === 'object' && 'jsonrpc' in parsed)
       return JSON.stringify(parsed);
   } catch {
-    // Not JSON-RPC; report it as a transport failure below.
   }
   return JSON.stringify({
     jsonrpc: '2.0',

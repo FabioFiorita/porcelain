@@ -111,8 +111,6 @@ export function createReviewClient(transport: typeof fetch, endpoint: string) {
         `text?${new URLSearchParams({ path: request.path })}`,
         textResponseSchema,
       ),
-    // Only the action UI reads this: it is the change list plus the remote
-    // name, source ref and stashes, which cost two more Git processes.
     status: (request: Request) =>
       read(request, 'git/status', gitStatusResponseSchema),
     diffs: (request: Request & { input: ChangeDiffsRequest }) =>

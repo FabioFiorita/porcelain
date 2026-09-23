@@ -31,7 +31,6 @@
     "./errors/unsupported-history-data-error": "./src/errors/unsupported-history-data-error.ts",
     "./errors/unsupported-path-encoding-error": "./src/errors/unsupported-path-encoding-error.ts",
     "./errors/unsupported-repository-error": "./src/errors/unsupported-repository-error.ts",
-    "./fixtures/isolated-git": "./src/fixtures/isolated-git.ts",
     "./git": "./src/git.ts",
     "./git-session": "./src/git-session.ts",
     "./inspection-git": "./src/inspection-git.ts",

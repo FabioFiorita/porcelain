@@ -100,8 +100,6 @@ function ScopedFileNavigation({
   const failed = queries.filter((query) => query.isError);
   const gitStatus = useMemo<GitStatusEntry[]>(
     () => [
-      // Ignored comes with each folder that was opened, so a folder nobody
-      // opened costs nothing to know about.
       ...entries
         .filter((entry) => entry.ignored)
         .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
@@ -133,8 +131,6 @@ function ScopedFileNavigation({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-1 px-2 pt-2 pb-1">
-        {/* The tree only knows the folders somebody opened, so finding a file
-            by name is its own thing, and reads every name only when asked. */}
         <QuickOpen
           scope={scope}
           onOpen={(path) => {
@@ -316,9 +312,6 @@ function union(left: readonly string[], right: readonly string[]) {
 }
 
 function useStableList(value: readonly string[]) {
-  // Repository paths cannot contain NUL, so joining on it identifies the
-  // contents without colliding with a path that contains the separator.
   const key = value.join('\0');
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the key stands in for the contents.
   return useMemo(() => value, [key]);
 }

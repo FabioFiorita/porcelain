@@ -19,8 +19,6 @@ export async function pushBranch(
   )
     throw new Error('Invalid push intent');
   if (!intent.allowCreate) {
-    // An already expanded push URL can match another insteadOf rule when passed
-    // directly to ls-remote. Reject that ambiguity rather than inspect a third repo.
     const inspectedUrl = (
       await readActionCommand(
         process,

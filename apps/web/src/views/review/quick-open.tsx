@@ -10,17 +10,8 @@ import {
 import type { ReviewScope } from '../../domain/review';
 import { useWorktreePaths } from '../../query/review';
 
-/** Enough to choose from; more than this and the name is the wrong filter. */
 const SHOWN = 50;
 
-/**
- * Finding a file by name, which the tree can no longer do for itself.
- *
- * The tree only knows the folders somebody opened, so searching it would miss
- * everything else. The list of every name is its own read, and it is made when
- * this opens rather than when Files mounts — a repository's worth of names is
- * not worth fetching for a reader who never searches.
- */
 export function QuickOpen({
   scope,
   onOpen,
@@ -51,8 +42,6 @@ export function QuickOpen({
       title="Find a file"
       description="Search every file in this worktree by name."
     >
-      {/* Filtered here, against every name in the worktree rather than the
-            rows that happen to be on screen. */}
       <Command shouldFilter={false}>
         <CommandInput
           aria-label="Find a file by name"
@@ -60,10 +49,6 @@ export function QuickOpen({
           value={query}
           onValueChange={setQuery}
         />
-        {/* These say how the read went, not how the query went, so they sit
-              outside the list: CommandEmpty only renders once something has
-              been typed, and a button inside the list is something cmdk will
-              try to select. */}
         {names.isError && (
           <div className="p-3 text-xs text-muted-foreground">
             <span className="block">

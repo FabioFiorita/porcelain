@@ -29,10 +29,6 @@ export class EditFile {
       signal,
     );
     const result = await this.files.edit(worktree.path, command, signal);
-    // Every read confirms the checkout before its answer leaves; a write has
-    // more reason to, not less. The change has already happened, so this says
-    // which worktree it happened in — and refuses to report it as this one if
-    // the checkout was replaced while it ran.
     await resolveReadableWorktree(this.worktrees, worktreeId, signal);
     signal?.throwIfAborted();
     return result;

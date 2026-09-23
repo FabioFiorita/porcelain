@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// Paths use canonical slash-separated relative spelling on every client platform.
 export const preferencePathSchema = z
   .string()
   .min(1)

@@ -17,7 +17,6 @@ export interface CommitReader {
     request: CommitFilesRequest,
     signal?: AbortSignal,
   ): Promise<CommitFiles>;
-  /** Keyed by the file's paths joined with NUL, as the diff reader keys them. */
   readCommitDiffs(
     request: CommitDiffsRequest,
     signal?: AbortSignal,

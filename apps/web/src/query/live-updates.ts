@@ -91,13 +91,9 @@ async function refreshActionQueries(
     .findAll(filters)
     .filter((query) => query.isActive());
   await client.invalidateQueries(filters);
-  // Navigation can cancel an observed read without rejecting invalidation.
-  // Finish that read even when its view is no longer mounted.
   await Promise.all(
     active.map(async (query) => {
       if (query.state.isInvalidated && query.state.status === 'success') {
-        // A discard may legitimately remove an open file. Its read error belongs
-        // to that surface and must not hide the successful action's restore UI.
         await query.fetch().catch(() => undefined);
       }
       if (query.state.isInvalidated && query.state.status === 'success')
@@ -147,7 +143,6 @@ export async function refreshGitReceipt(
   ]);
   const existing = pending.get(key);
   if (existing) return existing;
-  // HTTP and live delivery must await the same post-action read.
   const refresh = (async () => {
     const surfaces =
       receipt.action === 'fetch' || receipt.action === 'push'
@@ -202,8 +197,6 @@ export async function applyLiveNotice(
       exact: true,
     });
   if (notice.change === 'files') {
-    // The server reconciles conservative stale marks while answering changes;
-    // refresh the sidebar only after that read can have completed.
     await invalidateSurfaces(client, environmentId, notice, FILE_SURFACES);
     await inventory();
     return;
@@ -255,7 +248,6 @@ export function connectLiveQueries(
             connection.operations?.accept(receipt);
         })
         .catch(() => {
-          /* Retain the request for explicit recovery if the reconnect read fails. */
         });
     }
   };

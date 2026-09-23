@@ -50,7 +50,6 @@ export function useHiddenPaths(projectId: string): ReadonlySet<string> {
   );
 }
 
-/** Project-scoped writes are serialized so full server snapshots stay ordered. */
 function useSetFilePreference(projectId: string) {
   const context = useFilePreferencesContext(projectId);
   const client = useQueryClient();

@@ -58,7 +58,6 @@ function HistoryPage({
     )
       return;
 
-    // A null root still observes through the surrounding ScrollArea viewport.
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) discardRejection(history.fetchNextPage());
@@ -84,9 +83,6 @@ function HistoryPage({
       )}
 
       {history.restarted && (
-        // The commits below are not the continuation that was asked for: the
-        // branch was rewritten under the reader, and what they were scrolling
-        // through is no longer part of it.
         <p
           role="status"
           className="shrink-0 border-b bg-muted/40 px-3.5 py-2 text-[11.5px] text-muted-foreground"

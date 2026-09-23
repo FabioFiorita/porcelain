@@ -11,12 +11,6 @@ import { preventCaching } from '../middlewares/prevent-caching.ts';
 import { errorResponses } from '../schemas/error-responses.ts';
 import { AttemptLimit } from './attempt-limit.ts';
 
-/**
- * The only unauthenticated write on the network door, so it carries its own
- * limit. A 256-bit code makes guessing hopeless, but nothing about entropy
- * stops a flood of valid-shaped codes from forcing a synchronous SQLite read
- * and a hash on the event loop every other request shares.
- */
 export async function pairRoutes(
   server: FastifyInstance,
   options: { application: Application },
@@ -40,7 +34,6 @@ export async function pairRoutes(
         code,
         { platform, ...(label === undefined ? {} : { label }) },
       );
-      // It worked, so it was not a guess: the budget is for guesses.
       limit.refund(peer);
       const summary = {
         id: device.id,
@@ -48,8 +41,6 @@ export async function pairRoutes(
         platform: device.platform,
         createdAt: device.createdAt,
       };
-      // A browser keeps its credential where script cannot read it, so it must
-      // not also arrive in the body; anything else gets the credential itself.
       if (request.headers['x-porcelain-browser'] === '1') {
         setDeviceCookie(reply, credential, request.protocol === 'https');
         return { device: summary };

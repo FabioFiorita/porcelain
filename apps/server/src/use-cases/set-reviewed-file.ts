@@ -6,12 +6,6 @@ import type { ListReviewedFiles } from './list-reviewed-files.ts';
 import type { ReadWorktreeChanges } from './read-worktree-changes.ts';
 import type { ResolveWorktree } from './resolve-worktree.ts';
 
-/**
- * Marking is a claim about a specific state of a file, so it reads the change
- * list again and refuses a fingerprint that no longer matches. That is not
- * free — it is one flat change read — but the alternative is accepting a mark
- * for content the person never saw. Step 6's watcher is what makes it free.
- */
 export class SetReviewedFile {
   private readonly reviewed: ReviewedFileStore;
   private readonly worktrees: ResolveWorktree;
@@ -39,7 +33,6 @@ export class SetReviewedFile {
     session: GitSession,
     signal?: AbortSignal,
   ) {
-    // A write: the worktree is recorded as present before the mark is stored.
     await this.worktrees.forWriting(worktreeId, signal);
     const current = await this.changes.execute(worktreeId, session, signal);
     const entry = current.changes.find(
@@ -52,7 +45,6 @@ export class SetReviewedFile {
     )
       throw new ReviewedMarkConflictError();
 
-    // The mark outlives the request, so confirm the checkout it was read from.
     await session.confirmAll(signal);
     this.reviewed.set(worktreeId, input.path, input.fingerprint, this.now());
     return this.list.execute(worktreeId, signal);

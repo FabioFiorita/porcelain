@@ -9,11 +9,6 @@ import type { DiffReader } from './interfaces/diff-reader.ts';
 import type { CheckoutSession } from './interfaces/git-session.ts';
 import type { StatusReader } from './interfaces/status-reader.ts';
 
-/**
- * Reads one checkout for one request. The request's session owns the identity
- * guard and the conversion-filter check, so both run once here instead of
- * around every call.
- */
 export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
   private readonly session: CheckoutSession;
 

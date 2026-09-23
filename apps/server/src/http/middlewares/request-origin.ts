@@ -5,16 +5,7 @@ import {
 } from '../../models/origin-policy.ts';
 import { ForbiddenOriginError } from '../errors/forbidden-origin-error.ts';
 
-/**
- * The named threat is a page in the owner's own browser reaching this server:
- * DNS rebinding puts an attacker's name in `Host`, and a cross-site form or
- * fetch puts a foreign `Origin` on a write.  Nothing here reads `X-Forwarded-*`
- * — a reverse proxy needs an explicit trusted-proxy and public-origin contract,
- * which does not exist yet, and half-trusting a header a client can send would
- * hand the attacker both checks.
- */
 export type OriginPolicy = {
-  /** Host names given explicitly on the command line. */
   allowedHosts: readonly string[];
 };
 
@@ -23,7 +14,6 @@ const defaultPorts: Record<string, string> = { http: '80', https: '443' };
 
 type Authority = { hostname: string; port: string | undefined };
 
-/** Split `host:port`, keeping bracketed IPv6 literals intact. */
 function parseAuthority(value: string): Authority | null {
   if (value.length === 0 || value.includes('\0')) return null;
   if (value.startsWith('[')) {
@@ -37,7 +27,6 @@ function parseAuthority(value: string): Authority | null {
       : { hostname, port: rest === '' ? undefined : rest.slice(1) };
   }
   const colon = value.lastIndexOf(':');
-  // A bare IPv6 literal has several colons and is only legal in brackets.
   if (colon >= 0 && value.indexOf(':') !== colon) return null;
   const raw = colon < 0 ? value : value.slice(0, colon);
   const port = colon < 0 ? undefined : value.slice(colon + 1);
@@ -63,8 +52,6 @@ export function checkRequestOrigin(
     const authority = requestAuthority(request);
     if (authority === null)
       throw new ForbiddenOriginError('The Host header is missing or malformed');
-    // The same rule pairing uses, with the address this connection actually
-    // arrived on standing in for the set a link is checked against.
     const local = request.socket.localAddress;
     if (
       !hostnameAllowed(authority.hostname, {
@@ -77,7 +64,6 @@ export function checkRequestOrigin(
       );
     if (safeMethods.has(request.method) && !options.requireSameOrigin) return;
     const origin = request.headers.origin;
-    // A client that sends no Origin is not a browser acting for another site.
     if (origin === undefined) {
       if (options.requireSameOrigin)
         throw new ForbiddenOriginError('The Origin header is required');

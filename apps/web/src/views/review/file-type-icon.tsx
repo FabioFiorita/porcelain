@@ -4,7 +4,6 @@ import {
 } from '@pierre/trees';
 import { cn } from '@/lib/utils';
 
-/** The same complete, coloured icon set used by the Files tree. */
 const ICON_SET = 'complete' as const;
 
 const resolver = createFileTreeIconResolver({
@@ -12,10 +11,6 @@ const resolver = createFileTreeIconResolver({
   colored: true,
 });
 
-/**
- * Mount Pierre's symbols once outside the tree's shadow root. Keeping the
- * sprite in the document (rather than display:none) preserves its gradients.
- */
 export function PierreIconSprite() {
   return (
     <div
@@ -26,14 +21,11 @@ export function PierreIconSprite() {
         height: 0,
         overflow: 'hidden',
       }}
-      // @pierre/trees supplies this static, trusted sprite markup.
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: the sprite is package-owned static markup
       dangerouslySetInnerHTML={{ __html: getBuiltInSpriteSheet(ICON_SET) }}
     />
   );
 }
 
-/** Resolve a file icon with the same rules as Pierre's Files tree. */
 export function FileTypeIcon({
   path,
   className,

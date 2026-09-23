@@ -69,13 +69,6 @@ function pathIsWithin(root: string, candidate: string): boolean {
   );
 }
 
-/**
- * Resolve a request path lexically beneath the configured web root.
- *
- * URL paths are decoded before normalization so encoded traversal cannot reach
- * outside the root. Backslashes are treated as separators for the same reason;
- * this keeps the check valid when the server runs on Windows as well as Linux.
- */
 export function resolveStaticPath(
   root: string,
   urlPath: string,
@@ -97,7 +90,6 @@ export function resolveStaticPath(
   }
 }
 
-/** Return true when the request belongs to the API namespace. */
 function isApiRequestPath(urlPath: string): boolean {
   const decoded = decodePath(urlPath);
   if (decoded === null) return false;
@@ -105,7 +97,6 @@ function isApiRequestPath(urlPath: string): boolean {
   return normalized === '/api' || normalized.startsWith('/api/');
 }
 
-/** Map common Vite/web asset extensions to explicit response media types. */
 export function contentTypeForPath(filePath: string): string {
   const extension = extname(filePath).slice(1).toLowerCase();
   return contentTypes[extension] ?? 'application/octet-stream';
@@ -175,9 +166,6 @@ async function findStaticFile(
 
   const direct = await existingFile(root, candidate);
   if (direct) return { ...direct, fallback: false };
-  // A present directory, symlink or unreadable file is an asset failure, not a
-  // client-side route. In particular, never turn an out-of-root symlink into a
-  // successful shell response that hides the traversal rejection.
   if (await pathExists(candidate)) return null;
   if (!isClientRoute(urlPath)) return null;
 
@@ -187,11 +175,6 @@ async function findStaticFile(
   return fallback ? { ...fallback, fallback: true } : null;
 }
 
-/**
- * Register the opt-in SPA handler. Fastify's route matching gives API routes
- * precedence; the explicit namespace guard also prevents unknown `/api/*`
- * requests from being turned into an HTML app-shell response.
- */
 export function registerStaticFiles(
   server: FastifyInstance,
   options: { webRoot: string },

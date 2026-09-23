@@ -12,12 +12,6 @@ import { baseGitEnvironment } from './git-environment.ts';
 
 const execute = promisify(execFile);
 
-/**
- * The rules every Git process obeys, whichever mode runs it. Only the strategy
- * differs: reads go through `execFile` and are bounded by the runner, while
- * actions are spawned into their own process group and take their deadline
- * from the caller, because a push or a hook may legitimately run for minutes.
- */
 const GIT_POLICY = {
   outputLimitBytes: 4 * 1024 * 1024,
   readDeadlineMs: 10_000,
@@ -35,7 +29,6 @@ export function classifyGitFailure(cause: unknown): GitFailure {
   return 'other';
 }
 
-/** A read additionally refuses grafts. */
 function readEnvironment(): NodeJS.ProcessEnv {
   return { ...baseGitEnvironment(), GIT_GRAFT_FILE: devNull };
 }
@@ -43,7 +36,6 @@ function readEnvironment(): NodeJS.ProcessEnv {
 const READ_CONFIG = [
   ...GIT_POLICY.sharedConfig,
   'core.quotePath=true',
-  // Renames stay classified the same way however many candidates a change has.
   'diff.renameLimit=2000',
 ];
 
@@ -54,22 +46,13 @@ const ACTION_CONFIG = [
 ];
 
 export type GitReadOptions = {
-  /** Output cap; the process is killed once it is exceeded. */
   maxBytes?: number;
-  /** Extra `-c` settings for this command. */
   config?: readonly string[];
-  /** Written to the command's standard input. */
   input?: Buffer;
-  /** Extra arguments before the subcommand, e.g. `--literal-pathspecs`. */
   leading?: readonly string[];
-  /** Overrides the policy's deadline for this read. */
   timeoutMs?: number;
 };
 
-/**
- * The one way to run a Git command that only reads. Callers classify failures
- * with {@link classifyGitFailure} and raise their own domain errors.
- */
 export async function runGitRead(
   checkout: string,
   args: readonly string[],
@@ -104,7 +87,6 @@ export async function runGitRead(
         env: readEnvironment(),
       },
     );
-    // A failed command can close its input early; execFile reports its exit.
     task.child.stdin?.on('error', () => {});
     task.child.stdin?.end(input);
     const { stdout } = await task;
@@ -122,19 +104,12 @@ function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ESRCH')
       return false;
-    // A group can remain visible but unsignalable while descendants are reaped.
-    // Treat EPERM as still present, never as successful cleanup.
     if (error instanceof Error && 'code' in error && error.code === 'EPERM')
       return true;
     throw error;
   }
 }
 
-/**
- * Whether the group is still occupied once a short grace has passed. Git can
- * exit a moment before a child it has just signalled: after a failed
- * transport, `ssh` is still ending when Git's own exit arrives.
- */
 async function descendantsRemain(pid: number): Promise<boolean> {
   const deadline = Date.now() + 250;
   while (signalGroup(pid, 0)) {
@@ -157,11 +132,6 @@ async function stopDescendants(
   return false;
 }
 
-/**
- * Action mode of the same runner. A write can start hooks that outlive the
- * command, so it runs in its own process group, kills the group, confirms the
- * descendants are gone, and refuses further work when it cannot.
- */
 export class GitActionRunner {
   private readonly checkout: string;
   private unconfirmed = false;
@@ -216,7 +186,6 @@ export class GitActionRunner {
     const consume = (chunk: Buffer, retain: boolean) => {
       state.bytes += chunk.length;
       if (state.bytes > GIT_POLICY.outputLimitBytes) {
-        // The one limit both modes share, named the way a read names it.
         state.failure ??= 'output-limit';
         interrupt();
       } else if (retain) output.push(chunk);
@@ -244,7 +213,6 @@ export class GitActionRunner {
           state.started = true;
         });
         child.once('error', reject);
-        // Exit, rather than close: a descendant may inherit the pipes indefinitely.
         child.once('exit', (code) => resolve(code));
       });
       if (this.progress && progressRemainder.trim())

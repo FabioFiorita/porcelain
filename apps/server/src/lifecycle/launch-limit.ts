@@ -1,16 +1,3 @@
-/**
- * How many Git processes a listing may have running at once, across everyone.
- *
- * This sits at the launch itself rather than around the callers waiting for
- * one, because those are not the same number: a caller that gives up on a
- * shared read releases its place while the process it started keeps running,
- * and a worktree id that misses the directory lists projects from outside the
- * inventory lane entirely. Counting permits here is the only place that bounds
- * processes.
- *
- * It is deliberately not a lane: nothing here waits on a repository, so it can
- * neither be re-entered nor deadlock against one.
- */
 export class LaunchLimit {
   private readonly capacity: number;
   private running = 0;
@@ -20,7 +7,6 @@ export class LaunchLimit {
     this.capacity = capacity;
   }
 
-  /** How many launches are in flight; for tests and tooling. */
   get inFlight() {
     return this.running;
   }
@@ -47,8 +33,6 @@ export class LaunchLimit {
           resolve();
         },
       };
-      // A caller that leaves while queued must not hold a place, or a slow
-      // repository would keep a permit reserved for someone who has gone.
       const leave = () => {
         const index = this.waiting.indexOf(waiter);
         if (index >= 0) this.waiting.splice(index, 1);

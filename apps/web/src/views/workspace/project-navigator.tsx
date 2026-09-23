@@ -259,14 +259,6 @@ function ProjectSection({
   );
 }
 
-/**
- * The server names the state; the palette is ours.
- *
- * Three filled dots, in hues that stay apart at eight pixels: green for work
- * that is done and waiting for a commit, yellow for a review still to do, blue
- * for an answer nobody has read. A starting point to improve on, not a
- * finished language.
- */
 const STATUS_LABEL = {
   pending: 'Waiting for your review',
   reviewed: 'Reviewed, waiting for a commit',

@@ -34,11 +34,6 @@ export function worktreeLabel(branch: string | null) {
   return branch?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD';
 }
 
-/**
- * A project does not have a path of its own in the inventory contract. The
- * main worktree is the stable display path, with the first worktree as the
- * fallback for repositories that have no main checkout.
- */
 export function projectPath(project: Project) {
   return (
     project.worktrees.find((worktree) => worktree.main)?.path ??

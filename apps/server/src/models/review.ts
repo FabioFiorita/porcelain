@@ -9,7 +9,6 @@ export type { PublishReview, ReviewResponse, ReviewStep };
 
 export type StoredReviewStep =
   PublishReview['layers'][number]['steps'][number] & {
-    /** Exact lines at publish time; never exposed over the wire. */
     published: string[];
   };
 export type StoredReviewLayer = Omit<

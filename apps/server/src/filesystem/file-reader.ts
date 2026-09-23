@@ -24,16 +24,6 @@ const maxBytes = 1024 * 1024;
 const maxEntries = 2000;
 
 export class NodeFileReader implements FileReader {
-  /**
-   * One folder, and everything the tree needs to draw it.
-   *
-   * The listing, what each entry is, and whether Git ignores it are one
-   * operation: the directory is verified again *after* the ignore answer comes
-   * back, so a checkout replaced while Git was running cannot pair these names
-   * with a different one. This is also the bound — a folder of a hundred
-   * thousand entries still refuses past the limit rather than being walked;
-   * what folders-on-demand avoids is descending into one to list its parent.
-   */
   async list(
     target: FileTarget,
     ignored?: IgnoredEntries,
@@ -79,11 +69,6 @@ export class NodeFileReader implements FileReader {
     }
   }
 
-  /**
-   * A submodule is a directory with its own `.git`, and a link is worth only
-   * its target. Both are what a document needs before it tries to read a file,
-   * and both used to come from the whole-tree walk this replaces.
-   */
   private async describe(
     root: string,
     entries: DirectoryListing['entries'],

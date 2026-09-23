@@ -9,14 +9,12 @@ const relativePathSchema = z
 
 export const liveSubscriptionSchema = z.strictObject({
   type: z.literal('subscribe'),
-  /** Registered repositories stay watched even when no worktree is open. */
   projects: z.array(z.uuid()).max(128),
   worktrees: z
     .array(
       z.strictObject({
         projectId: z.uuid(),
         worktreeId: worktreeIdSchema,
-        /** Active file/folder reads that may live under an ignored directory. */
         paths: z.array(relativePathSchema).max(64),
       }),
     )

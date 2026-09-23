@@ -51,7 +51,6 @@ function useReviewData<T>(
   key: readonly unknown[],
   read: (api: ReviewPort, request: ReviewRequest) => Promise<T>,
   refetchInterval: number | false = false,
-  /** For a read whose answer cannot change: a commit, keyed by its id. */
   onFocus: 'always' | false = false,
 ) {
   return useSuspenseQuery({
@@ -91,7 +90,6 @@ export function useReviewOverview(scope: ReviewScope) {
   return useQuery({ ...useChangesOptions(scope), throwOnError: false }).data;
 }
 
-/** Read the current changes for an explicit recovery action, even after its view unmounted. */
 export function useReadCurrentChanges(scope: ReviewScope) {
   const client = useQueryClient();
   const options = useChangesOptions(scope);
@@ -115,10 +113,6 @@ export function useRefreshGitLook(scope: ReviewScope) {
   };
 }
 
-/**
- * A published layer turns the Changes surface into a review. Keep the plain
- * Changes label while this shared query is loading or has failed.
- */
 export function useHasReviewLayers(scope: ReviewScope) {
   return usePublishedReview(scope).data?.active ?? false;
 }
@@ -129,10 +123,6 @@ function useChangesOptions(scope: ReviewScope) {
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'changes',
     ]),
-    // Returning to the window is the natural refresh boundary for everything
-    // else, but not here: the list is what a diff and a mark are checked
-    // against, so re-reading it under a reader who has not moved would throw
-    // away the hunks on screen and the fingerprint they are about to mark.
     refetchOnWindowFocus: false as const,
     refetchOnReconnect: false as const,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
@@ -159,7 +149,6 @@ function useReviewedOptions(scope: ReviewScope) {
   );
 }
 
-/** Suspense hooks start one read at a time; start them together instead. */
 export function usePrefetchReview(scope: ReviewScope) {
   usePrefetchQuery(useChangesOptions(scope));
   usePrefetchQuery(useReviewedOptions(scope));
@@ -180,11 +169,6 @@ export function useReviewReset() {
 }
 type ReadFile = TextFile | { kind: 'unreadable'; reason: string };
 
-/**
- * One read of a file's text, whoever asks. A file the reader has open and an
- * untracked file in the review are the same bytes under the same key, so they
- * share one request and one answer rather than racing two shapes into it.
- */
 function readFile(api: ReviewPort, request: ReviewRequest, path: string) {
   return async (): Promise<ReadFile> => {
     try {
@@ -207,7 +191,6 @@ function readFile(api: ReviewPort, request: ReviewRequest, path: string) {
   };
 }
 
-/** The same options wherever a file's text is wanted, so one key, one shape. */
 function textFileOptions(
   { api, connection }: ReturnType<typeof useConnectedContext>,
   scope: ReviewScope,
@@ -238,10 +221,6 @@ export function useTextFile(
     refetchInterval: false,
   }).data;
 }
-/**
- * A commit's files. Read once: a commit is immutable and its id is in the key,
- * so coming back to the window has nothing to find out.
- */
 export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
   return useReviewData(
     scope,
@@ -253,17 +232,8 @@ export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
   );
 }
 
-/** One request carries at most this many files, as the contract allows. */
 const COMMIT_DIFF_BATCH = 200;
 
-/**
- * The patches of the commit's files that are on screen.
- *
- * A commit cannot change, so these need none of the guards a worktree diff
- * carries: the commit id is the whole of what makes the answer correct, and it
- * is in the key. Longer lists are split into batches so a commit touching
- * thousands of files does not ask for thousands of patches at once.
- */
 export function useCommitDiffs(
   scope: ReviewScope,
   oid: string,
@@ -305,9 +275,6 @@ export function useCommitDiffs(
   return {
     patches,
     isPending: results.some((result) => result.isPending),
-    // A patch that failed is not a patch still arriving. Without this the
-    // files it covers stay labelled as loading for as long as the commit is
-    // open, with nothing to press.
     isError: results.some((result) => result.isError),
     retry: () => {
       for (const result of results) if (result.isError) void result.refetch();
@@ -332,9 +299,6 @@ export function mergeReviewChanges(
 ): ReviewChangeItem[] {
   const selected = paths == null ? null : new Set(paths);
   return list.changes.flatMap((entry) => {
-    // Selection is by logical file path. Once a path is selected, retain every
-    // comparison for it so a staged and an unstaged change to the same file
-    // cannot disappear from the surface or from the fingerprint being marked.
     if (selected && !selected.has(entry.path)) return [];
     const mark = reviewMark(entry, reviewed.marks);
     return [
@@ -350,20 +314,6 @@ export function mergeReviewChanges(
   });
 }
 
-/**
- * The hunks of the documents on screen, read only once they are on screen.
- *
- * The fingerprints the list was read at go with the request and are part of
- * the key. The observation token alone would not do: it hashes what Git's
- * status prints, which says nothing about the bytes of a file that was
- * already modified, so editing such a file again leaves the token identical
- * while the hunks change. Sending the fingerprints means the server refuses
- * rather than pairing current hunks with an older fingerprint — the one the
- * reader would then click to mark.
- *
- * The caller gets the query's own state because a document that is still
- * loading its diff, or failed to, has to say so rather than render as empty.
- */
 export function useChangeDiffs(
   scope: ReviewScope,
   statusToken: string,
@@ -388,7 +338,6 @@ export function useChangeDiffs(
       wanted.map(selectionKey),
     ]),
     enabled: wanted.length > 0,
-    // Read once for the observation they belong to; a new list is a new key.
     refetchOnWindowFocus: false as const,
     refetchOnReconnect: false as const,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
@@ -414,10 +363,6 @@ export function useChangeDiffs(
     },
     throwOnError: false,
   });
-  // The worktree moved between reading the list and asking for its hunks. The
-  // refusal is the signal to read the list again, not something to hand the
-  // reader: a new list carries a new token, which is a new query. Recovered
-  // once per token, so a mismatch that is not a passing edit still surfaces.
   const moved = query.isError && isWorktreeChangedError(query.error);
   const recovered = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -438,11 +383,6 @@ function isWorktreeChangedError(error: unknown) {
   return error instanceof RequestError && error.code === 'WORKTREE_CHANGED';
 }
 
-/**
- * The status an action needs: the change list plus the remote name, source ref
- * and stashes. Those cost two more Git processes and only an action uses them,
- * so this is read when the action panel opens, not when a worktree does.
- */
 export function gitStatusQuery(
   scope: ReviewScope,
   api: ReturnType<typeof useConnectedContext>['api'],
@@ -475,10 +415,6 @@ export function useGitStatus(scope: ReviewScope, enabled = true) {
   };
 }
 
-/**
- * The bytes of the new files on screen. An untracked file has no diff — the
- * file is the change — so it is read as a file, which costs no Git process.
- */
 export function useUntrackedContents(
   scope: ReviewScope,
   paths: readonly string[],
@@ -643,11 +579,6 @@ export function useMarkAllReviewed(scope: ReviewScope) {
   );
 }
 
-/**
- * Every name quick open can offer. It is read per opening rather than held:
- * nothing can tell a cache it went stale until step 6's watcher, and a stale
- * name list quietly stops finding files that are there.
- */
 export function useWorktreePaths(scope: ReviewScope, enabled = true) {
   const { api, connection } = useConnectedContext();
   return useQuery({

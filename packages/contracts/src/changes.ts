@@ -9,13 +9,7 @@ import {
 } from './git-status.ts';
 
 export const fileChangeSchema = z.strictObject({
-  /** A rename uses its new path; deletions use their old path. */
   path: gitPathSchema,
-  /**
-   * What the reader is looking at, over every comparison of this path at once.
-   * Null means at least one side could not be established, and a null
-   * fingerprint can never be marked reviewed.
-   */
   fingerprint: z
     .string()
     .regex(/^[a-f0-9]{64}$/)
@@ -33,7 +27,6 @@ export const changeListBranchSchema = z.strictObject({
 export const changesResponseSchema = z.strictObject({
   environmentId: z.uuid(),
   worktreeId: gitWorktreeParamsSchema.shape.worktreeId,
-  /** One observation. A later diff or mark presents this to say what it saw. */
   statusToken: z.string().regex(/^[a-f0-9]{64}$/),
   headOid: z
     .string()
@@ -57,13 +50,6 @@ export const changesResponseSchema = z.strictObject({
 
 export const changeDiffsRequestSchema = z.strictObject({
   expectedStatusToken: z.string().regex(/^[a-f0-9]{64}$/),
-  /**
-   * The fingerprint the caller holds for every logical path it is asking
-   * about. The observation token cannot stand in for these: it hashes what
-   * porcelain status prints, which does not include the bytes of a file that
-   * was already modified, so editing such a file again leaves the token alone
-   * while the hunks change.
-   */
   expectedFiles: z
     .array(
       z.strictObject({
@@ -73,7 +59,6 @@ export const changeDiffsRequestSchema = z.strictObject({
     )
     .min(1)
     .max(200),
-  /** A layer's files, read in one Git process per scope. */
   selections: z.array(gitChangeSelectionSchema).min(1).max(200),
 });
 
@@ -93,7 +78,6 @@ export const changeLinesQuerySchema = z.strictObject({
   path: gitPathSchema,
   from: z.coerce.number().int().min(1),
   to: z.coerce.number().int().min(1),
-  /** `head` reads Git; the working file is never a stand-in for a revision. */
   at: z.enum(['head', 'worktree']),
 });
 

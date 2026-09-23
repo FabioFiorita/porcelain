@@ -7,14 +7,6 @@ const worktreeSchema = z.object({
   main: z.boolean(),
   branch: z.string().nullable(),
   available: z.boolean(),
-  /**
-   * What this worktree has to say for itself: `pending` (published layers with
-   * something still unreviewed), `reviewed` (all of them marked, waiting for a
-   * commit), `replied` (the agent answered and it has not been seen), or
-   * nothing. Named by meaning, not by appearance — how a client draws it is
-   * its own business. Read from the database with the list, so it costs no
-   * request and no Git.
-   */
   status: z.enum(['pending', 'reviewed', 'replied']).nullable(),
 });
 
@@ -70,7 +62,6 @@ export const renameProjectRequestSchema = z.strictObject({
     .trim()
     .min(1)
     .max(100)
-    // A name is a label in a sidebar; control characters are not one.
     .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value), {
       message: 'The name must not contain control characters',
     }),

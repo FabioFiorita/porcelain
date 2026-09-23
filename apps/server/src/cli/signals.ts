@@ -1,4 +1,3 @@
-/** Install the process shutdown signals used by both launcher entry points. */
 export function installShutdownSignals(
   controller: AbortController,
 ): () => void {

@@ -7,15 +7,9 @@ import type { StatusSettings } from './arguments.ts';
 export const statusExitCodes = {
   running: 0,
   notRunning: 1,
-  /** The socket exists but could not be read, or the path is unusable. */
   failed: 2,
 } as const;
 
-/**
- * Report whether a server owns this data directory, through the same probe
- * startup uses so the two cannot disagree about it. "Not running" leaves a
- * distinct exit code from "could not tell", so a script can branch on it.
- */
 export async function reportStatus(
   settings: StatusSettings,
   output: { stdout: (message: string) => void; stderr: (m: string) => void },

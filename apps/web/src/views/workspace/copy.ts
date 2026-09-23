@@ -1,6 +1,5 @@
 import { toast } from '@/components/ui/toast';
 
-/** Copy over HTTPS/localhost and on plain HTTP, where the async API is absent. */
 export function copyText(text: string, label: string) {
   const done = () =>
     toast.add({

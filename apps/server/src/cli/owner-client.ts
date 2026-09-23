@@ -5,10 +5,6 @@ export class OwnerRequestError extends Error {
   override readonly name = 'OwnerRequestError';
 }
 
-/**
- * One request to the owner socket. Every owner command goes through here, so
- * "the server is not running" reads the same whichever one the owner typed.
- */
 export async function askOwner(
   dataDirectory: string,
   method: 'GET' | 'POST',
@@ -25,7 +21,6 @@ export async function askOwner(
         path,
         method,
         timeout: timeoutMs,
-        // One request, then done: a pooled socket would keep the CLI alive.
         agent: false,
         headers: payload
           ? {
@@ -83,7 +78,6 @@ function messageFrom(text: string, status: number | undefined): string {
     )
       return body.message;
   } catch {
-    // Fall through to the status code.
   }
   return `The server answered ${status ?? 'nothing'}.`;
 }

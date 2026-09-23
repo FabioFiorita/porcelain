@@ -37,7 +37,6 @@ export type ChangeDiffsRequest = ChangeDiffsRequestContract;
 export type ChangeLines = ChangeLinesResponse;
 export type DiffContent = ChangeDiffs['diffs'][number]['content'];
 export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
-/** What the caller holds for a path, and what the server re-establishes. */
 export type ExpectedFile = ChangeDiffsRequest['expectedFiles'][number];
 export type ReviewedMark = ReviewedMarkResponse;
 export type ReviewedMarksResponse = ReviewedMarksResponseContract;
@@ -118,10 +117,6 @@ export function isFingerprintable<T extends { fingerprint: string | null }>(
   return change.fingerprint != null;
 }
 
-/**
- * The comparisons of every changed path, flattened. Views that ask "what is
- * changed in this worktree" want this; the review surface wants the grouping.
- */
 export function comparisons(list: ChangeList): Change[] {
   return list.changes.flatMap((entry) => entry.comparisons);
 }
@@ -155,7 +150,6 @@ export type {
 
 type NotExplained = PublishedReview['notExplained'][number];
 
-/** "12 lines in 3 files", "1 binary file", or both. Null when nothing is left out. */
 export function notExplainedLabel(
   entries: readonly NotExplained[],
 ): string | null {

@@ -19,7 +19,6 @@ const LINK_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" style="display:none
   </symbol>
 </svg>`;
 
-/** Pierre’s complete set, plus lucide-matching symbols for symlink and submodule leaves. */
 export function treeIconsFor(
   links: readonly { path: string; kind: string }[] = [],
 ): FileTreeIconConfig {
