@@ -1,14 +1,17 @@
-import type { StoredReview } from '../models/stored-review.ts';
+import type {
+  ReadPublishedReviewInput,
+  ReadPublishedReviewResult,
+} from '../models/review-operations.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 
 export class ReadPublishedReviewService {
-  private readonly store: ReviewStore;
+  private readonly reviewStore: ReviewStore;
 
-  constructor(store: ReviewStore) {
-    this.store = store;
+  constructor(reviewStore: ReviewStore) {
+    this.reviewStore = reviewStore;
   }
 
-  execute(worktreeId: string): StoredReview | undefined {
-    return this.store.read(worktreeId);
+  execute(input: ReadPublishedReviewInput): ReadPublishedReviewResult {
+    return this.reviewStore.read(input.worktreeId);
   }
 }

@@ -1,8 +1,12 @@
-import type { ReviewedLayerMark } from '../models/reviewed-layer.ts';
+import type { ReviewedLayerMark } from '../models/reviewed-mark.ts';
 
 export interface ReviewedLayerStore {
   list(worktreeId: string): ReviewedLayerMark[];
-  set(worktreeId: string, mark: Omit<ReviewedLayerMark, 'stale'>): void;
-  invalidate(worktreeId: string, paths?: readonly string[]): void;
+  save(worktreeId: string, mark: ReviewedLayerMark): void;
   remove(worktreeId: string, layerId: string): void;
+  setStale(
+    worktreeId: string,
+    layerIds: readonly string[],
+    stale: boolean,
+  ): void;
 }

@@ -5,13 +5,12 @@ import {
   replyToCommentResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
-import type { CommentThreadsController } from '../../../controllers/comment-threads-controller.ts';
-import { callerOf } from '../../principal.ts';
+import type { ReplyToCommentController } from '../../../controllers/reply-to-comment-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function replyToComment(
   server: FastifyInstance,
-  options: { controller: Pick<CommentThreadsController, 'execute'> },
+  options: { controller: Pick<ReplyToCommentController, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -25,10 +24,7 @@ export function replyToComment(
     },
     async (request) =>
       options.controller.execute(
-        {
-          command: { kind: 'reply', ...request.params, ...request.body },
-          principal: callerOf(request),
-        },
+        { ...request.params, ...request.body, writer: request.principal },
         { signal: request.disconnected },
       ),
   );

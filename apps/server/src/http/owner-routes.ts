@@ -14,7 +14,10 @@ import type { RevokeAccessController } from '../controllers/revoke-access-contro
 import type { ReadInventoryController } from '../controllers/read-inventory-controller.ts';
 import type { PublishReviewController } from '../controllers/publish-review-controller.ts';
 import type { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
-import type { CommentThreadsController } from '../controllers/comment-threads-controller.ts';
+import type { CreateCommentThreadController } from '../controllers/create-comment-thread-controller.ts';
+import type { ListCommentThreadsController } from '../controllers/list-comment-threads-controller.ts';
+import type { ReplyToCommentController } from '../controllers/reply-to-comment-controller.ts';
+import type { ResolveCommentThreadController } from '../controllers/resolve-comment-thread-controller.ts';
 import { createReviewMcpServer } from './mcp/review-server.ts';
 import { errorResponses } from './schemas/error-responses.ts';
 
@@ -30,7 +33,16 @@ export function registerOwnerRoutes(
       ReadPublishedReviewController,
       'execute'
     >;
-    commentThreadsController: Pick<CommentThreadsController, 'execute'>;
+    listCommentThreadsController: Pick<ListCommentThreadsController, 'execute'>;
+    createCommentThreadController: Pick<
+      CreateCommentThreadController,
+      'execute'
+    >;
+    replyToCommentController: Pick<ReplyToCommentController, 'execute'>;
+    resolveCommentThreadController: Pick<
+      ResolveCommentThreadController,
+      'execute'
+    >;
   },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();

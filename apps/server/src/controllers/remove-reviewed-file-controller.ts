@@ -1,41 +1,56 @@
-import type { ReviewedFilesResult } from '@porcelain/reviews/models';
-import type { RemoveReviewedFileService } from '@porcelain/reviews/services';
-
-type WorktreeAccess = {
-  known(worktreeId: string, signal?: AbortSignal): Promise<unknown>;
-};
-type RunForWorktree = <T>(
-  operation: (signal: AbortSignal) => T | Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  RemoveReviewedFileQuery,
+  RemoveReviewedFileResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeAccessService,
+  RemoveReviewedFileService,
+} from '@porcelain/reviews/services';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class RemoveReviewedFileController {
-  private readonly worktrees: WorktreeAccess;
+  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
   private readonly removeReviewedFile: RemoveReviewedFileService;
-  private readonly runForWorktree: RunForWorktree;
-  private readonly publishReviewedChanged: (worktreeId: string) => void;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
 
   constructor(
-    worktrees: WorktreeAccess,
+    checkWorktreeAccess: CheckWorktreeAccessService,
     removeReviewedFile: RemoveReviewedFileService,
-    runForWorktree: RunForWorktree,
-    publishReviewedChanged: (worktreeId: string) => void,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
   ) {
-    this.worktrees = worktrees;
+    this.checkWorktreeAccess = checkWorktreeAccess;
     this.removeReviewedFile = removeReviewedFile;
-    this.runForWorktree = runForWorktree;
-    this.publishReviewedChanged = publishReviewedChanged;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.events = events;
   }
 
   async execute(
-    input: { worktreeId: string; path: string },
-    context: { signal?: AbortSignal },
-  ): Promise<ReviewedFilesResult> {
-    const result = await this.runForWorktree(async (signal) => {
-      await this.worktrees.known(input.worktreeId, signal);
-      return this.removeReviewedFile.execute(input.worktreeId, input.path);
-    }, context.signal);
-    this.publishReviewedChanged(input.worktreeId);
+    input: WorktreeParams & RemoveReviewedFileQuery,
+    context: OperationContext,
+  ): Promise<RemoveReviewedFileResponse> {
+    const { worktreeId } = input;
+    const result = await this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'write',
+      async ({ signal }) => {
+        await this.checkWorktreeAccess.execute(
+          { worktreeId, intent: 'write' },
+          signal,
+        );
+        return this.removeReviewedFile.execute(input);
+      },
+      { callerSignal: context.signal },
+    );
+    this.events.worktreeChanged(worktreeId, 'reviewed');
     return result;
   }
 }

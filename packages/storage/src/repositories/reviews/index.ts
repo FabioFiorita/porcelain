@@ -1,4 +1,5 @@
 import type {
+  CommentSeenStore,
   CommentStore,
   ReviewedFileStore,
   ReviewedLayerStore,
@@ -6,12 +7,19 @@ import type {
 } from '@porcelain/reviews/ports';
 import { databaseOf, type StorageSession } from '../../db/session.ts';
 import { CommentRepository } from './comment-repository.ts';
+import { CommentSeenRepository } from './comment-seen-repository.ts';
 import { ReviewedFileRepository } from './reviewed-file-repository.ts';
 import { ReviewedLayerRepository } from './reviewed-layer-repository.ts';
 import { ReviewRepository } from './review-repository.ts';
 
 export function createCommentStore(session: StorageSession): CommentStore {
   return new CommentRepository(databaseOf(session));
+}
+
+export function createCommentSeenStore(
+  session: StorageSession,
+): CommentSeenStore {
+  return new CommentSeenRepository(databaseOf(session));
 }
 
 export function createReviewedFileStore(

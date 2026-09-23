@@ -1,67 +1,66 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import type { ReviewPublication } from '../models/published-review.ts';
+import { ReviewConflictError } from '../errors/review-conflict-error.ts';
 import type {
-  StoredReview,
-  StoredReviewLayer,
-  StoredReviewStep,
-} from '../models/stored-review.ts';
+  PublishReviewInput,
+  PublishReviewResult,
+} from '../models/review-operations.ts';
+import type { Review, ReviewLayer } from '../models/review.ts';
+import type { Clock } from '../ports/clock.ts';
+import type { IdSource } from '../ports/id-source.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
+import type { SecretSource } from '../ports/secret-source.ts';
+import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
+import { assertReviewDraft } from '../rules/review-draft.ts';
+import { publishedLines } from '../rules/review-evidence.ts';
 
 export class PublishReviewService {
-  private readonly store: ReviewStore;
-  private readonly now: () => string;
+  private readonly reviewStore: ReviewStore;
+  private readonly clock: Clock;
+  private readonly idSource: IdSource;
+  private readonly secretSource: SecretSource;
 
   constructor(
-    store: ReviewStore,
-    now: () => string = () => new Date().toISOString(),
+    reviewStore: ReviewStore,
+    clock: Clock,
+    idSource: IdSource,
+    secretSource: SecretSource,
   ) {
-    this.store = store;
-    this.now = now;
+    this.reviewStore = reviewStore;
+    this.clock = clock;
+    this.idSource = idSource;
+    this.secretSource = secretSource;
   }
 
-  execute(
-    worktreeId: string,
-    input: ReviewPublication,
-    published: readonly (readonly (readonly string[])[])[],
-  ): StoredReview {
-    const layers: StoredReviewLayer[] = input.layers.map(
-      (layer, layerIndex) => {
-        const steps: StoredReviewStep[] = layer.steps.map(
-          (step, stepIndex) => ({
-            ...structuredClone(step),
-            published: [...(published[layerIndex]?.[stepIndex] ?? [])],
-          }),
-        );
-        return {
-          ...structuredClone(layer),
-          steps,
-          fingerprint: fingerprint(
-            steps
-              .filter((step) => step.kind === 'changed')
-              .map((step) => `${step.id}:${step.published.join('\n')}`)
-              .join('\0'),
-          ),
-        };
-      },
-    );
-    const stored: StoredReview = {
-      worktreeId,
-      revision: input.expectedRevision + 1,
-      publishedAt: this.now(),
+  execute(input: PublishReviewInput): PublishReviewResult {
+    const { draft, files } = input;
+    assertReviewDraft(draft);
+    const current = this.reviewStore.read(input.worktreeId);
+    if ((current?.revision ?? 0) !== draft.expectedRevision)
+      throw new ReviewConflictError();
+    const layers = draft.layers.map((layer): ReviewLayer => {
+      const steps = layer.steps.map((step) => ({
+        ...structuredClone(step),
+        published: publishedLines(files.get(step.pointer.path), step.pointer),
+      }));
+      return {
+        ...structuredClone(layer),
+        steps,
+        fingerprint: publishedLayerFingerprint(steps),
+      };
+    });
+    const review: Review = {
+      worktreeId: input.worktreeId,
+      revision: draft.expectedRevision + 1,
+      publishedAt: this.clock.now(),
       active: true,
-      summaryHtml: input.summaryHtml,
-      summaryToken: randomUUID(),
-      summarySecret: randomBytes(32).toString('hex'),
-      ...(input.diagram === undefined
+      summaryHtml: draft.summaryHtml,
+      summaryToken: this.idSource.next(),
+      summarySecret: this.secretSource.next(),
+      ...(draft.diagram === undefined
         ? {}
-        : { diagram: structuredClone(input.diagram) }),
+        : { diagram: structuredClone(draft.diagram) }),
       layers,
     };
-    this.store.replace(stored, input.expectedRevision);
-    return stored;
+    this.reviewStore.save(review);
+    return review;
   }
-}
-
-function fingerprint(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
 }

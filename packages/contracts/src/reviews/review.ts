@@ -150,8 +150,17 @@ export const publishReviewRequestSchema = z.strictObject({
   layers: z.array(reviewLayerSchema).min(1).max(100),
 });
 
+const absentReviewSchema = z.codec(
+  publishedReviewSchema.nullable(),
+  publishedReviewSchema.optional(),
+  {
+    decode: (review) => review ?? undefined,
+    encode: (review) => review ?? null,
+  },
+);
+
 export const readPublishedReviewResponseSchema = z.object({
-  review: publishedReviewSchema.nullable(),
+  review: absentReviewSchema,
 });
 export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
 

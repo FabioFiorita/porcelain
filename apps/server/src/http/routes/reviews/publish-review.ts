@@ -8,6 +8,8 @@ import type { FastifyInstance } from 'fastify';
 import type { PublishReviewController } from '../../../controllers/publish-review-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
+const PUBLISH_REVIEW_BODY_LIMIT = 10 * 1024 * 1024 * 6 + 1024 * 1024;
+
 export function publishReview(
   server: FastifyInstance,
   options: { controller: Pick<PublishReviewController, 'execute'> },
@@ -16,18 +18,17 @@ export function publishReview(
   api.put(
     '/worktrees/:worktreeId/review',
     {
-      bodyLimit: 10 * 1024 * 1024 * 6 + 1024 * 1024,
+      bodyLimit: PUBLISH_REVIEW_BODY_LIMIT,
       schema: {
         params: worktreeParamsSchema,
         body: publishReviewRequestSchema,
         response: { ...errorResponses, 200: publishReviewResponseSchema },
       },
     },
-    async (request) => ({
-      review: await options.controller.execute(
+    async (request) =>
+      options.controller.execute(
         { ...request.params, review: request.body },
         { signal: request.disconnected },
       ),
-    }),
   );
 }

@@ -1,3 +1,4 @@
 export interface CommentSeenStore {
-  markSeen(worktreeId: string, throughRevision: number): number;
+  seenThrough(worktreeId: string): number;
+  save(worktreeId: string, seenThrough: number): void;
 }

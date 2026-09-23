@@ -1,18 +1,21 @@
-import type { ReviewedLayerMark } from '../models/reviewed-layer.ts';
+import type {
+  RemoveReviewedLayerInput,
+  RemoveReviewedLayerResult,
+} from '../models/reviewed-mark.ts';
 import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 
 export class RemoveReviewedLayerService {
-  private readonly store: ReviewedLayerStore;
+  private readonly reviewedLayerStore: ReviewedLayerStore;
 
-  constructor(store: ReviewedLayerStore) {
-    this.store = store;
+  constructor(reviewedLayerStore: ReviewedLayerStore) {
+    this.reviewedLayerStore = reviewedLayerStore;
   }
 
-  execute(
-    worktreeId: string,
-    layerId: string,
-  ): { worktreeId: string; marks: ReviewedLayerMark[] } {
-    this.store.remove(worktreeId, layerId);
-    return { worktreeId, marks: this.store.list(worktreeId) };
+  execute(input: RemoveReviewedLayerInput): RemoveReviewedLayerResult {
+    this.reviewedLayerStore.remove(input.worktreeId, input.layerId);
+    return {
+      worktreeId: input.worktreeId,
+      marks: this.reviewedLayerStore.list(input.worktreeId),
+    };
   }
 }

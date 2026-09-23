@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { listReviewedLayersResponseSchema } from '../../../../packages/contracts/src/reviews/index.ts';
 import {
+  apiError,
   defineCase,
   defineFeature,
   invalidRequest,
@@ -18,6 +19,11 @@ import {
 } from '../scripts/fixture.ts';
 
 const layers = (session: Session) => worktreePath(session, '/reviewed-layers');
+const staleMark = apiError(
+  409,
+  'Conflict',
+  'The reviewed mark is based on a version of the file that has changed',
+);
 const layerId = randomUUID();
 const strayLayerId = randomUUID();
 
@@ -44,10 +50,29 @@ export default defineFeature({
     'PUT /api/worktrees/:worktreeId/reviewed-layers',
     'DELETE /api/worktrees/:worktreeId/reviewed-layers',
   ],
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. Marks are stored as sent: neither the layer ID nor the fingerprint is checked against the published review.",
+    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; any other layer or fingerprint, or any mark before a review is published, is a conflict and stores nothing.",
   cases: [
+    defineCase({
+      name: 'before any review is published',
+      request: (session) => ({
+        method: 'PUT',
+        path: layers(session),
+        body: { layerId, reviewed: true, fingerprint: unknownFingerprint },
+      }),
+      async expect({ response, session, check }) {
+        check('status', 409, response.status);
+        check('error body', staleMark, response.body);
+        check(
+          'nothing is stored',
+          [],
+          marks(
+            (await session.send({ method: 'GET', path: layers(session) })).body,
+          ),
+        );
+      },
+    }),
     defineCase({
       name: 'mark a published layer',
       setup: published,
@@ -88,23 +113,20 @@ export default defineFeature({
           },
         },
       ],
-      expect({ responses, check }) {
+      async expect({ responses, session, check }) {
         check(
           'statuses',
-          [200, 200],
+          [409, 409],
           responses.map((entry) => entry.status),
         );
+        for (const [index, response] of responses.entries())
+          check(`request ${index + 1} error body`, staleMark, response.body);
         check(
-          'both are stored and neither is stale',
-          [
-            { layerId, fingerprint: unknownFingerprint, stale: false },
-            {
-              layerId: strayLayerId,
-              fingerprint: unknownFingerprint,
-              stale: false,
-            },
-          ],
-          marks(responses[1]?.body),
+          'the earlier mark is kept as it was',
+          [layerId],
+          marks(
+            (await session.send({ method: 'GET', path: layers(session) })).body,
+          ).map((mark) => mark.layerId),
         );
       },
     }),
@@ -119,7 +141,7 @@ export default defineFeature({
         check('status', 200, response.status);
         check(
           'remaining',
-          [strayLayerId],
+          [],
           marks(response.body).map((mark) => mark.layerId),
         );
         check(

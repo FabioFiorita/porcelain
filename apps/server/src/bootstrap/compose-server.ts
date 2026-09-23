@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   IssuePairingService,
   ListAccessService,
@@ -101,23 +100,11 @@ import { ListGitBranchesController } from '../controllers/list-git-branches-cont
 import { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
 import { RunGitActionController } from '../controllers/run-git-action-controller.ts';
 import { RenameProjectController } from '../controllers/rename-project-controller.ts';
-import { CommentThreadsController } from '../controllers/comment-threads-controller.ts';
-import { MarkCommentsSeenController } from '../controllers/mark-comments-seen-controller.ts';
-import { ListReviewedFilesController } from '../controllers/list-reviewed-files-controller.ts';
-import { RemoveReviewedFileController } from '../controllers/remove-reviewed-file-controller.ts';
-import { SetReviewedFileController } from '../controllers/set-reviewed-file-controller.ts';
-import { SetReviewedFilesController } from '../controllers/set-reviewed-files-controller.ts';
 import { RedeemPairingController } from '../controllers/redeem-pairing-controller.ts';
 import { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
 import { ListAccessController } from '../controllers/list-access-controller.ts';
 import { RevokeAccessController } from '../controllers/revoke-access-controller.ts';
 import { ReadHealthController } from '../controllers/read-health-controller.ts';
-import { PublishReviewController } from '../controllers/publish-review-controller.ts';
-import { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
-import { ReadReviewSummaryController } from '../controllers/read-review-summary-controller.ts';
-import { ListReviewedLayersController } from '../controllers/list-reviewed-layers-controller.ts';
-import { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
-import { RemoveReviewedLayerController } from '../controllers/remove-reviewed-layer-controller.ts';
 import { applicationSettingsSchema } from '../config/application-settings.ts';
 import { NodeFileReader } from '../adapters/files/file-reader.ts';
 import { NodeFileWriter } from '../adapters/files/file-writer.ts';
@@ -129,20 +116,12 @@ import {
   type WorktreeFiles,
 } from '../adapters/files/worktree-files.ts';
 import { DeviceDirectory } from '../adapters/access/device-directory.ts';
-import { LiveUpdates } from '../adapters/events/live-updates.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import { WorktreeDirectory } from '../adapters/git/worktree-directory.ts';
 import type { Project } from '@porcelain/contracts/projects';
-import { CommentThreadsService } from '@porcelain/reviews/services';
 import { ListFilePreferencesService } from '@porcelain/projects/services';
-import {
-  ListReviewedFilesService,
-  RemoveReviewedFileService,
-  SetReviewedFileService,
-  SetReviewedFilesService,
-} from '@porcelain/reviews/services';
 import { RemoveProjectService } from '@porcelain/projects/services';
 import { RemoveProjectController } from '../controllers/remove-project-controller.ts';
 import { ListFilePreferencesController } from '../controllers/list-file-preferences-controller.ts';
@@ -174,23 +153,7 @@ import {
   createProjectRemovalStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
-import {
-  createCommentStore,
-  createReviewedFileStore,
-  createReviewedLayerStore,
-  createReviewStore,
-} from '@porcelain/storage/reviews';
-import {
-  AssembleReviewDiagnosticsService,
-  PublishReviewService,
-  ReadPublishedReviewService,
-  ReadReviewSummaryService,
-  ResolvePublishedReviewService,
-  ListReviewedLayersService,
-  SetReviewedLayerService,
-  RemoveReviewedLayerService,
-  MarkCommentsSeenService,
-} from '@porcelain/reviews/services';
+import { composeReviews } from './compose-reviews.ts';
 
 const READ_CAPACITY = 4;
 const LISTING_LAUNCHES = 4;
@@ -309,20 +272,11 @@ export async function openApplication(options: {
       return read();
     };
 
-    const forWorktree = <T>(
-      read: (signal: AbortSignal) => T | Promise<T>,
-      signal?: AbortSignal,
-    ): Promise<T> =>
-      lanes.unqueued(async (operationSignal) => read(operationSignal), {
-        callerSignal: signal,
-      });
-
     const laneOf = (worktreeId: string) =>
       directory.repositoryOf(worktreeId) ?? 'unresolved';
     const projectLaneOf = (projectId: string) =>
       store.read().projects.find((entry) => entry.id === projectId)
         ?.repositoryIdentity ?? 'unresolved';
-    const markSeen = new MarkCommentsSeenService(statuses);
     const removeProject = new RemoveProjectService(
       createProjectRemovalStore(session),
     );
@@ -503,91 +457,30 @@ export async function openApplication(options: {
           signal,
         ),
     };
-    const reviewStore = createReviewStore(session);
-    const reviewDiagnostics = new AssembleReviewDiagnosticsService();
-    const resolvePublishedReview = new ResolvePublishedReviewService(
-      reviewStore,
-    );
-    const reviewEvidence = {
-      readChanges: (worktreeId: string, signal?: AbortSignal) =>
-        changes.execute(worktreeId, new RequestGitSession(), signal),
-      readDiffs: (
-        worktreeId: string,
-        statusToken: string,
-        expectedFiles: readonly ExpectedChangeFile[],
-        selections: readonly {
-          scope: 'staged' | 'unstaged';
-          oldPath: string | null;
-          newPath: string | null;
-        }[],
-        signal?: AbortSignal,
-      ) =>
-        changeDiffs.execute(
-          worktreeId,
-          statusToken,
-          expectedFiles,
-          selections,
-          new RequestGitSession(),
-          signal,
-        ),
-    };
-    const readPublishedReviewController = new ReadPublishedReviewController(
-      worktrees,
-      new ReadPublishedReviewService(reviewStore),
-      read,
-      reviewEvidence,
-      reviewDiagnostics,
-      resolvePublishedReview,
-      () => store.read().environmentId,
-      (operation, signal) => forWorktree(operation, signal),
-    );
-    const publishReviewController = new PublishReviewController(
-      worktrees,
-      new PublishReviewService(reviewStore, options.now),
-      read,
-      reviewEvidence,
-      reviewDiagnostics,
-      resolvePublishedReview,
-      () => store.read().environmentId,
-      (operation, signal) => forWorktree(operation, signal),
-      (worktreeId) => live.publishWorktree(worktreeId, 'review'),
-    );
-    const readReviewSummaryController = new ReadReviewSummaryController(
-      new ReadReviewSummaryService(reviewStore),
-      () => lanes.assertOpen(),
-    );
-    const reviewedLayers = createReviewedLayerStore(session);
-    const reviewed = createReviewedFileStore(session);
-    const live = new LiveUpdates({
-      worktrees,
-      reviewed,
-      reviewedLayers,
+    const reviews = composeReviews({
+      session,
+      lanes,
+      laneKeys: {
+        inventory: () => INVENTORY,
+        filesystem: () => FILESYSTEM,
+        project: projectLaneOf,
+        worktree: laneOf,
+      },
+      worktreeAccess: worktrees,
       projects: () => store.read().projects,
+      readTextFile: read,
+      readChanges: changes,
+      readChangeDiffs: changeDiffs,
+      now: options.now,
     });
-    const listReviewedLayersController = new ListReviewedLayersController(
-      worktrees,
-      new ListReviewedLayersService(reviewedLayers),
-      (operation, signal) => forWorktree(operation, signal),
-    );
-    const setReviewedLayerController = new SetReviewedLayerController(
-      worktrees,
-      new SetReviewedLayerService(reviewedLayers, options.now),
-      (operation, signal) => forWorktree(operation, signal),
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
-    const removeReviewedLayerController = new RemoveReviewedLayerController(
-      worktrees,
-      new RemoveReviewedLayerService(reviewedLayers),
-      (operation, signal) => forWorktree(operation, signal),
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
+    const live = reviews.liveUpdates;
     const renameProjectController = new RenameProjectController(
       new RenameProjectService(store),
       (operation, signal) =>
         lanes.run(INVENTORY, 'write', async () => operation(), {
           callerSignal: signal,
         }),
-      () => live.publish({ type: 'inventory' }),
+      () => live.inventoryChanged(),
     );
     const removeProjectController = new RemoveProjectController(
       removeProject,
@@ -596,7 +489,7 @@ export async function openApplication(options: {
           callerSignal: signal,
         }),
       (projectId) => directory.forget(projectId),
-      () => live.publish({ type: 'inventory' }),
+      () => live.inventoryChanged(),
     );
     const listFilePreferencesController = new ListFilePreferencesController(
       listPreferences,
@@ -605,8 +498,7 @@ export async function openApplication(options: {
     const setFilePreferenceController = new SetFilePreferenceController(
       setPreference,
       stored,
-      (projectId) =>
-        live.publish({ type: 'project', projectId, change: 'preferences' }),
+      (projectId) => live.projectChanged(projectId, 'preferences'),
     );
     const readInventoryController = new ReadInventoryController(
       async (signal) =>
@@ -649,7 +541,7 @@ export async function openApplication(options: {
           ({ signal: operationSignal }) => operation(operationSignal),
           { callerSignal: signal },
         ),
-      () => live.publish({ type: 'inventory' }),
+      () => live.inventoryChanged(),
     );
     const runWorktreeRead = <T>(
       worktreeId: string,
@@ -692,7 +584,7 @@ export async function openApplication(options: {
     const editFileController = new EditFileController(
       editFile,
       runWorktreeWrite,
-      (worktreeId, paths) => live.noteFiles(worktreeId, paths),
+      (worktreeId, paths) => live.filesChanged(worktreeId, paths),
     );
     const listWorktreePathsController = new ListWorktreePathsController(
       worktreePaths,
@@ -732,9 +624,11 @@ export async function openApplication(options: {
           changes.fingerprints(worktreeId, paths, session, signal),
       ),
       actionStore,
-      async (worktreeId, signal) => {
-        await readPublishedReviewController.execute({ worktreeId }, { signal });
-      },
+      (worktreeId, signal) =>
+        reviews.refreshReviewActivityController.execute(
+          { worktreeId },
+          { signal },
+        ),
     );
     const runGitActionController = new RunGitActionController(
       lanes,
@@ -743,13 +637,7 @@ export async function openApplication(options: {
       executeAction,
       readActionReceipt,
       recordActionProgress,
-      (receipt) =>
-        live.publish({
-          type: 'git-action',
-          projectId: receipt.projectId,
-          worktreeId: receipt.worktreeId,
-          receipt: gitActionReceiptView(receipt),
-        }),
+      (receipt) => live.gitActionChanged(gitActionReceiptView(receipt)),
     );
     const readGitActionReceiptController = new ReadGitActionReceiptController(
       lanes,
@@ -824,49 +712,6 @@ export async function openApplication(options: {
       captureCommitDraft,
       generateCommitDraft,
     );
-    const listReviewedFiles = new ListReviewedFilesService(reviewed);
-    const setReviewedFile = new SetReviewedFileService(reviewed, options.now);
-    const setReviewedFiles = new SetReviewedFilesService(reviewed, options.now);
-    const removeReviewedFile = new RemoveReviewedFileService(reviewed);
-    const listReviewedFilesController = new ListReviewedFilesController(
-      worktrees,
-      listReviewedFiles,
-      forWorktree,
-    );
-    const removeReviewedFileController = new RemoveReviewedFileController(
-      worktrees,
-      removeReviewedFile,
-      forWorktree,
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
-    const reviewedSession = () => new RequestGitSession();
-    const observeReviewedChanges = (
-      worktreeId: string,
-      session: RequestGitSession,
-      signal: AbortSignal,
-    ) => changes.execute(worktreeId, session, signal);
-    const confirmReviewedSession = (
-      session: RequestGitSession,
-      signal: AbortSignal,
-    ) => session.confirmAll(signal);
-    const setReviewedFileController = new SetReviewedFileController(
-      worktrees,
-      setReviewedFile,
-      reviewedSession,
-      observeReviewedChanges,
-      confirmReviewedSession,
-      runWorktreeRead,
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
-    const setReviewedFilesController = new SetReviewedFilesController(
-      worktrees,
-      setReviewedFiles,
-      reviewedSession,
-      observeReviewedChanges,
-      confirmReviewedSession,
-      runWorktreeRead,
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
     store.markAllUnavailable();
     const firstRefresh = lanes
       .run(INVENTORY, 'write', ({ signal }) => listProjects(signal), {
@@ -878,23 +723,6 @@ export async function openApplication(options: {
           firstRefreshFailure = cause;
         },
       );
-    const comments = new CommentThreadsService(
-      createCommentStore(session),
-      worktrees,
-      randomUUID,
-      options.now,
-    );
-    const commentThreadsController = new CommentThreadsController(
-      comments,
-      forWorktree,
-      (worktreeId) => live.publishWorktree(worktreeId, 'comments'),
-    );
-    const markCommentsSeenController = new MarkCommentsSeenController(
-      worktrees,
-      markSeen,
-      forWorktree,
-      (worktreeId) => live.publishWorktree(worktreeId, 'comments'),
-    );
     const runChangesRead = <T>(
       worktreeId: string,
       operation: (signal: AbortSignal) => Promise<T>,
@@ -920,7 +748,15 @@ export async function openApplication(options: {
         ),
       runChangesRead,
       (worktreeId, fingerprints) =>
-        reviewed.reconcile(worktreeId, new Map(fingerprints)),
+        reviews.reconcileReviewedFiles.execute({
+          worktreeId,
+          fingerprints: new Map(
+            [...fingerprints].map(([path, fingerprint]) => [
+              path,
+              fingerprint ?? undefined,
+            ]),
+          ),
+        }),
       (worktreeId) => readInterruptedAction.execute(worktreeId),
     );
     const readChangeDiffsController = new ReadChangeDiffsController(
@@ -976,18 +812,21 @@ export async function openApplication(options: {
       readChangeDiffsController,
       readChangeLinesController,
       readGitStatusController,
-      readPublishedReviewController,
-      publishReviewController,
-      readReviewSummaryController,
-      listReviewedLayersController,
-      setReviewedLayerController,
-      removeReviewedLayerController,
-      commentThreadsController,
-      markCommentsSeenController,
-      listReviewedFilesController,
-      removeReviewedFileController,
-      setReviewedFileController,
-      setReviewedFilesController,
+      readPublishedReviewController: reviews.readPublishedReviewController,
+      publishReviewController: reviews.publishReviewController,
+      readReviewSummaryController: reviews.readReviewSummaryController,
+      listReviewedLayersController: reviews.listReviewedLayersController,
+      setReviewedLayerController: reviews.setReviewedLayerController,
+      removeReviewedLayerController: reviews.removeReviewedLayerController,
+      listCommentThreadsController: reviews.listCommentThreadsController,
+      createCommentThreadController: reviews.createCommentThreadController,
+      replyToCommentController: reviews.replyToCommentController,
+      resolveCommentThreadController: reviews.resolveCommentThreadController,
+      markCommentsSeenController: reviews.markCommentsSeenController,
+      listReviewedFilesController: reviews.listReviewedFilesController,
+      removeReviewedFileController: reviews.removeReviewedFileController,
+      setReviewedFileController: reviews.setReviewedFileController,
+      setReviewedFilesController: reviews.setReviewedFilesController,
       redeemPairingController,
       issuePairingController,
       listAccessController,

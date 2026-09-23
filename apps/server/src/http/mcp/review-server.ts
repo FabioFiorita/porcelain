@@ -7,7 +7,10 @@ import {
 } from '@porcelain/contracts/reviews';
 import { publishReviewRequestSchema } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
-import type { CommentThreadsController } from '../../controllers/comment-threads-controller.ts';
+import type { CreateCommentThreadController } from '../../controllers/create-comment-thread-controller.ts';
+import type { ListCommentThreadsController } from '../../controllers/list-comment-threads-controller.ts';
+import type { ReplyToCommentController } from '../../controllers/reply-to-comment-controller.ts';
+import type { ResolveCommentThreadController } from '../../controllers/resolve-comment-thread-controller.ts';
 import type { PublishReviewController } from '../../controllers/publish-review-controller.ts';
 import type { ReadPublishedReviewController } from '../../controllers/read-published-review-controller.ts';
 import type { ReadInventoryController } from '../../controllers/read-inventory-controller.ts';
@@ -38,7 +41,16 @@ export function createReviewMcpServer(
       ReadPublishedReviewController,
       'execute'
     >;
-    commentThreadsController: Pick<CommentThreadsController, 'execute'>;
+    listCommentThreadsController: Pick<ListCommentThreadsController, 'execute'>;
+    createCommentThreadController: Pick<
+      CreateCommentThreadController,
+      'execute'
+    >;
+    replyToCommentController: Pick<ReplyToCommentController, 'execute'>;
+    resolveCommentThreadController: Pick<
+      ResolveCommentThreadController,
+      'execute'
+    >;
   },
   principal: { kind: 'agent' },
   defaultCwd: string,
@@ -77,7 +89,7 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        const review = await controllers.publishReviewController.execute(
+        const { review } = await controllers.publishReviewController.execute(
           { worktreeId, review: input },
           { signal },
         );
@@ -100,10 +112,12 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        return controllers.readPublishedReviewController.execute(
-          { worktreeId },
-          { signal },
-        );
+        const { review } =
+          await controllers.readPublishedReviewController.execute(
+            { worktreeId },
+            { signal },
+          );
+        return review ?? null;
       }),
   );
   server.registerTool(
@@ -123,8 +137,8 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        const threads = await controllers.commentThreadsController.execute(
-          { command: { kind: 'list', worktreeId }, principal },
+        const threads = await controllers.listCommentThreadsController.execute(
+          { worktreeId },
           { signal },
         );
         return commentsForAgent(threads, scope ?? 'waiting');
@@ -144,8 +158,8 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        return controllers.commentThreadsController.execute(
-          { command: { kind: 'create', worktreeId, ...input }, principal },
+        return controllers.createCommentThreadController.execute(
+          { worktreeId, ...input, writer: principal },
           { signal },
         );
       }),
@@ -167,8 +181,8 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        return controllers.commentThreadsController.execute(
-          { command: { kind: 'reply', worktreeId, ...input }, principal },
+        return controllers.replyToCommentController.execute(
+          { worktreeId, ...input, writer: principal },
           { signal },
         );
       }),
@@ -189,8 +203,8 @@ export function createReviewMcpServer(
           cwd ?? defaultCwd,
           signal,
         );
-        return controllers.commentThreadsController.execute(
-          { command: { kind: 'resolve', worktreeId, ...input }, principal },
+        return controllers.resolveCommentThreadController.execute(
+          { worktreeId, ...input },
           { signal },
         );
       }),

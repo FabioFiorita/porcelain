@@ -1,6 +1,7 @@
 export class ReviewedMarkConflictError extends Error {
+  override readonly name = 'ReviewedMarkConflictError';
+
   constructor() {
-    super('Reviewed mark is based on a version of the file that has changed');
-    this.name = 'ReviewedMarkConflictError';
+    super('Reviewed mark is based on a version that has changed');
   }
 }

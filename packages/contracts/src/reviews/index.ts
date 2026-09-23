@@ -13,6 +13,7 @@ export {
   replyToCommentResponseSchema,
   resolveCommentThreadRequestSchema,
   resolveCommentThreadResponseSchema,
+  writtenCommentThreadSchema,
   type CommentAnchor,
   type CommentAuthor,
   type CommentMessage,
@@ -27,6 +28,7 @@ export {
   type ReplyToCommentResponse,
   type ResolveCommentThreadRequest,
   type ResolveCommentThreadResponse,
+  type WrittenCommentThread,
 } from './comments.ts';
 export {
   codePointerSchema,

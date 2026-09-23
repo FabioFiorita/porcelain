@@ -1,43 +1,56 @@
-import { MarkCommentsSeenService } from '@porcelain/reviews/services';
-
-type CommentWorktreeAccess = {
-  forWriting(worktreeId: string, signal?: AbortSignal): Promise<unknown>;
-};
-type RunForWorktree = <T>(
-  operation: (signal: AbortSignal) => T | Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type {
+  MarkCommentsSeenRequest,
+  MarkCommentsSeenResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeAccessService,
+  MarkCommentsSeenService,
+} from '@porcelain/reviews/services';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class MarkCommentsSeenController {
-  private readonly worktrees: CommentWorktreeAccess;
+  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
   private readonly markCommentsSeen: MarkCommentsSeenService;
-  private readonly runForWorktree: RunForWorktree;
-  private readonly publishCommentsChanged: (worktreeId: string) => void;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
 
   constructor(
-    worktrees: CommentWorktreeAccess,
+    checkWorktreeAccess: CheckWorktreeAccessService,
     markCommentsSeen: MarkCommentsSeenService,
-    runForWorktree: RunForWorktree,
-    publishCommentsChanged: (worktreeId: string) => void,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
   ) {
-    this.worktrees = worktrees;
+    this.checkWorktreeAccess = checkWorktreeAccess;
     this.markCommentsSeen = markCommentsSeen;
-    this.runForWorktree = runForWorktree;
-    this.publishCommentsChanged = publishCommentsChanged;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.events = events;
   }
 
   async execute(
-    input: { worktreeId: string; throughRevision: number },
-    context: { signal?: AbortSignal },
-  ): Promise<{ worktreeId: string; seenThrough: number }> {
-    const result = await this.runForWorktree(async (signal) => {
-      await this.worktrees.forWriting(input.worktreeId, signal);
-      return this.markCommentsSeen.execute(
-        input.worktreeId,
-        input.throughRevision,
-      );
-    }, context.signal);
-    this.publishCommentsChanged(input.worktreeId);
+    input: WorktreeParams & MarkCommentsSeenRequest,
+    context: OperationContext,
+  ): Promise<MarkCommentsSeenResponse> {
+    const { worktreeId } = input;
+    const result = await this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'write',
+      async ({ signal }) => {
+        await this.checkWorktreeAccess.execute(
+          { worktreeId, intent: 'write' },
+          signal,
+        );
+        return this.markCommentsSeen.execute(input);
+      },
+      { callerSignal: context.signal },
+    );
+    this.events.worktreeChanged(worktreeId, 'comments');
     return result;
   }
 }

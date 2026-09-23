@@ -1,12 +1,8 @@
-import type { StoredReview } from '../models/stored-review.ts';
+import type { Review, ReviewSummary } from '../models/review.ts';
 
 export interface ReviewStore {
-  read(worktreeId: string): StoredReview | undefined;
-  readSummary(
-    token: string,
-  ):
-    | Pick<StoredReview, 'summaryHtml' | 'summaryToken' | 'summarySecret'>
-    | undefined;
-  replace(review: StoredReview, expectedRevision: number): StoredReview;
+  read(worktreeId: string): Review | undefined;
+  findSummary(token: string): ReviewSummary | undefined;
+  save(review: Review): void;
   setActive(worktreeId: string, revision: number, active: boolean): void;
 }

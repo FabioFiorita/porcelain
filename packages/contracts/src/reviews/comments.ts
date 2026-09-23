@@ -73,6 +73,7 @@ export const commentThreadParamsSchema = z.strictObject({
 });
 
 export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
+export const writtenCommentThreadSchema = z.tuple([commentThreadSchema]);
 
 export const createCommentThreadRequestSchema = z.strictObject({
   threadId: z.uuid().optional(),
@@ -80,20 +81,18 @@ export const createCommentThreadRequestSchema = z.strictObject({
   anchor: commentAnchorSchema,
   body: bodySchema,
 });
-export const createCommentThreadResponseSchema =
-  listCommentThreadsResponseSchema;
+export const createCommentThreadResponseSchema = writtenCommentThreadSchema;
 
 export const replyToCommentRequestSchema = z.strictObject({
   messageId: z.uuid().optional(),
   body: bodySchema,
 });
-export const replyToCommentResponseSchema = listCommentThreadsResponseSchema;
+export const replyToCommentResponseSchema = writtenCommentThreadSchema;
 
 export const resolveCommentThreadRequestSchema = z.strictObject({
   resolved: z.boolean(),
 });
-export const resolveCommentThreadResponseSchema =
-  listCommentThreadsResponseSchema;
+export const resolveCommentThreadResponseSchema = writtenCommentThreadSchema;
 
 export const markCommentsSeenRequestSchema = z.strictObject({
   throughRevision: z.number().int().nonnegative(),
@@ -111,6 +110,7 @@ export type CommentThreadParams = z.output<typeof commentThreadParamsSchema>;
 export type ListCommentThreadsResponse = z.output<
   typeof listCommentThreadsResponseSchema
 >;
+export type WrittenCommentThread = z.output<typeof writtenCommentThreadSchema>;
 export type CreateCommentThreadRequest = z.output<
   typeof createCommentThreadRequestSchema
 >;
