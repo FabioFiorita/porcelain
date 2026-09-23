@@ -1,32 +1,47 @@
 import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
-import { ListReviewedLayersService } from '@porcelain/reviews/services';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
-  ReviewWorktreeAccess,
-  RunReviewWorktreeOperation,
-} from '../runtime/review-worktree-operation.ts';
+  CheckWorktreeAccessService,
+  ListReviewedLayersService,
+} from '@porcelain/reviews/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListReviewedLayersController {
-  private readonly worktrees: ReviewWorktreeAccess;
-  private readonly list: ListReviewedLayersService;
-  private readonly run: RunReviewWorktreeOperation;
+  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly listReviewedLayers: ListReviewedLayersService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
-    worktrees: ReviewWorktreeAccess,
-    list: ListReviewedLayersService,
-    run: RunReviewWorktreeOperation,
+    checkWorktreeAccess: CheckWorktreeAccessService,
+    listReviewedLayers: ListReviewedLayersService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
-    this.worktrees = worktrees;
-    this.list = list;
-    this.run = run;
+    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.listReviewedLayers = listReviewedLayers;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: { worktreeId: string },
-    context: { signal?: AbortSignal | undefined },
+    input: WorktreeParams,
+    context: OperationContext,
   ): Promise<ListReviewedLayersResponse> {
-    return this.run(async (signal) => {
-      await this.worktrees.known(input.worktreeId, signal);
-      return this.list.execute(input.worktreeId);
-    }, context.signal);
+    const { worktreeId } = input;
+    return this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.checkWorktreeAccess.execute(
+          { worktreeId, intent: 'read' },
+          signal,
+        );
+        return this.listReviewedLayers.execute({ worktreeId });
+      },
+      { callerSignal: context.signal },
+    );
   }
 }

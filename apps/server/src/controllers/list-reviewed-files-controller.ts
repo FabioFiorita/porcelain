@@ -1,36 +1,47 @@
-import type { ReviewedFilesResult } from '@porcelain/reviews/models';
-import type { ListReviewedFilesService } from '@porcelain/reviews/services';
-
-type WorktreeAccess = {
-  known(worktreeId: string, signal?: AbortSignal): Promise<unknown>;
-};
-type RunForWorktree = <T>(
-  operation: (signal: AbortSignal) => T | Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
+import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeAccessService,
+  ListReviewedFilesService,
+} from '@porcelain/reviews/services';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ListReviewedFilesController {
-  private readonly worktrees: WorktreeAccess;
+  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
   private readonly listReviewedFiles: ListReviewedFilesService;
-  private readonly runForWorktree: RunForWorktree;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
-    worktrees: WorktreeAccess,
+    checkWorktreeAccess: CheckWorktreeAccessService,
     listReviewedFiles: ListReviewedFilesService,
-    runForWorktree: RunForWorktree,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
-    this.worktrees = worktrees;
+    this.checkWorktreeAccess = checkWorktreeAccess;
     this.listReviewedFiles = listReviewedFiles;
-    this.runForWorktree = runForWorktree;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
-    input: { worktreeId: string },
-    context: { signal?: AbortSignal },
-  ): Promise<ReviewedFilesResult> {
-    return this.runForWorktree(async (signal) => {
-      await this.worktrees.known(input.worktreeId, signal);
-      return this.listReviewedFiles.execute(input.worktreeId);
-    }, context.signal);
+    input: WorktreeParams,
+    context: OperationContext,
+  ): Promise<ListReviewedFilesResponse> {
+    const { worktreeId } = input;
+    return this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'read',
+      async ({ signal }) => {
+        await this.checkWorktreeAccess.execute(
+          { worktreeId, intent: 'read' },
+          signal,
+        );
+        return this.listReviewedFiles.execute({ worktreeId });
+      },
+      { callerSignal: context.signal },
+    );
   }
 }

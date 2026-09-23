@@ -1,88 +1,69 @@
 import type {
-  ReviewedFileChange,
-  SetReviewedFilesInput,
-  SetReviewedFilesResult,
-} from '@porcelain/reviews/models';
-import type { SetReviewedFilesService } from '@porcelain/reviews/services';
+  SetReviewedFilesRequest,
+  SetReviewedFilesResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeAccessService,
+  ReadCurrentChangesService,
+  SetReviewedFilesService,
+} from '@porcelain/reviews/services';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
-type WorktreeAccess = {
-  forWriting(worktreeId: string, signal?: AbortSignal): Promise<unknown>;
-};
-type RunWorktreeRead = <T>(
-  worktreeId: string,
-  operation: (signal: AbortSignal) => Promise<T>,
-  signal?: AbortSignal,
-) => Promise<T>;
-
-export class SetReviewedFilesController<Session> {
-  private readonly worktrees: WorktreeAccess;
+export class SetReviewedFilesController {
+  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly readCurrentChanges: ReadCurrentChangesService;
   private readonly setReviewedFiles: SetReviewedFilesService;
-  private readonly createSession: () => Session;
-  private readonly observeChanges: (
-    worktreeId: string,
-    session: Session,
-    signal: AbortSignal,
-  ) => Promise<{ changes: { path: string; fingerprint: string | null }[] }>;
-  private readonly confirmSession: (
-    session: Session,
-    signal: AbortSignal,
-  ) => Promise<void>;
-  private readonly runWorktreeRead: RunWorktreeRead;
-  private readonly publishReviewedChanged: (worktreeId: string) => void;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
 
   constructor(
-    worktrees: WorktreeAccess,
+    checkWorktreeAccess: CheckWorktreeAccessService,
+    readCurrentChanges: ReadCurrentChangesService,
     setReviewedFiles: SetReviewedFilesService,
-    createSession: () => Session,
-    observeChanges: (
-      worktreeId: string,
-      session: Session,
-      signal: AbortSignal,
-    ) => Promise<{ changes: { path: string; fingerprint: string | null }[] }>,
-    confirmSession: (session: Session, signal: AbortSignal) => Promise<void>,
-    runWorktreeRead: RunWorktreeRead,
-    publishReviewedChanged: (worktreeId: string) => void,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
   ) {
-    this.worktrees = worktrees;
+    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.readCurrentChanges = readCurrentChanges;
     this.setReviewedFiles = setReviewedFiles;
-    this.createSession = createSession;
-    this.observeChanges = observeChanges;
-    this.confirmSession = confirmSession;
-    this.runWorktreeRead = runWorktreeRead;
-    this.publishReviewedChanged = publishReviewedChanged;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.events = events;
   }
 
   async execute(
-    input: { worktreeId: string } & SetReviewedFilesInput,
-    context: { signal?: AbortSignal },
-  ): Promise<SetReviewedFilesResult> {
-    const submitted = { files: input.files.map((file) => ({ ...file })) };
-    const result = await this.runWorktreeRead(
-      input.worktreeId,
-      async (signal) => {
-        await this.worktrees.forWriting(input.worktreeId, signal);
-        const session = this.createSession();
-        const observed = await this.observeChanges(
-          input.worktreeId,
-          session,
+    input: WorktreeParams & SetReviewedFilesRequest,
+    context: OperationContext,
+  ): Promise<SetReviewedFilesResponse> {
+    const { worktreeId } = input;
+    const result = await this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'write',
+      async ({ signal }) => {
+        await this.checkWorktreeAccess.execute(
+          { worktreeId, intent: 'write' },
           signal,
         );
-        const changes: ReviewedFileChange[] = observed.changes.map(
-          ({ path, fingerprint }) => ({
-            path,
-            ...(fingerprint === null ? {} : { fingerprint }),
-          }),
+        const changes = await this.readCurrentChanges.execute(
+          { worktreeId },
+          signal,
         );
-        return this.setReviewedFiles.execute(
-          input.worktreeId,
-          submitted,
+        return this.setReviewedFiles.execute({
+          worktreeId,
+          files: input.files,
           changes,
-          () => this.confirmSession(session, signal),
-        );
+          onConflict: 'report',
+        });
       },
-      context.signal,
+      { callerSignal: context.signal },
     );
-    this.publishReviewedChanged(input.worktreeId);
+    this.events.worktreeChanged(worktreeId, 'reviewed');
     return result;
   }
 }

@@ -5,13 +5,12 @@ import {
   resolveCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
-import type { CommentThreadsController } from '../../../controllers/comment-threads-controller.ts';
-import { callerOf } from '../../principal.ts';
+import type { ResolveCommentThreadController } from '../../../controllers/resolve-comment-thread-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function resolveCommentThread(
   server: FastifyInstance,
-  options: { controller: Pick<CommentThreadsController, 'execute'> },
+  options: { controller: Pick<ResolveCommentThreadController, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(
@@ -28,10 +27,7 @@ export function resolveCommentThread(
     },
     async (request) =>
       options.controller.execute(
-        {
-          command: { kind: 'resolve', ...request.params, ...request.body },
-          principal: callerOf(request),
-        },
+        { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),
   );

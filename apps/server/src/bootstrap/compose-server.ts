@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   IssuePairingService,
   ListAccessService,
@@ -7,6 +6,10 @@ import {
   RevokeAccessService,
 } from '@porcelain/access/services';
 import type { PairingReach } from '@porcelain/access/ports';
+import {
+  AgentGenerationError,
+  CliCommitGenerator,
+} from '@porcelain/agents/commit-planning';
 import {
   ReadChangeLinesService,
   ReadChangeDiffsService,
@@ -28,6 +31,21 @@ import type {
   FileWriter,
   IgnoredEntries,
 } from '@porcelain/files/ports';
+import { CommitDraftError } from '@porcelain/git-actions/errors';
+import { gitActionReceiptView } from '@porcelain/git-actions/models';
+import {
+  AcceptGitActionService,
+  AdmitCommitDraftService,
+  CaptureCommitDraftService,
+  DismissInterruptedGitActionService,
+  ExecuteGitActionService,
+  GenerateCommitDraftService,
+  ListCommitModelsService,
+  ListGitBranchesService,
+  ReadGitActionReceiptService,
+  ReadInterruptedGitActionService,
+  RecordGitActionProgressService,
+} from '@porcelain/git-actions/services';
 import { ActionGit } from '@porcelain/git/actions';
 import { checkIgnored } from '@porcelain/git/inspection';
 import { listTrackedPaths } from '@porcelain/git/inspection';
@@ -51,10 +69,9 @@ import type { GitActionWriterFactory } from '@porcelain/git/actions';
 import type { GitFactory } from '@porcelain/git/discovery';
 import type { InspectionFactory } from '@porcelain/git/inspection';
 import { readGitVersion } from '@porcelain/git/discovery';
-import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import type {
-  CommitDraftWriter,
-  CommitModelReader,
+  CommitGeneratorPort,
+  CommitModelCatalogPort,
 } from '@porcelain/git-actions/ports';
 import type { ServerCapabilities } from './server-capabilities.ts';
 import { createChangeLinesReader } from '../adapters/changes/change-lines-reader.ts';
@@ -73,24 +90,21 @@ import { ReadChangesController } from '../controllers/read-changes-controller.ts
 import { ReadChangeDiffsController } from '../controllers/read-change-diffs-controller.ts';
 import { ReadChangeLinesController } from '../controllers/read-change-lines-controller.ts';
 import { ReadGitStatusController } from '../controllers/read-git-status-controller.ts';
+import { ActionExecutionAdapter } from '../adapters/git-actions/action-execution-adapter.ts';
+import { CommitDraftCaptureAdapter } from '../adapters/git-actions/commit-draft-capture-adapter.ts';
+import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
+import { DismissInterruptedGitActionController } from '../controllers/dismiss-interrupted-git-action-controller.ts';
+import { GenerateCommitDraftController } from '../controllers/generate-commit-draft-controller.ts';
+import { ListCommitModelsController } from '../controllers/list-commit-models-controller.ts';
+import { ListGitBranchesController } from '../controllers/list-git-branches-controller.ts';
+import { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
+import { RunGitActionController } from '../controllers/run-git-action-controller.ts';
 import { RenameProjectController } from '../controllers/rename-project-controller.ts';
-import { CommentThreadsController } from '../controllers/comment-threads-controller.ts';
-import { MarkCommentsSeenController } from '../controllers/mark-comments-seen-controller.ts';
-import { ListReviewedFilesController } from '../controllers/list-reviewed-files-controller.ts';
-import { RemoveReviewedFileController } from '../controllers/remove-reviewed-file-controller.ts';
-import { SetReviewedFileController } from '../controllers/set-reviewed-file-controller.ts';
-import { SetReviewedFilesController } from '../controllers/set-reviewed-files-controller.ts';
 import { RedeemPairingController } from '../controllers/redeem-pairing-controller.ts';
 import { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
 import { ListAccessController } from '../controllers/list-access-controller.ts';
 import { RevokeAccessController } from '../controllers/revoke-access-controller.ts';
 import { ReadHealthController } from '../controllers/read-health-controller.ts';
-import { PublishReviewController } from '../controllers/publish-review-controller.ts';
-import { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
-import { ReadReviewSummaryController } from '../controllers/read-review-summary-controller.ts';
-import { ListReviewedLayersController } from '../controllers/list-reviewed-layers-controller.ts';
-import { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
-import { RemoveReviewedLayerController } from '../controllers/remove-reviewed-layer-controller.ts';
 import { applicationSettingsSchema } from '../config/application-settings.ts';
 import { NodeFileReader } from '../adapters/files/file-reader.ts';
 import { NodeFileWriter } from '../adapters/files/file-writer.ts';
@@ -102,20 +116,12 @@ import {
   type WorktreeFiles,
 } from '../adapters/files/worktree-files.ts';
 import { DeviceDirectory } from '../adapters/access/device-directory.ts';
-import { LiveUpdates } from '../adapters/events/live-updates.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import { WorktreeDirectory } from '../adapters/git/worktree-directory.ts';
 import type { Project } from '@porcelain/contracts/projects';
-import { CommentThreadsService } from '@porcelain/reviews/services';
 import { ListFilePreferencesService } from '@porcelain/projects/services';
-import {
-  ListReviewedFilesService,
-  RemoveReviewedFileService,
-  SetReviewedFileService,
-  SetReviewedFilesService,
-} from '@porcelain/reviews/services';
 import { RemoveProjectService } from '@porcelain/projects/services';
 import { RemoveProjectController } from '../controllers/remove-project-controller.ts';
 import { ListFilePreferencesController } from '../controllers/list-file-preferences-controller.ts';
@@ -130,8 +136,7 @@ import { ReadFileAssetController } from '../controllers/read-file-asset-controll
 import { ReadPreviewAssetsController } from '../controllers/read-preview-assets-controller.ts';
 import { EditFileController } from '../controllers/edit-file-controller.ts';
 import { ListWorktreePathsController } from '../controllers/list-worktree-paths-controller.ts';
-import { CommitGeneratorAdapter } from '../adapters/git-actions/commit-generator-adapter.ts';
-import { composeGitActions } from './compose-git-actions.ts';
+import { resolveActionCheckout } from '../adapters/git-actions/action-checkout.ts';
 import { ResolveWorktree } from '../adapters/projects/resolve-worktree.ts';
 import { SetFilePreferenceService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
@@ -141,29 +146,14 @@ import {
   createPairingGrantStore,
 } from '@porcelain/storage/access';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
+import { createGitActionStore } from '@porcelain/storage/git-actions';
 import {
   createFilePreferenceStore,
   createInventoryStore,
   createProjectRemovalStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
-import {
-  createCommentStore,
-  createReviewedFileStore,
-  createReviewedLayerStore,
-  createReviewStore,
-} from '@porcelain/storage/reviews';
-import {
-  AssembleReviewDiagnosticsService,
-  PublishReviewService,
-  ReadPublishedReviewService,
-  ReadReviewSummaryService,
-  ResolvePublishedReviewService,
-  ListReviewedLayersService,
-  SetReviewedLayerService,
-  RemoveReviewedLayerService,
-  MarkCommentsSeenService,
-} from '@porcelain/reviews/services';
+import { composeReviews } from './compose-reviews.ts';
 
 const READ_CAPACITY = 4;
 const LISTING_LAUNCHES = 4;
@@ -184,7 +174,7 @@ export async function openApplication(options: {
   projectFolders?: ProjectFolders;
   projectHome: string;
   pairingReach?: () => PairingReach;
-  commitGenerator?: CommitDraftWriter & CommitModelReader;
+  commitGenerator?: CommitGeneratorPort & CommitModelCatalogPort;
   fileWriter?: FileWriter;
   now?: () => string;
   signal?: AbortSignal;
@@ -282,23 +272,16 @@ export async function openApplication(options: {
       return read();
     };
 
-    const forWorktree = <T>(
-      read: (signal: AbortSignal) => T | Promise<T>,
-      signal?: AbortSignal,
-    ): Promise<T> =>
-      lanes.unqueued(async (operationSignal) => read(operationSignal), {
-        callerSignal: signal,
-      });
-
     const laneOf = (worktreeId: string) =>
       directory.repositoryOf(worktreeId) ?? 'unresolved';
     const projectLaneOf = (projectId: string) =>
       store.read().projects.find((entry) => entry.id === projectId)
         ?.repositoryIdentity ?? 'unresolved';
-    const markSeen = new MarkCommentsSeenService(statuses);
     const removeProject = new RemoveProjectService(
       createProjectRemovalStore(session),
     );
+    const actionStore = createGitActionStore(session);
+    actionStore.recover();
     const actionGit =
       options.actionGit ?? ((checkout) => new ActionGit(checkout));
 
@@ -474,91 +457,30 @@ export async function openApplication(options: {
           signal,
         ),
     };
-    const reviewStore = createReviewStore(session);
-    const reviewDiagnostics = new AssembleReviewDiagnosticsService();
-    const resolvePublishedReview = new ResolvePublishedReviewService(
-      reviewStore,
-    );
-    const reviewEvidence = {
-      readChanges: (worktreeId: string, signal?: AbortSignal) =>
-        changes.execute(worktreeId, new RequestGitSession(), signal),
-      readDiffs: (
-        worktreeId: string,
-        statusToken: string,
-        expectedFiles: readonly ExpectedChangeFile[],
-        selections: readonly {
-          scope: 'staged' | 'unstaged';
-          oldPath: string | null;
-          newPath: string | null;
-        }[],
-        signal?: AbortSignal,
-      ) =>
-        changeDiffs.execute(
-          worktreeId,
-          statusToken,
-          expectedFiles,
-          selections,
-          new RequestGitSession(),
-          signal,
-        ),
-    };
-    const readPublishedReviewController = new ReadPublishedReviewController(
-      worktrees,
-      new ReadPublishedReviewService(reviewStore),
-      read,
-      reviewEvidence,
-      reviewDiagnostics,
-      resolvePublishedReview,
-      () => store.read().environmentId,
-      (operation, signal) => forWorktree(operation, signal),
-    );
-    const publishReviewController = new PublishReviewController(
-      worktrees,
-      new PublishReviewService(reviewStore, options.now),
-      read,
-      reviewEvidence,
-      reviewDiagnostics,
-      resolvePublishedReview,
-      () => store.read().environmentId,
-      (operation, signal) => forWorktree(operation, signal),
-      (worktreeId) => live.publishWorktree(worktreeId, 'review'),
-    );
-    const readReviewSummaryController = new ReadReviewSummaryController(
-      new ReadReviewSummaryService(reviewStore),
-      () => lanes.assertOpen(),
-    );
-    const reviewedLayers = createReviewedLayerStore(session);
-    const reviewed = createReviewedFileStore(session);
-    const live = new LiveUpdates({
-      worktrees,
-      reviewed,
-      reviewedLayers,
+    const reviews = composeReviews({
+      session,
+      lanes,
+      laneKeys: {
+        inventory: () => INVENTORY,
+        filesystem: () => FILESYSTEM,
+        project: projectLaneOf,
+        worktree: laneOf,
+      },
+      worktreeAccess: worktrees,
       projects: () => store.read().projects,
+      readTextFile: read,
+      readChanges: changes,
+      readChangeDiffs: changeDiffs,
+      now: options.now,
     });
-    const listReviewedLayersController = new ListReviewedLayersController(
-      worktrees,
-      new ListReviewedLayersService(reviewedLayers),
-      (operation, signal) => forWorktree(operation, signal),
-    );
-    const setReviewedLayerController = new SetReviewedLayerController(
-      worktrees,
-      new SetReviewedLayerService(reviewedLayers, options.now),
-      (operation, signal) => forWorktree(operation, signal),
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
-    const removeReviewedLayerController = new RemoveReviewedLayerController(
-      worktrees,
-      new RemoveReviewedLayerService(reviewedLayers),
-      (operation, signal) => forWorktree(operation, signal),
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
-    );
+    const live = reviews.liveUpdates;
     const renameProjectController = new RenameProjectController(
       new RenameProjectService(store),
       (operation, signal) =>
         lanes.run(INVENTORY, 'write', async () => operation(), {
           callerSignal: signal,
         }),
-      () => live.publish({ type: 'inventory' }),
+      () => live.inventoryChanged(),
     );
     const removeProjectController = new RemoveProjectController(
       removeProject,
@@ -567,7 +489,7 @@ export async function openApplication(options: {
           callerSignal: signal,
         }),
       (projectId) => directory.forget(projectId),
-      () => live.publish({ type: 'inventory' }),
+      () => live.inventoryChanged(),
     );
     const listFilePreferencesController = new ListFilePreferencesController(
       listPreferences,
@@ -576,8 +498,7 @@ export async function openApplication(options: {
     const setFilePreferenceController = new SetFilePreferenceController(
       setPreference,
       stored,
-      (projectId) =>
-        live.publish({ type: 'project', projectId, change: 'preferences' }),
+      (projectId) => live.projectChanged(projectId, 'preferences'),
     );
     const readInventoryController = new ReadInventoryController(
       async (signal) =>
@@ -620,7 +541,7 @@ export async function openApplication(options: {
           ({ signal: operationSignal }) => operation(operationSignal),
           { callerSignal: signal },
         ),
-      () => live.publish({ type: 'inventory' }),
+      () => live.inventoryChanged(),
     );
     const runWorktreeRead = <T>(
       worktreeId: string,
@@ -663,91 +584,133 @@ export async function openApplication(options: {
     const editFileController = new EditFileController(
       editFile,
       runWorktreeWrite,
-      (worktreeId, paths) => live.noteFiles(worktreeId, paths),
+      (worktreeId, paths) => live.filesChanged(worktreeId, paths),
     );
     const listWorktreePathsController = new ListWorktreePathsController(
       worktreePaths,
       runWorktreeRead,
     );
-    const gitActions = composeGitActions({
-      session,
+    const acceptAction = new AcceptGitActionService(actionStore);
+    const readActionReceipt = new ReadGitActionReceiptService(actionStore);
+    const readInterruptedAction = new ReadInterruptedGitActionService(
+      actionStore,
+    );
+    const dismissInterruptedAction = new DismissInterruptedGitActionService(
+      actionStore,
+    );
+    const recordActionProgress = new RecordGitActionProgressService(
+      actionStore,
+    );
+    const executeAction = new ExecuteGitActionService(
+      new ActionExecutionAdapter(
+        async (scope, session, signal) =>
+          (
+            await resolveActionCheckout(
+              worktrees,
+              store,
+              session,
+              scope,
+              signal,
+            )
+          ).checkout,
+        actionGit,
+        async (worktreeId, session, signal) =>
+          new Map(
+            (await changes.execute(worktreeId, session, signal)).changes.map(
+              (entry) => [entry.path, entry.fingerprint],
+            ),
+          ),
+        (worktreeId, paths, session, signal) =>
+          changes.fingerprints(worktreeId, paths, session, signal),
+      ),
+      actionStore,
+      (worktreeId, signal) =>
+        reviews.refreshReviewActivityController.execute(
+          { worktreeId },
+          { signal },
+        ),
+    );
+    const runGitActionController = new RunGitActionController(
       lanes,
-      laneKeys: {
-        inventory: () => INVENTORY,
-        filesystem: () => FILESYSTEM,
-        project: projectLaneOf,
-        worktree: laneOf,
-      },
-      events: {
-        inventoryChanged: () => live.publish({ type: 'inventory' }),
-        projectChanged: (projectId, change) =>
-          live.publish({ type: 'project', projectId, change }),
-        worktreeChanged: (worktreeId, change) =>
-          live.publishWorktree(worktreeId, change),
-        filesChanged: (worktreeId, paths) => live.noteFiles(worktreeId, paths),
-        gitActionChanged: (receipt) =>
-          live.publish({
-            type: 'git-action',
-            projectId: receipt.projectId,
-            worktreeId: receipt.worktreeId,
-            receipt,
-          }),
-      },
-      worktrees,
-      environment: store,
-      actionGit,
-      files,
-      changes,
-      refreshPublishedReview: readPublishedReviewController,
-      commitGenerator:
-        options.commitGenerator ??
-        new CommitGeneratorAdapter(createCommitPlanner()),
-      gitActionDeadlineMs: 120_000,
-      commitModelDeadlineMs: 120_000,
-    });
-    gitActions.recoverInterruptedGitActionsController.execute({}, {});
-    const listReviewedFiles = new ListReviewedFilesService(reviewed);
-    const setReviewedFile = new SetReviewedFileService(reviewed, options.now);
-    const setReviewedFiles = new SetReviewedFilesService(reviewed, options.now);
-    const removeReviewedFile = new RemoveReviewedFileService(reviewed);
-    const listReviewedFilesController = new ListReviewedFilesController(
-      worktrees,
-      listReviewedFiles,
-      forWorktree,
+      projectLaneOf,
+      acceptAction,
+      executeAction,
+      readActionReceipt,
+      recordActionProgress,
+      (receipt) => live.gitActionChanged(gitActionReceiptView(receipt)),
     );
-    const removeReviewedFileController = new RemoveReviewedFileController(
-      worktrees,
-      removeReviewedFile,
-      forWorktree,
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
+    const readGitActionReceiptController = new ReadGitActionReceiptController(
+      lanes,
+      readActionReceipt,
     );
-    const reviewedSession = () => new RequestGitSession();
-    const observeReviewedChanges = (
-      worktreeId: string,
-      session: RequestGitSession,
-      signal: AbortSignal,
-    ) => changes.execute(worktreeId, session, signal);
-    const confirmReviewedSession = (
-      session: RequestGitSession,
-      signal: AbortSignal,
-    ) => session.confirmAll(signal);
-    const setReviewedFileController = new SetReviewedFileController(
-      worktrees,
-      setReviewedFile,
-      reviewedSession,
-      observeReviewedChanges,
-      confirmReviewedSession,
-      runWorktreeRead,
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
+    const dismissInterruptedGitActionController =
+      new DismissInterruptedGitActionController(
+        lanes,
+        dismissInterruptedAction,
+      );
+    const listGitBranchesController = new ListGitBranchesController(
+      lanes,
+      projectLaneOf,
+      new ListGitBranchesService(
+        new GitBranchReaderAdapter(
+          async (scope, session, signal) =>
+            (
+              await resolveActionCheckout(
+                worktrees,
+                store,
+                session,
+                scope,
+                signal,
+              )
+            ).checkout,
+          actionGit,
+        ),
+      ),
     );
-    const setReviewedFilesController = new SetReviewedFilesController(
-      worktrees,
-      setReviewedFiles,
-      reviewedSession,
-      observeReviewedChanges,
-      confirmReviewedSession,
-      runWorktreeRead,
-      (worktreeId) => live.publishWorktree(worktreeId, 'reviewed'),
+    const provider = new CliCommitGenerator();
+    const generator: CommitGeneratorPort & CommitModelCatalogPort =
+      options.commitGenerator ?? {
+        models: (signal) => provider.models(signal),
+        generate: async (model, prompt, signal) => {
+          try {
+            return await provider.generate(model, prompt, signal);
+          } catch (error) {
+            signal.throwIfAborted();
+            if (error instanceof AgentGenerationError)
+              throw new CommitDraftError(error.message, { cause: error });
+            throw error;
+          }
+        },
+      };
+    const generateCommitDraft = new GenerateCommitDraftService(generator);
+    const listCommitModelsController = new ListCommitModelsController(
+      lanes,
+      new ListCommitModelsService(generator),
+    );
+    const captureCommitDraft = new CaptureCommitDraftService(
+      new CommitDraftCaptureAdapter(
+        (worktreeId, session, signal) =>
+          changes.execute(worktreeId, session, signal),
+        async (scope, session, signal) => {
+          const { checkout, worktree } = await resolveActionCheckout(
+            worktrees,
+            store,
+            session,
+            scope,
+            signal,
+          );
+          return { checkout, root: worktree.path };
+        },
+        actionGit,
+        files,
+      ),
+    );
+    const generateCommitDraftController = new GenerateCommitDraftController(
+      lanes,
+      projectLaneOf,
+      new AdmitCommitDraftService(),
+      captureCommitDraft,
+      generateCommitDraft,
     );
     store.markAllUnavailable();
     const firstRefresh = lanes
@@ -760,23 +723,6 @@ export async function openApplication(options: {
           firstRefreshFailure = cause;
         },
       );
-    const comments = new CommentThreadsService(
-      createCommentStore(session),
-      worktrees,
-      randomUUID,
-      options.now,
-    );
-    const commentThreadsController = new CommentThreadsController(
-      comments,
-      forWorktree,
-      (worktreeId) => live.publishWorktree(worktreeId, 'comments'),
-    );
-    const markCommentsSeenController = new MarkCommentsSeenController(
-      worktrees,
-      markSeen,
-      forWorktree,
-      (worktreeId) => live.publishWorktree(worktreeId, 'comments'),
-    );
     const runChangesRead = <T>(
       worktreeId: string,
       operation: (signal: AbortSignal) => Promise<T>,
@@ -802,9 +748,16 @@ export async function openApplication(options: {
         ),
       runChangesRead,
       (worktreeId, fingerprints) =>
-        reviewed.reconcile(worktreeId, new Map(fingerprints)),
-      (worktreeId) =>
-        gitActions.readInterruptedGitActionService.execute({ worktreeId }),
+        reviews.reconcileReviewedFiles.execute({
+          worktreeId,
+          fingerprints: new Map(
+            [...fingerprints].map(([path, fingerprint]) => [
+              path,
+              fingerprint ?? undefined,
+            ]),
+          ),
+        }),
+      (worktreeId) => readInterruptedAction.execute(worktreeId),
     );
     const readChangeDiffsController = new ReadChangeDiffsController(
       (worktreeId) =>
@@ -859,18 +812,21 @@ export async function openApplication(options: {
       readChangeDiffsController,
       readChangeLinesController,
       readGitStatusController,
-      readPublishedReviewController,
-      publishReviewController,
-      readReviewSummaryController,
-      listReviewedLayersController,
-      setReviewedLayerController,
-      removeReviewedLayerController,
-      commentThreadsController,
-      markCommentsSeenController,
-      listReviewedFilesController,
-      removeReviewedFileController,
-      setReviewedFileController,
-      setReviewedFilesController,
+      readPublishedReviewController: reviews.readPublishedReviewController,
+      publishReviewController: reviews.publishReviewController,
+      readReviewSummaryController: reviews.readReviewSummaryController,
+      listReviewedLayersController: reviews.listReviewedLayersController,
+      setReviewedLayerController: reviews.setReviewedLayerController,
+      removeReviewedLayerController: reviews.removeReviewedLayerController,
+      listCommentThreadsController: reviews.listCommentThreadsController,
+      createCommentThreadController: reviews.createCommentThreadController,
+      replyToCommentController: reviews.replyToCommentController,
+      resolveCommentThreadController: reviews.resolveCommentThreadController,
+      markCommentsSeenController: reviews.markCommentsSeenController,
+      listReviewedFilesController: reviews.listReviewedFilesController,
+      removeReviewedFileController: reviews.removeReviewedFileController,
+      setReviewedFileController: reviews.setReviewedFileController,
+      setReviewedFilesController: reviews.setReviewedFilesController,
       redeemPairingController,
       issuePairingController,
       listAccessController,
@@ -890,13 +846,12 @@ export async function openApplication(options: {
       readPreviewAssetsController,
       editFileController,
       listWorktreePathsController,
-      runGitActionController: gitActions.runGitActionController,
-      readGitActionReceiptController: gitActions.readGitActionReceiptController,
-      dismissInterruptedGitActionController:
-        gitActions.dismissInterruptedGitActionController,
-      listGitBranchesController: gitActions.listGitBranchesController,
-      listCommitModelsController: gitActions.listCommitModelsController,
-      generateCommitDraftController: gitActions.generateCommitDraftController,
+      runGitActionController,
+      readGitActionReceiptController,
+      dismissInterruptedGitActionController,
+      listGitBranchesController,
+      listCommitModelsController,
+      generateCommitDraftController,
       liveUpdates: (send) => live.connect(send),
       ready: async () => {
         await firstRefresh;

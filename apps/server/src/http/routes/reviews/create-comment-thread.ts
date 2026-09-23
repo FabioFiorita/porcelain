@@ -5,13 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { CommentThreadsController } from '../../../controllers/comment-threads-controller.ts';
-import { callerOf } from '../../principal.ts';
+import type { CreateCommentThreadController } from '../../../controllers/create-comment-thread-controller.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function createCommentThread(
   server: FastifyInstance,
-  options: { controller: Pick<CommentThreadsController, 'execute'> },
+  options: { controller: Pick<CreateCommentThreadController, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -25,10 +24,7 @@ export function createCommentThread(
     },
     async (request) =>
       options.controller.execute(
-        {
-          command: { kind: 'create', ...request.params, ...request.body },
-          principal: callerOf(request),
-        },
+        { ...request.params, ...request.body, writer: request.principal },
         { signal: request.disconnected },
       ),
   );

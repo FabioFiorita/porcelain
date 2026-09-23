@@ -18,10 +18,9 @@ export function readPublishedReview(
         response: { ...errorResponses, 200: readPublishedReviewResponseSchema },
       },
     },
-    async (request) => ({
-      review: await options.controller.execute(request.params, {
+    async (request) =>
+      options.controller.execute(request.params, {
         signal: request.disconnected,
       }),
-    }),
   );
 }

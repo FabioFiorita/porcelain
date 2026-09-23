@@ -108,16 +108,16 @@ export async function pairedRoutes(
     controller: options.application.publishReviewController,
   });
   server.register(listCommentThreads, {
-    controller: options.application.commentThreadsController,
+    controller: options.application.listCommentThreadsController,
   });
   server.register(createCommentThread, {
-    controller: options.application.commentThreadsController,
+    controller: options.application.createCommentThreadController,
   });
   server.register(replyToComment, {
-    controller: options.application.commentThreadsController,
+    controller: options.application.replyToCommentController,
   });
   server.register(resolveCommentThread, {
-    controller: options.application.commentThreadsController,
+    controller: options.application.resolveCommentThreadController,
   });
   server.register(markCommentsSeen, {
     controller: options.application.markCommentsSeenController,

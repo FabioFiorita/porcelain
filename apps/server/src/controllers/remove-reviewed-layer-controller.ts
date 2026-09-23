@@ -1,38 +1,56 @@
-import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
-import { RemoveReviewedLayerService } from '@porcelain/reviews/services';
 import type {
-  ReviewWorktreeAccess,
-  RunReviewWorktreeOperation,
-} from '../runtime/review-worktree-operation.ts';
+  RemoveReviewedLayerQuery,
+  RemoveReviewedLayerResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type {
+  CheckWorktreeAccessService,
+  RemoveReviewedLayerService,
+} from '@porcelain/reviews/services';
+import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { LaneKeys } from '../runtime/lane-keys.ts';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class RemoveReviewedLayerController {
-  private readonly worktrees: ReviewWorktreeAccess;
-  private readonly remove: RemoveReviewedLayerService;
-  private readonly run: RunReviewWorktreeOperation;
-  private readonly publishChanged: (worktreeId: string) => void;
+  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly removeReviewedLayer: RemoveReviewedLayerService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
 
   constructor(
-    worktrees: ReviewWorktreeAccess,
-    remove: RemoveReviewedLayerService,
-    run: RunReviewWorktreeOperation,
-    publishChanged: (worktreeId: string) => void,
+    checkWorktreeAccess: CheckWorktreeAccessService,
+    removeReviewedLayer: RemoveReviewedLayerService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
   ) {
-    this.worktrees = worktrees;
-    this.remove = remove;
-    this.run = run;
-    this.publishChanged = publishChanged;
+    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.removeReviewedLayer = removeReviewedLayer;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.events = events;
   }
 
-  execute(
-    input: { worktreeId: string; layerId: string },
-    context: { signal?: AbortSignal | undefined },
-  ): Promise<ListReviewedLayersResponse> {
-    return this.run(async (signal) => {
-      await this.worktrees.forWriting(input.worktreeId, signal);
-      return this.remove.execute(input.worktreeId, input.layerId);
-    }, context.signal).then((answer) => {
-      this.publishChanged(input.worktreeId);
-      return answer;
-    });
+  async execute(
+    input: WorktreeParams & RemoveReviewedLayerQuery,
+    context: OperationContext,
+  ): Promise<RemoveReviewedLayerResponse> {
+    const { worktreeId } = input;
+    const result = await this.lanes.run(
+      this.laneKeys.worktree(worktreeId),
+      'write',
+      async ({ signal }) => {
+        await this.checkWorktreeAccess.execute(
+          { worktreeId, intent: 'write' },
+          signal,
+        );
+        return this.removeReviewedLayer.execute(input);
+      },
+      { callerSignal: context.signal },
+    );
+    this.events.worktreeChanged(worktreeId, 'reviewed');
+    return result;
   }
 }

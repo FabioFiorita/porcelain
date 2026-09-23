@@ -26,12 +26,11 @@ export function readReviewSummary(
       },
     },
     async (request, reply) => {
-      const summary = options.controller.execute({
-        token: request.params.token,
-        expires: request.query.expires,
-        signature: request.query.signature,
-      });
-      if (summary === null) return reply.code(404).send(undefined);
+      const summary = options.controller.execute(
+        { ...request.params, ...request.query },
+        { signal: request.disconnected },
+      );
+      if (summary === undefined) return reply.code(404).send(undefined);
       return reply
         .header('Cache-Control', 'private, no-store')
         .header(

@@ -1,22 +1,26 @@
-import { ReadReviewSummaryService } from '@porcelain/reviews/services';
+import type {
+  ReadReviewSummaryParams,
+  ReadReviewSummaryQuery,
+} from '@porcelain/contracts/reviews';
+import type { ReadReviewSummaryService } from '@porcelain/reviews/services';
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadReviewSummaryController {
-  private readonly summary: ReadReviewSummaryService;
-  private readonly assertOpen: () => void;
+  private readonly readReviewSummary: ReadReviewSummaryService;
+  private readonly lanes: Lanes;
 
-  constructor(summary: ReadReviewSummaryService, assertOpen: () => void) {
-    this.summary = summary;
-    this.assertOpen = assertOpen;
+  constructor(readReviewSummary: ReadReviewSummaryService, lanes: Lanes) {
+    this.readReviewSummary = readReviewSummary;
+    this.lanes = lanes;
   }
 
-  execute(input: {
-    token: string;
-    expires: number;
-    signature: string;
-  }): string | null {
-    this.assertOpen();
-    return (
-      this.summary.execute(input.token, input.expires, input.signature) ?? null
-    );
+  execute(
+    input: ReadReviewSummaryParams & ReadReviewSummaryQuery,
+    context: OperationContext,
+  ): string | undefined {
+    this.lanes.assertOpen();
+    context.signal?.throwIfAborted();
+    return this.readReviewSummary.execute(input);
   }
 }

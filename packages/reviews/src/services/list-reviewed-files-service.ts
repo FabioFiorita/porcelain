@@ -1,14 +1,21 @@
-import type { ReviewedFilesResult } from '../models/reviewed-file.ts';
+import type {
+  ListReviewedFilesInput,
+  ListReviewedFilesResult,
+} from '../models/reviewed-mark.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
+import { reviewedMarks } from '../rules/reviewed-marks.ts';
 
 export class ListReviewedFilesService {
-  private readonly reviewed: ReviewedFileStore;
+  private readonly reviewedFileStore: ReviewedFileStore;
 
-  constructor(reviewed: ReviewedFileStore) {
-    this.reviewed = reviewed;
+  constructor(reviewedFileStore: ReviewedFileStore) {
+    this.reviewedFileStore = reviewedFileStore;
   }
 
-  execute(worktreeId: string): ReviewedFilesResult {
-    return { worktreeId, marks: this.reviewed.list(worktreeId) };
+  execute(input: ListReviewedFilesInput): ListReviewedFilesResult {
+    return {
+      worktreeId: input.worktreeId,
+      marks: reviewedMarks(this.reviewedFileStore.list(input.worktreeId)),
+    };
   }
 }

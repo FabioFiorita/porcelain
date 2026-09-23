@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { listCommentThreadsResponseSchema } from '../../../../packages/contracts/src/reviews/index.ts';
+import {
+  createCommentThreadResponseSchema,
+  listCommentThreadsResponseSchema,
+  replyToCommentResponseSchema,
+  resolveCommentThreadResponseSchema,
+} from '../../../../packages/contracts/src/reviews/index.ts';
 import {
   apiError,
   defineCase,
@@ -34,9 +39,9 @@ export default defineFeature({
     'POST /api/worktrees/:worktreeId/comments/:threadId/replies',
     'PUT /api/worktrees/:worktreeId/comments/:threadId/resolution',
   ],
-  intent: 'observed',
+  intent: 'intended',
   behaviour:
-    "A reviewer discusses a worktree's change in comment threads anchored to a file or a line range (optionally to one comparison). Every write answers with a list holding only the thread it wrote, and bumps the worktree's comment revision; a paired viewer writes as the reviewer. Clients may choose thread and message IDs so a retried write is recognised: repeating it changes nothing, reusing an ID for different content is a conflict. Replies and resolution changes address an existing thread; an unknown one is not found. Anchors are not checked against the files.",
+    "A reviewer discusses a worktree's change in comment threads anchored to a file or a line range (optionally to one comparison). Every write answers with a one-element list holding the thread it wrote (the contract types it as exactly one thread, not as the thread list), and bumps the worktree's comment revision; a paired viewer writes as the reviewer. Clients may choose thread and message IDs so a retried write is recognised: repeating it changes nothing, reusing an ID for different content is a conflict. Replies and resolution changes address an existing thread; an unknown one is not found. Anchors are not checked against the files.",
   cases: [
     defineCase({
       name: 'no threads yet',
@@ -83,7 +88,7 @@ export default defineFeature({
         );
         checkContract(
           'contract',
-          listCommentThreadsResponseSchema,
+          createCommentThreadResponseSchema,
           responses[1]?.body,
         );
         checkPartial(
@@ -179,11 +184,21 @@ export default defineFeature({
           body: { resolved: true },
         },
       ],
-      expect({ responses, check, checkPartial }) {
+      expect({ responses, check, checkPartial, checkContract }) {
         check(
           'statuses',
           [200, 200],
           responses.map((entry) => entry.status),
+        );
+        checkContract(
+          'reply contract',
+          replyToCommentResponseSchema,
+          responses[0]?.body,
+        );
+        checkContract(
+          'resolution contract',
+          resolveCommentThreadResponseSchema,
+          responses[1]?.body,
         );
         checkPartial(
           'reply is appended',

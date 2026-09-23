@@ -1,17 +1,11 @@
-import type { ReviewedMark } from '../models/reviewed-file.ts';
+import type { ReviewedFileMark } from '../models/reviewed-mark.ts';
 
 export interface ReviewedFileStore {
-  list(worktreeId: string): ReviewedMark[];
-  set(
-    worktreeId: string,
-    path: string,
-    fingerprint: string,
-    reviewedAt: string,
-  ): ReviewedMark;
-  remove(worktreeId: string, path: string): void;
-  invalidate(worktreeId: string, paths?: readonly string[]): void;
-  reconcile(
-    worktreeId: string,
-    fingerprints: ReadonlyMap<string, string | null>,
-  ): void;
+  list(worktreeId: string): ReviewedFileMark[];
+  find(worktreeId: string, path: string): ReviewedFileMark | undefined;
+  count(worktreeId: string): number;
+  oldest(worktreeId: string, limit: number): string[];
+  save(worktreeId: string, mark: ReviewedFileMark): void;
+  remove(worktreeId: string, paths: readonly string[]): void;
+  setStale(worktreeId: string, paths: readonly string[], stale: boolean): void;
 }

@@ -10,7 +10,7 @@ import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function setReviewedFiles(
   server: FastifyInstance,
-  options: { controller: Pick<SetReviewedFilesController<unknown>, 'execute'> },
+  options: { controller: Pick<SetReviewedFilesController, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(

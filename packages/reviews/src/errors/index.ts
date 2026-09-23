@@ -1,6 +1,12 @@
-export { CommentTargetNotFoundError } from './comment-target-not-found-error.ts';
-export { InvalidCommentError } from './invalid-comment-error.ts';
-export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
-export { ReviewConflictError } from './review-conflict-error.ts';
+export { BoxLaneOutOfRangeError } from './box-lane-out-of-range-error.ts';
 export { CommentIdentityConflictError } from './comment-identity-conflict-error.ts';
 export { CommentLimitExceededError } from './comment-limit-exceeded-error.ts';
+export { CommentTargetNotFoundError } from './comment-target-not-found-error.ts';
+export { DuplicateLayerIdError } from './duplicate-layer-id-error.ts';
+export { DuplicateStepIdError } from './duplicate-step-id-error.ts';
+export { InvalidCommentError } from './invalid-comment-error.ts';
+export { ReviewConflictError } from './review-conflict-error.ts';
+export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
+export { StepLaneOutOfRangeError } from './step-lane-out-of-range-error.ts';
+export { UnknownArrowBoxError } from './unknown-arrow-box-error.ts';
+export { UnknownArrowStepError } from './unknown-arrow-step-error.ts';

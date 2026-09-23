@@ -23,16 +23,7 @@ import type {
   ReadPreviewAssetsResponse,
   ReadTextFileResponse,
 } from '@porcelain/contracts/files';
-import type {
-  PublishedReview,
-  PublishReviewRequest,
-} from '@porcelain/contracts/reviews';
-import type { ReviewedLayerMark } from '@porcelain/contracts/reviews';
 import type { LiveSubscription } from '@porcelain/contracts/access';
-import type {
-  CommentCommand,
-  StoredCommentThread,
-} from '@porcelain/reviews/models';
 import type {
   FilePreference,
   FilePreferenceChange,
@@ -44,12 +35,6 @@ import type {
   RedeemedPairing,
 } from '@porcelain/access/models';
 import type {
-  ReviewedFilesResult,
-  SetReviewedFilesResult,
-  SetReviewedFileInput,
-  SetReviewedFilesInput,
-} from '@porcelain/reviews/models';
-import type {
   ReadChangeDiffsRequest,
   ReadChangeDiffsResponse,
   ReadChangeLinesResponse,
@@ -57,7 +42,41 @@ import type {
   ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
 
+import type { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
+import type { PublishReviewController } from '../controllers/publish-review-controller.ts';
+import type { ReadReviewSummaryController } from '../controllers/read-review-summary-controller.ts';
+import type { ListReviewedLayersController } from '../controllers/list-reviewed-layers-controller.ts';
+import type { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
+import type { RemoveReviewedLayerController } from '../controllers/remove-reviewed-layer-controller.ts';
+import type { ListCommentThreadsController } from '../controllers/list-comment-threads-controller.ts';
+import type { CreateCommentThreadController } from '../controllers/create-comment-thread-controller.ts';
+import type { ReplyToCommentController } from '../controllers/reply-to-comment-controller.ts';
+import type { ResolveCommentThreadController } from '../controllers/resolve-comment-thread-controller.ts';
+import type { MarkCommentsSeenController } from '../controllers/mark-comments-seen-controller.ts';
+import type { ListReviewedFilesController } from '../controllers/list-reviewed-files-controller.ts';
+import type { RemoveReviewedFileController } from '../controllers/remove-reviewed-file-controller.ts';
+import type { SetReviewedFileController } from '../controllers/set-reviewed-file-controller.ts';
+import type { SetReviewedFilesController } from '../controllers/set-reviewed-files-controller.ts';
+
 export interface ServerCapabilities {
+  readPublishedReviewController: Pick<ReadPublishedReviewController, 'execute'>;
+  publishReviewController: Pick<PublishReviewController, 'execute'>;
+  readReviewSummaryController: Pick<ReadReviewSummaryController, 'execute'>;
+  listReviewedLayersController: Pick<ListReviewedLayersController, 'execute'>;
+  setReviewedLayerController: Pick<SetReviewedLayerController, 'execute'>;
+  removeReviewedLayerController: Pick<RemoveReviewedLayerController, 'execute'>;
+  listCommentThreadsController: Pick<ListCommentThreadsController, 'execute'>;
+  createCommentThreadController: Pick<CreateCommentThreadController, 'execute'>;
+  replyToCommentController: Pick<ReplyToCommentController, 'execute'>;
+  resolveCommentThreadController: Pick<
+    ResolveCommentThreadController,
+    'execute'
+  >;
+  markCommentsSeenController: Pick<MarkCommentsSeenController, 'execute'>;
+  listReviewedFilesController: Pick<ListReviewedFilesController, 'execute'>;
+  removeReviewedFileController: Pick<RemoveReviewedFileController, 'execute'>;
+  setReviewedFileController: Pick<SetReviewedFileController, 'execute'>;
+  setReviewedFilesController: Pick<SetReviewedFilesController, 'execute'>;
   listCommitsController: {
     execute(
       input: {
@@ -143,48 +162,6 @@ export interface ServerCapabilities {
       kind?: 'grant' | 'device';
     }>;
   };
-  readPublishedReviewController: {
-    execute(
-      input: { worktreeId: string },
-      context: { signal?: AbortSignal | undefined },
-    ): Promise<PublishedReview | null>;
-  };
-  publishReviewController: {
-    execute(
-      input: { worktreeId: string; review: PublishReviewRequest },
-      context: { signal?: AbortSignal | undefined },
-    ): Promise<PublishedReview>;
-  };
-  readReviewSummaryController: {
-    execute(input: {
-      token: string;
-      expires: number;
-      signature: string;
-    }): string | null;
-  };
-  listReviewedLayersController: {
-    execute(
-      input: { worktreeId: string },
-      context: { signal?: AbortSignal | undefined },
-    ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
-  };
-  setReviewedLayerController: {
-    execute(
-      input: {
-        worktreeId: string;
-        layerId: string;
-        fingerprint: string;
-        reviewed: true;
-      },
-      context: { signal?: AbortSignal | undefined },
-    ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
-  };
-  removeReviewedLayerController: {
-    execute(
-      input: { worktreeId: string; layerId: string },
-      context: { signal?: AbortSignal | undefined },
-    ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
-  };
   readHealthController: {
     execute(): import('@porcelain/contracts/access').ReadHealthResponse;
   };
@@ -192,45 +169,6 @@ export interface ServerCapabilities {
     execute(
       input: { code: string } & DeviceRegistration,
     ): Promise<RedeemedPairing>;
-  };
-  commentThreadsController: {
-    execute(
-      input: {
-        command: CommentCommand;
-        principal: import('@porcelain/reviews/models').CommentPrincipal;
-      },
-      context: { signal?: AbortSignal },
-    ): Promise<StoredCommentThread[]>;
-  };
-  markCommentsSeenController: {
-    execute(
-      input: { worktreeId: string; throughRevision: number },
-      context: { signal?: AbortSignal },
-    ): Promise<{ worktreeId: string; seenThrough: number }>;
-  };
-  listReviewedFilesController: {
-    execute(
-      input: { worktreeId: string },
-      context: { signal?: AbortSignal },
-    ): Promise<ReviewedFilesResult>;
-  };
-  removeReviewedFileController: {
-    execute(
-      input: { worktreeId: string; path: string },
-      context: { signal?: AbortSignal },
-    ): Promise<ReviewedFilesResult>;
-  };
-  setReviewedFileController: {
-    execute(
-      input: { worktreeId: string } & SetReviewedFileInput,
-      context: { signal?: AbortSignal },
-    ): Promise<ReviewedFilesResult>;
-  };
-  setReviewedFilesController: {
-    execute(
-      input: { worktreeId: string } & SetReviewedFilesInput,
-      context: { signal?: AbortSignal },
-    ): Promise<SetReviewedFilesResult>;
   };
   projects: {
     execute(
