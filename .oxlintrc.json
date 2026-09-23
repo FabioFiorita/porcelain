@@ -10,6 +10,8 @@
   },
   "rules": {
     "porcelain/no-comments": "error",
+    "porcelain/models-are-types": "error",
+    "porcelain/bootstrap-constructs-only": "error",
     "porcelain/no-null-in-domain": "error",
     "porcelain/controller-imports": "error",
     "porcelain/no-schema-parse-in-typed-code": "error",

@@ -6,6 +6,9 @@ const domainModule = new RegExp(
   `^@porcelain/${domainPackage}/(?:services|models)$`,
 );
 const controllerSource = /\/apps\/server\/src\/controllers\//;
+const modelsSource =
+  /\/packages\/(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+\.ts$/;
+const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
@@ -423,6 +426,55 @@ export default {
             if (node.source) check(node);
           },
           ExportAllDeclaration: check,
+        };
+      },
+    },
+    'models-are-types': {
+      create(context) {
+        const path = normalizedFilename(context.filename);
+        if (!modelsSource.test(path) || isSpec(context)) return {};
+        const message =
+          'Models hold types only; behaviour belongs in rules/ and data in services.';
+        return {
+          FunctionDeclaration(node) {
+            context.report({ node, message });
+          },
+          ClassDeclaration(node) {
+            context.report({ node, message });
+          },
+          VariableDeclaration(node) {
+            context.report({ node, message });
+          },
+          ImportDeclaration(node) {
+            if (node.importKind !== 'type')
+              context.report({ node, message: 'Models import types only.' });
+          },
+        };
+      },
+    },
+    'bootstrap-constructs-only': {
+      create(context) {
+        const path = normalizedFilename(context.filename);
+        if (!composeSource.test(path)) return {};
+        const message =
+          'Composition constructs only; decisions belong in controllers and services, schedules in jobs/.';
+        const report = (node) => context.report({ node, message });
+        return {
+          IfStatement: report,
+          SwitchStatement: report,
+          TryStatement: report,
+          ConditionalExpression: report,
+          WhileStatement: report,
+          DoWhileStatement: report,
+          CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              ['setInterval', 'setTimeout', 'setImmediate'].includes(
+                node.callee.name,
+              )
+            )
+              context.report({ node, message });
+          },
         };
       },
     },
