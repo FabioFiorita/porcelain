@@ -25,8 +25,8 @@ import { RuntimeStatusReaderAdapter } from '../adapters/access/runtime-status-re
 import { LiveUpdatesAdapter } from '../adapters/events/live-updates-adapter.ts';
 import { CommitGeneratorAdapter } from '../adapters/git-actions/commit-generator-adapter.ts';
 import { LaneKeysAdapter } from '../adapters/projects/lane-keys-adapter.ts';
-import { RandomIdSourceAdapter } from '../adapters/projects/random-id-source-adapter.ts';
-import { SystemClockAdapter } from '../adapters/projects/system-clock-adapter.ts';
+import { RandomIdSourceAdapter } from '../adapters/runtime/random-id-source-adapter.ts';
+import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
 import { WorktreeAccessAdapter } from '../adapters/projects/worktree-access-adapter.ts';
 import { WorktreeDirectoryAdapter } from '../adapters/projects/worktree-directory-adapter.ts';
 import {

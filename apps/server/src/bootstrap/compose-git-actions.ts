@@ -26,7 +26,7 @@ import type { StorageSession } from '@porcelain/storage';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import { createInventoryStore } from '@porcelain/storage/projects';
 import { ActionCheckouts } from '../adapters/git-actions/action-checkout.ts';
-import { ClockAdapter } from '../adapters/git-actions/clock-adapter.ts';
+import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
 import { CommitDraftReaderAdapter } from '../adapters/git-actions/commit-draft-reader-adapter.ts';
 import { GitActionWriterAdapter } from '../adapters/git-actions/git-action-writer-adapter.ts';
 import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
@@ -67,7 +67,7 @@ export type GitActionsDependencies = {
 
 export function composeGitActions(deps: GitActionsDependencies) {
   const store = createGitActionStore(deps.session);
-  const clock = new ClockAdapter();
+  const clock = new SystemClockAdapter();
   const checkouts = new ActionCheckouts(deps.worktreeAccess);
   const checkProject = new CheckProjectService(
     createInventoryStore(deps.session),

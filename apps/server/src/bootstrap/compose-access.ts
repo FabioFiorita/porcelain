@@ -21,8 +21,8 @@ import {
   createEnvironmentIdentityStore,
   createPairingGrantStore,
 } from '@porcelain/storage/access';
-import { RandomIdAdapter } from '../adapters/access/random-id-adapter.ts';
-import { SystemClockAdapter } from '../adapters/access/system-clock-adapter.ts';
+import { RandomIdSourceAdapter } from '../adapters/runtime/random-id-source-adapter.ts';
+import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
 import { AuthenticateDeviceController } from '../controllers/authenticate-device-controller.ts';
 import { CheckRequestOriginController } from '../controllers/check-request-origin-controller.ts';
 import { FlushDeviceActivityController } from '../controllers/flush-device-activity-controller.ts';
@@ -43,7 +43,7 @@ export function composeAccess(deps: {
   runtimeStatusReader: RuntimeStatusReader;
 }) {
   const clock = new SystemClockAdapter();
-  const idSource = new RandomIdAdapter();
+  const idSource = new RandomIdSourceAdapter();
   const pairingGrantStore = createPairingGrantStore(deps.session);
   const readEnvironmentService = new ReadEnvironmentService(
     createEnvironmentIdentityStore(deps.session),

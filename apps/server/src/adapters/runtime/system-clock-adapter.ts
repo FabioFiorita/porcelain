@@ -1,6 +1,4 @@
-import type { Clock } from '@porcelain/reviews/ports';
-
-export class ClockAdapter implements Clock {
+export class SystemClockAdapter {
   private readonly read: () => string;
 
   constructor(read: () => string = () => new Date().toISOString()) {
