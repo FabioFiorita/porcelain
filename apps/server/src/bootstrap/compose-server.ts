@@ -53,7 +53,7 @@ import { listTrackedPaths } from '@porcelain/git/inspection';
 import { CommitGit } from '@porcelain/git/history';
 import type { DiscoveryIssue } from '@porcelain/git/discovery';
 import { Git, isRepositoryUnavailable } from '@porcelain/git/discovery';
-import { RequestGitSession } from '@porcelain/git/actions';
+import { RequestGitSession } from '@porcelain/git/inspection';
 import { InspectionGit } from '@porcelain/git/inspection';
 import type { GitSession } from '@porcelain/git/inspection';
 import type { ExpectedFile as ExpectedChangeFile } from '@porcelain/changes/models';

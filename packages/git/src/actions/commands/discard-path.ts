@@ -1,177 +1,29 @@
+import type { GitOrdinaryChange } from '../../inspection/index.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
+import { selectHunk } from '../parsers/select-hunk.ts';
 import { readActionCommand } from './read-action-command.ts';
+import { readActionStatus } from './read-action-status.ts';
+import { saveRecoveryBlob } from './save-recovery-blob.ts';
+
+type DiscardCommand = GitActionCommand<'discard'>;
 
 export async function discardPath(
   process: GitProcessRunner,
-  command: GitActionCommand,
+  command: DiscardCommand,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
-  const intent = command.intent;
-  if (intent.action !== 'discard') throw new Error('Invalid discard action');
-  if (intent.hunk) {
-    const diff = await readActionCommand(
-      process,
-      [
-        '--literal-pathspecs',
-        'diff',
-        ...(intent.hunk.scope === 'staged' ? ['--cached'] : []),
-        '--no-ext-diff',
-        '--no-textconv',
-        '--unified=0',
-        '--',
-        intent.path,
-      ],
-      signal,
-    );
-    const selection = selectedHunk(diff, intent.hunk);
-    if (selection === partialHunk)
-      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
-        detail:
-          'The selected lines cover only part of a change. Select the whole change to discard it.',
-      });
-    if (!selection) throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-    const recovery = JSON.stringify({
-      porcelainDiscard: 1,
-      id: command.id,
-      path: intent.path,
-      kind: 'hunk',
-      cached: intent.hunk.scope === 'staged' ? selection : '',
-      unstaged: intent.hunk.scope === 'staged' ? '' : selection,
-      zero: true,
-    });
-    const created = await process.execute(
-      ['hash-object', '-w', '--stdin'],
-      signal,
-      recovery,
-    );
-    const createFailure = processFailure(created);
-    if (createFailure) return createFailure;
-    const restoreStashOid = created.stdout.toString('utf8').trimEnd();
-    const safetyRef = `refs/porcelain/discarded/${command.id}`;
-    const saved = await process.execute(
-      ['update-ref', safetyRef, restoreStashOid, '0'.repeat(40)],
-      signal,
-    );
-    const saveFailure = processFailure(saved);
-    if (saveFailure) return saveFailure;
-    const applied = await process.execute(
-      [
-        'apply',
-        '--reverse',
-        ...(intent.hunk.scope === 'staged' ? ['--index'] : []),
-        '--unidiff-zero',
-        '--whitespace=nowarn',
-        '-',
-      ],
-      signal,
-      selection,
-    );
-    const applyFailure = processFailure(applied);
-    if (applyFailure) return applyFailure;
-    return {
-      state: 'succeeded',
-      result: { restoreStashOid, stashRetained: true },
-      refreshRequired: true,
-    };
-  }
-  const status = await readActionCommand(
-    process,
-    [
-      '--literal-pathspecs',
-      'status',
-      '--porcelain=v1',
-      '-z',
-      '--untracked-files=all',
-    ],
-    signal,
+  if (command.intent.hunk)
+    return discardHunk(process, command, command.intent.hunk, signal);
+  const path = command.intent.path;
+  const renamed = (await readActionStatus(process, signal)).find(
+    (change): change is GitOrdinaryChange =>
+      'kind' in change && change.kind === 'renamed' && change.newPath === path,
   );
-  const records = status.split('\0');
-  let renamedFrom: string | undefined;
-  for (let index = 0; index < records.length; index += 1) {
-    const record = records[index] ?? '';
-    const rename = /^[RC]|^.[RC]/.test(record);
-    if (record.slice(3) === intent.path && rename) {
-      renamedFrom = records[index + 1];
-      break;
-    }
-    if (rename) index += 1;
-  }
-  if (renamedFrom) {
-    const paths = [renamedFrom, intent.path];
-    const cached = await readActionCommand(
-      process,
-      [
-        '--literal-pathspecs',
-        'diff',
-        '--cached',
-        '--binary',
-        '--full-index',
-        '--',
-        ...paths,
-      ],
-      signal,
-    );
-    const unstaged = await readActionCommand(
-      process,
-      [
-        '--literal-pathspecs',
-        'diff',
-        '--binary',
-        '--full-index',
-        '--',
-        ...paths,
-      ],
-      signal,
-    );
-    const recovery = JSON.stringify({
-      porcelainDiscard: 1,
-      id: command.id,
-      path: intent.path,
-      kind: 'rename',
-      cached,
-      unstaged,
-    });
-    const restoreStashOid = await saveRecoveryBlob(
-      process,
-      command.id,
-      recovery,
-      signal,
-    );
-    for (const args of [
-      [
-        '--literal-pathspecs',
-        'restore',
-        '--source=HEAD',
-        '--staged',
-        '--worktree',
-        '--',
-        renamedFrom,
-      ],
-      [
-        '--literal-pathspecs',
-        'rm',
-        '-f',
-        '--cached',
-        '--ignore-unmatch',
-        '--',
-        intent.path,
-      ],
-      ['--literal-pathspecs', 'clean', '-f', '--', intent.path],
-    ]) {
-      const reverted = await process.execute(args, signal);
-      const failure = processFailure(reverted);
-      if (failure) return failure;
-    }
-    return {
-      state: 'succeeded',
-      result: { restoreStashOid, stashRetained: true, restoreIndex: true },
-      refreshRequired: true,
-    };
-  }
-  const paths = [intent.path];
+  if (renamed?.oldPath)
+    return discardRename(process, command, renamed.oldPath, signal);
   const saved = await process.execute(
     [
       '--literal-pathspecs',
@@ -179,15 +31,15 @@ export async function discardPath(
       'push',
       '--include-untracked',
       '--message',
-      `Porcelain discarded ${intent.path}`,
+      `Porcelain discarded ${path}`,
       '--',
-      ...paths,
+      path,
     ],
     signal,
   );
   const failure = processFailure(saved);
   if (failure) return failure;
-  if (/No local changes to save/i.test(saved.stdout.toString('utf8')))
+  if (/No local changes to save/iu.test(saved.stdout.toString('utf8')))
     return { state: 'no-change', refreshRequired: false };
   const restoreStashOid = (
     await readActionCommand(
@@ -208,69 +60,134 @@ export async function discardPath(
   };
 }
 
-async function saveRecoveryBlob(
+async function discardHunk(
   process: GitProcessRunner,
-  requestId: string,
-  content: string,
+  command: DiscardCommand,
+  hunk: { scope: 'staged' | 'unstaged'; startLine: number; endLine: number },
   signal: AbortSignal,
-): Promise<string> {
-  const created = await process.execute(
-    ['hash-object', '-w', '--stdin'],
-    signal,
-    content,
-  );
-  const createFailure = processFailure(created);
-  if (createFailure)
-    throw new GitActionRejectedError(createFailure.reason ?? 'GIT_REJECTED');
-  const oid = created.stdout.toString('utf8').trimEnd();
-  const saved = await process.execute(
+): Promise<GitActionOutcome> {
+  const staged = hunk.scope === 'staged';
+  const diff = await readActionCommand(
+    process,
     [
-      'update-ref',
-      `refs/porcelain/discarded/${requestId}`,
-      oid,
-      '0'.repeat(40),
+      '--literal-pathspecs',
+      'diff',
+      ...(staged ? ['--cached'] : []),
+      '--no-ext-diff',
+      '--no-textconv',
+      '--unified=0',
+      '--',
+      command.intent.path,
     ],
     signal,
   );
-  const saveFailure = processFailure(saved);
-  if (saveFailure)
-    throw new GitActionRejectedError(saveFailure.reason ?? 'GIT_REJECTED');
-  return oid;
+  const selection = selectHunk(diff, hunk);
+  if (selection.kind === 'partial')
+    throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+      detail:
+        'The selected lines cover only part of a change. Select the whole change to discard it.',
+    });
+  if (selection.kind === 'missing')
+    throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
+  const saved = await saveRecoveryBlob(
+    process,
+    {
+      id: command.id,
+      path: command.intent.path,
+      kind: 'hunk',
+      cached: staged ? selection.patch : '',
+      unstaged: staged ? '' : selection.patch,
+      zero: true,
+    },
+    signal,
+  );
+  if ('failure' in saved) return saved.failure;
+  const applied = await process.execute(
+    [
+      'apply',
+      '--reverse',
+      ...(staged ? ['--index'] : []),
+      '--unidiff-zero',
+      '--whitespace=nowarn',
+      '-',
+    ],
+    signal,
+    selection.patch,
+  );
+  const applyFailure = processFailure(applied);
+  if (applyFailure) return applyFailure;
+  return {
+    state: 'succeeded',
+    result: { restoreStashOid: saved.oid, stashRetained: true },
+    refreshRequired: true,
+  };
 }
 
-const partialHunk = Symbol('partial hunk');
-
-function selectedHunk(
-  diff: string,
-  range: { startLine: number; endLine: number },
-): string | typeof partialHunk | null {
-  const lines = diff.split(/(?<=\n)/);
-  const firstHunk = lines.findIndex((line) => line.startsWith('@@ '));
-  if (firstHunk < 0) return null;
-  const header = lines
-    .slice(0, firstHunk)
-    .filter((line) => !line.startsWith('index '));
-  let selected: string | null = null;
-  for (let index = firstHunk; index < lines.length;) {
-    const next = lines.findIndex(
-      (line, candidate) => candidate > index && line.startsWith('@@ '),
-    );
-    const end = next < 0 ? lines.length : next;
-    const match = lines[index]?.match(
-      /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/,
-    );
-    if (match) {
-      const start = Number(match[1]);
-      const count = Number(match[2] ?? 1);
-      const last = start + Math.max(count, 1) - 1;
-      if (range.startLine <= last && range.endLine >= start) {
-        if (range.startLine !== start || range.endLine !== last)
-          return partialHunk;
-        if (selected) return partialHunk;
-        selected = [...header, ...lines.slice(index, end)].join('');
-      }
-    }
-    index = end;
+async function discardRename(
+  process: GitProcessRunner,
+  command: DiscardCommand,
+  renamedFrom: string,
+  signal: AbortSignal,
+): Promise<GitActionOutcome> {
+  const path = command.intent.path;
+  const paths = [renamedFrom, path];
+  const cached = await readActionCommand(
+    process,
+    [
+      '--literal-pathspecs',
+      'diff',
+      '--cached',
+      '--binary',
+      '--full-index',
+      '--',
+      ...paths,
+    ],
+    signal,
+  );
+  const unstaged = await readActionCommand(
+    process,
+    ['--literal-pathspecs', 'diff', '--binary', '--full-index', '--', ...paths],
+    signal,
+  );
+  const saved = await saveRecoveryBlob(
+    process,
+    { id: command.id, path, kind: 'rename', cached, unstaged, zero: false },
+    signal,
+  );
+  if ('failure' in saved)
+    throw new GitActionRejectedError(saved.failure.reason ?? 'GIT_REJECTED');
+  for (const args of [
+    [
+      '--literal-pathspecs',
+      'restore',
+      '--source=HEAD',
+      '--staged',
+      '--worktree',
+      '--',
+      renamedFrom,
+    ],
+    [
+      '--literal-pathspecs',
+      'rm',
+      '-f',
+      '--cached',
+      '--ignore-unmatch',
+      '--',
+      path,
+    ],
+    ['--literal-pathspecs', 'clean', '-f', '--', path],
+  ]) {
+    const reverted = await process.execute(args, signal);
+    const failure = processFailure(reverted);
+    if (failure) return failure;
   }
-  return selected;
+  return {
+    state: 'succeeded',
+    result: {
+      restoreStashOid: saved.oid,
+      stashRetained: true,
+      restoreIndex: true,
+    },
+    refreshRequired: true,
+  };
 }

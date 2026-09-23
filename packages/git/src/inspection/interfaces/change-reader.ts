@@ -1,4 +1,4 @@
-import type { GitBranchStatus } from '../status.ts';
+import type { GitBranchDetails } from '../dtos/git-status.ts';
 import type { LineRange } from '../dtos/line-range.ts';
 
 export interface ChangeReader {
@@ -10,14 +10,7 @@ export interface ChangeReader {
     branch: string | null,
     headOid: string | null,
     signal?: AbortSignal,
-  ): Promise<{
-    remoteName: string | null;
-    sourceRef: string | null;
-    upstreamOid: string | null;
-    stashes: NonNullable<GitBranchStatus['stashes']>;
-    discarded: NonNullable<GitBranchStatus['discarded']>;
-    headCommit: { subject: string; body?: string } | null;
-  }>;
+  ): Promise<GitBranchDetails>;
   readLines(
     range: Omit<LineRange, 'at'>,
     signal?: AbortSignal,

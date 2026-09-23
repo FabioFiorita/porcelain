@@ -1,5 +1,4 @@
-export { ActionGit } from './action-git.ts';
-export { RequestGitSession } from './git-session.ts';
+export { ActionGit } from './actions-git.ts';
 export { GitActionRejectedError } from './errors/git-action-rejected-error.ts';
 export type {
   GitActionExpectation,

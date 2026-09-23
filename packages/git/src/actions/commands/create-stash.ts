@@ -1,21 +1,20 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function createStash(
   process: GitProcessRunner,
-  preparation: GitActionCommand,
+  command: GitActionCommand<'stash-create'>,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
-  const intent = preparation.intent;
-  if (intent.action !== 'stash-create') throw new Error('Invalid stash intent');
+  const { intent, preview } = command;
   if (
-    !preparation.preview.trackedChanges &&
-    !(intent.includeUntracked && preparation.preview.untrackedCount)
+    !preview.trackedChanges &&
+    !(intent.includeUntracked && preview.untrackedCount)
   )
     return { state: 'no-change', refreshRequired: false };
-  const command = await process.execute(
+  const pushed = await process.execute(
     [
       'stash',
       'push',
@@ -25,7 +24,7 @@ export async function createStash(
     ],
     signal,
   );
-  const failure = processFailure(command);
+  const failure = processFailure(pushed);
   if (failure) return failure;
   const stashOid = (
     await readActionCommand(

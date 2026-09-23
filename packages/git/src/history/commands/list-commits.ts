@@ -1,26 +1,25 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import type {
   CommitPage,
   CommitPageRequest,
-  HeadSnapshot,
+  CommitSummary,
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
 import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
 import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
-import {
-  COMMIT_FORMAT,
-  type ParsedCommit,
-  parseCommitRecords,
-} from '../mappers/parse-commit.ts';
-import { askHistory, readHistory } from '../read-history.ts';
+import { decodeHistory } from '../parsers/decode-history.ts';
+import { COMMIT_FORMAT, parseCommitRecords } from '../parsers/parse-commit.ts';
+import { isOid } from '../../shared/oid.ts';
+import { readHeadFile } from '../../shared/refs.ts';
+import { hasHead } from './has-head.ts';
 import {
   confirmHistoryCheckout,
   inspectHistoryCheckout,
 } from './inspect-history-checkout.ts';
+import { isAncestorOfHead } from './is-ancestor.ts';
+import { runHistory } from './run-history.ts';
 
-const OID = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
-
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
 const MAX_FRONTIER = 100;
 
 export async function listCommits(
@@ -29,13 +28,13 @@ export async function listCommits(
   signal?: AbortSignal,
 ): Promise<CommitPage> {
   const { shallow } = await inspectHistoryCheckout(checkout, signal);
-  const limit = request.limit ?? 50;
-  if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+  const limit = request.limit ?? DEFAULT_LIMIT;
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT)
     throw new InvalidHistoryRequestError();
   const after = request.after ?? [];
-  if (after.some((oid) => !OID.test(oid)) || after.length > MAX_FRONTIER)
+  if (after.some((oid) => !isOid(oid)) || after.length > MAX_FRONTIER)
     throw new InvalidHistoryRequestError();
-  if (request.tip !== undefined && !OID.test(request.tip))
+  if (request.tip !== undefined && !isOid(request.tip))
     throw new InvalidHistoryRequestError();
   const page =
     after.length === 0 || request.tip === undefined
@@ -60,11 +59,7 @@ async function continueFrom(
   shallow: boolean,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
-  if (
-    !(await askHistory(checkout.path, ancestorArguments(tip), signal, {
-      missingRevisionIsNo: true,
-    }))
-  )
+  if (!(await isAncestorOfHead(checkout.path, tip, signal)))
     return {
       ...(await readTop(checkout, limit, shallow, signal)),
       restarted: true,
@@ -78,35 +73,21 @@ async function continueFrom(
   };
 }
 
-const ancestorArguments = (tip: string) => [
-  'merge-base',
-  '--is-ancestor',
-  tip,
-  'HEAD',
-];
-
 async function readTop(
   checkout: HistoryCheckout,
   limit: number,
   shallow: boolean,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
-  const head = await readHeadFile(checkout);
-  if (head === null) throw new UnsupportedHistoryDataError();
+  const head = await readHeadFile(checkout.administrativeDirectory);
+  if (head === undefined) throw new UnsupportedHistoryDataError();
   const parsed = await readLog(checkout, ['HEAD'], limit, signal).catch(
     async (error: unknown) => {
-      if (
-        await askHistory(
-          checkout.path,
-          ['rev-parse', '--verify', '--quiet', 'HEAD'],
-          signal,
-        )
-      )
-        throw error;
-      return null;
+      if (await hasHead(checkout.path, signal)) throw error;
+      return undefined;
     },
   );
-  if (parsed === null)
+  if (parsed === undefined)
     return {
       snapshot:
         head.kind === 'attached'
@@ -118,24 +99,24 @@ async function readTop(
       boundary: null,
       restarted: false,
     };
-  const first = parsed[0];
+  const [first] = parsed;
   if (!first) throw new UnsupportedHistoryDataError();
   return {
-    snapshot: { tipOid: first.summary.oid, head },
+    snapshot: { tipOid: first.oid, head },
     ...trim(parsed, limit, shallow),
     restarted: false,
   };
 }
 
 function trim(
-  parsed: readonly ParsedCommit[],
+  parsed: readonly CommitSummary[],
   limit: number,
   shallow: boolean,
 ): Pick<CommitPage, 'commits' | 'nextAfter' | 'boundary'> & {
   tip: string | null;
 } {
   const more = parsed.length > limit;
-  const shown = parsed.slice(0, limit).map((entry) => entry.summary);
+  const shown = parsed.slice(0, limit);
   const seen = new Set(shown.map((commit) => commit.oid));
   const frontier: string[] = [];
   for (const commit of shown)
@@ -157,8 +138,8 @@ async function readLog(
   range: readonly string[],
   limit: number,
   signal?: AbortSignal,
-) {
-  const output = await readHistory(
+): Promise<CommitSummary[]> {
+  const output = await runHistory(
     checkout.path,
     [
       'log',
@@ -172,16 +153,5 @@ async function readLog(
     ],
     signal,
   );
-  return parseCommitRecords(output);
-}
-
-async function readHeadFile(
-  checkout: HistoryCheckout,
-): Promise<HeadSnapshot['head'] | null> {
-  const text = (
-    await readFile(join(checkout.administrativeDirectory, 'HEAD'), 'utf8')
-  ).trim();
-  const ref = text.match(/^ref: (refs\/.+)$/u);
-  if (ref?.[1]) return { kind: 'attached', ref: ref[1] };
-  return OID.test(text) ? { kind: 'detached' } : null;
+  return parseCommitRecords(decodeHistory(output));
 }

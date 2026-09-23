@@ -86,9 +86,11 @@ type GitActionResult = {
   restoreIndex?: boolean;
   branch?: string;
 };
-export type GitActionCommand = {
+export type GitActionCommand<
+  Action extends GitActionIntent['action'] = GitActionIntent['action'],
+> = {
   id: string;
-  intent: GitActionIntent;
+  intent: Extract<GitActionIntent, { action: Action }>;
   preview: GitActionPreview;
 };
 export type GitActionOutcome = {

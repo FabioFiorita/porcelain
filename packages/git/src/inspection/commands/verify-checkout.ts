@@ -1,6 +1,6 @@
-import { stat } from 'node:fs/promises';
-import { RepositoryIdentityMismatchError } from '../../discovery/errors/repository-identity-mismatch-error.ts';
-import { runInspection } from '../read-inspection.ts';
+import { RepositoryIdentityMismatchError } from '../../discovery/index.ts';
+import { identity } from '../../shared/identity.ts';
+import { runInspection } from './run-inspection.ts';
 
 export async function verifyCheckout(
   checkout: string,
@@ -8,35 +8,31 @@ export async function verifyCheckout(
   expectedRepositoryIdentity: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  const output = await runInspection(
+  const directory = await readDirectory(
     checkout,
     ['rev-parse', '--absolute-git-dir'],
     signal,
-    { maxBytes: 16384 },
   );
-  const directory = new TextDecoder('utf-8', { fatal: true })
-    .decode(output)
-    .slice(0, -1);
-  const info = await stat(directory, { bigint: true });
-  signal?.throwIfAborted();
-  if (`${info.dev}:${info.ino}:${info.birthtimeNs}` !== expectedIdentity) {
+  if ((await identity(directory)) !== expectedIdentity)
     throw new RepositoryIdentityMismatchError();
-  }
-  const common = await runInspection(
+  signal?.throwIfAborted();
+  const commonDirectory = await readDirectory(
     checkout,
     ['rev-parse', '--path-format=absolute', '--git-common-dir'],
     signal,
-    { maxBytes: 16384 },
   );
-  const commonDirectory = new TextDecoder('utf-8', { fatal: true })
-    .decode(common)
-    .slice(0, -1);
-  const repository = await stat(commonDirectory, { bigint: true });
-  signal?.throwIfAborted();
-  if (
-    `${repository.dev}:${repository.ino}:${repository.birthtimeNs}` !==
-    expectedRepositoryIdentity
-  ) {
+  if ((await identity(commonDirectory)) !== expectedRepositoryIdentity)
     throw new RepositoryIdentityMismatchError();
-  }
+  signal?.throwIfAborted();
+}
+
+async function readDirectory(
+  checkout: string,
+  args: readonly string[],
+  signal?: AbortSignal,
+): Promise<string> {
+  const output = await runInspection(checkout, args, signal, {
+    maxBytes: 16384,
+  });
+  return new TextDecoder('utf-8', { fatal: true }).decode(output).slice(0, -1);
 }

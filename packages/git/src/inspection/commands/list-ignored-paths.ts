@@ -1,4 +1,4 @@
-import { runInspection } from '../read-inspection.ts';
+import { runInspection } from './run-inspection.ts';
 
 export async function listIgnoredPaths(
   checkout: string,

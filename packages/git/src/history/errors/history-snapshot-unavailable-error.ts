@@ -1,6 +1,9 @@
-export class HistorySnapshotUnavailableError extends Error {
+import { GitError } from '../../shared/errors/git-error.ts';
+
+export class HistorySnapshotUnavailableError extends GitError {
   override readonly name = 'HistorySnapshotUnavailableError';
-  constructor(cause?: unknown) {
-    super('History snapshot is unavailable', { cause });
+
+  constructor(options?: ErrorOptions) {
+    super('History snapshot is unavailable', options);
   }
 }

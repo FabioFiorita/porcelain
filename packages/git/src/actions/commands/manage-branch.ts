@@ -1,17 +1,15 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function manageBranch(
   process: GitProcessRunner,
-  command: GitActionCommand,
+  command: GitActionCommand<'switch-branch' | 'create-branch'>,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
   const intent = command.intent;
-  if (intent.action !== 'switch-branch' && intent.action !== 'create-branch')
-    throw new Error('Invalid branch action');
   const valid = await process.execute(
     ['check-ref-format', '--branch', intent.branch],
     signal,

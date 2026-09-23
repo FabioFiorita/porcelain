@@ -1,19 +1,20 @@
+import {
+  DISCARDED_REF_PREFIX,
+  parseRecoveryBlob,
+} from '../../shared/recovery-blob.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
-import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 import { readActionCommand } from './read-action-command.ts';
 import { removeAppliedStash } from './remove-applied-stash.ts';
 
 export async function applyStash(
   process: GitProcessRunner,
-  preparation: GitActionCommand,
-  snapshot: GitActionSnapshot,
+  command: GitActionCommand<'stash-apply' | 'stash-pop'>,
+  stashLog: string,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
-  const intent = preparation.intent;
-  if (intent.action !== 'stash-apply' && intent.action !== 'stash-pop')
-    throw new Error('Invalid stash intent');
+  const intent = command.intent;
   const objectType = (
     await readActionCommand(
       process,
@@ -21,80 +22,10 @@ export async function applyStash(
       signal,
     )
   ).trimEnd();
-  if (objectType === 'blob') {
-    const refs = (
-      await readActionCommand(
-        process,
-        [
-          'for-each-ref',
-          '--format=%(refname)',
-          '--points-at',
-          intent.stashOid,
-          'refs/porcelain/discarded/',
-        ],
-        signal,
-      )
-    )
-      .trimEnd()
-      .split('\n')
-      .filter(Boolean);
-    if (refs.length !== 1)
-      return {
-        state: 'rejected',
-        reason: 'GIT_REJECTED',
-        message: 'The discarded hunk recovery object is no longer available.',
-        refreshRequired: false,
-      };
-    const patch = await readActionCommand(
-      process,
-      ['cat-file', 'blob', intent.stashOid],
-      signal,
-    );
-    const bundle = parseDiscardBundle(patch);
-    const patches: { patch: string; index: boolean; zero?: boolean }[] = bundle
-      ? [
-          { patch: bundle.cached, index: true, zero: bundle.zero },
-          { patch: bundle.unstaged, index: false, zero: bundle.zero },
-        ]
-      : [{ patch, index: false, zero: true }];
-    for (const item of patches) {
-      if (!item.patch) continue;
-      const applied = await process.execute(
-        [
-          'apply',
-          ...(item.index ? ['--index'] : []),
-          ...(item.zero ? ['--unidiff-zero'] : []),
-          '--whitespace=nowarn',
-          '-',
-        ],
-        signal,
-        item.patch,
-      );
-      const applyFailure = processFailure(applied);
-      if (applyFailure)
-        return {
-          ...applyFailure,
-          result: { stashOid: intent.stashOid, stashRetained: true },
-        };
-    }
-    const removed = await process.execute(
-      ['update-ref', '-d', refs[0] ?? ''],
-      signal,
-    );
-    const removeFailure = processFailure(removed);
-    if (removeFailure)
-      return {
-        ...removeFailure,
-        result: { stashOid: intent.stashOid, stashRetained: true },
-      };
-    return {
-      state: 'succeeded',
-      result: { stashOid: intent.stashOid, stashRetained: false },
-      refreshRequired: true,
-    };
-  }
+  if (objectType === 'blob')
+    return applyRecoveryBlob(process, intent.stashOid, signal);
   const result = { stashOid: intent.stashOid, stashRetained: true };
-  const command = await process.execute(
+  const applied = await process.execute(
     [
       'stash',
       'apply',
@@ -103,7 +34,7 @@ export async function applyStash(
     ],
     signal,
   );
-  const failure = processFailure(command);
+  const failure = processFailure(applied);
   if (failure) {
     if (failure.state === 'indeterminate') return { ...failure, result };
     const unmerged = await readActionCommand(
@@ -115,29 +46,73 @@ export async function applyStash(
   }
   if (intent.action === 'stash-apply')
     return { state: 'succeeded', result, refreshRequired: true };
-  return removeAppliedStash(process, intent.stashOid, snapshot, signal);
+  return removeAppliedStash(process, intent.stashOid, stashLog, signal);
 }
 
-function parseDiscardBundle(
-  value: string,
-): { cached: string; unstaged: string; zero: boolean } | undefined {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'porcelainDiscard' in parsed &&
-      parsed.porcelainDiscard === 1 &&
-      'cached' in parsed &&
-      typeof parsed.cached === 'string' &&
-      'unstaged' in parsed &&
-      typeof parsed.unstaged === 'string'
+async function applyRecoveryBlob(
+  process: GitProcessRunner,
+  oid: string,
+  signal: AbortSignal,
+): Promise<GitActionOutcome> {
+  const refs = (
+    await readActionCommand(
+      process,
+      [
+        'for-each-ref',
+        '--format=%(refname)',
+        '--points-at',
+        oid,
+        DISCARDED_REF_PREFIX,
+      ],
+      signal,
     )
-      return {
-        cached: parsed.cached,
-        unstaged: parsed.unstaged,
-        zero: 'zero' in parsed && parsed.zero === true,
-      };
-  } catch {}
-  return undefined;
+  )
+    .trimEnd()
+    .split('\n')
+    .filter(Boolean);
+  const [ref] = refs;
+  if (refs.length !== 1 || ref === undefined)
+    return {
+      state: 'rejected',
+      reason: 'GIT_REJECTED',
+      message: 'The discarded hunk recovery object is no longer available.',
+      refreshRequired: false,
+    };
+  const content = await readActionCommand(
+    process,
+    ['cat-file', 'blob', oid],
+    signal,
+  );
+  const blob = parseRecoveryBlob(content);
+  const patches = blob
+    ? [
+        { patch: blob.cached, index: true, zero: blob.zero },
+        { patch: blob.unstaged, index: false, zero: blob.zero },
+      ]
+    : [{ patch: content, index: false, zero: true }];
+  const retained = { stashOid: oid, stashRetained: true };
+  for (const item of patches) {
+    if (!item.patch) continue;
+    const applied = await process.execute(
+      [
+        'apply',
+        ...(item.index ? ['--index'] : []),
+        ...(item.zero ? ['--unidiff-zero'] : []),
+        '--whitespace=nowarn',
+        '-',
+      ],
+      signal,
+      item.patch,
+    );
+    const failure = processFailure(applied);
+    if (failure) return { ...failure, result: retained };
+  }
+  const removed = await process.execute(['update-ref', '-d', ref], signal);
+  const failure = processFailure(removed);
+  if (failure) return { ...failure, result: retained };
+  return {
+    state: 'succeeded',
+    result: { stashOid: oid, stashRetained: false },
+    refreshRequired: true,
+  };
 }

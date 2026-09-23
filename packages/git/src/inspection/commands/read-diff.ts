@@ -1,21 +1,26 @@
 import type { GitDiffResult } from '../dtos/git-diff.ts';
-import type { GitOrdinaryChange } from '../status.ts';
+import type { GitOrdinaryChange } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
-import { runInspection } from '../read-inspection.ts';
+import { diffKey, parseDiff } from '../parsers/parse-diff.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';
+import { runInspection } from './run-inspection.ts';
 
-const MAX_PATCH_BYTES = 1024 * 1024;
 const MAX_BATCH_BYTES = 32 * 1024 * 1024;
+
+type DiffComparison =
+  | { kind: 'staged' }
+  | { kind: 'unstaged' }
+  | { kind: 'commit'; oid: string; parent: number };
+
+type Sections = Map<string, GitDiffResult> | null;
 
 export async function readDiff(
   session: CheckoutSession,
   change: GitOrdinaryChange,
   signal?: AbortSignal,
 ): Promise<GitDiffResult> {
-  const [result] = await readDiffs(session, [change], signal);
-  if (!result) throw new Error('Missing diff result');
-  return result;
+  return diffFor(change, await readScopes(session, [change], signal));
 }
 
 export async function readDiffs(
@@ -23,53 +28,17 @@ export async function readDiffs(
   changes: readonly GitOrdinaryChange[],
   signal?: AbortSignal,
 ): Promise<GitDiffResult[]> {
-  const needsFilters = changes.some(
-    (change) => change.supported && change.scope === 'unstaged',
-  );
-  const config = needsFilters
-    ? await sessionConversionFilters(session, signal)
-    : [];
-  const results = new Map<GitOrdinaryChange, GitDiffResult>();
-  for (const change of changes)
-    if (!change.supported)
-      results.set(change, { kind: 'omitted', reason: 'unsupported-submodule' });
-  for (const scope of ['staged', 'unstaged'] as const) {
-    const wanted = changes.filter(
-      (change) => change.supported && change.scope === scope,
-    );
-    if (wanted.length === 0) continue;
-    const sections = await readSections(
-      session.path,
-      { kind: scope },
-      wanted.flatMap(changePaths),
-      scope === 'unstaged' ? config : [],
-      signal,
-    );
-    for (const change of wanted)
-      results.set(
-        change,
-        sections === null
-          ? { kind: 'omitted', reason: 'size-limit' }
-          : (sections.get(keyOf(changePaths(change))) ?? {
-              kind: 'metadata-only',
-              patch: '',
-            }),
-      );
-  }
-  return changes.map((change) => {
-    const result = results.get(change);
-    if (!result) throw new Error('Missing diff result');
-    return result;
-  });
+  const scopes = await readScopes(session, changes, signal);
+  return changes.map((change) => diffFor(change, scopes));
 }
 
-export async function readCommitDiffs(
+export function readCommitDiffs(
   checkout: string,
   oid: string,
   parent: number,
   paths: readonly string[],
   signal?: AbortSignal,
-): Promise<Map<string, GitDiffResult> | null> {
+): Promise<Sections> {
   return readSections(
     checkout,
     { kind: 'commit', oid, parent },
@@ -79,20 +48,90 @@ export async function readCommitDiffs(
   );
 }
 
-function changePaths(change: GitOrdinaryChange) {
-  return [...new Set([change.oldPath, change.newPath])].filter(
+async function readScopes(
+  session: CheckoutSession,
+  changes: readonly GitOrdinaryChange[],
+  signal?: AbortSignal,
+): Promise<Record<GitOrdinaryChange['scope'], Sections>> {
+  const wanted = (scope: GitOrdinaryChange['scope']) =>
+    changes.filter((change) => change.supported && change.scope === scope);
+  const staged = wanted('staged');
+  const unstaged = wanted('unstaged');
+  const filters =
+    unstaged.length > 0 ? await sessionConversionFilters(session, signal) : [];
+  return {
+    staged:
+      staged.length > 0
+        ? await readSections(
+            session.path,
+            { kind: 'staged' },
+            staged.flatMap(changePaths),
+            [],
+            signal,
+          )
+        : new Map(),
+    unstaged:
+      unstaged.length > 0
+        ? await readSections(
+            session.path,
+            { kind: 'unstaged' },
+            unstaged.flatMap(changePaths),
+            filters,
+            signal,
+          )
+        : new Map(),
+  };
+}
+
+function diffFor(
+  change: GitOrdinaryChange,
+  scopes: Record<GitOrdinaryChange['scope'], Sections>,
+): GitDiffResult {
+  if (!change.supported)
+    return { kind: 'omitted', reason: 'unsupported-submodule' };
+  const sections = scopes[change.scope];
+  if (sections === null) return { kind: 'omitted', reason: 'size-limit' };
+  return (
+    sections.get(diffKey([change.oldPath, change.newPath])) ?? {
+      kind: 'metadata-only',
+      patch: '',
+    }
+  );
+}
+
+function changePaths(change: GitOrdinaryChange): string[] {
+  return [change.oldPath, change.newPath].filter(
     (path): path is string => path !== null,
   );
 }
 
-const keyOf = (paths: readonly string[]) => paths.join('\0');
+async function readSections(
+  checkout: string,
+  comparison: DiffComparison,
+  paths: readonly string[],
+  config: readonly string[],
+  signal?: AbortSignal,
+): Promise<Sections> {
+  const pathspecs = [...new Set(paths)].map((path) => `:(top,literal)${path}`);
+  let output: Buffer;
+  try {
+    output = await runInspection(
+      checkout,
+      diffArguments(comparison, pathspecs),
+      signal,
+      { maxBytes: MAX_BATCH_BYTES, config },
+    );
+  } catch (error) {
+    if (error instanceof InspectionLimitError) return null;
+    throw error;
+  }
+  return parseDiff(output);
+}
 
-type DiffComparison =
-  | { kind: 'staged' }
-  | { kind: 'unstaged' }
-  | { kind: 'commit'; oid: string; parent: number };
-
-function diffArguments(comparison: DiffComparison, pathspecs: string[]) {
+function diffArguments(
+  comparison: DiffComparison,
+  pathspecs: readonly string[],
+): string[] {
   return [
     ...(comparison.kind === 'commit'
       ? [
@@ -125,111 +164,4 @@ function diffArguments(comparison: DiffComparison, pathspecs: string[]) {
     '--',
     ...pathspecs,
   ];
-}
-
-function pathspec(path: string) {
-  return `:(top,literal)${path}`;
-}
-
-async function readSections(
-  checkout: string,
-  comparison: DiffComparison,
-  paths: readonly string[],
-  config: string[],
-  signal?: AbortSignal,
-): Promise<Map<string, GitDiffResult> | null> {
-  const pathspecs = [...new Set(paths.map((path) => pathspec(path)))];
-  let output: Buffer;
-  try {
-    output = await runInspection(
-      checkout,
-      diffArguments(comparison, pathspecs),
-      signal,
-      { maxBytes: MAX_BATCH_BYTES, config },
-    );
-  } catch (error) {
-    if (error instanceof InspectionLimitError) return null;
-    throw error;
-  }
-  const { entries, patch } = splitRaw(output);
-  const sections = splitSections(patch);
-  const results = new Map<string, GitDiffResult>();
-  let at = 0;
-  for (const entry of entries) {
-    const owned = entry.status.startsWith('T') ? 2 : 1;
-    if (at + owned > sections.length)
-      throw new Error('Git described more files than it printed');
-    results.set(
-      keyOf(entry.paths),
-      classify(Buffer.concat(sections.slice(at, at + owned))),
-    );
-    at += owned;
-  }
-  if (at !== sections.length)
-    throw new Error('Git printed more files than it described');
-  return results;
-}
-
-function splitRaw(output: Buffer) {
-  const entries: {
-    status: string;
-    paths: string[];
-    oldMode: string;
-    newMode: string;
-  }[] = [];
-  let at = 0;
-  const field = () => {
-    const end = output.indexOf(0, at);
-    if (end === -1) return null;
-    const value = output.subarray(at, end).toString('utf8');
-    at = end + 1;
-    return value;
-  };
-  while (at < output.length && output[at] === 0x3a) {
-    const meta = field();
-    if (meta === null) break;
-    const parts = meta.split(' ');
-    const status = parts.at(-1) ?? '';
-    const first = field();
-    if (first === null) break;
-    const second = /^[RC]/.test(status) ? field() : null;
-    if (second === null && /^[RC]/.test(status)) break;
-    entries.push({
-      status,
-      paths: second === null ? [first] : [...new Set([first, second])],
-      oldMode: (parts[0] ?? '').slice(1),
-      newMode: parts[1] ?? '',
-    });
-  }
-  if (output[at] === 0) at += 1;
-  return { entries, patch: output.subarray(at) };
-}
-
-function splitSections(patch: Buffer) {
-  const header = Buffer.from('diff --git ');
-  const starts: number[] = [];
-  for (let at = 0; at < patch.length; at += 1) {
-    if (
-      (at === 0 || patch[at - 1] === 0x0a) &&
-      patch.subarray(at, at + header.length).equals(header)
-    )
-      starts.push(at);
-  }
-  return starts.map((start, index) =>
-    patch.subarray(start, starts[index + 1] ?? patch.length),
-  );
-}
-
-function classify(section: Buffer | undefined): GitDiffResult {
-  if (!section) return { kind: 'metadata-only', patch: '' };
-  if (section.byteLength > MAX_PATCH_BYTES)
-    return { kind: 'omitted', reason: 'size-limit' };
-  let patch: string;
-  try {
-    patch = new TextDecoder('utf-8', { fatal: true }).decode(section);
-  } catch {
-    return { kind: 'omitted', reason: 'unsupported-encoding' };
-  }
-  if (/^Binary files .* differ$/m.test(patch)) return { kind: 'binary' };
-  return { kind: /^@@ /m.test(patch) ? 'text' : 'metadata-only', patch };
 }

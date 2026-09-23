@@ -1,6 +1,7 @@
+import { nullOidFor } from '../../shared/oid.ts';
 import type { GitActionOutcome } from '../dtos/git-action.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 
 export async function updateFetchTrackingRef(
   process: GitProcessRunner,
@@ -25,12 +26,7 @@ export async function updateFetchTrackingRef(
     if (failure) return failure;
   }
   const update = await process.execute(
-    [
-      'update-ref',
-      trackingRef,
-      candidate,
-      expected ?? '0'.repeat(candidate.length),
-    ],
+    ['update-ref', trackingRef, candidate, expected ?? nullOidFor(candidate)],
     signal,
   );
   const failure = processFailure(update);

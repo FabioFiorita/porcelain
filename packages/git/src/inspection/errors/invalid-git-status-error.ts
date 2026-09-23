@@ -1,4 +1,6 @@
-export class InvalidGitStatusError extends Error {
+import { GitError } from '../../shared/errors/git-error.ts';
+
+export class InvalidGitStatusError extends GitError {
   override readonly name = 'InvalidGitStatusError';
 
   constructor() {

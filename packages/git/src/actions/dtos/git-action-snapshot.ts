@@ -1,8 +1,14 @@
 import type { GitActionPreview } from './git-action.ts';
 
+export type ActionRemote = {
+  name: string;
+  url: string;
+  trackingRef: string;
+  display: string;
+};
+
 export type GitActionSnapshot = {
-  fingerprint: string;
   preview: GitActionPreview;
-  remote?: { name: string; url: string; trackingRef: string };
+  remote?: ActionRemote;
   stashLog: string;
 };

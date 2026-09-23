@@ -1,11 +1,8 @@
-export { Git } from './git.ts';
-export { readGitVersion } from './read-git-version.ts';
-export {
-  corroborates,
-  identity,
-  readGitdirPointer,
-  readHead,
-} from './worktree-registry.ts';
+export { Git } from './discovery-git.ts';
+export { readGitVersion } from './commands/read-git-version.ts';
+export { identity } from '../shared/identity.ts';
+export { corroborates, readGitdirPointer } from '../shared/gitdir.ts';
+export { readHead } from './commands/read-head.ts';
 export { isRepositoryUnavailable } from './errors/is-repository-unavailable.ts';
 export { RepositoryIdentityMismatchError } from './errors/repository-identity-mismatch-error.ts';
 export type { DiscoveryIssue } from './dtos/discovery-issue.ts';

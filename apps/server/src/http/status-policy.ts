@@ -14,7 +14,7 @@ import {
   UnsupportedHistoryDataError,
 } from '@porcelain/git/history';
 import {
-  GitInspectionTimeoutError,
+  GitTimeoutError,
   InspectionLimitError,
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
@@ -179,7 +179,7 @@ export function toStatusResponse(error: unknown) {
     return response(422, 'Repository could not be inspected');
   if (
     error instanceof ApplicationClosedError ||
-    error instanceof GitInspectionTimeoutError ||
+    error instanceof GitTimeoutError ||
     (error instanceof Error &&
       (error.name === 'TimeoutError' || error.name === 'AbortError'))
   )

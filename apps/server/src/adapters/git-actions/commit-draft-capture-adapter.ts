@@ -5,7 +5,7 @@ import type {
 import type { CommitDraftCapturePort } from '@porcelain/git-actions/ports';
 import { FileInspectionError } from '@porcelain/files/errors';
 import type { FileReader } from '@porcelain/files/ports';
-import { RequestGitSession } from '@porcelain/git/actions';
+import { RequestGitSession } from '@porcelain/git/inspection';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
 import type { GitSession } from '@porcelain/git/inspection';
 

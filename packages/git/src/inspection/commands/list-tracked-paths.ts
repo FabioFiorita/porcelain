@@ -1,8 +1,8 @@
 import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
-import { runInspection } from '../read-inspection.ts';
+import { runInspection } from './run-inspection.ts';
 
-export const MAX_QUICK_OPEN_BYTES = 4 * 1024 * 1024;
-export const MAX_QUICK_OPEN_PATHS = 50_000;
+const MAX_QUICK_OPEN_BYTES = 4 * 1024 * 1024;
+const MAX_QUICK_OPEN_PATHS = 50_000;
 
 export async function listTrackedPaths(
   checkout: string,

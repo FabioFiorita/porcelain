@@ -1,17 +1,20 @@
+import { shortBranchName } from '../../shared/refs.ts';
 import type {
   GitActionExpectation,
   GitActionIntent,
 } from '../dtos/git-action.ts';
 import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import { readOptionalActionOid } from '../helpers/read-optional-action-oid.ts';
-import { rejectBusyCheckout } from '../helpers/reject-busy-checkout.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { checkStashCollisions } from './check-stash-collisions.ts';
 import { inspectActionConfig } from './inspect-action-config.ts';
 import { inspectActionRemote } from './inspect-action-remote.ts';
+import { readActionBranch } from './read-action-branch.ts';
 import { readActionCommand } from './read-action-command.ts';
+import { readActionStatus } from './read-action-status.ts';
+import { readOptionalActionOid } from './read-optional-action-oid.ts';
+import { readStashLog } from './read-stash-log.ts';
+import { rejectBusyCheckout } from './reject-busy-checkout.ts';
 
 export async function inspectActionTarget(
   process: GitProcessRunner,
@@ -34,64 +37,35 @@ export async function inspectActionTarget(
     throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
   await inspectActionConfig(process, signal, intent.action);
   const headOid = await readOptionalActionOid(process, 'HEAD', signal);
-  const branchResult = await process.execute(
-    ['symbolic-ref', '--quiet', 'HEAD'],
-    signal,
-  );
-  const branchFailure = processFailure(branchResult);
-  if (branchFailure?.state === 'indeterminate')
-    throw new GitActionRejectedError(branchFailure.reason ?? 'GIT_REJECTED');
-  const branchRef =
-    branchResult.exitCode === 0
-      ? branchResult.stdout.toString('utf8').trimEnd()
-      : null;
-  const displayedBranch = branchRef?.startsWith('refs/heads/')
-    ? branchRef.slice('refs/heads/'.length)
-    : branchRef;
-  if (headOid !== expected.headOid || displayedBranch !== expected.branch)
+  const branch = await readActionBranch(process, signal);
+  if (
+    headOid !== expected.headOid ||
+    (branch === null ? null : shortBranchName(branch)) !== expected.branch
+  )
     throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
 
-  const network =
+  const remote =
     intent.action === 'fetch' ||
     intent.action === 'pull' ||
-    intent.action === 'push';
-  const remote = network
-    ? await inspectActionRemote(process, intent, signal)
-    : undefined;
+    intent.action === 'push'
+      ? await inspectActionRemote(process, intent, signal)
+      : undefined;
   const trackingOid = remote
     ? await readOptionalActionOid(process, remote.trackingRef, signal)
     : null;
-  if (network && trackingOid !== expected.upstreamOid)
+  if (remote && trackingOid !== expected.upstreamOid)
     throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
 
-  const needsChanges =
-    intent.action === 'pull' ||
-    intent.action === 'stash-create' ||
-    intent.action === 'stash-apply' ||
-    intent.action === 'stash-pop';
-  const status = needsChanges
-    ? await readActionCommand(
-        process,
-        ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
-        signal,
-      )
-    : '';
-  if (intent.action === 'pull' && status)
+  const stash =
+    intent.action === 'stash-apply' || intent.action === 'stash-pop';
+  const changes =
+    intent.action === 'pull' || intent.action === 'stash-create' || stash
+      ? await readActionStatus(process, signal)
+      : [];
+  if (intent.action === 'pull' && changes.length > 0)
     throw new GitActionRejectedError('CHECKOUT_BUSY');
-  const records = status.split('\0').filter(Boolean);
-  const trackedChanges = records.some((entry) => !entry.startsWith('?? '));
-  const untrackedCount = records.filter((entry) =>
-    entry.startsWith('?? '),
-  ).length;
-  const stashLog =
-    intent.action === 'stash-apply' || intent.action === 'stash-pop'
-      ? await readActionCommand(
-          process,
-          ['stash', 'list', '--format=%H%x00%gd%x00%gs'],
-          signal,
-        )
-      : '';
-  if (intent.action === 'stash-apply' || intent.action === 'stash-pop') {
+  const stashLog = stash ? await readStashLog(process, signal) : '';
+  if (stash) {
     const objectType = await readActionCommand(
       process,
       ['cat-file', '-t', intent.stashOid],
@@ -101,15 +75,15 @@ export async function inspectActionTarget(
       await checkStashCollisions(process, intent.stashOid, signal);
   }
   return {
-    fingerprint: '',
     stashLog,
     ...(remote ? { remote } : {}),
     preview: {
       headOid,
-      branch: branchRef,
+      branch,
       staged: false,
-      trackedChanges,
-      untrackedCount,
+      trackedChanges: changes.some((change) => change.scope !== 'untracked'),
+      untrackedCount: changes.filter((change) => change.scope === 'untracked')
+        .length,
       inProgress,
       mergeHeadOid,
       ...(remote ? { destination: remote.display, trackingOid } : {}),

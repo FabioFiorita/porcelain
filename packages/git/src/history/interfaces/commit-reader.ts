@@ -6,7 +6,7 @@ import type {
   CommitPageRequest,
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
-import type { GitDiffResult } from '../../inspection/dtos/git-diff.ts';
+import type { GitDiffResult } from '../../inspection/index.ts';
 
 export interface CommitReader {
   listCommits(

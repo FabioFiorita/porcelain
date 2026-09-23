@@ -1,4 +1,6 @@
-export class UnsupportedPathEncodingError extends Error {
+import { GitError } from '../../shared/errors/git-error.ts';
+
+export class UnsupportedPathEncodingError extends GitError {
   override readonly name = 'UnsupportedPathEncodingError';
 
   constructor(options?: ErrorOptions) {

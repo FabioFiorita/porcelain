@@ -1,20 +1,18 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
-import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
+import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 import { readActionCommand } from './read-action-command.ts';
 import { updateFetchTrackingRef } from './update-fetch-tracking-ref.ts';
 
 export async function fetchBranch(
   process: GitProcessRunner,
-  preparation: GitActionCommand,
-  snapshot: GitActionSnapshot,
+  preparation: GitActionCommand<'fetch'> | GitActionCommand<'pull'>,
+  remote: ActionRemote,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
   const intent = preparation.intent;
-  if (intent.action !== 'fetch' || !snapshot.remote)
-    throw new Error('Invalid fetch intent');
   const temporaryRef = `refs/porcelain/fetch/${preparation.id}`;
   const fetched = await process.execute(
     [
@@ -26,7 +24,7 @@ export async function fetchBranch(
       '--no-recurse-submodules',
       '--no-write-fetch-head',
       '--refmap=',
-      snapshot.remote.name,
+      remote.name,
       `${intent.sourceRef}:${temporaryRef}`,
     ],
     signal,
@@ -47,7 +45,7 @@ export async function fetchBranch(
   ).trimEnd();
   const outcome = await updateFetchTrackingRef(
     process,
-    snapshot.remote.trackingRef,
+    remote.trackingRef,
     candidate,
     preparation.preview.trackingOid,
     signal,

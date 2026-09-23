@@ -1,6 +1,9 @@
-export class InvalidHistoryRequestError extends Error {
+import { GitError } from '../../shared/errors/git-error.ts';
+
+export class InvalidHistoryRequestError extends GitError {
   override readonly name = 'InvalidHistoryRequestError';
-  constructor(cause?: unknown) {
-    super('Invalid history request', { cause });
+
+  constructor(options?: ErrorOptions) {
+    super('Invalid history request', options);
   }
 }

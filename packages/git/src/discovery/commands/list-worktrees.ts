@@ -5,15 +5,15 @@ import type { DiscoveryResult } from '../dtos/discovery-result.ts';
 import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
 import { isRepositoryUnavailable } from '../errors/is-repository-unavailable.ts';
 import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
-import { UnsupportedRepositoryError } from '../errors/unsupported-repository-error.ts';
-import { runGitRead } from '../../shared/run-git.ts';
+import { parseWorktreeList } from '../parsers/parse-worktree-list.ts';
 import {
   contained,
   corroborates,
-  identity,
   readWorktreeRegistry,
   realpathOrSelf,
-} from '../worktree-registry.ts';
+} from '../../shared/gitdir.ts';
+import { identity } from '../../shared/identity.ts';
+import { runGitRead } from '../../shared/run-git.ts';
 
 export async function listWorktrees(
   checkout: string,
@@ -34,45 +34,38 @@ export async function listWorktrees(
         .slice(0, -1),
   );
   const repositoryIdentity = await identity(commonDirectory);
-  const output = (
-    await runGitRead(
-      checkout,
-      ['worktree', 'list', '--porcelain', '-z'],
-      signal,
-    )
-  ).toString('utf8');
+  const records = parseWorktreeList(
+    (
+      await runGitRead(
+        checkout,
+        ['worktree', 'list', '--porcelain', '-z'],
+        signal,
+      )
+    ).toString('utf8'),
+  );
   const registry = await readWorktreeRegistry(commonDirectory);
-  const records = output.split('\0\0').filter(Boolean);
   const worktrees: DiscoveredRepository['worktrees'] = [];
   for (const [index, record] of records.entries()) {
-    const fields = record.split('\0');
-    const path = fields
-      .find((field) => field.startsWith('worktree '))
-      ?.slice(9);
-    if (fields.includes('bare')) throw new UnsupportedRepositoryError();
-    if (!path) throw new InvalidWorktreeInventoryError('Missing worktree path');
     const administrativeDirectory =
       index === 0
         ? commonDirectory
-        : (registry.get(await realpathOrSelf(path)) ?? registry.get(path));
+        : (registry.get(await realpathOrSelf(record.path)) ??
+          registry.get(record.path));
     const inspection = await inspectWorktree(
-      path,
+      record.path,
       administrativeDirectory,
       commonDirectory,
     );
     issues.push(...inspection.issues);
     worktrees.push({
-      path,
+      path: record.path,
       metadataIdentity: inspection.metadataIdentity,
       administrativeDirectory: administrativeDirectory ?? '',
       main: index === 0,
-      branch:
-        fields.find((field) => field.startsWith('branch '))?.slice(7) ?? null,
+      branch: record.branch,
       available: inspection.available,
     });
   }
-  if (worktrees.length === 0)
-    throw new InvalidWorktreeInventoryError('Repository has no checkout');
   signal?.throwIfAborted();
   return {
     repository: { commonDirectory, repositoryIdentity, worktrees },
@@ -96,14 +89,7 @@ async function inspectWorktree(
     return {
       metadataIdentity: null,
       available: false,
-      issues: [
-        {
-          path,
-          error: new InvalidWorktreeInventoryError(
-            'Worktree has no administrative directory in this repository',
-          ),
-        },
-      ],
+      issues: [{ path, error: new InvalidWorktreeInventoryError() }],
     };
   try {
     const metadataIdentity = await identity(administrativeDirectory);
@@ -131,11 +117,12 @@ async function inspectWorktree(
   }
 }
 
-async function unreachable(path: string): Promise<Error | null> {
+async function unreachable(path: string): Promise<Error | undefined> {
   try {
     await stat(path);
-    return null;
+    return undefined;
   } catch (error) {
-    return error instanceof Error ? error : new Error(String(error));
+    if (error instanceof Error) return error;
+    throw error;
   }
 }

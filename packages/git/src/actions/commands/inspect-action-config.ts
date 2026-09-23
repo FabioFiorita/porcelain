@@ -1,18 +1,24 @@
-import { createHash } from 'node:crypto';
-import { lstat, readdir, readFile } from 'node:fs/promises';
+import { lstat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  filterDrivers,
+  parseFilterAttributes,
+} from '../../shared/conversion-filters.ts';
 import type { GitActionIntent } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import { validateActionConfig } from '../helpers/validate-action-config.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
+import { validateActionConfig } from '../parsers/validate-action-config.ts';
 import { readActionCommand } from './read-action-command.ts';
+
+const MAX_HOOK_BYTES = 1024 * 1024;
+const MAX_NEW_FILES = 10_000;
 
 export async function inspectActionConfig(
   process: GitProcessRunner,
   signal: AbortSignal,
-  action?: GitActionIntent['action'],
-): Promise<string> {
+  action: GitActionIntent['action'],
+): Promise<void> {
   const config = await readActionCommand(
     process,
     ['config', '--null', '--list'],
@@ -21,7 +27,13 @@ export async function inspectActionConfig(
   validateActionConfig(config);
   if (action !== 'fetch' && action !== 'push')
     await rejectAssignedFilters(process, config, signal);
-  const hash = createHash('sha256').update(config);
+  await rejectUncheckableHooks(process, signal);
+}
+
+async function rejectUncheckableHooks(
+  process: GitProcessRunner,
+  signal: AbortSignal,
+): Promise<void> {
   const hooks = (
     await readActionCommand(
       process,
@@ -29,25 +41,22 @@ export async function inspectActionConfig(
       signal,
     )
   ).trimEnd();
+  let names: string[];
   try {
-    for (const name of (await readdir(hooks)).sort()) {
-      if (name.endsWith('.sample')) continue;
-      const path = join(hooks, name);
-      const info = await lstat(path);
-      if (!info.isFile() || info.size > 1024 * 1024)
-        throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
-          detail: `The \`${name}\` hook is ${info.isFile() ? 'larger than 1 MB' : 'not a regular file'}, so Porcelain cannot check it before an action. Replace it with a regular file, or run this action from a terminal.`,
-        });
-      hash
-        .update(name)
-        .update(String(info.mode))
-        .update(await readFile(path));
-    }
+    names = await readdir(hooks);
   } catch (error) {
-    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
-      throw error;
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return;
+    throw error;
   }
-  return hash.digest('hex');
+  for (const name of names.sort()) {
+    if (name.endsWith('.sample')) continue;
+    const info = await lstat(join(hooks, name));
+    if (!info.isFile() || info.size > MAX_HOOK_BYTES)
+      throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
+        detail: `The \`${name}\` hook is ${info.isFile() ? 'larger than 1 MB' : 'not a regular file'}, so Porcelain cannot check it before an action. Replace it with a regular file, or run this action from a terminal.`,
+      });
+  }
 }
 
 async function rejectAssignedFilters(
@@ -55,21 +64,10 @@ async function rejectAssignedFilters(
   config: string,
   signal: AbortSignal,
 ): Promise<void> {
-  const commands = new Map<string, string>();
-  for (const record of config.split('\0')) {
-    const separator = record.indexOf('\n');
-    const key = record.slice(0, separator);
-    if (/^filter\..+\.(?:clean|smudge|process)$/i.test(key))
-      commands.set(key, record.slice(separator + 1));
-  }
-  const drivers = new Map<string, string>();
-  for (const [key, command] of commands) {
-    const driver = key.slice('filter.'.length, key.lastIndexOf('.'));
-    if (command && !drivers.has(driver)) drivers.set(driver, key);
-  }
+  const drivers = filterDrivers(config);
   if (!drivers.size) return;
   for (const [driver, key] of drivers)
-    if (!/^[\w-]+$/.test(driver))
+    if (!/^[\w-]+$/u.test(driver))
       throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
         detail: `Git config sets \`${key}\`, a filter Porcelain cannot look up by name. Run this action from a terminal instead.`,
       });
@@ -89,7 +87,7 @@ async function rejectAssignedFilters(
   let path = tracked.stdout.toString('utf8').split('\0')[0];
   let driver: string | undefined;
   if (path)
-    driver = (await filterAttributes(process, `${path}\0`, signal))[0]?.[1];
+    driver = (await filterAttributes(process, `${path}\0`, signal))[0]?.filter;
   else {
     const added = await process.execute(
       ['ls-files', '-z', '--others', '--exclude-standard'],
@@ -97,16 +95,17 @@ async function rejectAssignedFilters(
     );
     const names = added.stdout.toString('utf8');
     const count = names.split('\0').length - 1;
-    if (processFailure(added) || count > 10_000)
+    if (processFailure(added) || count > MAX_NEW_FILES)
       throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
         detail: `This checkout has more new files than Porcelain can check for the filters in \`${[...drivers.values()].join('`, `')}\` (at most 10,000). Ignore generated folders in \`.gitignore\`, or run this action from a terminal.`,
       });
     if (!count) return;
-    [path, driver] =
-      (await filterAttributes(process, names, signal)).find(([, value]) =>
-        drivers.has(value),
-      ) ?? [];
-    if (!path) return;
+    const filtered = (await filterAttributes(process, names, signal)).find(
+      (record) => drivers.has(record.filter),
+    );
+    if (!filtered) return;
+    path = filtered.path;
+    driver = filtered.filter;
   }
   const key = drivers.get(driver ?? '') ?? [...drivers.values()].join('`, `');
   throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
@@ -118,17 +117,13 @@ async function filterAttributes(
   process: GitProcessRunner,
   paths: string,
   signal: AbortSignal,
-): Promise<[string, string][]> {
-  const fields = (
+): Promise<{ path: string; filter: string }[]> {
+  return parseFilterAttributes(
     await readActionCommand(
       process,
       ['check-attr', '-z', '--stdin', 'filter'],
       signal,
       paths,
-    )
-  ).split('\0');
-  const records: [string, string][] = [];
-  for (let index = 0; index + 2 < fields.length; index += 3)
-    records.push([fields[index] ?? '', fields[index + 2] ?? '']);
-  return records;
+    ),
+  );
 }

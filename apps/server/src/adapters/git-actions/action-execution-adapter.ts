@@ -9,11 +9,9 @@ import type {
   ActionChangeReaderPort,
   ActionExecutionPort,
 } from '@porcelain/git-actions/ports';
-import {
-  GitActionRejectedError,
-  RequestGitSession,
-} from '@porcelain/git/actions';
+import { GitActionRejectedError } from '@porcelain/git/actions';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
+import { RequestGitSession } from '@porcelain/git/inspection';
 import type { GitSession } from '@porcelain/git/inspection';
 
 type Checkout = Parameters<GitActionWriterFactory>[0];

@@ -1,9 +1,10 @@
+import type { CheckoutSession } from '../../inspection/index.ts';
+import type { GitBranchList } from '../dtos/git-branch-list.ts';
 import type {
   GitActionExpectation,
   GitActionIntent,
   GitActionOutcome,
 } from '../dtos/git-action.ts';
-import type { CheckoutSession } from '../../inspection/interfaces/git-session.ts';
 
 export interface GitActionWriter {
   readSelectedDiff?(
@@ -11,15 +12,7 @@ export interface GitActionWriter {
     paths: readonly string[],
     signal: AbortSignal,
   ): Promise<string>;
-  listBranches?(signal: AbortSignal): Promise<{
-    current: string | null;
-    branches: {
-      name: string;
-      upstream: string | null;
-      lastCommitAt: string;
-      checkedOutElsewhere: boolean;
-    }[];
-  }>;
+  listBranches?(signal: AbortSignal): Promise<GitBranchList>;
   executeDirect(
     requestId: string,
     intent: GitActionIntent,
@@ -29,6 +22,7 @@ export interface GitActionWriter {
     verifyTarget?: () => Promise<void>,
   ): Promise<GitActionOutcome>;
 }
+
 export type GitActionWriterFactory = (
   session: CheckoutSession,
 ) => GitActionWriter;

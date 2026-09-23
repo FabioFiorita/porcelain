@@ -9,32 +9,29 @@ import {
 import { dirname, join } from 'node:path';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import { readOptionalActionOid } from '../helpers/read-optional-action-oid.ts';
-import { rejectBusyCheckout } from '../helpers/reject-busy-checkout.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import { readOptionalActionOid } from './read-optional-action-oid.ts';
+import { rejectBusyCheckout } from './reject-busy-checkout.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
+import { readActionBranch } from './read-action-branch.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function commitPaths(
   process: GitProcessRunner,
-  preparation: GitActionCommand,
+  preparation: GitActionCommand<'commit' | 'amend'>,
+  paths: readonly string[],
   signal: AbortSignal,
   verifyTarget?: () => Promise<void>,
 ): Promise<GitActionOutcome> {
   const intent = preparation.intent;
-  if (
-    (intent.action !== 'commit' && intent.action !== 'amend') ||
-    !intent.paths
-  )
-    throw new Error('Invalid selected commit');
-  const messageOnly = intent.action === 'amend' && intent.paths.length === 0;
+  const messageOnly = intent.action === 'amend' && paths.length === 0;
   const merging =
     intent.action === 'commit' && preparation.preview.inProgress === 'merge';
-  if (intent.action === 'commit' && intent.paths.length === 0 && !merging)
-    throw new Error('Invalid selected commit');
+  if (intent.action === 'commit' && paths.length === 0 && !merging)
+    throw new GitActionRejectedError('REQUEST_MISMATCH');
   if (
-    intent.paths.length > 2000 ||
-    intent.paths.some(
+    paths.length > 2000 ||
+    paths.some(
       (path) =>
         !path ||
         path.includes('\0') ||
@@ -67,14 +64,7 @@ export async function commitPaths(
         ? await readOptionalActionOid(process, 'MERGE_HEAD', signal)
         : null;
     const headOid = await readOptionalActionOid(process, 'HEAD', signal);
-    const branchResult = await process.execute(
-      ['symbolic-ref', '--quiet', 'HEAD'],
-      signal,
-    );
-    const branch =
-      branchResult.exitCode === 0
-        ? branchResult.stdout.toString('utf8').trimEnd()
-        : null;
+    const branch = await readActionBranch(process, signal);
     if (
       headOid !== preparation.preview.headOid ||
       branch !== preparation.preview.branch ||
@@ -92,9 +82,9 @@ export async function commitPaths(
     });
     if (original) await writeFile(indexFile, original);
     const pathsFile = join(temporary, 'paths');
-    await writeFile(pathsFile, `${intent.paths.join('\0')}\0`);
-    const run = (args: string[], commandSignal = signal, input?: string) =>
-      process.execute(['--literal-pathspecs', ...args], commandSignal, input, {
+    await writeFile(pathsFile, `${paths.join('\0')}\0`);
+    const run = (args: string[], input?: string) =>
+      process.execute(['--literal-pathspecs', ...args], signal, input, {
         indexFile,
       });
     const present = new Set(
@@ -106,7 +96,7 @@ export async function commitPaths(
         )
       ).split('\0'),
     );
-    const addPaths = intent.paths.filter((path) => present.has(path));
+    const addPaths = paths.filter((path) => present.has(path));
     if (addPaths.length) {
       await writeFile(pathsFile, `${addPaths.join('\0')}\0`);
       const added = await run([
@@ -118,7 +108,7 @@ export async function commitPaths(
       const addFailure = processFailure(added);
       if (addFailure) return addFailure;
     }
-    await writeFile(pathsFile, `${intent.paths.join('\0')}\0`);
+    await writeFile(pathsFile, `${paths.join('\0')}\0`);
     if (!messageOnly && !merging) {
       const changed = await run([
         'diff',
@@ -127,7 +117,7 @@ export async function commitPaths(
         '--no-ext-diff',
         '--no-textconv',
         '--',
-        ...intent.paths,
+        ...paths,
       ]);
       if (!changed.interrupted && changed.exitCode === 0)
         return { state: 'no-change', refreshRequired: false };
@@ -150,7 +140,6 @@ export async function commitPaths(
           ? [`--pathspec-from-file=${pathsFile}`, '--pathspec-file-nul']
           : []),
       ],
-      signal,
       intent.message,
     );
     const failure = processFailure(committed);

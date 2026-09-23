@@ -1,8 +1,6 @@
 import type { LineRange } from '../dtos/line-range.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
-import { runInspection } from '../read-inspection.ts';
-
-const MAX_SNIPPET_BYTES = 1024 * 1024;
+import { runInspection } from './run-inspection.ts';
 
 export async function readLines(
   session: CheckoutSession,
@@ -13,7 +11,7 @@ export async function readLines(
     session.path,
     ['show', `HEAD:${range.path}`],
     signal,
-    { maxBytes: MAX_SNIPPET_BYTES },
+    { maxBytes: 1024 * 1024 },
   );
   signal?.throwIfAborted();
   return output.toString('utf8').split('\n');

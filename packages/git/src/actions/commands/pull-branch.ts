@@ -1,26 +1,21 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
-import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
+import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import { rejectBusyCheckout } from '../helpers/reject-busy-checkout.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import { rejectBusyCheckout } from './reject-busy-checkout.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 import { fetchBranch } from './fetch-branch.ts';
+import { readActionBranch } from './read-action-branch.ts';
 import { readActionCommand } from './read-action-command.ts';
+import { readActionStatus } from './read-action-status.ts';
 
 export async function pullBranch(
   process: GitProcessRunner,
-  preparation: GitActionCommand,
-  snapshot: GitActionSnapshot,
+  preparation: GitActionCommand<'pull'>,
+  remote: ActionRemote,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
-  if (preparation.intent.action !== 'pull')
-    throw new Error('Invalid pull intent');
-  const fetched = await fetchBranch(
-    process,
-    { ...preparation, intent: { ...preparation.intent, action: 'fetch' } },
-    snapshot,
-    signal,
-  );
+  const fetched = await fetchBranch(process, preparation, remote, signal);
   if (fetched.state !== 'succeeded' && fetched.state !== 'no-change')
     return fetched;
   const candidate = fetched.result?.trackingOid;
@@ -33,22 +28,12 @@ export async function pullBranch(
   const head = (
     await readActionCommand(process, ['rev-parse', '--verify', 'HEAD'], signal)
   ).trimEnd();
-  const branch = (
-    await readActionCommand(
-      process,
-      ['symbolic-ref', '--quiet', 'HEAD'],
-      signal,
-    )
-  ).trimEnd();
-  const status = await readActionCommand(
-    process,
-    ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
-    signal,
-  );
+  const branch = await readActionBranch(process, signal);
+  const changes = await readActionStatus(process, signal);
   if (
     head !== preparation.preview.headOid ||
     branch !== preparation.preview.branch ||
-    status
+    changes.length > 0
   )
     return {
       state: 'rejected',

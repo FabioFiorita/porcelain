@@ -1,14 +1,15 @@
 import type { GitActionIntent } from '../dtos/git-action.ts';
+import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
-import { validateRemoteProfile } from '../helpers/validate-remote-profile.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { validateRemoteProfile } from '../parsers/validate-remote-profile.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function inspectActionRemote(
   process: GitProcessRunner,
   intent: Extract<GitActionIntent, { action: 'fetch' | 'pull' | 'push' }>,
   signal: AbortSignal,
-) {
+): Promise<ActionRemote> {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(intent.remoteName))
     throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
       detail:

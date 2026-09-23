@@ -1,35 +1,30 @@
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
-import type { GitActionSnapshot } from '../dtos/git-action-snapshot.ts';
-import type { GitProcessRunner } from '../../shared/interfaces/git-process-runner.ts';
-import { processFailure } from './action-outcome.ts';
+import type { ActionRemote } from '../dtos/git-action-snapshot.ts';
+import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
+import { processFailure } from '../parsers/parse-process-result.ts';
 import { ambiguousRewrite } from './inspect-action-remote.ts';
 import { readActionCommand } from './read-action-command.ts';
 
 export async function pushBranch(
   process: GitProcessRunner,
-  preparation: GitActionCommand,
-  snapshot: GitActionSnapshot,
+  preparation: GitActionCommand<'push'>,
+  remote: ActionRemote,
+  sourceOid: string,
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
   const intent = preparation.intent;
-  if (
-    intent.action !== 'push' ||
-    !snapshot.remote ||
-    !preparation.preview.headOid
-  )
-    throw new Error('Invalid push intent');
   if (!intent.allowCreate) {
     const inspectedUrl = (
       await readActionCommand(
         process,
-        ['ls-remote', '--get-url', snapshot.remote.url],
+        ['ls-remote', '--get-url', remote.url],
         signal,
       )
     ).trimEnd();
-    if (inspectedUrl !== snapshot.remote.url) throw ambiguousRewrite();
+    if (inspectedUrl !== remote.url) throw ambiguousRewrite();
     const refs = await readActionCommand(
       process,
-      ['ls-remote', '--heads', snapshot.remote.url, intent.destinationRef],
+      ['ls-remote', '--heads', remote.url, intent.destinationRef],
       signal,
     );
     if (!refs.trim())
@@ -48,8 +43,8 @@ export async function pushBranch(
       '--porcelain',
       '--no-follow-tags',
       '--recurse-submodules=no',
-      snapshot.remote.name,
-      `${preparation.preview.headOid}:${intent.destinationRef}`,
+      remote.name,
+      `${sourceOid}:${intent.destinationRef}`,
     ],
     signal,
   );
@@ -76,7 +71,7 @@ export async function pushBranch(
   return {
     state: records[0].startsWith('=') ? 'no-change' : 'succeeded',
     result: {
-      sourceOid: preparation.preview.headOid,
+      sourceOid: sourceOid,
       destinationRef: intent.destinationRef,
     },
     refreshRequired: true,

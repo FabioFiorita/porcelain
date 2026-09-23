@@ -16,12 +16,9 @@ export async function readOriginUrl(
     const url = output.toString('utf8').trim();
     return url === '' ? null : url;
   } catch (failure) {
-    signal?.throwIfAborted();
-    const cause = failure instanceof GitCommandError ? failure.cause : failure;
     if (
-      cause instanceof Error &&
-      'code' in cause &&
-      cause.code === NO_SUCH_REMOTE
+      failure instanceof GitCommandError &&
+      failure.exitCode === NO_SUCH_REMOTE
     )
       return null;
     throw failure;

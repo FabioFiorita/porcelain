@@ -1,37 +1,14 @@
 import { createHash } from 'node:crypto';
-import { lstat, readFile, stat } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { readGitVersion } from '../../discovery/index.ts';
+import { readCommonDirectory, readGitDirectory } from '../../shared/gitdir.ts';
+import { identity } from '../../shared/identity.ts';
 import type {
   HistoryCheckout,
   HistorySnapshot,
 } from '../dtos/commit-history.ts';
 import { HistoryWorktreeUnavailableError } from '../errors/history-worktree-unavailable-error.ts';
-import { readGitVersion } from '../../discovery/read-git-version.ts';
-
-const identity = (value: { dev: bigint; ino: bigint; birthtimeNs: bigint }) =>
-  `${value.dev}:${value.ino}:${value.birthtimeNs}`;
-
-async function liveDirectories(path: string) {
-  const dotGit = join(path, '.git');
-  const marker = await lstat(dotGit, { bigint: true });
-  let administrative = dotGit;
-  if (!marker.isDirectory()) {
-    const named = (await readFile(dotGit, 'utf8')).match(/^gitdir: (.+)$/mu);
-    if (!named?.[1]) throw new HistoryWorktreeUnavailableError();
-    const target = named[1].trim();
-    administrative = isAbsolute(target) ? target : resolve(path, target);
-  }
-  const metadata = await stat(administrative, { bigint: true });
-  let common = administrative;
-  try {
-    const named = await readFile(join(administrative, 'commondir'), 'utf8');
-    const target = named.trim();
-    common = isAbsolute(target) ? target : resolve(administrative, target);
-  } catch (error) {
-    if (!isMissing(error)) throw error;
-  }
-  return { common, repository: await stat(common, { bigint: true }), metadata };
-}
 
 export async function confirmHistoryCheckout(
   checkout: HistoryCheckout,
@@ -39,16 +16,18 @@ export async function confirmHistoryCheckout(
 ): Promise<{ common: string }> {
   signal?.throwIfAborted();
   try {
-    const live = await liveDirectories(checkout.path);
+    const gitDirectory = await readGitDirectory(checkout.path);
+    if (gitDirectory === undefined) throw new HistoryWorktreeUnavailableError();
+    const common = await readCommonDirectory(gitDirectory);
     if (
-      identity(live.metadata) !== checkout.metadataIdentity ||
-      identity(live.repository) !== checkout.repositoryIdentity
+      (await identity(gitDirectory)) !== checkout.metadataIdentity ||
+      (await identity(common)) !== checkout.repositoryIdentity
     )
       throw new HistoryWorktreeUnavailableError();
-    return { common: live.common };
+    return { common };
   } catch (cause) {
     if (cause instanceof HistoryWorktreeUnavailableError) throw cause;
-    throw new HistoryWorktreeUnavailableError(cause);
+    throw new HistoryWorktreeUnavailableError({ cause });
   }
 }
 
@@ -65,20 +44,20 @@ export async function inspectHistoryCheckout(
       shallow: shallow.length > 0,
     };
   } catch (cause) {
-    throw new HistoryWorktreeUnavailableError(cause);
+    throw new HistoryWorktreeUnavailableError({ cause });
   }
 }
 
-const isMissing = (error: unknown) =>
-  error instanceof Error &&
-  'code' in error &&
-  (error.code === 'ENOENT' || error.code === 'ENOTDIR');
-
-async function readShallowBoundary(path: string) {
+async function readShallowBoundary(path: string): Promise<Buffer> {
   try {
     return await readFile(path);
   } catch (error) {
-    if (isMissing(error)) return Buffer.alloc(0);
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+    )
+      return Buffer.alloc(0);
     throw error;
   }
 }

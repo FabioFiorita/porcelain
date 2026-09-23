@@ -1,5 +1,5 @@
 import type { CheckoutSession } from '../interfaces/git-session.ts';
-import { runGitRead } from '../../shared/run-git.ts';
+import { runInspection } from './run-inspection.ts';
 
 export async function readSelectedDiff(
   session: CheckoutSession,
@@ -8,7 +8,7 @@ export async function readSelectedDiff(
   signal: AbortSignal,
 ): Promise<string> {
   await session.verify(signal);
-  const output = await runGitRead(
+  const output = await runInspection(
     session.path,
     [
       'diff',
@@ -20,10 +20,7 @@ export async function readSelectedDiff(
       ...paths,
     ],
     signal,
-    {
-      maxBytes: 1024 * 1024,
-      leading: ['--literal-pathspecs'],
-    },
+    { maxBytes: 1024 * 1024, leading: ['--literal-pathspecs'] },
   );
   await session.confirm(signal);
   return output.toString('utf8');
