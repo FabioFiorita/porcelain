@@ -31,7 +31,7 @@ export default defineFeature({
   reaches: ['POST /api/pair'],
   intent: 'observed',
   behaviour:
-    'A device redeems a one-time pairing code the owner issued and becomes a paired device. A native client receives its credential in the body; a browser (request header `x-porcelain-browser: 1`) receives it only as an HttpOnly device cookie. The code is consumed by redemption, and an unknown or reused code is refused without revealing why.',
+    'A device redeems a one-time pairing code the owner issued and becomes a paired device. A native client receives its credential in the body; a browser (request header `x-porcelain-browser: 1`) receives it only as an HttpOnly device cookie. The code is consumed by redemption, and an unknown or reused code is refused without revealing why. A blank or control-character device name or platform is refused without consuming the code.',
   cases: [
     defineCase({
       name: 'native client redeems a code',
@@ -124,6 +124,50 @@ export default defineFeature({
       expect({ response, check }) {
         check('status', 401, response.status);
         check('error body', invalidLink, response.body);
+      },
+    }),
+    defineCase({
+      name: 'invalid device details',
+      setup: (session) => issuePairing(session, 'Watch'),
+      request: (_session, code) => [
+        {
+          method: 'POST',
+          path: '/api/pair',
+          auth: 'none',
+          body: { code, platform: 'watchOS\u0007' },
+        },
+        {
+          method: 'POST',
+          path: '/api/pair',
+          auth: 'none',
+          body: { code, platform: 'watchOS', label: '   ' },
+        },
+        {
+          method: 'POST',
+          path: '/api/pair',
+          auth: 'none',
+          body: { code, platform: 'watchOS' },
+        },
+      ],
+      expect({ responses, check, checkPartial }) {
+        for (const [index, response] of responses.slice(0, 2).entries()) {
+          check(`request ${index + 1} status`, 400, response.status);
+          check(
+            `request ${index + 1} error body`,
+            apiError(
+              400,
+              'Bad Request',
+              'The device name or platform is missing, too long, or contains control characters.',
+            ),
+            response.body,
+          );
+        }
+        check('the code still redeems', 200, responses[2]?.status);
+        checkPartial(
+          'device',
+          { label: 'Watch', platform: 'watchOS' },
+          record(responses[2]?.body).device,
+        );
       },
     }),
     defineCase({

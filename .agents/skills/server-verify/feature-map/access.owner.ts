@@ -4,6 +4,7 @@ import {
   readOwnerStatusResponseSchema,
 } from '../../../../packages/contracts/src/access/index.ts';
 import {
+  apiError,
   defineCase,
   defineFeature,
   invalidRequest,
@@ -35,7 +36,7 @@ export default defineFeature({
   ],
   intent: 'observed',
   behaviour:
-    "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses, revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only.",
+    "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses (a request naming an address the server does not answer at, or a blank label, issues nothing), revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only.",
   cases: [
     defineCase({
       name: 'status',
@@ -120,6 +121,53 @@ export default defineFeature({
             response.body,
           );
         }
+      },
+    }),
+    defineCase({
+      name: 'issue a pairing the server cannot honour',
+      setup: async (session) =>
+        (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+      request: (session) => [
+        owner({
+          method: 'POST',
+          path: '/pairings',
+          body: {
+            labels: ['Tablet'],
+            addresses: [session.address, 'http://192.0.2.1:9'],
+          },
+        }),
+        owner({
+          method: 'POST',
+          path: '/pairings',
+          body: { labels: ['Tablet', ' \t '], addresses: [session.address] },
+        }),
+      ],
+      async expect({ responses, state, session, check }) {
+        check('unreachable address status', 400, responses[0]?.status);
+        check(
+          'unreachable address error body',
+          apiError(
+            400,
+            'Bad Request',
+            'This server does not answer at that address, so a link aimed there would not reach it.',
+          ),
+          responses[0]?.body,
+        );
+        check('blank label status', 400, responses[1]?.status);
+        check(
+          'blank label error body',
+          apiError(
+            400,
+            'Bad Request',
+            'The device name or platform is missing, too long, or contains control characters.',
+          ),
+          responses[1]?.body,
+        );
+        check(
+          'no grant was issued',
+          state,
+          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+        );
       },
     }),
     defineCase({

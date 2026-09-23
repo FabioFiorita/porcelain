@@ -1,3 +1,3 @@
 export interface EnvironmentIdentityStore {
-  environmentId(): string;
+  environmentId(): string | undefined;
 }

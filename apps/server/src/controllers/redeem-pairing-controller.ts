@@ -1,28 +1,27 @@
 import type {
-  DeviceRegistration,
-  RedeemedPairing,
-} from '@porcelain/access/models';
+  RedeemPairingRequest,
+  RedeemPairingResponse,
+} from '@porcelain/contracts/access';
 import type { RedeemPairingService } from '@porcelain/access/services';
-
-type RunStored = <T>(operation: () => T | Promise<T>) => Promise<T>;
+import type { Lanes } from '../runtime/lanes.ts';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class RedeemPairingController {
-  private readonly redeemPairing: RedeemPairingService;
-  private readonly runStored: RunStored;
+  private readonly redeemPairingService: RedeemPairingService;
+  private readonly lanes: Lanes;
 
-  constructor(redeemPairing: RedeemPairingService, runStored: RunStored) {
-    this.redeemPairing = redeemPairing;
-    this.runStored = runStored;
+  constructor(redeemPairingService: RedeemPairingService, lanes: Lanes) {
+    this.redeemPairingService = redeemPairingService;
+    this.lanes = lanes;
   }
 
   execute(
-    input: { code: string } & DeviceRegistration,
-  ): Promise<RedeemedPairing> {
-    return this.runStored(() =>
-      this.redeemPairing.execute(input.code, {
-        platform: input.platform,
-        ...(input.label === undefined ? {} : { label: input.label }),
-      }),
+    input: RedeemPairingRequest,
+    context: OperationContext,
+  ): Promise<RedeemPairingResponse> {
+    return this.lanes.unqueued(
+      async () => this.redeemPairingService.execute(input),
+      { callerSignal: context.signal },
     );
   }
 }

@@ -28,7 +28,7 @@ export const deviceSchema = z.object({
   platform: z.string(),
   createdAt: z.string(),
   lastSeenAt: z.string(),
-  lastSeenAddress: z.string().nullable(),
+  lastSeenAddress: z.string().optional(),
 });
 
 export const listAccessResponseSchema = z.object({

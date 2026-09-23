@@ -1,30 +1,12 @@
-import type { Device, PairingGrant } from '../models/pairing.ts';
-
-export type GrantRecord = {
-  id: string;
-  label: string;
-  secretHash: string;
-  addresses: string[];
-  createdAt: string;
-  expiresAt: string;
-};
-
-export type DeviceRecord = {
-  id: string;
-  label: string;
-  platform: string;
-  secretHash: string;
-  createdAt: string;
-};
+import type {
+  PairingRedemption,
+  StoredPairingGrant,
+} from '../models/pairing-grant.ts';
 
 export interface PairingGrantStore {
-  issueGrant(record: GrantRecord): void;
-  listGrants(now: string): PairingGrant[];
-  revokeGrant(id: string, now: string): boolean;
-  redeem(input: {
-    grantId: string;
-    secret: string;
-    now: string;
-    device: DeviceRecord;
-  }): Device | undefined;
+  add(grants: readonly StoredPairingGrant[]): void;
+  find(grantId: string): StoredPairingGrant | undefined;
+  list(): StoredPairingGrant[];
+  markRevoked(grantId: string, revokedAt: string): void;
+  redeem(redemption: PairingRedemption): void;
 }

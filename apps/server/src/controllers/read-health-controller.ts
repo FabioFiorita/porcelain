@@ -1,14 +1,20 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadHealthResponse } from '@porcelain/contracts/access';
+import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class ReadHealthController {
-  private readonly environment: ReadEnvironmentService;
+  private readonly readEnvironmentService: ReadEnvironmentService;
 
-  constructor(environment: ReadEnvironmentService) {
-    this.environment = environment;
+  constructor(readEnvironmentService: ReadEnvironmentService) {
+    this.readEnvironmentService = readEnvironmentService;
   }
 
-  execute(): ReadHealthResponse {
-    return { status: 'ok', environmentId: this.environment.execute() };
+  execute(
+    input: Record<never, never>,
+    context: OperationContext,
+  ): ReadHealthResponse {
+    context.signal?.throwIfAborted();
+    const { environmentId } = this.readEnvironmentService.execute(input);
+    return { status: 'ok', environmentId };
   }
 }

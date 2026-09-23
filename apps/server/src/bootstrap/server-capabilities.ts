@@ -32,7 +32,17 @@ import type {
   PublishReviewRequest,
 } from '@porcelain/contracts/reviews';
 import type { ReviewedLayerMark } from '@porcelain/contracts/reviews';
-import type { LiveSubscription } from '@porcelain/contracts/access';
+import type {
+  IssuePairingRequest,
+  IssuePairingResponse,
+  ListAccessResponse,
+  LiveSubscription,
+  ReadHealthResponse,
+  RedeemPairingRequest,
+  RedeemPairingResponse,
+  RevokeAccessRequest,
+  RevokeAccessResponse,
+} from '@porcelain/contracts/access';
 import type {
   CommentCommand,
   StoredCommentThread,
@@ -41,12 +51,6 @@ import type {
   FilePreference,
   FilePreferenceChange,
 } from '@porcelain/projects/models';
-import type {
-  AccessListing,
-  DeviceRegistration,
-  IssuedGrant,
-  RedeemedPairing,
-} from '@porcelain/access/models';
 import type {
   ReviewedFilesResult,
   SetReviewedFilesResult,
@@ -153,19 +157,22 @@ export interface ServerCapabilities {
     ): Promise<ReadGitStatusResponse>;
   };
   issuePairingController: {
-    execute(input: {
-      labels: string[];
-      addresses: string[];
-    }): Promise<{ grants: IssuedGrant[] }>;
+    execute(
+      input: IssuePairingRequest,
+      context: { signal?: AbortSignal },
+    ): Promise<IssuePairingResponse>;
   };
   listAccessController: {
-    execute(): Promise<AccessListing>;
+    execute(
+      input: Record<never, never>,
+      context: { signal?: AbortSignal },
+    ): Promise<ListAccessResponse>;
   };
   revokeAccessController: {
-    execute(input: { id: string }): Promise<{
-      revoked: boolean;
-      kind?: 'grant' | 'device';
-    }>;
+    execute(
+      input: RevokeAccessRequest,
+      context: { signal?: AbortSignal },
+    ): Promise<RevokeAccessResponse>;
   };
   readPublishedReviewController: {
     execute(
@@ -210,12 +217,16 @@ export interface ServerCapabilities {
     ): Promise<{ worktreeId: string; marks: ReviewedLayerMark[] }>;
   };
   readHealthController: {
-    execute(): import('@porcelain/contracts/access').ReadHealthResponse;
+    execute(
+      input: Record<never, never>,
+      context: { signal?: AbortSignal },
+    ): ReadHealthResponse;
   };
   redeemPairingController: {
     execute(
-      input: { code: string } & DeviceRegistration,
-    ): Promise<RedeemedPairing>;
+      input: RedeemPairingRequest,
+      context: { signal?: AbortSignal },
+    ): Promise<RedeemPairingResponse>;
   };
   commentThreadsController: {
     execute(
@@ -348,7 +359,7 @@ export interface ServerCapabilities {
   issuePairing(
     labels: readonly string[],
     addresses: readonly string[],
-  ): Promise<IssuedGrant[]>;
+  ): Promise<IssuePairingResponse['grants']>;
   ready(): Promise<void>;
   close(): Promise<void>;
 }
