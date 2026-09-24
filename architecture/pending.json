@@ -127,9 +127,6 @@
     "apps/server/src/use-cases/access/read-owner-status.ts": {
       "Use case execute takes (context) or (input, context); the context always comes last.": 1
     },
-    "apps/server/src/use-cases/git-actions/dismiss-interrupted-git-action.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
     "apps/server/src/use-cases/git-actions/read-git-action-receipt.ts": {
       "Use case execute takes (context) or (input, context); the context always comes last.": 1
     },
@@ -138,26 +135,6 @@
     },
     "apps/server/src/use-cases/reviews/read-review-summary.ts": {
       "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    }
-  },
-  "porcelain/events-after-lane": {
-    "apps/server/src/use-cases/files/edit-file.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/refresh-inventory.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/register-project.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/remove-project.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/rename-project.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/set-file-preference.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
     }
   },
   "porcelain/spec-one-case-per-behaviour": {

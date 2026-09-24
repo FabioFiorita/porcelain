@@ -27,19 +27,17 @@ export class RenameProjectUseCase {
     this.events = events;
   }
 
-  execute(
+  async execute(
     input: RenameProjectParams & RenameProjectRequest,
     context: OperationContext,
   ): Promise<RenameProjectResponse> {
-    return this.lanes.run(
+    const result = await this.lanes.run(
       this.laneKeys.inventory(),
       'write',
-      async () => {
-        const result = this.renameProject.execute(input);
-        this.events.inventoryChanged();
-        return result;
-      },
+      async () => this.renameProject.execute(input),
       { callerSignal: context.signal },
     );
+    this.events.inventoryChanged();
+    return result;
   }
 }

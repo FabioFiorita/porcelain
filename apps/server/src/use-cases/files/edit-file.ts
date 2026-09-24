@@ -40,27 +40,28 @@ export class EditFileUseCase {
       { worktreeId: input.worktreeId, purpose: 'writing' },
       context.signal,
     );
-    return this.lanes.run(
+    const paths =
+      input.command.kind === 'move'
+        ? [input.command.path, input.command.destination]
+        : [input.command.path];
+    const result = await this.lanes.run(
       this.laneKeys.repository(worktree),
       'write',
       async ({ signal }) => {
-        const result = await this.editFile.execute(input, signal);
+        const edited = await this.editFile.execute(input, signal);
         await this.checkWorktree.execute(
           { worktreeId: input.worktreeId, purpose: 'writing' },
           signal,
         );
-        const paths =
-          input.command.kind === 'move'
-            ? [input.command.path, input.command.destination]
-            : [input.command.path];
         this.invalidateReviewedMarks.execute({
           worktreeId: input.worktreeId,
           paths,
         });
-        this.events.filesChanged(input.worktreeId, paths);
-        return result;
+        return edited;
       },
       { callerSignal: context.signal },
     );
+    this.events.filesChanged(input.worktreeId, paths);
+    return result;
   }
 }

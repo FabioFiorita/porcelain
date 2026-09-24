@@ -27,19 +27,17 @@ export class SetFilePreferenceUseCase {
     this.events = events;
   }
 
-  execute(
+  async execute(
     input: SetFilePreferenceParams & SetFilePreferenceRequest,
     context: OperationContext,
   ): Promise<SetFilePreferenceResponse> {
-    return this.lanes.run(
+    const result = await this.lanes.run(
       this.laneKeys.project(input.projectId),
       'write',
-      async () => {
-        const result = this.setFilePreference.execute(input);
-        this.events.projectChanged(input.projectId, 'preferences');
-        return result;
-      },
+      async () => this.setFilePreference.execute(input),
       { callerSignal: context.signal },
     );
+    this.events.projectChanged(input.projectId, 'preferences');
+    return result;
   }
 }

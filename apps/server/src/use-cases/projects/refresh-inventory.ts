@@ -45,8 +45,8 @@ export class RefreshInventoryUseCase {
     this.events = events;
   }
 
-  execute(context: OperationContext): Promise<void> {
-    return this.lanes.run(
+  async execute(context: OperationContext): Promise<void> {
+    const changed = await this.lanes.run(
       this.laneKeys.inventory(),
       'write',
       async ({ signal }) => {
@@ -65,10 +65,10 @@ export class RefreshInventoryUseCase {
         const after = this.listKnownWorktrees.execute(
           this.listRegisteredProjects.execute(),
         ).listings;
-        if (knownWorktreesChanged(before, after))
-          this.events.inventoryChanged();
+        return knownWorktreesChanged(before, after);
       },
       { callerSignal: context.signal },
     );
+    if (changed) this.events.inventoryChanged();
   }
 }
