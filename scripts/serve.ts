@@ -13,6 +13,7 @@ import {
   serveHelp,
   statusExitCodes,
 } from '../apps/server/src/cli/index.ts';
+import { startupFailureMessage } from '../apps/server/src/bootstrap/main.ts';
 import type { StartServer } from '../apps/server/src/cli/launcher.ts';
 
 export {
@@ -231,18 +232,6 @@ async function assertWebRoot(webRoot: string): Promise<void> {
   );
 }
 
-function formatStartupError(error: unknown): string {
-  if (error instanceof ServeConfigurationError) return error.message;
-  if (
-    error instanceof Error &&
-    (error.name === 'DataDirectoryOwnedError' ||
-      error.name === 'DataDirectoryInsecureError' ||
-      error.name === 'SocketPathTooLongError')
-  )
-    return error.message;
-  return 'Porcelain could not start. Check the build, data directory, and port.';
-}
-
 async function main(): Promise<void> {
   const controller = new AbortController();
   const removeShutdownSignals = installShutdownSignals(controller);
@@ -274,7 +263,7 @@ async function main(): Promise<void> {
     await runServe(parsed.settings, controller.signal);
   } catch (error) {
     if (!controller.signal.aborted) {
-      process.stderr.write(`${formatStartupError(error)}\n`);
+      process.stderr.write(`${startupFailureMessage(error)}\n`);
       process.exitCode = 1;
     }
   } finally {

@@ -4,6 +4,10 @@ import * as filesErrors from '@porcelain/files/errors';
 import * as gitActionsErrors from '@porcelain/git-actions/errors';
 import * as projectsErrors from '@porcelain/projects/errors';
 import * as reviewsErrors from '@porcelain/reviews/errors';
+import * as gitActions from '@porcelain/git/actions';
+import * as gitDiscovery from '@porcelain/git/discovery';
+import * as gitHistory from '@porcelain/git/history';
+import * as gitInspection from '@porcelain/git/inspection';
 import { describe, expect, it } from 'vitest';
 import { toStatusResponse } from './status-policy.ts';
 
@@ -14,6 +18,10 @@ const domainErrors: Record<string, Record<string, unknown>> = {
   'git-actions': gitActionsErrors,
   projects: projectsErrors,
   reviews: reviewsErrors,
+  'git/actions': gitActions,
+  'git/discovery': gitDiscovery,
+  'git/history': gitHistory,
+  'git/inspection': gitInspection,
 };
 
 function withoutConstructing(value: unknown): unknown[] {
@@ -42,7 +50,7 @@ describe('status policy', () => {
     );
   });
 
-  it('answers every domain error with a deliberate status instead of an unexpected failure', () => {
+  it('answers every domain and Git error with a deliberate status instead of an unexpected failure', () => {
     const unexpected = errorClasses()
       .filter(({ instance }) => toStatusResponse(instance).statusCode === 500)
       .map(({ name }) => name);

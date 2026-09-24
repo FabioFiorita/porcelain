@@ -42,9 +42,14 @@ function subject(
     { failure: () => undefined },
     { ...limits, burstMs: 1 },
   );
+  const open = () => {
+    const opened = watches.open();
+    if (opened.kind !== 'opened') throw new Error('The watch was refused');
+    return opened.demand;
+  };
   const follow = (projects: string[], worktrees: ReturnType<typeof wish>[]) =>
-    watches.open().replace({ projects, worktrees });
-  return { watches, watcher, events, marks, refresh, follow };
+    open().replace({ projects, worktrees });
+  return { watches, watcher, events, marks, refresh, follow, open };
 }
 
 describe('WatchWorktrees', () => {
@@ -74,7 +79,13 @@ describe('WatchWorktrees', () => {
   it('refuses a client beyond the connection limit', () => {
     const { watches } = subject({ maxConnections: 1, maxWatchedWorktrees: 4 });
     watches.open();
-    expect(() => watches.open()).toThrow('Live update capacity reached');
+    expect(watches.open()).toEqual({ kind: 'at-capacity' });
+  });
+
+  it('refuses every client once it is closed', async () => {
+    const { watches } = subject();
+    await watches.close();
+    expect(watches.open()).toEqual({ kind: 'at-capacity' });
   });
 
   it('announces a burst of file changes once, after the reviewed marks of those paths are invalidated', async () => {
@@ -107,8 +118,8 @@ describe('WatchWorktrees', () => {
   });
 
   it('stops watching a worktree once no client names it', async () => {
-    const { watches, watcher } = subject();
-    const demand = watches.open();
+    const { watcher, open } = subject();
+    const demand = open();
     await demand.replace({ projects: [PROJECT], worktrees: [wish('one')] });
     await demand.replace({ projects: [], worktrees: [] });
     await settle();

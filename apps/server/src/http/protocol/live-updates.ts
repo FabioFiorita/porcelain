@@ -26,10 +26,15 @@ export type LiveUpdatesOptions = {
     };
   };
   worktreeWatches: {
-    open(): {
-      replace(request: WatchRequest): Promise<FollowedTargets>;
-      close(): void;
-    };
+    open():
+      | {
+          kind: 'opened';
+          demand: {
+            replace(request: WatchRequest): Promise<FollowedTargets>;
+            close(): void;
+          };
+        }
+      | { kind: 'at-capacity' };
   };
 };
 
@@ -43,7 +48,12 @@ export function liveUpdates(
       socket.close(1008, 'Viewer connection required');
       return;
     }
-    const watches = options.worktreeWatches.open();
+    const opened = options.worktreeWatches.open();
+    if (opened.kind === 'at-capacity') {
+      socket.close(1013, 'Live update capacity reached; try again later');
+      return;
+    }
+    const watches = opened.demand;
     const connection = options.liveUpdates.connect({
       send: (notice) => {
         if (socket.readyState === WebSocket.OPEN)

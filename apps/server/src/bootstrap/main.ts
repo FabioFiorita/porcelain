@@ -1,4 +1,8 @@
 import { homedir } from 'node:os';
+import {
+  InvalidDataDirectoryError,
+  UnsupportedDatabaseVersionError,
+} from '@porcelain/storage';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { parseCliArguments } from '../cli/arguments.ts';
 import { runCommand } from '../cli/commands.ts';
@@ -16,6 +20,7 @@ import type { PorcelainEnvironment } from '../config/environment-settings.ts';
 import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-insecure-error.ts';
 import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from '../runtime/errors/owner-socket-unreadable-error.ts';
+import { OwnerSocketModeError } from '../runtime/errors/owner-socket-mode-error.ts';
 import { startApplication } from '../runtime/start-application.ts';
 import { openServer } from './compose-server.ts';
 
@@ -25,7 +30,10 @@ const actionableErrors = [
   DataDirectoryOwnedError,
   DataDirectoryInsecureError,
   OwnerSocketUnreadableError,
+  OwnerSocketModeError,
   SocketPathTooLongError,
+  InvalidDataDirectoryError,
+  UnsupportedDatabaseVersionError,
 ];
 
 export const startServer: StartServer = (settings, signal) =>
@@ -43,7 +51,7 @@ export type CliDependencies = {
   stderr?: (message: string) => void;
 };
 
-function failureMessage(error: unknown): string {
+export function startupFailureMessage(error: unknown): string {
   const actionable =
     isServiceFailure(error) ||
     actionableErrors.some((known) => error instanceof known);
@@ -81,7 +89,7 @@ export async function runCli(
     if (exitCode !== 0) process.exitCode = exitCode;
   } catch (error) {
     if (!shutdown.signal.aborted) {
-      stderr(`${failureMessage(error)}\n`);
+      stderr(`${startupFailureMessage(error)}\n`);
       process.exitCode = 1;
     }
   } finally {

@@ -264,6 +264,9 @@ const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
 const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
+const statusPolicySpec = /\/apps\/server\/src\/http\/status-policy\.spec\.ts$/;
+const gitCapabilityEntry =
+  /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
 const specPackageEntry = new RegExp(
   `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors|store-contracts)|kernel/(?:models|rules|errors|fakes))$`,
 );
@@ -795,8 +798,10 @@ function caseTitle(node) {
 function allowedSpecImport(filename, source) {
   if (source === 'vitest') return true;
   if (specNodeModule.test(source) || specPackageEntry.test(source)) return true;
-  if (!source.startsWith('.')) return false;
   const path = normalizedFilename(filename);
+  if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
+    return true;
+  if (!source.startsWith('.')) return false;
   const unit = path.split('/').at(-1).replace(specSource, '.ts');
   if (source === `./${unit}`) return true;
   const target = new URL(

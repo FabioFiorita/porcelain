@@ -13,7 +13,6 @@ import type {
   WatchedWorktree,
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
-import { LiveUpdateCapacityError } from '../errors/live-update-capacity-error.ts';
 import type { JobWork } from '../interval-job.ts';
 import type { OperationContext } from '../operation-context.ts';
 
@@ -34,6 +33,10 @@ export type WatchDemand = {
   replace(request: WatchRequest): Promise<FollowedTargets>;
   close(): void;
 };
+
+export type OpenedWatch =
+  | { kind: 'opened'; demand: WatchDemand }
+  | { kind: 'at-capacity' };
 
 type Demand = {
   projects: Set<string>;
@@ -113,9 +116,9 @@ export class WatchWorktrees {
     ]);
   }
 
-  open(): WatchDemand {
+  open(): OpenedWatch {
     if (this.stopped || this.demands.size >= this.options.maxConnections)
-      throw new LiveUpdateCapacityError();
+      return { kind: 'at-capacity' };
     const demand: Demand = {
       projects: new Set(),
       worktrees: new Map(),
@@ -124,14 +127,17 @@ export class WatchWorktrees {
     };
     this.demands.add(demand);
     return {
-      replace: (request) => {
-        const update = demand.update.then(() =>
-          this.updateRegistry(() => this.replace(demand, request)),
-        );
-        demand.update = update.catch(settledEitherWay);
-        return update;
+      kind: 'opened',
+      demand: {
+        replace: (request) => {
+          const update = demand.update.then(() =>
+            this.updateRegistry(() => this.replace(demand, request)),
+          );
+          demand.update = update.catch(settledEitherWay);
+          return update;
+        },
+        close: () => this.release(demand),
       },
-      close: () => this.release(demand),
     };
   }
 
