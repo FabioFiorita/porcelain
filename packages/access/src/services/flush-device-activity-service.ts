@@ -1,13 +1,13 @@
-import type { DeviceActivityStore } from '../ports/device-activity-store.ts';
+import type { DeviceActivityWriter } from '../ports/device-activity-writer.ts';
 
 export class FlushDeviceActivityService {
-  private readonly deviceActivityStore: DeviceActivityStore;
+  private readonly deviceActivityWriter: DeviceActivityWriter;
 
-  constructor(deviceActivityStore: DeviceActivityStore) {
-    this.deviceActivityStore = deviceActivityStore;
+  constructor(deviceActivityWriter: DeviceActivityWriter) {
+    this.deviceActivityWriter = deviceActivityWriter;
   }
 
   execute(): void {
-    this.deviceActivityStore.flush();
+    this.deviceActivityWriter.flush();
   }
 }

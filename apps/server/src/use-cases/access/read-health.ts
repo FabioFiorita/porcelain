@@ -1,15 +1,15 @@
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
 import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type { ReadHealthResponse } from '@porcelain/contracts/access';
 
 export class ReadHealthUseCase {
-  private readonly readEnvironmentService: ReadEnvironmentService;
+  private readonly readEnvironment: ReadEnvironmentService;
 
-  constructor(readEnvironmentService: ReadEnvironmentService) {
-    this.readEnvironmentService = readEnvironmentService;
+  constructor(readEnvironment: ReadEnvironmentService) {
+    this.readEnvironment = readEnvironment;
   }
 
   execute(): ReadHealthResponse {
-    const { environmentId } = this.readEnvironmentService.execute();
+    const { environmentId } = this.readEnvironment.execute();
     return { status: 'ok', environmentId };
   }
 }

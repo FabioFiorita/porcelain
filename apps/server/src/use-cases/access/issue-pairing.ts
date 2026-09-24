@@ -1,26 +1,28 @@
 import type {
-  IssuePairingRequest,
-  IssuePairingResponse,
-} from '@porcelain/contracts/access';
-import type {
   IssuePairingService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
+import type {
+  IssuePairingRequest,
+  IssuePairingResponse,
+} from '@porcelain/contracts/access';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
+const ACCESS_LANE = 'access';
+
 export class IssuePairingUseCase {
-  private readonly readEnvironmentService: ReadEnvironmentService;
-  private readonly issuePairingService: IssuePairingService;
+  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly issuePairing: IssuePairingService;
   private readonly lanes: Lanes;
 
   constructor(
-    readEnvironmentService: ReadEnvironmentService,
-    issuePairingService: IssuePairingService,
+    readEnvironment: ReadEnvironmentService,
+    issuePairing: IssuePairingService,
     lanes: Lanes,
   ) {
-    this.readEnvironmentService = readEnvironmentService;
-    this.issuePairingService = issuePairingService;
+    this.readEnvironment = readEnvironment;
+    this.issuePairing = issuePairing;
     this.lanes = lanes;
   }
 
@@ -28,22 +30,12 @@ export class IssuePairingUseCase {
     input: IssuePairingRequest,
     context: OperationContext,
   ): Promise<IssuePairingResponse> {
-    return this.lanes.unqueued(
+    return this.lanes.run(
+      ACCESS_LANE,
+      'write',
       async () => {
-        const { environmentId } = this.readEnvironmentService.execute();
-        const { grants } = this.issuePairingService.execute(input);
-        return {
-          grants: grants.map(({ grant, code }) => {
-            const fragment = new URLSearchParams({ c: code, e: environmentId });
-            if (grant.addresses.length > 1)
-              fragment.set('a', grant.addresses.join(','));
-            return {
-              grant,
-              code,
-              link: `${grant.addresses[0] ?? ''}/pair#${fragment.toString()}`,
-            };
-          }),
-        };
+        const { environmentId } = this.readEnvironment.execute();
+        return this.issuePairing.execute({ ...input, environmentId });
       },
       { callerSignal: context.signal },
     );

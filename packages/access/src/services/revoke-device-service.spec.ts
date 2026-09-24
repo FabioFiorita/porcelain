@@ -3,7 +3,7 @@ import { FixedClock } from '@porcelain/kernel/fakes';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { RevokeDeviceService } from './revoke-device-service.ts';
 
-describe('RevokeDeviceService', () => {
+function setup() {
   const devices = new InMemoryDeviceStore();
   devices.add({
     id: 'device',
@@ -13,21 +13,32 @@ describe('RevokeDeviceService', () => {
     lastSeenAt: '2026-09-23T09:00:00.000Z',
     secretHash: 'hash',
   });
-  const service = new RevokeDeviceService(
-    devices,
-    new FixedClock('2026-09-23T10:05:00.000Z'),
-  );
+  const clock = new FixedClock('2026-09-23T10:05:00.000Z');
+  return { devices, clock, service: new RevokeDeviceService(devices, clock) };
+}
 
-  it('revokes a paired device once', () => {
-    expect(service.execute({ id: 'device' })).toEqual({
-      revoked: true,
-      kind: 'device',
-    });
-    expect(devices.find('device')?.revokedAt).toBe('2026-09-23T10:05:00.000Z');
-    expect(service.execute({ id: 'device' })).toEqual({ revoked: false });
+describe('RevokeDeviceService', () => {
+  it('revokes a paired device at the current time', () => {
+    const { devices, service } = setup();
+    expect(service.execute({ id: 'device' })).toEqual({ kind: 'revoked' });
+    expect(devices.find({ deviceId: 'device' })?.revokedAt).toBe(
+      '2026-09-23T10:05:00.000Z',
+    );
+  });
+
+  it('keeps the first revocation time when the device is revoked again', () => {
+    const { devices, clock, service } = setup();
+    service.execute({ id: 'device' });
+    clock.advance(60_000);
+    expect(service.execute({ id: 'device' })).toEqual({ kind: 'not-revoked' });
+    expect(devices.find({ deviceId: 'device' })?.revokedAt).toBe(
+      '2026-09-23T10:05:00.000Z',
+    );
   });
 
   it('reports an unknown id as not revoked', () => {
-    expect(service.execute({ id: 'unknown' })).toEqual({ revoked: false });
+    expect(setup().service.execute({ id: 'unknown' })).toEqual({
+      kind: 'not-revoked',
+    });
   });
 });

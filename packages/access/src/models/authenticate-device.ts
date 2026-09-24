@@ -3,6 +3,10 @@ export type AuthenticateDeviceInput = {
   address?: string | undefined;
 };
 
-export type AuthenticatedDevice = { deviceId: string; idleMs: number };
+export type AuthenticatedDevice = { deviceId: string };
 
-export type AuthenticateDeviceResult = AuthenticatedDevice | undefined;
+export type AuthenticateDeviceResult =
+  | { kind: 'authenticated'; deviceId: string }
+  | { kind: 'refused' };
+
+export type AuthenticateDeviceOptions = { unusedLifetimeMs: number };

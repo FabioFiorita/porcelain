@@ -1,26 +1,28 @@
 import type {
-  RevokeAccessRequest,
-  RevokeAccessResponse,
-} from '@porcelain/contracts/access';
-import type {
   RevokeDeviceService,
   RevokePairingGrantService,
 } from '@porcelain/access/services';
+import type {
+  RevokeAccessRequest,
+  RevokeAccessResponse,
+} from '@porcelain/contracts/access';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
+const ACCESS_LANE = 'access';
+
 export class RevokeAccessUseCase {
-  private readonly revokePairingGrantService: RevokePairingGrantService;
-  private readonly revokeDeviceService: RevokeDeviceService;
+  private readonly revokePairingGrant: RevokePairingGrantService;
+  private readonly revokeDevice: RevokeDeviceService;
   private readonly lanes: Lanes;
 
   constructor(
-    revokePairingGrantService: RevokePairingGrantService,
-    revokeDeviceService: RevokeDeviceService,
+    revokePairingGrant: RevokePairingGrantService,
+    revokeDevice: RevokeDeviceService,
     lanes: Lanes,
   ) {
-    this.revokePairingGrantService = revokePairingGrantService;
-    this.revokeDeviceService = revokeDeviceService;
+    this.revokePairingGrant = revokePairingGrant;
+    this.revokeDevice = revokeDevice;
     this.lanes = lanes;
   }
 
@@ -28,11 +30,15 @@ export class RevokeAccessUseCase {
     input: RevokeAccessRequest,
     context: OperationContext,
   ): Promise<RevokeAccessResponse> {
-    return this.lanes.unqueued(
+    return this.lanes.run(
+      ACCESS_LANE,
+      'write',
       async () => {
-        const grant = this.revokePairingGrantService.execute(input);
-        if (grant.revoked) return grant;
-        return this.revokeDeviceService.execute(input);
+        if (this.revokePairingGrant.execute(input).kind === 'revoked')
+          return { revoked: true, kind: 'grant' };
+        if (this.revokeDevice.execute(input).kind === 'revoked')
+          return { revoked: true, kind: 'device' };
+        return { revoked: false };
       },
       { callerSignal: context.signal },
     );

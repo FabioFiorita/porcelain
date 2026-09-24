@@ -1,5 +1,6 @@
 export type {
   AuthenticateDeviceInput,
+  AuthenticateDeviceOptions,
   AuthenticateDeviceResult,
   AuthenticatedDevice,
 } from './authenticate-device.ts';
@@ -12,11 +13,12 @@ export type {
   CredentialKind,
   CredentialParts,
 } from './credential.ts';
-export type { Device, DeviceSighting, StoredDevice } from './device.ts';
+export type { Device, StoredDevice } from './device.ts';
 export type { HostPolicy } from './host-policy.ts';
 export type {
   IssuedPairingGrant,
   IssuePairingInput,
+  IssuePairingOptions,
   IssuePairingResult,
 } from './issue-pairing.ts';
 export type { ListAccessResult } from './list-access.ts';
@@ -27,9 +29,15 @@ export type {
 } from './pairing-grant.ts';
 export type { PairingReach } from './pairing-reach.ts';
 export type { ReadEnvironmentResult } from './read-environment.ts';
+export type { ReadOwnerStatusResult } from './read-owner-status.ts';
 export type {
   RedeemPairingInput,
   RedeemPairingResult,
 } from './redeem-pairing.ts';
-export type { RevokeAccessInput, RevokeAccessResult } from './revoke-access.ts';
+export type { RequestAuthority } from './request-authority.ts';
+export type { RevokeDeviceInput, RevokeDeviceResult } from './revoke-device.ts';
+export type {
+  RevokePairingGrantInput,
+  RevokePairingGrantResult,
+} from './revoke-pairing-grant.ts';
 export type { RuntimeStatus } from './runtime-status.ts';

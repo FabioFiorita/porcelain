@@ -10,12 +10,12 @@ export type PairingGrant = {
 
 export type StoredPairingGrant = PairingGrant & {
   secretHash: string;
-  redeemedAt?: string;
-  revokedAt?: string;
+  redeemedAt?: string | undefined;
+  revokedAt?: string | undefined;
 };
 
 export type PairingRedemption = {
-  grantId: string;
+  grant: StoredPairingGrant;
   redeemedAt: string;
   device: StoredDevice;
 };

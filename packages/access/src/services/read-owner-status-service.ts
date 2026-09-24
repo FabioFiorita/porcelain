@@ -1,4 +1,4 @@
-import type { RuntimeStatus } from '../models/runtime-status.ts';
+import type { ReadOwnerStatusResult } from '../models/read-owner-status.ts';
 import type { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
 
 export class ReadOwnerStatusService {
@@ -8,7 +8,7 @@ export class ReadOwnerStatusService {
     this.runtimeStatusReader = runtimeStatusReader;
   }
 
-  execute(): RuntimeStatus {
+  execute(): ReadOwnerStatusResult {
     return this.runtimeStatusReader.current();
   }
 }

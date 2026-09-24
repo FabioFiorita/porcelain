@@ -20,7 +20,7 @@ function check(
 
 describe('CheckRequestOriginService', () => {
   it('lets a read through a loopback host without an origin', () => {
-    expect(check({})).toEqual({ allowed: true });
+    expect(check({})).toEqual({ kind: 'allowed' });
   });
 
   it('refuses a request whose Host header is missing, empty or malformed', () => {
@@ -34,7 +34,7 @@ describe('CheckRequestOriginService', () => {
       'local\0host',
     ])
       expect(check({ host })).toEqual({
-        allowed: false,
+        kind: 'refused',
         reason: 'The Host header is missing or malformed',
       });
   });
@@ -43,7 +43,7 @@ describe('CheckRequestOriginService', () => {
     expect(
       check({ host: 'attacker.example:4173', localAddress: '192.168.1.5' }),
     ).toEqual({
-      allowed: false,
+      kind: 'refused',
       reason: 'This server does not answer to the host attacker.example',
     });
   });
@@ -51,31 +51,31 @@ describe('CheckRequestOriginService', () => {
   it('answers to a configured host and to the address the request reached', () => {
     expect(
       check({ host: 'Laptop.Local.:4173', allowedHosts: ['laptop.local'] }),
-    ).toEqual({ allowed: true });
+    ).toEqual({ kind: 'allowed' });
     expect(
       check({ host: '192.168.1.5:4173', localAddress: '::ffff:192.168.1.5' }),
-    ).toEqual({ allowed: true });
-    expect(check({ host: '[::1]:4173' })).toEqual({ allowed: true });
+    ).toEqual({ kind: 'allowed' });
+    expect(check({ host: '[::1]:4173' })).toEqual({ kind: 'allowed' });
   });
 
   it('lets a write without an origin through, as a non-browser client sends it', () => {
-    expect(check({ method: 'POST' })).toEqual({ allowed: true });
+    expect(check({ method: 'POST' })).toEqual({ kind: 'allowed' });
   });
 
   it('requires an origin where same origin is demanded, even for a read', () => {
     expect(check({ requireSameOrigin: true })).toEqual({
-      allowed: false,
+      kind: 'refused',
       reason: 'The Origin header is required',
     });
   });
 
   it('refuses a write from an opaque or malformed origin', () => {
     expect(check({ method: 'POST', origin: 'null' })).toEqual({
-      allowed: false,
+      kind: 'refused',
       reason: 'An opaque origin cannot write',
     });
     expect(check({ method: 'POST', origin: 'not a url' })).toEqual({
-      allowed: false,
+      kind: 'refused',
       reason: 'The Origin header is malformed',
     });
   });
@@ -87,7 +87,7 @@ describe('CheckRequestOriginService', () => {
       'http://127.0.0.1:4174',
     ])
       expect(check({ method: 'PATCH', origin })).toEqual({
-        allowed: false,
+        kind: 'refused',
         reason: `The origin ${origin} cannot write here`,
       });
   });
@@ -99,25 +99,25 @@ describe('CheckRequestOriginService', () => {
         host: 'localhost',
         origin: 'http://localhost:80',
       }),
-    ).toEqual({ allowed: true });
+    ).toEqual({ kind: 'allowed' });
     expect(
       check({
         method: 'POST',
         host: '127.0.0.1:4173',
         origin: 'http://127.0.0.1:4173',
       }),
-    ).toEqual({ allowed: true });
+    ).toEqual({ kind: 'allowed' });
   });
 
   it('checks the origin of a read where same origin is demanded', () => {
     expect(
       check({ requireSameOrigin: true, origin: 'http://elsewhere.example' }),
     ).toEqual({
-      allowed: false,
+      kind: 'refused',
       reason: 'The origin http://elsewhere.example cannot write here',
     });
     expect(
       check({ requireSameOrigin: true, origin: 'http://127.0.0.1:4173' }),
-    ).toEqual({ allowed: true });
+    ).toEqual({ kind: 'allowed' });
   });
 });

@@ -4,16 +4,10 @@ export type Device = {
   platform: string;
   createdAt: string;
   lastSeenAt: string;
-  lastSeenAddress?: string;
+  lastSeenAddress?: string | undefined;
 };
 
 export type StoredDevice = Device & {
   secretHash: string;
-  revokedAt?: string;
-};
-
-export type DeviceSighting = {
-  deviceId: string;
-  seenAt: string;
-  address?: string;
+  revokedAt?: string | undefined;
 };

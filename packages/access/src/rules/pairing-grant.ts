@@ -1,8 +1,9 @@
 import type { StoredPairingGrant } from '../models/pairing-grant.ts';
 
-const lifetimeMs = 15 * 60 * 1000;
-
-export function pairingGrantExpiry(createdAt: string): string {
+export function pairingGrantExpiry(
+  createdAt: string,
+  lifetimeMs: number,
+): string {
   return new Date(Date.parse(createdAt) + lifetimeMs).toISOString();
 }
 

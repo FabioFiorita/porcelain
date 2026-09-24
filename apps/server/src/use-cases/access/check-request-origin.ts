@@ -1,17 +1,21 @@
-import type {
-  CheckRequestOriginInput,
-  CheckRequestOriginResult,
-} from '@porcelain/access/models';
+import type { CheckRequestOriginInput } from '@porcelain/access/models';
 import type { CheckRequestOriginService } from '@porcelain/access/services';
 
-export class CheckRequestOriginUseCase {
-  private readonly checkRequestOriginService: CheckRequestOriginService;
+export type RequestOriginVerdict =
+  | { allowed: true }
+  | { allowed: false; reason: string };
 
-  constructor(checkRequestOriginService: CheckRequestOriginService) {
-    this.checkRequestOriginService = checkRequestOriginService;
+export class CheckRequestOriginUseCase {
+  private readonly checkRequestOrigin: CheckRequestOriginService;
+
+  constructor(checkRequestOrigin: CheckRequestOriginService) {
+    this.checkRequestOrigin = checkRequestOrigin;
   }
 
-  execute(input: CheckRequestOriginInput): CheckRequestOriginResult {
-    return this.checkRequestOriginService.execute(input);
+  execute(input: CheckRequestOriginInput): RequestOriginVerdict {
+    const result = this.checkRequestOrigin.execute(input);
+    return result.kind === 'allowed'
+      ? { allowed: true }
+      : { allowed: false, reason: result.reason };
   }
 }
