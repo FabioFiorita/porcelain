@@ -2,6 +2,7 @@ export type WatchedWorktree = {
   projectId: string;
   worktreeId: string;
   root: string;
+  available: boolean;
 };
 
 export type WatchedProject = {

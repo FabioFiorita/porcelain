@@ -224,7 +224,8 @@ export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
     worktreeId: string,
   ): Promise<WorktreeEntry | undefined> {
     const worktree = await this.watcher.findWorktree({ worktreeId });
-    if (!worktree || worktree.projectId !== projectId) return undefined;
+    if (!worktree || !worktree.available || worktree.projectId !== projectId)
+      return undefined;
     const entry: WorktreeEntry = {
       worktree,
       watch: undefined,

@@ -85,11 +85,12 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     const check = await this.worktrees.known({
       worktreeId: input.worktreeId,
     });
-    if (check.kind !== 'found' || !check.worktree.available) return undefined;
+    if (check.kind !== 'found') return undefined;
     return {
       projectId: check.worktree.projectId,
       worktreeId: check.worktree.id,
       root: check.worktree.path,
+      available: check.worktree.available,
     };
   }
 

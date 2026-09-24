@@ -17,11 +17,20 @@ function wish(worktreeId: string, projectId = PROJECT) {
 
 function subject(limits = { maxConnections: 4, maxWatchedWorktrees: 4 }) {
   const watcher = new InMemoryWorktreeWatcher({
-    worktrees: ['one', 'two', 'three'].map((worktreeId) => ({
-      projectId: PROJECT,
-      worktreeId,
-      root: `/repositories/${worktreeId}`,
-    })),
+    worktrees: [
+      ...['one', 'two', 'three'].map((worktreeId) => ({
+        projectId: PROJECT,
+        worktreeId,
+        root: `/repositories/${worktreeId}`,
+        available: true,
+      })),
+      {
+        projectId: PROJECT,
+        worktreeId: 'away',
+        root: '/repositories/away',
+        available: false,
+      },
+    ],
     projects: [
       { projectId: PROJECT, commonDirectory: '/repositories/one/.git' },
     ],
@@ -52,6 +61,14 @@ describe('WatchWorktrees', () => {
       projects: [PROJECT],
       worktrees: [{ projectId: PROJECT, worktreeId: 'one' }],
     });
+  });
+
+  it('does not follow a worktree the catalog knows but cannot reach', async () => {
+    const { follow } = subject();
+    const targets = await follow([], [wish('away'), wish('one')]);
+    expect(targets.worktrees).toEqual([
+      { projectId: PROJECT, worktreeId: 'one' },
+    ]);
   });
 
   it('refuses a worktree named under a project it does not belong to', async () => {
