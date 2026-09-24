@@ -1,7 +1,7 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import {
   CheckCommitService,
-  ConfirmDiffObservationService,
+  CheckDiffObservationService,
   ListCommitsService,
   ReadBranchDetailsService,
   ReadChangeDiffsService,
@@ -9,9 +9,9 @@ import {
   ReadChangeLinesService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
+  ReadDiffComparisonsService,
   ReadHeadTextService,
   ReadWorktreeStatusService,
-  SelectDiffComparisonsService,
 } from '@porcelain/changes/services';
 import type { ReadTextFileService } from '@porcelain/files/services';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
@@ -73,8 +73,8 @@ export function composeChanges(
     worktreeSideReader,
     limits.fingerprints,
   );
-  const selectDiffComparisons = new SelectDiffComparisonsService();
-  const confirmDiffObservation = new ConfirmDiffObservationService();
+  const readDiffComparisons = new ReadDiffComparisonsService();
+  const checkDiffObservation = new CheckDiffObservationService();
   const readChangeDiffs = new ReadChangeDiffsService(changeDiffReader);
   const readHeadText = new ReadHeadTextService(headTextReader);
   const readChangeLines = new ReadChangeLinesService(limits.changeLines);
@@ -96,9 +96,9 @@ export function composeChanges(
     readChangeDiffs: new ReadChangeDiffsUseCase(
       checkWorktree,
       readWorktreeStatus,
-      selectDiffComparisons,
+      readDiffComparisons,
       readChangeFingerprints,
-      confirmDiffObservation,
+      checkDiffObservation,
       readChangeDiffs,
       readEnvironment,
       lanes,
@@ -144,8 +144,8 @@ export function composeChanges(
     services: {
       readWorktreeStatus,
       readChangeFingerprints,
-      selectDiffComparisons,
-      confirmDiffObservation,
+      readDiffComparisons,
+      checkDiffObservation,
       readChangeDiffs,
     },
   };

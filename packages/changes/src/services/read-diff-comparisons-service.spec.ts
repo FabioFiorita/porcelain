@@ -5,7 +5,7 @@ import {
   WorktreeChangedError,
 } from '@porcelain/changes/errors';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
-import { SelectDiffComparisonsService } from './select-diff-comparisons-service.ts';
+import { ReadDiffComparisonsService } from './read-diff-comparisons-service.ts';
 import { modified } from '../../spec/fakes/comparisons.ts';
 
 const renamed = {
@@ -25,9 +25,9 @@ const status: ChangeStatusObservation = {
     { scope: 'untracked', path: 'notes.txt' },
   ],
 };
-const select = new SelectDiffComparisonsService();
+const select = new ReadDiffComparisonsService();
 
-describe('SelectDiffComparisonsService', () => {
+describe('ReadDiffComparisonsService', () => {
   it('returns the listed comparisons for the selections and the paths they cover', () => {
     expect(
       select.execute({

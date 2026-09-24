@@ -3,12 +3,12 @@ import { SelectionMismatchError } from '../errors/selection-mismatch-error.ts';
 import { UnnamedDiffSelectionError } from '../errors/unnamed-diff-selection-error.ts';
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
 import type {
-  SelectDiffComparisonsInput,
-  SelectDiffComparisonsResult,
-} from '../models/select-diff-comparisons.ts';
+  ReadDiffComparisonsInput,
+  ReadDiffComparisonsResult,
+} from '../models/read-diff-comparisons.ts';
 
-export class SelectDiffComparisonsService {
-  execute(input: SelectDiffComparisonsInput): SelectDiffComparisonsResult {
+export class ReadDiffComparisonsService {
+  execute(input: ReadDiffComparisonsInput): ReadDiffComparisonsResult {
     if (
       input.selections.some(
         (selection) =>

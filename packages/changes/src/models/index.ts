@@ -16,6 +16,7 @@ export type {
   Stash,
 } from './change-status.ts';
 export type { CheckCommitInput } from './check-commit.ts';
+export type { CheckDiffObservationInput } from './check-diff-observation.ts';
 export type {
   CommitComparison,
   CommitDiff,
@@ -31,7 +32,6 @@ export type {
   CommitSummary,
   HistorySnapshot,
 } from './commit-history.ts';
-export type { ConfirmDiffObservationInput } from './confirm-diff-observation.ts';
 export type { ListCommitsInput, ListCommitsResult } from './list-commits.ts';
 export type {
   ReadBranchDetailsInput,
@@ -60,6 +60,10 @@ export type {
   ReadCommitFilesResult,
 } from './read-commit-files.ts';
 export type {
+  ReadDiffComparisonsInput,
+  ReadDiffComparisonsResult,
+} from './read-diff-comparisons.ts';
+export type {
   ReadHeadTextInput,
   ReadHeadTextResult,
 } from './read-head-text.ts';
@@ -67,10 +71,6 @@ export type {
   ReadWorktreeStatusInput,
   ReadWorktreeStatusResult,
 } from './read-worktree-status.ts';
-export type {
-  SelectDiffComparisonsInput,
-  SelectDiffComparisonsResult,
-} from './select-diff-comparisons.ts';
 export type {
   ObservedSides,
   SidePaths,

@@ -1,8 +1,8 @@
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
-import type { ConfirmDiffObservationInput } from '../models/confirm-diff-observation.ts';
+import type { CheckDiffObservationInput } from '../models/check-diff-observation.ts';
 
-export class ConfirmDiffObservationService {
-  execute(input: ConfirmDiffObservationInput): void {
+export class CheckDiffObservationService {
+  execute(input: CheckDiffObservationInput): void {
     if (input.statusToken !== input.expectedStatusToken)
       throw new WorktreeChangedError();
     const current = new Map(

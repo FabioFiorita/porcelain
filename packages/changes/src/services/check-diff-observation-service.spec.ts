@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WorktreeChangedError } from '@porcelain/changes/errors';
-import { ConfirmDiffObservationService } from './confirm-diff-observation-service.ts';
+import { CheckDiffObservationService } from './check-diff-observation-service.ts';
 import { fileChange, modified } from '../../spec/fakes/comparisons.ts';
 
 const token = 't'.repeat(64);
@@ -12,7 +12,7 @@ const observation = {
   ],
   stamp: 'stamp-1',
 };
-const confirm = new ConfirmDiffObservationService();
+const confirm = new CheckDiffObservationService();
 const input = {
   expectedStatusToken: token,
   expectedFiles: [
@@ -24,7 +24,7 @@ const input = {
   previousStamp: undefined,
 };
 
-describe('ConfirmDiffObservationService', () => {
+describe('CheckDiffObservationService', () => {
   it('accepts an observation that matches what the reviewer saw, including unfingerprinted files', () => {
     expect(() => confirm.execute(input)).not.toThrow();
   });

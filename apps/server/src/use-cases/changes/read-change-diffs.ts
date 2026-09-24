@@ -1,10 +1,10 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  ConfirmDiffObservationService,
+  CheckDiffObservationService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
+  ReadDiffComparisonsService,
   ReadWorktreeStatusService,
-  SelectDiffComparisonsService,
 } from '@porcelain/changes/services';
 import type {
   ReadChangeDiffsRequest,
@@ -19,9 +19,9 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ReadChangeDiffsUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly selectDiffComparisons: SelectDiffComparisonsService;
+  private readonly readDiffComparisons: ReadDiffComparisonsService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
-  private readonly confirmDiffObservation: ConfirmDiffObservationService;
+  private readonly checkDiffObservation: CheckDiffObservationService;
   private readonly readChangeDiffs: ReadChangeDiffsService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
@@ -30,9 +30,9 @@ export class ReadChangeDiffsUseCase {
   constructor(
     checkWorktree: CheckWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
-    selectDiffComparisons: SelectDiffComparisonsService,
+    readDiffComparisons: ReadDiffComparisonsService,
     readChangeFingerprints: ReadChangeFingerprintsService,
-    confirmDiffObservation: ConfirmDiffObservationService,
+    checkDiffObservation: CheckDiffObservationService,
     readChangeDiffs: ReadChangeDiffsService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
@@ -40,9 +40,9 @@ export class ReadChangeDiffsUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
-    this.selectDiffComparisons = selectDiffComparisons;
+    this.readDiffComparisons = readDiffComparisons;
     this.readChangeFingerprints = readChangeFingerprints;
-    this.confirmDiffObservation = confirmDiffObservation;
+    this.checkDiffObservation = checkDiffObservation;
     this.readChangeDiffs = readChangeDiffs;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
@@ -64,7 +64,7 @@ export class ReadChangeDiffsUseCase {
           { worktreeId },
           signal,
         );
-        const selected = this.selectDiffComparisons.execute({
+        const selected = this.readDiffComparisons.execute({
           expectedFiles,
           selections,
           status: before,
@@ -73,7 +73,7 @@ export class ReadChangeDiffsUseCase {
           { worktreeId, comparisons: before.changes, paths: selected.paths },
           signal,
         );
-        this.confirmDiffObservation.execute({
+        this.checkDiffObservation.execute({
           expectedStatusToken,
           expectedFiles,
           statusToken: before.statusToken,
@@ -92,7 +92,7 @@ export class ReadChangeDiffsUseCase {
           { worktreeId, comparisons: after.changes, paths: selected.paths },
           signal,
         );
-        this.confirmDiffObservation.execute({
+        this.checkDiffObservation.execute({
           expectedStatusToken,
           expectedFiles,
           statusToken: after.statusToken,
