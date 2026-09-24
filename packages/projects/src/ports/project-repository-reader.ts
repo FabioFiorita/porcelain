@@ -4,10 +4,6 @@ import type {
 } from '../models/project-repository.ts';
 
 export interface ProjectRepositoryReader {
-  inspect(
-    input: RepositoryLocation,
-    signal?: AbortSignal,
-  ): Promise<DiscoveredProjectRepository>;
   find(
     input: RepositoryLocation,
     signal?: AbortSignal,

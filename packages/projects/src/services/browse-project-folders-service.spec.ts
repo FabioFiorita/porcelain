@@ -4,7 +4,10 @@ import {
   FolderNotReadableError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
-import type { ProjectFolderContents } from '@porcelain/projects/models';
+import type {
+  DiscoveredProjectRepository,
+  ProjectFolderContents,
+} from '@porcelain/projects/models';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
 import { BrowseProjectFoldersService } from './browse-project-folders-service.ts';
@@ -23,14 +26,14 @@ function folder(
   };
 }
 
-function setup() {
+function setup(repositories: Record<string, DiscoveredProjectRepository> = {}) {
   const folders = new ScriptedProjectFolderReader();
-  const repositories = new ScriptedProjectRepositoryReader();
-  const service = new BrowseProjectFoldersService(folders, repositories, {
+  const reader = new ScriptedProjectRepositoryReader({ repositories });
+  const service = new BrowseProjectFoldersService(folders, reader, {
     home: '/home/owner',
     maxEntries: 2000,
   });
-  return { folders, repositories, service };
+  return { folders, service };
 }
 
 describe('BrowseProjectFoldersService', () => {
@@ -75,13 +78,14 @@ describe('BrowseProjectFoldersService', () => {
   });
 
   it('marks a folder as a repository when Git can open it', async () => {
-    const { folders, repositories, service } = setup();
-    folders.folder(folder('/srv/api', { gitMarker: true }));
-    repositories.repository('/srv/api', {
-      commonDirectory: '/srv/api/.git',
-      repositoryIdentity: 'identity-1',
-      worktrees: [{ path: '/srv/api', main: true, available: true }],
+    const { folders, service } = setup({
+      '/srv/api': {
+        commonDirectory: '/srv/api/.git',
+        repositoryIdentity: 'identity-1',
+        worktrees: [{ path: '/srv/api', main: true, available: true }],
+      },
     });
+    folders.folder(folder('/srv/api', { gitMarker: true }));
     expect((await service.execute({ path: '/srv/api' })).repository).toBe(true);
   });
 
@@ -94,13 +98,14 @@ describe('BrowseProjectFoldersService', () => {
   });
 
   it('does not mark a folder without a Git marker, even inside a repository', async () => {
-    const { folders, repositories, service } = setup();
-    folders.folder(folder('/srv/api/src'));
-    repositories.repository('/srv/api/src', {
-      commonDirectory: '/srv/api/.git',
-      repositoryIdentity: 'identity-1',
-      worktrees: [],
+    const { folders, service } = setup({
+      '/srv/api/src': {
+        commonDirectory: '/srv/api/.git',
+        repositoryIdentity: 'identity-1',
+        worktrees: [],
+      },
     });
+    folders.folder(folder('/srv/api/src'));
     expect((await service.execute({ path: '/srv/api/src' })).repository).toBe(
       false,
     );

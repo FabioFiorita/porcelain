@@ -13,7 +13,7 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
     this.git = git;
   }
 
-  async inspect(
+  private async inspect(
     input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<DiscoveredProjectRepository> {

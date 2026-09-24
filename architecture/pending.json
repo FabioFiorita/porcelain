@@ -29,9 +29,6 @@
     },
     "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": {
       "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
-    },
-    "packages/projects/spec/fakes/scripted-project-repository-reader.ts": {
-      "A fake never rejects; script the outcome through what the port returns.": 1
     }
   },
   "porcelain/operation-class-shape": {

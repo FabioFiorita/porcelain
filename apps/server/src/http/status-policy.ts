@@ -75,6 +75,7 @@ import {
   FolderNotReadableError,
   NoWorktreeAtPathError,
   ProjectNotFoundError,
+  RepositoryUnavailableError,
   UnsupportedFolderNameError,
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
@@ -214,7 +215,7 @@ const rules: readonly StatusRule[] = [
     message: 'Git inspection exceeds its limit',
   },
   {
-    errors: [WorktreeUnavailableError],
+    errors: [WorktreeUnavailableError, RepositoryUnavailableError],
     statusCode: 422,
     message: REPOSITORY_UNAVAILABLE,
   },

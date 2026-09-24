@@ -1,3 +1,4 @@
+import { RepositoryUnavailableError } from '../errors/repository-unavailable-error.ts';
 import type {
   InspectProjectRepositoryInput,
   InspectProjectRepositoryResult,
@@ -11,10 +12,15 @@ export class InspectProjectRepositoryService {
     this.projectRepositoryReader = projectRepositoryReader;
   }
 
-  execute(
+  async execute(
     input: InspectProjectRepositoryInput,
     signal?: AbortSignal,
   ): Promise<InspectProjectRepositoryResult> {
-    return this.projectRepositoryReader.inspect({ path: input.path }, signal);
+    const repository = await this.projectRepositoryReader.find(
+      { path: input.path },
+      signal,
+    );
+    if (!repository) throw new RepositoryUnavailableError();
+    return repository;
   }
 }
