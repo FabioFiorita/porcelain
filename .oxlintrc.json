@@ -32,6 +32,7 @@
     "porcelain/adapters-never-import-services": "error",
     "porcelain/write-needs-write-lane": "error",
     "porcelain/rules-are-pure": "error",
+    "porcelain/static-imports": "error",
     "porcelain/kernel-is-types": "error",
     "porcelain/models-file-shape": "error",
     "porcelain/no-inline-execute-types": "error",

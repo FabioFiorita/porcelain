@@ -319,6 +319,7 @@ const disableDirective = /^\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
 const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
 const packageSource = /^packages\/[^/]+\/src\//;
+const serverSource = /^(?:packages\/[^/]+|apps\/server)\/src\//;
 const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
 const modelFile = /^packages\/[^/]+\/src\/models\//;
@@ -415,6 +416,40 @@ function globalReferences(context, program, names) {
   return [...scope.through, ...builtin]
     .filter((reference) => names.has(reference.identifier.name))
     .map((reference) => reference.identifier);
+}
+
+const pureGlobals = new Set(['Date', 'Math', 'Reflect']);
+
+function calledMember(identifier, context) {
+  const member = identifier.parent;
+  if (member?.type !== 'MemberExpression' || member.object !== identifier)
+    return undefined;
+  const call = member.parent;
+  return call?.type === 'CallExpression' && call.callee === member
+    ? propertyName(member, context)
+    : undefined;
+}
+
+function impureGlobalUse(identifier, context) {
+  const name = identifier.name;
+  if (name === 'Reflect')
+    return 'A rule never reaches through Reflect; call the function it needs by name.';
+  const member = calledMember(identifier, context);
+  if (name === 'Math')
+    return member === undefined || member === 'random'
+      ? 'A rule is deterministic: call Math functions by name, never Math.random or an alias of Math.'
+      : undefined;
+  const parent = identifier.parent;
+  if (
+    parent?.type === 'NewExpression' &&
+    parent.callee === identifier &&
+    parent.arguments.length === 1 &&
+    parent.arguments[0].type !== 'SpreadElement'
+  )
+    return undefined;
+  return member === 'parse'
+    ? undefined
+    : 'A rule takes the current time as an ISO string from its caller; it uses Date only as Date.parse(text) or new Date(instant).';
 }
 
 function within(node, container) {
@@ -1109,12 +1144,40 @@ export default {
           },
           CallExpression(node) {
             if (
-              ['Date', 'Date.now'].includes(memberPath(node.callee)?.join('.'))
+              node.callee.type === 'Identifier' &&
+              /(?:^|[a-z])Error$/.test(node.callee.name)
             )
               context.report({
                 node,
                 message:
-                  'A rule takes the current time as an ISO string from its caller; it never reads the clock.',
+                  'A rule returns a value or an outcome; it never builds an error, with or without new.',
+              });
+          },
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              pureGlobals,
+            )) {
+              const problem = impureGlobalUse(identifier, context);
+              if (problem)
+                context.report({ node: identifier, message: problem });
+            }
+          },
+        };
+      },
+    },
+    'static-imports': {
+      create(context) {
+        if (!serverSource.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        return {
+          ImportExpression(node) {
+            if (moduleSource(node) === undefined)
+              context.report({
+                node,
+                message:
+                  'Import a module by a literal path; a computed import() hides a dependency from arch:check.',
               });
           },
         };

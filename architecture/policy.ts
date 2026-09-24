@@ -497,23 +497,81 @@ const boundaryRoles = new Set<Role>([
 const nodeModules = new Set(
   builtinModules.map((name) => name.replace(/^node:/, '')),
 );
-const infrastructureModule =
-  /^(?:(?:zod|fastify|ws|drizzle-orm|better-sqlite3)(?:\/|$)|@fastify\/)/;
-const storageEngineModule =
-  /^(?:better-sqlite3|drizzle-orm|fs|child_process)(?:\/|$)/;
+const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
+
+export const externalPackages: Record<Role, readonly string[]> = {
+  transport: [
+    'fastify',
+    '@fastify/*',
+    'ws',
+    'zod',
+    '@modelcontextprotocol/sdk',
+    'qrcode-terminal',
+  ],
+  'status-policy': ['fastify', '@fastify/sensible'],
+  'use-case': [],
+  installer: ['zod'],
+  'installer-api': [],
+  'domain-api': [],
+  service: [],
+  'rule-api': [],
+  rule: [],
+  'model-api': [],
+  model: [],
+  'port-api': [],
+  port: [],
+  'error-api': [],
+  error: [],
+  'repository-api': ['drizzle-orm', 'better-sqlite3'],
+  repository: ['drizzle-orm', 'better-sqlite3'],
+  'gateway-api': [],
+  gateway: ['zod', 'trash', '@parcel/watcher'],
+  'process-api': [],
+  process: [],
+  runtime: [],
+  'server-port': [],
+  bootstrap: ['fastify', '@fastify/*', 'better-sqlite3'],
+  contract: ['zod'],
+  config: ['zod'],
+  kernel: [],
+  fake: [],
+  fixture: [],
+  test: [],
+};
+
+const fixtureNodeModules = new Set(['fs', 'path', 'url']);
 
 function isNodeModule(name: string): boolean {
   return nodeModules.has(name) || nodeModules.has(name.split('/')[0] ?? '');
 }
 
-export function forbiddenExternal(role: Role, module: string): boolean {
-  if (role === 'kernel') return true;
-  const name = module.replace(/^node:/, '');
-  if (typedRoles.has(role)) {
-    if ((role === 'rule' || role === 'rule-api') && name === 'crypto')
-      return false;
-    return isNodeModule(name) || infrastructureModule.test(name);
-  }
+function packageName(module: string): string {
+  const [scope = '', name = ''] = module.split('/');
+  return scope.startsWith('@') ? `${scope}/${name}` : scope;
+}
+
+function allowedPackage(role: Role, module: string): boolean {
+  const name = packageName(module);
+  return externalPackages[role].some((entry) =>
+    entry.endsWith('/*') ? name.startsWith(entry.slice(0, -1)) : entry === name,
+  );
+}
+
+function forbiddenNodeModule(role: Role, name: string): boolean {
+  const base = name.split('/')[0] ?? '';
+  if (role === 'test') return false;
+  if (base === 'child_process') return role !== 'process';
+  if (role === 'kernel' || role === 'fake') return true;
+  if (role === 'fixture') return !fixtureNodeModules.has(base);
+  if (typedRoles.has(role))
+    return !((role === 'rule' || role === 'rule-api') && name === 'crypto');
   if (boundaryRoles.has(role)) return storageEngineModule.test(name);
   return false;
+}
+
+export function forbiddenExternal(role: Role, module: string): boolean {
+  if (module.startsWith('node:') || isNodeModule(module))
+    return forbiddenNodeModule(role, module.replace(/^node:/, ''));
+  if (role === 'test') return false;
+  return !allowedPackage(role, module);
 }

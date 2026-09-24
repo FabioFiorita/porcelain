@@ -1,4 +1,11 @@
 {
   "extends": "../../tsconfig.json",
-  "include": ["src/**/*.ts"]
+  "compilerOptions": {
+    "types": []
+  },
+  "include": [
+    "src/**/*.ts",
+    "spec/**/*.ts",
+    "../../architecture/platform/domain-globals.d.ts"
+  ]
 }
