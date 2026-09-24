@@ -1,26 +1,19 @@
-import type { ReadChangesResult } from '../models/review-evidence.ts';
+import type { FileChange } from '@porcelain/kernel/models';
 import type {
+  ReviewedFile,
   ReviewedFileConflict,
   ReviewedFileMark,
   ReviewedFileSelection,
   ReviewedMark,
 } from '../models/reviewed-mark.ts';
 
-export const REVIEWED_MARKS_PER_WORKTREE = 2000;
-
-export function evictionCount(marks: number): number {
-  return Math.max(0, marks - REVIEWED_MARKS_PER_WORKTREE + 1);
-}
-
 export function selectReviewedFiles(
-  files: readonly { path: string; fingerprint: string }[],
-  changes: ReadChangesResult,
+  files: readonly ReviewedFile[],
+  changes: readonly FileChange[],
 ): ReviewedFileSelection {
   const latest = new Map(files.map((file) => [file.path, file.fingerprint]));
-  const current = new Map(
-    changes.changes.map((change) => [change.path, change]),
-  );
-  const marked: { path: string; fingerprint: string }[] = [];
+  const current = new Map(changes.map((change) => [change.path, change]));
+  const marked: ReviewedFile[] = [];
   const conflicts: ReviewedFileConflict[] = [];
   for (const [path, fingerprint] of latest) {
     const change = current.get(path);
@@ -30,6 +23,25 @@ export function selectReviewedFiles(
     else marked.push({ path, fingerprint });
   }
   return { marked, conflicts };
+}
+
+export function evictedPaths(
+  existing: readonly ReviewedFileMark[],
+  marking: readonly ReviewedFile[],
+  limit: number,
+): string[] {
+  const remarked = new Set(marking.map((file) => file.path));
+  const kept = existing.filter((mark) => !remarked.has(mark.path));
+  const excess = kept.length + marking.length - limit;
+  if (excess <= 0) return [];
+  return [...kept]
+    .sort(
+      (left, right) =>
+        left.reviewedAt.localeCompare(right.reviewedAt) ||
+        (left.path < right.path ? -1 : 1),
+    )
+    .slice(0, excess)
+    .map((mark) => mark.path);
 }
 
 export function touchedMarks(

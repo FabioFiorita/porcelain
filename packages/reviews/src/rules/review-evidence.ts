@@ -1,14 +1,17 @@
 import type {
-  ChangeDiffs,
-  ChangeSelection,
-  DiffBatch,
-  ReadChangesResult,
+  ChangeComparison,
+  FileChange,
+  TrackedComparison,
+} from '@porcelain/kernel/models';
+import type {
   ReviewChange,
+  ReviewDiff,
+  ReviewDiffSelection,
+  ReviewFiles,
   ReviewPatch,
+  ReviewTextRead,
 } from '../models/review-evidence.ts';
 import type { CodePointer, LayerDraft } from '../models/review.ts';
-
-export const DIFF_BATCH_SIZE = 200;
 
 export function textLines(text: string): string[] {
   const lines = text.split('\n');
@@ -29,56 +32,54 @@ export function publishedLines(
 
 export function reviewPaths(
   layers: readonly Pick<LayerDraft, 'steps'>[],
-  changes: ReadChangesResult | undefined,
+  changes: readonly FileChange[],
 ): string[] {
   return [
     ...new Set([
       ...layers.flatMap((layer) =>
         layer.steps.map((step) => step.pointer.path),
       ),
-      ...(changes?.changes.map((change) => change.path) ?? []),
+      ...changes.map((change) => change.path),
     ]),
   ];
 }
 
-export function reviewChanges(result: ReadChangesResult): ReviewChange[] {
-  return result.changes.map((file) => ({
+function tracked(
+  comparison: ChangeComparison,
+): comparison is TrackedComparison {
+  return comparison.scope === 'staged' || comparison.scope === 'unstaged';
+}
+
+export function trackedComparisons(
+  changes: readonly FileChange[],
+): TrackedComparison[] {
+  return changes.flatMap((change) => change.comparisons.filter(tracked));
+}
+
+export function reviewChanges(changes: readonly FileChange[]): ReviewChange[] {
+  return changes.map((file) => ({
     path: file.path,
     untracked: file.comparisons.some((entry) => entry.scope === 'untracked'),
     deleted: file.comparisons.some(
-      (entry) =>
-        (entry.scope === 'staged' || entry.scope === 'unstaged') &&
-        entry.newPath === undefined,
+      (entry) => tracked(entry) && entry.newPath === undefined,
     ),
   }));
 }
 
-function selectionPath(selection: ChangeSelection): string | undefined {
+export function reviewFiles(texts: readonly ReviewTextRead[]): ReviewFiles {
+  return new Map(
+    texts.flatMap((read): [string, string][] =>
+      read.status === 'fulfilled' ? [[read.value.path, read.value.text]] : [],
+    ),
+  );
+}
+
+function selectionPath(selection: ReviewDiffSelection): string | undefined {
   return selection.newPath ?? selection.oldPath;
 }
 
-export function diffBatches(result: ReadChangesResult): DiffBatch[] {
-  const selections = result.changes.flatMap((file) =>
-    file.comparisons.flatMap((entry): ChangeSelection[] =>
-      entry.scope === 'staged' || entry.scope === 'unstaged' ? [entry] : [],
-    ),
-  );
-  const batches: DiffBatch[] = [];
-  for (let offset = 0; offset < selections.length; offset += DIFF_BATCH_SIZE) {
-    const batch = selections.slice(offset, offset + DIFF_BATCH_SIZE);
-    const selected = new Set(batch.map(selectionPath));
-    batches.push({
-      selections: batch,
-      expectedFiles: result.changes
-        .filter((file) => selected.has(file.path))
-        .map((file) => ({ path: file.path, fingerprint: file.fingerprint })),
-    });
-  }
-  return batches;
-}
-
-export function reviewPatches(result: ChangeDiffs): ReviewPatch[] {
-  return result.diffs.flatMap((entry): ReviewPatch[] => {
+export function reviewPatches(diffs: readonly ReviewDiff[]): ReviewPatch[] {
+  return diffs.flatMap((entry): ReviewPatch[] => {
     const path = selectionPath(entry.selection);
     if (path === undefined) return [];
     const scope = entry.selection.scope;

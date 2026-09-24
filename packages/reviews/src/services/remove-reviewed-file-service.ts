@@ -1,22 +1,23 @@
 import type {
   RemoveReviewedFileInput,
   RemoveReviewedFileResult,
-} from '../models/reviewed-mark.ts';
+} from '../models/remove-reviewed-file.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { reviewedMarks } from '../rules/reviewed-marks.ts';
 
 export class RemoveReviewedFileService {
-  private readonly reviewedFileStore: ReviewedFileStore;
+  private readonly reviewedFiles: ReviewedFileStore;
 
-  constructor(reviewedFileStore: ReviewedFileStore) {
-    this.reviewedFileStore = reviewedFileStore;
+  constructor(reviewedFiles: ReviewedFileStore) {
+    this.reviewedFiles = reviewedFiles;
   }
 
   execute(input: RemoveReviewedFileInput): RemoveReviewedFileResult {
-    this.reviewedFileStore.remove(input.worktreeId, [input.path]);
+    const { worktreeId } = input;
+    this.reviewedFiles.remove({ worktreeId, paths: [input.path] });
     return {
-      worktreeId: input.worktreeId,
-      marks: reviewedMarks(this.reviewedFileStore.list(input.worktreeId)),
+      worktreeId,
+      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
     };
   }
 }

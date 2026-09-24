@@ -3,37 +3,35 @@ import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-erro
 import type {
   SetReviewedLayerInput,
   SetReviewedLayerResult,
-} from '../models/reviewed-mark.ts';
+} from '../models/set-reviewed-layer.ts';
 import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import { currentLayerFingerprint } from '../rules/resolve-review.ts';
+import { reviewFiles } from '../rules/review-evidence.ts';
 
 export class SetReviewedLayerService {
-  private readonly reviewedLayerStore: ReviewedLayerStore;
+  private readonly reviewedLayers: ReviewedLayerStore;
   private readonly clock: Clock;
 
-  constructor(reviewedLayerStore: ReviewedLayerStore, clock: Clock) {
-    this.reviewedLayerStore = reviewedLayerStore;
+  constructor(reviewedLayers: ReviewedLayerStore, clock: Clock) {
+    this.reviewedLayers = reviewedLayers;
     this.clock = clock;
   }
 
   execute(input: SetReviewedLayerInput): SetReviewedLayerResult {
-    const layer = input.review?.layers.find(
-      (candidate) => candidate.id === input.layerId,
-    );
+    const { worktreeId, layer, fingerprint } = input;
     if (
-      !layer ||
-      currentLayerFingerprint(layer, input.files) !== input.fingerprint
+      currentLayerFingerprint(layer, reviewFiles(input.texts)) !== fingerprint
     )
       throw new ReviewedMarkConflictError();
-    this.reviewedLayerStore.save(input.worktreeId, {
-      layerId: input.layerId,
-      fingerprint: input.fingerprint,
-      reviewedAt: this.clock.now(),
-      stale: false,
+    this.reviewedLayers.save({
+      worktreeId,
+      mark: {
+        layerId: layer.id,
+        fingerprint,
+        reviewedAt: this.clock.now(),
+        stale: false,
+      },
     });
-    return {
-      worktreeId: input.worktreeId,
-      marks: this.reviewedLayerStore.list(input.worktreeId),
-    };
+    return { worktreeId, marks: this.reviewedLayers.list({ worktreeId }) };
   }
 }

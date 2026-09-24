@@ -1,21 +1,22 @@
 import type {
   ListReviewedFilesInput,
   ListReviewedFilesResult,
-} from '../models/reviewed-mark.ts';
+} from '../models/list-reviewed-files.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { reviewedMarks } from '../rules/reviewed-marks.ts';
 
 export class ListReviewedFilesService {
-  private readonly reviewedFileStore: ReviewedFileStore;
+  private readonly reviewedFiles: ReviewedFileStore;
 
-  constructor(reviewedFileStore: ReviewedFileStore) {
-    this.reviewedFileStore = reviewedFileStore;
+  constructor(reviewedFiles: ReviewedFileStore) {
+    this.reviewedFiles = reviewedFiles;
   }
 
   execute(input: ListReviewedFilesInput): ListReviewedFilesResult {
+    const { worktreeId } = input;
     return {
-      worktreeId: input.worktreeId,
-      marks: reviewedMarks(this.reviewedFileStore.list(input.worktreeId)),
+      worktreeId,
+      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
     };
   }
 }

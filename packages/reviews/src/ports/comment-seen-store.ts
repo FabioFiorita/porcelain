@@ -1,4 +1,4 @@
 export interface CommentSeenStore {
-  seenThrough(worktreeId: string): number;
-  save(worktreeId: string, seenThrough: number): void;
+  seenThrough(input: { worktreeId: string }): number;
+  save(input: { worktreeId: string; seenThrough: number }): void;
 }

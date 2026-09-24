@@ -1,77 +1,68 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SUMMARY_LIFETIME_SECONDS,
+  sameSignature,
   summaryExpired,
-  summaryExpiry,
-  summarySignature,
-  summarySignatureMatches,
+  summaryMessage,
+  summaryUrl,
+  utf8ByteLength,
 } from './review-digests.ts';
 
-const secret = 'a'.repeat(64);
 const token = '6f1c2f4e-7c1b-4b61-9d6e-2f0a4f3a9b10';
-const expires = 1_800_000_000;
+const expires = '2026-01-01T01:00:00.000Z';
 
-describe('summary signature', () => {
-  it('is a 43 character base64url string', () => {
-    expect(summarySignature(secret, token, expires)).toMatch(
-      /^[A-Za-z0-9_-]{43}$/,
-    );
+describe('sameSignature', () => {
+  it('matches a signature equal to the expected one', () => {
+    expect(sameSignature('A'.repeat(43), 'A'.repeat(43))).toBe(true);
   });
 
-  it('verifies the signature it produced for the same token and expiry', () => {
-    const signature = summarySignature(secret, token, expires);
-    expect(summarySignatureMatches(secret, token, expires, signature)).toBe(
-      true,
-    );
+  it('refuses a truncated, extended or altered signature', () => {
+    const expected = `${'A'.repeat(42)}B`;
+    expect(sameSignature(expected, expected.slice(1))).toBe(false);
+    expect(sameSignature(expected, `${expected}A`)).toBe(false);
+    expect(sameSignature(expected, 'A'.repeat(43))).toBe(false);
   });
+});
 
-  it('refuses a signature made for another token, expiry or secret', () => {
-    const signature = summarySignature(secret, token, expires);
-    const otherToken = '6f1c2f4e-7c1b-4b61-9d6e-2f0a4f3a9b11';
-    expect(
-      summarySignatureMatches(secret, otherToken, expires, signature),
-    ).toBe(false);
-    expect(summarySignatureMatches(secret, token, expires + 1, signature)).toBe(
-      false,
-    );
-    expect(
-      summarySignatureMatches('b'.repeat(64), token, expires, signature),
-    ).toBe(false);
-  });
-
-  it('refuses a truncated or altered signature', () => {
-    const signature = summarySignature(secret, token, expires);
-    const altered = `${signature.slice(0, -1)}${signature.endsWith('A') ? 'B' : 'A'}`;
-    expect(
-      summarySignatureMatches(secret, token, expires, signature.slice(1)),
-    ).toBe(false);
-    expect(summarySignatureMatches(secret, token, expires, altered)).toBe(
-      false,
-    );
-  });
-
-  it('cannot be forged by moving digits between token and expiry', () => {
-    expect(summarySignature(secret, 'token1', 23)).not.toBe(
-      summarySignature(secret, 'token', 123),
+describe('summaryMessage', () => {
+  it('cannot be forged by moving characters between token and expiry', () => {
+    expect(summaryMessage('token1', '2026')).not.toBe(
+      summaryMessage('token', '12026'),
     );
   });
 });
 
-describe('summary expiry', () => {
-  const now = '2026-01-01T00:00:00.000Z';
-  const nowSeconds = Date.parse(now) / 1000;
-
-  it('lets a link live for the summary lifetime from now', () => {
-    expect(summaryExpiry(now)).toBe(nowSeconds + SUMMARY_LIFETIME_SECONDS);
+describe('summaryExpired', () => {
+  it('treats a link as valid through its expiry instant and expired after it', () => {
+    expect(summaryExpired(expires, '2026-01-01T01:00:00.000Z')).toBe(false);
+    expect(summaryExpired(expires, '2026-01-01T00:59:59.999Z')).toBe(false);
+    expect(summaryExpired(expires, '2026-01-01T01:00:00.001Z')).toBe(true);
   });
 
-  it('treats a link as valid through its expiry second and expired after it', () => {
-    expect(summaryExpired(nowSeconds, now)).toBe(false);
-    expect(summaryExpired(nowSeconds - 1, now)).toBe(true);
+  it('treats an expiry that is not an instant as expired', () => {
+    expect(summaryExpired('tomorrow', '2026-01-01T00:00:00.000Z')).toBe(true);
+    expect(summaryExpired('', '2026-01-01T00:00:00.000Z')).toBe(true);
+  });
+});
+
+describe('summaryUrl', () => {
+  it('links the summary page with the expiry and signature it was signed for', () => {
+    const url = new URL(summaryUrl(token, expires, 'A'.repeat(43)), 'http://x');
+    expect(url.pathname).toBe(`/review-summaries/${token}`);
+    expect(url.searchParams.get('expires')).toBe(expires);
+    expect(url.searchParams.get('signature')).toBe('A'.repeat(43));
+  });
+});
+
+describe('utf8ByteLength', () => {
+  it('counts the bytes each character takes in UTF-8', () => {
+    expect(utf8ByteLength('')).toBe(0);
+    expect(utf8ByteLength('a')).toBe(1);
+    expect(utf8ByteLength('é')).toBe(2);
+    expect(utf8ByteLength('€')).toBe(3);
+    expect(utf8ByteLength('😀')).toBe(4);
   });
 
-  it('treats an expiry that is not a safe integer as expired', () => {
-    expect(summaryExpired(Number.MAX_SAFE_INTEGER + 2, now)).toBe(true);
-    expect(summaryExpired(Number.NaN, now)).toBe(true);
+  it('counts a lone surrogate as the three-byte replacement character', () => {
+    expect(utf8ByteLength('\uD800')).toBe(3);
   });
 });

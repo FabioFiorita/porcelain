@@ -1,19 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BoxLaneOutOfRangeError,
-  DuplicateLayerIdError,
-  DuplicateStepIdError,
-  StepLaneOutOfRangeError,
-  UnknownArrowBoxError,
-  UnknownArrowStepError,
-} from '@porcelain/reviews/errors';
 import type {
   Diagram,
   LayerDraft,
   ReviewDraft,
   StepDraft,
 } from '@porcelain/reviews/models';
-import { assertReviewDraft } from './review-draft.ts';
+import { reviewDraftProblem } from './review-draft.ts';
 
 function step(id: string, lane = 0): StepDraft {
   return {
@@ -60,9 +52,9 @@ function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   };
 }
 
-describe('assertReviewDraft', () => {
+describe('reviewDraftProblem', () => {
   it('accepts a review whose ids, lanes and arrows all agree', () => {
-    expect(() => assertReviewDraft(draft())).not.toThrow();
+    expect(reviewDraftProblem(draft())).toBeUndefined();
   });
 
   it('accepts a review without a diagram or layer arrows', () => {
@@ -70,7 +62,7 @@ describe('assertReviewDraft', () => {
       diagram: undefined,
       layers: [layer('layer-a', { arrows: undefined })],
     });
-    expect(() => assertReviewDraft(plain)).not.toThrow();
+    expect(reviewDraftProblem(plain)).toBeUndefined();
   });
 
   it('refuses a step id used twice in one layer', () => {
@@ -78,25 +70,25 @@ describe('assertReviewDraft', () => {
       steps: [step('step-a'), step('step-a', 1)],
       arrows: [],
     });
-    expect(() => assertReviewDraft(draft({ layers: [repeated] }))).toThrow(
-      DuplicateStepIdError,
+    expect(reviewDraftProblem(draft({ layers: [repeated] }))).toBe(
+      'duplicate-step-id',
     );
   });
 
   it('allows the same step id in two different layers', () => {
-    expect(() =>
-      assertReviewDraft(
+    expect(
+      reviewDraftProblem(
         draft({ layers: [layer('layer-a'), layer('layer-b')] }),
       ),
-    ).not.toThrow();
+    ).toBeUndefined();
   });
 
   it('accepts a step on the last lane and refuses one past it', () => {
     const last = layer('layer-a', { steps: [step('step-a', 1)], arrows: [] });
     const past = layer('layer-a', { steps: [step('step-a', 2)], arrows: [] });
-    expect(() => assertReviewDraft(draft({ layers: [last] }))).not.toThrow();
-    expect(() => assertReviewDraft(draft({ layers: [past] }))).toThrow(
-      StepLaneOutOfRangeError,
+    expect(reviewDraftProblem(draft({ layers: [last] }))).toBeUndefined();
+    expect(reviewDraftProblem(draft({ layers: [past] }))).toBe(
+      'step-lane-out-of-range',
     );
   });
 
@@ -105,11 +97,11 @@ describe('assertReviewDraft', () => {
       { from: 'step-a', to: 'elsewhere' },
       { from: 'elsewhere', to: 'step-b' },
     ])
-      expect(() =>
-        assertReviewDraft(
+      expect(
+        reviewDraftProblem(
           draft({ layers: [layer('layer-a', { arrows: [arrow] })] }),
         ),
-      ).toThrow(UnknownArrowStepError);
+      ).toBe('unknown-arrow-step');
   });
 
   it('refuses a layer arrow that names a step of another layer', () => {
@@ -117,9 +109,9 @@ describe('assertReviewDraft', () => {
       steps: [step('step-c')],
       arrows: [{ from: 'step-c', to: 'step-a' }],
     });
-    expect(() =>
-      assertReviewDraft(draft({ layers: [layer('layer-a'), other] })),
-    ).toThrow(UnknownArrowStepError);
+    expect(
+      reviewDraftProblem(draft({ layers: [layer('layer-a'), other] })),
+    ).toBe('unknown-arrow-step');
   });
 
   it('refuses a diagram box past its lanes, in the after or the before diagram', () => {
@@ -127,14 +119,14 @@ describe('assertReviewDraft', () => {
       boxes: [{ id: 'box-a', lane: 2, label: 'Lost', kind: 'storage' }],
       arrows: [],
     });
-    expect(() =>
-      assertReviewDraft(draft({ diagram: { after: outside } })),
-    ).toThrow(BoxLaneOutOfRangeError);
-    expect(() =>
-      assertReviewDraft(
+    expect(reviewDraftProblem(draft({ diagram: { after: outside } }))).toBe(
+      'box-lane-out-of-range',
+    );
+    expect(
+      reviewDraftProblem(
         draft({ diagram: { after: diagram(), before: outside } }),
       ),
-    ).toThrow(BoxLaneOutOfRangeError);
+    ).toBe('box-lane-out-of-range');
   });
 
   it('refuses a diagram arrow from or to a box the diagram does not have', () => {
@@ -142,18 +134,18 @@ describe('assertReviewDraft', () => {
       { from: 'box-a', to: 'box-z' },
       { from: 'box-z', to: 'box-b' },
     ])
-      expect(() =>
-        assertReviewDraft(
+      expect(
+        reviewDraftProblem(
           draft({ diagram: { after: diagram({ arrows: [arrow] }) } }),
         ),
-      ).toThrow(UnknownArrowBoxError);
+      ).toBe('unknown-arrow-box');
   });
 
   it('refuses a layer id used twice in the review', () => {
-    expect(() =>
-      assertReviewDraft(
+    expect(
+      reviewDraftProblem(
         draft({ layers: [layer('layer-a'), layer('layer-a')] }),
       ),
-    ).toThrow(DuplicateLayerIdError);
+    ).toBe('duplicate-layer-id');
   });
 });

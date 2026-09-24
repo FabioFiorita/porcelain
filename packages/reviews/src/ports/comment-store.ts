@@ -1,26 +1,19 @@
 import type {
-  CommentAppend,
-  CommentMessage,
+  CommentReply,
   CommentResolution,
-  CommentStorage,
   CommentThread,
   CommentUsage,
+  NewCommentThread,
   PostedCommentMessage,
 } from '../models/comment-thread.ts';
 
 export interface CommentStore {
-  list(worktreeId: string): CommentThread[];
-  find(threadId: string): CommentThread | undefined;
-  findMessage(messageId: string): PostedCommentMessage | undefined;
-  usage(worktreeId: string): CommentUsage;
-  lastRevision(): number;
-  lastRevisionIn(worktreeId: string): number;
-  insert(thread: CommentThread, storage: CommentStorage): void;
-  append(
-    worktreeId: string,
-    threadId: string,
-    message: CommentMessage,
-    change: CommentAppend,
-  ): void;
-  resolve(threadId: string, change: CommentResolution): void;
+  list(input: { worktreeId: string }): CommentThread[];
+  find(input: { threadId: string }): CommentThread | undefined;
+  findMessage(input: { messageId: string }): PostedCommentMessage | undefined;
+  usage(input: { worktreeId: string }): CommentUsage;
+  lastRevision(input: { worktreeId: string }): number;
+  insert(input: NewCommentThread): CommentThread;
+  append(input: CommentReply): CommentThread;
+  resolve(input: CommentResolution): CommentThread;
 }

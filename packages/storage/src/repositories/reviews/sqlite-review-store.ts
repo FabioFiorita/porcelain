@@ -11,18 +11,18 @@ export class SqliteReviewStore implements ReviewStore {
     this.db = db;
   }
 
-  read(worktreeId: string): Review | undefined {
+  read(input: { worktreeId: string }): Review | undefined {
     const row = this.db
       .select()
       .from(reviews)
-      .where(eq(reviews.worktreeId, worktreeId))
+      .where(eq(reviews.worktreeId, input.worktreeId))
       .get();
     if (!row) return undefined;
     const { diagram, ...rest } = row;
     return diagram === null ? rest : { ...rest, diagram };
   }
 
-  findSummary(token: string): ReviewSummary | undefined {
+  findSummary(input: { token: string }): ReviewSummary | undefined {
     return this.db
       .select({
         summaryHtml: reviews.summaryHtml,
@@ -30,12 +30,12 @@ export class SqliteReviewStore implements ReviewStore {
         summarySecret: reviews.summarySecret,
       })
       .from(reviews)
-      .where(eq(reviews.summaryToken, token))
+      .where(eq(reviews.summaryToken, input.token))
       .get();
   }
 
-  save(review: Review): void {
-    const row = { ...review, diagram: review.diagram ?? null };
+  save(input: Review): void {
+    const row = { ...input, diagram: input.diagram ?? null };
     this.db.transaction(
       (tx) => {
         tx.insert(reviews)
@@ -47,15 +47,19 @@ export class SqliteReviewStore implements ReviewStore {
     );
   }
 
-  setActive(worktreeId: string, revision: number, active: boolean): void {
+  setActive(input: {
+    worktreeId: string;
+    revision: number;
+    active: boolean;
+  }): void {
     this.db.transaction(
       (tx) => {
         tx.update(reviews)
-          .set({ active })
+          .set({ active: input.active })
           .where(
             and(
-              eq(reviews.worktreeId, worktreeId),
-              eq(reviews.revision, revision),
+              eq(reviews.worktreeId, input.worktreeId),
+              eq(reviews.revision, input.revision),
             ),
           )
           .run();

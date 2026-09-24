@@ -6,30 +6,45 @@ const worktreeId = 'a'.repeat(64);
 
 function setup() {
   const store = new InMemoryReviewedFileStore();
-  store.save(worktreeId, {
-    path: 'kept.txt',
-    fingerprint: 'k',
-    reviewedAt: '2026-01-01T00:00:00.000Z',
-    stale: true,
+  store.save({
+    worktreeId,
+    marks: [
+      {
+        path: 'kept.txt',
+        fingerprint: 'k',
+        reviewedAt: '2026-01-01T00:00:00.000Z',
+        stale: true,
+      },
+    ],
   });
-  store.save(worktreeId, {
-    path: 'edited.txt',
-    fingerprint: 'e',
-    reviewedAt: '2026-01-01T00:00:00.000Z',
-    stale: false,
+  store.save({
+    worktreeId,
+    marks: [
+      {
+        path: 'edited.txt',
+        fingerprint: 'e',
+        reviewedAt: '2026-01-01T00:00:00.000Z',
+        stale: false,
+      },
+    ],
   });
-  store.save(worktreeId, {
-    path: 'committed.txt',
-    fingerprint: 'c',
-    reviewedAt: '2026-01-01T00:00:00.000Z',
-    stale: false,
+  store.save({
+    worktreeId,
+    marks: [
+      {
+        path: 'committed.txt',
+        fingerprint: 'c',
+        reviewedAt: '2026-01-01T00:00:00.000Z',
+        stale: false,
+      },
+    ],
   });
   return { store, service: new ReconcileReviewedFilesService(store) };
 }
 
 const staleness = (store: InMemoryReviewedFileStore) =>
   Object.fromEntries(
-    store.list(worktreeId).map((mark) => [mark.path, mark.stale]),
+    store.list({ worktreeId }).map((mark) => [mark.path, mark.stale]),
   );
 
 describe('ReconcileReviewedFilesService', () => {
@@ -61,7 +76,7 @@ describe('ReconcileReviewedFilesService', () => {
   it('keeps marks, only changing whether they are stale', () => {
     const { store, service } = setup();
     service.execute({ worktreeId, fingerprints: new Map() });
-    expect(store.list(worktreeId).map((mark) => mark.fingerprint)).toEqual([
+    expect(store.list({ worktreeId }).map((mark) => mark.fingerprint)).toEqual([
       'c',
       'e',
       'k',

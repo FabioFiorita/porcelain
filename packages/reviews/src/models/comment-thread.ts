@@ -4,6 +4,8 @@ export type CommentWriter = {
   kind: 'owner' | 'agent' | 'viewer' | 'anonymous';
 };
 
+export type CommentThreadScope = 'all' | 'waiting';
+
 export type CommentComparison =
   | { kind: 'worktree'; scope: 'staged' | 'unstaged' | 'untracked' }
   | { kind: 'file' }
@@ -55,17 +57,26 @@ export type CommentUsage = {
   bytes: number;
 };
 
-export type CommentStorage = {
-  sizeBytes: number;
-  lastAgentRevision: number | undefined;
+export type CommentLimits = {
+  threadsPerWorktree: number;
+  messagesPerThread: number;
+  bytesPerWorktree: number;
 };
 
-export type CommentAppend = CommentStorage & {
-  revision: number;
+export type NewCommentThread = {
+  content: CommentContent;
+  sizeBytes: number;
+  writtenByAgent: boolean;
+};
+
+export type CommentReply = {
+  thread: CommentThread;
+  message: CommentMessage;
+  sizeBytes: number;
+  writtenByAgent: boolean;
 };
 
 export type CommentResolution = {
+  thread: CommentThread;
   resolved: boolean;
-  revision: number;
-  sizeBytes: number;
 };

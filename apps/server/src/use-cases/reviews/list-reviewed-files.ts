@@ -1,26 +1,24 @@
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
-  CheckWorktreeAccessService,
-  ListReviewedFilesService,
-} from '@porcelain/reviews/services';
+import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { ListReviewedFilesService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class ListReviewedFilesUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly listReviewedFiles: ListReviewedFilesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
+    checkWorktree: CheckWorktreeService,
     listReviewedFiles: ListReviewedFilesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.checkWorktree = checkWorktree;
     this.listReviewedFiles = listReviewedFiles;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -35,8 +33,8 @@ export class ListReviewedFilesUseCase {
       this.laneKeys.worktree(worktreeId),
       'read',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'read' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
           signal,
         );
         return this.listReviewedFiles.execute({ worktreeId });

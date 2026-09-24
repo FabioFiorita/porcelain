@@ -1,16 +1,12 @@
 export {
   commentAuthor,
   commentStorageSize,
-  COMMENT_BYTES_PER_WORKTREE,
-  lastAgentRevision,
-  MESSAGES_PER_THREAD,
   repeatsCreation,
   repeatsReply,
   replyFits,
-  sameAnchor,
   seenThrough,
   threadFits,
-  THREADS_PER_WORKTREE,
+  waitsForAgent,
 } from './comment-threads.ts';
 export {
   currentLayerFingerprint,
@@ -23,35 +19,24 @@ export {
 export { reviewDiagnostics } from './review-diagnostics.ts';
 export {
   fingerprint,
-  secondsAt,
-  SUMMARY_LIFETIME_SECONDS,
+  sameSignature,
   summaryExpired,
-  summaryExpiry,
-  summarySignature,
-  summarySignatureMatches,
+  summaryMessage,
+  summaryUrl,
   utf8ByteLength,
 } from './review-digests.ts';
+export { reviewDraftProblem } from './review-draft.ts';
 export {
-  assertBoxLanesExist,
-  assertDiagramArrowsJoinBoxes,
-  assertLayerArrowsJoinSteps,
-  assertReviewDraft,
-  assertStepLanesExist,
-  assertUniqueLayerIds,
-  assertUniqueStepIds,
-} from './review-draft.ts';
-export {
-  DIFF_BATCH_SIZE,
-  diffBatches,
   publishedLines,
   reviewChanges,
+  reviewFiles,
   reviewPatches,
   reviewPaths,
   textLines,
+  trackedComparisons,
 } from './review-evidence.ts';
 export {
-  evictionCount,
-  REVIEWED_MARKS_PER_WORKTREE,
+  evictedPaths,
   reviewedMarks,
   selectReviewedFiles,
   staleness,

@@ -5,16 +5,19 @@ import {
   commentThreads,
 } from '../../db/schema/comment-threads.ts';
 import type {
-  CommentAppend,
   CommentMessage,
+  CommentReply,
   CommentResolution,
-  CommentStorage,
   CommentThread,
   CommentUsage,
+  NewCommentThread,
   PostedCommentMessage,
 } from '@porcelain/reviews/models';
 import type { CommentStore } from '@porcelain/reviews/ports';
 
+type Transaction = Parameters<
+  Parameters<BetterSQLite3Database['transaction']>[0]
+>[0];
 type ThreadRow = typeof commentThreads.$inferSelect;
 type MessageRow = typeof commentMessages.$inferSelect;
 
@@ -41,6 +44,15 @@ function threadFromRows(
   };
 }
 
+function nextRevision(tx: Transaction): number {
+  return (
+    (tx
+      .select({ revision: max(commentThreads.revision) })
+      .from(commentThreads)
+      .get()?.revision ?? 0) + 1
+  );
+}
+
 export class SqliteCommentStore implements CommentStore {
   private readonly db: BetterSQLite3Database;
 
@@ -48,17 +60,17 @@ export class SqliteCommentStore implements CommentStore {
     this.db = db;
   }
 
-  list(worktreeId: string): CommentThread[] {
+  list(input: { worktreeId: string }): CommentThread[] {
     const threads = this.db
       .select()
       .from(commentThreads)
-      .where(eq(commentThreads.worktreeId, worktreeId))
+      .where(eq(commentThreads.worktreeId, input.worktreeId))
       .orderBy(asc(commentThreads.sequence))
       .all();
     const messages = this.db
       .select()
       .from(commentMessages)
-      .where(eq(commentMessages.worktreeId, worktreeId))
+      .where(eq(commentMessages.worktreeId, input.worktreeId))
       .orderBy(asc(commentMessages.sequence))
       .all();
     const byThread = new Map<string, MessageRow[]>();
@@ -72,27 +84,27 @@ export class SqliteCommentStore implements CommentStore {
     );
   }
 
-  find(threadId: string): CommentThread | undefined {
+  find(input: { threadId: string }): CommentThread | undefined {
     const row = this.db
       .select()
       .from(commentThreads)
-      .where(eq(commentThreads.id, threadId))
+      .where(eq(commentThreads.id, input.threadId))
       .get();
     if (!row) return undefined;
     const messages = this.db
       .select()
       .from(commentMessages)
-      .where(eq(commentMessages.threadId, threadId))
+      .where(eq(commentMessages.threadId, input.threadId))
       .orderBy(asc(commentMessages.sequence))
       .all();
     return threadFromRows(row, messages);
   }
 
-  findMessage(messageId: string): PostedCommentMessage | undefined {
+  findMessage(input: { messageId: string }): PostedCommentMessage | undefined {
     const row = this.db
       .select()
       .from(commentMessages)
-      .where(eq(commentMessages.id, messageId))
+      .where(eq(commentMessages.id, input.messageId))
       .orderBy(asc(commentMessages.sequence))
       .get();
     return row
@@ -104,11 +116,11 @@ export class SqliteCommentStore implements CommentStore {
       : undefined;
   }
 
-  usage(worktreeId: string): CommentUsage {
+  usage(input: { worktreeId: string }): CommentUsage {
     const result = this.db
       .select({ threads: count(), bytes: sum(commentThreads.sizeBytes) })
       .from(commentThreads)
-      .where(eq(commentThreads.worktreeId, worktreeId))
+      .where(eq(commentThreads.worktreeId, input.worktreeId))
       .get();
     return {
       threads: result?.threads ?? 0,
@@ -116,68 +128,59 @@ export class SqliteCommentStore implements CommentStore {
     };
   }
 
-  lastRevision(): number {
+  lastRevision(input: { worktreeId: string }): number {
     return (
       this.db
         .select({ revision: max(commentThreads.revision) })
         .from(commentThreads)
+        .where(eq(commentThreads.worktreeId, input.worktreeId))
         .get()?.revision ?? 0
     );
   }
 
-  lastRevisionIn(worktreeId: string): number {
-    return (
-      this.db
-        .select({ revision: max(commentThreads.revision) })
-        .from(commentThreads)
-        .where(eq(commentThreads.worktreeId, worktreeId))
-        .get()?.revision ?? 0
-    );
-  }
-
-  insert(thread: CommentThread, storage: CommentStorage): void {
-    this.db.transaction(
+  insert(input: NewCommentThread): CommentThread {
+    const { content } = input;
+    return this.db.transaction(
       (tx) => {
+        const revision = nextRevision(tx);
         tx.insert(commentThreads)
           .values({
-            id: thread.id,
-            worktreeId: thread.worktreeId,
-            anchor: structuredClone(thread.anchor),
-            resolved: thread.resolved,
-            revision: thread.revision,
-            lastAgentRevision: storage.lastAgentRevision ?? null,
-            sizeBytes: storage.sizeBytes,
+            id: content.id,
+            worktreeId: content.worktreeId,
+            anchor: structuredClone(content.anchor),
+            resolved: false,
+            revision,
+            lastAgentRevision: input.writtenByAgent ? revision : null,
+            sizeBytes: input.sizeBytes,
           })
           .run();
-        for (const message of thread.messages)
+        for (const message of content.messages)
           tx.insert(commentMessages)
             .values({
               id: message.id,
-              threadId: thread.id,
-              worktreeId: thread.worktreeId,
+              threadId: content.id,
+              worktreeId: content.worktreeId,
               body: message.body,
               author: message.author,
               createdAt: message.createdAt ?? null,
             })
             .run();
+        return { ...structuredClone(content), resolved: false, revision };
       },
       { behavior: 'immediate' },
     );
   }
 
-  append(
-    worktreeId: string,
-    threadId: string,
-    message: CommentMessage,
-    change: CommentAppend,
-  ): void {
-    this.db.transaction(
+  append(input: CommentReply): CommentThread {
+    const { thread, message } = input;
+    return this.db.transaction(
       (tx) => {
+        const revision = nextRevision(tx);
         tx.insert(commentMessages)
           .values({
             id: message.id,
-            threadId,
-            worktreeId,
+            threadId: thread.id,
+            worktreeId: thread.worktreeId,
             body: message.body,
             author: message.author,
             createdAt: message.createdAt ?? null,
@@ -185,28 +188,32 @@ export class SqliteCommentStore implements CommentStore {
           .run();
         tx.update(commentThreads)
           .set({
-            revision: change.revision,
-            lastAgentRevision: change.lastAgentRevision ?? null,
-            sizeBytes: change.sizeBytes,
+            revision,
+            lastAgentRevision: input.writtenByAgent ? revision : null,
+            sizeBytes: input.sizeBytes,
           })
-          .where(eq(commentThreads.id, threadId))
+          .where(eq(commentThreads.id, thread.id))
           .run();
+        return {
+          ...structuredClone(thread),
+          messages: structuredClone([...thread.messages, message]),
+          revision,
+        };
       },
       { behavior: 'immediate' },
     );
   }
 
-  resolve(threadId: string, change: CommentResolution): void {
-    this.db.transaction(
+  resolve(input: CommentResolution): CommentThread {
+    const { thread, resolved } = input;
+    return this.db.transaction(
       (tx) => {
+        const revision = nextRevision(tx);
         tx.update(commentThreads)
-          .set({
-            resolved: change.resolved,
-            revision: change.revision,
-            sizeBytes: change.sizeBytes,
-          })
-          .where(eq(commentThreads.id, threadId))
+          .set({ resolved, revision })
+          .where(eq(commentThreads.id, thread.id))
           .run();
+        return { ...structuredClone(thread), resolved, revision };
       },
       { behavior: 'immediate' },
     );

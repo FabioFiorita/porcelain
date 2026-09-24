@@ -86,6 +86,14 @@ export type Review = {
   layers: ReviewLayer[];
 };
 
+export type ReviewDraftProblem =
+  | 'duplicate-layer-id'
+  | 'duplicate-step-id'
+  | 'step-lane-out-of-range'
+  | 'unknown-arrow-step'
+  | 'box-lane-out-of-range'
+  | 'unknown-arrow-box';
+
 export type ReviewSummary = Pick<
   Review,
   'summaryHtml' | 'summaryToken' | 'summarySecret'

@@ -1,8 +1,12 @@
 import type { Review, ReviewSummary } from '../models/review.ts';
 
 export interface ReviewStore {
-  read(worktreeId: string): Review | undefined;
-  findSummary(token: string): ReviewSummary | undefined;
-  save(review: Review): void;
-  setActive(worktreeId: string, revision: number, active: boolean): void;
+  read(input: { worktreeId: string }): Review | undefined;
+  findSummary(input: { token: string }): ReviewSummary | undefined;
+  save(input: Review): void;
+  setActive(input: {
+    worktreeId: string;
+    revision: number;
+    active: boolean;
+  }): void;
 }

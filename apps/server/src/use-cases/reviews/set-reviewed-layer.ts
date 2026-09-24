@@ -4,9 +4,11 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
-  CheckWorktreeAccessService,
-  ReadPublishedReviewService,
-  ReadReviewFilesService,
+  CheckWorktreeService,
+  ReadTextFileService,
+} from '@porcelain/files/services';
+import type {
+  ReadReviewLayerService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
@@ -15,26 +17,26 @@ import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class SetReviewedLayerUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
-  private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readReviewFiles: ReadReviewFilesService;
+  private readonly checkWorktree: CheckWorktreeService;
+  private readonly readReviewLayer: ReadReviewLayerService;
+  private readonly readTextFile: ReadTextFileService;
   private readonly setReviewedLayer: SetReviewedLayerService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
-    readPublishedReview: ReadPublishedReviewService,
-    readReviewFiles: ReadReviewFilesService,
+    checkWorktree: CheckWorktreeService,
+    readReviewLayer: ReadReviewLayerService,
+    readTextFile: ReadTextFileService,
     setReviewedLayer: SetReviewedLayerService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
-    this.readPublishedReview = readPublishedReview;
-    this.readReviewFiles = readReviewFiles;
+    this.checkWorktree = checkWorktree;
+    this.readReviewLayer = readReviewLayer;
+    this.readTextFile = readTextFile;
     this.setReviewedLayer = setReviewedLayer;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -50,21 +52,24 @@ export class SetReviewedLayerUseCase {
       this.laneKeys.worktree(worktreeId),
       'write',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'write' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'writing' },
           signal,
         );
-        const review = this.readPublishedReview.execute({ worktreeId });
-        const files = await this.readReviewFiles.execute(
-          { worktreeId, layers: review?.layers ?? [] },
-          signal,
+        const { layer, paths } = this.readReviewLayer.execute({
+          worktreeId,
+          layerId: input.layerId,
+        });
+        const texts = await Promise.allSettled(
+          paths.map((path) =>
+            this.readTextFile.execute({ worktreeId, path }, signal),
+          ),
         );
         return this.setReviewedLayer.execute({
           worktreeId,
-          layerId: input.layerId,
+          layer,
           fingerprint: input.fingerprint,
-          review,
-          files,
+          texts,
         });
       },
       { callerSignal: context.signal },

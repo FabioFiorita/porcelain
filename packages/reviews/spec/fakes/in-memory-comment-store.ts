@@ -1,95 +1,100 @@
 import type {
-  CommentAppend,
-  CommentMessage,
+  CommentReply,
   CommentResolution,
-  CommentStorage,
   CommentThread,
   CommentUsage,
+  NewCommentThread,
   PostedCommentMessage,
 } from '../../src/models/comment-thread.ts';
 import type { CommentStore } from '../../src/ports/comment-store.ts';
 
-type Row = { thread: CommentThread; storage: CommentStorage };
+type Row = { thread: CommentThread; sizeBytes: number };
 
 export class InMemoryCommentStore implements CommentStore {
-  private readonly rows = new Map<string, Row>();
+  private rows: Row[] = [];
 
-  list(worktreeId: string): CommentThread[] {
-    return [...this.rows.values()]
-      .filter((row) => row.thread.worktreeId === worktreeId)
+  list(input: { worktreeId: string }): CommentThread[] {
+    return this.rows
+      .filter((row) => row.thread.worktreeId === input.worktreeId)
       .map((row) => structuredClone(row.thread));
   }
 
-  find(threadId: string): CommentThread | undefined {
-    const row = this.rows.get(threadId);
-    return row ? structuredClone(row.thread) : undefined;
+  find(input: { threadId: string }): CommentThread | undefined {
+    const row = this.rows.find((entry) => entry.thread.id === input.threadId);
+    return row && structuredClone(row.thread);
   }
 
-  findMessage(messageId: string): PostedCommentMessage | undefined {
-    for (const { thread } of this.rows.values()) {
-      const message = thread.messages.find((entry) => entry.id === messageId);
-      if (message)
-        return {
-          ...structuredClone(message),
-          threadId: thread.id,
-          worktreeId: thread.worktreeId,
-        };
-    }
-    return undefined;
+  findMessage(input: { messageId: string }): PostedCommentMessage | undefined {
+    return this.rows
+      .flatMap(({ thread }) =>
+        thread.messages
+          .filter((message) => message.id === input.messageId)
+          .map((message) => ({
+            ...structuredClone(message),
+            threadId: thread.id,
+            worktreeId: thread.worktreeId,
+          })),
+      )
+      .at(0);
   }
 
-  usage(worktreeId: string): CommentUsage {
-    const rows = [...this.rows.values()].filter(
-      (row) => row.thread.worktreeId === worktreeId,
+  usage(input: { worktreeId: string }): CommentUsage {
+    const rows = this.rows.filter(
+      (row) => row.thread.worktreeId === input.worktreeId,
     );
     return {
       threads: rows.length,
-      bytes: rows.reduce((total, row) => total + row.storage.sizeBytes, 0),
+      bytes: rows.reduce((total, row) => total + row.sizeBytes, 0),
     };
   }
 
-  lastRevision(): number {
-    return Math.max(
-      0,
-      ...[...this.rows.values()].map((row) => row.thread.revision),
-    );
+  lastRevision(input: { worktreeId: string }): number {
+    return Math.max(0, ...this.list(input).map((thread) => thread.revision));
   }
 
-  lastRevisionIn(worktreeId: string): number {
-    return Math.max(
-      0,
-      ...this.list(worktreeId).map((thread) => thread.revision),
-    );
-  }
-
-  insert(thread: CommentThread, storage: CommentStorage): void {
-    this.rows.set(thread.id, {
-      thread: structuredClone(thread),
-      storage: { ...storage },
-    });
-  }
-
-  append(
-    _worktreeId: string,
-    threadId: string,
-    message: CommentMessage,
-    change: CommentAppend,
-  ): void {
-    const row = this.rows.get(threadId);
-    if (!row) return;
-    row.thread.messages.push(structuredClone(message));
-    row.thread.revision = change.revision;
-    row.storage = {
-      sizeBytes: change.sizeBytes,
-      lastAgentRevision: change.lastAgentRevision,
+  insert(input: NewCommentThread): CommentThread {
+    const thread: CommentThread = {
+      ...structuredClone(input.content),
+      resolved: false,
+      revision: this.nextRevision(),
     };
+    this.rows = [...this.rows, { thread, sizeBytes: input.sizeBytes }];
+    return structuredClone(thread);
   }
 
-  resolve(threadId: string, change: CommentResolution): void {
-    const row = this.rows.get(threadId);
-    if (!row) return;
-    row.thread.resolved = change.resolved;
-    row.thread.revision = change.revision;
-    row.storage.sizeBytes = change.sizeBytes;
+  append(input: CommentReply): CommentThread {
+    return this.replace(
+      {
+        ...input.thread,
+        messages: [...input.thread.messages, input.message],
+        revision: this.nextRevision(),
+      },
+      input.sizeBytes,
+    );
+  }
+
+  resolve(input: CommentResolution): CommentThread {
+    const row = this.rows.find((entry) => entry.thread.id === input.thread.id);
+    return this.replace(
+      {
+        ...input.thread,
+        resolved: input.resolved,
+        revision: this.nextRevision(),
+      },
+      row?.sizeBytes ?? 0,
+    );
+  }
+
+  private nextRevision(): number {
+    return Math.max(0, ...this.rows.map((row) => row.thread.revision)) + 1;
+  }
+
+  private replace(thread: CommentThread, sizeBytes: number): CommentThread {
+    this.rows = this.rows.map((row) =>
+      row.thread.id === thread.id
+        ? { thread: structuredClone(thread), sizeBytes }
+        : row,
+    );
+    return structuredClone(thread);
   }
 }

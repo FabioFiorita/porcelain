@@ -1,25 +1,21 @@
-import type {
-  ReconcileReviewedFilesInput,
-  ReconcileReviewedFilesResult,
-} from '../models/reviewed-mark.ts';
+import type { ReconcileReviewedFilesInput } from '../models/reconcile-reviewed-files.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { staleness } from '../rules/reviewed-marks.ts';
 
 export class ReconcileReviewedFilesService {
-  private readonly reviewedFileStore: ReviewedFileStore;
+  private readonly reviewedFiles: ReviewedFileStore;
 
-  constructor(reviewedFileStore: ReviewedFileStore) {
-    this.reviewedFileStore = reviewedFileStore;
+  constructor(reviewedFiles: ReviewedFileStore) {
+    this.reviewedFiles = reviewedFiles;
   }
 
-  execute(input: ReconcileReviewedFilesInput): ReconcileReviewedFilesResult {
+  execute(input: ReconcileReviewedFilesInput): void {
+    const { worktreeId } = input;
     const { stale, fresh } = staleness(
-      this.reviewedFileStore.list(input.worktreeId),
+      this.reviewedFiles.list({ worktreeId }),
       input.fingerprints,
     );
-    if (stale.length > 0)
-      this.reviewedFileStore.setStale(input.worktreeId, stale, true);
-    if (fresh.length > 0)
-      this.reviewedFileStore.setStale(input.worktreeId, fresh, false);
+    this.reviewedFiles.setStale({ worktreeId, paths: stale, stale: true });
+    this.reviewedFiles.setStale({ worktreeId, paths: fresh, stale: false });
   }
 }

@@ -1,51 +1,58 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
+import type { ReviewedFileLimits } from '../models/reviewed-mark.ts';
 import type {
   SetReviewedFilesInput,
   SetReviewedFilesResult,
-} from '../models/reviewed-mark.ts';
+} from '../models/set-reviewed-files.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import {
-  evictionCount,
+  evictedPaths,
   reviewedMarks,
   selectReviewedFiles,
 } from '../rules/reviewed-marks.ts';
 
 export class SetReviewedFilesService {
-  private readonly reviewedFileStore: ReviewedFileStore;
+  private readonly reviewedFiles: ReviewedFileStore;
   private readonly clock: Clock;
+  private readonly limits: ReviewedFileLimits;
 
-  constructor(reviewedFileStore: ReviewedFileStore, clock: Clock) {
-    this.reviewedFileStore = reviewedFileStore;
+  constructor(
+    reviewedFiles: ReviewedFileStore,
+    clock: Clock,
+    limits: ReviewedFileLimits,
+  ) {
+    this.reviewedFiles = reviewedFiles;
     this.clock = clock;
+    this.limits = limits;
   }
 
   execute(input: SetReviewedFilesInput): SetReviewedFilesResult {
     const { worktreeId } = input;
-    const selection = selectReviewedFiles(input.files, input.changes);
-    if (input.onConflict === 'refuse' && selection.conflicts.length > 0)
+    const { marked, conflicts } = selectReviewedFiles(
+      input.files,
+      input.changes,
+    );
+    if (input.onConflict === 'refuse' && conflicts.length > 0)
       throw new ReviewedMarkConflictError();
+    this.reviewedFiles.remove({
+      worktreeId,
+      paths: evictedPaths(
+        this.reviewedFiles.list({ worktreeId }),
+        marked,
+        this.limits.marksPerWorktree,
+      ),
+    });
     const reviewedAt = this.clock.now();
-    for (const file of selection.marked) {
-      if (!this.reviewedFileStore.find(worktreeId, file.path)) {
-        const evicted = evictionCount(this.reviewedFileStore.count(worktreeId));
-        if (evicted > 0)
-          this.reviewedFileStore.remove(
-            worktreeId,
-            this.reviewedFileStore.oldest(worktreeId, evicted),
-          );
-      }
-      this.reviewedFileStore.save(worktreeId, {
-        ...file,
-        reviewedAt,
-        stale: false,
-      });
-    }
+    this.reviewedFiles.save({
+      worktreeId,
+      marks: marked.map((file) => ({ ...file, reviewedAt, stale: false })),
+    });
     return {
       worktreeId,
-      marks: reviewedMarks(this.reviewedFileStore.list(worktreeId)),
-      marked: selection.marked.map((file) => file.path),
-      conflicts: selection.conflicts,
+      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
+      marked: marked.map((file) => file.path),
+      conflicts,
     };
   }
 }

@@ -11,24 +11,29 @@ import { ReplyToCommentService } from './reply-to-comment-service.ts';
 
 const worktreeId = 'a'.repeat(64);
 const threadId = 'thread-1';
+const limits = {
+  threadsPerWorktree: 100,
+  messagesPerThread: 100,
+  bytesPerWorktree: 1024 * 1024,
+};
 
 function setup(body = 'Opening message') {
   const store = new InMemoryCommentStore();
-  store.insert(
-    {
+  store.insert({
+    content: {
       id: threadId,
       worktreeId,
       anchor: { kind: 'file', filePath: 'README.md' },
-      resolved: false,
       messages: [{ id: 'message-0', body, author: 'reviewer' }],
-      revision: 1,
     },
-    { sizeBytes: 200 + body.length, lastAgentRevision: undefined },
-  );
+    sizeBytes: 200 + body.length,
+    writtenByAgent: false,
+  });
   const service = new ReplyToCommentService(
     store,
     new SequentialIdSource(),
     new FixedClock(),
+    limits,
   );
   return { store, service };
 }
@@ -54,14 +59,14 @@ describe('ReplyToCommentService', () => {
       'Opening message',
       'Thanks',
     ]);
-    expect(store.find(threadId)).toEqual(thread);
+    expect(store.find({ threadId })).toEqual(thread);
   });
 
   it('answers a retried reply with the thread and appends nothing', () => {
     const { service, store } = setup();
     service.execute(input({ messageId: 'reply-1' }));
     service.execute(input({ messageId: 'reply-1' }));
-    expect(store.find(threadId)?.messages).toHaveLength(2);
+    expect(store.find({ threadId })?.messages).toHaveLength(2);
   });
 
   it('refuses a message id reused for another body or another thread', () => {
@@ -88,9 +93,9 @@ describe('ReplyToCommentService', () => {
   it('accepts the hundredth message of a thread and refuses the next', () => {
     const { service, store } = setup();
     for (let index = 1; index < 100; index += 1) service.execute(input());
-    expect(store.find(threadId)?.messages).toHaveLength(100);
+    expect(store.find({ threadId })?.messages).toHaveLength(100);
     expect(() => service.execute(input())).toThrow(CommentLimitExceededError);
-    expect(store.find(threadId)?.messages).toHaveLength(100);
+    expect(store.find({ threadId })?.messages).toHaveLength(100);
   });
 
   it('refuses a reply that would take the worktree past one mebibyte', () => {
@@ -98,6 +103,6 @@ describe('ReplyToCommentService', () => {
     expect(() => service.execute(input({ body: 'y'.repeat(2000) }))).toThrow(
       CommentLimitExceededError,
     );
-    expect(store.find(threadId)?.messages).toHaveLength(1);
+    expect(store.find({ threadId })?.messages).toHaveLength(1);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
-import type { ReadChangesResult } from '@porcelain/reviews/models';
+import type { FileChange } from '@porcelain/kernel/models';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
 import { SetReviewedFilesService } from './set-reviewed-files-service.ts';
 
@@ -9,22 +9,42 @@ const worktreeId = 'a'.repeat(64);
 
 function changes(
   entries: readonly { path: string; fingerprint?: string }[],
-): ReadChangesResult {
-  return {
-    worktreeId,
-    statusToken: 'status',
-    changes: entries.map((entry) => ({
-      path: entry.path,
-      fingerprint: entry.fingerprint,
-      comparisons: [],
-    })),
-  };
+): FileChange[] {
+  return entries.map((entry) => ({
+    path: entry.path,
+    fingerprint: entry.fingerprint,
+    comparisons: [],
+  }));
 }
 
 function setup() {
   const store = new InMemoryReviewedFileStore();
   const clock = new FixedClock('2026-01-02T00:00:00.000Z');
-  return { store, clock, service: new SetReviewedFilesService(store, clock) };
+  return {
+    store,
+    service: new SetReviewedFilesService(store, clock, {
+      marksPerWorktree: 2000,
+    }),
+  };
+}
+
+function marked(store: InMemoryReviewedFileStore, path: string) {
+  return store.list({ worktreeId }).find((mark) => mark.path === path);
+}
+
+function fill(
+  store: InMemoryReviewedFileStore,
+  reviewedAt: (index: number) => string,
+) {
+  store.save({
+    worktreeId,
+    marks: Array.from({ length: 2000 }, (_, index) => ({
+      path: `file-${String(index).padStart(4, '0')}`,
+      fingerprint: 'f',
+      reviewedAt: reviewedAt(index),
+      stale: false,
+    })),
+  });
 }
 
 describe('SetReviewedFilesService', () => {
@@ -88,16 +108,21 @@ describe('SetReviewedFilesService', () => {
         onConflict: 'refuse',
       }),
     ).toThrow(ReviewedMarkConflictError);
-    expect(store.list(worktreeId)).toEqual([]);
+    expect(store.list({ worktreeId })).toEqual([]);
   });
 
   it('clears staleness when a file is marked again', () => {
     const { service, store } = setup();
-    store.save(worktreeId, {
-      path: 'a.txt',
-      fingerprint: 'old',
-      reviewedAt: '2026-01-01T00:00:00.000Z',
-      stale: true,
+    store.save({
+      worktreeId,
+      marks: [
+        {
+          path: 'a.txt',
+          fingerprint: 'old',
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+          stale: true,
+        },
+      ],
     });
     service.execute({
       worktreeId,
@@ -105,7 +130,7 @@ describe('SetReviewedFilesService', () => {
       changes: changes([{ path: 'a.txt', fingerprint: 'fa' }]),
       onConflict: 'refuse',
     });
-    expect(store.find(worktreeId, 'a.txt')).toEqual({
+    expect(marked(store, 'a.txt')).toEqual({
       path: 'a.txt',
       fingerprint: 'fa',
       reviewedAt: '2026-01-02T00:00:00.000Z',
@@ -115,16 +140,9 @@ describe('SetReviewedFilesService', () => {
 
   it('keeps two thousand marks by evicting the oldest one, then the lowest path', () => {
     const { service, store } = setup();
-    for (let index = 0; index < 2000; index += 1)
-      store.save(worktreeId, {
-        path: `file-${String(index).padStart(4, '0')}`,
-        fingerprint: 'f',
-        reviewedAt:
-          index === 1500
-            ? '2025-01-01T00:00:00.000Z'
-            : '2025-06-01T00:00:00.000Z',
-        stale: false,
-      });
+    fill(store, (index) =>
+      index === 1500 ? '2025-01-01T00:00:00.000Z' : '2025-06-01T00:00:00.000Z',
+    );
     service.execute({
       worktreeId,
       files: [
@@ -137,30 +155,24 @@ describe('SetReviewedFilesService', () => {
       ]),
       onConflict: 'report',
     });
-    expect(store.count(worktreeId)).toBe(2000);
-    expect(store.find(worktreeId, 'file-1500')).toBeUndefined();
-    expect(store.find(worktreeId, 'file-0000')).toBeUndefined();
-    expect(store.find(worktreeId, 'file-0001')).toBeDefined();
-    expect(store.find(worktreeId, 'new-1')).toBeDefined();
-    expect(store.find(worktreeId, 'new-2')).toBeDefined();
+    expect(store.list({ worktreeId })).toHaveLength(2000);
+    expect(marked(store, 'file-1500')).toBeUndefined();
+    expect(marked(store, 'file-0000')).toBeUndefined();
+    expect(marked(store, 'file-0001')).toBeDefined();
+    expect(marked(store, 'new-1')).toBeDefined();
+    expect(marked(store, 'new-2')).toBeDefined();
   });
 
   it('evicts nothing when a mark already present is renewed at the limit', () => {
     const { service, store } = setup();
-    for (let index = 0; index < 2000; index += 1)
-      store.save(worktreeId, {
-        path: `file-${String(index).padStart(4, '0')}`,
-        fingerprint: 'f',
-        reviewedAt: '2025-06-01T00:00:00.000Z',
-        stale: false,
-      });
+    fill(store, () => '2025-06-01T00:00:00.000Z');
     service.execute({
       worktreeId,
       files: [{ path: 'file-1999', fingerprint: 'g' }],
       changes: changes([{ path: 'file-1999', fingerprint: 'g' }]),
       onConflict: 'report',
     });
-    expect(store.count(worktreeId)).toBe(2000);
-    expect(store.find(worktreeId, 'file-0000')).toBeDefined();
+    expect(store.list({ worktreeId })).toHaveLength(2000);
+    expect(marked(store, 'file-0000')).toBeDefined();
   });
 });

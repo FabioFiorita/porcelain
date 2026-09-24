@@ -11,17 +11,25 @@ function setup() {
   const layers = new InMemoryReviewedLayerStore();
   for (const id of [worktreeId, otherWorktreeId]) {
     for (const path of ['src/app.ts', 'src/app.tsx', 'srcs/x.ts', 'README.md'])
-      files.save(id, {
-        path,
-        fingerprint: 'f',
+      files.save({
+        worktreeId: id,
+        marks: [
+          {
+            path,
+            fingerprint: 'f',
+            reviewedAt: '2026-01-01T00:00:00.000Z',
+            stale: false,
+          },
+        ],
+      });
+    layers.save({
+      worktreeId: id,
+      mark: {
+        layerId: 'layer-1',
+        fingerprint: 'l',
         reviewedAt: '2026-01-01T00:00:00.000Z',
         stale: false,
-      });
-    layers.save(id, {
-      layerId: 'layer-1',
-      fingerprint: 'l',
-      reviewedAt: '2026-01-01T00:00:00.000Z',
-      stale: false,
+      },
     });
   }
   return {
@@ -33,7 +41,7 @@ function setup() {
 
 const stalePaths = (store: InMemoryReviewedFileStore, id: string) =>
   store
-    .list(id)
+    .list({ worktreeId: id })
     .filter((mark) => mark.stale)
     .map((mark) => mark.path);
 
@@ -57,26 +65,26 @@ describe('InvalidateReviewedMarksService', () => {
     const { service, files, layers } = setup();
     service.execute({ worktreeId });
     expect(stalePaths(files, worktreeId)).toHaveLength(4);
-    expect(layers.list(worktreeId)[0]?.stale).toBe(true);
+    expect(layers.list({ worktreeId })[0]?.stale).toBe(true);
   });
 
   it('makes layer marks stale when any path changed', () => {
     const { service, layers } = setup();
     service.execute({ worktreeId, paths: ['unrelated.txt'] });
-    expect(layers.list(worktreeId)[0]?.stale).toBe(true);
+    expect(layers.list({ worktreeId })[0]?.stale).toBe(true);
   });
 
   it('changes nothing for an empty list of paths', () => {
     const { service, files, layers } = setup();
     service.execute({ worktreeId, paths: [] });
     expect(stalePaths(files, worktreeId)).toEqual([]);
-    expect(layers.list(worktreeId)[0]?.stale).toBe(false);
+    expect(layers.list({ worktreeId })[0]?.stale).toBe(false);
   });
 
   it('leaves other worktrees alone', () => {
     const { service, files, layers } = setup();
     service.execute({ worktreeId });
     expect(stalePaths(files, otherWorktreeId)).toEqual([]);
-    expect(layers.list(otherWorktreeId)[0]?.stale).toBe(false);
+    expect(layers.list({ worktreeId: otherWorktreeId })[0]?.stale).toBe(false);
   });
 });

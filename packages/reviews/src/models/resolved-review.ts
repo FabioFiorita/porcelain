@@ -25,11 +25,13 @@ export type UnexplainedChange = {
   binary?: boolean | undefined;
 };
 
-export type SignedSummary = {
-  token: string;
-  expires: number;
-  signature: string;
+export type SummaryLink = {
+  url: string;
   byteLength: number;
+};
+
+export type SummaryLinkLimits = {
+  lifetimeMs: number;
 };
 
 export type ResolvedReview = {
@@ -38,8 +40,8 @@ export type ResolvedReview = {
   revision: number;
   publishedAt: string;
   active: boolean;
-  diagnostics: 'current' | 'unavailable';
-  summary: SignedSummary;
+  diagnostics: 'current';
+  summary: SummaryLink;
   diagram?: ReviewDiagram | undefined;
   layers: ResolvedLayer[];
   notExplained: UnexplainedChange[];
