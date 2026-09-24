@@ -1,6 +1,13 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import {
+  readFile,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
@@ -38,9 +45,21 @@ type GitStep = {
   output?: string;
   error?: string;
 };
-type FileStep = { phase: Phase; kind: 'file'; path: string; bytes: number };
+type FileStep = {
+  phase: Phase;
+  kind: 'write' | 'read';
+  path: string;
+  bytes: number;
+};
 type LinkStep = { phase: Phase; kind: 'link'; path: string; target: string };
 type FifoStep = { phase: Phase; kind: 'fifo' | 'remove'; path: string };
+type RenameStep = { phase: Phase; kind: 'rename'; from: string; to: string };
+type EntriesStep = {
+  phase: Phase;
+  kind: 'entries';
+  path: string;
+  names: string[];
+};
 type LiveStep = {
   phase: Phase;
   kind: 'live';
@@ -56,6 +75,8 @@ export type Step =
   | FileStep
   | LinkStep
   | FifoStep
+  | RenameStep
+  | EntriesStep
   | LiveStep;
 
 type Manifest = {
@@ -87,6 +108,7 @@ const signedLink =
 const issuedToken =
   /pc[a-z]_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_([A-Za-z0-9_-]{43})/g;
 const setCookie = /(?:^|\n)[^=;\s]+=([^;\n]+)/g;
+const repositoryOptions = /^(?:-C|--git-dir|--work-tree|--namespace)(?:=|$)/;
 const readyTimeoutMs = 30_000;
 const stopTimeoutMs = 10_000;
 const requestTimeoutMs = 30_000;
@@ -452,16 +474,27 @@ export class IsolatedServer {
       read: (request, status) => this.read(recorder, request, status),
       live: () => this.live(recorder),
       secret: (value) => recorder.secret(value),
-      git: async (...args) => {
+      git: async (subcommand, ...options) => {
+        const refused = options.find((option) =>
+          repositoryOptions.test(option),
+        );
+        if (refused !== undefined)
+          throw new Error(
+            `session.git runs in the sample repository; ${refused} is refused`,
+          );
+        for (const option of options)
+          for (const path of [option, option.split('=').slice(1).join('=')])
+            if (path.startsWith('/')) inside(path, this.projectHome);
+        const args = ['-C', this.repository, subcommand, ...options];
         const step: GitStep = { phase: recorder.phase, kind: 'git', args };
         recorder.steps.push(step);
         try {
           const { stdout } = await execute('git', args, {
-            cwd: this.repository,
+            cwd: this.projectHome,
             env: gitEnv,
           });
           step.output = stdout;
-          recorder.provenance.observe(`git ${args[0] ?? ''}`, stdout);
+          recorder.provenance.observe(`git ${subcommand}`, stdout);
           return stdout;
         } catch (error) {
           step.error = error instanceof Error ? error.message : String(error);
@@ -472,7 +505,7 @@ export class IsolatedServer {
         await writeFile(inside(path), content);
         recorder.steps.push({
           phase: recorder.phase,
-          kind: 'file',
+          kind: 'write',
           path,
           bytes:
             typeof content === 'string'
@@ -484,7 +517,7 @@ export class IsolatedServer {
         const content = await readFile(inside(path), 'utf8');
         recorder.steps.push({
           phase: recorder.phase,
-          kind: 'file',
+          kind: 'read',
           path,
           bytes: Buffer.byteLength(content),
         });
@@ -508,8 +541,26 @@ export class IsolatedServer {
         await rm(inside(path), { force: true });
         recorder.steps.push({ phase: recorder.phase, kind: 'remove', path });
       },
+      rename: async (from, to) => {
+        await rename(
+          inside(from, this.projectHome),
+          inside(to, this.projectHome),
+        );
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'rename',
+          from,
+          to,
+        });
+      },
       entries: async (path) => {
         const names = (await readdir(inside(path, this.projectHome))).sort();
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'entries',
+          path,
+          names,
+        });
         recorder.provenance.observe(`entries ${path}`, names);
         return names;
       },

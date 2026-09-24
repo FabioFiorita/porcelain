@@ -39,6 +39,27 @@ export type Fixture = {
   gitActionDeadlineMs: number;
 };
 
+export type GitSubcommand =
+  | 'add'
+  | 'branch'
+  | 'checkout'
+  | 'commit'
+  | 'diff'
+  | 'for-each-ref'
+  | 'hash-object'
+  | 'init'
+  | 'log'
+  | 'merge'
+  | 'mv'
+  | 'push'
+  | 'remote'
+  | 'reset'
+  | 'rev-list'
+  | 'rev-parse'
+  | 'show'
+  | 'stash'
+  | 'switch';
+
 export type Session = {
   fixture: Fixture;
   address: string;
@@ -49,12 +70,13 @@ export type Session = {
   send(request: HttpRequest): Promise<HttpResponse>;
   read(request: HttpRequest, status?: number): Promise<HttpResponse>;
   live(): Promise<LiveConnection>;
-  git(...args: string[]): Promise<string>;
+  git(subcommand: GitSubcommand, ...args: string[]): Promise<string>;
   writeFile(path: string, content: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<string>;
   symlink(target: string, path: string): Promise<void>;
   fifo(path: string): Promise<void>;
   remove(path: string): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
   entries(path: string): Promise<string[]>;
   secret(value: string): void;
 };
@@ -96,6 +118,8 @@ export type Case<State = undefined> = CaseBody<State> & {
 };
 
 export type Phase = 'setup' | 'request' | 'follow-up';
+
+export class UnassertedExchanges extends Error {}
 
 export type CaseRunner = {
   enter(phase: Phase): void;
@@ -140,7 +164,7 @@ async function execute<State>(
     session,
   });
   const problems = runner.problems();
-  if (problems.length > 0) throw new Error(problems.join('; '));
+  if (problems.length > 0) throw new UnassertedExchanges(problems.join('; '));
 }
 
 export function defineCase(

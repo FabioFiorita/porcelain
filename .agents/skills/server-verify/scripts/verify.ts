@@ -3,15 +3,17 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { loadFeatures, reachesOf } from './catalogue.ts';
+import { loadFeatures, loadNegatives, reachesOf } from './catalogue.ts';
 import {
   isRecord,
   list,
   record,
+  UnassertedExchanges,
   type Checks,
   type Feature,
 } from './feature.ts';
-import { expectedWeakness, Provenance } from './provenance.ts';
+import { contractSchemas } from './contracts.ts';
+import { expectedWeakness, Provenance, type Claim } from './provenance.ts';
 import { IsolatedServer, Recorder, type Step } from './session.ts';
 import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
 
@@ -27,6 +29,7 @@ type CaseEvidence = {
   name: string;
   passed: boolean;
   error?: string;
+  unasserted?: string;
   assertionCount: number;
   steps: Step[];
   assertions: Assertion[];
@@ -47,6 +50,7 @@ type FeatureResult = {
   passedAssertions: number;
   weakAssertions: number;
   failures: string[];
+  rejection: string[];
   evidence: string;
   routes: readonly string[];
   durationMs: number;
@@ -111,20 +115,26 @@ function partial(expected: unknown, actual: unknown): boolean {
   );
 }
 
-function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
+function checks(
+  assertions: Assertion[],
+  provenance: () => Provenance,
+  contracts: ReadonlySet<unknown>,
+): Checks {
   const assert = (
     name: string,
     expected: unknown,
     actual: unknown,
-    kind: 'exact' | 'partial' | 'contract' | 'match' | 'differs',
+    claim: Claim,
     matches: boolean,
     recorded: unknown = actual,
   ) => {
-    const judged = provenance().judge(actual);
+    const judged = provenance().judge(actual, claim);
     const weak =
-      (kind === 'contract' || kind === 'match'
-        ? undefined
-        : expectedWeakness(expected, kind)) ?? judged.weak;
+      (claim.kind === 'exact' || claim.kind === 'partial'
+        ? expectedWeakness(claim.expected, claim.kind)
+        : claim.kind === 'differs'
+          ? expectedWeakness(expected, claim.kind)
+          : undefined) ?? judged.weak;
     if (weak === undefined) judged.count();
     assertions.push({
       name,
@@ -141,19 +151,25 @@ function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
         name,
         expected,
         actual,
-        'exact',
+        { kind: 'exact', expected },
         isDeepStrictEqual(actual, expected),
       );
     },
     checkPartial(name, expected, actual) {
-      assert(name, expected, actual, 'partial', partial(expected, actual));
+      assert(
+        name,
+        expected,
+        actual,
+        { kind: 'partial', expected },
+        partial(expected, actual),
+      );
     },
     checkMatch(name, pattern, actual) {
       assert(
         name,
         String(pattern),
         actual,
-        'match',
+        { kind: 'match' },
         typeof actual === 'string' && pattern.test(actual),
       );
     },
@@ -162,7 +178,7 @@ function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
         name,
         { differsFrom: previous },
         actual,
-        'differs',
+        { kind: 'differs', baseline: previous },
         !isDeepStrictEqual(actual, previous),
       );
     },
@@ -172,7 +188,7 @@ function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
         name,
         'satisfies the wire contract',
         actual,
-        'contract',
+        { kind: 'contract', exported: contracts.has(schema) },
         parsed.success,
         parsed.success
           ? actual
@@ -210,6 +226,7 @@ async function runCases(
   feature: Feature,
   server: IsolatedServer,
   recorder: Recorder,
+  contracts: ReadonlySet<unknown>,
 ): Promise<CaseEvidence[]> {
   const ids = await fixtureIds(server, recorder);
   const cases: CaseEvidence[] = [];
@@ -236,13 +253,15 @@ async function runCases(
           recorder.phase = phase;
           recorder.provenance.enter();
         },
-        checks: checks(assertions, () => recorder.provenance),
+        checks: checks(assertions, () => recorder.provenance, contracts),
         problems: () => recorder.provenance.problems(),
       });
       if (assertions.length === 0)
         throw new Error('The case made no assertion');
     } catch (error) {
-      evidence.error = message(error);
+      if (error instanceof UnassertedExchanges)
+        evidence.unasserted = message(error);
+      else evidence.error = message(error);
     } finally {
       for (const cleanup of recorder.cleanups) cleanup();
       evidence.serverStderr = server.logs().stderr.slice(stderrFrom);
@@ -250,15 +269,18 @@ async function runCases(
     }
     evidence.assertionCount = assertions.length;
     evidence.passed =
-      evidence.error === undefined && assertions.every((entry) => entry.passed);
+      evidence.error === undefined &&
+      evidence.unasserted === undefined &&
+      assertions.every((entry) => entry.passed);
   }
   return cases;
 }
 
 async function runFeature(
   feature: Feature,
-  evidenceDirectory: string,
+  evidenceFile: string,
   build: string,
+  contracts: ReadonlySet<unknown>,
 ): Promise<FeatureResult> {
   const startedAt = performance.now();
   const recorder = new Recorder();
@@ -268,7 +290,7 @@ async function runFeature(
   try {
     server = await IsolatedServer.start(repositoryRoot, build);
     recorder.secret(server.credential);
-    cases = await runCases(feature, server, recorder);
+    cases = await runCases(feature, server, recorder, contracts);
   } catch (error) {
     setupError = message(error);
   } finally {
@@ -291,6 +313,7 @@ async function runFeature(
     ...unreached.map((reach) => `no case requested ${reach}`),
     ...cases.flatMap((entry) => [
       ...(entry.error ? [`${entry.name}: ${entry.error}`] : []),
+      ...(entry.unasserted ? [`${entry.name}: ${entry.unasserted}`] : []),
       ...entry.assertions
         .filter((assertion) => !assertion.passed)
         .map((assertion) =>
@@ -308,7 +331,19 @@ async function runFeature(
   }));
   const durationMs = Math.round(performance.now() - startedAt);
   const weakAssertions = assertions.filter((entry) => entry.weak).length;
-  const evidencePath = join(evidenceDirectory, `${feature.feature}.json`);
+  const rejection = [
+    ...(setupError ? [`setup: ${setupError}`] : []),
+    ...(cases.length === 0 ? ['no case ran'] : []),
+    ...cases.flatMap((entry) => [
+      ...(entry.error ? [`${entry.name}: ${entry.error}`] : []),
+      ...(entry.assertions.length === 0
+        ? [`${entry.name}: made no assertion`]
+        : []),
+      ...entry.assertions
+        .filter((assertion) => assertion.weak === undefined)
+        .map((assertion) => `${entry.name}: ${assertion.name} counted`),
+    ]),
+  ].map((failure) => recorder.scrub(failure));
   const evidence = recorder.redact({
     feature: feature.feature,
     intent: feature.intent,
@@ -336,7 +371,7 @@ async function runFeature(
     failures.push('evidence withheld: a secret survived redaction');
   }
   await writeFile(
-    evidencePath,
+    evidenceFile,
     leaked
       ? `${JSON.stringify({ feature: feature.feature, passed, failures }, null, 2)}\n`
       : serialized,
@@ -351,7 +386,8 @@ async function runFeature(
     passedAssertions,
     weakAssertions,
     failures,
-    evidence: evidencePath,
+    rejection,
+    evidence: evidenceFile,
     routes: server?.routes ?? [],
     durationMs,
     durations,
@@ -364,18 +400,25 @@ if (process.argv.length !== 3 || !argument) {
   process.exit(2);
 }
 const features = await loadFeatures();
+const negatives = await loadNegatives();
 if (argument === '--list') {
   for (const feature of features)
     process.stdout.write(
       `${feature.feature} (${feature.intent}${feature.paired ? ', paired' : ''}, ${feature.cases.length} cases): ${reachesOf(feature).join(', ')}\n`,
     );
+  for (const negative of negatives)
+    process.stdout.write(
+      `${negative.feature} (negative, ${negative.cases.length} cases): ${reachesOf(negative).join(', ')}\n`,
+    );
   process.exit(0);
 }
-const selected =
+const chosen = (entries: Feature[]) =>
   argument === '--all'
-    ? features
-    : features.filter((feature) => feature.feature === argument);
-if (selected.length === 0) {
+    ? entries
+    : entries.filter((feature) => feature.feature === argument);
+const selected = chosen(features);
+const selectedNegatives = chosen(negatives);
+if (selected.length === 0 && selectedNegatives.length === 0) {
   process.stderr.write(
     `Unknown feature ${argument}; --list shows the known ones.\n${usage}`,
   );
@@ -387,6 +430,7 @@ const evidenceDirectory = await mkdtemp(
 );
 const build = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
 await buildIsolatedServer(build);
+const contracts = await contractSchemas();
 let interrupted = false;
 process.once('SIGINT', () => {
   interrupted = true;
@@ -394,13 +438,35 @@ process.once('SIGINT', () => {
 const results: FeatureResult[] = [];
 for (const feature of selected) {
   if (interrupted) break;
-  const result = await runFeature(feature, evidenceDirectory, build);
+  const result = await runFeature(
+    feature,
+    join(evidenceDirectory, `${feature.feature}.json`),
+    build,
+    contracts,
+  );
   results.push(result);
   process.stdout.write(
     `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases, ${result.durationMs} ms\n`,
   );
   for (const failure of result.failures)
     process.stdout.write(`  - ${failure}\n`);
+}
+const negativeResults: FeatureResult[] = [];
+for (const negative of selectedNegatives) {
+  if (interrupted) break;
+  const result = await runFeature(
+    negative,
+    join(evidenceDirectory, `negative.${negative.feature}.json`),
+    build,
+    contracts,
+  );
+  negativeResults.push(result);
+  const rejected = result.rejection.length === 0;
+  process.stdout.write(
+    `${rejected ? 'REJECTED' : 'FAIL'} negative ${result.feature}: ${result.weakAssertions}/${result.assertions} assertions weak in ${result.cases} cases${rejected ? '' : ', but a negative must have every assertion weak'}\n`,
+  );
+  for (const reason of result.rejection)
+    process.stdout.write(`  - ${reason}\n`);
 }
 const slowest = results
   .flatMap((entry) =>
@@ -413,7 +479,9 @@ for (const timed of slowest)
   process.stdout.write(
     `  ${timed.durationMs} ms  ${timed.feature}: ${timed.case}\n`,
   );
-const registered = results.find((entry) => entry.routes.length > 0)?.routes;
+const registered = [...results, ...negativeResults].find(
+  (entry) => entry.routes.length > 0,
+)?.routes;
 const coverage = registered
   ? routeCoverage(registered, features)
   : { registered: [], unreached: [], unregistered: [] };
@@ -431,7 +499,9 @@ const passed =
   coverage.unreached.length === 0 &&
   coverage.unregistered.length === 0 &&
   results.length === selected.length &&
-  results.every((entry) => entry.passed);
+  results.every((entry) => entry.passed) &&
+  negativeResults.length === selectedNegatives.length &&
+  negativeResults.every((entry) => entry.rejection.length === 0);
 const total = (pick: (entry: FeatureResult) => number) =>
   results.reduce((sum, entry) => sum + pick(entry), 0);
 await writeFile(
@@ -449,8 +519,22 @@ await writeFile(
       slowest,
       routes: coverage,
       results: results.map(
-        ({ routes: _routes, durations: _durations, ...entry }) => entry,
+        ({
+          routes: _routes,
+          durations: _durations,
+          rejection: _rejection,
+          ...entry
+        }) => entry,
       ),
+      negatives: negativeResults.map((entry) => ({
+        feature: entry.feature,
+        rejected: entry.rejection.length === 0,
+        cases: entry.cases,
+        assertions: entry.assertions,
+        weakAssertions: entry.weakAssertions,
+        rejection: entry.rejection,
+        evidence: entry.evidence,
+      })),
     },
     null,
     2,
@@ -458,7 +542,7 @@ await writeFile(
   { mode: 0o600 },
 );
 process.stdout.write(
-  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak, ${coverage.registered.length - coverage.unreached.length}/${coverage.registered.length} routes reached; evidence: ${evidenceDirectory}\n`,
+  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak, ${coverage.registered.length - coverage.unreached.length}/${coverage.registered.length} routes reached, ${negativeResults.filter((entry) => entry.rejection.length === 0).length}/${selectedNegatives.length} negatives rejected; evidence: ${evidenceDirectory}\n`,
 );
 await rm(build, { recursive: true, force: true });
 if (!passed) process.exitCode = 1;

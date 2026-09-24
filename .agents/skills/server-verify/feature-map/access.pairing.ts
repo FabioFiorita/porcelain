@@ -9,12 +9,11 @@ import {
   invalidRequest,
   list,
   record,
-  text,
   type Session,
 } from '../scripts/feature.ts';
 import {
-  deviceCookie,
-  deviceCookieAttributes,
+  credentialForm,
+  deviceCookieForm,
   issuePairing,
   read,
 } from '../scripts/fixture.ts';
@@ -46,7 +45,14 @@ export default defineFeature({
         auth: 'none',
         body: { code, platform: 'iOS' },
       }),
-      async expect({ response, session, check, checkPartial, checkContract }) {
+      async expect({
+        response,
+        session,
+        check,
+        checkPartial,
+        checkContract,
+        checkMatch,
+      }) {
         check('status', 200, response.status);
         checkContract('contract', redeemPairingResponseSchema, response.body);
         const body = record(response.body);
@@ -55,11 +61,7 @@ export default defineFeature({
           { label: 'Phone', platform: 'iOS' },
           body.device,
         );
-        check(
-          'credential is returned',
-          'pcd_',
-          text(body.credential).slice(0, 'pcd_'.length),
-        );
+        checkMatch('credential is returned', credentialForm, body.credential);
         check(
           'no cookie for a native client',
           undefined,
@@ -93,7 +95,7 @@ export default defineFeature({
         headers: { 'x-porcelain-browser': '1' },
         body: { code, platform: 'Browser', label: 'Work laptop' },
       }),
-      expect({ response, check, checkPartial }) {
+      expect({ response, check, checkPartial, checkMatch }) {
         check('status', 200, response.status);
         const body = record(response.body);
         checkPartial(
@@ -102,10 +104,10 @@ export default defineFeature({
           body.device,
         );
         check('no credential in the body', ['device'], Object.keys(body));
-        check(
+        checkMatch(
           'credential is an HttpOnly cookie on /api',
-          { name: 'porcelain_device', attributes: deviceCookieAttributes },
-          deviceCookie(response.headers['set-cookie']),
+          deviceCookieForm,
+          response.headers['set-cookie'],
         );
       },
     }),

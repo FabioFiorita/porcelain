@@ -14,7 +14,13 @@ import {
   unauthenticated,
   type HttpRequest,
 } from '../scripts/feature.ts';
-import { mcpHeaders, pairDevice, read } from '../scripts/fixture.ts';
+import {
+  inventory,
+  mcpHeaders,
+  pairDevice,
+  pairingLinkForm,
+  read,
+} from '../scripts/fixture.ts';
 
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
   ...request,
@@ -74,7 +80,14 @@ export default defineFeature({
           path: '/pairings',
           body: { labels: ['Tablet'], addresses: [session.address] },
         }),
-      async expect({ response, session, check, checkPartial, checkContract }) {
+      async expect({
+        response,
+        session,
+        check,
+        checkPartial,
+        checkContract,
+        checkMatch,
+      }) {
         check('status', 200, response.status);
         checkContract('contract', issuePairingResponseSchema, response.body);
         const grant = record(list(record(response.body).grants)[0]);
@@ -83,10 +96,13 @@ export default defineFeature({
           { label: 'Tablet', addresses: [session.address] },
           grant.grant,
         );
-        check(
+        checkMatch(
           'link opens the pairing page',
-          `${session.address}/pair#c=`,
-          text(grant.link).slice(0, `${session.address}/pair#c=`.length),
+          pairingLinkForm(
+            session.address,
+            text((await inventory(session)).environmentId),
+          ),
+          grant.link,
         );
         const access = await read(
           session,
