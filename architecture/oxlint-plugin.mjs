@@ -361,7 +361,22 @@ const primitiveTypes = new Set([
 ]);
 const portName =
   /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|^Clock)$/;
-const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential)[A-Z]/;
+const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
+const recordingFake = /^Recording[A-Z]/;
+const mutatingMethods = new Set([
+  'set',
+  'add',
+  'delete',
+  'clear',
+  'push',
+  'unshift',
+  'pop',
+  'shift',
+  'splice',
+  'forEach',
+  'assign',
+]);
+const gatingMethods = new Set(['filter', 'find', 'findLast', 'some', 'every']);
 const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
 const camelCase = /^[a-z][A-Za-z0-9]*$/;
 const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
@@ -473,6 +488,70 @@ function memberPath(node) {
     return undefined;
   const object = memberPath(node.object);
   return object && [...object, node.property.name];
+}
+
+function rootedAtThis(node) {
+  let current = node;
+  while (current?.type === 'MemberExpression') current = current.object;
+  return current?.type === 'ThisExpression';
+}
+
+function hasEffect(node, visitorKeys) {
+  if (!node || typeof node.type !== 'string') return false;
+  if (
+    node.type === 'AssignmentExpression' ||
+    node.type === 'UpdateExpression' ||
+    (node.type === 'UnaryExpression' && node.operator === 'delete')
+  )
+    return true;
+  if (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'MemberExpression' &&
+    mutatingMethods.has(memberName(node.callee) ?? '')
+  )
+    return true;
+  return (visitorKeys[node.type] ?? []).some((key) => {
+    const child = node[key];
+    return Array.isArray(child)
+      ? child.some((entry) => hasEffect(entry, visitorKeys))
+      : hasEffect(child, visitorKeys);
+  });
+}
+
+function receiverCalls(call) {
+  const names = [];
+  let current =
+    call.callee.type === 'MemberExpression' ? call.callee.object : undefined;
+  while (current) {
+    if (current.type === 'CallExpression') {
+      if (current.callee.type !== 'MemberExpression') break;
+      names.push(memberName(current.callee));
+      current = current.callee.object;
+    } else if (current.type === 'MemberExpression') current = current.object;
+    else if (current.type === 'ChainExpression') current = current.expression;
+    else break;
+  }
+  return names;
+}
+
+function fromInput(node, context, depth = 0) {
+  if (!node || depth > 8) return false;
+  if (node.type === 'Identifier') {
+    const variable = findVariable(context.sourceCode.getScope(node), node.name);
+    const definition = variable?.defs[0];
+    if (definition?.type === 'Parameter') return true;
+    return (
+      definition?.type === 'Variable' &&
+      fromInput(definition.node.init, context, depth + 1)
+    );
+  }
+  if (node.type === 'ThisExpression') return false;
+  return (context.sourceCode.visitorKeys[node.type] ?? []).some((key) => {
+    const child = node[key];
+    return Array.isArray(child)
+      ? child.some((entry) => fromInput(entry, context, depth + 1))
+      : fromInput(child, context, depth + 1);
+  });
 }
 
 function globalReferences(context, program, names) {
@@ -1992,7 +2071,7 @@ export default {
             context.report({
               node: node.id,
               message:
-                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>.',
+                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>; Recording<Port> only for a port that answers nothing back.',
             });
         };
         const checkField = (node, name) => {
@@ -2119,12 +2198,18 @@ export default {
       create(context) {
         const fake = fakeFile.test(repositoryPath(context));
         if (!fake && !isSpec(context)) return {};
+        const visitorKeys = context.sourceCode.visitorKeys;
         const portClasses = [];
+        const classes = [];
         const inFake = () => fake || portClasses.length > 0;
+        const recorder = () =>
+          recordingFake.test(classes.at(-1)?.id?.name ?? '');
         const enter = (node) => {
+          classes.push(node);
           if ((node.implements ?? []).length > 0) portClasses.push(node);
         };
         const leave = (node) => {
+          if (classes.at(-1) === node) classes.pop();
           if (portClasses.at(-1) === node) portClasses.pop();
         };
         const report = (node, message) => {
@@ -2133,10 +2218,13 @@ export default {
         const decision =
           'A fake stores and returns; a decision belongs in rules/ and the port gets simpler.';
         const recording =
-          'A fake stores state, it never records calls; assert through what the port reads back.';
+          'A fake stores state, it never records calls; assert through what the port reads back, or name it Recording<Port> when the port answers nothing back.';
+        const records = (node) => {
+          if (!recorder()) report(node, recording);
+        };
         const decides = (node) => report(node, decision);
         const onField = (node) =>
-          node?.type === 'MemberExpression' && memberPath(node)?.[0] === 'this';
+          node?.type === 'MemberExpression' && rootedAtThis(node);
         return {
           ClassDeclaration: enter,
           ClassExpression: enter,
@@ -2150,6 +2238,17 @@ export default {
           WhileStatement: decides,
           DoWhileStatement: decides,
           ConditionalExpression: decides,
+          LogicalExpression(node) {
+            if (
+              node.parent?.type === 'ExpressionStatement' ||
+              hasEffect(node.left, visitorKeys) ||
+              hasEffect(node.right, visitorKeys)
+            )
+              report(
+                node,
+                'A fake stores and returns; &&, || and ?? that choose whether something is stored are an if, and a decision belongs in rules/.',
+              );
+          },
           ThrowStatement(node) {
             report(
               node,
@@ -2157,8 +2256,9 @@ export default {
             );
           },
           AssignmentExpression(node) {
+            if (['&&=', '||=', '??='].includes(node.operator)) decides(node);
             if (!onField(node.left)) return;
-            if (node.operator !== '=') report(node, recording);
+            if (node.operator !== '=') records(node);
             const appended =
               node.right.type === 'ArrayExpression' &&
               node.right.elements.some(
@@ -2168,11 +2268,9 @@ export default {
                   context.sourceCode.getText(element.argument) ===
                     context.sourceCode.getText(node.left),
               );
-            if (appended) report(node, recording);
+            if (appended) records(node);
           },
-          UpdateExpression(node) {
-            if (onField(node.argument)) report(node, recording);
-          },
+          UpdateExpression: records,
           PropertyDefinition(node) {
             if (!node.static && !node.readonly && !isPrivateMember(node))
               report(
@@ -2189,7 +2287,25 @@ export default {
               (name === 'push' || name === 'unshift') &&
               node.callee.object.type === 'MemberExpression'
             )
-              report(node, recording);
+              records(node);
+            if (
+              (name === 'set' || name === 'add') &&
+              onField(node.callee.object) &&
+              !fromInput(node.arguments[0], context)
+            )
+              records(node);
+            const gated = receiverCalls(node).some((call) =>
+              gatingMethods.has(call ?? ''),
+            );
+            if (
+              gated &&
+              (name === 'forEach' ||
+                node.parent?.type === 'ExpressionStatement')
+            )
+              report(
+                node,
+                'A fake stores and returns; a filter that decides whether to store is an if. Keep the change as its own stored state and compose it when the port reads.',
+              );
             if (memberPath(node.callee)?.join('.') === 'Promise.reject')
               report(
                 node,

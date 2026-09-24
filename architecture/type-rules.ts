@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import {
   API,
+  SignatureKind,
   TypeFlags,
   type Checker,
   type Project,
@@ -34,6 +35,8 @@ export type TypeFinding = { rule: string; from: string; to: string };
 
 const absence = TypeFlags.Undefined | TypeFlags.Null | TypeFlags.Void;
 const writingPort = /(?:Store|Writer|Runner)$/;
+const fakeFile = /\/(?:packages\/[^/]+|apps\/server)\/spec\/fakes\/.+\.ts$/;
+const recordingFake = /^Recording[A-Z]/;
 const readingMethod =
   /^(?:read|list|find|count|by|seen|latest|last)(?:[A-Z]|$)/;
 const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
@@ -214,6 +217,58 @@ function writes(project: Project, declaration: Node): boolean {
   });
 }
 
+function answersNothing(project: Project, port: Type): boolean {
+  const { checker } = project;
+  return checker.getPropertiesOfType(port).every((member) => {
+    const type = checker.getTypeOfSymbol(member);
+    const signatures = type
+      ? checker.getSignaturesOfType(type, SignatureKind.Call)
+      : [];
+    return (
+      signatures.length > 0 &&
+      signatures.every((signature) => {
+        const returned = checker.getReturnTypeOfSignature(signature);
+        return (
+          returned !== undefined &&
+          (awaitedType(returned, checker).flags & TypeFlags.Void) !== 0
+        );
+      })
+    );
+  });
+}
+
+function recordingFindings(
+  root: string,
+  project: Project,
+  file: SourceFile,
+): TypeFinding[] {
+  const { checker } = project;
+  return file.statements
+    .filter(isClassDeclaration)
+    .filter(
+      (declaration) =>
+        declaration.name !== undefined &&
+        recordingFake.test(declaration.name.text),
+    )
+    .flatMap((declaration) => {
+      const ports = (declaration.heritageClauses ?? []).flatMap((clause) =>
+        clause.types.map((type) => checker.getTypeAtLocation(type)),
+      );
+      const answered =
+        ports.length === 0 ||
+        ports.some((port) => !port || !answersNothing(project, port));
+      return answered
+        ? [
+            {
+              rule: 'recording-fake-for-write-only-port',
+              from: where(root, declaration),
+              to: `${declaration.name?.text ?? ''}: a Recording fake implements only ports whose methods answer nothing back; a port with a read-back gets an InMemory fake read through that port`,
+            },
+          ]
+        : [];
+    });
+}
+
 function laneOf(call: Node, callback: Node): Lane | undefined {
   if (!isCallExpression(call) || !isPropertyAccessExpression(call.expression))
     return undefined;
@@ -346,6 +401,11 @@ export function typeRuleFindings(root: string): TypeFinding[] {
         if (!inServer && checked.has(name)) continue;
         const file = project.program.getSourceFile(name);
         if (!file || isSpecFile(file)) continue;
+        if (fakeFile.test(name) && !checked.has(name)) {
+          checked.add(name);
+          findings.push(...recordingFindings(root, project, file));
+          continue;
+        }
         if (inServer) {
           if (useCaseFile.test(name))
             findings.push(...laneFindings(root, project, file, writerCache));

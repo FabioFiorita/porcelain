@@ -15,6 +15,7 @@ function rowKey(worktreeId: string, path: string): string {
 
 export class InMemoryReviewedFileStore implements ReviewedFileStore {
   private readonly rows: Map<string, Row>;
+  private readonly staleness = new Map<string, boolean>();
 
   constructor(rows: readonly Row[] = []) {
     this.rows = new Map(
@@ -28,7 +29,12 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   list(input: WorktreeKey): ReviewedFileMark[] {
     return [...this.rows.values()]
       .filter((row) => row.worktreeId === input.worktreeId)
-      .map((row) => ({ ...row.mark }))
+      .map((row) => ({
+        ...row.mark,
+        stale:
+          this.staleness.get(rowKey(row.worktreeId, row.mark.path)) ??
+          row.mark.stale,
+      }))
       .sort(
         (left, right) =>
           Number(left.path > right.path) - Number(left.path < right.path),
@@ -36,29 +42,25 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
   }
 
   save(input: ReviewedFileSave): void {
-    input.marks.forEach((mark) =>
+    input.marks.forEach((mark) => {
       this.rows.set(rowKey(input.worktreeId, mark.path), {
         worktreeId: input.worktreeId,
         mark: { ...mark },
-      }),
-    );
+      });
+      this.staleness.delete(rowKey(input.worktreeId, mark.path));
+    });
   }
 
   remove(input: ReviewedFileRemoval): void {
-    input.paths.forEach((path) =>
-      this.rows.delete(rowKey(input.worktreeId, path)),
-    );
+    input.paths.forEach((path) => {
+      this.rows.delete(rowKey(input.worktreeId, path));
+      this.staleness.delete(rowKey(input.worktreeId, path));
+    });
   }
 
   setStale(input: ReviewedFileStaleness): void {
-    input.paths
-      .map((path) => this.rows.get(rowKey(input.worktreeId, path)))
-      .filter((row) => row !== undefined)
-      .forEach((row) =>
-        this.rows.set(rowKey(row.worktreeId, row.mark.path), {
-          worktreeId: row.worktreeId,
-          mark: { ...row.mark, stale: input.stale },
-        }),
-      );
+    input.paths.forEach((path) =>
+      this.staleness.set(rowKey(input.worktreeId, path), input.stale),
+    );
   }
 }
