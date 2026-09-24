@@ -3,7 +3,8 @@ import type { CommandRunner } from './command-runner.ts';
 import type { ServicePaths } from './paths.ts';
 import { runtimeEntryPoint } from './persistent-runtime.ts';
 import type { ServiceConfiguration } from './records.ts';
-import { waitForHealthyService, type OwnerProbe } from './service-health.ts';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
+import { waitForHealthyService } from './service-health.ts';
 import type { SystemdService } from './systemd-service.ts';
 import type { ServicePlan } from './systemd-unit.ts';
 

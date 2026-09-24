@@ -36,7 +36,7 @@ import {
   createReviewStore,
 } from '@porcelain/storage/reviews';
 import type { LiveUpdatesLimits } from '../adapters/events/web-socket-event-publisher.ts';
-import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { EventPublisher } from '../ports/event-publisher.ts';
 import { ChangeDiffAdapter } from '../adapters/reviews/change-diff-adapter.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';

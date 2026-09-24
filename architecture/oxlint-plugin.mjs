@@ -7,7 +7,7 @@ const domainModule = new RegExp(
 );
 const useCaseSource = /\/apps\/server\/src\/use-cases\//;
 const modelsSource =
-  /\/packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/.+)\.ts$/;
+  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/.+)|apps\/server\/src\/ports\/[^/]+)\.ts$/;
 const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
@@ -522,7 +522,7 @@ export default {
             const source = node.source.value;
             if (
               typeof source === 'string' &&
-              /^\.\.\/\.\.\/runtime\/[^/]+\.ts$/.test(source)
+              /^\.\.\/\.\.\/(?:runtime|ports)\/[^/]+\.ts$/.test(source)
             )
               return;
             if (
@@ -541,7 +541,7 @@ export default {
             context.report({
               node,
               message:
-                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> and ../../runtime/<file>.',
+                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain>, ../../runtime/<file> and ../../ports/<file>.',
             });
           },
           ExportNamedDeclaration(node) {

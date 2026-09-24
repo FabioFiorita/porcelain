@@ -80,8 +80,8 @@ export const requiredServerFiles: readonly string[] = [
   'apps/server/src/runtime/shared-reads.ts',
   'apps/server/src/runtime/launch-limit.ts',
   'apps/server/src/runtime/lane-keys.ts',
-  'apps/server/src/runtime/event-publisher.ts',
   'apps/server/src/runtime/operation-context.ts',
+  'apps/server/src/ports/event-publisher.ts',
 ];
 
 export type Role =
@@ -105,6 +105,7 @@ export type Role =
   | 'gateway-api'
   | 'gateway'
   | 'runtime'
+  | 'server-port'
   | 'bootstrap'
   | 'contract'
   | 'config'
@@ -229,6 +230,7 @@ function classifyServer(inside: string) {
   if (inside.startsWith('jobs/')) return classified('transport', owner);
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
   if (inside.startsWith('runtime/')) return classified('runtime', owner);
+  if (inside.startsWith('ports/')) return classified('server-port', owner);
   if (inside.startsWith('adapters/')) return classified('gateway', owner);
   if (inside === 'installer/index.ts')
     return classified('installer-api', owner);
@@ -294,6 +296,7 @@ const everything: readonly Role[] = [
   'gateway-api',
   'gateway',
   'runtime',
+  'server-port',
   'bootstrap',
   'contract',
   'config',
@@ -306,6 +309,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'transport',
     'status-policy',
     'use-case',
+    'server-port',
     'contract',
     'config',
   ]),
@@ -316,8 +320,9 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'kernel',
     'contract',
     'runtime',
+    'server-port',
   ]),
-  installer: new Set(['installer', 'config']),
+  installer: new Set(['installer', 'server-port', 'config']),
   'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),
   'rule-api': new Set(['rule']),
@@ -360,10 +365,12 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'port-api',
     'model-api',
     'runtime',
+    'server-port',
     'config',
   ]),
   'gateway-api': new Set(['gateway']),
   runtime: new Set(['kernel', 'runtime', 'model-api', 'config']),
+  'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set(everything),
   contract: new Set(['contract']),
   config: new Set(['config']),
@@ -375,6 +382,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'model',
     'model-api',
     'runtime',
+    'server-port',
     'fake',
   ]),
   test: new Set([...everything, 'fake', 'test']),
@@ -423,6 +431,7 @@ const typedRoles = new Set<Role>([
   ...domainInternal,
   ...domainApiRoles,
   'use-case',
+  'server-port',
 ]);
 const boundaryRoles = new Set<Role>([
   'transport',

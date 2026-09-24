@@ -48,7 +48,7 @@ import { RemoveProjectUseCase } from '../use-cases/projects/remove-project.ts';
 import { RenameProjectUseCase } from '../use-cases/projects/rename-project.ts';
 import { ResolveWorktreeByPathUseCase } from '../use-cases/projects/resolve-worktree-by-path.ts';
 import { SetFilePreferenceUseCase } from '../use-cases/projects/set-file-preference.ts';
-import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { EventPublisher } from '../ports/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 

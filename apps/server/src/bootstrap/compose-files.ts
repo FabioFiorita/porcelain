@@ -20,7 +20,7 @@ import { ListWorktreePathsUseCase } from '../use-cases/files/list-worktree-paths
 import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
-import type { EventPublisher } from '../runtime/event-publisher.ts';
+import type { EventPublisher } from '../ports/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 

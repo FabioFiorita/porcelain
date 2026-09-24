@@ -1,14 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
-
-export type OwnerProbeResult =
-  | { kind: 'running'; status: { pid: number; dataDirectory: string } }
-  | { kind: 'absent' }
-  | { kind: 'unreadable'; reason: string };
-
-export type OwnerProbe = (
-  socketPath: string,
-  timeoutMs: number,
-) => Promise<OwnerProbeResult>;
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 
 const attempts = 60;
 const probeTimeoutMs = 500;

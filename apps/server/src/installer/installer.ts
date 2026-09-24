@@ -10,7 +10,7 @@ import {
 import { acquireManagementLock } from './management-lock.ts';
 import { servicePaths } from './paths.ts';
 import { serviceSearchPath } from './search-path.ts';
-import type { OwnerProbe } from './service-health.ts';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { readServiceStatus, type ServiceStatus } from './status.ts';
 import { SystemdService } from './systemd-service.ts';
 import { uninstall } from './uninstall.ts';

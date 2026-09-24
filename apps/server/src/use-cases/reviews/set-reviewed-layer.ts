@@ -9,7 +9,7 @@ import type {
   ReadReviewFilesService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../runtime/event-publisher.ts';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';

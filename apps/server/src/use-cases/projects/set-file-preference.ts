@@ -4,7 +4,7 @@ import type {
   SetFilePreferenceResponse,
 } from '@porcelain/contracts/projects';
 import type { SetFilePreferenceService } from '@porcelain/projects/services';
-import type { EventPublisher } from '../../runtime/event-publisher.ts';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 

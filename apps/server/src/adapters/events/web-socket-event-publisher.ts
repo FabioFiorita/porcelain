@@ -10,7 +10,7 @@ import type {
   ListedWorktree,
 } from '@porcelain/projects/models';
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
-import type { EventPublisher } from '../../runtime/event-publisher.ts';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 type ParcelWatcher = Pick<typeof parcelWatcher, 'subscribe'>;
