@@ -8,6 +8,7 @@ import * as gitActions from '@porcelain/git/actions';
 import * as gitDiscovery from '@porcelain/git/discovery';
 import * as gitHistory from '@porcelain/git/history';
 import * as gitInspection from '@porcelain/git/inspection';
+import * as kernelErrors from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import { toStatusResponse } from './status-policy.ts';
 
@@ -22,6 +23,7 @@ const domainErrors: Record<string, Record<string, unknown>> = {
   'git/discovery': gitDiscovery,
   'git/history': gitHistory,
   'git/inspection': gitInspection,
+  kernel: kernelErrors,
 };
 
 function withoutConstructing(value: unknown): unknown[] {

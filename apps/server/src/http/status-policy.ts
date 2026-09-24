@@ -61,6 +61,7 @@ import {
   GitTimeoutError,
   InspectionLimitError,
   InvalidGitDiffError,
+  InvalidGitStatusError,
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
 } from '@porcelain/git/inspection';
@@ -278,7 +279,7 @@ const rules: readonly StatusRule[] = [
     message: 'History contains unsupported data',
   },
   {
-    errors: [InvalidGitDiffError],
+    errors: [InvalidGitDiffError, InvalidGitStatusError],
     statusCode: 502,
     message: 'Git produced output that could not be read',
   },

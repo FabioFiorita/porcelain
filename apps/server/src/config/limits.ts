@@ -91,6 +91,7 @@ export type Limits = {
     maxConnections: number;
     maxWatchedWorktrees: number;
     burstMs: number;
+    announcedEditMs: number;
     heartbeatMs: number;
     pingMs: number;
     messageBytes: number;
@@ -195,6 +196,7 @@ export const LIMITS: Limits = {
     maxConnections: 64,
     maxWatchedWorktrees: 64,
     burstMs: 150,
+    announcedEditMs: 300,
     heartbeatMs: 25 * SECOND_MS,
     pingMs: 30 * SECOND_MS,
     messageBytes: 64 * KIBIBYTE,

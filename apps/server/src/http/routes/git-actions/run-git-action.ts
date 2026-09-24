@@ -16,7 +16,7 @@ export function runGitAction(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
-    '/projects/:projectId/worktrees/:worktreeId/git/actions',
+    '/worktrees/:worktreeId/git/actions',
     {
       schema: {
         params: gitActionScopeSchema,

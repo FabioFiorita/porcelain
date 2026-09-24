@@ -1,5 +1,4 @@
 export { BrowseProjectFoldersService } from './browse-project-folders-service.ts';
-export { CheckProjectService } from './check-project-service.ts';
 export { CheckWorktreeService } from './check-worktree-service.ts';
 export { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
 export { DiscoverProjectsService } from './discover-projects-service.ts';

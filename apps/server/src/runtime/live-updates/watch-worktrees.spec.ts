@@ -40,7 +40,7 @@ function subject(
     events,
     watcher,
     { failure: () => undefined },
-    { ...limits, burstMs: 1 },
+    { ...limits, burstMs: 1, announcedEditMs: 50 },
   );
   const open = () => {
     const opened = watches.open();
@@ -103,6 +103,36 @@ describe('WatchWorktrees', () => {
     await settle();
     expect(marks.marksOf('one')).toEqual(['src/c.ts']);
     expect(events.announcedFiles('one')).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+
+  it('skips a changed path that an edit already announced, and still announces the others', async () => {
+    const { watches, follow, watcher, events, marks } = subject();
+    await follow([], [wish('one')]);
+    watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
+    watcher.changeFiles('one', ['src/a.ts', 'src/b.ts']);
+    await settle();
+    expect(events.announcedFiles('one')).toEqual(['src/b.ts']);
+    expect(marks.marksOf('one')).toEqual(['src/a.ts', 'src/c.ts']);
+  });
+
+  it('reacts to nothing when every changed path was already announced by an edit', async () => {
+    const { watches, follow, watcher, events, marks } = subject();
+    await follow([], [wish('one')]);
+    watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
+    watcher.changeFiles('one', ['src/a.ts']);
+    await settle();
+    expect(events.announcedFiles('one')).toBeUndefined();
+    expect(marks.marksOf('one')).toEqual(MARKED);
+  });
+
+  it('reacts to a change of an announced path once the announcement has expired', async () => {
+    const { watches, follow, watcher, events } = subject();
+    await follow([], [wish('one')]);
+    watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
+    await settle(80);
+    watcher.changeFiles('one', ['src/a.ts']);
+    await settle();
+    expect(events.announcedFiles('one')).toEqual(['src/a.ts']);
   });
 
   it('announces a repository change to every watched worktree of the project and refreshes the inventory', async () => {

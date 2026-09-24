@@ -13,7 +13,7 @@ export function readGitActionReceipt(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
-    '/git-action-requests/:requestId',
+    '/worktrees/:worktreeId/git/receipts/:requestId',
     {
       schema: {
         params: readGitActionReceiptParamsSchema,

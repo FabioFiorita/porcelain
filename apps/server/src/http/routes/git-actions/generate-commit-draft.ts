@@ -14,7 +14,7 @@ export function generateCommitDraft(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
-    '/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
+    '/worktrees/:worktreeId/git/commit-draft',
     {
       schema: {
         params: gitActionScopeSchema,

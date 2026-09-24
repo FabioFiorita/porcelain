@@ -13,7 +13,7 @@ describe('ReadGitActionReceiptService', () => {
     });
     const view = new ReadGitActionReceiptService(
       new InMemoryGitActionReceiptStore([receipt]),
-    ).execute({ requestId: receipt.requestId });
+    ).execute({ worktreeId: receipt.worktreeId, requestId: receipt.requestId });
     expect(view).toEqual({
       requestId: receipt.requestId,
       projectId: receipt.projectId,
@@ -32,8 +32,18 @@ describe('ReadGitActionReceiptService', () => {
       new ReadGitActionReceiptService(
         new InMemoryGitActionReceiptStore(),
       ).execute({
+        worktreeId: sampleReceipt().worktreeId,
         requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
       }),
+    ).toThrow(GitActionNotFoundError);
+  });
+
+  it("does not show another worktree's receipt", () => {
+    const receipt = sampleReceipt();
+    expect(() =>
+      new ReadGitActionReceiptService(
+        new InMemoryGitActionReceiptStore([receipt]),
+      ).execute({ worktreeId: 'f'.repeat(64), requestId: receipt.requestId }),
     ).toThrow(GitActionNotFoundError);
   });
 });

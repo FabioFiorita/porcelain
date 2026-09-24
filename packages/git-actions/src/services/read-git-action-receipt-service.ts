@@ -17,7 +17,8 @@ export class ReadGitActionReceiptService {
     const receipt = this.gitActionReceipts.read({
       requestId: input.requestId,
     });
-    if (!receipt) throw new GitActionNotFoundError();
+    if (!receipt || receipt.worktreeId !== input.worktreeId)
+      throw new GitActionNotFoundError();
     return gitActionReceiptView(receipt);
   }
 }

@@ -8,6 +8,7 @@ export type WorktreeEntry =
   | { kind: 'file'; digest: string; stamp: string }
   | { kind: 'symlink'; target: string; stamp: string }
   | { kind: 'too-large' }
+  | { kind: 'unreadable' }
   | { kind: 'other' };
 
 export type WorktreeEntriesRequest = {

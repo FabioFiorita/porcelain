@@ -18,8 +18,9 @@ export function worktreePath(session: Session, suffix = '') {
   return `/api/worktrees/${session.worktreeId}${suffix}`;
 }
 
-export const gitRoute = '/api/projects/:projectId/worktrees/:worktreeId/git';
-export const receiptRoute = '/api/git-action-requests/:requestId';
+export const gitRoute = '/api/worktrees/:worktreeId/git';
+export const receiptRoute =
+  '/api/worktrees/:worktreeId/git/receipts/:requestId';
 
 function fill(template: string, values: Record<string, string>) {
   return template.replace(
@@ -31,20 +32,19 @@ function fill(template: string, values: Record<string, string>) {
 export function gitPath(
   session: Session,
   suffix: string,
-  ids: { projectId?: string; worktreeId?: string } = {},
+  ids: { worktreeId?: string } = {},
 ) {
   return `${fill(gitRoute, {
-    projectId: ids.projectId ?? session.projectId,
     worktreeId: ids.worktreeId ?? session.worktreeId,
   })}${suffix}`;
 }
 
-export function receiptPath(session: Session, requestId: string) {
-  return fill(receiptRoute, {
-    projectId: session.projectId,
-    worktreeId: session.worktreeId,
-    requestId,
-  });
+export function receiptPath(
+  session: Session,
+  requestId: string,
+  worktreeId = session.worktreeId,
+) {
+  return fill(receiptRoute, { worktreeId, requestId });
 }
 
 export async function read(

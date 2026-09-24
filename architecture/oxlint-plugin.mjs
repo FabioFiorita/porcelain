@@ -21,6 +21,7 @@ const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
 const pageSource = /-page\.ts$/;
+const mcpSource = /\/apps\/server\/src\/http\/mcp\/[^/]+\.ts$/;
 const pageReplyMethods = new Set(['header', 'type']);
 const parseMethods = new Set([
   'parse',
@@ -938,6 +939,56 @@ export default {
                         'Declare no route-level hooks or handlers; access and caching live in the scope.',
                     });
               }
+          },
+        };
+      },
+    },
+    'mcp-tool-handler': {
+      create(context) {
+        if (!mcpSource.test(normalizedFilename(context.filename))) return {};
+        const handlers = [];
+        return {
+          CallExpression(node) {
+            const callee = node.callee;
+            if (
+              callee.type === 'MemberExpression' &&
+              propertyName(callee, context) === 'registerTool'
+            ) {
+              const handler = node.arguments[2];
+              if (!isFunction(handler)) {
+                context.report({
+                  node,
+                  message: 'Register an MCP tool as (name, options, handler).',
+                });
+                return;
+              }
+              handlers.push({ node, handler, executes: 0 });
+              return;
+            }
+            const path = memberPath(callee);
+            if (path?.[0] !== 'useCases') return;
+            const current = handlers.find((entry) =>
+              within(node, entry.handler),
+            );
+            if (!current) return;
+            if (path.at(-1) === 'execute') current.executes += 1;
+            else
+              context.report({
+                node,
+                message:
+                  'An MCP tool handler calls only execute on its use case.',
+              });
+          },
+          'CallExpression:exit'(node) {
+            const index = handlers.findIndex((entry) => entry.node === node);
+            if (index === -1) return;
+            const [entry] = handlers.splice(index, 1);
+            if (entry.executes !== 1)
+              context.report({
+                node: entry.handler,
+                message:
+                  'An MCP tool handler calls one use case once; a sequence of use cases belongs in one use case.',
+              });
           },
         };
       },

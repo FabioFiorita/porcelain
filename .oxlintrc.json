@@ -25,6 +25,7 @@
     "porcelain/operation-class-members": "error",
     "porcelain/feature-route-registrations": "error",
     "porcelain/feature-route-handler": "error",
+    "porcelain/mcp-tool-handler": "error",
     "porcelain/no-schema-parse-aliases": "error",
     "porcelain/no-loose-equality-in-domain": "error",
     "porcelain/no-node-globals": "error",

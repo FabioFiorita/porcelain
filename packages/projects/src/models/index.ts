@@ -3,7 +3,6 @@ export type {
   BrowseProjectFoldersOptions,
   BrowseProjectFoldersResult,
 } from './browse-project-folders.ts';
-export type { CheckProjectInput, CheckProjectResult } from './check-project.ts';
 export type {
   CheckWorktreeInput,
   CheckWorktreeResult,

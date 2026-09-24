@@ -1,4 +1,8 @@
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
+import type {
+  AnnouncedEdit,
+  AnnouncedEditStore,
+} from '../../ports/announced-edit-store.ts';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type {
   FollowedTargets,
@@ -20,6 +24,7 @@ export type WatchWorktreesOptions = {
   maxConnections: number;
   maxWatchedWorktrees: number;
   burstMs: number;
+  announcedEditMs: number;
 };
 
 export type ReviewedMarksInvalidation = {
@@ -50,6 +55,7 @@ type WorktreeEntry = {
   watch: FileWatch | undefined;
   demands: Map<Demand, ReadonlySet<string>>;
   pendingPaths: Set<string>;
+  announcedPaths: Map<string, number>;
   timer: NodeJS.Timeout | undefined;
 };
 
@@ -66,7 +72,7 @@ function changesIgnoreRules(path: string): boolean {
   return path === '.gitignore' || path.endsWith('/.gitignore');
 }
 
-export class WatchWorktrees {
+export class WatchWorktrees implements AnnouncedEditStore {
   private readonly invalidateReviewedMarks: ReviewedMarksInvalidation;
   private readonly refreshInventory: JobWork;
   private readonly events: EventPublisher;
@@ -114,6 +120,21 @@ export class WatchWorktrees {
       ...projects.map((entry) => this.stopProject(entry)),
       ...this.pendingStops,
     ]);
+  }
+
+  save(input: AnnouncedEdit): void {
+    const entry = this.worktrees.get(input.worktreeId);
+    if (!entry) return;
+    for (const path of input.paths)
+      entry.announcedPaths.set(path, (entry.announcedPaths.get(path) ?? 0) + 1);
+    const expiry = setTimeout(() => {
+      for (const path of input.paths) {
+        const remaining = (entry.announcedPaths.get(path) ?? 1) - 1;
+        if (remaining > 0) entry.announcedPaths.set(path, remaining);
+        else entry.announcedPaths.delete(path);
+      }
+    }, this.options.announcedEditMs);
+    expiry.unref();
   }
 
   open(): OpenedWatch {
@@ -226,6 +247,7 @@ export class WatchWorktrees {
       watch: undefined,
       demands: new Map(),
       pendingPaths: new Set(),
+      announcedPaths: new Map(),
       timer: undefined,
     };
     entry.watch = await this.watcher.watchFiles({
@@ -269,13 +291,15 @@ export class WatchWorktrees {
     if (entry.timer) return;
     entry.timer = setTimeout(() => {
       entry.timer = undefined;
-      const changed = [...entry.pendingPaths];
+      const pending = [...entry.pendingPaths];
       entry.pendingPaths.clear();
+      const changed = pending.filter((path) => !entry.announcedPaths.has(path));
       const { worktreeId } = entry.worktree;
-      this.pathsChanged(worktreeId, changed, () =>
-        this.events.filesChanged({ worktreeId, paths: changed }),
-      );
-      if (changed.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
+      if (pending.length === 0 || changed.length > 0)
+        this.pathsChanged(worktreeId, changed, () =>
+          this.events.filesChanged({ worktreeId, paths: changed }),
+        );
+      if (pending.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
     }, this.options.burstMs);
     entry.timer.unref();
   }

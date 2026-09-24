@@ -17,7 +17,6 @@ import {
   RecoverInterruptedGitActionsService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
-import { CheckProjectService } from '@porcelain/projects/services';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
 import { GitGitActionRunner } from '../adapters/git-actions/git-git-action-runner.ts';
 import { GitBranchReader } from '../adapters/git-actions/git-branch-reader.ts';
@@ -48,7 +47,6 @@ export function composeGitActions(
   const limits = context.settings.limits.gitActions;
   const { stores, shared } = dependencies;
   const store = stores.gitActions;
-  const checkProject = new CheckProjectService(stores.inventory);
   const expireGitActionReceipts = new ExpireGitActionReceiptsService(
     store,
     clock,
@@ -56,7 +54,6 @@ export function composeGitActions(
   );
   return {
     runGitAction: new RunGitActionUseCase(
-      checkProject,
       shared.checkWorktree,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
@@ -83,13 +80,13 @@ export function composeGitActions(
       laneKeys,
     ),
     dismissInterruptedGitAction: new DismissInterruptedGitActionUseCase(
+      shared.checkWorktree,
       new DismissInterruptedGitActionService(store, clock),
       lanes,
       laneKeys,
       events,
     ),
     listGitBranches: new ListGitBranchesUseCase(
-      checkProject,
       shared.checkWorktree,
       new ListGitBranchesService(
         new GitBranchReader(shared.worktreeAccess, shared.actionGit),
@@ -103,7 +100,6 @@ export function composeGitActions(
       { deadlineMs: limits.processDeadlineMs },
     ),
     generateCommitDraft: new GenerateCommitDraftUseCase(
-      checkProject,
       shared.checkWorktree,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,

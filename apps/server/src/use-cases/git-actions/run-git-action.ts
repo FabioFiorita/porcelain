@@ -17,10 +17,7 @@ import type {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { FileChange, Worktree } from '@porcelain/kernel/models';
-import type {
-  CheckProjectService,
-  CheckWorktreeService,
-} from '@porcelain/projects/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
   ReadPublishedReviewService,
   ReadReviewEvidenceService,
@@ -35,7 +32,6 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export type RunGitActionOptions = { deadlineMs: number };
 
 export class RunGitActionUseCase {
-  private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
   private readonly expireGitActionReceipts: ExpireGitActionReceiptsService;
   private readonly acceptGitAction: AcceptGitActionService;
@@ -55,7 +51,6 @@ export class RunGitActionUseCase {
   private readonly options: RunGitActionOptions;
 
   constructor(
-    checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
     expireGitActionReceipts: ExpireGitActionReceiptsService,
     acceptGitAction: AcceptGitActionService,
@@ -74,7 +69,6 @@ export class RunGitActionUseCase {
     logger: Logger,
     options: RunGitActionOptions,
   ) {
-    this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
     this.expireGitActionReceipts = expireGitActionReceipts;
     this.acceptGitAction = acceptGitAction;
@@ -98,13 +92,13 @@ export class RunGitActionUseCase {
     input: GitActionScope & RunGitActionRequest,
     context: OperationContext,
   ): Promise<RunGitActionResponse> {
-    const { projectId, worktreeId } = input;
+    const { worktreeId } = input;
     const { upstreamOid, ...expected } = input.expected;
-    this.checkProject.execute({ projectId });
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, projectId, purpose: 'writing' },
+      { worktreeId, purpose: 'writing' },
       context.signal,
     );
+    const { projectId } = worktree;
     const accepted = await this.lanes.run(
       this.laneKeys.inventory(),
       'write',

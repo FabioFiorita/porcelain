@@ -15,10 +15,14 @@ import { ListWorktreePathsUseCase } from '../use-cases/files/list-worktree-paths
 import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
+import type { AnnouncedEditStore } from '../ports/announced-edit-store.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 
-export type FilesDependencies = { shared: Shared };
+export type FilesDependencies = {
+  shared: Shared;
+  announcedEdits: AnnouncedEditStore;
+};
 
 export function composeFiles(
   context: ComposeContext,
@@ -67,6 +71,7 @@ export function composeFiles(
       lanes,
       laneKeys,
       events,
+      dependencies.announcedEdits,
     ),
     listWorktreePaths: new ListWorktreePathsUseCase(
       checkWorktree,

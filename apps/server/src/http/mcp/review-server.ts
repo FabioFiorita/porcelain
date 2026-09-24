@@ -14,27 +14,32 @@ import {
   resolveCommentToolRequestSchema,
 } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
+import type {
+  AtWorktreePathUseCase,
+  WorktreeOperation,
+} from '../../use-cases/reviews/at-worktree-path.ts';
 import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
 import type { ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
 import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
 import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
 import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
-import type { FindWorktreeByPathUseCase } from '../../use-cases/projects/find-worktree-by-path.ts';
 import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 
+type AtPath<Operation extends WorktreeOperation> = Pick<
+  AtWorktreePathUseCase<Operation>,
+  'execute'
+>;
+
 export type ReviewMcpUseCases = {
-  projects: {
-    findWorktreeByPath: Pick<FindWorktreeByPathUseCase, 'execute'>;
-  };
   reviews: {
-    createCommentThread: Pick<CreateCommentThreadUseCase, 'execute'>;
-    listCommentThreads: Pick<ListCommentThreadsUseCase, 'execute'>;
-    publishReview: Pick<PublishReviewUseCase, 'execute'>;
-    readPublishedReview: Pick<ReadPublishedReviewUseCase, 'execute'>;
-    replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
-    updateCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
+    createCommentThreadAtPath: AtPath<CreateCommentThreadUseCase>;
+    listCommentThreadsAtPath: AtPath<ListCommentThreadsUseCase>;
+    publishReviewAtPath: AtPath<PublishReviewUseCase>;
+    readPublishedReviewAtPath: AtPath<ReadPublishedReviewUseCase>;
+    replyToCommentAtPath: AtPath<ReplyToCommentUseCase>;
+    updateCommentThreadAtPath: AtPath<UpdateCommentThreadUseCase>;
   };
 };
 
@@ -56,13 +61,6 @@ export function createReviewMcpServer(
         'Publish and discuss the review for the registered worktree containing this MCP process cwd. Read porcelain://review-guide before publishing. Shell and editor tools remain the source for reading code.',
     },
   );
-  const worktreeAt = async (cwd: string | undefined, signal: AbortSignal) =>
-    (
-      await useCases.projects.findWorktreeByPath.execute(
-        { path: cwd ?? defaultCwd },
-        { signal },
-      )
-    ).worktreeId;
   server.registerResource(
     'review-guide',
     'porcelain://review-guide',
@@ -85,8 +83,8 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...review }, { signal }) =>
       result(publishReviewToolResponseSchema, async () => {
-        const published = await useCases.reviews.publishReview.execute(
-          { worktreeId: await worktreeAt(cwd, signal), review },
+        const published = await useCases.reviews.publishReviewAtPath.execute(
+          { cwd: cwd ?? defaultCwd, request: { review } },
           { signal },
         );
         return {
@@ -107,8 +105,8 @@ export function createReviewMcpServer(
     },
     ({ cwd }, { signal }) =>
       result(readPublishedReviewResponseSchema, async () =>
-        useCases.reviews.readPublishedReview.execute(
-          { worktreeId: await worktreeAt(cwd, signal) },
+        useCases.reviews.readPublishedReviewAtPath.execute(
+          { cwd: cwd ?? defaultCwd, request: {} },
           { signal },
         ),
       ),
@@ -123,8 +121,8 @@ export function createReviewMcpServer(
     },
     ({ cwd, scope }, { signal }) =>
       result(listCommentThreadsResponseSchema, async () =>
-        useCases.reviews.listCommentThreads.execute(
-          { worktreeId: await worktreeAt(cwd, signal), scope },
+        useCases.reviews.listCommentThreadsAtPath.execute(
+          { cwd: cwd ?? defaultCwd, request: { scope } },
           { signal },
         ),
       ),
@@ -138,12 +136,8 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...input }, { signal }) =>
       result(createCommentThreadResponseSchema, async () =>
-        useCases.reviews.createCommentThread.execute(
-          {
-            worktreeId: await worktreeAt(cwd, signal),
-            ...input,
-            writer: agent,
-          },
+        useCases.reviews.createCommentThreadAtPath.execute(
+          { cwd: cwd ?? defaultCwd, request: { ...input, writer: agent } },
           { signal },
         ),
       ),
@@ -157,12 +151,8 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...input }, { signal }) =>
       result(replyToCommentResponseSchema, async () =>
-        useCases.reviews.replyToComment.execute(
-          {
-            worktreeId: await worktreeAt(cwd, signal),
-            ...input,
-            writer: agent,
-          },
+        useCases.reviews.replyToCommentAtPath.execute(
+          { cwd: cwd ?? defaultCwd, request: { ...input, writer: agent } },
           { signal },
         ),
       ),
@@ -175,8 +165,8 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...input }, { signal }) =>
       result(updateCommentThreadResponseSchema, async () =>
-        useCases.reviews.updateCommentThread.execute(
-          { worktreeId: await worktreeAt(cwd, signal), ...input },
+        useCases.reviews.updateCommentThreadAtPath.execute(
+          { cwd: cwd ?? defaultCwd, request: input },
           { signal },
         ),
       ),

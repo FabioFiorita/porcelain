@@ -6,6 +6,7 @@ import { dirname, join, sep } from 'node:path';
 import type { WorktreeEntry } from '@porcelain/changes/models';
 import {
   inspectPath,
+  readFailure,
   sameFile,
   unchanged,
   verifyPath,
@@ -35,7 +36,10 @@ export async function readWorktreeFiles(
           options.chunkBytes,
         );
         if (entry) entries.set(path, entry);
-      } catch {}
+      } catch (error) {
+        if (readFailure(error) !== 'missing')
+          entries.set(path, { kind: 'unreadable' });
+      }
     }
   };
   await Promise.all(

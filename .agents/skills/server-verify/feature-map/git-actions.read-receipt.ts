@@ -7,6 +7,7 @@ import {
   invalidRequest,
   unknownOid,
   unknownUuid,
+  unknownWorktreeId,
 } from '../scripts/feature.ts';
 import {
   expectation,
@@ -22,7 +23,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    'A client follows a Git action by its request ID: the receipt names the project, worktree and action, its state, progress lines, result and timestamps. Reading a settled receipt answers 200 whatever the outcome; an unknown request ID is not found.',
+    'A client follows a Git action by its request ID: the receipt names the project, worktree and action, its state, progress lines, result and timestamps. Reading a settled receipt answers 200 whatever the outcome; an unknown request ID is not found, and so is a receipt read through a worktree other than its own.',
   cases: [
     defineCase({
       name: 'a settled action',
@@ -118,6 +119,42 @@ export default defineFeature({
             state: 'rejected',
             reason: 'CHANGED_SINCE_LOOKED',
           },
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: "another worktree's receipt",
+      async setup(session) {
+        const requestId = randomUUID();
+        await session.read(
+          {
+            method: 'POST',
+            path: gitPath(session, '/actions'),
+            body: {
+              requestId,
+              input: {
+                action: 'create-branch',
+                branch: 'elsewhere',
+                switchTo: false,
+              },
+              expected: await expectation(session),
+            },
+          },
+          202,
+        );
+        await settledReceipt(session, requestId);
+        return requestId;
+      },
+      request: (session, requestId) => ({
+        method: 'GET',
+        path: receiptPath(session, requestId, unknownWorktreeId),
+      }),
+      expect({ response, check }) {
+        check('status', 404, response.status);
+        check(
+          'error body',
+          apiError(404, 'Not Found', 'Git action receipt not found'),
           response.body,
         );
       },

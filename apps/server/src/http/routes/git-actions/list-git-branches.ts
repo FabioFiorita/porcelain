@@ -13,7 +13,7 @@ export function listGitBranches(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
-    '/projects/:projectId/worktrees/:worktreeId/git/branches',
+    '/worktrees/:worktreeId/git/branches',
     {
       schema: {
         params: gitActionScopeSchema,

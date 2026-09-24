@@ -15,7 +15,7 @@ export function dismissInterruptedGitAction(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.delete(
-    '/projects/:projectId/worktrees/:worktreeId/git/interrupted/:requestId',
+    '/worktrees/:worktreeId/git/interrupted/:requestId',
     {
       schema: {
         params: dismissInterruptedGitActionParamsSchema,

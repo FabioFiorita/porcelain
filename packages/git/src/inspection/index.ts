@@ -10,6 +10,7 @@ export { parseRawDiff } from './parsers/parse-raw-diff.ts';
 export { GitTimeoutError } from '../shared/errors/git-timeout-error.ts';
 export { InspectionLimitError } from './errors/inspection-limit-error.ts';
 export { InvalidGitDiffError } from './errors/invalid-git-diff-error.ts';
+export { InvalidGitStatusError } from './errors/invalid-git-status-error.ts';
 export { UnsupportedGitFiltersError } from './errors/unsupported-git-filters-error.ts';
 export { UnsupportedPathEncodingError } from './errors/unsupported-path-encoding-error.ts';
 export type { GitDiffResult } from './dtos/git-diff.ts';

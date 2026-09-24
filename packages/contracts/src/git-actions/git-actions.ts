@@ -37,8 +37,12 @@ const expectedFileSchema = z.strictObject({
 });
 
 export const gitActionScopeSchema = z.strictObject({
-  projectId: z.uuid(),
   worktreeId: worktreeIdSchema,
+});
+
+export const gitActionRequestParamsSchema = z.strictObject({
+  worktreeId: worktreeIdSchema,
+  requestId: z.uuid(),
 });
 
 const gitActionIntentSchema = z.discriminatedUnion('action', [
@@ -119,16 +123,11 @@ export const runGitActionResponseSchema = gitActionReceiptSchema;
 export const runGitActionRejectedResponseSchema =
   gitActionReceiptSchema.or(apiErrorSchema);
 
-export const readGitActionReceiptParamsSchema = z.strictObject({
-  requestId: z.uuid(),
-});
+export const readGitActionReceiptParamsSchema = gitActionRequestParamsSchema;
 export const readGitActionReceiptResponseSchema = gitActionReceiptSchema;
 
-export const dismissInterruptedGitActionParamsSchema = z.strictObject({
-  projectId: z.uuid(),
-  worktreeId: worktreeIdSchema,
-  requestId: z.uuid(),
-});
+export const dismissInterruptedGitActionParamsSchema =
+  gitActionRequestParamsSchema;
 export const dismissInterruptedGitActionResponseSchema = z.object({
   dismissed: z.literal(true),
 });
@@ -146,6 +145,9 @@ export const listGitBranchesResponseSchema = z.object({
 });
 
 export type GitActionScope = z.output<typeof gitActionScopeSchema>;
+export type GitActionRequestParams = z.output<
+  typeof gitActionRequestParamsSchema
+>;
 export type RunGitActionRequest = z.output<typeof runGitActionRequestSchema>;
 export type RunGitActionResponse = z.output<typeof runGitActionResponseSchema>;
 export type RunGitActionRejectedResponse = z.output<

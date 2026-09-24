@@ -88,15 +88,11 @@ export const openServer: OpenServer = async (input) => {
     shared,
     projectFolderReader: new FilesystemProjectFolderReader(),
   });
-  const files = composeFiles(context, { shared });
   const changes = composeChanges(context, { shared });
-  const reviews = composeReviews(context, { stores, shared });
-  const commitPlanner = createCommitPlanner();
-  const gitActions = composeGitActions(context, {
+  const reviews = composeReviews(context, {
     stores,
     shared,
-    commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
-    commitModelReader: new ProcessCommitModelReader(commitPlanner),
+    findWorktreeByPath: projects.findWorktreeByPath,
   });
   const worktreeWatches = new WatchWorktrees(
     reviews.invalidateReviewedMarks,
@@ -109,6 +105,17 @@ export const openServer: OpenServer = async (input) => {
     logger,
     limits.liveUpdates,
   );
+  const files = composeFiles(context, {
+    shared,
+    announcedEdits: worktreeWatches,
+  });
+  const commitPlanner = createCommitPlanner();
+  const gitActions = composeGitActions(context, {
+    stores,
+    shared,
+    commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
+    commitModelReader: new ProcessCommitModelReader(commitPlanner),
+  });
   const jobs: readonly Job[] = [
     new IntervalJob(
       'recover-interrupted-git-actions',

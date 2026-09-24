@@ -3,6 +3,7 @@ import type { EditFileInput } from '@porcelain/files/models';
 import type { EditFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
+import type { AnnouncedEditStore } from '../../ports/announced-edit-store.ts';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -15,6 +16,7 @@ export class EditFileUseCase {
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
+  private readonly announcedEdits: AnnouncedEditStore;
 
   constructor(
     checkWorktree: CheckWorktreeService,
@@ -23,6 +25,7 @@ export class EditFileUseCase {
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
+    announcedEdits: AnnouncedEditStore,
   ) {
     this.checkWorktree = checkWorktree;
     this.editFile = editFile;
@@ -30,6 +33,7 @@ export class EditFileUseCase {
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
+    this.announcedEdits = announcedEdits;
   }
 
   async execute(
@@ -62,6 +66,7 @@ export class EditFileUseCase {
       { callerSignal: context.signal },
     );
     this.events.filesChanged({ worktreeId: input.worktreeId, paths });
+    this.announcedEdits.save({ worktreeId: input.worktreeId, paths });
     return result;
   }
 }

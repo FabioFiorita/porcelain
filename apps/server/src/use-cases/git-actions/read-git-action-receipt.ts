@@ -30,7 +30,10 @@ export class ReadGitActionReceiptUseCase {
       this.laneKeys.inventory(),
       'read',
       async () =>
-        this.readGitActionReceipt.execute({ requestId: input.requestId }),
+        this.readGitActionReceipt.execute({
+          worktreeId: input.worktreeId,
+          requestId: input.requestId,
+        }),
       { callerSignal: context.signal },
     );
   }

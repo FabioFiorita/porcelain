@@ -19,6 +19,10 @@ import {
 } from '@porcelain/reviews/services';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
 import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
+import {
+  AtWorktreePathUseCase,
+  type WorktreeFinder,
+} from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
@@ -40,7 +44,11 @@ import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
 
-export type ReviewsDependencies = { stores: Stores; shared: Shared };
+export type ReviewsDependencies = {
+  stores: Stores;
+  shared: Shared;
+  findWorktreeByPath: WorktreeFinder;
+};
 
 export function composeReviews(
   context: ComposeContext,
@@ -68,7 +76,80 @@ export function composeReviews(
     limits.reviewedFiles,
   );
 
+  const listCommentThreads = new ListCommentThreadsUseCase(
+    checkWorktree,
+    new ListCommentThreadsService(commentStore),
+    lanes,
+    laneKeys,
+  );
+  const createCommentThread = new CreateCommentThreadUseCase(
+    checkWorktree,
+    new CreateCommentThreadService(commentStore, ids, clock, limits.comments),
+    lanes,
+    laneKeys,
+    events,
+  );
+  const replyToComment = new ReplyToCommentUseCase(
+    checkWorktree,
+    new ReplyToCommentService(commentStore, ids, clock, limits.comments),
+    lanes,
+    laneKeys,
+    events,
+  );
+  const updateCommentThread = new UpdateCommentThreadUseCase(
+    checkWorktree,
+    new UpdateCommentThreadService(commentStore),
+    lanes,
+    laneKeys,
+    events,
+  );
+  const publishReview = new PublishReviewUseCase(
+    checkWorktree,
+    shared.readReviewEvidence,
+    new PublishReviewService(
+      reviewStore,
+      clock,
+      ids,
+      new RandomSecretSource(limits.summaryLink),
+    ),
+    readEnvironment,
+    generatePublishedReview,
+    lanes,
+    laneKeys,
+    events,
+  );
+  const readPublishedReviewUseCase = new ReadPublishedReviewUseCase(
+    checkWorktree,
+    readPublishedReview,
+    shared.readReviewEvidence,
+    readEnvironment,
+    generatePublishedReview,
+    lanes,
+    laneKeys,
+  );
+  const { findWorktreeByPath } = dependencies;
+
   return {
+    publishReviewAtPath: new AtWorktreePathUseCase<typeof publishReview>(
+      findWorktreeByPath,
+      publishReview,
+    ),
+    readPublishedReviewAtPath: new AtWorktreePathUseCase<
+      typeof readPublishedReviewUseCase
+    >(findWorktreeByPath, readPublishedReviewUseCase),
+    listCommentThreadsAtPath: new AtWorktreePathUseCase<
+      typeof listCommentThreads
+    >(findWorktreeByPath, listCommentThreads),
+    createCommentThreadAtPath: new AtWorktreePathUseCase<
+      typeof createCommentThread
+    >(findWorktreeByPath, createCommentThread),
+    replyToCommentAtPath: new AtWorktreePathUseCase<typeof replyToComment>(
+      findWorktreeByPath,
+      replyToComment,
+    ),
+    updateCommentThreadAtPath: new AtWorktreePathUseCase<
+      typeof updateCommentThread
+    >(findWorktreeByPath, updateCommentThread),
     refreshReviewActivity: new RefreshReviewActivityUseCase(
       shared.listRegisteredProjects,
       shared.listKnownWorktrees,
@@ -86,33 +167,10 @@ export function composeReviews(
       lanes,
       laneKeys,
     ),
-    listCommentThreads: new ListCommentThreadsUseCase(
-      checkWorktree,
-      new ListCommentThreadsService(commentStore),
-      lanes,
-      laneKeys,
-    ),
-    createCommentThread: new CreateCommentThreadUseCase(
-      checkWorktree,
-      new CreateCommentThreadService(commentStore, ids, clock, limits.comments),
-      lanes,
-      laneKeys,
-      events,
-    ),
-    replyToComment: new ReplyToCommentUseCase(
-      checkWorktree,
-      new ReplyToCommentService(commentStore, ids, clock, limits.comments),
-      lanes,
-      laneKeys,
-      events,
-    ),
-    updateCommentThread: new UpdateCommentThreadUseCase(
-      checkWorktree,
-      new UpdateCommentThreadService(commentStore),
-      lanes,
-      laneKeys,
-      events,
-    ),
+    listCommentThreads,
+    createCommentThread,
+    replyToComment,
+    updateCommentThread,
     markCommentsSeen: new MarkCommentsSeenUseCase(
       checkWorktree,
       new MarkCommentsSeenService(stores.commentsSeen, commentStore),
@@ -120,30 +178,8 @@ export function composeReviews(
       laneKeys,
       events,
     ),
-    publishReview: new PublishReviewUseCase(
-      checkWorktree,
-      shared.readReviewEvidence,
-      new PublishReviewService(
-        reviewStore,
-        clock,
-        ids,
-        new RandomSecretSource(limits.summaryLink),
-      ),
-      readEnvironment,
-      generatePublishedReview,
-      lanes,
-      laneKeys,
-      events,
-    ),
-    readPublishedReview: new ReadPublishedReviewUseCase(
-      checkWorktree,
-      readPublishedReview,
-      shared.readReviewEvidence,
-      readEnvironment,
-      generatePublishedReview,
-      lanes,
-      laneKeys,
-    ),
+    publishReview,
+    readPublishedReview: readPublishedReviewUseCase,
     readReviewSummary: new ReadReviewSummaryUseCase(
       new ReadReviewSummaryService(reviewStore, clock, signatureSource),
       lanes,

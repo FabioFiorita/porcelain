@@ -1,13 +1,11 @@
 import { listGitBranchesResponseSchema } from '@porcelain/contracts/git-actions';
 import {
-  apiError,
   defineCase,
   defineFeature,
   invalidRequest,
   list,
   record,
   text,
-  unknownUuid,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
 import { gitPath, gitRoute, worktreeNotFound } from '../scripts/fixture.ts';
@@ -18,7 +16,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "The owner lists a worktree's local branches, to switch or create one: the current branch and, for each branch, its upstream, last commit time and whether another worktree has it checked out. An unknown project is not found, and so is a worktree that is not one of the project's.",
+    "The owner lists a worktree's local branches, to switch or create one: the current branch and, for each branch, its upstream, last commit time and whether another worktree has it checked out. An unknown worktree is not found and a malformed worktree ID is invalid.",
   cases: [
     defineCase({
       name: 'main and a second branch',
@@ -60,55 +58,25 @@ export default defineFeature({
       },
     }),
     defineCase({
-      name: 'unknown project or worktree',
-      request: (session) => [
-        {
-          method: 'GET',
-          path: gitPath(session, '/branches', { projectId: unknownUuid }),
-        },
-        {
-          method: 'GET',
-          path: gitPath(session, '/branches', {
-            worktreeId: unknownWorktreeId,
-          }),
-        },
-      ],
-      expect({ responses, check }) {
-        check('unknown project status', 404, responses[0]?.status);
-        check(
-          'unknown project error body',
-          apiError(404, 'Not Found', 'Project not found'),
-          responses[0]?.body,
-        );
-        check('unknown worktree status', 404, responses[1]?.status);
-        check(
-          'unknown worktree error body',
-          worktreeNotFound,
-          responses[1]?.body,
-        );
+      name: 'unknown worktree',
+      request: (session) => ({
+        method: 'GET',
+        path: gitPath(session, '/branches', { worktreeId: unknownWorktreeId }),
+      }),
+      expect({ response, check }) {
+        check('status', 404, response.status);
+        check('error body', worktreeNotFound, response.body);
       },
     }),
     defineCase({
-      name: 'malformed IDs',
-      request: (session) => [
-        {
-          method: 'GET',
-          path: gitPath(session, '/branches', { projectId: 'not-a-uuid' }),
-        },
-        {
-          method: 'GET',
-          path: gitPath(session, '/branches', { worktreeId: 'not-an-id' }),
-        },
-      ],
-      expect({ responses, check }) {
-        for (const [index, response] of responses.entries()) {
-          check(`request ${index + 1} status`, 400, response.status);
-          check(
-            `request ${index + 1} error body`,
-            invalidRequest,
-            response.body,
-          );
-        }
+      name: 'malformed worktree ID',
+      request: (session) => ({
+        method: 'GET',
+        path: gitPath(session, '/branches', { worktreeId: 'not-an-id' }),
+      }),
+      expect({ response, check }) {
+        check('status', 400, response.status);
+        check('error body', invalidRequest, response.body);
       },
     }),
   ],

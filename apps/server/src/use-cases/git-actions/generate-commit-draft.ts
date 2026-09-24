@@ -13,10 +13,7 @@ import type {
   CaptureCommitDraftService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
-import type {
-  CheckProjectService,
-  CheckWorktreeService,
-} from '@porcelain/projects/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -24,7 +21,6 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export type GenerateCommitDraftOptions = { deadlineMs: number };
 
 export class GenerateCommitDraftUseCase {
-  private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
@@ -35,7 +31,6 @@ export class GenerateCommitDraftUseCase {
   private readonly options: GenerateCommitDraftOptions;
 
   constructor(
-    checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
@@ -45,7 +40,6 @@ export class GenerateCommitDraftUseCase {
     laneKeys: LaneKeys,
     options: GenerateCommitDraftOptions,
   ) {
-    this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
@@ -60,10 +54,9 @@ export class GenerateCommitDraftUseCase {
     input: GitActionScope & GenerateCommitDraftRequest,
     context: OperationContext,
   ): Promise<GenerateCommitDraftResponse> {
-    const { projectId, worktreeId } = input;
-    this.checkProject.execute({ projectId });
+    const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, projectId, purpose: 'writing' },
+      { worktreeId, purpose: 'writing' },
       context.signal,
     );
     const capture = await this.lanes.run(
