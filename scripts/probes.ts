@@ -44,7 +44,10 @@ function git(args: readonly string[]): string {
 }
 
 function changedPaths(): string {
-  return git(['status', '--porcelain', '--untracked-files=all']);
+  return git(['status', '--porcelain', '--untracked-files=all'])
+    .split('\n')
+    .filter((line) => line !== '' && !line.startsWith('?? .claude/'))
+    .join('\n');
 }
 
 async function loadProbes(only: ReadonlySet<string>): Promise<LoadedProbe[]> {
