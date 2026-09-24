@@ -8,6 +8,7 @@ import {
 } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
+  type MethodSignatureDeclaration,
   type Node,
   type SourceFile,
 } from 'typescript/unstable/ast';
@@ -21,6 +22,7 @@ import {
   isIdentifier,
   isInterfaceDeclaration,
   isMethodDeclaration,
+  isMethodSignatureDeclaration,
   isNamedExports,
   isPropertyAccessExpression,
   isStringLiteral,
@@ -31,8 +33,9 @@ import { domainPackages } from './policy.ts';
 export type TypeFinding = { rule: string; from: string; to: string };
 
 const absence = TypeFlags.Undefined | TypeFlags.Null | TypeFlags.Void;
-const writingCall =
-  /^(?:save|insert|update|remove|append|set|mark|record|take|redeem|forget|write|move|trash|create|delete|add)(?:[A-Z]|$)/;
+const writingPort = /(?:Store|Writer|Runner)$/;
+const readingMethod =
+  /^(?:read|list|find|count|by|seen|latest|last)(?:[A-Z]|$)/;
 const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
 const useCaseFile = /\/apps\/server\/src\/use-cases\/.+\.ts$/;
 const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
@@ -183,15 +186,32 @@ function thisMember(node: Node): string | undefined {
     : undefined;
 }
 
-function writes(declaration: Node): boolean {
-  return descendants(declaration).some(
-    (node) =>
-      isCallExpression(node) &&
-      isPropertyAccessExpression(node.expression) &&
-      thisMember(node.expression.expression) !== undefined &&
-      isIdentifier(node.expression.name) &&
-      writingCall.test(node.expression.name.text),
-  );
+function writingPortMethod(
+  project: Project,
+  call: Node,
+): MethodSignatureDeclaration | undefined {
+  if (!isCallExpression(call) || !isPropertyAccessExpression(call.expression))
+    return undefined;
+  const declaration = project.checker
+    .getSymbolAtLocation(call.expression.name)
+    ?.declarations[0]?.resolve(project);
+  if (!declaration || !isMethodSignatureDeclaration(declaration))
+    return undefined;
+  const port = declaration.parent;
+  return isInterfaceDeclaration(port) && writingPort.test(port.name.text)
+    ? declaration
+    : undefined;
+}
+
+function methodName(method: MethodSignatureDeclaration): string {
+  return isIdentifier(method.name) ? method.name.text : '';
+}
+
+function writes(project: Project, declaration: Node): boolean {
+  return descendants(declaration).some((node) => {
+    const method = writingPortMethod(project, node);
+    return method !== undefined && !readingMethod.test(methodName(method));
+  });
 }
 
 function laneOf(call: Node, callback: Node): Lane | undefined {
@@ -274,7 +294,7 @@ function laneFindings(
       ?.declarations[0]?.resolve(project);
     if (!declaration || !isClassDeclaration(declaration)) continue;
     if (!serviceFile.test(declaration.getSourceFile().fileName)) continue;
-    const writer = writerCache.get(declaration) ?? writes(declaration);
+    const writer = writerCache.get(declaration) ?? writes(project, declaration);
     writerCache.set(declaration, writer);
     if (!writer) continue;
     const lanes = lanesAround(node, new Set());

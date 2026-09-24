@@ -57,9 +57,7 @@ export class InMemoryCommentStore implements CommentStore {
     return Math.max(0, ...this.list(input).map((thread) => thread.revision));
   }
 
-  agentRepliesByWorktrees(input: {
-    worktreeIds: readonly string[];
-  }): AgentReply[] {
+  listAgentReplies(input: { worktreeIds: readonly string[] }): AgentReply[] {
     return this.stored()
       .filter(
         (row) =>

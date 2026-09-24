@@ -143,9 +143,7 @@ export class SqliteCommentStore implements CommentStore {
     );
   }
 
-  agentRepliesByWorktrees(input: {
-    worktreeIds: readonly string[];
-  }): AgentReply[] {
+  listAgentReplies(input: { worktreeIds: readonly string[] }): AgentReply[] {
     return this.db
       .select({
         worktreeId: commentThreads.worktreeId,

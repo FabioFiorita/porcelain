@@ -32,7 +32,7 @@ export class ReadReviewBadgesService {
       statuses: worktreeStatuses(
         this.reviews.byWorktrees({ worktreeIds }),
         this.reviewedLayers.byWorktrees({ worktreeIds }),
-        this.comments.agentRepliesByWorktrees({ worktreeIds }),
+        this.comments.listAgentReplies({ worktreeIds }),
         this.commentSeen.seenByWorktrees({ worktreeIds }),
       ),
     };
