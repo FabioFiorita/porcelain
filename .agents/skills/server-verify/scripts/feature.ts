@@ -125,13 +125,28 @@ export class UnassertedExchanges extends Error {}
 export type CaseRunner = {
   enter(phase: Phase): void;
   checks: Checks;
-  problems(): string[];
 };
 
-export type RunnableCase = {
-  name: string;
-  run(session: Session, runner: CaseRunner): Promise<void>;
-};
+class DefinedCase {
+  readonly name: string;
+  readonly #run: (session: Session, runner: CaseRunner) => Promise<void>;
+
+  constructor(
+    name: string,
+    run: (session: Session, runner: CaseRunner) => Promise<void>,
+  ) {
+    this.name = name;
+    this.#run = run;
+  }
+
+  run(session: Session, runner: CaseRunner): Promise<void> {
+    return this.#run(session, runner);
+  }
+}
+
+export function isDefinedCase(value: unknown): value is DefinedCase {
+  return value instanceof DefinedCase;
+}
 
 export type Feature = {
   feature: string;
@@ -140,7 +155,7 @@ export type Feature = {
   intent: Intent;
   behaviour: string;
   locations?: readonly string[];
-  cases: readonly RunnableCase[];
+  cases: readonly DefinedCase[];
 };
 
 async function execute<State>(
@@ -164,26 +179,21 @@ async function execute<State>(
     state,
     session,
   });
-  const problems = runner.problems();
-  if (problems.length > 0) throw new UnassertedExchanges(problems.join('; '));
 }
 
 export function defineCase(
   value: CaseBody<undefined> & { setup?: undefined },
-): RunnableCase;
-export function defineCase<State>(value: Case<State>): RunnableCase;
+): DefinedCase;
+export function defineCase<State>(value: Case<State>): DefinedCase;
 export function defineCase<State>(
   value: (CaseBody<undefined> & { setup?: undefined }) | Case<State>,
-): RunnableCase {
-  return {
-    name: value.name,
-    async run(session, runner) {
-      runner.enter('setup');
-      if (value.setup === undefined)
-        return execute(value, undefined, session, runner);
-      return execute(value, await value.setup(session), session, runner);
-    },
-  };
+): DefinedCase {
+  return new DefinedCase(value.name, async (session, runner) => {
+    runner.enter('setup');
+    if (value.setup === undefined)
+      return execute(value, undefined, session, runner);
+    return execute(value, await value.setup(session), session, runner);
+  });
 }
 
 export function defineFeature(value: Feature): Feature {

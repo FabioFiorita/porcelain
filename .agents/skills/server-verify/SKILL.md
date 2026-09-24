@@ -72,7 +72,7 @@ export default defineFeature({
 - Setup reads go through `read(session, request, status?)` (or `session.read`), which fails the case unless the answer has that status (200 by default); a setup that calls `session.send` fails. A follow-up request either goes through `read` or has its status asserted.
 - `paired: true` puts every route in `reaches` into the `access.authentication` sweep, which refuses each one without a credential; there is no other list of paired routes.
 - `session.live()` opens `/api/live` as the paired viewer; `upgradeHeaders(address)` probes its rejections over plain HTTP.
-- Every route in `reaches` must be requested by some case.
+- Every route in `reaches` must be requested by some case and answered; a request that never got a response, or a live connection that never opened, reaches nothing.
 - Every route the isolated server registers must be in some feature's `reaches`, and every reach must be a registered route; the run fails on either gap. `scripts/dev-server-child.ts` lists the network and owner routes it saw Fastify register (GET, POST, PUT, PATCH and DELETE; HEAD is GET without a body) in the session manifest, which only the development fixture writes, and `summary.json` records them.
 
 ## Intent

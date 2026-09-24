@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isRecord, type Feature } from './feature.ts';
+import { isDefinedCase, isRecord, type Feature } from './feature.ts';
 
 const skillDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -13,7 +13,8 @@ function isFeature(value: unknown): value is Feature {
     typeof value.paired === 'boolean' &&
     (value.intent === 'observed' || value.intent === 'intended') &&
     typeof value.behaviour === 'string' &&
-    Array.isArray(value.cases)
+    Array.isArray(value.cases) &&
+    value.cases.every(isDefinedCase)
   );
 }
 
@@ -40,6 +41,14 @@ async function loadFrom(
     if (location === except) continue;
     const loaded: unknown = await import(location);
     const feature = isRecord(loaded) ? loaded.default : undefined;
+    if (
+      isRecord(feature) &&
+      Array.isArray(feature.cases) &&
+      !feature.cases.every(isDefinedCase)
+    )
+      throw new Error(
+        `${file} builds every case with defineCase; a hand-written case skips the unasserted-exchange check and the phases defineCase enters`,
+      );
     if (!isFeature(feature) || `${feature.feature}.ts` !== file)
       throw new Error(
         `${file} must default-export the feature named ${file.slice(0, -3)}`,

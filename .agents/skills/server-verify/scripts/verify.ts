@@ -99,8 +99,13 @@ function routeCoverage(
 }
 
 function requestedRoute(step: Step): string | undefined {
-  if (step.kind === 'live') return 'GET /api/live';
-  if (step.kind !== 'http' || step.phase !== 'request') return undefined;
+  if (step.kind === 'live') return step.opened ? 'GET /api/live' : undefined;
+  if (
+    step.kind !== 'http' ||
+    step.phase !== 'request' ||
+    step.response === undefined
+  )
+    return undefined;
   const target = step.target === 'owner' ? 'owner ' : '';
   return `${target}${step.request.method} ${step.request.path}`;
 }
@@ -259,8 +264,10 @@ async function runCases(
           recorder.provenance.enter();
         },
         checks: checks(assertions, () => recorder.provenance, contracts),
-        problems: () => recorder.provenance.problems(),
       });
+      const unasserted = recorder.provenance.problems();
+      if (unasserted.length > 0)
+        throw new UnassertedExchanges(unasserted.join('; '));
       if (assertions.length === 0)
         throw new Error('The case made no assertion');
     } catch (error) {
@@ -404,8 +411,13 @@ if (process.argv.length !== 3 || !argument) {
   process.stderr.write(usage);
   process.exit(2);
 }
-const features = await loadFeatures();
-const negatives = await loadNegatives();
+const [features, negatives] = await Promise.all([
+  loadFeatures(),
+  loadNegatives(),
+]).catch((error: unknown) => {
+  process.stdout.write(`FAIL catalogue\n  - catalogue: ${message(error)}\n`);
+  process.exit(1);
+});
 if (argument === '--list') {
   for (const feature of features)
     process.stdout.write(
