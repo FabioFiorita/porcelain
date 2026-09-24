@@ -1,8 +1,5 @@
 import { currentLayerFingerprint } from './resolve-review.ts';
-import type {
-  WorktreeStatus,
-  WorktreeStatuses,
-} from '@porcelain/kernel/models';
+import type { ReviewBadge, ReviewBadges } from '@porcelain/kernel/models';
 import type { AgentReply, CommentSeenMark } from '../models/comment-thread.ts';
 import type { ReviewTexts } from '../models/review-evidence.ts';
 import type { Review } from '../models/review.ts';
@@ -30,8 +27,8 @@ export function worktreeStatuses(
   replies: readonly AgentReply[],
   seen: readonly CommentSeenMark[],
   texts: ReadonlyMap<string, ReviewTexts>,
-): WorktreeStatuses {
-  const statuses = new Map<string, WorktreeStatus>();
+): ReviewBadges {
+  const statuses = new Map<string, ReviewBadge>();
   for (const review of reviews)
     if (review.active && review.layers.length > 0)
       statuses.set(

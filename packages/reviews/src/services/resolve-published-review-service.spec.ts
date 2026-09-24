@@ -3,7 +3,7 @@ import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { Review, ReviewDiff, ReviewStep } from '@porcelain/reviews/models';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
-import { GeneratePublishedReviewService } from './generate-published-review-service.ts';
+import { ResolvePublishedReviewService } from './resolve-published-review-service.ts';
 
 const worktreeId = 'a'.repeat(64);
 const environmentId = '6f1c2f4e-7c1b-4b61-9d6e-2f0a4f3a9b10';
@@ -73,7 +73,7 @@ function text(path: string, content: string): [string, string] {
   return [path, content];
 }
 
-const service = new GeneratePublishedReviewService(
+const service = new ResolvePublishedReviewService(
   new FixedClock('2026-01-01T00:00:00.000Z'),
   new ScriptedSignatureSource(),
   { lifetimeMs: 3_600_000 },
@@ -103,7 +103,7 @@ const stillChanged = {
   diffs: [patch('README.md', '@@ -2,0 +3 @@\n+added\n')],
 };
 
-describe('GeneratePublishedReviewService', () => {
+describe('ResolvePublishedReviewService', () => {
   it('locates a step at its published lines as current while they are still changed', () => {
     const resolved = generate(stillChanged);
     expect(resolved).toMatchObject({

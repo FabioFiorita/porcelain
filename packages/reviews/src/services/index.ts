@@ -1,5 +1,5 @@
 export { CreateCommentThreadService } from './create-comment-thread-service.ts';
-export { GeneratePublishedReviewService } from './generate-published-review-service.ts';
+export { ResolvePublishedReviewService } from './resolve-published-review-service.ts';
 export { InvalidateReviewedMarksService } from './invalidate-reviewed-marks-service.ts';
 export { ListCommentThreadsService } from './list-comment-threads-service.ts';
 export { ListReviewedFilesService } from './list-reviewed-files-service.ts';

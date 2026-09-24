@@ -1,10 +1,10 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import { instantAfter, utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
-  GeneratePublishedReviewInput,
-  GeneratePublishedReviewOptions,
-  GeneratePublishedReviewResult,
-} from '../models/generate-published-review.ts';
+  ResolvePublishedReviewInput,
+  ResolvePublishedReviewOptions,
+  ResolvePublishedReviewResult,
+} from '../models/resolve-published-review.ts';
 
 import type { SignatureSource } from '../ports/signature-source.ts';
 import {
@@ -14,22 +14,22 @@ import {
 } from '../rules/resolve-review.ts';
 import { summaryMessage } from '../rules/review-digests.ts';
 
-export class GeneratePublishedReviewService {
+export class ResolvePublishedReviewService {
   private readonly clock: Clock;
   private readonly signatureSource: SignatureSource;
-  private readonly options: GeneratePublishedReviewOptions;
+  private readonly options: ResolvePublishedReviewOptions;
 
   constructor(
     clock: Clock,
     signatureSource: SignatureSource,
-    options: GeneratePublishedReviewOptions,
+    options: ResolvePublishedReviewOptions,
   ) {
     this.clock = clock;
     this.signatureSource = signatureSource;
     this.options = options;
   }
 
-  execute(input: GeneratePublishedReviewInput): GeneratePublishedReviewResult {
+  execute(input: ResolvePublishedReviewInput): ResolvePublishedReviewResult {
     const { review, evidence } = input;
     const { changes, diagnostics, layers } = resolveReview(review, evidence);
     const expires = instantAfter(this.clock.now(), this.options.lifetimeMs);

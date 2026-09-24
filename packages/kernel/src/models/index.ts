@@ -16,4 +16,4 @@ export type {
   WorktreeKey,
   WorktreeKeys,
 } from './worktree.ts';
-export type { WorktreeStatus, WorktreeStatuses } from './worktree-status.ts';
+export type { ReviewBadge, ReviewBadges } from './review-badge.ts';

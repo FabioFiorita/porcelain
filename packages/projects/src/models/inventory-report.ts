@@ -1,4 +1,4 @@
-import type { WorktreeStatus } from '@porcelain/kernel/models';
+import type { ReviewBadge } from '@porcelain/kernel/models';
 
 export type WorktreeReport = {
   id: string;
@@ -6,7 +6,7 @@ export type WorktreeReport = {
   main: boolean;
   branch: string | undefined;
   available: boolean;
-  status: WorktreeStatus | undefined;
+  status: ReviewBadge | undefined;
 };
 
 export type ProjectReport = {

@@ -1,6 +1,6 @@
 import {
   CreateCommentThreadService,
-  GeneratePublishedReviewService,
+  ResolvePublishedReviewService,
   ListCommentThreadsService,
   ListReviewedFilesService,
   ListReviewedLayersService,
@@ -63,7 +63,7 @@ export function composeReviews(
   const reviewedFileStore = stores.reviewedFiles;
   const reviewedLayerStore = stores.reviewedLayers;
   const { readPublishedReview } = shared;
-  const generatePublishedReview = new GeneratePublishedReviewService(
+  const resolvePublishedReview = new ResolvePublishedReviewService(
     clock,
     signatureSource,
     limits.summaryLink,
@@ -112,7 +112,7 @@ export function composeReviews(
       new RandomSecretSource(limits.summaryLink),
     ),
     readEnvironment,
-    generatePublishedReview,
+    resolvePublishedReview,
     lanes,
     laneKeys,
     events,
@@ -122,7 +122,7 @@ export function composeReviews(
     readPublishedReview,
     shared.readReviewEvidence,
     readEnvironment,
-    generatePublishedReview,
+    resolvePublishedReview,
     lanes,
     laneKeys,
   );

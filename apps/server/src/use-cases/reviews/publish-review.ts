@@ -5,7 +5,7 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
-  GeneratePublishedReviewService,
+  ResolvePublishedReviewService,
   PublishReviewService,
 } from '@porcelain/reviews/services';
 import type { ConfirmWorktreeService } from '@porcelain/projects/services';
@@ -22,7 +22,7 @@ export class PublishReviewUseCase {
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly publishReview: PublishReviewService;
   private readonly readEnvironment: ReadEnvironmentService;
-  private readonly generatePublishedReview: GeneratePublishedReviewService;
+  private readonly resolvePublishedReview: ResolvePublishedReviewService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -33,7 +33,7 @@ export class PublishReviewUseCase {
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
     publishReview: PublishReviewService,
     readEnvironment: ReadEnvironmentService,
-    generatePublishedReview: GeneratePublishedReviewService,
+    resolvePublishedReview: ResolvePublishedReviewService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
@@ -43,7 +43,7 @@ export class PublishReviewUseCase {
     this.readReviewEvidence = readReviewEvidence;
     this.publishReview = publishReview;
     this.readEnvironment = readEnvironment;
-    this.generatePublishedReview = generatePublishedReview;
+    this.resolvePublishedReview = resolvePublishedReview;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -73,7 +73,7 @@ export class PublishReviewUseCase {
           evidence,
         });
         return {
-          review: this.generatePublishedReview.execute({
+          review: this.resolvePublishedReview.execute({
             environmentId: this.readEnvironment.execute().environmentId,
             review,
             evidence,

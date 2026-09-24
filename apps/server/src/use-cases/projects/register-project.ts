@@ -2,7 +2,7 @@ import type {
   RegisterProjectRequest,
   RegisterProjectResponse,
 } from '@porcelain/contracts/projects';
-import type { WorktreeStatuses } from '@porcelain/kernel/models';
+import type { ReviewBadges } from '@porcelain/kernel/models';
 import type { ProjectWorktrees } from '@porcelain/projects/models';
 import type {
   InspectProjectRepositoryService,
@@ -102,7 +102,7 @@ export class RegisterProjectUseCase {
   private async reviewBadges(
     listings: readonly ProjectWorktrees[],
     context: OperationContext,
-  ): Promise<WorktreeStatuses> {
+  ): Promise<ReviewBadges> {
     const badges = await Promise.all(
       listings.flatMap(({ worktrees }) => {
         const [first] = worktrees;

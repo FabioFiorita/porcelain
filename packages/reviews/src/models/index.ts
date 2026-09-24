@@ -26,10 +26,10 @@ export type {
   CreateCommentThreadResult,
 } from './create-comment-thread.ts';
 export type {
-  GeneratePublishedReviewInput,
-  GeneratePublishedReviewOptions,
-  GeneratePublishedReviewResult,
-} from './generate-published-review.ts';
+  ResolvePublishedReviewInput,
+  ResolvePublishedReviewOptions,
+  ResolvePublishedReviewResult,
+} from './resolve-published-review.ts';
 export type {
   InvalidateReviewedMarksInput,
   InvalidateReviewedMarksResult,

@@ -2,7 +2,7 @@ import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadPublishedReviewResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
-  GeneratePublishedReviewService,
+  ResolvePublishedReviewService,
   ReadPublishedReviewService,
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -16,7 +16,7 @@ export class ReadPublishedReviewUseCase {
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly readEnvironment: ReadEnvironmentService;
-  private readonly generatePublishedReview: GeneratePublishedReviewService;
+  private readonly resolvePublishedReview: ResolvePublishedReviewService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -25,7 +25,7 @@ export class ReadPublishedReviewUseCase {
     readPublishedReview: ReadPublishedReviewService,
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
     readEnvironment: ReadEnvironmentService,
-    generatePublishedReview: GeneratePublishedReviewService,
+    resolvePublishedReview: ResolvePublishedReviewService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -33,7 +33,7 @@ export class ReadPublishedReviewUseCase {
     this.readPublishedReview = readPublishedReview;
     this.readReviewEvidence = readReviewEvidence;
     this.readEnvironment = readEnvironment;
-    this.generatePublishedReview = generatePublishedReview;
+    this.resolvePublishedReview = resolvePublishedReview;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -57,7 +57,7 @@ export class ReadPublishedReviewUseCase {
           { worktreeId, layers: published.review.layers },
           { signal },
         );
-        const resolved = this.generatePublishedReview.execute({
+        const resolved = this.resolvePublishedReview.execute({
           environmentId: this.readEnvironment.execute().environmentId,
           review: published.review,
           evidence,
