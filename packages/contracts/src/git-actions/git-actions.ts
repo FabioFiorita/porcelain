@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { apiErrorSchema } from '../shared/api-error.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { gitActionReceiptSchema } from '../shared/git-action-receipt.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const messageSchema = z
@@ -13,7 +16,7 @@ const messageSchema = z
     (value) =>
       value.trim().length > 0 &&
       !value.includes('\0') &&
-      utf8Size(value) <= 16_384,
+      utf8ByteLength(value) <= 16_384,
   );
 const refSchema = z
   .string()
@@ -36,20 +39,6 @@ export const gitActionScopeSchema = z.strictObject({
   projectId: z.uuid(),
   worktreeId: worktreeIdSchema,
 });
-
-export const gitActionSchema = z.enum([
-  'fetch',
-  'pull',
-  'push',
-  'commit',
-  'amend',
-  'stash-create',
-  'stash-apply',
-  'stash-pop',
-  'discard',
-  'switch-branch',
-  'create-branch',
-]);
 
 export const gitActionIntentSchema = z.discriminatedUnion('action', [
   z.strictObject({
@@ -132,52 +121,6 @@ export const gitActionExpectationSchema = z
     ...(expected.files === undefined ? {} : { files: expected.files }),
   }));
 
-export const gitActionReceiptSchema = z.object({
-  requestId: z.uuid(),
-  projectId: z.uuid(),
-  worktreeId: worktreeIdSchema,
-  action: gitActionSchema,
-  state: z.enum([
-    'running',
-    'succeeded',
-    'no-change',
-    'rejected',
-    'conflicted',
-    'interrupted',
-  ]),
-  reason: z
-    .enum([
-      'CHANGED_SINCE_LOOKED',
-      'STALE_PREPARATION',
-      'REQUEST_MISMATCH',
-      'CHECKOUT_BUSY',
-      'UNSUPPORTED_CONFIGURATION',
-      'NON_FAST_FORWARD',
-      'GIT_REJECTED',
-      'DEADLINE_EXCEEDED',
-      'OUTCOME_UNKNOWN',
-      'PROCESS_GROUP_UNCONFIRMED',
-    ])
-    .optional(),
-  message: z.string().optional(),
-  progress: z.array(z.string()),
-  result: z
-    .object({
-      headOid: oidSchema.optional(),
-      trackingOid: oidSchema.optional(),
-      sourceOid: oidSchema.optional(),
-      destinationRef: z.string().optional(),
-      stashOid: oidSchema.optional(),
-      stashRetained: z.boolean().optional(),
-      restoreStashOid: oidSchema.optional(),
-      restoreIndex: z.boolean().optional(),
-      branch: z.string().optional(),
-    })
-    .optional(),
-  acceptedAt: z.number().int(),
-  finishedAt: z.number().int().optional(),
-});
-
 export const runGitActionRequestSchema = z.strictObject({
   requestId: z.uuid(),
   input: gitActionIntentSchema,
@@ -201,21 +144,12 @@ export const dismissInterruptedGitActionResponseSchema = z.object({
   dismissed: z.literal(true),
 });
 
-const absentAsNullSchema = z.codec(
-  z.string().nullable(),
-  z.string().optional(),
-  {
-    decode: (value) => value ?? undefined,
-    encode: (value) => value ?? null,
-  },
-);
-
 export const listGitBranchesResponseSchema = z.object({
-  current: absentAsNullSchema,
+  current: absentAsNull(z.string()),
   branches: z.array(
     z.object({
       name: z.string(),
-      upstream: absentAsNullSchema,
+      upstream: absentAsNull(z.string()),
       lastCommitAt: z.string(),
       checkedOutElsewhere: z.boolean(),
     }),
@@ -223,7 +157,6 @@ export const listGitBranchesResponseSchema = z.object({
 });
 
 export type GitActionScope = z.output<typeof gitActionScopeSchema>;
-export type GitAction = z.output<typeof gitActionSchema>;
 export type GitActionIntent = z.output<typeof gitActionIntentSchema>;
 export type GitActionExpectation = z.output<typeof gitActionExpectationSchema>;
 export type GitActionReceipt = z.output<typeof gitActionReceiptSchema>;
@@ -247,12 +180,3 @@ export type DismissInterruptedGitActionResponse = z.output<
 export type ListGitBranchesResponse = z.output<
   typeof listGitBranchesResponseSchema
 >;
-
-function utf8Size(value: string): number {
-  return Array.from(value).reduce((size, character) => {
-    const point = character.codePointAt(0) ?? 0;
-    if (point <= 0x7f) return size + 1;
-    if (point <= 0x7ff) return size + 2;
-    return size + (point <= 0xffff ? 3 : 4);
-  }, 0);
-}

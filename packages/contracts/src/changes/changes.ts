@@ -1,25 +1,12 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { gitActionSchema } from '../shared/git-action-receipt.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { absentAsNull } from './absent-as-null.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
-
-export const gitActionSchema = z.enum([
-  'fetch',
-  'pull',
-  'push',
-  'commit',
-  'amend',
-  'stash-create',
-  'stash-apply',
-  'stash-pop',
-  'discard',
-  'switch-branch',
-  'create-branch',
-]);
 
 export const fileChangeSchema = z.object({
   path: relativePathSchema,

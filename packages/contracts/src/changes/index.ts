@@ -1,7 +1,6 @@
 export {
   changeListBranchSchema,
   fileChangeSchema,
-  gitActionSchema,
   readChangeDiffsRequestSchema,
   readChangeDiffsResponseSchema,
   readChangeLinesQuerySchema,

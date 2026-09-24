@@ -1,0 +1,1 @@
+export const REVIEW_SUMMARY_BYTES = 10 * 1024 * 1024;

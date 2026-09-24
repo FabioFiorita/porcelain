@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { REVIEW_SUMMARY_BYTES } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const idSchema = z.uuid();
@@ -100,21 +103,12 @@ export const reviewDiagramSchema = z.strictObject({
 const summaryHtmlSchema = z
   .string()
   .min(1)
-  .max(10 * 1024 * 1024)
+  .max(REVIEW_SUMMARY_BYTES)
   .refine((value) => !LONE_SURROGATE.test(value), 'Expected valid Unicode text')
   .refine(
-    (value) => utf8Bytes(value) <= 10 * 1024 * 1024,
+    (value) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
     'Summary exceeds 10 MiB',
   );
-
-function utf8Bytes(value: string) {
-  let bytes = 0;
-  for (const character of value) {
-    const point = character.codePointAt(0) ?? 0;
-    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
-  }
-  return bytes;
-}
 
 export const notExplainedSchema = z.object({
   path: relativePathSchema,
@@ -150,17 +144,8 @@ export const publishReviewRequestSchema = z.strictObject({
   layers: z.array(reviewLayerSchema).min(1).max(100),
 });
 
-const absentReviewSchema = z.codec(
-  publishedReviewSchema.nullable(),
-  publishedReviewSchema.optional(),
-  {
-    decode: (review) => review ?? undefined,
-    encode: (review) => review ?? null,
-  },
-);
-
 export const readPublishedReviewResponseSchema = z.object({
-  review: absentReviewSchema,
+  review: absentAsNull(publishedReviewSchema),
 });
 export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
 

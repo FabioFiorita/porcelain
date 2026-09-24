@@ -1,6 +1,6 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { oidListSchema, oidSchema } from '../shared/oid.ts';
-import { absentAsNull } from './absent-as-null.ts';
 
 const oidCursorSchema = z.codec(oidListSchema, z.array(oidSchema), {
   decode: (list) => list.split(','),

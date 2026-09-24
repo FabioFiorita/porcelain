@@ -1,25 +1,8 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-const absentAsNullText = z.codec(
-  z.string().nullable(),
-  z.union([z.string(), z.undefined()]),
-  {
-    decode: (value) => value ?? undefined,
-    encode: (value) => value ?? null,
-  },
-);
-
 const reviewStatusSchema = z.enum(['pending', 'reviewed', 'replied']);
-
-const absentAsNullStatus = z.codec(
-  reviewStatusSchema.nullable(),
-  z.union([reviewStatusSchema, z.undefined()]),
-  {
-    decode: (value) => value ?? undefined,
-    encode: (value) => value ?? null,
-  },
-);
 
 const absolutePathSchema = z
   .string()
@@ -32,9 +15,9 @@ export const worktreeSchema = z.object({
   id: worktreeIdSchema,
   path: z.string(),
   main: z.boolean(),
-  branch: absentAsNullText,
+  branch: absentAsNull(z.string()),
   available: z.boolean(),
-  status: absentAsNullStatus,
+  status: absentAsNull(reviewStatusSchema),
 });
 
 export const projectSchema = z.object({
@@ -75,7 +58,7 @@ export const browseProjectFoldersQuerySchema = z.strictObject({
 });
 export const browseProjectFoldersResponseSchema = z.object({
   path: z.string(),
-  parent: absentAsNullText,
+  parent: absentAsNull(z.string()),
   directories: z.array(projectLocationSchema),
   repository: z.boolean(),
   truncated: z.boolean(),

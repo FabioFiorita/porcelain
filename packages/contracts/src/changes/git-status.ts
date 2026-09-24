@@ -1,9 +1,9 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { absentAsNull } from './absent-as-null.ts';
 
 const conflictKinds = {
   DD: 'both-deleted',
