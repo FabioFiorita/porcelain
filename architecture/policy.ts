@@ -257,7 +257,7 @@ function classifyServer(inside: string) {
   if (inside.startsWith('http/')) {
     const http = inside.slice('http/'.length);
     if (
-      /^(?:scopes|hooks|routes|mcp|protocol)\//.test(http) ||
+      /^(?:scopes|hooks|routes|mcp|protocol|presenters)\//.test(http) ||
       [
         'schemas/error-responses.ts',
         'error-handler.ts',

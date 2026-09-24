@@ -5,6 +5,7 @@ import {
   checkRequestOrigin,
   type RequestOriginOptions,
 } from '../hooks/request-origin.ts';
+import { summaryPageHeaders } from '../hooks/summary-page-headers.ts';
 import { readReviewSummaryPage } from '../routes/reviews/read-review-summary-page.ts';
 import { staticFiles } from '../static-files.ts';
 
@@ -26,8 +27,11 @@ export async function pageScope(
     'onRequest',
     checkRequestOrigin({ access: application.access, allowedHosts }),
   );
-  server.register(readReviewSummaryPage, {
-    useCase: application.reviews.readReviewSummary,
+  server.register(async (summaries) => {
+    summaries.addHook('onRequest', summaryPageHeaders);
+    summaries.register(readReviewSummaryPage, {
+      useCase: application.reviews.readReviewSummary,
+    });
   });
   server.register(staticFiles, { files });
 }

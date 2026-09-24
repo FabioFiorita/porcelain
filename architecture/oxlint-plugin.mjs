@@ -197,21 +197,25 @@ function isStringLiteral(node) {
   return node.type === 'Literal' && typeof node.value === 'string';
 }
 
+const presenterModule = /(?:^|\/)presenters\/[^/]+\.ts$/;
+
 function pageRenderers(program) {
   return new Set(
     program.body
-      .map((statement) =>
-        statement.type === 'ExportNamedDeclaration'
-          ? statement.declaration
-          : statement,
-      )
       .filter(
         (statement) =>
-          statement?.type === 'FunctionDeclaration' &&
-          statement.id &&
-          statement.params.length === 1,
+          statement.type === 'ImportDeclaration' &&
+          statement.importKind !== 'type' &&
+          typeof statement.source.value === 'string' &&
+          presenterModule.test(statement.source.value),
       )
-      .map((statement) => statement.id.name),
+      .flatMap((statement) => statement.specifiers)
+      .filter(
+        (specifier) =>
+          specifier.type === 'ImportSpecifier' &&
+          specifier.importKind !== 'type',
+      )
+      .map((specifier) => specifier.local.name),
   );
 }
 
@@ -2646,7 +2650,7 @@ export default {
                 context.report({
                   node: handler,
                   message:
-                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.useCase.execute(...)) or .send(render(options.useCase.execute(...))) where render is a one-parameter function declared in this file.',
+                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.useCase.execute(...)) or .send(render(options.useCase.execute(...))) where render is imported from http/presenters/.',
                 });
               return;
             }

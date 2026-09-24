@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ListGitBranchesUseCase } from '../../../use-cases/git-actions/list-git-branches.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
-export function listBranches(
+export function listGitBranches(
   server: FastifyInstance,
   options: { useCase: Pick<ListGitBranchesUseCase, 'execute'> },
 ) {

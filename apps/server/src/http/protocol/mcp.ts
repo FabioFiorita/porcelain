@@ -39,10 +39,9 @@ export function reviewMcp(
         throw httpErrors.methodNotAllowed();
       }
       const cwd = request.headers['x-porcelain-cwd'];
-      const mcp = createReviewMcpServer(
-        options.useCases,
-        typeof cwd === 'string' ? cwd : process.cwd(),
-      );
+      if (typeof cwd !== 'string' || cwd === '')
+        throw httpErrors.badRequest('The x-porcelain-cwd header is required');
+      const mcp = createReviewMcpServer(options.useCases, cwd);
       const transport = new StreamableHTTPServerTransport({
         enableJsonResponse: true,
       });

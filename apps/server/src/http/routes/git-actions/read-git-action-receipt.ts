@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ReadGitActionReceiptUseCase } from '../../../use-cases/git-actions/read-git-action-receipt.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
-export function readReceipt(
+export function readGitActionReceipt(
   server: FastifyInstance,
   options: { useCase: Pick<ReadGitActionReceiptUseCase, 'execute'> },
 ) {
