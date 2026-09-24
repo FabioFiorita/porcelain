@@ -179,6 +179,7 @@ export function composeProjects(
       ),
       lanes,
       laneKeys,
+      events,
     ),
   };
 }

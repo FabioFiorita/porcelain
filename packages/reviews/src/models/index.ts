@@ -30,7 +30,10 @@ export type {
   GeneratePublishedReviewOptions,
   GeneratePublishedReviewResult,
 } from './generate-published-review.ts';
-export type { InvalidateReviewedMarksInput } from './invalidate-reviewed-marks.ts';
+export type {
+  InvalidateReviewedMarksInput,
+  InvalidateReviewedMarksResult,
+} from './invalidate-reviewed-marks.ts';
 export type {
   ListCommentThreadsInput,
   ListCommentThreadsResult,
@@ -97,8 +100,14 @@ export type {
   ReadReviewBadgesInput,
   ReadReviewBadgesResult,
 } from './read-review-badges.ts';
-export type { ReconcileReviewedLayersInput } from './reconcile-reviewed-layers.ts';
-export type { RecordReviewActivityInput } from './record-review-activity.ts';
+export type {
+  ReconcileReviewedLayersInput,
+  ReconcileReviewedLayersResult,
+} from './reconcile-reviewed-layers.ts';
+export type {
+  RecordReviewActivityInput,
+  RecordReviewActivityResult,
+} from './record-review-activity.ts';
 export type {
   RemoveReviewedFileInput,
   RemoveReviewedFileResult,

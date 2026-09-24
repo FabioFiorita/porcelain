@@ -1,4 +1,7 @@
-import type { ReconcileReviewedLayersInput } from '../models/reconcile-reviewed-layers.ts';
+import type {
+  ReconcileReviewedLayersInput,
+  ReconcileReviewedLayersResult,
+} from '../models/reconcile-reviewed-layers.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import {
@@ -15,7 +18,7 @@ export class ReconcileReviewedLayersService {
     this.reviewedLayers = reviewedLayers;
   }
 
-  execute(input: ReconcileReviewedLayersInput): void {
+  execute(input: ReconcileReviewedLayersInput): ReconcileReviewedLayersResult {
     const { worktreeId } = input;
     const { stale, fresh } = markStaleness(
       this.reviewedLayers.list({ worktreeId }),
@@ -27,5 +30,6 @@ export class ReconcileReviewedLayersService {
     );
     this.reviewedLayers.setStale({ worktreeId, layerIds: stale, stale: true });
     this.reviewedLayers.setStale({ worktreeId, layerIds: fresh, stale: false });
+    return { changed: stale.length > 0 || fresh.length > 0 };
   }
 }

@@ -54,7 +54,7 @@ export class SetReviewedFileUseCase {
       { worktreeId, requireAvailableProject: false },
       context,
     );
-    const result = await this.lanes.run(
+    const { changed, ...result } = await this.lanes.run(
       this.laneKeys.reviews(worktree),
       'write',
       async ({ signal }) => {
@@ -76,7 +76,8 @@ export class SetReviewedFileUseCase {
       },
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
+    if (changed)
+      this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
     return result;
   }
 }

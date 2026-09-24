@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { RecordingEventPublisher } from '../../../spec/fakes/recording-event-publisher.ts';
 import { RecordingInventoryRefresh } from '../../../spec/fakes/recording-inventory-refresh.ts';
-import { InMemoryReviewedMarks } from '../../../spec/fakes/in-memory-reviewed-marks.ts';
 import { InMemoryWorktreeWatcher } from '../../../spec/fakes/in-memory-worktree-watcher.ts';
+import { RecordingWorktreeChanges } from '../../../spec/fakes/recording-worktree-changes.ts';
 import { WatchWorktrees } from './watch-worktrees.ts';
 
 const PROJECT = 'project-a';
 const OTHER_PROJECT = 'project-b';
-const MARKED = ['src/a.ts', 'src/b.ts', 'src/c.ts'];
 
 function settle(ms = 10): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,10 +15,7 @@ function wish(worktreeId: string, projectId = PROJECT) {
   return { projectId, worktreeId, paths: [] };
 }
 
-function subject(
-  limits = { maxConnections: 4, maxWatchedWorktrees: 4 },
-  invalidated: Promise<void> = Promise.resolve(),
-) {
+function subject(limits = { maxConnections: 4, maxWatchedWorktrees: 4 }) {
   const watcher = new InMemoryWorktreeWatcher({
     worktrees: ['one', 'two', 'three'].map((worktreeId) => ({
       projectId: PROJECT,
@@ -31,13 +26,11 @@ function subject(
       { projectId: PROJECT, commonDirectory: '/repositories/one/.git' },
     ],
   });
-  const events = new RecordingEventPublisher();
-  const marks = new InMemoryReviewedMarks({ one: MARKED }, invalidated);
+  const events = new RecordingWorktreeChanges();
   const refresh = new RecordingInventoryRefresh();
   const watches = new WatchWorktrees(
-    marks,
-    refresh,
     events,
+    refresh,
     watcher,
     { failure: () => undefined },
     { ...limits, burstMs: 1, announcedEditMs: 50 },
@@ -49,7 +42,7 @@ function subject(
   };
   const follow = (projects: string[], worktrees: ReturnType<typeof wish>[]) =>
     open().replace({ projects, worktrees });
-  return { watches, watcher, events, marks, refresh, follow, open };
+  return { watches, watcher, events, refresh, follow, open };
 }
 
 describe('WatchWorktrees', () => {
@@ -88,41 +81,39 @@ describe('WatchWorktrees', () => {
     expect(watches.open()).toEqual({ kind: 'at-capacity' });
   });
 
-  it('announces a burst of file changes once, after the reviewed marks of those paths are invalidated', async () => {
-    const invalidating = Promise.withResolvers<void>();
-    const { follow, watcher, events, marks } = subject(
-      undefined,
-      invalidating.promise,
-    );
+  it('announces a burst of file changes once, with every path of the burst', async () => {
+    const { follow, watcher, events } = subject();
     await follow([], [wish('one')]);
     watcher.changeFiles('one', ['src/a.ts']);
     watcher.changeFiles('one', ['src/b.ts']);
     await settle();
-    expect(events.announcedFiles('one')).toBeUndefined();
-    invalidating.resolve();
-    await settle();
-    expect(marks.marksOf('one')).toEqual(['src/c.ts']);
-    expect(events.announcedFiles('one')).toEqual(['src/a.ts', 'src/b.ts']);
+    expect(events.announced('one')).toEqual({
+      worktreeId: 'one',
+      change: 'files',
+      paths: ['src/a.ts', 'src/b.ts'],
+    });
   });
 
   it('skips a changed path that an edit already announced, and still announces the others', async () => {
-    const { watches, follow, watcher, events, marks } = subject();
+    const { watches, follow, watcher, events } = subject();
     await follow([], [wish('one')]);
     watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
     watcher.changeFiles('one', ['src/a.ts', 'src/b.ts']);
     await settle();
-    expect(events.announcedFiles('one')).toEqual(['src/b.ts']);
-    expect(marks.marksOf('one')).toEqual(['src/a.ts', 'src/c.ts']);
+    expect(events.announced('one')).toEqual({
+      worktreeId: 'one',
+      change: 'files',
+      paths: ['src/b.ts'],
+    });
   });
 
   it('reacts to nothing when every changed path was already announced by an edit', async () => {
-    const { watches, follow, watcher, events, marks } = subject();
+    const { watches, follow, watcher, events } = subject();
     await follow([], [wish('one')]);
     watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
     watcher.changeFiles('one', ['src/a.ts']);
     await settle();
-    expect(events.announcedFiles('one')).toBeUndefined();
-    expect(marks.marksOf('one')).toEqual(MARKED);
+    expect(events.announced('one')).toBeUndefined();
   });
 
   it('reacts to a change of an announced path once the announcement has expired', async () => {
@@ -132,7 +123,11 @@ describe('WatchWorktrees', () => {
     await settle(80);
     watcher.changeFiles('one', ['src/a.ts']);
     await settle();
-    expect(events.announcedFiles('one')).toEqual(['src/a.ts']);
+    expect(events.announced('one')).toEqual({
+      worktreeId: 'one',
+      change: 'files',
+      paths: ['src/a.ts'],
+    });
   });
 
   it('announces a repository change to every watched worktree of the project and refreshes the inventory', async () => {
@@ -140,10 +135,10 @@ describe('WatchWorktrees', () => {
     await follow([PROJECT], [wish('one'), wish('two')]);
     watcher.changeRepository(PROJECT);
     await settle();
-    expect([
-      events.announcedChange('one'),
-      events.announcedChange('two'),
-    ]).toEqual(['git', 'git']);
+    expect([events.announced('one'), events.announced('two')]).toEqual([
+      { worktreeId: 'one', change: 'git' },
+      { worktreeId: 'two', change: 'git' },
+    ]);
     expect(refresh.isFresh()).toBe(true);
   });
 

@@ -17,13 +17,9 @@ import type {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { FileChange, Worktree } from '@porcelain/kernel/models';
-import type {
-  ReadPublishedReviewService,
-  ReadReviewEvidenceService,
-  RecordReviewActivityService,
-} from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { Logger } from '../../ports/logger.ts';
+import type { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
@@ -40,9 +36,7 @@ export class RunGitActionUseCase {
   private readonly runGitAction: RunGitActionService;
   private readonly recordGitActionProgress: RecordGitActionProgressService;
   private readonly finishGitAction: FinishGitActionService;
-  private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readReviewEvidence: ReadReviewEvidenceService;
-  private readonly recordReviewActivity: RecordReviewActivityService;
+  private readonly refreshWorktreeReview: RefreshWorktreeReviewUseCasePort;
   private readonly interruptGitAction: InterruptGitActionService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -59,9 +53,7 @@ export class RunGitActionUseCase {
     runGitAction: RunGitActionService,
     recordGitActionProgress: RecordGitActionProgressService,
     finishGitAction: FinishGitActionService,
-    readPublishedReview: ReadPublishedReviewService,
-    readReviewEvidence: ReadReviewEvidenceService,
-    recordReviewActivity: RecordReviewActivityService,
+    refreshWorktreeReview: RefreshWorktreeReviewUseCasePort,
     interruptGitAction: InterruptGitActionService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -77,9 +69,7 @@ export class RunGitActionUseCase {
     this.runGitAction = runGitAction;
     this.recordGitActionProgress = recordGitActionProgress;
     this.finishGitAction = finishGitAction;
-    this.readPublishedReview = readPublishedReview;
-    this.readReviewEvidence = readReviewEvidence;
-    this.recordReviewActivity = recordReviewActivity;
+    this.refreshWorktreeReview = refreshWorktreeReview;
     this.interruptGitAction = interruptGitAction;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -127,7 +117,7 @@ export class RunGitActionUseCase {
   private runInBackground(worktree: Worktree, run: GitActionRun): void {
     this.lanes.background(
       this.laneKeys.receipts(worktree),
-      ({ signal }) => this.settle(worktree, run, signal),
+      ({ signal }) => this.settle(run, signal),
       {
         deadlineMs: this.options.deadlineMs,
         onFailure: (error) =>
@@ -138,11 +128,7 @@ export class RunGitActionUseCase {
     );
   }
 
-  private async settle(
-    worktree: Worktree,
-    run: GitActionRun,
-    signal: AbortSignal,
-  ): Promise<void> {
+  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
     const ran = await this.runGitAction.execute(
       {
         run,
@@ -157,31 +143,15 @@ export class RunGitActionUseCase {
     });
     this.events.gitActionChanged(receipt);
     if (ran.reviewStale)
-      this.lanes.background(
-        this.laneKeys.reviews(worktree),
-        (admission) => this.refreshReview(run.worktreeId, admission.signal),
-        {
-          onFailure: (error) =>
-            this.logger.failure({
-              kind: 'review-refresh',
-              worktreeId: run.worktreeId,
-              error,
-            }),
-        },
-      );
-  }
-
-  private async refreshReview(
-    worktreeId: string,
-    signal: AbortSignal,
-  ): Promise<void> {
-    const published = this.readPublishedReview.execute({ worktreeId });
-    if (published.kind === 'none') return;
-    const evidence = await this.readReviewEvidence.execute(
-      { worktreeId, layers: published.review.layers },
-      signal,
-    );
-    this.recordReviewActivity.execute({ review: published.review, evidence });
+      this.refreshWorktreeReview
+        .execute({ worktreeId: run.worktreeId }, {})
+        .catch((error: unknown) =>
+          this.logger.failure({
+            kind: 'review-refresh',
+            worktreeId: run.worktreeId,
+            error,
+          }),
+        );
   }
 
   private async targetChanges(

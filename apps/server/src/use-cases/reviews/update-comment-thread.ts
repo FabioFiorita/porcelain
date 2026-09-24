@@ -40,13 +40,14 @@ export class UpdateCommentThreadUseCase {
       { worktreeId, requireAvailableProject: false },
       context,
     );
-    const thread = await this.lanes.run(
+    const { thread, changed } = await this.lanes.run(
       this.laneKeys.reviews(worktree),
       'write',
       async () => this.updateCommentThread.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged({ worktreeId, change: 'comments' });
+    if (changed)
+      this.events.worktreeChanged({ worktreeId, change: 'comments' });
     return thread;
   }
 }

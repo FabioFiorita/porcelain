@@ -85,10 +85,12 @@ describe('ListReviewedLayerPathsService', () => {
 describe('ReconcileReviewedLayersService', () => {
   it('flags a mark stale once the lines its layer points at changed', () => {
     const { marks, reconcile } = setup();
-    reconcile.execute({
-      worktreeId,
-      texts: texts('README.md', 'first\nchanged\n'),
-    });
+    expect(
+      reconcile.execute({
+        worktreeId,
+        texts: texts('README.md', 'first\nchanged\n'),
+      }),
+    ).toEqual({ changed: true });
     expect(staleness(marks)).toEqual([['layer-1', true]]);
   });
 
@@ -96,6 +98,13 @@ describe('ReconcileReviewedLayersService', () => {
     const { marks, reconcile } = setup(true);
     reconcile.execute({ worktreeId, texts: texts('README.md', reviewed) });
     expect(staleness(marks)).toEqual([['layer-1', false]]);
+  });
+
+  it('reports no change while every mark already says what the lines show', () => {
+    const { reconcile } = setup();
+    expect(
+      reconcile.execute({ worktreeId, texts: texts('README.md', reviewed) }),
+    ).toEqual({ changed: false });
   });
 
   it('flags a mark stale when its file can no longer be read', () => {

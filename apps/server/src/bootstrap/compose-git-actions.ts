@@ -29,6 +29,7 @@ import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-a
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
 import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import type { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
@@ -37,6 +38,7 @@ export type GitActionsDependencies = {
   stores: Stores;
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
+  refreshWorktreeReview: RefreshWorktreeReviewUseCasePort;
   commitDraftSource: CommitDraftSource;
   commitModelReader: CommitModelReader;
 };
@@ -66,9 +68,7 @@ export function composeGitActions(
       ),
       new RecordGitActionProgressService(store, limits.progress),
       new FinishGitActionService(store, clock),
-      shared.readPublishedReview,
-      shared.readReviewEvidence,
-      shared.recordReviewActivity,
+      dependencies.refreshWorktreeReview,
       new InterruptGitActionService(store, clock),
       lanes,
       laneKeys,

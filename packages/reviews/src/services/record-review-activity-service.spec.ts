@@ -86,7 +86,9 @@ function setup(stored: Review) {
 describe('RecordReviewActivityService', () => {
   it('records the review inactive once every line it explains is committed', () => {
     const { store, service } = setup(review());
-    service.execute({ review: review(), evidence: committed });
+    expect(service.execute({ review: review(), evidence: committed })).toEqual({
+      changed: true,
+    });
     expect(store.read({ worktreeId })?.active).toBe(false);
   });
 
@@ -97,6 +99,13 @@ describe('RecordReviewActivityService', () => {
       evidence: stillChanged,
     });
     expect(store.read({ worktreeId })?.active).toBe(true);
+  });
+
+  it('reports no change while the review stays as active as it was', () => {
+    const { service } = setup(review());
+    expect(
+      service.execute({ review: review(), evidence: stillChanged }),
+    ).toEqual({ changed: false });
   });
 
   it('leaves a review published after the one it resolved alone', () => {

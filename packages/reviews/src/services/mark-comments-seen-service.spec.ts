@@ -33,6 +33,7 @@ describe('MarkCommentsSeenService', () => {
     expect(service.execute({ worktreeId, throughRevision: 1 })).toEqual({
       worktreeId,
       seenThrough: 1,
+      changed: true,
     });
     expect(seen.seenThrough({ worktreeId })).toBe(1);
   });
@@ -42,6 +43,14 @@ describe('MarkCommentsSeenService', () => {
     expect(
       service.execute({ worktreeId, throughRevision: 99 }).seenThrough,
     ).toBe(2);
+  });
+
+  it('reports no change when the reader has already seen that far', () => {
+    const { service } = setup();
+    service.execute({ worktreeId, throughRevision: 2 });
+    expect(service.execute({ worktreeId, throughRevision: 2 }).changed).toBe(
+      false,
+    );
   });
 
   it('never moves the mark backwards', () => {

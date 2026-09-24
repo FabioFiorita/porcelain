@@ -66,6 +66,7 @@ describe('SetReviewedFilesService', () => {
       onConflict: 'report',
     });
     expect(result.marked).toEqual(['a.txt']);
+    expect(result.changed).toBe(true);
     expect(result.conflicts).toEqual([
       { path: 'b.txt', reason: 'stale' },
       { path: 'c.txt', reason: 'missing' },
@@ -96,6 +97,18 @@ describe('SetReviewedFilesService', () => {
       onConflict: 'report',
     });
     expect(result.marked).toEqual(['b.txt', 'a.txt']);
+  });
+
+  it('reports no change when every file conflicts', () => {
+    const { service, store } = setup();
+    const result = service.execute({
+      worktreeId,
+      files: [{ path: 'b.txt', fingerprint: 'old' }],
+      changes: changes([{ path: 'b.txt', fingerprint: 'fb' }]),
+      onConflict: 'report',
+    });
+    expect(result.changed).toBe(false);
+    expect(store.list({ worktreeId })).toEqual([]);
   });
 
   it('refuses the whole request when conflicts must not be reported', () => {

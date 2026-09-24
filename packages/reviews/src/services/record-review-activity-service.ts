@@ -1,4 +1,7 @@
-import type { RecordReviewActivityInput } from '../models/record-review-activity.ts';
+import type {
+  RecordReviewActivityInput,
+  RecordReviewActivityResult,
+} from '../models/record-review-activity.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import { reviewActivity } from '../rules/review-activity.ts';
 
@@ -9,14 +12,15 @@ export class RecordReviewActivityService {
     this.reviews = reviews;
   }
 
-  execute(input: RecordReviewActivityInput): void {
+  execute(input: RecordReviewActivityInput): RecordReviewActivityResult {
     const { review } = input;
     const active = reviewActivity(review, input.evidence);
-    if (active === review.active) return;
+    if (active === review.active) return { changed: false };
     this.reviews.setActive({
       worktreeId: review.worktreeId,
       revision: review.revision,
       active,
     });
+    return { changed: true };
   }
 }

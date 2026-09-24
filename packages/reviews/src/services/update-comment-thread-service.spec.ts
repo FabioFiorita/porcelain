@@ -24,8 +24,15 @@ function setup() {
 describe('UpdateCommentThreadService', () => {
   it('resolves an open thread at the next revision', () => {
     const { service, store } = setup();
-    const thread = service.execute({ worktreeId, threadId, resolved: true });
-    expect(thread).toMatchObject({ resolved: true, revision: 2 });
+    const { thread, changed } = service.execute({
+      worktreeId,
+      threadId,
+      resolved: true,
+    });
+    expect({ thread, changed }).toMatchObject({
+      thread: { resolved: true, revision: 2 },
+      changed: true,
+    });
     expect(store.find({ threadId })).toEqual(thread);
   });
 
@@ -34,14 +41,17 @@ describe('UpdateCommentThreadService', () => {
     service.execute({ worktreeId, threadId, resolved: true });
     expect(
       service.execute({ worktreeId, threadId, resolved: false }),
-    ).toMatchObject({ resolved: false, revision: 3 });
+    ).toMatchObject({
+      thread: { resolved: false, revision: 3 },
+      changed: true,
+    });
   });
 
-  it('answers a thread already in the requested state without a new revision', () => {
+  it('answers a thread already in the requested state without a new revision and reports no change', () => {
     const { service, store } = setup();
     expect(
-      service.execute({ worktreeId, threadId, resolved: false }).revision,
-    ).toBe(1);
+      service.execute({ worktreeId, threadId, resolved: false }),
+    ).toMatchObject({ thread: { revision: 1 }, changed: false });
     expect(store.find({ threadId })?.revision).toBe(1);
   });
 

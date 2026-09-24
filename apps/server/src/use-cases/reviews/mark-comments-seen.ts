@@ -40,13 +40,14 @@ export class MarkCommentsSeenUseCase {
       { worktreeId, requireAvailableProject: false },
       context,
     );
-    const result = await this.lanes.run(
+    const { changed, ...seen } = await this.lanes.run(
       this.laneKeys.reviews(worktree),
       'write',
       async () => this.markCommentsSeen.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return result;
+    if (changed)
+      this.events.worktreeChanged({ worktreeId, change: 'comments' });
+    return seen;
   }
 }

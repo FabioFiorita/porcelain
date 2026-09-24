@@ -36,14 +36,12 @@ export class SetReviewedFilesService {
     );
     if (input.onConflict === 'refuse' && conflicts.length > 0)
       throw new ReviewedMarkConflictError();
-    this.reviewedFiles.remove({
-      worktreeId,
-      paths: evictedPaths(
-        this.reviewedFiles.list({ worktreeId }),
-        marked,
-        this.options.marksPerWorktree,
-      ),
-    });
+    const evicted = evictedPaths(
+      this.reviewedFiles.list({ worktreeId }),
+      marked,
+      this.options.marksPerWorktree,
+    );
+    this.reviewedFiles.remove({ worktreeId, paths: evicted });
     const reviewedAt = this.clock.now();
     this.reviewedFiles.save({
       worktreeId,
@@ -54,6 +52,7 @@ export class SetReviewedFilesService {
       marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
       marked: marked.map((file) => file.path),
       conflicts,
+      changed: marked.length > 0 || evicted.length > 0,
     };
   }
 }

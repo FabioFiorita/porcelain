@@ -16,6 +16,7 @@ export type SetReviewedFilesInput = {
 export type SetReviewedFilesResult = ReviewedFiles & {
   marked: string[];
   conflicts: ReviewedFileConflict[];
+  changed: boolean;
 };
 
 export type SetReviewedFilesOptions = ReviewedFileLimits;

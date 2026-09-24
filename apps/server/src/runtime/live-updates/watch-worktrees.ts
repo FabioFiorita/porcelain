@@ -2,7 +2,10 @@ import type {
   AnnouncedEdit,
   AnnouncedEditStore,
 } from '../../ports/announced-edit-store.ts';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type {
+  AnnounceWorktreeChangeUseCasePort,
+  WorktreeChange,
+} from '../../ports/announce-worktree-change-use-case-port.ts';
 import type {
   FollowedTargets,
   WatchRequest,
@@ -17,7 +20,6 @@ import type {
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
 import type { JobWork } from '../interval-job.ts';
-import type { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;
@@ -65,9 +67,8 @@ function changesIgnoreRules(path: string): boolean {
 }
 
 export class WatchWorktrees implements AnnouncedEditStore {
-  private readonly invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
+  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
   private readonly refreshInventory: JobWork;
-  private readonly events: EventPublisher;
   private readonly watcher: WorktreeWatcher;
   private readonly logger: Logger;
   private readonly options: WatchWorktreesOptions;
@@ -79,16 +80,14 @@ export class WatchWorktrees implements AnnouncedEditStore {
   private stopped = false;
 
   constructor(
-    invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort,
+    announceWorktreeChange: AnnounceWorktreeChangeUseCasePort,
     refreshInventory: JobWork,
-    events: EventPublisher,
     watcher: WorktreeWatcher,
     logger: Logger,
     options: WatchWorktreesOptions,
   ) {
-    this.invalidateReviewedMarks = invalidateReviewedMarks;
+    this.announceWorktreeChange = announceWorktreeChange;
     this.refreshInventory = refreshInventory;
-    this.events = events;
     this.watcher = watcher;
     this.logger = logger;
     this.options = options;
@@ -288,9 +287,7 @@ export class WatchWorktrees implements AnnouncedEditStore {
       const changed = pending.filter((path) => !entry.announcedPaths.has(path));
       const { worktreeId } = entry.worktree;
       if (pending.length === 0 || changed.length > 0)
-        this.pathsChanged(worktreeId, changed, () =>
-          this.events.filesChanged({ worktreeId, paths: changed }),
-        );
+        this.announce({ worktreeId, change: 'files', paths: changed });
       if (pending.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
     }, this.options.burstMs);
     entry.timer.unref();
@@ -303,12 +300,11 @@ export class WatchWorktrees implements AnnouncedEditStore {
       const watched = [...this.worktrees.values()].filter(
         (worktree) => worktree.worktree.projectId === entry.project.projectId,
       );
-      for (const worktree of watched) {
-        const { worktreeId } = worktree.worktree;
-        this.pathsChanged(worktreeId, [], () =>
-          this.events.worktreeChanged({ worktreeId, change: 'git' }),
-        );
-      }
+      for (const worktree of watched)
+        this.announce({
+          worktreeId: worktree.worktree.worktreeId,
+          change: 'git',
+        });
       this.refreshInventory
         .execute({})
         .catch((error: unknown) => this.reportFailure(error));
@@ -317,17 +313,10 @@ export class WatchWorktrees implements AnnouncedEditStore {
     entry.timer.unref();
   }
 
-  private pathsChanged(
-    worktreeId: string,
-    paths: readonly string[],
-    announce: () => void,
-  ): void {
-    this.invalidateReviewedMarks
-      .execute({ worktreeId, paths: paths.length > 0 ? paths : undefined }, {})
-      .then(announce, (error: unknown) => {
-        this.reportFailure(error);
-        announce();
-      });
+  private announce(change: WorktreeChange): void {
+    this.announceWorktreeChange
+      .execute(change, {})
+      .catch((error: unknown) => this.reportFailure(error));
   }
 
   private queueIgnoreRules(entries: readonly WorktreeEntry[]): void {

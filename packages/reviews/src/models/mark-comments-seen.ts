@@ -6,4 +6,5 @@ export type MarkCommentsSeenInput = {
 export type MarkCommentsSeenResult = {
   worktreeId: string;
   seenThrough: number;
+  changed: boolean;
 };

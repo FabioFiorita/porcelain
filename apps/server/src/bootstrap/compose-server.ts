@@ -31,6 +31,7 @@ import {
   LivePing,
 } from '../runtime/live-updates/live-connections.ts';
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
+import { AnnounceWorktreeChangeUseCase } from '../use-cases/files/announce-worktree-change.ts';
 import type { StartServer } from '../cli/launcher.ts';
 import {
   startApplication,
@@ -111,9 +112,12 @@ export const openServer: OpenServer = async (input) => {
     findWorktreeByPath: projects.findWorktreeByPath,
   });
   const worktreeWatches = new WatchWorktrees(
-    reviews.invalidateReviewedMarks,
+    new AnnounceWorktreeChangeUseCase(
+      reviews.invalidateReviewedMarks,
+      events,
+      logger,
+    ),
     projects.refreshInventory,
-    events,
     new ParcelWorktreeWatcher({
       worktrees: shared.worktreeAccess,
       projects: () => catalog.listObservations(),
@@ -134,6 +138,7 @@ export const openServer: OpenServer = async (input) => {
     stores,
     shared,
     checkWorktree,
+    refreshWorktreeReview: reviews.refreshWorktreeReview,
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
   });

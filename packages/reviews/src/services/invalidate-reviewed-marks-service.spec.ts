@@ -50,7 +50,9 @@ const stalePaths = (store: InMemoryReviewedFileStore, id: string) =>
 describe('InvalidateReviewedMarksService', () => {
   it('makes stale the marks at a changed path or under a changed directory', () => {
     const { service, files } = setup();
-    service.execute({ worktreeId, paths: ['src'] });
+    expect(service.execute({ worktreeId, paths: ['src'] })).toEqual({
+      changed: true,
+    });
     expect(stalePaths(files, worktreeId)).toEqual([
       'src/app.ts',
       'src/app.tsx',
@@ -76,9 +78,17 @@ describe('InvalidateReviewedMarksService', () => {
     expect(layers.list({ worktreeId })[0]?.stale).toBe(true);
   });
 
+  it('reports no change once every touched mark is already stale', () => {
+    const { service } = setup();
+    service.execute({ worktreeId });
+    expect(service.execute({ worktreeId })).toEqual({ changed: false });
+  });
+
   it('changes nothing for an empty list of paths', () => {
     const { service, files, layers } = setup();
-    service.execute({ worktreeId, paths: [] });
+    expect(service.execute({ worktreeId, paths: [] })).toEqual({
+      changed: false,
+    });
     expect(stalePaths(files, worktreeId)).toEqual([]);
     expect(layers.list({ worktreeId })[0]?.stale).toBe(false);
   });

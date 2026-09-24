@@ -6,4 +6,7 @@ export type UpdateCommentThreadInput = {
   resolved: boolean;
 };
 
-export type UpdateCommentThreadResult = CommentThread;
+export type UpdateCommentThreadResult = {
+  thread: CommentThread;
+  changed: boolean;
+};

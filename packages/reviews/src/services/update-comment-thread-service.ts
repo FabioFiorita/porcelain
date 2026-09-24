@@ -16,7 +16,14 @@ export class UpdateCommentThreadService {
     const current = this.comments.find({ threadId: input.threadId });
     if (!current || current.worktreeId !== input.worktreeId)
       throw new CommentTargetNotFoundError();
-    if (current.resolved === input.resolved) return current;
-    return this.comments.resolve({ thread: current, resolved: input.resolved });
+    if (current.resolved === input.resolved)
+      return { thread: current, changed: false };
+    return {
+      thread: this.comments.resolve({
+        thread: current,
+        resolved: input.resolved,
+      }),
+      changed: true,
+    };
   }
 }

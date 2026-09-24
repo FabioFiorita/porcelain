@@ -1,6 +1,7 @@
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
+import type { InvalidateReviewedMarksUseCasePort } from '../../src/ports/invalidate-reviewed-marks-use-case-port.ts';
 
-export class InMemoryReviewedMarks {
+export class InMemoryReviewedMarks implements InvalidateReviewedMarksUseCasePort {
   private readonly marks: Map<string, ReadonlySet<string>>;
   private readonly settled: Promise<void>;
 

@@ -35,6 +35,7 @@ import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summa
 import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
 import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
 import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
+import { RefreshWorktreeReviewUseCase } from '../use-cases/reviews/refresh-worktree-review.ts';
 import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
 import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.ts';
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
@@ -131,6 +132,16 @@ export function composeReviews(
     lanes,
     laneKeys,
   );
+  const refreshWorktreeReview = new RefreshWorktreeReviewUseCase(
+    checkWorktree,
+    readPublishedReview,
+    shared.readReviewEvidence,
+    shared.recordReviewActivity,
+    shared.reconcileReviewedLayers,
+    lanes,
+    laneKeys,
+    events,
+  );
   const { findWorktreeByPath } = dependencies;
 
   return {
@@ -157,19 +168,17 @@ export function composeReviews(
     refreshReviewActivity: new RefreshReviewActivityUseCase(
       shared.listRegisteredProjects,
       shared.listKnownWorktrees,
-      checkWorktree,
-      readPublishedReview,
-      shared.readReviewEvidence,
-      shared.recordReviewActivity,
-      shared.reconcileReviewedLayers,
+      refreshWorktreeReview,
       lanes,
       laneKeys,
     ),
+    refreshWorktreeReview,
     invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
       checkWorktree,
       shared.invalidateReviewedMarks,
       lanes,
       laneKeys,
+      events,
     ),
     listCommentThreads,
     createCommentThread,

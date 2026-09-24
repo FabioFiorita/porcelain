@@ -1637,6 +1637,50 @@ export default {
         };
       },
     },
+    'events-from-use-cases': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !serverAppFile.test(path) ||
+          /^apps\/server\/src\/(?:use-cases|bootstrap|ports)\//.test(path) ||
+          isSpec(context)
+        )
+          return {};
+        const imports = [];
+        let implemented = false;
+        return {
+          ImportDeclaration(node) {
+            if (
+              typeof node.source.value === 'string' &&
+              /(?:^|\/)ports\/event-publisher\.ts$/.test(node.source.value) &&
+              node.specifiers.some(
+                (specifier) =>
+                  specifier.type === 'ImportSpecifier' &&
+                  specifier.imported.type === 'Identifier' &&
+                  specifier.imported.name === 'EventPublisher',
+              )
+            )
+              imports.push(node);
+          },
+          TSClassImplements(node) {
+            if (
+              node.expression.type === 'Identifier' &&
+              node.expression.name === 'EventPublisher'
+            )
+              implemented = true;
+          },
+          'Program:exit'() {
+            if (implemented && adapterFile.test(path)) return;
+            for (const node of imports)
+              context.report({
+                node,
+                message:
+                  'Only a use case publishes, after its lane settles and only on change; the runtime, transport and adapters announce through a use case, never through the EventPublisher directly.',
+              });
+          },
+        };
+      },
+    },
     'no-nested-lane': {
       create(context) {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))

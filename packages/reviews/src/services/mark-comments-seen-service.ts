@@ -17,12 +17,15 @@ export class MarkCommentsSeenService {
 
   execute(input: MarkCommentsSeenInput): MarkCommentsSeenResult {
     const { worktreeId } = input;
+    const before = this.commentSeen.seenThrough({ worktreeId });
     const seen = seenThrough(
-      this.commentSeen.seenThrough({ worktreeId }),
+      before,
       input.throughRevision,
       this.comments.lastRevision({ worktreeId }),
     );
+    if (seen === before)
+      return { worktreeId, seenThrough: seen, changed: false };
     this.commentSeen.save({ worktreeId, seenThrough: seen });
-    return { worktreeId, seenThrough: seen };
+    return { worktreeId, seenThrough: seen, changed: true };
   }
 }
