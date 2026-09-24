@@ -272,6 +272,8 @@ const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const statusPolicySpec = /\/apps\/server\/src\/http\/status-policy\.spec\.ts$/;
+const adapterSpec = /\/apps\/server\/src\/adapters\/.+\.spec\.ts$/;
+const storageEntry = /^@porcelain\/storage(?:\/[a-z-]+)?$/;
 const gitCapabilityEntry =
   /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
 const specPackageEntry = new RegExp(
@@ -965,6 +967,7 @@ function allowedSpecImport(filename, source) {
   const path = normalizedFilename(filename);
   if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
     return true;
+  if (adapterSpec.test(path) && storageEntry.test(source)) return true;
   if (!source.startsWith('.')) return false;
   const unit = path.split('/').at(-1).replace(specSource, '.ts');
   if (source === `./${unit}`) return true;
@@ -2559,6 +2562,86 @@ export default {
         };
       },
     },
+    'spec-asserts': {
+      create(context) {
+        if (!isSpec(context)) return {};
+        const suiteFunctions = new Set(['describe', 'suite']);
+        const inSuiteBody = (statement) => {
+          const block = statement.parent;
+          if (block?.type === 'Program') return true;
+          const owner = block?.parent;
+          return (
+            block?.type === 'BlockStatement' &&
+            isFunction(owner) &&
+            owner.parent?.type === 'CallExpression' &&
+            suiteFunctions.has(chainRoot(owner.parent.callee) ?? '')
+          );
+        };
+        return {
+          CallExpression(node) {
+            if (
+              caseFunctions.has(chainRoot(node.callee) ?? '') &&
+              node.parent?.type !== 'MemberExpression' &&
+              !(
+                node.parent?.type === 'CallExpression' &&
+                node.parent.callee === node
+              ) &&
+              (node.parent?.type !== 'ExpressionStatement' ||
+                !inSuiteBody(node.parent))
+            )
+              context.report({
+                node,
+                message:
+                  'Register every case as a statement of its describe; a case inside a condition, loop or helper may never run.',
+              });
+            if (
+              node.callee.type !== 'Identifier' ||
+              node.callee.name !== 'expect'
+            )
+              return;
+            let chain = node;
+            while (
+              chain.parent?.type === 'MemberExpression' &&
+              chain.parent.object === chain
+            )
+              chain = chain.parent;
+            if (
+              chain === node ||
+              chain.parent?.type !== 'CallExpression' ||
+              chain.parent.callee !== chain
+            )
+              context.report({
+                node,
+                message:
+                  'Name the matcher: expect(actual) asserts nothing until a matcher such as toEqual is called on it.',
+              });
+            for (const ancestor of context.sourceCode
+              .getAncestors(node)
+              .reverse()) {
+              if (!isFunction(ancestor)) continue;
+              const call = ancestor.parent;
+              if (
+                call?.type === 'CallExpression' &&
+                caseFunctions.has(chainRoot(call.callee) ?? '')
+              )
+                return;
+              if (
+                call?.type === 'CallExpression' &&
+                call.callee.type === 'MemberExpression' &&
+                call.arguments.includes(ancestor)
+              ) {
+                context.report({
+                  node,
+                  message:
+                    'Assert in the case body, not inside a callback; an expect in map, filter or forEach runs once per element, and not at all for none.',
+                });
+                return;
+              }
+            }
+          },
+        };
+      },
+    },
     'spec-behaviour-names': {
       create(context) {
         if (!isSpec(context)) return {};
@@ -2612,7 +2695,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec imports the storage public API instead of fakes.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors,store-contracts}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec, and a server adapter spec that runs a store contract over storage, imports the storage public API.',
             });
         };
         return {

@@ -11,9 +11,9 @@ export class CachedDeviceStore implements DeviceStore {
 
   find(input: { deviceId: string }): StoredDevice | undefined {
     const cached = this.cached.get(input.deviceId);
-    if (cached) return cached;
+    if (cached) return { ...cached };
     const stored = this.devices.find(input);
-    if (stored) this.cached.set(input.deviceId, stored);
+    if (stored) this.cached.set(input.deviceId, { ...stored });
     return stored;
   }
 
@@ -23,14 +23,11 @@ export class CachedDeviceStore implements DeviceStore {
 
   markRevoked(input: { device: StoredDevice; revokedAt: string }): void {
     this.devices.markRevoked(input);
-    this.cached.set(input.device.id, {
-      ...input.device,
-      revokedAt: input.revokedAt,
-    });
+    this.cached.delete(input.device.id);
   }
 
   recordSighting(input: { device: StoredDevice }): void {
     this.devices.recordSighting(input);
-    this.cached.set(input.device.id, input.device);
+    this.cached.delete(input.device.id);
   }
 }

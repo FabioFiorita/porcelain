@@ -496,9 +496,10 @@ function testViolation(
   if (
     to.role === 'store-contract' &&
     to.owner !== from.owner &&
-    from.owner !== 'storage'
+    from.owner !== 'storage' &&
+    from.owner !== 'server'
   )
-    return 'store-contract-runs-against-its-fake-and-storage-only';
+    return 'store-contract-runs-against-its-fake-storage-and-server-adapters-only';
   if (from.owner !== 'server' && to.owner === 'server')
     return 'package-cannot-import-server';
   if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
