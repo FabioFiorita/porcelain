@@ -31,6 +31,46 @@ const stored: GitActionReceipt = {
 };
 
 describe('sameGitActionRequest', () => {
+  it('recognises the request whatever order its fields arrive in', () => {
+    const reordered: AcceptGitActionInput = {
+      ...request,
+      intent: { paths: ['README.md'], message: 'Fix', action: 'commit' },
+      expected: {
+        files: [{ fingerprint: 'a'.repeat(64), path: 'README.md' }],
+        branch: 'main',
+        headOid: expected.headOid,
+      },
+    };
+    expect(sameGitActionRequest(stored, reordered)).toBe(true);
+  });
+
+  it('tells apart a request whose files come in another order', () => {
+    expect(
+      sameGitActionRequest(
+        {
+          ...stored,
+          expected: {
+            ...expected,
+            files: [
+              ...expected.files,
+              { path: 'b.md', fingerprint: 'b'.repeat(64) },
+            ],
+          },
+        },
+        {
+          ...request,
+          expected: {
+            ...request.expected,
+            files: [
+              { path: 'b.md', fingerprint: 'b'.repeat(64) },
+              ...expected.files,
+            ],
+          },
+        },
+      ),
+    ).toBe(false);
+  });
+
   it('recognises the request a stored receipt was accepted for, whatever absent fields it spells out', () => {
     expect(sameGitActionRequest(stored, structuredClone(request))).toBe(true);
   });
