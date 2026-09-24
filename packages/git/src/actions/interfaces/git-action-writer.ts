@@ -7,12 +7,12 @@ import type {
 } from '../dtos/git-action.ts';
 
 export interface GitActionWriter {
-  readSelectedDiff?(
+  readSelectedDiff(
     headOid: string | null,
     paths: readonly string[],
     signal: AbortSignal,
   ): Promise<string>;
-  listBranches?(signal: AbortSignal): Promise<GitBranchList>;
+  listBranches(signal: AbortSignal): Promise<GitBranchList>;
   executeDirect(
     requestId: string,
     intent: GitActionIntent,

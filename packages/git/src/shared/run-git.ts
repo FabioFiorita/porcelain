@@ -169,11 +169,11 @@ function gitEnvironment(mode: GitMode, indexFile?: string): NodeJS.ProcessEnv {
   return {
     ...base,
     GCM_INTERACTIVE: 'never',
-    GIT_ASKPASS: '/usr/bin/false',
-    SSH_ASKPASS: '/usr/bin/false',
+    GIT_ASKPASS: '',
+    SSH_ASKPASS: '',
     SSH_ASKPASS_REQUIRE: 'never',
-    GIT_EDITOR: '/usr/bin/false',
-    GIT_SEQUENCE_EDITOR: '/usr/bin/false',
+    GIT_EDITOR: ':',
+    GIT_SEQUENCE_EDITOR: ':',
     LC_ALL: 'C',
     LANG: 'C',
   };

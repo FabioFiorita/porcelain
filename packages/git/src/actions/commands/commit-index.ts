@@ -2,7 +2,7 @@ import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 import { commitPaths } from './commit-paths.ts';
-import { readActionCommand } from './read-action-command.ts';
+import { readActionHead } from './read-action-head.ts';
 
 export async function commitIndex(
   process: GitProcessRunner,
@@ -21,9 +21,7 @@ export async function commitIndex(
   );
   const failure = processFailure(committed);
   if (failure) return failure;
-  const headOid = (
-    await readActionCommand(process, ['rev-parse', '--verify', 'HEAD'], signal)
-  ).trimEnd();
+  const headOid = await readActionHead(process, signal);
   if (headOid === preview.headOid)
     return {
       state: 'indeterminate',

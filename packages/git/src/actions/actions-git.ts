@@ -25,7 +25,7 @@ const UNAVAILABLE: GitActionOutcome = {
   refreshRequired: false,
 };
 
-export class ActionGit implements GitActionWriter {
+export class ActionsGit implements GitActionWriter {
   private readonly session: CheckoutSession;
   private readonly process: GitProcessRunner;
   private progress: ((line: string) => void) | undefined;

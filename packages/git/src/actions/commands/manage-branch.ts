@@ -2,7 +2,7 @@ import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
-import { readActionCommand } from './read-action-command.ts';
+import { readActionHead } from './read-action-head.ts';
 
 export async function manageBranch(
   process: GitProcessRunner,
@@ -29,9 +29,7 @@ export async function manageBranch(
   const switched = await process.execute(args, signal);
   const failure = processFailure(switched);
   if (failure) return failure;
-  const headOid = (
-    await readActionCommand(process, ['rev-parse', '--verify', 'HEAD'], signal)
-  ).trimEnd();
+  const headOid = await readActionHead(process, signal);
   return {
     state: 'succeeded',
     result: { headOid, branch: intent.branch },

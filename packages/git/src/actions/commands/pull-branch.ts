@@ -6,7 +6,8 @@ import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 import { fetchBranch } from './fetch-branch.ts';
 import { readActionBranch } from './read-action-branch.ts';
-import { readActionCommand } from './read-action-command.ts';
+import { readActionAncestry } from './read-action-ancestry.ts';
+import { readActionHead } from './read-action-head.ts';
 import { readActionStatus } from './read-action-status.ts';
 
 export async function pullBranch(
@@ -25,9 +26,7 @@ export async function pullBranch(
       reason: 'OUTCOME_UNKNOWN',
       refreshRequired: true,
     };
-  const head = (
-    await readActionCommand(process, ['rev-parse', '--verify', 'HEAD'], signal)
-  ).trimEnd();
+  const head = await readActionHead(process, signal);
   const branch = await readActionBranch(process, signal);
   const changes = await readActionStatus(process, signal);
   if (
@@ -47,34 +46,18 @@ export async function pullBranch(
       refreshRequired: true,
     };
   const strategy = preparation.intent.strategy ?? 'ff-only';
-  const ancestry = await process.execute(
-    ['merge-base', '--is-ancestor', head, candidate],
-    signal,
-  );
-  const ancestryFailure = processFailure(ancestry);
-  if (
-    ancestryFailure &&
-    (ancestry.exitCode !== 1 || ancestryFailure.state === 'indeterminate')
-  )
-    return ancestryFailure;
-  if (ancestry.exitCode === 1) {
+  const ancestry = await readActionAncestry(process, head, candidate, signal);
+  if (ancestry.kind === 'failed') return ancestry.outcome;
+  if (ancestry.kind === 'not-ancestor') {
     if (strategy === 'ff-only')
       return {
         state: 'rejected',
         reason: 'NON_FAST_FORWARD',
         refreshRequired: true,
       };
-    const ahead = await process.execute(
-      ['merge-base', '--is-ancestor', candidate, head],
-      signal,
-    );
-    const aheadFailure = processFailure(ahead);
-    if (
-      aheadFailure &&
-      (ahead.exitCode !== 1 || aheadFailure.state === 'indeterminate')
-    )
-      return aheadFailure;
-    if (ahead.exitCode === 0)
+    const ahead = await readActionAncestry(process, candidate, head, signal);
+    if (ahead.kind === 'failed') return ahead.outcome;
+    if (ahead.kind === 'ancestor')
       return {
         state: 'no-change',
         result: { headOid: head, trackingOid: candidate },
@@ -123,16 +106,11 @@ export async function pullBranch(
     }
     return failure;
   }
-  const result = (
-    await readActionCommand(process, ['rev-parse', '--verify', 'HEAD'], signal)
-  ).trimEnd();
-  const contains = await process.execute(
-    ['merge-base', '--is-ancestor', candidate, result],
-    signal,
-  );
-  const containsFailure = processFailure(contains);
-  if (containsFailure?.state === 'indeterminate') return containsFailure;
-  return contains.exitCode === 0
+  const result = await readActionHead(process, signal);
+  const contains = await readActionAncestry(process, candidate, result, signal);
+  if (contains.kind === 'failed' && contains.outcome.state === 'indeterminate')
+    return contains.outcome;
+  return contains.kind === 'ancestor'
     ? {
         state: 'succeeded',
         result: { headOid: result, trackingOid: candidate },

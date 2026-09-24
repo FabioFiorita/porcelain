@@ -13,16 +13,7 @@ export { InvalidGitDiffError } from './errors/invalid-git-diff-error.ts';
 export { UnsupportedGitFiltersError } from './errors/unsupported-git-filters-error.ts';
 export { UnsupportedPathEncodingError } from './errors/unsupported-path-encoding-error.ts';
 export type { GitDiffResult } from './dtos/git-diff.ts';
-export type { LineRange } from './dtos/line-range.ts';
-export type {
-  GitBranchDetails,
-  GitBranchStatus,
-  GitChange,
-  GitChangeSelection,
-  GitDiscardedChange,
-  GitOrdinaryChange,
-  GitStatusObservation,
-} from './dtos/git-status.ts';
+export type { GitChange, GitOrdinaryChange } from './dtos/git-status.ts';
 export type { RawDiffEntry } from './parsers/parse-raw-diff.ts';
 export type { CheckoutSession, GitSession } from './interfaces/git-session.ts';
 export type {
