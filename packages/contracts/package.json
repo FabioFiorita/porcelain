@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@porcelain/kernel": "workspace:*",
     "zod": "4.5.4"
   }
 }

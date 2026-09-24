@@ -3,5 +3,9 @@
   "compilerOptions": {
     "types": []
   },
-  "include": ["src/**/*.ts", "spec/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "spec/**/*.ts",
+    "../../architecture/platform/domain-globals.d.ts"
+  ]
 }

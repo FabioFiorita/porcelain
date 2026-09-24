@@ -1,3 +1,4 @@
+import { utf8ByteLength } from '@porcelain/kernel/rules';
 import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
@@ -7,7 +8,6 @@ import {
 } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { reviewSummaryLinkSchema } from './review-summary-link.ts';
-import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const idSchema = z.uuid();

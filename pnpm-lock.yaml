@@ -354,6 +354,9 @@ importers:
 
   packages/contracts:
     dependencies:
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       zod:
         specifier: 4.5.4
         version: 4.5.4

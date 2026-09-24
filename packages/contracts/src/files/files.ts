@@ -1,7 +1,7 @@
+import { utf8ByteLength } from '@porcelain/kernel/rules';
 import { z } from 'zod';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
-import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 import { PATH_LENGTH, TEXT_BYTES } from '../shared/limits.ts';
 

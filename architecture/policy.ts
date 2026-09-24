@@ -449,7 +449,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'config',
     'kernel',
   ]),
-  contract: new Set(['contract']),
+  contract: new Set(['contract', 'rule-api']),
   config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),
   fake: new Set([
@@ -535,6 +535,12 @@ export function violation(
     return 'domain-cannot-import-another-domain';
   if (domainSet.has(from.owner) && to.owner === 'contracts')
     return 'domain-cannot-import-transport-contract';
+  if (
+    from.role === 'contract' &&
+    to.role === 'rule-api' &&
+    to.owner !== 'kernel'
+  )
+    return 'contract-imports-kernel-rules-only';
   if (from.owner !== to.owner) {
     if (to.owner === 'git' && to.role !== 'gateway-api')
       return 'git-public-api-only';
