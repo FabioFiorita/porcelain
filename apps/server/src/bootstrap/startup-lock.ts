@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import Database from 'better-sqlite3';
+import { delay } from '../runtime/delay.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 
 const POLL_MS = 25;

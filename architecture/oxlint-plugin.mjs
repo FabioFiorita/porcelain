@@ -362,6 +362,9 @@ const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
 const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
 const runtimeFile = /^apps\/server\/src\/runtime\//;
+const serverAppFile = /^apps\/server\/src\//;
+const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
+const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
 const scopeFile = /^apps\/server\/src\/http\/scopes\/[^/]+\.ts$/;
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
@@ -1235,6 +1238,34 @@ export default {
               message:
                 'runtime/ implements the lanes; a contract the server depends on is a port in apps/server/src/ports/.',
             });
+          },
+        };
+      },
+    },
+    'timers-in-runtime': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !serverAppFile.test(path) ||
+          runtimeFile.test(path) ||
+          isSpec(context)
+        )
+          return {};
+        const message =
+          'A schedule lives in apps/server/src/runtime: repeating work is an IntervalJob, a wait is a runtime helper; setTimeout and setInterval appear nowhere else.';
+        return {
+          ...moduleVisitors((node) => {
+            const source = moduleSource(node);
+            if (source !== undefined && timerModule.test(source))
+              context.report({ node: node.source ?? node, message });
+          }),
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              timerGlobals,
+            ))
+              context.report({ node: identifier, message });
           },
         };
       },

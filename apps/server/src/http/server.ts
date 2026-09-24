@@ -64,7 +64,6 @@ export function createNetworkServer(options: NetworkServerOptions) {
     prefix: '/api',
     application,
     allowedHosts,
-    pingMs: settings.limits.liveUpdates.pingMs,
   });
   server.register(pageScope, {
     application,

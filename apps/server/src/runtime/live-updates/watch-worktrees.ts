@@ -1,9 +1,10 @@
-import type { EventPublisher } from '../ports/event-publisher.ts';
-import type { Logger } from '../ports/logger.ts';
+import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type {
   FollowedTargets,
   WatchRequest,
-} from '../ports/followed-targets.ts';
+} from '../../ports/followed-targets.ts';
+import type { Logger } from '../../ports/logger.ts';
 import type {
   FileWatch,
   IgnoreRulesRefresh,
@@ -11,16 +12,22 @@ import type {
   WatchedProject,
   WatchedWorktree,
   WorktreeWatcher,
-} from '../ports/worktree-watcher.ts';
-import type { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
-import type { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
-import { LiveUpdateCapacityError } from './errors/live-update-capacity-error.ts';
-import type { Job } from './job.ts';
+} from '../../ports/worktree-watcher.ts';
+import { LiveUpdateCapacityError } from '../errors/live-update-capacity-error.ts';
+import type { JobWork } from '../interval-job.ts';
+import type { OperationContext } from '../operation-context.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;
   maxWatchedWorktrees: number;
   burstMs: number;
+};
+
+export type ReviewedMarksInvalidation = {
+  execute(
+    input: InvalidateReviewedMarksInput,
+    context: OperationContext,
+  ): Promise<unknown>;
 };
 
 export type WatchDemand = {
@@ -56,12 +63,9 @@ function changesIgnoreRules(path: string): boolean {
   return path === '.gitignore' || path.endsWith('/.gitignore');
 }
 
-export class WatchWorktreesJob implements Job {
-  private readonly invalidateReviewedMarks: Pick<
-    InvalidateReviewedMarksUseCase,
-    'execute'
-  >;
-  private readonly refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>;
+export class WatchWorktrees {
+  private readonly invalidateReviewedMarks: ReviewedMarksInvalidation;
+  private readonly refreshInventory: JobWork;
   private readonly events: EventPublisher;
   private readonly watcher: WorktreeWatcher;
   private readonly logger: Logger;
@@ -71,11 +75,11 @@ export class WatchWorktreesJob implements Job {
   private readonly projects = new Map<string, ProjectEntry>();
   private readonly pendingStops = new Set<Promise<void>>();
   private registryUpdate: Promise<void> = Promise.resolve();
-  private stopped = true;
+  private stopped = false;
 
   constructor(
-    invalidateReviewedMarks: Pick<InvalidateReviewedMarksUseCase, 'execute'>,
-    refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>,
+    invalidateReviewedMarks: ReviewedMarksInvalidation,
+    refreshInventory: JobWork,
     events: EventPublisher,
     watcher: WorktreeWatcher,
     logger: Logger,
@@ -89,11 +93,7 @@ export class WatchWorktreesJob implements Job {
     this.options = options;
   }
 
-  start(): void {
-    this.stopped = false;
-  }
-
-  async stop(): Promise<void> {
+  async close(): Promise<void> {
     this.stopped = true;
     for (const demand of this.demands) {
       demand.closed = true;
@@ -131,7 +131,7 @@ export class WatchWorktreesJob implements Job {
         demand.update = update.catch(settledEitherWay);
         return update;
       },
-      close: () => this.close(demand),
+      close: () => this.release(demand),
     };
   }
 
@@ -352,7 +352,7 @@ export class WatchWorktreesJob implements Job {
     this.trackStop(this.stopProject(entry));
   }
 
-  private close(demand: Demand): void {
+  private release(demand: Demand): void {
     if (demand.closed) return;
     demand.closed = true;
     this.demands.delete(demand);
@@ -385,7 +385,7 @@ export class WatchWorktreesJob implements Job {
   }
 
   private reportFailure(error: unknown): undefined {
-    this.logger.failure({ kind: 'job', job: 'watch-worktrees', error });
+    this.logger.failure({ kind: 'live-updates', error });
     return undefined;
   }
 }

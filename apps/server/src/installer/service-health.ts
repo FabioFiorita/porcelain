@@ -1,6 +1,6 @@
-import { setTimeout as sleep } from 'node:timers/promises';
 import { LIMITS } from '../config/limits.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
+import { delay } from '../runtime/delay.ts';
 
 const ATTEMPTS = 60;
 const INTERVAL_MS = 250;
@@ -23,7 +23,7 @@ export async function waitForHealthyService(options: {
       probe.status.pid === servicePid
     )
       return true;
-    await sleep(INTERVAL_MS);
+    await delay(INTERVAL_MS);
   }
   return false;
 }

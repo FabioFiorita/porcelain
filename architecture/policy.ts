@@ -350,6 +350,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   installer: new Set([
     'installer',
+    'runtime',
     'server-port',
     'config',
     'kernel',
@@ -413,7 +414,14 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'gateway-api': new Set(['gateway']),
   'process-api': new Set(['process']),
   process: new Set(['process']),
-  runtime: new Set(['kernel', 'runtime', 'model-api', 'config']),
+  runtime: new Set([
+    'kernel',
+    'runtime',
+    'model-api',
+    'config',
+    'server-port',
+    'contract',
+  ]),
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set(everything),
   contract: new Set(['contract']),

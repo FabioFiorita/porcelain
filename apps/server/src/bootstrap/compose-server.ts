@@ -50,12 +50,14 @@ import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
-import { CollectAbsentWorktreesJob } from '../jobs/collect-absent-worktrees-job.ts';
-import { FlushDeviceActivityJob } from '../jobs/flush-device-activity-job.ts';
-import type { Job } from '../jobs/job.ts';
-import { RefreshInventoryJob } from '../jobs/refresh-inventory-job.ts';
-import { StartupJob } from '../jobs/startup-job.ts';
-import { WatchWorktreesJob } from '../jobs/watch-worktrees-job.ts';
+import { IntervalJob } from '../runtime/interval-job.ts';
+import type { Job } from '../runtime/job.ts';
+import {
+  LiveConnections,
+  LiveHeartbeat,
+  LivePing,
+} from '../runtime/live-updates/live-connections.ts';
+import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
@@ -125,7 +127,8 @@ export async function openApplication(
   );
   const checkWorktree = new CheckWorktreeService(worktreeAccess);
   const laneKeys = new GitLaneKeys(worktreeDirectory, inventoryStore);
-  const events = new WebSocketEventPublisher({ limits: limits.liveUpdates });
+  const liveConnections = new LiveConnections();
+  const events = new WebSocketEventPublisher(liveConnections);
   const context: ComposeContext = {
     session,
     lanes,
@@ -203,7 +206,7 @@ export async function openApplication(
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
   });
-  const worktreeWatches = new WatchWorktreesJob(
+  const worktreeWatches = new WatchWorktrees(
     reviewInvalidation.invalidateReviewedMarks,
     projects.refreshInventory,
     events,
@@ -215,21 +218,42 @@ export async function openApplication(
     limits.liveUpdates,
   );
   const jobs: readonly Job[] = [
-    worktreeWatches,
-    new StartupJob(
+    new IntervalJob(
+      'recover-interrupted-git-actions',
       gitActions.recoverInterruptedGitActions,
-      projects.refreshInventory,
+      { atStart: true },
       logger,
     ),
-    new RefreshInventoryJob(projects.refreshInventory, logger, {
-      intervalMs: limits.jobs.refreshInventoryMs,
-    }),
-    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees, logger, {
-      intervalMs: limits.jobs.collectAbsentWorktreesMs,
-    }),
-    new FlushDeviceActivityJob(access.flushDeviceActivity, logger, {
-      intervalMs: limits.jobs.flushDeviceActivityMs,
-    }),
+    new IntervalJob(
+      'refresh-inventory',
+      projects.refreshInventory,
+      { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
+      logger,
+    ),
+    new IntervalJob(
+      'collect-absent-worktrees',
+      projects.collectAbsentWorktrees,
+      { everyMs: limits.jobs.collectAbsentWorktreesMs },
+      logger,
+    ),
+    new IntervalJob(
+      'flush-device-activity',
+      access.flushDeviceActivity,
+      { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
+      logger,
+    ),
+    new IntervalJob(
+      'heartbeat',
+      new LiveHeartbeat(liveConnections),
+      { everyMs: limits.liveUpdates.heartbeatMs },
+      logger,
+    ),
+    new IntervalJob(
+      'ping-live-clients',
+      new LivePing(liveConnections),
+      { everyMs: limits.liveUpdates.pingMs },
+      logger,
+    ),
   ];
 
   return {
@@ -239,13 +263,14 @@ export async function openApplication(
     changes,
     reviews,
     gitActions,
-    liveUpdates: events,
+    liveUpdates: liveConnections,
     logger,
     worktreeWatches,
     deviceConnections,
     jobs,
     close: async () => {
-      await events.close();
+      await worktreeWatches.close();
+      liveConnections.close();
       await lanes.close();
     },
   };

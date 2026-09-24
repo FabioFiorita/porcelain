@@ -21,7 +21,6 @@ export async function liveScope(
   options: {
     application: LiveUseCases;
     allowedHosts: readonly string[];
-    pingMs: number;
   },
 ) {
   const { application, allowedHosts } = options;
@@ -35,6 +34,5 @@ export async function liveScope(
     liveUpdates: application.liveUpdates,
     worktreeWatches: application.worktreeWatches,
     logger: application.logger,
-    pingMs: options.pingMs,
   });
 }

@@ -15,8 +15,13 @@ import { callerOf } from '../principal.ts';
 export type LiveUpdatesOptions = {
   logger: Logger;
   liveUpdates: {
-    connect(send: (notice: LiveNotice) => void): {
+    connect(channel: {
+      send(notice: LiveNotice): void;
+      ping(): void;
+      terminate(): void;
+    }): {
       follow(targets: FollowedTargets): void;
+      answered(): void;
       close(): void;
     };
   };
@@ -30,8 +35,7 @@ export type LiveUpdatesOptions = {
 
 export function liveUpdates(
   server: FastifyInstance,
-  options: Pick<AuthenticateOptions, 'deviceConnections'> &
-    LiveUpdatesOptions & { pingMs: number },
+  options: Pick<AuthenticateOptions, 'deviceConnections'> & LiveUpdatesOptions,
 ) {
   server.get('/live', { websocket: true }, (socket, request) => {
     const principal = callerOf(request);
@@ -39,31 +43,25 @@ export function liveUpdates(
       socket.close(1008, 'Viewer connection required');
       return;
     }
-    let alive = true;
     const watches = options.worktreeWatches.open();
-    const connection = options.liveUpdates.connect((notice) => {
-      if (socket.readyState === WebSocket.OPEN)
-        socket.send(JSON.stringify(notice));
+    const connection = options.liveUpdates.connect({
+      send: (notice) => {
+        if (socket.readyState === WebSocket.OPEN)
+          socket.send(JSON.stringify(notice));
+      },
+      ping: () => socket.ping(),
+      terminate: () => socket.terminate(),
     });
     const releaseDevice = options.deviceConnections.hold({
       deviceId: principal.deviceId,
       connection: { close: () => socket.close(4001, 'Device access revoked') },
     });
-    const heartbeat = setInterval(() => {
-      if (!alive) return socket.terminate();
-      alive = false;
-      socket.ping();
-    }, options.pingMs);
-    heartbeat.unref();
     const close = () => {
-      clearInterval(heartbeat);
       releaseDevice();
       watches.close();
       connection.close();
     };
-    socket.on('pong', () => {
-      alive = true;
-    });
+    socket.on('pong', () => connection.answered());
     socket.on('message', (bytes, binary) => {
       if (binary) return socket.close(1003, 'Text messages only');
       let value: unknown;

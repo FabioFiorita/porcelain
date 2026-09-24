@@ -60,17 +60,6 @@
     }
   },
   "porcelain/fakes-store": {
-    "apps/server/spec/fakes/in-memory-event-publisher.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
-    },
-    "apps/server/spec/fakes/scripted-inventory-refresh.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
-    },
-    "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
-    },
     "packages/access/spec/fakes/sequential-secret-source.ts": {
       "A fake stores state, it never records calls; assert through what the port reads back.": 1
     },

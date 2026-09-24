@@ -4,7 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import { openApplication, type ServerApplication } from './compose-server.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
-import type { Job } from '../jobs/job.ts';
+import type { Job } from '../runtime/job.ts';
+import { closeListener } from '../runtime/close-listener.ts';
 import type { IssuePairingResponse } from '@porcelain/contracts/access';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
@@ -35,19 +36,6 @@ type RuntimeParts = {
   jobs?: readonly Job[] | undefined;
 };
 
-async function closeListener(server: FastifyInstance) {
-  const deadline = setTimeout(
-    () => server.server.closeAllConnections(),
-    LISTENER_CLOSE_GRACE_MS,
-  );
-  deadline.unref();
-  try {
-    await server.close();
-  } finally {
-    clearTimeout(deadline);
-  }
-}
-
 async function startJobs(jobs: readonly Job[]): Promise<readonly Job[]> {
   const started: Job[] = [];
   try {
@@ -76,10 +64,11 @@ async function shutDown(parts: RuntimeParts) {
       failures.push(error);
     }
   };
-  if (network) await stage(() => closeListener(network));
+  if (network)
+    await stage(() => closeListener(network, LISTENER_CLOSE_GRACE_MS));
   if (jobs) await stage(() => stopJobs(jobs));
   if (application) await stage(() => application.close());
-  if (owner) await stage(() => closeListener(owner));
+  if (owner) await stage(() => closeListener(owner, LISTENER_CLOSE_GRACE_MS));
   if (failures.length > 0) throw failures[0];
 }
 
