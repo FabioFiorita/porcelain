@@ -6,6 +6,3 @@ export const oidSchema = z.string().regex(new RegExp(`^${OID}$`));
 export const oidListSchema = z
   .string()
   .regex(new RegExp(`^${OID}(?:,${OID})*$`));
-
-export type Oid = z.output<typeof oidSchema>;
-export type OidList = z.output<typeof oidListSchema>;

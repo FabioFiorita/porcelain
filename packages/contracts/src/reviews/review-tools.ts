@@ -10,7 +10,7 @@ import {
   readPublishedReviewResponseSchema,
 } from './review.ts';
 
-export const reviewToolScopeSchema = z.strictObject({
+const reviewToolScopeSchema = z.strictObject({
   cwd: z.string().min(1).max(4096).optional(),
 });
 
@@ -37,7 +37,6 @@ export const resolveCommentToolRequestSchema = reviewToolScopeSchema.extend({
   ...resolveCommentThreadRequestSchema.shape,
 });
 
-export type ReviewToolScope = z.output<typeof reviewToolScopeSchema>;
 export type PublishReviewToolResponse = z.output<
   typeof publishReviewToolResponseSchema
 >;

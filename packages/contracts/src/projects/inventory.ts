@@ -11,7 +11,7 @@ const absolutePathSchema = z
   .startsWith('/')
   .refine((path) => !path.includes('\0'));
 
-export const worktreeSchema = z.object({
+const worktreeSchema = z.object({
   id: worktreeIdSchema,
   path: z.string(),
   main: z.boolean(),
@@ -20,7 +20,7 @@ export const worktreeSchema = z.object({
   status: absentAsNull(reviewStatusSchema),
 });
 
-export const projectSchema = z.object({
+const projectSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   available: z.boolean(),
@@ -72,8 +72,6 @@ export const renameProjectResponseSchema = z.object({
   name: z.string(),
 });
 
-export type Worktree = z.output<typeof worktreeSchema>;
-export type Project = z.output<typeof projectSchema>;
 export type RenameProjectParams = z.output<typeof renameProjectParamsSchema>;
 export type RemoveProjectParams = z.output<typeof removeProjectParamsSchema>;
 export type ListFilePreferencesParams = z.output<

@@ -25,7 +25,7 @@ const conflictCodes = {
   'both-modified': 'UU',
 } as const;
 
-export const conflictSchema = z.codec(
+const conflictSchema = z.codec(
   z.enum(['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']),
   z.enum([
     'both-deleted',
@@ -48,7 +48,7 @@ export const gitChangeSelectionSchema = z.strictObject({
   newPath: absentAsNull(relativePathSchema),
 });
 
-export const ordinaryChangeSchema = z.object({
+const ordinaryChangeSchema = z.object({
   scope: z.enum(['staged', 'unstaged']),
   kind: z.enum(['added', 'modified', 'deleted', 'renamed', 'type-changed']),
   oldPath: absentAsNull(relativePathSchema),
@@ -60,12 +60,12 @@ export const ordinaryChangeSchema = z.object({
   supported: z.boolean(),
 });
 
-export const untrackedChangeSchema = z.object({
+const untrackedChangeSchema = z.object({
   scope: z.literal('untracked'),
   path: relativePathSchema,
 });
 
-export const unmergedChangeSchema = z.object({
+const unmergedChangeSchema = z.object({
   scope: z.literal('unmerged'),
   path: relativePathSchema,
   conflict: conflictSchema,
@@ -112,11 +112,6 @@ export const readGitStatusResponseSchema = z.object({
   changes: z.array(gitChangeSchema).max(2000),
 });
 
-export type GitChangeSelection = z.output<typeof gitChangeSelectionSchema>;
-export type OrdinaryChange = z.output<typeof ordinaryChangeSchema>;
-export type UntrackedChange = z.output<typeof untrackedChangeSchema>;
-export type UnmergedChange = z.output<typeof unmergedChangeSchema>;
-export type GitChange = z.output<typeof gitChangeSchema>;
 export type ReadGitStatusResponse = z.output<
   typeof readGitStatusResponseSchema
 >;

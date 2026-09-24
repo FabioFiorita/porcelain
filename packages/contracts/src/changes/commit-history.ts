@@ -42,5 +42,4 @@ export const listCommitsResponseSchema = z.object({
 });
 
 export type ListCommitsQuery = z.output<typeof listCommitsQuerySchema>;
-export type CommitSummary = z.output<typeof commitSummarySchema>;
 export type ListCommitsResponse = z.output<typeof listCommitsResponseSchema>;

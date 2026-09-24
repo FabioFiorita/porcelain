@@ -21,7 +21,7 @@ export const gitActionScopeSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
 });
 
-export const gitActionIntentSchema = z.discriminatedUnion('action', [
+const gitActionIntentSchema = z.discriminatedUnion('action', [
   z.strictObject({
     action: z.literal('fetch'),
     remoteName: remoteSchema,
@@ -81,7 +81,7 @@ export const gitActionIntentSchema = z.discriminatedUnion('action', [
   }),
 ]);
 
-export const gitActionExpectationSchema = z.strictObject({
+const gitActionExpectationSchema = z.strictObject({
   headOid: absentAsNull(oidSchema),
   branch: absentAsNull(z.string()),
   inProgress: absentAsNull(z.enum(['merge', 'rebase'])),
@@ -126,9 +126,6 @@ export const listGitBranchesResponseSchema = z.object({
 });
 
 export type GitActionScope = z.output<typeof gitActionScopeSchema>;
-export type GitActionIntent = z.output<typeof gitActionIntentSchema>;
-export type GitActionExpectation = z.output<typeof gitActionExpectationSchema>;
-export type GitActionReceipt = z.output<typeof gitActionReceiptSchema>;
 export type RunGitActionRequest = z.output<typeof runGitActionRequestSchema>;
 export type RunGitActionResponse = z.output<typeof runGitActionResponseSchema>;
 export type RunGitActionRejectedResponse = z.output<

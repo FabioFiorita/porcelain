@@ -20,9 +20,9 @@ const evidence = {
 };
 const bodySchema = z.string().min(1).max(16000);
 
-export const commentAuthorSchema = z.enum(['reviewer', 'agent']);
+const commentAuthorSchema = z.enum(['reviewer', 'agent']);
 
-export const commentAnchorSchema = z.discriminatedUnion('kind', [
+const commentAnchorSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('file'),
     filePath: relativePathSchema,
@@ -38,14 +38,14 @@ export const commentAnchorSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
-export const commentMessageSchema = z.object({
+const commentMessageSchema = z.object({
   id: z.uuid(),
   body: bodySchema,
   author: commentAuthorSchema,
   createdAt: z.iso.datetime().optional(),
 });
 
-export const commentThreadSchema = z.object({
+const commentThreadSchema = z.object({
   id: z.uuid(),
   worktreeId: worktreeIdSchema,
   anchor: commentAnchorSchema,
@@ -61,7 +61,7 @@ export const commentThreadParamsSchema = z.strictObject({
 
 export const commentThreadScopeSchema = z.enum(['waiting', 'all']);
 export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
-export const writtenCommentThreadSchema = z.tuple([commentThreadSchema]);
+const writtenCommentThreadSchema = z.tuple([commentThreadSchema]);
 
 export const createCommentThreadRequestSchema = z.strictObject({
   threadId: z.uuid().optional(),
@@ -90,16 +90,11 @@ export const markCommentsSeenResponseSchema = z.object({
   seenThrough: z.number().int().nonnegative(),
 });
 
-export type CommentAuthor = z.output<typeof commentAuthorSchema>;
-export type CommentAnchor = z.output<typeof commentAnchorSchema>;
-export type CommentMessage = z.output<typeof commentMessageSchema>;
-export type CommentThread = z.output<typeof commentThreadSchema>;
 export type CommentThreadParams = z.output<typeof commentThreadParamsSchema>;
 export type CommentThreadScope = z.output<typeof commentThreadScopeSchema>;
 export type ListCommentThreadsResponse = z.output<
   typeof listCommentThreadsResponseSchema
 >;
-export type WrittenCommentThread = z.output<typeof writtenCommentThreadSchema>;
 export type CreateCommentThreadRequest = z.output<
   typeof createCommentThreadRequestSchema
 >;

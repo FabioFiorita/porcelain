@@ -5,5 +5,4 @@ export const worktreeParamsSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
 });
 
-export type WorktreeId = z.output<typeof worktreeIdSchema>;
 export type WorktreeParams = z.output<typeof worktreeParamsSchema>;

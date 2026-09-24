@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { relativePathSchema } from '../shared/relative-path.ts';
 
-export const filePreferenceSchema = z.object({
+const filePreferenceSchema = z.object({
   path: relativePathSchema,
   pinned: z.boolean(),
   hidden: z.boolean(),
@@ -19,7 +19,6 @@ export const setFilePreferenceRequestSchema = z.strictObject({
 export const setFilePreferenceResponseSchema =
   listFilePreferencesResponseSchema;
 
-export type FilePreference = z.output<typeof filePreferenceSchema>;
 export type ListFilePreferencesResponse = z.output<
   typeof listFilePreferencesResponseSchema
 >;

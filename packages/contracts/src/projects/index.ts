@@ -1,9 +1,7 @@
 export {
-  filePreferenceSchema,
   listFilePreferencesResponseSchema,
   setFilePreferenceRequestSchema,
   setFilePreferenceResponseSchema,
-  type FilePreference,
   type ListFilePreferencesResponse,
   type SetFilePreferenceRequest,
   type SetFilePreferenceResponse,
@@ -13,7 +11,6 @@ export {
   browseProjectFoldersResponseSchema,
   discoverProjectsResponseSchema,
   listFilePreferencesParamsSchema,
-  projectSchema,
   readInventoryResponseSchema,
   registerProjectRequestSchema,
   registerProjectResponseSchema,
@@ -23,12 +20,10 @@ export {
   renameProjectRequestSchema,
   renameProjectResponseSchema,
   setFilePreferenceParamsSchema,
-  worktreeSchema,
   type BrowseProjectFoldersQuery,
   type BrowseProjectFoldersResponse,
   type DiscoverProjectsResponse,
   type ListFilePreferencesParams,
-  type Project,
   type ReadInventoryResponse,
   type RegisterProjectRequest,
   type RegisterProjectResponse,
@@ -38,7 +33,6 @@ export {
   type RenameProjectRequest,
   type RenameProjectResponse,
   type SetFilePreferenceParams,
-  type Worktree,
 } from './inventory.ts';
 export {
   resolveWorktreeByPathRequestSchema,

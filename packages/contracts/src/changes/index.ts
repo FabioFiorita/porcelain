@@ -1,14 +1,9 @@
 export {
-  changeListBranchSchema,
-  fileChangeSchema,
   readChangeDiffsRequestSchema,
   readChangeDiffsResponseSchema,
   readChangeLinesQuerySchema,
   readChangeLinesResponseSchema,
   readChangesResponseSchema,
-  type ChangeListBranch,
-  type FileChange,
-  type GitAction,
   type ReadChangeDiffsRequest,
   type ReadChangeDiffsResponse,
   type ReadChangeLinesQuery,
@@ -16,14 +11,12 @@ export {
   type ReadChangesResponse,
 } from './changes.ts';
 export {
-  commitFileSchema,
   readCommitDiffsParamsSchema,
   readCommitDiffsRequestSchema,
   readCommitDiffsResponseSchema,
   readCommitFilesParamsSchema,
   readCommitFilesQuerySchema,
   readCommitFilesResponseSchema,
-  type CommitFile,
   type ReadCommitDiffsParams,
   type ReadCommitDiffsRequest,
   type ReadCommitDiffsResponse,
@@ -32,26 +25,12 @@ export {
   type ReadCommitFilesResponse,
 } from './commit-changes.ts';
 export {
-  commitSummarySchema,
   listCommitsQuerySchema,
   listCommitsResponseSchema,
-  type CommitSummary,
   type ListCommitsQuery,
   type ListCommitsResponse,
 } from './commit-history.ts';
-export { gitDiffContentSchema, type GitDiffContent } from './git-diff.ts';
 export {
-  conflictSchema,
-  gitChangeSchema,
-  gitChangeSelectionSchema,
-  ordinaryChangeSchema,
   readGitStatusResponseSchema,
-  unmergedChangeSchema,
-  untrackedChangeSchema,
-  type GitChange,
-  type GitChangeSelection,
-  type OrdinaryChange,
   type ReadGitStatusResponse,
-  type UnmergedChange,
-  type UntrackedChange,
 } from './git-status.ts';

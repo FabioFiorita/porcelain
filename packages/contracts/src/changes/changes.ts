@@ -8,13 +8,13 @@ import { worktreeIdSchema } from '../shared/worktree-params.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
 
-export const fileChangeSchema = z.object({
+const fileChangeSchema = z.object({
   path: relativePathSchema,
   fingerprint: absentAsNull(fingerprintSchema),
   comparisons: z.array(gitChangeSchema).min(1),
 });
 
-export const changeListBranchSchema = z.object({
+const changeListBranchSchema = z.object({
   name: absentAsNull(z.string()),
   upstream: absentAsNull(z.string()),
   ahead: z.number().int().nonnegative(),
@@ -82,9 +82,6 @@ export const readChangeLinesResponseSchema = z.object({
   lines: z.array(z.string()),
 });
 
-export type GitAction = z.output<typeof gitActionSchema>;
-export type FileChange = z.output<typeof fileChangeSchema>;
-export type ChangeListBranch = z.output<typeof changeListBranchSchema>;
 export type ReadChangesResponse = z.output<typeof readChangesResponseSchema>;
 export type ReadChangeDiffsRequest = z.output<
   typeof readChangeDiffsRequestSchema

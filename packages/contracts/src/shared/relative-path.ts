@@ -15,5 +15,3 @@ export const relativePathSchema = z
         .every((part) => part !== '' && part !== '.' && part !== '..'),
     'Expected a normalized relative path',
   );
-
-export type RelativePath = z.output<typeof relativePathSchema>;
