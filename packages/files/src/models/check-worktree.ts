@@ -1,4 +1,4 @@
-export interface CheckWorktreeInput {
+export type CheckWorktreeInput = {
   worktreeId: string;
   purpose: 'reading' | 'writing';
-}
+};

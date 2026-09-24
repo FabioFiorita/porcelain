@@ -1,8 +1,8 @@
-export interface ListWorktreePathsInput {
+export type ListWorktreePathsInput = {
   worktreeId: string;
-}
+};
 
-export interface ListWorktreePathsResult {
+export type ListWorktreePathsResult = {
   worktreeId: string;
   paths: string[];
-}
+};

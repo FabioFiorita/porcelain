@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import type {
   DirectoryEntry,
   DirectoryRead,
+  DirectoryReadInput,
   EntryKind,
-  FileLocation,
 } from '@porcelain/files/models';
 import type { DirectoryReader } from '@porcelain/files/ports';
-import { filesystemFailure, inspectPath, verifyPath } from './inspect-path.ts';
+import { inspectPath, readFailure, verifyPath } from './inspect-path.ts';
 import {
   knownWorktree,
   type KnownWorktrees,
@@ -24,22 +24,21 @@ export class FilesystemDirectoryReader implements DirectoryReader {
   }
 
   async list(
-    location: FileLocation,
-    maxEntries: number,
+    input: DirectoryReadInput,
     signal?: AbortSignal,
   ): Promise<DirectoryRead> {
     const checkout = await knownWorktree(
       this.worktrees,
-
-      location.worktreeId,
+      input.worktreeId,
       signal,
     );
-    const target = { root: checkout.path, path: location.path };
+    const target = { root: checkout.path, path: input.path };
     try {
       const before = await inspectPath(target, signal);
       if (!before.info.isDirectory())
         return { kind: 'failed', failure: 'unreadable' };
       const found: { name: string; entry: Dirent }[] = [];
+      let truncated = false;
       for await (const entry of await opendir(before.path, {
         encoding: 'buffer',
       })) {
@@ -47,17 +46,19 @@ export class FilesystemDirectoryReader implements DirectoryReader {
         const name = decodedName(entry.name);
         if (name === undefined)
           return { kind: 'failed', failure: 'unsupported-name' };
-        if (name.toLowerCase() === '.git') continue;
-        if (found.length === maxEntries) return { kind: 'too-large' };
+        if (found.length === input.limit) {
+          truncated = true;
+          break;
+        }
         found.push({ name, entry });
       }
       const entries: DirectoryEntry[] = [];
       for (const { name, entry } of found)
         entries.push(await describe(before.path, name, entry, signal));
       await verifyPath(before, target, signal);
-      return { kind: 'directory', entries };
+      return { kind: 'listed', entries, truncated };
     } catch (error) {
-      const failure = filesystemFailure(error);
+      const failure = readFailure(error);
       if (failure === undefined) throw error;
       return { kind: 'failed', failure };
     }

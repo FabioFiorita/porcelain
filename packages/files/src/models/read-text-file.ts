@@ -1,13 +1,13 @@
-export interface ReadTextFileInput {
+export type ReadTextFileInput = {
   worktreeId: string;
   path: string;
-}
+};
 
-export interface ReadTextFileResult {
+export type ReadTextFileResult = {
   worktreeId: string;
   path: string;
   encoding: 'utf-8';
   byteLength: number;
   text: string;
   contentFingerprint: string;
-}
+};

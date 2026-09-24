@@ -1,5 +1,6 @@
+import type { FileReadInput } from '../models/file-read.ts';
+import type { PreviewAsset } from '../models/preview-asset.ts';
 import type {
-  PreviewAsset,
   ReadPreviewAssetsInput,
   ReadPreviewAssetsResult,
 } from '../models/read-preview-assets.ts';
@@ -11,21 +12,14 @@ import { isWorktreeRelativePath } from '../rules/worktree-relative-path.ts';
 export type ReadPreviewAssetsOptions = {
   maxAssetBytes: number;
   maxTotalBytes: number;
-};
-
-const LIMITS: ReadPreviewAssetsOptions = {
-  maxAssetBytes: 10 * 1024 * 1024,
-  maxTotalBytes: 16 * 1024 * 1024,
+  maxPathLength: number;
 };
 
 export class ReadPreviewAssetsService {
   private readonly fileReader: FileReader;
   private readonly options: ReadPreviewAssetsOptions;
 
-  constructor(
-    fileReader: FileReader,
-    options: ReadPreviewAssetsOptions = LIMITS,
-  ) {
+  constructor(fileReader: FileReader, options: ReadPreviewAssetsOptions) {
     this.fileReader = fileReader;
     this.options = options;
   }
@@ -40,14 +34,18 @@ export class ReadPreviewAssetsService {
     const assets: PreviewAsset[] = [];
     let remaining = this.options.maxTotalBytes;
     for (const path of new Set(input.paths)) {
-      signal?.throwIfAborted();
       const mediaType = assetMediaType(path);
       const bytes =
-        mediaType === undefined || remaining <= 0 || !inside(directory, path)
+        mediaType === undefined ||
+        remaining <= 0 ||
+        !this.servable(directory, path)
           ? undefined
           : await this.read(
-              { worktreeId: input.worktreeId, path },
-              Math.min(this.options.maxAssetBytes, remaining),
+              {
+                worktreeId: input.worktreeId,
+                path,
+                maxBytes: Math.min(this.options.maxAssetBytes, remaining),
+              },
               signal,
             );
       if (mediaType === undefined || bytes === undefined) {
@@ -65,25 +63,20 @@ export class ReadPreviewAssetsService {
     return { assets };
   }
 
+  private servable(directory: string, path: string): boolean {
+    return (
+      isWorktreeRelativePath(path, this.options.maxPathLength) &&
+      (directory === '' || path.startsWith(`${directory}/`))
+    );
+  }
+
   private async read(
-    location: { worktreeId: string; path: string },
-    maxBytes: number,
+    input: FileReadInput,
     signal?: AbortSignal,
   ): Promise<Uint8Array | undefined> {
-    try {
-      const read = await this.fileReader.read(location, maxBytes, signal);
-      return read.kind === 'file' ? read.bytes : undefined;
-    } catch (error) {
-      signal?.throwIfAborted();
-      if (error instanceof Error && error.name === 'AbortError') throw error;
-      return undefined;
-    }
+    const read = await this.fileReader.read(input, signal);
+    return read.kind === 'file' && read.bytes.length <= input.maxBytes
+      ? read.bytes
+      : undefined;
   }
-}
-
-function inside(directory: string, path: string) {
-  return (
-    isWorktreeRelativePath(path) &&
-    (directory === '' || path.startsWith(`${directory}/`))
-  );
 }

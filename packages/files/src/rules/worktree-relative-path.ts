@@ -1,11 +1,13 @@
-const MAX_PATH_LENGTH = 4096;
 const LONE_SURROGATE =
   /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 
-export function isWorktreeRelativePath(path: string): boolean {
+export function isWorktreeRelativePath(
+  path: string,
+  maxLength: number,
+): boolean {
   return (
     path.length > 0 &&
-    path.length <= MAX_PATH_LENGTH &&
+    path.length <= maxLength &&
     !path.includes('\0') &&
     !path.includes('\\') &&
     !/^[A-Za-z]:/.test(path) &&

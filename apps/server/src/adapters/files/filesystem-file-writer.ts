@@ -13,14 +13,20 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import trash from 'trash';
-import type { FileLocation, FileWrite } from '@porcelain/files/models';
+import type {
+  EntryCreateInput,
+  EntryMoveInput,
+  FileLocation,
+  FileWrite,
+  FileWriteInput,
+} from '@porcelain/files/models';
 import type { FileWriter } from '@porcelain/files/ports';
 import {
   type CheckoutPath,
   type InspectedPath,
-  PathGuardError,
   filesystemFailure,
   inspectPath,
+  pathRefused,
   revisionOf,
   sameEvidence,
   sameFile,
@@ -51,17 +57,12 @@ export class FilesystemFileWriter implements FileWriter {
     this.worktrees = worktrees;
   }
 
-  async write(
-    location: FileLocation,
-    text: string,
-    revision: string,
-    signal?: AbortSignal,
-  ): Promise<FileWrite> {
-    const target = await this.locate(location, signal);
+  async write(input: FileWriteInput, signal?: AbortSignal): Promise<FileWrite> {
+    const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const before = await inspectPath(target, signal);
-      if (revisionOf(before.info) !== revision)
-        throw new PathGuardError('changed');
+      if (revisionOf(before.info) !== input.revision)
+        throw pathRefused('changed');
       const parent = await this.parent(target, signal);
       const temporary = join(parent.path, `.porcelain-${randomUUID()}.tmp`);
       const handle = await open(
@@ -74,7 +75,7 @@ export class FilesystemFileWriter implements FileWriter {
       );
       let committed = false;
       try {
-        await handle.writeFile(text, {
+        await handle.writeFile(input.text, {
           encoding: 'utf8',
           ...(signal ? { signal } : {}),
         });
@@ -92,16 +93,15 @@ export class FilesystemFileWriter implements FileWriter {
   }
 
   async create(
-    location: FileLocation,
-    entryKind: 'file' | 'directory',
+    input: EntryCreateInput,
     signal?: AbortSignal,
   ): Promise<FileWrite> {
-    const target = await this.locate(location, signal);
+    const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const parent = await this.parent(target, signal);
       signal?.throwIfAborted();
       const path = join(parent.path, basename(target.path));
-      if (entryKind === 'directory') await mkdir(path);
+      if (input.entryKind === 'directory') await mkdir(path);
       else {
         const file = await open(
           path,
@@ -123,23 +123,19 @@ export class FilesystemFileWriter implements FileWriter {
     });
   }
 
-  async move(
-    location: FileLocation,
-    destination: string,
-    signal?: AbortSignal,
-  ): Promise<FileWrite> {
-    const target = await this.locate(location, signal);
+  async move(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite> {
+    const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const sourceParent = await this.parent(target, signal);
       const source = join(sourceParent.path, basename(target.path));
       const info = await lstat(source, { bigint: true });
-      const destinationTarget = { ...target, path: destination };
+      const destinationTarget = { ...target, path: input.destination };
       const destinationParent = await this.parent(destinationTarget, signal);
       signal?.throwIfAborted();
       await this.moveEntry(
         { info, path: source, parent: sourceParent, target },
         {
-          path: join(destinationParent.path, basename(destination)),
+          path: join(destinationParent.path, basename(input.destination)),
           parent: destinationParent,
           target: destinationTarget,
         },
@@ -148,11 +144,8 @@ export class FilesystemFileWriter implements FileWriter {
     });
   }
 
-  async trash(
-    location: FileLocation,
-    signal?: AbortSignal,
-  ): Promise<FileWrite> {
-    const target = await this.locate(location, signal);
+  async trash(input: FileLocation, signal?: AbortSignal): Promise<FileWrite> {
+    const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const parent = await this.parent(target, signal);
       const path = join(parent.path, basename(target.path));
@@ -160,11 +153,11 @@ export class FilesystemFileWriter implements FileWriter {
       await this.verifyParent(parent, target, signal);
       signal?.throwIfAborted();
       if (!unchanged(before, await lstat(path, { bigint: true })))
-        throw new PathGuardError('changed');
+        throw pathRefused('changed');
       try {
         await trash([path], { glob: false });
       } catch (cause) {
-        throw new PathGuardError('trash-unavailable', { cause });
+        throw pathRefused('trash-unavailable', { cause });
       }
     });
   }
@@ -175,7 +168,6 @@ export class FilesystemFileWriter implements FileWriter {
   ): Promise<CheckoutPath> {
     const checkout = await knownWorktree(
       this.worktrees,
-
       location.worktreeId,
       signal,
     );
@@ -198,7 +190,7 @@ export class FilesystemFileWriter implements FileWriter {
       await this.verifyParent(from.parent, from.target, signal);
       await this.verifyParent(to.parent, to.target, signal);
       if (!sameFile(from.info, await lstat(from.path, { bigint: true })))
-        throw new PathGuardError('changed');
+        throw pathRefused('changed');
     };
     if (from.info.isDirectory()) {
       await mkdir(to.path, { mode: 0o700 });
@@ -206,7 +198,7 @@ export class FilesystemFileWriter implements FileWriter {
       try {
         await confirm();
         if (!unchanged(reservation, await lstat(to.path, { bigint: true })))
-          throw new PathGuardError('changed');
+          throw pathRefused('changed');
         signal?.throwIfAborted();
         await rename(from.path, to.path);
       } catch (error) {
@@ -222,12 +214,12 @@ export class FilesystemFileWriter implements FileWriter {
     try {
       await confirm();
       if (!sameFile(created, await lstat(to.path, { bigint: true })))
-        throw new PathGuardError('changed');
+        throw pathRefused('changed');
       signal?.throwIfAborted();
       const remaining = await lstat(from.path, { bigint: true });
-      if (!sameFile(from.info, remaining)) throw new PathGuardError('changed');
+      if (!sameFile(from.info, remaining)) throw pathRefused('changed');
       if (!from.info.isSymbolicLink() && !sameFile(created, remaining))
-        throw new PathGuardError('changed');
+        throw pathRefused('changed');
       await unlink(from.path);
     } catch (error) {
       await removeReservation(to.path, created);
@@ -241,7 +233,7 @@ export class FilesystemFileWriter implements FileWriter {
       { ...target, path: folder === '.' ? '' : folder },
       signal,
     );
-    if (!parent.info.isDirectory()) throw new PathGuardError('unreadable');
+    if (!parent.info.isDirectory()) throw pathRefused('unreadable');
     return parent;
   }
 
@@ -251,7 +243,7 @@ export class FilesystemFileWriter implements FileWriter {
     signal?: AbortSignal,
   ) {
     const after = await this.parent(target, signal);
-    if (!sameEvidence(before, after)) throw new PathGuardError('changed');
+    if (!sameEvidence(before, after)) throw pathRefused('changed');
   }
 }
 

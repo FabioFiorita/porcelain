@@ -1,10 +1,8 @@
-import type { DirectoryRead } from '../models/directory-listing.ts';
-import type { FileLocation } from '../models/file-location.ts';
+import type {
+  DirectoryRead,
+  DirectoryReadInput,
+} from '../models/directory-read.ts';
 
 export interface DirectoryReader {
-  list(
-    location: FileLocation,
-    maxEntries: number,
-    signal?: AbortSignal,
-  ): Promise<DirectoryRead>;
+  list(input: DirectoryReadInput, signal?: AbortSignal): Promise<DirectoryRead>;
 }

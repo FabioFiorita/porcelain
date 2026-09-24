@@ -1,4 +1,4 @@
-export interface FileLocation {
+export type FileLocation = {
   worktreeId: string;
   path: string;
-}
+};

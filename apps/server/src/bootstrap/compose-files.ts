@@ -24,6 +24,18 @@ import type { EventPublisher } from '../ports/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 
+const limits = {
+  readTextFile: { maxBytes: 1024 * 1024 },
+  editFile: { maxCurrentBytes: 1024 * 1024 },
+  readFileAsset: { maxBytes: 10 * 1024 * 1024 },
+  readPreviewAssets: {
+    maxAssetBytes: 10 * 1024 * 1024,
+    maxTotalBytes: 16 * 1024 * 1024,
+    maxPathLength: 4096,
+  },
+  listDirectory: { maxEntries: 2000, maxResponseBytes: 1024 * 1024 },
+};
+
 export function composeFiles(deps: {
   lanes: Lanes;
   laneKeys: LaneKeys;
@@ -33,7 +45,10 @@ export function composeFiles(deps: {
   const { lanes, laneKeys, events, worktreeAccess } = deps;
   const checkWorktree = new CheckWorktreeService(worktreeAccess);
   const fileReader = new FilesystemFileReader(worktreeAccess);
-  const readTextFileService = new ReadTextFileService(fileReader);
+  const readTextFileService = new ReadTextFileService(
+    fileReader,
+    limits.readTextFile,
+  );
   return {
     fileReader,
     readTextFileService,
@@ -42,6 +57,7 @@ export function composeFiles(deps: {
       new ListDirectoryService(
         new FilesystemDirectoryReader(worktreeAccess),
         new GitIgnoredEntriesReader(worktreeAccess),
+        limits.listDirectory,
       ),
       lanes,
       laneKeys,
@@ -54,19 +70,23 @@ export function composeFiles(deps: {
     ),
     readFileAsset: new ReadFileAssetUseCase(
       checkWorktree,
-      new ReadFileAssetService(fileReader),
+      new ReadFileAssetService(fileReader, limits.readFileAsset),
       lanes,
       laneKeys,
     ),
     readPreviewAssets: new ReadPreviewAssetsUseCase(
       checkWorktree,
-      new ReadPreviewAssetsService(fileReader),
+      new ReadPreviewAssetsService(fileReader, limits.readPreviewAssets),
       lanes,
       laneKeys,
     ),
     editFile: new EditFileUseCase(
       checkWorktree,
-      new EditFileService(fileReader, new FilesystemFileWriter(worktreeAccess)),
+      new EditFileService(
+        fileReader,
+        new FilesystemFileWriter(worktreeAccess),
+        limits.editFile,
+      ),
       lanes,
       laneKeys,
       events,

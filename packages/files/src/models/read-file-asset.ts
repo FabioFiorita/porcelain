@@ -1,10 +1,10 @@
-export interface ReadFileAssetInput {
+export type ReadFileAssetInput = {
   worktreeId: string;
   path: string;
-}
+};
 
-export interface ReadFileAssetResult {
+export type ReadFileAssetResult = {
   path: string;
   mediaType: string;
   base64: string;
-}
+};

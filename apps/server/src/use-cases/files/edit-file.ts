@@ -1,8 +1,5 @@
-import type {
-  EditFileRequest,
-  EditFileResponse,
-} from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { EditFileResponse } from '@porcelain/contracts/files';
+import type { EditFileInput } from '@porcelain/files/models';
 import type {
   CheckWorktreeService,
   EditFileService,
@@ -34,17 +31,22 @@ export class EditFileUseCase {
   }
 
   execute(
-    input: WorktreeParams & { command: EditFileRequest },
+    input: EditFileInput,
     context: OperationContext,
   ): Promise<EditFileResponse> {
-    const check = { worktreeId: input.worktreeId, purpose: 'writing' } as const;
     return this.lanes.run(
       this.laneKeys.worktree(input.worktreeId),
       'write',
       async ({ signal }) => {
-        await this.checkWorktree.execute(check, signal);
+        await this.checkWorktree.execute(
+          { worktreeId: input.worktreeId, purpose: 'writing' },
+          signal,
+        );
         const result = await this.editFile.execute(input, signal);
-        await this.checkWorktree.execute(check, signal);
+        await this.checkWorktree.execute(
+          { worktreeId: input.worktreeId, purpose: 'writing' },
+          signal,
+        );
         this.events.filesChanged(
           input.worktreeId,
           input.command.kind === 'move'

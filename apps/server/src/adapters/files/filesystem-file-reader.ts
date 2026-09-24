@@ -1,10 +1,14 @@
 import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
-import type { FileLocation, FileRead, TextRead } from '@porcelain/files/models';
+import type {
+  FileRead,
+  FileReadInput,
+  TextRead,
+} from '@porcelain/files/models';
 import type { FileReader } from '@porcelain/files/ports';
 import {
-  filesystemFailure,
   inspectPath,
+  readFailure,
   revisionOf,
   sameFile,
   unchanged,
@@ -25,11 +29,10 @@ export class FilesystemFileReader implements FileReader {
   }
 
   async readText(
-    location: FileLocation,
-    maxBytes: number,
+    input: FileReadInput,
     signal?: AbortSignal,
   ): Promise<TextRead> {
-    const read = await this.read(location, maxBytes, signal);
+    const read = await this.read(input, signal);
     if (read.kind !== 'file') return read;
     const text = decodedText(read.bytes);
     return text === undefined
@@ -42,18 +45,14 @@ export class FilesystemFileReader implements FileReader {
         };
   }
 
-  async read(
-    location: FileLocation,
-    maxBytes: number,
-    signal?: AbortSignal,
-  ): Promise<FileRead> {
+  async read(input: FileReadInput, signal?: AbortSignal): Promise<FileRead> {
+    const { maxBytes } = input;
     const checkout = await knownWorktree(
       this.worktrees,
-
-      location.worktreeId,
+      input.worktreeId,
       signal,
     );
-    const target = { root: checkout.path, path: location.path };
+    const target = { root: checkout.path, path: input.path };
     try {
       const before = await inspectPath(target, signal);
       if (!before.info.isFile())
@@ -94,7 +93,7 @@ export class FilesystemFileReader implements FileReader {
         await handle.close();
       }
     } catch (error) {
-      const failure = filesystemFailure(error);
+      const failure = readFailure(error);
       if (failure === undefined) throw error;
       return { kind: 'failed', failure };
     }

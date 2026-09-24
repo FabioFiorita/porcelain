@@ -1,4 +1,7 @@
-import type { WorktreePathsRead } from '@porcelain/files/models';
+import type {
+  WorktreePathsRead,
+  WorktreePathsReadInput,
+} from '@porcelain/files/models';
 import type { WorktreePathsReader } from '@porcelain/files/ports';
 import {
   InspectionLimitError,
@@ -17,14 +20,18 @@ export class GitWorktreePathsReader implements WorktreePathsReader {
   }
 
   async read(
-    worktreeId: string,
+    input: WorktreePathsReadInput,
     signal?: AbortSignal,
   ): Promise<WorktreePathsRead> {
-    const checkout = await knownWorktree(this.worktrees, worktreeId, signal);
+    const checkout = await knownWorktree(
+      this.worktrees,
+      input.worktreeId,
+      signal,
+    );
     try {
       const listed = await listTrackedPaths(checkout.path, signal);
       return listed.complete
-        ? { kind: 'paths', paths: listed.paths }
+        ? { kind: 'listed', paths: listed.paths }
         : { kind: 'too-large' };
     } catch (error) {
       if (error instanceof InspectionLimitError) return { kind: 'too-large' };
