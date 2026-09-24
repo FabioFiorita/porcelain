@@ -1,4 +1,4 @@
-import type { WorktreeStatus } from './worktree-status.ts';
+import type { WorktreeStatus } from '@porcelain/kernel/models';
 
 export type WorktreeReport = {
   id: string;

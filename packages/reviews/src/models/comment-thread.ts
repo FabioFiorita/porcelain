@@ -80,3 +80,14 @@ export type CommentResolution = {
   thread: CommentThread;
   resolved: boolean;
 };
+
+export type AgentReply = {
+  worktreeId: string;
+  threadId: string;
+  revision: number;
+};
+
+export type CommentSeenMark = {
+  worktreeId: string;
+  seenThrough: number;
+};

@@ -1,4 +1,5 @@
 export type {
+  AgentReply,
   CommentAnchor,
   CommentAuthor,
   CommentComparison,
@@ -7,6 +8,7 @@ export type {
   CommentMessage,
   CommentReply,
   CommentResolution,
+  CommentSeenMark,
   CommentThread,
   CommentThreadScope,
   CommentUsage,
@@ -73,6 +75,10 @@ export type {
   ReadReviewSummaryInput,
   ReadReviewSummaryResult,
 } from './read-review-summary.ts';
+export type {
+  ReadWorktreeStatusesInput,
+  ReadWorktreeStatusesResult,
+} from './read-worktree-statuses.ts';
 export type { ReconcileReviewedFilesInput } from './reconcile-reviewed-files.ts';
 export type { ReconcileReviewedLayersInput } from './reconcile-reviewed-layers.ts';
 export type { RecordReviewActivityInput } from './record-review-activity.ts';
@@ -126,6 +132,7 @@ export type {
   ReviewedLayerMark,
   ReviewedLayers,
   ReviewedMark,
+  WorktreeReviewedLayerMark,
 } from './reviewed-mark.ts';
 export type {
   SetReviewedFilesInput,

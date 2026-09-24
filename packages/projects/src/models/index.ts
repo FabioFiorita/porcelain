@@ -90,10 +90,6 @@ export type {
   ReadRepositoryOriginInput,
   ReadRepositoryOriginResult,
 } from './read-repository-origin.ts';
-export type {
-  ReadWorktreeStatusesInput,
-  ReadWorktreeStatusesResult,
-} from './read-worktree-statuses.ts';
 export type { RecordWorktreePresenceInput } from './record-worktree-presence.ts';
 export type {
   RegisterProjectInput,
@@ -119,4 +115,3 @@ export type {
   SaveWorktreePresenceInput,
   WorktreePresence,
 } from './worktree-presence.ts';
-export type { WorktreeStatus, WorktreeStatuses } from './worktree-status.ts';

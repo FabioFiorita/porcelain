@@ -18,16 +18,20 @@ import {
 } from '@porcelain/git/inspection';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { CheckWorktreeService } from '@porcelain/projects/services';
+import { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
 import { openStorageSession } from '@porcelain/storage';
 import {
   createDeviceStore,
   createEnvironmentIdentityStore,
 } from '@porcelain/storage/access';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
+import { createInventoryStore } from '@porcelain/storage/projects';
 import {
-  createInventoryStore,
-  createWorktreeStatusStore,
-} from '@porcelain/storage/projects';
+  createCommentSeenStore,
+  createCommentStore,
+  createReviewedLayerStore,
+  createReviewStore,
+} from '@porcelain/storage/reviews';
 import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
 import { HeldDeviceConnections } from '../adapters/access/held-device-connections.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
@@ -146,7 +150,12 @@ export async function openApplication(
     readEnvironment,
     git,
     inventoryStore,
-    worktreeStatusStore: createWorktreeStatusStore(session),
+    readWorktreeStatuses: new ReadWorktreeStatusesService(
+      createReviewStore(session),
+      createReviewedLayerStore(session),
+      createCommentStore(session),
+      createCommentSeenStore(session),
+    ),
     projectFolderReader: new FilesystemProjectFolderReader(),
     worktreeDirectory,
   });

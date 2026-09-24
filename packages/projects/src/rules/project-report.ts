@@ -1,7 +1,7 @@
 import type { ProjectReport } from '../models/inventory-report.ts';
 import type { ProjectName } from '../models/project.ts';
 import type { ProjectWorktrees } from '../models/project-worktrees.ts';
-import type { WorktreeStatuses } from '../models/worktree-status.ts';
+import type { WorktreeStatuses } from '@porcelain/kernel/models';
 
 export function projectReport(
   project: ProjectName,

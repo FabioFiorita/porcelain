@@ -1,4 +1,7 @@
-import type { ReviewedLayerMark } from '../../src/models/reviewed-mark.ts';
+import type {
+  ReviewedLayerMark,
+  WorktreeReviewedLayerMark,
+} from '../../src/models/reviewed-mark.ts';
 import type { ReviewedLayerStore } from '../../src/ports/reviewed-layer-store.ts';
 
 type Row = { worktreeId: string; mark: ReviewedLayerMark };
@@ -10,6 +13,14 @@ export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
     return this.rows
       .filter((row) => row.worktreeId === input.worktreeId)
       .map((row) => ({ ...row.mark }));
+  }
+
+  byWorktrees(input: {
+    worktreeIds: readonly string[];
+  }): WorktreeReviewedLayerMark[] {
+    return this.rows
+      .filter((row) => input.worktreeIds.includes(row.worktreeId))
+      .map((row) => ({ worktreeId: row.worktreeId, ...row.mark }));
   }
 
   save(input: { worktreeId: string; mark: ReviewedLayerMark }): void {

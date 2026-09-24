@@ -5,4 +5,3 @@ export type { ProjectRemovalStore } from './project-removal-store.ts';
 export type { ProjectRepositoryReader } from './project-repository-reader.ts';
 export type { ProjectWorktreeReader } from './project-worktree-reader.ts';
 export type { WorktreePresenceStore } from './worktree-presence-store.ts';
-export type { WorktreeStatusStore } from './worktree-status-store.ts';

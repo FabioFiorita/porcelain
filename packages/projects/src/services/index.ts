@@ -16,7 +16,6 @@ export { ListProjectWorktreesService } from './list-project-worktrees-service.ts
 export { ListRegisteredProjectsService } from './list-registered-projects-service.ts';
 export { MarkProjectsUnavailableService } from './mark-projects-unavailable-service.ts';
 export { ReadRepositoryOriginService } from './read-repository-origin-service.ts';
-export { ReadWorktreeStatusesService } from './read-worktree-statuses-service.ts';
 export { RecordWorktreePresenceService } from './record-worktree-presence-service.ts';
 export { RegisterProjectService } from './register-project-service.ts';
 export { RemoveProjectService } from './remove-project-service.ts';

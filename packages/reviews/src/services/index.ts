@@ -10,6 +10,7 @@ export { MarkCommentsSeenService } from './mark-comments-seen-service.ts';
 export { PublishReviewService } from './publish-review-service.ts';
 export { ReadPublishedReviewService } from './read-published-review-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
+export { ReadWorktreeStatusesService } from './read-worktree-statuses-service.ts';
 export { ReadReviewSummaryService } from './read-review-summary-service.ts';
 export { ReconcileReviewedFilesService } from './reconcile-reviewed-files-service.ts';
 export { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';

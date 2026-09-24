@@ -3,7 +3,6 @@ import type { GitFactory } from '@porcelain/git/discovery';
 import type {
   InventoryStore,
   ProjectFolderReader,
-  WorktreeStatusStore,
 } from '@porcelain/projects/ports';
 import {
   BrowseProjectFoldersService,
@@ -22,7 +21,6 @@ import {
   ListRegisteredProjectsService,
   MarkProjectsUnavailableService,
   ReadRepositoryOriginService,
-  ReadWorktreeStatusesService,
   RecordWorktreePresenceService,
   RegisterProjectService,
   RemoveProjectService,
@@ -30,6 +28,7 @@ import {
   SetFilePreferenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
+import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
 import {
   createFilePreferenceStore,
   createProjectRemovalStore,
@@ -54,7 +53,7 @@ export type ProjectsAdapters = {
   readEnvironment: ReadEnvironmentService;
   git: GitFactory;
   inventoryStore: InventoryStore;
-  worktreeStatusStore: WorktreeStatusStore;
+  readWorktreeStatuses: ReadWorktreeStatusesService;
   projectFolderReader: ProjectFolderReader;
   worktreeDirectory: GitProjectWorktreeReader;
 };
@@ -84,9 +83,7 @@ export function composeProjects(
     worktreePresence,
     clock,
   );
-  const readWorktreeStatuses = new ReadWorktreeStatusesService(
-    adapters.worktreeStatusStore,
-  );
+  const { readWorktreeStatuses } = adapters;
 
   return {
     readInventory: new ReadInventoryUseCase(

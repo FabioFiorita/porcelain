@@ -1,10 +1,11 @@
-import { asc, count, eq, max, sum } from 'drizzle-orm';
+import { asc, count, eq, inArray, max, sum } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import {
   commentMessages,
   commentThreads,
 } from '../../db/schema/comment-threads.ts';
 import type {
+  AgentReply,
   CommentMessage,
   CommentReply,
   CommentResolution,
@@ -136,6 +137,23 @@ export class SqliteCommentStore implements CommentStore {
         .where(eq(commentThreads.worktreeId, input.worktreeId))
         .get()?.revision ?? 0
     );
+  }
+
+  agentRepliesByWorktrees(input: {
+    worktreeIds: readonly string[];
+  }): AgentReply[] {
+    return this.db
+      .select({
+        worktreeId: commentThreads.worktreeId,
+        threadId: commentThreads.id,
+        revision: commentThreads.lastAgentRevision,
+      })
+      .from(commentThreads)
+      .where(inArray(commentThreads.worktreeId, [...input.worktreeIds]))
+      .all()
+      .flatMap(({ worktreeId, threadId, revision }) =>
+        revision === null ? [] : [{ worktreeId, threadId, revision }],
+      );
   }
 
   insert(input: NewCommentThread): CommentThread {

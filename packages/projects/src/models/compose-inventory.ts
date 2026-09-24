@@ -1,7 +1,7 @@
 import type { InventoryReport } from './inventory-report.ts';
 import type { Inventory } from './project.ts';
 import type { ProjectWorktrees } from './project-worktrees.ts';
-import type { WorktreeStatuses } from './worktree-status.ts';
+import type { WorktreeStatuses } from '@porcelain/kernel/models';
 
 export type ComposeInventoryInput = {
   environmentId: string;

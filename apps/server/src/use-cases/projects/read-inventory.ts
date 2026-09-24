@@ -4,8 +4,8 @@ import type {
   ComposeInventoryService,
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
-  ReadWorktreeStatusesService,
 } from '@porcelain/projects/services';
+import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -44,7 +44,11 @@ export class ReadInventoryUseCase {
       async () => {
         const inventory = this.listRegisteredProjects.execute();
         const { listings } = this.listKnownWorktrees.execute(inventory);
-        const statuses = this.readWorktreeStatuses.execute({ listings });
+        const { statuses } = this.readWorktreeStatuses.execute({
+          worktreeIds: listings.flatMap((listing) =>
+            listing.worktrees.map((worktree) => worktree.id),
+          ),
+        });
         const { environmentId } = this.readEnvironment.execute();
         return this.composeInventory.execute({
           environmentId,

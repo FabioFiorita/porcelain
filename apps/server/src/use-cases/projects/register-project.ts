@@ -8,11 +8,11 @@ import type {
   ListOtherProjectsService,
   ListProjectWorktreesService,
   ReadRepositoryOriginService,
-  ReadWorktreeStatusesService,
   RecordWorktreePresenceService,
   RegisterProjectService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
+import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -89,8 +89,8 @@ export class RegisterProjectUseCase {
         );
         this.updateProjectAvailability.execute({ worktrees });
         this.recordWorktreePresence.execute({ worktrees });
-        const statuses = this.readWorktreeStatuses.execute({
-          listings: [worktrees],
+        const { statuses } = this.readWorktreeStatuses.execute({
+          worktreeIds: worktrees.worktrees.map((worktree) => worktree.id),
         });
         const report = this.composeProjectReport.execute({
           project,

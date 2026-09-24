@@ -1,4 +1,5 @@
 import type {
+  AgentReply,
   CommentReply,
   CommentResolution,
   CommentThread,
@@ -13,6 +14,9 @@ export interface CommentStore {
   findMessage(input: { messageId: string }): PostedCommentMessage | undefined;
   usage(input: { worktreeId: string }): CommentUsage;
   lastRevision(input: { worktreeId: string }): number;
+  agentRepliesByWorktrees(input: {
+    worktreeIds: readonly string[];
+  }): AgentReply[];
   insert(input: NewCommentThread): CommentThread;
   append(input: CommentReply): CommentThread;
   resolve(input: CommentResolution): CommentThread;

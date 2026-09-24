@@ -43,3 +43,7 @@ export type ReviewedLayers = {
   worktreeId: string;
   marks: ReviewedLayerMark[];
 };
+
+export type WorktreeReviewedLayerMark = ReviewedLayerMark & {
+  worktreeId: string;
+};

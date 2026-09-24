@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { commentReads } from '../../db/schema/comment-reads.ts';
+import type { CommentSeenMark } from '@porcelain/reviews/models';
 import type { CommentSeenStore } from '@porcelain/reviews/ports';
 
 export class SqliteCommentSeenStore implements CommentSeenStore {
@@ -18,6 +19,19 @@ export class SqliteCommentSeenStore implements CommentSeenStore {
         .where(eq(commentReads.worktreeId, input.worktreeId))
         .get()?.seenThrough ?? 0
     );
+  }
+
+  seenByWorktrees(input: {
+    worktreeIds: readonly string[];
+  }): CommentSeenMark[] {
+    return this.db
+      .select({
+        worktreeId: commentReads.worktreeId,
+        seenThrough: commentReads.seenThrough,
+      })
+      .from(commentReads)
+      .where(inArray(commentReads.worktreeId, [...input.worktreeIds]))
+      .all();
   }
 
   save(input: { worktreeId: string; seenThrough: number }): void {

@@ -9,6 +9,12 @@ export class InMemoryReviewStore implements ReviewStore {
     return review && structuredClone(review);
   }
 
+  byWorktrees(input: { worktreeIds: readonly string[] }): Review[] {
+    return this.rows
+      .filter((row) => input.worktreeIds.includes(row.worktreeId))
+      .map((row) => structuredClone(row));
+  }
+
   findSummary(input: { token: string }): ReviewSummary | undefined {
     const review = this.rows.find((row) => row.summaryToken === input.token);
     return (

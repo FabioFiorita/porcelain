@@ -1,8 +1,15 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { reviews } from '../../db/schema/reviews.ts';
 import type { Review, ReviewSummary } from '@porcelain/reviews/models';
 import type { ReviewStore } from '@porcelain/reviews/ports';
+
+type ReviewRow = typeof reviews.$inferSelect;
+
+function reviewFromRow(row: ReviewRow): Review {
+  const { diagram, ...rest } = row;
+  return diagram === null ? rest : { ...rest, diagram };
+}
 
 export class SqliteReviewStore implements ReviewStore {
   private readonly db: BetterSQLite3Database;
@@ -17,9 +24,16 @@ export class SqliteReviewStore implements ReviewStore {
       .from(reviews)
       .where(eq(reviews.worktreeId, input.worktreeId))
       .get();
-    if (!row) return undefined;
-    const { diagram, ...rest } = row;
-    return diagram === null ? rest : { ...rest, diagram };
+    return row && reviewFromRow(row);
+  }
+
+  byWorktrees(input: { worktreeIds: readonly string[] }): Review[] {
+    return this.db
+      .select()
+      .from(reviews)
+      .where(inArray(reviews.worktreeId, [...input.worktreeIds]))
+      .all()
+      .map(reviewFromRow);
   }
 
   findSummary(input: { token: string }): ReviewSummary | undefined {
