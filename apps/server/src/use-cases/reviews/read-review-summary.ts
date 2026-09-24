@@ -21,7 +21,7 @@ export class ReadReviewSummaryUseCase {
     this.lanes.assertOpen();
     return this.readReviewSummary.execute({
       token: input.token,
-      expires: String(input.expires),
+      expires: input.expires,
       signature: input.signature,
     }).html;
   }

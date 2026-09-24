@@ -46,6 +46,6 @@ export class CreateCommentThreadUseCase {
       { callerSignal: context.signal },
     );
     this.events.worktreeChanged(worktreeId, 'comments');
-    return [thread];
+    return thread;
   }
 }

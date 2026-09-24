@@ -93,7 +93,7 @@ export default defineFeature({
         },
         {
           method: 'GET',
-          path: `${url.pathname}?expires=1&signature=${url.searchParams.get('signature')}`,
+          path: `${url.pathname}?expires=${encodeURIComponent('2020-01-01T00:00:00.000Z')}&signature=${url.searchParams.get('signature')}`,
           auth: 'none',
         },
       ],

@@ -4,6 +4,7 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  record,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
 import {
@@ -13,13 +14,19 @@ import {
   worktreePath,
 } from '../scripts/fixture.ts';
 
+function withoutSummaryUrl(body: unknown) {
+  const review = record(record(body).review);
+  const { url, ...summary } = record(review.summary);
+  return { url: typeof url, review: { ...review, summary } };
+}
+
 export default defineFeature({
   feature: 'reviews.read-published-review',
   reaches: 'GET /api/worktrees/:worktreeId/review',
   paired: true,
   intent: 'observed',
   behaviour:
-    "A reviewer reads the worktree's published review, or null when none was published, exactly as the publish answered it.",
+    "A reviewer reads the worktree's published review, or null when none was published, exactly as the publish answered it, with a freshly signed summary link.",
   cases: [
     defineCase({
       name: 'nothing published',
@@ -51,7 +58,11 @@ export default defineFeature({
       }),
       expect({ response, state, check }) {
         check('status', 200, response.status);
-        check('same as the publish answer', state, response.body);
+        check(
+          'same as the publish answer apart from the freshly signed summary link',
+          withoutSummaryUrl(state),
+          withoutSummaryUrl(response.body),
+        );
       },
     }),
     defineCase({

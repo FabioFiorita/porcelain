@@ -65,7 +65,6 @@ export const commentThreadParamsSchema = z.strictObject({
 
 export const commentThreadScopeSchema = z.enum(['waiting', 'all']);
 export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
-const writtenCommentThreadSchema = z.tuple([commentThreadSchema]);
 
 export const createCommentThreadRequestSchema = z.strictObject({
   threadId: z.uuid().optional(),
@@ -73,18 +72,18 @@ export const createCommentThreadRequestSchema = z.strictObject({
   anchor: commentAnchorSchema,
   body: bodySchema,
 });
-export const createCommentThreadResponseSchema = writtenCommentThreadSchema;
+export const createCommentThreadResponseSchema = commentThreadSchema;
 
 export const replyToCommentRequestSchema = z.strictObject({
   messageId: z.uuid().optional(),
   body: bodySchema,
 });
-export const replyToCommentResponseSchema = writtenCommentThreadSchema;
+export const replyToCommentResponseSchema = commentThreadSchema;
 
 export const resolveCommentThreadRequestSchema = z.strictObject({
   resolved: z.boolean(),
 });
-export const resolveCommentThreadResponseSchema = writtenCommentThreadSchema;
+export const resolveCommentThreadResponseSchema = commentThreadSchema;
 
 export const markCommentsSeenRequestSchema = z.strictObject({
   throughRevision: z.number().int().nonnegative(),

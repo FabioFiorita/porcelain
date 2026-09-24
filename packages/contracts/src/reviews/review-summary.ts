@@ -4,7 +4,7 @@ export const readReviewSummaryParamsSchema = z.strictObject({
   token: z.uuid(),
 });
 export const readReviewSummaryQuerySchema = z.strictObject({
-  expires: z.coerce.number().int().positive(),
+  expires: z.iso.datetime(),
   signature: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
 });
 export const readReviewSummaryResponseSchema = z.string();

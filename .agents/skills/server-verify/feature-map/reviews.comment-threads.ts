@@ -26,9 +26,9 @@ const threadId = randomUUID();
 const messageId = randomUUID();
 
 function thread(value: unknown, id: string) {
-  const found = list(value).find((entry) => record(entry).id === id);
-  if (!found) throw new Error(`Thread ${id} is not listed`);
-  return record(found);
+  const written = record(value);
+  if (written.id !== id) throw new Error(`Thread ${id} was not written`);
+  return written;
 }
 
 export default defineFeature({
@@ -42,7 +42,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A reviewer discusses a worktree's change in comment threads anchored to a file or a line range (optionally to one comparison). Every write answers with a one-element list holding the thread it wrote (the contract types it as exactly one thread, not as the thread list), and bumps the worktree's comment revision; a paired viewer writes as the reviewer. Clients may choose thread and message IDs so a retried write is recognised: repeating it changes nothing, reusing an ID for different content is a conflict. Replies and resolution changes address an existing thread; an unknown one is not found. Anchors are not checked against the files.",
+    "A reviewer discusses a worktree's change in comment threads anchored to a file or a line range (optionally to one comparison). Every write answers with the one thread it wrote and bumps the worktree's comment revision; a paired viewer writes as the reviewer. Clients may choose thread and message IDs so a retried write is recognised: repeating it changes nothing, reusing an ID for different content is a conflict. Replies and resolution changes address an existing thread; an unknown one is not found. Anchors are not checked against the files.",
   cases: [
     defineCase({
       name: 'no threads yet',
@@ -108,8 +108,10 @@ export default defineFeature({
         );
         check(
           'a write answers only its own thread',
-          [1, 1],
-          responses.map((entry) => list(entry.body).length),
+          [true, true],
+          responses.map(
+            (entry) => !Array.isArray(entry.body) && 'id' in record(entry.body),
+          ),
         );
         const listed = await session.send({
           method: 'GET',
@@ -117,7 +119,7 @@ export default defineFeature({
         });
         check(
           'list holds both written threads',
-          [...list(responses[0]?.body), ...list(responses[1]?.body)],
+          [responses[0]?.body, responses[1]?.body],
           listed.body,
         );
         check(
@@ -235,9 +237,7 @@ export default defineFeature({
         check(
           'is accepted',
           true,
-          list(response.body).some(
-            (entry) => record(record(entry).anchor).filePath === 'missing.md',
-          ),
+          record(record(response.body).anchor).filePath === 'missing.md',
         );
       },
     }),

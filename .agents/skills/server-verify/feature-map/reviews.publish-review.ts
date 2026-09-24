@@ -79,7 +79,7 @@ export default defineFeature({
         check(
           'summary link is signed',
           true,
-          /^\/review-summaries\/[0-9a-f-]{36}\?expires=\d+&signature=[A-Za-z0-9_-]{43}$/.test(
+          /^\/review-summaries\/[0-9a-f-]{36}\?expires=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}\.\d{3}Z&signature=[A-Za-z0-9_-]{43}$/.test(
             String(record(review.summary).url),
           ),
         );
