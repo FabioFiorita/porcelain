@@ -46,6 +46,7 @@ import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-rea
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
 import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
+import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
@@ -84,10 +85,11 @@ export function composeShared(dependencies: SharedDependencies) {
   });
   const worktreeAccess = new GitWorktreeAccessReader(catalog);
   const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
+  const gitSessions = gitSessionPerSignal(limits.git);
   const openInspection = inspectionCheckouts(
     worktreeAccess,
     inspection,
-    limits.git,
+    gitSessions,
   );
   const changeStatusReader = new GitChangeStatusReader(openInspection);
   const fileReader = new FilesystemFileReader(worktreeAccess);
@@ -115,6 +117,7 @@ export function composeShared(dependencies: SharedDependencies) {
     catalog,
     worktreeListing,
     worktreeAccess,
+    gitSessions,
     openInspection,
     changeStatusReader,
     fileReader,

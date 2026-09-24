@@ -7,7 +7,7 @@ export async function readSelectedDiff(
   headOid: string | null,
   paths: readonly string[],
   limits: GitLimits,
-  signal: AbortSignal,
+  signal?: AbortSignal,
 ): Promise<string> {
   await session.verify(signal);
   const output = await runInspection(

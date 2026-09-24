@@ -10,9 +10,9 @@ export type GitActionWriter = {
   readSelectedDiff(
     headOid: string | null,
     paths: readonly string[],
-    signal: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<string>;
-  listBranches(signal: AbortSignal): Promise<GitBranchList>;
+  listBranches(signal?: AbortSignal): Promise<GitBranchList>;
   executeDirect(
     requestId: string,
     intent: GitActionIntent,

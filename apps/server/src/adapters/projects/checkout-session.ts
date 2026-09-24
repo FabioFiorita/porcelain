@@ -1,8 +1,13 @@
 import { RepositoryIdentityMismatchError } from '@porcelain/git/discovery';
-import type { CheckoutSession, GitSession } from '@porcelain/git/inspection';
+import {
+  RequestGitSession,
+  type CheckoutSession,
+  type GitSession,
+} from '@porcelain/git/inspection';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
+import type { Limits } from '../../config/limits.ts';
 
 export type ListedWorktrees = Pick<
   WorktreeAccessReader<ListedWorktree>,
@@ -13,6 +18,20 @@ export type OpenedCheckout = {
   worktree: ListedWorktree;
   checkout: CheckoutSession;
 };
+
+export type GitSessions = (signal?: AbortSignal) => GitSession;
+
+export function gitSessionPerSignal(limits: Limits['git']): GitSessions {
+  const sessions = new WeakMap<AbortSignal, GitSession>();
+  return (signal) => {
+    if (signal === undefined) return new RequestGitSession(limits);
+    const existing = sessions.get(signal);
+    if (existing) return existing;
+    const created = new RequestGitSession(limits);
+    sessions.set(signal, created);
+    return created;
+  };
+}
 
 export async function listedWorktree(
   worktrees: ListedWorktrees,

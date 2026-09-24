@@ -4,26 +4,25 @@ import type {
 } from '@porcelain/git-actions/models';
 import type { BranchReader } from '@porcelain/git-actions/ports';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
-import { RequestGitSession } from '@porcelain/git/inspection';
-import type { Limits } from '../../config/limits.ts';
 import {
   openCheckout,
+  type GitSessions,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 export class GitBranchReader implements BranchReader {
   private readonly worktrees: ListedWorktrees;
   private readonly git: GitActionWriterFactory;
-  private readonly limits: Limits['git'];
+  private readonly sessions: GitSessions;
 
   constructor(
     worktrees: ListedWorktrees,
     git: GitActionWriterFactory,
-    limits: Limits['git'],
+    sessions: GitSessions,
   ) {
     this.worktrees = worktrees;
     this.git = git;
-    this.limits = limits;
+    this.sessions = sessions;
   }
 
   async read(
@@ -32,13 +31,11 @@ export class GitBranchReader implements BranchReader {
   ): Promise<GitBranches> {
     const { checkout } = await openCheckout(
       this.worktrees,
-      new RequestGitSession(this.limits),
+      this.sessions(signal),
       input.worktreeId,
       signal,
     );
-    const listed = await this.git(checkout).listBranches(
-      signal ?? new AbortController().signal,
-    );
+    const listed = await this.git(checkout).listBranches(signal);
     return {
       current: listed.current ?? undefined,
       branches: listed.branches.map((branch) => ({

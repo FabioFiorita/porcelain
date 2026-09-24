@@ -46,15 +46,16 @@ export class ActionsGit implements GitActionWriter {
   readSelectedDiff(
     headOid: string | null,
     paths: readonly string[],
-    signal: AbortSignal,
+    signal?: AbortSignal,
   ) {
     return readSelectedDiff(this.session, headOid, paths, this.limits, signal);
   }
 
-  async listBranches(signal: AbortSignal) {
-    await this.session.verify(signal);
-    const branches = await listBranches(this.process, signal);
-    await this.session.confirm(signal);
+  async listBranches(signal?: AbortSignal) {
+    const bounded = signal ?? AbortSignal.timeout(this.limits.readTimeoutMs);
+    await this.session.verify(bounded);
+    const branches = await listBranches(this.process, bounded);
+    await this.session.confirm(bounded);
     return branches;
   }
 

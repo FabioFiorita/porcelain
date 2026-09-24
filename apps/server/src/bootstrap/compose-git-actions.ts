@@ -100,7 +100,7 @@ export function composeGitActions(
         new GitBranchReader(
           shared.worktreeAccess,
           shared.actionGit,
-          context.settings.limits.git,
+          shared.gitSessions,
         ),
       ),
       lanes,
@@ -120,7 +120,7 @@ export function composeGitActions(
         new GitSelectedDiffReader(
           shared.worktreeAccess,
           shared.actionGit,
-          context.settings.limits.git,
+          shared.gitSessions,
         ),
         new FilesystemUntrackedFileReader(shared.fileReader),
         limits.commitDraft,
