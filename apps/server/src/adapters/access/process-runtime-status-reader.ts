@@ -1,14 +1,14 @@
-import type { RuntimeStatus } from '@porcelain/access/models';
+import type { OwnerStatus } from '@porcelain/kernel/models';
 import type { RuntimeStatusReader } from '@porcelain/access/ports';
 
 export class ProcessRuntimeStatusReader implements RuntimeStatusReader {
-  private readonly status: () => RuntimeStatus;
+  private readonly status: () => OwnerStatus;
 
-  constructor(status: () => RuntimeStatus) {
+  constructor(status: () => OwnerStatus) {
     this.status = status;
   }
 
-  current(): RuntimeStatus {
+  current(): OwnerStatus {
     return this.status();
   }
 }

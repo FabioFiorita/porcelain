@@ -1,10 +1,6 @@
-export type OwnerProbeRequest = { socketPath: string; timeoutMs: number };
+import type { OwnerStatus } from '@porcelain/kernel/models';
 
-export type OwnerStatus = {
-  address: string;
-  dataDirectory: string;
-  pid: number;
-};
+export type OwnerProbeRequest = { socketPath: string; timeoutMs: number };
 
 export type OwnerProbeResult =
   | { kind: 'running'; status: OwnerStatus }

@@ -9,6 +9,7 @@ export type {
   UnmergedComparison,
   UntrackedComparison,
 } from './change.ts';
+export type { OwnerStatus } from './owner-status.ts';
 export type { Base64UrlSecret } from './secret.ts';
 export type {
   Worktree,

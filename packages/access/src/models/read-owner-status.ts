@@ -1,3 +1,3 @@
-import type { RuntimeStatus } from './runtime-status.ts';
+import type { OwnerStatus } from '@porcelain/kernel/models';
 
-export type ReadOwnerStatusResult = RuntimeStatus;
+export type ReadOwnerStatusResult = OwnerStatus;

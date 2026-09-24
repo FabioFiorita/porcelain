@@ -1,11 +1,8 @@
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { networkInterfaces } from 'node:os';
-import type {
-  HostPolicy,
-  PairingReach,
-  RuntimeStatus,
-} from '@porcelain/access/models';
+import type { HostPolicy, PairingReach } from '@porcelain/access/models';
+import type { OwnerStatus } from '@porcelain/kernel/models';
 import type { Clock } from '@porcelain/kernel/ports';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
@@ -23,7 +20,7 @@ import { restrictOwnerSocket } from './owner-socket.ts';
 export type OpenServer = (input: {
   settings: ServerSettings;
   pairingReach: () => PairingReach;
-  runtimeStatus: () => RuntimeStatus;
+  runtimeStatus: () => OwnerStatus;
   signal: AbortSignal;
 }) => Promise<OpenedServer>;
 
@@ -96,7 +93,7 @@ export async function startApplication(
     port: 0,
     policy: { allowedHosts, localAddresses: [] },
   };
-  const status: RuntimeStatus = {
+  const status: OwnerStatus = {
     address: '',
     dataDirectory: directory,
     pid: process.pid,

@@ -63,7 +63,6 @@ export type {
   RevokePairingGrantInput,
   RevokePairingGrantResult,
 } from './revoke-pairing-grant.ts';
-export type { RuntimeStatus } from './runtime-status.ts';
 export type {
   TakePairingAttemptInput,
   TakePairingAttemptOptions,

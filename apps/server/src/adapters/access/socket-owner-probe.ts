@@ -1,5 +1,6 @@
 import { request } from 'node:http';
 import { constants } from 'node:http2';
+import type { OwnerStatus } from '@porcelain/kernel/models';
 import { z } from 'zod';
 import type {
   OwnerProbe,
@@ -7,7 +8,7 @@ import type {
   OwnerProbeResult,
 } from '../../ports/owner-probe.ts';
 
-const ownerStatusSchema = z.object({
+const ownerStatusSchema: z.ZodType<OwnerStatus> = z.object({
   address: z.string(),
   dataDirectory: z.string(),
   pid: z.number().int(),
