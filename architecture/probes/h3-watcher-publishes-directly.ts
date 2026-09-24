@@ -16,12 +16,12 @@ export default {
     {
       kind: 'replace',
       path: 'apps/server/src/runtime/live-updates/watch-worktrees.ts',
-      old: `  private announce(change: WorktreeChange): void {`,
+      old: `  private announceChange(change: WorktreeChange): void {`,
       new: `  private publish(events: EventPublisher, worktreeId: string): void {
     events.worktreeChanged({ worktreeId, change: 'git' });
   }
 
-  private announce(change: WorktreeChange): void {`,
+  private announceChange(change: WorktreeChange): void {`,
     },
   ],
 } satisfies Probe;
