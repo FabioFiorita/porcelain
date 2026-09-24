@@ -1,7 +1,7 @@
 import {
   listAccessResponseSchema,
   redeemPairingResponseSchema,
-} from '../../../../packages/contracts/src/access/index.ts';
+} from '@porcelain/contracts/access';
 import {
   apiError,
   defineCase,
@@ -29,6 +29,7 @@ async function access(session: Session) {
 export default defineFeature({
   feature: 'access.pairing',
   reaches: ['POST /api/pair'],
+  paired: false,
   intent: 'observed',
   behaviour:
     'A device redeems a one-time pairing code the owner issued and becomes a paired device. A native client receives its credential in the body; a browser (request header `x-porcelain-browser: 1`) receives it only as an HttpOnly device cookie. The code is consumed by redemption, and an unknown or reused code is refused without revealing why. A blank or control-character device name or platform is refused without consuming the code.',

@@ -1,4 +1,4 @@
-import { readCommitDiffsResponseSchema } from '../../../../packages/contracts/src/changes/index.ts';
+import { readCommitDiffsResponseSchema } from '@porcelain/contracts/changes';
 import {
   apiError,
   defineCase,
@@ -24,18 +24,45 @@ const diffs = (session: Session, oid: string, body: unknown) => ({
 export default defineFeature({
   feature: 'changes.read-commit-diffs',
   reaches: 'POST /api/worktrees/:worktreeId/commits/:oid/diffs',
+  paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer reads the diffs of chosen paths in one commit, each path given alone or as an old and new pair for a rename, against a chosen parent. A pure rename has a metadata-only patch; a path the commit did not touch has an empty metadata-only patch. An unknown commit and a parent the commit does not have are refused exactly as the commit files read refuses them.',
+    'A reviewer reads the diffs of chosen paths in one commit, each path given alone or as an old and new pair for a rename, against a chosen parent, and gets the patch Git reports. A pure rename has a metadata-only patch; a path the commit did not touch has an empty metadata-only patch. An unknown commit and a parent the commit does not have are refused exactly as the commit files read refuses them.',
   cases: [
     defineCase({
       name: 'modified file and pure rename',
-      setup: threeCommits,
+      async setup(session) {
+        const commits = await threeCommits(session);
+        const path = session.fixture.readme.path;
+        return {
+          ...commits,
+          modified: await session.git(
+            'diff',
+            commits.initial,
+            commits.second,
+            '--',
+            path,
+          ),
+          renamed: await session.git(
+            'diff',
+            '-M',
+            commits.second,
+            commits.rename,
+            '--',
+            path,
+            'GUIDE.md',
+          ),
+        };
+      },
       request: (session, state) => [
-        diffs(session, state.second, { paths: [['README.md']] }),
-        diffs(session, state.rename, { paths: [['README.md', 'GUIDE.md']] }),
+        diffs(session, state.second, {
+          paths: [[session.fixture.readme.path]],
+        }),
+        diffs(session, state.rename, {
+          paths: [[session.fixture.readme.path, 'GUIDE.md']],
+        }),
       ],
-      expect({ responses, state, check, checkContract }) {
+      expect({ responses, state, session, check, checkContract }) {
         check(
           'statuses',
           [200, 200],
@@ -52,12 +79,8 @@ export default defineFeature({
             commitOid: state.second,
             diffs: [
               {
-                paths: ['README.md'],
-                content: {
-                  kind: 'text',
-                  patch:
-                    'diff --git a/README.md b/README.md\nindex 8a69292..90c6866 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1,3 @@\n # Sample repository\n+\n+A change to review.\n',
-                },
+                paths: [session.fixture.readme.path],
+                content: { kind: 'text', patch: state.modified },
               },
             ],
           },
@@ -69,12 +92,8 @@ export default defineFeature({
             commitOid: state.rename,
             diffs: [
               {
-                paths: ['README.md', 'GUIDE.md'],
-                content: {
-                  kind: 'metadata-only',
-                  patch:
-                    'diff --git a/README.md b/GUIDE.md\nsimilarity index 100%\nrename from README.md\nrename to GUIDE.md\n',
-                },
+                paths: [session.fixture.readme.path, 'GUIDE.md'],
+                content: { kind: 'metadata-only', patch: state.renamed },
               },
             ],
           },

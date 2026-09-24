@@ -1,4 +1,4 @@
-import { listCommitsResponseSchema } from '../../../../packages/contracts/src/changes/index.ts';
+import { listCommitsResponseSchema } from '@porcelain/contracts/changes';
 import {
   defineCase,
   defineFeature,
@@ -31,6 +31,7 @@ const author = {
 export default defineFeature({
   feature: 'changes.list-commits',
   reaches: 'GET /api/worktrees/:worktreeId/commits',
+  paired: true,
   intent: 'observed',
   behaviour:
     "A reviewer pages through a worktree's history, newest first. The first page captures a snapshot of the head; each page returns the cursor for the next one together with the tip it started from. Continuing from a tip that is no longer the snapshot's restarts the listing from the current head and says so.",
@@ -39,7 +40,7 @@ export default defineFeature({
       name: 'first page',
       setup: threeCommits,
       request: (session) => commits(session, { limit: 1 }),
-      expect({ response, state, check, checkContract }) {
+      expect({ response, state, session, check, checkContract }) {
         check('status', 200, response.status);
         checkContract('contract', listCommitsResponseSchema, response.body);
         check(
@@ -47,7 +48,10 @@ export default defineFeature({
           {
             snapshot: {
               tipOid: state.rename,
-              head: { kind: 'attached', ref: 'refs/heads/main' },
+              head: {
+                kind: 'attached',
+                ref: `refs/heads/${session.fixture.branch}`,
+              },
             },
             commits: [
               {
@@ -58,7 +62,7 @@ export default defineFeature({
                 subjectTruncated: false,
                 body: null,
                 bodyTruncated: false,
-                refs: ['main'],
+                refs: [session.fixture.branch],
               },
             ],
             nextAfter: [state.second],
@@ -83,7 +87,7 @@ export default defineFeature({
           after: list(first.nextAfter).join(','),
           tip: String(first.tip),
         }),
-      expect({ response, state, check, checkPartial }) {
+      expect({ response, state, session, check, checkPartial }) {
         check('status', 200, response.status);
         const body = record(response.body);
         check('no new snapshot', null, body.snapshot);
@@ -92,7 +96,7 @@ export default defineFeature({
           'commits',
           [
             { subject: 'Second commit', body: 'With a body' },
-            { subject: 'Initial commit', parentOids: [] },
+            { subject: session.fixture.initialCommit, parentOids: [] },
           ],
           body.commits,
         );

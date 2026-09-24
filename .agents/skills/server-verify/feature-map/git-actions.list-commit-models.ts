@@ -1,4 +1,4 @@
-import { listCommitModelsResponseSchema } from '../../../../packages/contracts/src/git-actions/index.ts';
+import { listCommitModelsResponseSchema } from '@porcelain/contracts/git-actions';
 import {
   defineCase,
   defineFeature,
@@ -8,9 +8,10 @@ import {
 export default defineFeature({
   feature: 'git-actions.list-commit-models',
   reaches: 'GET /api/git/commit-models',
+  paired: true,
   intent: 'observed',
   behaviour:
-    "The owner lists the models that can draft a commit message: those of the Codex and Claude command-line tools found on the server's PATH. The isolated server has neither, so the list is empty; a machine with them lists `codex:<model>` and `claude:sonnet`/`claude:haiku`.",
+    "The owner lists the models that can draft a commit message: those of the Codex and Claude command-line tools found on the server's PATH. The isolated server's PATH holds only Git, so the list is empty; what a machine with those tools lists is not verified here.",
   cases: [
     defineCase({
       name: 'no model tool installed',

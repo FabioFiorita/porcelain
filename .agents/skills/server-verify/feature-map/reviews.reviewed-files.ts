@@ -1,7 +1,7 @@
 import {
   listReviewedFilesResponseSchema,
   setReviewedFilesResponseSchema,
-} from '../../../../packages/contracts/src/reviews/index.ts';
+} from '@porcelain/contracts/reviews';
 import {
   apiError,
   defineCase,
@@ -14,10 +14,9 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
-  sampleFingerprint,
+  fingerprintOf,
   worktreeNotFound,
   worktreePath,
-  fingerprintOf,
 } from '../scripts/fixture.ts';
 
 const reviewed = (session: Session) => worktreePath(session, '/reviewed');
@@ -37,6 +36,7 @@ export default defineFeature({
     'PUT /api/worktrees/:worktreeId/reviewed-bulk',
     'DELETE /api/worktrees/:worktreeId/reviewed',
   ],
+  paired: true,
   intent: 'observed',
   behaviour:
     "A reviewer marks changed files as reviewed at the fingerprint they looked at. A single mark for a fingerprint that is no longer the file's, or for a file that is not a change, is a conflict. Marking many at once marks what still matches and reports each other file as stale or missing instead of failing. Unmarking is idempotent. Every answer is the worktree's full list of marks.",
@@ -60,22 +60,23 @@ export default defineFeature({
     }),
     defineCase({
       name: 'mark the sample change',
-      request: (session) => ({
+      setup: (session) => fingerprintOf(session, session.fixture.readme.path),
+      request: (session, fingerprint) => ({
         method: 'PUT',
         path: reviewed(session),
         body: {
-          path: 'README.md',
+          path: session.fixture.readme.path,
           reviewed: true,
-          fingerprint: sampleFingerprint,
+          fingerprint,
         },
       }),
-      async expect({ response, session, check, checkPartial }) {
+      async expect({ response, state, session, check, checkPartial }) {
         check('status', 200, response.status);
         checkPartial(
           'mark',
           {
             worktreeId: session.worktreeId,
-            marks: [{ path: 'README.md', fingerprint: sampleFingerprint }],
+            marks: [{ path: session.fixture.readme.path, fingerprint: state }],
           },
           response.body,
         );
@@ -93,7 +94,7 @@ export default defineFeature({
           method: 'PUT',
           path: reviewed(session),
           body: {
-            path: 'README.md',
+            path: session.fixture.readme.path,
             reviewed: true,
             fingerprint: unknownFingerprint,
           },
@@ -104,7 +105,7 @@ export default defineFeature({
           body: {
             path: 'missing.md',
             reviewed: true,
-            fingerprint: sampleFingerprint,
+            fingerprint: unknownFingerprint,
           },
         },
       ],
@@ -116,7 +117,11 @@ export default defineFeature({
         const listed = (
           await session.send({ method: 'GET', path: reviewed(session) })
         ).body;
-        check('the earlier mark is kept', ['README.md'], paths(listed));
+        check(
+          'the earlier mark is kept',
+          [session.fixture.readme.path],
+          paths(listed),
+        );
       },
     }),
     defineCase({
@@ -125,7 +130,7 @@ export default defineFeature({
         await session.send({
           method: 'DELETE',
           path: reviewed(session),
-          query: { path: 'README.md' },
+          query: { path: session.fixture.readme.path },
         });
         await session.writeFile('notes.txt', 'untracked\n');
         return fingerprintOf(session, 'notes.txt');
@@ -136,12 +141,15 @@ export default defineFeature({
         body: {
           files: [
             { path: 'notes.txt', fingerprint: notes },
-            { path: 'README.md', fingerprint: unknownFingerprint },
-            { path: 'missing.md', fingerprint: sampleFingerprint },
+            {
+              path: session.fixture.readme.path,
+              fingerprint: unknownFingerprint,
+            },
+            { path: 'missing.md', fingerprint: unknownFingerprint },
           ],
         },
       }),
-      expect({ response, check, checkContract }) {
+      expect({ response, session, check, checkContract }) {
         check('status', 200, response.status);
         checkContract(
           'contract',
@@ -153,7 +161,7 @@ export default defineFeature({
         check(
           'conflicts',
           [
-            { path: 'README.md', reason: 'stale' },
+            { path: session.fixture.readme.path, reason: 'stale' },
             { path: 'missing.md', reason: 'missing' },
           ],
           body.conflicts,
@@ -182,9 +190,12 @@ export default defineFeature({
           responses.map((entry) => entry.status),
         );
         check(
-          'no marks remain',
-          { worktreeId: session.worktreeId, marks: [] },
-          responses[1]?.body,
+          'no marks remain, and unmarking again answers the same',
+          [
+            { worktreeId: session.worktreeId, marks: [] },
+            { worktreeId: session.worktreeId, marks: [] },
+          ],
+          responses.map((entry) => entry.body),
         );
       },
     }),
@@ -197,7 +208,7 @@ export default defineFeature({
           body: {
             path: 'README.md',
             reviewed: false,
-            fingerprint: sampleFingerprint,
+            fingerprint: unknownFingerprint,
           },
         },
         {
@@ -235,14 +246,14 @@ export default defineFeature({
             body: {
               path: 'README.md',
               reviewed: true,
-              fingerprint: sampleFingerprint,
+              fingerprint: unknownFingerprint,
             },
           },
           {
             method: 'PUT',
             path: `${path}/reviewed-bulk`,
             body: {
-              files: [{ path: 'README.md', fingerprint: sampleFingerprint }],
+              files: [{ path: 'README.md', fingerprint: unknownFingerprint }],
             },
           },
           {

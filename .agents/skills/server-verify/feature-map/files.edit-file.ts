@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { editFileResponseSchema } from '../../../../packages/contracts/src/files/index.ts';
+import { editFileResponseSchema } from '@porcelain/contracts/files';
 import {
   apiError,
   defineCase,
   defineFeature,
   invalidRequest,
+  text,
   unknownFingerprint,
   unknownWorktreeId,
   type Session,
@@ -17,55 +18,75 @@ const edit = (session: Session, body: unknown) => ({
   path: worktreePath(session, '/files'),
   body,
 });
-const readmeFingerprint =
-  '5805fc9b5cf5a14cea6b2274b2ef5afac4bf9261823de0a3e94ead6c915f6baf';
+async function contentFingerprint(session: Session, path: string) {
+  const file = await read(session, {
+    method: 'GET',
+    path: worktreePath(session, '/text'),
+    query: { path },
+  });
+  return text(file.contentFingerprint);
+}
 const exists = (session: Session, path: string) =>
   existsSync(join(session.repository, path));
 
 export default defineFeature({
   feature: 'files.edit-file',
   reaches: 'POST /api/worktrees/:worktreeId/files',
+  paired: true,
   intent: 'intended',
   behaviour:
     "The owner edits a worktree in place instead of opening an editor: writes a text file only if its content still matches the fingerprint they read, creates a file or folder, moves an entry, or moves it to the machine's trash. Each answers with the resulting path (and the new fingerprint after a write). Writing over changed content, or creating over an existing entry, is a conflict; paths inside .git and paths that escape the worktree are invalid input.",
   cases: [
     defineCase({
       name: 'write with the current fingerprint',
-      request: (session) =>
+      setup: (session) =>
+        contentFingerprint(session, session.fixture.readme.path),
+      request: (session, fingerprint) =>
         edit(session, {
           kind: 'write',
-          path: 'README.md',
+          path: session.fixture.readme.path,
           text: 'Rewritten\n',
-          expectedFingerprint: readmeFingerprint,
+          expectedFingerprint: fingerprint,
         }),
-      async expect({ response, session, check, checkContract }) {
+      async expect({ response, state, session, check, checkContract }) {
         check('status', 200, response.status);
         checkContract('contract', editFileResponseSchema, response.body);
-        const reread = await read(session, {
-          method: 'GET',
-          path: worktreePath(session, '/text'),
-          query: { path: 'README.md' },
-        });
+        const written = await contentFingerprint(
+          session,
+          session.fixture.readme.path,
+        );
         check(
           'body',
-          { path: 'README.md', contentFingerprint: reread.contentFingerprint },
+          { path: session.fixture.readme.path, contentFingerprint: written },
           response.body,
         );
+        check('the fingerprint moved', true, written !== state);
         check(
           'file on disk',
           'Rewritten\n',
-          await session.readFile('README.md'),
+          await session.readFile(session.fixture.readme.path),
         );
       },
     }),
     defineCase({
       name: 'write over changed content',
-      request: (session) =>
+      async setup(session) {
+        const seen = await contentFingerprint(
+          session,
+          session.fixture.readme.path,
+        );
+        await session.writeFile(
+          session.fixture.readme.path,
+          'Changed elsewhere\n',
+        );
+        return seen;
+      },
+      request: (session, fingerprint) =>
         edit(session, {
           kind: 'write',
-          path: 'README.md',
+          path: session.fixture.readme.path,
           text: 'Lost\n',
-          expectedFingerprint: readmeFingerprint,
+          expectedFingerprint: fingerprint,
         }),
       async expect({ response, session, check }) {
         check('status', 409, response.status);
@@ -76,8 +97,8 @@ export default defineFeature({
         );
         check(
           'file unchanged',
-          'Rewritten\n',
-          await session.readFile('README.md'),
+          'Changed elsewhere\n',
+          await session.readFile(session.fixture.readme.path),
         );
       },
     }),
@@ -94,6 +115,11 @@ export default defineFeature({
       ],
       async expect({ responses, session, check }) {
         check(
+          'statuses',
+          [200, 200, 200],
+          responses.map((entry) => entry.status),
+        );
+        check(
           'bodies',
           [{ path: 'docs' }, { path: 'draft.md' }, { path: 'docs/final.md' }],
           responses.map((entry) => entry.body),
@@ -109,7 +135,11 @@ export default defineFeature({
     defineCase({
       name: 'create over an existing entry',
       request: (session) =>
-        edit(session, { kind: 'create', path: 'README.md', entryKind: 'file' }),
+        edit(session, {
+          kind: 'create',
+          path: session.fixture.readme.path,
+          entryKind: 'file',
+        }),
       async expect({ response, session, check }) {
         check('status', 409, response.status);
         check(
@@ -119,8 +149,8 @@ export default defineFeature({
         );
         check(
           'file unchanged',
-          'Rewritten\n',
-          await session.readFile('README.md'),
+          'Changed elsewhere\n',
+          await session.readFile(session.fixture.readme.path),
         );
       },
     }),
@@ -212,8 +242,8 @@ export default defineFeature({
         );
         check(
           'README untouched',
-          'Rewritten\n',
-          await session.readFile('README.md'),
+          'Changed elsewhere\n',
+          await session.readFile(session.fixture.readme.path),
         );
       },
     }),

@@ -1,4 +1,4 @@
-import { registerProjectResponseSchema } from '../../../../packages/contracts/src/projects/index.ts';
+import { registerProjectResponseSchema } from '@porcelain/contracts/projects';
 import {
   apiError,
   defineCase,
@@ -21,6 +21,7 @@ const uninspectable = apiError(
 export default defineFeature({
   feature: 'projects.register',
   reaches: 'POST /api/projects',
+  paired: true,
   intent: 'observed',
   behaviour:
     'The owner registers a Git repository by its absolute path. The project is named after the folder and lists its worktrees. Registering an already registered repository returns the existing project instead of a duplicate. A relative path is invalid input; a missing folder or a folder that is not a repository cannot be inspected.',

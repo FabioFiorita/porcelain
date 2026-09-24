@@ -1,4 +1,4 @@
-import { readChangeLinesResponseSchema } from '../../../../packages/contracts/src/changes/index.ts';
+import { readChangeLinesResponseSchema } from '@porcelain/contracts/changes';
 import {
   apiError,
   defineCase,
@@ -10,6 +10,7 @@ import {
 } from '../scripts/feature.ts';
 import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
+const linesOf = (text: string) => text.replace(/\n$/, '').split('\n');
 const lines = (session: Session, query: Record<string, string | number>) => ({
   method: 'GET' as const,
   path: worktreePath(session, '/changes/lines'),
@@ -19,6 +20,7 @@ const lines = (session: Session, query: Record<string, string | number>) => ({
 export default defineFeature({
   feature: 'changes.read-change-lines',
   reaches: 'GET /api/worktrees/:worktreeId/changes/lines',
+  paired: true,
   intent: 'intended',
   behaviour:
     "A reviewer reads a line range of a file either as committed at head or as it is in the worktree, to expand context around a diff. The range is clamped to the file's length and the answer states the range it actually returned. A range that ends before it starts is invalid input.",
@@ -26,8 +28,18 @@ export default defineFeature({
     defineCase({
       name: 'worktree and head versions',
       request: (session) => [
-        lines(session, { path: 'README.md', from: 1, to: 5, at: 'worktree' }),
-        lines(session, { path: 'README.md', from: 1, to: 5, at: 'head' }),
+        lines(session, {
+          path: session.fixture.readme.path,
+          from: 1,
+          to: 5,
+          at: 'worktree',
+        }),
+        lines(session, {
+          path: session.fixture.readme.path,
+          from: 1,
+          to: 5,
+          at: 'head',
+        }),
       ],
       expect({ responses, session, check, checkPartial, checkContract }) {
         check(
@@ -40,21 +52,23 @@ export default defineFeature({
           readChangeLinesResponseSchema,
           responses[0]?.body,
         );
+        const worktree = linesOf(session.fixture.readme.changed);
+        const committed = linesOf(session.fixture.readme.committed);
         checkPartial(
           'worktree lines',
           {
             worktreeId: session.worktreeId,
             at: 'worktree',
-            path: 'README.md',
+            path: session.fixture.readme.path,
             from: 1,
-            to: 3,
-            lines: ['# Sample repository', '', 'A change to review.'],
+            to: worktree.length,
+            lines: worktree,
           },
           responses[0]?.body,
         );
         checkPartial(
           'head lines are clamped',
-          { at: 'head', from: 1, to: 1, lines: ['# Sample repository'] },
+          { at: 'head', from: 1, to: committed.length, lines: committed },
           responses[1]?.body,
         );
       },
@@ -62,7 +76,12 @@ export default defineFeature({
     defineCase({
       name: 'reversed range',
       request: (session) =>
-        lines(session, { path: 'README.md', from: 5, to: 1, at: 'head' }),
+        lines(session, {
+          path: session.fixture.readme.path,
+          from: 5,
+          to: 1,
+          at: 'head',
+        }),
       expect({ response, check }) {
         check('status', 400, response.status);
         check('error body', invalidRequest, response.body);
@@ -71,7 +90,12 @@ export default defineFeature({
     defineCase({
       name: 'a range past the end of the file',
       request: (session) =>
-        lines(session, { path: 'README.md', from: 5, to: 9, at: 'head' }),
+        lines(session, {
+          path: session.fixture.readme.path,
+          from: 5,
+          to: 9,
+          at: 'head',
+        }),
       expect({ response, check }) {
         check('status', 200, response.status);
         const body = record(response.body);

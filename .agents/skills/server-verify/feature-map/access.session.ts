@@ -1,4 +1,4 @@
-import { readInventoryResponseSchema } from '../../../../packages/contracts/src/projects/index.ts';
+import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   apiError,
   defineCase,
@@ -6,68 +6,80 @@ import {
   list,
   record,
   unauthenticated,
+  type Session,
 } from '../scripts/feature.ts';
 import { inventory, issuePairing } from '../scripts/fixture.ts';
 
+async function browserCookie(session: Session) {
+  const code = await issuePairing(session, 'Browser');
+  const paired = await session.send({
+    method: 'POST',
+    path: '/api/pair',
+    auth: 'none',
+    headers: { 'x-porcelain-browser': '1' },
+    body: { code, platform: 'Browser' },
+  });
+  const cookie = /porcelain_device=[^;]+/.exec(
+    paired.headers['set-cookie'] ?? '',
+  )?.[0];
+  if (!cookie) throw new Error('Browser pairing set no device cookie');
+  return cookie;
+}
+
+async function devices(session: Session) {
+  return list(
+    record(
+      (await session.send({ method: 'GET', path: '/access', target: 'owner' }))
+        .body,
+    ).devices,
+  );
+}
+
 export default defineFeature({
   feature: 'access.session',
-  reaches: ['GET /api/session', 'DELETE /api/session'],
+  reaches: ['GET /api/inventory', 'DELETE /api/session'],
+  paired: false,
   intent: 'observed',
   behaviour:
-    "A paired client, by bearer credential or by the browser's device cookie, reads the same inventory as `/api/inventory` from `/api/session`; without either it is refused. A browser clears its device cookie with `DELETE /api/session`, which requires the browser request header and does not revoke the device.",
+    'A browser holds its pairing as an HttpOnly device cookie instead of a bearer credential. The cookie authenticates paired reads such as the inventory exactly as the bearer credential does, and each authenticated request refreshes it; a cookie the server does not know is refused. The browser clears its cookie with `DELETE /api/session`, which requires the browser request header and does not revoke the device.',
   cases: [
-    defineCase({
-      name: 'bearer credential reads the inventory',
-      setup: inventory,
-      request: () => ({ method: 'GET', path: '/api/session' }),
-      expect({ response, state, check, checkContract }) {
-        check('status', 200, response.status);
-        check('same body as the inventory', state, response.body);
-        checkContract('contract', readInventoryResponseSchema, response.body);
-        check('not cacheable', 'no-store', response.headers['cache-control']);
-      },
-    }),
     defineCase({
       name: 'browser cookie reads the inventory',
       async setup(session) {
-        const code = await issuePairing(session, 'Browser');
-        const paired = await session.send({
-          method: 'POST',
-          path: '/api/pair',
-          auth: 'none',
-          headers: { 'x-porcelain-browser': '1' },
-          body: { code, platform: 'Browser' },
-        });
-        const cookie = /porcelain_device=[^;]+/.exec(
-          paired.headers['set-cookie'] ?? '',
-        )?.[0];
-        if (!cookie) throw new Error('Browser pairing set no device cookie');
-        return { cookie, inventory: await inventory(session) };
+        return {
+          cookie: await browserCookie(session),
+          inventory: await inventory(session),
+        };
       },
       request: (_session, state) => ({
         method: 'GET',
-        path: '/api/session',
+        path: '/api/inventory',
         auth: { cookie: state.cookie },
       }),
-      expect({ response, state, check }) {
+      expect({ response, state, check, checkContract }) {
         check('status', 200, response.status);
-        check('same body as the inventory', state.inventory, response.body);
+        check('same body as the bearer read', state.inventory, response.body);
+        checkContract('contract', readInventoryResponseSchema, response.body);
         check(
           'cookie is refreshed',
           true,
-          (response.headers['set-cookie'] ?? '').startsWith(
-            'porcelain_device=',
+          /^porcelain_device=[^;]+; Path=\/api; HttpOnly; SameSite=Strict; Max-Age=7776000$/.test(
+            response.headers['set-cookie'] ?? '',
           ),
         );
       },
     }),
     defineCase({
-      name: 'without a credential',
-      request: () => ({ method: 'GET', path: '/api/session', auth: 'none' }),
+      name: 'a cookie the server does not know',
+      request: () => ({
+        method: 'GET',
+        path: '/api/inventory',
+        auth: { cookie: 'porcelain_device=pcd_unknown' },
+      }),
       expect({ response, check }) {
         check('status', 401, response.status);
         check('error body', unauthenticated, response.body);
-        check('challenge', 'Bearer', response.headers['www-authenticate']);
+        check('no cookie is set', undefined, response.headers['set-cookie']);
       },
     }),
     defineCase({
@@ -85,13 +97,14 @@ export default defineFeature({
     }),
     defineCase({
       name: 'clearing from a browser',
+      setup: devices,
       request: () => ({
         method: 'DELETE',
         path: '/api/session',
         auth: 'none',
         headers: { 'x-porcelain-browser': '1' },
       }),
-      async expect({ response, session, check }) {
+      async expect({ response, state, session, check }) {
         check('status', 204, response.status);
         check('empty body', undefined, response.body);
         check(
@@ -99,18 +112,7 @@ export default defineFeature({
           'porcelain_device=; Path=/api; HttpOnly; SameSite=Strict; Max-Age=0',
           response.headers['set-cookie'],
         );
-        const devices = list(
-          record(
-            (
-              await session.send({
-                method: 'GET',
-                path: '/access',
-                target: 'owner',
-              })
-            ).body,
-          ).devices,
-        );
-        check('devices are not revoked', 2, devices.length);
+        check('devices are not revoked', state, await devices(session));
       },
     }),
   ],

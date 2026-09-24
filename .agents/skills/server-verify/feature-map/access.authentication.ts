@@ -7,53 +7,26 @@ import {
   type HttpRequest,
   type Session,
 } from '../scripts/feature.ts';
+import { loadFeatures, reachesOf } from '../scripts/catalogue.ts';
 import { inventory } from '../scripts/fixture.ts';
 
 const pairedRoutes = [
-  'GET /api/inventory',
-  'POST /api/projects',
-  'PATCH /api/projects/:projectId',
-  'DELETE /api/projects/:projectId',
-  'GET /api/projects/discover',
-  'GET /api/projects/folders',
-  'GET /api/projects/:projectId/file-preferences',
-  'PUT /api/projects/:projectId/file-preferences',
-  'GET /api/worktrees/:worktreeId/changes',
-  'POST /api/worktrees/:worktreeId/changes/diffs',
-  'GET /api/worktrees/:worktreeId/changes/lines',
-  'GET /api/worktrees/:worktreeId/git/status',
-  'GET /api/worktrees/:worktreeId/commits',
-  'GET /api/worktrees/:worktreeId/commits/:oid/files',
-  'POST /api/worktrees/:worktreeId/commits/:oid/diffs',
-  'GET /api/worktrees/:worktreeId/directory',
-  'GET /api/worktrees/:worktreeId/text',
-  'GET /api/worktrees/:worktreeId/asset',
-  'POST /api/worktrees/:worktreeId/preview-assets',
-  'POST /api/worktrees/:worktreeId/files',
-  'GET /api/worktrees/:worktreeId/paths',
-  'GET /api/worktrees/:worktreeId/comments',
-  'POST /api/worktrees/:worktreeId/comments',
-  'POST /api/worktrees/:worktreeId/comments/:threadId/replies',
-  'PUT /api/worktrees/:worktreeId/comments/:threadId/resolution',
-  'POST /api/worktrees/:worktreeId/comments/seen',
-  'GET /api/worktrees/:worktreeId/reviewed',
-  'PUT /api/worktrees/:worktreeId/reviewed',
-  'PUT /api/worktrees/:worktreeId/reviewed-bulk',
-  'DELETE /api/worktrees/:worktreeId/reviewed',
-  'GET /api/worktrees/:worktreeId/reviewed-layers',
-  'PUT /api/worktrees/:worktreeId/reviewed-layers',
-  'DELETE /api/worktrees/:worktreeId/reviewed-layers',
-  'GET /api/worktrees/:worktreeId/review',
-  'PUT /api/worktrees/:worktreeId/review',
-  'GET /api/projects/:projectId/worktrees/:worktreeId/git/branches',
-  'GET /api/git/commit-models',
-  'POST /api/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
-  'POST /api/projects/:projectId/worktrees/:worktreeId/git/actions',
-  'GET /api/git-action-requests/:requestId',
-  'DELETE /api/projects/:projectId/worktrees/:worktreeId/git/interrupted/:requestId',
-] as const;
+  ...new Set(
+    (await loadFeatures(import.meta.url))
+      .filter((feature) => feature.paired)
+      .flatMap(reachesOf),
+  ),
+];
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
+
+function parameter(session: Session, name: string, route: string): string {
+  if (name === 'projectId') return session.projectId;
+  if (name === 'worktreeId') return session.worktreeId;
+  if (name === 'oid') return unknownOid;
+  if (name === 'threadId' || name === 'requestId') return unknownUuid;
+  throw new Error(`${route} has a parameter the sweep cannot fill: ${name}`);
+}
 
 function requests(
   session: Session,
@@ -63,12 +36,9 @@ function requests(
     const [verb = '', template = ''] = route.split(' ');
     const method = methods.find((candidate) => candidate === verb);
     if (!method) throw new Error(`${route} has no HTTP method`);
-    const path = template
-      .replace(':projectId', session.projectId)
-      .replace(':worktreeId', session.worktreeId)
-      .replace(':oid', unknownOid)
-      .replace(':threadId', unknownUuid)
-      .replace(':requestId', unknownUuid);
+    const path = template.replace(/:([A-Za-z]+)/g, (_match, name: string) =>
+      parameter(session, name, route),
+    );
     return {
       method,
       path,
@@ -102,9 +72,10 @@ function refused(name: string, auth: NonNullable<HttpRequest['auth']>) {
 export default defineFeature({
   feature: 'access.authentication',
   reaches: pairedRoutes,
+  paired: false,
   intent: 'observed',
   behaviour:
-    'Every paired route refuses a request that carries no credential, an unknown bearer credential or an unknown device cookie, before it reads input or touches state, with the same 401 body and a Bearer challenge. `/api/session` and `/api/live` authenticate on their own and are covered by access.session and access.live-updates.',
+    'Every paired route, which is every route of a feature that declares itself paired, refuses a request that carries no credential, an unknown bearer credential or an unknown device cookie, before it reads input or touches state, with the same 401 body and a Bearer challenge. `/api/live` authenticates on its own and is covered by access.live-updates.',
   cases: [
     refused('no credential', 'none'),
     refused('unknown bearer credential', {

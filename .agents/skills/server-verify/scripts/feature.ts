@@ -28,7 +28,16 @@ export type LiveConnection = {
   close(): void;
 };
 
+export type Fixture = {
+  folders: { home: string; repository: string; state: string };
+  branch: string;
+  device: { label: string; platform: string };
+  readme: { path: string; committed: string; changed: string };
+  initialCommit: string;
+};
+
 export type Session = {
+  fixture: Fixture;
   address: string;
   repository: string;
   projectHome: string;
@@ -88,11 +97,42 @@ export type RunnableCase = {
 export type Feature = {
   feature: string;
   reaches: string | readonly string[];
+  paired: boolean;
   intent: Intent;
   behaviour: string;
   locations?: readonly string[];
   cases: readonly RunnableCase[];
 };
+
+type Reads = { status: boolean; body: boolean };
+
+function watched(response: HttpResponse, reads: Reads): HttpResponse {
+  return {
+    headers: response.headers,
+    get status() {
+      reads.status = true;
+      return response.status;
+    },
+    get body() {
+      reads.body = true;
+      return response.body;
+    },
+  };
+}
+
+function unchecked(sent: readonly { request: HttpRequest; reads: Reads }[]) {
+  return sent.flatMap(({ request, reads }, index) => {
+    const missing = [
+      ...(reads.status ? [] : ['status']),
+      ...(reads.body ? [] : ['body']),
+    ];
+    return missing.length === 0
+      ? []
+      : [
+          `request ${index + 1} (${request.method} ${request.path}) left its ${missing.join(' and ')} unchecked`,
+        ];
+  });
+}
 
 async function execute<State>(
   value: CaseBody<State>,
@@ -102,9 +142,12 @@ async function execute<State>(
 ) {
   runner.enter('request');
   const planned = value.request(session, state);
-  const requests = Array.isArray(planned) ? planned : [planned];
+  const sent = (Array.isArray(planned) ? planned : [planned]).map(
+    (request) => ({ request, reads: { status: false, body: false } }),
+  );
   const responses: HttpResponse[] = [];
-  for (const request of requests) responses.push(await session.send(request));
+  for (const { request, reads } of sent)
+    responses.push(watched(await session.send(request), reads));
   const response = responses.at(-1);
   if (!response) throw new Error('The case sent no request');
   runner.enter('follow-up');
@@ -115,6 +158,8 @@ async function execute<State>(
     state,
     session,
   });
+  const missing = unchecked(sent);
+  if (missing.length > 0) throw new Error(missing.join('; '));
 }
 
 export function defineCase(

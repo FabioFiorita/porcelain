@@ -1,4 +1,4 @@
-import { browseProjectFoldersResponseSchema } from '../../../../packages/contracts/src/projects/index.ts';
+import { browseProjectFoldersResponseSchema } from '@porcelain/contracts/projects';
 import {
   apiError,
   defineCase,
@@ -11,6 +11,7 @@ import {
 export default defineFeature({
   feature: 'projects.browse-folders',
   reaches: 'GET /api/projects/folders',
+  paired: true,
   intent: 'observed',
   behaviour:
     'The owner browses folders to find a repository to register. Without a path the listing starts at the project home. Each listing names its parent, its subfolders, whether the folder itself is a repository and whether the listing was truncated. Any absolute path can be browsed; a relative path is invalid and a missing folder is not found.',
@@ -34,10 +35,12 @@ export default defineFeature({
                 0,
                 session.projectHome.lastIndexOf('/'),
               ) || '/',
-            directories: ['home', 'repository', 'state'].map((name) => ({
-              name,
-              path: `${session.projectHome}/${name}`,
-            })),
+            directories: Object.values(session.fixture.folders)
+              .sort()
+              .map((name) => ({
+                name,
+                path: `${session.projectHome}/${name}`,
+              })),
             repository: false,
             truncated: false,
           },

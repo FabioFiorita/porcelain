@@ -1,4 +1,4 @@
-import { readCommitFilesResponseSchema } from '../../../../packages/contracts/src/changes/index.ts';
+import { readCommitFilesResponseSchema } from '@porcelain/contracts/changes';
 import {
   apiError,
   defineCase,
@@ -28,6 +28,7 @@ const files = (
 export default defineFeature({
   feature: 'changes.read-commit-files',
   reaches: 'GET /api/worktrees/:worktreeId/commits/:oid/files',
+  paired: true,
   intent: 'intended',
   behaviour:
     'A reviewer lists the files one commit changed, compared with a chosen parent (the first by default) or with the empty tree for a root commit, including renames. A parent the commit does not have is an invalid history request; a commit the repository does not have is not found.',
@@ -36,7 +37,7 @@ export default defineFeature({
       name: 'rename against the first parent',
       setup: threeCommits,
       request: (session, state) => files(session, state.rename),
-      expect({ response, state, check, checkPartial, checkContract }) {
+      expect({ response, state, session, check, checkPartial, checkContract }) {
         check('status', 200, response.status);
         checkContract('contract', readCommitFilesResponseSchema, response.body);
         checkPartial(
@@ -53,7 +54,7 @@ export default defineFeature({
           'files',
           [
             {
-              oldPath: 'README.md',
+              oldPath: session.fixture.readme.path,
               newPath: 'GUIDE.md',
               status: 'renamed',
               oldMode: '100644',
@@ -69,7 +70,7 @@ export default defineFeature({
       setup: async (session) =>
         (await session.git('rev-list', '--max-parents=0', 'HEAD')).trim(),
       request: (session, root) => files(session, root),
-      expect({ response, check }) {
+      expect({ response, session, check }) {
         check('status', 200, response.status);
         check(
           'comparison',
@@ -81,7 +82,7 @@ export default defineFeature({
           [
             {
               oldPath: null,
-              newPath: 'README.md',
+              newPath: session.fixture.readme.path,
               status: 'added',
               oldMode: '000000',
               newMode: '100644',
