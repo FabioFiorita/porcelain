@@ -1,17 +1,21 @@
 import { ContentChangedError } from '../errors/content-changed-error.ts';
+import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
+import { EntryExistsError } from '../errors/entry-exists-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
 import { InvalidMoveError } from '../errors/invalid-move-error.ts';
+import { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
+import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
 import type { EditFileInput, EditFileResult } from '../models/edit-file.ts';
+import type { TextFailure, WriteFailure } from '../models/file-failure.ts';
 import type { FileLocation } from '../models/file-location.ts';
 import type { FileWrite } from '../models/file-write.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import type { FileWriter } from '../ports/file-writer.ts';
 import { contentFingerprint } from '../rules/content-fingerprint.ts';
-import { fileFailureError } from '../rules/file-failure-error.ts';
 
 export type EditFileOptions = { maxCurrentBytes: number };
-
-const LIMITS: EditFileOptions = { maxCurrentBytes: 1024 * 1024 };
 
 export class EditFileService {
   private readonly fileReader: FileReader;
@@ -21,7 +25,7 @@ export class EditFileService {
   constructor(
     fileReader: FileReader,
     fileWriter: FileWriter,
-    options: EditFileOptions = LIMITS,
+    options: EditFileOptions,
   ) {
     this.fileReader = fileReader;
     this.fileWriter = fileWriter;
@@ -32,19 +36,21 @@ export class EditFileService {
     input: EditFileInput,
     signal?: AbortSignal,
   ): Promise<EditFileResult> {
-    const { command } = input;
-    const location = { worktreeId: input.worktreeId, path: command.path };
+    const { worktreeId, command } = input;
     switch (command.kind) {
       case 'write':
         return this.write(
-          location,
+          { worktreeId, path: command.path },
           command.text,
           command.expectedFingerprint,
           signal,
         );
       case 'create':
-        succeed(
-          await this.fileWriter.create(location, command.entryKind, signal),
+        this.succeed(
+          await this.fileWriter.create(
+            { worktreeId, path: command.path, entryKind: command.entryKind },
+            signal,
+          ),
         );
         return { path: command.path };
       case 'move':
@@ -53,12 +59,24 @@ export class EditFileService {
           command.destination.startsWith(`${command.path}/`)
         )
           throw new InvalidMoveError();
-        succeed(
-          await this.fileWriter.move(location, command.destination, signal),
+        this.succeed(
+          await this.fileWriter.move(
+            {
+              worktreeId,
+              path: command.path,
+              destination: command.destination,
+            },
+            signal,
+          ),
         );
         return { path: command.destination };
       case 'trash':
-        succeed(await this.fileWriter.trash(location, signal));
+        this.succeed(
+          await this.fileWriter.trash(
+            { worktreeId, path: command.path },
+            signal,
+          ),
+        );
         return { path: command.path };
     }
   }
@@ -70,24 +88,49 @@ export class EditFileService {
     signal?: AbortSignal,
   ): Promise<EditFileResult> {
     const current = await this.fileReader.readText(
-      location,
-      this.options.maxCurrentBytes,
+      { ...location, maxBytes: this.options.maxCurrentBytes },
       signal,
     );
-    if (current.kind === 'too-large') throw new FileTooLargeError();
-    if (current.kind === 'failed') throw fileFailureError(current.failure);
+    if (current.kind === 'failed') throw this.failure(current.failure);
+    if (
+      current.kind === 'too-large' ||
+      current.byteLength > this.options.maxCurrentBytes
+    )
+      throw new FileTooLargeError();
     if (contentFingerprint(current.text) !== expectedFingerprint)
       throw new ContentChangedError();
-    succeed(
-      await this.fileWriter.write(location, text, current.revision, signal),
+    this.succeed(
+      await this.fileWriter.write(
+        { ...location, text, revision: current.revision },
+        signal,
+      ),
     );
     return {
       path: location.path,
       contentFingerprint: contentFingerprint(text),
     };
   }
-}
 
-function succeed(write: FileWrite) {
-  if (write.kind === 'failed') throw fileFailureError(write.failure);
+  private succeed(write: FileWrite): void {
+    if (write.kind === 'failed') throw this.failure(write.failure);
+  }
+
+  private failure(failure: TextFailure | WriteFailure): Error {
+    switch (failure) {
+      case 'missing':
+        return new PathNotFoundError();
+      case 'unreadable':
+        return new PathNotReadableError();
+      case 'changed':
+        return new ContentChangedError();
+      case 'unsupported-text':
+        return new UnsupportedTextError();
+      case 'exists':
+        return new EntryExistsError();
+      case 'cross-device':
+        return new CrossDeviceMoveError();
+      case 'trash-unavailable':
+        return new TrashUnavailableError();
+    }
+  }
 }

@@ -1,12 +1,12 @@
-import type { DirectoryEntry } from './directory-listing.ts';
+import type { DirectoryEntry } from './directory-entry.ts';
 
-export interface ListDirectoryInput {
+export type ListDirectoryInput = {
   worktreeId: string;
   path: string;
-}
+};
 
-export interface ListDirectoryResult {
+export type ListDirectoryResult = {
   worktreeId: string;
   path: string;
   entries: DirectoryEntry[];
-}
+};

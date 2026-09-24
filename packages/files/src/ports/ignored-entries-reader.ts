@@ -1,7 +1,8 @@
+import type { IgnoredEntriesReadInput } from '../models/ignored-entries-read.ts';
+
 export interface IgnoredEntriesReader {
   read(
-    worktreeId: string,
-    paths: readonly string[],
+    input: IgnoredEntriesReadInput,
     signal?: AbortSignal,
   ): Promise<ReadonlySet<string>>;
 }

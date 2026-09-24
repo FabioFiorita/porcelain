@@ -1,13 +1,11 @@
-export interface ReadPreviewAssetsInput {
+import type { PreviewAsset } from './preview-asset.ts';
+
+export type ReadPreviewAssetsInput = {
   worktreeId: string;
   document: string;
   paths: readonly string[];
-}
+};
 
-export type PreviewAsset =
-  | { kind: 'asset'; path: string; mediaType: string; base64: string }
-  | { kind: 'unavailable'; path: string };
-
-export interface ReadPreviewAssetsResult {
+export type ReadPreviewAssetsResult = {
   assets: PreviewAsset[];
-}
+};

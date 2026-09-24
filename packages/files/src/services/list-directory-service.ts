@@ -1,22 +1,22 @@
+import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
-import type { DirectoryEntry } from '../models/directory-listing.ts';
+import { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import { UnsupportedEntryNameError } from '../errors/unsupported-entry-name-error.ts';
+import type { DirectoryEntry } from '../models/directory-entry.ts';
+import type { ListFailure } from '../models/file-failure.ts';
 import type {
   ListDirectoryInput,
   ListDirectoryResult,
 } from '../models/list-directory.ts';
 import type { DirectoryReader } from '../ports/directory-reader.ts';
 import type { IgnoredEntriesReader } from '../ports/ignored-entries-reader.ts';
-import { fileFailureError } from '../rules/file-failure-error.ts';
 import { serializedByteLength } from '../rules/serialized-byte-length.ts';
+import { withoutGitDirectory } from '../rules/without-git-directory.ts';
 
 export type ListDirectoryOptions = {
   maxEntries: number;
   maxResponseBytes: number;
-};
-
-const LIMITS: ListDirectoryOptions = {
-  maxEntries: 2000,
-  maxResponseBytes: 1024 * 1024,
 };
 
 export class ListDirectoryService {
@@ -27,7 +27,7 @@ export class ListDirectoryService {
   constructor(
     directoryReader: DirectoryReader,
     ignoredEntriesReader: IgnoredEntriesReader,
-    options: ListDirectoryOptions = LIMITS,
+    options: ListDirectoryOptions,
   ) {
     this.directoryReader = directoryReader;
     this.ignoredEntriesReader = ignoredEntriesReader;
@@ -39,17 +39,23 @@ export class ListDirectoryService {
     signal?: AbortSignal,
   ): Promise<ListDirectoryResult> {
     const read = await this.directoryReader.list(
-      input,
-      this.options.maxEntries,
+      {
+        worktreeId: input.worktreeId,
+        path: input.path,
+        limit: this.options.maxEntries + 1,
+      },
       signal,
     );
-    if (read.kind === 'too-large') throw new DirectoryTooLargeError();
-    if (read.kind === 'failed') throw fileFailureError(read.failure);
+    if (read.kind === 'failed') throw this.failure(read.failure);
+    const entries = withoutGitDirectory(read.entries).toSorted(byName);
+    if (read.truncated || entries.length > this.options.maxEntries)
+      throw new DirectoryTooLargeError();
     const prefix = input.path === '' ? '' : `${input.path}/`;
-    const entries = read.entries.toSorted(byName);
     const ignored = await this.ignoredEntriesReader.read(
-      input.worktreeId,
-      entries.map((entry) => `${prefix}${entry.name}`),
+      {
+        worktreeId: input.worktreeId,
+        paths: entries.map((entry) => `${prefix}${entry.name}`),
+      },
       signal,
     );
     const listing = {
@@ -64,6 +70,19 @@ export class ListDirectoryService {
     if (serializedByteLength(listing) > this.options.maxResponseBytes)
       throw new DirectoryTooLargeError();
     return listing;
+  }
+
+  private failure(failure: ListFailure): Error {
+    switch (failure) {
+      case 'missing':
+        return new PathNotFoundError();
+      case 'unreadable':
+        return new PathNotReadableError();
+      case 'changed':
+        return new ContentChangedError();
+      case 'unsupported-name':
+        return new UnsupportedEntryNameError();
+    }
   }
 }
 

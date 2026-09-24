@@ -1,15 +1,11 @@
-export type FileEdit =
-  | { kind: 'write'; path: string; text: string; expectedFingerprint: string }
-  | { kind: 'create'; path: string; entryKind: 'file' | 'directory' }
-  | { kind: 'move'; path: string; destination: string }
-  | { kind: 'trash'; path: string };
+import type { FileEdit } from './file-edit.ts';
 
-export interface EditFileInput {
+export type EditFileInput = {
   worktreeId: string;
   command: FileEdit;
-}
+};
 
-export interface EditFileResult {
+export type EditFileResult = {
   path: string;
-  contentFingerprint?: string;
-}
+  contentFingerprint?: string | undefined;
+};

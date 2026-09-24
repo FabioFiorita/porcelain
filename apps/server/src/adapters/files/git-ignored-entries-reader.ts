@@ -1,3 +1,4 @@
+import type { IgnoredEntriesReadInput } from '@porcelain/files/models';
 import type { IgnoredEntriesReader } from '@porcelain/files/ports';
 import { checkIgnored } from '@porcelain/git/inspection';
 import {
@@ -13,11 +14,14 @@ export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
   }
 
   async read(
-    worktreeId: string,
-    paths: readonly string[],
+    input: IgnoredEntriesReadInput,
     signal?: AbortSignal,
   ): Promise<ReadonlySet<string>> {
-    const checkout = await knownWorktree(this.worktrees, worktreeId, signal);
-    return checkIgnored(checkout.path, paths, signal);
+    const checkout = await knownWorktree(
+      this.worktrees,
+      input.worktreeId,
+      signal,
+    );
+    return checkIgnored(checkout.path, input.paths, signal);
   }
 }

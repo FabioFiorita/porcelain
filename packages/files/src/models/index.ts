@@ -1,14 +1,23 @@
-export type { CheckWorktreeInput } from './check-worktree.ts';
+export type { DirectoryEntry, EntryKind } from './directory-entry.ts';
+export type { DirectoryRead, DirectoryReadInput } from './directory-read.ts';
+export type { EditFileInput, EditFileResult } from './edit-file.ts';
+export type { FileEdit } from './file-edit.ts';
 export type {
-  DirectoryEntry,
-  DirectoryRead,
-  EntryKind,
-} from './directory-listing.ts';
-export type { EditFileInput, EditFileResult, FileEdit } from './edit-file.ts';
-export type { FileFailure } from './file-failure.ts';
+  FileFailure,
+  ListFailure,
+  ReadFailure,
+  TextFailure,
+  WriteFailure,
+} from './file-failure.ts';
 export type { FileLocation } from './file-location.ts';
-export type { FileRead, TextRead } from './file-read.ts';
-export type { FileWrite } from './file-write.ts';
+export type { FileRead, FileReadInput, TextRead } from './file-read.ts';
+export type {
+  EntryCreateInput,
+  EntryMoveInput,
+  FileWrite,
+  FileWriteInput,
+} from './file-write.ts';
+export type { IgnoredEntriesReadInput } from './ignored-entries-read.ts';
 export type {
   ListDirectoryInput,
   ListDirectoryResult,
@@ -17,12 +26,12 @@ export type {
   ListWorktreePathsInput,
   ListWorktreePathsResult,
 } from './list-worktree-paths.ts';
+export type { PreviewAsset } from './preview-asset.ts';
 export type {
   ReadFileAssetInput,
   ReadFileAssetResult,
 } from './read-file-asset.ts';
 export type {
-  PreviewAsset,
   ReadPreviewAssetsInput,
   ReadPreviewAssetsResult,
 } from './read-preview-assets.ts';
@@ -30,4 +39,7 @@ export type {
   ReadTextFileInput,
   ReadTextFileResult,
 } from './read-text-file.ts';
-export type { WorktreePathsRead } from './worktree-paths.ts';
+export type {
+  WorktreePathsRead,
+  WorktreePathsReadInput,
+} from './worktree-paths-read.ts';

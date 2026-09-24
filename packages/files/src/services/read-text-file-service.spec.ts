@@ -1,20 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ContentChangedError,
   FileTooLargeError,
   PathNotFoundError,
   PathNotReadableError,
   UnsupportedTextError,
 } from '@porcelain/files/errors';
-import { MemoryFiles } from '../../spec/fakes/memory-files.ts';
+import type { TextRead } from '@porcelain/files/models';
+import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadTextFileService } from './read-text-file-service.ts';
 
 const worktreeId = 'a'.repeat(32);
 
+function text(content: string, byteLength: number): TextRead {
+  return { kind: 'text', text: content, byteLength, revision: 'r1' };
+}
+
+function serviceWith(texts: Record<string, TextRead>, maxBytes = 1024 * 1024) {
+  return new ReadTextFileService(new InMemoryFileReader({ texts }), {
+    maxBytes,
+  });
+}
+
 describe('ReadTextFileService', () => {
   it('answers the text with its byte length and content fingerprint', async () => {
-    const service = new ReadTextFileService(
-      new MemoryFiles({ 'docs/café.md': 'café\n' }),
-    );
+    const service = serviceWith({ 'docs/café.md': text('café\n', 6) });
     await expect(
       service.execute({ worktreeId, path: 'docs/café.md' }),
     ).resolves.toEqual({
@@ -28,48 +38,64 @@ describe('ReadTextFileService', () => {
     });
   });
 
-  it('refuses a file one byte over the read limit', async () => {
-    const files = new MemoryFiles({ 'over.txt': 'x'.repeat(1001) });
-    const service = new ReadTextFileService(files, { maxBytes: 1000 });
+  it('refuses a file the reader stopped reading at the limit', async () => {
+    const service = serviceWith({ 'big.txt': { kind: 'too-large' } });
+    await expect(
+      service.execute({ worktreeId, path: 'big.txt' }),
+    ).rejects.toThrow(FileTooLargeError);
+  });
+
+  it('refuses text one byte over the read limit even when it arrives whole', async () => {
+    const service = serviceWith(
+      { 'over.txt': text('x'.repeat(1001), 1001) },
+      1000,
+    );
     await expect(
       service.execute({ worktreeId, path: 'over.txt' }),
     ).rejects.toThrow(FileTooLargeError);
   });
 
   it('refuses text whose answer would exceed the limit once escaped', async () => {
-    const service = new ReadTextFileService(
-      new MemoryFiles({ 'controls.txt': '\u0001'.repeat(40) }),
-      { maxBytes: 200 },
+    const service = serviceWith(
+      { 'controls.txt': text('\u0001'.repeat(40), 40) },
+      200,
     );
     await expect(
       service.execute({ worktreeId, path: 'controls.txt' }),
     ).rejects.toThrow(FileTooLargeError);
   });
 
-  it('refuses binary and non UTF-8 content as unsupported text', async () => {
-    const service = new ReadTextFileService(
-      new MemoryFiles({
-        'nul.bin': new Uint8Array([0x61, 0x00, 0x62]),
-        'latin1.txt': new Uint8Array([0xff, 0xfe, 0x41]),
-      }),
-    );
-    await expect(
-      service.execute({ worktreeId, path: 'nul.bin' }),
-    ).rejects.toThrow(UnsupportedTextError);
-    await expect(
-      service.execute({ worktreeId, path: 'latin1.txt' }),
-    ).rejects.toThrow(UnsupportedTextError);
-  });
-
-  it('reports a missing path as not found and a folder as unreadable', async () => {
-    const service = new ReadTextFileService(
-      new MemoryFiles({ 'docs/readme.md': 'hi' }),
-    );
+  it('reports a missing path as not found', async () => {
+    const service = serviceWith({});
     await expect(
       service.execute({ worktreeId, path: 'missing.md' }),
     ).rejects.toThrow(PathNotFoundError);
+  });
+
+  it('reports a folder or special file as unreadable', async () => {
+    const service = serviceWith({
+      docs: { kind: 'failed', failure: 'unreadable' },
+    });
     await expect(service.execute({ worktreeId, path: 'docs' })).rejects.toThrow(
       PathNotReadableError,
     );
+  });
+
+  it('reports a file that changed while it was read as changed', async () => {
+    const service = serviceWith({
+      'notes.md': { kind: 'failed', failure: 'changed' },
+    });
+    await expect(
+      service.execute({ worktreeId, path: 'notes.md' }),
+    ).rejects.toThrow(ContentChangedError);
+  });
+
+  it('refuses binary or non UTF-8 content as unsupported text', async () => {
+    const service = serviceWith({
+      'image.bin': { kind: 'failed', failure: 'unsupported-text' },
+    });
+    await expect(
+      service.execute({ worktreeId, path: 'image.bin' }),
+    ).rejects.toThrow(UnsupportedTextError);
   });
 });

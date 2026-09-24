@@ -1,5 +1,9 @@
+import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
+import { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
 import { UnsupportedAssetTypeError } from '../errors/unsupported-asset-type-error.ts';
+import type { ReadFailure } from '../models/file-failure.ts';
 import type {
   ReadFileAssetInput,
   ReadFileAssetResult,
@@ -7,17 +11,14 @@ import type {
 import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
 import { encodeBase64 } from '../rules/encode-base64.ts';
-import { fileFailureError } from '../rules/file-failure-error.ts';
 
 export type ReadFileAssetOptions = { maxBytes: number };
-
-const LIMITS: ReadFileAssetOptions = { maxBytes: 10 * 1024 * 1024 };
 
 export class ReadFileAssetService {
   private readonly fileReader: FileReader;
   private readonly options: ReadFileAssetOptions;
 
-  constructor(fileReader: FileReader, options: ReadFileAssetOptions = LIMITS) {
+  constructor(fileReader: FileReader, options: ReadFileAssetOptions) {
     this.fileReader = fileReader;
     this.options = options;
   }
@@ -29,12 +30,27 @@ export class ReadFileAssetService {
     const mediaType = assetMediaType(input.path);
     if (mediaType === undefined) throw new UnsupportedAssetTypeError();
     const read = await this.fileReader.read(
-      input,
-      this.options.maxBytes,
+      {
+        worktreeId: input.worktreeId,
+        path: input.path,
+        maxBytes: this.options.maxBytes,
+      },
       signal,
     );
-    if (read.kind === 'too-large') throw new FileTooLargeError();
-    if (read.kind === 'failed') throw fileFailureError(read.failure);
+    if (read.kind === 'failed') throw this.failure(read.failure);
+    if (read.kind === 'too-large' || read.bytes.length > this.options.maxBytes)
+      throw new FileTooLargeError();
     return { path: input.path, mediaType, base64: encodeBase64(read.bytes) };
+  }
+
+  private failure(failure: ReadFailure): Error {
+    switch (failure) {
+      case 'missing':
+        return new PathNotFoundError();
+      case 'unreadable':
+        return new PathNotReadableError();
+      case 'changed':
+        return new ContentChangedError();
+    }
   }
 }

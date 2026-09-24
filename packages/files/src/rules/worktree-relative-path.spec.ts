@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { isWorktreeRelativePath } from './worktree-relative-path.ts';
 
+const relative = (path: string) => isWorktreeRelativePath(path, 4096);
+
 describe('isWorktreeRelativePath', () => {
   it('accepts normalized paths inside the worktree', () => {
     expect(
       ['logo.svg', 'docs/images/logo.svg', '.github/icon.png', 'a..b/c'].map(
-        isWorktreeRelativePath,
+        relative,
       ),
     ).toEqual([true, true, true, true]);
   });
@@ -20,31 +22,31 @@ describe('isWorktreeRelativePath', () => {
         './x',
         'a//b',
         'a/',
-      ].map(isWorktreeRelativePath),
+      ].map(relative),
     ).toEqual([false, false, false, false, false, false, false]);
   });
 
   it('refuses Windows separators, drive letters and NUL', () => {
     expect(
-      ['docs\\logo.png', 'C:logo.png', 'logo\0.png'].map(
-        isWorktreeRelativePath,
-      ),
+      ['docs\\logo.png', 'C:logo.png', 'logo\0.png'].map(relative),
     ).toEqual([false, false, false]);
   });
 
   it('refuses any segment naming the Git folder in any case', () => {
-    expect(
-      ['.git', '.git/config', 'sub/.GIT/HEAD'].map(isWorktreeRelativePath),
-    ).toEqual([false, false, false]);
+    expect(['.git', '.git/config', 'sub/.GIT/HEAD'].map(relative)).toEqual([
+      false,
+      false,
+      false,
+    ]);
   });
 
-  it('accepts 4096 characters and refuses one more', () => {
-    expect(isWorktreeRelativePath('a'.repeat(4096))).toBe(true);
-    expect(isWorktreeRelativePath('a'.repeat(4097))).toBe(false);
+  it('accepts a path at the length limit and refuses one character more', () => {
+    expect(isWorktreeRelativePath('a'.repeat(10), 10)).toBe(true);
+    expect(isWorktreeRelativePath('a'.repeat(11), 10)).toBe(false);
   });
 
   it('refuses text holding a lone surrogate', () => {
-    expect(isWorktreeRelativePath('logo\uD800.png')).toBe(false);
-    expect(isWorktreeRelativePath('logo😀.png')).toBe(true);
+    expect(relative('logo\uD800.png')).toBe(false);
+    expect(relative('logo😀.png')).toBe(true);
   });
 });

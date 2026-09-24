@@ -1,5 +1,11 @@
-import type { WorktreePathsRead } from '../models/worktree-paths.ts';
+import type {
+  WorktreePathsRead,
+  WorktreePathsReadInput,
+} from '../models/worktree-paths-read.ts';
 
 export interface WorktreePathsReader {
-  read(worktreeId: string, signal?: AbortSignal): Promise<WorktreePathsRead>;
+  read(
+    input: WorktreePathsReadInput,
+    signal?: AbortSignal,
+  ): Promise<WorktreePathsRead>;
 }

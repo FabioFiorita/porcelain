@@ -1,7 +1,7 @@
 import type { BigIntStats } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import type { FileFailure } from '@porcelain/files/models';
+import type { ReadFailure, WriteFailure } from '@porcelain/files/models';
 
 export type CheckoutPath = { root: string; path: string };
 
@@ -11,14 +11,21 @@ export type InspectedPath = {
   evidence: { path: string; info: BigIntStats }[];
 };
 
-export class PathGuardError extends Error {
-  override readonly name = 'PathGuardError';
-  readonly failure: FileFailure;
+type Refusal = 'unreadable' | 'changed' | 'trash-unavailable';
 
-  constructor(failure: FileFailure, options?: ErrorOptions) {
-    super(`The path guard refused the path: ${failure}`, options);
-    this.failure = failure;
-  }
+const refusals = new WeakMap<Error, Refusal>();
+
+export function pathRefused(refusal: Refusal, options?: ErrorOptions): Error {
+  const error = new Error(
+    `The path guard refused the path: ${refusal}`,
+    options,
+  );
+  refusals.set(error, refusal);
+  return error;
+}
+
+function refusalOf(error: unknown): Refusal | undefined {
+  return error instanceof Error ? refusals.get(error) : undefined;
 }
 
 const unreadableCodes = new Set([
@@ -43,14 +50,24 @@ function errorCode(error: unknown) {
     : undefined;
 }
 
-export function filesystemFailure(error: unknown): FileFailure | undefined {
-  if (error instanceof PathGuardError) return error.failure;
+export function filesystemFailure(error: unknown): WriteFailure | undefined {
+  const refusal = refusalOf(error);
+  if (refusal !== undefined) return refusal;
   const code = errorCode(error);
   if (code === 'ENOENT') return 'missing';
   if (code === 'EEXIST' || code === 'ENOTEMPTY') return 'exists';
   if (code === 'EXDEV') return 'cross-device';
   if (code !== undefined && unreadableCodes.has(code)) return 'unreadable';
   return undefined;
+}
+
+export function readFailure(error: unknown): ReadFailure | undefined {
+  const failure = filesystemFailure(error);
+  return failure === 'missing' ||
+    failure === 'unreadable' ||
+    failure === 'changed'
+    ? failure
+    : undefined;
 }
 
 export function sameFile(left: BigIntStats, right: BigIntStats) {
@@ -91,7 +108,7 @@ export async function inspectPath(
   const path = resolve(root, target.path);
   const local = relative(root, path);
   if (isAbsolute(local) || local === '..' || local.startsWith(`..${sep}`))
-    throw new PathGuardError('unreadable');
+    throw pathRefused('unreadable');
   const components = local === '' ? [] : local.split(sep);
   const paths = [
     root,
@@ -103,14 +120,14 @@ export async function inspectPath(
   for (const component of paths) {
     signal?.throwIfAborted();
     const info = await lstat(component, { bigint: true });
-    if (info.isSymbolicLink()) throw new PathGuardError('unreadable');
+    if (info.isSymbolicLink()) throw pathRefused('unreadable');
     if (component !== path && !info.isDirectory())
-      throw new PathGuardError('unreadable');
+      throw pathRefused('unreadable');
     evidence.push({ path: component, info });
   }
-  if ((await realpath(path)) !== path) throw new PathGuardError('unreadable');
+  if ((await realpath(path)) !== path) throw pathRefused('unreadable');
   const info = evidence.at(-1)?.info;
-  if (!info) throw new PathGuardError('unreadable');
+  if (!info) throw pathRefused('unreadable');
   return { path, info, evidence };
 }
 
@@ -133,12 +150,12 @@ export async function verifyPath(
     signal?.throwIfAborted();
     const code = errorCode(error);
     if (
-      error instanceof PathGuardError ||
+      refusalOf(error) !== undefined ||
       (code !== undefined && vanishedCodes.has(code))
     )
-      throw new PathGuardError('changed', { cause: error });
+      throw pathRefused('changed', { cause: error });
     throw error;
   }
   if (!sameEvidence(before, after) || !unchanged(before.info, after.info))
-    throw new PathGuardError('changed');
+    throw pathRefused('changed');
 }

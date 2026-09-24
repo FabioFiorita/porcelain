@@ -1,4 +1,3 @@
-export { CheckWorktreeService } from './check-worktree-service.ts';
 export { EditFileService, type EditFileOptions } from './edit-file-service.ts';
 export {
   ListDirectoryService,

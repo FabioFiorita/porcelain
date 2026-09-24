@@ -1,22 +1,24 @@
+import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
+import { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
+import type { TextFailure } from '../models/file-failure.ts';
 import type {
   ReadTextFileInput,
   ReadTextFileResult,
 } from '../models/read-text-file.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import { contentFingerprint } from '../rules/content-fingerprint.ts';
-import { fileFailureError } from '../rules/file-failure-error.ts';
 import { serializedByteLength } from '../rules/serialized-byte-length.ts';
 
 export type ReadTextFileOptions = { maxBytes: number };
-
-const LIMITS: ReadTextFileOptions = { maxBytes: 1024 * 1024 };
 
 export class ReadTextFileService {
   private readonly fileReader: FileReader;
   private readonly options: ReadTextFileOptions;
 
-  constructor(fileReader: FileReader, options: ReadTextFileOptions = LIMITS) {
+  constructor(fileReader: FileReader, options: ReadTextFileOptions) {
     this.fileReader = fileReader;
     this.options = options;
   }
@@ -26,21 +28,38 @@ export class ReadTextFileService {
     signal?: AbortSignal,
   ): Promise<ReadTextFileResult> {
     const read = await this.fileReader.readText(
-      input,
-      this.options.maxBytes,
+      {
+        worktreeId: input.worktreeId,
+        path: input.path,
+        maxBytes: this.options.maxBytes,
+      },
       signal,
     );
-    if (read.kind === 'too-large') throw new FileTooLargeError();
-    if (read.kind === 'failed') throw fileFailureError(read.failure);
-    const content = {
+    if (read.kind === 'failed') throw this.failure(read.failure);
+    if (read.kind === 'too-large' || read.byteLength > this.options.maxBytes)
+      throw new FileTooLargeError();
+    const answer: Omit<ReadTextFileResult, 'contentFingerprint'> = {
       worktreeId: input.worktreeId,
       path: input.path,
-      encoding: 'utf-8' as const,
+      encoding: 'utf-8',
       byteLength: read.byteLength,
       text: read.text,
     };
-    if (serializedByteLength(content) > this.options.maxBytes)
+    if (serializedByteLength(answer) > this.options.maxBytes)
       throw new FileTooLargeError();
-    return { ...content, contentFingerprint: contentFingerprint(content.text) };
+    return { ...answer, contentFingerprint: contentFingerprint(read.text) };
+  }
+
+  private failure(failure: TextFailure): Error {
+    switch (failure) {
+      case 'missing':
+        return new PathNotFoundError();
+      case 'unreadable':
+        return new PathNotReadableError();
+      case 'changed':
+        return new ContentChangedError();
+      case 'unsupported-text':
+        return new UnsupportedTextError();
+    }
   }
 }

@@ -1,9 +1,7 @@
 import type { ListWorktreePathsResponse } from '@porcelain/contracts/files';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
-  CheckWorktreeService,
-  ListWorktreePathsService,
-} from '@porcelain/files/services';
+import type { ListWorktreePathsService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -30,14 +28,19 @@ export class ListWorktreePathsUseCase {
     input: WorktreeParams,
     context: OperationContext,
   ): Promise<ListWorktreePathsResponse> {
-    const check = { worktreeId: input.worktreeId, purpose: 'reading' } as const;
     return this.lanes.run(
       this.laneKeys.worktree(input.worktreeId),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute(check, signal);
+        await this.checkWorktree.execute(
+          { worktreeId: input.worktreeId, purpose: 'reading' },
+          signal,
+        );
         const result = await this.listWorktreePaths.execute(input, signal);
-        await this.checkWorktree.execute(check, signal);
+        await this.checkWorktree.execute(
+          { worktreeId: input.worktreeId, purpose: 'reading' },
+          signal,
+        );
         return result;
       },
       { callerSignal: context.signal },

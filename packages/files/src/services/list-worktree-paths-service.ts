@@ -16,7 +16,10 @@ export class ListWorktreePathsService {
     input: ListWorktreePathsInput,
     signal?: AbortSignal,
   ): Promise<ListWorktreePathsResult> {
-    const read = await this.worktreePathsReader.read(input.worktreeId, signal);
+    const read = await this.worktreePathsReader.read(
+      { worktreeId: input.worktreeId },
+      signal,
+    );
     if (read.kind === 'too-large') throw new DirectoryTooLargeError();
     return { worktreeId: input.worktreeId, paths: read.paths };
   }
