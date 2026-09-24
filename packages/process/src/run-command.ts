@@ -3,6 +3,12 @@ import { performance } from 'node:perf_hooks';
 import type { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
+export type ProcessGroupLimits = {
+  lingerMs: number;
+  cleanupMs: number;
+  pollMs: number;
+};
+
 export type RunCommandInput = {
   command: string;
   args: readonly string[];
@@ -11,6 +17,7 @@ export type RunCommandInput = {
   stdin?: string | Buffer | undefined;
   timeoutMs?: number | undefined;
   maxBytes: number;
+  processGroup: ProcessGroupLimits;
   onStderr?: ((chunk: Buffer) => void) | undefined;
 };
 
@@ -24,9 +31,6 @@ export type CommandOutput = {
   stopped: CommandStop | undefined;
   groupStopped: boolean;
 };
-
-const LINGER_MS = 250;
-const CLEANUP_MS = 5000;
 
 export async function runCommand(
   input: RunCommandInput,
@@ -67,11 +71,15 @@ export async function runCommand(
       },
     );
     const pid = child.pid;
-    if (pid !== undefined && !(await groupEnds(pid, LINGER_MS)))
+    const group = input.processGroup;
+    if (pid !== undefined && !(await groupEnds(pid, group.lingerMs, group)))
       stop('lingering');
     const groupStopped =
-      (pid === undefined || (await groupEnds(pid, CLEANUP_MS))) &&
-      (await Promise.race([closed, delay(CLEANUP_MS, false, { ref: false })]));
+      (pid === undefined || (await groupEnds(pid, group.cleanupMs, group))) &&
+      (await Promise.race([
+        closed,
+        delay(group.cleanupMs, false, { ref: false }),
+      ]));
     child.stdout.destroy();
     child.stderr.destroy();
     return {
@@ -121,11 +129,15 @@ function collectUpTo(
   return collected;
 }
 
-async function groupEnds(pid: number, withinMs: number): Promise<boolean> {
+async function groupEnds(
+  pid: number,
+  withinMs: number,
+  group: ProcessGroupLimits,
+): Promise<boolean> {
   const deadline = performance.now() + withinMs;
   while (signalGroup(pid, 0)) {
     if (performance.now() >= deadline) return false;
-    await delay(10);
+    await delay(group.pollMs);
   }
   return true;
 }

@@ -1,3 +1,5 @@
+import type { ProcessGroupLimits } from '@porcelain/process';
+
 export type CommitPlanLimits = {
   maxGroups: number;
   maxMessageLength: number;
@@ -6,6 +8,7 @@ export type CommitPlanLimits = {
 };
 
 export type AgentLimits = {
+  processGroup: ProcessGroupLimits;
   processDeadlineMs: number;
   claudeOutputBytes: number;
   codexOutputBytes: number;

@@ -1,4 +1,7 @@
-import { runCommand as runProcess } from '@porcelain/process';
+import {
+  runCommand as runProcess,
+  type ProcessGroupLimits,
+} from '@porcelain/process';
 
 export type CommandResult = { code: number; stdout: string; stderr: string };
 
@@ -11,6 +14,7 @@ export type CommandRunner = (
 export function commandRunner(limits: {
   timeoutMs: number;
   maxBytes: number;
+  processGroup: ProcessGroupLimits;
 }): CommandRunner {
   return async (command, args, options) => {
     try {
@@ -20,6 +24,7 @@ export function commandRunner(limits: {
         cwd: options?.cwd,
         timeoutMs: limits.timeoutMs,
         maxBytes: limits.maxBytes,
+        processGroup: limits.processGroup,
       });
       const stdout = output.stdout.toString('utf8');
       const stderr = output.stderr.toString('utf8');

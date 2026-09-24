@@ -63,6 +63,7 @@ export async function runGitRead(
       stdin: options.input,
       timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
       maxBytes: options.maxBytes ?? limits.outputBytes,
+      processGroup: limits.processGroup,
     },
     signal,
   ).catch((cause: unknown) => {
@@ -104,6 +105,7 @@ export async function runGitWrite(
       env: gitEnvironment('write', options.indexFile),
       stdin: options.input,
       maxBytes: options.maxBytes ?? limits.outputBytes,
+      processGroup: limits.processGroup,
       onStderr: progress?.read,
     },
     signal,

@@ -20,6 +20,9 @@ const KIBIBYTE = 1024;
 const MEBIBYTE = 1024 * KIBIBYTE;
 const JSON_ESCAPE_FACTOR = 6;
 const DEVICE_LIFETIME_MS = 90 * DAY_MS;
+const PROCESS_GROUP = { lingerMs: 250, cleanupMs: 5 * SECOND_MS, pollMs: 10 };
+
+type ProcessGroupLimits = typeof PROCESS_GROUP;
 
 export type Limits = {
   access: {
@@ -88,6 +91,7 @@ export type Limits = {
     commitGroups: { maxGroups: number; maxMessageBytes: number };
   };
   git: {
+    processGroup: ProcessGroupLimits;
     readTimeoutMs: number;
     outputBytes: number;
     followUpTimeoutMs: number;
@@ -147,12 +151,17 @@ export type Limits = {
   http: { reviewBodyBytes: number; editFileBodyBytes: number };
   locks: { startupWaitMs: number; pollMs: number; staleTakeovers: number };
   installer: {
-    command: { timeoutMs: number; maxBytes: number };
+    command: {
+      timeoutMs: number;
+      maxBytes: number;
+      processGroup: ProcessGroupLimits;
+    };
     health: { attempts: number; intervalMs: number };
   };
   listeners: { closeGraceMs: number };
   cli: { printedAddressLength: number; printedIdLength: number };
   agents: {
+    processGroup: ProcessGroupLimits;
     processDeadlineMs: number;
     claudeOutputBytes: number;
     codexOutputBytes: number;
@@ -258,6 +267,7 @@ export const LIMITS: Limits = {
     },
   },
   git: {
+    processGroup: PROCESS_GROUP,
     readTimeoutMs: 10 * SECOND_MS,
     outputBytes: 4 * MEBIBYTE,
     followUpTimeoutMs: 5 * SECOND_MS,
@@ -324,12 +334,17 @@ export const LIMITS: Limits = {
   },
   locks: { startupWaitMs: 10 * SECOND_MS, pollMs: 25, staleTakeovers: 3 },
   installer: {
-    command: { timeoutMs: MINUTE_MS, maxBytes: MEBIBYTE },
+    command: {
+      timeoutMs: MINUTE_MS,
+      maxBytes: MEBIBYTE,
+      processGroup: PROCESS_GROUP,
+    },
     health: { attempts: 60, intervalMs: 250 },
   },
   listeners: { closeGraceMs: 5 * SECOND_MS },
   cli: { printedAddressLength: 60, printedIdLength: 80 },
   agents: {
+    processGroup: PROCESS_GROUP,
     processDeadlineMs: 2 * MINUTE_MS,
     claudeOutputBytes: MEBIBYTE,
     codexOutputBytes: 4 * MEBIBYTE,

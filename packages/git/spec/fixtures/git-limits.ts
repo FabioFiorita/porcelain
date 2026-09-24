@@ -2,6 +2,7 @@ const KIBIBYTE = 1024;
 const MEBIBYTE = 1024 * KIBIBYTE;
 
 export const gitLimits = {
+  processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 },
   readTimeoutMs: 10_000,
   outputBytes: 4 * MEBIBYTE,
   followUpTimeoutMs: 5000,

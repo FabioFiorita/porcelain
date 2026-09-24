@@ -103,6 +103,7 @@ export class CodexProvider implements Provider {
           prompt,
           maxBytes: this.limits.codexOutputBytes,
           timeoutMs: this.limits.processDeadlineMs,
+          processGroup: this.limits.processGroup,
         },
         signal,
       );

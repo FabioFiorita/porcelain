@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runCommand } from './run-command.ts';
 
 const node = process.execPath;
+const processGroup = { lingerMs: 250, cleanupMs: 5000, pollMs: 10 };
 const forever = 'setInterval(() => {}, 1000)';
 const spawnGrandchild = `const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(forever)}], { stdio: 'ignore' }); child.unref(); process.stderr.write(String(child.pid));`;
 
@@ -24,6 +25,7 @@ describe('runCommand', () => {
       ],
       stdin: 'hello',
       maxBytes: 1024,
+      processGroup,
     });
     expect({
       stdout: output.stdout.toString('utf8'),
@@ -43,6 +45,7 @@ describe('runCommand', () => {
       command: node,
       args: ['-e', 'process.exit(3)'],
       maxBytes: 1024,
+      processGroup,
     });
     expect(output.exitCode).toBe(3);
   });
@@ -55,6 +58,7 @@ describe('runCommand', () => {
         command: node,
         args: ['-e', `${spawnGrandchild} ${forever}`],
         maxBytes: 1024,
+        processGroup,
         onStderr: (chunk) => {
           grandchild = Number(chunk.toString('utf8'));
           controller.abort();
@@ -78,6 +82,7 @@ describe('runCommand', () => {
       command: node,
       args: ['-e', spawnGrandchild],
       maxBytes: 1024,
+      processGroup,
     });
     const grandchild = Number(output.stderr.toString('utf8'));
     expect({
@@ -98,6 +103,7 @@ describe('runCommand', () => {
       command: node,
       args: ['-e', `process.stdout.write('x'.repeat(4096)); ${forever}`],
       maxBytes: 16,
+      processGroup,
     });
     expect(output.stopped).toBe('output-limit');
     expect(output.stdout.length).toBeLessThanOrEqual(16);
@@ -111,6 +117,7 @@ describe('runCommand', () => {
         "process.stderr.write('e'.repeat(4096)); process.stdout.write('plan'); process.exitCode = 0",
       ],
       maxBytes: 16,
+      processGroup,
     });
     expect({
       stdout: output.stdout.toString('utf8'),
@@ -133,6 +140,7 @@ describe('runCommand', () => {
       args: ['-e', forever],
       timeoutMs: 100,
       maxBytes: 1024,
+      processGroup,
     });
     expect([output.stopped, output.exitCode]).toEqual(['deadline', undefined]);
   });
@@ -140,7 +148,7 @@ describe('runCommand', () => {
   it('refuses to start once the caller has aborted', async () => {
     await expect(
       runCommand(
-        { command: node, args: ['-e', ''], maxBytes: 1024 },
+        { command: node, args: ['-e', ''], maxBytes: 1024, processGroup },
         AbortSignal.abort(),
       ),
     ).rejects.toMatchObject({ name: 'AbortError' });

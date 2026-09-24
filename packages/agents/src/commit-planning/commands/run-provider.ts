@@ -1,4 +1,4 @@
-import { runCommand } from '@porcelain/process';
+import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
 import { ProviderProcessFailedError } from '../errors/provider-process-failed-error.ts';
 
 export type ProviderCommand = {
@@ -8,6 +8,7 @@ export type ProviderCommand = {
   prompt: string;
   maxBytes: number;
   timeoutMs: number;
+  processGroup: ProcessGroupLimits;
 };
 
 export async function runProvider(
@@ -23,6 +24,7 @@ export async function runProvider(
       stdin: input.prompt,
       timeoutMs: input.timeoutMs,
       maxBytes: input.maxBytes,
+      processGroup: input.processGroup,
     },
     signal,
   ).catch((cause: unknown) => {

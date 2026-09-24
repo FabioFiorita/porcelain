@@ -59,6 +59,7 @@ export class ClaudeProvider implements Provider {
           prompt,
           maxBytes: this.limits.claudeOutputBytes,
           timeoutMs: this.limits.processDeadlineMs,
+          processGroup: this.limits.processGroup,
         },
         signal,
       );

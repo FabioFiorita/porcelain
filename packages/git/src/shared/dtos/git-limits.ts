@@ -1,4 +1,7 @@
+import type { ProcessGroupLimits } from '@porcelain/process';
+
 export type GitLimits = {
+  processGroup: ProcessGroupLimits;
   readTimeoutMs: number;
   outputBytes: number;
   followUpTimeoutMs: number;
