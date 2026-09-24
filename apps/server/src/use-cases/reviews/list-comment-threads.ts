@@ -1,5 +1,5 @@
 import type { ListCommentThreadsResponse } from '@porcelain/contracts/reviews';
-import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ListCommentThreadsInput } from '@porcelain/reviews/models';
 import type { ListCommentThreadsService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';

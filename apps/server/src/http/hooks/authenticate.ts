@@ -27,7 +27,7 @@ export function authenticate(options: AuthenticateOptions) {
       address: request.ip,
     });
     if (!device) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
-    request.principal = { kind: 'viewer', deviceId: device.deviceId };
+    request.principal = { kind: 'device', deviceId: device.deviceId };
     if (!request.ws) holdUntilRevoked(reply, options.devices, device.deviceId);
     if (deviceCookie(request) === credential)
       setDeviceCookie(reply, credential, request.protocol === 'https');

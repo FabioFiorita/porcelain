@@ -1,4 +1,3 @@
-import type { CheckWorktreeService } from '@porcelain/changes/services';
 import type {
   GitActionScope,
   ListGitBranchesResponse,
@@ -7,7 +6,10 @@ import type {
   CheckGitActionScopeService,
   ListGitBranchesService,
 } from '@porcelain/git-actions/services';
-import type { CheckProjectService } from '@porcelain/projects/services';
+import type {
+  CheckProjectService,
+  CheckWorktreeService,
+} from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';

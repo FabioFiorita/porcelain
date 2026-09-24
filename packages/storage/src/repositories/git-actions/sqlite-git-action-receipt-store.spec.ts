@@ -54,6 +54,7 @@ describe('SqliteGitActionReceiptStore', () => {
       commonDirectory: `/repositories/${projectId}/.git`,
       repositoryIdentity: `identity-${projectId}`,
       available: true,
+      position: 1,
     });
   });
 

@@ -22,7 +22,10 @@ import {
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
 import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
-import { CheckProjectService } from '@porcelain/projects/services';
+import {
+  CheckProjectService,
+  type CheckWorktreeService,
+} from '@porcelain/projects/services';
 import type { StorageSession } from '@porcelain/storage';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import { createInventoryStore } from '@porcelain/storage/projects';
@@ -68,6 +71,7 @@ export type GitActionsDependencies = {
   laneKeys: LaneKeys;
   events: EventPublisher;
   worktreeAccess: WorktreeAccess<ListedWorktree>;
+  checkWorktree: CheckWorktreeService;
   actionGit: GitActionWriterFactory;
   fileReader: Pick<FileReader, 'readText'>;
   changes: ChangesServices;
@@ -93,7 +97,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
   return {
     runGitAction: new RunGitActionUseCase(
       checkProject,
-      deps.changes.checkWorktree,
+      deps.checkWorktree,
       checkGitActionScope,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
@@ -122,7 +126,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
     ),
     listGitBranches: new ListGitBranchesUseCase(
       checkProject,
-      deps.changes.checkWorktree,
+      deps.checkWorktree,
       checkGitActionScope,
       new ListGitBranchesService(
         new GitGitBranchReader(deps.worktreeAccess, deps.actionGit),
@@ -137,7 +141,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
     ),
     generateCommitDraft: new GenerateCommitDraftUseCase(
       checkProject,
-      deps.changes.checkWorktree,
+      deps.checkWorktree,
       checkGitActionScope,
       deps.changes.readWorktreeStatus,
       deps.changes.readChangeFingerprints,

@@ -7,7 +7,7 @@ import {
   ReadTextFileService,
 } from '@porcelain/files/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
-import { CheckWorktreeService } from '@porcelain/projects/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
@@ -41,9 +41,9 @@ export function composeFiles(deps: {
   laneKeys: LaneKeys;
   events: EventPublisher;
   worktreeAccess: WorktreeAccess<ListedWorktree>;
+  checkWorktree: CheckWorktreeService;
 }) {
-  const { lanes, laneKeys, events, worktreeAccess } = deps;
-  const checkWorktree = new CheckWorktreeService(worktreeAccess);
+  const { lanes, laneKeys, events, worktreeAccess, checkWorktree } = deps;
   const fileReader = new FilesystemFileReader(worktreeAccess);
   const readTextFileService = new ReadTextFileService(
     fileReader,

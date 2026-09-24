@@ -1,12 +1,12 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  CheckWorktreeService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -74,10 +74,10 @@ export class ReadChangesUseCase {
           mergeHeadOid: status.mergeHeadOid,
           branch: status.branch,
           changes,
-          ...(interrupted && {
+          ...(interrupted.kind === 'interrupted' && {
             interrupted: {
-              requestId: interrupted.requestId,
-              action: interrupted.action,
+              requestId: interrupted.receipt.requestId,
+              action: interrupted.receipt.action,
             },
           }),
         };

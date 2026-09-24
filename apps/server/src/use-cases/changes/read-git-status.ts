@@ -1,11 +1,11 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  CheckWorktreeService,
   ReadBranchDetailsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';

@@ -10,5 +10,3 @@ export { TrashUnavailableError } from './trash-unavailable-error.ts';
 export { UnsupportedAssetTypeError } from './unsupported-asset-type-error.ts';
 export { UnsupportedEntryNameError } from './unsupported-entry-name-error.ts';
 export { UnsupportedTextError } from './unsupported-text-error.ts';
-export { WorktreeNotFoundError } from './worktree-not-found-error.ts';
-export { WorktreeUnavailableError } from './worktree-unavailable-error.ts';

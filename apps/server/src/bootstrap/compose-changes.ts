@@ -1,7 +1,6 @@
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import {
   CheckCommitService,
-  CheckWorktreeService,
   ConfirmDiffObservationService,
   ListCommitsService,
   ReadBranchDetailsService,
@@ -17,6 +16,7 @@ import {
 import type { ReadTextFileService } from '@porcelain/files/services';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { CommitReaderFactory } from '@porcelain/git/history';
@@ -50,6 +50,7 @@ export function composeChanges(deps: {
   lanes: Lanes;
   laneKeys: LaneKeys;
   worktreeAccess: WorktreeAccess<ListedWorktree>;
+  checkWorktree: CheckWorktreeService;
   inventory: { read(): { environmentId: string } };
   inspection: InspectionFactory;
   commitGit: CommitReaderFactory;
@@ -74,7 +75,7 @@ export function composeChanges(deps: {
   const readEnvironment = new ReadEnvironmentService(
     createEnvironmentIdentityStore(deps.session),
   );
-  const checkWorktree = new CheckWorktreeService(deps.worktreeAccess);
+  const { checkWorktree } = deps;
   const readWorktreeStatus = new ReadWorktreeStatusService(changeStatusReader);
   const readBranchDetails = new ReadBranchDetailsService(changeStatusReader);
   const readChangeFingerprints = new ReadChangeFingerprintsService(
@@ -150,7 +151,6 @@ export function composeChanges(deps: {
       laneKeys,
     ),
     services: {
-      checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
       selectDiffComparisons,

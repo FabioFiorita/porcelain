@@ -33,7 +33,7 @@ export function liveUpdates(
 ) {
   server.get('/live', { websocket: true }, (socket, request) => {
     const principal = callerOf(request);
-    if (principal.kind !== 'viewer' || principal.deviceId === null) {
+    if (principal.kind !== 'device') {
       socket.close(1008, 'Viewer connection required');
       return;
     }

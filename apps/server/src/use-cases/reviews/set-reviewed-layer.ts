@@ -3,10 +3,8 @@ import type {
   SetReviewedLayerResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
-  CheckWorktreeService,
-  ReadTextFileService,
-} from '@porcelain/files/services';
+import type { ReadTextFileService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
   ReadReviewLayerService,
   SetReviewedLayerService,

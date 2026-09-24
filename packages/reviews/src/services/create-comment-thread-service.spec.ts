@@ -33,7 +33,7 @@ function input(
     worktreeId,
     anchor: { kind: 'file', filePath: 'README.md' },
     body: 'Looks good',
-    writer: { kind: 'viewer' },
+    writer: { kind: 'device' },
     ...overrides,
   };
 }

@@ -11,8 +11,6 @@ import {
   IncompleteDiffReadError,
   SelectionMismatchError,
   WorktreeChangedError as ChangesWorktreeChangedError,
-  WorktreeNotFoundError as ChangesWorktreeNotFoundError,
-  WorktreeUnavailableError as ChangesWorktreeUnavailableError,
 } from '@porcelain/changes/errors';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { ApiError } from '@porcelain/contracts/shared';
@@ -29,13 +27,10 @@ import {
   UnsupportedAssetTypeError,
   UnsupportedEntryNameError,
   UnsupportedTextError,
-  WorktreeNotFoundError as FilesWorktreeNotFoundError,
-  WorktreeUnavailableError as FilesWorktreeUnavailableError,
 } from '@porcelain/files/errors';
 import {
   CommitDraftSelectionError,
   CommitDraftTooLargeError,
-  CommitDraftUnavailableError,
   CommitGenerationFailedError,
   CommitGroupsMismatchError,
   CommitToolFailedError,
@@ -46,14 +41,12 @@ import {
   ExpectedFilesMismatchError,
   GitActionNotFoundError,
   GitActionReceiptMismatchError,
-  GitBranchListingUnavailableError,
   MergeExpectationMismatchError,
   MissingExpectedFilesError,
   MissingUpstreamExpectationError,
   UnsupportedCommitModelError,
   WorktreeChangedError as GitActionWorktreeChangedError,
   WorktreeNotFoundError as GitActionWorktreeNotFoundError,
-  WorktreeUnavailableError as GitActionWorktreeUnavailableError,
 } from '@porcelain/git-actions/errors';
 import { GitActionRejectedError } from '@porcelain/git/actions';
 import { isRepositoryUnavailable } from '@porcelain/git/discovery';
@@ -78,6 +71,8 @@ import {
   NoWorktreeAtPathError,
   ProjectNotFoundError,
   UnsupportedFolderNameError,
+  WorktreeNotFoundError,
+  WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
   BoxLaneOutOfRangeError,
@@ -88,12 +83,11 @@ import {
   DuplicateStepIdError,
   ReviewConflictError,
   ReviewedMarkConflictError,
+  ReviewLayerNotFoundError,
   ReviewSummaryNotFoundError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
   UnknownArrowStepError,
-  WorktreeNotFoundError as ReviewsWorktreeNotFoundError,
-  WorktreeUnavailableError as ReviewsWorktreeUnavailableError,
 } from '@porcelain/reviews/errors';
 import { errorCodes } from 'fastify';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
@@ -152,10 +146,9 @@ const rules: readonly StatusRule[] = [
   { errors: [InvalidPairingError], statusCode: 401 },
   {
     errors: [
-      ChangesWorktreeNotFoundError,
-      FilesWorktreeNotFoundError,
+      WorktreeNotFoundError,
       GitActionWorktreeNotFoundError,
-      ReviewsWorktreeNotFoundError,
+      ReviewLayerNotFoundError,
       ProjectNotFoundError,
       CommitNotFoundError,
       PathNotFoundError,
@@ -212,12 +205,7 @@ const rules: readonly StatusRule[] = [
     message: 'Git inspection exceeds its limit',
   },
   {
-    errors: [
-      ChangesWorktreeUnavailableError,
-      FilesWorktreeUnavailableError,
-      GitActionWorktreeUnavailableError,
-      ReviewsWorktreeUnavailableError,
-    ],
+    errors: [WorktreeUnavailableError],
     statusCode: 422,
     message: REPOSITORY_UNAVAILABLE,
   },
@@ -236,7 +224,6 @@ const rules: readonly StatusRule[] = [
       UnsupportedAssetTypeError,
       CommitDraftSelectionError,
       CommitDraftTooLargeError,
-      CommitDraftUnavailableError,
       CommitGenerationFailedError,
       CommitGroupsMismatchError,
       CommitToolFailedError,
@@ -284,7 +271,6 @@ const rules: readonly StatusRule[] = [
     errors: [
       ApplicationClosedError,
       GitTimeoutError,
-      GitBranchListingUnavailableError,
       MissingEnvironmentIdentityError,
     ],
     statusCode: 503,

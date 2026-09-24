@@ -1,6 +1,5 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  CheckWorktreeService,
   ReadChangeLinesService,
   ReadHeadTextService,
 } from '@porcelain/changes/services';
@@ -10,6 +9,7 @@ import type {
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadTextFileService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';

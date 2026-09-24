@@ -13,13 +13,15 @@ import type { ServerApplication } from '../bootstrap/compose-server.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import { handleError } from './error-handler.ts';
 import { AttemptLimit } from './hooks/attempt-limit.ts';
+import { callerOf } from './principal.ts';
 import { apiScope } from './scopes/api.ts';
 import { pageScope } from './scopes/page.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
     disconnected: AbortSignal;
-    principal: Principal;
+    principal: Principal | undefined;
+    readonly caller: Principal;
   }
 }
 
@@ -41,8 +43,13 @@ export function createNetworkServer(options: NetworkServerOptions) {
   });
   server.decorateRequest('disconnected');
   server.decorateRequest('principal');
+  server.decorateRequest('caller', {
+    getter() {
+      return callerOf(this);
+    },
+  });
   server.addHook('onRequest', (request, reply, done) => {
-    request.principal = { kind: 'anonymous' };
+    request.principal = undefined;
     const controller = new AbortController();
     request.disconnected = controller.signal;
     reply.raw.on('close', () => {

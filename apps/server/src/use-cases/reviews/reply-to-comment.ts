@@ -1,5 +1,5 @@
 import type { ReplyToCommentResponse } from '@porcelain/contracts/reviews';
-import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ReplyToCommentInput } from '@porcelain/reviews/models';
 import type { ReplyToCommentService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';

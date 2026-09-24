@@ -1,8 +1,5 @@
-import {
-  CheckWorktreeService,
-  type ReadTextFileService,
-} from '@porcelain/files/services';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { ReadTextFileService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import {
   CreateCommentThreadService,
   GeneratePublishedReviewService,
@@ -106,7 +103,7 @@ export function composeReviews(deps: {
   lanes: Lanes;
   laneKeys: LaneKeys;
   events: EventPublisher;
-  worktreeAccess: WorktreeAccess;
+  checkWorktree: CheckWorktreeService;
   readTextFile: ReadTextFileService;
   changes: ChangesServices;
   now?: (() => string) | undefined;
@@ -120,7 +117,7 @@ export function composeReviews(deps: {
   const reviewedFileStore = createReviewedFileStore(deps.session);
   const reviewedLayerStore = createReviewedLayerStore(deps.session);
 
-  const checkWorktree = new CheckWorktreeService(deps.worktreeAccess);
+  const { checkWorktree } = deps;
   const readPublishedReview = new ReadPublishedReviewService(reviewStore);
   const listReviewEvidence = new ListReviewEvidenceService();
   const generatePublishedReview = new GeneratePublishedReviewService(

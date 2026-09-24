@@ -33,7 +33,6 @@ export const readChangesResponseSchema = z.object({
     .object({
       requestId: z.uuid(),
       action: gitActionSchema,
-      gitState: z.string(),
     })
     .optional(),
   changes: z.array(fileChangeSchema).max(2000),

@@ -16,6 +16,7 @@ import {
   type InspectionFactory,
 } from '@porcelain/git/inspection';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
+import { CheckWorktreeService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
 import { createDeviceStore } from '@porcelain/storage/access';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
@@ -26,7 +27,8 @@ import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-re
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
-import { ProcessCommitDraftWriter } from '../adapters/git-actions/process-commit-draft-writer.ts';
+import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
+import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
 import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
 import { GitWorktreeAccess } from '../adapters/projects/git-worktree-access.ts';
@@ -98,6 +100,7 @@ export async function openApplication(
     worktreeDirectory,
     inventoryStore,
   );
+  const checkWorktree = new CheckWorktreeService(worktreeAccess);
   const laneKeys = new GitLaneKeys(worktreeDirectory, inventoryStore);
   const reviewInvalidation = composeReviewInvalidation({
     session,
@@ -146,12 +149,14 @@ export async function openApplication(
     laneKeys,
     events,
     worktreeAccess,
+    checkWorktree,
   });
   const { services: changeServices, ...changes } = composeChanges({
     session,
     lanes,
     laneKeys,
     worktreeAccess,
+    checkWorktree,
     inventory: inventoryStore,
     inspection,
     commitGit,
@@ -164,21 +169,24 @@ export async function openApplication(
     lanes,
     laneKeys,
     events,
-    worktreeAccess,
+    checkWorktree,
     readTextFile: readTextFileService,
     changes: changeServices,
   });
+  const commitPlanner = createCommitPlanner();
   const gitActions = composeGitActions({
     session,
     lanes,
     laneKeys,
     events,
     worktreeAccess,
+    checkWorktree,
     actionGit,
     fileReader,
     changes: changeServices,
     refreshPublishedReview: reviews.refreshReviewActivity,
-    commitGenerator: new ProcessCommitDraftWriter(createCommitPlanner()),
+    commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
+    commitModelReader: new ProcessCommitModelReader(commitPlanner),
     gitActionDeadlineMs: limits.gitActions.deadlineMs,
     commitModelDeadlineMs: limits.gitActions.commitModelDeadlineMs,
   });

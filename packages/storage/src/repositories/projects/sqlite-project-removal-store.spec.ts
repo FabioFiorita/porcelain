@@ -59,8 +59,8 @@ function receipt(projectId: string, worktreeId: string): GitActionReceipt {
     state: 'succeeded',
     progress: [],
     refreshRequired: false,
-    acceptedAt: 1,
-    finishedAt: 2,
+    acceptedAt: '2026-09-23T09:00:00.000Z',
+    finishedAt: '2026-09-23T09:00:05.000Z',
   };
 }
 
@@ -133,7 +133,9 @@ function stored(
       }) !== undefined,
     seenThrough: createCommentSeenStore(session).seenThrough({ worktreeId }),
     receipt:
-      createGitActionStore(session).read(`request-${worktreeId}`) !== undefined,
+      createGitActionStore(session).read({
+        requestId: `request-${worktreeId}`,
+      }) !== undefined,
   };
 }
 

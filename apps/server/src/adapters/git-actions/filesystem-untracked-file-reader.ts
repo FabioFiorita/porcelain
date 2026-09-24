@@ -17,8 +17,11 @@ export class FilesystemUntrackedFileReader implements UntrackedFileReader {
     signal?: AbortSignal,
   ): Promise<UntrackedFileRead> {
     const read = await this.files.readText(
-      { worktreeId: input.worktreeId, path: input.path },
-      input.maxBytes,
+      {
+        worktreeId: input.worktreeId,
+        path: input.path,
+        maxBytes: input.maxBytes,
+      },
       signal,
     );
     switch (read.kind) {

@@ -1,10 +1,10 @@
 import { httpErrors } from '@fastify/sensible';
+import type { Principal } from '@porcelain/contracts/access';
 import type { FastifyRequest } from 'fastify';
-import type { AuthenticatedPrincipal } from '@porcelain/contracts/access';
 
-export function callerOf(request: FastifyRequest): AuthenticatedPrincipal {
+export function callerOf(request: FastifyRequest): Principal {
   const principal = request.principal;
-  if (principal.kind === 'anonymous')
+  if (principal === undefined)
     throw httpErrors.unauthorized('Authentication required');
   return principal;
 }

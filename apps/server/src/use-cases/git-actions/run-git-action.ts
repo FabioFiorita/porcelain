@@ -1,5 +1,4 @@
 import type {
-  CheckWorktreeService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -19,7 +18,10 @@ import type {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { FileChange } from '@porcelain/kernel/models';
-import type { CheckProjectService } from '@porcelain/projects/services';
+import type {
+  CheckProjectService,
+  CheckWorktreeService,
+} from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -33,10 +35,6 @@ export type PublishedReviewRefresh = {
 };
 
 export type RunGitActionOptions = { deadlineMs: number };
-
-export type RunGitActionContext = OperationContext & {
-  answered?: ((receipt: RunGitActionResponse) => void) | undefined;
-};
 
 export class RunGitActionUseCase {
   private readonly checkProject: CheckProjectService;
@@ -94,9 +92,10 @@ export class RunGitActionUseCase {
 
   async execute(
     input: GitActionScope & RunGitActionRequest,
-    context: RunGitActionContext,
+    context: OperationContext,
   ): Promise<RunGitActionResponse> {
     const { projectId, worktreeId } = input;
+    const { upstreamOid, ...expected } = input.expected;
     this.checkProject.execute({ projectId });
     const worktree = await this.lanes.unqueued(
       (signal) => this.checkWorktree.execute({ worktreeId }, signal),
@@ -113,7 +112,10 @@ export class RunGitActionUseCase {
           worktreeId,
           requestId: input.requestId,
           intent: input.input,
-          expected: input.expected,
+          expected:
+            upstreamOid === undefined
+              ? expected
+              : { ...expected, upstream: { oid: upstreamOid ?? undefined } },
         });
       },
       { callerSignal: context.signal },
@@ -122,7 +124,6 @@ export class RunGitActionUseCase {
       this.events.gitActionChanged(accepted.receipt);
       this.runInBackground(accepted.run);
     }
-    context.answered?.(accepted.receipt);
     return accepted.receipt;
   }
 

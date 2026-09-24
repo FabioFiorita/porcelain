@@ -24,7 +24,7 @@ export function replyToComment(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, ...request.body, writer: request.principal },
+        { ...request.params, ...request.body, writer: request.caller },
         { signal: request.disconnected },
       ),
   );

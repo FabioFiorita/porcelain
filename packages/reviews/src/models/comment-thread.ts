@@ -1,7 +1,7 @@
 export type CommentAuthor = 'reviewer' | 'agent';
 
 export type CommentWriter = {
-  kind: 'owner' | 'agent' | 'viewer' | 'anonymous';
+  kind: 'owner' | 'device' | 'agent';
 };
 
 export type CommentThreadScope = 'all' | 'waiting';

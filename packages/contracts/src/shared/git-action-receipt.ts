@@ -58,6 +58,6 @@ export const gitActionReceiptSchema = z.object({
       branch: z.string().optional(),
     })
     .optional(),
-  acceptedAt: z.number().int(),
-  finishedAt: z.number().int().optional(),
+  acceptedAt: z.iso.datetime(),
+  finishedAt: z.iso.datetime().optional(),
 });

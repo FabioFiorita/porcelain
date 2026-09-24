@@ -1,5 +1,4 @@
 export { CheckCommitService } from './check-commit-service.ts';
-export { CheckWorktreeService } from './check-worktree-service.ts';
 export { ConfirmDiffObservationService } from './confirm-diff-observation-service.ts';
 export { ListCommitsService } from './list-commits-service.ts';
 export { ReadBranchDetailsService } from './read-branch-details-service.ts';

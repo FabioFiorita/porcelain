@@ -17,10 +17,6 @@ export type {
 } from './change-status.ts';
 export type { CheckCommitInput } from './check-commit.ts';
 export type {
-  CheckWorktreeInput,
-  CheckWorktreeResult,
-} from './check-worktree.ts';
-export type {
   CommitComparison,
   CommitDiff,
   CommitDiffs,

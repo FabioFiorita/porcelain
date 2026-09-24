@@ -5,10 +5,8 @@ import type {
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import type { PublishReviewToolResponse } from '@porcelain/contracts/reviews';
-import type {
-  CheckWorktreeService,
-  ReadTextFileService,
-} from '@porcelain/files/services';
+import type { ReadTextFileService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ReviewPublication } from '@porcelain/reviews/models';
 import type {
   GeneratePublishedReviewService,

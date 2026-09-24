@@ -11,5 +11,3 @@ export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
 export { StepLaneOutOfRangeError } from './step-lane-out-of-range-error.ts';
 export { UnknownArrowBoxError } from './unknown-arrow-box-error.ts';
 export { UnknownArrowStepError } from './unknown-arrow-step-error.ts';
-export { WorktreeNotFoundError } from './worktree-not-found-error.ts';
-export { WorktreeUnavailableError } from './worktree-unavailable-error.ts';
