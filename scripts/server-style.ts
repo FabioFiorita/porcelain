@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { z } from 'zod';
 import { domainPackages } from '../architecture/policy.ts';
 
@@ -35,6 +35,10 @@ const roots = [
 ].filter((root) => existsSync(root));
 
 const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
+const lintConfig = '.oxlintrc.json';
+const lintedFile = /\.[cm]?[jt]sx?$/;
+const strayLintConfig =
+  /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
 const skippedDirectories = new Set([
   'node_modules',
   '.git',
@@ -64,6 +68,17 @@ function disableDirectives(): string[] {
   );
 }
 
+function strayLintConfigs(): string[] {
+  return filesUnder('.')
+    .filter(
+      (path) => path !== lintConfig && strayLintConfig.test(basename(path)),
+    )
+    .map(
+      (path) =>
+        `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file.`,
+    );
+}
+
 const lintConfigSchema = z
   .object({
     plugins: z.array(z.string()),
@@ -79,11 +94,41 @@ const pluginSchema = z.object({
 });
 
 const tsconfigSchema = z.object({
-  compilerOptions: z
-    .object({ types: z.array(z.string()).optional() })
-    .optional(),
+  compilerOptions: z.record(z.string(), z.unknown()).optional(),
   include: z.array(z.string()).optional(),
 });
+
+const sanctionedRootCompilerOptions: Readonly<Record<string, unknown>> = {
+  target: 'ES2024',
+  module: 'NodeNext',
+  moduleResolution: 'NodeNext',
+  lib: ['ES2024'],
+  types: ['node'],
+  strict: true,
+  noUncheckedIndexedAccess: true,
+  exactOptionalPropertyTypes: true,
+  noImplicitOverride: true,
+  noFallthroughCasesInSwitch: true,
+  noUnusedLocals: true,
+  noUnusedParameters: true,
+  verbatimModuleSyntax: true,
+  allowImportingTsExtensions: true,
+  erasableSyntaxOnly: true,
+  skipLibCheck: true,
+  noEmit: true,
+};
+
+const sanctionedDomainTsconfig: Readonly<Record<string, unknown>> = {
+  extends: '../../tsconfig.json',
+  compilerOptions: { types: [] },
+  include: [
+    'src/**/*.ts',
+    'spec/**/*.ts',
+    '../../architecture/platform/domain-globals.d.ts',
+  ],
+};
+
+const pinnedTsconfigPackages = new Set<string>([...domainPackages, 'kernel']);
 
 const sanctionedOverrides: readonly unknown[] = [
   {
@@ -127,6 +172,15 @@ async function configProblems(): Promise<string[]> {
       `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
     ];
   strictJson('.oxfmtrc.json');
+  if (
+    !isDeepStrictEqual(
+      strictJson('.oxlintrc.json'),
+      strictJson('architecture/lint-config.json'),
+    )
+  )
+    problems.push(
+      '.oxlintrc.json differs from architecture/lint-config.json; the lint configuration is pinned whole, plugins, rules and overrides alike.',
+    );
   const { jsPlugins, rules, overrides } = config.data;
   if (!isDeepStrictEqual(jsPlugins, ['./architecture/oxlint-plugin.mjs']))
     problems.push(
@@ -160,8 +214,18 @@ async function configProblems(): Promise<string[]> {
   const tsconfigs = filesUnder('.').filter((path) =>
     /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
   );
+  if (
+    !isDeepStrictEqual(
+      tsconfigSchema.parse(strictJson('tsconfig.json')).compilerOptions,
+      sanctionedRootCompilerOptions,
+    )
+  )
+    problems.push(
+      'tsconfig.json compilerOptions differ from the sanctioned block in scripts/server-style.ts; every package inherits them.',
+    );
   for (const path of tsconfigs) {
-    const tsconfig = tsconfigSchema.parse(strictJson(path));
+    const raw = strictJson(path);
+    const tsconfig = tsconfigSchema.parse(raw);
     const owner = /^(?:packages\/([^/]+)|apps\/(server))\/tsconfig\.json$/.exec(
       path,
     );
@@ -171,8 +235,15 @@ async function configProblems(): Promise<string[]> {
       if (!tsconfig.include?.includes(pattern))
         problems.push(`${path} includes ${pattern}.`);
     if (
+      pinnedTsconfigPackages.has(name) &&
+      !isDeepStrictEqual(raw, sanctionedDomainTsconfig)
+    )
+      problems.push(
+        `${path} differs from the sanctioned domain tsconfig in scripts/server-style.ts; a domain compiles with types [], lib ES2024 and the domain globals only.`,
+      );
+    if (
       typesFreePackages.has(name) &&
-      !isDeepStrictEqual(tsconfig.compilerOptions?.types, [])
+      !isDeepStrictEqual(tsconfig.compilerOptions, { types: [] })
     )
       problems.push(
         `${path} sets "types": [] so Node globals do not compile in a domain.`,
@@ -182,6 +253,7 @@ async function configProblems(): Promise<string[]> {
 }
 
 const diagnosticsSchema = z.object({
+  number_of_files: z.number(),
   diagnostics: z.array(
     z.object({
       message: z.string(),
@@ -200,14 +272,20 @@ const diagnosticsSchema = z.object({
 });
 
 function lint(): number {
+  const files = roots
+    .flatMap(filesUnder)
+    .filter((path) => lintedFile.test(path));
   const result = spawnSync(
     join('node_modules', '.bin', 'oxlint'),
     [
+      '--config',
+      lintConfig,
+      '--no-ignore',
       '--type-aware',
       '--report-unused-disable-directives',
       '--format',
       'json',
-      ...roots,
+      ...files,
     ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
@@ -232,6 +310,12 @@ function lint(): number {
     );
   }
   process.stdout.write(`${findings.length} findings.\n`);
+  if (parsed.data.number_of_files !== files.length) {
+    process.stdout.write(
+      `lint skipped files: oxlint read ${parsed.data.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
+    );
+    return 1;
+  }
   return findings.length > 0 ? 1 : 0;
 }
 
@@ -250,9 +334,12 @@ if (mode === 'format') {
     process.stderr.write(
       `${location}: fix the code instead of disabling a rule; disable directives are not allowed.\n`,
     );
-  const problems = await configProblems().catch((error: unknown) => [
-    error instanceof Error ? error.message : String(error),
-  ]);
+  const problems = [
+    ...strayLintConfigs(),
+    ...(await configProblems().catch((error: unknown) => [
+      error instanceof Error ? error.message : String(error),
+    ])),
+  ];
   for (const problem of problems) process.stderr.write(`${problem}\n`);
   if (directives.length > 0 || problems.length > 0) process.exitCode = 1;
 }

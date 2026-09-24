@@ -14,6 +14,7 @@ function rowKey(worktreeId: string, layerId: string): string {
 
 export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
   private readonly rows: Map<string, WorktreeReviewedLayerMark>;
+  private readonly staleness = new Map<string, boolean>();
 
   constructor(rows: readonly WorktreeReviewedLayerMark[] = []) {
     this.rows = new Map(
@@ -22,7 +23,7 @@ export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
   }
 
   list(input: WorktreeKey): ReviewedLayerMark[] {
-    return [...this.rows.values()]
+    return this.stored()
       .filter((row) => row.worktreeId === input.worktreeId)
       .map((row) => ({
         layerId: row.layerId,
@@ -38,33 +39,37 @@ export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
   }
 
   byWorktrees(input: WorktreeKeys): WorktreeReviewedLayerMark[] {
-    return [...this.rows.values()]
-      .filter((row) => input.worktreeIds.includes(row.worktreeId))
-      .map((row) => ({ ...row }));
+    return this.stored().filter((row) =>
+      input.worktreeIds.includes(row.worktreeId),
+    );
   }
 
   save(input: ReviewedLayerSave): void {
-    input.marks.forEach((mark) =>
+    input.marks.forEach((mark) => {
       this.rows.set(rowKey(input.worktreeId, mark.layerId), {
         worktreeId: input.worktreeId,
         ...mark,
-      }),
-    );
+      });
+      this.staleness.delete(rowKey(input.worktreeId, mark.layerId));
+    });
   }
 
   remove(input: ReviewedLayerRemoval): void {
     this.rows.delete(rowKey(input.worktreeId, input.layerId));
+    this.staleness.delete(rowKey(input.worktreeId, input.layerId));
   }
 
   setStale(input: ReviewedLayerStaleness): void {
-    input.layerIds
-      .map((layerId) => this.rows.get(rowKey(input.worktreeId, layerId)))
-      .filter((row) => row !== undefined)
-      .forEach((row) =>
-        this.rows.set(rowKey(row.worktreeId, row.layerId), {
-          ...row,
-          stale: input.stale,
-        }),
-      );
+    input.layerIds.forEach((layerId) =>
+      this.staleness.set(rowKey(input.worktreeId, layerId), input.stale),
+    );
+  }
+
+  private stored(): WorktreeReviewedLayerMark[] {
+    return [...this.rows.values()].map((row) => ({
+      ...row,
+      stale:
+        this.staleness.get(rowKey(row.worktreeId, row.layerId)) ?? row.stale,
+    }));
   }
 }

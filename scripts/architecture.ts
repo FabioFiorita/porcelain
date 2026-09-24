@@ -9,7 +9,9 @@ import {
   forbiddenExternal,
   gitCapabilityViolation,
   helpersFolderViolation,
+  nestedInRoleFolder,
   requiredServerFiles,
+  runtimeNodeViolation,
   targetPackageExports,
   violation,
   type Classification,
@@ -91,17 +93,13 @@ const permittedOutsideRoots: readonly RegExp[] = [
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
   /^packages\/storage\/scripts\/[^/]+\.ts$/,
+  /^apps\/web\//,
 ];
 const insideRoot = /^(?:packages\/[^/]+|apps\/server)\/(?:src|spec)\//;
 const fixtureData = /^packages\/[^/]+\/spec\/fixtures\//;
 
 function placementFindings(): Finding[] {
-  const files = [
-    ...readdirSync(join(repositoryRoot, 'packages'), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .flatMap((entry) => filesUnder(join('packages', entry.name))),
-    ...filesUnder('apps/server'),
-  ];
+  const files = [...filesUnder('packages'), ...filesUnder('apps')];
   return files.flatMap((path) => {
     if (insideRoot.test(path)) {
       if (/\.ts$/.test(path) && !/\.[cm]ts$/.test(path)) return [];
@@ -119,7 +117,7 @@ function placementFindings(): Finding[] {
       {
         rule: 'code-outside-roots',
         from: path,
-        to: 'package.json, tsconfig.json, and for storage drizzle/, drizzle.config.ts and scripts/*.ts',
+        to: 'packages/ and apps/ hold package folders only; a package holds package.json, tsconfig.json, src/ and spec/, and storage also drizzle/, drizzle.config.ts and scripts/*.ts',
       },
     ];
   });
@@ -283,6 +281,12 @@ function classifyAll(sources: readonly string[]): {
   for (const file of sources) {
     const result = classify(file);
     if (result) classified.set(file, result);
+    else if (nestedInRoleFolder(file))
+      findings.push({
+        rule: 'role-folder-is-flat',
+        from: file,
+        to: 'services/, models/, rules/, ports/, errors/ and use-cases/<area>/ hold files, never subfolders',
+      });
     else
       findings.push({
         rule: 'unclassified-source',
@@ -350,6 +354,12 @@ function dependencyFindings(
           rule: `${from.role}-cannot-import-external`,
           from: module.source,
           to: dependency.module,
+        });
+      } else if (runtimeNodeViolation(module.source, dependency.module)) {
+        result.push({
+          rule: 'runtime-node-allow-list',
+          from: module.source,
+          to: `${dependency.module}: runtime reaches Node only through the files architecture/policy.ts names for it; a new capability is a port with an adapter`,
         });
       }
     }

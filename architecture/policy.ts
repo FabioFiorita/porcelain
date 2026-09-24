@@ -122,6 +122,7 @@ export type Role =
   | 'kernel'
   | 'fake'
   | 'fixture'
+  | 'capture'
   | 'store-contract'
   | 'test';
 
@@ -276,9 +277,19 @@ function classifyServer(inside: string) {
   return;
 }
 
+const nestedRoleFolder =
+  /^(?:packages\/[^/]+\/src\/(?:services|models|rules|ports|errors)\/[^/]+\/|apps\/server\/src\/(?:ports\/[^/]+\/|use-cases\/[^/]+\/[^/]+\/))/;
+
+export function nestedInRoleFolder(path: string): boolean {
+  return nestedRoleFolder.test(path);
+}
+
 export function classify(path: string): Classification | undefined {
+  if (nestedInRoleFolder(path)) return;
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
+  const capture = /^packages\/([^/]+)\/spec\/fixtures\/capture\.ts$/.exec(path);
+  if (capture) return classified('capture', capture[1] ?? '');
   const packageFixture = /^packages\/([^/]+)\/spec\/fixtures\/.+$/.exec(path);
   if (packageFixture) return classified('fixture', packageFixture[1] ?? '');
   const storeContract = /^packages\/([^/]+)\/spec\/contracts\/.+\.ts$/.exec(
@@ -453,6 +464,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'fake',
   ]),
   fixture: new Set(['model']),
+  capture: new Set(),
   'store-contract': new Set([
     'kernel',
     'port',
@@ -488,9 +500,10 @@ function testViolation(
   if (
     to.role === 'store-contract' &&
     to.owner !== from.owner &&
-    from.owner !== 'storage'
+    from.owner !== 'storage' &&
+    from.owner !== 'server'
   )
-    return 'store-contract-runs-against-its-fake-and-storage-only';
+    return 'store-contract-runs-against-its-fake-storage-and-server-adapters-only';
   if (from.owner !== 'server' && to.owner === 'server')
     return 'package-cannot-import-server';
   if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
@@ -612,11 +625,19 @@ export const externalPackages: Record<Role, readonly string[]> = {
   kernel: [],
   fake: [],
   fixture: [],
+  capture: [],
   'store-contract': ['vitest'],
   test: [],
 };
 
 const fixtureNodeModules = new Set(['fs', 'path', 'url']);
+const captureNodeModules = new Set([
+  'child_process',
+  'fs',
+  'os',
+  'path',
+  'url',
+]);
 
 function isNodeModule(name: string): boolean {
   return nodeModules.has(name) || nodeModules.has(name.split('/')[0] ?? '');
@@ -637,6 +658,7 @@ function allowedPackage(role: Role, module: string): boolean {
 function forbiddenNodeModule(role: Role, name: string): boolean {
   const base = name.split('/')[0] ?? '';
   if (role === 'test') return false;
+  if (role === 'capture') return !captureNodeModules.has(base);
   if (base === 'child_process') return role !== 'process';
   if (role === 'kernel' || role === 'fake') return true;
   if (role === 'fixture') return !fixtureNodeModules.has(base);
@@ -644,6 +666,31 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
     return !((role === 'rule' || role === 'rule-api') && name === 'crypto');
   if (boundaryRoles.has(role)) return storageEngineModule.test(name);
   return false;
+}
+
+const runtimeNodeModules: Readonly<Record<string, readonly string[]>> = {
+  'apps/server/src/runtime/data-directory.ts': ['fs'],
+  'apps/server/src/runtime/directory-lock.ts': [
+    'crypto',
+    'fs/promises',
+    'path',
+  ],
+  'apps/server/src/runtime/owner-socket.ts': ['fs'],
+  'apps/server/src/runtime/lanes.ts': ['diagnostics_channel'],
+  'apps/server/src/runtime/delay.ts': ['timers/promises'],
+  'apps/server/src/runtime/start-application.ts': ['fs', 'path', 'os'],
+};
+
+export function runtimeNodeViolation(
+  path: string,
+  module: string,
+): string | undefined {
+  if (!module.startsWith('node:') && !isNodeModule(module)) return;
+  if (classify(path)?.role !== 'runtime') return;
+  const name = module.replace(/^node:/, '');
+  return runtimeNodeModules[path]?.includes(name)
+    ? undefined
+    : 'runtime-node-allow-list';
 }
 
 export function forbiddenExternal(role: Role, module: string): boolean {

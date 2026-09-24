@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseGitStatus } from './parse-git-status.ts';
 
-const HEAD = '847c4a56aa33b6452cc83525965eb3a8463d2658';
-const A = '9ad2ebbaff6f3397bb65002dcf4294d8d6243982';
+const HEAD = 'f4e8dd3408852fb71b1581394612bcf35e414dfc';
+const A = 'b2f931a67315c95c5daab3aac6de62e534808476';
 const B = 'b89df23defe5ae95cfb2ff7408d90afd689b8c43';
-const N = '8ba3a16384aacc37d01564b28401755ce8053f51';
+const N = '3e757656cf36eca53338e520d134963a44f793f8';
 
 const records = (...lines: string[]) =>
   Buffer.from(`${lines.join('\0')}\0`, 'utf8');
@@ -71,7 +71,7 @@ describe('parseGitStatus', () => {
         oids: [
           'df967b96a579e45a18b8251732d16804b2e56a55',
           'ba2906d0666cf726c7eaadd2cd3db615dedfdf3a',
-          '2299c37978265a95cbe835a4b0f0bbf15aad5549',
+          'e45c9c2666d44e0327c1f9c239a74c508336053e',
         ],
       },
     ]);
@@ -105,7 +105,7 @@ describe('parseGitStatus', () => {
 
   it('rejects a record with a malformed mode', () => {
     expect(() =>
-      parseGitStatus(fixture('status/working-malformed.txt')),
+      parseGitStatus(fixture('status/working-malformed-hand-edited.txt')),
     ).toThrow('Invalid Git status output');
   });
 

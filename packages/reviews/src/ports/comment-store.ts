@@ -17,7 +17,7 @@ export interface CommentStore {
   findMessage(input: CommentMessageKey): PostedCommentMessage | undefined;
   usage(input: WorktreeKey): CommentUsage;
   lastRevision(input: WorktreeKey): number;
-  agentRepliesByWorktrees(input: WorktreeKeys): AgentReply[];
+  listAgentReplies(input: WorktreeKeys): AgentReply[];
   insert(input: NewCommentThread): CommentThread;
   append(input: CommentReply): CommentThread;
   resolve(input: CommentResolution): CommentThread;

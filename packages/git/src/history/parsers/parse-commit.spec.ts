@@ -8,10 +8,10 @@ describe('parseCommitRecords', () => {
   it('reads every commit of a log page in order', () => {
     expect(parseCommitRecords(page)).toEqual([
       {
-        oid: 'eb7312add608affdf32a090cfc5991b6b0673e1e',
+        oid: '1020846388014a1baa79eb360c9f66b704e7398b',
         parentOids: [
-          '847c4a56aa33b6452cc83525965eb3a8463d2658',
-          '51461c37b4684d691ef47cc707936a782af61d13',
+          'f4e8dd3408852fb71b1581394612bcf35e414dfc',
+          '2ae5d06b609a87714093c240d9bf094dce123436',
         ],
         author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'merge',
@@ -21,8 +21,8 @@ describe('parseCommitRecords', () => {
         refs: ['main'],
       },
       {
-        oid: '51461c37b4684d691ef47cc707936a782af61d13',
-        parentOids: ['55a7889b7826882e28bdf4641cc6f09db55b3a2c'],
+        oid: '2ae5d06b609a87714093c240d9bf094dce123436',
+        parentOids: ['33a10b8b50f5f24c5623c50dea66a8901245b102'],
         author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'upstream two',
         subjectTruncated: false,
@@ -31,8 +31,8 @@ describe('parseCommitRecords', () => {
         refs: ['origin/main', 'origin/HEAD'],
       },
       {
-        oid: '55a7889b7826882e28bdf4641cc6f09db55b3a2c',
-        parentOids: ['aa1c1b46ec8e9f679d429c3f9c8f647d341654f8'],
+        oid: '33a10b8b50f5f24c5623c50dea66a8901245b102',
+        parentOids: ['22228ea430e1b0aa37ac3bb19bfd3999547323e1'],
         author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'upstream one',
         subjectTruncated: false,
@@ -41,8 +41,8 @@ describe('parseCommitRecords', () => {
         refs: [],
       },
       {
-        oid: '847c4a56aa33b6452cc83525965eb3a8463d2658',
-        parentOids: ['aa1c1b46ec8e9f679d429c3f9c8f647d341654f8'],
+        oid: 'f4e8dd3408852fb71b1581394612bcf35e414dfc',
+        parentOids: ['22228ea430e1b0aa37ac3bb19bfd3999547323e1'],
         author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'ahead',
         subjectTruncated: false,
@@ -51,7 +51,7 @@ describe('parseCommitRecords', () => {
         refs: ['v1.0'],
       },
       {
-        oid: 'aa1c1b46ec8e9f679d429c3f9c8f647d341654f8',
+        oid: '22228ea430e1b0aa37ac3bb19bfd3999547323e1',
         parentOids: [],
         author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'base',

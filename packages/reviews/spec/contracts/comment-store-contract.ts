@@ -276,7 +276,7 @@ export function commentStoreContract(
 
     it('reports no agent replies when no worktree is asked', () => {
       open(store, 'thread', first, { author: 'agent' });
-      expect(store.agentRepliesByWorktrees({ worktreeIds: [] })).toEqual([]);
+      expect(store.listAgentReplies({ worktreeIds: [] })).toEqual([]);
     });
 
     it('reports the revision of the agent write of each thread in the asked worktrees only', () => {
@@ -286,7 +286,7 @@ export function commentStoreContract(
       reply(store, asked, 'answer', { author: 'agent' });
       open(store, 'elsewhere', second, { author: 'agent' });
       expect(
-        byThread(store.agentRepliesByWorktrees({ worktreeIds: [first] })),
+        byThread(store.listAgentReplies({ worktreeIds: [first] })),
       ).toEqual([
         {
           worktreeId: first,
@@ -302,25 +302,23 @@ export function commentStoreContract(
         },
       ]);
       expect(
-        byThread(
-          store.agentRepliesByWorktrees({ worktreeIds: [first, second] }),
-        ).map((entry) => entry.threadId),
+        byThread(store.listAgentReplies({ worktreeIds: [first, second] })).map(
+          (entry) => entry.threadId,
+        ),
       ).toEqual(['agent-answered', 'agent-opened', 'elsewhere']);
     });
 
     it('stops reporting an agent reply once a reviewer replies after it', () => {
       const thread = open(store, 'thread', first, { author: 'agent' });
       reply(store, thread, 'follow-up', { author: 'reviewer' });
-      expect(store.agentRepliesByWorktrees({ worktreeIds: [first] })).toEqual(
-        [],
-      );
+      expect(store.listAgentReplies({ worktreeIds: [first] })).toEqual([]);
     });
 
     it('keeps reporting an agent reply at its own revision after the thread is resolved, marked resolved', () => {
       const thread = open(store, 'thread');
       const answered = reply(store, thread, 'answer', { author: 'agent' });
       store.resolve({ thread: answered, resolved: true });
-      expect(store.agentRepliesByWorktrees({ worktreeIds: [first] })).toEqual([
+      expect(store.listAgentReplies({ worktreeIds: [first] })).toEqual([
         { worktreeId: first, threadId: 'thread', revision: 2, resolved: true },
       ]);
     });

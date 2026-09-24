@@ -15,13 +15,14 @@ const useCaseValueModule = new RegExp(
   `^@porcelain/(?:${domainPackage}|kernel)/(?:rules|errors)$`,
 );
 const modelsSource =
-  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/[^/]+)\.ts$/;
-const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
+  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/.+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/.+)\.ts$/;
+const composeSource =
+  /\/apps\/server\/src\/bootstrap\/(?:.+\/)?compose-[^/]+\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
 const pageSource = /-page\.ts$/;
-const mcpSource = /\/apps\/server\/src\/http\/mcp\/[^/]+\.ts$/;
+const mcpSource = /\/apps\/server\/src\/http\/mcp\/.+\.ts$/;
 const pageReplyMethods = new Set(['header', 'type']);
 const parseMethods = new Set([
   'parse',
@@ -56,7 +57,7 @@ function normalizedFilename(filename) {
 function operationRole(filename) {
   const path = normalizedFilename(filename);
   if (
-    new RegExp(`/apps/server/src/use-cases/${domainPackage}/[^/]+\\.ts$`).test(
+    new RegExp(`/apps/server/src/use-cases/${domainPackage}/.+\\.ts$`).test(
       path,
     )
   )
@@ -265,12 +266,14 @@ function isPageBody(sent, renderers) {
 }
 
 const specSource = /\.spec\.ts$/;
-const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/[^/]+\.ts$/;
+const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/.+\.ts$/;
 const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
 const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const statusPolicySpec = /\/apps\/server\/src\/http\/status-policy\.spec\.ts$/;
+const adapterSpec = /\/apps\/server\/src\/adapters\/.+\.spec\.ts$/;
+const storageEntry = /^@porcelain\/storage(?:\/[a-z-]+)?$/;
 const gitCapabilityEntry =
   /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
 const specPackageEntry = new RegExp(
@@ -336,6 +339,10 @@ const nodeGlobals = new Set([
   'global',
   'globalThis',
   'NodeJS',
+  'crypto',
+  'performance',
+  'console',
+  'queueMicrotask',
 ]);
 const featureMethods = new Set(['get', 'post', 'put', 'patch', 'delete']);
 const routeHook = /^(?:on|pre)[A-Z]|^(?:handler|errorHandler)$/;
@@ -356,14 +363,30 @@ const primitiveTypes = new Set([
 ]);
 const portName =
   /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|^Clock)$/;
-const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential)[A-Z]/;
+const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
+const recordingFake = /^Recording[A-Z]/;
+const mutatingMethods = new Set([
+  'set',
+  'add',
+  'delete',
+  'clear',
+  'push',
+  'unshift',
+  'pop',
+  'shift',
+  'splice',
+  'forEach',
+  'assign',
+]);
+const gatingMethods = new Set(['filter', 'find', 'findLast', 'some', 'every']);
 const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
 const camelCase = /^[a-z][A-Za-z0-9]*$/;
 const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
 const disableDirective = /^\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
 const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
-const packageSource = /^packages\/[^/]+\/src\//;
+const nodeGlobalScope =
+  /^(?:packages\/[^/]+\/src|apps\/server\/src\/(?:use-cases|ports))\//;
 const serverSource = /^(?:packages\/[^/]+|apps\/server)\/src\//;
 const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
@@ -374,9 +397,17 @@ const runtimeFile = /^apps\/server\/src\/runtime\//;
 const serverAppFile = /^apps\/server\/src\//;
 const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
 const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
-const scopeFile = /^apps\/server\/src\/http\/scopes\/[^/]+\.ts$/;
+const scopeFile = /^apps\/server\/src\/http\/scopes\/.+\.ts$/;
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
+const captureFile = /^packages\/[^/]+\/spec\/fixtures\/capture\.ts$/;
+const captureModules = new Set([
+  'node:child_process',
+  'node:fs',
+  'node:os',
+  'node:path',
+  'node:url',
+]);
 const fixtureModelSource = /^\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts$/;
 const signalMembers = new Set(['throwIfAborted', 'aborted', 'onabort']);
 const openTypes = new Set([
@@ -385,9 +416,21 @@ const openTypes = new Set([
   'TSAnyKeyword',
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
-const numberFreeFile =
-  /^(?:packages\/[^/]+\/src\/(?:rules|services)\/|apps\/server\/src\/(?:adapters|use-cases|jobs)\/)/;
-const useCaseFile = /^apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
+const numberFreeFile = new RegExp(
+  `^(?:packages/(?:${domainPackage}|kernel)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/(?:adapters|use-cases|jobs|ports)/)`,
+);
+const rootScriptFile = /^scripts\/[^/]+\.ts$/;
+const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
+const membershipMethods = new Set([
+  'includes',
+  'has',
+  'indexOf',
+  'lastIndexOf',
+  'startsWith',
+  'endsWith',
+  'localeCompare',
+]);
+const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
 const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
 const fakeFile = /^(?:packages\/[^/]+|apps\/server)\/spec\/fakes\//;
@@ -395,7 +438,7 @@ const clockFile =
   /^(?:packages\/[^/]+\/src\/rules|apps\/server\/src\/adapters)\//;
 const indexFile = /^packages\/[^/]+\/src\/(?:.+\/)?index\.ts$/;
 const operationFile =
-  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
+  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/use-cases\/.+)\.ts$/;
 const domainCode = new RegExp(
   `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/use-cases/)`,
 );
@@ -417,6 +460,13 @@ function findVariable(scope, name) {
 
 function staticString(node, context, depth = 0) {
   if (!node || depth > 8) return undefined;
+  if (
+    node.type === 'TSAsExpression' ||
+    node.type === 'TSSatisfiesExpression' ||
+    node.type === 'TSNonNullExpression' ||
+    node.type === 'ParenthesizedExpression'
+  )
+    return staticString(node.expression, context, depth + 1);
   if (node.type === 'Literal')
     return typeof node.value === 'string' ? node.value : undefined;
   if (node.type === 'TemplateLiteral')
@@ -435,6 +485,57 @@ function staticString(node, context, depth = 0) {
     definition.parent?.kind === 'const'
     ? staticString(definition.node.init, context, depth + 1)
     : undefined;
+}
+
+function literalNumber(node, depth = 0) {
+  if (!node || depth > 16) return undefined;
+  if (
+    node.type === 'TSAsExpression' ||
+    node.type === 'TSSatisfiesExpression' ||
+    node.type === 'ParenthesizedExpression'
+  )
+    return literalNumber(node.expression, depth + 1);
+  if (node.type === 'Literal')
+    return typeof node.value === 'number' ? node.value : undefined;
+  if (
+    node.type === 'UnaryExpression' &&
+    (node.operator === '-' || node.operator === '+')
+  ) {
+    const value = literalNumber(node.argument, depth + 1);
+    return value === undefined
+      ? undefined
+      : node.operator === '-'
+        ? -value
+        : value;
+  }
+  if (
+    node.type === 'MemberExpression' &&
+    !node.computed &&
+    node.property.type === 'Identifier' &&
+    node.property.name === 'length'
+  ) {
+    if (node.object.type === 'ArrayExpression')
+      return node.object.elements.length;
+    if (node.object.type === 'Literal' && typeof node.object.value === 'string')
+      return node.object.value.length;
+    return undefined;
+  }
+  if (
+    node.type !== 'BinaryExpression' ||
+    !arithmeticOperators.has(node.operator)
+  )
+    return undefined;
+  const left = literalNumber(node.left, depth + 1);
+  const right = literalNumber(node.right, depth + 1);
+  if (left === undefined || right === undefined) return undefined;
+  if (node.operator === '+') return left + right;
+  if (node.operator === '-') return left - right;
+  if (node.operator === '*') return left * right;
+  if (node.operator === '/') return left / right;
+  if (node.operator === '%') return left % right;
+  if (node.operator === '**') return left ** right;
+  if (node.operator === '<<') return left << right;
+  return left | right;
 }
 
 function propertyName(node, context) {
@@ -469,6 +570,70 @@ function memberPath(node) {
   return object && [...object, node.property.name];
 }
 
+function rootedAtThis(node) {
+  let current = node;
+  while (current?.type === 'MemberExpression') current = current.object;
+  return current?.type === 'ThisExpression';
+}
+
+function hasEffect(node, visitorKeys) {
+  if (!node || typeof node.type !== 'string') return false;
+  if (
+    node.type === 'AssignmentExpression' ||
+    node.type === 'UpdateExpression' ||
+    (node.type === 'UnaryExpression' && node.operator === 'delete')
+  )
+    return true;
+  if (
+    node.type === 'CallExpression' &&
+    node.callee.type === 'MemberExpression' &&
+    mutatingMethods.has(memberName(node.callee) ?? '')
+  )
+    return true;
+  return (visitorKeys[node.type] ?? []).some((key) => {
+    const child = node[key];
+    return Array.isArray(child)
+      ? child.some((entry) => hasEffect(entry, visitorKeys))
+      : hasEffect(child, visitorKeys);
+  });
+}
+
+function receiverCalls(call) {
+  const names = [];
+  let current =
+    call.callee.type === 'MemberExpression' ? call.callee.object : undefined;
+  while (current) {
+    if (current.type === 'CallExpression') {
+      if (current.callee.type !== 'MemberExpression') break;
+      names.push(memberName(current.callee));
+      current = current.callee.object;
+    } else if (current.type === 'MemberExpression') current = current.object;
+    else if (current.type === 'ChainExpression') current = current.expression;
+    else break;
+  }
+  return names;
+}
+
+function fromInput(node, context, depth = 0) {
+  if (!node || depth > 8) return false;
+  if (node.type === 'Identifier') {
+    const variable = findVariable(context.sourceCode.getScope(node), node.name);
+    const definition = variable?.defs[0];
+    if (definition?.type === 'Parameter') return true;
+    return (
+      definition?.type === 'Variable' &&
+      fromInput(definition.node.init, context, depth + 1)
+    );
+  }
+  if (node.type === 'ThisExpression') return false;
+  return (context.sourceCode.visitorKeys[node.type] ?? []).some((key) => {
+    const child = node[key];
+    return Array.isArray(child)
+      ? child.some((entry) => fromInput(entry, context, depth + 1))
+      : fromInput(child, context, depth + 1);
+  });
+}
+
 function globalReferences(context, program, names) {
   let scope = context.sourceCode.getScope(program);
   while (scope.upper) scope = scope.upper;
@@ -480,7 +645,7 @@ function globalReferences(context, program, names) {
     .map((reference) => reference.identifier);
 }
 
-const pureGlobals = new Set(['Date', 'Math', 'Reflect']);
+const pureGlobals = new Set(['Date', 'Math', 'Reflect', 'Intl']);
 
 function calledMember(identifier, context) {
   const member = identifier.parent;
@@ -496,6 +661,8 @@ function impureGlobalUse(identifier, context) {
   const name = identifier.name;
   if (name === 'Reflect')
     return 'A rule never reaches through Reflect; call the function it needs by name.';
+  if (name === 'Intl')
+    return 'A rule is deterministic: Intl answers from the machine locale and time zone; the caller passes formatted text or the rule compares plain values.';
   const member = calledMember(identifier, context);
   if (name === 'Math')
     return member === undefined || member === 'random'
@@ -808,6 +975,7 @@ function allowedSpecImport(filename, source) {
   const path = normalizedFilename(filename);
   if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
     return true;
+  if (adapterSpec.test(path) && storageEntry.test(source)) return true;
   if (!source.startsWith('.')) return false;
   const unit = path.split('/').at(-1).replace(specSource, '.ts');
   if (source === `./${unit}`) return true;
@@ -1130,7 +1298,7 @@ export default {
     'no-node-globals': {
       create(context) {
         const path = repositoryPath(context);
-        if (!packageSource.test(path)) return {};
+        if (!nodeGlobalScope.test(path)) return {};
         const role = classify(path)?.role;
         if (role === 'test' || (role && nodeGlobalRoles.has(role))) return {};
         return {
@@ -1274,19 +1442,55 @@ export default {
           return {};
         const gitDirectory = (node) =>
           staticString(node, context)?.toLowerCase() === '.git';
+        const message =
+          'An adapter reports every entry; whether .git is shown is a domain rule the service applies.';
         return {
           BinaryExpression(node) {
             if (
               ['===', '!==', '==', '!='].includes(node.operator) &&
               (gitDirectory(node.left) || gitDirectory(node.right))
             )
-              context.report({
-                node,
-                message:
-                  'An adapter reports every entry; whether .git is shown is a domain rule the service applies.',
-              });
+              context.report({ node, message });
+          },
+          ArrayExpression(node) {
+            if (node.elements.some(gitDirectory))
+              context.report({ node, message });
+          },
+          SwitchCase(node) {
+            if (gitDirectory(node.test)) context.report({ node, message });
+          },
+          VariableDeclarator(node) {
+            if (gitDirectory(node.init)) context.report({ node, message });
+          },
+          CallExpression(node) {
+            if (
+              node.callee.type === 'MemberExpression' &&
+              membershipMethods.has(propertyName(node.callee, context) ?? '') &&
+              (gitDirectory(node.callee.object) ||
+                node.arguments.some(gitDirectory))
+            )
+              context.report({ node, message });
           },
         };
+      },
+    },
+    'root-scripts-import-no-package': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!rootScriptFile.test(path)) return {};
+        return moduleVisitors((node) => {
+          const source = moduleSource(node);
+          if (source === undefined) return;
+          const target = source.startsWith('.')
+            ? posix.join(posix.dirname(path), source)
+            : source;
+          if (target.startsWith('packages/'))
+            context.report({
+              node: node.source ?? node,
+              message:
+                'A root script imports node, libraries, other scripts, architecture/ and the server app only; a package is reached through the server or its package name, never by a path into packages/.',
+            });
+        });
       },
     },
     'no-interface-in-runtime': {
@@ -1334,7 +1538,18 @@ export default {
     },
     'fixture-imports': {
       create(context) {
-        if (!fixtureFile.test(repositoryPath(context))) return {};
+        const path = repositoryPath(context);
+        if (!fixtureFile.test(path)) return {};
+        if (captureFile.test(path))
+          return moduleVisitors((node) => {
+            const source = moduleSource(node);
+            if (source === undefined || !captureModules.has(source))
+              context.report({
+                node: node.source ?? node,
+                message:
+                  'A capture script runs Git in a disposable repository with node:child_process, node:fs, node:os, node:path and node:url only; it imports nothing from the repository.',
+              });
+          });
         return moduleVisitors((node) => {
           const source = moduleSource(node);
           if (source !== undefined && fixtureModules.has(source)) return;
@@ -1930,7 +2145,23 @@ export default {
           const text = staticString(node, context);
           return text !== undefined && Number(text) > 1;
         };
+        const computed = (node) => {
+          const parent = node.parent;
+          if (
+            parent &&
+            (parent.type === 'BinaryExpression' ||
+              parent.type === 'ParenthesizedExpression' ||
+              parent.type === 'UnaryExpression') &&
+            literalNumber(parent) !== undefined
+          )
+            return;
+          const value = literalNumber(node);
+          if (value !== undefined && value > 1)
+            context.report({ node, message });
+        };
         return {
+          BinaryExpression: computed,
+          'MemberExpression[property.name="length"]': computed,
           CallExpression(node) {
             const callee = memberPath(node.callee)?.join('.');
             if (
@@ -1984,7 +2215,7 @@ export default {
             context.report({
               node: node.id,
               message:
-                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>.',
+                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>; Recording<Port> only for a port that answers nothing back.',
             });
         };
         const checkField = (node, name) => {
@@ -2111,12 +2342,18 @@ export default {
       create(context) {
         const fake = fakeFile.test(repositoryPath(context));
         if (!fake && !isSpec(context)) return {};
+        const visitorKeys = context.sourceCode.visitorKeys;
         const portClasses = [];
+        const classes = [];
         const inFake = () => fake || portClasses.length > 0;
+        const recorder = () =>
+          recordingFake.test(classes.at(-1)?.id?.name ?? '');
         const enter = (node) => {
+          classes.push(node);
           if ((node.implements ?? []).length > 0) portClasses.push(node);
         };
         const leave = (node) => {
+          if (classes.at(-1) === node) classes.pop();
           if (portClasses.at(-1) === node) portClasses.pop();
         };
         const report = (node, message) => {
@@ -2125,10 +2362,13 @@ export default {
         const decision =
           'A fake stores and returns; a decision belongs in rules/ and the port gets simpler.';
         const recording =
-          'A fake stores state, it never records calls; assert through what the port reads back.';
+          'A fake stores state, it never records calls; assert through what the port reads back, or name it Recording<Port> when the port answers nothing back.';
+        const records = (node) => {
+          if (!recorder()) report(node, recording);
+        };
         const decides = (node) => report(node, decision);
         const onField = (node) =>
-          node?.type === 'MemberExpression' && memberPath(node)?.[0] === 'this';
+          node?.type === 'MemberExpression' && rootedAtThis(node);
         return {
           ClassDeclaration: enter,
           ClassExpression: enter,
@@ -2142,6 +2382,17 @@ export default {
           WhileStatement: decides,
           DoWhileStatement: decides,
           ConditionalExpression: decides,
+          LogicalExpression(node) {
+            if (
+              node.parent?.type === 'ExpressionStatement' ||
+              hasEffect(node.left, visitorKeys) ||
+              hasEffect(node.right, visitorKeys)
+            )
+              report(
+                node,
+                'A fake stores and returns; &&, || and ?? that choose whether something is stored are an if, and a decision belongs in rules/.',
+              );
+          },
           ThrowStatement(node) {
             report(
               node,
@@ -2149,8 +2400,9 @@ export default {
             );
           },
           AssignmentExpression(node) {
+            if (['&&=', '||=', '??='].includes(node.operator)) decides(node);
             if (!onField(node.left)) return;
-            if (node.operator !== '=') report(node, recording);
+            if (node.operator !== '=') records(node);
             const appended =
               node.right.type === 'ArrayExpression' &&
               node.right.elements.some(
@@ -2160,11 +2412,9 @@ export default {
                   context.sourceCode.getText(element.argument) ===
                     context.sourceCode.getText(node.left),
               );
-            if (appended) report(node, recording);
+            if (appended) records(node);
           },
-          UpdateExpression(node) {
-            if (onField(node.argument)) report(node, recording);
-          },
+          UpdateExpression: records,
           PropertyDefinition(node) {
             if (!node.static && !node.readonly && !isPrivateMember(node))
               report(
@@ -2181,7 +2431,25 @@ export default {
               (name === 'push' || name === 'unshift') &&
               node.callee.object.type === 'MemberExpression'
             )
-              report(node, recording);
+              records(node);
+            if (
+              (name === 'set' || name === 'add') &&
+              onField(node.callee.object) &&
+              !fromInput(node.arguments[0], context)
+            )
+              records(node);
+            const gated = receiverCalls(node).some((call) =>
+              gatingMethods.has(call ?? ''),
+            );
+            if (
+              gated &&
+              (name === 'forEach' ||
+                node.parent?.type === 'ExpressionStatement')
+            )
+              report(
+                node,
+                'A fake stores and returns; a filter that decides whether to store is an if. Keep the change as its own stored state and compose it when the port reads.',
+              );
             if (memberPath(node.callee)?.join('.') === 'Promise.reject')
               report(
                 node,
@@ -2313,6 +2581,86 @@ export default {
         };
       },
     },
+    'spec-asserts': {
+      create(context) {
+        if (!isSpec(context)) return {};
+        const suiteFunctions = new Set(['describe', 'suite']);
+        const inSuiteBody = (statement) => {
+          const block = statement.parent;
+          if (block?.type === 'Program') return true;
+          const owner = block?.parent;
+          return (
+            block?.type === 'BlockStatement' &&
+            isFunction(owner) &&
+            owner.parent?.type === 'CallExpression' &&
+            suiteFunctions.has(chainRoot(owner.parent.callee) ?? '')
+          );
+        };
+        return {
+          CallExpression(node) {
+            if (
+              caseFunctions.has(chainRoot(node.callee) ?? '') &&
+              node.parent?.type !== 'MemberExpression' &&
+              !(
+                node.parent?.type === 'CallExpression' &&
+                node.parent.callee === node
+              ) &&
+              (node.parent?.type !== 'ExpressionStatement' ||
+                !inSuiteBody(node.parent))
+            )
+              context.report({
+                node,
+                message:
+                  'Register every case as a statement of its describe; a case inside a condition, loop or helper may never run.',
+              });
+            if (
+              node.callee.type !== 'Identifier' ||
+              node.callee.name !== 'expect'
+            )
+              return;
+            let chain = node;
+            while (
+              chain.parent?.type === 'MemberExpression' &&
+              chain.parent.object === chain
+            )
+              chain = chain.parent;
+            if (
+              chain === node ||
+              chain.parent?.type !== 'CallExpression' ||
+              chain.parent.callee !== chain
+            )
+              context.report({
+                node,
+                message:
+                  'Name the matcher: expect(actual) asserts nothing until a matcher such as toEqual is called on it.',
+              });
+            for (const ancestor of context.sourceCode
+              .getAncestors(node)
+              .reverse()) {
+              if (!isFunction(ancestor)) continue;
+              const call = ancestor.parent;
+              if (
+                call?.type === 'CallExpression' &&
+                caseFunctions.has(chainRoot(call.callee) ?? '')
+              )
+                return;
+              if (
+                call?.type === 'CallExpression' &&
+                call.callee.type === 'MemberExpression' &&
+                call.arguments.includes(ancestor)
+              ) {
+                context.report({
+                  node,
+                  message:
+                    'Assert in the case body, not inside a callback; an expect in map, filter or forEach runs once per element, and not at all for none.',
+                });
+                return;
+              }
+            }
+          },
+        };
+      },
+    },
     'spec-behaviour-names': {
       create(context) {
         if (!isSpec(context)) return {};
@@ -2366,7 +2714,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec imports the storage public API instead of fakes.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors,store-contracts}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec, and a server adapter spec that runs a store contract over storage, imports the storage public API.',
             });
         };
         return {

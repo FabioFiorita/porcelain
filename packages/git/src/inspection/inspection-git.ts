@@ -10,6 +10,7 @@ import { readSubmoduleHeads } from './commands/read-submodule-heads.ts';
 import { readUpstreamOid } from './commands/read-upstream-oid.ts';
 import type { GitBranchDetails, GitOrdinaryChange } from './dtos/git-status.ts';
 import type { HeadBlob, HeadBlobRequest } from './dtos/head-blob.ts';
+import type { InspectionLimits } from './dtos/inspection-limits.ts';
 import type { ChangeReader } from './interfaces/change-reader.ts';
 import type { DiffReader } from './interfaces/diff-reader.ts';
 import type { CheckoutSession } from './interfaces/git-session.ts';
@@ -17,15 +18,17 @@ import type { StatusReader } from './interfaces/status-reader.ts';
 
 export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
   private readonly session: CheckoutSession;
+  private readonly limits: InspectionLimits;
 
-  constructor(session: CheckoutSession) {
+  constructor(session: CheckoutSession, limits: InspectionLimits) {
     this.session = session;
+    this.limits = limits;
   }
 
   async readStatus(signal?: AbortSignal) {
     await this.session.verify(signal);
     const [status, operation] = await Promise.all([
-      readStatus(this.session, signal),
+      readStatus(this.session, this.limits, signal),
       readInProgress(this.session.path),
     ]);
     return { ...status, ...operation };

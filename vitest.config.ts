@@ -20,7 +20,6 @@ function isolatedGit(name: string): string {
 const typeOnlyFolders = new Set(['models', 'ports', 'errors']);
 
 function decides(name: string): boolean {
-  if (name === 'contracts') return false;
   return readdirSync(join(root, 'packages', name, 'src'), {
     withFileTypes: true,
   }).some((entry) => !entry.isDirectory() || !typeOnlyFolders.has(entry.name));
@@ -71,14 +70,22 @@ export default defineConfig({
         test: {
           name: '@porcelain/server',
           root,
-          include: ['apps/server/src/**/*.spec.ts'],
+          include: [
+            'apps/server/src/**/*.spec.ts',
+            'apps/server/spec/**/*.spec.ts',
+          ],
+          expect: { requireAssertions: true },
         },
       },
       ...packages.map((name) => ({
         test: {
           name: `@porcelain/${name}`,
           root,
-          include: [`packages/${name}/src/**/*.spec.ts`],
+          include: [
+            `packages/${name}/src/**/*.spec.ts`,
+            `packages/${name}/spec/**/*.spec.ts`,
+          ],
+          expect: { requireAssertions: true },
           setupFiles: existsSync(join(root, isolatedGit(name)))
             ? [isolatedGit(name)]
             : [],

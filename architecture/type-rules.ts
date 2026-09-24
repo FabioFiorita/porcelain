@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import {
   API,
+  SignatureKind,
   TypeFlags,
   type Checker,
   type Project,
@@ -8,6 +9,7 @@ import {
 } from 'typescript/unstable/sync';
 import {
   SyntaxKind,
+  type MethodSignatureDeclaration,
   type Node,
   type SourceFile,
 } from 'typescript/unstable/ast';
@@ -21,6 +23,7 @@ import {
   isIdentifier,
   isInterfaceDeclaration,
   isMethodDeclaration,
+  isMethodSignatureDeclaration,
   isNamedExports,
   isPropertyAccessExpression,
   isStringLiteral,
@@ -31,13 +34,16 @@ import { domainPackages } from './policy.ts';
 export type TypeFinding = { rule: string; from: string; to: string };
 
 const absence = TypeFlags.Undefined | TypeFlags.Null | TypeFlags.Void;
-const writingCall =
-  /^(?:save|insert|update|remove|append|set|mark|record|take|redeem|forget|write|move|trash|create|delete|add)(?:[A-Z]|$)/;
-const serviceFile = /\/packages\/[^/]+\/src\/services\/[^/]+-service\.ts$/;
-const useCaseFile = /\/apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
-const modelFile = /\/packages\/[^/]+\/src\/models\/[^/]+\.ts$/;
+const writingPort = /(?:Store|Writer|Runner)$/;
+const fakeFile = /\/(?:packages\/[^/]+|apps\/server)\/spec\/fakes\/.+\.ts$/;
+const recordingFake = /^Recording[A-Z]/;
+const readingMethod =
+  /^(?:read|list|find|count|by|seen|latest|last)(?:[A-Z]|$)/;
+const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
+const useCaseFile = /\/apps\/server\/src\/use-cases\/.+\.ts$/;
+const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
 const domainShapeFile = new RegExp(
-  `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$)[^/]+\\.ts$`,
+  `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
 );
 
 type Lane =
@@ -183,15 +189,84 @@ function thisMember(node: Node): string | undefined {
     : undefined;
 }
 
-function writes(declaration: Node): boolean {
-  return descendants(declaration).some(
-    (node) =>
-      isCallExpression(node) &&
-      isPropertyAccessExpression(node.expression) &&
-      thisMember(node.expression.expression) !== undefined &&
-      isIdentifier(node.expression.name) &&
-      writingCall.test(node.expression.name.text),
-  );
+function writingPortMethod(
+  project: Project,
+  call: Node,
+): MethodSignatureDeclaration | undefined {
+  if (!isCallExpression(call) || !isPropertyAccessExpression(call.expression))
+    return undefined;
+  const declaration = project.checker
+    .getSymbolAtLocation(call.expression.name)
+    ?.declarations[0]?.resolve(project);
+  if (!declaration || !isMethodSignatureDeclaration(declaration))
+    return undefined;
+  const port = declaration.parent;
+  return isInterfaceDeclaration(port) && writingPort.test(port.name.text)
+    ? declaration
+    : undefined;
+}
+
+function methodName(method: MethodSignatureDeclaration): string {
+  return isIdentifier(method.name) ? method.name.text : '';
+}
+
+function writes(project: Project, declaration: Node): boolean {
+  return descendants(declaration).some((node) => {
+    const method = writingPortMethod(project, node);
+    return method !== undefined && !readingMethod.test(methodName(method));
+  });
+}
+
+function answersNothing(project: Project, port: Type): boolean {
+  const { checker } = project;
+  return checker.getPropertiesOfType(port).every((member) => {
+    const type = checker.getTypeOfSymbol(member);
+    const signatures = type
+      ? checker.getSignaturesOfType(type, SignatureKind.Call)
+      : [];
+    return (
+      signatures.length > 0 &&
+      signatures.every((signature) => {
+        const returned = checker.getReturnTypeOfSignature(signature);
+        return (
+          returned !== undefined &&
+          (awaitedType(returned, checker).flags & TypeFlags.Void) !== 0
+        );
+      })
+    );
+  });
+}
+
+function recordingFindings(
+  root: string,
+  project: Project,
+  file: SourceFile,
+): TypeFinding[] {
+  const { checker } = project;
+  return file.statements
+    .filter(isClassDeclaration)
+    .filter(
+      (declaration) =>
+        declaration.name !== undefined &&
+        recordingFake.test(declaration.name.text),
+    )
+    .flatMap((declaration) => {
+      const ports = (declaration.heritageClauses ?? []).flatMap((clause) =>
+        clause.types.map((type) => checker.getTypeAtLocation(type)),
+      );
+      const answered =
+        ports.length === 0 ||
+        ports.some((port) => !port || !answersNothing(project, port));
+      return answered
+        ? [
+            {
+              rule: 'recording-fake-for-write-only-port',
+              from: where(root, declaration),
+              to: `${declaration.name?.text ?? ''}: a Recording fake implements only ports whose methods answer nothing back; a port with a read-back gets an InMemory fake read through that port`,
+            },
+          ]
+        : [];
+    });
 }
 
 function laneOf(call: Node, callback: Node): Lane | undefined {
@@ -274,7 +349,7 @@ function laneFindings(
       ?.declarations[0]?.resolve(project);
     if (!declaration || !isClassDeclaration(declaration)) continue;
     if (!serviceFile.test(declaration.getSourceFile().fileName)) continue;
-    const writer = writerCache.get(declaration) ?? writes(declaration);
+    const writer = writerCache.get(declaration) ?? writes(project, declaration);
     writerCache.set(declaration, writer);
     if (!writer) continue;
     const lanes = lanesAround(node, new Set());
@@ -326,6 +401,11 @@ export function typeRuleFindings(root: string): TypeFinding[] {
         if (!inServer && checked.has(name)) continue;
         const file = project.program.getSourceFile(name);
         if (!file || isSpecFile(file)) continue;
+        if (fakeFile.test(name) && !checked.has(name)) {
+          checked.add(name);
+          findings.push(...recordingFindings(root, project, file));
+          continue;
+        }
         if (inServer) {
           if (useCaseFile.test(name))
             findings.push(...laneFindings(root, project, file, writerCache));

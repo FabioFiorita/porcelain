@@ -6,6 +6,7 @@ import type { GitActionReceiptStore } from '../../src/ports/git-action-receipt-s
 
 export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   private readonly rows: Map<string, GitActionReceipt>;
+  private readonly saved = new Map<string, GitActionReceipt>();
 
   constructor(receipts: readonly GitActionReceipt[] = []) {
     this.rows = new Map(
@@ -14,17 +15,17 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   }
 
   read(input: { requestId: string }): GitActionReceipt | undefined {
-    return structuredClone(this.rows.get(input.requestId));
+    const inserted = this.rows.get(input.requestId);
+    return inserted && this.current(inserted);
   }
 
   insert(input: GitActionReceipt): void {
     this.rows.set(input.requestId, structuredClone(input));
+    this.saved.delete(input.requestId);
   }
 
   save(input: GitActionReceipt): void {
-    [this.rows.get(input.requestId)]
-      .filter((stored) => stored !== undefined)
-      .forEach(() => this.rows.set(input.requestId, structuredClone(input)));
+    this.saved.set(input.requestId, structuredClone(input));
   }
 
   running(): GitActionReceipt[] {
@@ -56,10 +57,17 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   }
 
   remove(input: { requestIds: string[] }): void {
-    input.requestIds.forEach((requestId) => this.rows.delete(requestId));
+    input.requestIds.forEach((requestId) => {
+      this.rows.delete(requestId);
+      this.saved.delete(requestId);
+    });
   }
 
   all(): GitActionReceipt[] {
-    return [...this.rows.values()].map((receipt) => structuredClone(receipt));
+    return [...this.rows.values()].map((receipt) => this.current(receipt));
+  }
+
+  private current(inserted: GitActionReceipt): GitActionReceipt {
+    return structuredClone(this.saved.get(inserted.requestId) ?? inserted);
   }
 }

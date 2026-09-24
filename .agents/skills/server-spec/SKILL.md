@@ -46,7 +46,7 @@ For a behaviour change, write the failing case first when a focused spec can exp
 ## 5. Real things where the unit is about real things
 
 - Git commands run against a disposable real repository created in a temp directory and removed afterwards. Never read the developer's checkout.
-- Parsers get real captured output, including the malformed and truncated variants Git or the model actually produce.
+- Parsers get real captured output, including the malformed and truncated variants Git or the model actually produce. Git output is captured by `node packages/git/spec/fixtures/capture.ts`, which rebuilds every file from disposable repositories; a variant Git never produces is derived there by an explicit edit and its file name ends in `-hand-edited`.
 - A storage repository gets at most one persistence-and-cascade spec, through its port, on a disposable migrated SQLite database.
 
 ## 6. Placement

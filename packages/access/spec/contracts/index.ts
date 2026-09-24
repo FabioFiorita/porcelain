@@ -1,3 +1,4 @@
+export { deviceSightingStoreContract } from './device-sighting-store-contract.ts';
 export {
   deviceStoreContract,
   type DeviceStoreSubject,

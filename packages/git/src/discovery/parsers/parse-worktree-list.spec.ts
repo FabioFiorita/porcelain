@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseWorktreeList } from './parse-worktree-list.ts';
 
-const HEAD = '847c4a56aa33b6452cc83525965eb3a8463d2658';
+const HEAD = 'f4e8dd3408852fb71b1581394612bcf35e414dfc';
 
 describe('parseWorktreeList', () => {
   it('reads the main checkout and linked, detached and locked worktrees, keeping spaces in paths', () => {
