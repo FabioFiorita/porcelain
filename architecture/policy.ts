@@ -68,7 +68,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   process: { '.': './src/index.ts' },
 };
 
-for (const name of ['reviews', 'projects'])
+for (const name of ['access', 'git-actions', 'projects', 'reviews'])
   targetPackageExports[name] = {
     ...targetPackageExports[name],
     './store-contracts': './spec/contracts/index.ts',

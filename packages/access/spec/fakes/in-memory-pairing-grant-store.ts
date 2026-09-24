@@ -14,29 +14,42 @@ export class InMemoryPairingGrantStore implements PairingGrantStore {
   }
 
   add(input: { grants: readonly StoredPairingGrant[] }): void {
-    input.grants.forEach((grant) => this.grants.set(grant.id, grant));
+    input.grants.forEach((grant) =>
+      this.grants.set(grant.id, structuredClone(grant)),
+    );
   }
 
   find(input: { grantId: string }): StoredPairingGrant | undefined {
-    return this.grants.get(input.grantId);
+    return structuredClone(this.grants.get(input.grantId));
   }
 
   list(): StoredPairingGrant[] {
-    return [...this.grants.values()];
+    return [...this.grants.values()]
+      .map((grant) => structuredClone(grant))
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
   }
 
   markRevoked(input: { grant: StoredPairingGrant; revokedAt: string }): void {
-    this.grants.set(input.grant.id, {
-      ...input.grant,
+    this.change(input.grant.id, (stored) => ({
+      ...stored,
       revokedAt: input.revokedAt,
-    });
+    }));
   }
 
   redeem(input: PairingRedemption): void {
-    this.grants.set(input.grant.id, {
-      ...input.grant,
+    this.change(input.grant.id, (stored) => ({
+      ...stored,
       redeemedAt: input.redeemedAt,
-    });
+    }));
     this.devices.add(input.device);
+  }
+
+  private change(
+    grantId: string,
+    update: (stored: StoredPairingGrant) => StoredPairingGrant,
+  ): void {
+    [this.grants.get(grantId)]
+      .filter((stored) => stored !== undefined)
+      .forEach((stored) => this.grants.set(grantId, update(stored)));
   }
 }

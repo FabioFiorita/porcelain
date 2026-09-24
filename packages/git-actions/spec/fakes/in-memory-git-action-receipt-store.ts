@@ -22,7 +22,9 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   }
 
   save(input: GitActionReceipt): void {
-    this.rows.set(input.requestId, structuredClone(input));
+    [this.rows.get(input.requestId)]
+      .filter((stored) => stored !== undefined)
+      .forEach(() => this.rows.set(input.requestId, structuredClone(input)));
   }
 
   running(): GitActionReceipt[] {
