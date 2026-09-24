@@ -1,33 +1,27 @@
-import type {
-  CreateCommentThreadRequest,
-  CreateCommentThreadResponse,
-} from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CommentWriter } from '@porcelain/reviews/models';
-import type {
-  CheckWorktreeAccessService,
-  CreateCommentThreadService,
-} from '@porcelain/reviews/services';
+import type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';
+import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { CreateCommentThreadInput } from '@porcelain/reviews/models';
+import type { CreateCommentThreadService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class CreateCommentThreadUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly createCommentThread: CreateCommentThreadService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
+    checkWorktree: CheckWorktreeService,
     createCommentThread: CreateCommentThreadService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.checkWorktree = checkWorktree;
     this.createCommentThread = createCommentThread;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -35,8 +29,7 @@ export class CreateCommentThreadUseCase {
   }
 
   async execute(
-    input: WorktreeParams &
-      CreateCommentThreadRequest & { writer: CommentWriter },
+    input: CreateCommentThreadInput,
     context: OperationContext,
   ): Promise<CreateCommentThreadResponse> {
     const { worktreeId } = input;
@@ -44,8 +37,8 @@ export class CreateCommentThreadUseCase {
       this.laneKeys.worktree(worktreeId),
       'write',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'write' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'writing' },
           signal,
         );
         return this.createCommentThread.execute(input);

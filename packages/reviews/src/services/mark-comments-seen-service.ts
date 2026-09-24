@@ -1,27 +1,28 @@
 import type {
   MarkCommentsSeenInput,
   MarkCommentsSeenResult,
-} from '../models/comment-operations.ts';
+} from '../models/mark-comments-seen.ts';
 import type { CommentSeenStore } from '../ports/comment-seen-store.ts';
 import type { CommentStore } from '../ports/comment-store.ts';
 import { seenThrough } from '../rules/comment-threads.ts';
 
 export class MarkCommentsSeenService {
-  private readonly commentSeenStore: CommentSeenStore;
-  private readonly commentStore: CommentStore;
+  private readonly commentSeen: CommentSeenStore;
+  private readonly comments: CommentStore;
 
-  constructor(commentSeenStore: CommentSeenStore, commentStore: CommentStore) {
-    this.commentSeenStore = commentSeenStore;
-    this.commentStore = commentStore;
+  constructor(commentSeen: CommentSeenStore, comments: CommentStore) {
+    this.commentSeen = commentSeen;
+    this.comments = comments;
   }
 
   execute(input: MarkCommentsSeenInput): MarkCommentsSeenResult {
+    const { worktreeId } = input;
     const seen = seenThrough(
-      this.commentSeenStore.seenThrough(input.worktreeId),
+      this.commentSeen.seenThrough({ worktreeId }),
       input.throughRevision,
-      this.commentStore.lastRevisionIn(input.worktreeId),
+      this.comments.lastRevision({ worktreeId }),
     );
-    this.commentSeenStore.save(input.worktreeId, seen);
-    return { worktreeId: input.worktreeId, seenThrough: seen };
+    this.commentSeen.save({ worktreeId, seenThrough: seen });
+    return { worktreeId, seenThrough: seen };
   }
 }

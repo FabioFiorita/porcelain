@@ -3,30 +3,28 @@ import type {
   RemoveReviewedFileResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
-  CheckWorktreeAccessService,
-  RemoveReviewedFileService,
-} from '@porcelain/reviews/services';
+import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { RemoveReviewedFileService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class RemoveReviewedFileUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly removeReviewedFile: RemoveReviewedFileService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
+    checkWorktree: CheckWorktreeService,
     removeReviewedFile: RemoveReviewedFileService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.checkWorktree = checkWorktree;
     this.removeReviewedFile = removeReviewedFile;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -42,8 +40,8 @@ export class RemoveReviewedFileUseCase {
       this.laneKeys.worktree(worktreeId),
       'write',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'write' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'writing' },
           signal,
         );
         return this.removeReviewedFile.execute(input);

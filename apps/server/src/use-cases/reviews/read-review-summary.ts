@@ -19,6 +19,10 @@ export class ReadReviewSummaryUseCase {
     input: ReadReviewSummaryParams & ReadReviewSummaryQuery,
   ): ReadReviewSummaryResponse {
     this.lanes.assertOpen();
-    return this.readReviewSummary.execute(input);
+    return this.readReviewSummary.execute({
+      token: input.token,
+      expires: String(input.expires),
+      signature: input.signature,
+    }).html;
   }
 }

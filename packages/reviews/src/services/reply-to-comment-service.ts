@@ -3,38 +3,47 @@ import { CommentIdentityConflictError } from '../errors/comment-identity-conflic
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
 import type {
+  CommentLimits,
+  CommentMessage,
+} from '../models/comment-thread.ts';
+import type {
   ReplyToCommentInput,
   ReplyToCommentResult,
-} from '../models/comment-operations.ts';
-import type { CommentMessage } from '../models/comment-thread.ts';
+} from '../models/reply-to-comment.ts';
 import type { CommentStore } from '../ports/comment-store.ts';
 import {
   commentAuthor,
   commentStorageSize,
-  lastAgentRevision,
   repeatsReply,
   replyFits,
 } from '../rules/comment-threads.ts';
 
 export class ReplyToCommentService {
-  private readonly commentStore: CommentStore;
+  private readonly comments: CommentStore;
   private readonly idSource: IdSource;
   private readonly clock: Clock;
+  private readonly limits: CommentLimits;
 
-  constructor(commentStore: CommentStore, idSource: IdSource, clock: Clock) {
-    this.commentStore = commentStore;
+  constructor(
+    comments: CommentStore,
+    idSource: IdSource,
+    clock: Clock,
+    limits: CommentLimits,
+  ) {
+    this.comments = comments;
     this.idSource = idSource;
     this.clock = clock;
+    this.limits = limits;
   }
 
   execute(input: ReplyToCommentInput): ReplyToCommentResult {
     const messageId = input.messageId ?? this.idSource.next();
     const author = commentAuthor(input.writer);
-    const earlier = this.commentStore.findMessage(messageId);
+    const earlier = this.comments.findMessage({ messageId });
+    const current = this.comments.find({ threadId: input.threadId });
     if (earlier) {
-      const thread = this.commentStore.find(input.threadId);
       if (
-        !thread ||
+        !current ||
         !repeatsReply(earlier, {
           worktreeId: input.worktreeId,
           threadId: input.threadId,
@@ -43,9 +52,8 @@ export class ReplyToCommentService {
         })
       )
         throw new CommentIdentityConflictError();
-      return thread;
+      return current;
     }
-    const current = this.commentStore.find(input.threadId);
     if (!current || current.worktreeId !== input.worktreeId)
       throw new CommentTargetNotFoundError();
     const message: CommentMessage = {
@@ -54,18 +62,18 @@ export class ReplyToCommentService {
       author,
       createdAt: this.clock.now(),
     };
-    const messages = [...current.messages, message];
-    const sizeBytes = commentStorageSize({ ...current, messages });
-    if (
-      !replyFits(current, this.commentStore.usage(input.worktreeId), sizeBytes)
-    )
-      throw new CommentLimitExceededError();
-    const revision = this.commentStore.lastRevision() + 1;
-    this.commentStore.append(current.worktreeId, current.id, message, {
-      revision,
-      sizeBytes,
-      lastAgentRevision: lastAgentRevision(author, revision),
+    const sizeBytes = commentStorageSize({
+      ...current,
+      messages: [...current.messages, message],
     });
-    return { ...current, messages, revision };
+    const usage = this.comments.usage({ worktreeId: input.worktreeId });
+    if (!replyFits(current, usage, sizeBytes, this.limits))
+      throw new CommentLimitExceededError();
+    return this.comments.append({
+      thread: current,
+      message,
+      sizeBytes,
+      writtenByAgent: author === 'agent',
+    });
   }
 }

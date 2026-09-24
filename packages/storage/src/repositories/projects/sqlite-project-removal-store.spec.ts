@@ -81,23 +81,32 @@ function seed(session: StorageSession, projectId: string, worktreeId: string) {
     summarySecret: 'secret',
     layers: [],
   });
-  createReviewedFileStore(session).save(worktreeId, {
-    path: 'README.md',
-    fingerprint: 'fingerprint',
-    reviewedAt: at,
-    stale: false,
+  createReviewedFileStore(session).save({
+    worktreeId,
+    marks: [
+      {
+        path: 'README.md',
+        fingerprint: 'fingerprint',
+        reviewedAt: at,
+        stale: false,
+      },
+    ],
   });
-  createReviewedLayerStore(session).save(worktreeId, {
-    layerId: 'layer',
-    fingerprint: 'fingerprint',
-    reviewedAt: at,
-    stale: false,
+  createReviewedLayerStore(session).save({
+    worktreeId,
+    mark: {
+      layerId: 'layer',
+      fingerprint: 'fingerprint',
+      reviewedAt: at,
+      stale: false,
+    },
   });
-  createCommentStore(session).insert(thread(worktreeId), {
+  createCommentStore(session).insert({
+    content: thread(worktreeId),
     sizeBytes: 4,
-    lastAgentRevision: undefined,
+    writtenByAgent: false,
   });
-  createCommentSeenStore(session).save(worktreeId, 1);
+  createCommentSeenStore(session).save({ worktreeId, seenThrough: 1 });
   createGitActionStore(session).insert(receipt(projectId, worktreeId));
 }
 
@@ -111,14 +120,16 @@ function stored(
       .read()
       .projects.some((entry) => entry.id === projectId),
     preferences: createFilePreferenceStore(session).count(projectId),
-    review: createReviewStore(session).read(worktreeId) !== undefined,
-    reviewedFiles: createReviewedFileStore(session).count(worktreeId),
-    reviewedLayers: createReviewedLayerStore(session).list(worktreeId).length,
-    threads: createCommentStore(session).list(worktreeId).length,
+    review: createReviewStore(session).read({ worktreeId }) !== undefined,
+    reviewedFiles: createReviewedFileStore(session).list({ worktreeId }).length,
+    reviewedLayers: createReviewedLayerStore(session).list({ worktreeId })
+      .length,
+    threads: createCommentStore(session).list({ worktreeId }).length,
     message:
-      createCommentStore(session).findMessage(`message-${worktreeId}`) !==
-      undefined,
-    seenThrough: createCommentSeenStore(session).seenThrough(worktreeId),
+      createCommentStore(session).findMessage({
+        messageId: `message-${worktreeId}`,
+      }) !== undefined,
+    seenThrough: createCommentSeenStore(session).seenThrough({ worktreeId }),
     receipt:
       createGitActionStore(session).read(`request-${worktreeId}`) !== undefined,
   };

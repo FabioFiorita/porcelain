@@ -2,29 +2,20 @@ import type {
   CommentAnchor,
   CommentAuthor,
   CommentContent,
+  CommentLimits,
   CommentThread,
   CommentUsage,
   CommentWriter,
   PostedCommentMessage,
 } from '../models/comment-thread.ts';
-
-export const THREADS_PER_WORKTREE = 100;
-export const MESSAGES_PER_THREAD = 100;
-export const COMMENT_BYTES_PER_WORKTREE = 1024 * 1024;
+import { utf8ByteLength } from './review-digests.ts';
 
 export function commentAuthor(writer: CommentWriter): CommentAuthor {
   return writer.kind === 'agent' ? 'agent' : 'reviewer';
 }
 
-export function lastAgentRevision(
-  author: CommentAuthor,
-  revision: number,
-): number | undefined {
-  return author === 'agent' ? revision : undefined;
-}
-
 export function commentStorageSize(content: CommentContent): number {
-  return new TextEncoder().encode(
+  return utf8ByteLength(
     JSON.stringify({
       id: content.id,
       worktreeId: content.worktreeId,
@@ -32,13 +23,17 @@ export function commentStorageSize(content: CommentContent): number {
       resolved: false,
       messages: content.messages,
     }),
-  ).byteLength;
+  );
 }
 
-export function threadFits(usage: CommentUsage, sizeBytes: number): boolean {
+export function threadFits(
+  usage: CommentUsage,
+  sizeBytes: number,
+  limits: CommentLimits,
+): boolean {
   return (
-    usage.threads < THREADS_PER_WORKTREE &&
-    usage.bytes + sizeBytes <= COMMENT_BYTES_PER_WORKTREE
+    usage.threads < limits.threadsPerWorktree &&
+    usage.bytes + sizeBytes <= limits.bytesPerWorktree
   );
 }
 
@@ -46,11 +41,12 @@ export function replyFits(
   thread: CommentThread,
   usage: CommentUsage,
   sizeBytes: number,
+  limits: CommentLimits,
 ): boolean {
   return (
-    thread.messages.length < MESSAGES_PER_THREAD &&
+    thread.messages.length < limits.messagesPerThread &&
     usage.bytes - commentStorageSize(thread) + sizeBytes <=
-      COMMENT_BYTES_PER_WORKTREE
+      limits.bytesPerWorktree
   );
 }
 
@@ -66,7 +62,7 @@ function sameComparison(
   return right.kind === 'file';
 }
 
-export function sameAnchor(left: CommentAnchor, right: CommentAnchor): boolean {
+function sameAnchor(left: CommentAnchor, right: CommentAnchor): boolean {
   const shared =
     left.filePath === right.filePath &&
     left.revision === right.revision &&
@@ -117,6 +113,10 @@ export function repeatsReply(
     message.body === attempt.body &&
     message.author === attempt.author
   );
+}
+
+export function waitsForAgent(thread: CommentThread): boolean {
+  return !thread.resolved && thread.messages.at(-1)?.author !== 'agent';
 }
 
 export function seenThrough(

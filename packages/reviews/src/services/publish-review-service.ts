@@ -1,41 +1,53 @@
 import type { Clock, IdSource } from '@porcelain/kernel/ports';
+import { BoxLaneOutOfRangeError } from '../errors/box-lane-out-of-range-error.ts';
+import { DuplicateLayerIdError } from '../errors/duplicate-layer-id-error.ts';
+import { DuplicateStepIdError } from '../errors/duplicate-step-id-error.ts';
 import { ReviewConflictError } from '../errors/review-conflict-error.ts';
+import { StepLaneOutOfRangeError } from '../errors/step-lane-out-of-range-error.ts';
+import { UnknownArrowBoxError } from '../errors/unknown-arrow-box-error.ts';
+import { UnknownArrowStepError } from '../errors/unknown-arrow-step-error.ts';
 import type {
   PublishReviewInput,
   PublishReviewResult,
-} from '../models/review-operations.ts';
-import type { Review, ReviewLayer } from '../models/review.ts';
+} from '../models/publish-review.ts';
+import type {
+  Review,
+  ReviewDraftProblem,
+  ReviewLayer,
+} from '../models/review.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import type { SecretSource } from '../ports/secret-source.ts';
 import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
-import { assertReviewDraft } from '../rules/review-draft.ts';
-import { publishedLines } from '../rules/review-evidence.ts';
+import { reviewDraftProblem } from '../rules/review-draft.ts';
+import { publishedLines, reviewFiles } from '../rules/review-evidence.ts';
 import { summaryStyleWarnings } from '../rules/summary-style.ts';
 
 export class PublishReviewService {
-  private readonly reviewStore: ReviewStore;
+  private readonly reviews: ReviewStore;
   private readonly clock: Clock;
   private readonly idSource: IdSource;
   private readonly secretSource: SecretSource;
 
   constructor(
-    reviewStore: ReviewStore,
+    reviews: ReviewStore,
     clock: Clock,
     idSource: IdSource,
     secretSource: SecretSource,
   ) {
-    this.reviewStore = reviewStore;
+    this.reviews = reviews;
     this.clock = clock;
     this.idSource = idSource;
     this.secretSource = secretSource;
   }
 
   execute(input: PublishReviewInput): PublishReviewResult {
-    const { draft, files } = input;
-    assertReviewDraft(draft);
-    const current = this.reviewStore.read(input.worktreeId);
+    const { draft } = input;
+    const problem = reviewDraftProblem(draft);
+    if (problem !== undefined) throw this.invalid(problem);
+    const current = this.reviews.read({ worktreeId: input.worktreeId });
     if ((current?.revision ?? 0) !== draft.expectedRevision)
       throw new ReviewConflictError();
+    const files = reviewFiles(input.texts);
     const layers = draft.layers.map((layer): ReviewLayer => {
       const steps = layer.steps.map((step) => ({
         ...structuredClone(step),
@@ -60,7 +72,24 @@ export class PublishReviewService {
         : { diagram: structuredClone(draft.diagram) }),
       layers,
     };
-    this.reviewStore.save(review);
+    this.reviews.save(review);
     return { review, warnings: summaryStyleWarnings(draft.summaryHtml) };
+  }
+
+  private invalid(problem: ReviewDraftProblem): Error {
+    switch (problem) {
+      case 'duplicate-layer-id':
+        return new DuplicateLayerIdError();
+      case 'duplicate-step-id':
+        return new DuplicateStepIdError();
+      case 'step-lane-out-of-range':
+        return new StepLaneOutOfRangeError();
+      case 'unknown-arrow-step':
+        return new UnknownArrowStepError();
+      case 'box-lane-out-of-range':
+        return new BoxLaneOutOfRangeError();
+      case 'unknown-arrow-box':
+        return new UnknownArrowBoxError();
+    }
   }
 }

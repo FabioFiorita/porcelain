@@ -5,6 +5,7 @@ export { CommentTargetNotFoundError } from './comment-target-not-found-error.ts'
 export { DuplicateLayerIdError } from './duplicate-layer-id-error.ts';
 export { DuplicateStepIdError } from './duplicate-step-id-error.ts';
 export { ReviewConflictError } from './review-conflict-error.ts';
+export { ReviewLayerNotFoundError } from './review-layer-not-found-error.ts';
 export { ReviewSummaryNotFoundError } from './review-summary-not-found-error.ts';
 export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
 export { StepLaneOutOfRangeError } from './step-lane-out-of-range-error.ts';

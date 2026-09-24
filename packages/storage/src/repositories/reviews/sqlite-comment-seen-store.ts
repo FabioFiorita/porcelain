@@ -10,17 +10,18 @@ export class SqliteCommentSeenStore implements CommentSeenStore {
     this.db = db;
   }
 
-  seenThrough(worktreeId: string): number {
+  seenThrough(input: { worktreeId: string }): number {
     return (
       this.db
         .select({ seenThrough: commentReads.seenThrough })
         .from(commentReads)
-        .where(eq(commentReads.worktreeId, worktreeId))
+        .where(eq(commentReads.worktreeId, input.worktreeId))
         .get()?.seenThrough ?? 0
     );
   }
 
-  save(worktreeId: string, seenThrough: number): void {
+  save(input: { worktreeId: string; seenThrough: number }): void {
+    const { worktreeId, seenThrough } = input;
     this.db.transaction(
       (tx) => {
         tx.insert(commentReads)

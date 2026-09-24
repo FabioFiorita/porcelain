@@ -9,6 +9,11 @@ import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.t
 import { CreateCommentThreadService } from './create-comment-thread-service.ts';
 
 const worktreeId = 'a'.repeat(64);
+const limits = {
+  threadsPerWorktree: 100,
+  messagesPerThread: 100,
+  bytesPerWorktree: 1024 * 1024,
+};
 
 function setup() {
   const store = new InMemoryCommentStore();
@@ -16,6 +21,7 @@ function setup() {
     store,
     new SequentialIdSource(),
     new FixedClock(),
+    limits,
   );
   return { store, service };
 }
@@ -42,7 +48,7 @@ describe('CreateCommentThreadService', () => {
       revision: 1,
       messages: [{ body: 'Looks good', author: 'reviewer' }],
     });
-    expect(store.list(worktreeId)).toEqual([thread]);
+    expect(store.list({ worktreeId })).toEqual([thread]);
   });
 
   it('writes as the agent only when the writer is the agent', () => {
@@ -74,7 +80,7 @@ describe('CreateCommentThreadService', () => {
       }),
     );
     expect(again).toEqual(first);
-    expect(store.list(worktreeId)).toHaveLength(1);
+    expect(store.list({ worktreeId })).toHaveLength(1);
   });
 
   it('refuses a thread id reused for different content, another anchor or another worktree', () => {
@@ -104,7 +110,7 @@ describe('CreateCommentThreadService', () => {
   it('opens the hundredth thread of a worktree and refuses the next', () => {
     const { service, store } = setup();
     for (let index = 0; index < 100; index += 1) service.execute(input());
-    expect(store.list(worktreeId)).toHaveLength(100);
+    expect(store.list({ worktreeId })).toHaveLength(100);
     expect(() => service.execute(input())).toThrow(CommentLimitExceededError);
     expect(() =>
       service.execute(input({ worktreeId: 'b'.repeat(64) })),
@@ -125,8 +131,10 @@ describe('CreateCommentThreadService', () => {
       }
     }
     expect(refused).toBeInstanceOf(CommentLimitExceededError);
-    expect(store.usage(worktreeId).bytes).toBeLessThanOrEqual(1024 * 1024);
-    expect(store.usage(worktreeId).bytes + 15_000).toBeGreaterThan(1024 * 1024);
-    expect(store.list(worktreeId)).toHaveLength(created);
+    expect(store.usage({ worktreeId }).bytes).toBeLessThanOrEqual(1024 * 1024);
+    expect(store.usage({ worktreeId }).bytes + 15_000).toBeGreaterThan(
+      1024 * 1024,
+    );
+    expect(store.list({ worktreeId })).toHaveLength(created);
   });
 });

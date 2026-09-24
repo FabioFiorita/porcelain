@@ -3,31 +3,29 @@ import type {
   ResolveCommentThreadRequest,
   ResolveCommentThreadResponse,
 } from '@porcelain/contracts/reviews';
-import type {
-  CheckWorktreeAccessService,
-  ResolveCommentThreadService,
-} from '@porcelain/reviews/services';
+import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { UpdateCommentThreadService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class ResolveCommentThreadUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
-  private readonly resolveCommentThread: ResolveCommentThreadService;
+  private readonly checkWorktree: CheckWorktreeService;
+  private readonly updateCommentThread: UpdateCommentThreadService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
-    resolveCommentThread: ResolveCommentThreadService,
+    checkWorktree: CheckWorktreeService,
+    updateCommentThread: UpdateCommentThreadService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
-    this.resolveCommentThread = resolveCommentThread;
+    this.checkWorktree = checkWorktree;
+    this.updateCommentThread = updateCommentThread;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -42,11 +40,11 @@ export class ResolveCommentThreadUseCase {
       this.laneKeys.worktree(worktreeId),
       'write',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'write' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'writing' },
           signal,
         );
-        return this.resolveCommentThread.execute(input);
+        return this.updateCommentThread.execute(input);
       },
       { callerSignal: context.signal },
     );

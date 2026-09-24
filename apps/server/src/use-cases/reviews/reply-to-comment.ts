@@ -1,33 +1,27 @@
-import type {
-  CommentThreadParams,
-  ReplyToCommentRequest,
-  ReplyToCommentResponse,
-} from '@porcelain/contracts/reviews';
-import type { CommentWriter } from '@porcelain/reviews/models';
-import type {
-  CheckWorktreeAccessService,
-  ReplyToCommentService,
-} from '@porcelain/reviews/services';
+import type { ReplyToCommentResponse } from '@porcelain/contracts/reviews';
+import type { CheckWorktreeService } from '@porcelain/files/services';
+import type { ReplyToCommentInput } from '@porcelain/reviews/models';
+import type { ReplyToCommentService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class ReplyToCommentUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly replyToComment: ReplyToCommentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
+    checkWorktree: CheckWorktreeService,
     replyToComment: ReplyToCommentService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.checkWorktree = checkWorktree;
     this.replyToComment = replyToComment;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -35,8 +29,7 @@ export class ReplyToCommentUseCase {
   }
 
   async execute(
-    input: CommentThreadParams &
-      ReplyToCommentRequest & { writer: CommentWriter },
+    input: ReplyToCommentInput,
     context: OperationContext,
   ): Promise<ReplyToCommentResponse> {
     const { worktreeId } = input;
@@ -44,8 +37,8 @@ export class ReplyToCommentUseCase {
       this.laneKeys.worktree(worktreeId),
       'write',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'write' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'writing' },
           signal,
         );
         return this.replyToComment.execute(input);

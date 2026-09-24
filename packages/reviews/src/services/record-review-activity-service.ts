@@ -1,22 +1,20 @@
-import type {
-  RecordReviewActivityInput,
-  RecordReviewActivityResult,
-} from '../models/review-operations.ts';
+import type { RecordReviewActivityInput } from '../models/record-review-activity.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 
 export class RecordReviewActivityService {
-  private readonly reviewStore: ReviewStore;
+  private readonly reviews: ReviewStore;
 
-  constructor(reviewStore: ReviewStore) {
-    this.reviewStore = reviewStore;
+  constructor(reviews: ReviewStore) {
+    this.reviews = reviews;
   }
 
-  execute(input: RecordReviewActivityInput): RecordReviewActivityResult {
-    if (input.active === input.review.active) return;
-    this.reviewStore.setActive(
-      input.review.worktreeId,
-      input.review.revision,
-      input.active,
-    );
+  execute(input: RecordReviewActivityInput): void {
+    const { review, active } = input;
+    if (active === review.active) return;
+    this.reviews.setActive({
+      worktreeId: review.worktreeId,
+      revision: review.revision,
+      active,
+    });
   }
 }

@@ -11,7 +11,7 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
     this.db = db;
   }
 
-  list(worktreeId: string): ReviewedLayerMark[] {
+  list(input: { worktreeId: string }): ReviewedLayerMark[] {
     return this.db
       .select({
         layerId: reviewedLayers.layerId,
@@ -20,12 +20,13 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
         stale: reviewedLayers.stale,
       })
       .from(reviewedLayers)
-      .where(eq(reviewedLayers.worktreeId, worktreeId))
+      .where(eq(reviewedLayers.worktreeId, input.worktreeId))
       .orderBy(asc(reviewedLayers.reviewedAt), asc(reviewedLayers.layerId))
       .all();
   }
 
-  save(worktreeId: string, mark: ReviewedLayerMark): void {
+  save(input: { worktreeId: string; mark: ReviewedLayerMark }): void {
+    const { worktreeId, mark } = input;
     this.db.transaction(
       (tx) => {
         tx.insert(reviewedLayers)
@@ -44,14 +45,14 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
     );
   }
 
-  remove(worktreeId: string, layerId: string): void {
+  remove(input: { worktreeId: string; layerId: string }): void {
     this.db.transaction(
       (tx) => {
         tx.delete(reviewedLayers)
           .where(
             and(
-              eq(reviewedLayers.worktreeId, worktreeId),
-              eq(reviewedLayers.layerId, layerId),
+              eq(reviewedLayers.worktreeId, input.worktreeId),
+              eq(reviewedLayers.layerId, input.layerId),
             ),
           )
           .run();
@@ -60,20 +61,20 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
     );
   }
 
-  setStale(
-    worktreeId: string,
-    layerIds: readonly string[],
-    stale: boolean,
-  ): void {
-    if (layerIds.length === 0) return;
+  setStale(input: {
+    worktreeId: string;
+    layerIds: readonly string[];
+    stale: boolean;
+  }): void {
+    if (input.layerIds.length === 0) return;
     this.db.transaction(
       (tx) => {
         tx.update(reviewedLayers)
-          .set({ stale })
+          .set({ stale: input.stale })
           .where(
             and(
-              eq(reviewedLayers.worktreeId, worktreeId),
-              inArray(reviewedLayers.layerId, [...layerIds]),
+              eq(reviewedLayers.worktreeId, input.worktreeId),
+              inArray(reviewedLayers.layerId, [...input.layerIds]),
             ),
           )
           .run();

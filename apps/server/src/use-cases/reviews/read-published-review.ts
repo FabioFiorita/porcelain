@@ -1,112 +1,126 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  PublishedReview,
-  ReadPublishedReviewResponse,
-} from '@porcelain/contracts/reviews';
+  ReadChangeDiffsService,
+  ReadChangeFingerprintsService,
+  ReadWorktreeStatusService,
+} from '@porcelain/changes/services';
+import type { ReadPublishedReviewResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ResolvedReview } from '@porcelain/reviews/models';
 import type {
-  CheckWorktreeAccessService,
+  CheckWorktreeService,
+  ReadTextFileService,
+} from '@porcelain/files/services';
+import type {
+  GeneratePublishedReviewService,
+  ListReviewEvidenceService,
   ReadPublishedReviewService,
-  ReadReviewChangesService,
-  ReadReviewFilesService,
-  ReadReviewPatchesService,
   RecordReviewActivityService,
-  ResolvePublishedReviewService,
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class ReadPublishedReviewUseCase {
-  private readonly checkWorktreeAccess: CheckWorktreeAccessService;
+  private readonly checkWorktree: CheckWorktreeService;
   private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readReviewChanges: ReadReviewChangesService;
-  private readonly readReviewPatches: ReadReviewPatchesService;
-  private readonly readReviewFiles: ReadReviewFilesService;
-  private readonly resolvePublishedReview: ResolvePublishedReviewService;
-  private readonly recordReviewActivity: RecordReviewActivityService;
+  private readonly readWorktreeStatus: ReadWorktreeStatusService;
+  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly listReviewEvidence: ListReviewEvidenceService;
+  private readonly readTextFile: ReadTextFileService;
+  private readonly readChangeDiffs: ReadChangeDiffsService;
   private readonly readEnvironment: ReadEnvironmentService;
+  private readonly generatePublishedReview: GeneratePublishedReviewService;
+  private readonly recordReviewActivity: RecordReviewActivityService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktreeAccess: CheckWorktreeAccessService,
+    checkWorktree: CheckWorktreeService,
     readPublishedReview: ReadPublishedReviewService,
-    readReviewChanges: ReadReviewChangesService,
-    readReviewPatches: ReadReviewPatchesService,
-    readReviewFiles: ReadReviewFilesService,
-    resolvePublishedReview: ResolvePublishedReviewService,
-    recordReviewActivity: RecordReviewActivityService,
+    readWorktreeStatus: ReadWorktreeStatusService,
+    readChangeFingerprints: ReadChangeFingerprintsService,
+    listReviewEvidence: ListReviewEvidenceService,
+    readTextFile: ReadTextFileService,
+    readChangeDiffs: ReadChangeDiffsService,
     readEnvironment: ReadEnvironmentService,
+    generatePublishedReview: GeneratePublishedReviewService,
+    recordReviewActivity: RecordReviewActivityService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
-    this.checkWorktreeAccess = checkWorktreeAccess;
+    this.checkWorktree = checkWorktree;
     this.readPublishedReview = readPublishedReview;
-    this.readReviewChanges = readReviewChanges;
-    this.readReviewPatches = readReviewPatches;
-    this.readReviewFiles = readReviewFiles;
-    this.resolvePublishedReview = resolvePublishedReview;
-    this.recordReviewActivity = recordReviewActivity;
+    this.readWorktreeStatus = readWorktreeStatus;
+    this.readChangeFingerprints = readChangeFingerprints;
+    this.listReviewEvidence = listReviewEvidence;
+    this.readTextFile = readTextFile;
+    this.readChangeDiffs = readChangeDiffs;
     this.readEnvironment = readEnvironment;
+    this.generatePublishedReview = generatePublishedReview;
+    this.recordReviewActivity = recordReviewActivity;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
 
-  execute(
+  async execute(
     input: WorktreeParams,
     context: OperationContext,
   ): Promise<ReadPublishedReviewResponse> {
     const { worktreeId } = input;
-    return this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+    const lane = this.laneKeys.worktree(worktreeId);
+    const read = await this.lanes.run(
+      lane,
       'read',
       async ({ signal }) => {
-        await this.checkWorktreeAccess.execute(
-          { worktreeId, intent: 'read' },
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
           signal,
         );
-        const review = this.readPublishedReview.execute({ worktreeId });
-        if (review === undefined) return { review: undefined };
-        const changes = await this.readReviewChanges.execute(
+        const published = this.readPublishedReview.execute({ worktreeId });
+        if (published.kind === 'none') return published;
+        const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,
         );
-        const patches = await this.readReviewPatches.execute(
-          { changes },
+        const { changes } = await this.readChangeFingerprints.execute(
+          { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
-        const files = await this.readReviewFiles.execute(
-          { worktreeId, layers: review.layers, changes },
-          signal,
-        );
-        const resolved = this.resolvePublishedReview.execute({
-          environmentId: this.readEnvironment.execute().environmentId,
-          review,
-          files,
+        const evidence = this.listReviewEvidence.execute({
+          layers: published.review.layers,
           changes,
-          patches,
         });
-        this.recordReviewActivity.execute({ review, active: resolved.active });
-        return { review: this.presented(resolved) };
+        const texts = await Promise.allSettled(
+          evidence.paths.map((path) =>
+            this.readTextFile.execute({ worktreeId, path }, signal),
+          ),
+        );
+        const diffs = await this.readChangeDiffs.execute(
+          { worktreeId, comparisons: evidence.comparisons },
+          signal,
+        );
+        const resolved = this.generatePublishedReview.execute({
+          environmentId: this.readEnvironment.execute().environmentId,
+          review: published.review,
+          changes,
+          texts,
+          diffs,
+        });
+        return { ...published, resolved };
       },
       { callerSignal: context.signal },
     );
-  }
-
-  private presented(resolved: ResolvedReview): PublishedReview {
-    const { summary, ...review } = resolved;
-    const query = new URLSearchParams({
-      expires: String(summary.expires),
-      signature: summary.signature,
-    });
-    return {
-      ...review,
-      summary: {
-        url: `/review-summaries/${encodeURIComponent(summary.token)}?${query.toString()}`,
-        byteLength: summary.byteLength,
-      },
-    };
+    if (read.kind === 'none') return { review: undefined };
+    await this.lanes.run(
+      lane,
+      'write',
+      async () =>
+        this.recordReviewActivity.execute({
+          review: read.review,
+          active: read.resolved.active,
+        }),
+      { callerSignal: context.signal },
+    );
+    return { review: read.resolved };
   }
 }

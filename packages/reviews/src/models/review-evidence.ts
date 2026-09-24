@@ -1,38 +1,28 @@
-import type { ExpectedFile, FileChange } from '@porcelain/kernel/models';
+export type ReviewFiles = ReadonlyMap<string, string>;
 
-export type ReadChangesResult = {
-  worktreeId: string;
-  statusToken: string;
-  changes: FileChange[];
+export type ReviewText = {
+  path: string;
+  text: string;
 };
 
-export type ChangeSelection = {
+export type ReviewTextRead = PromiseSettledResult<ReviewText>;
+
+export type ReviewDiffSelection = {
   scope: 'staged' | 'unstaged';
   oldPath?: string | undefined;
   newPath?: string | undefined;
 };
 
-export type ChangeDiffContent =
+export type ReviewDiffContent =
   | { kind: 'text'; patch: string }
   | { kind: 'metadata-only'; patch: string }
   | { kind: 'binary' }
   | { kind: 'omitted' };
 
-export type ChangeDiff = {
-  selection: ChangeSelection;
-  content: ChangeDiffContent;
+export type ReviewDiff = {
+  selection: ReviewDiffSelection;
+  content: ReviewDiffContent;
 };
-
-export type ChangeDiffs = {
-  diffs: ChangeDiff[];
-};
-
-export type DiffBatch = {
-  expectedFiles: ExpectedFile[];
-  selections: ChangeSelection[];
-};
-
-export type ReviewFiles = ReadonlyMap<string, string>;
 
 export type ReviewChange = {
   path: string;
