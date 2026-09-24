@@ -1,5 +1,7 @@
-import type { ChangeStatusObservation } from '../models/change-status.ts';
-import type { WorktreeInput } from '../models/operation-inputs.ts';
+import type {
+  ReadWorktreeStatusInput,
+  ReadWorktreeStatusResult,
+} from '../models/read-worktree-status.ts';
 import type { ChangeStatusReader } from '../ports/change-status-reader.ts';
 
 export class ReadWorktreeStatusService {
@@ -10,9 +12,9 @@ export class ReadWorktreeStatusService {
   }
 
   execute(
-    input: WorktreeInput,
+    input: ReadWorktreeStatusInput,
     signal?: AbortSignal,
-  ): Promise<ChangeStatusObservation> {
-    return this.changeStatusReader.readStatus(input.worktreeId, signal);
+  ): Promise<ReadWorktreeStatusResult> {
+    return this.changeStatusReader.readStatus(input, signal);
   }
 }

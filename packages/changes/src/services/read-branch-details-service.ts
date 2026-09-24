@@ -1,5 +1,7 @@
-import type { BranchDetails } from '../models/change-status.ts';
-import type { ReadBranchDetailsInput } from '../models/operation-inputs.ts';
+import type {
+  ReadBranchDetailsInput,
+  ReadBranchDetailsResult,
+} from '../models/read-branch-details.ts';
 import type { ChangeStatusReader } from '../ports/change-status-reader.ts';
 
 export class ReadBranchDetailsService {
@@ -12,11 +14,13 @@ export class ReadBranchDetailsService {
   execute(
     input: ReadBranchDetailsInput,
     signal?: AbortSignal,
-  ): Promise<BranchDetails> {
+  ): Promise<ReadBranchDetailsResult> {
     return this.changeStatusReader.readBranchDetails(
-      input.worktreeId,
-      input.branch?.name,
-      input.headOid,
+      {
+        worktreeId: input.worktreeId,
+        branchName: input.branch?.name,
+        headOid: input.headOid,
+      },
       signal,
     );
   }

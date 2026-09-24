@@ -1,11 +1,13 @@
 import type { TrackedComparison } from '@porcelain/kernel/models';
 import { SelectionMismatchError } from '../errors/selection-mismatch-error.ts';
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
-import type { DiffSelection } from '../models/change-diff.ts';
-import type { SelectDiffComparisonsInput } from '../models/operation-inputs.ts';
+import type {
+  SelectDiffComparisonsInput,
+  SelectDiffComparisonsResult,
+} from '../models/select-diff-comparisons.ts';
 
 export class SelectDiffComparisonsService {
-  execute(input: SelectDiffComparisonsInput): DiffSelection {
+  execute(input: SelectDiffComparisonsInput): SelectDiffComparisonsResult {
     const expected = new Set(input.expectedFiles.map((file) => file.path));
     const selected = new Set(
       input.selections.map(

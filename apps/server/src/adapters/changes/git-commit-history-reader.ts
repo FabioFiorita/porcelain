@@ -1,11 +1,11 @@
 import type {
-  CommitFiles,
-  CommitFilesRequest,
+  CommitFilesLookup,
   CommitPage,
-  CommitPageRequest,
   CommitPatches,
   CommitPatchesRequest,
   CommitSummary,
+  ListCommitsInput,
+  ReadCommitFilesInput,
 } from '@porcelain/changes/models';
 import type { CommitHistoryReader } from '@porcelain/changes/ports';
 import {
@@ -36,16 +36,15 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
   }
 
   async listCommits(
-    worktreeId: string,
-    request: CommitPageRequest,
+    input: ListCommitsInput,
     signal?: AbortSignal,
   ): Promise<CommitPage> {
-    const reader = await this.reader(worktreeId, signal);
+    const reader = await this.reader(input.worktreeId, signal);
     const page = await reader.listCommits(
       {
-        ...(request.limit === undefined ? {} : { limit: request.limit }),
-        ...(request.after === undefined ? {} : { after: request.after }),
-        ...(request.tip === undefined ? {} : { tip: request.tip }),
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
+        ...(input.after === undefined ? {} : { after: input.after }),
+        ...(input.tip === undefined ? {} : { tip: input.tip }),
       },
       signal,
     );
@@ -65,47 +64,49 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
   }
 
   async readCommitFiles(
-    worktreeId: string,
-    request: CommitFilesRequest,
+    input: ReadCommitFilesInput,
     signal?: AbortSignal,
-  ): Promise<CommitFiles | undefined> {
-    const reader = await this.reader(worktreeId, signal);
+  ): Promise<CommitFilesLookup> {
+    const reader = await this.reader(input.worktreeId, signal);
     try {
       const read = await reader.readCommitFiles(
         {
-          oid: request.oid,
-          ...(request.parent === undefined ? {} : { parent: request.parent }),
+          oid: input.oid,
+          ...(input.parent === undefined ? {} : { parent: input.parent }),
         },
         signal,
       );
       return {
-        commit: summary(read.commit),
-        comparison: read.comparison,
-        files: read.files.map((file) => ({
-          oldPath: file.oldPath ?? undefined,
-          newPath: file.newPath ?? undefined,
-          status: file.status,
-          oldMode: file.oldMode,
-          newMode: file.newMode,
-        })),
+        kind: 'found',
+        files: {
+          commit: summary(read.commit),
+          comparison: read.comparison,
+          files: read.files.map((file) => ({
+            oldPath: file.oldPath ?? undefined,
+            newPath: file.newPath ?? undefined,
+            status: file.status,
+            oldMode: file.oldMode,
+            newMode: file.newMode,
+          })),
+        },
       };
     } catch (error) {
-      if (error instanceof HistorySnapshotUnavailableError) return undefined;
+      if (error instanceof HistorySnapshotUnavailableError)
+        return { kind: 'missing' };
       throw error;
     }
   }
 
   async readCommitPatches(
-    worktreeId: string,
-    request: CommitPatchesRequest,
+    input: CommitPatchesRequest,
     signal?: AbortSignal,
   ): Promise<CommitPatches> {
-    const reader = await this.reader(worktreeId, signal);
+    const reader = await this.reader(input.worktreeId, signal);
     const sections = await reader.readCommitDiffs(
       {
-        oid: request.oid,
-        paths: request.paths,
-        ...(request.parent === undefined ? {} : { parent: request.parent }),
+        oid: input.oid,
+        paths: input.paths,
+        ...(input.parent === undefined ? {} : { parent: input.parent }),
       },
       signal,
     );

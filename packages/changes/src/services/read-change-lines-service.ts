@@ -1,32 +1,20 @@
-import type { ChangeLines } from '../models/change-lines.ts';
-import type { ReadChangeLinesInput } from '../models/operation-inputs.ts';
-import type { ChangeLinesReader } from '../ports/change-lines-reader.ts';
-
-const MAX_LINES = 2000;
+import type {
+  ReadChangeLinesInput,
+  ReadChangeLinesOptions,
+  ReadChangeLinesResult,
+} from '../models/read-change-lines.ts';
 
 export class ReadChangeLinesService {
-  private readonly changeLinesReader: ChangeLinesReader;
+  private readonly options: ReadChangeLinesOptions;
 
-  constructor(changeLinesReader: ChangeLinesReader) {
-    this.changeLinesReader = changeLinesReader;
+  constructor(options: ReadChangeLinesOptions) {
+    this.options = options;
   }
 
-  async execute(
-    input: ReadChangeLinesInput,
-    signal?: AbortSignal,
-  ): Promise<ChangeLines> {
-    const { worktreeId, path, from, at } = input;
-    const to = Math.min(input.to, from + MAX_LINES - 1);
-    const text =
-      at === 'head'
-        ? await this.changeLinesReader.readHeadText(worktreeId, path, signal)
-        : await this.changeLinesReader.readWorktreeText(
-            worktreeId,
-            path,
-            signal,
-          );
-    signal?.throwIfAborted();
-    const lines = text.split('\n');
+  execute(input: ReadChangeLinesInput): ReadChangeLinesResult {
+    const { path, from, at } = input;
+    const to = Math.min(input.to, from + this.options.maxLines - 1);
+    const lines = input.text.split('\n');
     const count =
       lines.length > 1 && lines.at(-1) === '' ? lines.length - 1 : lines.length;
     const last = Math.min(count, to);

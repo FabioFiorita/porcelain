@@ -3,6 +3,7 @@ import { ReadChangeFingerprintsService } from './read-change-fingerprints-servic
 import { modified } from '../../spec/fakes/comparisons.ts';
 import { InMemoryWorktreeSideReader } from '../../spec/fakes/in-memory-worktree-side-reader.ts';
 
+const limits = { maxDigestBytes: 1024 };
 const comparisons = [
   modified('unstaged', 'a.md'),
   modified('unstaged', 'b.md'),
@@ -26,7 +27,7 @@ function reader() {
 
 describe('ReadChangeFingerprintsService', () => {
   it('fingerprints every change when no paths are given', async () => {
-    const read = new ReadChangeFingerprintsService(reader());
+    const read = new ReadChangeFingerprintsService(reader(), limits);
     const { changes } = await read.execute({
       worktreeId: 'w',
       comparisons,
@@ -42,7 +43,7 @@ describe('ReadChangeFingerprintsService', () => {
   });
 
   it('fingerprints only the requested paths', async () => {
-    const read = new ReadChangeFingerprintsService(reader());
+    const read = new ReadChangeFingerprintsService(reader(), limits);
     const { changes } = await read.execute({
       worktreeId: 'w',
       comparisons,
@@ -53,7 +54,7 @@ describe('ReadChangeFingerprintsService', () => {
 
   it('gives a different stamp once a read file or the staging area is touched', async () => {
     const sides = reader();
-    const read = new ReadChangeFingerprintsService(sides);
+    const read = new ReadChangeFingerprintsService(sides, limits);
     const request = { worktreeId: 'w', comparisons, paths: ['a.md'] };
     const first = await read.execute(request);
     sides.stagingStamp = 'staging-2';
@@ -69,7 +70,7 @@ describe('ReadChangeFingerprintsService', () => {
 
   it('keeps the stamp when nothing it read was touched', async () => {
     const sides = reader();
-    const read = new ReadChangeFingerprintsService(sides);
+    const read = new ReadChangeFingerprintsService(sides, limits);
     const request = { worktreeId: 'w', comparisons, paths: ['a.md'] };
     sides.entries.set('b.md', {
       kind: 'file',

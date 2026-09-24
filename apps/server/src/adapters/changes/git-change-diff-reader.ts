@@ -1,22 +1,23 @@
-import type { ChangeDiffContent } from '@porcelain/changes/models';
+import type {
+  ChangeDiffContent,
+  ReadChangeDiffsInput,
+} from '@porcelain/changes/models';
 import type { ChangeDiffReader } from '@porcelain/changes/ports';
-import type { TrackedComparison } from '@porcelain/kernel/models';
 import { toGitChange } from './git-comparisons.ts';
-import type { InspectionCheckouts } from './inspection-checkouts.ts';
+import type { OpenInspection } from './inspection-checkouts.ts';
 
 export class GitChangeDiffReader implements ChangeDiffReader {
-  private readonly checkouts: InspectionCheckouts;
+  private readonly open: OpenInspection;
 
-  constructor(checkouts: InspectionCheckouts) {
-    this.checkouts = checkouts;
+  constructor(open: OpenInspection) {
+    this.open = open;
   }
 
   async readDiffs(
-    worktreeId: string,
-    comparisons: readonly TrackedComparison[],
+    input: ReadChangeDiffsInput,
     signal?: AbortSignal,
   ): Promise<ChangeDiffContent[]> {
-    const { git } = await this.checkouts.open(worktreeId, signal);
-    return git.readDiffs(comparisons.map(toGitChange), signal);
+    const { git } = await this.open(input.worktreeId, signal);
+    return git.readDiffs(input.comparisons.map(toGitChange), signal);
   }
 }

@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { CommitNotFoundError } from '@porcelain/changes/errors';
-import { ReadCommitFilesService } from './read-commit-files-service.ts';
+import { CheckCommitService } from './check-commit-service.ts';
 import { rootCommit } from '../../spec/fakes/commits.ts';
 import { InMemoryCommitHistoryReader } from '../../spec/fakes/in-memory-commit-history-reader.ts';
 
 const oid = 'c'.repeat(40);
 
-describe('ReadCommitFilesService', () => {
-  it('returns the files of a commit the repository has', async () => {
+describe('CheckCommitService', () => {
+  it('accepts a commit the repository has', async () => {
     const history = new InMemoryCommitHistoryReader();
     history.commits.set(oid, rootCommit(oid));
-    const read = new ReadCommitFilesService(history);
-    expect(
-      await read.execute({ worktreeId: 'w', oid, parent: undefined }),
-    ).toEqual(rootCommit(oid));
+    const check = new CheckCommitService(history);
+    await expect(
+      check.execute({ worktreeId: 'w', oid, parent: undefined }),
+    ).resolves.toBeUndefined();
   });
 
   it('reports a commit the repository does not have as not found', async () => {
-    const read = new ReadCommitFilesService(new InMemoryCommitHistoryReader());
+    const check = new CheckCommitService(new InMemoryCommitHistoryReader());
     await expect(
-      read.execute({ worktreeId: 'w', oid, parent: undefined }),
+      check.execute({ worktreeId: 'w', oid, parent: undefined }),
     ).rejects.toThrow(CommitNotFoundError);
   });
 });

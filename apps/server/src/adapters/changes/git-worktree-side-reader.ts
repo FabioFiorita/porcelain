@@ -1,42 +1,42 @@
 import { join } from 'node:path';
-import type { WorktreeEntry } from '@porcelain/changes/models';
+import type {
+  StagingStampRequest,
+  SubmoduleHeadsRequest,
+  WorktreeEntriesRequest,
+  WorktreeEntry,
+} from '@porcelain/changes/models';
 import type { WorktreeSideReader } from '@porcelain/changes/ports';
-import type { InspectionCheckouts } from './inspection-checkouts.ts';
+import type { OpenInspection } from './inspection-checkouts.ts';
 import { readWorktreeFiles, stampPath } from './worktree-files.ts';
 
 export class GitWorktreeSideReader implements WorktreeSideReader {
-  private readonly checkouts: InspectionCheckouts;
+  private readonly open: OpenInspection;
 
-  constructor(checkouts: InspectionCheckouts) {
-    this.checkouts = checkouts;
+  constructor(open: OpenInspection) {
+    this.open = open;
   }
 
   async readEntries(
-    worktreeId: string,
-    paths: readonly string[],
+    input: WorktreeEntriesRequest,
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, WorktreeEntry>> {
-    const { worktree } = await this.checkouts.open(worktreeId, signal);
-    return readWorktreeFiles(worktree.path, paths);
+    const { worktree } = await this.open(input.worktreeId, signal);
+    return readWorktreeFiles(worktree.path, input.paths, input.maxDigestBytes);
   }
 
   async readSubmoduleHeads(
-    worktreeId: string,
-    paths: readonly string[],
+    input: SubmoduleHeadsRequest,
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, string>> {
-    const { git } = await this.checkouts.open(worktreeId, signal);
-    return git.readSubmoduleHeads(paths, signal);
+    const { git } = await this.open(input.worktreeId, signal);
+    return git.readSubmoduleHeads(input.paths, signal);
   }
 
   async readStagingStamp(
-    worktreeId: string,
+    input: StagingStampRequest,
     signal?: AbortSignal,
   ): Promise<string | undefined> {
-    const { worktree } = await this.checkouts.open(worktreeId, signal);
-    return (
-      (await stampPath(join(worktree.administrativeDirectory, 'index'))) ??
-      undefined
-    );
+    const { worktree } = await this.open(input.worktreeId, signal);
+    return stampPath(join(worktree.administrativeDirectory, 'index'));
   }
 }

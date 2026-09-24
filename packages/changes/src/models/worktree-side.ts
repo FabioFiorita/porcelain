@@ -7,7 +7,21 @@ export type WorktreeSide = {
 export type WorktreeEntry =
   | { kind: 'file'; digest: string; stamp: string }
   | { kind: 'symlink'; target: string; stamp: string }
+  | { kind: 'too-large' }
   | { kind: 'other' };
+
+export type WorktreeEntriesRequest = {
+  worktreeId: string;
+  paths: readonly string[];
+  maxDigestBytes: number;
+};
+
+export type SubmoduleHeadsRequest = {
+  worktreeId: string;
+  paths: readonly string[];
+};
+
+export type StagingStampRequest = { worktreeId: string };
 
 export type SidePaths = {
   files: string[];

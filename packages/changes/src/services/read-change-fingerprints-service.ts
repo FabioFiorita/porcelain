@@ -1,5 +1,8 @@
-import type { ChangeFingerprints } from '../models/change.ts';
-import type { ReadChangeFingerprintsInput } from '../models/operation-inputs.ts';
+import type {
+  ReadChangeFingerprintsInput,
+  ReadChangeFingerprintsOptions,
+  ReadChangeFingerprintsResult,
+} from '../models/read-change-fingerprints.ts';
 import type { WorktreeSideReader } from '../ports/worktree-side-reader.ts';
 import { assembleChanges } from '../rules/assemble-changes.ts';
 import { logicalPath } from '../rules/logical-path.ts';
@@ -9,15 +12,21 @@ import { sidePaths } from '../rules/side-paths.ts';
 
 export class ReadChangeFingerprintsService {
   private readonly worktreeSideReader: WorktreeSideReader;
+  private readonly options: ReadChangeFingerprintsOptions;
 
-  constructor(worktreeSideReader: WorktreeSideReader) {
+  constructor(
+    worktreeSideReader: WorktreeSideReader,
+    options: ReadChangeFingerprintsOptions,
+  ) {
     this.worktreeSideReader = worktreeSideReader;
+    this.options = options;
   }
 
   async execute(
     input: ReadChangeFingerprintsInput,
     signal?: AbortSignal,
-  ): Promise<ChangeFingerprints> {
+  ): Promise<ReadChangeFingerprintsResult> {
+    const { worktreeId } = input;
     const wanted = input.paths === undefined ? undefined : new Set(input.paths);
     const comparisons =
       wanted === undefined
@@ -30,20 +39,21 @@ export class ReadChangeFingerprintsService {
       paths.files.length === 0
         ? new Map()
         : this.worktreeSideReader.readEntries(
-            input.worktreeId,
-            paths.files,
+            {
+              worktreeId,
+              paths: paths.files,
+              maxDigestBytes: this.options.maxDigestBytes,
+            },
             signal,
           ),
       paths.submodules.length === 0
         ? new Map()
         : this.worktreeSideReader.readSubmoduleHeads(
-            input.worktreeId,
-            paths.submodules,
+            { worktreeId, paths: paths.submodules },
             signal,
           ),
-      this.worktreeSideReader.readStagingStamp(input.worktreeId, signal),
+      this.worktreeSideReader.readStagingStamp({ worktreeId }, signal),
     ]);
-    signal?.throwIfAborted();
     const { sides, stamps } = observedSides(paths, entries, heads);
     return {
       changes: assembleChanges(comparisons, sides),

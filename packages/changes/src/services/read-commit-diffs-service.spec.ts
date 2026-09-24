@@ -7,13 +7,16 @@ const oid = 'c'.repeat(40);
 describe('ReadCommitDiffsService', () => {
   it('answers each requested path group with its patch, in request order', async () => {
     const history = new InMemoryCommitHistoryReader();
-    history.patches.set(oid, [
-      {
-        paths: ['README.md', 'GUIDE.md'],
-        content: { kind: 'metadata-only', patch: 'rename' },
-      },
-      { paths: ['a.md'], content: { kind: 'text', patch: 'patch-a' } },
-    ]);
+    history.patches.set(oid, {
+      kind: 'within-limit',
+      patches: [
+        {
+          paths: ['README.md', 'GUIDE.md'],
+          content: { kind: 'metadata-only', patch: 'rename' },
+        },
+        { paths: ['a.md'], content: { kind: 'text', patch: 'patch-a' } },
+      ],
+    });
     const read = new ReadCommitDiffsService(history);
     expect(
       await read.execute({
@@ -52,7 +55,7 @@ describe('ReadCommitDiffsService', () => {
 
   it('omits every diff when the commit is over the read limit', async () => {
     const history = new InMemoryCommitHistoryReader();
-    history.overLimit.add(oid);
+    history.patches.set(oid, { kind: 'over-limit' });
     const read = new ReadCommitDiffsService(history);
     const { diffs } = await read.execute({
       worktreeId: 'w',

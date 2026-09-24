@@ -43,4 +43,13 @@ describe('observedSides', () => {
     );
     expect(observed.sides.size).toBe(0);
   });
+
+  it('leaves a file too large to digest without a side or a stamp', () => {
+    const observed = observedSides(
+      { files: ['big.bin'], submodules: [] },
+      new Map([['big.bin', { kind: 'too-large' }]]),
+      new Map(),
+    );
+    expect([observed.sides.size, observed.stamps.size]).toEqual([0, 0]);
+  });
 });

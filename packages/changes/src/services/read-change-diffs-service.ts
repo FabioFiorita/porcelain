@@ -1,6 +1,8 @@
 import { IncompleteDiffReadError } from '../errors/incomplete-diff-read-error.ts';
-import type { ChangeDiff } from '../models/change-diff.ts';
-import type { ReadChangeDiffsInput } from '../models/operation-inputs.ts';
+import type {
+  ReadChangeDiffsInput,
+  ReadChangeDiffsResult,
+} from '../models/read-change-diffs.ts';
 import type { ChangeDiffReader } from '../ports/change-diff-reader.ts';
 
 export class ReadChangeDiffsService {
@@ -13,13 +15,8 @@ export class ReadChangeDiffsService {
   async execute(
     input: ReadChangeDiffsInput,
     signal?: AbortSignal,
-  ): Promise<ChangeDiff[]> {
-    const contents = await this.changeDiffReader.readDiffs(
-      input.worktreeId,
-      input.comparisons,
-      signal,
-    );
-    signal?.throwIfAborted();
+  ): Promise<ReadChangeDiffsResult> {
+    const contents = await this.changeDiffReader.readDiffs(input, signal);
     return input.comparisons.map((comparison, index) => {
       const content = contents[index];
       if (content === undefined) throw new IncompleteDiffReadError();

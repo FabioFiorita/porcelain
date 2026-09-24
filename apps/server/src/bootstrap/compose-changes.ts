@@ -1,9 +1,8 @@
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import {
-  ConfirmCommitService,
-  ConfirmDiffObservationService,
+  CheckCommitService,
   CheckWorktreeService,
-  DescribeWorktreeStateService,
+  ConfirmDiffObservationService,
   ListCommitsService,
   ReadBranchDetailsService,
   ReadChangeDiffsService,
@@ -11,6 +10,7 @@ import {
   ReadChangeLinesService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
+  ReadHeadTextService,
   ReadWorktreeStatusService,
   SelectDiffComparisonsService,
 } from '@porcelain/changes/services';
@@ -24,12 +24,11 @@ import type { InspectionFactory } from '@porcelain/git/inspection';
 import type { StorageSession } from '@porcelain/storage';
 import { createEnvironmentIdentityStore } from '@porcelain/storage/access';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
-import { GitChangeLinesReader } from '../adapters/changes/git-change-lines-reader.ts';
 import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
 import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
-import { InspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
-import { OperationGitSessions } from '../adapters/changes/operation-git-sessions.ts';
+import { GitHeadTextReader } from '../adapters/changes/git-head-text-reader.ts';
 import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
+import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
 import { ReadChangeDiffsUseCase } from '../use-cases/changes/read-change-diffs.ts';
 import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.ts';
@@ -40,6 +39,11 @@ import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
+
+const limits = {
+  changeLines: { maxLines: 2000 },
+  fingerprints: { maxDigestBytes: 64 * 1024 * 1024 },
+};
 
 export function composeChanges(deps: {
   session: StorageSession;
@@ -54,19 +58,14 @@ export function composeChanges(deps: {
   readInterruptedGitAction: ReadInterruptedGitActionService;
 }) {
   const { lanes, laneKeys } = deps;
-  const sessions = new OperationGitSessions();
-  const checkouts = new InspectionCheckouts(
+  const openInspection = inspectionCheckouts(
     deps.worktreeAccess,
-    sessions,
     deps.inspection,
   );
-  const changeStatusReader = new GitChangeStatusReader(checkouts);
-  const worktreeSideReader = new GitWorktreeSideReader(checkouts);
-  const changeDiffReader = new GitChangeDiffReader(checkouts);
-  const changeLinesReader = new GitChangeLinesReader(
-    checkouts,
-    deps.readTextFile,
-  );
+  const changeStatusReader = new GitChangeStatusReader(openInspection);
+  const worktreeSideReader = new GitWorktreeSideReader(openInspection);
+  const changeDiffReader = new GitChangeDiffReader(openInspection);
+  const headTextReader = new GitHeadTextReader(openInspection);
   const commitHistoryReader = new GitCommitHistoryReader(
     deps.worktreeAccess,
     deps.inventory,
@@ -80,25 +79,25 @@ export function composeChanges(deps: {
   const readBranchDetails = new ReadBranchDetailsService(changeStatusReader);
   const readChangeFingerprints = new ReadChangeFingerprintsService(
     worktreeSideReader,
+    limits.fingerprints,
   );
   const selectDiffComparisons = new SelectDiffComparisonsService();
   const confirmDiffObservation = new ConfirmDiffObservationService();
   const readChangeDiffs = new ReadChangeDiffsService(changeDiffReader);
-  const readChangeLines = new ReadChangeLinesService(changeLinesReader);
-  const describeWorktreeState = new DescribeWorktreeStateService();
+  const readHeadText = new ReadHeadTextService(headTextReader);
+  const readChangeLines = new ReadChangeLinesService(limits.changeLines);
   const listCommits = new ListCommitsService(commitHistoryReader);
   const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
-  const confirmCommit = new ConfirmCommitService(commitHistoryReader);
+  const checkCommit = new CheckCommitService(commitHistoryReader);
   const readCommitDiffs = new ReadCommitDiffsService(commitHistoryReader);
   return {
     readChanges: new ReadChangesUseCase(
       checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
-      deps.reconcileReviewedFiles,
       deps.readInterruptedGitAction,
-      describeWorktreeState,
       readEnvironment,
+      deps.reconcileReviewedFiles,
       lanes,
       laneKeys,
     ),
@@ -115,6 +114,8 @@ export function composeChanges(deps: {
     ),
     readChangeLines: new ReadChangeLinesUseCase(
       checkWorktree,
+      readHeadText,
+      deps.readTextFile,
       readChangeLines,
       readEnvironment,
       lanes,
@@ -143,7 +144,7 @@ export function composeChanges(deps: {
     ),
     readCommitDiffs: new ReadCommitDiffsUseCase(
       checkWorktree,
-      confirmCommit,
+      checkCommit,
       readCommitDiffs,
       lanes,
       laneKeys,
