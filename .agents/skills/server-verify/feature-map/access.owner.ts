@@ -30,6 +30,9 @@ export default defineFeature({
     'owner POST /access/revoke',
     'owner POST /mcp',
     'owner GET /mcp',
+    'owner PUT /mcp',
+    'owner PATCH /mcp',
+    'owner DELETE /mcp',
   ],
   paired: false,
   intent: 'observed',
@@ -304,15 +307,21 @@ export default defineFeature({
     }),
     defineCase({
       name: 'review MCP endpoint refuses other methods',
-      request: () => owner({ method: 'GET', path: '/mcp' }),
-      expect({ response, check }) {
-        check('status', 405, response.status);
-        check(
-          'error body',
-          apiError(405, 'Method Not Allowed', 'Method Not Allowed'),
-          response.body,
-        );
-        check('allow header', 'POST', response.headers.allow);
+      request: () =>
+        (['GET', 'PUT', 'PATCH', 'DELETE'] as const).map((method) =>
+          owner({ method, path: '/mcp' }),
+        ),
+      expect({ responses, check }) {
+        for (const [index, response] of responses.entries()) {
+          const method = ['GET', 'PUT', 'PATCH', 'DELETE'][index];
+          check(`${method} status`, 405, response.status);
+          check(
+            `${method} error body`,
+            apiError(405, 'Method Not Allowed', 'Method Not Allowed'),
+            response.body,
+          );
+          check(`${method} allow header`, 'POST', response.headers.allow);
+        }
       },
     }),
     defineCase({

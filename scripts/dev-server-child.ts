@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { subscribe } from 'node:diagnostics_channel';
 import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import { join } from 'node:path';
@@ -22,6 +23,48 @@ process.on('SIGTERM', stop);
 const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
 let server: Runtime | undefined;
+
+type RouteOptions = { method: string | readonly string[]; url: string };
+type RouteHost = {
+  addHook(name: 'onRoute', hook: (route: RouteOptions) => void): unknown;
+  server: { address(): unknown };
+};
+
+function isRouteHost(value: unknown): value is RouteHost {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'addHook' in value &&
+    typeof value.addHook === 'function' &&
+    'server' in value
+  );
+}
+
+const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+const listeners: { host: RouteHost; routes: string[] }[] = [];
+subscribe('fastify.initialization', (message) => {
+  const host =
+    typeof message === 'object' && message !== null && 'fastify' in message
+      ? message.fastify
+      : undefined;
+  if (!isRouteHost(host)) return;
+  const listener = { host, routes: new Array<string>() };
+  listeners.push(listener);
+  host.addHook('onRoute', (route) => {
+    const methods =
+      typeof route.method === 'string' ? [route.method] : route.method;
+    for (const method of methods)
+      if (listedMethods.has(method))
+        listener.routes.push(`${method} ${route.url}`);
+  });
+});
+
+function registeredRoutes() {
+  return listeners.flatMap(({ host, routes }) => {
+    const prefix = typeof host.server.address() === 'string' ? 'owner ' : '';
+    return [...new Set(routes)].sort().map((route) => `${prefix}${route}`);
+  });
+}
 
 function askOwner(socketPath: string, path: string, body: unknown) {
   const payload = JSON.stringify(body);
@@ -185,7 +228,7 @@ try {
   const manifest = join(root, 'manifest.json');
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, fixture }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, fixture, routes: registeredRoutes() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

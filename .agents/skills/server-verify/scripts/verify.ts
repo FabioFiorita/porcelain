@@ -30,6 +30,11 @@ type CaseEvidence = {
   steps: Step[];
   assertions: Assertion[];
 };
+type RouteCoverage = {
+  registered: readonly string[];
+  unreached: string[];
+  unregistered: string[];
+};
 type FeatureResult = {
   feature: string;
   intent: Feature['intent'];
@@ -40,6 +45,7 @@ type FeatureResult = {
   weakAssertions: number;
   failures: string[];
   evidence: string;
+  routes: readonly string[];
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -57,6 +63,25 @@ function routePattern(reach: string): RegExp {
     )
     .join('');
   return new RegExp(`^${escaped}(?:\\?.*)?$`);
+}
+
+function template(route: string): string {
+  return route.replace(/:[A-Za-z]+/g, ':');
+}
+
+function routeCoverage(
+  registered: readonly string[],
+  features: readonly Feature[],
+): RouteCoverage {
+  const reached = new Set(features.flatMap(reachesOf).map(template));
+  const answered = new Set(registered.map(template));
+  return {
+    registered,
+    unreached: registered.filter((route) => !reached.has(template(route))),
+    unregistered: [...new Set(features.flatMap(reachesOf))].filter(
+      (reach) => !answered.has(template(reach)),
+    ),
+  };
 }
 
 function requestedRoute(step: Step): string | undefined {
@@ -295,6 +320,7 @@ async function runFeature(
     weakAssertions,
     failures,
     evidence: evidencePath,
+    routes: server?.routes ?? [],
   };
 }
 
@@ -340,8 +366,23 @@ for (const feature of selected) {
   for (const failure of result.failures)
     process.stdout.write(`  - ${failure}\n`);
 }
+const registered = results.find((entry) => entry.routes.length > 0)?.routes;
+const coverage = registered
+  ? routeCoverage(registered, features)
+  : { registered: [], unreached: [], unregistered: [] };
+for (const route of coverage.unreached)
+  process.stdout.write(
+    `  - route ${route} is registered but no feature reaches it\n`,
+  );
+for (const reach of coverage.unregistered)
+  process.stdout.write(
+    `  - ${reach} is reached by a feature but no route is registered for it\n`,
+  );
 const passed =
   !interrupted &&
+  registered !== undefined &&
+  coverage.unreached.length === 0 &&
+  coverage.unregistered.length === 0 &&
   results.length === selected.length &&
   results.every((entry) => entry.passed);
 const total = (pick: (entry: FeatureResult) => number) =>
@@ -357,7 +398,8 @@ await writeFile(
       assertions: total((entry) => entry.assertions),
       passedAssertions: total((entry) => entry.passedAssertions),
       weakAssertions: total((entry) => entry.weakAssertions),
-      results,
+      routes: coverage,
+      results: results.map(({ routes: _routes, ...entry }) => entry),
     },
     null,
     2,
@@ -365,6 +407,6 @@ await writeFile(
   { mode: 0o600 },
 );
 process.stdout.write(
-  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak; evidence: ${evidenceDirectory}\n`,
+  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak, ${coverage.registered.length - coverage.unreached.length}/${coverage.registered.length} routes reached; evidence: ${evidenceDirectory}\n`,
 );
 if (!passed) process.exitCode = 1;

@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import {
   isRecord,
+  list,
   record,
   text,
   type Fixture,
@@ -55,6 +56,7 @@ type Manifest = {
   socketPath: string;
   credentialFile: string;
   fixture: Fixture;
+  routes: string[];
 };
 
 const execute = promisify(execFile);
@@ -192,6 +194,7 @@ function manifestOf(value: unknown): Manifest {
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
     fixture: fixtureOf(manifest.fixture),
+    routes: list(manifest.routes).map(text),
   };
 }
 
@@ -254,6 +257,7 @@ export class IsolatedServer {
   readonly socketPath: string;
   readonly credential: string;
   readonly fixture: Fixture;
+  readonly routes: readonly string[];
   private readonly child: ChildProcess;
   private readonly exited: Promise<void>;
   private readonly output: { stdout: string; stderr: string };
@@ -273,6 +277,7 @@ export class IsolatedServer {
     this.projectHome = resolve(manifest.repository, '..');
     this.socketPath = manifest.socketPath;
     this.fixture = manifest.fixture;
+    this.routes = manifest.routes;
     this.credential = credential;
   }
 

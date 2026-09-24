@@ -63,6 +63,7 @@ export default defineFeature({
 - `paired: true` puts every route in `reaches` into the `access.authentication` sweep, which refuses each one without a credential; there is no other list of paired routes.
 - `session.live()` opens `/api/live` as the paired viewer; `upgradeHeaders(address)` probes its rejections over plain HTTP.
 - Every route in `reaches` must be requested by some case.
+- Every route the isolated server registers must be in some feature's `reaches`, and every reach must be a registered route; the run fails on either gap. `scripts/dev-server-child.ts` lists the network and owner routes it saw Fastify register (GET, POST, PUT, PATCH and DELETE; HEAD is GET without a body) in the session manifest, which only the development fixture writes, and `summary.json` records them.
 
 ## Intent
 
