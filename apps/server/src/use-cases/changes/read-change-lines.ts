@@ -9,13 +9,13 @@ import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadTextFileService } from '@porcelain/files/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export type ReadChangeLinesOptions = { maxLines: number };
 
 export class ReadChangeLinesUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readTextFile: ReadTextFileService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
@@ -23,7 +23,7 @@ export class ReadChangeLinesUseCase {
   private readonly options: ReadChangeLinesOptions;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     readTextFile: ReadTextFileService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,

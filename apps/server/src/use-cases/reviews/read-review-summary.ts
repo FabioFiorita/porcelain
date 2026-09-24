@@ -5,7 +5,7 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { ReadReviewSummaryService } from '@porcelain/reviews/services';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ReadReviewSummaryUseCase {
   private readonly readReviewSummary: ReadReviewSummaryService;

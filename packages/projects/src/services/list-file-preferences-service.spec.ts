@@ -1,28 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type { RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
-import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { ListFilePreferencesService } from './list-file-preferences-service.ts';
-
-function project(id: string): RegisteredProject {
-  return {
-    id,
-    name: id,
-    namedByOwner: false,
-    commonDirectory: `/srv/${id}/.git`,
-    repositoryIdentity: `identity-${id}`,
-    available: true,
-    position: 1,
-  };
-}
 
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
-  const service = new ListFilePreferencesService(
-    new InMemoryInventoryStore([project('api'), project('web')]),
-    preferences,
-  );
+  const service = new ListFilePreferencesService(preferences);
   return { preferences, service };
 }
 
@@ -52,12 +34,5 @@ describe('ListFilePreferencesService', () => {
       preference: { path: 'index.html', pinned: true, hidden: false },
     });
     expect(service.execute({ projectId: 'api' })).toEqual({ preferences: [] });
-  });
-
-  it('refuses a project that is not registered', () => {
-    const { service } = setup();
-    expect(() => service.execute({ projectId: 'unknown' })).toThrow(
-      ProjectNotFoundError,
-    );
   });
 });

@@ -17,7 +17,7 @@ import type {
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
 import type { JobWork } from '../interval-job.ts';
-import type { ReviewedMarksInvalidation } from '../reviewed-marks-invalidation.ts';
+import type { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;
@@ -65,7 +65,7 @@ function changesIgnoreRules(path: string): boolean {
 }
 
 export class WatchWorktrees implements AnnouncedEditStore {
-  private readonly invalidateReviewedMarks: ReviewedMarksInvalidation;
+  private readonly invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
   private readonly refreshInventory: JobWork;
   private readonly events: EventPublisher;
   private readonly watcher: WorktreeWatcher;
@@ -79,7 +79,7 @@ export class WatchWorktrees implements AnnouncedEditStore {
   private stopped = false;
 
   constructor(
-    invalidateReviewedMarks: ReviewedMarksInvalidation,
+    invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort,
     refreshInventory: JobWork,
     events: EventPublisher,
     watcher: WorktreeWatcher,

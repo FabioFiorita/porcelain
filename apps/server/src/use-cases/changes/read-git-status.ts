@@ -7,12 +7,12 @@ import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
 export class ReadGitStatusUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readBranchDetails: ReadBranchDetailsService;
   private readonly readEnvironment: ReadEnvironmentService;
@@ -21,7 +21,7 @@ export class ReadGitStatusUseCase {
   private readonly sharedReads: SharedReads<ReadGitStatusResponse>;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     readWorktreeStatus: ReadWorktreeStatusService,
     readBranchDetails: ReadBranchDetailsService,
     readEnvironment: ReadEnvironmentService,

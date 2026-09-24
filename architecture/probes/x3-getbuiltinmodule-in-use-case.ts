@@ -10,7 +10,7 @@ export default {
     {
       kind: 'create',
       path: 'apps/server/src/use-cases/projects/probe-env.ts',
-      content: `import type { OperationContext } from '../../runtime/operation-context.ts';
+      content: `import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ProbeEnvUseCase {
   async execute(context: OperationContext): Promise<string> {

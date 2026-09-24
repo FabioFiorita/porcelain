@@ -2,17 +2,17 @@ import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
 import type { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class InvalidateReviewedMarksUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly invalidateReviewedMarks: InvalidateReviewedMarksService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     invalidateReviewedMarks: InvalidateReviewedMarksService,
     lanes: Lanes,
     laneKeys: LaneKeys,

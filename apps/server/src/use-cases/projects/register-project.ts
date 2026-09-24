@@ -2,6 +2,8 @@ import type {
   RegisterProjectRequest,
   RegisterProjectResponse,
 } from '@porcelain/contracts/projects';
+import type { WorktreeStatuses } from '@porcelain/kernel/models';
+import type { ProjectWorktrees } from '@porcelain/projects/models';
 import type {
   InspectProjectRepositoryService,
   ListKnownWorktreesService,
@@ -15,7 +17,7 @@ import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { JobWork } from '../../runtime/interval-job.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RegisterProjectUseCase {
   private readonly inspectProjectRepository: InspectProjectRepositoryService;
@@ -74,23 +76,40 @@ export class RegisterProjectUseCase {
       { callerSignal: context.signal },
     );
     await this.refreshInventory.execute(context);
-    const report = await this.lanes.run(
+    const { listings } = await this.lanes.run(
       this.laneKeys.inventory(),
       'read',
-      async () => {
-        const { listings } = this.listKnownWorktrees.execute(
-          this.listRegisteredProjects.execute(),
-        );
-        const { statuses } = this.readWorktreeStatuses.execute({
-          worktreeIds: listings.flatMap((listing) =>
-            listing.worktrees.map((worktree) => worktree.id),
-          ),
-        });
-        return registeredProjectReport(registered.project, listings, statuses);
-      },
+      async () =>
+        this.listKnownWorktrees.execute(this.listRegisteredProjects.execute()),
       { callerSignal: context.signal },
     );
+    const statuses = await this.reviewBadges(listings, context);
     if (registered.changed) this.events.inventoryChanged();
-    return report;
+    return registeredProjectReport(registered.project, listings, statuses);
+  }
+
+  private async reviewBadges(
+    listings: readonly ProjectWorktrees[],
+    context: OperationContext,
+  ): Promise<WorktreeStatuses> {
+    const badges = await Promise.all(
+      listings.flatMap(({ worktrees }) => {
+        const [first] = worktrees;
+        return first
+          ? [
+              this.lanes.run(
+                this.laneKeys.reviews(first),
+                'read',
+                async () =>
+                  this.readWorktreeStatuses.execute({
+                    worktreeIds: worktrees.map((worktree) => worktree.id),
+                  }).statuses,
+                { callerSignal: context.signal },
+              ),
+            ]
+          : [];
+      }),
+    );
+    return new Map(badges.flatMap((statuses) => [...statuses]));
   }
 }

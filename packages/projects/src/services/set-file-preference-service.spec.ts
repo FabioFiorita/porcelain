@@ -1,32 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import {
-  FilePreferenceLimitError,
-  ProjectNotFoundError,
-} from '@porcelain/projects/errors';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { FilePreferenceLimitError } from '@porcelain/projects/errors';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
-import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { SetFilePreferenceService } from './set-file-preference-service.ts';
 
-const project: RegisteredProject = {
-  id: 'project-1',
-  name: 'api',
-  namedByOwner: false,
-  commonDirectory: '/srv/api/.git',
-  repositoryIdentity: 'identity-1',
-  available: true,
-  position: 1,
-};
+const project = { id: 'project-1' };
 
 const LIMIT = 2000;
 
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
-  const service = new SetFilePreferenceService(
-    new InMemoryInventoryStore([project]),
-    preferences,
-    { maxPreferences: LIMIT },
-  );
+  const service = new SetFilePreferenceService(preferences, {
+    maxPreferences: LIMIT,
+  });
   return { preferences, service };
 }
 
@@ -118,18 +103,6 @@ describe('SetFilePreferenceService', () => {
       preferences: [{ path: 'a.md', pinned: true, hidden: false }],
       changed: false,
     });
-  });
-
-  it('refuses an unknown project', () => {
-    const { service } = setup();
-    expect(() =>
-      service.execute({
-        projectId: 'unknown',
-        path: 'a.md',
-        flag: 'pinned',
-        value: true,
-      }),
-    ).toThrow(ProjectNotFoundError);
   });
 
   it('refuses a new path once the project holds as many preferences as allowed', () => {

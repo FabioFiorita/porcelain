@@ -28,7 +28,7 @@ import { ListGitBranchesUseCase } from '../use-cases/git-actions/list-git-branch
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
-import type { WorktreeCheck } from '../runtime/worktree-check.ts';
+import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
@@ -36,7 +36,7 @@ import type { Stores } from './compose-stores.ts';
 export type GitActionsDependencies = {
   stores: Stores;
   shared: Shared;
-  checkWorktree: WorktreeCheck;
+  checkWorktree: CheckWorktreeUseCasePort;
   commitDraftSource: CommitDraftSource;
   commitModelReader: CommitModelReader;
 };

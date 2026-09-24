@@ -10,13 +10,13 @@ import type {
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class RefreshReviewActivityUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly recordReviewActivity: RecordReviewActivityService;
@@ -27,7 +27,7 @@ export class RefreshReviewActivityUseCase {
   constructor(
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     readPublishedReview: ReadPublishedReviewService,
     readReviewEvidence: ReadReviewEvidenceService,
     recordReviewActivity: RecordReviewActivityService,

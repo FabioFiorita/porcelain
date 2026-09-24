@@ -1,6 +1,6 @@
 import type { Logger } from '../ports/logger.ts';
 import type { Job } from './job.ts';
-import type { OperationContext } from './operation-context.ts';
+import type { OperationContext } from '../ports/operation-context.ts';
 
 export type JobWork = {
   execute(context: OperationContext): Promise<unknown>;

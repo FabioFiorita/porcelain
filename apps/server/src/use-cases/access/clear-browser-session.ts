@@ -1,6 +1,6 @@
 import type { ClearBrowserSessionResponse } from '@porcelain/contracts/access';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ClearBrowserSessionUseCase {
   private readonly lanes: Lanes;

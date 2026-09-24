@@ -2,7 +2,7 @@ import type { ReadOwnerStatusService } from '@porcelain/access/services';
 import type { ReadOwnerStatusResponse } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ReadOwnerStatusUseCase {
   private readonly readOwnerStatus: ReadOwnerStatusService;

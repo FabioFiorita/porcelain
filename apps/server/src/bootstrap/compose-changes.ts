@@ -14,13 +14,13 @@ import { ReadCommitDiffsUseCase } from '../use-cases/changes/read-commit-diffs.t
 import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.ts';
 import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
-import type { WorktreeCheck } from '../runtime/worktree-check.ts';
+import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 
 export type ChangesDependencies = {
   shared: Shared;
-  checkWorktree: WorktreeCheck;
+  checkWorktree: CheckWorktreeUseCasePort;
 };
 
 export function composeChanges(

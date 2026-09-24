@@ -4,7 +4,7 @@ import type {
 } from '@porcelain/access/models';
 import { requestOriginCheck } from '@porcelain/access/rules';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export type RequestOriginVerdict =
   | { allowed: true }

@@ -40,7 +40,7 @@ import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.t
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
-import type { WorktreeCheck } from '../runtime/worktree-check.ts';
+import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
@@ -48,7 +48,7 @@ import type { Stores } from './compose-stores.ts';
 export type ReviewsDependencies = {
   stores: Stores;
   shared: Shared;
-  checkWorktree: WorktreeCheck;
+  checkWorktree: CheckWorktreeUseCasePort;
   findWorktreeByPath: WorktreeFinder;
 };
 

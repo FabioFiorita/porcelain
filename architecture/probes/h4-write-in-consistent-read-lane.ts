@@ -1,0 +1,21 @@
+import type { Probe } from '../probe.ts';
+
+export default {
+  decision: 'H4',
+  plants:
+    'use-cases/reviews/mark-comments-seen.ts runs its write inside lanes.runConsistent, which is a read lane',
+  gate: 'arch',
+  rule: "markCommentsSeen writes; call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in read lane",
+  edits: [
+    {
+      kind: 'replace',
+      path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
+      old: `    const result = await this.lanes.run(
+      this.laneKeys.reviews(worktree),
+      'write',`,
+      new: `    const result = await this.lanes.runConsistent(
+      this.laneKeys.reviews(worktree),
+      worktree,`,
+    },
+  ],
+} satisfies Probe;

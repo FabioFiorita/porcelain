@@ -16,15 +16,15 @@ import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
 import type { AnnouncedEditStore } from '../ports/announced-edit-store.ts';
-import type { ReviewedMarksInvalidation } from '../runtime/reviewed-marks-invalidation.ts';
-import type { WorktreeCheck } from '../runtime/worktree-check.ts';
+import type { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
+import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 
 export type FilesDependencies = {
   shared: Shared;
-  checkWorktree: WorktreeCheck;
-  invalidateReviewedMarks: ReviewedMarksInvalidation;
+  checkWorktree: CheckWorktreeUseCasePort;
+  invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
   announcedEdits: AnnouncedEditStore;
 };
 

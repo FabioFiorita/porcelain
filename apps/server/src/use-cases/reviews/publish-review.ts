@@ -10,11 +10,11 @@ import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class PublishReviewUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly publishReview: PublishReviewService;
@@ -25,7 +25,7 @@ export class PublishReviewUseCase {
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     confirmWorktree: ConfirmWorktreeService,
     readReviewEvidence: ReadReviewEvidenceService,
     publishReview: PublishReviewService,

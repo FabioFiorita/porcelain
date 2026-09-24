@@ -135,11 +135,11 @@ export function composeProjects(
     ),
     discoverProjects: new DiscoverProjectsUseCase(
       new DiscoverProjectsService(
-        inventory,
         projectFolderReader,
         projectRepositoryReader,
         { home: settings.projectHome, ...limits.discovery },
       ),
+      listRegisteredProjects,
       lanes,
       laneKeys,
     ),
@@ -154,17 +154,13 @@ export function composeProjects(
     ),
     listFilePreferences: new ListFilePreferencesUseCase(
       checkProject,
-      new ListFilePreferencesService(inventory, filePreference),
+      new ListFilePreferencesService(filePreference),
       lanes,
       laneKeys,
     ),
     setFilePreference: new SetFilePreferenceUseCase(
       checkProject,
-      new SetFilePreferenceService(
-        inventory,
-        filePreference,
-        limits.filePreferences,
-      ),
+      new SetFilePreferenceService(filePreference, limits.filePreferences),
       lanes,
       laneKeys,
       events,

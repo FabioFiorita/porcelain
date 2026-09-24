@@ -17,6 +17,7 @@ export type {
   RecordedWorktreesResult,
 } from './collect-absent-worktrees.ts';
 export type {
+  DiscoverProjectsInput,
   DiscoverProjectsOptions,
   DiscoverProjectsResult,
 } from './discover-projects.ts';

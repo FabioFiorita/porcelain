@@ -25,9 +25,12 @@ import {
   isMethodDeclaration,
   isMethodSignatureDeclaration,
   isNamedExports,
+  isObjectLiteralExpression,
   isPropertyAccessExpression,
+  isPropertyAssignment,
   isStringLiteral,
   isTypeAliasDeclaration,
+  isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
 import { domainPackages } from './policy.ts';
 
@@ -45,6 +48,36 @@ const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
 const domainShapeFile = new RegExp(
   `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
 );
+
+const repositoryTables = ['reviews', 'repository'];
+const tableLanes: Readonly<
+  Record<string, Readonly<Record<string, readonly string[]>>>
+> = {
+  GitActionReceiptStore: { any: ['receipts', 'repository'] },
+  ReviewStore: { any: repositoryTables },
+  ReviewedFileStore: { any: repositoryTables },
+  ReviewedLayerStore: { any: repositoryTables },
+  CommentStore: { any: repositoryTables },
+  CommentSeenStore: { any: repositoryTables },
+  FilePreferenceStore: { any: ['project'] },
+  InventoryStore: { any: ['inventory'] },
+  WorktreePresenceStore: {
+    save: ['inventory'],
+    remove: ['repository', 'project'],
+    any: ['inventory', 'repository', 'project'],
+  },
+  WorktreeCatalogStore: { save: ['inventory'] },
+};
+const readsBeforeLane: Readonly<Record<string, string>> = {
+  CheckWorktreeService:
+    'resolves the worktree from the catalog before its lane can be chosen; a stale entry is refreshed by the refresh use case under its own inventory lane',
+  CheckRefreshedWorktreeService:
+    'answers the worktree the refresh just recorded, before its lane can be chosen',
+  CheckProjectService: 'resolves the project before the lane is keyed on it',
+  FindProjectService: 'resolves the project before the lane is keyed on it',
+  ReadReviewSummaryService:
+    'reads a summary link by its token, before any worktree is known',
+};
 
 type Lane =
   | 'read'
@@ -282,6 +315,8 @@ function laneOf(call: Node, callback: Node): Lane | undefined {
     return first === callback ? 'unqueued' : undefined;
   if (method.text === 'finish')
     return first === callback ? 'finish' : undefined;
+  if (method.text === 'runConsistent')
+    return third === callback ? 'read' : undefined;
   if (method.text !== 'run' || third !== callback) return undefined;
   if (second && isStringLiteral(second))
     return second.text === 'read' || second.text === 'write'
@@ -289,6 +324,44 @@ function laneOf(call: Node, callback: Node): Lane | undefined {
       : 'unknown';
   return 'unknown';
 }
+
+function laneKeyOf(project: Project, node: Node | undefined): string {
+  if (!node) return 'unknown';
+  if (
+    isCallExpression(node) &&
+    isPropertyAccessExpression(node.expression) &&
+    thisMember(node.expression.expression) === 'laneKeys' &&
+    isIdentifier(node.expression.name)
+  )
+    return node.expression.name.text;
+  if (isIdentifier(node)) {
+    const declaration = project.checker
+      .getSymbolAtLocation(node)
+      ?.declarations[0]?.resolve(project);
+    return declaration && isVariableDeclaration(declaration)
+      ? laneKeyOf(project, declaration.initializer)
+      : 'unknown';
+  }
+  return 'unknown';
+}
+
+function laneKeyArgument(call: Node): Node | undefined {
+  if (!isCallExpression(call) || !isPropertyAccessExpression(call.expression))
+    return undefined;
+  const [first, second] = call.arguments;
+  if (!isIdentifier(call.expression.name)) return undefined;
+  if (call.expression.name.text !== 'finish') return first;
+  if (!second || !isObjectLiteralExpression(second)) return undefined;
+  const lane = second.properties.find(
+    (property) =>
+      isPropertyAssignment(property) &&
+      isIdentifier(property.name) &&
+      property.name.text === 'lane',
+  );
+  return lane && isPropertyAssignment(lane) ? lane.initializer : undefined;
+}
+
+type LaneSite = { lane: Lane; key: string };
 
 function isFunctionNode(node: Node): boolean {
   return isArrowFunction(node) || isFunctionExpression(node);
@@ -304,28 +377,87 @@ function privateCallSites(method: Node, name: string): Node[] {
   );
 }
 
-function lanesAround(node: Node, seen: Set<Node>): Lane[] {
+function laneSitesAround(
+  project: Project,
+  node: Node,
+  seen: Set<Node>,
+): LaneSite[] {
+  const none: LaneSite[] = [{ lane: 'none', key: 'none' }];
   for (let current = node; ; current = current.parent) {
     const parent = current.parent;
     if (isFunctionNode(current) && isCallExpression(parent)) {
       const lane = laneOf(parent, current);
-      if (lane) return [lane];
+      if (lane)
+        return [
+          {
+            lane,
+            key:
+              lane === 'unqueued'
+                ? 'none'
+                : laneKeyOf(project, laneKeyArgument(parent)),
+          },
+        ];
     }
     if (isMethodDeclaration(current)) {
       const name = isIdentifier(current.name) ? current.name.text : '';
-      if (name === 'execute' || seen.has(current)) return ['none'];
+      if (name === 'execute' || seen.has(current)) return none;
       seen.add(current);
       const sites = privateCallSites(current, name);
       return sites.length === 0
-        ? ['none']
-        : sites.flatMap((site) => lanesAround(site, seen));
+        ? none
+        : sites.flatMap((site) => laneSitesAround(project, site, seen));
     }
     if (
       isConstructorDeclaration(current) ||
       current.kind === SyntaxKind.SourceFile
     )
-      return ['none'];
+      return none;
   }
+}
+
+function tableCalls(
+  project: Project,
+  declaration: Node,
+): { store: string; method: string; allowed: readonly string[] }[] {
+  return descendants(declaration).flatMap((node) => {
+    if (!isCallExpression(node) || !isPropertyAccessExpression(node.expression))
+      return [];
+    const method = project.checker
+      .getSymbolAtLocation(node.expression.name)
+      ?.declarations[0]?.resolve(project);
+    if (!method || !isMethodSignatureDeclaration(method)) return [];
+    const port = method.parent;
+    if (!isInterfaceDeclaration(port)) return [];
+    const lanes = tableLanes[port.name.text];
+    const name = methodName(method);
+    const allowed = lanes?.[name] ?? lanes?.['any'];
+    return allowed ? [{ store: port.name.text, method: name, allowed }] : [];
+  });
+}
+
+function tableFindings(
+  root: string,
+  project: Project,
+  call: Node,
+  service: Node,
+  field: string,
+): TypeFinding[] {
+  const serviceName =
+    isClassDeclaration(service) && service.name ? service.name.text : '';
+  const sites = laneSitesAround(project, call, new Set());
+  return tableCalls(project, service).flatMap(({ store, method, allowed }) =>
+    sites
+      .filter(
+        (site) =>
+          !allowed.includes(site.key) &&
+          !(site.key === 'none' && serviceName in readsBeforeLane),
+      )
+      .map((site) => ({
+        rule: 'lane-per-table',
+        from: where(root, call),
+        to: `${field} calls ${store}.${method}; that table belongs to the ${allowed.join(' or ')} lane, so run it inside lanes.run(this.laneKeys.${allowed[0] ?? ''}(...)), not ${site.key === 'none' ? 'outside any lane' : `the ${site.key} lane`}`,
+      })),
+  );
 }
 
 function laneFindings(
@@ -349,10 +481,13 @@ function laneFindings(
       ?.declarations[0]?.resolve(project);
     if (!declaration || !isClassDeclaration(declaration)) continue;
     if (!serviceFile.test(declaration.getSourceFile().fileName)) continue;
+    result.push(...tableFindings(root, project, node, declaration, field));
     const writer = writerCache.get(declaration) ?? writes(project, declaration);
     writerCache.set(declaration, writer);
     if (!writer) continue;
-    const lanes = lanesAround(node, new Set());
+    const lanes = laneSitesAround(project, node, new Set()).map(
+      (site) => site.lane,
+    );
     const wrong = lanes.filter(
       (lane) => lane !== 'write' && lane !== 'background' && lane !== 'finish',
     );

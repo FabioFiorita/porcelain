@@ -26,13 +26,13 @@ import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { Logger } from '../../ports/logger.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export type RunGitActionOptions = { deadlineMs: number };
 
 export class RunGitActionUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly expireGitActionReceipts: ExpireGitActionReceiptsService;
   private readonly acceptGitAction: AcceptGitActionService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
@@ -51,7 +51,7 @@ export class RunGitActionUseCase {
   private readonly options: RunGitActionOptions;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     expireGitActionReceipts: ExpireGitActionReceiptsService,
     acceptGitAction: AcceptGitActionService,
     readWorktreeStatus: ReadWorktreeStatusService,

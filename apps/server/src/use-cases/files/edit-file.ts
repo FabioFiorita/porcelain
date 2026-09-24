@@ -7,15 +7,15 @@ import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { Logger } from '../../ports/logger.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { ReviewedMarksInvalidation } from '../../runtime/reviewed-marks-invalidation.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class EditFileUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly editFile: EditFileService;
-  private readonly invalidateReviewedMarks: ReviewedMarksInvalidation;
+  private readonly invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -23,10 +23,10 @@ export class EditFileUseCase {
   private readonly logger: Logger;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     confirmWorktree: ConfirmWorktreeService,
     editFile: EditFileService,
-    invalidateReviewedMarks: ReviewedMarksInvalidation,
+    invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,

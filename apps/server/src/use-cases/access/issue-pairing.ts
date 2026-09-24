@@ -8,7 +8,7 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class IssuePairingUseCase {
   private readonly readEnvironment: ReadEnvironmentService;

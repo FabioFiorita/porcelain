@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/bootstrap/main.ts",
+    "start": "node --input-type=module --eval \"const { cli } = await import('./src/bootstrap/main.ts'); await cli.run();\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server"
   },

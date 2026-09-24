@@ -6,17 +6,17 @@ import type {
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ListCommitsUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly listCommits: ListCommitsService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     listCommits: ListCommitsService,
     lanes: Lanes,
     laneKeys: LaneKeys,

@@ -15,13 +15,13 @@ import type {
 } from '@porcelain/git-actions/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export type GenerateCommitDraftOptions = { deadlineMs: number };
 
 export class GenerateCommitDraftUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
@@ -31,7 +31,7 @@ export class GenerateCommitDraftUseCase {
   private readonly options: GenerateCommitDraftOptions;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     captureCommitDraft: CaptureCommitDraftService,

@@ -3,10 +3,7 @@ import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  runCli,
-  startupFailureMessage,
-} from '../apps/server/src/bootstrap/main.ts';
+import { cli } from '../apps/server/src/bootstrap/main.ts';
 import { parseCliArguments } from '../apps/server/src/cli/arguments.ts';
 import { installShutdownSignals } from '../apps/server/src/cli/signals.ts';
 import { ServeConfigurationError } from '../apps/server/src/config/errors/serve-configuration-error.ts';
@@ -195,7 +192,7 @@ async function buildInto(webRoot: string): Promise<boolean> {
     return !controller.signal.aborted;
   } catch (error) {
     if (!controller.signal.aborted) {
-      process.stderr.write(`${startupFailureMessage(error)}\n`);
+      process.stderr.write(`${cli.startupFailureMessage(error)}\n`);
       process.exitCode = 1;
     }
     return false;
@@ -207,12 +204,12 @@ async function buildInto(webRoot: string): Promise<boolean> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (!servesLocally(args)) {
-    await runCli(args);
+    await cli.run(args);
     return;
   }
   const webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
   try {
-    if (await buildInto(webRoot)) await runCli(args, process.env, { webRoot });
+    if (await buildInto(webRoot)) await cli.run(args, process.env, { webRoot });
   } finally {
     await rm(webRoot, { recursive: true, force: true });
   }

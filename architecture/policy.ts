@@ -88,7 +88,7 @@ export const requiredServerFiles: readonly string[] = [
   'apps/server/src/runtime/shared-reads.ts',
   'apps/server/src/runtime/launch-limit.ts',
   'apps/server/src/runtime/lane-keys.ts',
-  'apps/server/src/runtime/operation-context.ts',
+  'apps/server/src/ports/operation-context.ts',
   'apps/server/src/ports/event-publisher.ts',
 ];
 
@@ -246,7 +246,6 @@ function classifyServer(inside: string) {
   if (/\.test\.ts$/.test(inside)) return;
   if (/\.spec\.ts$/.test(inside)) return classified('test', owner);
   if (inside.startsWith('use-cases/')) return classified('use-case', owner);
-  if (inside.startsWith('jobs/')) return classified('transport', owner);
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
   if (inside.startsWith('runtime/')) return classified('runtime', owner);
   if (inside.startsWith('ports/')) return classified('server-port', owner);

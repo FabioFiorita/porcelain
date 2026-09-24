@@ -9,11 +9,11 @@ import type {
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../runtime/operation-context.ts';
-import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ListReviewedLayersUseCase {
-  private readonly checkWorktree: WorktreeCheck;
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
   private readonly readReviewTexts: ReadReviewTextsService;
   private readonly readPublishedReview: ReadPublishedReviewService;
@@ -22,7 +22,7 @@ export class ListReviewedLayersUseCase {
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: WorktreeCheck,
+    checkWorktree: CheckWorktreeUseCasePort,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
     readReviewTexts: ReadReviewTextsService,
     readPublishedReview: ReadPublishedReviewService,

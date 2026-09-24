@@ -1,4 +1,7 @@
 import type { ProjectLocation } from './project-folder.ts';
+import type { Inventory } from './project.ts';
+
+export type DiscoverProjectsInput = Inventory;
 
 export type DiscoverProjectsResult = {
   repositories: ProjectLocation[];

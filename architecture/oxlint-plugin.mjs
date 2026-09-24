@@ -17,7 +17,7 @@ const useCaseValueModule = new RegExp(
 const modelsSource =
   /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/.+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/.+)\.ts$/;
 const composeSource =
-  /\/apps\/server\/src\/bootstrap\/(?:.+\/)?compose-[^/]+\.ts$/;
+  /\/apps\/server\/src\/bootstrap\/(?:.+\/)?(?:compose-[^/]+|main)\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
@@ -362,7 +362,8 @@ const primitiveTypes = new Set([
   'TSTemplateLiteralType',
 ]);
 const portName =
-  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|^Clock)$/;
+  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|UseCasePort|^Clock)$/;
+const useCasePortName = /UseCasePort$/;
 const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
 const recordingFake = /^Recording[A-Z]/;
 const mutatingMethods = new Set([
@@ -417,7 +418,7 @@ const openTypes = new Set([
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile = new RegExp(
-  `^(?:packages/(?:${domainPackage}|kernel)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/(?:adapters|use-cases|jobs|ports)/)`,
+  `^(?:packages/(?:${domainPackage}|kernel)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/(?:adapters|use-cases|ports)/)`,
 );
 const rootScriptFile = /^scripts\/[^/]+\.ts$/;
 const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
@@ -710,6 +711,40 @@ function containsType(node, type, visitorKeys) {
       : containsType(child, type, visitorKeys);
   });
 }
+
+function nodesOf(node, visitorKeys, accept) {
+  if (!node || typeof node.type !== 'string') return [];
+  const found = accept(node) ? [node] : [];
+  for (const key of visitorKeys[node.type] ?? []) {
+    const child = node[key];
+    for (const entry of Array.isArray(child) ? child : [child])
+      found.push(...nodesOf(entry, visitorKeys, accept));
+  }
+  return found;
+}
+
+const laneCallbackIndex = new Map([
+  ['run', 2],
+  ['runConsistent', 2],
+  ['background', 1],
+  ['finish', 0],
+]);
+
+function laneCallback(node) {
+  if (node?.type !== 'CallExpression') return undefined;
+  const path = memberPath(node.callee);
+  if (path?.length !== 3 || path[0] !== 'this' || path[1] !== 'lanes')
+    return undefined;
+  const index = laneCallbackIndex.get(path[2]);
+  return index === undefined ? undefined : node.arguments[index];
+}
+
+const liveProgressPublishers = new Map([
+  ['RunGitActionUseCase', new Set(['settle', 'progressed', 'abandon'])],
+]);
+
+const laneHolderType =
+  /(?:Store|Reader|Runner|Writer|Source|Service|UseCasePort)$|^JobWork$/;
 
 function isFunction(node) {
   return (
@@ -1572,33 +1607,114 @@ export default {
       create(context) {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
           return {};
-        const lanes = [];
-        const isLaneRun = (node) =>
-          node.callee.type === 'MemberExpression' &&
-          propertyName(node.callee, context) === 'run' &&
-          memberPath(node.callee.object)?.at(-1) === 'lanes';
+        const visitorKeys = context.sourceCode.visitorKeys;
+        return {
+          ClassDeclaration(node) {
+            const methods = new Map(
+              node.body.body
+                .filter(
+                  (member) =>
+                    member.type === 'MethodDefinition' &&
+                    member.key.type === 'Identifier',
+                )
+                .map((member) => [member.key.name, member]),
+            );
+            const exempt =
+              liveProgressPublishers.get(node.id?.name ?? '') ?? new Set();
+            const reported = new Set();
+            const visit = (scope, seen, publishesProgress) => {
+              for (const call of nodesOf(
+                scope,
+                visitorKeys,
+                (entry) => entry.type === 'CallExpression',
+              )) {
+                const path = memberPath(call.callee);
+                if (path?.[0] !== 'this') continue;
+                if (
+                  path[1] === 'events' &&
+                  !publishesProgress &&
+                  !reported.has(call)
+                ) {
+                  reported.add(call);
+                  context.report({
+                    node: call,
+                    message:
+                      'Publish after the lane settles: return whether anything changed from lanes.run, runConsistent, background or finish and publish outside it; only a running Git action publishes its progress from inside its lane.',
+                  });
+                }
+                const method = path.length === 2 && methods.get(path[1]);
+                if (!method || seen.has(method)) continue;
+                seen.add(method);
+                visit(method.value, seen, exempt.has(path[1]));
+              }
+            };
+            for (const call of nodesOf(
+              node,
+              visitorKeys,
+              (entry) => laneCallback(entry) !== undefined,
+            ))
+              visit(laneCallback(call), new Set(), false);
+          },
+        };
+      },
+    },
+    'no-nested-lane': {
+      create(context) {
+        if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const visitorKeys = context.sourceCode.visitorKeys;
+        const nested = (entry) => {
+          if (laneCallback(entry) !== undefined) return true;
+          if (entry.type !== 'CallExpression') return false;
+          const path = memberPath(entry.callee);
+          return (
+            path?.length === 3 &&
+            path[0] === 'this' &&
+            (path[1] === 'checkWorktree' || /^refresh[A-Z]/.test(path[1])) &&
+            path[2] === 'execute'
+          );
+        };
         return {
           CallExpression(node) {
-            if (isLaneRun(node)) {
-              lanes.push(node);
-              return;
-            }
-            const path = memberPath(node.callee);
-            if (
-              path?.[0] === 'this' &&
-              path[1] === 'events' &&
-              lanes.some((lane) =>
-                lane.arguments.slice(2, 3).some((work) => within(node, work)),
-              )
-            )
+            const callback = laneCallback(node);
+            if (callback === undefined) return;
+            for (const inner of nodesOf(callback, visitorKeys, nested))
               context.report({
-                node,
+                node: inner,
                 message:
-                  'Publish after the lane settles: return whether anything changed from the lane and publish outside it.',
+                  'A lane never runs inside another lane: resolve the worktree, refresh the inventory and take any other lane before or after this one, never inside its callback.',
               });
           },
-          'CallExpression:exit'(node) {
-            if (lanes.at(-1) === node) lanes.pop();
+        };
+      },
+    },
+    'lane-only-with-store': {
+      create(context) {
+        if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const visitorKeys = context.sourceCode.visitorKeys;
+        return {
+          ClassDeclaration(node) {
+            const holds = node.body.body.some((member) => {
+              const annotation = member.typeAnnotation?.typeAnnotation;
+              return (
+                member.type === 'PropertyDefinition' &&
+                annotation?.type === 'TSTypeReference' &&
+                annotation.typeName.type === 'Identifier' &&
+                laneHolderType.test(annotation.typeName.name)
+              );
+            });
+            if (holds) return;
+            for (const call of nodesOf(
+              node,
+              visitorKeys,
+              (entry) => laneCallback(entry) !== undefined,
+            ))
+              context.report({
+                node: call,
+                message:
+                  'A lane serializes access to something: a use case that holds no store, reader, runner, writer, source, service, worktree check or refresh computes without a lane (lanes.unqueued at most).',
+              });
           },
         };
       },
@@ -2031,9 +2147,22 @@ export default {
         if (!anyPortFile.test(path) || indexFile.test(path) || isSpec(context))
           return {};
         const visitorKeys = context.sourceCode.visitorKeys;
-        const checkParameters = (node, parameters, returned) => {
+        const checkParameters = (node, parameters, returned, useCase) => {
           const names = parameters.map(parameterName);
-          if (
+          if (useCase) {
+            if (
+              node.type !== 'TSMethodSignature' ||
+              propertyName(node, context) !== 'execute' ||
+              parameters.length !== 2 ||
+              names[0] !== 'input' ||
+              names[1] !== 'context'
+            )
+              context.report({
+                node,
+                message:
+                  'A *UseCasePort stands for one server use case another use case or the runtime calls: it declares only execute(input, context), the use case shape, and nothing else.',
+              });
+          } else if (
             parameters.length > 2 ||
             (parameters.length >= 1 && names[0] !== 'input') ||
             (parameters.length === 2 && names[1] !== 'signal')
@@ -2041,7 +2170,7 @@ export default {
             context.report({
               node,
               message:
-                'A port method takes (), (input) or (input, signal): one input object, then the signal.',
+                'A port method takes (), (input) or (input, signal): one input object, then the signal; only a *UseCasePort under apps/server/src/ports declares execute(input, context).',
             });
           const input = parameters[0]?.typeAnnotation?.typeAnnotation;
           if (input && input.type !== 'TSTypeReference')
@@ -2059,18 +2188,26 @@ export default {
         };
         return {
           TSInterfaceDeclaration(node) {
-            if (!portName.test(node.id.name))
+            const useCase =
+              useCasePortName.test(node.id.name) && serverAppFile.test(path);
+            if (
+              !portName.test(node.id.name) ||
+              (useCasePortName.test(node.id.name) && !useCase)
+            )
               context.report({
                 node: node.id,
                 message:
-                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger, or it is Clock.',
+                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger, or it is Clock; a server port standing for a use case ends in UseCasePort.',
               });
             for (const member of node.body.body) {
+              if (useCase && member.type !== 'TSMethodSignature')
+                checkParameters(member, [], undefined, true);
               if (member.type === 'TSMethodSignature')
                 checkParameters(
                   member,
                   member.params,
                   member.returnType?.typeAnnotation,
+                  useCase,
                 );
               const annotation = member.typeAnnotation?.typeAnnotation;
               if (
@@ -2307,7 +2444,7 @@ export default {
         if (!composeSource.test(normalizedFilename(context.filename)))
           return {};
         const message =
-          'Composition builds objects only; defaults belong in config, starting and running in runtime and jobs.';
+          'Composition builds objects only; defaults belong in config, starting and running in runtime.';
         return {
           LogicalExpression(node) {
             context.report({ node, message });
@@ -2755,7 +2892,7 @@ export default {
         const path = normalizedFilename(context.filename);
         if (!composeSource.test(path)) return {};
         const message =
-          'Composition constructs only; decisions belong in use cases and services, schedules in jobs/.';
+          'Composition constructs only; decisions belong in use cases and services, starting and scheduling in runtime.';
         const report = (node) => context.report({ node, message });
         return {
           IfStatement: report,
@@ -2809,7 +2946,7 @@ export default {
     'use-case-imports': {
       create(context) {
         const path = normalizedFilename(context.filename);
-        if (!useCaseSource.test(path)) return {};
+        if (!useCaseSource.test(path) || isSpec(context)) return {};
         const reexport = (node) =>
           context.report({
             node,
@@ -2892,7 +3029,7 @@ export default {
     'operation-class-shape': {
       create(context) {
         const role = operationRole(context.filename);
-        if (!role) return {};
+        if (!role || isSpec(context)) return {};
         const expectedName = expectedClassName(context.filename, role);
         const roleLabel = role === 'UseCase' ? 'Use case' : role;
         const exportMessage = `Export only the ${expectedName} class and types from this file.`;

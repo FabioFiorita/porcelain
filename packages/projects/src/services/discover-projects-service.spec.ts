@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { DiscoveredProjectRepository } from '@porcelain/projects/models';
-import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
 import { DiscoverProjectsService } from './discover-projects-service.ts';
@@ -20,6 +19,20 @@ function repository(
 
 const roots = [home, '/srv/work'];
 
+const inventory = {
+  projects: [
+    {
+      id: 'project-1',
+      name: 'api',
+      namedByOwner: false,
+      commonDirectory: '/srv/work/api/.git',
+      repositoryIdentity: 'registered',
+      available: true,
+      position: 1,
+    },
+  ],
+};
+
 function setup(
   candidates: string[],
   repositories: Record<string, DiscoveredProjectRepository> = {},
@@ -28,29 +41,14 @@ function setup(
   const folders = new ScriptedProjectFolderReader();
   folders.searchFinds(roots, { candidates, limited });
   const reader = new ScriptedProjectRepositoryReader({ repositories });
-  const service = new DiscoverProjectsService(
-    new InMemoryInventoryStore([
-      {
-        id: 'project-1',
-        name: 'api',
-        namedByOwner: false,
-        commonDirectory: '/srv/work/api/.git',
-        repositoryIdentity: 'registered',
-        available: true,
-        position: 1,
-      },
-    ]),
-    folders,
-    reader,
-    {
-      home,
-      maxRepositories: 50,
-      maxFolders: 500,
-      maxDepth: 3,
-      maxEntries: 2000,
-      skippedNames: ['node_modules'],
-    },
-  );
+  const service = new DiscoverProjectsService(folders, reader, {
+    home,
+    maxRepositories: 50,
+    maxFolders: 500,
+    maxDepth: 3,
+    maxEntries: 2000,
+    skippedNames: ['node_modules'],
+  });
   return { service };
 }
 
@@ -59,7 +57,7 @@ describe('DiscoverProjectsService', () => {
     const { service } = setup(['/srv/work/web'], {
       '/srv/work/web': repository('w'),
     });
-    expect((await service.execute()).repositories).toEqual([
+    expect((await service.execute(inventory)).repositories).toEqual([
       { name: 'web', path: '/srv/work/web' },
     ]);
   });
@@ -73,7 +71,7 @@ describe('DiscoverProjectsService', () => {
         [`${home}/alpha-copy`]: repository('a'),
       },
     );
-    expect(await service.execute()).toEqual({
+    expect(await service.execute(inventory)).toEqual({
       repositories: [
         { name: 'alpha', path: `${home}/alpha` },
         { name: 'zeta', path: `${home}/zeta` },
@@ -89,14 +87,14 @@ describe('DiscoverProjectsService', () => {
         { path: `${home}/app`, main: true, available: true },
       ]),
     });
-    expect((await service.execute()).repositories).toEqual([
+    expect((await service.execute(inventory)).repositories).toEqual([
       { name: 'app', path: `${home}/app` },
     ]);
   });
 
   it('skips a folder with a Git marker that is not a usable repository', async () => {
     const { service } = setup([`${home}/broken`]);
-    expect(await service.execute()).toEqual({
+    expect(await service.execute(inventory)).toEqual({
       repositories: [],
       limited: false,
     });
@@ -104,7 +102,7 @@ describe('DiscoverProjectsService', () => {
 
   it('says the search was cut short when the folder search was', async () => {
     const { service } = setup([], {}, true);
-    expect((await service.execute()).limited).toBe(true);
+    expect((await service.execute(inventory)).limited).toBe(true);
   });
 
   it('stops at fifty repositories and says so', async () => {
@@ -121,7 +119,7 @@ describe('DiscoverProjectsService', () => {
         ]),
       ),
     );
-    const discovery = await service.execute();
+    const discovery = await service.execute(inventory);
     expect(discovery.repositories).toHaveLength(50);
     expect(discovery.limited).toBe(true);
   });
@@ -140,7 +138,7 @@ describe('DiscoverProjectsService', () => {
         ]),
       ),
     );
-    const discovery = await service.execute();
+    const discovery = await service.execute(inventory);
     expect(discovery.repositories).toHaveLength(50);
     expect(discovery.limited).toBe(false);
   });

@@ -50,6 +50,8 @@
     "porcelain/timers-in-runtime": "error",
     "porcelain/fixture-imports": "error",
     "porcelain/events-after-lane": "error",
+    "porcelain/no-nested-lane": "error",
+    "porcelain/lane-only-with-store": "error",
     "porcelain/lane-after-check": "error",
     "porcelain/interfaces-only-in-ports": "error",
     "porcelain/adapters-report-facts": "error",

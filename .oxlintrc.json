@@ -1,10 +1,6 @@
 {
-  "plugins": [
-    "typescript"
-  ],
-  "jsPlugins": [
-    "./architecture/oxlint-plugin.mjs"
-  ],
+  "plugins": ["typescript"],
+  "jsPlugins": ["./architecture/oxlint-plugin.mjs"],
   "options": {
     "typeAware": true
   },
@@ -54,6 +50,8 @@
     "porcelain/timers-in-runtime": "error",
     "porcelain/fixture-imports": "error",
     "porcelain/events-after-lane": "error",
+    "porcelain/no-nested-lane": "error",
+    "porcelain/lane-only-with-store": "error",
     "porcelain/lane-after-check": "error",
     "porcelain/interfaces-only-in-ports": "error",
     "porcelain/adapters-report-facts": "error",
@@ -73,10 +71,7 @@
   },
   "overrides": [
     {
-      "files": [
-        "architecture/*.mjs",
-        "architecture/*.cjs"
-      ],
+      "files": ["architecture/*.mjs", "architecture/*.cjs"],
       "rules": {
         "typescript/no-unsafe-argument": "off",
         "typescript/no-unsafe-assignment": "off",

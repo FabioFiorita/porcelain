@@ -1,38 +1,35 @@
 import type {
+  DiscoverProjectsInput,
   DiscoverProjectsOptions,
   DiscoverProjectsResult,
 } from '../models/discover-projects.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
 import type { ProjectFolderReader } from '../ports/project-folder-reader.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
 import { discoveryRoots } from '../rules/discovery-roots.ts';
 import { folderName } from '../rules/folder-name.ts';
 
 export class DiscoverProjectsService {
-  private readonly inventory: InventoryStore;
   private readonly projectFolderReader: ProjectFolderReader;
   private readonly projectRepositoryReader: ProjectRepositoryReader;
   private readonly options: DiscoverProjectsOptions;
 
   constructor(
-    inventory: InventoryStore,
     projectFolderReader: ProjectFolderReader,
     projectRepositoryReader: ProjectRepositoryReader,
     options: DiscoverProjectsOptions,
   ) {
-    this.inventory = inventory;
     this.projectFolderReader = projectFolderReader;
     this.projectRepositoryReader = projectRepositoryReader;
     this.options = options;
   }
 
-  async execute(signal?: AbortSignal): Promise<DiscoverProjectsResult> {
+  async execute(
+    input: DiscoverProjectsInput,
+    signal?: AbortSignal,
+  ): Promise<DiscoverProjectsResult> {
     const search = await this.projectFolderReader.search(
       {
-        roots: discoveryRoots(
-          this.options.home,
-          this.inventory.read().projects,
-        ),
+        roots: discoveryRoots(this.options.home, input.projects),
         maxDepth: this.options.maxDepth,
         maxFolders: this.options.maxFolders,
         maxEntries: this.options.maxEntries,

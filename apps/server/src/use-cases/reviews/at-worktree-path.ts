@@ -1,5 +1,5 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
-import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 
 export type WorktreeOperation = {
   execute(input: WorktreeKey, context: OperationContext): Promise<unknown>;

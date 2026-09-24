@@ -1,5 +1,4 @@
 import { FilePreferenceLimitError } from '../errors/file-preference-limit-error.ts';
-import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
 import type { FilePreference } from '../models/file-preference.ts';
 import type {
   SetFilePreferenceInput,
@@ -7,27 +6,21 @@ import type {
   SetFilePreferenceResult,
 } from '../models/set-file-preference.ts';
 import type { FilePreferenceStore } from '../ports/file-preference-store.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class SetFilePreferenceService {
-  private readonly inventory: InventoryStore;
   private readonly filePreference: FilePreferenceStore;
   private readonly options: SetFilePreferenceOptions;
 
   constructor(
-    inventory: InventoryStore,
     filePreference: FilePreferenceStore,
     options: SetFilePreferenceOptions,
   ) {
-    this.inventory = inventory;
     this.filePreference = filePreference;
     this.options = options;
   }
 
   execute(input: SetFilePreferenceInput): SetFilePreferenceResult {
     const { projectId, path } = input;
-    const project = this.inventory.find({ projectId });
-    if (!project) throw new ProjectNotFoundError();
     const existing = this.filePreference.find({ projectId, path });
     const next: FilePreference = {
       path,
