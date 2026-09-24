@@ -192,11 +192,13 @@ describe('pullBranch', () => {
     });
   });
 
-  it.each<{ strategy: Strategy }>([
-    { strategy: 'merge' },
-    { strategy: 'rebase' },
+  it.each<{ label: string; strategy: Strategy }>([
+    { label: 'left to its default', strategy: undefined },
+    { label: 'fast-forward only', strategy: 'ff-only' },
+    { label: 'merge', strategy: 'merge' },
+    { label: 'rebase', strategy: 'rebase' },
   ])(
-    'reports no change with the $strategy strategy when the branch is already ahead of the remote',
+    'reports no change when the strategy is $label and the branch is already ahead of the remote',
     async ({ strategy }) => {
       const local = commit(clone, 'c.txt', 'sea\n');
       const tracking = git(clone, 'rev-parse', 'refs/remotes/origin/main');
@@ -297,14 +299,17 @@ describe('pullBranch', () => {
     });
   });
 
-  it('reports an uncertain outcome when the remote branch cannot be fetched', async () => {
+  it("reports Git's refusal when the remote branch cannot be fetched and keeps the branch", async () => {
     const before = head();
+    const tracking = git(clone, 'rev-parse', 'refs/remotes/origin/main');
     expect({
       outcome: await pull(preparation(undefined, 'refs/heads/missing')),
       head: head(),
+      tracking: git(clone, 'rev-parse', 'refs/remotes/origin/main'),
     }).toMatchObject({
-      outcome: { state: 'indeterminate', reason: 'GIT_REJECTED' },
+      outcome: { state: 'rejected', reason: 'GIT_REJECTED' },
       head: before,
+      tracking,
     });
   });
 });

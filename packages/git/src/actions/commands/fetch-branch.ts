@@ -30,12 +30,7 @@ export async function fetchBranch(
     signal,
   );
   const failure = processFailure(fetched);
-  if (failure)
-    return {
-      ...failure,
-      state: 'indeterminate',
-      reason: failure.reason ?? 'OUTCOME_UNKNOWN',
-    };
+  if (failure) return failure;
   const candidate = (
     await readActionCommand(
       process,

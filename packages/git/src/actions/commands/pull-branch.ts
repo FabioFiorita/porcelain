@@ -49,18 +49,18 @@ export async function pullBranch(
   const ancestry = await readActionAncestry(process, head, candidate, signal);
   if (ancestry.kind === 'failed') return ancestry.outcome;
   if (ancestry.kind === 'not-ancestor') {
-    if (strategy === 'ff-only')
-      return {
-        state: 'rejected',
-        reason: 'NON_FAST_FORWARD',
-        refreshRequired: true,
-      };
     const ahead = await readActionAncestry(process, candidate, head, signal);
     if (ahead.kind === 'failed') return ahead.outcome;
     if (ahead.kind === 'ancestor')
       return {
         state: 'no-change',
         result: { headOid: head, trackingOid: candidate },
+        refreshRequired: true,
+      };
+    if (strategy === 'ff-only')
+      return {
+        state: 'rejected',
+        reason: 'NON_FAST_FORWARD',
         refreshRequired: true,
       };
   }
