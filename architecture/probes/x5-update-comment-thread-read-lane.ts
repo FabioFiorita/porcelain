@@ -5,7 +5,7 @@ export default {
   plants:
     "use-cases/reviews/update-comment-thread.ts lane changed to 'read' (the service writes only through comments.resolve)",
   gate: 'arch',
-  rule: 'lane-mode-matches-service',
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

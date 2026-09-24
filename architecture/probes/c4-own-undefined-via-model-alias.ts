@@ -5,7 +5,7 @@ export default {
   plants:
     'git-actions/models/read-interrupted-git-action.ts: ReadInterruptedGitActionResult = GitActionReceiptView | undefined; the service keeps the named return type',
   gate: 'arch',
-  rule: 'models-file-shape',
+  rule: 'models-file-shape:',
   edits: [
     {
       kind: 'replace',

@@ -5,7 +5,7 @@ export default {
   plants:
     'new apps/server/lib/clock-override.ts (outside every lint/arch root: comment, Date, null) imported by adapters/runtime/system-clock.ts',
   gate: 'arch',
-  rule: 'code-outside-roots',
+  rule: 'code-outside-roots:',
   edits: [
     {
       kind: 'create',

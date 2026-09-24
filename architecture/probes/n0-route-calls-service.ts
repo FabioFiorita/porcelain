@@ -5,7 +5,7 @@ export default {
   plants:
     'http/routes/access/read-health.ts: options.useCase typed as Pick<ReadEnvironmentService> imported from @porcelain/access/services',
   gate: 'arch',
-  rule: 'transport-cannot-import-domain-api',
+  rule: 'transport-cannot-import-domain-api:',
   edits: [
     {
       kind: 'replace',

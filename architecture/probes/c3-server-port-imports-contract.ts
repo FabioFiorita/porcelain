@@ -5,7 +5,7 @@ export default {
   plants:
     'new apps/server/src/ports/probe-notice-sink.ts: a server port that takes a contract type without the documented allowance the live channel has',
   gate: 'arch',
-  rule: 'server-port-cannot-import-contract',
+  rule: 'server-port-cannot-import-contract:',
   edits: [
     {
       kind: 'create',

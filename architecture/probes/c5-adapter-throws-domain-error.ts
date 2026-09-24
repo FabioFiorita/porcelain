@@ -5,7 +5,7 @@ export default {
   plants:
     'checkout-session.ts throws a projects domain error; an adapter may throw only the kernel errors every domain shares',
   gate: 'arch',
-  rule: 'gateway-cannot-import-error-api',
+  rule: 'gateway-cannot-import-error-api:',
   edits: [
     {
       kind: 'prepend',

@@ -5,7 +5,7 @@ export default {
   plants:
     'a server adapter validates a path with the kernel rule; only packages/git may share the kernel rules among the gateways',
   gate: 'arch',
-  rule: 'gateway-cannot-import-rule-api',
+  rule: 'gateway-cannot-import-rule-api:',
   edits: [
     {
       kind: 'prepend',

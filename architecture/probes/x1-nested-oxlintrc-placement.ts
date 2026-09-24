@@ -5,7 +5,7 @@ export default {
   plants:
     'packages/.oxlintrc.json, a file directly under packages/ that the placement check used to skip',
   gate: 'arch',
-  rule: 'code-outside-roots',
+  rule: 'code-outside-roots:',
   edits: [
     {
       kind: 'create',

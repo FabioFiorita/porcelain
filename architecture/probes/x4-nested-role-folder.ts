@@ -4,7 +4,7 @@ export default {
   decision: 'X4',
   plants: 'a subfolder inside models/ that classify used to accept',
   gate: 'arch',
-  rule: 'role-folder-is-flat',
+  rule: 'role-folder-is-flat:',
   edits: [
     {
       kind: 'create',

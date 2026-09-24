@@ -5,7 +5,7 @@ export default {
   plants:
     'projects check-worktree-service.ts saves the catalog while checking, so the check helper called before any lane writes',
   gate: 'arch',
-  rule: 'lane-mode-matches-service',
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

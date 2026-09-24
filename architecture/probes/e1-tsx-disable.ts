@@ -5,7 +5,7 @@ export default {
   plants:
     'new packages/files/src/rules/entry-label.tsx (a .tsx rule) with an oxlint disable block comment, a comment, throw and new Error',
   gate: 'lint',
-  rule: 'disable directives are not allowed',
+  rule: 'style(disable-directives)',
   edits: [
     {
       kind: 'create',

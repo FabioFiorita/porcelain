@@ -5,7 +5,7 @@ export default {
   plants:
     'a projects spec running the access device store contract by path, which only access fakes, storage and server adapters may run',
   gate: 'arch',
-  rule: 'store-contract-runs-against-its-fake-storage-and-server-adapters-only',
+  rule: 'store-contract-runs-against-its-fake-storage-and-server-adapters-only:',
   edits: [
     {
       kind: 'append',

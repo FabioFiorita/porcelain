@@ -5,7 +5,7 @@ export default {
   plants:
     'use-cases/reviews/mark-comments-seen.ts runs its write inside lanes.runConsistent, which is a read lane',
   gate: 'arch',
-  rule: "markCommentsSeen writes; call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in read lane",
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

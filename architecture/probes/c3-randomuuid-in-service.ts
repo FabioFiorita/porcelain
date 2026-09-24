@@ -5,7 +5,7 @@ export default {
   plants:
     "access/services/issue-pairing-service.ts: import { randomUUID } from 'node:crypto'; credential id from randomUUID() instead of idSource",
   gate: 'arch',
-  rule: 'service-cannot-import-external',
+  rule: 'service-cannot-import-external:',
   edits: [
     {
       kind: 'replace',

@@ -5,7 +5,7 @@ export default {
   plants:
     'packages/.oxlintrc.json holding { "rules": {} } beside a rule with a comment and ==',
   gate: 'lint',
-  rule: 'lint reads one configuration',
+  rule: 'style(one-lint-config)',
   edits: [
     {
       kind: 'create',

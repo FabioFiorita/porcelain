@@ -4,7 +4,7 @@ export default {
   decision: 'G2',
   plants: 'a derive-project-name case that calls the rule and asserts nothing',
   gate: 'test',
-  rule: 'expected any number of assertion, but got none',
+  rule: 'Error: expected any number of assertion, but got none',
   edits: [
     {
       kind: 'append',

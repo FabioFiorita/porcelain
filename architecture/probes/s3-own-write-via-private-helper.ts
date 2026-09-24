@@ -5,7 +5,7 @@ export default {
   plants:
     "use-cases/projects/set-file-preference.ts: a 'read' lane calls a private helper that calls this.setFilePreference.execute",
   gate: 'arch',
-  rule: 'lane-mode-matches-service',
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

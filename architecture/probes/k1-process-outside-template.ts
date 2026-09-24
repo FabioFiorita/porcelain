@@ -5,7 +5,7 @@ export default {
   plants:
     'new packages/process/src/utils/format-command.ts: a folder the infrastructure template does not name',
   gate: 'arch',
-  rule: 'infrastructure-layout',
+  rule: 'infrastructure-layout:',
   edits: [
     {
       kind: 'create',

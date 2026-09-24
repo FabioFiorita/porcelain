@@ -2,8 +2,14 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { basename, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
-import { domainPackages } from '../architecture/policy.ts';
+import { domainPackages, type StyleRule } from '../architecture/policy.ts';
+import {
+  liveRuleNames,
+  probeSchema,
+  unknownRule,
+} from '../architecture/probe.ts';
 
 const mode = process.argv[2];
 if (mode !== 'lint' && mode !== 'format')
@@ -40,6 +46,12 @@ const lintConfig = '.oxlintrc.json';
 const lintedFile = /\.[cm]?[jt]sx?$/;
 const strayLintConfig =
   /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
+type Problem = { rule: StyleRule; message: string };
+
+function problem(rule: StyleRule, message: string): Problem {
+  return { rule, message };
+}
+
 const skippedDirectories = new Set([
   'node_modules',
   '.git',
@@ -59,24 +71,33 @@ function filesUnder(path: string): string[] {
   });
 }
 
-function disableDirectives(): string[] {
+function disableDirectives(): Problem[] {
   return roots.flatMap(filesUnder).flatMap((file) =>
     readFileSync(file, 'utf8')
       .split('\n')
       .flatMap((line, index) =>
-        disableDirective.test(line) ? [`${file}:${index + 1}`] : [],
+        disableDirective.test(line)
+          ? [
+              problem(
+                'disable-directives',
+                `${file}:${index + 1}: fix the code instead of disabling a rule; disable directives are not allowed.`,
+              ),
+            ]
+          : [],
       ),
   );
 }
 
-function strayLintConfigs(): string[] {
+function strayLintConfigs(): Problem[] {
   return filesUnder('.')
     .filter(
       (path) => path !== lintConfig && strayLintConfig.test(basename(path)),
     )
-    .map(
-      (path) =>
+    .map((path) =>
+      problem(
+        'one-lint-config',
         `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file.`,
+      ),
     );
 }
 
@@ -93,6 +114,15 @@ const lintConfigSchema = z
 const pluginSchema = z.object({
   default: z.object({ rules: z.record(z.string(), z.unknown()) }),
 });
+
+const ruleListSchema = z.strictObject({
+  porcelain: z.array(z.string()),
+  typescript: z.array(z.string()),
+  style: z.array(z.string()),
+  arch: z.array(z.string()),
+});
+
+const probeModuleSchema = z.object({ default: z.unknown() });
 
 const tsconfigSchema = z.object({
   compilerOptions: z.record(z.string(), z.unknown()).optional(),
@@ -150,13 +180,25 @@ const typesFreePackages = new Set<string>([
   'contracts',
 ]);
 
+class StyleProblem extends Error {
+  readonly problem: Problem;
+
+  constructor(found: Problem) {
+    super(found.message);
+    this.problem = found;
+  }
+}
+
 function strictJson(path: string): unknown {
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
     return parsed;
   } catch (error) {
-    throw new Error(
-      `${path} is not strict JSON; configuration carries no comments or trailing commas (${error instanceof Error ? error.message : String(error)}).`,
+    throw new StyleProblem(
+      problem(
+        'strict-json',
+        `${path} is not strict JSON; configuration carries no comments or trailing commas (${error instanceof Error ? error.message : String(error)}).`,
+      ),
     );
   }
 }
@@ -165,12 +207,15 @@ function isError(level: unknown): boolean {
   return level === 'error' || (Array.isArray(level) && level[0] === 'error');
 }
 
-async function configProblems(): Promise<string[]> {
-  const problems: string[] = [];
+async function configProblems(): Promise<Problem[]> {
+  const problems: Problem[] = [];
   const config = lintConfigSchema.safeParse(strictJson('.oxlintrc.json'));
   if (!config.success)
     return [
-      `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
+      problem(
+        'lint-config',
+        `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
+      ),
     ];
   strictJson('.oxfmtrc.json');
   if (
@@ -180,12 +225,18 @@ async function configProblems(): Promise<string[]> {
     )
   )
     problems.push(
-      '.oxlintrc.json differs from architecture/lint-config.json; the lint configuration is pinned whole, plugins, rules and overrides alike.',
+      problem(
+        'lint-config',
+        '.oxlintrc.json differs from architecture/lint-config.json; the lint configuration is pinned whole, plugins, rules and overrides alike.',
+      ),
     );
   const { jsPlugins, rules, overrides } = config.data;
   if (!isDeepStrictEqual(jsPlugins, ['./architecture/oxlint-plugin.mjs']))
     problems.push(
-      '.oxlintrc.json loads ./architecture/oxlint-plugin.mjs only.',
+      problem(
+        'lint-config',
+        '.oxlintrc.json loads ./architecture/oxlint-plugin.mjs only.',
+      ),
     );
   const pluginPath = new URL(
     '../architecture/oxlint-plugin.mjs',
@@ -194,23 +245,37 @@ async function configProblems(): Promise<string[]> {
   const plugin = pluginSchema.parse(await import(pluginPath));
   for (const name of Object.keys(plugin.default.rules))
     if (!isError(rules[`porcelain/${name}`]))
-      problems.push(`.oxlintrc.json sets porcelain/${name} to "error".`);
+      problems.push(
+        problem(
+          'lint-config',
+          `.oxlintrc.json sets porcelain/${name} to "error".`,
+        ),
+      );
   for (const [name, level] of Object.entries(rules)) {
     if (!isError(level))
       problems.push(
-        `.oxlintrc.json turns ${name} on as "error" or leaves it out.`,
+        problem(
+          'lint-config',
+          `.oxlintrc.json turns ${name} on as "error" or leaves it out.`,
+        ),
       );
     if (
       name.startsWith('porcelain/') &&
       !(name.slice('porcelain/'.length) in plugin.default.rules)
     )
       problems.push(
-        `.oxlintrc.json names ${name}, which the plugin does not define.`,
+        problem(
+          'lint-config',
+          `.oxlintrc.json names ${name}, which the plugin does not define.`,
+        ),
       );
   }
   if (!isDeepStrictEqual(overrides, sanctionedOverrides))
     problems.push(
-      '.oxlintrc.json overrides only the plugin files; a per-file override is a disable directive.',
+      problem(
+        'lint-config',
+        '.oxlintrc.json overrides only the plugin files; a per-file override is a disable directive.',
+      ),
     );
   const tsconfigs = filesUnder('.').filter((path) =>
     /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
@@ -222,7 +287,10 @@ async function configProblems(): Promise<string[]> {
     )
   )
     problems.push(
-      'tsconfig.json compilerOptions differ from the sanctioned block in scripts/server-style.ts; every package inherits them.',
+      problem(
+        'tsconfig',
+        'tsconfig.json compilerOptions differ from the sanctioned block in scripts/server-style.ts; every package inherits them.',
+      ),
     );
   for (const path of tsconfigs) {
     const raw = strictJson(path);
@@ -234,20 +302,67 @@ async function configProblems(): Promise<string[]> {
     if (name === undefined) continue;
     for (const pattern of ['src/**/*.ts', 'spec/**/*.ts'])
       if (!tsconfig.include?.includes(pattern))
-        problems.push(`${path} includes ${pattern}.`);
+        problems.push(problem('tsconfig', `${path} includes ${pattern}.`));
     if (
       pinnedTsconfigPackages.has(name) &&
       !isDeepStrictEqual(raw, sanctionedDomainTsconfig)
     )
       problems.push(
-        `${path} differs from the sanctioned domain tsconfig in scripts/server-style.ts; a domain compiles with types [], lib ES2024 and the domain globals only.`,
+        problem(
+          'tsconfig',
+          `${path} differs from the sanctioned domain tsconfig in scripts/server-style.ts; a domain compiles with types [], lib ES2024 and the domain globals only.`,
+        ),
       );
     if (
       typesFreePackages.has(name) &&
       !isDeepStrictEqual(tsconfig.compilerOptions, { types: [] })
     )
       problems.push(
-        `${path} sets "types": [] so Node globals do not compile in a domain.`,
+        problem(
+          'tsconfig',
+          `${path} sets "types": [] so Node globals do not compile in a domain.`,
+        ),
+      );
+  }
+  problems.push(...(await ruleProblems()));
+  return problems;
+}
+
+function sortedNames(names: readonly string[]): string[] {
+  return names.toSorted((left, right) => left.localeCompare(right));
+}
+
+async function ruleProblems(): Promise<Problem[]> {
+  const problems: Problem[] = [];
+  const live = await liveRuleNames('.');
+  const sanctioned = ruleListSchema.parse(
+    strictJson('architecture/rules.json'),
+  );
+  for (const family of ['porcelain', 'typescript', 'style', 'arch'] as const)
+    if (!isDeepStrictEqual(live[family], sortedNames(sanctioned[family])))
+      problems.push(
+        problem(
+          'rule-list',
+          `the ${family} rules differ from architecture/rules.json (live: ${live[family].filter((name) => !sanctioned[family].includes(name)).join(', ') || 'none added'}; sanctioned: ${sanctioned[family].filter((name) => !live[family].includes(name)).join(', ') || 'none removed'}); a rule is added or removed in the sanctioned list, where the change is visible.`,
+        ),
+      );
+  const probeFolder = join('architecture', 'probes');
+  for (const file of readdirSync(probeFolder).filter((name) =>
+    name.endsWith('.ts'),
+  )) {
+    const loaded = probeModuleSchema.parse(
+      await import(pathToFileURL(join(probeFolder, file)).href),
+    );
+    const probe = probeSchema.safeParse(loaded.default);
+    const dishonest = probe.success
+      ? unknownRule(probe.data, live)
+      : probe.error.issues.map((issue) => issue.message).join('; ');
+    if (dishonest !== undefined)
+      problems.push(
+        problem(
+          'probe-shape',
+          `${probeFolder}/${file}: ${dishonest}; a probe names the exact rule its gate prints, so its verdict cannot lie.`,
+        ),
       );
   }
   return problems;
@@ -330,17 +445,15 @@ if (mode === 'format') {
   process.exitCode = result.status ?? 1;
 } else {
   process.exitCode = lint();
-  const directives = disableDirectives();
-  for (const location of directives)
-    process.stderr.write(
-      `${location}: fix the code instead of disabling a rule; disable directives are not allowed.\n`,
-    );
   const problems = [
+    ...disableDirectives(),
     ...strayLintConfigs(),
-    ...(await configProblems().catch((error: unknown) => [
-      error instanceof Error ? error.message : String(error),
-    ])),
+    ...(await configProblems().catch((error: unknown) => {
+      if (error instanceof StyleProblem) return [error.problem];
+      throw error;
+    })),
   ];
-  for (const problem of problems) process.stderr.write(`${problem}\n`);
-  if (directives.length > 0 || problems.length > 0) process.exitCode = 1;
+  for (const { rule, message } of problems)
+    process.stderr.write(`error style(${rule}): ${message}\n`);
+  if (problems.length > 0) process.exitCode = 1;
 }

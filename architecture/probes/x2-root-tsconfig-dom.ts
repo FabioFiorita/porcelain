@@ -4,7 +4,7 @@ export default {
   decision: 'X2',
   plants: 'root tsconfig.json with the DOM lib, which every package inherits',
   gate: 'lint',
-  rule: 'tsconfig.json compilerOptions differ',
+  rule: 'style(tsconfig)',
   edits: [
     {
       kind: 'replace',

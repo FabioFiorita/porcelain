@@ -5,7 +5,7 @@ export default {
   plants:
     "files/services/list-directory-service.ts: import type { Sign } from 'zodiac' (not zod; checks the prefix bug is gone)",
   gate: 'arch',
-  rule: 'service-cannot-import-external',
+  rule: 'service-cannot-import-external:',
   edits: [
     {
       kind: 'replace',

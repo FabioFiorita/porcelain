@@ -4,7 +4,7 @@ export default {
   decision: 'EVASION',
   plants: 'tsconfig.json: a // comment inside compilerOptions',
   gate: 'lint',
-  rule: 'is not strict JSON',
+  rule: 'style(strict-json)',
   edits: [
     {
       kind: 'replace',

@@ -4,7 +4,7 @@ export default {
   decision: 'EVASION',
   plants: '.oxlintrc.json: a // comment inside the rules block',
   gate: 'lint',
-  rule: 'is not strict JSON',
+  rule: 'style(strict-json)',
   edits: [
     {
       kind: 'replace',

@@ -5,7 +5,7 @@ export default {
   plants:
     'new packages/files/lib/limits.ts (a package folder outside src/spec) with a comment and an exported constant, imported by list-directory-service.ts',
   gate: 'arch',
-  rule: 'code-outside-roots',
+  rule: 'code-outside-roots:',
   edits: [
     {
       kind: 'create',

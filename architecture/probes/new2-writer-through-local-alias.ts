@@ -5,7 +5,7 @@ export default {
   plants:
     "use-cases/projects/set-file-preference.ts: lane mode 'read' and the writer called through a local alias `const writer = this.setFilePreference; writer.execute(input)`",
   gate: 'arch',
-  rule: 'lane-mode-matches-service',
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

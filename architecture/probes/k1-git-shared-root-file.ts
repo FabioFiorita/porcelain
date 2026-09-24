@@ -5,7 +5,7 @@ export default {
   plants:
     'new packages/git/src/shared/strings.ts: a flat helper file in git shared/, which holds the template folders only',
   gate: 'arch',
-  rule: 'infrastructure-layout',
+  rule: 'infrastructure-layout:',
   edits: [
     {
       kind: 'create',

@@ -5,7 +5,7 @@ export default {
   plants:
     'use-cases/access/read-health.ts: an oxlint disable block comment on line 1',
   gate: 'lint',
-  rule: 'disable directives are not allowed',
+  rule: 'style(disable-directives)',
   edits: [
     {
       kind: 'prepend',

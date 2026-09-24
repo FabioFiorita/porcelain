@@ -5,7 +5,7 @@ export default {
   plants:
     'process index.ts re-exports runCommand under a second name that nothing imports from the index',
   gate: 'arch',
-  rule: 'unused-export',
+  rule: 'unused-export:',
   edits: [
     {
       kind: 'append',

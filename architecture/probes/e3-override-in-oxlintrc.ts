@@ -5,7 +5,7 @@ export default {
   plants:
     '.oxlintrc.json: an override turning porcelain/no-exported-constants off for list-directory-service.ts, plus a literal 2000 there',
   gate: 'lint',
-  rule: 'overrides only the plugin files',
+  rule: 'style(lint-config)',
   edits: [
     {
       kind: 'replace',

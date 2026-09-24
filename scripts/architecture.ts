@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   allowedContractType,
+  archRules,
   classify,
   domainPackages,
   forbiddenExternal,
@@ -16,6 +17,7 @@ import {
   runtimeNodeViolation,
   targetPackageExports,
   violation,
+  type ArchRule,
   type Classification,
 } from '../architecture/policy.ts';
 import { typeRuleFindings } from '../architecture/type-rules.ts';
@@ -39,14 +41,14 @@ const cruiseReportSchema = z.object({
       z.object({
         from: z.string(),
         to: z.string(),
-        rule: z.object({ name: z.string(), severity: z.string() }),
+        rule: z.object({ name: z.enum(archRules), severity: z.string() }),
       }),
     ),
   }),
 });
 type CruiseReport = z.output<typeof cruiseReportSchema>;
 
-type Finding = { rule: string; from: string; to: string };
+type Finding = { rule: ArchRule; from: string; to: string };
 
 const manifestSchema = z.object({
   exports: z.record(z.string(), z.string()).optional(),
@@ -401,7 +403,7 @@ try {
     ...typeRuleFindings(repositoryRoot),
     ...unusedExportFindings(repositoryRoot),
   ];
-  const byRule = new Map<string, Finding[]>();
+  const byRule = new Map<ArchRule, Finding[]>();
   for (const finding of violations) {
     const group = byRule.get(finding.rule) ?? [];
     group.push(finding);

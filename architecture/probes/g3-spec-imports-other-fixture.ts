@@ -5,7 +5,7 @@ export default {
   plants:
     'reviews mark-comments-seen-service.spec.ts imports fixture() from ../../../git/spec/fixtures/fixture.ts',
   gate: 'arch',
-  rule: 'cross-package-import-must-use-package-name',
+  rule: 'cross-package-import-must-use-package-name:',
   edits: [
     {
       kind: 'replace',

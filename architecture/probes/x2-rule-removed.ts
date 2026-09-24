@@ -5,7 +5,7 @@ export default {
   plants:
     '.oxlintrc.json without typescript/no-explicit-any, and a rule returning any',
   gate: 'lint',
-  rule: '.oxlintrc.json differs from architecture/lint-config.json',
+  rule: 'style(lint-config)',
   edits: [
     {
       kind: 'replace',

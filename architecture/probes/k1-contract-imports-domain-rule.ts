@@ -5,7 +5,7 @@ export default {
   plants:
     'contracts files.ts validates a path with the files domain rule instead of a kernel rule, the only rules contracts may share',
   gate: 'arch',
-  rule: 'contract-imports-kernel-rules-only',
+  rule: 'contract-imports-kernel-rules-only:',
   edits: [
     {
       kind: 'prepend',

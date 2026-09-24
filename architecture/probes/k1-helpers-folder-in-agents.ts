@@ -5,7 +5,7 @@ export default {
   plants:
     'new packages/agents/src/commit-planning/helpers/trim-answer.ts: a helpers folder in agents, which the helpers rule now covers',
   gate: 'arch',
-  rule: 'no-helpers-folder',
+  rule: 'no-helpers-folder:',
   edits: [
     {
       kind: 'create',

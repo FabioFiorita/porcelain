@@ -12,7 +12,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import {
+  liveRuleNames,
   probeSchema,
+  unknownRule,
+  unprobedRules,
   type ProbeEdit,
   type ProbeGate,
 } from '../architecture/probe.ts';
@@ -66,6 +69,17 @@ async function loadProbes(only: ReadonlySet<string>): Promise<LoadedProbe[]> {
       return { ...loaded.data.default, id: file.slice(0, -'.ts'.length) };
     }),
   );
+  const names = await liveRuleNames(root);
+  const dishonest = probes.flatMap((probe) => {
+    const problem = unknownRule(probe, names);
+    return problem ? [`architecture/probes/${probe.id}.ts: ${problem}`] : [];
+  });
+  if (dishonest.length > 0) throw new Error(dishonest.join('\n'));
+  const unprobed = unprobedRules(probes, names);
+  if (unprobed.length > 0)
+    throw new Error(
+      `Every rule has a probe that plants its violation; these have none: ${unprobed.join(', ')}`,
+    );
   const unknown = [...only].filter(
     (id) => !probes.some((probe) => probe.id === id),
   );
@@ -114,9 +128,12 @@ function plant(edits: readonly ProbeEdit[], planted: Planted): void {
     }
     if (!existsSync(path))
       throw new Error(`${edit.path} no longer exists; the probe edits it.`);
-    const text = edited(readFileSync(path, 'utf8'), edit);
     planted.touched.add(edit.path);
-    writeFileSync(path, text);
+    if (edit.kind === 'delete') {
+      rmSync(path);
+      continue;
+    }
+    writeFileSync(path, edited(readFileSync(path, 'utf8'), edit));
   }
 }
 

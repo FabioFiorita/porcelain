@@ -4,7 +4,7 @@ export default {
   decision: 'X2',
   plants: 'packages/projects/tsconfig.json with "lib": ["ES2024", "DOM"]',
   gate: 'lint',
-  rule: 'differs from the sanctioned domain tsconfig',
+  rule: 'style(tsconfig)',
   edits: [
     {
       kind: 'replace',

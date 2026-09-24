@@ -5,7 +5,7 @@ export default {
   plants:
     "use-cases/reviews/create-comment-thread.ts lane 'write' changed to 'read' (the write is createCommentThread, a verb outside set/record/reconcile/update/remove/collect)",
   gate: 'arch',
-  rule: 'lane-mode-matches-service',
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

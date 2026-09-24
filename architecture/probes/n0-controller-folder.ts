@@ -5,7 +5,7 @@ export default {
   plants:
     'new apps/server/src/controllers/read-uptime-controller.ts exporting class ReadUptimeController with execute()',
   gate: 'arch',
-  rule: 'unclassified-source',
+  rule: 'unclassified-source:',
   edits: [
     {
       kind: 'create',

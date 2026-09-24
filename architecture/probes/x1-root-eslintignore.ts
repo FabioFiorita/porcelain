@@ -4,7 +4,7 @@ export default {
   decision: 'X1',
   plants: 'a root .eslintignore naming a rule with a comment and ==',
   gate: 'lint',
-  rule: 'lint reads one configuration',
+  rule: 'style(one-lint-config)',
   edits: [
     {
       kind: 'create',

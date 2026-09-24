@@ -4,7 +4,7 @@ export default {
   decision: 'K1',
   plants: 'kernel relative-path.ts exports a second rule that no file imports',
   gate: 'arch',
-  rule: 'unused-export',
+  rule: 'unused-export:',
   edits: [
     {
       kind: 'append',

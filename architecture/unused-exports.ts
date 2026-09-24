@@ -24,8 +24,9 @@ import {
   isVariableStatement,
 } from 'typescript/unstable/ast/is';
 import { z } from 'zod';
+import type { ArchRule } from './policy.ts';
 
-export type UnusedExportFinding = { rule: string; from: string; to: string };
+export type UnusedExportFinding = { rule: ArchRule; from: string; to: string };
 
 type Binding = { file: string; name: string };
 type Imported = { file: string; names: readonly string[] | 'every' };

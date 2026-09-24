@@ -5,7 +5,7 @@ export default {
   plants:
     "use-cases/projects/set-file-preference.ts: lane mode 'write' changed to 'read' around this.setFilePreference.execute",
   gate: 'arch',
-  rule: 'lane-mode-matches-service',
+  rule: 'lane-mode-matches-service:',
   edits: [
     {
       kind: 'replace',

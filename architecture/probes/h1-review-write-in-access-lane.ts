@@ -5,7 +5,7 @@ export default {
   plants:
     'use-cases/reviews/mark-comments-seen.ts writes the comment-seen table in the access lane instead of its worktree lane',
   gate: 'arch',
-  rule: 'lane-per-table',
+  rule: 'lane-per-table:',
   edits: [
     {
       kind: 'replace',

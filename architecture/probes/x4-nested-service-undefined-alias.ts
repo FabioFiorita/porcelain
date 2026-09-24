@@ -5,7 +5,7 @@ export default {
   plants:
     'services/probe/probe-found-service.ts whose execute answers an alias of ProjectKey | undefined',
   gate: 'arch',
-  rule: 'no-undefined-union-result',
+  rule: 'no-undefined-union-result:',
   edits: [
     {
       kind: 'create',

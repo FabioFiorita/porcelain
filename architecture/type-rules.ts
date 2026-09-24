@@ -32,9 +32,9 @@ import {
   isTypeAliasDeclaration,
   isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
-import { domainPackages } from './policy.ts';
+import { domainPackages, type ArchRule } from './policy.ts';
 
-export type TypeFinding = { rule: string; from: string; to: string };
+export type TypeFinding = { rule: ArchRule; from: string; to: string };
 
 const absence = TypeFlags.Undefined | TypeFlags.Null | TypeFlags.Void;
 const writingPort = /(?:Store|Writer|Runner)$/;

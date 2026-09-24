@@ -5,7 +5,7 @@ export default {
   plants:
     'runtime/probe-read.ts wrapping node:fs/promises readFile, called by a use case',
   gate: 'arch',
-  rule: 'runtime-node-allow-list',
+  rule: 'runtime-node-allow-list:',
   edits: [
     {
       kind: 'create',

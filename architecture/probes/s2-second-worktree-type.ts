@@ -5,7 +5,7 @@ export default {
   plants:
     'new packages/changes/src/models/worktree.ts: export type Worktree = { id; projectId; path } re-exported from changes/models/index.ts',
   gate: 'arch',
-  rule: 'models-file-shape',
+  rule: 'models-file-shape:',
   edits: [
     {
       kind: 'create',

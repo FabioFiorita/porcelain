@@ -92,39 +92,117 @@ export const requiredServerFiles: readonly string[] = [
   'apps/server/src/ports/event-publisher.ts',
 ];
 
-export type Role =
-  | 'transport'
-  | 'status-policy'
-  | 'use-case'
-  | 'installer'
-  | 'installer-api'
-  | 'domain-api'
-  | 'service'
-  | 'rule-api'
-  | 'rule'
-  | 'model-api'
-  | 'model'
-  | 'port-api'
-  | 'port'
-  | 'error-api'
-  | 'error'
-  | 'repository-api'
-  | 'repository'
-  | 'gateway-api'
-  | 'gateway'
-  | 'process-api'
-  | 'process'
-  | 'runtime'
-  | 'server-port'
-  | 'bootstrap'
-  | 'contract'
-  | 'config'
-  | 'kernel'
-  | 'fake'
-  | 'fixture'
-  | 'capture'
-  | 'store-contract'
-  | 'test';
+export const roles = [
+  'transport',
+  'status-policy',
+  'use-case',
+  'installer',
+  'installer-api',
+  'domain-api',
+  'service',
+  'rule-api',
+  'rule',
+  'model-api',
+  'model',
+  'port-api',
+  'port',
+  'error-api',
+  'error',
+  'repository-api',
+  'repository',
+  'gateway-api',
+  'gateway',
+  'process-api',
+  'process',
+  'runtime',
+  'server-port',
+  'bootstrap',
+  'contract',
+  'config',
+  'kernel',
+  'fake',
+  'fixture',
+  'capture',
+  'store-contract',
+  'test',
+] as const;
+
+export type Role = (typeof roles)[number];
+
+export const archRules = [
+  'code-outside-roots',
+  'unclassified-package-export',
+  'missing-target-package',
+  'missing-target-export',
+  'missing-server-structure',
+  'no-helpers-folder',
+  'flat-http-route',
+  'use-case-file-name',
+  'service-file-name',
+  'role-folder-is-flat',
+  'unclassified-source',
+  'cross-package-import-must-use-package-name',
+  'unclassified-import-target',
+  'import-outside-source-roots',
+  'runtime-node-allow-list',
+  'no-circular-source-imports',
+  'git-capability-dependency-order',
+  'git-capability-public-api-only',
+  'infrastructure-layout',
+  'test-imports-own-package-support-only',
+  'store-contract-runs-against-its-fake-storage-and-server-adapters-only',
+  'package-cannot-import-server',
+  'fake-imports-own-package-only',
+  'fixture-imports-own-package-models-only',
+  'git-cannot-import-domain',
+  'domain-cannot-import-another-domain',
+  'domain-cannot-import-transport-contract',
+  'contract-imports-kernel-rules-only',
+  'git-public-api-only',
+  'domain-public-api-only',
+  'kernel-public-api-only',
+  'storage-public-api-only',
+  'agents-public-api-only',
+  'process-public-api-only',
+  'process-importable-by-git-agents-installer',
+  'no-undefined-union-result',
+  'models-file-shape',
+  'recording-fake-for-write-only-port',
+  'lane-per-table',
+  'lane-mode-matches-service',
+  'unused-export',
+] as const;
+
+export type ArchRule =
+  | (typeof archRules)[number]
+  | `${Role}-cannot-import-${Role | 'external'}`;
+
+export const archRuleFamilies = [
+  '<role>-cannot-import-<role>',
+  '<role>-cannot-import-external',
+] as const;
+
+export function archRuleFamily(name: string): string | undefined {
+  const match = /^(.+)-cannot-import-(.+)$/.exec(name);
+  const from = roles.find((role) => role === match?.[1]);
+  if (from === undefined) return undefined;
+  if (match?.[2] === 'external') return '<role>-cannot-import-external';
+  return roles.some((role) => role === match?.[2])
+    ? '<role>-cannot-import-<role>'
+    : undefined;
+}
+
+export const styleRules = [
+  'disable-directives',
+  'one-lint-config',
+  'strict-json',
+  'lint-config',
+  'rule-list',
+  'probe-shape',
+  'tsconfig',
+] as const;
+
+export type StyleRule = (typeof styleRules)[number];
 
 export type Classification = { role: Role; owner: string };
 
@@ -149,7 +227,7 @@ const gitCapabilityDependencies: Record<string, ReadonlySet<string>> = {
 export function gitCapabilityViolation(
   source: string,
   target: string,
-): string | undefined {
+): ArchRule | undefined {
   const prefix = 'packages/git/src/';
   if (!source.startsWith(prefix) || !target.startsWith(prefix)) return;
   const from = source.slice(prefix.length).split('/')[0] ?? '';
@@ -162,7 +240,7 @@ export function gitCapabilityViolation(
   return;
 }
 
-export function helpersFolderViolation(path: string): string | undefined {
+export function helpersFolderViolation(path: string): ArchRule | undefined {
   return /^(?:packages\/(?:git|agents|process)\/src|apps\/server\/src)\/(?:.*\/)?helpers\//.test(
     path,
   )
@@ -180,7 +258,7 @@ const infrastructureParts: ReadonlySet<string> = new Set([
 
 export function infrastructureLayoutViolation(
   path: string,
-): string | undefined {
+): ArchRule | undefined {
   const match = /^packages\/(git|agents|process)\/src\/(.+)$/.exec(path);
   if (!match) return undefined;
   const parts = (match[2] ?? '').split('/');
@@ -511,7 +589,7 @@ const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
 function testViolation(
   from: Classification,
   to: Classification,
-): string | undefined {
+): ArchRule | undefined {
   if (
     specSupportRoles.has(to.role) &&
     to.owner !== from.owner &&
@@ -534,7 +612,7 @@ function testViolation(
 export function violation(
   from: Classification,
   to: Classification,
-): string | undefined {
+): ArchRule | undefined {
   if (from.role === 'test') return testViolation(from, to);
   if (
     from.role === 'fake' &&
@@ -741,7 +819,7 @@ const runtimeNodeModules: Readonly<Record<string, readonly string[]>> = {
 export function runtimeNodeViolation(
   path: string,
   module: string,
-): string | undefined {
+): ArchRule | undefined {
   if (!module.startsWith('node:') && !isNodeModule(module)) return;
   if (classify(path)?.role !== 'runtime') return;
   const name = module.replace(/^node:/, '');
