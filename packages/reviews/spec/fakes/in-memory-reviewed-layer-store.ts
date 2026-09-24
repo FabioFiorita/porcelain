@@ -12,7 +12,12 @@ export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
   list(input: { worktreeId: string }): ReviewedLayerMark[] {
     return this.rows
       .filter((row) => row.worktreeId === input.worktreeId)
-      .map((row) => ({ ...row.mark }));
+      .map((row) => ({ ...row.mark }))
+      .sort(
+        (left, right) =>
+          left.reviewedAt.localeCompare(right.reviewedAt) ||
+          left.layerId.localeCompare(right.layerId),
+      );
   }
 
   byWorktrees(input: {

@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { environmentIdentityStoreContract } from '@porcelain/access/store-contracts';
 import { openStorageSession } from '../../index.ts';
 import { createEnvironmentIdentityStore } from './index.ts';
 
@@ -12,7 +13,19 @@ function open(dataDirectory: string) {
   return openStorageSession(dataDirectory);
 }
 
-describe('SqliteEnvironmentIdentityStore', () => {
+environmentIdentityStoreContract('SqliteEnvironmentIdentityStore', () => {
+  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+  const session = open(dataDirectory);
+  return {
+    store: createEnvironmentIdentityStore(session),
+    close: () => {
+      session.close();
+      rmSync(dataDirectory, { recursive: true, force: true });
+    },
+  };
+});
+
+describe('SqliteEnvironmentIdentityStore persistence', () => {
   let dataDirectory: string;
 
   beforeEach(() => {
