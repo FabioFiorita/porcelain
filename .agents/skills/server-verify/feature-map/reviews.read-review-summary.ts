@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import {
   defineCase,
   defineFeature,
@@ -39,7 +40,7 @@ export default defineFeature({
   paired: false,
   intent: 'observed',
   behaviour:
-    'The published HTML summary is served outside the API at a signed, expiring link that needs no credential, so it can load in a sandboxed frame. The page is sent as published with a small theme and navigation bridge added before </body>, a sandbox content security policy, no caching and no referrer. Only the current summary is served. A wrong signature, an expired link or the link of a replaced summary answers 404 with an empty body; a malformed link is invalid.',
+    'The published HTML summary is served outside the API at a signed, expiring link that needs no credential, so it can load in a sandboxed frame. The page is sent as published with a small theme and navigation bridge added before </body>, a sandbox content security policy, no caching and no referrer. Only the current summary is served. A wrong signature, a link whose expiry was changed, a link that has expired (the same link served before it expired) or the link of a replaced summary answers 404 with an empty body; a malformed link is invalid.',
   cases: [
     defineCase({
       name: 'signed link',
@@ -74,16 +75,22 @@ export default defineFeature({
         const html = text(response.body);
         const [published = '', closing = ''] =
           sampleSummaryHtml.split('</body>');
+        const opening = `${published}<style id="porcelain-theme">`;
+        const ending = `</script></body>${closing}`;
         check(
-          'published page with the bridge before </body>',
-          true,
-          html.startsWith(`${published}<style id="porcelain-theme">`) &&
-            html.endsWith(`</script></body>${closing}`),
+          'the published page opens, then the bridge begins',
+          opening,
+          html.slice(0, opening.length),
+        );
+        check(
+          'the bridge ends before </body>',
+          ending,
+          html.slice(html.length - ending.length),
         );
       },
     }),
     defineCase({
-      name: 'wrong signature or expired link',
+      name: 'a wrong signature or a tampered expiry',
       setup: summaryUrl,
       request: (_session, url) => [
         {
@@ -108,6 +115,26 @@ export default defineFeature({
           [undefined, undefined],
           responses.map((entry) => entry.body),
         );
+      },
+    }),
+    defineCase({
+      name: 'an expired link',
+      async setup(session) {
+        const url = await summaryUrl(session);
+        const link = {
+          method: 'GET' as const,
+          path: `${url.pathname}${url.search}`,
+          auth: 'none' as const,
+        };
+        await session.read(link);
+        const expires = Date.parse(text(url.searchParams.get('expires')));
+        await delay(Math.max(0, expires - Date.now()) + 100);
+        return link;
+      },
+      request: (_session, link) => link,
+      expect({ response, check }) {
+        check('status', 404, response.status);
+        check('empty body', undefined, response.body);
       },
     }),
     defineCase({

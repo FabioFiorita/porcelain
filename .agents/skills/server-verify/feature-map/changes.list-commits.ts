@@ -10,6 +10,7 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
+  read,
   threeCommits,
   worktreeNotFound,
   worktreePath,
@@ -77,9 +78,7 @@ export default defineFeature({
     defineCase({
       name: 'next pages',
       async setup(session) {
-        return record(
-          (await session.send(commits(session, { limit: 1 }))).body,
-        );
+        return read(session, commits(session, { limit: 1 }));
       },
       request: (session, first) =>
         commits(session, {
@@ -106,9 +105,7 @@ export default defineFeature({
     defineCase({
       name: 'continuing from a tip that moved',
       async setup(session) {
-        return record(
-          (await session.send(commits(session, { limit: 1 }))).body,
-        );
+        return read(session, commits(session, { limit: 1 }));
       },
       request: (session, first) =>
         commits(session, {

@@ -7,7 +7,12 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { changes, gitPath, worktreeNotFound } from '../scripts/fixture.ts';
+import {
+  changes,
+  gitPath,
+  gitRoute,
+  worktreeNotFound,
+} from '../scripts/fixture.ts';
 
 const draft = (session: Session, body: unknown) => ({
   method: 'POST' as const,
@@ -19,8 +24,7 @@ const unprocessable = (message: string) =>
 
 export default defineFeature({
   feature: 'git-actions.generate-commit-draft',
-  reaches:
-    'POST /api/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
+  reaches: `POST ${gitRoute}/commit-draft`,
   paired: true,
   intent: 'observed',
   behaviour:
@@ -124,7 +128,9 @@ export default defineFeature({
         }),
         {
           method: 'POST',
-          path: `/api/projects/${session.projectId}/worktrees/${unknownWorktreeId}/git/commit-draft`,
+          path: gitPath(session, '/commit-draft', {
+            worktreeId: unknownWorktreeId,
+          }),
           body: {
             mode: 'message',
             model: 'claude:sonnet',

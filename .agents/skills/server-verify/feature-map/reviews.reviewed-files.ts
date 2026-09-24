@@ -15,6 +15,7 @@ import {
 } from '../scripts/feature.ts';
 import {
   fingerprintOf,
+  read,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
@@ -83,7 +84,7 @@ export default defineFeature({
         check(
           'list reads the same',
           response.body,
-          (await session.send({ method: 'GET', path: reviewed(session) })).body,
+          await read(session, { method: 'GET', path: reviewed(session) }),
         );
       },
     }),
@@ -114,9 +115,10 @@ export default defineFeature({
           check(`request ${index + 1} status`, 409, response.status);
           check(`request ${index + 1} error body`, staleMark, response.body);
         }
-        const listed = (
-          await session.send({ method: 'GET', path: reviewed(session) })
-        ).body;
+        const listed = await read(session, {
+          method: 'GET',
+          path: reviewed(session),
+        });
         check(
           'the earlier mark is kept',
           [session.fixture.readme.path],
@@ -127,7 +129,7 @@ export default defineFeature({
     defineCase({
       name: 'mark many with partial conflicts',
       async setup(session) {
-        await session.send({
+        await session.read({
           method: 'DELETE',
           path: reviewed(session),
           query: { path: session.fixture.readme.path },

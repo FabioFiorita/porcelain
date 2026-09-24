@@ -10,18 +10,15 @@ import {
   invalidRequest,
   list,
   record,
+  text,
   unauthenticated,
   type HttpRequest,
 } from '../scripts/feature.ts';
-import { pairDevice } from '../scripts/fixture.ts';
+import { mcpHeaders, pairDevice, read } from '../scripts/fixture.ts';
 
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
   ...request,
   target: 'owner',
-});
-const mcpHeaders = (cwd: string) => ({
-  accept: 'application/json, text/event-stream',
-  'x-porcelain-cwd': cwd,
 });
 
 export default defineFeature({
@@ -33,11 +30,14 @@ export default defineFeature({
     'owner POST /access/revoke',
     'owner POST /mcp',
     'owner GET /mcp',
+    'owner PUT /mcp',
+    'owner PATCH /mcp',
+    'owner DELETE /mcp',
   ],
   paired: false,
   intent: 'observed',
   behaviour:
-    "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses (a request naming an address the server does not answer at, or a blank label, issues nothing), revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only.",
+    "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses (a request naming an address the server does not answer at, or a blank label, issues nothing), revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only. None of it is reachable from the network listener, even with a paired credential: a read there answers the web shell and a write is not found.",
   cases: [
     defineCase({
       name: 'status',
@@ -85,11 +85,12 @@ export default defineFeature({
         );
         check(
           'link opens the pairing page',
-          true,
-          String(grant.link).startsWith(`${session.address}/pair#c=`),
+          `${session.address}/pair#c=`,
+          text(grant.link).slice(0, `${session.address}/pair#c=`.length),
         );
-        const access = record(
-          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+        const access = await read(
+          session,
+          owner({ method: 'GET', path: '/access' }),
         );
         checkContract('access contract', listAccessResponseSchema, access);
         check(
@@ -126,8 +127,8 @@ export default defineFeature({
     }),
     defineCase({
       name: 'issue a pairing the server cannot honour',
-      setup: async (session) =>
-        (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+      setup: (session) =>
+        read(session, owner({ method: 'GET', path: '/access' })),
       request: (session) => [
         owner({
           method: 'POST',
@@ -167,7 +168,7 @@ export default defineFeature({
         check(
           'no grant was issued',
           state,
-          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+          await read(session, owner({ method: 'GET', path: '/access' })),
         );
       },
     }),
@@ -200,36 +201,37 @@ export default defineFeature({
     defineCase({
       name: 'revoke a grant',
       async setup(session) {
-        const issued = record(
-          (
-            await session.send(
-              owner({
-                method: 'POST',
-                path: '/pairings',
-                body: { labels: ['Unused'], addresses: [session.address] },
-              }),
-            )
-          ).body,
+        const before = await read(
+          session,
+          owner({ method: 'GET', path: '/access' }),
         );
-        return String(record(record(list(issued.grants)[0]).grant).id);
+        const issued = await read(
+          session,
+          owner({
+            method: 'POST',
+            path: '/pairings',
+            body: { labels: ['Unused'], addresses: [session.address] },
+          }),
+        );
+        return {
+          before,
+          grantId: text(record(record(list(issued.grants)[0]).grant).id),
+        };
       },
-      request: (_session, grantId) =>
+      request: (_session, state) =>
         owner({
           method: 'POST',
           path: '/access/revoke',
-          body: { id: grantId },
+          body: { id: state.grantId },
         }),
       async expect({ response, state, session, check }) {
         check('status', 200, response.status);
         check('body', { revoked: true, kind: 'grant' }, response.body);
-        const access = record(
-          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+        const access = await read(
+          session,
+          owner({ method: 'GET', path: '/access' }),
         );
-        check(
-          'grant is gone',
-          false,
-          list(access.grants).some((grant) => record(grant).id === state),
-        );
+        check('grant is gone', state.before.grants, access.grants);
       },
     }),
     defineCase({
@@ -305,15 +307,70 @@ export default defineFeature({
     }),
     defineCase({
       name: 'review MCP endpoint refuses other methods',
-      request: () => owner({ method: 'GET', path: '/mcp' }),
-      expect({ response, check }) {
-        check('status', 405, response.status);
+      request: () =>
+        (['GET', 'PUT', 'PATCH', 'DELETE'] as const).map((method) =>
+          owner({ method, path: '/mcp' }),
+        ),
+      expect({ responses, check }) {
+        for (const [index, response] of responses.entries()) {
+          const method = ['GET', 'PUT', 'PATCH', 'DELETE'][index];
+          check(`${method} status`, 405, response.status);
+          check(
+            `${method} error body`,
+            apiError(405, 'Method Not Allowed', 'Method Not Allowed'),
+            response.body,
+          );
+          check(`${method} allow header`, 'POST', response.headers.allow);
+        }
+      },
+    }),
+    defineCase({
+      name: 'owner routes are absent on the network listener',
+      setup: (session) =>
+        read(session, owner({ method: 'GET', path: '/access' })),
+      request: (session) => [
+        { method: 'GET', path: '/status' },
+        { method: 'GET', path: '/access' },
+        {
+          method: 'POST',
+          path: '/pairings',
+          body: { labels: ['Intruder'], addresses: [session.address] },
+        },
+        { method: 'POST', path: '/access/revoke', body: { id: 'unknown' } },
+        {
+          method: 'POST',
+          path: '/mcp',
+          headers: mcpHeaders(session.repository),
+          body: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+        },
+      ],
+      async expect({ responses, state, session, check }) {
+        for (const [index, response] of responses.slice(0, 2).entries()) {
+          check(`read ${index + 1} status`, 200, response.status);
+          check(
+            `read ${index + 1} answers the web shell, not the owner`,
+            session.fixture.web.shell,
+            response.body,
+          );
+        }
+        for (const [index, response] of responses.slice(2).entries()) {
+          const request = [
+            'POST:/pairings',
+            'POST:/access/revoke',
+            'POST:/mcp',
+          ][index];
+          check(`write ${index + 1} status`, 404, response.status);
+          check(
+            `write ${index + 1} error body`,
+            apiError(404, 'Not Found', `Route ${request} not found`),
+            response.body,
+          );
+        }
         check(
-          'error body',
-          apiError(405, 'Method Not Allowed', 'Method Not Allowed'),
-          response.body,
+          'nothing was issued or revoked',
+          state,
+          await read(session, owner({ method: 'GET', path: '/access' })),
         );
-        check('allow header', 'POST', response.headers.allow);
       },
     }),
   ],

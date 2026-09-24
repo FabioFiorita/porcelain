@@ -16,7 +16,7 @@ const seen = (session: Session, throughRevision: unknown) => ({
 
 async function twoThreads(session: Session) {
   for (const body of ['First', 'Second'])
-    await session.send({
+    await session.read({
       method: 'POST',
       path: worktreePath(session, '/comments'),
       body: { anchor: { kind: 'file', filePath: 'README.md' }, body },

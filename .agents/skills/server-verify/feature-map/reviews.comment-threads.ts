@@ -106,14 +106,12 @@ export default defineFeature({
           },
           thread(responses[0]?.body, threadId),
         );
-        check(
-          'a write answers only its own thread',
-          [true, true],
-          responses.map(
-            (entry) => !Array.isArray(entry.body) && 'id' in record(entry.body),
-          ),
+        checkContract(
+          'the first write answers only its own thread',
+          createCommentThreadResponseSchema,
+          responses[0]?.body,
         );
-        const listed = await session.send({
+        const listed = await session.read({
           method: 'GET',
           path: comments(session),
         });
@@ -161,7 +159,7 @@ export default defineFeature({
           'retry creates nothing',
           2,
           list(
-            (await session.send({ method: 'GET', path: comments(session) }))
+            (await session.read({ method: 'GET', path: comments(session) }))
               .body,
           ).length,
         );
@@ -232,12 +230,12 @@ export default defineFeature({
           body: 'Where?',
         },
       }),
-      expect({ response, check }) {
+      expect({ response, check, checkPartial }) {
         check('status', 200, response.status);
-        check(
+        checkPartial(
           'is accepted',
-          true,
-          record(record(response.body).anchor).filePath === 'missing.md',
+          { anchor: { kind: 'file', filePath: 'missing.md' } },
+          response.body,
         );
       },
     }),

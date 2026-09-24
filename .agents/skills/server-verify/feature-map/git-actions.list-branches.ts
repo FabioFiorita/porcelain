@@ -6,14 +6,15 @@ import {
   invalidRequest,
   list,
   record,
+  text,
   unknownUuid,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
-import { gitPath, worktreeNotFound } from '../scripts/fixture.ts';
+import { gitPath, gitRoute, worktreeNotFound } from '../scripts/fixture.ts';
 
 export default defineFeature({
   feature: 'git-actions.list-branches',
-  reaches: 'GET /api/projects/:projectId/worktrees/:worktreeId/git/branches',
+  reaches: `GET ${gitRoute}/branches`,
   paired: true,
   intent: 'intended',
   behaviour:
@@ -26,7 +27,14 @@ export default defineFeature({
         method: 'GET',
         path: gitPath(session, '/branches'),
       }),
-      expect({ response, session, check, checkPartial, checkContract }) {
+      expect({
+        response,
+        session,
+        check,
+        checkPartial,
+        checkContract,
+        checkMatch,
+      }) {
         check('status', 200, response.status);
         checkContract('contract', listGitBranchesResponseSchema, response.body);
         checkPartial(
@@ -43,15 +51,12 @@ export default defineFeature({
           },
           response.body,
         );
-        check(
-          'last commit times are ISO instants',
-          [true, true],
-          list(record(response.body).branches).map((branch) =>
-            /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(
-              String(record(branch).lastCommitAt),
-            ),
-          ),
-        );
+        for (const branch of list(record(response.body).branches))
+          checkMatch(
+            `${text(record(branch).name)} last commit time is an ISO instant`,
+            /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/,
+            record(branch).lastCommitAt,
+          );
       },
     }),
     defineCase({
@@ -59,11 +64,13 @@ export default defineFeature({
       request: (session) => [
         {
           method: 'GET',
-          path: `/api/projects/${unknownUuid}/worktrees/${session.worktreeId}/git/branches`,
+          path: gitPath(session, '/branches', { projectId: unknownUuid }),
         },
         {
           method: 'GET',
-          path: `/api/projects/${session.projectId}/worktrees/${unknownWorktreeId}/git/branches`,
+          path: gitPath(session, '/branches', {
+            worktreeId: unknownWorktreeId,
+          }),
         },
       ],
       expect({ responses, check }) {
@@ -86,11 +93,11 @@ export default defineFeature({
       request: (session) => [
         {
           method: 'GET',
-          path: `/api/projects/not-a-uuid/worktrees/${session.worktreeId}/git/branches`,
+          path: gitPath(session, '/branches', { projectId: 'not-a-uuid' }),
         },
         {
           method: 'GET',
-          path: `/api/projects/${session.projectId}/worktrees/not-an-id/git/branches`,
+          path: gitPath(session, '/branches', { worktreeId: 'not-an-id' }),
         },
       ],
       expect({ responses, check }) {

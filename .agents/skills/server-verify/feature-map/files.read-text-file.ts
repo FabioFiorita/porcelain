@@ -8,7 +8,13 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import {
+  credentialLink,
+  read,
+  unreadablePath,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 const text = (session: Session, path: string) => ({
   method: 'GET' as const,
@@ -22,7 +28,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    'A reviewer reads a UTF-8 text file from the worktree as it is on disk, with its byte length and a content fingerprint that a later edit must present; the fingerprint stays while the content does and moves when it changes. Binary or non-UTF-8 files are refused as unsupported text; paths that escape the worktree, absolute paths and the root are invalid; a missing file is not found.',
+    'A reviewer reads a UTF-8 text file from the worktree as it is on disk, with its byte length and a content fingerprint that a later edit must present; the fingerprint stays while the content does and moves when it changes. Binary or non-UTF-8 files are refused as unsupported text; paths that escape the worktree, absolute paths and the root are invalid; a missing file is not found. A symbolic link is never followed, even to a file inside the worktree: it cannot be read (422).',
   cases: [
     defineCase({
       name: 'the changed README',
@@ -30,7 +36,7 @@ export default defineFeature({
         text(session, session.fixture.readme.path),
         text(session, session.fixture.readme.path),
       ],
-      async expect({ responses, session, check, checkContract }) {
+      async expect({ responses, session, check, checkContract, checkDiffers }) {
         const [first, second] = responses;
         check(
           'statuses',
@@ -53,13 +59,14 @@ export default defineFeature({
         );
         check('a second read answers the same', first?.body, second?.body);
         await session.writeFile(session.fixture.readme.path, 'Edited\n');
-        const edited = await session.send(
+        const edited = await read(
+          session,
           text(session, session.fixture.readme.path),
         );
-        check(
+        checkDiffers(
           'the fingerprint moves with the content',
-          true,
-          record(edited.body).contentFingerprint !== fingerprint,
+          fingerprint,
+          edited.contentFingerprint,
         );
         await session.writeFile(
           session.fixture.readme.path,
@@ -127,6 +134,23 @@ export default defineFeature({
           worktreeNotFound,
           responses[3]?.body,
         );
+      },
+    }),
+    defineCase({
+      name: 'a symbolic link, whether it leaves the worktree or not',
+      async setup(session) {
+        await session.symlink(credentialLink, 'escape.txt');
+        await session.symlink(session.fixture.readme.path, 'inside.md');
+      },
+      request: (session) => [
+        text(session, 'escape.txt'),
+        text(session, 'inside.md'),
+      ],
+      expect({ responses, check }) {
+        check('escaping link status', 422, responses[0]?.status);
+        check('escaping link error body', unreadablePath, responses[0]?.body);
+        check('inside link status', 422, responses[1]?.status);
+        check('inside link error body', unreadablePath, responses[1]?.body);
       },
     }),
   ],

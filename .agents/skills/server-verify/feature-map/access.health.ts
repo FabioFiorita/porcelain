@@ -28,7 +28,7 @@ export default defineFeature({
       name: 'with a credential the server does not know or has revoked',
       async setup(session) {
         const device = await pairDevice(session, 'Revoked device');
-        await session.send({
+        await session.read({
           method: 'POST',
           path: '/access/revoke',
           target: 'owner',

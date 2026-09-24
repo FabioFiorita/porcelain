@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,13 +11,17 @@ import {
   type Checks,
   type Feature,
 } from './feature.ts';
+import { expectedWeakness, Provenance } from './provenance.ts';
 import { IsolatedServer, Recorder, type Step } from './session.ts';
+import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
 
 type Assertion = {
   name: string;
   passed: boolean;
   expected: unknown;
   actual: unknown;
+  sources: string[];
+  weak?: string;
 };
 type CaseEvidence = {
   name: string;
@@ -26,6 +30,13 @@ type CaseEvidence = {
   assertionCount: number;
   steps: Step[];
   assertions: Assertion[];
+  serverStderr: string;
+  durationMs: number;
+};
+type RouteCoverage = {
+  registered: readonly string[];
+  unreached: string[];
+  unregistered: string[];
 };
 type FeatureResult = {
   feature: string;
@@ -34,8 +45,12 @@ type FeatureResult = {
   cases: number;
   assertions: number;
   passedAssertions: number;
+  weakAssertions: number;
   failures: string[];
   evidence: string;
+  routes: readonly string[];
+  durationMs: number;
+  durations: { case: string; durationMs: number }[];
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,10 +64,29 @@ function routePattern(reach: string): RegExp {
     .map((part) =>
       part.startsWith(':')
         ? '[^/?]+'
-        : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replaceAll('\\*', '.*'),
     )
     .join('');
   return new RegExp(`^${escaped}(?:\\?.*)?$`);
+}
+
+function template(route: string): string {
+  return route.replace(/:[A-Za-z]+/g, ':');
+}
+
+function routeCoverage(
+  registered: readonly string[],
+  features: readonly Feature[],
+): RouteCoverage {
+  const reached = new Set(features.flatMap(reachesOf).map(template));
+  const answered = new Set(registered.map(template));
+  return {
+    registered,
+    unreached: registered.filter((route) => !reached.has(template(route))),
+    unregistered: [...new Set(features.flatMap(reachesOf))].filter(
+      (reach) => !answered.has(template(reach)),
+    ),
+  };
 }
 
 function requestedRoute(step: Step): string | undefined {
@@ -77,34 +111,73 @@ function partial(expected: unknown, actual: unknown): boolean {
   );
 }
 
-function checks(assertions: Assertion[]): Checks {
+function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
+  const assert = (
+    name: string,
+    expected: unknown,
+    actual: unknown,
+    kind: 'exact' | 'partial' | 'contract' | 'match' | 'differs',
+    matches: boolean,
+    recorded: unknown = actual,
+  ) => {
+    const judged = provenance().judge(actual);
+    const weak =
+      (kind === 'contract' || kind === 'match'
+        ? undefined
+        : expectedWeakness(expected, kind)) ?? judged.weak;
+    if (weak === undefined) judged.count();
+    assertions.push({
+      name,
+      passed: matches && weak === undefined,
+      expected,
+      actual: recorded,
+      sources: judged.sources,
+      ...(weak === undefined ? {} : { weak }),
+    });
+  };
   return {
     check(name, expected, actual) {
-      assertions.push({
+      assert(
         name,
-        passed: isDeepStrictEqual(actual, expected),
         expected,
         actual,
-      });
+        'exact',
+        isDeepStrictEqual(actual, expected),
+      );
     },
     checkPartial(name, expected, actual) {
-      assertions.push({
+      assert(name, expected, actual, 'partial', partial(expected, actual));
+    },
+    checkMatch(name, pattern, actual) {
+      assert(
         name,
-        passed: partial(expected, actual),
-        expected,
+        String(pattern),
         actual,
-      });
+        'match',
+        typeof actual === 'string' && pattern.test(actual),
+      );
+    },
+    checkDiffers(name, previous, actual) {
+      assert(
+        name,
+        { differsFrom: previous },
+        actual,
+        'differs',
+        !isDeepStrictEqual(actual, previous),
+      );
     },
     checkContract(name, schema, actual) {
       const parsed = schema.safeParse(actual);
-      assertions.push({
+      assert(
         name,
-        passed: parsed.success,
-        expected: 'satisfies the wire contract',
-        actual: parsed.success
+        'satisfies the wire contract',
+        actual,
+        'contract',
+        parsed.success,
+        parsed.success
           ? actual
           : { value: actual, issues: parsed.error?.issues },
-      });
+      );
     },
   };
 }
@@ -114,7 +187,7 @@ function message(error: unknown): string {
 }
 
 async function fixtureIds(server: IsolatedServer, recorder: Recorder) {
-  const inventory = await server.send(recorder, {
+  const inventory = await server.read(recorder, {
     method: 'GET',
     path: '/api/inventory',
   });
@@ -142,6 +215,7 @@ async function runCases(
   const cases: CaseEvidence[] = [];
   for (const testCase of feature.cases) {
     recorder.steps = [];
+    recorder.provenance = new Provenance();
     recorder.cleanups.length = 0;
     const assertions: Assertion[] = [];
     const evidence: CaseEvidence = {
@@ -150,14 +224,20 @@ async function runCases(
       assertionCount: 0,
       steps: recorder.steps,
       assertions,
+      serverStderr: '',
+      durationMs: 0,
     };
+    const startedAt = performance.now();
+    const stderrFrom = server.logs().stderr.length;
     cases.push(evidence);
     try {
       await testCase.run(server.session(recorder, ids), {
         enter: (phase) => {
           recorder.phase = phase;
+          recorder.provenance.enter();
         },
-        checks: checks(assertions),
+        checks: checks(assertions, () => recorder.provenance),
+        problems: () => recorder.provenance.problems(),
       });
       if (assertions.length === 0)
         throw new Error('The case made no assertion');
@@ -165,6 +245,8 @@ async function runCases(
       evidence.error = message(error);
     } finally {
       for (const cleanup of recorder.cleanups) cleanup();
+      evidence.serverStderr = server.logs().stderr.slice(stderrFrom);
+      evidence.durationMs = Math.round(performance.now() - startedAt);
     }
     evidence.assertionCount = assertions.length;
     evidence.passed =
@@ -176,13 +258,15 @@ async function runCases(
 async function runFeature(
   feature: Feature,
   evidenceDirectory: string,
+  build: string,
 ): Promise<FeatureResult> {
+  const startedAt = performance.now();
   const recorder = new Recorder();
   let cases: CaseEvidence[] = [];
   let setupError: string | undefined;
   let server: IsolatedServer | undefined;
   try {
-    server = await IsolatedServer.start(repositoryRoot);
+    server = await IsolatedServer.start(repositoryRoot, build);
     recorder.secret(server.credential);
     cases = await runCases(feature, server, recorder);
   } catch (error) {
@@ -192,6 +276,8 @@ async function runFeature(
     setupError ??= stopError;
   }
 
+  const logs = server?.logs() ?? { stdout: '', stderr: '' };
+  recorder.harvest({ cases, logs });
   const requested = cases
     .flatMap((entry) => entry.steps.map(requestedRoute))
     .filter((route) => route !== undefined);
@@ -207,11 +293,21 @@ async function runFeature(
       ...(entry.error ? [`${entry.name}: ${entry.error}`] : []),
       ...entry.assertions
         .filter((assertion) => !assertion.passed)
-        .map((assertion) => `${entry.name}: ${assertion.name}`),
+        .map((assertion) =>
+          assertion.weak
+            ? `${entry.name}: ${assertion.name} is weak: ${assertion.weak}`
+            : `${entry.name}: ${assertion.name}`,
+        ),
     ]),
   ].map((failure) => recorder.scrub(failure));
-  const passed = failures.length === 0 && assertions.length > 0;
+  let passed = failures.length === 0 && assertions.length > 0;
   const passedAssertions = assertions.filter((entry) => entry.passed).length;
+  const durations = cases.map((entry) => ({
+    case: entry.name,
+    durationMs: entry.durationMs,
+  }));
+  const durationMs = Math.round(performance.now() - startedAt);
+  const weakAssertions = assertions.filter((entry) => entry.weak).length;
   const evidencePath = join(evidenceDirectory, `${feature.feature}.json`);
   const evidence = recorder.redact({
     feature: feature.feature,
@@ -224,15 +320,28 @@ async function runFeature(
     failures,
     assertionCount: assertions.length,
     passedAssertions,
+    weakAssertions,
+    durationMs,
+    durations,
     session: server
       ? { address: server.address, repository: server.repository }
       : null,
     cases,
-    logs: server?.logs() ?? { stdout: '', stderr: '' },
+    logs,
   });
-  await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, {
-    mode: 0o600,
-  });
+  const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
+  const leaked = recorder.leaks(serialized) > 0;
+  if (leaked) {
+    passed = false;
+    failures.push('evidence withheld: a secret survived redaction');
+  }
+  await writeFile(
+    evidencePath,
+    leaked
+      ? `${JSON.stringify({ feature: feature.feature, passed, failures }, null, 2)}\n`
+      : serialized,
+    { mode: 0o600 },
+  );
   return {
     feature: feature.feature,
     intent: feature.intent,
@@ -240,8 +349,12 @@ async function runFeature(
     cases: cases.length,
     assertions: assertions.length,
     passedAssertions,
+    weakAssertions,
     failures,
     evidence: evidencePath,
+    routes: server?.routes ?? [],
+    durationMs,
+    durations,
   };
 }
 
@@ -272,6 +385,8 @@ if (selected.length === 0) {
 const evidenceDirectory = await mkdtemp(
   join(tmpdir(), 'porcelain-server-verify-'),
 );
+const build = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
+await buildIsolatedServer(build);
 let interrupted = false;
 process.once('SIGINT', () => {
   interrupted = true;
@@ -279,16 +394,42 @@ process.once('SIGINT', () => {
 const results: FeatureResult[] = [];
 for (const feature of selected) {
   if (interrupted) break;
-  const result = await runFeature(feature, evidenceDirectory);
+  const result = await runFeature(feature, evidenceDirectory, build);
   results.push(result);
   process.stdout.write(
-    `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases\n`,
+    `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases, ${result.durationMs} ms\n`,
   );
   for (const failure of result.failures)
     process.stdout.write(`  - ${failure}\n`);
 }
+const slowest = results
+  .flatMap((entry) =>
+    entry.durations.map((timed) => ({ feature: entry.feature, ...timed })),
+  )
+  .sort((left, right) => right.durationMs - left.durationMs)
+  .slice(0, 10);
+process.stdout.write('Slowest cases:\n');
+for (const timed of slowest)
+  process.stdout.write(
+    `  ${timed.durationMs} ms  ${timed.feature}: ${timed.case}\n`,
+  );
+const registered = results.find((entry) => entry.routes.length > 0)?.routes;
+const coverage = registered
+  ? routeCoverage(registered, features)
+  : { registered: [], unreached: [], unregistered: [] };
+for (const route of coverage.unreached)
+  process.stdout.write(
+    `  - route ${route} is registered but no feature reaches it\n`,
+  );
+for (const reach of coverage.unregistered)
+  process.stdout.write(
+    `  - ${reach} is reached by a feature but no route is registered for it\n`,
+  );
 const passed =
   !interrupted &&
+  registered !== undefined &&
+  coverage.unreached.length === 0 &&
+  coverage.unregistered.length === 0 &&
   results.length === selected.length &&
   results.every((entry) => entry.passed);
 const total = (pick: (entry: FeatureResult) => number) =>
@@ -303,7 +444,13 @@ await writeFile(
       cases: total((entry) => entry.cases),
       assertions: total((entry) => entry.assertions),
       passedAssertions: total((entry) => entry.passedAssertions),
-      results,
+      weakAssertions: total((entry) => entry.weakAssertions),
+      durationMs: total((entry) => entry.durationMs),
+      slowest,
+      routes: coverage,
+      results: results.map(
+        ({ routes: _routes, durations: _durations, ...entry }) => entry,
+      ),
     },
     null,
     2,
@@ -311,6 +458,7 @@ await writeFile(
   { mode: 0o600 },
 );
 process.stdout.write(
-  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions; evidence: ${evidenceDirectory}\n`,
+  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak, ${coverage.registered.length - coverage.unreached.length}/${coverage.registered.length} routes reached; evidence: ${evidenceDirectory}\n`,
 );
+await rm(build, { recursive: true, force: true });
 if (!passed) process.exitCode = 1;

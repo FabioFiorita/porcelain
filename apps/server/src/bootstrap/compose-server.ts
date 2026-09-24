@@ -2,6 +2,7 @@ import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { openStorageSession } from '@porcelain/storage';
+import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
@@ -27,7 +28,11 @@ import {
   LivePing,
 } from '../runtime/live-updates/live-connections.ts';
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
-import type { OpenServer } from '../runtime/start-application.ts';
+import type { StartServer } from '../cli/launcher.ts';
+import {
+  startApplication,
+  type OpenServer,
+} from '../runtime/start-application.ts';
 import { composeAccess } from './compose-access.ts';
 import { composeChanges } from './compose-changes.ts';
 import type { ComposeContext } from './compose-context.ts';
@@ -168,3 +173,10 @@ export const openServer: OpenServer = async (input) => {
     },
   };
 };
+
+export const startServer: StartServer = (settings, signal) =>
+  startApplication(settings, signal, {
+    openServer,
+    ownerProbe: new SocketOwnerProbe(),
+    clock: new SystemClock(),
+  });

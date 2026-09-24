@@ -30,6 +30,6 @@ jobs:
       - run: pnpm test
       - run: pnpm db:check
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
-      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid -- true
+      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: node .agents/skills/server-verify/scripts/verify.ts --all
       - run: pnpm arch:check

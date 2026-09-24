@@ -1,10 +1,12 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { existsSync, realpathSync } from 'node:fs';
+import { readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import {
   isRecord,
+  list,
   record,
   text,
   type Fixture,
@@ -14,6 +16,7 @@ import {
   type Phase,
   type Session,
 } from './feature.ts';
+import { Provenance } from './provenance.ts';
 
 type HttpStep = {
   phase: Phase;
@@ -36,6 +39,7 @@ type GitStep = {
   error?: string;
 };
 type FileStep = { phase: Phase; kind: 'file'; path: string; bytes: number };
+type LinkStep = { phase: Phase; kind: 'link'; path: string; target: string };
 type LiveStep = {
   phase: Phase;
   kind: 'live';
@@ -45,7 +49,7 @@ type LiveStep = {
   closed?: { code: number; reason: string };
   error?: string;
 };
-export type Step = HttpStep | GitStep | FileStep | LiveStep;
+export type Step = HttpStep | GitStep | FileStep | LinkStep | LiveStep;
 
 type Manifest = {
   address: string;
@@ -53,6 +57,7 @@ type Manifest = {
   socketPath: string;
   credentialFile: string;
   fixture: Fixture;
+  routes: string[];
 };
 
 const execute = promisify(execFile);
@@ -62,9 +67,19 @@ const quietHeaders = new Set([
   'keep-alive',
   'content-length',
 ]);
-const secretKeys = new Set(['credential', 'code', 'link', 'signature']);
+const secretKeys = new Set([
+  'credential',
+  'code',
+  'link',
+  'signature',
+  'token',
+  'secret',
+]);
 const signedLink =
   /\/review-summaries\/([^/?#\s"]+)\?[^#\s"]*?signature=([^&#\s"]+)/g;
+const issuedToken =
+  /pc[a-z]_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_([A-Za-z0-9_-]{43})/g;
+const setCookie = /(?:^|\n)[^=;\s]+=([^;\n]+)/g;
 const readyTimeoutMs = 30_000;
 const stopTimeoutMs = 10_000;
 const requestTimeoutMs = 30_000;
@@ -72,6 +87,7 @@ const requestTimeoutMs = 30_000;
 export class Recorder {
   phase: Phase = 'setup';
   steps: Step[] = [];
+  provenance = new Provenance();
   readonly cleanups: (() => void)[] = [];
   private readonly secrets = new Set<string>();
 
@@ -85,8 +101,12 @@ export class Recorder {
       for (const entry of value) this.harvest(entry);
     else if (isRecord(value))
       for (const [key, entry] of Object.entries(value)) {
+        this.harvestText(key);
         if (secretKeys.has(key) && typeof entry === 'string')
           this.secret(entry);
+        if (key === 'set-cookie' && typeof entry === 'string')
+          for (const [, cookie] of entry.matchAll(setCookie))
+            if (cookie !== undefined) this.secret(cookie);
         this.harvest(entry);
       }
   }
@@ -95,6 +115,10 @@ export class Recorder {
     for (const [link, token, signature] of value.matchAll(signedLink))
       for (const secret of [link, token, signature])
         if (secret !== undefined) this.secret(secret);
+    for (const [token, secret] of value.matchAll(issuedToken)) {
+      this.secret(token);
+      if (secret !== undefined) this.secret(secret);
+    }
   }
 
   harvestAuth(auth: HttpRequest['auth']) {
@@ -107,17 +131,59 @@ export class Recorder {
     }
   }
 
+  private forms(): string[] {
+    return [
+      ...new Set(
+        [...this.secrets].flatMap((secret) => [
+          secret,
+          encodeURIComponent(secret),
+          secret.replaceAll('&', '&amp;'),
+          JSON.stringify(secret).slice(1, -1),
+        ]),
+      ),
+    ].sort((a, b) => b.length - a.length);
+  }
+
   scrub(value: string): string {
     let result = value;
-    for (const secret of [...this.secrets].sort((a, b) => b.length - a.length))
-      result = result.replaceAll(secret, '[redacted]');
+    for (const form of this.forms())
+      result = result.replaceAll(form, '[redacted]');
     return result;
   }
 
   redact(value: unknown): unknown {
-    const parsed: unknown = JSON.parse(this.scrub(JSON.stringify(value)));
-    return parsed;
+    this.harvest(value);
+    const forms = this.forms();
+    const scrub = (text: string) =>
+      forms.reduce(
+        (result, form) => result.replaceAll(form, '[redacted]'),
+        text,
+      );
+    const walk = (entry: unknown): unknown => {
+      if (typeof entry === 'string') return scrub(entry);
+      if (Array.isArray(entry)) return entry.map(walk);
+      if (isRecord(entry))
+        return Object.fromEntries(
+          Object.entries(entry).map(([key, child]) => [
+            scrub(key),
+            walk(child),
+          ]),
+        );
+      return entry;
+    };
+    return walk(value);
   }
+
+  leaks(serialized: string): number {
+    return [...this.secrets].filter((secret) => serialized.includes(secret))
+      .length;
+  }
+}
+
+function realPrefix(path: string): string {
+  if (existsSync(path)) return realpathSync(path);
+  const parent = dirname(path);
+  return parent === path ? path : join(realPrefix(parent), basename(path));
 }
 
 function headersOf(headers: IncomingHttpHeaders): Record<string, string> {
@@ -155,11 +221,14 @@ function fixtureOf(value: unknown): Fixture {
   const device = record(fixture.device);
   const readme = record(fixture.readme);
   const folders = record(fixture.folders);
+  const web = record(fixture.web);
+  const asset = record(web.asset);
   return {
     folders: {
       home: text(folders.home),
       repository: text(folders.repository),
       state: text(folders.state),
+      web: text(folders.web),
     },
     branch: text(fixture.branch),
     device: { label: text(device.label), platform: text(device.platform) },
@@ -169,6 +238,12 @@ function fixtureOf(value: unknown): Fixture {
       changed: text(readme.changed),
     },
     initialCommit: text(fixture.initialCommit),
+    web: {
+      shell: text(web.shell),
+      asset: { path: text(asset.path), text: text(asset.text) },
+      escape: text(web.escape),
+    },
+    summaryLinkLifetimeMs: Number(fixture.summaryLinkLifetimeMs),
   };
 }
 
@@ -180,6 +255,7 @@ function manifestOf(value: unknown): Manifest {
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
     fixture: fixtureOf(manifest.fixture),
+    routes: list(manifest.routes).map(text),
   };
 }
 
@@ -242,6 +318,7 @@ export class IsolatedServer {
   readonly socketPath: string;
   readonly credential: string;
   readonly fixture: Fixture;
+  readonly routes: readonly string[];
   private readonly child: ChildProcess;
   private readonly exited: Promise<void>;
   private readonly output: { stdout: string; stderr: string };
@@ -261,14 +338,22 @@ export class IsolatedServer {
     this.projectHome = resolve(manifest.repository, '..');
     this.socketPath = manifest.socketPath;
     this.fixture = manifest.fixture;
+    this.routes = manifest.routes;
     this.credential = credential;
   }
 
-  static async start(repositoryRoot: string): Promise<IsolatedServer> {
-    const child = spawn(process.execPath, ['scripts/dev-server.ts'], {
-      cwd: repositoryRoot,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+  static async start(
+    repositoryRoot: string,
+    build: string,
+  ): Promise<IsolatedServer> {
+    const child = spawn(
+      process.execPath,
+      ['scripts/dev-server.ts', '--server', build],
+      {
+        cwd: repositoryRoot,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     const output = { stdout: '', stderr: '' };
     const exited = new Promise<void>((resolveExit) =>
       child.once('close', () => resolveExit()),
@@ -330,6 +415,9 @@ export class IsolatedServer {
       GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: '/dev/null',
       GIT_TERMINAL_PROMPT: '0',
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'core.hooksPath',
+      GIT_CONFIG_VALUE_0: '/dev/null',
       GIT_AUTHOR_NAME: 'Porcelain Verification',
       GIT_AUTHOR_EMAIL: 'verify@example.invalid',
       GIT_COMMITTER_NAME: 'Porcelain Verification',
@@ -337,10 +425,12 @@ export class IsolatedServer {
       GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
       GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
     };
-    const inside = (path: string) => {
+    const inside = (path: string, root = this.repository) => {
       const absolute = resolve(this.repository, path);
-      if (!absolute.startsWith(`${this.repository}/`))
-        throw new Error(`${path} is outside the sample repository`);
+      const real = realpathSync(root);
+      const reached = realPrefix(absolute);
+      if (reached !== real && !reached.startsWith(`${real}${sep}`))
+        throw new Error(`${path} is outside ${root}`);
       return absolute;
     };
     return {
@@ -351,6 +441,7 @@ export class IsolatedServer {
       projectId: ids.projectId,
       worktreeId: ids.worktreeId,
       send: (request) => this.send(recorder, request),
+      read: (request, status) => this.read(recorder, request, status),
       live: () => this.live(recorder),
       secret: (value) => recorder.secret(value),
       git: async (...args) => {
@@ -362,6 +453,7 @@ export class IsolatedServer {
             env: gitEnv,
           });
           step.output = stdout;
+          recorder.provenance.observe(`git ${args[0] ?? ''}`, stdout);
           return stdout;
         } catch (error) {
           step.error = error instanceof Error ? error.message : String(error);
@@ -380,7 +472,31 @@ export class IsolatedServer {
               : content.byteLength,
         });
       },
-      readFile: (path) => readFile(inside(path), 'utf8'),
+      readFile: async (path) => {
+        const content = await readFile(inside(path), 'utf8');
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'file',
+          path,
+          bytes: Buffer.byteLength(content),
+        });
+        recorder.provenance.observe(`file ${path}`, content);
+        return content;
+      },
+      symlink: async (target, path) => {
+        await symlink(target, inside(path));
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'link',
+          path,
+          target,
+        });
+      },
+      entries: async (path) => {
+        const names = (await readdir(inside(path, this.projectHome))).sort();
+        recorder.provenance.observe(`entries ${path}`, names);
+        return names;
+      },
     };
   }
 
@@ -396,6 +512,40 @@ export class IsolatedServer {
   }
 
   async send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
+    if (recorder.phase === 'setup')
+      throw new Error(
+        `setup sent ${request.method} ${request.path} directly; setup reads go through read()`,
+      );
+    return recorder.provenance.exchange(
+      recorder.phase,
+      request,
+      await this.transmit(recorder, request),
+      false,
+    );
+  }
+
+  async read(
+    recorder: Recorder,
+    request: HttpRequest,
+    status = 200,
+  ): Promise<HttpResponse> {
+    const response = await this.transmit(recorder, request);
+    if (response.status !== status)
+      throw new Error(
+        `${request.method} ${request.path} answered HTTP ${response.status}, not ${status}`,
+      );
+    return recorder.provenance.exchange(
+      recorder.phase,
+      request,
+      response,
+      true,
+    );
+  }
+
+  private async transmit(
+    recorder: Recorder,
+    request: HttpRequest,
+  ): Promise<HttpResponse> {
     const target = request.target ?? 'network';
     const path = withQuery(request.path, request.query);
     const headers = this.headersFor(request);
@@ -408,6 +558,7 @@ export class IsolatedServer {
       headers['content-type'] = request.contentType ?? 'application/json';
     }
     recorder.harvest(request.body);
+    recorder.harvest(request.headers ?? {});
     recorder.harvestText(path);
     recorder.harvestAuth(request.auth);
     const recordedHeaders = { ...headers };
@@ -444,6 +595,7 @@ export class IsolatedServer {
         payload,
       );
       recorder.harvest(response.body);
+      recorder.harvest(response.headers);
       const cookie = /porcelain_device=([^;]+)/.exec(
         response.headers['set-cookie'] ?? '',
       );
@@ -545,12 +697,15 @@ export class IsolatedServer {
     };
     socket.addEventListener('message', (event) => {
       const value = record(JSON.parse(String(event.data)));
+      recorder.harvest(value);
+      recorder.provenance.observe('live notice', value);
       received.push(value);
       step.received.push(value);
       wake();
     });
     socket.addEventListener('close', (event) => {
       closed = { code: event.code, reason: event.reason };
+      recorder.provenance.observe('live close', closed);
       step.closed = closed;
       wake();
     });

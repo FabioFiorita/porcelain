@@ -6,14 +6,8 @@ import {
   list,
   record,
   unknownUuid,
-  type Session,
 } from '../scripts/feature.ts';
-
-async function inventory(session: Session) {
-  return record(
-    (await session.send({ method: 'GET', path: '/api/inventory' })).body,
-  );
-}
+import { inventory } from '../scripts/fixture.ts';
 
 function rejectedName(name: string, submitted: string, projectId?: string) {
   return defineCase({

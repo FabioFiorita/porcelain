@@ -44,7 +44,14 @@ export default defineFeature({
       name: 'first publish',
       request: (session) =>
         publish(session, sampleReview(session, 0, layerId, stepId)),
-      async expect({ response, session, check, checkPartial, checkContract }) {
+      async expect({
+        response,
+        session,
+        check,
+        checkPartial,
+        checkContract,
+        checkMatch,
+      }) {
         check('status', 200, response.status);
         checkContract('contract', publishReviewResponseSchema, response.body);
         const review = record(record(response.body).review);
@@ -76,12 +83,10 @@ export default defineFeature({
           },
           review,
         );
-        check(
+        checkMatch(
           'summary link is signed',
-          true,
-          /^\/review-summaries\/[0-9a-f-]{36}\?expires=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}\.\d{3}Z&signature=[A-Za-z0-9_-]{43}$/.test(
-            String(record(review.summary).url),
-          ),
+          /^\/review-summaries\/[0-9a-f-]{36}\?expires=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}\.\d{3}Z&signature=[A-Za-z0-9_-]{43}$/,
+          record(review.summary).url,
         );
         check(
           'worktree review is pending',
@@ -108,7 +113,7 @@ export default defineFeature({
         const current = record(
           record(
             (
-              await session.send({
+              await session.read({
                 method: 'GET',
                 path: worktreePath(session, '/review'),
               })

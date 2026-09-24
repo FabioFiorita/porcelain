@@ -9,9 +9,15 @@ import {
   invalidRequest,
   list,
   record,
+  text,
   type Session,
 } from '../scripts/feature.ts';
-import { issuePairing } from '../scripts/fixture.ts';
+import {
+  deviceCookie,
+  deviceCookieAttributes,
+  issuePairing,
+  read,
+} from '../scripts/fixture.ts';
 
 const invalidLink = apiError(
   401,
@@ -19,11 +25,8 @@ const invalidLink = apiError(
   'This pairing link is not valid.',
 );
 
-async function access(session: Session) {
-  return record(
-    (await session.send({ method: 'GET', path: '/access', target: 'owner' }))
-      .body,
-  );
+function access(session: Session) {
+  return read(session, { method: 'GET', path: '/access', target: 'owner' });
 }
 
 export default defineFeature({
@@ -52,7 +55,11 @@ export default defineFeature({
           { label: 'Phone', platform: 'iOS' },
           body.device,
         );
-        check('credential is returned', 'string', typeof body.credential);
+        check(
+          'credential is returned',
+          'pcd_',
+          text(body.credential).slice(0, 'pcd_'.length),
+        );
         check(
           'no cookie for a native client',
           undefined,
@@ -67,10 +74,10 @@ export default defineFeature({
         const owner = await access(session);
         checkContract('owner access contract', listAccessResponseSchema, owner);
         check('grant is consumed', [], owner.grants);
-        check(
+        checkPartial(
           'device is listed',
-          true,
-          list(owner.devices).some(
+          [body.device],
+          list(owner.devices).filter(
             (device) => record(device).id === record(body.device).id,
           ),
         );
@@ -94,13 +101,11 @@ export default defineFeature({
           { label: 'Work laptop', platform: 'Browser' },
           body.device,
         );
-        check('no credential in the body', false, 'credential' in body);
+        check('no credential in the body', ['device'], Object.keys(body));
         check(
           'credential is an HttpOnly cookie on /api',
-          true,
-          /^porcelain_device=[^;]+; Path=\/api; HttpOnly; SameSite=Strict; Max-Age=7776000$/.test(
-            response.headers['set-cookie'] ?? '',
-          ),
+          { name: 'porcelain_device', attributes: deviceCookieAttributes },
+          deviceCookie(response.headers['set-cookie']),
         );
       },
     }),
@@ -108,7 +113,7 @@ export default defineFeature({
       name: 'reused code',
       async setup(session) {
         const code = await issuePairing(session);
-        await session.send({
+        await session.read({
           method: 'POST',
           path: '/api/pair',
           auth: 'none',

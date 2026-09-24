@@ -12,12 +12,16 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
-  changes,
   expectation,
   fingerprintOf,
+  gitPath,
+  gitRoute,
   head,
+  read,
+  receiptPath,
   settledReceipt,
   worktreeNotFound,
+  worktreePath,
 } from '../scripts/fixture.ts';
 
 const run = (
@@ -26,7 +30,7 @@ const run = (
   worktreeId = session.worktreeId,
 ) => ({
   method: 'POST' as const,
-  path: `/api/projects/${session.projectId}/worktrees/${worktreeId}/git/actions`,
+  path: gitPath(session, '/actions', { worktreeId }),
   body,
 });
 const branchRequest = {
@@ -62,7 +66,7 @@ async function upstreamRemote(session: Session) {
 
 export default defineFeature({
   feature: 'git-actions.run-action',
-  reaches: 'POST /api/projects/:projectId/worktrees/:worktreeId/git/actions',
+  reaches: `POST ${gitRoute}/actions`,
   paired: true,
   intent: 'intended',
   behaviour:
@@ -178,7 +182,16 @@ export default defineFeature({
           'Describe the change\n',
           await session.git('log', '-1', '--format=%B'),
         );
-        check('no changes remain', [], (await changes(session)).changes);
+        check(
+          'no changes remain',
+          [],
+          (
+            await read(session, {
+              method: 'GET',
+              path: worktreePath(session, '/changes'),
+            })
+          ).changes,
+        );
       },
     }),
     defineCase({
@@ -262,7 +275,16 @@ export default defineFeature({
           },
           settled.receipt,
         );
-        check('no changes remain', [], (await changes(session)).changes);
+        check(
+          'no changes remain',
+          [],
+          (
+            await read(session, {
+              method: 'GET',
+              path: worktreePath(session, '/changes'),
+            })
+          ).changes,
+        );
       },
     }),
     defineCase({
@@ -329,6 +351,37 @@ export default defineFeature({
           await session.git('show', `HEAD:${session.fixture.readme.path}`),
           await session.readFile(session.fixture.readme.path),
         );
+      },
+    }),
+    defineCase({
+      name: 'a file that changed since it was looked at',
+      async setup(session) {
+        const path = session.fixture.readme.path;
+        await session.writeFile(path, 'Looked at\n');
+        const expected = await readmeExpected(session);
+        await session.writeFile(path, 'Changed after looking\n');
+        return action(session, { action: 'discard', path }, expected);
+      },
+      request: (session, body) => run(session, body),
+      async expect({ response, state, session, check, checkPartial }) {
+        check('accepted', 202, response.status);
+        checkPartial(
+          'running receipt',
+          { requestId: state.requestId, action: 'discard', state: 'running' },
+          response.body,
+        );
+        const settled = await settledReceipt(session, state.requestId);
+        checkPartial(
+          'rejected',
+          { state: 'rejected', reason: 'CHANGED_SINCE_LOOKED' },
+          settled.receipt,
+        );
+        check(
+          'the newer content is kept',
+          'Changed after looking\n',
+          await session.readFile(session.fixture.readme.path),
+        );
+        await session.git('checkout', '--', session.fixture.readme.path);
       },
     }),
     defineCase({
@@ -511,7 +564,7 @@ export default defineFeature({
         check('error body', worktreeNotFound, response.body);
         const receipt = await session.send({
           method: 'GET',
-          path: `/api/git-action-requests/${state.requestId}`,
+          path: receiptPath(session, state.requestId),
         });
         check('no receipt was kept', 404, receipt.status);
       },

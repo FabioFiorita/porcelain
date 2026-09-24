@@ -3,16 +3,9 @@ import {
   defineFeature,
   invalidRequest,
   list,
-  record,
   unknownUuid,
-  type Session,
 } from '../scripts/feature.ts';
-
-async function inventory(session: Session) {
-  return record(
-    (await session.send({ method: 'GET', path: '/api/inventory' })).body,
-  );
-}
+import { inventory } from '../scripts/fixture.ts';
 
 export default defineFeature({
   feature: 'projects.remove',

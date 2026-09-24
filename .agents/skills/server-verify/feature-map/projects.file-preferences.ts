@@ -6,6 +6,7 @@ import {
   invalidRequest,
   unknownUuid,
 } from '../scripts/feature.ts';
+import { read } from '../scripts/fixture.ts';
 
 const preferences = (projectId: string) =>
   `/api/projects/${projectId}/file-preferences`;
@@ -97,12 +98,10 @@ export default defineFeature({
         check(
           'list reads the same',
           expected,
-          (
-            await session.send({
-              method: 'GET',
-              path: preferences(session.projectId),
-            })
-          ).body,
+          await read(session, {
+            method: 'GET',
+            path: preferences(session.projectId),
+          }),
         );
       },
     }),

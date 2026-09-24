@@ -16,8 +16,10 @@ import {
 
 function withoutSummaryUrl(body: unknown) {
   const review = record(record(body).review);
-  const { url, ...summary } = record(review.summary);
-  return { url: typeof url, review: { ...review, summary } };
+  const summary = Object.fromEntries(
+    Object.entries(record(review.summary)).filter(([key]) => key !== 'url'),
+  );
+  return { ...review, summary };
 }
 
 export default defineFeature({
@@ -56,12 +58,17 @@ export default defineFeature({
         method: 'GET',
         path: worktreePath(session, '/review'),
       }),
-      expect({ response, state, check }) {
+      expect({ response, state, check, checkMatch }) {
         check('status', 200, response.status);
         check(
           'same as the publish answer apart from the freshly signed summary link',
           withoutSummaryUrl(state),
           withoutSummaryUrl(response.body),
+        );
+        checkMatch(
+          'a freshly signed summary link',
+          /^\/review-summaries\/[0-9a-f-]{36}\?expires=[^&]+&signature=[A-Za-z0-9_-]{43}$/,
+          record(record(record(response.body).review).summary).url,
         );
       },
     }),

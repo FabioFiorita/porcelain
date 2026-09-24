@@ -112,28 +112,31 @@ export default defineFeature({
       async setup(session) {
         const path = session.fixture.readme.path;
         const requestId = randomUUID();
-        await session.send({
-          method: 'POST',
-          path: gitPath(session, '/actions'),
-          body: {
-            requestId,
-            input: {
-              action: 'discard',
-              path,
-              hunk: {
-                scope: 'unstaged',
-                startLine: lineCount(session.fixture.readme.committed) + 1,
-                endLine: lineCount(session.fixture.readme.changed),
+        await session.read(
+          {
+            method: 'POST',
+            path: gitPath(session, '/actions'),
+            body: {
+              requestId,
+              input: {
+                action: 'discard',
+                path,
+                hunk: {
+                  scope: 'unstaged',
+                  startLine: lineCount(session.fixture.readme.committed) + 1,
+                  endLine: lineCount(session.fixture.readme.changed),
+                },
+              },
+              expected: {
+                ...(await expectation(session)),
+                files: [
+                  { path, fingerprint: await fingerprintOf(session, path) },
+                ],
               },
             },
-            expected: {
-              ...(await expectation(session)),
-              files: [
-                { path, fingerprint: await fingerprintOf(session, path) },
-              ],
-            },
           },
-        });
+          202,
+        );
         await settledReceipt(session, requestId);
         return (
           await session.git(

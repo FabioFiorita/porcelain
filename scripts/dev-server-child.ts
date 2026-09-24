@@ -1,9 +1,14 @@
 import { execFile } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { subscribe } from 'node:diagnostics_channel';
+import { mkdir, symlink, writeFile } from 'node:fs/promises';
+import { connect, createServer } from 'node:net';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { issuePairingResponseSchema } from '@porcelain/contracts/access';
-import { startServer } from '../apps/server/src/bootstrap/main.ts';
+import {
+  issuePairingResponseSchema,
+  redeemPairingResponseSchema,
+} from '@porcelain/contracts/access';
+import { startServer } from '../apps/server/src/bootstrap/compose-server.ts';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
 import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
 import type { Runtime } from '../apps/server/src/runtime/start-application.ts';
@@ -13,14 +18,71 @@ const shutdown = new AbortController();
 const stop = () => shutdown.abort();
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
+process.stdin.on('end', stop);
+process.stdin.resume();
 
 const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
+const port = Number(process.env.PORCELAIN_DEV_PORT ?? '0');
 let server: Runtime | undefined;
+const relay = createServer((incoming) => {
+  const address = new URL(server?.address ?? 'http://127.0.0.1:0');
+  const outgoing = connect(Number(address.port), address.hostname);
+  incoming.pipe(outgoing).pipe(incoming);
+  incoming.on('error', () => outgoing.destroy());
+  outgoing.on('error', () => incoming.destroy());
+});
+
+type RouteOptions = { method: string | readonly string[]; url: string };
+type RouteHost = {
+  addHook(name: 'onRoute', hook: (route: RouteOptions) => void): unknown;
+  server: { address(): unknown };
+};
+
+function isRouteHost(value: unknown): value is RouteHost {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'addHook' in value &&
+    typeof value.addHook === 'function' &&
+    'server' in value
+  );
+}
+
+const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+const listeners: { host: RouteHost; routes: string[] }[] = [];
+subscribe('fastify.initialization', (message) => {
+  const host =
+    typeof message === 'object' && message !== null && 'fastify' in message
+      ? message.fastify
+      : undefined;
+  if (!isRouteHost(host)) return;
+  const listener = { host, routes: new Array<string>() };
+  listeners.push(listener);
+  host.addHook('onRoute', (route) => {
+    const methods =
+      typeof route.method === 'string' ? [route.method] : route.method;
+    for (const method of methods)
+      if (listedMethods.has(method))
+        listener.routes.push(`${method} ${route.url}`);
+  });
+});
+
+function registeredRoutes() {
+  return listeners.flatMap(({ host, routes }) => {
+    const prefix = typeof host.server.address() === 'string' ? 'owner ' : '';
+    return [...new Set(routes)].sort().map((route) => `${prefix}${route}`);
+  });
+}
 
 const committed = '# Sample repository\n';
 const fixture = {
-  folders: { home: 'home', repository: 'repository', state: 'state' },
+  folders: {
+    home: 'home',
+    repository: 'repository',
+    state: 'state',
+    web: 'web',
+  },
   branch: 'main',
   device: { label: 'Development setup', platform: 'Development' },
   readme: {
@@ -29,6 +91,12 @@ const fixture = {
     changed: `${committed}\nA change to review.\n`,
   },
   initialCommit: 'Initial commit',
+  web: {
+    shell: '<!doctype html><title>Porcelain</title>\n',
+    asset: { path: 'assets/app-0123abcd.js', text: 'export {};\n' },
+    escape: 'leak.txt',
+  },
+  summaryLinkLifetimeMs: 2000,
 };
 
 try {
@@ -45,6 +113,9 @@ try {
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_TERMINAL_PROMPT: '0',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'core.hooksPath',
+    GIT_CONFIG_VALUE_0: '/dev/null',
     GCM_INTERACTIVE: 'Never',
   });
 
@@ -61,10 +132,17 @@ try {
   await git('commit', '-m', fixture.initialCommit);
   await writeFile(readme, fixture.readme.changed);
 
+  const web = join(root, fixture.folders.web);
+  await mkdir(join(web, 'assets'), { recursive: true });
+  await writeFile(join(web, 'index.html'), fixture.web.shell);
+  await writeFile(join(web, fixture.web.asset.path), fixture.web.asset.text);
+  await symlink('../credential.json', join(web, fixture.web.escape));
+
   const settings = readServerSettings({
     dataDirectory: state,
     projectHome: root,
-    port: 0,
+    port,
+    webRoot: web,
   });
   server = await startServer(
     {
@@ -72,6 +150,13 @@ try {
       limits: {
         ...settings.limits,
         jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+        reviews: {
+          ...settings.limits.reviews,
+          summaryLink: {
+            ...settings.limits.reviews.summaryLink,
+            lifetimeMs: fixture.summaryLinkLifetimeMs,
+          },
+        },
       },
     },
     shutdown.signal,
@@ -94,12 +179,9 @@ try {
   });
   if (!paired.ok)
     throw new Error(`Development pairing failed: ${paired.status}`);
-  const pairing: unknown = await paired.json();
-  const credential =
-    pairing !== null && typeof pairing === 'object' && 'credential' in pairing
-      ? pairing.credential
-      : undefined;
-  if (typeof credential !== 'string' || credential === '')
+  const pairing = redeemPairingResponseSchema.parse(await paired.json());
+  const credential = pairing.credential;
+  if (credential === undefined || credential === '')
     throw new Error('Development pairing returned no credential');
   const registered = await fetch(`${server.address}/api/projects`, {
     method: 'POST',
@@ -115,6 +197,11 @@ try {
       `Sample repository registration failed: ${registered.status}`,
     );
 
+  await new Promise<void>((resolveRelay, rejectRelay) => {
+    relay.once('error', rejectRelay);
+    relay.listen(join(root, 'network.sock'), () => resolveRelay());
+  });
+
   const credentialFile = join(root, 'credential.json');
   await writeFile(credentialFile, `${JSON.stringify({ credential })}\n`, {
     mode: 0o600,
@@ -122,7 +209,7 @@ try {
   const manifest = join(root, 'manifest.json');
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, fixture }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, fixture, routes: registeredRoutes() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(
@@ -143,8 +230,10 @@ try {
   }
 } finally {
   try {
+    relay.close();
     await server?.close();
   } finally {
+    process.stdin.destroy();
     process.off('SIGINT', stop);
     process.off('SIGTERM', stop);
   }

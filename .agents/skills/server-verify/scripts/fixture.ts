@@ -18,17 +18,41 @@ export function worktreePath(session: Session, suffix = '') {
   return `/api/worktrees/${session.worktreeId}${suffix}`;
 }
 
-export function gitPath(session: Session, suffix: string) {
-  return `/api/projects/${session.projectId}/worktrees/${session.worktreeId}/git${suffix}`;
+export const gitRoute = '/api/projects/:projectId/worktrees/:worktreeId/git';
+export const receiptRoute = '/api/git-action-requests/:requestId';
+
+function fill(template: string, values: Record<string, string>) {
+  return template.replace(
+    /:([A-Za-z]+)/g,
+    (match, name: string) => values[name] ?? match,
+  );
 }
 
-export async function read(session: Session, request: HttpRequest) {
-  const response = await session.send(request);
-  if (response.status !== 200)
-    throw new Error(
-      `${request.method} ${request.path} answered HTTP ${response.status}`,
-    );
-  return record(response.body);
+export function gitPath(
+  session: Session,
+  suffix: string,
+  ids: { projectId?: string; worktreeId?: string } = {},
+) {
+  return `${fill(gitRoute, {
+    projectId: ids.projectId ?? session.projectId,
+    worktreeId: ids.worktreeId ?? session.worktreeId,
+  })}${suffix}`;
+}
+
+export function receiptPath(session: Session, requestId: string) {
+  return fill(receiptRoute, {
+    projectId: session.projectId,
+    worktreeId: session.worktreeId,
+    requestId,
+  });
+}
+
+export async function read(
+  session: Session,
+  request: HttpRequest,
+  status = 200,
+) {
+  return record((await session.read(request, status)).body);
 }
 
 export const inventory = (session: Session) =>
@@ -105,9 +129,9 @@ export async function pairDevice(session: Session, label = 'Second device') {
 
 export async function settledReceipt(session: Session, requestId: string) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const response = await session.send({
+    const response = await session.read({
       method: 'GET',
-      path: `/api/git-action-requests/${requestId}`,
+      path: receiptPath(session, requestId),
     });
     const receipt = record(response.body);
     if (receipt.state !== 'running')
@@ -129,7 +153,7 @@ export async function expectation(session: Session) {
 export async function receiptOf(session: Session, requestId: string) {
   return read(session, {
     method: 'GET',
-    path: `/api/git-action-requests/${requestId}`,
+    path: receiptPath(session, requestId),
   });
 }
 
@@ -215,4 +239,58 @@ export async function eventually(
     await delay(100);
   }
   throw new Error(`${request.method} ${request.path} never reached the state`);
+}
+
+export const deviceCookieAttributes =
+  'Path=/api; HttpOnly; SameSite=Strict; Max-Age=7776000';
+
+export function deviceCookie(header: string | undefined) {
+  const match = /^([^=;]+)=[^;]+; (.+)$/.exec(header ?? '');
+  return match ? { name: match[1], attributes: match[2] } : { header };
+}
+
+export const unreadablePath = apiError(
+  422,
+  'Unprocessable Entity',
+  'Path could not be read',
+);
+
+export const credentialLink = '../credential.json';
+
+export const mcpHeaders = (cwd: string) => ({
+  accept: 'application/json, text/event-stream',
+  'x-porcelain-cwd': cwd,
+});
+
+export function toolCall(
+  session: Session,
+  id: number,
+  name: string,
+  input: Record<string, unknown>,
+): HttpRequest {
+  return {
+    method: 'POST',
+    path: '/mcp',
+    target: 'owner',
+    headers: mcpHeaders(session.repository),
+    body: {
+      jsonrpc: '2.0',
+      id,
+      method: 'tools/call',
+      params: { name, arguments: input },
+    },
+  };
+}
+
+export function toolResult(body: unknown) {
+  return record(record(body).result);
+}
+
+export function toolText(body: unknown) {
+  return text(record(list(toolResult(body).content)[0]).text);
+}
+
+export function toolValue(body: unknown): unknown {
+  const value: unknown = JSON.parse(toolText(body));
+  return value;
 }

@@ -1,7 +1,7 @@
 export type Intent = 'observed' | 'intended';
 
 export type HttpRequest = {
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  method: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   query?: Record<string, string | number | boolean>;
   body?: unknown;
@@ -29,11 +29,13 @@ export type LiveConnection = {
 };
 
 export type Fixture = {
-  folders: { home: string; repository: string; state: string };
+  folders: { home: string; repository: string; state: string; web: string };
   branch: string;
   device: { label: string; platform: string };
   readme: { path: string; committed: string; changed: string };
   initialCommit: string;
+  web: { shell: string; asset: { path: string; text: string }; escape: string };
+  summaryLinkLifetimeMs: number;
 };
 
 export type Session = {
@@ -44,10 +46,13 @@ export type Session = {
   projectId: string;
   worktreeId: string;
   send(request: HttpRequest): Promise<HttpResponse>;
+  read(request: HttpRequest, status?: number): Promise<HttpResponse>;
   live(): Promise<LiveConnection>;
   git(...args: string[]): Promise<string>;
   writeFile(path: string, content: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<string>;
+  symlink(target: string, path: string): Promise<void>;
+  entries(path: string): Promise<string[]>;
   secret(value: string): void;
 };
 
@@ -66,6 +71,8 @@ export type Checks = {
     schema: ContractSchema,
     actual: unknown,
   ) => void;
+  checkMatch: (name: string, pattern: RegExp, actual: unknown) => void;
+  checkDiffers: (name: string, previous: unknown, actual: unknown) => void;
 };
 
 export type Outcome<State> = Checks & {
@@ -87,7 +94,11 @@ export type Case<State = undefined> = CaseBody<State> & {
 
 export type Phase = 'setup' | 'request' | 'follow-up';
 
-export type CaseRunner = { enter(phase: Phase): void; checks: Checks };
+export type CaseRunner = {
+  enter(phase: Phase): void;
+  checks: Checks;
+  problems(): string[];
+};
 
 export type RunnableCase = {
   name: string;
@@ -104,36 +115,6 @@ export type Feature = {
   cases: readonly RunnableCase[];
 };
 
-type Reads = { status: boolean; body: boolean };
-
-function watched(response: HttpResponse, reads: Reads): HttpResponse {
-  return {
-    headers: response.headers,
-    get status() {
-      reads.status = true;
-      return response.status;
-    },
-    get body() {
-      reads.body = true;
-      return response.body;
-    },
-  };
-}
-
-function unchecked(sent: readonly { request: HttpRequest; reads: Reads }[]) {
-  return sent.flatMap(({ request, reads }, index) => {
-    const missing = [
-      ...(reads.status ? [] : ['status']),
-      ...(reads.body ? [] : ['body']),
-    ];
-    return missing.length === 0
-      ? []
-      : [
-          `request ${index + 1} (${request.method} ${request.path}) left its ${missing.join(' and ')} unchecked`,
-        ];
-  });
-}
-
 async function execute<State>(
   value: CaseBody<State>,
   state: State,
@@ -142,12 +123,9 @@ async function execute<State>(
 ) {
   runner.enter('request');
   const planned = value.request(session, state);
-  const sent = (Array.isArray(planned) ? planned : [planned]).map(
-    (request) => ({ request, reads: { status: false, body: false } }),
-  );
   const responses: HttpResponse[] = [];
-  for (const { request, reads } of sent)
-    responses.push(watched(await session.send(request), reads));
+  for (const request of Array.isArray(planned) ? planned : [planned])
+    responses.push(await session.send(request));
   const response = responses.at(-1);
   if (!response) throw new Error('The case sent no request');
   runner.enter('follow-up');
@@ -158,8 +136,8 @@ async function execute<State>(
     state,
     session,
   });
-  const missing = unchecked(sent);
-  if (missing.length > 0) throw new Error(missing.join('; '));
+  const problems = runner.problems();
+  if (problems.length > 0) throw new Error(problems.join('; '));
 }
 
 export function defineCase(

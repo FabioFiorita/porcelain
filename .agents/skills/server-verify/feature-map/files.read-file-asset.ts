@@ -7,7 +7,12 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import {
+  credentialLink,
+  unreadablePath,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
 const asset = (session: Session, path: string) => ({
@@ -22,7 +27,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer reads an image from the worktree to preview it: the answer carries its media type and base64 content. A readable file whose type cannot be previewed is refused with a message that says so; a missing file is not found; paths that escape the worktree are invalid.',
+    'A reviewer reads an image from the worktree to preview it: the answer carries its media type and base64 content. A readable file whose type cannot be previewed is refused with a message that says so; a missing file is not found; paths that escape the worktree are invalid. A symbolic link is not followed, so one that leaves the worktree cannot be read (422).',
   cases: [
     defineCase({
       name: 'an SVG image',
@@ -84,6 +89,15 @@ export default defineFeature({
           worktreeNotFound,
           responses[2]?.body,
         );
+      },
+    }),
+    defineCase({
+      name: 'a symbolic link out of the worktree',
+      setup: (session) => session.symlink(credentialLink, 'escape.svg'),
+      request: (session) => asset(session, 'escape.svg'),
+      expect({ response, check }) {
+        check('status', 422, response.status);
+        check('error body', unreadablePath, response.body);
       },
     }),
   ],

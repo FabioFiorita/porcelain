@@ -22,8 +22,7 @@ import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-ins
 import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from '../runtime/errors/owner-socket-unreadable-error.ts';
 import { OwnerSocketModeError } from '../runtime/errors/owner-socket-mode-error.ts';
-import { startApplication } from '../runtime/start-application.ts';
-import { openServer } from './compose-server.ts';
+import { startServer } from './compose-server.ts';
 
 const actionableErrors = [
   ServeConfigurationError,
@@ -38,13 +37,6 @@ const actionableErrors = [
 ];
 
 const ownerProbe = new SocketOwnerProbe();
-
-export const startServer: StartServer = (settings, signal) =>
-  startApplication(settings, signal, {
-    openServer,
-    ownerProbe,
-    clock: new SystemClock(),
-  });
 
 export type CliDependencies = {
   homeDirectory?: string;
