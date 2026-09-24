@@ -7,7 +7,7 @@ import {
 import websocket from '@fastify/websocket';
 import type { Principal } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
-import { WebRootAdapter } from '../adapters/web/web-root-adapter.ts';
+import { FilesystemWebRootFiles } from '../adapters/web/filesystem-web-root-files.ts';
 import type { ServerApplication } from '../bootstrap/compose-server.ts';
 import { liveUpdateMessageLimit } from '../config/request-limits.ts';
 import { absolutePathSchema } from '../config/server-settings.ts';
@@ -78,7 +78,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   });
   if (webRoot !== undefined)
     server.register(staticFiles, {
-      files: new WebRootAdapter(webRoot),
+      files: new FilesystemWebRootFiles(webRoot),
     });
   return server;
 }

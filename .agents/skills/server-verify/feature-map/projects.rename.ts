@@ -41,7 +41,7 @@ export default defineFeature({
     'packages/contracts/src/projects/inventory.ts',
     'apps/server/src/use-cases/projects/rename-project.ts',
     'packages/projects/src/services/rename-project-service.ts',
-    'packages/storage/src/repositories/projects/inventory-repository.ts',
+    'packages/storage/src/repositories/projects/sqlite-inventory-store.ts',
   ],
   behaviour:
     "The owner gives a registered project a new display name without changing the project's identity, worktrees or other projects. The name is trimmed and must be 1 to 100 characters with no control characters. Duplicate display names are allowed and not asserted. Restart persistence and the inventory-change notification are deferred.",

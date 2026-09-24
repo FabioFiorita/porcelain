@@ -19,16 +19,16 @@ import { createDeviceStore } from '@porcelain/storage/access';
 import { createWorktreeStatusStore } from '@porcelain/storage/changes';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import { createInventoryStore } from '@porcelain/storage/projects';
-import { DeviceDirectoryAdapter } from '../adapters/access/device-directory-adapter.ts';
-import { PairingReachAdapter } from '../adapters/access/pairing-reach-adapter.ts';
-import { RuntimeStatusReaderAdapter } from '../adapters/access/runtime-status-reader-adapter.ts';
-import { LiveUpdatesAdapter } from '../adapters/events/live-updates-adapter.ts';
-import { CommitGeneratorAdapter } from '../adapters/git-actions/commit-generator-adapter.ts';
-import { LaneKeysAdapter } from '../adapters/projects/lane-keys-adapter.ts';
-import { RandomIdSourceAdapter } from '../adapters/runtime/random-id-source-adapter.ts';
-import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
-import { WorktreeAccessAdapter } from '../adapters/projects/worktree-access-adapter.ts';
-import { WorktreeDirectoryAdapter } from '../adapters/projects/worktree-directory-adapter.ts';
+import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
+import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
+import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
+import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
+import { ProcessCommitDraftWriter } from '../adapters/git-actions/process-commit-draft-writer.ts';
+import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
+import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
+import { SystemClock } from '../adapters/runtime/system-clock.ts';
+import { GitWorktreeAccess } from '../adapters/projects/git-worktree-access.ts';
+import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
 import {
   applicationSettingsSchema,
   operationDeadlineMs,
@@ -97,10 +97,10 @@ export async function openApplication(options: ApplicationOptions) {
     options.commitGit ?? ((checkout) => new CommitGit(checkout));
   const inspection: InspectionFactory =
     options.inspectionGit ?? ((session) => new InspectionGit(session));
-  const clock = new SystemClockAdapter();
-  const idSource = new RandomIdSourceAdapter();
+  const clock = new SystemClock();
+  const idSource = new RandomIdSource();
 
-  const worktreeDirectory = new WorktreeDirectoryAdapter({
+  const worktreeDirectory = new GitProjectWorktreeReader({
     git,
     inventoryStore,
     sharedReads: new SharedReads(),
@@ -108,23 +108,23 @@ export async function openApplication(options: ApplicationOptions) {
     timeoutMs: settings.projectListingTimeoutMs,
     worktreeId: deriveWorktreeId,
   });
-  const worktreeAccess = new WorktreeAccessAdapter(
+  const worktreeAccess = new GitWorktreeAccess(
     worktreeDirectory,
     inventoryStore,
   );
-  const laneKeys = new LaneKeysAdapter(worktreeDirectory, inventoryStore);
+  const laneKeys = new GitLaneKeys(worktreeDirectory, inventoryStore);
   const reviewInvalidation = composeReviewInvalidation({
     session,
     lanes,
     laneKeys,
   });
-  const events = new LiveUpdatesAdapter({
+  const events = new WebSocketEventPublisher({
     worktrees: worktreeAccess,
     pathsChanged: reviewInvalidation.invalidateReviewedMarks,
     projects: () => inventoryStore.read().projects,
     limits: LIVE_UPDATE_LIMITS,
   });
-  const devices = new DeviceDirectoryAdapter(createDeviceStore(session));
+  const devices = new CachedDeviceStore(createDeviceStore(session));
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
     createGitActionStore(session),
   );
@@ -134,10 +134,10 @@ export async function openApplication(options: ApplicationOptions) {
     lanes,
     deviceStore: devices,
     deviceActivityStore: devices,
-    pairingReachReader: new PairingReachAdapter(
+    pairingReachReader: new HttpPairingReachReader(
       options.pairingReach ?? (() => NO_REACH),
     ),
-    runtimeStatusReader: new RuntimeStatusReaderAdapter(
+    runtimeStatusReader: new ProcessRuntimeStatusReader(
       options.runtimeStatus ??
         (() => ({
           address: '',
@@ -199,7 +199,7 @@ export async function openApplication(options: ApplicationOptions) {
     refreshPublishedReview: reviews.refreshReviewActivity,
     commitGenerator:
       options.commitGenerator ??
-      new CommitGeneratorAdapter(createCommitPlanner()),
+      new ProcessCommitDraftWriter(createCommitPlanner()),
     gitActionDeadlineMs: settings.gitActionDeadlineMs,
     commitModelDeadlineMs: settings.commitModelDeadlineMs,
   });

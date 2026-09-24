@@ -6,34 +6,34 @@ import type {
   ReviewStore,
 } from '@porcelain/reviews/ports';
 import { databaseOf, type StorageSession } from '../../db/session.ts';
-import { CommentRepository } from './comment-repository.ts';
-import { CommentSeenRepository } from './comment-seen-repository.ts';
-import { ReviewedFileRepository } from './reviewed-file-repository.ts';
-import { ReviewedLayerRepository } from './reviewed-layer-repository.ts';
-import { ReviewRepository } from './review-repository.ts';
+import { SqliteCommentStore } from './sqlite-comment-store.ts';
+import { SqliteCommentSeenStore } from './sqlite-comment-seen-store.ts';
+import { SqliteReviewedFileStore } from './sqlite-reviewed-file-store.ts';
+import { SqliteReviewedLayerStore } from './sqlite-reviewed-layer-store.ts';
+import { SqliteReviewStore } from './sqlite-review-store.ts';
 
 export function createCommentStore(session: StorageSession): CommentStore {
-  return new CommentRepository(databaseOf(session));
+  return new SqliteCommentStore(databaseOf(session));
 }
 
 export function createCommentSeenStore(
   session: StorageSession,
 ): CommentSeenStore {
-  return new CommentSeenRepository(databaseOf(session));
+  return new SqliteCommentSeenStore(databaseOf(session));
 }
 
 export function createReviewedFileStore(
   session: StorageSession,
 ): ReviewedFileStore {
-  return new ReviewedFileRepository(databaseOf(session));
+  return new SqliteReviewedFileStore(databaseOf(session));
 }
 
 export function createReviewedLayerStore(
   session: StorageSession,
 ): ReviewedLayerStore {
-  return new ReviewedLayerRepository(databaseOf(session));
+  return new SqliteReviewedLayerStore(databaseOf(session));
 }
 
 export function createReviewStore(session: StorageSession): ReviewStore {
-  return new ReviewRepository(databaseOf(session));
+  return new SqliteReviewStore(databaseOf(session));
 }

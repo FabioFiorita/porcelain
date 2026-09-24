@@ -5,7 +5,7 @@ import type {
   RunningGitActionStore,
 } from '@porcelain/git-actions/ports';
 import { databaseOf, type StorageSession } from '../../db/session.ts';
-import { GitActionRepository } from './git-action-repository.ts';
+import { SqliteGitActionReceiptStore } from './sqlite-git-action-receipt-store.ts';
 
 export function createGitActionStore(
   session: StorageSession,
@@ -13,5 +13,5 @@ export function createGitActionStore(
   RunningGitActionStore &
   InterruptedGitActionStore &
   GitActionRetentionStore {
-  return new GitActionRepository(databaseOf(session));
+  return new SqliteGitActionReceiptStore(databaseOf(session));
 }

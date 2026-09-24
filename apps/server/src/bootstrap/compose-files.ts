@@ -9,11 +9,11 @@ import {
 } from '@porcelain/files/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { WorktreeAccess } from '@porcelain/kernel/ports';
-import { DirectoryReaderAdapter } from '../adapters/files/directory-reader-adapter.ts';
-import { FileReaderAdapter } from '../adapters/files/file-reader-adapter.ts';
-import { FileWriterAdapter } from '../adapters/files/file-writer-adapter.ts';
-import { IgnoredEntriesReaderAdapter } from '../adapters/files/ignored-entries-reader-adapter.ts';
-import { WorktreePathsReaderAdapter } from '../adapters/files/worktree-paths-reader-adapter.ts';
+import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
+import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
+import { FilesystemFileWriter } from '../adapters/files/filesystem-file-writer.ts';
+import { GitIgnoredEntriesReader } from '../adapters/files/git-ignored-entries-reader.ts';
+import { GitWorktreePathsReader } from '../adapters/files/git-worktree-paths-reader.ts';
 import { EditFileUseCase } from '../use-cases/files/edit-file.ts';
 import { ListDirectoryUseCase } from '../use-cases/files/list-directory.ts';
 import { ListWorktreePathsUseCase } from '../use-cases/files/list-worktree-paths.ts';
@@ -32,7 +32,7 @@ export function composeFiles(deps: {
 }) {
   const { lanes, laneKeys, events, worktreeAccess } = deps;
   const checkWorktree = new CheckWorktreeService(worktreeAccess);
-  const fileReader = new FileReaderAdapter(worktreeAccess);
+  const fileReader = new FilesystemFileReader(worktreeAccess);
   const readTextFileService = new ReadTextFileService(fileReader);
   return {
     fileReader,
@@ -40,8 +40,8 @@ export function composeFiles(deps: {
     listDirectory: new ListDirectoryUseCase(
       checkWorktree,
       new ListDirectoryService(
-        new DirectoryReaderAdapter(worktreeAccess),
-        new IgnoredEntriesReaderAdapter(worktreeAccess),
+        new FilesystemDirectoryReader(worktreeAccess),
+        new GitIgnoredEntriesReader(worktreeAccess),
       ),
       lanes,
       laneKeys,
@@ -66,16 +66,14 @@ export function composeFiles(deps: {
     ),
     editFile: new EditFileUseCase(
       checkWorktree,
-      new EditFileService(fileReader, new FileWriterAdapter(worktreeAccess)),
+      new EditFileService(fileReader, new FilesystemFileWriter(worktreeAccess)),
       lanes,
       laneKeys,
       events,
     ),
     listWorktreePaths: new ListWorktreePathsUseCase(
       checkWorktree,
-      new ListWorktreePathsService(
-        new WorktreePathsReaderAdapter(worktreeAccess),
-      ),
+      new ListWorktreePathsService(new GitWorktreePathsReader(worktreeAccess)),
       lanes,
       laneKeys,
     ),

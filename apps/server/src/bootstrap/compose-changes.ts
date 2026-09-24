@@ -23,13 +23,13 @@ import type { CommitReaderFactory } from '@porcelain/git/history';
 import type { InspectionFactory } from '@porcelain/git/inspection';
 import type { StorageSession } from '@porcelain/storage';
 import { createEnvironmentIdentityStore } from '@porcelain/storage/access';
-import { ChangeDiffAdapter } from '../adapters/changes/change-diff-adapter.ts';
-import { ChangeLinesAdapter } from '../adapters/changes/change-lines-adapter.ts';
-import { ChangeStatusAdapter } from '../adapters/changes/change-status-adapter.ts';
-import { CommitHistoryAdapter } from '../adapters/changes/commit-history-adapter.ts';
+import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
+import { GitChangeLinesReader } from '../adapters/changes/git-change-lines-reader.ts';
+import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
+import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
 import { InspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { OperationGitSessions } from '../adapters/changes/operation-git-sessions.ts';
-import { WorktreeSideAdapter } from '../adapters/changes/worktree-side-adapter.ts';
+import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
 import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
 import { ReadChangeDiffsUseCase } from '../use-cases/changes/read-change-diffs.ts';
 import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.ts';
@@ -60,14 +60,14 @@ export function composeChanges(deps: {
     sessions,
     deps.inspection,
   );
-  const changeStatusReader = new ChangeStatusAdapter(checkouts);
-  const worktreeSideReader = new WorktreeSideAdapter(checkouts);
-  const changeDiffReader = new ChangeDiffAdapter(checkouts);
-  const changeLinesReader = new ChangeLinesAdapter(
+  const changeStatusReader = new GitChangeStatusReader(checkouts);
+  const worktreeSideReader = new GitWorktreeSideReader(checkouts);
+  const changeDiffReader = new GitChangeDiffReader(checkouts);
+  const changeLinesReader = new GitChangeLinesReader(
     checkouts,
     deps.readTextFile,
   );
-  const commitHistoryReader = new CommitHistoryAdapter(
+  const commitHistoryReader = new GitCommitHistoryReader(
     deps.worktreeAccess,
     deps.inventory,
     deps.commitGit,

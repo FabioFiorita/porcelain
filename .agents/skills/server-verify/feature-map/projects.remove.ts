@@ -25,7 +25,7 @@ export default defineFeature({
     'packages/projects/src/services/remove-project-service.ts',
     'packages/projects/src/services/forget-project-worktrees-service.ts',
     'packages/projects/src/ports/project-removal-store.ts',
-    'packages/storage/src/repositories/projects/project-removal-repository.ts',
+    'packages/storage/src/repositories/projects/sqlite-project-removal-store.ts',
   ],
   behaviour:
     'The paired owner removes one registered project. Removal deletes the project and its dependent records, forgets its worktrees and reports whether anything was deleted; removing an unknown or already removed project is not an error. Database rows, restart and the live notification are not asserted yet.',

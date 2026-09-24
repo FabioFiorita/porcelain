@@ -35,12 +35,12 @@ import {
   createReviewedLayerStore,
   createReviewStore,
 } from '@porcelain/storage/reviews';
-import type { LiveUpdatesLimits } from '../adapters/events/live-updates-adapter.ts';
+import type { LiveUpdatesLimits } from '../adapters/events/web-socket-event-publisher.ts';
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import { ChangeDiffAdapter } from '../adapters/reviews/change-diff-adapter.ts';
-import { RandomIdSourceAdapter } from '../adapters/runtime/random-id-source-adapter.ts';
-import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
-import { SecretSourceAdapter } from '../adapters/reviews/secret-source-adapter.ts';
+import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
+import { SystemClock } from '../adapters/runtime/system-clock.ts';
+import { RandomSecretSource } from '../adapters/reviews/random-secret-source.ts';
 import { WorktreeChangeAdapter } from '../adapters/reviews/worktree-change-adapter.ts';
 import { WorktreeTextAdapter } from '../adapters/reviews/worktree-text-adapter.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
@@ -105,8 +105,8 @@ export function composeReviews(deps: {
   now?: (() => string) | undefined;
 }) {
   const { lanes, laneKeys } = deps;
-  const clock = new SystemClockAdapter(deps.now);
-  const idSource = new RandomIdSourceAdapter();
+  const clock = new SystemClock(deps.now);
+  const idSource = new RandomIdSource();
   const commentStore = createCommentStore(deps.session);
   const reviewStore = createReviewStore(deps.session);
   const reviewedFileStore = createReviewedFileStore(deps.session);
@@ -181,7 +181,7 @@ export function composeReviews(deps: {
         reviewStore,
         clock,
         idSource,
-        new SecretSourceAdapter(),
+        new RandomSecretSource(),
       ),
       readReviewChanges,
       readReviewPatches,

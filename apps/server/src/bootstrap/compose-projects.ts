@@ -34,9 +34,9 @@ import {
   createProjectRemovalStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
-import { ProjectFolderReaderAdapter } from '../adapters/projects/project-folder-reader-adapter.ts';
-import { ProjectRepositoryReaderAdapter } from '../adapters/projects/project-repository-reader-adapter.ts';
-import type { WorktreeDirectoryAdapter } from '../adapters/projects/worktree-directory-adapter.ts';
+import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
+import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
+import type { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
@@ -63,7 +63,7 @@ export type ProjectsDependencies = {
   worktreeStatusStore: WorktreeStatusStore;
   projectFolderReader?: ProjectFolderReader | undefined;
   projectHome: string;
-  worktreeDirectory: WorktreeDirectoryAdapter;
+  worktreeDirectory: GitProjectWorktreeReader;
 };
 
 export function composeProjects(deps: ProjectsDependencies) {
@@ -72,8 +72,8 @@ export function composeProjects(deps: ProjectsDependencies) {
   const worktreePresenceStore = createWorktreePresenceStore(deps.session);
   const filePreferenceStore = createFilePreferenceStore(deps.session);
   const projectFolderReader =
-    deps.projectFolderReader ?? new ProjectFolderReaderAdapter();
-  const projectRepositoryReader = new ProjectRepositoryReaderAdapter(deps.git);
+    deps.projectFolderReader ?? new FilesystemProjectFolderReader();
+  const projectRepositoryReader = new GitProjectRepositoryReader(deps.git);
   const { worktreeDirectory } = deps;
 
   const listRegisteredProjects = new ListRegisteredProjectsService(

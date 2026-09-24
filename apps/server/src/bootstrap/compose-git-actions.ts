@@ -26,10 +26,10 @@ import type { StorageSession } from '@porcelain/storage';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import { createInventoryStore } from '@porcelain/storage/projects';
 import { ActionCheckouts } from '../adapters/git-actions/action-checkout.ts';
-import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
-import { CommitDraftReaderAdapter } from '../adapters/git-actions/commit-draft-reader-adapter.ts';
-import { GitActionWriterAdapter } from '../adapters/git-actions/git-action-writer-adapter.ts';
-import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
+import { SystemClock } from '../adapters/runtime/system-clock.ts';
+import { GitCommitDraftReader } from '../adapters/git-actions/git-commit-draft-reader.ts';
+import { GitGitActionWriter } from '../adapters/git-actions/git-git-action-writer.ts';
+import { GitGitBranchReader } from '../adapters/git-actions/git-git-branch-reader.ts';
 import { WorktreeFingerprintReaderAdapter } from '../adapters/git-actions/worktree-fingerprint-reader-adapter.ts';
 import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
@@ -67,7 +67,7 @@ export type GitActionsDependencies = {
 
 export function composeGitActions(deps: GitActionsDependencies) {
   const store = createGitActionStore(deps.session);
-  const clock = new SystemClockAdapter();
+  const clock = new SystemClock();
   const checkouts = new ActionCheckouts(deps.worktreeAccess);
   const checkProject = new CheckProjectService(
     createInventoryStore(deps.session),
@@ -85,7 +85,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
       new AcceptGitActionService(store, clock),
       new RunGitActionService(
         new WorktreeFingerprintReaderAdapter(deps.changes),
-        new GitActionWriterAdapter(checkouts, deps.actionGit),
+        new GitGitActionWriter(checkouts, deps.actionGit),
       ),
       new RecordGitActionProgressService(store),
       new FinishGitActionService(store, clock),
@@ -107,7 +107,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
       checkProject,
       checkWorktree,
       new ListGitBranchesService(
-        new GitBranchReaderAdapter(checkouts, deps.actionGit),
+        new GitGitBranchReader(checkouts, deps.actionGit),
       ),
       deps.lanes,
       deps.laneKeys,
@@ -121,7 +121,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
       checkProject,
       checkWorktree,
       new CaptureCommitDraftService(
-        new CommitDraftReaderAdapter(
+        new GitCommitDraftReader(
           deps.changes,
           checkouts,
           deps.actionGit,
