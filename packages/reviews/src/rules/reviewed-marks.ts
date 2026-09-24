@@ -1,4 +1,5 @@
 import type { FileChange } from '@porcelain/kernel/models';
+import { expectationHolds } from '@porcelain/kernel/rules';
 import type { ReviewFiles } from '../models/review-evidence.ts';
 import type { ReviewLayer } from '../models/review.ts';
 import type {
@@ -16,13 +17,14 @@ export function selectReviewedFiles(
   changes: readonly FileChange[],
 ): ReviewedFileSelection {
   const latest = new Map(files.map((file) => [file.path, file.fingerprint]));
-  const current = new Map(changes.map((change) => [change.path, change]));
+  const current = new Map(
+    changes.map((change) => [change.path, change.fingerprint]),
+  );
   const marked: ReviewedFile[] = [];
   const conflicts: ReviewedFileConflict[] = [];
   for (const [path, fingerprint] of latest) {
-    const change = current.get(path);
-    if (!change) conflicts.push({ path, reason: 'missing' });
-    else if (change.fingerprint !== fingerprint)
+    if (!current.has(path)) conflicts.push({ path, reason: 'missing' });
+    else if (!expectationHolds([{ path, fingerprint }], current))
       conflicts.push({ path, reason: 'stale' });
     else marked.push({ path, fingerprint });
   }

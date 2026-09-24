@@ -1,4 +1,5 @@
 import type {
+  CheckDiffObservationService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -28,6 +29,7 @@ export class GenerateCommitDraftUseCase {
   private readonly checkGitActionScope: CheckGitActionScopeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly checkDiffObservation: CheckDiffObservationService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
   private readonly generateCommitDraft: GenerateCommitDraftService;
   private readonly lanes: Lanes;
@@ -40,6 +42,7 @@ export class GenerateCommitDraftUseCase {
     checkGitActionScope: CheckGitActionScopeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
+    checkDiffObservation: CheckDiffObservationService,
     captureCommitDraft: CaptureCommitDraftService,
     generateCommitDraft: GenerateCommitDraftService,
     lanes: Lanes,
@@ -51,6 +54,7 @@ export class GenerateCommitDraftUseCase {
     this.checkGitActionScope = checkGitActionScope;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
+    this.checkDiffObservation = checkDiffObservation;
     this.captureCommitDraft = captureCommitDraft;
     this.generateCommitDraft = generateCommitDraft;
     this.lanes = lanes;
@@ -77,19 +81,24 @@ export class GenerateCommitDraftUseCase {
           { worktreeId },
           signal,
         );
-        const { changes } = await this.readChangeFingerprints.execute(
+        const fingerprints = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
+        this.checkDiffObservation.execute({
+          expectedStatusToken: input.expectedStatusToken,
+          expectedFiles: [],
+          statusToken: status.statusToken,
+          fingerprints,
+          previousStamp: undefined,
+        });
         return this.captureCommitDraft.execute(
           {
             worktreeId,
             observation: {
-              statusToken: status.statusToken,
               headOid: status.headOid,
-              changes,
+              changes: fingerprints.changes,
             },
-            expectedStatusToken: input.expectedStatusToken,
             paths: input.paths,
           },
           signal,

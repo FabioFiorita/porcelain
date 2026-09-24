@@ -1,5 +1,5 @@
+import { logicalPath } from '@porcelain/kernel/rules';
 import type { ChangeComparison } from '@porcelain/kernel/models';
-import { logicalPath } from './logical-path.ts';
 
 const scopeOrder = {
   staged: 0,

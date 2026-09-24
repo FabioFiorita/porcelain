@@ -12,7 +12,7 @@ const domainModule = new RegExp(
 );
 const useCaseSource = /\/apps\/server\/src\/use-cases\//;
 const modelsSource =
-  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/.+)|apps\/server\/src\/ports\/[^/]+)\.ts$/;
+  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/[^/]+)\.ts$/;
 const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
@@ -245,7 +245,7 @@ const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors)|kernel/(?:models|fakes))$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors)|kernel/(?:models|rules|errors|fakes))$`,
 );
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
@@ -323,7 +323,7 @@ const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
 const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
-const kernelFile = /^packages\/kernel\/src\//;
+const kernelFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const useCaseFile = /^apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
 const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
@@ -1758,7 +1758,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, @porcelain/kernel/{models,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec imports the storage public API instead of fakes.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec imports the storage public API instead of fakes.',
             });
         };
         return {

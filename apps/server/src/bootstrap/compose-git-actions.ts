@@ -129,6 +129,7 @@ export function composeGitActions(
       checkGitActionScope,
       adapters.changes.readWorktreeStatus,
       adapters.changes.readChangeFingerprints,
+      adapters.changes.checkDiffObservation,
       new CaptureCommitDraftService(
         new GitSelectedDiffReader(adapters.worktreeAccess, adapters.actionGit),
         new FilesystemUntrackedFileReader(adapters.fileReader),

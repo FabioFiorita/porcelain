@@ -1,5 +1,5 @@
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { WorktreeChangedError } from '@porcelain/changes/errors';
 import { CheckDiffObservationService } from './check-diff-observation-service.ts';
 import { fileChange, modified } from '../../spec/fakes/comparisons.ts';
 

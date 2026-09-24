@@ -1,10 +1,10 @@
+import { utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
   CommitDraftCapture,
   CommitDraftMode,
   CommitGroup,
   CommitGroupLimits,
 } from '../models/commit-draft.ts';
-import { utf8ByteLength } from './utf8-byte-length.ts';
 
 export function commitGroupsCoverSelection(
   groups: readonly CommitGroup[],

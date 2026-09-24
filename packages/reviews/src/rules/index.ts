@@ -18,12 +18,9 @@ export {
 } from './resolve-review.ts';
 export { reviewDiagnostics } from './review-diagnostics.ts';
 export {
-  fingerprint,
-  sameSignature,
   summaryExpired,
   summaryMessage,
   summaryUrl,
-  utf8ByteLength,
 } from './review-digests.ts';
 export { reviewDraftProblem } from './review-draft.ts';
 export {

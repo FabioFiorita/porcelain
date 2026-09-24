@@ -1,4 +1,4 @@
-import { InvalidLineRangeError } from '../errors/invalid-line-range-error.ts';
+import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type {
   ReadChangeLinesInput,
   ReadChangeLinesOptions,

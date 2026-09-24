@@ -1,8 +1,8 @@
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import {
   SelectionMismatchError,
   UnnamedDiffSelectionError,
-  WorktreeChangedError,
 } from '@porcelain/changes/errors';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
 import { ReadDiffComparisonsService } from './read-diff-comparisons-service.ts';

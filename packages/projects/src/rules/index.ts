@@ -6,6 +6,5 @@ export { nextPosition } from './next-position.ts';
 export { parentFolder } from './parent-folder.ts';
 export { projectReport } from './project-report.ts';
 export { unavailableWorktrees } from './unavailable-worktrees.ts';
-export { withoutGitDirectory } from './without-git-directory.ts';
 export { absolutePath, containsPath } from './worktree-path.ts';
 export { expired, observed, sighted } from './worktree-presence.ts';

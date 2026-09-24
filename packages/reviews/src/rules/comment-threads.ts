@@ -1,3 +1,4 @@
+import { utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
   CommentAnchor,
   CommentAuthor,
@@ -8,7 +9,6 @@ import type {
   CommentWriter,
   PostedCommentMessage,
 } from '../models/comment-thread.ts';
-import { utf8ByteLength } from './review-digests.ts';
 
 const COMMIT_REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
 

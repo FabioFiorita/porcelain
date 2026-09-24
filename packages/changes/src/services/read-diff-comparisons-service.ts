@@ -1,7 +1,8 @@
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type { TrackedComparison } from '@porcelain/kernel/models';
+import { isTracked, trackedPath } from '@porcelain/kernel/rules';
 import { SelectionMismatchError } from '../errors/selection-mismatch-error.ts';
 import { UnnamedDiffSelectionError } from '../errors/unnamed-diff-selection-error.ts';
-import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
 import type {
   ReadDiffComparisonsInput,
   ReadDiffComparisonsResult,
@@ -18,9 +19,7 @@ export class ReadDiffComparisonsService {
       throw new UnnamedDiffSelectionError();
     const expected = new Set(input.expectedFiles.map((file) => file.path));
     const selected = new Set(
-      input.selections.map(
-        (selection) => selection.newPath ?? selection.oldPath ?? '',
-      ),
+      input.selections.map((selection) => trackedPath(selection) ?? ''),
     );
     if (
       expected.size !== input.expectedFiles.length ||
@@ -31,7 +30,7 @@ export class ReadDiffComparisonsService {
     const comparisons = input.selections.map((selection) => {
       const comparison = input.status.changes.find(
         (entry): entry is TrackedComparison =>
-          (entry.scope === 'staged' || entry.scope === 'unstaged') &&
+          isTracked(entry) &&
           entry.scope === selection.scope &&
           entry.oldPath === selection.oldPath &&
           entry.newPath === selection.newPath,

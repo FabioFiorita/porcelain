@@ -1,4 +1,4 @@
-import { WorktreeNotFoundError } from '../errors/worktree-not-found-error.ts';
+import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { CheckGitActionScopeInput } from '../models/check-git-action-scope.ts';
 import { worktreeInProject } from '../rules/worktree-in-project.ts';
 

@@ -1,3 +1,4 @@
+import { utf8ByteLength, withoutGitDirectory } from '@porcelain/kernel/rules';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
 import { PathNotFoundError } from '../errors/path-not-found-error.ts';
@@ -11,8 +12,6 @@ import type {
 } from '../models/list-directory.ts';
 import type { DirectoryReader } from '../ports/directory-reader.ts';
 import type { IgnoredEntriesReader } from '../ports/ignored-entries-reader.ts';
-import { serializedByteLength } from '../rules/serialized-byte-length.ts';
-import { withoutGitDirectory } from '../rules/without-git-directory.ts';
 
 export type ListDirectoryOptions = {
   maxEntries: number;
@@ -67,7 +66,7 @@ export class ListDirectoryService {
           : entry,
       ),
     };
-    if (serializedByteLength(listing) > this.options.maxResponseBytes)
+    if (utf8ByteLength(JSON.stringify(listing)) > this.options.maxResponseBytes)
       throw new DirectoryTooLargeError();
     return listing;
   }

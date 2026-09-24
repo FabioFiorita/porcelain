@@ -1,3 +1,4 @@
+import { logicalPath } from '@porcelain/kernel/rules';
 import type {
   ReadChangeFingerprintsInput,
   ReadChangeFingerprintsOptions,
@@ -5,7 +6,6 @@ import type {
 } from '../models/read-change-fingerprints.ts';
 import type { WorktreeSideReader } from '../ports/worktree-side-reader.ts';
 import { assembleChanges } from '../rules/assemble-changes.ts';
-import { logicalPath } from '../rules/logical-path.ts';
 import { observationStamp } from '../rules/observation-stamp.ts';
 import { observedSides } from '../rules/observed-sides.ts';
 import { sidePaths } from '../rules/side-paths.ts';

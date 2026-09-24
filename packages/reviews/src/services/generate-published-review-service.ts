@@ -1,4 +1,5 @@
 import type { Clock } from '@porcelain/kernel/ports';
+import { instantAfter, utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
   GeneratePublishedReviewInput,
   GeneratePublishedReviewResult,
@@ -11,12 +12,7 @@ import {
   unexplainedChanges,
 } from '../rules/resolve-review.ts';
 import { reviewDiagnostics } from '../rules/review-diagnostics.ts';
-import {
-  summaryExpiry,
-  summaryMessage,
-  summaryUrl,
-  utf8ByteLength,
-} from '../rules/review-digests.ts';
+import { summaryMessage, summaryUrl } from '../rules/review-digests.ts';
 import {
   reviewChanges,
   reviewFiles,
@@ -50,7 +46,7 @@ export class GeneratePublishedReviewService {
     const layers = review.layers.map((layer) =>
       resolveLayer(layer, files, diagnostics.changed),
     );
-    const expires = summaryExpiry(this.clock.now(), this.limits.lifetimeMs);
+    const expires = instantAfter(this.clock.now(), this.limits.lifetimeMs);
     const signature = this.signatureSource.sign({
       secret: review.summarySecret,
       message: summaryMessage(review.summaryToken, expires),

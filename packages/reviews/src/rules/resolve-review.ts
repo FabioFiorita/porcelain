@@ -1,3 +1,4 @@
+import { sha256Hex } from '@porcelain/kernel/rules';
 import type {
   ResolvedLayer,
   ResolvedStep,
@@ -9,7 +10,6 @@ import type {
   ReviewFiles,
 } from '../models/review-evidence.ts';
 import type { ReviewLayer, ReviewStep } from '../models/review.ts';
-import { fingerprint } from './review-digests.ts';
 import { textLines } from './review-evidence.ts';
 
 const IGNORABLE =
@@ -49,7 +49,7 @@ export function resolveStep(
   );
   const pointer = {
     ...step.pointer,
-    textFingerprint: fingerprint(published.join('\n')),
+    textFingerprint: sha256Hex(published.join('\n')),
   };
   if (start === undefined)
     return { ...draft, pointer, location: { state: 'changed' } };
@@ -80,7 +80,7 @@ function resolvedFingerprint(
   files: ReviewFiles,
 ): string {
   const resolvedById = new Map(steps.map((step) => [step.id, step]));
-  return fingerprint(
+  return sha256Hex(
     layer.steps
       .filter((step) => step.kind === 'changed')
       .map((step) => {
@@ -118,7 +118,7 @@ export function currentLayerFingerprint(
 export function publishedLayerFingerprint(
   steps: readonly ReviewStep[],
 ): string {
-  return fingerprint(
+  return sha256Hex(
     steps
       .filter((step) => step.kind === 'changed')
       .map((step) => `${step.id}:${step.published.join('\n')}`)

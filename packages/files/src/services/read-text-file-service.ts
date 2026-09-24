@@ -1,3 +1,4 @@
+import { sha256Hex, utf8ByteLength } from '@porcelain/kernel/rules';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
 import { PathNotFoundError } from '../errors/path-not-found-error.ts';
@@ -9,8 +10,6 @@ import type {
   ReadTextFileResult,
 } from '../models/read-text-file.ts';
 import type { FileReader } from '../ports/file-reader.ts';
-import { contentFingerprint } from '../rules/content-fingerprint.ts';
-import { serializedByteLength } from '../rules/serialized-byte-length.ts';
 
 export type ReadTextFileOptions = { maxBytes: number };
 
@@ -45,9 +44,9 @@ export class ReadTextFileService {
       byteLength: read.byteLength,
       text: read.text,
     };
-    if (serializedByteLength(answer) > this.options.maxBytes)
+    if (utf8ByteLength(JSON.stringify(answer)) > this.options.maxBytes)
       throw new FileTooLargeError();
-    return { ...answer, contentFingerprint: contentFingerprint(read.text) };
+    return { ...answer, contentFingerprint: sha256Hex(read.text) };
   }
 
   private failure(failure: TextFailure): Error {

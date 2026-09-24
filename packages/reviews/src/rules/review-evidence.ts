@@ -1,12 +1,8 @@
-import type {
-  ChangeComparison,
-  FileChange,
-  TrackedComparison,
-} from '@porcelain/kernel/models';
+import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
+import { isTracked, trackedPath } from '@porcelain/kernel/rules';
 import type {
   ReviewChange,
   ReviewDiff,
-  ReviewDiffSelection,
   ReviewFiles,
   ReviewPatch,
   ReviewTextRead,
@@ -44,16 +40,10 @@ export function reviewPaths(
   ];
 }
 
-function tracked(
-  comparison: ChangeComparison,
-): comparison is TrackedComparison {
-  return comparison.scope === 'staged' || comparison.scope === 'unstaged';
-}
-
 export function trackedComparisons(
   changes: readonly FileChange[],
 ): TrackedComparison[] {
-  return changes.flatMap((change) => change.comparisons.filter(tracked));
+  return changes.flatMap((change) => change.comparisons.filter(isTracked));
 }
 
 export function reviewChanges(changes: readonly FileChange[]): ReviewChange[] {
@@ -61,7 +51,7 @@ export function reviewChanges(changes: readonly FileChange[]): ReviewChange[] {
     path: file.path,
     untracked: file.comparisons.some((entry) => entry.scope === 'untracked'),
     deleted: file.comparisons.some(
-      (entry) => tracked(entry) && entry.newPath === undefined,
+      (entry) => isTracked(entry) && entry.newPath === undefined,
     ),
   }));
 }
@@ -74,13 +64,9 @@ export function reviewFiles(texts: readonly ReviewTextRead[]): ReviewFiles {
   );
 }
 
-function selectionPath(selection: ReviewDiffSelection): string | undefined {
-  return selection.newPath ?? selection.oldPath;
-}
-
 export function reviewPatches(diffs: readonly ReviewDiff[]): ReviewPatch[] {
   return diffs.flatMap((entry): ReviewPatch[] => {
-    const path = selectionPath(entry.selection);
+    const path = trackedPath(entry.selection);
     if (path === undefined) return [];
     const scope = entry.selection.scope;
     return entry.content.kind === 'binary' || entry.content.kind === 'omitted'

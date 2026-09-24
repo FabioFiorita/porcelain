@@ -1,4 +1,4 @@
-import { WorktreeNotFoundError } from '@porcelain/git-actions/errors';
+import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import {
   PROJECT_ID,

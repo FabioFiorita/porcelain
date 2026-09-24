@@ -1,4 +1,5 @@
 import type { Clock, IdSource } from '@porcelain/kernel/ports';
+import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingAddressError } from '../errors/invalid-pairing-address-error.ts';
 import type {
@@ -11,10 +12,9 @@ import type { PairingGrant } from '../models/pairing-grant.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import type { PairingReachReader } from '../ports/pairing-reach-reader.ts';
 import type { SecretSource } from '../ports/secret-source.ts';
-import { credential, hashSecret } from '../rules/credential.ts';
+import { credential } from '../rules/credential.ts';
 import { validLabel } from '../rules/device-details.ts';
 import { pairingAddressReachable } from '../rules/host-policy.ts';
-import { pairingGrantExpiry } from '../rules/pairing-grant.ts';
 
 export class IssuePairingService {
   private readonly pairingGrants: PairingGrantStore;
@@ -50,7 +50,7 @@ export class IssuePairingService {
       throw new InvalidPairingAddressError();
     const labels = input.labels.map((label) => this.detail(validLabel(label)));
     const createdAt = this.clock.now();
-    const expiresAt = pairingGrantExpiry(createdAt, this.options.lifetimeMs);
+    const expiresAt = instantAfter(createdAt, this.options.lifetimeMs);
     const issued = labels.map((label) => {
       const code = credential(
         'pcp',
@@ -69,7 +69,7 @@ export class IssuePairingService {
     this.pairingGrants.add({
       grants: issued.map(({ grant, code }) => ({
         ...grant,
-        secretHash: hashSecret(code.secret),
+        secretHash: sha256Hex(code.secret),
       })),
     });
     return {

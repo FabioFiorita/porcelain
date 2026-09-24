@@ -1,4 +1,5 @@
-import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
+import { expectationHolds } from '@porcelain/kernel/rules';
 import type { CheckDiffObservationInput } from '../models/check-diff-observation.ts';
 
 export class CheckDiffObservationService {
@@ -11,9 +12,8 @@ export class CheckDiffObservationService {
         change.fingerprint,
       ]),
     );
-    for (const file of input.expectedFiles)
-      if (current.get(file.path) !== file.fingerprint)
-        throw new WorktreeChangedError();
+    if (!expectationHolds(input.expectedFiles, current))
+      throw new WorktreeChangedError();
     if (
       input.previousStamp !== undefined &&
       input.previousStamp !== input.fingerprints.stamp

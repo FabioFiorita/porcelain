@@ -1,3 +1,4 @@
+import { sha256Hex } from '@porcelain/kernel/rules';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
 import { EntryExistsError } from '../errors/entry-exists-error.ts';
@@ -13,7 +14,6 @@ import type { FileLocation } from '../models/file-location.ts';
 import type { FileWrite } from '../models/file-write.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import type { FileWriter } from '../ports/file-writer.ts';
-import { contentFingerprint } from '../rules/content-fingerprint.ts';
 
 export type EditFileOptions = { maxCurrentBytes: number };
 
@@ -97,7 +97,7 @@ export class EditFileService {
       current.byteLength > this.options.maxCurrentBytes
     )
       throw new FileTooLargeError();
-    if (contentFingerprint(current.text) !== expectedFingerprint)
+    if (sha256Hex(current.text) !== expectedFingerprint)
       throw new ContentChangedError();
     this.succeed(
       await this.fileWriter.write(
@@ -107,7 +107,7 @@ export class EditFileService {
     );
     return {
       path: location.path,
-      contentFingerprint: contentFingerprint(text),
+      contentFingerprint: sha256Hex(text),
     };
   }
 

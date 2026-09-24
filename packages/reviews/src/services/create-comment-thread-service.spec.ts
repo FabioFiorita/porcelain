@@ -1,10 +1,10 @@
+import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentRevisionMismatchError,
-  InvalidLineRangeError,
 } from '@porcelain/reviews/errors';
 import type {
   CommentAnchor,

@@ -48,3 +48,8 @@ export type FileChange = {
 };
 
 export type ExpectedFile = { path: string; fingerprint: string | undefined };
+
+export type ComparisonSides = {
+  oldPath?: string | undefined;
+  newPath?: string | undefined;
+};

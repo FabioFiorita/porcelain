@@ -7,10 +7,10 @@ import {
 import type { StoredPairingGrant } from '@porcelain/access/models';
 import {
   credential,
-  hashSecret,
   parseCredential,
   secretMatches,
 } from '@porcelain/access/rules';
+import { sha256Hex } from '@porcelain/kernel/rules';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { SequentialSecretSource } from '../../spec/fakes/sequential-secret-source.ts';
@@ -31,7 +31,7 @@ function setup(grant: Partial<StoredPairingGrant> = {}) {
         addresses: ['http://192.168.1.20:4173'],
         createdAt: issuedAt,
         expiresAt: '2026-09-23T10:15:00.000Z',
-        secretHash: hashSecret(secret),
+        secretHash: sha256Hex(secret),
         ...grant,
       },
     ],

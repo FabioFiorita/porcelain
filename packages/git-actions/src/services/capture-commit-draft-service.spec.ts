@@ -1,7 +1,6 @@
 import {
   CommitDraftSelectionError,
   CommitDraftTooLargeError,
-  WorktreeChangedError,
 } from '@porcelain/git-actions/errors';
 import type {
   CommitDraftObservation,
@@ -19,7 +18,6 @@ import { InMemorySelectedDiffReader } from '../../spec/fakes/in-memory-selected-
 import { InMemoryUntrackedFileReader } from '../../spec/fakes/in-memory-untracked-file-reader.ts';
 import { CaptureCommitDraftService } from './capture-commit-draft-service.ts';
 
-const statusToken = '1'.repeat(64);
 const limits = {
   maxComparisons: 3,
   maxEvidenceBytes: 4096,
@@ -65,14 +63,12 @@ const untracked: FileChange = {
   comparisons: [{ scope: 'untracked', path: 'notes.md' }],
 };
 const observed = (...changes: FileChange[]): CommitDraftObservation => ({
-  statusToken,
   headOid: HEAD_OID,
   changes,
 });
 const input = (observation: CommitDraftObservation, ...paths: string[]) => ({
   worktreeId: WORKTREE_ID,
   observation,
-  expectedStatusToken: statusToken,
   paths,
 });
 
@@ -114,16 +110,6 @@ describe('CaptureCommitDraftService', () => {
     expect(evidence(capture.evidence)).toMatchObject({
       patch: 'diff --git a/README.md b/README.md',
     });
-  });
-
-  it('refuses when the status moved since the client looked', async () => {
-    await expect(
-      service().execute({
-        ...input(observed(modified('README.md', README_FINGERPRINT))),
-        expectedStatusToken: '5'.repeat(64),
-        paths: ['README.md'],
-      }),
-    ).rejects.toThrow(WorktreeChangedError);
   });
 
   it('refuses a path that is not a change', async () => {

@@ -15,5 +15,4 @@ export { sameGitActionRequest } from './same-git-action-request.ts';
 export { stashExpectsFiles } from './stash-expects-files.ts';
 export { targetMatchesExpectation } from './target-matches-expectation.ts';
 export { untrackedEvidence } from './untracked-evidence.ts';
-export { utf8ByteLength } from './utf8-byte-length.ts';
 export { worktreeInProject } from './worktree-in-project.ts';
