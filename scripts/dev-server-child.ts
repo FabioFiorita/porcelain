@@ -1,7 +1,12 @@
 import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { request } from 'node:http';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import {
+  issuePairingResponseSchema,
+  redeemPairingResponseSchema,
+} from '@porcelain/contracts/access';
 import {
   startRuntime,
   type Runtime,
@@ -17,6 +22,41 @@ process.on('SIGTERM', stop);
 const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
 let server: Runtime | undefined;
+
+function askOwner(socketPath: string, path: string, body: unknown) {
+  const payload = JSON.stringify(body);
+  return new Promise<unknown>((resolveAnswer, rejectAnswer) => {
+    const outgoing = request(
+      {
+        socketPath,
+        path,
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'content-length': String(Buffer.byteLength(payload)),
+        },
+        signal: shutdown.signal,
+      },
+      (incoming) => {
+        const chunks: Buffer[] = [];
+        incoming.on('data', (chunk: Buffer) => chunks.push(chunk));
+        incoming.on('error', rejectAnswer);
+        incoming.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          if (incoming.statusCode !== 200)
+            rejectAnswer(
+              new Error(
+                `Owner ${path} answered ${incoming.statusCode}: ${raw}`,
+              ),
+            );
+          else resolveAnswer(JSON.parse(raw));
+        });
+      },
+    );
+    outgoing.on('error', rejectAnswer);
+    outgoing.end(payload);
+  });
+}
 
 const committed = '# Sample repository\n';
 const fixture = {
@@ -76,10 +116,13 @@ try {
     },
     shutdown.signal,
   );
-  const [grant] = await server.issuePairing(
-    [fixture.device.label],
-    [new URL(server.address).origin],
+  const issued = issuePairingResponseSchema.parse(
+    await askOwner(server.socketPath, '/pairings', {
+      labels: [fixture.device.label],
+      addresses: [new URL(server.address).origin],
+    }),
   );
+  const [grant] = issued.grants;
   if (!grant) throw new Error('Could not create a development pairing');
   const paired = await fetch(`${server.address}/api/pair`, {
     method: 'POST',
@@ -92,12 +135,9 @@ try {
   });
   if (!paired.ok)
     throw new Error(`Development pairing failed: ${paired.status}`);
-  const pairing: unknown = await paired.json();
-  const credential =
-    pairing !== null && typeof pairing === 'object' && 'credential' in pairing
-      ? pairing.credential
-      : undefined;
-  if (typeof credential !== 'string' || credential === '')
+  const pairing = redeemPairingResponseSchema.parse(await paired.json());
+  const credential = pairing.credential;
+  if (credential === undefined || credential === '')
     throw new Error('Development pairing returned no credential');
   const registered = await fetch(`${server.address}/api/projects`, {
     method: 'POST',
