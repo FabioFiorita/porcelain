@@ -25,7 +25,7 @@ export type InstallerOptions = {
   packageRoot: string;
   packageVersion: string;
   searchPath: string;
-  probe: OwnerProbe;
+  ownerProbe: OwnerProbe;
   clock: Clock;
   uid?: number | undefined;
   runner?: CommandRunner | undefined;
@@ -43,7 +43,7 @@ export class Installer {
     return this.locked(() => readServiceStatus(this.context));
   }
 
-  install(settings: InstallSettings): Promise<InstallOutcome | UpdateOutcome> {
+  install(settings: InstallSettings): Promise<InstallOutcome> {
     return this.locked(() => install(this.context, settings));
   }
 
@@ -85,7 +85,7 @@ export function openInstaller(options: InstallerOptions): Installer {
     packageVersion: options.packageVersion,
     nodeExecutable,
     searchPath: serviceSearchPath(nodeExecutable, options.searchPath),
-    probe: options.probe,
+    ownerProbe: options.ownerProbe,
     clock: options.clock,
   });
 }

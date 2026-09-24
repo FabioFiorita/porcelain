@@ -253,7 +253,6 @@ function classifyServer(inside: string) {
     return classified('installer-api', owner);
   if (inside.startsWith('installer/')) return classified('installer', owner);
   if (inside.startsWith('config/')) return classified('config', owner);
-  if (inside === 'cli/index.ts') return classified('bootstrap', owner);
   if (inside.startsWith('cli/')) return classified('transport', owner);
   if (inside.startsWith('http/')) {
     const http = inside.slice('http/'.length);

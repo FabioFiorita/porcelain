@@ -3,11 +3,12 @@ import {
   InvalidDataDirectoryError,
   UnsupportedDatabaseVersionError,
 } from '@porcelain/storage';
+import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { parseCliArguments } from '../cli/arguments.ts';
 import { runCommand } from '../cli/commands.ts';
 import type { StartServer } from '../cli/launcher.ts';
-import { OwnerRequestError, probeOwnerSocket } from '../cli/owner-client.ts';
+import { OwnerRequestError } from '../cli/owner-client.ts';
 import { isServiceFailure } from '../cli/service.ts';
 import { installShutdownSignals } from '../cli/signals.ts';
 import {
@@ -36,10 +37,12 @@ const actionableErrors = [
   UnsupportedDatabaseVersionError,
 ];
 
+const ownerProbe = new SocketOwnerProbe();
+
 export const startServer: StartServer = (settings, signal) =>
   startApplication(settings, signal, {
     openServer,
-    ownerProbe: probeOwnerSocket,
+    ownerProbe,
     clock: new SystemClock(),
   });
 
@@ -82,6 +85,7 @@ export async function runCli(
       homeDirectory,
       searchPath: environment.PATH ?? '',
       clock: new SystemClock(),
+      ownerProbe,
       startServer: dependencies.startServer ?? startServer,
       stdout,
       stderr,

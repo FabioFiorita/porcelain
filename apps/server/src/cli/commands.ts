@@ -1,4 +1,5 @@
 import type { Clock } from '@porcelain/kernel/ports';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { issuePairings, listAccess, revokeAccess } from './access-commands.ts';
 import type { CliCommand } from './arguments.ts';
 import { serveHelp } from './help.ts';
@@ -12,6 +13,7 @@ export type CommandContext = {
   homeDirectory: string;
   searchPath: string;
   clock: Clock;
+  ownerProbe: OwnerProbe;
   startServer: StartServer;
   stdout: (message: string) => void;
   stderr: (message: string) => void;
@@ -27,7 +29,7 @@ export async function runCommand(
       context.stdout(serveHelp);
       return 0;
     case 'status':
-      return reportStatus(command.settings, output);
+      return reportStatus(command.settings, output, context.ownerProbe);
     case 'pair':
       await issuePairings(
         command.settings.dataDirectory,
@@ -55,6 +57,7 @@ export async function runCommand(
         homeDirectory: context.homeDirectory,
         searchPath: context.searchPath,
         clock: context.clock,
+        ownerProbe: context.ownerProbe,
         stdout: context.stdout,
       });
       return 0;

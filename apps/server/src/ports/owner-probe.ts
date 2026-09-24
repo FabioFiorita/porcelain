@@ -1,9 +1,16 @@
+export type OwnerProbeRequest = { socketPath: string; timeoutMs: number };
+
+export type OwnerStatus = {
+  address: string;
+  dataDirectory: string;
+  pid: number;
+};
+
 export type OwnerProbeResult =
-  | { kind: 'running'; status: { pid: number; dataDirectory: string } }
+  | { kind: 'running'; status: OwnerStatus }
   | { kind: 'absent' }
   | { kind: 'unreadable'; reason: string };
 
-export type OwnerProbe = (
-  socketPath: string,
-  timeoutMs: number,
-) => Promise<OwnerProbeResult>;
+export interface OwnerProbe {
+  probe(input: OwnerProbeRequest): Promise<OwnerProbeResult>;
+}

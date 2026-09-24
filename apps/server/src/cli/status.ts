@@ -1,6 +1,6 @@
 import { LIMITS } from '../config/limits.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
-import { probeOwnerSocket } from './owner-client.ts';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { StatusSettings } from './arguments.ts';
 
 export const statusExitCodes = {
@@ -12,6 +12,7 @@ export const statusExitCodes = {
 export async function reportStatus(
   settings: StatusSettings,
   output: { stdout: (message: string) => void; stderr: (m: string) => void },
+  ownerProbe: OwnerProbe,
   timeoutMs = LIMITS.owner.probeTimeoutMs,
 ): Promise<number> {
   let socketPath: string;
@@ -23,7 +24,7 @@ export async function reportStatus(
     );
     return statusExitCodes.failed;
   }
-  const probe = await probeOwnerSocket(socketPath, timeoutMs);
+  const probe = await ownerProbe.probe({ socketPath, timeoutMs });
   if (probe.kind === 'running') {
     output.stdout(
       `Porcelain is running at ${probe.status.address}\n` +

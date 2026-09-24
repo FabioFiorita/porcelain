@@ -6,14 +6,17 @@ const ATTEMPTS = 60;
 const INTERVAL_MS = 250;
 
 export async function waitForHealthyService(options: {
-  probe: OwnerProbe;
+  ownerProbe: OwnerProbe;
   socketPath: string;
   dataDirectory: string;
   processId: () => Promise<number | undefined>;
 }): Promise<boolean> {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const [probe, servicePid] = await Promise.all([
-      options.probe(options.socketPath, LIMITS.owner.quickProbeTimeoutMs),
+      options.ownerProbe.probe({
+        socketPath: options.socketPath,
+        timeoutMs: LIMITS.owner.quickProbeTimeoutMs,
+      }),
       options.processId(),
     ]);
     if (

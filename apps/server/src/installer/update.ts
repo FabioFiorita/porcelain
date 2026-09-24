@@ -62,10 +62,10 @@ export async function update(
   try {
     await systemd.stop();
     stopped = true;
-    const socket = await context.probe(
-      ownerSocketPath(configuration.dataDirectory),
-      LIMITS.owner.quickProbeTimeoutMs,
-    );
+    const socket = await context.ownerProbe.probe({
+      socketPath: ownerSocketPath(configuration.dataDirectory),
+      timeoutMs: LIMITS.owner.quickProbeTimeoutMs,
+    });
     if (socket.kind !== 'absent')
       throw new DataDirectoryBusyError(socket.kind, 'update');
     await backupDatabase(configuration.dataDirectory, backup);

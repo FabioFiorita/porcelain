@@ -13,6 +13,7 @@ import {
   backupLocation,
   restoreDatabase,
 } from './database-backup.ts';
+import { AlreadyInstalledError } from './errors/already-installed-error.ts';
 import { DataDirectoryBusyError } from './errors/data-directory-busy-error.ts';
 import { InstallCleanupError } from './errors/install-cleanup-error.ts';
 import { InstalledServiceUnhealthyError } from './errors/installed-service-unhealthy-error.ts';
@@ -22,11 +23,8 @@ import { writeJsonFile } from './json-file.ts';
 import { installRuntime } from './persistent-runtime.ts';
 import { readInstalledRecord, type ServiceConfiguration } from './records.ts';
 import { recoverInterruptedUpdate } from './recover-interrupted-update.ts';
-import { update, type UpdateOutcome } from './update.ts';
 
-export type InstallSettings = ServiceConfiguration & {
-  allowDowngrade: boolean;
-};
+export type InstallSettings = ServiceConfiguration;
 
 export type InstallOutcome = {
   backup: string | undefined;
@@ -38,16 +36,16 @@ const LINGER_COMMAND = 'sudo loginctl enable-linger "$(id -un)"';
 export async function install(
   context: InstallerContext,
   settings: InstallSettings,
-): Promise<InstallOutcome | UpdateOutcome> {
+): Promise<InstallOutcome> {
   const { paths, systemd, runner } = context;
   await recoverInterruptedUpdate(context);
   if ((await readInstalledRecord(paths.installed)) !== undefined)
-    return update(context, settings.allowDowngrade);
+    throw new AlreadyInstalledError();
   if (await systemd.unitExists()) throw new UnitExistsError(systemd.unitPath);
-  const socket = await context.probe(
-    ownerSocketPath(settings.dataDirectory),
-    LIMITS.owner.quickProbeTimeoutMs,
-  );
+  const socket = await context.ownerProbe.probe({
+    socketPath: ownerSocketPath(settings.dataDirectory),
+    timeoutMs: LIMITS.owner.quickProbeTimeoutMs,
+  });
   if (socket.kind !== 'absent')
     throw new DataDirectoryBusyError(socket.kind, 'install');
   const staging = `${paths.runtime}.next-${randomUUID()}`;

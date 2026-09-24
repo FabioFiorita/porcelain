@@ -17,7 +17,7 @@ export type InstallerContext = {
   packageVersion: string;
   nodeExecutable: string;
   searchPath: string;
-  probe: OwnerProbe;
+  ownerProbe: OwnerProbe;
   clock: Clock;
 };
 
@@ -43,7 +43,7 @@ export function serviceIsHealthy(
   dataDirectory: string,
 ): Promise<boolean> {
   return waitForHealthyService({
-    probe: context.probe,
+    ownerProbe: context.ownerProbe,
     socketPath: ownerSocketPath(dataDirectory),
     dataDirectory,
     processId: () => context.systemd.processId(),

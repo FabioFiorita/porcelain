@@ -129,10 +129,10 @@ export async function startApplication(
   });
   try {
     signal.throwIfAborted();
-    const probe = await starter.ownerProbe(
+    const probe = await starter.ownerProbe.probe({
       socketPath,
-      limits.owner.probeTimeoutMs,
-    );
+      timeoutMs: limits.owner.probeTimeoutMs,
+    });
     if (probe.kind === 'running') throw new DataDirectoryOwnedError(directory);
     if (probe.kind === 'unreadable')
       throw new OwnerSocketUnreadableError(socketPath, probe.reason);
