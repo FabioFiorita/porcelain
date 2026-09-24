@@ -59,6 +59,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './commit-planning': './src/commit-planning/index.ts',
     './models': './src/models/index.ts',
   },
+  process: { '.': './src/index.ts' },
 };
 
 export const requiredServerFiles: readonly string[] = [
@@ -99,6 +100,8 @@ export type Role =
   | 'repository'
   | 'gateway-api'
   | 'gateway'
+  | 'process-api'
+  | 'process'
   | 'runtime'
   | 'bootstrap'
   | 'contract'
@@ -192,6 +195,8 @@ function classifyPackage(name: string, inside: string) {
       );
     return;
   }
+  if (name === 'process')
+    return classified(inside === 'index.ts' ? 'process-api' : 'process', name);
   if (name === 'storage') {
     if (
       inside === 'index.ts' ||
@@ -299,7 +304,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
   controller: new Set(['domain-api', 'model-api', 'contract', 'runtime']),
-  installer: new Set(['installer', 'config']),
+  installer: new Set(['installer', 'config', 'process-api']),
   'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),
   'rule-api': new Set(['rule']),
@@ -329,8 +334,11 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'model-api',
     'runtime',
     'config',
+    'process-api',
   ]),
   'gateway-api': new Set(['gateway']),
+  'process-api': new Set(['process']),
+  process: new Set(['process']),
   runtime: new Set(['runtime', 'model-api', 'config']),
   bootstrap: new Set(everything),
   contract: new Set(['contract']),
@@ -371,6 +379,15 @@ export function violation(
       return 'storage-public-api-only';
     if (to.owner === 'agents' && to.role !== 'gateway-api')
       return 'agents-public-api-only';
+    if (to.owner === 'process' && to.role !== 'process-api')
+      return 'process-public-api-only';
+    if (
+      to.owner === 'process' &&
+      from.owner !== 'git' &&
+      from.owner !== 'agents' &&
+      from.role !== 'installer'
+    )
+      return 'process-importable-by-git-agents-installer';
   }
   if (!allowedTargets[from.role].has(to.role))
     return `${from.role}-cannot-import-${to.role}`;
