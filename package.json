@@ -18,6 +18,7 @@
     "build:package": "node scripts/build-package.ts"
   },
   "devDependencies": {
+    "@porcelain/contracts": "workspace:*",
     "@types/node": "24.13.3",
     "dependency-cruiser": "18.4.0",
     "esbuild": "0.28.2",
@@ -29,7 +30,7 @@
     "zod": "4.5.4"
   },
   "engines": {
-    "node": ">=24.20.0 <25 || >=26.8.1 <27"
+    "node": ">=24.20.0 <25"
   },
   "packageManager": "pnpm@12.3.4"
 }
