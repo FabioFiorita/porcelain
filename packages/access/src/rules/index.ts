@@ -1,11 +1,12 @@
+export { inCreationOrder } from './creation-order.ts';
 export {
+  credential,
   hashSecret,
-  mintCredential,
   parseCredential,
   secretMatches,
 } from './credential.ts';
-export { deviceUsable, idleMilliseconds } from './device-activity.ts';
-export { checkedLabel, checkedPlatform } from './device-details.ts';
+export { deviceUsable, idleMilliseconds, sighted } from './device-activity.ts';
+export { validLabel, validPlatform } from './device-details.ts';
 export {
   canonicalHostname,
   hostnameAllowed,
@@ -18,3 +19,4 @@ export {
   pairingGrantRedeemable,
   pairingGrantRevocable,
 } from './pairing-grant.ts';
+export { effectivePort, requestAuthority } from './request-authority.ts';

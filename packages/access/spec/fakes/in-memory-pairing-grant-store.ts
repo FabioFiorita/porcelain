@@ -6,41 +6,37 @@ import type { PairingGrantStore } from '../../src/ports/pairing-grant-store.ts';
 import { InMemoryDeviceStore } from './in-memory-device-store.ts';
 
 export class InMemoryPairingGrantStore implements PairingGrantStore {
-  readonly grants = new Map<string, StoredPairingGrant>();
-  readonly deviceStore: InMemoryDeviceStore;
+  private readonly grants = new Map<string, StoredPairingGrant>();
+  private readonly devices: InMemoryDeviceStore;
 
-  constructor(deviceStore = new InMemoryDeviceStore()) {
-    this.deviceStore = deviceStore;
+  constructor(devices = new InMemoryDeviceStore()) {
+    this.devices = devices;
   }
 
-  add(grants: readonly StoredPairingGrant[]): void {
-    for (const grant of grants) {
-      if (this.grants.has(grant.id))
-        throw new Error(`Grant ${grant.id} already exists`);
-      this.grants.set(grant.id, { ...grant, addresses: [...grant.addresses] });
-    }
+  add(input: { grants: readonly StoredPairingGrant[] }): void {
+    input.grants.forEach((grant) => this.grants.set(grant.id, grant));
   }
 
-  find(grantId: string): StoredPairingGrant | undefined {
-    const grant = this.grants.get(grantId);
-    return grant ? { ...grant } : undefined;
+  find(input: { grantId: string }): StoredPairingGrant | undefined {
+    return this.grants.get(input.grantId);
   }
 
   list(): StoredPairingGrant[] {
-    return [...this.grants.values()]
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
-      .map((grant) => ({ ...grant }));
+    return [...this.grants.values()];
   }
 
-  markRevoked(grantId: string, revokedAt: string): void {
-    const grant = this.grants.get(grantId);
-    if (grant) this.grants.set(grantId, { ...grant, revokedAt });
+  markRevoked(input: { grant: StoredPairingGrant; revokedAt: string }): void {
+    this.grants.set(input.grant.id, {
+      ...input.grant,
+      revokedAt: input.revokedAt,
+    });
   }
 
-  redeem(redemption: PairingRedemption): void {
-    const grant = this.grants.get(redemption.grantId);
-    if (!grant) throw new Error(`Grant ${redemption.grantId} does not exist`);
-    this.deviceStore.add(redemption.device);
-    this.grants.set(grant.id, { ...grant, redeemedAt: redemption.redeemedAt });
+  redeem(input: PairingRedemption): void {
+    this.grants.set(input.grant.id, {
+      ...input.grant,
+      redeemedAt: input.redeemedAt,
+    });
+    this.devices.add(input.device);
   }
 }

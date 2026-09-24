@@ -1,54 +1,48 @@
-import type { DeviceSighting, StoredDevice } from '@porcelain/access/models';
-import type { DeviceActivityStore, DeviceStore } from '@porcelain/access/ports';
+import type { StoredDevice } from '@porcelain/access/models';
+import type {
+  DeviceActivityWriter,
+  DeviceStore,
+} from '@porcelain/access/ports';
 
 export type HeldConnection = { close(): void };
 
-export class CachedDeviceStore implements DeviceStore, DeviceActivityStore {
-  private readonly deviceStore: DeviceStore;
-  private readonly devices = new Map<string, StoredDevice>();
-  private readonly unflushed = new Map<string, DeviceSighting>();
+export class CachedDeviceStore implements DeviceStore, DeviceActivityWriter {
+  private readonly devices: DeviceStore;
+  private readonly cached = new Map<string, StoredDevice>();
+  private readonly unflushed = new Map<string, StoredDevice>();
   private readonly connections = new Map<string, Set<HeldConnection>>();
 
-  constructor(deviceStore: DeviceStore) {
-    this.deviceStore = deviceStore;
+  constructor(devices: DeviceStore) {
+    this.devices = devices;
   }
 
-  find(deviceId: string): StoredDevice | undefined {
-    const cached = this.devices.get(deviceId);
+  find(input: { deviceId: string }): StoredDevice | undefined {
+    const cached = this.cached.get(input.deviceId);
     if (cached) return cached;
-    const stored = this.deviceStore.find(deviceId);
-    if (stored) this.devices.set(deviceId, stored);
+    const stored = this.devices.find(input);
+    if (stored) this.cached.set(input.deviceId, stored);
     return stored;
   }
 
   list(): StoredDevice[] {
-    return this.deviceStore.list();
+    return this.devices.list();
   }
 
-  markRevoked(deviceId: string, revokedAt: string): void {
-    this.deviceStore.markRevoked(deviceId, revokedAt);
-    const cached = this.devices.get(deviceId);
-    if (cached) this.devices.set(deviceId, { ...cached, revokedAt });
+  markRevoked(input: { device: StoredDevice; revokedAt: string }): void {
+    const deviceId = input.device.id;
+    this.devices.markRevoked(input);
+    const cached = this.cached.get(deviceId);
+    if (cached)
+      this.cached.set(deviceId, { ...cached, revokedAt: input.revokedAt });
     this.unflushed.delete(deviceId);
     for (const connection of this.connections.get(deviceId) ?? [])
       connection.close();
     this.connections.delete(deviceId);
   }
 
-  recordSightings(sightings: readonly DeviceSighting[]): void {
-    for (const sighting of sightings) {
-      const cached = this.find(sighting.deviceId);
-      if (!cached) continue;
-      const { lastSeenAddress: _previous, ...device } = cached;
-      this.devices.set(sighting.deviceId, {
-        ...device,
-        lastSeenAt: sighting.seenAt,
-        ...(sighting.address === undefined
-          ? {}
-          : { lastSeenAddress: sighting.address }),
-      });
-      this.unflushed.set(sighting.deviceId, sighting);
-    }
+  recordSighting(input: { device: StoredDevice }): void {
+    this.cached.set(input.device.id, input.device);
+    this.unflushed.set(input.device.id, input.device);
   }
 
   hold(deviceId: string, connection: HeldConnection): () => void {
@@ -62,8 +56,8 @@ export class CachedDeviceStore implements DeviceStore, DeviceActivityStore {
   }
 
   flush(): void {
-    const sightings = [...this.unflushed.values()];
+    const devices = [...this.unflushed.values()];
     this.unflushed.clear();
-    this.deviceStore.recordSightings(sightings);
+    for (const device of devices) this.devices.recordSighting({ device });
   }
 }

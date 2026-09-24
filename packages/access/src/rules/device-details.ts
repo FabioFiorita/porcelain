@@ -1,7 +1,5 @@
-import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
-
-const maxLabel = 80;
-const maxPlatform = 120;
+const MAX_LABEL_LENGTH = 80;
+const MAX_PLATFORM_LENGTH = 120;
 
 function hasControlCharacter(value: string): boolean {
   for (const character of value) {
@@ -11,21 +9,19 @@ function hasControlCharacter(value: string): boolean {
   return false;
 }
 
-function checkedText(value: string, limit: number): string {
+function validText(value: string, limit: number): string | undefined {
   const trimmed = value.trim();
-  if (
-    trimmed.length === 0 ||
+  return trimmed.length === 0 ||
     trimmed.length > limit ||
     hasControlCharacter(trimmed)
-  )
-    throw new InvalidDeviceDetailsError();
-  return trimmed;
+    ? undefined
+    : trimmed;
 }
 
-export function checkedLabel(value: string): string {
-  return checkedText(value, maxLabel);
+export function validLabel(value: string): string | undefined {
+  return validText(value, MAX_LABEL_LENGTH);
 }
 
-export function checkedPlatform(value: string): string {
-  return checkedText(value, maxPlatform);
+export function validPlatform(value: string): string | undefined {
+  return validText(value, MAX_PLATFORM_LENGTH);
 }

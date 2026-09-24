@@ -4,45 +4,61 @@ import {
   InvalidDeviceDetailsError,
   InvalidPairingError,
 } from '@porcelain/access/errors';
+import type { StoredPairingGrant } from '@porcelain/access/models';
 import {
+  credential,
   hashSecret,
-  mintCredential,
   parseCredential,
   secretMatches,
 } from '@porcelain/access/rules';
+import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
+import { SequentialSecretSource } from '../../spec/fakes/sequential-secret-source.ts';
 import { RedeemPairingService } from './redeem-pairing-service.ts';
 
 const issuedAt = '2026-09-23T10:00:00.000Z';
 const grantId = 'aaaaaaaa-0000-4000-8000-000000000001';
+const secret = 'g'.repeat(43);
 
-function setup(grant: { redeemedAt?: string; revokedAt?: string } = {}) {
-  const grants = new InMemoryPairingGrantStore();
-  const code = mintCredential('pcp', grantId);
-  grants.add([
-    {
-      id: grantId,
-      label: 'Phone',
-      addresses: ['http://192.168.1.20:4173'],
-      createdAt: issuedAt,
-      expiresAt: '2026-09-23T10:15:00.000Z',
-      secretHash: hashSecret(code.secret),
-      ...grant,
-    },
-  ]);
+function setup(grant: Partial<StoredPairingGrant> = {}) {
+  const devices = new InMemoryDeviceStore();
+  const grants = new InMemoryPairingGrantStore(devices);
+  grants.add({
+    grants: [
+      {
+        id: grantId,
+        label: 'Phone',
+        addresses: ['http://192.168.1.20:4173'],
+        createdAt: issuedAt,
+        expiresAt: '2026-09-23T10:15:00.000Z',
+        secretHash: hashSecret(secret),
+        ...grant,
+      },
+    ],
+  });
   const clock = new FixedClock('2026-09-23T10:05:00.000Z');
   const service = new RedeemPairingService(
     grants,
     clock,
     new SequentialIdSource(),
+    new SequentialSecretSource(),
   );
-  return { grants, clock, service, code: code.token };
+  return {
+    devices,
+    grants,
+    clock,
+    service,
+    code: credential('pcp', grantId, secret).token,
+  };
 }
 
 describe('RedeemPairingService', () => {
   it('turns a code into a device named after its grant', () => {
-    const { grants, service, code } = setup();
-    const { device, credential } = service.execute({ code, platform: 'iOS' });
+    const { devices, service, code } = setup();
+    const { device, credential: issued } = service.execute({
+      code,
+      platform: 'iOS',
+    });
     expect(device).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
       label: 'Phone',
@@ -50,14 +66,12 @@ describe('RedeemPairingService', () => {
       createdAt: '2026-09-23T10:05:00.000Z',
       lastSeenAt: '2026-09-23T10:05:00.000Z',
     });
-    expect(parseCredential('pcd', credential)?.id).toBe(device.id);
-    const stored = grants.deviceStore.find(device.id);
-    expect(
-      secretMatches(
-        stored?.secretHash ?? '',
-        parseCredential('pcd', credential)?.secret ?? '',
-      ),
-    ).toBe(true);
+    const parts = parseCredential('pcd', issued);
+    expect(parts?.id).toBe(device.id);
+    const stored = devices.find({ deviceId: device.id });
+    expect(secretMatches(stored?.secretHash ?? '', parts?.secret ?? '')).toBe(
+      true,
+    );
   });
 
   it('names the device with the label it submits, trimmed', () => {
@@ -71,29 +85,28 @@ describe('RedeemPairingService', () => {
   });
 
   it('consumes the code, so a second redemption is refused', () => {
-    const { grants, service, code } = setup();
+    const { devices, grants, service, code } = setup();
     service.execute({ code, platform: 'iOS' });
-    expect(grants.find(grantId)?.redeemedAt).toBe('2026-09-23T10:05:00.000Z');
+    expect(grants.find({ grantId })?.redeemedAt).toBe(
+      '2026-09-23T10:05:00.000Z',
+    );
     expect(() => service.execute({ code, platform: 'iOS' })).toThrow(
       InvalidPairingError,
     );
-    expect(grants.deviceStore.list()).toHaveLength(1);
+    expect(devices.list()).toHaveLength(1);
   });
 
-  it('refuses a malformed code, an unknown grant and a wrong secret alike', () => {
+  it('refuses a malformed code, an unknown grant, a wrong secret and a device credential alike', () => {
     const { service, code } = setup();
-    const unknown = mintCredential(
-      'pcp',
-      'bbbbbbbb-0000-4000-8000-000000000002',
-    );
-    const wrongSecret = mintCredential('pcp', grantId);
-    for (const attempt of ['pcp_unknown', unknown.token, wrongSecret.token])
+    for (const attempt of [
+      'pcp_unknown',
+      credential('pcp', 'bbbbbbbb-0000-4000-8000-000000000002', secret).token,
+      credential('pcp', grantId, 'w'.repeat(43)).token,
+      code.replace('pcp_', 'pcd_'),
+    ])
       expect(() => service.execute({ code: attempt, platform: 'iOS' })).toThrow(
         InvalidPairingError,
       );
-    expect(() =>
-      service.execute({ code: code.replace('pcp_', 'pcd_'), platform: 'iOS' }),
-    ).toThrow(InvalidPairingError);
   });
 
   it('accepts a code until the moment it expires', () => {
@@ -125,14 +138,14 @@ describe('RedeemPairingService', () => {
   });
 
   it('refuses invalid device details without consuming the code', () => {
-    const { grants, service, code } = setup();
+    const { devices, grants, service, code } = setup();
     expect(() => service.execute({ code, platform: 'iOS\u0007' })).toThrow(
       InvalidDeviceDetailsError,
     );
     expect(() =>
       service.execute({ code, platform: 'iOS', label: '  ' }),
     ).toThrow(InvalidDeviceDetailsError);
-    expect(grants.find(grantId)?.redeemedAt).toBeUndefined();
-    expect(grants.deviceStore.list()).toEqual([]);
+    expect(grants.find({ grantId })?.redeemedAt).toBeUndefined();
+    expect(devices.list()).toEqual([]);
   });
 });

@@ -9,5 +9,5 @@ export type CheckRequestOriginInput = {
 };
 
 export type CheckRequestOriginResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
+  | { kind: 'allowed' }
+  | { kind: 'refused'; reason: string };

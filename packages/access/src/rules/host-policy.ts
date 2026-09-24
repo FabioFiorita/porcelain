@@ -1,13 +1,11 @@
 import type { HostPolicy } from '../models/host-policy.ts';
 import type { PairingReach } from '../models/pairing-reach.ts';
 
-const ipv4 =
+const IPV4 =
   /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/;
 
 function normalizedIpv6(value: string): string | undefined {
-  const bracketed = `http://[${value}]`;
-  if (!URL.canParse(bracketed)) return undefined;
-  return new URL(bracketed).hostname.replace(/^\[|\]$/g, '');
+  return URL.parse(`http://[${value}]`)?.hostname.replace(/^\[|\]$/g, '');
 }
 
 export function canonicalHostname(value: string): string | undefined {
@@ -36,7 +34,7 @@ function canonicalList(values: readonly string[]): string[] {
 
 function isLoopbackHostname(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '::1') return true;
-  return ipv4.test(hostname) && hostname.startsWith('127.');
+  return IPV4.test(hostname) && hostname.startsWith('127.');
 }
 
 export function hostnameAllowed(hostname: string, policy: HostPolicy): boolean {
@@ -59,8 +57,8 @@ export function pairingAddressReachable(
   address: string,
   reach: PairingReach,
 ): boolean {
-  if (!URL.canParse(address)) return false;
-  const url = new URL(address);
+  const url = URL.parse(address);
+  if (!url) return false;
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
   const defaultPort = url.protocol === 'http:' ? '80' : '443';
   if ((url.port || defaultPort) !== String(reach.port)) return false;

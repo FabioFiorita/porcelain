@@ -1,32 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
+  credential,
   hashSecret,
-  mintCredential,
   parseCredential,
   secretMatches,
 } from './credential.ts';
 
 const id = '00000000-0000-4000-8000-000000000001';
+const secret = 'a'.repeat(43);
+const otherSecret = 'b'.repeat(43);
 
-describe('mintCredential', () => {
-  it('mints a token that parses back to its id and secret', () => {
-    const credential = mintCredential('pcd', id);
-    expect(credential.token).toBe(`pcd_${id}_${credential.secret}`);
-    expect(parseCredential('pcd', credential.token)).toEqual({
-      id,
-      secret: credential.secret,
-    });
-  });
-
-  it('mints a different secret every time', () => {
-    expect(mintCredential('pcp', id).secret).not.toBe(
-      mintCredential('pcp', id).secret,
-    );
+describe('credential', () => {
+  it('writes a token that parses back to its id and secret', () => {
+    const issued = credential('pcd', id, secret);
+    expect(issued.token).toBe(`pcd_${id}_${secret}`);
+    expect(parseCredential('pcd', issued.token)).toEqual({ id, secret });
   });
 });
 
 describe('parseCredential', () => {
-  const { token } = mintCredential('pcp', id);
+  const { token } = credential('pcp', id, secret);
 
   it('refuses a token of the other kind', () => {
     expect(parseCredential('pcd', token)).toBeUndefined();
@@ -44,13 +37,17 @@ describe('parseCredential', () => {
 
 describe('secretMatches', () => {
   it('matches only the secret whose hash was stored', () => {
-    const { secret } = mintCredential('pcd', id);
     const stored = hashSecret(secret);
     expect(secretMatches(stored, secret)).toBe(true);
-    expect(secretMatches(stored, mintCredential('pcd', id).secret)).toBe(false);
+    expect(secretMatches(stored, otherSecret)).toBe(false);
+  });
+
+  it('never stores the secret itself', () => {
+    expect(hashSecret(secret)).not.toContain(secret);
   });
 
   it('does not match against a stored hash of the wrong length', () => {
-    expect(secretMatches('abcd', 'secret')).toBe(false);
+    expect(secretMatches(hashSecret(secret).slice(0, -2), secret)).toBe(false);
+    expect(secretMatches('', secret)).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { DeviceSighting, StoredDevice } from '@porcelain/access/models';
+import type { StoredDevice } from '@porcelain/access/models';
 import type { DeviceStore } from '@porcelain/access/ports';
 import { devices } from '../../db/schema/devices.ts';
 
@@ -25,11 +25,11 @@ export class SqliteDeviceStore implements DeviceStore {
     this.db = db;
   }
 
-  find(deviceId: string): StoredDevice | undefined {
+  find(input: { deviceId: string }): StoredDevice | undefined {
     const row = this.db
       .select()
       .from(devices)
-      .where(eq(devices.id, deviceId))
+      .where(eq(devices.id, input.deviceId))
       .get();
     return row ? storedDevice(row) : undefined;
   }
@@ -43,30 +43,28 @@ export class SqliteDeviceStore implements DeviceStore {
       .map(storedDevice);
   }
 
-  markRevoked(deviceId: string, revokedAt: string): void {
+  markRevoked(input: { device: StoredDevice; revokedAt: string }): void {
     this.db.transaction(
       (tx) => {
         tx.update(devices)
-          .set({ revokedAt })
-          .where(eq(devices.id, deviceId))
+          .set({ revokedAt: input.revokedAt })
+          .where(eq(devices.id, input.device.id))
           .run();
       },
       { behavior: 'immediate' },
     );
   }
 
-  recordSightings(sightings: readonly DeviceSighting[]): void {
-    if (sightings.length === 0) return;
+  recordSighting(input: { device: StoredDevice }): void {
     this.db.transaction(
       (tx) => {
-        for (const sighting of sightings)
-          tx.update(devices)
-            .set({
-              lastSeenAt: sighting.seenAt,
-              lastSeenAddress: sighting.address ?? null,
-            })
-            .where(eq(devices.id, sighting.deviceId))
-            .run();
+        tx.update(devices)
+          .set({
+            lastSeenAt: input.device.lastSeenAt,
+            lastSeenAddress: input.device.lastSeenAddress ?? null,
+          })
+          .where(eq(devices.id, input.device.id))
+          .run();
       },
       { behavior: 'immediate' },
     );

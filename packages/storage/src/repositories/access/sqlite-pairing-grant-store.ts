@@ -29,7 +29,8 @@ export class SqlitePairingGrantStore implements PairingGrantStore {
     this.db = db;
   }
 
-  add(grants: readonly StoredPairingGrant[]): void {
+  add(input: { grants: readonly StoredPairingGrant[] }): void {
+    const { grants } = input;
     if (grants.length === 0) return;
     this.db.transaction(
       (tx) => {
@@ -52,11 +53,11 @@ export class SqlitePairingGrantStore implements PairingGrantStore {
     );
   }
 
-  find(grantId: string): StoredPairingGrant | undefined {
+  find(input: { grantId: string }): StoredPairingGrant | undefined {
     const row = this.db
       .select()
       .from(pairingGrants)
-      .where(eq(pairingGrants.id, grantId))
+      .where(eq(pairingGrants.id, input.grantId))
       .get();
     return row ? storedGrant(row) : undefined;
   }
@@ -70,25 +71,25 @@ export class SqlitePairingGrantStore implements PairingGrantStore {
       .map(storedGrant);
   }
 
-  markRevoked(grantId: string, revokedAt: string): void {
+  markRevoked(input: { grant: StoredPairingGrant; revokedAt: string }): void {
     this.db.transaction(
       (tx) => {
         tx.update(pairingGrants)
-          .set({ revokedAt })
-          .where(eq(pairingGrants.id, grantId))
+          .set({ revokedAt: input.revokedAt })
+          .where(eq(pairingGrants.id, input.grant.id))
           .run();
       },
       { behavior: 'immediate' },
     );
   }
 
-  redeem(redemption: PairingRedemption): void {
-    const { device } = redemption;
+  redeem(input: PairingRedemption): void {
+    const { device } = input;
     this.db.transaction(
       (tx) => {
         tx.update(pairingGrants)
-          .set({ redeemedAt: redemption.redeemedAt })
-          .where(eq(pairingGrants.id, redemption.grantId))
+          .set({ redeemedAt: input.redeemedAt })
+          .where(eq(pairingGrants.id, input.grant.id))
           .run();
         tx.insert(devices)
           .values({

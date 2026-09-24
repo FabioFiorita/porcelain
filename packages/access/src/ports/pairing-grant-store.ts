@@ -4,9 +4,9 @@ import type {
 } from '../models/pairing-grant.ts';
 
 export interface PairingGrantStore {
-  add(grants: readonly StoredPairingGrant[]): void;
-  find(grantId: string): StoredPairingGrant | undefined;
+  add(input: { grants: readonly StoredPairingGrant[] }): void;
+  find(input: { grantId: string }): StoredPairingGrant | undefined;
   list(): StoredPairingGrant[];
-  markRevoked(grantId: string, revokedAt: string): void;
-  redeem(redemption: PairingRedemption): void;
+  markRevoked(input: { grant: StoredPairingGrant; revokedAt: string }): void;
+  redeem(input: PairingRedemption): void;
 }

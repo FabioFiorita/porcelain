@@ -1,14 +1,14 @@
-import type { ReadOwnerStatusResponse } from '@porcelain/contracts/access';
 import type { ReadOwnerStatusService } from '@porcelain/access/services';
+import type { ReadOwnerStatusResponse } from '@porcelain/contracts/access';
 
 export class ReadOwnerStatusUseCase {
-  private readonly readOwnerStatusService: ReadOwnerStatusService;
+  private readonly readOwnerStatus: ReadOwnerStatusService;
 
-  constructor(readOwnerStatusService: ReadOwnerStatusService) {
-    this.readOwnerStatusService = readOwnerStatusService;
+  constructor(readOwnerStatus: ReadOwnerStatusService) {
+    this.readOwnerStatus = readOwnerStatus;
   }
 
   execute(): ReadOwnerStatusResponse {
-    return this.readOwnerStatusService.execute();
+    return this.readOwnerStatus.execute();
   }
 }

@@ -1,23 +1,24 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
-  RevokeAccessInput,
-  RevokeAccessResult,
-} from '../models/revoke-access.ts';
+  RevokeDeviceInput,
+  RevokeDeviceResult,
+} from '../models/revoke-device.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 
 export class RevokeDeviceService {
-  private readonly deviceStore: DeviceStore;
+  private readonly devices: DeviceStore;
   private readonly clock: Clock;
 
-  constructor(deviceStore: DeviceStore, clock: Clock) {
-    this.deviceStore = deviceStore;
+  constructor(devices: DeviceStore, clock: Clock) {
+    this.devices = devices;
     this.clock = clock;
   }
 
-  execute(input: RevokeAccessInput): RevokeAccessResult {
-    const device = this.deviceStore.find(input.id);
-    if (!device || device.revokedAt !== undefined) return { revoked: false };
-    this.deviceStore.markRevoked(device.id, this.clock.now());
-    return { revoked: true, kind: 'device' };
+  execute(input: RevokeDeviceInput): RevokeDeviceResult {
+    const device = this.devices.find({ deviceId: input.id });
+    if (!device || device.revokedAt !== undefined)
+      return { kind: 'not-revoked' };
+    this.devices.markRevoked({ device, revokedAt: this.clock.now() });
+    return { kind: 'revoked' };
   }
 }

@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
+import type {
+  StoredDevice,
+  StoredPairingGrant,
+} from '@porcelain/access/models';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { ListAccessService } from './list-access-service.ts';
 
 function grant(
   id: string,
-  extra: { redeemedAt?: string; revokedAt?: string; expiresAt?: string } = {},
-) {
+  extra: Partial<StoredPairingGrant> = {},
+): StoredPairingGrant {
   return {
     id,
     label: `Grant ${id}`,
@@ -19,10 +23,7 @@ function grant(
   };
 }
 
-function device(
-  id: string,
-  extra: { revokedAt?: string; lastSeenAddress?: string } = {},
-) {
+function device(id: string, extra: Partial<StoredDevice> = {}): StoredDevice {
   return {
     id,
     label: `Device ${id}`,
@@ -34,29 +35,31 @@ function device(
   };
 }
 
+function setup() {
+  const devices = new InMemoryDeviceStore();
+  const grants = new InMemoryPairingGrantStore(devices);
+  const service = new ListAccessService(
+    grants,
+    devices,
+    new FixedClock('2026-09-23T10:05:00.000Z'),
+  );
+  return { devices, grants, service };
+}
+
 describe('ListAccessService', () => {
-  it('lists open grants and paired devices without their secrets', () => {
-    const devices = new InMemoryDeviceStore();
-    const grants = new InMemoryPairingGrantStore(devices);
-    grants.add([
-      grant('1'),
-      grant('2', { redeemedAt: '2026-09-23T10:01:00.000Z' }),
-      grant('3', { revokedAt: '2026-09-23T10:01:00.000Z' }),
-      grant('4', { expiresAt: '2026-09-23T10:05:00.000Z' }),
-      grant('5'),
-    ]);
-    devices.add(device('2', { lastSeenAddress: '192.168.1.30' }));
-    devices.add(device('1'));
-    devices.add(device('3', { revokedAt: '2026-09-23T08:00:00.000Z' }));
-    const service = new ListAccessService(
-      grants,
-      devices,
-      new FixedClock('2026-09-23T10:05:00.000Z'),
-    );
+  it('lists only grants that can still be redeemed, oldest first, without their secrets', () => {
+    const { grants, service } = setup();
+    grants.add({
+      grants: [
+        grant('5'),
+        grant('2', { redeemedAt: '2026-09-23T10:01:00.000Z' }),
+        grant('3', { revokedAt: '2026-09-23T10:01:00.000Z' }),
+        grant('4', { expiresAt: '2026-09-23T10:05:00.000Z' }),
+        grant('1'),
+      ],
+    });
 
-    const listing = service.execute();
-
-    expect(listing.grants).toEqual([
+    expect(service.execute().grants).toEqual([
       {
         id: '1',
         label: 'Grant 1',
@@ -72,7 +75,15 @@ describe('ListAccessService', () => {
         expiresAt: '2026-09-23T10:15:00.000Z',
       },
     ]);
-    expect(listing.devices).toEqual([
+  });
+
+  it('lists paired devices that are not revoked, oldest first, without their secrets', () => {
+    const { devices, service } = setup();
+    devices.add(device('2', { lastSeenAddress: '192.168.1.30' }));
+    devices.add(device('1'));
+    devices.add(device('3', { revokedAt: '2026-09-23T08:00:00.000Z' }));
+
+    expect(service.execute().devices).toEqual([
       {
         id: '1',
         label: 'Device 1',
@@ -89,5 +100,9 @@ describe('ListAccessService', () => {
         lastSeenAddress: '192.168.1.30',
       },
     ]);
+  });
+
+  it('lists nothing when nothing was ever paired', () => {
+    expect(setup().service.execute()).toEqual({ grants: [], devices: [] });
   });
 });
