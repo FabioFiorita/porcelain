@@ -10,7 +10,8 @@ export class SqliteWorktreeStatusStore implements WorktreeStatusStore {
     this.db = db;
   }
 
-  status(worktreeIds: string[]): Map<string, WorktreeStatus> {
+  status(input: { worktreeIds: string[] }): Map<string, WorktreeStatus> {
+    const { worktreeIds } = input;
     const statuses = new Map<string, WorktreeStatus>();
     if (worktreeIds.length === 0) return statuses;
     const wanted = sql.join(

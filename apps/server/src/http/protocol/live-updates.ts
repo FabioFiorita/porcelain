@@ -28,7 +28,7 @@ export type LiveUpdatesOptions = {
 
 export function liveUpdates(
   server: FastifyInstance,
-  options: Pick<AuthenticateOptions, 'devices'> &
+  options: Pick<AuthenticateOptions, 'deviceConnections'> &
     LiveUpdatesOptions & { pingMs: number },
 ) {
   server.get('/live', { websocket: true }, (socket, request) => {
@@ -43,8 +43,9 @@ export function liveUpdates(
       if (socket.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify(notice));
     });
-    const releaseDevice = options.devices.hold(principal.deviceId, {
-      close: () => socket.close(4001, 'Device access revoked'),
+    const releaseDevice = options.deviceConnections.hold({
+      deviceId: principal.deviceId,
+      connection: { close: () => socket.close(4001, 'Device access revoked') },
     });
     const heartbeat = setInterval(() => {
       if (!alive) return socket.terminate();

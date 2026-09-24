@@ -12,10 +12,10 @@ export class ReadWorktreeStatusesService {
   }
 
   execute(input: ReadWorktreeStatusesInput): ReadWorktreeStatusesResult {
-    return this.worktreeStatus.status(
-      input.listings.flatMap((listing) =>
+    return this.worktreeStatus.status({
+      worktreeIds: input.listings.flatMap((listing) =>
         listing.worktrees.map((worktree) => worktree.id),
       ),
-    );
+    });
   }
 }

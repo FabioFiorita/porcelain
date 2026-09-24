@@ -60,7 +60,12 @@ const executable = join(
 );
 const options =
   mode === 'lint'
-    ? ['--type-aware', '--report-unused-disable-directives']
+    ? [
+        '--type-aware',
+        '--report-unused-disable-directives',
+        '--max-warnings',
+        '0',
+      ]
     : ['--check'];
 const result = spawnSync(executable, [...options, ...roots], {
   stdio: 'inherit',

@@ -16,6 +16,10 @@ export function summaryMessage(token: string, expires: string): string {
   return `${token}\0${expires}`;
 }
 
+export function summaryExpiry(now: string, lifetimeMs: number): string {
+  return new Date(Date.parse(now) + lifetimeMs).toISOString();
+}
+
 export function summaryExpired(expires: string, now: string): boolean {
   return !(Date.parse(expires) >= Date.parse(now));
 }

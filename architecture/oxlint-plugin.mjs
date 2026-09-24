@@ -1,4 +1,5 @@
 import { builtinModules } from 'node:module';
+import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles } from './policy.ts';
 
@@ -378,6 +379,18 @@ function propertyName(node, context) {
   const key = node.property ?? node.key;
   if (key.type === 'Identifier') return key.name;
   return key.type === 'Literal' ? String(key.value) : undefined;
+}
+
+function gitCapabilityOf(path) {
+  return /^packages\/git\/src\/([^/]+)\//.exec(path)?.[1];
+}
+
+function importsAnotherGitCapability(path, source) {
+  const from = gitCapabilityOf(path);
+  if (from === undefined) return false;
+  const target = posix.join(posix.dirname(path), source);
+  const to = /^packages\/git\/src\/([^/]+)\/index\.ts$/.exec(target)?.[1];
+  return to !== undefined && to !== from;
 }
 
 function memberPath(node) {
@@ -1078,13 +1091,30 @@ export default {
           },
           NewExpression(node) {
             if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'Date' &&
+              node.arguments.length === 1 &&
+              node.arguments[0].type !== 'SpreadElement'
+            )
+              return;
+            if (
               node.callee.type !== 'Identifier' ||
               !pureConstructors.has(node.callee.name)
             )
               context.report({
                 node,
                 message:
-                  'A rule constructs only Map, Set and RegExp; errors, dates and buffers belong in services and adapters.',
+                  'A rule constructs only Map, Set, RegExp and a Date from one given instant; errors, the current time and buffers belong in services and adapters.',
+              });
+          },
+          CallExpression(node) {
+            if (
+              ['Date', 'Date.now'].includes(memberPath(node.callee)?.join('.'))
+            )
+              context.report({
+                node,
+                message:
+                  'A rule takes the current time as an ISO string from its caller; it never reads the clock.',
               });
           },
         };
@@ -1302,23 +1332,25 @@ export default {
       create(context) {
         const path = repositoryPath(context);
         const owner = packageCode.exec(path)?.[1];
-        if (owner === undefined) return {};
-        const spec = isSpec(context);
+        if (owner === undefined || isSpec(context)) return {};
         return {
           ...moduleVisitors((node) => {
             const source = moduleSource(node);
             if (source === undefined) return;
             if (
-              !spec &&
-              (source === `@porcelain/${owner}` ||
-                source.startsWith(`@porcelain/${owner}/`))
+              source === `@porcelain/${owner}` ||
+              source.startsWith(`@porcelain/${owner}/`)
             )
               context.report({
                 node: node.source,
                 message:
                   'Inside a package, import a file by its relative path, never the package by name.',
               });
-            if (source.startsWith('.') && /(?:^|\/)index\.ts$/.test(source))
+            if (
+              source.startsWith('.') &&
+              /(?:^|\/)index\.ts$/.test(source) &&
+              !importsAnotherGitCapability(path, source)
+            )
               context.report({
                 node: node.source,
                 message:
@@ -2089,12 +2121,12 @@ export default {
                 });
               return;
             }
-            const call = handlerCall(handler);
+            const call = routeHandlerCall(handler);
             if (!call || !isUseCaseExecute(call.callee))
               context.report({
                 node: handler,
                 message:
-                  'The handler body is one call to options.useCase.execute.',
+                  'The handler body is one call to options.useCase.execute, returned as it is or sent with reply.code(status).send(result).',
               });
           },
           'Program:exit'(node) {

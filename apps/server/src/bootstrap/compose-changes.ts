@@ -17,7 +17,7 @@ import type { ReadTextFileService } from '@porcelain/files/services';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { CommitReaderFactory } from '@porcelain/git/history';
 import type { InspectionFactory } from '@porcelain/git/inspection';
@@ -49,7 +49,7 @@ export function composeChanges(deps: {
   session: StorageSession;
   lanes: Lanes;
   laneKeys: LaneKeys;
-  worktreeAccess: WorktreeAccess<ListedWorktree>;
+  worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
   inventory: { read(): { environmentId: string } };
   inspection: InspectionFactory;

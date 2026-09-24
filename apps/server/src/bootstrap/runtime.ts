@@ -2,7 +2,6 @@ import { rmSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import type { FastifyInstance } from 'fastify';
 import { openApplication, type ServerApplication } from './compose-server.ts';
-import { PerformanceMonotonicClock } from '../adapters/runtime/performance-monotonic-clock.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Job } from '../jobs/job.ts';
@@ -111,10 +110,7 @@ export async function startRuntime(
     dataDirectory: directory,
     pid: process.pid,
   };
-  const lock = await acquireStartupLock(
-    directory,
-    new PerformanceMonotonicClock(),
-  );
+  const lock = await acquireStartupLock(directory);
   try {
     signal.throwIfAborted();
     const probe = await probeOwnerSocket(socketPath);

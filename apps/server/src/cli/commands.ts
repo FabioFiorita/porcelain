@@ -1,4 +1,4 @@
-import type { Clock } from '../ports/clock.ts';
+import type { Clock } from '@porcelain/kernel/ports';
 import { issuePairings, listAccess, revokeAccess } from './access-commands.ts';
 import type { CliCommand } from './arguments.ts';
 import { serveHelp } from './help.ts';

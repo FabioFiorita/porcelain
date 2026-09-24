@@ -51,7 +51,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     '.': './src/index.ts',
     ...Object.fromEntries(
       domainPackages
-        .filter((name) => name !== 'files')
+        .filter((name) => name !== 'files' && name !== 'changes')
         .map((name) => [`./${name}`, `./src/repositories/${name}/index.ts`]),
     ),
   },
@@ -312,6 +312,7 @@ const everything: readonly Role[] = [
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   transport: new Set([
+    'kernel',
     'installer-api',
     'transport',
     'status-policy',
@@ -329,7 +330,13 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'runtime',
     'server-port',
   ]),
-  installer: new Set(['installer', 'server-port', 'config', 'process-api']),
+  installer: new Set([
+    'installer',
+    'server-port',
+    'config',
+    'kernel',
+    'process-api',
+  ]),
   'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),
   'rule-api': new Set(['rule']),

@@ -35,7 +35,6 @@ import {
   createProjectRemovalStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
-import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
 import type { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
@@ -72,7 +71,7 @@ export type ProjectsDependencies = {
   clock: Clock;
   idSource: IdSource;
   worktreeStatusStore: WorktreeStatusStore;
-  projectFolderReader?: ProjectFolderReader | undefined;
+  projectFolderReader: ProjectFolderReader;
   projectHome: string;
   worktreeDirectory: GitProjectWorktreeReader;
 };
@@ -82,8 +81,7 @@ export function composeProjects(deps: ProjectsDependencies) {
   const inventory = createInventoryStore(deps.session);
   const worktreePresence = createWorktreePresenceStore(deps.session);
   const filePreference = createFilePreferenceStore(deps.session);
-  const projectFolderReader =
-    deps.projectFolderReader ?? new FilesystemProjectFolderReader();
+  const { projectFolderReader } = deps;
   const projectRepositoryReader = new GitProjectRepositoryReader(deps.git);
   const { worktreeDirectory } = deps;
 

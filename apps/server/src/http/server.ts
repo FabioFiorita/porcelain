@@ -7,12 +7,10 @@ import {
 import websocket from '@fastify/websocket';
 import type { Principal } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
-import { PerformanceMonotonicClock } from '../adapters/runtime/performance-monotonic-clock.ts';
 import { FilesystemWebRootFiles } from '../adapters/web/filesystem-web-root-files.ts';
 import type { ServerApplication } from '../bootstrap/compose-server.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import { handleError } from './error-handler.ts';
-import { AttemptLimit } from './hooks/attempt-limit.ts';
 import { callerOf } from './principal.ts';
 import { apiScope } from './scopes/api.ts';
 import { pageScope } from './scopes/page.ts';
@@ -64,7 +62,6 @@ export function createNetworkServer(options: NetworkServerOptions) {
     prefix: '/api',
     application,
     allowedHosts,
-    attemptLimit: new AttemptLimit(new PerformanceMonotonicClock()),
     pingMs: settings.limits.liveUpdates.pingMs,
   });
   server.register(pageScope, {

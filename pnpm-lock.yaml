@@ -397,9 +397,6 @@ importers:
       '@porcelain/access':
         specifier: workspace:*
         version: link:../access
-      '@porcelain/changes':
-        specifier: workspace:*
-        version: link:../changes
       '@porcelain/git-actions':
         specifier: workspace:*
         version: link:../git-actions

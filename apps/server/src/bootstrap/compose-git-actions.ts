@@ -20,7 +20,7 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import {
   CheckProjectService,
@@ -70,7 +70,7 @@ export type GitActionsDependencies = {
   lanes: Lanes;
   laneKeys: LaneKeys;
   events: EventPublisher;
-  worktreeAccess: WorktreeAccess<ListedWorktree>;
+  worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
   actionGit: GitActionWriterFactory;
   fileReader: Pick<FileReader, 'readText'>;

@@ -7,7 +7,6 @@ import type {
   ReviewStep,
   ReviewTextRead,
 } from '@porcelain/reviews/models';
-import { ScriptedInstantSource } from '../../spec/fakes/scripted-instant-source.ts';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
 import { GeneratePublishedReviewService } from './generate-published-review-service.ts';
 
@@ -81,7 +80,6 @@ function text(path: string, content: string): ReviewTextRead {
 
 const service = new GeneratePublishedReviewService(
   new FixedClock('2026-01-01T00:00:00.000Z'),
-  new ScriptedInstantSource(),
   new ScriptedSignatureSource(),
   { lifetimeMs: 3_600_000 },
 );
@@ -203,7 +201,7 @@ describe('GeneratePublishedReviewService', () => {
   });
 
   it('signs a summary link that expires one lifetime after now', () => {
-    const expires = '2026-01-01T00:00:00.000Z+3600000';
+    const expires = '2026-01-01T01:00:00.000Z';
     const url = new URL(generate(stillChanged).summary.url, 'http://x');
     expect(url.pathname).toBe(`/review-summaries/${token}`);
     expect(url.searchParams.get('expires')).toBe(expires);

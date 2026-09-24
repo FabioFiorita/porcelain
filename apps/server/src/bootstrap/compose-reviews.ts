@@ -31,7 +31,6 @@ import {
   createReviewStore,
 } from '@porcelain/storage/reviews';
 import type { LiveUpdatesLimits } from '../adapters/events/web-socket-event-publisher.ts';
-import { DateInstantSource } from '../adapters/reviews/date-instant-source.ts';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
 import { RandomSecretSource } from '../adapters/reviews/random-secret-source.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
@@ -122,7 +121,6 @@ export function composeReviews(deps: {
   const listReviewEvidence = new ListReviewEvidenceService();
   const generatePublishedReview = new GeneratePublishedReviewService(
     clock,
-    new DateInstantSource(),
     signatureSource,
     limits.summaryLink,
   );

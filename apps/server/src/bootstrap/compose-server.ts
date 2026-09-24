@@ -19,19 +19,24 @@ import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { CheckWorktreeService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
 import { createDeviceStore } from '@porcelain/storage/access';
-import { createWorktreeStatusStore } from '@porcelain/storage/changes';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
-import { createInventoryStore } from '@porcelain/storage/projects';
+import {
+  createInventoryStore,
+  createWorktreeStatusStore,
+} from '@porcelain/storage/projects';
 import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
+import { HeldDeviceConnections } from '../adapters/access/held-device-connections.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
+import { InMemoryDeviceSightingStore } from '../adapters/access/in-memory-device-sighting-store.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
 import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
+import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
 import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
-import { GitWorktreeAccess } from '../adapters/projects/git-worktree-access.ts';
+import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
@@ -96,7 +101,7 @@ export async function openApplication(
     timeoutMs: limits.inventory.listingTimeoutMs,
     worktreeId: deriveWorktreeId,
   });
-  const worktreeAccess = new GitWorktreeAccess(
+  const worktreeAccess = new GitWorktreeAccessReader(
     worktreeDirectory,
     inventoryStore,
   );
@@ -117,7 +122,7 @@ export async function openApplication(
     }),
     limits.liveUpdates,
   );
-  const devices = new CachedDeviceStore(createDeviceStore(session));
+  const deviceConnections = new HeldDeviceConnections();
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
     createGitActionStore(session),
   );
@@ -125,12 +130,14 @@ export async function openApplication(
   const access = composeAccess({
     session,
     lanes,
-    deviceStore: devices,
-    deviceActivityStore: devices,
+    deviceStore: new CachedDeviceStore(createDeviceStore(session)),
+    deviceSightingStore: new InMemoryDeviceSightingStore(),
+    deviceConnections,
     pairingReachReader: new HttpPairingReachReader(dependencies.pairingReach),
     runtimeStatusReader: new ProcessRuntimeStatusReader(
       dependencies.runtimeStatus,
     ),
+    pairingAttemptLimits: limits.pairingAttempts,
   });
   const projects = composeProjects({
     session,
@@ -141,6 +148,7 @@ export async function openApplication(
     clock,
     idSource: ids,
     worktreeStatusStore: createWorktreeStatusStore(session),
+    projectFolderReader: new FilesystemProjectFolderReader(),
     projectHome: settings.projectHome,
     worktreeDirectory,
   });
@@ -214,10 +222,9 @@ export async function openApplication(
     gitActions,
     liveUpdates: events,
     worktreeWatches,
-    devices,
+    deviceConnections,
     jobs,
     close: async () => {
-      devices.flush();
       await events.close();
       await lanes.close();
     },

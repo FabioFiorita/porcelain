@@ -13,7 +13,7 @@ describe('parseCommitRecords', () => {
           '847c4a56aa33b6452cc83525965eb3a8463d2658',
           '51461c37b4684d691ef47cc707936a782af61d13',
         ],
-        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'merge',
         subjectTruncated: false,
         body: null,
@@ -23,7 +23,7 @@ describe('parseCommitRecords', () => {
       {
         oid: '51461c37b4684d691ef47cc707936a782af61d13',
         parentOids: ['55a7889b7826882e28bdf4641cc6f09db55b3a2c'],
-        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'upstream two',
         subjectTruncated: false,
         body: 'Body line',
@@ -33,7 +33,7 @@ describe('parseCommitRecords', () => {
       {
         oid: '55a7889b7826882e28bdf4641cc6f09db55b3a2c',
         parentOids: ['aa1c1b46ec8e9f679d429c3f9c8f647d341654f8'],
-        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'upstream one',
         subjectTruncated: false,
         body: null,
@@ -43,7 +43,7 @@ describe('parseCommitRecords', () => {
       {
         oid: '847c4a56aa33b6452cc83525965eb3a8463d2658',
         parentOids: ['aa1c1b46ec8e9f679d429c3f9c8f647d341654f8'],
-        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'ahead',
         subjectTruncated: false,
         body: null,
@@ -53,7 +53,7 @@ describe('parseCommitRecords', () => {
       {
         oid: 'aa1c1b46ec8e9f679d429c3f9c8f647d341654f8',
         parentOids: [],
-        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        author: { name: 'T', timestamp: '2026-09-23T19:00:17-03:00' },
         subject: 'base',
         subjectTruncated: false,
         body: null,

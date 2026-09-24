@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import * as parcelWatcher from '@parcel/watcher';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type {
   ListableProject,
   ListedWorktree,
@@ -55,13 +55,13 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
 
 export class ParcelWorktreeWatcher implements WorktreeWatcher {
   private readonly worktrees: Pick<
-    WorktreeAccess<ListedWorktree>,
+    WorktreeAccessReader<ListedWorktree>,
     'forWriting'
   >;
   private readonly projects: () => readonly ListableProject[];
 
   constructor(options: {
-    worktrees: Pick<WorktreeAccess<ListedWorktree>, 'forWriting'>;
+    worktrees: Pick<WorktreeAccessReader<ListedWorktree>, 'forWriting'>;
     projects: () => readonly ListableProject[];
   }) {
     this.worktrees = options.worktrees;
@@ -69,7 +69,7 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
   }
 
   async findWorktree(worktreeId: string): Promise<WatchedWorktree | undefined> {
-    const check = await this.worktrees.forWriting(worktreeId);
+    const check = await this.worktrees.forWriting({ worktreeId });
     if (check.kind !== 'found') return undefined;
     return {
       projectId: check.worktree.projectId,

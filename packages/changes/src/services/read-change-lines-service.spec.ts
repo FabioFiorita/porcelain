@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { InvalidLineRangeError } from '../errors/invalid-line-range-error.ts';
+import { InvalidLineRangeError } from '@porcelain/changes/errors';
 import { ReadChangeLinesService } from './read-change-lines-service.ts';
 
 const text = 'one\ntwo\nthree\n';

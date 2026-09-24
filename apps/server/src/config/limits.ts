@@ -13,6 +13,12 @@ export type Limits = {
     bytesPerWorktree: number;
   };
   presence: { graceMs: number };
+  pairingAttempts: {
+    windowMs: number;
+    attemptsPerPeer: number;
+    attemptsOverall: number;
+    maxPeers: number;
+  };
   receipts: { retentionMs: number };
   inventory: { listingLaunches: number; listingTimeoutMs: number };
   lanes: { readCapacity: number; operationTimeoutMs: number };
@@ -36,6 +42,12 @@ export const LIMITS: Limits = {
     bytesPerWorktree: MEBIBYTE,
   },
   presence: { graceMs: 30 * DAY_MS },
+  pairingAttempts: {
+    windowMs: MINUTE_MS,
+    attemptsPerPeer: 10,
+    attemptsOverall: 60,
+    maxPeers: 1024,
+  },
   receipts: { retentionMs: 30 * DAY_MS },
   inventory: { listingLaunches: 4, listingTimeoutMs: 5 * SECOND_MS },
   lanes: { readCapacity: 4, operationTimeoutMs: 30 * SECOND_MS },

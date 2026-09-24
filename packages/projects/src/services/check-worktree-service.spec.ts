@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ScriptedWorktreeAccess } from '@porcelain/kernel/fakes';
+import { ScriptedWorktreeAccessReader } from '@porcelain/kernel/fakes';
 import {
   WorktreeNotFoundError,
   WorktreeUnavailableError,
@@ -9,7 +9,7 @@ import { CheckWorktreeService } from './check-worktree-service.ts';
 const worktree = { id: 'worktree-1', projectId: 'project-1' };
 
 function setup() {
-  const access = new ScriptedWorktreeAccess();
+  const access = new ScriptedWorktreeAccessReader();
   return { access, service: new CheckWorktreeService(access) };
 }
 

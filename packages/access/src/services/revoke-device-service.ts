@@ -3,14 +3,21 @@ import type {
   RevokeDeviceInput,
   RevokeDeviceResult,
 } from '../models/revoke-device.ts';
+import type { DeviceSightingStore } from '../ports/device-sighting-store.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 
 export class RevokeDeviceService {
   private readonly devices: DeviceStore;
+  private readonly deviceSightings: DeviceSightingStore;
   private readonly clock: Clock;
 
-  constructor(devices: DeviceStore, clock: Clock) {
+  constructor(
+    devices: DeviceStore,
+    deviceSightings: DeviceSightingStore,
+    clock: Clock,
+  ) {
     this.devices = devices;
+    this.deviceSightings = deviceSightings;
     this.clock = clock;
   }
 
@@ -19,6 +26,7 @@ export class RevokeDeviceService {
     if (!device || device.revokedAt !== undefined)
       return { kind: 'not-revoked' };
     this.devices.markRevoked({ device, revokedAt: this.clock.now() });
+    this.deviceSightings.remove({ deviceId: device.id });
     return { kind: 'revoked' };
   }
 }

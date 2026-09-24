@@ -1,12 +1,15 @@
 import { RepositoryIdentityMismatchError } from '@porcelain/git/discovery';
 import type { CheckoutSession, GitSession } from '@porcelain/git/inspection';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 
-export type KnownWorktrees = Pick<WorktreeAccess<ListedWorktree>, 'known'>;
+export type KnownWorktrees = Pick<
+  WorktreeAccessReader<ListedWorktree>,
+  'known'
+>;
 
 export type WritableWorktrees = Pick<
-  WorktreeAccess<ListedWorktree>,
+  WorktreeAccessReader<ListedWorktree>,
   'forWriting'
 >;
 
@@ -20,7 +23,7 @@ export async function knownWorktree(
   worktreeId: string,
   signal?: AbortSignal,
 ): Promise<ListedWorktree> {
-  const check = await worktrees.known(worktreeId, signal);
+  const check = await worktrees.known({ worktreeId }, signal);
   if (check.kind !== 'found') throw new RepositoryIdentityMismatchError();
   return check.worktree;
 }
@@ -30,7 +33,7 @@ export async function reachableWorktree(
   worktreeId: string,
   signal?: AbortSignal,
 ): Promise<ListedWorktree> {
-  const check = await worktrees.forWriting(worktreeId, signal);
+  const check = await worktrees.forWriting({ worktreeId }, signal);
   if (check.kind !== 'found') throw new RepositoryIdentityMismatchError();
   return check.worktree;
 }

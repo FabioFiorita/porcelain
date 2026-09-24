@@ -125,7 +125,7 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
     signal?: AbortSignal,
   ): Promise<CommitReader> {
     signal?.throwIfAborted();
-    const check = await this.worktrees.forWriting(worktreeId, signal);
+    const check = await this.worktrees.forWriting({ worktreeId }, signal);
     if (check.kind !== 'found') throw new HistoryWorktreeUnavailableError();
     const { worktree } = check;
     return this.git({
@@ -143,7 +143,10 @@ function summary(commit: GitCommitSummary): CommitSummary {
   return {
     oid: commit.oid,
     parentOids: commit.parentOids,
-    author: commit.author,
+    author: {
+      name: commit.author.name,
+      timestamp: new Date(commit.author.timestamp).toISOString(),
+    },
     subject: commit.subject,
     subjectTruncated: commit.subjectTruncated,
     body: commit.body ?? undefined,

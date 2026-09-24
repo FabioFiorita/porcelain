@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredDevice } from '@porcelain/access/models';
 import { credential, hashSecret } from '@porcelain/access/rules';
+import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { AuthenticateDeviceService } from './authenticate-device-service.ts';
 
@@ -23,12 +24,14 @@ function setup(device: Partial<StoredDevice> = {}) {
     secretHash: hashSecret(secret),
     ...device,
   });
+  const sightings = new InMemoryDeviceSightingStore();
   const clock = new FixedClock('2026-09-23T10:00:05.000Z');
-  const service = new AuthenticateDeviceService(devices, clock, {
+  const service = new AuthenticateDeviceService(devices, sightings, clock, {
     unusedLifetimeMs,
   });
   return {
     devices,
+    sightings,
     clock,
     service,
     token: credential('pcd', deviceId, secret).token,
@@ -47,28 +50,40 @@ describe('AuthenticateDeviceService', () => {
     );
   });
 
-  it('records when and from where the device was last seen', () => {
-    const { devices, clock, service, token } = setup();
+  it('keeps when and from where the device was last seen as a pending sighting, not yet stored', () => {
+    const { devices, sightings, clock, service, token } = setup();
     service.execute({ credential: token, address: '192.168.1.40' });
-    expect(devices.find({ deviceId })).toMatchObject({
+    expect(sightings.find({ deviceId })).toMatchObject({
       lastSeenAt: '2026-09-23T10:00:05.000Z',
       lastSeenAddress: '192.168.1.40',
     });
-    clock.advance(1000);
+    expect(devices.find({ deviceId })?.lastSeenAt).toBe(lastSeenAt);
+    clock.set('2026-09-23T10:00:06.000Z');
     service.execute({ credential: token });
-    expect(devices.find({ deviceId })?.lastSeenAt).toBe(
+    expect(sightings.find({ deviceId })?.lastSeenAt).toBe(
       '2026-09-23T10:00:06.000Z',
     );
-    expect(devices.find({ deviceId })?.lastSeenAddress).toBeUndefined();
+    expect(sightings.find({ deviceId })?.lastSeenAddress).toBeUndefined();
   });
 
   it('leaves the last sighting alone when no time has passed', () => {
-    const { devices, clock, service, token } = setup();
+    const { sightings, clock, service, token } = setup();
     clock.set(lastSeenAt);
     expect(service.execute({ credential: token, address: '10.0.0.1' })).toEqual(
       { kind: 'authenticated', deviceId },
     );
-    expect(devices.find({ deviceId })?.lastSeenAddress).toBe('192.168.1.30');
+    expect(sightings.find({ deviceId })).toBeUndefined();
+  });
+
+  it('measures the unused lifetime from the pending sighting when there is one', () => {
+    const { sightings, clock, service, token } = setup();
+    service.execute({ credential: token });
+    clock.set(at('2026-09-23T10:00:05.000Z', unusedLifetimeMs - 1));
+    expect(sightings.find({ deviceId })).toBeDefined();
+    expect(service.execute({ credential: token })).toEqual({
+      kind: 'authenticated',
+      deviceId,
+    });
   });
 
   it('refuses a malformed credential, a pairing code, an unknown device and a wrong secret', () => {
@@ -122,9 +137,9 @@ describe('AuthenticateDeviceService', () => {
 
   it('keeps a device usable while it authenticates again within its lifetime', () => {
     const { clock, service, token } = setup();
-    clock.advance(89 * day);
+    clock.set('2026-12-21T10:00:05.000Z');
     service.execute({ credential: token });
-    clock.advance(89 * day);
+    clock.set('2027-03-20T10:00:05.000Z');
     expect(service.execute({ credential: token })).toEqual({
       kind: 'authenticated',
       deviceId,

@@ -1,3 +1,3 @@
 export { FixedClock } from './fixed-clock.ts';
-export { ScriptedWorktreeAccess } from './scripted-worktree-access.ts';
+export { ScriptedWorktreeAccessReader } from './scripted-worktree-access-reader.ts';
 export { SequentialIdSource } from './sequential-id-source.ts';

@@ -4,7 +4,6 @@ import type {
   GeneratePublishedReviewResult,
 } from '../models/generate-published-review.ts';
 import type { SummaryLinkLimits } from '../models/resolved-review.ts';
-import type { InstantSource } from '../ports/instant-source.ts';
 import type { SignatureSource } from '../ports/signature-source.ts';
 import {
   resolveLayer,
@@ -13,6 +12,7 @@ import {
 } from '../rules/resolve-review.ts';
 import { reviewDiagnostics } from '../rules/review-diagnostics.ts';
 import {
+  summaryExpiry,
   summaryMessage,
   summaryUrl,
   utf8ByteLength,
@@ -25,18 +25,15 @@ import {
 
 export class GeneratePublishedReviewService {
   private readonly clock: Clock;
-  private readonly instantSource: InstantSource;
   private readonly signatureSource: SignatureSource;
   private readonly limits: SummaryLinkLimits;
 
   constructor(
     clock: Clock,
-    instantSource: InstantSource,
     signatureSource: SignatureSource,
     limits: SummaryLinkLimits,
   ) {
     this.clock = clock;
-    this.instantSource = instantSource;
     this.signatureSource = signatureSource;
     this.limits = limits;
   }
@@ -53,10 +50,7 @@ export class GeneratePublishedReviewService {
     const layers = review.layers.map((layer) =>
       resolveLayer(layer, files, diagnostics.changed),
     );
-    const expires = this.instantSource.after({
-      instant: this.clock.now(),
-      milliseconds: this.limits.lifetimeMs,
-    });
+    const expires = summaryExpiry(this.clock.now(), this.limits.lifetimeMs);
     const signature = this.signatureSource.sign({
       secret: review.summarySecret,
       message: summaryMessage(review.summaryToken, expires),

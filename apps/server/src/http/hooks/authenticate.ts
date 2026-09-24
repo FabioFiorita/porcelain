@@ -1,15 +1,14 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { DeviceConnections } from '../../ports/device-connections.ts';
 import type { AuthenticateDeviceUseCase } from '../../use-cases/access/authenticate-device.ts';
 import { deviceCookie, setDeviceCookie } from './device-cookie.ts';
 
 const AUTHENTICATION_REQUIRED = 'Authentication required';
 
-export type HeldConnection = { close(): void };
-
 export type AuthenticateOptions = {
   access: { authenticateDevice: Pick<AuthenticateDeviceUseCase, 'execute'> };
-  devices: { hold(deviceId: string, connection: HeldConnection): () => void };
+  deviceConnections: Pick<DeviceConnections, 'hold'>;
 };
 
 function credentialOf(request: FastifyRequest): string | undefined {
@@ -28,7 +27,8 @@ export function authenticate(options: AuthenticateOptions) {
     });
     if (!device) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
     request.principal = { kind: 'device', deviceId: device.deviceId };
-    if (!request.ws) holdUntilRevoked(reply, options.devices, device.deviceId);
+    if (!request.ws)
+      holdUntilRevoked(reply, options.deviceConnections, device.deviceId);
     if (deviceCookie(request) === credential)
       setDeviceCookie(reply, credential, request.protocol === 'https');
   };
@@ -36,11 +36,12 @@ export function authenticate(options: AuthenticateOptions) {
 
 function holdUntilRevoked(
   reply: FastifyReply,
-  devices: AuthenticateOptions['devices'],
+  deviceConnections: AuthenticateOptions['deviceConnections'],
   deviceId: string,
 ) {
-  const release = devices.hold(deviceId, {
-    close: () => reply.raw.destroy(),
+  const release = deviceConnections.hold({
+    deviceId,
+    connection: { close: () => reply.raw.destroy() },
   });
   reply.raw.on('close', release);
 }

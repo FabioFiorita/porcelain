@@ -16,6 +16,6 @@ export function clearBrowserSession(
         response: { ...errorResponses, 204: clearBrowserSessionResponseSchema },
       },
     },
-    async () => options.useCase.execute(),
+    async (_request, reply) => reply.code(204).send(options.useCase.execute()),
   );
 }

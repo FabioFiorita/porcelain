@@ -5,6 +5,8 @@ import { isOid } from '../../shared/oid.ts';
 export const COMMIT_FORMAT = '%H%x00%P%x00%an%x00%aI%x00%D%x00%s%x00%b';
 export const COMMIT_FIELDS = 7;
 
+const STRICT_ISO_DATE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/;
 const SUBJECT_LIMIT = 512;
 const BODY_LIMIT = 4096;
 
@@ -21,9 +23,7 @@ export function parseCommitRecord(fields: readonly string[]): CommitSummary {
     !isOid(oid)
   )
     throw new UnsupportedHistoryDataError();
-  const timestamp = new Date(authored);
-  if (!Number.isFinite(timestamp.getTime()))
-    throw new UnsupportedHistoryDataError();
+  if (!STRICT_ISO_DATE.test(authored)) throw new UnsupportedHistoryDataError();
   const shortenedSubject = truncateUtf8(subject, SUBJECT_LIMIT);
   const text = body.replace(/\n+$/u, '');
   const shortenedBody =
@@ -31,7 +31,7 @@ export function parseCommitRecord(fields: readonly string[]): CommitSummary {
   return {
     oid,
     parentOids: parents.split(' ').filter(Boolean),
-    author: { name, timestamp: timestamp.toISOString() },
+    author: { name, timestamp: authored },
     subject: shortenedSubject.value,
     subjectTruncated: shortenedSubject.truncated,
     body: shortenedBody?.value ?? null,

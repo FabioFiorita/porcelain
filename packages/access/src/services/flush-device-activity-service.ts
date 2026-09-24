@@ -1,13 +1,17 @@
-import type { DeviceActivityWriter } from '../ports/device-activity-writer.ts';
+import type { DeviceSightingStore } from '../ports/device-sighting-store.ts';
+import type { DeviceStore } from '../ports/device-store.ts';
 
 export class FlushDeviceActivityService {
-  private readonly deviceActivityWriter: DeviceActivityWriter;
+  private readonly deviceSightings: DeviceSightingStore;
+  private readonly devices: DeviceStore;
 
-  constructor(deviceActivityWriter: DeviceActivityWriter) {
-    this.deviceActivityWriter = deviceActivityWriter;
+  constructor(deviceSightings: DeviceSightingStore, devices: DeviceStore) {
+    this.deviceSightings = deviceSightings;
+    this.devices = devices;
   }
 
   execute(): void {
-    this.deviceActivityWriter.flush();
+    for (const device of this.deviceSightings.take())
+      this.devices.recordSighting({ device });
   }
 }

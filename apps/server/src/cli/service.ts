@@ -6,7 +6,7 @@ import {
   readPackageIdentity,
   type ServiceStatus,
 } from '../installer/index.ts';
-import type { Clock } from '../ports/clock.ts';
+import type { Clock } from '@porcelain/kernel/ports';
 import type { ServiceSettings } from './arguments.ts';
 import { probeOwnerSocket } from './owner-client.ts';
 

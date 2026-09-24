@@ -8,7 +8,7 @@ import {
 } from '@porcelain/files/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
 import { FilesystemFileWriter } from '../adapters/files/filesystem-file-writer.ts';
@@ -40,7 +40,7 @@ export function composeFiles(deps: {
   lanes: Lanes;
   laneKeys: LaneKeys;
   events: EventPublisher;
-  worktreeAccess: WorktreeAccess<ListedWorktree>;
+  worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
 }) {
   const { lanes, laneKeys, events, worktreeAccess, checkWorktree } = deps;

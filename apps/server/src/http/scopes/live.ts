@@ -31,7 +31,7 @@ export async function liveScope(
   );
   server.addHook('onRequest', authenticate(application));
   server.register(liveUpdates, {
-    devices: application.devices,
+    deviceConnections: application.deviceConnections,
     liveUpdates: application.liveUpdates,
     worktreeWatches: application.worktreeWatches,
     pingMs: options.pingMs,

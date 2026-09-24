@@ -8,6 +8,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import type { RunGitActionUseCase } from '../../../use-cases/git-actions/run-git-action.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
+import { gitActionReceiptStatus } from '../../status-policy.ts';
 
 export function runAction(
   server: FastifyInstance,
@@ -29,10 +30,12 @@ export function runAction(
         },
       },
     },
-    (request) =>
-      options.useCase.execute(
+    async (request, reply) => {
+      const receipt = await options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
-      ),
+      );
+      return reply.code(gitActionReceiptStatus(receipt)).send(receipt);
+    },
   );
 }

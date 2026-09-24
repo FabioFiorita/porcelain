@@ -1,5 +1,4 @@
 import type { FastifyInstance } from 'fastify';
-import type { AttemptLimit } from '../hooks/attempt-limit.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
 import { preventCaching } from '../hooks/prevent-caching.ts';
 import {
@@ -21,7 +20,6 @@ export async function apiScope(
   options: {
     application: ApiUseCases;
     allowedHosts: readonly string[];
-    attemptLimit: AttemptLimit;
     pingMs: number;
   },
 ) {
@@ -37,10 +35,7 @@ export async function apiScope(
       'onRequest',
       checkRequestOrigin({ access: application.access, allowedHosts }),
     );
-    http.register(publicScope, {
-      application,
-      attemptLimit: options.attemptLimit,
-    });
+    http.register(publicScope, { application });
     http.register(pairedScope, { application });
   });
 }

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { performance } from 'node:perf_hooks';
 import type { Readable } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -95,9 +96,9 @@ export async function runCommand(
 }
 
 async function groupEnds(pid: number, withinMs: number): Promise<boolean> {
-  const deadline = Date.now() + withinMs;
+  const deadline = performance.now() + withinMs;
   while (signalGroup(pid, 0)) {
-    if (Date.now() >= deadline) return false;
+    if (performance.now() >= deadline) return false;
     await delay(10);
   }
   return true;

@@ -36,10 +36,9 @@ export async function requireBrowserRequest(request: FastifyRequest) {
     throw httpErrors.forbidden('Browser request header required');
 }
 
-export async function endBrowserSession(
+export async function clearBrowserCredential(
   _request: FastifyRequest,
   reply: FastifyReply,
 ) {
   clearDeviceCookie(reply);
-  reply.code(204);
 }

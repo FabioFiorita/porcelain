@@ -22,20 +22,27 @@ export class FlushDeviceActivityJob implements Job {
   }
 
   start(): void {
-    this.stop();
-    this.timer = setInterval(() => this.flush(), this.options.intervalMs);
+    clearInterval(this.timer);
+    this.timer = setInterval(
+      () => this.flushInBackground(),
+      this.options.intervalMs,
+    );
     this.timer.unref();
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     if (this.timer === undefined) return;
     clearInterval(this.timer);
     this.timer = undefined;
-    this.flush();
+    await this.flush();
   }
 
-  private flush(): void {
-    this.flushDeviceActivity
+  private flushInBackground(): void {
+    this.flush().catch(() => undefined);
+  }
+
+  private flush(): Promise<void> {
+    return this.flushDeviceActivity
       .execute({})
       .catch((error: unknown) =>
         this.events.jobFailed('flush-device-activity', error),

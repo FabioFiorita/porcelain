@@ -39,7 +39,7 @@ describe('RevokePairingGrantService', () => {
   it('keeps the first revocation time when the grant is revoked again', () => {
     const { grants, clock, service } = setup();
     service.execute({ id: 'grant' });
-    clock.advance(60_000);
+    clock.set('2026-09-23T10:06:00.000Z');
     expect(service.execute({ id: 'grant' })).toEqual({ kind: 'not-revoked' });
     expect(grants.find({ grantId: 'grant' })?.revokedAt).toBe(
       '2026-09-23T10:05:00.000Z',

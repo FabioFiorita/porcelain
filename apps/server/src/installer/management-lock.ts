@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Clock } from '../ports/clock.ts';
+import type { Clock } from '@porcelain/kernel/ports';
 import { ManagementLockHeldError } from './errors/management-lock-held-error.ts';
 import { ManagementLockUnavailableError } from './errors/management-lock-unavailable-error.ts';
 import { errorCode, readJsonFile, writeJsonFile } from './json-file.ts';

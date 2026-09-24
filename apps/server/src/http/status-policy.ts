@@ -5,6 +5,7 @@ import {
   InvalidPairingAddressError,
   InvalidPairingError,
   MissingEnvironmentIdentityError,
+  TooManyPairingAttemptsError,
 } from '@porcelain/access/errors';
 import {
   CommitNotFoundError,
@@ -209,6 +210,7 @@ const rules: readonly StatusRule[] = [
     message: 'The review changed; reload before retrying',
   },
   { errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE], statusCode: 413 },
+  { errors: [TooManyPairingAttemptsError], statusCode: 429 },
   {
     errors: [InspectionLimitError],
     statusCode: 413,

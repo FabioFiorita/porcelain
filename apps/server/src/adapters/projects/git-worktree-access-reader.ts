@@ -1,10 +1,10 @@
 import type { WorktreeCheck } from '@porcelain/kernel/models';
-import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
 import type { GitProjectWorktreeReader } from './git-project-worktree-reader.ts';
 
-export class GitWorktreeAccess implements WorktreeAccess<ListedWorktree> {
+export class GitWorktreeAccessReader implements WorktreeAccessReader<ListedWorktree> {
   private readonly worktreeDirectory: Pick<GitProjectWorktreeReader, 'find'>;
   private readonly inventory: Pick<InventoryStore, 'read'>;
 
@@ -17,11 +17,11 @@ export class GitWorktreeAccess implements WorktreeAccess<ListedWorktree> {
   }
 
   async known(
-    worktreeId: string,
+    input: { worktreeId: string },
     signal?: AbortSignal,
   ): Promise<WorktreeCheck<ListedWorktree>> {
     const { worktree, unlisted } = await this.worktreeDirectory.find(
-      worktreeId,
+      input.worktreeId,
       signal,
     );
     if (worktree) return { kind: 'found', worktree };
@@ -29,10 +29,10 @@ export class GitWorktreeAccess implements WorktreeAccess<ListedWorktree> {
   }
 
   async forWriting(
-    worktreeId: string,
+    input: { worktreeId: string },
     signal?: AbortSignal,
   ): Promise<WorktreeCheck<ListedWorktree>> {
-    const check = await this.known(worktreeId, signal);
+    const check = await this.known(input, signal);
     if (check.kind !== 'found') return check;
     const project = this.inventory
       .read()
