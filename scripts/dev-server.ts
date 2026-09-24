@@ -53,12 +53,14 @@ try {
     throw new Error('The isolated development server requires Linux and bwrap');
   const node = realpathSync(process.execPath);
   const git = hostExecutable('git');
+  const bwrap = hostExecutable('bwrap');
   const gitExecPath = realpathSync(
     execFileSync(git, ['--exec-path'], { encoding: 'utf8' }).trim(),
   );
   const tools = [...new Set([dirname(node), dirname(git), gitExecPath])];
+  const gitOnlyPath = '/opt/porcelain/bin';
   const child = spawn(
-    'bwrap',
+    bwrap,
     [
       '--die-with-parent',
       '--unshare-pid',
@@ -75,6 +77,11 @@ try {
       '--tmpfs',
       '/home',
       ...tools.flatMap(readOnly),
+      '--dir',
+      gitOnlyPath,
+      '--symlink',
+      git,
+      join(gitOnlyPath, 'git'),
       '--ro-bind',
       repositoryRoot,
       '/workspace',
@@ -94,7 +101,7 @@ try {
       detached: true,
       stdio: 'inherit',
       env: {
-        PATH: [dirname(git), '/usr/bin', '/bin'].join(delimiter),
+        PATH: gitOnlyPath,
         HOME: root,
         TMPDIR: root,
         PORCELAIN_DEV_ROOT: root,
