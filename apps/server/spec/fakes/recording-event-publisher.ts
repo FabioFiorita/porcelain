@@ -6,7 +6,7 @@ import type {
   WorktreeChangedNotice,
 } from '../../src/ports/event-publisher.ts';
 
-export class InMemoryEventPublisher implements EventPublisher {
+export class RecordingEventPublisher implements EventPublisher {
   private readonly files = new Map<string, readonly string[]>();
   private readonly worktrees = new Map<string, string>();
 

@@ -1,3 +1,4 @@
+import { gitDirectoryName } from '@porcelain/kernel/rules';
 import {
   EditFileService,
   ListDirectoryService,
@@ -40,7 +41,9 @@ export function composeFiles(
     listDirectory: new ListDirectoryUseCase(
       checkWorktree,
       new ListDirectoryService(
-        new FilesystemDirectoryReader(worktreeAccess),
+        new FilesystemDirectoryReader(worktreeAccess, {
+          gitDirectory: gitDirectoryName(),
+        }),
         new GitIgnoredEntriesReader(worktreeAccess),
         limits.listDirectory,
       ),

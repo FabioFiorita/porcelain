@@ -1,6 +1,7 @@
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { ConfirmWorktreeService } from '@porcelain/projects/services';
+import { gitDirectoryName } from '@porcelain/kernel/rules';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { openStorageSession } from '@porcelain/storage';
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
@@ -97,7 +98,9 @@ export const openServer: OpenServer = async (input) => {
   const projects = composeProjects(context, {
     stores,
     shared,
-    projectFolderReader: new FilesystemProjectFolderReader(),
+    projectFolderReader: new FilesystemProjectFolderReader({
+      gitDirectory: gitDirectoryName(),
+    }),
   });
   const { checkWorktree } = projects;
   const changes = composeChanges(context, { shared, checkWorktree });
@@ -114,6 +117,7 @@ export const openServer: OpenServer = async (input) => {
     new ParcelWorktreeWatcher({
       worktrees: shared.worktreeAccess,
       projects: () => catalog.listObservations(),
+      gitDirectory: gitDirectoryName(),
     }),
     logger,
     limits.liveUpdates,

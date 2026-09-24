@@ -15,7 +15,7 @@ const commitPlanSchema = z.strictObject({
 });
 
 export const commitPlanOutputSchema = JSON.stringify(
-  z.toJSONSchema(commitPlanSchema),
+  z.toJSONSchema(commitPlanSchema, { target: 'draft-7' }),
 );
 
 export function parseCommitPlan(answer: unknown): CommitProposalGroup[] {

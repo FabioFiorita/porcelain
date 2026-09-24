@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { InMemoryEventPublisher } from '../../../spec/fakes/in-memory-event-publisher.ts';
-import { InMemoryInventoryRefresh } from '../../../spec/fakes/in-memory-inventory-refresh.ts';
+import { RecordingEventPublisher } from '../../../spec/fakes/recording-event-publisher.ts';
+import { RecordingInventoryRefresh } from '../../../spec/fakes/recording-inventory-refresh.ts';
 import { InMemoryReviewedMarks } from '../../../spec/fakes/in-memory-reviewed-marks.ts';
 import { InMemoryWorktreeWatcher } from '../../../spec/fakes/in-memory-worktree-watcher.ts';
 import { WatchWorktrees } from './watch-worktrees.ts';
@@ -31,9 +31,9 @@ function subject(
       { projectId: PROJECT, commonDirectory: '/repositories/one/.git' },
     ],
   });
-  const events = new InMemoryEventPublisher();
+  const events = new RecordingEventPublisher();
   const marks = new InMemoryReviewedMarks({ one: MARKED }, invalidated);
-  const refresh = new InMemoryInventoryRefresh();
+  const refresh = new RecordingInventoryRefresh();
   const watches = new WatchWorktrees(
     marks,
     refresh,

@@ -4,14 +4,16 @@ import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import {
-  issuePairingResponseSchema,
-  redeemPairingResponseSchema,
-} from '@porcelain/contracts/access';
+import { z } from 'zod';
 import { startServer } from '../apps/server/src/bootstrap/compose-server.ts';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
 import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
 import type { Runtime } from '../apps/server/src/runtime/start-application.ts';
+
+const issuedPairingSchema = z.object({
+  grants: z.array(z.object({ code: z.string() })),
+});
+const redeemedPairingSchema = z.object({ credential: z.string().optional() });
 
 const execute = promisify(execFile);
 const shutdown = new AbortController();
@@ -166,7 +168,7 @@ try {
     },
     shutdown.signal,
   );
-  const [grant] = issuePairingResponseSchema.parse(
+  const [grant] = issuedPairingSchema.parse(
     await askOwner(state, 'POST', '/pairings', {
       labels: [fixture.device.label],
       addresses: [new URL(server.address).origin],
@@ -184,7 +186,7 @@ try {
   });
   if (!paired.ok)
     throw new Error(`Development pairing failed: ${paired.status}`);
-  const pairing = redeemPairingResponseSchema.parse(await paired.json());
+  const pairing = redeemedPairingSchema.parse(await paired.json());
   const credential = pairing.credential;
   if (credential === undefined || credential === '')
     throw new Error('Development pairing returned no credential');

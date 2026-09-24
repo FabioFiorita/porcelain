@@ -60,13 +60,16 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
 export class ParcelWorktreeWatcher implements WorktreeWatcher {
   private readonly worktrees: WorktreeAccessReader<ListedWorktree>;
   private readonly projects: () => readonly ListableProject[];
+  private readonly gitDirectory: string;
 
   constructor(options: {
     worktrees: WorktreeAccessReader<ListedWorktree>;
     projects: () => readonly ListableProject[];
+    gitDirectory: string;
   }) {
     this.worktrees = options.worktrees;
     this.projects = options.projects;
+    this.gitDirectory = options.gitDirectory;
   }
 
   async findWorktree(
@@ -152,7 +155,7 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
       {
         ...backend(),
         ignore: [
-          join(state.root, '.git'),
+          join(state.root, this.gitDirectory),
           ...ignored.map((path) => join(state.root, path)),
         ],
       },

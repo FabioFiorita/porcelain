@@ -42,6 +42,12 @@ function hasCode(error: unknown, codes: readonly string[]): boolean {
 }
 
 export class FilesystemProjectFolderReader implements ProjectFolderReader {
+  private readonly options: { gitDirectory: string };
+
+  constructor(options: { gitDirectory: string }) {
+    this.options = options;
+  }
+
   async read(
     input: ReadProjectFolderInput,
     signal?: AbortSignal,
@@ -166,7 +172,7 @@ export class FilesystemProjectFolderReader implements ProjectFolderReader {
       )
         directories.push({ name, path: child, symbolicLink });
     }
-    const gitMarker = await lstat(join(path, '.git')).then(
+    const gitMarker = await lstat(join(path, this.options.gitDirectory)).then(
       (info) => info.isDirectory() || info.isFile(),
       (error: unknown) => {
         if (hasCode(error, ['ENOENT', 'EACCES', 'EPERM'])) return false;

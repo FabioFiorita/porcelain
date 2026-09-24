@@ -422,15 +422,6 @@ const numberFreeFile = new RegExp(
 );
 const rootScriptFile = /^scripts\/[^/]+\.ts$/;
 const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
-const membershipMethods = new Set([
-  'includes',
-  'has',
-  'indexOf',
-  'lastIndexOf',
-  'startsWith',
-  'endsWith',
-  'localeCompare',
-]);
 const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
 const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
@@ -1475,36 +1466,21 @@ export default {
       create(context) {
         if (!adapterFile.test(repositoryPath(context)) || isSpec(context))
           return {};
-        const gitDirectory = (node) =>
-          staticString(node, context)?.toLowerCase() === '.git';
         const message =
-          'An adapter reports every entry; whether .git is shown is a domain rule the service applies.';
+          'An adapter reports every entry and never names .git: whether the Git folder is shown is a rule the service applies, and an adapter that must look for it takes the name from gitDirectoryName() through its options.';
+        const check = (node) => {
+          if (staticString(node, context)?.toLowerCase() === '.git')
+            context.report({ node, message });
+        };
         return {
+          Literal: check,
+          TemplateLiteral: check,
           BinaryExpression(node) {
             if (
-              ['===', '!==', '==', '!='].includes(node.operator) &&
-              (gitDirectory(node.left) || gitDirectory(node.right))
+              node.operator === '+' &&
+              node.parent?.type !== 'BinaryExpression'
             )
-              context.report({ node, message });
-          },
-          ArrayExpression(node) {
-            if (node.elements.some(gitDirectory))
-              context.report({ node, message });
-          },
-          SwitchCase(node) {
-            if (gitDirectory(node.test)) context.report({ node, message });
-          },
-          VariableDeclarator(node) {
-            if (gitDirectory(node.init)) context.report({ node, message });
-          },
-          CallExpression(node) {
-            if (
-              node.callee.type === 'MemberExpression' &&
-              membershipMethods.has(propertyName(node.callee, context) ?? '') &&
-              (gitDirectory(node.callee.object) ||
-                node.arguments.some(gitDirectory))
-            )
-              context.report({ node, message });
+              check(node);
           },
         };
       },
@@ -1519,11 +1495,14 @@ export default {
           const target = source.startsWith('.')
             ? posix.join(posix.dirname(path), source)
             : source;
-          if (target.startsWith('packages/'))
+          if (
+            target.startsWith('packages/') ||
+            target.startsWith('@porcelain/')
+          )
             context.report({
               node: node.source ?? node,
               message:
-                'A root script imports node, libraries, other scripts, architecture/ and the server app only; a package is reached through the server or its package name, never by a path into packages/.',
+                'A root script imports node, libraries, other scripts, architecture/ and the server app only; it never imports a package, by name or by a path into packages/: take what it needs from the server app or declare it in the script.',
             });
         });
       },
@@ -2539,6 +2518,7 @@ export default {
           AssignmentExpression(node) {
             if (['&&=', '||=', '??='].includes(node.operator)) decides(node);
             if (!onField(node.left)) return;
+            if (node.left.object.type === 'MemberExpression') records(node);
             if (node.operator !== '=') records(node);
             const appended =
               node.right.type === 'ArrayExpression' &&

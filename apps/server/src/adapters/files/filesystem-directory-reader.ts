@@ -18,9 +18,11 @@ const nameDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 export class FilesystemDirectoryReader implements DirectoryReader {
   private readonly worktrees: ListedWorktrees;
+  private readonly options: { gitDirectory: string };
 
-  constructor(worktrees: ListedWorktrees) {
+  constructor(worktrees: ListedWorktrees, options: { gitDirectory: string }) {
     this.worktrees = worktrees;
+    this.options = options;
   }
 
   async list(
@@ -54,7 +56,15 @@ export class FilesystemDirectoryReader implements DirectoryReader {
       }
       const entries: DirectoryEntry[] = [];
       for (const { name, entry } of found)
-        entries.push(await describe(before.path, name, entry, signal));
+        entries.push(
+          await describe(
+            before.path,
+            name,
+            entry,
+            this.options.gitDirectory,
+            signal,
+          ),
+        );
       await verifyPath(before, target, signal);
       return { kind: 'listed', entries, truncated };
     } catch (error) {
@@ -79,6 +89,7 @@ async function describe(
   directory: string,
   name: string,
   entry: Dirent,
+  gitDirectory: string,
   signal?: AbortSignal,
 ): Promise<DirectoryEntry> {
   signal?.throwIfAborted();
@@ -89,7 +100,7 @@ async function describe(
     return target === undefined ? { name, kind } : { name, kind, target };
   }
   if (kind === 'directory') {
-    const nested = await lstat(join(full, '.git')).then(
+    const nested = await lstat(join(full, gitDirectory)).then(
       () => true,
       () => false,
     );

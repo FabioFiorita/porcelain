@@ -7,6 +7,7 @@ import { runProvider } from '../commands/run-provider.ts';
 import type { AgentModel } from '../dtos/agent-model.ts';
 import { ProviderNotInstalledError } from '../errors/provider-not-installed-error.ts';
 import type { Provider } from '../interfaces/provider.ts';
+import { codexAnswer } from '../parsers/parse-provider-answer.ts';
 
 const MAX_CACHE_BYTES = 1024 * 1024;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
@@ -99,7 +100,7 @@ export class CodexProvider implements Provider {
         },
         signal,
       );
-      return JSON.parse(await readFile(outputPath, 'utf8'));
+      return codexAnswer(await readFile(outputPath, 'utf8'));
     } finally {
       await rm(root, { recursive: true, force: true });
     }

@@ -1,4 +1,3 @@
-import type { CollectAbsentWorktreesResult } from '@porcelain/projects/models';
 import type {
   CollectAbsentWorktreesService,
   ListExpiredWorktreesService,
@@ -25,26 +24,20 @@ export class CollectAbsentWorktreesUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(
-    context: OperationContext,
-  ): Promise<CollectAbsentWorktreesResult> {
+  async execute(context: OperationContext): Promise<void> {
     const { worktrees } = await this.lanes.run(
       this.laneKeys.inventory(),
       'read',
       async () => this.listExpiredWorktrees.execute(),
       { callerSignal: context.signal },
     );
-    const collected: string[] = [];
-    for (const worktree of worktrees) {
-      const result = await this.lanes.run(
+    for (const worktree of worktrees)
+      await this.lanes.run(
         this.laneKeys.repository(worktree),
         'write',
         async () =>
           this.collectAbsentWorktrees.execute({ worktreeIds: [worktree.id] }),
         { callerSignal: context.signal },
       );
-      collected.push(...result.collected);
-    }
-    return { collected };
   }
 }
