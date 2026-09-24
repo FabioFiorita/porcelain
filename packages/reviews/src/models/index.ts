@@ -36,6 +36,10 @@ export type {
   ListReviewedFilesResult,
 } from './list-reviewed-files.ts';
 export type {
+  ListReviewedLayerPathsInput,
+  ListReviewedLayerPathsResult,
+} from './list-reviewed-layer-paths.ts';
+export type {
   ListReviewedLayersInput,
   ListReviewedLayersResult,
 } from './list-reviewed-layers.ts';
@@ -70,6 +74,7 @@ export type {
   ReadReviewSummaryResult,
 } from './read-review-summary.ts';
 export type { ReconcileReviewedFilesInput } from './reconcile-reviewed-files.ts';
+export type { ReconcileReviewedLayersInput } from './reconcile-reviewed-layers.ts';
 export type { RecordReviewActivityInput } from './record-review-activity.ts';
 export type {
   RemoveReviewedFileInput,

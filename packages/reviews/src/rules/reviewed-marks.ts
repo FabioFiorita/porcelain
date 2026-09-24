@@ -1,11 +1,15 @@
 import type { FileChange } from '@porcelain/kernel/models';
+import type { ReviewFiles } from '../models/review-evidence.ts';
+import type { ReviewLayer } from '../models/review.ts';
 import type {
   ReviewedFile,
   ReviewedFileConflict,
   ReviewedFileMark,
   ReviewedFileSelection,
+  ReviewedLayerMark,
   ReviewedMark,
 } from '../models/reviewed-mark.ts';
+import { currentLayerFingerprint } from './resolve-review.ts';
 
 export function selectReviewedFiles(
   files: readonly ReviewedFile[],
@@ -76,4 +80,30 @@ export function reviewedMarks(
     fingerprint,
     reviewedAt,
   }));
+}
+
+export function markedLayers(
+  layers: readonly ReviewLayer[],
+  marks: readonly ReviewedLayerMark[],
+): ReviewLayer[] {
+  const marked = new Set(marks.map((mark) => mark.layerId));
+  return layers.filter((layer) => marked.has(layer.id));
+}
+
+export function layerStaleness(
+  marks: readonly ReviewedLayerMark[],
+  layers: readonly ReviewLayer[],
+  files: ReviewFiles,
+): { stale: string[]; fresh: string[] } {
+  const current = new Map(
+    layers.map((layer) => [layer.id, currentLayerFingerprint(layer, files)]),
+  );
+  const stale: string[] = [];
+  const fresh: string[] = [];
+  for (const mark of marks) {
+    const isStale = current.get(mark.layerId) !== mark.fingerprint;
+    if (isStale === mark.stale) continue;
+    (isStale ? stale : fresh).push(mark.layerId);
+  }
+  return { stale, fresh };
 }

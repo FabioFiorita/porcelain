@@ -2,6 +2,7 @@ import type { EditFileResponse } from '@porcelain/contracts/files';
 import type { EditFileInput } from '@porcelain/files/models';
 import type { EditFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
+import type { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -10,6 +11,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class EditFileUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly editFile: EditFileService;
+  private readonly invalidateReviewedMarks: InvalidateReviewedMarksService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -17,12 +19,14 @@ export class EditFileUseCase {
   constructor(
     checkWorktree: CheckWorktreeService,
     editFile: EditFileService,
+    invalidateReviewedMarks: InvalidateReviewedMarksService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
     this.checkWorktree = checkWorktree;
     this.editFile = editFile;
+    this.invalidateReviewedMarks = invalidateReviewedMarks;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -45,12 +49,15 @@ export class EditFileUseCase {
           { worktreeId: input.worktreeId, purpose: 'writing' },
           signal,
         );
-        this.events.filesChanged(
-          input.worktreeId,
+        const paths =
           input.command.kind === 'move'
             ? [input.command.path, input.command.destination]
-            : [input.command.path],
-        );
+            : [input.command.path];
+        this.invalidateReviewedMarks.execute({
+          worktreeId: input.worktreeId,
+          paths,
+        });
+        this.events.filesChanged(input.worktreeId, paths);
         return result;
       },
       { callerSignal: context.signal },

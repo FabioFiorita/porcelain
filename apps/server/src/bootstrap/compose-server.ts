@@ -152,6 +152,8 @@ export async function openApplication(
   const { fileReader, readTextFileService, ...files } = composeFiles(context, {
     worktreeAccess,
     checkWorktree,
+    invalidateReviewedMarks:
+      reviewInvalidation.services.invalidateReviewedMarks,
   });
   const { services: changeServices, ...changes } = composeChanges(context, {
     worktreeAccess,
@@ -161,7 +163,7 @@ export async function openApplication(
     inspection,
     commitGit,
     readTextFile: readTextFileService,
-    reconcileReviewedFiles: reviewInvalidation.reconcileReviewedFiles,
+    reconcileReviewedFiles: reviewInvalidation.services.reconcileReviewedFiles,
     readInterruptedGitAction,
   });
   const reviews = composeReviews(context, {

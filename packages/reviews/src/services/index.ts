@@ -4,6 +4,7 @@ export { InvalidateReviewedMarksService } from './invalidate-reviewed-marks-serv
 export { ListCommentThreadsService } from './list-comment-threads-service.ts';
 export { ListReviewEvidenceService } from './list-review-evidence-service.ts';
 export { ListReviewedFilesService } from './list-reviewed-files-service.ts';
+export { ListReviewedLayerPathsService } from './list-reviewed-layer-paths-service.ts';
 export { ListReviewedLayersService } from './list-reviewed-layers-service.ts';
 export { MarkCommentsSeenService } from './mark-comments-seen-service.ts';
 export { PublishReviewService } from './publish-review-service.ts';
@@ -11,6 +12,7 @@ export { ReadPublishedReviewService } from './read-published-review-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
 export { ReadReviewSummaryService } from './read-review-summary-service.ts';
 export { ReconcileReviewedFilesService } from './reconcile-reviewed-files-service.ts';
+export { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';
 export { RecordReviewActivityService } from './record-review-activity-service.ts';
 export { RemoveReviewedFileService } from './remove-reviewed-file-service.ts';
 export { RemoveReviewedLayerService } from './remove-reviewed-layer-service.ts';

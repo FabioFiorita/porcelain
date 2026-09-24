@@ -8,6 +8,7 @@ import {
 } from '@porcelain/files/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
+import type { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
@@ -25,6 +26,7 @@ import type { ComposeContext } from './compose-context.ts';
 export type FilesAdapters = {
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
+  invalidateReviewedMarks: InvalidateReviewedMarksService;
 };
 
 export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
@@ -74,6 +76,7 @@ export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
         new FilesystemFileWriter(worktreeAccess),
         limits.editFile,
       ),
+      adapters.invalidateReviewedMarks,
       lanes,
       laneKeys,
       events,

@@ -8,6 +8,7 @@ import {
   ListCommentThreadsService,
   ListReviewEvidenceService,
   ListReviewedFilesService,
+  ListReviewedLayerPathsService,
   ListReviewedLayersService,
   MarkCommentsSeenService,
   PublishReviewService,
@@ -15,6 +16,7 @@ import {
   ReadReviewLayerService,
   ReadReviewSummaryService,
   ReconcileReviewedFilesService,
+  ReconcileReviewedLayersService,
   RecordReviewActivityService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
@@ -63,18 +65,22 @@ export type ReviewsAdapters = {
 
 export function composeReviewInvalidation(context: ComposeContext) {
   const reviewedFileStore = createReviewedFileStore(context.session);
+  const invalidateReviewedMarks = new InvalidateReviewedMarksService(
+    reviewedFileStore,
+    createReviewedLayerStore(context.session),
+  );
   return {
     invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
-      new InvalidateReviewedMarksService(
-        reviewedFileStore,
-        createReviewedLayerStore(context.session),
-      ),
+      invalidateReviewedMarks,
       context.lanes,
       context.laneKeys,
     ),
-    reconcileReviewedFiles: new ReconcileReviewedFilesService(
-      reviewedFileStore,
-    ),
+    services: {
+      invalidateReviewedMarks,
+      reconcileReviewedFiles: new ReconcileReviewedFilesService(
+        reviewedFileStore,
+      ),
+    },
   };
 }
 
@@ -194,6 +200,9 @@ export function composeReviews(
     ),
     listReviewedFiles: new ListReviewedFilesUseCase(
       checkWorktree,
+      changes.readWorktreeStatus,
+      changes.readChangeFingerprints,
+      new ReconcileReviewedFilesService(reviewedFileStore),
       new ListReviewedFilesService(reviewedFileStore),
       lanes,
       laneKeys,
@@ -225,6 +234,9 @@ export function composeReviews(
     ),
     listReviewedLayers: new ListReviewedLayersUseCase(
       checkWorktree,
+      new ListReviewedLayerPathsService(reviewStore, reviewedLayerStore),
+      readTextFile,
+      new ReconcileReviewedLayersService(reviewStore, reviewedLayerStore),
       new ListReviewedLayersService(reviewedLayerStore),
       lanes,
       laneKeys,
