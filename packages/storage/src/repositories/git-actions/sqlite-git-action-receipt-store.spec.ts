@@ -47,10 +47,7 @@ describe('SqliteGitActionReceiptStore', () => {
 
   beforeEach(() => {
     dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-    session = openStorageSession(dataDirectory, {
-      worktreeId: (project, metadataIdentity) =>
-        `${project}:${metadataIdentity}`,
-    });
+    session = openStorageSession(dataDirectory);
     createInventoryStore(session).save({
       id: projectId,
       name: projectId,

@@ -22,10 +22,7 @@ const project: RegisteredProject = {
 
 commentStoreContract('SqliteCommentStore', (worktreeIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory, {
-    worktreeId: (projectId, metadataIdentity) =>
-      `${projectId}:${metadataIdentity}`,
-  });
+  const session = openStorageSession(dataDirectory);
   createInventoryStore(session).save(project);
   createWorktreePresenceStore(session).save({
     rows: worktreeIds.map((worktreeId) => ({

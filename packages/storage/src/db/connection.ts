@@ -7,15 +7,9 @@ import { DATABASE_FILE } from './database-files.ts';
 import { createEnvironmentIdentity } from './environment-identity.ts';
 import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 import { createSession, type StorageSession } from './session.ts';
+import { worktreeIdV1 } from './worktree-id-v1.ts';
 
-export type StorageOptions = {
-  worktreeId(projectId: string, metadataIdentity: string): string;
-};
-
-export function openStorageSession(
-  dataDirectory: string,
-  options: StorageOptions,
-): StorageSession {
+export function openStorageSession(dataDirectory: string): StorageSession {
   if (!isAbsolute(dataDirectory)) throw new InvalidDataDirectoryError();
   mkdirSync(dataDirectory, { recursive: true, mode: 0o700 });
   const database = new Database(join(dataDirectory, DATABASE_FILE));
@@ -28,7 +22,7 @@ export function openStorageSession(
       { deterministic: true },
       (projectId: unknown, metadataIdentity: unknown) =>
         typeof projectId === 'string' && typeof metadataIdentity === 'string'
-          ? options.worktreeId(projectId, metadataIdentity)
+          ? worktreeIdV1(projectId, metadataIdentity)
           : null,
     );
     database.pragma('foreign_keys = OFF');
