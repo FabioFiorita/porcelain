@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { LIMITS } from '../config/limits.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import {
   serviceIsHealthy,
@@ -44,7 +43,7 @@ export async function install(
   if (await systemd.unitExists()) throw new UnitExistsError(systemd.unitPath);
   const socket = await context.ownerProbe.probe({
     socketPath: ownerSocketPath(settings.dataDirectory),
-    timeoutMs: LIMITS.owner.quickProbeTimeoutMs,
+    timeoutMs: context.limits.owner.quickProbeTimeoutMs,
   });
   if (socket.kind !== 'absent')
     throw new DataDirectoryBusyError(socket.kind, 'install');

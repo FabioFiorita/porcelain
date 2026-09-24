@@ -1,3 +1,4 @@
+import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import {
   authenticate,
@@ -19,6 +20,7 @@ export type LiveUseCases = AuthenticateOptions &
 export async function liveScope(
   server: FastifyInstance,
   options: {
+    limits: Limits;
     application: LiveUseCases;
     allowedHosts: readonly string[];
   },
@@ -28,7 +30,12 @@ export async function liveScope(
     'onRequest',
     checkRequestOrigin({ access: application.access, allowedHosts }, true),
   );
-  server.addHook('onRequest', authenticate(application));
+  server.addHook(
+    'onRequest',
+    authenticate(application, {
+      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
+    }),
+  );
   server.register(liveUpdates, {
     deviceConnections: application.deviceConnections,
     liveUpdates: application.liveUpdates,

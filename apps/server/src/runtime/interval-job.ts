@@ -1,10 +1,7 @@
 import type { Logger } from '../ports/logger.ts';
+import type { JobWork } from '../ports/job-work.ts';
 import type { Job } from './job.ts';
 import type { OperationContext } from '../ports/operation-context.ts';
-
-export type JobWork = {
-  execute(context: OperationContext): Promise<void>;
-};
 
 export type JobSchedule = {
   everyMs?: number | undefined;

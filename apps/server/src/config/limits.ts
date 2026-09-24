@@ -108,8 +108,31 @@ export type Limits = {
     flushDeviceActivityMs: number;
   };
   http: { reviewBodyBytes: number; editFileBodyBytes: number };
-  locks: { startupWaitMs: number; pollMs: number };
+  locks: { startupWaitMs: number; pollMs: number; staleTakeovers: number };
+  installer: {
+    command: { timeoutMs: number; maxBytes: number };
+    health: { attempts: number; intervalMs: number };
+  };
   listeners: { closeGraceMs: number };
+  cli: { printedAddressLength: number; printedIdLength: number };
+  agents: {
+    processDeadlineMs: number;
+    claudeOutputBytes: number;
+    codexOutputBytes: number;
+    codexCacheBytes: number;
+    plan: {
+      maxGroups: number;
+      maxMessageLength: number;
+      maxPathLength: number;
+      maxPaths: number;
+    };
+  };
+  network: {
+    defaultPort: number;
+    maxPort: number;
+    maxHostnameLength: number;
+    ipv4Octets: number;
+  };
   owner: {
     requestTimeoutMs: number;
     probeTimeoutMs: number;
@@ -221,8 +244,31 @@ export const LIMITS: Limits = {
     reviewBodyBytes: JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + MEBIBYTE,
     editFileBodyBytes: 8 * MEBIBYTE,
   },
-  locks: { startupWaitMs: 10 * SECOND_MS, pollMs: 25 },
+  locks: { startupWaitMs: 10 * SECOND_MS, pollMs: 25, staleTakeovers: 3 },
+  installer: {
+    command: { timeoutMs: MINUTE_MS, maxBytes: MEBIBYTE },
+    health: { attempts: 60, intervalMs: 250 },
+  },
   listeners: { closeGraceMs: 5 * SECOND_MS },
+  cli: { printedAddressLength: 60, printedIdLength: 80 },
+  agents: {
+    processDeadlineMs: 2 * MINUTE_MS,
+    claudeOutputBytes: MEBIBYTE,
+    codexOutputBytes: 4 * MEBIBYTE,
+    codexCacheBytes: MEBIBYTE,
+    plan: {
+      maxGroups: 20,
+      maxMessageLength: 16 * KIBIBYTE,
+      maxPathLength: 4 * KIBIBYTE,
+      maxPaths: 2000,
+    },
+  },
+  network: {
+    defaultPort: 3000,
+    maxPort: 65535,
+    maxHostnameLength: 253,
+    ipv4Octets: 4,
+  },
   owner: {
     requestTimeoutMs: 10 * SECOND_MS,
     probeTimeoutMs: 5 * SECOND_MS,

@@ -133,7 +133,7 @@ export const openServer: OpenServer = async (input) => {
     invalidateReviewedMarks: reviews.invalidateReviewedMarks,
     announcedEdits: worktreeWatches,
   });
-  const commitPlanner = createCommitPlanner();
+  const commitPlanner = createCommitPlanner(limits.agents);
   const gitActions = composeGitActions(context, {
     stores,
     shared,
@@ -198,7 +198,7 @@ export const openServer: OpenServer = async (input) => {
       files: new FilesystemWebRootReader(settings.webRoot),
       logger,
     }),
-    owner: createOwnerServer({ application: useCases, logger }),
+    owner: createOwnerServer({ application: useCases, logger, limits }),
     close: async () => {
       await worktreeWatches.close();
       liveConnections.close();

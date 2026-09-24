@@ -5,6 +5,7 @@ import {
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { PorcelainCli } from '../cli/porcelain-cli.ts';
+import { readCliSettings } from '../config/cli-settings.ts';
 import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 import { SocketPathTooLongError } from '../config/errors/socket-path-too-long-error.ts';
 import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-insecure-error.ts';
@@ -17,6 +18,7 @@ export const cli = new PorcelainCli({
   startServer,
   ownerProbe: new SocketOwnerProbe(),
   clock: new SystemClock(),
+  limits: readCliSettings().limits,
   actionableErrors: [
     ServeConfigurationError,
     DataDirectoryOwnedError,

@@ -1,5 +1,4 @@
 import { request as httpRequest } from 'node:http';
-import { LIMITS } from '../config/limits.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
 
@@ -94,8 +93,8 @@ export async function askOwner(
   dataDirectory: string,
   method: 'GET' | 'POST',
   path: string,
-  body?: unknown,
-  timeoutMs = LIMITS.owner.requestTimeoutMs,
+  body: unknown,
+  timeoutMs: number,
 ): Promise<unknown> {
   const socketPath = ownerSocketPath(dataDirectory);
   let answer: OwnerAnswer;

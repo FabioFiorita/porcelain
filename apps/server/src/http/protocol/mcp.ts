@@ -2,7 +2,7 @@ import { httpErrors } from '@fastify/sensible';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import { LIMITS } from '../../config/limits.ts';
+import type { Limits } from '../../config/limits.ts';
 import {
   createReviewMcpServer,
   type ReviewMcpUseCases,
@@ -28,11 +28,11 @@ function keepHookHeaders(reply: FastifyReply) {
 
 export function reviewMcp(
   server: FastifyInstance,
-  options: { useCases: ReviewMcpUseCases },
+  options: { useCases: ReviewMcpUseCases; limits: Limits['http'] },
 ) {
   server.all(
     '/mcp',
-    { bodyLimit: LIMITS.http.reviewBodyBytes },
+    { bodyLimit: options.limits.reviewBodyBytes },
     async (request, reply) => {
       if (request.method !== 'POST') {
         reply.header('Allow', 'POST');

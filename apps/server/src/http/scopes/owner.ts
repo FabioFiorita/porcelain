@@ -1,3 +1,4 @@
+import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { IssuePairingUseCase } from '../../use-cases/access/issue-pairing.ts';
 import type { ListAccessUseCase } from '../../use-cases/access/list-access.ts';
@@ -22,7 +23,7 @@ export type OwnerUseCases = ReviewMcpUseCases & {
 
 export async function ownerScope(
   server: FastifyInstance,
-  options: { application: OwnerUseCases },
+  options: { application: OwnerUseCases; limits: Limits },
 ) {
   const { application } = options;
   server.addHook('onRequest', preventCaching);
@@ -38,5 +39,8 @@ export async function ownerScope(
   server.register(revokeAccess, {
     useCase: application.access.revokeAccess,
   });
-  server.register(reviewMcp, { useCases: application });
+  server.register(reviewMcp, {
+    useCases: application,
+    limits: options.limits.http,
+  });
 }

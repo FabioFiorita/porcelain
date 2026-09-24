@@ -7,7 +7,11 @@ import { ProviderNotInstalledError } from './errors/provider-not-installed-error
 import { ProviderProcessFailedError } from './errors/provider-process-failed-error.ts';
 import { UnsupportedCommitModelError } from './errors/unsupported-commit-model-error.ts';
 import type { Provider } from './interfaces/provider.ts';
-import { parseCommitPlan } from './parsers/parse-commit-plan.ts';
+import type { AgentLimits, CommitPlanLimits } from './dtos/agent-limits.ts';
+import {
+  commitPlanParser,
+  type CommitPlanParser,
+} from './parsers/parse-commit-plan.ts';
 import { ClaudeProvider } from './providers/claude.ts';
 import { CodexProvider } from './providers/codex.ts';
 
@@ -15,9 +19,11 @@ const modelName = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 
 export class CommitPlanner {
   private readonly providers: readonly Provider[];
+  private readonly parser: CommitPlanParser;
 
-  constructor(providers: readonly Provider[]) {
+  constructor(providers: readonly Provider[], limits: CommitPlanLimits) {
     this.providers = providers;
+    this.parser = commitPlanParser(limits);
   }
 
   async models(signal?: AbortSignal): Promise<AgentModel[]> {
@@ -44,8 +50,14 @@ export class CommitPlanner {
     )
       throw new UnsupportedCommitModelError();
     try {
-      return parseCommitPlan(
-        await planCommit(provider, model, request, signal),
+      return this.parser.parse(
+        await planCommit(
+          provider,
+          model,
+          request,
+          this.parser.outputSchema,
+          signal,
+        ),
       );
     } catch (cause) {
       signal?.throwIfAborted();
@@ -60,6 +72,9 @@ export class CommitPlanner {
   }
 }
 
-export function createCommitPlanner(): CommitPlanner {
-  return new CommitPlanner([new CodexProvider(), new ClaudeProvider()]);
+export function createCommitPlanner(limits: AgentLimits): CommitPlanner {
+  return new CommitPlanner(
+    [new CodexProvider(limits), new ClaudeProvider(limits)],
+    limits.plan,
+  );
 }

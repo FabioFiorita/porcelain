@@ -1,3 +1,4 @@
+export type { AgentLimits } from './dtos/agent-limits.ts';
 export { CommitPlanner, createCommitPlanner } from './commit-planner.ts';
 export { CommitPlanFailedError } from './errors/commit-plan-failed-error.ts';
 export { ProviderNotInstalledError } from './errors/provider-not-installed-error.ts';

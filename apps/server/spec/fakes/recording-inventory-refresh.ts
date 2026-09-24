@@ -1,4 +1,4 @@
-import type { JobWork } from '../../src/runtime/interval-job.ts';
+import type { JobWork } from '../../src/ports/job-work.ts';
 
 export class RecordingInventoryRefresh implements JobWork {
   private fresh = false;

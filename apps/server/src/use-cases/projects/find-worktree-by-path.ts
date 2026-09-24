@@ -9,7 +9,7 @@ import type {
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import { worktreeAtPath } from '@porcelain/projects/rules';
-import type { JobWork } from '../../runtime/interval-job.ts';
+import type { JobWork } from '../../ports/job-work.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';

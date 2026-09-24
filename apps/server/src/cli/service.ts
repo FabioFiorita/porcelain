@@ -1,3 +1,4 @@
+import type { Limits } from '../config/limits.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -15,6 +16,7 @@ export type ServiceCommandDependencies = {
   searchPath: string;
   clock: Clock;
   ownerProbe: OwnerProbe;
+  limits: Limits;
   stdout: (message: string) => void;
 };
 
@@ -74,6 +76,7 @@ async function runService(
     searchPath: dependencies.searchPath,
     ownerProbe: dependencies.ownerProbe,
     clock: dependencies.clock,
+    limits: dependencies.limits,
   });
   if (settings.action === 'status') {
     dependencies.stdout(`${formatStatus(await installer.status())}\n`);

@@ -9,10 +9,8 @@ import {
   DEVICE_PLATFORM_LENGTH,
 } from '@porcelain/contracts/shared';
 import qrcode from 'qrcode-terminal';
-import { LIMITS, MINUTE_MS } from '../config/limits.ts';
+import { MINUTE_MS, type Limits } from '../config/limits.ts';
 import { askOwner } from './owner-client.ts';
-
-const PAIRING_MINUTES = LIMITS.access.pairingGrant.lifetimeMs / MINUTE_MS;
 
 export type Output = {
   stdout: (message: string) => void;
@@ -41,10 +39,18 @@ export async function issuePairings(
   labels: readonly string[],
   addresses: readonly string[],
   output: Output,
+  limits: Limits,
   withQr = true,
 ): Promise<void> {
+  const minutes = limits.access.pairingGrant.lifetimeMs / MINUTE_MS;
   const answer = issuePairingResponseSchema.parse(
-    await askOwner(dataDirectory, 'POST', '/pairings', { labels, addresses }),
+    await askOwner(
+      dataDirectory,
+      'POST',
+      '/pairings',
+      { labels, addresses },
+      limits.owner.requestTimeoutMs,
+    ),
   );
   for (const grant of answer.grants) {
     output.stdout(`${printable(grant.grant.label, DEVICE_LABEL_LENGTH)}\n`);
@@ -55,17 +61,24 @@ export async function issuePairings(
   }
   output.stdout(
     answer.grants.length === 1
-      ? `This link works once, for ${PAIRING_MINUTES} minutes.\n`
-      : `${answer.grants.length} links, each good once for ${PAIRING_MINUTES} minutes.\n`,
+      ? `This link works once, for ${minutes} minutes.\n`
+      : `${answer.grants.length} links, each good once for ${minutes} minutes.\n`,
   );
 }
 
 export async function listAccess(
   dataDirectory: string,
   output: Output,
+  limits: Limits,
 ): Promise<void> {
   const listing = listAccessResponseSchema.parse(
-    await askOwner(dataDirectory, 'GET', '/access'),
+    await askOwner(
+      dataDirectory,
+      'GET',
+      '/access',
+      undefined,
+      limits.owner.requestTimeoutMs,
+    ),
   );
   if (listing.grants.length > 0) {
     output.stdout('Pending links\n');
@@ -83,7 +96,7 @@ export async function listAccess(
   for (const device of listing.devices)
     output.stdout(
       `  ${device.id}  ${printable(device.label, DEVICE_LABEL_LENGTH)}  ${printable(device.platform)}  ` +
-        `last seen ${device.lastSeenAt}${device.lastSeenAddress ? ` from ${printable(device.lastSeenAddress, 60)}` : ''}\n`,
+        `last seen ${device.lastSeenAt}${device.lastSeenAddress ? ` from ${printable(device.lastSeenAddress, limits.cli.printedAddressLength)}` : ''}\n`,
     );
 }
 
@@ -91,12 +104,21 @@ export async function revokeAccess(
   dataDirectory: string,
   id: string,
   output: Output,
+  limits: Limits,
 ): Promise<boolean> {
   const answer = revokeAccessResponseSchema.parse(
-    await askOwner(dataDirectory, 'POST', '/access/revoke', { id }),
+    await askOwner(
+      dataDirectory,
+      'POST',
+      '/access/revoke',
+      { id },
+      limits.owner.requestTimeoutMs,
+    ),
   );
   if (!answer.revoked) {
-    output.stderr(`Nothing to revoke for ${printable(id, 80)}.\n`);
+    output.stderr(
+      `Nothing to revoke for ${printable(id, limits.cli.printedIdLength)}.\n`,
+    );
     return false;
   }
   output.stdout(

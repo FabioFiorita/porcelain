@@ -27,7 +27,7 @@ function comparePrerelease(left: string, right: string): number {
 export function compareVersions(left: string, right: string): number {
   const a = parseVersion(left);
   const b = parseVersion(right);
-  for (let index = 0; index < 3; index++) {
+  for (let index = 0; index < a.numbers.length; index++) {
     const difference = (a.numbers[index] ?? 0) - (b.numbers[index] ?? 0);
     if (difference !== 0) return Math.sign(difference);
   }

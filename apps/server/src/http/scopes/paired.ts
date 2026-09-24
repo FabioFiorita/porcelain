@@ -1,3 +1,4 @@
+import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { BrowseProjectFoldersUseCase } from '../../use-cases/projects/browse-project-folders.ts';
 import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
@@ -145,9 +146,17 @@ export type PairedUseCases = {
 
 export async function pairedScope(
   server: FastifyInstance,
-  options: { application: PairedUseCases & AuthenticateOptions },
+  options: {
+    application: PairedUseCases & AuthenticateOptions;
+    limits: Limits;
+  },
 ) {
-  server.addHook('onRequest', authenticate(options.application));
+  server.addHook(
+    'onRequest',
+    authenticate(options.application, {
+      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
+    }),
+  );
   server.register(runGitAction, {
     useCase: options.application.gitActions.runGitAction,
   });
@@ -204,6 +213,7 @@ export async function pairedScope(
   });
   server.register(publishReview, {
     useCase: options.application.reviews.publishReview,
+    limits: options.limits.http,
   });
   server.register(listCommentThreads, {
     useCase: options.application.reviews.listCommentThreads,
@@ -234,6 +244,7 @@ export async function pairedScope(
   });
   server.register(editFile, {
     useCase: options.application.files.editFile,
+    limits: options.limits.http,
   });
   server.register(listWorktreePaths, {
     useCase: options.application.files.listWorktreePaths,

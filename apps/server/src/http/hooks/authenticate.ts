@@ -11,13 +11,18 @@ export type AuthenticateOptions = {
   deviceConnections: Pick<DeviceConnectionStore, 'insert'>;
 };
 
+export type DeviceCookieOptions = { cookieMaxAgeSeconds: number };
+
 function credentialOf(request: FastifyRequest): string | undefined {
   const header = request.headers.authorization;
   if (header?.startsWith('Bearer ')) return header.slice('Bearer '.length);
   return deviceCookie(request) ?? undefined;
 }
 
-export function authenticate(options: AuthenticateOptions) {
+export function authenticate(
+  options: AuthenticateOptions,
+  cookie: DeviceCookieOptions,
+) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const credential = credentialOf(request);
     if (!credential) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
@@ -30,7 +35,12 @@ export function authenticate(options: AuthenticateOptions) {
     if (!request.ws)
       holdUntilRevoked(reply, options.deviceConnections, device.deviceId);
     if (deviceCookie(request) === credential)
-      setDeviceCookie(reply, credential, request.protocol === 'https');
+      setDeviceCookie(
+        reply,
+        credential,
+        request.protocol === 'https',
+        cookie.cookieMaxAgeSeconds,
+      );
   };
 }
 

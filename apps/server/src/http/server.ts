@@ -20,7 +20,12 @@ export function createNetworkServer(options: NetworkServerOptions) {
   server.register(websocket, {
     options: { maxPayload: settings.limits.liveUpdates.messageBytes },
   });
-  server.register(apiScope, { prefix: '/api', application, allowedHosts });
+  server.register(apiScope, {
+    prefix: '/api',
+    application,
+    allowedHosts,
+    limits: settings.limits,
+  });
   server.register(pageScope, {
     application,
     allowedHosts,

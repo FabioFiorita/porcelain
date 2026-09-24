@@ -1,5 +1,4 @@
 import { createInterface } from 'node:readline';
-import { LIMITS } from '../config/limits.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { relayToOwner } from './owner-client.ts';
 
@@ -13,9 +12,9 @@ function idOf(message: unknown): string | number | null {
 
 export async function runMcpBridge(
   dataDirectory: string,
+  timeoutMs: number,
   input: NodeJS.ReadableStream = process.stdin,
   output: (line: string) => void = (line) => process.stdout.write(line),
-  timeoutMs = LIMITS.owner.mcpTimeoutMs,
 ): Promise<void> {
   const socketPath = ownerSocketPath(dataDirectory);
   const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });

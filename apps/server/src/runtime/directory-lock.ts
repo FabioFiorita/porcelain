@@ -8,6 +8,7 @@ export type DirectoryLockOptions = {
   path: string;
   waitMs: number;
   pollMs: number;
+  staleTakeovers: number;
   clock: Clock;
   held: () => Error;
 };
@@ -16,7 +17,6 @@ export type DirectoryLock = { release(): Promise<void> };
 
 type LockOwner = { pid: number; token: string };
 
-const STALE_TAKEOVERS = 3;
 const OWNER_FILE = 'owner.json';
 
 function errorCode(error: unknown): unknown {
@@ -68,7 +68,7 @@ async function claim(
       const code = errorCode(error);
       if (code !== 'EEXIST' && code !== 'ENOTEMPTY') throw error;
     }
-    if (takeovers < STALE_TAKEOVERS && (await isStale(options.path))) {
+    if (takeovers < options.staleTakeovers && (await isStale(options.path))) {
       takeovers += 1;
       await rm(options.path, { recursive: true, force: true });
       continue;

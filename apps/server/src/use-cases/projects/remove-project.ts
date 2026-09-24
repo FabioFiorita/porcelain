@@ -8,7 +8,7 @@ import type {
   RemoveProjectService,
 } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { JobWork } from '../../runtime/interval-job.ts';
+import type { JobWork } from '../../ports/job-work.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';

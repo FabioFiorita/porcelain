@@ -1,4 +1,3 @@
-import { LIMITS } from '../config/limits.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { StatusSettings } from './arguments.ts';
@@ -13,7 +12,7 @@ export async function reportStatus(
   settings: StatusSettings,
   output: { stdout: (message: string) => void; stderr: (m: string) => void },
   ownerProbe: OwnerProbe,
-  timeoutMs = LIMITS.owner.probeTimeoutMs,
+  timeoutMs: number,
 ): Promise<number> {
   let socketPath: string;
   try {

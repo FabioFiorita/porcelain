@@ -6,7 +6,7 @@ import type {
   CheckRefreshedWorktreeService,
   CheckWorktreeService,
 } from '@porcelain/projects/services';
-import type { JobWork } from '../../runtime/interval-job.ts';
+import type { JobWork } from '../../ports/job-work.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class CheckWorktreeUseCase {

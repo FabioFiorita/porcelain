@@ -4,13 +4,12 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { findExecutable } from '../commands/find-executable.ts';
 import { runProvider } from '../commands/run-provider.ts';
+import type { AgentLimits } from '../dtos/agent-limits.ts';
 import type { AgentModel } from '../dtos/agent-model.ts';
 import { ProviderNotInstalledError } from '../errors/provider-not-installed-error.ts';
 import type { Provider } from '../interfaces/provider.ts';
 import { codexAnswer } from '../parsers/parse-provider-answer.ts';
 
-const MAX_CACHE_BYTES = 1024 * 1024;
-const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const modelSlug = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const modelCacheSchema = z.object({
   models: z.array(
@@ -23,6 +22,12 @@ const modelCacheSchema = z.object({
 });
 
 export class CodexProvider implements Provider {
+  private readonly limits: AgentLimits;
+
+  constructor(limits: AgentLimits) {
+    this.limits = limits;
+  }
+
   readonly name = 'codex';
 
   async models(signal?: AbortSignal): Promise<AgentModel[]> {
@@ -33,7 +38,7 @@ export class CodexProvider implements Provider {
       'models_cache.json',
     );
     try {
-      if ((await stat(cache)).size > MAX_CACHE_BYTES) return [];
+      if ((await stat(cache)).size > this.limits.codexCacheBytes) return [];
       const listed = modelCacheSchema.parse(
         JSON.parse(await readFile(cache, 'utf8')),
       );
@@ -96,7 +101,8 @@ export class CodexProvider implements Provider {
           ],
           cwd: root,
           prompt,
-          maxBytes: MAX_OUTPUT_BYTES,
+          maxBytes: this.limits.codexOutputBytes,
+          timeoutMs: this.limits.processDeadlineMs,
         },
         signal,
       );

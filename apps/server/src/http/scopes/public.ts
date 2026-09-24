@@ -1,3 +1,4 @@
+import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { ClearBrowserSessionUseCase } from '../../use-cases/access/clear-browser-session.ts';
 import type { ReadHealthUseCase } from '../../use-cases/access/read-health.ts';
@@ -26,7 +27,7 @@ export type PublicUseCases = {
 
 export async function publicScope(
   server: FastifyInstance,
-  options: { application: PublicUseCases },
+  options: { application: PublicUseCases; limits: Limits },
 ) {
   const { application } = options;
   server.register(readHealth, {
@@ -42,7 +43,12 @@ export async function publicScope(
   server.register(async (pairing) => {
     pairing.addHook('preHandler', takePairingAttempt(application));
     pairing.addHook('onResponse', refundSucceededPairingAttempt(application));
-    pairing.addHook('preSerialization', deliverBrowserCredential);
+    pairing.addHook(
+      'preSerialization',
+      deliverBrowserCredential({
+        cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
+      }),
+    );
     pairing.register(redeemPairing, {
       useCase: application.access.redeemPairing,
     });

@@ -7,15 +7,22 @@ import { LIMITS, type Limits } from './limits.ts';
 const HOSTNAME_LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
 
 export const DEFAULT_LISTEN_HOST = '127.0.0.1';
-export const DEFAULT_LISTEN_PORT = 3000;
+export const DEFAULT_LISTEN_PORT = LIMITS.network.defaultPort;
 export const DEFAULT_DATA_DIRECTORY_NAME = '.porcelain';
 
 function isValidListenHost(host: string) {
-  if (host.length > 253 || host !== host.trim() || host.includes('\0'))
+  if (
+    host.length > LIMITS.network.maxHostnameLength ||
+    host !== host.trim() ||
+    host.includes('\0')
+  )
     return false;
   if (isIP(host) !== 0) return true;
   const labels = host.split('.');
-  if (labels.length === 4 && labels.every((label) => /^\d+$/.test(label)))
+  if (
+    labels.length === LIMITS.network.ipv4Octets &&
+    labels.every((label) => /^\d+$/.test(label))
+  )
     return false;
   return labels.every((label) => HOSTNAME_LABEL.test(label));
 }
@@ -29,7 +36,11 @@ export const listenHostSchema = z
   .string()
   .refine(isValidListenHost, 'Host must be a valid IP address or hostname');
 
-export const listenPortSchema = z.number().int().min(0).max(65535);
+export const listenPortSchema = z
+  .number()
+  .int()
+  .min(0)
+  .max(LIMITS.network.maxPort);
 
 const serverSettingsSchema = z.object({
   dataDirectory: absolutePathSchema,

@@ -1,4 +1,4 @@
-import { runCommand, type CommandRunner } from './command-runner.ts';
+import { commandRunner, type CommandRunner } from './command-runner.ts';
 import type { InstallerContext } from './context.ts';
 import { NoUserIdError } from './errors/no-user-id-error.ts';
 import { RootUserError } from './errors/root-user-error.ts';
@@ -8,7 +8,7 @@ import {
   type InstallSettings,
 } from './install.ts';
 import { join } from 'node:path';
-import { LIMITS } from '../config/limits.ts';
+import type { Limits } from '../config/limits.ts';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { ManagementLockHeldError } from './errors/management-lock-held-error.ts';
 import { servicePaths } from './paths.ts';
@@ -27,6 +27,7 @@ export type InstallerOptions = {
   searchPath: string;
   ownerProbe: OwnerProbe;
   clock: Clock;
+  limits: Limits;
   uid?: number | undefined;
   runner?: CommandRunner | undefined;
   nodeExecutable?: string | undefined;
@@ -59,7 +60,8 @@ export class Installer {
     const lock = await acquireDirectoryLock({
       path: join(this.context.paths.root, 'management.lock'),
       waitMs: 0,
-      pollMs: LIMITS.locks.pollMs,
+      pollMs: this.context.limits.locks.pollMs,
+      staleTakeovers: this.context.limits.locks.staleTakeovers,
       clock: this.context.clock,
       held: () => new ManagementLockHeldError(),
     });
@@ -75,7 +77,8 @@ export function openInstaller(options: InstallerOptions): Installer {
   const uid = options.uid ?? process.getuid?.();
   if (uid === undefined) throw new NoUserIdError();
   if (uid === 0) throw new RootUserError();
-  const runner = options.runner ?? runCommand;
+  const runner =
+    options.runner ?? commandRunner(options.limits.installer.command);
   const nodeExecutable = options.nodeExecutable ?? process.execPath;
   return new Installer({
     paths: servicePaths(options.homeDirectory),
@@ -87,5 +90,6 @@ export function openInstaller(options: InstallerOptions): Installer {
     searchPath: serviceSearchPath(nodeExecutable, options.searchPath),
     ownerProbe: options.ownerProbe,
     clock: options.clock,
+    limits: options.limits,
   });
 }

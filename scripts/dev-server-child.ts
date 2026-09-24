@@ -174,10 +174,16 @@ try {
     shutdown.signal,
   );
   const [grant] = issuedPairingSchema.parse(
-    await askOwner(state, 'POST', '/pairings', {
-      labels: [fixture.device.label],
-      addresses: [new URL(server.address).origin],
-    }),
+    await askOwner(
+      state,
+      'POST',
+      '/pairings',
+      {
+        labels: [fixture.device.label],
+        addresses: [new URL(server.address).origin],
+      },
+      settings.limits.owner.requestTimeoutMs,
+    ),
   ).grants;
   if (!grant) throw new Error('Could not create a development pairing');
   const paired = await fetch(`${server.address}/api/pair`, {

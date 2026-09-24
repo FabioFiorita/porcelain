@@ -16,6 +16,7 @@ import {
   absolutePathSchema,
   DEFAULT_DATA_DIRECTORY_NAME,
   listenHostSchema,
+  listenPortSchema,
   readServerSettings,
   type ServerSettings,
 } from '../config/server-settings.ts';
@@ -101,7 +102,7 @@ function parsePort(value: string, source: string): number {
       `${source} must be an integer from 0 to 65535`,
     );
   const port = Number(value);
-  if (!Number.isSafeInteger(port) || port > 65535)
+  if (!listenPortSchema.safeParse(port).success)
     throw new ServeConfigurationError(
       `${source} must be an integer from 0 to 65535`,
     );

@@ -124,6 +124,7 @@ export async function startApplication(
     path: join(directory, 'server.lock'),
     waitMs: limits.locks.startupWaitMs,
     pollMs: limits.locks.pollMs,
+    staleTakeovers: limits.locks.staleTakeovers,
     clock: starter.clock,
     held: () => new DataDirectoryOwnedError(directory),
   });

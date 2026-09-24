@@ -1,3 +1,4 @@
+import type { Limits } from '../../../config/limits.ts';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
   editFileRequestSchema,
@@ -6,12 +7,14 @@ import {
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-import { LIMITS } from '../../../config/limits.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function editFile(
   server: FastifyInstance,
-  options: { useCase: Pick<EditFileUseCase, 'execute'> },
+  options: {
+    useCase: Pick<EditFileUseCase, 'execute'>;
+    limits: Limits['http'];
+  },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -22,7 +25,7 @@ export function editFile(
         body: editFileRequestSchema,
         response: { ...errorResponses, 200: editFileResponseSchema },
       },
-      bodyLimit: LIMITS.http.editFileBodyBytes,
+      bodyLimit: options.limits.editFileBodyBytes,
     },
     async (request) =>
       options.useCase.execute(

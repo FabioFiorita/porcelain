@@ -20,15 +20,24 @@ function withoutCredential(payload: unknown) {
   return { credential, rest };
 }
 
-export async function deliverBrowserCredential(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  payload: unknown,
-) {
-  const split = withoutCredential(payload);
-  if (!split || !fromBrowser(request)) return payload;
-  setDeviceCookie(reply, split.credential, request.protocol === 'https');
-  return split.rest;
+export function deliverBrowserCredential(cookie: {
+  cookieMaxAgeSeconds: number;
+}) {
+  return async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    payload: unknown,
+  ) => {
+    const split = withoutCredential(payload);
+    if (!split || !fromBrowser(request)) return payload;
+    setDeviceCookie(
+      reply,
+      split.credential,
+      request.protocol === 'https',
+      cookie.cookieMaxAgeSeconds,
+    );
+    return split.rest;
+  };
 }
 
 export async function requireBrowserRequest(request: FastifyRequest) {

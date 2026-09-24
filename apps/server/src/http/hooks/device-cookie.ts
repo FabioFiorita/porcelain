@@ -1,5 +1,4 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { LIMITS } from '../../config/limits.ts';
 
 const COOKIE_NAME = 'porcelain_device';
 
@@ -17,10 +16,11 @@ export function setDeviceCookie(
   reply: FastifyReply,
   credential: string,
   secure: boolean,
+  maxAgeSeconds: number,
 ) {
   reply.header(
     'Set-Cookie',
-    `${COOKIE_NAME}=${credential}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=${LIMITS.access.device.cookieMaxAgeSeconds}${secure ? '; Secure' : ''}`,
+    `${COOKIE_NAME}=${credential}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=${maxAgeSeconds}${secure ? '; Secure' : ''}`,
   );
 }
 

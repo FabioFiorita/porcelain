@@ -419,8 +419,146 @@ const openTypes = new Set([
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile = new RegExp(
-  `^(?:packages/(?:${domainPackage}|kernel)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/(?:adapters|use-cases|ports)/)`,
+  `^(?:packages/(?:${domainPackage}|kernel|agents|storage)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/)`,
 );
+const limitsFile =
+  /^(?:packages\/contracts\/src\/shared\/limits|apps\/server\/src\/config\/limits)\.ts$/;
+const statusName = /(?:^|\.)status(?:Code)?$/i;
+const positionMethods = new Set(['slice', 'at', 'substring', 'padStart']);
+
+function enclosingFunctionName(node) {
+  for (let current = node.parent; current; current = current.parent) {
+    if (current.type === 'FunctionDeclaration') return current.id?.name ?? '';
+    if (
+      (current.type === 'ArrowFunctionExpression' ||
+        current.type === 'FunctionExpression') &&
+      current.parent?.type === 'VariableDeclarator'
+    )
+      return current.parent.id?.name ?? '';
+  }
+  return '';
+}
+
+function declaredName(node) {
+  let current = node?.parent;
+  while (current?.type === 'TSAsExpression') current = current.parent;
+  return current?.type === 'VariableDeclarator' ? (current.id.name ?? '') : '';
+}
+
+function calledMethod(callee) {
+  return callee.type === 'MemberExpression' ? memberName(callee) : undefined;
+}
+
+function allowedNumberContext(node, value) {
+  let current = node;
+  while (
+    current.parent?.type === 'ConditionalExpression' ||
+    current.parent?.type === 'UnaryExpression'
+  )
+    current = current.parent;
+  const parent = current.parent;
+  if (node.raw?.startsWith('0o')) return true;
+  const status = value >= 100 && value <= 599;
+  if (status && parent?.type === 'Property' && parent.key === current)
+    return true;
+  if (
+    status &&
+    parent?.type === 'Property' &&
+    parent.value === current &&
+    statusName.test(parent.key.name ?? '')
+  )
+    return true;
+  if (
+    status &&
+    parent?.type === 'BinaryExpression' &&
+    ['===', '!==', '>=', '<=', '>', '<'].includes(parent.operator) &&
+    statusName.test(
+      memberPath(parent.left === current ? parent.right : parent.left)?.join(
+        '.',
+      ) ?? '',
+    )
+  )
+    return true;
+  if (
+    status &&
+    parent?.type === 'CallExpression' &&
+    parent.arguments[0] === current &&
+    (calledMethod(parent.callee) === 'code' ||
+      (parent.callee.type === 'Identifier' &&
+        parent.callee.name === 'response'))
+  )
+    return true;
+  if (
+    status &&
+    parent?.type === 'ReturnStatement' &&
+    /Status$/.test(enclosingFunctionName(current))
+  )
+    return true;
+  if (
+    value >= 1000 &&
+    value <= 4999 &&
+    parent?.type === 'CallExpression' &&
+    parent.arguments[0] === current &&
+    calledMethod(parent.callee) === 'close'
+  )
+    return true;
+  if (
+    parent?.type === 'MemberExpression' &&
+    parent.computed &&
+    parent.property === current
+  )
+    return true;
+  if (
+    parent?.type === 'CallExpression' &&
+    parent.arguments[0] === current &&
+    ['toString', 'charCodeAt'].includes(calledMethod(parent.callee) ?? '')
+  )
+    return true;
+  if (
+    parent?.type === 'CallExpression' &&
+    parent.arguments[2] === current &&
+    memberPath(parent.callee)?.join('.') === 'JSON.stringify'
+  )
+    return true;
+  const signed =
+    current.type === 'UnaryExpression' && current.operator === '-'
+      ? -value
+      : value;
+  if (
+    node.raw?.startsWith('0x') &&
+    parent?.type === 'BinaryExpression' &&
+    /code$/i.test(
+      (parent.left === current ? parent.right : parent.left).name ?? '',
+    )
+  )
+    return true;
+  if (
+    signed >= -32768 &&
+    signed <= -32000 &&
+    parent?.type === 'Property' &&
+    parent.value === current &&
+    parent.key.name === 'code'
+  )
+    return true;
+  if (
+    parent?.type === 'Property' &&
+    parent.value === current &&
+    /ExitCodes$/.test(declaredName(parent.parent))
+  )
+    return true;
+  if (
+    (parent?.type === 'AssignmentExpression' &&
+      /index$/i.test(parent.left.name ?? '')) ||
+    (parent?.type === 'VariableDeclarator' &&
+      /index$/i.test(parent.id.name ?? ''))
+  )
+    return true;
+  return (
+    parent?.type === 'CallExpression' &&
+    parent.arguments.includes(current) &&
+    positionMethods.has(calledMethod(parent.callee) ?? '')
+  );
+}
 const rootScriptFile = /^scripts\/[^/]+\.ts$/;
 const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
 const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
@@ -1828,6 +1966,37 @@ export default {
         };
       },
     },
+    'limits-from-settings': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !serverAppFile.test(path) ||
+          path.startsWith('apps/server/src/config/') ||
+          isSpec(context)
+        )
+          return {};
+        return {
+          ImportDeclaration(node) {
+            if (
+              typeof node.source.value === 'string' &&
+              /(?:^|\/)config\/limits\.ts$/.test(node.source.value) &&
+              node.specifiers.some(
+                (specifier) =>
+                  specifier.type === 'ImportSpecifier' &&
+                  specifier.imported.type === 'Identifier' &&
+                  specifier.imported.name === 'LIMITS' &&
+                  node.importKind !== 'type',
+              )
+            )
+              context.report({
+                node,
+                message:
+                  'Only config reads LIMITS; everything else receives settings.limits (or the part it needs) as an option, so the fixture and a test can change it.',
+              });
+          },
+        };
+      },
+    },
     'no-nested-lane': {
       create(context) {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
@@ -2445,7 +2614,12 @@ export default {
     'no-number-outside-limits': {
       create(context) {
         const path = repositoryPath(context);
-        if (!numberFreeFile.test(path) || isSpec(context)) return {};
+        if (
+          !numberFreeFile.test(path) ||
+          limitsFile.test(path) ||
+          isSpec(context)
+        )
+          return {};
         const message =
           'A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.';
         const hiddenNumber = (node) => {
@@ -2463,7 +2637,11 @@ export default {
           )
             return;
           const value = literalNumber(node);
-          if (value !== undefined && value > 1)
+          if (
+            value !== undefined &&
+            value > 1 &&
+            !allowedNumberContext(node, value)
+          )
             context.report({ node, message });
         };
         return {
@@ -2494,7 +2672,8 @@ export default {
             if (
               typeof node.value === 'number' &&
               node.value > 1 &&
-              node.parent?.type !== 'TSLiteralType'
+              node.parent?.type !== 'TSLiteralType' &&
+              !allowedNumberContext(node, node.value)
             )
               context.report({
                 node,

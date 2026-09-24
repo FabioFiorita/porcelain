@@ -1,3 +1,4 @@
+import type { Limits } from '../config/limits.ts';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { issuePairings, listAccess, revokeAccess } from './access-commands.ts';
@@ -15,6 +16,7 @@ export type CommandContext = {
   clock: Clock;
   ownerProbe: OwnerProbe;
   startServer: StartServer;
+  limits: Limits;
   stdout: (message: string) => void;
   stderr: (message: string) => void;
 };
@@ -29,28 +31,38 @@ export async function runCommand(
       context.stdout(serveHelp);
       return 0;
     case 'status':
-      return reportStatus(command.settings, output, context.ownerProbe);
+      return reportStatus(
+        command.settings,
+        output,
+        context.ownerProbe,
+        context.limits.owner.probeTimeoutMs,
+      );
     case 'pair':
       await issuePairings(
         command.settings.dataDirectory,
         command.settings.labels,
         command.settings.addresses,
         output,
+        context.limits,
       );
       return 0;
     case 'devices':
-      await listAccess(command.settings.dataDirectory, output);
+      await listAccess(command.settings.dataDirectory, output, context.limits);
       return 0;
     case 'revoke':
       return (await revokeAccess(
         command.settings.dataDirectory,
         command.settings.id,
         output,
+        context.limits,
       ))
         ? 0
         : 1;
     case 'mcp':
-      await runMcpBridge(command.settings.dataDirectory);
+      await runMcpBridge(
+        command.settings.dataDirectory,
+        context.limits.owner.mcpTimeoutMs,
+      );
       return 0;
     case 'service':
       await runServiceCommand(command.settings, {
@@ -58,6 +70,7 @@ export async function runCommand(
         searchPath: context.searchPath,
         clock: context.clock,
         ownerProbe: context.ownerProbe,
+        limits: context.limits,
         stdout: context.stdout,
       });
       return 0;

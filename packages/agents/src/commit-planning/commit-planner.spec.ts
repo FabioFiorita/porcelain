@@ -28,6 +28,12 @@ const request = {
   evidence: '{"patch":"diff"}',
 };
 const plan = { groups: [{ message: 'Fix', paths: ['README.md'] }] };
+const limits = {
+  maxGroups: 20,
+  maxMessageLength: 16_384,
+  maxPathLength: 4096,
+  maxPaths: 2000,
+};
 
 describe('CommitPlanner', () => {
   it('asks the named provider for the named model and returns its plan', async () => {
@@ -36,7 +42,9 @@ describe('CommitPlanner', () => {
       'claude:sonnet': 'not json',
       sonnet: plan,
     });
-    const groups = await new CommitPlanner([codex, claude]).plan(request);
+    const groups = await new CommitPlanner([codex, claude], limits).plan(
+      request,
+    );
     expect(groups).toEqual(plan.groups);
   });
 
@@ -48,9 +56,10 @@ describe('CommitPlanner', () => {
     'claude:',
     'claude:-sonnet',
   ])('refuses the model %j, which it cannot route to', async (model) => {
-    const planner = new CommitPlanner([
-      new ScriptedProvider('claude', { sonnet: plan }),
-    ]);
+    const planner = new CommitPlanner(
+      [new ScriptedProvider('claude', { sonnet: plan })],
+      limits,
+    );
     await expect(planner.plan({ ...request, model })).rejects.toMatchObject({
       name: 'UnsupportedCommitModelError',
     });
@@ -61,17 +70,18 @@ describe('CommitPlanner', () => {
     { name: 'no answer at all', reply: undefined },
   ])('reports $name as a failed plan', async ({ reply }) => {
     await expect(
-      new CommitPlanner([
-        new ScriptedProvider('claude', { sonnet: reply }),
-      ]).plan(request),
+      new CommitPlanner(
+        [new ScriptedProvider('claude', { sonnet: reply })],
+        limits,
+      ).plan(request),
     ).rejects.toMatchObject({ name: 'CommitPlanFailedError' });
   });
 
   it('lists the models of every provider in order', async () => {
-    const models = await new CommitPlanner([
-      new ScriptedProvider('codex', {}),
-      new ScriptedProvider('claude', {}),
-    ]).models();
+    const models = await new CommitPlanner(
+      [new ScriptedProvider('codex', {}), new ScriptedProvider('claude', {})],
+      limits,
+    ).models();
     expect(models.map((model) => model.id)).toEqual([
       'codex:small',
       'claude:small',

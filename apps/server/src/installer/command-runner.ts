@@ -8,33 +8,39 @@ export type CommandRunner = (
   options?: { cwd?: string | undefined },
 ) => Promise<CommandResult>;
 
-export const runCommand: CommandRunner = async (command, args, options) => {
-  try {
-    const output = await runProcess({
-      command,
-      args,
-      cwd: options?.cwd,
-      timeoutMs: 60_000,
-      maxBytes: 1024 * 1024,
-    });
-    const stdout = output.stdout.toString('utf8');
-    const stderr = output.stderr.toString('utf8');
-    const completed =
-      output.stopped === undefined || output.stopped === 'lingering';
-    if (completed && output.exitCode === 0) return { code: 0, stdout, stderr };
-    return {
-      code: output.exitCode || 1,
-      stdout,
-      stderr:
-        stderr.length > 0
-          ? stderr
-          : `Command failed: ${[command, ...args].join(' ')}`,
-    };
-  } catch (error) {
-    return {
-      code: 1,
-      stdout: '',
-      stderr: error instanceof Error ? error.message : String(error),
-    };
-  }
-};
+export function commandRunner(limits: {
+  timeoutMs: number;
+  maxBytes: number;
+}): CommandRunner {
+  return async (command, args, options) => {
+    try {
+      const output = await runProcess({
+        command,
+        args,
+        cwd: options?.cwd,
+        timeoutMs: limits.timeoutMs,
+        maxBytes: limits.maxBytes,
+      });
+      const stdout = output.stdout.toString('utf8');
+      const stderr = output.stderr.toString('utf8');
+      const completed =
+        output.stopped === undefined || output.stopped === 'lingering';
+      if (completed && output.exitCode === 0)
+        return { code: 0, stdout, stderr };
+      return {
+        code: output.exitCode || 1,
+        stdout,
+        stderr:
+          stderr.length > 0
+            ? stderr
+            : `Command failed: ${[command, ...args].join(' ')}`,
+      };
+    } catch (error) {
+      return {
+        code: 1,
+        stdout: '',
+        stderr: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+}

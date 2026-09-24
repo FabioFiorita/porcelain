@@ -1,14 +1,13 @@
 import { runCommand } from '@porcelain/process';
 import { ProviderProcessFailedError } from '../errors/provider-process-failed-error.ts';
 
-const PROCESS_DEADLINE_MS = 120_000;
-
 export type ProviderCommand = {
   command: string;
   args: readonly string[];
   cwd: string;
   prompt: string;
   maxBytes: number;
+  timeoutMs: number;
 };
 
 export async function runProvider(
@@ -22,7 +21,7 @@ export async function runProvider(
       args: input.args,
       cwd: input.cwd,
       stdin: input.prompt,
-      timeoutMs: PROCESS_DEADLINE_MS,
+      timeoutMs: input.timeoutMs,
       maxBytes: input.maxBytes,
     },
     signal,

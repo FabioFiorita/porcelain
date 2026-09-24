@@ -1,6 +1,6 @@
 import type { CatalogSnapshot } from '@porcelain/projects/models';
 import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import type { JobWork } from '../../src/runtime/interval-job.ts';
+import type { JobWork } from '../../src/ports/job-work.ts';
 
 export class ScriptedInventoryRefresh implements JobWork {
   private readonly catalog: WorktreeCatalogStore;

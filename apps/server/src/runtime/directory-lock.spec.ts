@@ -23,7 +23,14 @@ function lockPath(): string {
 }
 
 function options(path: string, waitMs = 0) {
-  return { path, waitMs, pollMs: 5, clock, held: () => new HeldError() };
+  return {
+    path,
+    waitMs,
+    pollMs: 5,
+    staleTakeovers: 3,
+    clock,
+    held: () => new HeldError(),
+  };
 }
 
 function leaveLock(path: string, pid: number): void {

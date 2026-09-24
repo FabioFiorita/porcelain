@@ -4,6 +4,7 @@ import type { ServicePaths } from './paths.ts';
 import { runtimeEntryPoint } from './persistent-runtime.ts';
 import type { ServiceConfiguration } from './records.ts';
 import type { Clock } from '@porcelain/kernel/ports';
+import type { Limits } from '../config/limits.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { waitForHealthyService } from './service-health.ts';
 import type { SystemdService } from './systemd-service.ts';
@@ -19,6 +20,7 @@ export type InstallerContext = {
   searchPath: string;
   ownerProbe: OwnerProbe;
   clock: Clock;
+  limits: Limits;
 };
 
 export function servicePlan(
@@ -47,5 +49,8 @@ export function serviceIsHealthy(
     socketPath: ownerSocketPath(dataDirectory),
     dataDirectory,
     processId: () => context.systemd.processId(),
+    probeTimeoutMs: context.limits.owner.quickProbeTimeoutMs,
+    attempts: context.limits.installer.health.attempts,
+    intervalMs: context.limits.installer.health.intervalMs,
   });
 }

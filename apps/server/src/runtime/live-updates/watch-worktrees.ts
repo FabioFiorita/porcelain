@@ -19,7 +19,7 @@ import type {
   WatchedWorktree,
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
-import type { JobWork } from '../interval-job.ts';
+import type { JobWork } from '../../ports/job-work.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;

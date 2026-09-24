@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { PorcelainEnvironment } from '../config/environment-settings.ts';
+import type { Limits } from '../config/limits.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { parseCliArguments } from './arguments.ts';
 import { runCommand } from './commands.ts';
@@ -16,6 +17,7 @@ export type PorcelainCliRuntime = {
   startServer: StartServer;
   ownerProbe: OwnerProbe;
   clock: Clock;
+  limits: Limits;
   actionableErrors: readonly ActionableError[];
 };
 
@@ -67,6 +69,7 @@ export class PorcelainCli {
         searchPath: environment.PATH ?? '',
         clock: this.runtime.clock,
         ownerProbe: this.runtime.ownerProbe,
+        limits: this.runtime.limits,
         startServer: dependencies.startServer ?? this.runtime.startServer,
         stdout,
         stderr,
