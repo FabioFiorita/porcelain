@@ -6,6 +6,7 @@ export { CollectAbsentWorktreesService } from './collect-absent-worktrees-servic
 export { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 export { DiscoverProjectsService } from './discover-projects-service.ts';
 export { FindProjectService } from './find-project-service.ts';
+export { FindWorktreeAtPathService } from './find-worktree-at-path-service.ts';
 export { ForgetProjectRecordsService } from './forget-project-records-service.ts';
 export { InspectProjectRepositoryService } from './inspect-project-repository-service.ts';
 export { ListExpiredWorktreesService } from './list-expired-worktrees-service.ts';

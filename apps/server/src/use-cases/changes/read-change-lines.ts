@@ -1,6 +1,5 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
-import { lineRangeProblem, sliceChangeLines } from '@porcelain/changes/rules';
-import { InvalidLineRangeError } from '@porcelain/kernel/errors';
+import type { ReadChangeLinesService } from '@porcelain/changes/services';
 import type {
   ReadChangeLinesQuery,
   ReadChangeLinesResponse,
@@ -12,30 +11,28 @@ import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
-export type ReadChangeLinesOptions = { maxLines: number };
-
 export class ReadChangeLinesUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readTextFile: ReadTextFileService;
+  private readonly readChangeLines: ReadChangeLinesService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
-  private readonly options: ReadChangeLinesOptions;
 
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     readTextFile: ReadTextFileService,
+    readChangeLines: ReadChangeLinesService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
     laneKeys: LaneKeys,
-    options: ReadChangeLinesOptions,
   ) {
     this.checkWorktree = checkWorktree;
     this.readTextFile = readTextFile;
+    this.readChangeLines = readChangeLines;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
-    this.options = options;
   }
 
   async execute(
@@ -55,12 +52,13 @@ export class ReadChangeLinesUseCase {
           { worktreeId, path, at },
           signal,
         );
-        const problem = lineRangeProblem({ from, to });
-        if (problem) throw new InvalidLineRangeError();
-        const lines = sliceChangeLines(
-          { path, from, to, at, text },
-          this.options.maxLines,
-        );
+        const lines = this.readChangeLines.execute({
+          path,
+          from,
+          to,
+          at,
+          text,
+        });
         return {
           environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,

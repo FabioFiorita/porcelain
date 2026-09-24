@@ -3,6 +3,7 @@ import type {
   RuntimeStatusReader,
 } from '@porcelain/access/ports';
 import {
+  CheckRequestOriginService,
   AuthenticateDeviceService,
   FlushDeviceActivityService,
   IssuePairingService,
@@ -64,7 +65,10 @@ export function composeAccess(
       laneKeys,
     ),
     clearBrowserSession: new ClearBrowserSessionUseCase(lanes),
-    checkRequestOrigin: new CheckRequestOriginUseCase(lanes),
+    checkRequestOrigin: new CheckRequestOriginUseCase(
+      new CheckRequestOriginService(),
+      lanes,
+    ),
     flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deviceSightingStore, deviceStore),
       lanes,

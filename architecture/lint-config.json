@@ -50,6 +50,7 @@
     "porcelain/timers-in-runtime": "error",
     "porcelain/fixture-imports": "error",
     "porcelain/events-after-lane": "error",
+    "porcelain/use-case-computes": "error",
     "porcelain/events-from-use-cases": "error",
     "porcelain/no-nested-lane": "error",
     "porcelain/lane-only-with-store": "error",

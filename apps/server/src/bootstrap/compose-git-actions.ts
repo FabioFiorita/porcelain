@@ -1,3 +1,4 @@
+import { ConfirmDiffObservationService } from '@porcelain/changes/services';
 import type {
   CommitDraftSource,
   CommitModelReader,
@@ -106,6 +107,7 @@ export function composeGitActions(
       dependencies.checkWorktree,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
+      new ConfirmDiffObservationService(),
       new CaptureCommitDraftService(
         new GitSelectedDiffReader(shared.worktreeAccess, shared.actionGit),
         new FilesystemUntrackedFileReader(shared.fileReader),

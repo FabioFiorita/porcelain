@@ -22,6 +22,10 @@ export type {
   DiscoverProjectsResult,
 } from './discover-projects.ts';
 export type {
+  FindWorktreeAtPathInput,
+  FindWorktreeAtPathResult,
+} from './find-worktree-at-path.ts';
+export type {
   CheckProjectResult,
   FindProjectInput,
   FindProjectResult,

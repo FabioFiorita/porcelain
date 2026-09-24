@@ -1,25 +1,16 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
+  CheckDiffSelectionService,
+  ConfirmDiffObservationService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import {
-  SelectionMismatchError,
-  UnnamedDiffSelectionError,
-} from '@porcelain/changes/errors';
-import type { DiffSelectionProblem } from '@porcelain/changes/models';
-import {
-  diffSelectionProblem,
-  matchDiffSelections,
-  observationProblem,
-} from '@porcelain/changes/rules';
 import type {
   ReadChangeDiffsRequest,
   ReadChangeDiffsResponse,
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
@@ -29,6 +20,8 @@ export class ReadChangeDiffsUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly checkDiffSelection: CheckDiffSelectionService;
+  private readonly confirmDiffObservation: ConfirmDiffObservationService;
   private readonly readChangeDiffs: ReadChangeDiffsService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
@@ -38,6 +31,8 @@ export class ReadChangeDiffsUseCase {
     checkWorktree: CheckWorktreeUseCasePort,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
+    checkDiffSelection: CheckDiffSelectionService,
+    confirmDiffObservation: ConfirmDiffObservationService,
     readChangeDiffs: ReadChangeDiffsService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
@@ -46,6 +41,8 @@ export class ReadChangeDiffsUseCase {
     this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
+    this.checkDiffSelection = checkDiffSelection;
+    this.confirmDiffObservation = confirmDiffObservation;
     this.readChangeDiffs = readChangeDiffs;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
@@ -70,22 +67,22 @@ export class ReadChangeDiffsUseCase {
           { worktreeId },
           signal,
         );
-        const selection = { expectedFiles, selections, status: before };
-        const problem = diffSelectionProblem(selection);
-        if (problem) throw this.failure(problem);
-        const selected = matchDiffSelections(selection);
+        const selected = this.checkDiffSelection.execute({
+          expectedFiles,
+          selections,
+          status: before,
+        });
         const observed = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: before.changes, paths: selected.paths },
           signal,
         );
-        const changed = observationProblem({
+        this.confirmDiffObservation.execute({
           expectedStatusToken,
           expectedFiles,
           statusToken: before.statusToken,
           fingerprints: observed,
           previousStamp: undefined,
         });
-        if (changed) throw this.failure(changed);
         const diffs = await this.readChangeDiffs.execute(
           { worktreeId, comparisons: selected.comparisons },
           signal,
@@ -98,14 +95,13 @@ export class ReadChangeDiffsUseCase {
           { worktreeId, comparisons: after.changes, paths: selected.paths },
           signal,
         );
-        const moved = observationProblem({
+        this.confirmDiffObservation.execute({
           expectedStatusToken,
           expectedFiles,
           statusToken: after.statusToken,
           fingerprints: reobserved,
           previousStamp: observed.stamp,
         });
-        if (moved) throw this.failure(moved);
         return {
           environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,
@@ -115,16 +111,5 @@ export class ReadChangeDiffsUseCase {
       },
       { callerSignal: context.signal },
     );
-  }
-
-  private failure(problem: DiffSelectionProblem): Error {
-    switch (problem.kind) {
-      case 'unnamed-selection':
-        return new UnnamedDiffSelectionError();
-      case 'selection-mismatch':
-        return new SelectionMismatchError();
-      case 'worktree-changed':
-        return new WorktreeChangedError();
-    }
   }
 }

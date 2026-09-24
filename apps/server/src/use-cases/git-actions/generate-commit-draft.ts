@@ -1,9 +1,8 @@
 import type {
+  ConfirmDiffObservationService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import { observationProblem } from '@porcelain/changes/rules';
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
@@ -24,6 +23,7 @@ export class GenerateCommitDraftUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly confirmDiffObservation: ConfirmDiffObservationService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
   private readonly generateCommitDraft: GenerateCommitDraftService;
   private readonly lanes: Lanes;
@@ -34,6 +34,7 @@ export class GenerateCommitDraftUseCase {
     checkWorktree: CheckWorktreeUseCasePort,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
+    confirmDiffObservation: ConfirmDiffObservationService,
     captureCommitDraft: CaptureCommitDraftService,
     generateCommitDraft: GenerateCommitDraftService,
     lanes: Lanes,
@@ -43,6 +44,7 @@ export class GenerateCommitDraftUseCase {
     this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
+    this.confirmDiffObservation = confirmDiffObservation;
     this.captureCommitDraft = captureCommitDraft;
     this.generateCommitDraft = generateCommitDraft;
     this.lanes = lanes;
@@ -71,14 +73,13 @@ export class GenerateCommitDraftUseCase {
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
-        const problem = observationProblem({
+        this.confirmDiffObservation.execute({
           expectedStatusToken: input.expectedStatusToken,
           expectedFiles: [],
           statusToken: status.statusToken,
           fingerprints,
           previousStamp: undefined,
         });
-        if (problem) throw new WorktreeChangedError();
         return this.captureCommitDraft.execute(
           {
             worktreeId,

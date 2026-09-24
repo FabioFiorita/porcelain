@@ -1,5 +1,8 @@
 import {
   CheckCommitService,
+  CheckDiffSelectionService,
+  ConfirmDiffObservationService,
+  ReadChangeLinesService,
   ListCommitsService,
   ReadBranchDetailsService,
   ReadCommitDiffsService,
@@ -62,6 +65,8 @@ export function composeChanges(
       checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
+      new CheckDiffSelectionService(),
+      new ConfirmDiffObservationService(),
       readChangeDiffs,
       readEnvironment,
       lanes,
@@ -70,10 +75,10 @@ export function composeChanges(
     readChangeLines: new ReadChangeLinesUseCase(
       checkWorktree,
       shared.readTextFile,
+      new ReadChangeLinesService(limits.changeLines),
       readEnvironment,
       lanes,
       laneKeys,
-      limits.changeLines,
     ),
     readGitStatus: new ReadGitStatusUseCase(
       checkWorktree,

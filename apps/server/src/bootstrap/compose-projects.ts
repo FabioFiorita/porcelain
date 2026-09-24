@@ -1,5 +1,6 @@
 import type { ProjectFolderReader } from '@porcelain/projects/ports';
 import {
+  FindWorktreeAtPathService,
   BrowseProjectFoldersService,
   CheckProjectService,
   CollectAbsentWorktreesService,
@@ -96,6 +97,7 @@ export function composeProjects(
     findWorktreeByPath: new FindWorktreeByPathUseCase(
       listRegisteredProjects,
       listKnownWorktrees,
+      new FindWorktreeAtPathService(),
       refreshInventory,
       lanes,
       laneKeys,

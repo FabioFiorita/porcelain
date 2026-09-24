@@ -1681,6 +1681,30 @@ export default {
         };
       },
     },
+    'use-case-computes': {
+      create(context) {
+        if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const message =
+          'A use case orchestrates and computes; a decision that ends in an error belongs in a service with its one private failure(problem), and the use case calls that service.';
+        return {
+          ThrowStatement(node) {
+            context.report({ node, message });
+          },
+          NewExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              /Error$/.test(node.callee.name)
+            )
+              context.report({ node, message });
+          },
+          CallExpression(node) {
+            if (memberPath(node.callee)?.join('.') === 'Promise.reject')
+              context.report({ node, message });
+          },
+        };
+      },
+    },
     'no-nested-lane': {
       create(context) {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))

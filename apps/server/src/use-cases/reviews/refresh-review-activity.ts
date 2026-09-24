@@ -2,6 +2,7 @@ import type {
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
+import type { Logger } from '../../ports/logger.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 import type { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -13,6 +14,7 @@ export class RefreshReviewActivityUseCase {
   private readonly refreshWorktreeReview: RefreshWorktreeReviewUseCasePort;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
+  private readonly logger: Logger;
 
   constructor(
     listRegisteredProjects: ListRegisteredProjectsService,
@@ -20,12 +22,14 @@ export class RefreshReviewActivityUseCase {
     refreshWorktreeReview: RefreshWorktreeReviewUseCasePort,
     lanes: Lanes,
     laneKeys: LaneKeys,
+    logger: Logger,
   ) {
     this.listRegisteredProjects = listRegisteredProjects;
     this.listKnownWorktrees = listKnownWorktrees;
     this.refreshWorktreeReview = refreshWorktreeReview;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
+    this.logger = logger;
   }
 
   async execute(context: OperationContext): Promise<void> {
@@ -36,19 +40,22 @@ export class RefreshReviewActivityUseCase {
         this.listKnownWorktrees.execute(this.listRegisteredProjects.execute()),
       { callerSignal: context.signal },
     );
-    const refreshed = await Promise.allSettled(
+    await Promise.all(
       listings.flatMap((listing) =>
         listing.worktrees
           .filter((worktree) => worktree.available)
           .map((worktree) =>
-            this.refreshWorktreeReview.execute(
-              { worktreeId: worktree.id },
-              context,
-            ),
+            this.refreshWorktreeReview
+              .execute({ worktreeId: worktree.id }, context)
+              .catch((error: unknown) =>
+                this.logger.failure({
+                  kind: 'review-refresh',
+                  worktreeId: worktree.id,
+                  error,
+                }),
+              ),
           ),
       ),
     );
-    const failed = refreshed.find((result) => result.status === 'rejected');
-    if (failed) throw failed.reason;
   }
 }

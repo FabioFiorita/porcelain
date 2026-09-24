@@ -57,7 +57,7 @@ export function composeReviews(
   context: ComposeContext,
   dependencies: ReviewsDependencies,
 ) {
-  const { lanes, laneKeys, events, clock, ids } = context;
+  const { lanes, laneKeys, events, clock, ids, logger } = context;
   const limits = context.settings.limits.reviews;
   const { stores, shared } = dependencies;
   const { readEnvironment, readTextFile } = shared;
@@ -171,6 +171,7 @@ export function composeReviews(
       refreshWorktreeReview,
       lanes,
       laneKeys,
+      logger,
     ),
     refreshWorktreeReview,
     invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(

@@ -57,7 +57,10 @@ export type {
   ReadChangeFingerprintsOptions,
   ReadChangeFingerprintsResult,
 } from './read-change-fingerprints.ts';
-export type { ReadChangeLinesInput } from './read-change-lines.ts';
+export type {
+  ReadChangeLinesInput,
+  ReadChangeLinesOptions,
+} from './read-change-lines.ts';
 export type {
   ReadCommitDiffsInput,
   ReadCommitDiffsResult,

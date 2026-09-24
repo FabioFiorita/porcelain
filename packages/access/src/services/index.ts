@@ -1,4 +1,5 @@
 export { AuthenticateDeviceService } from './authenticate-device-service.ts';
+export { CheckRequestOriginService } from './check-request-origin-service.ts';
 export { FlushDeviceActivityService } from './flush-device-activity-service.ts';
 export { IssuePairingService } from './issue-pairing-service.ts';
 export { ListAccessService } from './list-access-service.ts';

@@ -9,11 +9,11 @@
     "./ports": "./src/ports/index.ts",
     "./errors": "./src/errors/index.ts"
   },
-  "dependencies": {
-    "@porcelain/kernel": "workspace:*"
-  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/files"
+  },
+  "dependencies": {
+    "@porcelain/kernel": "workspace:*"
   }
 }
