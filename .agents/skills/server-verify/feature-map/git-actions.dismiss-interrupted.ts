@@ -10,6 +10,7 @@ import {
 import {
   expectation,
   gitPath,
+  gitRoute,
   read,
   receiptOf,
   settledReceipt,
@@ -24,8 +25,7 @@ const mismatch = apiError(
 
 export default defineFeature({
   feature: 'git-actions.dismiss-interrupted',
-  reaches:
-    'DELETE /api/projects/:projectId/worktrees/:worktreeId/git/interrupted/:requestId',
+  reaches: `DELETE ${gitRoute}/interrupted/:requestId`,
   paired: true,
   intent: 'intended',
   behaviour:
@@ -50,19 +50,22 @@ export default defineFeature({
       name: 'a request that was not interrupted',
       async setup(session) {
         const requestId = randomUUID();
-        await session.send({
-          method: 'POST',
-          path: gitPath(session, '/actions'),
-          body: {
-            requestId,
-            input: {
-              action: 'create-branch',
-              branch: 'feature',
-              switchTo: false,
+        await session.read(
+          {
+            method: 'POST',
+            path: gitPath(session, '/actions'),
+            body: {
+              requestId,
+              input: {
+                action: 'create-branch',
+                branch: 'feature',
+                switchTo: false,
+              },
+              expected: await expectation(session),
             },
-            expected: await expectation(session),
           },
-        });
+          202,
+        );
         await settledReceipt(session, requestId);
         return requestId;
       },
@@ -85,19 +88,22 @@ export default defineFeature({
           `${session.projectHome}/gone.git`,
         );
         const requestId = randomUUID();
-        await session.send({
-          method: 'POST',
-          path: gitPath(session, '/actions'),
-          body: {
-            requestId,
-            input: {
-              action: 'fetch',
-              remoteName: 'gone',
-              sourceRef: `refs/heads/${session.fixture.branch}`,
+        await session.read(
+          {
+            method: 'POST',
+            path: gitPath(session, '/actions'),
+            body: {
+              requestId,
+              input: {
+                action: 'fetch',
+                remoteName: 'gone',
+                sourceRef: `refs/heads/${session.fixture.branch}`,
+              },
+              expected: { ...(await expectation(session)), upstreamOid: null },
             },
-            expected: { ...(await expectation(session)), upstreamOid: null },
           },
-        });
+          202,
+        );
         const settled = await settledReceipt(session, requestId);
         const marked = await read(session, {
           method: 'GET',
@@ -107,6 +113,7 @@ export default defineFeature({
           requestId,
           state: settled.receipt.state,
           marker: marked.interrupted,
+          unmarked: Object.keys(marked).filter((key) => key !== 'interrupted'),
         };
       },
       request: (session, state) => [
@@ -146,7 +153,7 @@ export default defineFeature({
           method: 'GET',
           path: worktreePath(session, '/changes'),
         });
-        check('the marker is gone', false, 'interrupted' in after);
+        check('the marker is gone', state.unmarked, Object.keys(after));
         checkPartial(
           'the receipt is kept',
           { requestId: state.requestId, state: 'interrupted' },

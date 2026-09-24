@@ -8,11 +8,17 @@ import {
   unknownOid,
   unknownUuid,
 } from '../scripts/feature.ts';
-import { expectation, gitPath, settledReceipt } from '../scripts/fixture.ts';
+import {
+  expectation,
+  gitPath,
+  receiptPath,
+  receiptRoute,
+  settledReceipt,
+} from '../scripts/fixture.ts';
 
 export default defineFeature({
   feature: 'git-actions.read-receipt',
-  reaches: 'GET /api/git-action-requests/:requestId',
+  reaches: `GET ${receiptRoute}`,
   paired: true,
   intent: 'observed',
   behaviour:
@@ -22,25 +28,28 @@ export default defineFeature({
       name: 'a settled action',
       async setup(session) {
         const requestId = randomUUID();
-        await session.send({
-          method: 'POST',
-          path: gitPath(session, '/actions'),
-          body: {
-            requestId,
-            input: {
-              action: 'create-branch',
-              branch: 'feature',
-              switchTo: false,
+        await session.read(
+          {
+            method: 'POST',
+            path: gitPath(session, '/actions'),
+            body: {
+              requestId,
+              input: {
+                action: 'create-branch',
+                branch: 'feature',
+                switchTo: false,
+              },
+              expected: await expectation(session),
             },
-            expected: await expectation(session),
           },
-        });
+          202,
+        );
         await settledReceipt(session, requestId);
         return requestId;
       },
-      request: (_session, requestId) => ({
+      request: (session, requestId) => ({
         method: 'GET',
-        path: `/api/git-action-requests/${requestId}`,
+        path: receiptPath(session, requestId),
       }),
       expect({ response, state, session, check, checkPartial, checkContract }) {
         check('status', 200, response.status);
@@ -68,25 +77,31 @@ export default defineFeature({
       name: 'a rejected action',
       async setup(session) {
         const requestId = randomUUID();
-        await session.send({
-          method: 'POST',
-          path: gitPath(session, '/actions'),
-          body: {
-            requestId,
-            input: {
-              action: 'create-branch',
-              branch: 'too-late',
-              switchTo: false,
+        await session.read(
+          {
+            method: 'POST',
+            path: gitPath(session, '/actions'),
+            body: {
+              requestId,
+              input: {
+                action: 'create-branch',
+                branch: 'too-late',
+                switchTo: false,
+              },
+              expected: {
+                ...(await expectation(session)),
+                headOid: unknownOid,
+              },
             },
-            expected: { ...(await expectation(session)), headOid: unknownOid },
           },
-        });
+          202,
+        );
         await settledReceipt(session, requestId);
         return requestId;
       },
-      request: (_session, requestId) => ({
+      request: (session, requestId) => ({
         method: 'GET',
-        path: `/api/git-action-requests/${requestId}`,
+        path: receiptPath(session, requestId),
       }),
       expect({ response, state, check, checkPartial, checkContract }) {
         check('status', 200, response.status);
@@ -109,9 +124,9 @@ export default defineFeature({
     }),
     defineCase({
       name: 'unknown or malformed request ID',
-      request: () => [
-        { method: 'GET', path: `/api/git-action-requests/${unknownUuid}` },
-        { method: 'GET', path: '/api/git-action-requests/not-a-uuid' },
+      request: (session) => [
+        { method: 'GET', path: receiptPath(session, unknownUuid) },
+        { method: 'GET', path: receiptPath(session, 'not-a-uuid') },
       ],
       expect({ responses, check }) {
         check('unknown status', 404, responses[0]?.status);

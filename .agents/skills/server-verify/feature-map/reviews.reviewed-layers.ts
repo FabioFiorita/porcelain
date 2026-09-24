@@ -39,12 +39,7 @@ async function published(session: Session) {
   return String(record(list(record(answer.review).layers)[0]).fingerprint);
 }
 
-const marks = (body: unknown) =>
-  list(record(body).marks).map((mark) => ({
-    layerId: record(mark).layerId,
-    fingerprint: record(mark).fingerprint,
-    stale: record(mark).stale,
-  }));
+const marks = (body: unknown) => list(record(body).marks);
 
 export default defineFeature({
   feature: 'reviews.reviewed-layers',
@@ -71,9 +66,7 @@ export default defineFeature({
         check(
           'nothing is stored',
           [],
-          marks(
-            (await session.send({ method: 'GET', path: layers(session) })).body,
-          ),
+          marks(await read(session, { method: 'GET', path: layers(session) })),
         );
       },
     }),
@@ -85,14 +78,14 @@ export default defineFeature({
         path: layers(session),
         body: { layerId, reviewed: true, fingerprint },
       }),
-      expect({ response, state, check, checkContract }) {
+      expect({ response, state, check, checkPartial, checkContract }) {
         check('status', 200, response.status);
         checkContract(
           'contract',
           listReviewedLayersResponseSchema,
           response.body,
         );
-        check(
+        checkPartial(
           'marks',
           [{ layerId, fingerprint: state, stale: false }],
           marks(response.body),
@@ -129,8 +122,8 @@ export default defineFeature({
           'the earlier mark is kept as it was',
           [layerId],
           marks(
-            (await session.send({ method: 'GET', path: layers(session) })).body,
-          ).map((mark) => mark.layerId),
+            await read(session, { method: 'GET', path: layers(session) }),
+          ).map((mark) => record(mark).layerId),
         );
       },
     }),
@@ -144,19 +137,16 @@ export default defineFeature({
         await eventually(
           session,
           { method: 'GET', path: layers(session) },
-          (body) => marks(body).some((mark) => mark.stale === true),
+          (body) => marks(body).some((mark) => record(mark).stale === true),
         ).catch(() => undefined);
       },
       request: (session) => ({ method: 'GET', path: layers(session) }),
-      expect({ response, check }) {
+      expect({ response, check, checkPartial }) {
         check('status', 200, response.status);
-        check(
+        checkPartial(
           'the mark is kept and flagged stale',
           [{ layerId, stale: true }],
-          marks(response.body).map((mark) => ({
-            layerId: mark.layerId,
-            stale: mark.stale,
-          })),
+          marks(response.body),
         );
       },
     }),
@@ -171,20 +161,17 @@ export default defineFeature({
         await eventually(
           session,
           { method: 'GET', path: layers(session) },
-          (body) => marks(body).some((mark) => mark.stale === true),
+          (body) => marks(body).some((mark) => record(mark).stale === true),
         ).catch(() => undefined);
         connection.close();
       },
       request: (session) => ({ method: 'GET', path: layers(session) }),
-      expect({ response, check }) {
+      expect({ response, check, checkPartial }) {
         check('status', 200, response.status);
-        check(
+        checkPartial(
           'the mark is kept and flagged stale',
           [{ layerId, stale: true }],
-          marks(response.body).map((mark) => ({
-            layerId: mark.layerId,
-            stale: mark.stale,
-          })),
+          marks(response.body),
         );
       },
     }),
@@ -197,15 +184,11 @@ export default defineFeature({
       }),
       async expect({ response, session, check }) {
         check('status', 200, response.status);
-        check(
-          'remaining',
-          [],
-          marks(response.body).map((mark) => mark.layerId),
-        );
+        check('remaining', [], marks(response.body));
         check(
           'list reads the same',
           response.body,
-          (await session.send({ method: 'GET', path: layers(session) })).body,
+          await read(session, { method: 'GET', path: layers(session) }),
         );
       },
     }),

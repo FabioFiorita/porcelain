@@ -76,12 +76,17 @@ export default defineFeature({
         path: '/api/projects/folders',
         query: { path: '/usr' },
       }),
-      expect({ response, check }) {
+      expect({ response, check, checkPartial }) {
         check('status', 200, response.status);
-        check(
+        checkPartial(
           'lists it',
-          true,
-          list(record(response.body).directories).some(
+          { path: '/usr', parent: '/', repository: false },
+          response.body,
+        );
+        check(
+          'lists its folders',
+          [{ name: 'bin', path: '/usr/bin' }],
+          list(record(response.body).directories).filter(
             (entry) => record(entry).path === '/usr/bin',
           ),
         );

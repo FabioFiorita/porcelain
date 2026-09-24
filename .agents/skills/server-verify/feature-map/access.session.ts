@@ -4,15 +4,20 @@ import {
   defineCase,
   defineFeature,
   list,
-  record,
   unauthenticated,
   type Session,
 } from '../scripts/feature.ts';
-import { inventory, issuePairing } from '../scripts/fixture.ts';
+import {
+  deviceCookie,
+  deviceCookieAttributes,
+  inventory,
+  issuePairing,
+  read,
+} from '../scripts/fixture.ts';
 
 async function browserCookie(session: Session) {
   const code = await issuePairing(session, 'Browser');
-  const paired = await session.send({
+  const paired = await session.read({
     method: 'POST',
     path: '/api/pair',
     auth: 'none',
@@ -28,10 +33,8 @@ async function browserCookie(session: Session) {
 
 async function devices(session: Session) {
   return list(
-    record(
-      (await session.send({ method: 'GET', path: '/access', target: 'owner' }))
-        .body,
-    ).devices,
+    (await read(session, { method: 'GET', path: '/access', target: 'owner' }))
+      .devices,
   );
 }
 
@@ -62,10 +65,8 @@ export default defineFeature({
         checkContract('contract', readInventoryResponseSchema, response.body);
         check(
           'cookie is refreshed',
-          true,
-          /^porcelain_device=[^;]+; Path=\/api; HttpOnly; SameSite=Strict; Max-Age=7776000$/.test(
-            response.headers['set-cookie'] ?? '',
-          ),
+          { name: 'porcelain_device', attributes: deviceCookieAttributes },
+          deviceCookie(response.headers['set-cookie']),
         );
       },
     }),

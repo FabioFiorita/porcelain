@@ -12,12 +12,16 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
-  changes,
   expectation,
   fingerprintOf,
+  gitPath,
+  gitRoute,
   head,
+  read,
+  receiptPath,
   settledReceipt,
   worktreeNotFound,
+  worktreePath,
 } from '../scripts/fixture.ts';
 
 const run = (
@@ -26,7 +30,7 @@ const run = (
   worktreeId = session.worktreeId,
 ) => ({
   method: 'POST' as const,
-  path: `/api/projects/${session.projectId}/worktrees/${worktreeId}/git/actions`,
+  path: gitPath(session, '/actions', { worktreeId }),
   body,
 });
 const branchRequest = {
@@ -62,7 +66,7 @@ async function upstreamRemote(session: Session) {
 
 export default defineFeature({
   feature: 'git-actions.run-action',
-  reaches: 'POST /api/projects/:projectId/worktrees/:worktreeId/git/actions',
+  reaches: `POST ${gitRoute}/actions`,
   paired: true,
   intent: 'intended',
   behaviour:
@@ -178,7 +182,16 @@ export default defineFeature({
           'Describe the change\n',
           await session.git('log', '-1', '--format=%B'),
         );
-        check('no changes remain', [], (await changes(session)).changes);
+        check(
+          'no changes remain',
+          [],
+          (
+            await read(session, {
+              method: 'GET',
+              path: worktreePath(session, '/changes'),
+            })
+          ).changes,
+        );
       },
     }),
     defineCase({
@@ -262,7 +275,16 @@ export default defineFeature({
           },
           settled.receipt,
         );
-        check('no changes remain', [], (await changes(session)).changes);
+        check(
+          'no changes remain',
+          [],
+          (
+            await read(session, {
+              method: 'GET',
+              path: worktreePath(session, '/changes'),
+            })
+          ).changes,
+        );
       },
     }),
     defineCase({
@@ -511,7 +533,7 @@ export default defineFeature({
         check('error body', worktreeNotFound, response.body);
         const receipt = await session.send({
           method: 'GET',
-          path: `/api/git-action-requests/${state.requestId}`,
+          path: receiptPath(session, state.requestId),
         });
         check('no receipt was kept', 404, receipt.status);
       },

@@ -115,7 +115,7 @@ export default defineFeature({
         method: 'GET',
         path: worktreePath(session, '/changes'),
       }),
-      expect({ response, state, session, check }) {
+      expect({ response, state, session, check, checkMatch, checkDiffers }) {
         check('status', 200, response.status);
         const entries = list(record(response.body).changes).map(record);
         check(
@@ -128,20 +128,20 @@ export default defineFeature({
           [{ scope: 'untracked', path: 'notes.txt' }],
           entries[0]?.comparisons,
         );
-        check(
+        checkMatch(
           'untracked files have a fingerprint',
-          true,
-          /^[0-9a-f]{64}$/.test(String(entries[0]?.fingerprint)),
+          /^[0-9a-f]{64}$/,
+          entries[0]?.fingerprint,
         );
         check(
           'staged README',
           [modified(session, 'staged', state.committed, state.staged)],
           entries[1]?.comparisons,
         );
-        check(
+        checkDiffers(
           'staging moves the fingerprint',
-          true,
-          entries[1]?.fingerprint !== state.unstaged,
+          state.unstaged,
+          entries[1]?.fingerprint,
         );
       },
     }),

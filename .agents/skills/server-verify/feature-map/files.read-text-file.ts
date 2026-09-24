@@ -8,7 +8,7 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import { read, worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 const text = (session: Session, path: string) => ({
   method: 'GET' as const,
@@ -30,7 +30,7 @@ export default defineFeature({
         text(session, session.fixture.readme.path),
         text(session, session.fixture.readme.path),
       ],
-      async expect({ responses, session, check, checkContract }) {
+      async expect({ responses, session, check, checkContract, checkDiffers }) {
         const [first, second] = responses;
         check(
           'statuses',
@@ -53,13 +53,14 @@ export default defineFeature({
         );
         check('a second read answers the same', first?.body, second?.body);
         await session.writeFile(session.fixture.readme.path, 'Edited\n');
-        const edited = await session.send(
+        const edited = await read(
+          session,
           text(session, session.fixture.readme.path),
         );
-        check(
+        checkDiffers(
           'the fingerprint moves with the content',
-          true,
-          record(edited.body).contentFingerprint !== fingerprint,
+          fingerprint,
+          edited.contentFingerprint,
         );
         await session.writeFile(
           session.fixture.readme.path,

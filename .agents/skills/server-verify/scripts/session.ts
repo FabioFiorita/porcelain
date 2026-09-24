@@ -1,5 +1,5 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -14,6 +14,7 @@ import {
   type Phase,
   type Session,
 } from './feature.ts';
+import { Provenance } from './provenance.ts';
 
 type HttpStep = {
   phase: Phase;
@@ -72,6 +73,7 @@ const requestTimeoutMs = 30_000;
 export class Recorder {
   phase: Phase = 'setup';
   steps: Step[] = [];
+  provenance = new Provenance();
   readonly cleanups: (() => void)[] = [];
   private readonly secrets = new Set<string>();
 
@@ -337,10 +339,10 @@ export class IsolatedServer {
       GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
       GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
     };
-    const inside = (path: string) => {
+    const inside = (path: string, root = this.repository) => {
       const absolute = resolve(this.repository, path);
-      if (!absolute.startsWith(`${this.repository}/`))
-        throw new Error(`${path} is outside the sample repository`);
+      if (absolute !== root && !absolute.startsWith(`${root}/`))
+        throw new Error(`${path} is outside ${root}`);
       return absolute;
     };
     return {
@@ -351,6 +353,7 @@ export class IsolatedServer {
       projectId: ids.projectId,
       worktreeId: ids.worktreeId,
       send: (request) => this.send(recorder, request),
+      read: (request, status) => this.read(recorder, request, status),
       live: () => this.live(recorder),
       secret: (value) => recorder.secret(value),
       git: async (...args) => {
@@ -362,6 +365,7 @@ export class IsolatedServer {
             env: gitEnv,
           });
           step.output = stdout;
+          recorder.provenance.observe(`git ${args[0] ?? ''}`, stdout);
           return stdout;
         } catch (error) {
           step.error = error instanceof Error ? error.message : String(error);
@@ -380,7 +384,22 @@ export class IsolatedServer {
               : content.byteLength,
         });
       },
-      readFile: (path) => readFile(inside(path), 'utf8'),
+      readFile: async (path) => {
+        const content = await readFile(inside(path), 'utf8');
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'file',
+          path,
+          bytes: Buffer.byteLength(content),
+        });
+        recorder.provenance.observe(`file ${path}`, content);
+        return content;
+      },
+      entries: async (path) => {
+        const names = (await readdir(inside(path, this.projectHome))).sort();
+        recorder.provenance.observe(`entries ${path}`, names);
+        return names;
+      },
     };
   }
 
@@ -396,6 +415,40 @@ export class IsolatedServer {
   }
 
   async send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
+    if (recorder.phase === 'setup')
+      throw new Error(
+        `setup sent ${request.method} ${request.path} directly; setup reads go through read()`,
+      );
+    return recorder.provenance.exchange(
+      recorder.phase,
+      request,
+      await this.transmit(recorder, request),
+      false,
+    );
+  }
+
+  async read(
+    recorder: Recorder,
+    request: HttpRequest,
+    status = 200,
+  ): Promise<HttpResponse> {
+    const response = await this.transmit(recorder, request);
+    if (response.status !== status)
+      throw new Error(
+        `${request.method} ${request.path} answered HTTP ${response.status}, not ${status}`,
+      );
+    return recorder.provenance.exchange(
+      recorder.phase,
+      request,
+      response,
+      true,
+    );
+  }
+
+  private async transmit(
+    recorder: Recorder,
+    request: HttpRequest,
+  ): Promise<HttpResponse> {
     const target = request.target ?? 'network';
     const path = withQuery(request.path, request.query);
     const headers = this.headersFor(request);
@@ -545,12 +598,14 @@ export class IsolatedServer {
     };
     socket.addEventListener('message', (event) => {
       const value = record(JSON.parse(String(event.data)));
+      recorder.provenance.observe('live notice', value);
       received.push(value);
       step.received.push(value);
       wake();
     });
     socket.addEventListener('close', (event) => {
       closed = { code: event.code, reason: event.reason };
+      recorder.provenance.observe('live close', closed);
       step.closed = closed;
       wake();
     });

@@ -10,10 +10,11 @@ import {
   invalidRequest,
   list,
   record,
+  text,
   unauthenticated,
   type HttpRequest,
 } from '../scripts/feature.ts';
-import { pairDevice } from '../scripts/fixture.ts';
+import { pairDevice, read } from '../scripts/fixture.ts';
 
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
   ...request,
@@ -85,11 +86,12 @@ export default defineFeature({
         );
         check(
           'link opens the pairing page',
-          true,
-          String(grant.link).startsWith(`${session.address}/pair#c=`),
+          `${session.address}/pair#c=`,
+          text(grant.link).slice(0, `${session.address}/pair#c=`.length),
         );
-        const access = record(
-          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+        const access = await read(
+          session,
+          owner({ method: 'GET', path: '/access' }),
         );
         checkContract('access contract', listAccessResponseSchema, access);
         check(
@@ -126,8 +128,8 @@ export default defineFeature({
     }),
     defineCase({
       name: 'issue a pairing the server cannot honour',
-      setup: async (session) =>
-        (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+      setup: (session) =>
+        read(session, owner({ method: 'GET', path: '/access' })),
       request: (session) => [
         owner({
           method: 'POST',
@@ -167,7 +169,7 @@ export default defineFeature({
         check(
           'no grant was issued',
           state,
-          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+          await read(session, owner({ method: 'GET', path: '/access' })),
         );
       },
     }),
@@ -200,36 +202,37 @@ export default defineFeature({
     defineCase({
       name: 'revoke a grant',
       async setup(session) {
-        const issued = record(
-          (
-            await session.send(
-              owner({
-                method: 'POST',
-                path: '/pairings',
-                body: { labels: ['Unused'], addresses: [session.address] },
-              }),
-            )
-          ).body,
+        const before = await read(
+          session,
+          owner({ method: 'GET', path: '/access' }),
         );
-        return String(record(record(list(issued.grants)[0]).grant).id);
+        const issued = await read(
+          session,
+          owner({
+            method: 'POST',
+            path: '/pairings',
+            body: { labels: ['Unused'], addresses: [session.address] },
+          }),
+        );
+        return {
+          before,
+          grantId: text(record(record(list(issued.grants)[0]).grant).id),
+        };
       },
-      request: (_session, grantId) =>
+      request: (_session, state) =>
         owner({
           method: 'POST',
           path: '/access/revoke',
-          body: { id: grantId },
+          body: { id: state.grantId },
         }),
       async expect({ response, state, session, check }) {
         check('status', 200, response.status);
         check('body', { revoked: true, kind: 'grant' }, response.body);
-        const access = record(
-          (await session.send(owner({ method: 'GET', path: '/access' }))).body,
+        const access = await read(
+          session,
+          owner({ method: 'GET', path: '/access' }),
         );
-        check(
-          'grant is gone',
-          false,
-          list(access.grants).some((grant) => record(grant).id === state),
-        );
+        check('grant is gone', state.before.grants, access.grants);
       },
     }),
     defineCase({

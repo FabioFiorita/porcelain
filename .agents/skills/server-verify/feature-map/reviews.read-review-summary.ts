@@ -74,11 +74,17 @@ export default defineFeature({
         const html = text(response.body);
         const [published = '', closing = ''] =
           sampleSummaryHtml.split('</body>');
+        const opening = `${published}<style id="porcelain-theme">`;
+        const ending = `</script></body>${closing}`;
         check(
-          'published page with the bridge before </body>',
-          true,
-          html.startsWith(`${published}<style id="porcelain-theme">`) &&
-            html.endsWith(`</script></body>${closing}`),
+          'the published page opens, then the bridge begins',
+          opening,
+          html.slice(0, opening.length),
+        );
+        check(
+          'the bridge ends before </body>',
+          ending,
+          html.slice(html.length - ending.length),
         );
       },
     }),

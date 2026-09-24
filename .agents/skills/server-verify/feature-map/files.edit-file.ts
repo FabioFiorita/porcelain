@@ -1,5 +1,3 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { editFileResponseSchema } from '@porcelain/contracts/files';
 import {
   apiError,
@@ -26,8 +24,6 @@ async function contentFingerprint(session: Session, path: string) {
   });
   return text(file.contentFingerprint);
 }
-const exists = (session: Session, path: string) =>
-  existsSync(join(session.repository, path));
 
 export default defineFeature({
   feature: 'files.edit-file',
@@ -48,7 +44,14 @@ export default defineFeature({
           text: 'Rewritten\n',
           expectedFingerprint: fingerprint,
         }),
-      async expect({ response, state, session, check, checkContract }) {
+      async expect({
+        response,
+        state,
+        session,
+        check,
+        checkContract,
+        checkDiffers,
+      }) {
         check('status', 200, response.status);
         checkContract('contract', editFileResponseSchema, response.body);
         const written = await contentFingerprint(
@@ -60,7 +63,7 @@ export default defineFeature({
           { path: session.fixture.readme.path, contentFingerprint: written },
           response.body,
         );
-        check('the fingerprint moved', true, written !== state);
+        checkDiffers('the fingerprint moved', state, written);
         check(
           'file on disk',
           'Rewritten\n',
@@ -129,7 +132,16 @@ export default defineFeature({
           '',
           await session.readFile('docs/final.md'),
         );
-        check('source is gone', false, exists(session, 'draft.md'));
+        check(
+          'the source left the root',
+          ['.git', session.fixture.readme.path, 'docs'],
+          await session.entries(''),
+        );
+        check(
+          'the folder holds the moved file',
+          ['final.md'],
+          await session.entries('docs'),
+        );
       },
     }),
     defineCase({
@@ -158,10 +170,10 @@ export default defineFeature({
       name: 'move to trash',
       request: (session) =>
         edit(session, { kind: 'trash', path: 'docs/final.md' }),
-      expect({ response, session, check }) {
+      async expect({ response, session, check }) {
         check('status', 200, response.status);
         check('body', { path: 'docs/final.md' }, response.body);
-        check('file is gone', false, exists(session, 'docs/final.md'));
+        check('file is gone', [], await session.entries('docs'));
       },
     }),
     defineCase({
@@ -183,24 +195,22 @@ export default defineFeature({
     }),
     defineCase({
       name: 'inside .git',
+      setup: (session) => session.entries('.git'),
       request: (session) =>
         edit(session, {
           kind: 'create',
           path: '.git/hooks/pre-commit',
           entryKind: 'file',
         }),
-      expect({ response, session, check }) {
+      async expect({ response, state, session, check }) {
         check('status', 400, response.status);
         check('error body', invalidRequest, response.body);
-        check(
-          'nothing created',
-          false,
-          exists(session, '.git/hooks/pre-commit'),
-        );
+        check('nothing created', state, await session.entries('.git'));
       },
     }),
     defineCase({
       name: 'invalid input or unknown worktree',
+      setup: (session) => session.entries('..'),
       request: (session) => [
         edit(session, {
           kind: 'create',
@@ -220,7 +230,7 @@ export default defineFeature({
           },
         },
       ],
-      async expect({ responses, session, check }) {
+      async expect({ responses, state, session, check }) {
         for (const [index, response] of responses.slice(0, 3).entries()) {
           check(`invalid request ${index + 1} status`, 400, response.status);
           check(
@@ -235,11 +245,7 @@ export default defineFeature({
           worktreeNotFound,
           responses[3]?.body,
         );
-        check(
-          'nothing escaped',
-          false,
-          existsSync(join(session.projectHome, 'outside')),
-        );
+        check('nothing escaped', state, await session.entries('..'));
         check(
           'README untouched',
           'Changed elsewhere\n',

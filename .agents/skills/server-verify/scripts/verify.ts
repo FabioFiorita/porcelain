@@ -11,6 +11,7 @@ import {
   type Checks,
   type Feature,
 } from './feature.ts';
+import { expectedWeakness, Provenance } from './provenance.ts';
 import { IsolatedServer, Recorder, type Step } from './session.ts';
 
 type Assertion = {
@@ -18,6 +19,8 @@ type Assertion = {
   passed: boolean;
   expected: unknown;
   actual: unknown;
+  sources: string[];
+  weak?: string;
 };
 type CaseEvidence = {
   name: string;
@@ -34,6 +37,7 @@ type FeatureResult = {
   cases: number;
   assertions: number;
   passedAssertions: number;
+  weakAssertions: number;
   failures: string[];
   evidence: string;
 };
@@ -77,34 +81,73 @@ function partial(expected: unknown, actual: unknown): boolean {
   );
 }
 
-function checks(assertions: Assertion[]): Checks {
+function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
+  const assert = (
+    name: string,
+    expected: unknown,
+    actual: unknown,
+    kind: 'exact' | 'partial' | 'contract' | 'match' | 'differs',
+    matches: boolean,
+    recorded: unknown = actual,
+  ) => {
+    const judged = provenance().judge(actual);
+    const weak =
+      (kind === 'contract' || kind === 'match'
+        ? undefined
+        : expectedWeakness(expected, kind)) ?? judged.weak;
+    if (weak === undefined) judged.count();
+    assertions.push({
+      name,
+      passed: matches && weak === undefined,
+      expected,
+      actual: recorded,
+      sources: judged.sources,
+      ...(weak === undefined ? {} : { weak }),
+    });
+  };
   return {
     check(name, expected, actual) {
-      assertions.push({
+      assert(
         name,
-        passed: isDeepStrictEqual(actual, expected),
         expected,
         actual,
-      });
+        'exact',
+        isDeepStrictEqual(actual, expected),
+      );
     },
     checkPartial(name, expected, actual) {
-      assertions.push({
+      assert(name, expected, actual, 'partial', partial(expected, actual));
+    },
+    checkMatch(name, pattern, actual) {
+      assert(
         name,
-        passed: partial(expected, actual),
-        expected,
+        String(pattern),
         actual,
-      });
+        'match',
+        typeof actual === 'string' && pattern.test(actual),
+      );
+    },
+    checkDiffers(name, previous, actual) {
+      assert(
+        name,
+        { differsFrom: previous },
+        actual,
+        'differs',
+        !isDeepStrictEqual(actual, previous),
+      );
     },
     checkContract(name, schema, actual) {
       const parsed = schema.safeParse(actual);
-      assertions.push({
+      assert(
         name,
-        passed: parsed.success,
-        expected: 'satisfies the wire contract',
-        actual: parsed.success
+        'satisfies the wire contract',
+        actual,
+        'contract',
+        parsed.success,
+        parsed.success
           ? actual
           : { value: actual, issues: parsed.error?.issues },
-      });
+      );
     },
   };
 }
@@ -114,7 +157,7 @@ function message(error: unknown): string {
 }
 
 async function fixtureIds(server: IsolatedServer, recorder: Recorder) {
-  const inventory = await server.send(recorder, {
+  const inventory = await server.read(recorder, {
     method: 'GET',
     path: '/api/inventory',
   });
@@ -142,6 +185,7 @@ async function runCases(
   const cases: CaseEvidence[] = [];
   for (const testCase of feature.cases) {
     recorder.steps = [];
+    recorder.provenance = new Provenance();
     recorder.cleanups.length = 0;
     const assertions: Assertion[] = [];
     const evidence: CaseEvidence = {
@@ -156,8 +200,10 @@ async function runCases(
       await testCase.run(server.session(recorder, ids), {
         enter: (phase) => {
           recorder.phase = phase;
+          recorder.provenance.enter();
         },
-        checks: checks(assertions),
+        checks: checks(assertions, () => recorder.provenance),
+        problems: () => recorder.provenance.problems(),
       });
       if (assertions.length === 0)
         throw new Error('The case made no assertion');
@@ -207,11 +253,16 @@ async function runFeature(
       ...(entry.error ? [`${entry.name}: ${entry.error}`] : []),
       ...entry.assertions
         .filter((assertion) => !assertion.passed)
-        .map((assertion) => `${entry.name}: ${assertion.name}`),
+        .map((assertion) =>
+          assertion.weak
+            ? `${entry.name}: ${assertion.name} is weak: ${assertion.weak}`
+            : `${entry.name}: ${assertion.name}`,
+        ),
     ]),
   ].map((failure) => recorder.scrub(failure));
   const passed = failures.length === 0 && assertions.length > 0;
   const passedAssertions = assertions.filter((entry) => entry.passed).length;
+  const weakAssertions = assertions.filter((entry) => entry.weak).length;
   const evidencePath = join(evidenceDirectory, `${feature.feature}.json`);
   const evidence = recorder.redact({
     feature: feature.feature,
@@ -224,6 +275,7 @@ async function runFeature(
     failures,
     assertionCount: assertions.length,
     passedAssertions,
+    weakAssertions,
     session: server
       ? { address: server.address, repository: server.repository }
       : null,
@@ -240,6 +292,7 @@ async function runFeature(
     cases: cases.length,
     assertions: assertions.length,
     passedAssertions,
+    weakAssertions,
     failures,
     evidence: evidencePath,
   };
@@ -303,6 +356,7 @@ await writeFile(
       cases: total((entry) => entry.cases),
       assertions: total((entry) => entry.assertions),
       passedAssertions: total((entry) => entry.passedAssertions),
+      weakAssertions: total((entry) => entry.weakAssertions),
       results,
     },
     null,
@@ -311,6 +365,6 @@ await writeFile(
   { mode: 0o600 },
 );
 process.stdout.write(
-  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions; evidence: ${evidenceDirectory}\n`,
+  `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak; evidence: ${evidenceDirectory}\n`,
 );
 if (!passed) process.exitCode = 1;
