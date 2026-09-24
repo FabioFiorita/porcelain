@@ -1,4 +1,8 @@
-import type { Inventory, RegisteredProject } from '../../src/models/project.ts';
+import type {
+  Inventory,
+  ProjectKey,
+  RegisteredProject,
+} from '../../src/models/project.ts';
 import type { InventoryStore } from '../../src/ports/inventory-store.ts';
 
 export class InMemoryInventoryStore implements InventoryStore {
@@ -18,6 +22,11 @@ export class InMemoryInventoryStore implements InventoryStore {
     };
   }
 
+  find(input: ProjectKey): RegisteredProject | undefined {
+    const project = this.projects.get(input.projectId);
+    return project && { ...project };
+  }
+
   save(input: RegisteredProject): void {
     this.projects.set(input.id, { ...input });
   }
@@ -31,7 +40,7 @@ export class InMemoryInventoryStore implements InventoryStore {
     );
   }
 
-  remove(projectId: string): void {
-    this.projects.delete(projectId);
+  remove(input: ProjectKey): void {
+    this.projects.delete(input.projectId);
   }
 }

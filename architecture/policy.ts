@@ -68,10 +68,11 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   process: { '.': './src/index.ts' },
 };
 
-targetPackageExports.reviews = {
-  ...targetPackageExports.reviews,
-  './store-contracts': './spec/contracts/index.ts',
-};
+for (const name of ['reviews', 'projects'])
+  targetPackageExports[name] = {
+    ...targetPackageExports[name],
+    './store-contracts': './spec/contracts/index.ts',
+  };
 
 export const requiredServerFiles: readonly string[] = [
   'apps/server/src/bootstrap/main.ts',

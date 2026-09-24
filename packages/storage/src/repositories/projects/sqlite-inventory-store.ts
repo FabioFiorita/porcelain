@@ -1,8 +1,22 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { Inventory, RegisteredProject } from '@porcelain/projects/models';
+import type {
+  Inventory,
+  ProjectKey,
+  RegisteredProject,
+} from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
 import { inventoryProjects } from '../../db/schema/inventory-projects.ts';
+
+const COLUMNS = {
+  id: inventoryProjects.id,
+  name: inventoryProjects.name,
+  namedByOwner: inventoryProjects.namedByOwner,
+  commonDirectory: inventoryProjects.commonDirectory,
+  repositoryIdentity: inventoryProjects.repositoryIdentity,
+  available: inventoryProjects.available,
+  position: inventoryProjects.position,
+};
 
 export class SqliteInventoryStore implements InventoryStore {
   private readonly db: BetterSQLite3Database;
@@ -23,19 +37,19 @@ export class SqliteInventoryStore implements InventoryStore {
   read(): Inventory {
     return {
       projects: this.db
-        .select({
-          id: inventoryProjects.id,
-          name: inventoryProjects.name,
-          namedByOwner: inventoryProjects.namedByOwner,
-          commonDirectory: inventoryProjects.commonDirectory,
-          repositoryIdentity: inventoryProjects.repositoryIdentity,
-          available: inventoryProjects.available,
-          position: inventoryProjects.position,
-        })
+        .select(COLUMNS)
         .from(inventoryProjects)
         .orderBy(asc(inventoryProjects.position))
         .all(),
     };
+  }
+
+  find(input: ProjectKey): RegisteredProject | undefined {
+    return this.db
+      .select(COLUMNS)
+      .from(inventoryProjects)
+      .where(eq(inventoryProjects.id, input.projectId))
+      .get();
   }
 
   save(input: RegisteredProject): void {
@@ -44,6 +58,17 @@ export class SqliteInventoryStore implements InventoryStore {
         tx.insert(inventoryProjects)
           .values(input)
           .onConflictDoUpdate({ target: inventoryProjects.id, set: input })
+          .run();
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
+  remove(input: ProjectKey): void {
+    this.db.transaction(
+      (tx) => {
+        tx.delete(inventoryProjects)
+          .where(eq(inventoryProjects.id, input.projectId))
           .run();
       },
       { behavior: 'immediate' },

@@ -40,7 +40,7 @@ describe('UpdateProjectAvailabilityService', () => {
 
   it('refuses a project that is no longer registered, without bringing it back', () => {
     const store = new InMemoryInventoryStore([project]);
-    store.remove(project.id);
+    store.remove({ projectId: project.id });
     expect(() =>
       new UpdateProjectAvailabilityService(store).execute(listing(true)),
     ).toThrow(ProjectNotFoundError);

@@ -117,7 +117,7 @@ describe('RecordWorktreePresenceService', () => {
 
   it('refuses a project that is no longer registered', () => {
     const { inventory, record } = setup();
-    inventory.remove(project.id);
+    inventory.remove({ projectId: project.id });
     expect(() => record(['main'])).toThrow(ProjectNotFoundError);
   });
 });
