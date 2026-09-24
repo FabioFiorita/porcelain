@@ -4,11 +4,15 @@ import { join } from 'node:path';
 import type { GitActionReceipt } from '@porcelain/git-actions/models';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openStorageSession, type StorageSession } from '../../index.ts';
-import { createInventoryStore } from '../projects/index.ts';
+import {
+  createInventoryStore,
+  createWorktreePresenceStore,
+} from '../projects/index.ts';
 import { createGitActionStore } from './index.ts';
 
 const projectId = 'project';
 const worktreeId = 'worktree';
+const otherWorktreeId = 'other-worktree';
 
 function receipt(
   requestId: string,
@@ -55,6 +59,13 @@ describe('SqliteGitActionReceiptStore', () => {
       repositoryIdentity: `identity-${projectId}`,
       available: true,
       position: 1,
+    });
+    createWorktreePresenceStore(session).save({
+      rows: [worktreeId, otherWorktreeId].map((id) => ({
+        worktreeId: id,
+        projectId,
+        missingSince: undefined,
+      })),
     });
   });
 
@@ -112,5 +123,20 @@ describe('SqliteGitActionReceiptStore', () => {
     expect(store.read({ requestId: 'old' })).toBeUndefined();
     expect(store.running().map((kept) => kept.requestId)).toEqual(['running']);
     expect(store.read({ requestId: 'recent' })).toBeDefined();
+  });
+
+  it('removes the receipts of a worktree when the worktree is collected, and keeps the others', () => {
+    const store = createGitActionStore(session);
+    store.insert(interrupted('collected', '2026-09-23T10:00:00.000Z'));
+    store.insert({
+      ...interrupted('kept', '2026-09-23T10:00:00.000Z'),
+      worktreeId: otherWorktreeId,
+    });
+    createWorktreePresenceStore(session).remove({ worktreeIds: [worktreeId] });
+    expect(store.read({ requestId: 'collected' })).toBeUndefined();
+    expect(store.latestInterrupted({ worktreeId })).toBeUndefined();
+    expect(
+      store.latestInterrupted({ worktreeId: otherWorktreeId })?.requestId,
+    ).toBe('kept');
   });
 });

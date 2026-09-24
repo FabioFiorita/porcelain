@@ -3,7 +3,7 @@ import type {
   GitActionReceipt,
 } from '@porcelain/git-actions/models';
 import type { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { gitActionReceipts } from '../../db/schema/git-action-receipts.ts';
 
@@ -29,6 +29,7 @@ export class SqliteGitActionReceiptStore implements GitActionReceiptStore {
           .values({
             requestId: input.requestId,
             projectId: input.projectId,
+            worktreeId: input.worktreeId,
             value: input,
           })
           .run();
@@ -67,9 +68,11 @@ export class SqliteGitActionReceiptStore implements GitActionReceiptStore {
       .select({ value: gitActionReceipts.value })
       .from(gitActionReceipts)
       .where(
-        sql`json_extract(${gitActionReceipts.value}, '$.worktreeId') = ${input.worktreeId}
-          AND json_extract(${gitActionReceipts.value}, '$.state') = 'interrupted'
-          AND json_extract(${gitActionReceipts.value}, '$.dismissedAt') IS NULL`,
+        and(
+          eq(gitActionReceipts.worktreeId, input.worktreeId),
+          sql`json_extract(${gitActionReceipts.value}, '$.state') = 'interrupted'
+            AND json_extract(${gitActionReceipts.value}, '$.dismissedAt') IS NULL`,
+        ),
       )
       .orderBy(
         sql`json_extract(${gitActionReceipts.value}, '$.finishedAt') DESC`,

@@ -78,6 +78,13 @@
       "when": 1790204021181,
       "tag": "0010_cascade_deletes_through_foreign_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790222601073,
+      "tag": "0011_receipts_per_worktree",
+      "breakpoints": true
     }
   ]
 }
