@@ -114,7 +114,7 @@ describe('WatchWorktrees', () => {
   it('skips a changed path that an edit already announced, and still announces the others', async () => {
     const { watches, follow, watcher, events } = subject();
     await follow([], [wish('one')]);
-    watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
+    watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
     watcher.changeFiles('one', ['src/a.ts', 'src/b.ts']);
     await settle();
     expect(events.announced('one')).toEqual({
@@ -127,7 +127,7 @@ describe('WatchWorktrees', () => {
   it('reacts to nothing when every changed path was already announced by an edit', async () => {
     const { watches, follow, watcher, events } = subject();
     await follow([], [wish('one')]);
-    watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
+    watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
     watcher.changeFiles('one', ['src/a.ts']);
     await settle();
     expect(events.announced('one')).toBeUndefined();
@@ -136,7 +136,7 @@ describe('WatchWorktrees', () => {
   it('reacts to a change of an announced path once the announcement has expired', async () => {
     const { watches, follow, watcher, events } = subject();
     await follow([], [wish('one')]);
-    watches.save({ worktreeId: 'one', paths: ['src/a.ts'] });
+    watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
     await settle(80);
     watcher.changeFiles('one', ['src/a.ts']);
     await settle();

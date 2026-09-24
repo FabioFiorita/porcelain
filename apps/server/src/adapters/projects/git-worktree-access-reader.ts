@@ -20,8 +20,11 @@ export class GitWorktreeAccessReader implements WorktreeAccessReader<ListedWorkt
     worktreeId: string;
   }): Promise<WorktreeCheck<ListedWorktree>> {
     const entry = this.catalog.find({ worktreeId: input.worktreeId });
-    const current = entry ? await this.onDisk(entry.worktree) : undefined;
-    return current ? { kind: 'found', worktree: current } : { kind: 'missing' };
+    if (!entry) return { kind: 'missing' };
+    const current = await this.onDisk(entry.worktree);
+    return current
+      ? { kind: 'found', worktree: current }
+      : { kind: 'unavailable' };
   }
 
   private async onDisk(

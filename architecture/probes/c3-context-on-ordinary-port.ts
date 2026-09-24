@@ -3,16 +3,16 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'C3',
   plants:
-    'ports/announced-edit-store.ts: a store method takes (input, context), the shape only a *UseCasePort may declare',
+    'ports/edit-announcement-writer.ts: a writer method takes (input, context), the shape only a *UseCasePort may declare',
   gate: 'lint',
   rule: 'porcelain(port-shape)',
   edits: [
     {
       kind: 'append',
-      path: 'apps/server/src/ports/announced-edit-store.ts',
+      path: 'apps/server/src/ports/edit-announcement-writer.ts',
       content: `
-export interface ContextualEditStore {
-  save(input: AnnouncedEdit, context: AnnouncedEdit): void;
+export interface ContextualEditWriter {
+  announce(input: EditAnnouncement, context: EditAnnouncement): void;
 }
 `,
     },

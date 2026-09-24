@@ -564,6 +564,12 @@ export function violation(
     )
       return 'process-importable-by-git-agents-installer';
   }
+  if (
+    from.role === 'gateway' &&
+    to.owner === 'kernel' &&
+    to.role === 'error-api'
+  )
+    return;
   if (!allowedTargets[from.role].has(to.role))
     return `${from.role}-cannot-import-${to.role}`;
   return;

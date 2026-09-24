@@ -5,7 +5,7 @@ import type {
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { EditFileService } from '@porcelain/files/services';
 import type { ConfirmWorktreeService } from '@porcelain/projects/services';
-import type { AnnouncedEditStore } from '../../ports/announced-edit-store.ts';
+import type { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { Logger } from '../../ports/logger.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -22,7 +22,7 @@ export class EditFileUseCase {
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
-  private readonly announcedEdits: AnnouncedEditStore;
+  private readonly editAnnouncements: EditAnnouncementWriter;
   private readonly logger: Logger;
 
   constructor(
@@ -33,7 +33,7 @@ export class EditFileUseCase {
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
-    announcedEdits: AnnouncedEditStore,
+    editAnnouncements: EditAnnouncementWriter,
     logger: Logger,
   ) {
     this.checkWorktree = checkWorktree;
@@ -43,7 +43,7 @@ export class EditFileUseCase {
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
-    this.announcedEdits = announcedEdits;
+    this.editAnnouncements = editAnnouncements;
     this.logger = logger;
   }
 
@@ -67,7 +67,7 @@ export class EditFileUseCase {
       },
       { callerSignal: context.signal },
     );
-    this.announcedEdits.save({ worktreeId, paths });
+    this.editAnnouncements.announce({ worktreeId, paths });
     await this.invalidateReviewedMarks
       .execute({ worktreeId, paths }, {})
       .catch((error: unknown) =>

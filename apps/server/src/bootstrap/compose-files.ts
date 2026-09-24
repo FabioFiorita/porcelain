@@ -16,7 +16,7 @@ import { ListWorktreePathsUseCase } from '../use-cases/files/list-worktree-paths
 import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
-import type { AnnouncedEditStore } from '../ports/announced-edit-store.ts';
+import type { EditAnnouncementWriter } from '../ports/edit-announcement-writer.ts';
 import type { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
 import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
@@ -26,7 +26,7 @@ export type FilesDependencies = {
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
   invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
-  announcedEdits: AnnouncedEditStore;
+  editAnnouncements: EditAnnouncementWriter;
 };
 
 export function composeFiles(
@@ -86,7 +86,7 @@ export function composeFiles(
       lanes,
       laneKeys,
       events,
-      dependencies.announcedEdits,
+      dependencies.editAnnouncements,
       logger,
     ),
     listWorktreePaths: new ListWorktreePathsUseCase(

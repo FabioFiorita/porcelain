@@ -1,5 +1,6 @@
 import { RepositoryIdentityMismatchError } from '@porcelain/git/discovery';
 import type { CheckoutSession, GitSession } from '@porcelain/git/inspection';
+import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 
@@ -19,7 +20,8 @@ export async function listedWorktree(
   signal?: AbortSignal,
 ): Promise<ListedWorktree> {
   const check = await worktrees.known({ worktreeId }, signal);
-  if (check.kind !== 'found') throw new RepositoryIdentityMismatchError();
+  if (check.kind === 'missing') throw new WorktreeNotFoundError();
+  if (check.kind === 'unavailable') throw new RepositoryIdentityMismatchError();
   return check.worktree;
 }
 

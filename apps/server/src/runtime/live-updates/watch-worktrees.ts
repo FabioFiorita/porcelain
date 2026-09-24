@@ -1,7 +1,7 @@
 import type {
-  AnnouncedEdit,
-  AnnouncedEditStore,
-} from '../../ports/announced-edit-store.ts';
+  EditAnnouncement,
+  EditAnnouncementWriter,
+} from '../../ports/edit-announcement-writer.ts';
 import type {
   AnnounceWorktreeChangeUseCasePort,
   WorktreeChange,
@@ -58,7 +58,7 @@ function changesIgnoreRules(path: string): boolean {
   return path === '.gitignore' || path.endsWith('/.gitignore');
 }
 
-export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
+export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
   private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
   private readonly refreshInventory: JobWork;
   private readonly watcher: WorktreeWatcher;
@@ -105,7 +105,7 @@ export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
     ]);
   }
 
-  save(input: AnnouncedEdit): void {
+  announce(input: EditAnnouncement): void {
     const entry = this.worktrees.get(input.worktreeId);
     if (!entry) return;
     for (const path of input.paths)
@@ -280,7 +280,7 @@ export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
       const changed = pending.filter((path) => !entry.announcedPaths.has(path));
       const { worktreeId } = entry.worktree;
       if (pending.length === 0 || changed.length > 0)
-        this.announce({ worktreeId, change: 'files', paths: changed });
+        this.announceChange({ worktreeId, change: 'files', paths: changed });
       if (pending.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
     }, this.options.burstMs);
     entry.timer.unref();
@@ -294,7 +294,7 @@ export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
         (worktree) => worktree.worktree.projectId === entry.project.projectId,
       );
       for (const worktree of watched)
-        this.announce({
+        this.announceChange({
           worktreeId: worktree.worktree.worktreeId,
           change: 'git',
         });
@@ -306,7 +306,7 @@ export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
     entry.timer.unref();
   }
 
-  private announce(change: WorktreeChange): void {
+  private announceChange(change: WorktreeChange): void {
     this.announceWorktreeChange
       .execute(change, {})
       .catch((error: unknown) => this.reportFailure(error));

@@ -134,7 +134,7 @@ export const openServer: OpenServer = async (input) => {
     shared,
     checkWorktree,
     invalidateReviewedMarks: reviews.invalidateReviewedMarks,
-    announcedEdits: worktreeWatches,
+    editAnnouncements: worktreeWatches,
   });
   const commitPlanner = createCommitPlanner(limits.agents);
   const gitActions = composeGitActions(context, {
