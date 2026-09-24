@@ -6,10 +6,10 @@ import { RuntimeVersionMismatchError } from './errors/runtime-version-mismatch-e
 import { readJsonFile } from './json-file.ts';
 import { packageManifestSchema } from './records.ts';
 
-export const packageName = '@fabiofiorita/porcelain';
+export const PACKAGE_NAME = '@fabiofiorita/porcelain';
 
 export function runtimeEntryPoint(runtime: string): string {
-  return join(runtime, 'node_modules', packageName, 'bin/porcelain.js');
+  return join(runtime, 'node_modules', PACKAGE_NAME, 'bin/porcelain.js');
 }
 
 export async function installRuntime(
@@ -32,7 +32,7 @@ export async function installRuntime(
   ]);
   if (result.code !== 0) throw new RuntimeInstallError(result.stderr.trim());
   const manifest = await readJsonFile(
-    join(destination, 'node_modules', packageName, 'package.json'),
+    join(destination, 'node_modules', PACKAGE_NAME, 'package.json'),
     packageManifestSchema,
   );
   const reported =

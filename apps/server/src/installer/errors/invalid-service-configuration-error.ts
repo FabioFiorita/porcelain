@@ -1,4 +1,6 @@
-export class InvalidServiceConfigurationError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class InvalidServiceConfigurationError extends InstallerError {
   override readonly name = 'InvalidServiceConfigurationError';
   constructor() {
     super(

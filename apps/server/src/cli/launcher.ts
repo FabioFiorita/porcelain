@@ -1,14 +1,13 @@
-import type { StartupSettingsInput } from '../config/startup-settings.ts';
-import type { ServeSettings } from './arguments.ts';
+import type { ServerSettings } from '../config/server-settings.ts';
 
 export type StartServer = (
-  settings: StartupSettingsInput,
+  settings: ServerSettings,
   signal: AbortSignal,
 ) => Promise<{ address: string; socketPath: string; close(): Promise<void> }>;
 
 export type LauncherDependencies = {
   startServer: StartServer;
-  output?: (message: string) => void;
+  output: (message: string) => void;
 };
 
 async function waitForShutdown(signal: AbortSignal): Promise<void> {
@@ -19,25 +18,13 @@ async function waitForShutdown(signal: AbortSignal): Promise<void> {
 }
 
 export async function runLocalServer(
-  settings: ServeSettings,
+  settings: ServerSettings,
   signal: AbortSignal,
   dependencies: LauncherDependencies,
 ): Promise<void> {
-  const output =
-    dependencies.output ??
-    ((message: string) => process.stdout.write(`${message}\n`));
+  const { output } = dependencies;
   signal.throwIfAborted();
-  const server = await dependencies.startServer(
-    {
-      dataDirectory: settings.dataDirectory,
-      projectHome: settings.projectHome,
-      host: settings.host,
-      port: settings.port,
-      webRoot: settings.webRoot,
-      allowedHosts: settings.allowedHosts,
-    },
-    signal,
-  );
+  const server = await dependencies.startServer(settings, signal);
   try {
     if (signal.aborted) return;
     output(`Porcelain listening at ${server.address}`);

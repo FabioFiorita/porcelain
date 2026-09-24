@@ -1,16 +1,11 @@
 import { rmSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import type { FastifyInstance } from 'fastify';
-import type {
-  CommitDraftWriter,
-  CommitModelReader,
-} from '@porcelain/git-actions/ports';
 import { openApplication, type ServerApplication } from './compose-server.ts';
+import { PerformanceMonotonicClock } from '../adapters/runtime/performance-monotonic-clock.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
-import {
-  startupSettingsSchema,
-  type StartupSettingsInput,
-} from '../config/startup-settings.ts';
+import type { ServerSettings } from '../config/server-settings.ts';
+import type { Job } from '../jobs/job.ts';
 import type { IssuePairingResponse } from '@porcelain/contracts/access';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
@@ -22,16 +17,9 @@ import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-err
 import { restrictOwnerSocket } from './owner-socket.ts';
 import { acquireStartupLock } from './startup-lock.ts';
 
-export type RuntimeDependencies = {
-  commitGenerator?: CommitDraftWriter & CommitModelReader;
-  onClaimed?: () => Promise<void> | void;
-  onNetworkBound?: (address: string) => Promise<void> | void;
-};
-
 export type Runtime = {
   address: string;
   socketPath: string;
-  refreshed(): Promise<void>;
   issuePairing(
     labels: readonly string[],
     addresses: readonly string[],
@@ -39,8 +27,20 @@ export type Runtime = {
   close(): Promise<void>;
 };
 
+const LISTENER_CLOSE_GRACE_MS = 5000;
+
+type RuntimeParts = {
+  network?: FastifyInstance | undefined;
+  owner?: FastifyInstance | undefined;
+  application?: ServerApplication | undefined;
+  jobs?: readonly Job[] | undefined;
+};
+
 async function closeListener(server: FastifyInstance) {
-  const deadline = setTimeout(() => server.server.closeAllConnections(), 5000);
+  const deadline = setTimeout(
+    () => server.server.closeAllConnections(),
+    LISTENER_CLOSE_GRACE_MS,
+  );
   deadline.unref();
   try {
     await server.close();
@@ -49,12 +49,26 @@ async function closeListener(server: FastifyInstance) {
   }
 }
 
-async function shutDown(parts: {
-  network?: FastifyInstance | undefined;
-  owner?: FastifyInstance | undefined;
-  application?: ServerApplication | undefined;
-}) {
-  const { network, owner, application } = parts;
+async function startJobs(jobs: readonly Job[]): Promise<readonly Job[]> {
+  const started: Job[] = [];
+  try {
+    for (const job of jobs) {
+      job.start();
+      started.push(job);
+    }
+  } catch (error) {
+    await stopJobs(started);
+    throw error;
+  }
+  return started;
+}
+
+async function stopJobs(jobs: readonly Job[]): Promise<void> {
+  for (const job of jobs) await job.stop();
+}
+
+async function shutDown(parts: RuntimeParts) {
+  const { network, owner, application, jobs } = parts;
   const failures: unknown[] = [];
   const stage = async (work: () => Promise<void>) => {
     try {
@@ -64,6 +78,7 @@ async function shutDown(parts: {
     }
   };
   if (network) await stage(() => closeListener(network));
+  if (jobs) await stage(() => stopJobs(jobs));
   if (application) await stage(() => application.close());
   if (owner) await stage(() => closeListener(owner));
   if (failures.length > 0) throw failures[0];
@@ -79,21 +94,14 @@ function listeningOn(host: string): string[] {
 }
 
 export async function startRuntime(
-  settings: StartupSettingsInput,
-  signal?: AbortSignal,
-  dependencies: RuntimeDependencies = {},
+  settings: ServerSettings,
+  signal: AbortSignal,
 ): Promise<Runtime> {
-  const { dataDirectory, projectHome, port, host, webRoot, allowedHosts } =
-    startupSettingsSchema.parse(settings);
-  signal?.throwIfAborted();
-  const directory = prepareDataDirectory(dataDirectory);
+  const { host, port, allowedHosts } = settings;
+  signal.throwIfAborted();
+  const directory = prepareDataDirectory(settings.dataDirectory);
   const socketPath = ownerSocketPath(directory);
-  const { commitGenerator, onClaimed, onNetworkBound } = dependencies;
-  const parts: {
-    network?: FastifyInstance;
-    owner?: FastifyInstance;
-    application?: ServerApplication;
-  } = {};
+  const parts: RuntimeParts = {};
   const reach: { port: number; policy: HostPolicy } = {
     port: 0,
     policy: { allowedHosts, localAddresses: [] },
@@ -103,36 +111,34 @@ export async function startRuntime(
     dataDirectory: directory,
     pid: process.pid,
   };
-  const lock = await acquireStartupLock(directory);
+  const lock = await acquireStartupLock(
+    directory,
+    new PerformanceMonotonicClock(),
+  );
   try {
-    signal?.throwIfAborted();
+    signal.throwIfAborted();
     const probe = await probeOwnerSocket(socketPath);
     if (probe.kind === 'running') throw new DataDirectoryOwnedError(directory);
     if (probe.kind === 'unreadable')
       throw new OwnerSocketUnreadableError(socketPath, probe.reason);
     rmSync(socketPath, { force: true });
-    await onClaimed?.();
-    signal?.throwIfAborted();
-    parts.application = await openApplication({
-      dataDirectory: directory,
-      projectHome,
-      pairingReach: () => reach,
-      runtimeStatus: () => status,
-      ...(commitGenerator ? { commitGenerator } : {}),
-      ...(signal ? { signal } : {}),
-    });
+    signal.throwIfAborted();
+    parts.application = await openApplication(
+      { ...settings, dataDirectory: directory },
+      {
+        pairingReach: () => reach,
+        runtimeStatus: () => status,
+        signal,
+      },
+    );
     const application = parts.application;
-    signal?.throwIfAborted();
-    parts.network = createNetworkServer({
-      application,
-      ...(webRoot === undefined ? {} : { webRoot }),
-      allowedHosts,
-    });
+    signal.throwIfAborted();
+    parts.jobs = await startJobs(application.jobs);
+    parts.network = createNetworkServer({ application, settings });
     const address = await parts.network.listen({ host, port });
     status.address = address;
     reach.port = Number(new URL(address).port);
     reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
-    await onNetworkBound?.(address);
     parts.owner = createOwnerServer({ application });
     await parts.owner.listen({ path: socketPath });
     restrictOwnerSocket(socketPath);
@@ -140,7 +146,6 @@ export async function startRuntime(
     return {
       address,
       socketPath,
-      refreshed: () => application.ready(),
       issuePairing: async (labels, addresses) =>
         (
           await application.access.issuePairing.execute(

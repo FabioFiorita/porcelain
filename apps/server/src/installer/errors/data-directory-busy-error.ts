@@ -1,4 +1,6 @@
-export class DataDirectoryBusyError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class DataDirectoryBusyError extends InstallerError {
   override readonly name = 'DataDirectoryBusyError';
   constructor(state: 'running' | 'unreadable', phase: 'install' | 'update') {
     super(

@@ -8,28 +8,21 @@ import {
 import { fileURLToPath } from 'node:url';
 import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 import {
-  absolutePathSchema,
-  listenHostSchema,
-} from '../config/server-settings.ts';
-import {
-  defaultDataDirectoryName,
-  defaultListenHost,
-  defaultListenPort,
   readEnvironmentSettings,
   type EnvironmentSettings,
   type PorcelainEnvironment,
-} from '../config/startup-settings.ts';
+} from '../config/environment-settings.ts';
+import {
+  absolutePathSchema,
+  DEFAULT_DATA_DIRECTORY_NAME,
+  listenHostSchema,
+  readServerSettings,
+  type ServerSettings,
+} from '../config/server-settings.ts';
 
-const wildcardHosts = new Set(['0.0.0.0', '::']);
+const WILDCARD_HOSTS = new Set(['0.0.0.0', '::']);
 
-export type ServeSettings = {
-  dataDirectory: string;
-  projectHome: string;
-  host: string;
-  port: number;
-  webRoot: string;
-  allowedHosts: string[];
-};
+export type ServeSettings = ServerSettings & { webRoot: string };
 
 export type StatusSettings = {
   dataDirectory: string;
@@ -300,7 +293,7 @@ function dataDirectoryFor(
   return (
     parsed.dataDirectory ??
     environment.dataDirectory ??
-    join(homeDirectory, defaultDataDirectoryName)
+    join(homeDirectory, DEFAULT_DATA_DIRECTORY_NAME)
   );
 }
 
@@ -350,17 +343,26 @@ export function parseCliArguments(
     return { command: 'revoke', settings: { dataDirectory, id } };
   }
 
-  const host = parsed.lan
-    ? '0.0.0.0'
-    : (parsed.host ?? environment.host ?? defaultListenHost);
-  const port = parsed.port ?? environment.port ?? defaultListenPort;
+  const host = parsed.lan ? '0.0.0.0' : (parsed.host ?? environment.host);
   const allowedHosts = [
     ...new Set([
-      ...(parsed.host && !wildcardHosts.has(host) ? [host] : []),
+      ...(parsed.host && !WILDCARD_HOSTS.has(parsed.host) ? [parsed.host] : []),
       ...parsed.allowHosts,
       ...environment.allowedHosts,
     ]),
   ];
+  const servedWebRoot = parseAbsolutePath(
+    environment.webRoot ?? webRoot,
+    'web root',
+  );
+  const settings = readServerSettings({
+    dataDirectory,
+    projectHome: environment.projectHome ?? homeDirectory,
+    host,
+    port: parsed.port ?? environment.port,
+    webRoot: servedWebRoot,
+    allowedHosts,
+  });
 
   if (parsed.command === 'service')
     return {
@@ -368,22 +370,15 @@ export function parseCliArguments(
       settings: {
         action: parsed.serviceAction ?? 'status',
         allowDowngrade: parsed.allowDowngrade,
-        dataDirectory,
-        host,
-        port,
-        allowedHosts,
+        dataDirectory: settings.dataDirectory,
+        host: settings.host,
+        port: settings.port,
+        allowedHosts: settings.allowedHosts,
       },
     };
 
   return {
     command: 'serve',
-    settings: {
-      dataDirectory,
-      projectHome: environment.projectHome ?? homeDirectory,
-      host,
-      port,
-      webRoot: parseAbsolutePath(environment.webRoot ?? webRoot, 'web root'),
-      allowedHosts,
-    },
+    settings: { ...settings, webRoot: servedWebRoot },
   };
 }

@@ -1,4 +1,6 @@
-export class InstallCleanupError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class InstallCleanupError extends InstallerError {
   override readonly name = 'InstallCleanupError';
   constructor(detail: string) {
     super(

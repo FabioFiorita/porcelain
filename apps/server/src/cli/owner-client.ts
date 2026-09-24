@@ -3,13 +3,18 @@ import {
   readOwnerStatusResponseSchema,
   type ReadOwnerStatusResponse,
 } from '@porcelain/contracts/access';
-import { ownerSocketPath } from '../config/owner-socket-settings.ts';
+import {
+  OWNER_PROBE_TIMEOUT_MS,
+  OWNER_REQUEST_TIMEOUT_MS,
+  ownerSocketPath,
+} from '../config/owner-socket-settings.ts';
+import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
 
 export class OwnerRequestError extends Error {
   override readonly name = 'OwnerRequestError';
 }
 
-export type OwnerProbe =
+export type OwnerSocketProbe =
   | { kind: 'running'; status: ReadOwnerStatusResponse }
   | { kind: 'absent' }
   | { kind: 'unreadable'; reason: string };
@@ -59,7 +64,7 @@ function exchange(
       },
     );
     outgoing.on('timeout', () =>
-      outgoing.destroy(new Error(call.timeoutMessage)),
+      outgoing.destroy(new OwnerSocketTimeoutError(call.timeoutMessage)),
     );
     outgoing.on('error', reject);
     if (call.body !== undefined) outgoing.write(call.body);
@@ -102,7 +107,7 @@ export async function askOwner(
   method: 'GET' | 'POST',
   path: string,
   body?: unknown,
-  timeoutMs = 10_000,
+  timeoutMs = OWNER_REQUEST_TIMEOUT_MS,
 ): Promise<unknown> {
   const socketPath = ownerSocketPath(dataDirectory);
   let answer: OwnerAnswer;
@@ -130,8 +135,8 @@ export async function askOwner(
 
 export async function probeOwnerSocket(
   socketPath: string,
-  timeoutMs = 5000,
-): Promise<OwnerProbe> {
+  timeoutMs = OWNER_PROBE_TIMEOUT_MS,
+): Promise<OwnerSocketProbe> {
   let answer: OwnerAnswer;
   try {
     answer = await exchange(socketPath, {
@@ -180,6 +185,8 @@ export async function relayToOwner(
       timeoutMessage: 'The Porcelain server did not answer in time.',
     });
   } catch (error) {
-    throw socketAbsent(error) ? new Error('Porcelain is not running.') : error;
+    throw socketAbsent(error)
+      ? new OwnerRequestError('Porcelain is not running.')
+      : error;
   }
 }

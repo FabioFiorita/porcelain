@@ -1,4 +1,4 @@
-export const serviceUnitName = 'porcelain.service';
+export const SERVICE_UNIT_NAME = 'porcelain.service';
 
 export type ServicePlan = {
   nodeExecutable: string;

@@ -4,6 +4,7 @@ import {
   runLocalServer as serveLocally,
   type LauncherDependencies,
 } from './launcher.ts';
+import { writeStandardOutput } from './standard-output.ts';
 
 export { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 export { parseCliArguments, type ServeSettings } from './arguments.ts';
@@ -18,6 +19,7 @@ export function runLocalServer(
 ): Promise<void> {
   return serveLocally(settings, signal, {
     startServer: startRuntime,
+    output: (message) => writeStandardOutput(`${message}\n`),
     ...dependencies,
   });
 }

@@ -1,17 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { ownerSocketPath } from '../config/owner-socket-settings.ts';
+import { dirname } from 'node:path';
+import {
+  OWNER_QUICK_PROBE_TIMEOUT_MS,
+  ownerSocketPath,
+} from '../config/owner-socket-settings.ts';
 import {
   serviceIsHealthy,
   servicePlan,
   type InstallerContext,
 } from './context.ts';
-import { backupDatabase, restoreDatabase } from './database-backup.ts';
+import {
+  backupDatabase,
+  backupLocation,
+  restoreDatabase,
+} from './database-backup.ts';
 import { DataDirectoryBusyError } from './errors/data-directory-busy-error.ts';
 import { InstallCleanupError } from './errors/install-cleanup-error.ts';
 import { InstalledServiceUnhealthyError } from './errors/installed-service-unhealthy-error.ts';
 import { UnitExistsError } from './errors/unit-exists-error.ts';
+import { failureDetail } from './failure-detail.ts';
 import { writeJsonFile } from './json-file.ts';
 import { installRuntime } from './persistent-runtime.ts';
 import { readInstalledRecord, type ServiceConfiguration } from './records.ts';
@@ -27,16 +35,7 @@ export type InstallOutcome = {
   lingerCommand: string | undefined;
 };
 
-const lingerCommand = 'sudo loginctl enable-linger "$(id -un)"';
-
-function failureDetail(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function backupLocation(root: string, prefix: string): string {
-  const stamp = new Date().toISOString().replaceAll(':', '-');
-  return join(root, `${prefix}${stamp}-${randomUUID()}`);
-}
+const LINGER_COMMAND = 'sudo loginctl enable-linger "$(id -un)"';
 
 export async function install(
   context: InstallerContext,
@@ -49,12 +48,16 @@ export async function install(
   if (await systemd.unitExists()) throw new UnitExistsError(systemd.unitPath);
   const socket = await context.probe(
     ownerSocketPath(settings.dataDirectory),
-    500,
+    OWNER_QUICK_PROBE_TIMEOUT_MS,
   );
   if (socket.kind !== 'absent')
     throw new DataDirectoryBusyError(socket.kind, 'install');
   const staging = `${paths.runtime}.next-${randomUUID()}`;
-  const backup = backupLocation(paths.backups, 'preinstall-');
+  const backup = backupLocation(
+    paths.backups,
+    context.clock.now(),
+    'preinstall',
+  );
   let backupComplete = false;
   let unitWritten = false;
   try {
@@ -88,7 +91,7 @@ export async function install(
       throw new InstalledServiceUnhealthyError();
     return {
       backup,
-      lingerCommand: lingerEnabled ? undefined : lingerCommand,
+      lingerCommand: lingerEnabled ? undefined : LINGER_COMMAND,
     };
   } catch (error) {
     if (unitWritten) {

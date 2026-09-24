@@ -1,4 +1,6 @@
-export class ServiceDowngradeError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class ServiceDowngradeError extends InstallerError {
   override readonly name = 'ServiceDowngradeError';
   constructor(installed: string, candidate: string) {
     super(

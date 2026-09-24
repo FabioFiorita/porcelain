@@ -1,20 +1,23 @@
-import { randomUUID } from 'node:crypto';
 import { rename, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { ownerSocketPath } from '../config/owner-socket-settings.ts';
+import {
+  OWNER_QUICK_PROBE_TIMEOUT_MS,
+  ownerSocketPath,
+} from '../config/owner-socket-settings.ts';
 import {
   serviceIsHealthy,
   servicePlan,
   type InstallerContext,
 } from './context.ts';
-import { backupDatabase } from './database-backup.ts';
+import { backupDatabase, backupLocation } from './database-backup.ts';
 import { DataDirectoryBusyError } from './errors/data-directory-busy-error.ts';
 import { NotInstalledError } from './errors/not-installed-error.ts';
+import { PreviousServiceUnhealthyError } from './errors/previous-service-unhealthy-error.ts';
 import { ServiceDowngradeError } from './errors/service-downgrade-error.ts';
 import { UpdatedServiceUnhealthyError } from './errors/updated-service-unhealthy-error.ts';
 import { UpdateFailedError } from './errors/update-failed-error.ts';
 import { UpdateRecoveryError } from './errors/update-recovery-error.ts';
 import { UpdateRestartError } from './errors/update-restart-error.ts';
+import { failureDetail } from './failure-detail.ts';
 import { exists, writeJsonFile } from './json-file.ts';
 import { installRuntime } from './persistent-runtime.ts';
 import { readInstalledRecord, readServiceConfiguration } from './records.ts';
@@ -23,17 +26,13 @@ import { isDowngrade } from './version-policy.ts';
 
 export type UpdateOutcome = { backup: string };
 
-function failureDetail(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 async function restartPrevious(
   context: InstallerContext,
   dataDirectory: string,
 ): Promise<void> {
   await context.systemd.start();
   if (!(await serviceIsHealthy(context, dataDirectory)))
-    throw new UpdatedServiceUnhealthyError();
+    throw new PreviousServiceUnhealthyError();
 }
 
 export async function update(
@@ -49,10 +48,10 @@ export async function update(
   const configuration = await readServiceConfiguration(paths.configuration);
   const staging = paths.nextRuntime;
   const previous = paths.previousRuntime;
-  const stamp = new Date().toISOString().replaceAll(':', '-');
-  const backup = join(
+  const backup = backupLocation(
     paths.backups,
-    `${stamp}-${installed.version}-${randomUUID()}`,
+    context.clock.now(),
+    installed.version,
   );
   await installRuntime(
     runner,
@@ -67,7 +66,7 @@ export async function update(
     stopped = true;
     const socket = await context.probe(
       ownerSocketPath(configuration.dataDirectory),
-      500,
+      OWNER_QUICK_PROBE_TIMEOUT_MS,
     );
     if (socket.kind !== 'absent')
       throw new DataDirectoryBusyError(socket.kind, 'update');

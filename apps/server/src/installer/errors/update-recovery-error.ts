@@ -1,4 +1,6 @@
-export class UpdateRecoveryError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class UpdateRecoveryError extends InstallerError {
   override readonly name = 'UpdateRecoveryError';
   constructor(detail: string) {
     super(

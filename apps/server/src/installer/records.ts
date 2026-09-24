@@ -23,7 +23,7 @@ export type UpdateJournal = z.output<typeof updateJournalSchema>;
 
 export const lockOwnerSchema = z.object({
   pid: z.number().int(),
-  createdAt: z.number(),
+  createdAt: z.string(),
   token: z.string(),
 });
 

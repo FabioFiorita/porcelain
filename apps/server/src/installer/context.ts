@@ -3,6 +3,7 @@ import type { CommandRunner } from './command-runner.ts';
 import type { ServicePaths } from './paths.ts';
 import { runtimeEntryPoint } from './persistent-runtime.ts';
 import type { ServiceConfiguration } from './records.ts';
+import type { Clock } from '../ports/clock.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { waitForHealthyService } from './service-health.ts';
 import type { SystemdService } from './systemd-service.ts';
@@ -17,6 +18,7 @@ export type InstallerContext = {
   nodeExecutable: string;
   searchPath: string;
   probe: OwnerProbe;
+  clock: Clock;
 };
 
 export function servicePlan(

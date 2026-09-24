@@ -1,9 +1,9 @@
 import { setTimeout as sleep } from 'node:timers/promises';
+import { OWNER_QUICK_PROBE_TIMEOUT_MS } from '../config/owner-socket-settings.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 
-const attempts = 60;
-const probeTimeoutMs = 500;
-const intervalMs = 250;
+const ATTEMPTS = 60;
+const INTERVAL_MS = 250;
 
 export async function waitForHealthyService(options: {
   probe: OwnerProbe;
@@ -11,9 +11,9 @@ export async function waitForHealthyService(options: {
   dataDirectory: string;
   processId: () => Promise<number | undefined>;
 }): Promise<boolean> {
-  for (let attempt = 0; attempt < attempts; attempt++) {
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const [probe, servicePid] = await Promise.all([
-      options.probe(options.socketPath, probeTimeoutMs),
+      options.probe(options.socketPath, OWNER_QUICK_PROBE_TIMEOUT_MS),
       options.processId(),
     ]);
     if (
@@ -23,7 +23,7 @@ export async function waitForHealthyService(options: {
       probe.status.pid === servicePid
     )
       return true;
-    await sleep(intervalMs);
+    await sleep(INTERVAL_MS);
   }
   return false;
 }

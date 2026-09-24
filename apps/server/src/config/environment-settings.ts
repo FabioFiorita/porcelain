@@ -1,23 +1,10 @@
 import { z } from 'zod';
 import { ServeConfigurationError } from './errors/serve-configuration-error.ts';
-import { absolutePathSchema, listenHostSchema } from './server-settings.ts';
-
-export const defaultListenHost = '127.0.0.1';
-export const defaultListenPort = 3000;
-export const defaultDataDirectoryName = '.porcelain';
-
-export const listenPortSchema = z.number().int().min(0).max(65535);
-
-export const startupSettingsSchema = z.object({
-  dataDirectory: absolutePathSchema,
-  projectHome: absolutePathSchema,
-  port: listenPortSchema,
-  host: listenHostSchema.default(defaultListenHost),
-  webRoot: absolutePathSchema.optional(),
-  allowedHosts: z.array(listenHostSchema).default([]),
-});
-
-export type StartupSettingsInput = z.input<typeof startupSettingsSchema>;
+import {
+  absolutePathSchema,
+  listenHostSchema,
+  listenPortSchema,
+} from './server-settings.ts';
 
 export type PorcelainEnvironment = {
   PATH?: string | undefined;

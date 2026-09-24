@@ -1,4 +1,6 @@
-export class InterruptedUpdateUnrecoverableError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class InterruptedUpdateUnrecoverableError extends InstallerError {
   override readonly name = 'InterruptedUpdateUnrecoverableError';
   constructor() {
     super(

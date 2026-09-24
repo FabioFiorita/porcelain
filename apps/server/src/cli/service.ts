@@ -1,21 +1,33 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  InstallerError,
   openInstaller,
   readPackageIdentity,
   type ServiceStatus,
 } from '../installer/index.ts';
+import type { Clock } from '../ports/clock.ts';
 import type { ServiceSettings } from './arguments.ts';
 import { probeOwnerSocket } from './owner-client.ts';
 
 export type ServiceCommandDependencies = {
   homeDirectory: string;
   searchPath: string;
+  clock: Clock;
   stdout: (message: string) => void;
 };
 
 export class ServiceCommandError extends Error {
   override readonly name = 'ServiceCommandError';
+  constructor(detail: string) {
+    super(`Service management failed: ${detail}`);
+  }
+}
+
+export function isServiceFailure(error: unknown): boolean {
+  return (
+    error instanceof InstallerError || error instanceof ServiceCommandError
+  );
 }
 
 function formatStatus(status: ServiceStatus): string {
@@ -39,8 +51,9 @@ export async function runServiceCommand(
   try {
     await runService(settings, dependencies, moduleUrl);
   } catch (error) {
+    if (error instanceof InstallerError) throw error;
     throw new ServiceCommandError(
-      error instanceof Error ? error.message : 'Service management failed.',
+      error instanceof Error ? error.message : String(error),
     );
   }
 }
@@ -59,6 +72,7 @@ async function runService(
     packageVersion: identity.packageVersion,
     searchPath: dependencies.searchPath,
     probe: probeOwnerSocket,
+    clock: dependencies.clock,
   });
   if (settings.action === 'status') {
     dependencies.stdout(`${formatStatus(await installer.status())}\n`);

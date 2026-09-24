@@ -10,6 +10,7 @@ import {
 import { acquireManagementLock } from './management-lock.ts';
 import { servicePaths } from './paths.ts';
 import { serviceSearchPath } from './search-path.ts';
+import type { Clock } from '../ports/clock.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { readServiceStatus, type ServiceStatus } from './status.ts';
 import { SystemdService } from './systemd-service.ts';
@@ -22,6 +23,7 @@ export type InstallerOptions = {
   packageVersion: string;
   searchPath: string;
   probe: OwnerProbe;
+  clock: Clock;
   uid?: number | undefined;
   runner?: CommandRunner | undefined;
   nodeExecutable?: string | undefined;
@@ -51,7 +53,10 @@ export class Installer {
   }
 
   private async locked<T>(work: () => Promise<T>): Promise<T> {
-    const release = await acquireManagementLock(this.context.paths.root);
+    const release = await acquireManagementLock(
+      this.context.paths.root,
+      this.context.clock,
+    );
     try {
       return await work();
     } finally {
@@ -75,5 +80,6 @@ export function openInstaller(options: InstallerOptions): Installer {
     nodeExecutable,
     searchPath: serviceSearchPath(nodeExecutable, options.searchPath),
     probe: options.probe,
+    clock: options.clock,
   });
 }

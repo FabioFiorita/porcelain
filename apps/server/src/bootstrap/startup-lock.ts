@@ -1,29 +1,31 @@
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import Database from 'better-sqlite3';
+import type { MonotonicClock } from '../ports/monotonic-clock.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 
-const pollMs = 25;
+const POLL_MS = 25;
+const WAIT_MS = 10_000;
 
 export type StartupLock = { release(): void };
 
 export async function acquireStartupLock(
   directory: string,
-  waitMs = 10_000,
+  clock: MonotonicClock,
 ): Promise<StartupLock> {
   const database = new Database(join(directory, 'startup.lock'));
   database.pragma('busy_timeout = 0');
-  const deadline = Date.now() + waitMs;
+  const deadline = clock.elapsedMs() + WAIT_MS;
   for (;;) {
     try {
       database.exec('BEGIN EXCLUSIVE');
       break;
     } catch (error) {
-      if (Date.now() >= deadline) {
+      if (clock.elapsedMs() >= deadline) {
         database.close();
         throw new DataDirectoryOwnedError(directory, error);
       }
-      await delay(pollMs);
+      await delay(POLL_MS);
     }
   }
   const state = { released: false };

@@ -6,7 +6,7 @@ import {
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { PublishReviewUseCase } from '../../../use-cases/reviews/publish-review.ts';
-import { publishReviewBodyLimit } from '../../../config/request-limits.ts';
+import { REVIEW_BODY_LIMIT } from '../../../config/request-limits.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function publishReview(
@@ -17,7 +17,7 @@ export function publishReview(
   api.put(
     '/worktrees/:worktreeId/review',
     {
-      bodyLimit: publishReviewBodyLimit,
+      bodyLimit: REVIEW_BODY_LIMIT,
       schema: {
         params: worktreeParamsSchema,
         body: publishReviewRequestSchema,

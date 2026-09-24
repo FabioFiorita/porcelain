@@ -6,6 +6,7 @@ import {
   startRuntime,
   type Runtime,
 } from '../apps/server/src/bootstrap/runtime.ts';
+import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
 
 const execute = promisify(execFile);
 const shutdown = new AbortController();
@@ -50,7 +51,7 @@ try {
   );
 
   server = await startRuntime(
-    { dataDirectory: state, projectHome: root, port: 0 },
+    readServerSettings({ dataDirectory: state, projectHome: root, port: 0 }),
     shutdown.signal,
   );
   const [grant] = await server.issuePairing(
