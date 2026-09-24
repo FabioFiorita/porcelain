@@ -24,6 +24,12 @@ export class ServiceCommandError extends Error {
   }
 }
 
+export function isServiceFailure(error: unknown): boolean {
+  return (
+    error instanceof InstallerError || error instanceof ServiceCommandError
+  );
+}
+
 function formatStatus(status: ServiceStatus): string {
   return [
     'Porcelain service',

@@ -3,7 +3,7 @@ import { parseCliArguments } from '../cli/arguments.ts';
 import { runCommand } from '../cli/commands.ts';
 import type { StartServer } from '../cli/launcher.ts';
 import { OwnerRequestError } from '../cli/owner-client.ts';
-import { ServiceCommandError } from '../cli/service.ts';
+import { isServiceFailure } from '../cli/service.ts';
 import { installShutdownSignals } from '../cli/signals.ts';
 import {
   writeStandardError,
@@ -16,14 +16,11 @@ import { DataDirectoryInsecureError } from './errors/data-directory-insecure-err
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
-import { InstallerError } from '../installer/index.ts';
 import { startRuntime } from './runtime.ts';
 
 const actionableErrors = [
   ServeConfigurationError,
   OwnerRequestError,
-  ServiceCommandError,
-  InstallerError,
   DataDirectoryOwnedError,
   DataDirectoryInsecureError,
   OwnerSocketUnreadableError,
@@ -39,8 +36,10 @@ export type CliDependencies = {
 };
 
 function failureMessage(error: unknown): string {
-  return actionableErrors.some((actionable) => error instanceof actionable) &&
-    error instanceof Error
+  const actionable =
+    isServiceFailure(error) ||
+    actionableErrors.some((known) => error instanceof known);
+  return actionable && error instanceof Error
     ? error.message
     : 'Porcelain could not start. Check the build, data directory, and port.';
 }
