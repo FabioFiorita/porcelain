@@ -122,6 +122,7 @@ export type Role =
   | 'kernel'
   | 'fake'
   | 'fixture'
+  | 'capture'
   | 'store-contract'
   | 'test';
 
@@ -287,6 +288,8 @@ export function classify(path: string): Classification | undefined {
   if (nestedInRoleFolder(path)) return;
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
+  const capture = /^packages\/([^/]+)\/spec\/fixtures\/capture\.ts$/.exec(path);
+  if (capture) return classified('capture', capture[1] ?? '');
   const packageFixture = /^packages\/([^/]+)\/spec\/fixtures\/.+$/.exec(path);
   if (packageFixture) return classified('fixture', packageFixture[1] ?? '');
   const storeContract = /^packages\/([^/]+)\/spec\/contracts\/.+\.ts$/.exec(
@@ -461,6 +464,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'fake',
   ]),
   fixture: new Set(['model']),
+  capture: new Set(),
   'store-contract': new Set([
     'kernel',
     'port',
@@ -621,11 +625,19 @@ export const externalPackages: Record<Role, readonly string[]> = {
   kernel: [],
   fake: [],
   fixture: [],
+  capture: [],
   'store-contract': ['vitest'],
   test: [],
 };
 
 const fixtureNodeModules = new Set(['fs', 'path', 'url']);
+const captureNodeModules = new Set([
+  'child_process',
+  'fs',
+  'os',
+  'path',
+  'url',
+]);
 
 function isNodeModule(name: string): boolean {
   return nodeModules.has(name) || nodeModules.has(name.split('/')[0] ?? '');
@@ -646,6 +658,7 @@ function allowedPackage(role: Role, module: string): boolean {
 function forbiddenNodeModule(role: Role, name: string): boolean {
   const base = name.split('/')[0] ?? '';
   if (role === 'test') return false;
+  if (role === 'capture') return !captureNodeModules.has(base);
   if (base === 'child_process') return role !== 'process';
   if (role === 'kernel' || role === 'fake') return true;
   if (role === 'fixture') return !fixtureNodeModules.has(base);

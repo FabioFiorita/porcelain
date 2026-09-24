@@ -59,8 +59,8 @@ describe('parseDiff', () => {
   });
 
   it('rejects output that prints more files than it describes', () => {
-    expect(() => parseDiff(fixture('diff/worktree-malformed.txt'))).toThrow(
-      'Invalid Git diff output',
-    );
+    expect(() =>
+      parseDiff(fixture('diff/worktree-malformed-hand-edited.txt')),
+    ).toThrow('Invalid Git diff output');
   });
 });

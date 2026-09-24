@@ -400,6 +400,14 @@ const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
 const scopeFile = /^apps\/server\/src\/http\/scopes\/.+\.ts$/;
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
+const captureFile = /^packages\/[^/]+\/spec\/fixtures\/capture\.ts$/;
+const captureModules = new Set([
+  'node:child_process',
+  'node:fs',
+  'node:os',
+  'node:path',
+  'node:url',
+]);
 const fixtureModelSource = /^\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts$/;
 const signalMembers = new Set(['throwIfAborted', 'aborted', 'onabort']);
 const openTypes = new Set([
@@ -1530,7 +1538,18 @@ export default {
     },
     'fixture-imports': {
       create(context) {
-        if (!fixtureFile.test(repositoryPath(context))) return {};
+        const path = repositoryPath(context);
+        if (!fixtureFile.test(path)) return {};
+        if (captureFile.test(path))
+          return moduleVisitors((node) => {
+            const source = moduleSource(node);
+            if (source === undefined || !captureModules.has(source))
+              context.report({
+                node: node.source ?? node,
+                message:
+                  'A capture script runs Git in a disposable repository with node:child_process, node:fs, node:os, node:path and node:url only; it imports nothing from the repository.',
+              });
+          });
         return moduleVisitors((node) => {
           const source = moduleSource(node);
           if (source !== undefined && fixtureModules.has(source)) return;
