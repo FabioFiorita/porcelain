@@ -6,6 +6,8 @@ import { promisify } from 'node:util';
 import {
   isRecord,
   record,
+  text,
+  type Fixture,
   type HttpRequest,
   type HttpResponse,
   type LiveConnection,
@@ -50,6 +52,7 @@ type Manifest = {
   repository: string;
   socketPath: string;
   credentialFile: string;
+  fixture: Fixture;
 };
 
 const execute = promisify(execFile);
@@ -59,7 +62,9 @@ const quietHeaders = new Set([
   'keep-alive',
   'content-length',
 ]);
-const secretKeys = new Set(['credential', 'code', 'link']);
+const secretKeys = new Set(['credential', 'code', 'link', 'signature']);
+const signedLink =
+  /\/review-summaries\/([^/?#\s"]+)\?[^#\s"]*?signature=([^&#\s"]+)/g;
 const readyTimeoutMs = 30_000;
 const stopTimeoutMs = 10_000;
 const requestTimeoutMs = 30_000;
@@ -71,17 +76,35 @@ export class Recorder {
   private readonly secrets = new Set<string>();
 
   secret(value: string) {
-    if (value.length >= 6) this.secrets.add(value);
+    if (value !== '') this.secrets.add(value);
   }
 
   harvest(value: unknown) {
-    if (Array.isArray(value)) for (const entry of value) this.harvest(entry);
+    if (typeof value === 'string') this.harvestText(value);
+    else if (Array.isArray(value))
+      for (const entry of value) this.harvest(entry);
     else if (isRecord(value))
       for (const [key, entry] of Object.entries(value)) {
         if (secretKeys.has(key) && typeof entry === 'string')
           this.secret(entry);
-        else this.harvest(entry);
+        this.harvest(entry);
       }
+  }
+
+  harvestText(value: string) {
+    for (const [link, token, signature] of value.matchAll(signedLink))
+      for (const secret of [link, token, signature])
+        if (secret !== undefined) this.secret(secret);
+  }
+
+  harvestAuth(auth: HttpRequest['auth']) {
+    if (auth === undefined || typeof auth === 'string') return;
+    if ('bearer' in auth) this.secret(auth.bearer);
+    else {
+      this.secret(auth.cookie);
+      const value = auth.cookie.split('=').slice(1).join('=');
+      this.secret(value);
+    }
   }
 
   scrub(value: string): string {
@@ -127,17 +150,37 @@ function withQuery(path: string, query: HttpRequest['query']): string {
   return `${path}${path.includes('?') ? '&' : '?'}${search.toString()}`;
 }
 
+function fixtureOf(value: unknown): Fixture {
+  const fixture = record(value);
+  const device = record(fixture.device);
+  const readme = record(fixture.readme);
+  const folders = record(fixture.folders);
+  return {
+    folders: {
+      home: text(folders.home),
+      repository: text(folders.repository),
+      state: text(folders.state),
+    },
+    branch: text(fixture.branch),
+    device: { label: text(device.label), platform: text(device.platform) },
+    readme: {
+      path: text(readme.path),
+      committed: text(readme.committed),
+      changed: text(readme.changed),
+    },
+    initialCommit: text(fixture.initialCommit),
+  };
+}
+
 function manifestOf(value: unknown): Manifest {
   const manifest = record(value);
-  const { address, repository, socketPath, credentialFile } = manifest;
-  if (
-    typeof address !== 'string' ||
-    typeof repository !== 'string' ||
-    typeof socketPath !== 'string' ||
-    typeof credentialFile !== 'string'
-  )
-    throw new Error('Isolated server session manifest is incomplete');
-  return { address, repository, socketPath, credentialFile };
+  return {
+    address: text(manifest.address),
+    repository: text(manifest.repository),
+    socketPath: text(manifest.socketPath),
+    credentialFile: text(manifest.credentialFile),
+    fixture: fixtureOf(manifest.fixture),
+  };
 }
 
 function readyManifestPath(line: string): string | undefined {
@@ -198,6 +241,7 @@ export class IsolatedServer {
   readonly projectHome: string;
   readonly socketPath: string;
   readonly credential: string;
+  readonly fixture: Fixture;
   private readonly child: ChildProcess;
   private readonly exited: Promise<void>;
   private readonly output: { stdout: string; stderr: string };
@@ -216,6 +260,7 @@ export class IsolatedServer {
     this.repository = manifest.repository;
     this.projectHome = resolve(manifest.repository, '..');
     this.socketPath = manifest.socketPath;
+    this.fixture = manifest.fixture;
     this.credential = credential;
   }
 
@@ -299,6 +344,7 @@ export class IsolatedServer {
       return absolute;
     };
     return {
+      fixture: this.fixture,
       address: this.address,
       repository: this.repository,
       projectHome: this.projectHome,
@@ -362,6 +408,8 @@ export class IsolatedServer {
       headers['content-type'] = request.contentType ?? 'application/json';
     }
     recorder.harvest(request.body);
+    recorder.harvestText(path);
+    recorder.harvestAuth(request.auth);
     const recordedHeaders = { ...headers };
     if (recordedHeaders.authorization)
       recordedHeaders.authorization = 'Bearer [redacted]';

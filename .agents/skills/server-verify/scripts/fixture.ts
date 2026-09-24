@@ -8,9 +8,6 @@ import {
   type Session,
 } from './feature.ts';
 
-export const sampleChange = '# Sample repository\n\nA change to review.\n';
-export const sampleFingerprint =
-  '68ae39995d04b18f57dacf53b58c6c21f44a6a9a9cd6f1085d932da25530dcce';
 export const worktreeNotFound = apiError(
   404,
   'Not Found',
@@ -70,6 +67,18 @@ export async function fingerprintOf(session: Session, path: string) {
   return entry.fingerprint;
 }
 
+export async function blobOf(session: Session, revision: string) {
+  return (await session.git('rev-parse', revision)).trim();
+}
+
+export async function workingBlobOf(session: Session, path: string) {
+  return (await session.git('hash-object', '--', path)).trim();
+}
+
+export async function head(session: Session) {
+  return (await session.git('rev-parse', 'HEAD')).trim();
+}
+
 export async function issuePairing(session: Session, label = 'Verification') {
   const issued = await read(session, {
     method: 'POST',
@@ -111,15 +120,22 @@ export async function settledReceipt(session: Session, requestId: string) {
 export async function expectation(session: Session) {
   return {
     headOid: (await changes(session)).headOid,
-    branch: 'main',
+    branch: session.fixture.branch,
     inProgress: null,
     mergeHeadOid: null,
   };
 }
 
+export async function receiptOf(session: Session, requestId: string) {
+  return read(session, {
+    method: 'GET',
+    path: `/api/git-action-requests/${requestId}`,
+  });
+}
+
 export async function threeCommits(session: Session) {
   await session.git('commit', '-am', 'Second commit', '-m', 'With a body');
-  await session.git('mv', 'README.md', 'GUIDE.md');
+  await session.git('mv', session.fixture.readme.path, 'GUIDE.md');
   await session.git('commit', '-m', 'Rename');
   const [rename, second, initial] = (await session.git('rev-list', 'HEAD'))
     .trim()
@@ -128,19 +144,27 @@ export async function threeCommits(session: Session) {
   return { rename, second, initial };
 }
 
+export const sampleSummaryHtml = '<html><body><h1>Summary</h1></body></html>';
+
+export function lineCount(value: string) {
+  return value.split('\n').length - 1;
+}
+
 export function sampleReview(
+  session: Session,
   expectedRevision: number,
   layerId: string,
   stepId: string,
-  path = 'README.md',
+  options: { path?: string; title?: string } = {},
 ) {
+  const line = lineCount(session.fixture.readme.changed);
   return {
     expectedRevision,
-    summaryHtml: '<html><body><h1>Summary</h1></body></html>',
+    summaryHtml: sampleSummaryHtml,
     layers: [
       {
         id: layerId,
-        title: 'Readme',
+        title: options.title ?? 'Readme',
         summary: 'Adds a line',
         lanes: ['Docs'],
         steps: [
@@ -150,10 +174,45 @@ export function sampleReview(
             title: 'New line',
             text: 'A line is added',
             kind: 'changed',
-            pointer: { path, startLine: 3, endLine: 3 },
+            pointer: {
+              path: options.path ?? session.fixture.readme.path,
+              startLine: line,
+              endLine: line,
+            },
           },
         ],
       },
     ],
   };
+}
+
+export async function watching(session: Session) {
+  const connection = await session.live();
+  await connection.next((notice) => notice.type === 'ready');
+  connection.send({
+    type: 'subscribe',
+    projects: [session.projectId],
+    worktrees: [
+      {
+        projectId: session.projectId,
+        worktreeId: session.worktreeId,
+        paths: [session.fixture.readme.path],
+      },
+    ],
+  });
+  await delay(300);
+  return connection;
+}
+
+export async function eventually(
+  session: Session,
+  request: HttpRequest,
+  accept: (body: Record<string, unknown>) => boolean,
+) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const body = await read(session, request);
+    if (accept(body)) return body;
+    await delay(100);
+  }
+  throw new Error(`${request.method} ${request.path} never reached the state`);
 }

@@ -1,4 +1,4 @@
-import { readPreviewAssetsResponseSchema } from '../../../../packages/contracts/src/files/index.ts';
+import { readPreviewAssetsResponseSchema } from '@porcelain/contracts/files';
 import {
   defineCase,
   defineFeature,
@@ -12,6 +12,7 @@ const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
 export default defineFeature({
   feature: 'files.read-preview-assets',
   reaches: 'POST /api/worktrees/:worktreeId/preview-assets',
+  paired: true,
   intent: 'observed',
   behaviour:
     'A Markdown preview asks for the images a document references, by paths relative to that document. Each is answered in request order as an asset (media type and base64) or as unavailable, including paths that are missing or escape the worktree, so one bad reference never fails the preview.',

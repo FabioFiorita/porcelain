@@ -1,4 +1,4 @@
-import { readChangeDiffsResponseSchema } from '../../../../packages/contracts/src/changes/index.ts';
+import { readChangeDiffsResponseSchema } from '@porcelain/contracts/changes';
 import {
   apiError,
   defineCase,
@@ -7,10 +7,11 @@ import {
   record,
   unknownFingerprint,
   unknownWorktreeId,
+  type Session,
 } from '../scripts/feature.ts';
 import {
   changes,
-  sampleFingerprint,
+  fingerprintOf,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
@@ -20,22 +21,28 @@ const refresh = apiError(
   'Conflict',
   'Refresh status and retry inspection',
 );
-const readme = {
+const unstaged = (session: Session) => ({
   scope: 'unstaged',
-  oldPath: 'README.md',
-  newPath: 'README.md',
-} as const;
-const patch =
-  'diff --git a/README.md b/README.md\nindex 8a69292..90c6866 100644\n--- a/README.md\n+++ b/README.md\n@@ -1 +1,3 @@\n # Sample repository\n+\n+A change to review.\n';
+  oldPath: session.fixture.readme.path,
+  newPath: session.fixture.readme.path,
+});
+
+async function seen(session: Session) {
+  return {
+    ...(await changes(session)),
+    fingerprint: await fingerprintOf(session, session.fixture.readme.path),
+  };
+}
 
 function diffs(
+  session: Session,
   statusToken: string,
   fingerprint: string | null,
-  selection: object = readme,
+  selection: object = unstaged(session),
 ) {
   return {
     expectedStatusToken: statusToken,
-    expectedFiles: [{ path: 'README.md', fingerprint }],
+    expectedFiles: [{ path: session.fixture.readme.path, fingerprint }],
     selections: [selection],
   };
 }
@@ -43,17 +50,23 @@ function diffs(
 export default defineFeature({
   feature: 'changes.read-change-diffs',
   reaches: 'POST /api/worktrees/:worktreeId/changes/diffs',
+  paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer reads the diffs of selected comparisons, stating the status token and file fingerprints it last saw. The selections must cover exactly the stated files, otherwise the request is invalid. If the worktree moved since, the read is refused as a conflict so the client refreshes first; nothing is read from a newer state than the one the reviewer looked at.',
+    'A reviewer reads the diffs of selected comparisons, stating the status token and file fingerprints it last saw, and gets the patch Git reports for each. The selections must cover exactly the stated files, otherwise the request is invalid. If the worktree moved since, the read is refused as a conflict so the client refreshes first; nothing is read from a newer state than the one the reviewer looked at.',
   cases: [
     defineCase({
       name: 'the sample change',
-      setup: changes,
+      async setup(session) {
+        return {
+          ...(await seen(session)),
+          patch: await session.git('diff', '--', session.fixture.readme.path),
+        };
+      },
       request: (session, state) => ({
         method: 'POST',
         path: worktreePath(session, '/changes/diffs'),
-        body: diffs(state.statusToken, sampleFingerprint),
+        body: diffs(session, state.statusToken, state.fingerprint),
       }),
       expect({ response, state, session, check, checkContract }) {
         check('status', 200, response.status);
@@ -64,7 +77,12 @@ export default defineFeature({
             environmentId: record(response.body).environmentId,
             worktreeId: session.worktreeId,
             statusToken: state.statusToken,
-            diffs: [{ selection: readme, content: { kind: 'text', patch } }],
+            diffs: [
+              {
+                selection: unstaged(session),
+                content: { kind: 'text', patch: state.patch },
+              },
+            ],
           },
           response.body,
         );
@@ -72,11 +90,11 @@ export default defineFeature({
     }),
     defineCase({
       name: 'a selection that is not one of the stated files',
-      setup: changes,
+      setup: seen,
       request: (session, state) => ({
         method: 'POST',
         path: worktreePath(session, '/changes/diffs'),
-        body: diffs(state.statusToken, sampleFingerprint, {
+        body: diffs(session, state.statusToken, state.fingerprint, {
           scope: 'staged',
           oldPath: 'other.md',
           newPath: 'other.md',
@@ -89,14 +107,13 @@ export default defineFeature({
     }),
     defineCase({
       name: 'a stated file whose selection is no longer listed',
-      setup: changes,
+      setup: seen,
       request: (session, state) => ({
         method: 'POST',
         path: worktreePath(session, '/changes/diffs'),
-        body: diffs(state.statusToken, sampleFingerprint, {
+        body: diffs(session, state.statusToken, state.fingerprint, {
+          ...unstaged(session),
           scope: 'staged',
-          oldPath: 'README.md',
-          newPath: 'README.md',
         }),
       }),
       expect({ response, check }) {
@@ -106,17 +123,17 @@ export default defineFeature({
     }),
     defineCase({
       name: 'stale status token or stale fingerprint',
-      setup: changes,
+      setup: seen,
       request: (session, state) => [
         {
           method: 'POST',
           path: worktreePath(session, '/changes/diffs'),
-          body: diffs(unknownFingerprint, sampleFingerprint),
+          body: diffs(session, unknownFingerprint, state.fingerprint),
         },
         {
           method: 'POST',
           path: worktreePath(session, '/changes/diffs'),
-          body: diffs(state.statusToken, unknownFingerprint),
+          body: diffs(session, state.statusToken, unknownFingerprint),
         },
       ],
       expect({ responses, check }) {
@@ -129,14 +146,14 @@ export default defineFeature({
     defineCase({
       name: 'the worktree moved after the status was read',
       async setup(session) {
-        const before = await changes(session);
-        await session.writeFile('README.md', 'Edited again\n');
+        const before = await seen(session);
+        await session.writeFile(session.fixture.readme.path, 'Edited again\n');
         return before;
       },
       request: (session, state) => ({
         method: 'POST',
         path: worktreePath(session, '/changes/diffs'),
-        body: diffs(state.statusToken, sampleFingerprint),
+        body: diffs(session, state.statusToken, state.fingerprint),
       }),
       expect({ response, check }) {
         check('status', 409, response.status);
@@ -159,7 +176,7 @@ export default defineFeature({
         {
           method: 'POST',
           path: `/api/worktrees/${unknownWorktreeId}/changes/diffs`,
-          body: diffs(state.statusToken, null),
+          body: diffs(session, state.statusToken, null),
         },
       ],
       expect({ responses, check }) {

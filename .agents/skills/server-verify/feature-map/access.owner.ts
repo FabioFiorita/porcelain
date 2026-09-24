@@ -2,7 +2,7 @@ import {
   issuePairingResponseSchema,
   listAccessResponseSchema,
   readOwnerStatusResponseSchema,
-} from '../../../../packages/contracts/src/access/index.ts';
+} from '@porcelain/contracts/access';
 import {
   apiError,
   defineCase,
@@ -34,6 +34,7 @@ export default defineFeature({
     'owner POST /mcp',
     'owner GET /mcp',
   ],
+  paired: false,
   intent: 'observed',
   behaviour:
     "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses (a request naming an address the server does not answer at, or a blank label, issues nothing), revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only.",
@@ -51,13 +52,13 @@ export default defineFeature({
     defineCase({
       name: 'list access',
       request: () => owner({ method: 'GET', path: '/access' }),
-      expect({ response, check, checkContract }) {
+      expect({ response, session, check, checkContract }) {
         check('status', 200, response.status);
         checkContract('contract', listAccessResponseSchema, response.body);
         check('no open grants', [], record(response.body).grants);
         check(
           'the fixture device',
-          [{ label: 'Development setup', platform: 'Development' }],
+          [session.fixture.device],
           list(record(response.body).devices).map((device) => ({
             label: record(device).label,
             platform: record(device).platform,
@@ -219,6 +220,7 @@ export default defineFeature({
           body: { id: grantId },
         }),
       async expect({ response, state, session, check }) {
+        check('status', 200, response.status);
         check('body', { revoked: true, kind: 'grant' }, response.body);
         const access = record(
           (await session.send(owner({ method: 'GET', path: '/access' }))).body,
@@ -306,6 +308,11 @@ export default defineFeature({
       request: () => owner({ method: 'GET', path: '/mcp' }),
       expect({ response, check }) {
         check('status', 405, response.status);
+        check(
+          'error body',
+          apiError(405, 'Method Not Allowed', 'Method Not Allowed'),
+          response.body,
+        );
         check('allow header', 'POST', response.headers.allow);
       },
     }),

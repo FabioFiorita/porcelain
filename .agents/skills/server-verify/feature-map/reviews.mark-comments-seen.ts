@@ -1,4 +1,4 @@
-import { markCommentsSeenResponseSchema } from '../../../../packages/contracts/src/reviews/index.ts';
+import { markCommentsSeenResponseSchema } from '@porcelain/contracts/reviews';
 import {
   defineCase,
   defineFeature,
@@ -26,6 +26,7 @@ async function twoThreads(session: Session) {
 export default defineFeature({
   feature: 'reviews.mark-comments-seen',
   reaches: 'POST /api/worktrees/:worktreeId/comments/seen',
+  paired: true,
   intent: 'observed',
   behaviour:
     "A reviewer records that they have seen the worktree's comments up to a revision. A revision beyond the latest is clamped to the latest, the mark never moves back, and the answer states what is now recorded as seen.",
@@ -52,6 +53,7 @@ export default defineFeature({
       name: 'beyond the latest revision',
       request: (session) => seen(session, 9999),
       expect({ response, session, check }) {
+        check('status', 200, response.status);
         check(
           'clamped to the latest',
           { worktreeId: session.worktreeId, seenThrough: 2 },
@@ -63,6 +65,7 @@ export default defineFeature({
       name: 'an earlier revision after a later one',
       request: (session) => seen(session, 1),
       expect({ response, session, check }) {
+        check('status', 200, response.status);
         check(
           'never moves back',
           { worktreeId: session.worktreeId, seenThrough: 2 },

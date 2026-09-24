@@ -1,8 +1,9 @@
-import { mkdtemp, readdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import { loadFeatures, reachesOf } from './catalogue.ts';
 import {
   isRecord,
   list,
@@ -39,45 +40,8 @@ type FeatureResult = {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../../../..');
-const mapDirectory = resolve(here, '../feature-map');
 const usage =
   'Usage: node .agents/skills/server-verify/scripts/verify.ts <feature>|--all|--list\n';
-
-function isFeature(value: unknown): value is Feature {
-  return (
-    isRecord(value) &&
-    typeof value.feature === 'string' &&
-    (typeof value.reaches === 'string' || Array.isArray(value.reaches)) &&
-    (value.intent === 'observed' || value.intent === 'intended') &&
-    typeof value.behaviour === 'string' &&
-    Array.isArray(value.cases)
-  );
-}
-
-async function discover(): Promise<Feature[]> {
-  const files = (await readdir(mapDirectory))
-    .filter((name) => name.endsWith('.ts'))
-    .sort();
-  const features: Feature[] = [];
-  for (const file of files) {
-    const loaded: unknown = await import(
-      pathToFileURL(join(mapDirectory, file)).href
-    );
-    const feature = isRecord(loaded) ? loaded.default : undefined;
-    if (!isFeature(feature) || `${feature.feature}.ts` !== file)
-      throw new Error(
-        `${file} must default-export the feature named ${file.slice(0, -3)}`,
-      );
-    features.push(feature);
-  }
-  return features;
-}
-
-function reachesOf(feature: Feature): readonly string[] {
-  return typeof feature.reaches === 'string'
-    ? [feature.reaches]
-    : feature.reaches;
-}
 
 function routePattern(reach: string): RegExp {
   const escaped = reach
@@ -286,11 +250,11 @@ if (process.argv.length !== 3 || !argument) {
   process.stderr.write(usage);
   process.exit(2);
 }
-const features = await discover();
+const features = await loadFeatures();
 if (argument === '--list') {
   for (const feature of features)
     process.stdout.write(
-      `${feature.feature} (${feature.intent}, ${feature.cases.length} cases): ${reachesOf(feature).join(', ')}\n`,
+      `${feature.feature} (${feature.intent}${feature.paired ? ', paired' : ''}, ${feature.cases.length} cases): ${reachesOf(feature).join(', ')}\n`,
     );
   process.exit(0);
 }

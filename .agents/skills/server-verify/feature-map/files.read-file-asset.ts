@@ -1,4 +1,4 @@
-import { readFileAssetResponseSchema } from '../../../../packages/contracts/src/files/index.ts';
+import { readFileAssetResponseSchema } from '@porcelain/contracts/files';
 import {
   apiError,
   defineCase,
@@ -19,6 +19,7 @@ const asset = (session: Session, path: string) => ({
 export default defineFeature({
   feature: 'files.read-file-asset',
   reaches: 'GET /api/worktrees/:worktreeId/asset',
+  paired: true,
   intent: 'intended',
   behaviour:
     'A reviewer reads an image from the worktree to preview it: the answer carries its media type and base64 content. A readable file whose type cannot be previewed is refused with a message that says so; a missing file is not found; paths that escape the worktree are invalid.',

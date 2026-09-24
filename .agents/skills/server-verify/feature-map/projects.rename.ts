@@ -35,6 +35,7 @@ function rejectedName(name: string, submitted: string, projectId?: string) {
 export default defineFeature({
   feature: 'projects.rename',
   reaches: 'PATCH /api/projects/:projectId',
+  paired: true,
   intent: 'intended',
   locations: [
     'apps/server/src/http/routes/projects/rename.ts',

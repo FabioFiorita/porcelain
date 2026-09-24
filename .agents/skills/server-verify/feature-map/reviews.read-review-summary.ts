@@ -7,7 +7,12 @@ import {
   text,
   type Session,
 } from '../scripts/feature.ts';
-import { read, sampleReview, worktreePath } from '../scripts/fixture.ts';
+import {
+  read,
+  sampleReview,
+  sampleSummaryHtml,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 async function summaryUrl(session: Session) {
   const current = (
@@ -20,7 +25,7 @@ async function summaryUrl(session: Session) {
   const answer = await read(session, {
     method: 'PUT',
     path: worktreePath(session, '/review'),
-    body: sampleReview(revision, randomUUID(), randomUUID()),
+    body: sampleReview(session, revision, randomUUID(), randomUUID()),
   });
   return new URL(
     String(record(record(answer.review).summary).url),
@@ -31,6 +36,7 @@ async function summaryUrl(session: Session) {
 export default defineFeature({
   feature: 'reviews.read-review-summary',
   reaches: 'GET /review-summaries/:token',
+  paired: false,
   intent: 'observed',
   behaviour:
     'The published HTML summary is served outside the API at a signed, expiring link that needs no credential, so it can load in a sandboxed frame. The page is sent as published with a small theme and navigation bridge added before </body>, a sandbox content security policy, no caching and no referrer. Only the current summary is served. A wrong signature, an expired link or the link of a replaced summary answers 404 with an empty body; a malformed link is invalid.',
@@ -66,12 +72,13 @@ export default defineFeature({
           response.headers['referrer-policy'],
         );
         const html = text(response.body);
+        const [published = '', closing = ''] =
+          sampleSummaryHtml.split('</body>');
         check(
           'published page with the bridge before </body>',
           true,
-          /^<html><body><h1>Summary<\/h1><style id="porcelain-theme">.*<\/script><\/body><\/html>$/s.test(
-            html,
-          ),
+          html.startsWith(`${published}<style id="porcelain-theme">`) &&
+            html.endsWith(`</script></body>${closing}`),
         );
       },
     }),

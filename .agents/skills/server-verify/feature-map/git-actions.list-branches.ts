@@ -1,4 +1,4 @@
-import { listGitBranchesResponseSchema } from '../../../../packages/contracts/src/git-actions/index.ts';
+import { listGitBranchesResponseSchema } from '@porcelain/contracts/git-actions';
 import {
   apiError,
   defineCase,
@@ -14,6 +14,7 @@ import { gitPath, worktreeNotFound } from '../scripts/fixture.ts';
 export default defineFeature({
   feature: 'git-actions.list-branches',
   reaches: 'GET /api/projects/:projectId/worktrees/:worktreeId/git/branches',
+  paired: true,
   intent: 'intended',
   behaviour:
     "The owner lists a worktree's local branches, to switch or create one: the current branch and, for each branch, its upstream, last commit time and whether another worktree has it checked out. An unknown project is not found, and so is a worktree that is not one of the project's.",
@@ -25,17 +26,20 @@ export default defineFeature({
         method: 'GET',
         path: gitPath(session, '/branches'),
       }),
-      expect({ response, check, checkPartial, checkContract }) {
+      expect({ response, session, check, checkPartial, checkContract }) {
         check('status', 200, response.status);
         checkContract('contract', listGitBranchesResponseSchema, response.body);
         checkPartial(
           'body',
           {
-            current: 'main',
-            branches: [
-              { name: 'feature', upstream: null, checkedOutElsewhere: false },
-              { name: 'main', upstream: null, checkedOutElsewhere: false },
-            ],
+            current: session.fixture.branch,
+            branches: ['feature', session.fixture.branch]
+              .sort()
+              .map((name) => ({
+                name,
+                upstream: null,
+                checkedOutElsewhere: false,
+              })),
           },
           response.body,
         );

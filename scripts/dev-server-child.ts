@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
@@ -18,10 +18,23 @@ const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
 let server: Runtime | undefined;
 
+const committed = '# Sample repository\n';
+const fixture = {
+  folders: { home: 'home', repository: 'repository', state: 'state' },
+  branch: 'main',
+  device: { label: 'Development setup', platform: 'Development' },
+  readme: {
+    path: 'README.md',
+    committed,
+    changed: `${committed}\nA change to review.\n`,
+  },
+  initialCommit: 'Initial commit',
+};
+
 try {
-  const home = join(root, 'home');
-  const repository = join(root, 'repository');
-  const state = join(root, 'state');
+  const home = join(root, fixture.folders.home);
+  const repository = join(root, fixture.folders.repository);
+  const state = join(root, fixture.folders.state);
   await mkdir(home);
   Object.assign(process.env, {
     HOME: home,
@@ -39,30 +52,31 @@ try {
     await execute('git', args, { cwd: repository, env: process.env });
   };
   await mkdir(repository);
-  await git('init', '-b', 'main');
+  await git('init', '-b', fixture.branch);
   await git('config', 'user.name', 'Porcelain Development');
   await git('config', 'user.email', 'porcelain@example.invalid');
-  await writeFile(join(repository, 'README.md'), '# Sample repository\n');
-  await git('add', 'README.md');
-  await git('commit', '-m', 'Initial commit');
-  await writeFile(
-    join(repository, 'README.md'),
-    `${await readFile(join(repository, 'README.md'), 'utf8')}\nA change to review.\n`,
-  );
+  const readme = join(repository, fixture.readme.path);
+  await writeFile(readme, fixture.readme.committed);
+  await git('add', fixture.readme.path);
+  await git('commit', '-m', fixture.initialCommit);
+  await writeFile(readme, fixture.readme.changed);
 
   server = await startRuntime(
     readServerSettings({ dataDirectory: state, projectHome: root, port: 0 }),
     shutdown.signal,
   );
   const [grant] = await server.issuePairing(
-    ['Development setup'],
+    [fixture.device.label],
     [new URL(server.address).origin],
   );
   if (!grant) throw new Error('Could not create a development pairing');
   const paired = await fetch(`${server.address}/api/pair`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ code: grant.code, platform: 'Development' }),
+    body: JSON.stringify({
+      code: grant.code,
+      platform: fixture.device.platform,
+    }),
     signal: shutdown.signal,
   });
   if (!paired.ok)
@@ -95,7 +109,7 @@ try {
   const manifest = join(root, 'manifest.json');
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, fixture }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

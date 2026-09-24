@@ -1,4 +1,4 @@
-import { listDirectoryResponseSchema } from '../../../../packages/contracts/src/files/index.ts';
+import { listDirectoryResponseSchema } from '@porcelain/contracts/files';
 import {
   apiError,
   defineCase,
@@ -18,6 +18,7 @@ const directory = (session: Session, path?: string) => ({
 export default defineFeature({
   feature: 'files.list-directory',
   reaches: 'GET /api/worktrees/:worktreeId/directory',
+  paired: true,
   intent: 'intended',
   behaviour:
     'A reviewer browses a worktree folder by folder, from the root (empty path). Entries are named with their kind and ignored entries are flagged. The .git folder is never listed, and a path into it is invalid input like any path that escapes the worktree; a missing folder is not found.',
@@ -39,7 +40,7 @@ export default defineFeature({
             path: '',
             entries: [
               { name: '.gitignore', kind: 'file' },
-              { name: 'README.md', kind: 'file' },
+              { name: session.fixture.readme.path, kind: 'file' },
               { name: 'build.log', kind: 'file', ignored: true },
             ],
           },

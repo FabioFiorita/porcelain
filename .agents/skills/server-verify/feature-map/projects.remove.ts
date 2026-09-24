@@ -17,6 +17,7 @@ async function inventory(session: Session) {
 export default defineFeature({
   feature: 'projects.remove',
   reaches: 'DELETE /api/projects/:projectId',
+  paired: true,
   intent: 'intended',
   locations: [
     'apps/server/src/http/routes/projects/remove.ts',

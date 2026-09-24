@@ -114,6 +114,9 @@ importers:
 
   .:
     devDependencies:
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:packages/contracts
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -205,7 +208,7 @@ importers:
         specifier: 5.12.3
         version: 5.12.3
       qrcode-terminal:
-        specifier: ^0.12.0
+        specifier: 0.12.0
         version: 0.12.0
       trash:
         specifier: 10.1.1
@@ -221,7 +224,7 @@ importers:
         specifier: 9.6.0
         version: 9.6.0
       '@types/qrcode-terminal':
-        specifier: ^0.12.2
+        specifier: 0.12.2
         version: 0.12.2
       '@types/ws':
         specifier: 8.18.1

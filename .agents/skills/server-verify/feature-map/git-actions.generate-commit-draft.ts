@@ -21,9 +21,10 @@ export default defineFeature({
   feature: 'git-actions.generate-commit-draft',
   reaches:
     'POST /api/projects/:projectId/worktrees/:worktreeId/git/commit-draft',
+  paired: true,
   intent: 'observed',
   behaviour:
-    'The owner asks a coding command-line tool to draft a commit message (or a grouping into several commits) for selected changed files, stating the status token they saw. The server captures the selected diffs, refuses if the worktree moved or a path is not a readable change, then runs the chosen model. The isolated server has no model tool, so only the refusals are verifiable here: an unknown model form, a tool that is not installed, a stale status, a path that is not a change.',
+    'The owner asks a coding command-line tool to draft a commit message (or a grouping into several commits) for selected changed files, stating the status token they saw. The server captures the selected diffs, refuses if the worktree moved or a path is not a readable change, then runs the chosen model. The isolated server has only Git on its PATH, so only the refusals are verifiable here: an unknown model form, a tool that is not installed, a stale status, a path that is not a change.',
   cases: [
     defineCase({
       name: 'the selected tool is not installed',

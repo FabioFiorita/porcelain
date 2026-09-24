@@ -23,10 +23,13 @@ jobs:
           runtime: node@24.20.0
           cache: true
           require-lockfile: true
+      - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck:server
       - run: pnpm lint:server
       - run: pnpm format:server:check
       - run: pnpm test
       - run: pnpm db:check
+      - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid -- true
       - run: node .agents/skills/server-verify/scripts/verify.ts --all
       - run: pnpm arch:check

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { listReviewedLayersResponseSchema } from '../../../../packages/contracts/src/reviews/index.ts';
+import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import {
   apiError,
   defineCase,
@@ -12,8 +12,10 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
+  eventually,
   read,
   sampleReview,
+  watching,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
@@ -31,7 +33,7 @@ async function published(session: Session) {
   const answer = await read(session, {
     method: 'PUT',
     path: worktreePath(session, '/review'),
-    body: sampleReview(0, layerId, randomUUID()),
+    body: sampleReview(session, 0, layerId, randomUUID()),
   });
   return String(record(list(record(answer.review).layers)[0]).fingerprint);
 }
@@ -50,9 +52,10 @@ export default defineFeature({
     'PUT /api/worktrees/:worktreeId/reviewed-layers',
     'DELETE /api/worktrees/:worktreeId/reviewed-layers',
   ],
+  paired: true,
   intent: 'intended',
   behaviour:
-    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; any other layer or fingerprint, or any mark before a review is published, is a conflict and stores nothing.",
+    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A change to the worktree's files keeps the marks and flags them stale, whether or not a viewer is watching the worktree at the time. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; any other layer or fingerprint, or any mark before a review is published, is a conflict and stores nothing.",
   cases: [
     defineCase({
       name: 'before any review is published',
@@ -127,6 +130,60 @@ export default defineFeature({
           marks(
             (await session.send({ method: 'GET', path: layers(session) })).body,
           ).map((mark) => mark.layerId),
+        );
+      },
+    }),
+    defineCase({
+      name: 'a change while no viewer watches makes the mark stale',
+      async setup(session) {
+        await session.writeFile(
+          session.fixture.readme.path,
+          'Changed while nobody watched\n',
+        );
+        await eventually(
+          session,
+          { method: 'GET', path: layers(session) },
+          (body) => marks(body).some((mark) => mark.stale === true),
+        ).catch(() => undefined);
+      },
+      request: (session) => ({ method: 'GET', path: layers(session) }),
+      expect({ response, check }) {
+        check('status', 200, response.status);
+        check(
+          'the mark is kept and flagged stale',
+          [{ layerId, stale: true }],
+          marks(response.body).map((mark) => ({
+            layerId: mark.layerId,
+            stale: mark.stale,
+          })),
+        );
+      },
+    }),
+    defineCase({
+      name: 'a change while a viewer watches makes the mark stale',
+      async setup(session) {
+        const connection = await watching(session);
+        await session.writeFile(
+          session.fixture.readme.path,
+          'Changed while a viewer watched\n',
+        );
+        await eventually(
+          session,
+          { method: 'GET', path: layers(session) },
+          (body) => marks(body).some((mark) => mark.stale === true),
+        ).catch(() => undefined);
+        connection.close();
+      },
+      request: (session) => ({ method: 'GET', path: layers(session) }),
+      expect({ response, check }) {
+        check('status', 200, response.status);
+        check(
+          'the mark is kept and flagged stale',
+          [{ layerId, stale: true }],
+          marks(response.body).map((mark) => ({
+            layerId: mark.layerId,
+            stale: mark.stale,
+          })),
         );
       },
     }),

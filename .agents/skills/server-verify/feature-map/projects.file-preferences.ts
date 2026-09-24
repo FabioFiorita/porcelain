@@ -1,4 +1,4 @@
-import { listFilePreferencesResponseSchema } from '../../../../packages/contracts/src/projects/index.ts';
+import { listFilePreferencesResponseSchema } from '@porcelain/contracts/projects';
 import {
   apiError,
   defineCase,
@@ -17,6 +17,7 @@ export default defineFeature({
     'GET /api/projects/:projectId/file-preferences',
     'PUT /api/projects/:projectId/file-preferences',
   ],
+  paired: true,
   intent: 'observed',
   behaviour:
     'Each project keeps per-path file preferences: pinned and hidden. Setting one flag keeps the other, and the answer is the full list. Paths are project-relative and need not exist. An unknown project is not found; a path that is not a normalized relative path is invalid.',

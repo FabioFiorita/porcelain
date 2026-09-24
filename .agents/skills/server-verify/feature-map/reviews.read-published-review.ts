@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readPublishedReviewResponseSchema } from '../../../../packages/contracts/src/reviews/index.ts';
+import { readPublishedReviewResponseSchema } from '@porcelain/contracts/reviews';
 import {
   defineCase,
   defineFeature,
@@ -16,6 +16,7 @@ import {
 export default defineFeature({
   feature: 'reviews.read-published-review',
   reaches: 'GET /api/worktrees/:worktreeId/review',
+  paired: true,
   intent: 'observed',
   behaviour:
     "A reviewer reads the worktree's published review, or null when none was published, exactly as the publish answered it.",
@@ -42,7 +43,7 @@ export default defineFeature({
         read(session, {
           method: 'PUT',
           path: worktreePath(session, '/review'),
-          body: sampleReview(0, randomUUID(), randomUUID()),
+          body: sampleReview(session, 0, randomUUID(), randomUUID()),
         }),
       request: (session) => ({
         method: 'GET',

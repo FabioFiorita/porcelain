@@ -1,4 +1,4 @@
-import { listWorktreePathsResponseSchema } from '../../../../packages/contracts/src/files/index.ts';
+import { listWorktreePathsResponseSchema } from '@porcelain/contracts/files';
 import {
   defineCase,
   defineFeature,
@@ -10,6 +10,7 @@ import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 export default defineFeature({
   feature: 'files.list-worktree-paths',
   reaches: 'GET /api/worktrees/:worktreeId/paths',
+  paired: true,
   intent: 'observed',
   behaviour:
     'A reviewer lists every file path in a worktree for quick open: tracked and untracked files, not ignored ones, as worktree-relative paths.',
@@ -36,7 +37,7 @@ export default defineFeature({
           'body',
           {
             worktreeId: session.worktreeId,
-            paths: ['.gitignore', 'README.md', 'notes.txt'],
+            paths: ['.gitignore', session.fixture.readme.path, 'notes.txt'],
           },
           response.body,
         );

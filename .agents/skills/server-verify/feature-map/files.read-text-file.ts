@@ -1,17 +1,14 @@
-import { readTextFileResponseSchema } from '../../../../packages/contracts/src/files/index.ts';
+import { readTextFileResponseSchema } from '@porcelain/contracts/files';
 import {
   apiError,
   defineCase,
   defineFeature,
   invalidRequest,
+  record,
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import {
-  sampleChange,
-  worktreeNotFound,
-  worktreePath,
-} from '../scripts/fixture.ts';
+import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 const text = (session: Session, path: string) => ({
   method: 'GET' as const,
@@ -22,28 +19,51 @@ const text = (session: Session, path: string) => ({
 export default defineFeature({
   feature: 'files.read-text-file',
   reaches: 'GET /api/worktrees/:worktreeId/text',
+  paired: true,
   intent: 'observed',
   behaviour:
-    'A reviewer reads a UTF-8 text file from the worktree as it is on disk, with its byte length and a content fingerprint that a later edit must present. Binary or non-UTF-8 files are refused as unsupported text; paths that escape the worktree, absolute paths and the root are invalid; a missing file is not found.',
+    'A reviewer reads a UTF-8 text file from the worktree as it is on disk, with its byte length and a content fingerprint that a later edit must present; the fingerprint stays while the content does and moves when it changes. Binary or non-UTF-8 files are refused as unsupported text; paths that escape the worktree, absolute paths and the root are invalid; a missing file is not found.',
   cases: [
     defineCase({
       name: 'the changed README',
-      request: (session) => text(session, 'README.md'),
-      expect({ response, session, check, checkContract }) {
-        check('status', 200, response.status);
-        checkContract('contract', readTextFileResponseSchema, response.body);
+      request: (session) => [
+        text(session, session.fixture.readme.path),
+        text(session, session.fixture.readme.path),
+      ],
+      async expect({ responses, session, check, checkContract }) {
+        const [first, second] = responses;
+        check(
+          'statuses',
+          [200, 200],
+          responses.map((entry) => entry.status),
+        );
+        checkContract('contract', readTextFileResponseSchema, first?.body);
+        const fingerprint = record(first?.body).contentFingerprint;
         check(
           'body',
           {
             worktreeId: session.worktreeId,
-            path: 'README.md',
+            path: session.fixture.readme.path,
             encoding: 'utf-8',
-            byteLength: 41,
-            text: sampleChange,
-            contentFingerprint:
-              '5805fc9b5cf5a14cea6b2274b2ef5afac4bf9261823de0a3e94ead6c915f6baf',
+            byteLength: Buffer.byteLength(session.fixture.readme.changed),
+            text: session.fixture.readme.changed,
+            contentFingerprint: fingerprint,
           },
-          response.body,
+          first?.body,
+        );
+        check('a second read answers the same', first?.body, second?.body);
+        await session.writeFile(session.fixture.readme.path, 'Edited\n');
+        const edited = await session.send(
+          text(session, session.fixture.readme.path),
+        );
+        check(
+          'the fingerprint moves with the content',
+          true,
+          record(edited.body).contentFingerprint !== fingerprint,
+        );
+        await session.writeFile(
+          session.fixture.readme.path,
+          session.fixture.readme.changed,
         );
       },
     }),
