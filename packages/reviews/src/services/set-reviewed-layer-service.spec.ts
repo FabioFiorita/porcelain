@@ -78,14 +78,19 @@ describe('SetReviewedLayerService', () => {
     ).toHaveLength(1);
   });
 
-  it('refuses a fingerprint the layer no longer has and stores nothing', () => {
-    const { service, store } = setup();
-    for (const texts of [readme('first\nchanged\n'), []])
+  it.each([
+    { name: 'its text changed', texts: readme('first\nchanged\n') },
+    { name: 'its file is gone', texts: [] },
+  ])(
+    'refuses a fingerprint the layer no longer has because $name, and stores nothing',
+    ({ texts }) => {
+      const { service, store } = setup();
       expect(() =>
         service.execute({ worktreeId, layer, fingerprint: seen, texts }),
       ).toThrow(ReviewedMarkConflictError);
-    expect(store.list({ worktreeId })).toEqual([]);
-  });
+      expect(store.list({ worktreeId })).toEqual([]);
+    },
+  );
 
   it('marks a stale layer fresh again at its new fingerprint', () => {
     const { service, store } = setup();

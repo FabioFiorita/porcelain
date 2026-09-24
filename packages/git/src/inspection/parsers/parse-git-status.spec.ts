@@ -115,24 +115,40 @@ describe('parseGitStatus', () => {
     );
   });
 
-  it('rejects unknown records, codes and malformed fields', () => {
-    for (const record of [
-      `! ignored.txt`,
-      `1 .X N... 100644 100644 100644 ${A} ${A} a.txt`,
-      `1 M N... 100644 100644 100644 ${A} ${A} a.txt`,
-      `u ZZ N... 100644 100644 100644 100644 ${A} ${B} ${N} a.txt`,
-      `u UU N... 100644 100644 100644 100644 ${A} ${B} a.txt`,
-    ])
-      expect(() =>
-        parseGitStatus(records(`# branch.oid ${HEAD}`, record)),
-      ).toThrow('Invalid Git status output');
+  it.each([
+    { name: 'an unknown record', record: `! ignored.txt` },
+    {
+      name: 'an unknown change code',
+      record: `1 .X N... 100644 100644 100644 ${A} ${A} a.txt`,
+    },
+    {
+      name: 'a change code of one letter',
+      record: `1 M N... 100644 100644 100644 ${A} ${A} a.txt`,
+    },
+    {
+      name: 'an unknown conflict code',
+      record: `u ZZ N... 100644 100644 100644 100644 ${A} ${B} ${N} a.txt`,
+    },
+    {
+      name: 'a conflict record missing an object name',
+      record: `u UU N... 100644 100644 100644 100644 ${A} ${B} a.txt`,
+    },
+  ])('rejects $name', ({ record }) => {
+    expect(() =>
+      parseGitStatus(records(`# branch.oid ${HEAD}`, record)),
+    ).toThrow('Invalid Git status output');
   });
 
-  it('refuses paths that escape the checkout or are not valid UTF-8', () => {
-    for (const path of ['../outside', '/etc/passwd', 'a//b', 'a/./b'])
+  it.each(['../outside', '/etc/passwd', 'a//b', 'a/./b'])(
+    'refuses the path %j, which escapes the checkout',
+    (path) => {
       expect(() =>
         parseGitStatus(records(`# branch.oid ${HEAD}`, `? ${path}`)),
       ).toThrow('Git paths require valid UTF-8');
+    },
+  );
+
+  it('refuses a path that is not valid UTF-8', () => {
     expect(() =>
       parseGitStatus(
         Buffer.concat([

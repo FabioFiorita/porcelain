@@ -31,10 +31,12 @@ describe('canonicalHostname', () => {
 });
 
 describe('hostnameAllowed', () => {
-  it('always allows loopback names and addresses', () => {
-    for (const hostname of ['localhost', '::1', '127.0.0.1', '127.8.9.10'])
+  it.each(['localhost', '::1', '127.0.0.1', '127.8.9.10'])(
+    'always allows the loopback name or address %s',
+    (hostname) => {
       expect(hostnameAllowed(hostname, nothingConfigured)).toBe(true);
-  });
+    },
+  );
 
   it('refuses a name that only starts like a loopback address', () => {
     expect(

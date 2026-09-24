@@ -7,7 +7,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/agents"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/agents"
   },
   "dependencies": {
     "@porcelain/process": "workspace:*",

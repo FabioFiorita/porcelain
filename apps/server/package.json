@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node src/bootstrap/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/server"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server"
   },
   "dependencies": {
     "@fastify/sensible": "6.0.5",

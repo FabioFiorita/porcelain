@@ -47,7 +47,6 @@
     "packages/kernel/spec/fakes/sequential-id-source.ts": 1,
     "packages/projects/spec/fakes/in-memory-file-preference-store.ts": 2,
     "packages/projects/spec/fakes/scripted-project-repository-reader.ts": 1,
-    "packages/reviews/spec/fakes/in-memory-comment-store.ts": 5,
     "packages/reviews/spec/fakes/in-memory-review-store.ts": 1,
     "packages/reviews/spec/fakes/in-memory-reviewed-file-store.ts": 2,
     "packages/reviews/spec/fakes/in-memory-reviewed-layer-store.ts": 2
@@ -72,5 +71,9 @@
   },
   "lane-mode-matches-service": {
     "apps/server/src/use-cases/git-actions/run-git-action.ts": 1
+  },
+  "porcelain/spec-one-case-per-behaviour": {
+    "packages/access/src/rules/device-details.spec.ts": 1,
+    "packages/access/src/services/check-request-origin-service.spec.ts": 2
   }
 }

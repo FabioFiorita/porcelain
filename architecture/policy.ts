@@ -66,6 +66,11 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   process: { '.': './src/index.ts' },
 };
 
+targetPackageExports.reviews = {
+  ...targetPackageExports.reviews,
+  './store-contracts': './spec/contracts/index.ts',
+};
+
 export const requiredServerFiles: readonly string[] = [
   'apps/server/src/bootstrap/main.ts',
   'apps/server/src/bootstrap/compose-server.ts',
@@ -114,6 +119,7 @@ export type Role =
   | 'kernel'
   | 'fake'
   | 'fixture'
+  | 'store-contract'
   | 'test';
 
 export type Classification = { role: Role; owner: string };
@@ -182,7 +188,8 @@ function classifyDomain(name: string, inside: string) {
 }
 
 function classifyPackage(name: string, inside: string) {
-  if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', name);
+  if (/\.test\.ts$/.test(inside)) return;
+  if (/\.spec\.ts$/.test(inside)) return classified('test', name);
   if (domainSet.has(name)) return classifyDomain(name, inside);
   const section = inside.split('/')[0] ?? '';
   if (name === 'git') {
@@ -230,7 +237,8 @@ function classifyPackage(name: string, inside: string) {
 
 function classifyServer(inside: string) {
   const owner = 'server';
-  if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', owner);
+  if (/\.test\.ts$/.test(inside)) return;
+  if (/\.spec\.ts$/.test(inside)) return classified('test', owner);
   if (inside.startsWith('use-cases/')) return classified('use-case', owner);
   if (inside.startsWith('jobs/')) return classified('transport', owner);
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
@@ -241,8 +249,7 @@ function classifyServer(inside: string) {
     return classified('installer-api', owner);
   if (inside.startsWith('installer/')) return classified('installer', owner);
   if (inside.startsWith('config/')) return classified('config', owner);
-  if (inside === 'cli/main.ts' || inside === 'cli/index.ts')
-    return classified('bootstrap', owner);
+  if (inside === 'cli/index.ts') return classified('bootstrap', owner);
   if (inside.startsWith('cli/')) return classified('transport', owner);
   if (inside.startsWith('http/')) {
     const http = inside.slice('http/'.length);
@@ -269,6 +276,11 @@ export function classify(path: string): Classification | undefined {
   if (packageFake) return classified('fake', packageFake[1] ?? '');
   const packageFixture = /^packages\/([^/]+)\/spec\/fixtures\/.+$/.exec(path);
   if (packageFixture) return classified('fixture', packageFixture[1] ?? '');
+  const storeContract = /^packages\/([^/]+)\/spec\/contracts\/.+\.ts$/.exec(
+    path,
+  );
+  if (storeContract)
+    return classified('store-contract', storeContract[1] ?? '');
   if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
     return classified('fake', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
@@ -404,7 +416,24 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'fake',
   ]),
   fixture: new Set(),
-  test: new Set([...everything, 'fake', 'fixture', 'test', 'process']),
+  'store-contract': new Set([
+    'kernel',
+    'port',
+    'port-api',
+    'model',
+    'model-api',
+    'error',
+    'error-api',
+    'store-contract',
+  ]),
+  test: new Set([
+    ...everything,
+    'fake',
+    'fixture',
+    'store-contract',
+    'test',
+    'process',
+  ]),
 };
 
 const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
@@ -419,6 +448,12 @@ function testViolation(
     to.owner !== 'kernel'
   )
     return 'test-imports-own-package-support-only';
+  if (
+    to.role === 'store-contract' &&
+    to.owner !== from.owner &&
+    from.owner !== 'storage'
+  )
+    return 'store-contract-runs-against-its-fake-and-storage-only';
   if (from.owner !== 'server' && to.owner === 'server')
     return 'package-cannot-import-server';
   if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
@@ -536,6 +571,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   kernel: [],
   fake: [],
   fixture: [],
+  'store-contract': ['vitest'],
   test: [],
 };
 

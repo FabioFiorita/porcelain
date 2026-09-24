@@ -48,28 +48,30 @@ describe('CommitPlanner', () => {
     );
   });
 
-  it('refuses a model it cannot route to', async () => {
+  it.each([
+    'sonnet',
+    'other:model',
+    'claude:default',
+    'claude:sonnet:extra',
+    'claude:',
+    'claude:-sonnet',
+  ])('refuses the model %j, which it cannot route to', async (model) => {
     const planner = new CommitPlanner([new AnsweringProvider('claude', plan)]);
-    for (const model of [
-      'sonnet',
-      'other:model',
-      'claude:default',
-      'claude:sonnet:extra',
-      'claude:',
-      'claude:-sonnet',
-    ])
-      await expect(planner.plan({ ...request, model })).rejects.toMatchObject({
-        name: 'UnsupportedCommitModelError',
-      });
+    await expect(planner.plan({ ...request, model })).rejects.toMatchObject({
+      name: 'UnsupportedCommitModelError',
+    });
   });
 
-  it('reports an unreadable answer or an unexpected failure as a failed plan', async () => {
-    for (const reply of ['not json', new SyntaxError('Unexpected token')])
-      await expect(
-        new CommitPlanner([new AnsweringProvider('claude', reply)]).plan(
-          request,
-        ),
-      ).rejects.toMatchObject({ name: 'CommitPlanFailedError' });
+  it.each([
+    { name: 'an unreadable answer', reply: 'not json' },
+    {
+      name: 'an unexpected failure',
+      reply: new SyntaxError('Unexpected token'),
+    },
+  ])('reports $name as a failed plan', async ({ reply }) => {
+    await expect(
+      new CommitPlanner([new AnsweringProvider('claude', reply)]).plan(request),
+    ).rejects.toMatchObject({ name: 'CommitPlanFailedError' });
   });
 
   it('lists the models of every provider in order', async () => {

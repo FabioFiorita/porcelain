@@ -19,6 +19,7 @@
     "porcelain/feature-route-shape": "error",
     "porcelain/spec-no-mocking": "error",
     "porcelain/spec-no-skips": "error",
+    "porcelain/spec-one-case-per-behaviour": "error",
     "porcelain/spec-behaviour-names": "error",
     "porcelain/spec-imports": "error",
     "porcelain/operation-class-members": "error",

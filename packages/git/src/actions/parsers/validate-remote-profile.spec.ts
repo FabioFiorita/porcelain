@@ -22,17 +22,19 @@ describe('validateRemoteProfile', () => {
     );
   });
 
-  it('refuses credentials, queries, fragments and other protocols', () => {
-    for (const url of [
-      'https://user@github.com/owner/repo.git',
-      'https://user:secret@github.com/owner/repo.git',
-      'ssh://git:secret@github.com/owner/repo.git',
-      'https://github.com/owner/repo.git?token=1',
-      'https://github.com/owner/repo.git#main',
-      'git://github.com/owner/repo.git',
-      'file:///srv/git/repo.git',
-      'relative/repo.git',
-    ])
+  it.each([
+    'https://user@github.com/owner/repo.git',
+    'https://user:secret@github.com/owner/repo.git',
+    'ssh://git:secret@github.com/owner/repo.git',
+    'https://github.com/owner/repo.git?token=1',
+    'https://github.com/owner/repo.git#main',
+    'git://github.com/owner/repo.git',
+    'file:///srv/git/repo.git',
+    'relative/repo.git',
+  ])(
+    'refuses the remote %j, which carries credentials, a query, a fragment or another protocol',
+    (url) => {
       expect(() => validateRemoteProfile(url)).toThrow('Git action rejected');
-  });
+    },
+  );
 });

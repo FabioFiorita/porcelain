@@ -136,10 +136,14 @@ describe('PublishReviewService', () => {
     expect(second.review.summaryToken).not.toBe(first.review.summaryToken);
   });
 
-  it('refuses a publish that does not state the current revision and keeps the stored review', () => {
-    const { service, store } = setup();
-    service.execute({ worktreeId, draft: draft(), texts: [] });
-    for (const expectedRevision of [0, 2])
+  it.each([
+    { name: 'an older revision', expectedRevision: 0 },
+    { name: 'a revision it has not reached', expectedRevision: 2 },
+  ])(
+    'refuses a publish that states $name and keeps the stored review',
+    ({ expectedRevision }) => {
+      const { service, store } = setup();
+      service.execute({ worktreeId, draft: draft(), texts: [] });
       expect(() =>
         service.execute({
           worktreeId,
@@ -147,76 +151,88 @@ describe('PublishReviewService', () => {
           texts: [],
         }),
       ).toThrow(ReviewConflictError);
-    expect(store.read({ worktreeId })?.summaryHtml).toBe(styled);
-  });
+      expect(store.read({ worktreeId })?.summaryHtml).toBe(styled);
+    },
+  );
 
-  it('refuses a draft whose ids, lanes or arrows disagree with the error naming the problem', () => {
-    const box: DiagramBox = {
-      id: 'box-1',
-      lane: 0,
-      label: 'API',
-      kind: 'component',
-    };
-    const invalid: [ReviewDraft, new () => Error][] = [
-      [draft({ layers: [layer(), layer()] }), DuplicateLayerIdError],
-      [
-        draft({
-          layers: [layer({ steps: [...layer().steps, ...layer().steps] })],
-        }),
-        DuplicateStepIdError,
-      ],
-      [
-        draft({
-          layers: [
-            layer({
-              steps: [
-                {
-                  id: 'step-1',
-                  lane: 0,
-                  title: 'Backwards',
-                  text: 'Ends before it starts',
-                  kind: 'changed',
-                  pointer: { path: 'README.md', startLine: 3, endLine: 2 },
-                },
-              ],
-            }),
-          ],
-        }),
-        InvalidLineRangeError,
-      ],
-      [draft({ layers: [layer({ lanes: [] })] }), StepLaneOutOfRangeError],
-      [
-        draft({
-          layers: [layer({ arrows: [{ from: 'step-1', to: 'step-9' }] })],
-        }),
-        UnknownArrowStepError,
-      ],
-      [
-        draft({
-          diagram: {
-            after: { lanes: [], boxes: [box], arrows: [] },
+  const box: DiagramBox = {
+    id: 'box-1',
+    lane: 0,
+    label: 'API',
+    kind: 'component',
+  };
+  it.each<{ name: string; refused: ReviewDraft; error: new () => Error }>([
+    {
+      name: 'two layers with one id',
+      refused: draft({ layers: [layer(), layer()] }),
+      error: DuplicateLayerIdError,
+    },
+    {
+      name: 'two steps with one id',
+      refused: draft({
+        layers: [layer({ steps: [...layer().steps, ...layer().steps] })],
+      }),
+      error: DuplicateStepIdError,
+    },
+    {
+      name: 'a step pointing at lines that end before they start',
+      refused: draft({
+        layers: [
+          layer({
+            steps: [
+              {
+                id: 'step-1',
+                lane: 0,
+                title: 'Backwards',
+                text: 'Ends before it starts',
+                kind: 'changed',
+                pointer: { path: 'README.md', startLine: 3, endLine: 2 },
+              },
+            ],
+          }),
+        ],
+      }),
+      error: InvalidLineRangeError,
+    },
+    {
+      name: 'a step on a lane the layer does not have',
+      refused: draft({ layers: [layer({ lanes: [] })] }),
+      error: StepLaneOutOfRangeError,
+    },
+    {
+      name: 'a layer arrow to an unknown step',
+      refused: draft({
+        layers: [layer({ arrows: [{ from: 'step-1', to: 'step-9' }] })],
+      }),
+      error: UnknownArrowStepError,
+    },
+    {
+      name: 'a box on a lane the diagram does not have',
+      refused: draft({
+        diagram: {
+          after: { lanes: [], boxes: [box], arrows: [] },
+        },
+      }),
+      error: BoxLaneOutOfRangeError,
+    },
+    {
+      name: 'a diagram arrow to an unknown box',
+      refused: draft({
+        diagram: {
+          after: {
+            lanes: ['Server'],
+            boxes: [box],
+            arrows: [{ from: 'box-1', to: 'box-9' }],
           },
-        }),
-        BoxLaneOutOfRangeError,
-      ],
-      [
-        draft({
-          diagram: {
-            after: {
-              lanes: ['Server'],
-              boxes: [box],
-              arrows: [{ from: 'box-1', to: 'box-9' }],
-            },
-          },
-        }),
-        UnknownArrowBoxError,
-      ],
-    ];
+        },
+      }),
+      error: UnknownArrowBoxError,
+    },
+  ])('refuses a draft with $name and stores nothing', ({ refused, error }) => {
     const { service, store } = setup();
-    for (const [refused, error] of invalid)
-      expect(() =>
-        service.execute({ worktreeId, draft: refused, texts: [] }),
-      ).toThrow(error);
+    expect(() =>
+      service.execute({ worktreeId, draft: refused, texts: [] }),
+    ).toThrow(error);
     expect(store.read({ worktreeId })).toBeUndefined();
   });
 

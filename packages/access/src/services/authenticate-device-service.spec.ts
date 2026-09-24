@@ -86,18 +86,26 @@ describe('AuthenticateDeviceService', () => {
     });
   });
 
-  it('refuses a malformed credential, a pairing code, an unknown device and a wrong secret', () => {
-    const { service, token } = setup();
-    const attempts = [
-      'pcd_unknown',
-      token.replace('pcd_', 'pcp_'),
-      credential('pcd', '00000000-0000-4000-8000-000000000002', secret).token,
-      credential('pcd', deviceId, 'w'.repeat(43)).token,
-    ];
-    for (const attempt of attempts)
-      expect(service.execute({ credential: attempt })).toEqual({
-        kind: 'refused',
-      });
+  it.each([
+    { name: 'a malformed credential', attempt: 'pcd_unknown' },
+    {
+      name: 'a pairing code',
+      attempt: credential('pcp', deviceId, secret).token,
+    },
+    {
+      name: 'an unknown device',
+      attempt: credential('pcd', '00000000-0000-4000-8000-000000000002', secret)
+        .token,
+    },
+    {
+      name: 'a wrong secret',
+      attempt: credential('pcd', deviceId, 'w'.repeat(43)).token,
+    },
+  ])('refuses $name', ({ attempt }) => {
+    const { service } = setup();
+    expect(service.execute({ credential: attempt })).toEqual({
+      kind: 'refused',
+    });
   });
 
   it('refuses a revoked device', () => {

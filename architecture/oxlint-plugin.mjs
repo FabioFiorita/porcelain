@@ -256,12 +256,13 @@ function isPageBody(argument, renderers) {
 }
 
 const specSource = /\.spec\.ts$/;
+const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/[^/]+\.ts$/;
 const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
 const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors)|kernel/(?:models|fakes))$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors|store-contracts)|kernel/(?:models|fakes))$`,
 );
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
@@ -277,7 +278,21 @@ const interactionMatchers = new Set([
 ]);
 const testFunctions = new Set(['describe', 'suite', 'it', 'test']);
 const caseFunctions = new Set(['it', 'test']);
-const skippingModifiers = new Set(['skip', 'only', 'todo', 'skipIf', 'runIf']);
+const skippingModifiers = new Set([
+  'skip',
+  'only',
+  'todo',
+  'skipIf',
+  'runIf',
+  'fails',
+]);
+const loopTypes = new Set([
+  'ForStatement',
+  'ForInStatement',
+  'ForOfStatement',
+  'WhileStatement',
+  'DoWhileStatement',
+]);
 const httpStatus =
   /(?:^|\s)[1-5]\d\d(?=\s*$|\s+(?:when|if|for|unless)\b)|^\s*[1-5]\d\d\b|\bhttp\s+(?:status|code|[1-5]\d\d)\b|\bstatus\s+code|\b(?:status|code)\s+[1-5]\d\d\b/i;
 const statusNumber =
@@ -364,9 +379,9 @@ const clockFile =
   /^(?:packages\/[^/]+\/src\/rules|apps\/server\/src\/adapters)\//;
 const indexFile = /^packages\/[^/]+\/src\/(?:.+\/)?index\.ts$/;
 const operationFile =
-  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/controllers\/(?:[^/]+\/)*[^/]+-controller|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
+  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
 const domainCode = new RegExp(
-  `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/(?:controllers|use-cases)/)`,
+  `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/use-cases/)`,
 );
 
 function repositoryPath(context) {
@@ -746,7 +761,8 @@ function moduleVisitors(check) {
 }
 
 function isSpec(context) {
-  return specSource.test(normalizedFilename(context.filename));
+  const path = normalizedFilename(context.filename);
+  return specSource.test(path) || storeContractSource.test(path);
 }
 
 function chainRoot(node) {
@@ -782,7 +798,12 @@ function allowedSpecImport(filename, source) {
     `file://${path.startsWith('/') ? '' : '/'}${path}`,
   ).pathname;
   if (storageSpec.test(path)) return storagePublicApi.test(target);
-  return /\/spec\/(?:fakes|fixtures)\/.+\.ts$/.test(target);
+  if (storeContractSource.test(path))
+    return (
+      /\/src\/(?:ports|models|errors)\/[^/]+\.ts$/.test(target) ||
+      /\/spec\/contracts\/[^/]+\.ts$/.test(target)
+    );
+  return /\/spec\/(?:fakes|fixtures|contracts)\/.+\.ts$/.test(target);
 }
 
 export default {
@@ -2013,7 +2034,8 @@ export default {
                 specifier.type === 'ImportNamespaceSpecifier' ||
                 specifier.type === 'ImportDefaultSpecifier' ||
                 (specifier.imported.type === 'Identifier' &&
-                  specifier.imported.name === 'vi')
+                  (specifier.imported.name === 'vi' ||
+                    specifier.imported.name === 'vitest'))
               )
                 context.report({
                   node: specifier,
@@ -2047,17 +2069,70 @@ export default {
     'spec-no-skips': {
       create(context) {
         if (!isSpec(context)) return {};
+        const message =
+          'Every spec runs every time; remove the skip, only, todo or fails.';
         return {
           MemberExpression(node) {
-            if (
-              skippingModifiers.has(memberName(node) ?? '') &&
-              testFunctions.has(chainRoot(node) ?? '')
-            )
+            const testMember = testFunctions.has(chainRoot(node) ?? '');
+            if (testMember && node.computed && memberName(node) === undefined) {
               context.report({
                 node: node.property,
                 message:
-                  'Every spec runs every time; remove the skip, only or todo.',
+                  'Call describe, it and test by their names; a computed member hides a skip.',
               });
+              return;
+            }
+            if (
+              (skippingModifiers.has(memberName(node) ?? '') && testMember) ||
+              (!node.computed && memberName(node) === 'skip')
+            )
+              context.report({ node: node.property, message });
+          },
+          ObjectPattern(node) {
+            for (const property of node.properties)
+              if (
+                property.type === 'Property' &&
+                propertyName(property, context) === 'skip'
+              )
+                context.report({ node: property, message });
+          },
+        };
+      },
+    },
+    'spec-one-case-per-behaviour': {
+      create(context) {
+        if (!isSpec(context)) return {};
+        return {
+          CallExpression(node) {
+            if (
+              node.callee.type !== 'Identifier' ||
+              node.callee.name !== 'expect'
+            )
+              return;
+            for (const ancestor of context.sourceCode
+              .getAncestors(node)
+              .reverse()) {
+              if (
+                isFunction(ancestor) &&
+                ancestor.parent?.type === 'CallExpression' &&
+                caseFunctions.has(chainRoot(ancestor.parent.callee) ?? '')
+              )
+                return;
+              const loop =
+                loopTypes.has(ancestor.type) ||
+                (isFunction(ancestor) &&
+                  ancestor.parent?.type === 'CallExpression' &&
+                  ancestor.parent.callee.type === 'MemberExpression' &&
+                  propertyName(ancestor.parent.callee, context) === 'forEach');
+              if (loop) {
+                context.report({
+                  node,
+                  message:
+                    'One case per behaviour: turn the loop into it.each with a sentence title per row.',
+                });
+                return;
+              }
+            }
           },
         };
       },

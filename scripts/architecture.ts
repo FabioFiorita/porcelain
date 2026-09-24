@@ -55,7 +55,6 @@ const packageNames = readdirSync(join(repositoryRoot, 'packages'), {
   .filter(
     (entry) =>
       entry.isDirectory() &&
-      entry.name !== 'client' &&
       existsSync(join(repositoryRoot, 'packages', entry.name, 'src')),
   )
   .map((entry) => entry.name);

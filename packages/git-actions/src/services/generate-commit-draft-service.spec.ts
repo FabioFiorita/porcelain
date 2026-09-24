@@ -55,16 +55,29 @@ describe('GenerateCommitDraftService', () => {
     ).rejects.toThrow(CommitGroupsMismatchError);
   });
 
-  it('names why the model could not draft', async () => {
-    const failures: [CommitDraftGeneration, new () => Error][] = [
-      [{ kind: 'unsupported-model' }, UnsupportedCommitModelError],
-      [{ kind: 'tool-missing' }, CommitToolMissingError],
-      [{ kind: 'tool-failed' }, CommitToolFailedError],
-      [{ kind: 'failed' }, CommitGenerationFailedError],
-    ];
-    for (const [generation, error] of failures)
+  it.each([
+    {
+      generation: { kind: 'unsupported-model' } satisfies CommitDraftGeneration,
+      error: UnsupportedCommitModelError,
+    },
+    {
+      generation: { kind: 'tool-missing' } satisfies CommitDraftGeneration,
+      error: CommitToolMissingError,
+    },
+    {
+      generation: { kind: 'tool-failed' } satisfies CommitDraftGeneration,
+      error: CommitToolFailedError,
+    },
+    {
+      generation: { kind: 'failed' } satisfies CommitDraftGeneration,
+      error: CommitGenerationFailedError,
+    },
+  ])(
+    'names why the model could not draft when generation answers $generation.kind',
+    async ({ generation, error }) => {
       await expect(generate({ 'claude:sonnet': generation })).rejects.toThrow(
         error,
       );
-  });
+    },
+  );
 });
