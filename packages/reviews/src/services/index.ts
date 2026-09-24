@@ -2,7 +2,6 @@ export { CreateCommentThreadService } from './create-comment-thread-service.ts';
 export { GeneratePublishedReviewService } from './generate-published-review-service.ts';
 export { InvalidateReviewedMarksService } from './invalidate-reviewed-marks-service.ts';
 export { ListCommentThreadsService } from './list-comment-threads-service.ts';
-export { ListReviewEvidenceService } from './list-review-evidence-service.ts';
 export { ListReviewedFilesService } from './list-reviewed-files-service.ts';
 export { ListReviewedLayerPathsService } from './list-reviewed-layer-paths-service.ts';
 export { ListReviewedLayersService } from './list-reviewed-layers-service.ts';

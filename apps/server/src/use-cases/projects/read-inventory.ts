@@ -1,11 +1,11 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type {
-  ComposeInventoryService,
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
+import { inventoryReport } from '@porcelain/projects/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -15,7 +15,6 @@ export class ReadInventoryUseCase {
   private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
   private readonly readEnvironment: ReadEnvironmentService;
-  private readonly composeInventory: ComposeInventoryService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -24,7 +23,6 @@ export class ReadInventoryUseCase {
     listKnownWorktrees: ListKnownWorktreesService,
     readWorktreeStatuses: ReadWorktreeStatusesService,
     readEnvironment: ReadEnvironmentService,
-    composeInventory: ComposeInventoryService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -32,7 +30,6 @@ export class ReadInventoryUseCase {
     this.listKnownWorktrees = listKnownWorktrees;
     this.readWorktreeStatuses = readWorktreeStatuses;
     this.readEnvironment = readEnvironment;
-    this.composeInventory = composeInventory;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -50,12 +47,7 @@ export class ReadInventoryUseCase {
           ),
         });
         const { environmentId } = this.readEnvironment.execute();
-        return this.composeInventory.execute({
-          environmentId,
-          inventory,
-          listings,
-          statuses,
-        });
+        return inventoryReport(environmentId, inventory, listings, statuses);
       },
       { callerSignal: context.signal },
     );

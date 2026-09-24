@@ -30,10 +30,6 @@ export type {
   ListCommentThreadsResult,
 } from './list-comment-threads.ts';
 export type {
-  ListReviewEvidenceInput,
-  ListReviewEvidenceResult,
-} from './list-review-evidence.ts';
-export type {
   ListReviewedFilesInput,
   ListReviewedFilesResult,
 } from './list-reviewed-files.ts';

@@ -11,6 +11,9 @@ const domainModule = new RegExp(
   `^@porcelain/(?:${domainPackage}/(?:services|models)|kernel/models)$`,
 );
 const useCaseSource = /\/apps\/server\/src\/use-cases\//;
+const useCaseValueModule = new RegExp(
+  `^@porcelain/(?:${domainPackage}|kernel)/(?:rules|errors)$`,
+);
 const modelsSource =
   /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/[^/]+)\.ts$/;
 const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
@@ -1881,10 +1884,12 @@ export default {
                 });
               return;
             }
+            if (typeof source === 'string' && useCaseValueModule.test(source))
+              return;
             context.report({
               node,
               message:
-                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain>, ../../runtime/<file> and ../../ports/<file>.',
+                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> as types, @porcelain/<domain or kernel>/{rules,errors}, ../../runtime/<file> and ../../ports/<file>.',
             });
           },
           ExportNamedDeclaration(node) {

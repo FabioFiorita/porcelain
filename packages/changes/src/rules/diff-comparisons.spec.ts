@@ -1,11 +1,6 @@
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import {
-  SelectionMismatchError,
-  UnnamedDiffSelectionError,
-} from '@porcelain/changes/errors';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
-import { ReadDiffComparisonsService } from './read-diff-comparisons-service.ts';
+import { diffComparisons } from './diff-comparisons.ts';
 import { modified } from '../../spec/fakes/comparisons.ts';
 
 const renamed = {
@@ -25,12 +20,11 @@ const status: ChangeStatusObservation = {
     { scope: 'untracked', path: 'notes.txt' },
   ],
 };
-const select = new ReadDiffComparisonsService();
 
-describe('ReadDiffComparisonsService', () => {
+describe('diffComparisons', () => {
   it('returns the listed comparisons for the selections and the paths they cover', () => {
     expect(
-      select.execute({
+      diffComparisons({
         status,
         expectedFiles: [
           { path: 'a.md', fingerprint: undefined },
@@ -42,38 +36,39 @@ describe('ReadDiffComparisonsService', () => {
         ],
       }),
     ).toEqual({
+      kind: 'selected',
       comparisons: [modified('unstaged', 'a.md'), renamed],
       paths: ['a.md', 'GUIDE.md'],
     });
   });
 
   it('refuses a selection that names neither an old nor a new path', () => {
-    expect(() =>
-      select.execute({
+    expect(
+      diffComparisons({
         status,
         expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
         selections: [
           { scope: 'unstaged', oldPath: undefined, newPath: undefined },
         ],
       }),
-    ).toThrow(UnnamedDiffSelectionError);
+    ).toEqual({ kind: 'unnamed-selection' });
   });
 
   it('refuses a selection whose file was not stated', () => {
-    expect(() =>
-      select.execute({
+    expect(
+      diffComparisons({
         status,
         expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
         selections: [
           { scope: 'staged', oldPath: 'other.md', newPath: 'other.md' },
         ],
       }),
-    ).toThrow(SelectionMismatchError);
+    ).toEqual({ kind: 'selection-mismatch' });
   });
 
   it('refuses a stated file that no selection covers', () => {
-    expect(() =>
-      select.execute({
+    expect(
+      diffComparisons({
         status,
         expectedFiles: [
           { path: 'a.md', fingerprint: undefined },
@@ -81,12 +76,12 @@ describe('ReadDiffComparisonsService', () => {
         ],
         selections: [{ scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' }],
       }),
-    ).toThrow(SelectionMismatchError);
+    ).toEqual({ kind: 'selection-mismatch' });
   });
 
   it('refuses a file stated twice', () => {
-    expect(() =>
-      select.execute({
+    expect(
+      diffComparisons({
         status,
         expectedFiles: [
           { path: 'a.md', fingerprint: undefined },
@@ -94,16 +89,16 @@ describe('ReadDiffComparisonsService', () => {
         ],
         selections: [{ scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' }],
       }),
-    ).toThrow(SelectionMismatchError);
+    ).toEqual({ kind: 'selection-mismatch' });
   });
 
   it('reports a moved worktree when a stated selection is no longer listed', () => {
-    expect(() =>
-      select.execute({
+    expect(
+      diffComparisons({
         status,
         expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
         selections: [{ scope: 'staged', oldPath: 'a.md', newPath: 'a.md' }],
       }),
-    ).toThrow(WorktreeChangedError);
+    ).toEqual({ kind: 'worktree-changed' });
   });
 });

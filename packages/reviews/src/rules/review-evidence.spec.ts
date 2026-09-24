@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
 import type { LayerDraft } from '@porcelain/reviews/models';
-import { ListReviewEvidenceService } from './list-review-evidence-service.ts';
+import { reviewPaths, trackedComparisons } from './review-evidence.ts';
 
 function tracked(
   scope: 'staged' | 'unstaged',
@@ -62,25 +62,30 @@ const layers: Pick<LayerDraft, 'steps'>[] = [
   },
 ];
 
-describe('ListReviewEvidenceService', () => {
+describe('reviewPaths', () => {
   it('reads every file a step points at and every changed file, each once', () => {
-    expect(
-      new ListReviewEvidenceService().execute({ layers, changes }).paths,
-    ).toEqual(['README.md', 'src/app.ts', 'notes.txt', 'conflict.ts']);
+    expect(reviewPaths(layers, changes)).toEqual([
+      'README.md',
+      'src/app.ts',
+      'notes.txt',
+      'conflict.ts',
+    ]);
   });
 
+  it('reads only the step files when nothing changed', () => {
+    expect(reviewPaths(layers, [])).toEqual(['README.md', 'src/app.ts']);
+  });
+});
+
+describe('trackedComparisons', () => {
   it('asks for the staged and unstaged diffs, never for untracked or unmerged files', () => {
-    expect(
-      new ListReviewEvidenceService().execute({ layers, changes }).comparisons,
-    ).toEqual([
+    expect(trackedComparisons(changes)).toEqual([
       tracked('staged', 'README.md'),
       tracked('unstaged', 'README.md'),
     ]);
   });
 
-  it('reads only the step files when nothing changed', () => {
-    expect(
-      new ListReviewEvidenceService().execute({ layers, changes: [] }),
-    ).toEqual({ paths: ['README.md', 'src/app.ts'], comparisons: [] });
+  it('asks for nothing when nothing changed', () => {
+    expect(trackedComparisons([])).toEqual([]);
   });
 });

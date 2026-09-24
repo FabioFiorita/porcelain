@@ -2,7 +2,6 @@ export type {
   ChangeDiff,
   ChangeDiffContent,
   ChangeSelection,
-  DiffSelection,
 } from './change-diff.ts';
 export type { ChangeFingerprints } from './change-fingerprints.ts';
 export type { ChangeLineRange, ChangeLines } from './change-lines.ts';
@@ -16,7 +15,6 @@ export type {
   Stash,
 } from './change-status.ts';
 export type { CheckCommitInput } from './check-commit.ts';
-export type { CheckDiffObservationInput } from './check-diff-observation.ts';
 export type {
   CommitComparison,
   CommitDiff,
@@ -32,6 +30,11 @@ export type {
   CommitSummary,
   HistorySnapshot,
 } from './commit-history.ts';
+export type {
+  DiffComparisons,
+  DiffComparisonsInput,
+} from './diff-comparisons.ts';
+export type { DiffObservation } from './diff-observation.ts';
 export type { ListCommitsInput, ListCommitsResult } from './list-commits.ts';
 export type {
   ReadBranchDetailsInput,
@@ -46,11 +49,7 @@ export type {
   ReadChangeFingerprintsOptions,
   ReadChangeFingerprintsResult,
 } from './read-change-fingerprints.ts';
-export type {
-  ReadChangeLinesInput,
-  ReadChangeLinesOptions,
-  ReadChangeLinesResult,
-} from './read-change-lines.ts';
+export type { ReadChangeLinesInput } from './read-change-lines.ts';
 export type {
   ReadCommitDiffsInput,
   ReadCommitDiffsResult,
@@ -59,10 +58,6 @@ export type {
   ReadCommitFilesInput,
   ReadCommitFilesResult,
 } from './read-commit-files.ts';
-export type {
-  ReadDiffComparisonsInput,
-  ReadDiffComparisonsResult,
-} from './read-diff-comparisons.ts';
 export type {
   ReadHeadTextInput,
   ReadHeadTextResult,

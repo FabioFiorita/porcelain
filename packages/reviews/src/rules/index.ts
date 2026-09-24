@@ -1,4 +1,5 @@
 export {
+  commentAnchorProblem,
   commentAuthor,
   commentStorageSize,
   repeatsCreation,
@@ -34,9 +35,12 @@ export {
 } from './review-evidence.ts';
 export {
   evictedPaths,
+  layerStaleness,
+  markedLayers,
   reviewedMarks,
   selectReviewedFiles,
   staleness,
   touchedMarks,
 } from './reviewed-marks.ts';
 export { summaryStyleWarnings } from './summary-style.ts';
+export { worktreeStatuses } from './worktree-statuses.ts';

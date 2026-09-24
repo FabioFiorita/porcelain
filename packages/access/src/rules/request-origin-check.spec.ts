@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CheckRequestOriginService } from './check-request-origin-service.ts';
+import type { CheckRequestOriginInput } from '@porcelain/access/models';
+import { requestOriginCheck } from './request-origin-check.ts';
 
-const service = new CheckRequestOriginService();
-
-function check(
-  request: Partial<Parameters<CheckRequestOriginService['execute']>[0]>,
-) {
-  return service.execute({
+function check(request: Partial<CheckRequestOriginInput>) {
+  return requestOriginCheck({
     host: '127.0.0.1:4173',
     origin: undefined,
     method: 'GET',
@@ -18,7 +15,7 @@ function check(
   });
 }
 
-describe('CheckRequestOriginService', () => {
+describe('requestOriginCheck', () => {
   it('lets a read through a loopback host without an origin', () => {
     expect(check({})).toEqual({ kind: 'allowed' });
   });

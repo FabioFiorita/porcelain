@@ -1,8 +1,8 @@
 import type {
-  CheckDiffObservationService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
+import { observationHolds } from '@porcelain/changes/rules';
 import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
@@ -10,9 +10,9 @@ import type {
 } from '@porcelain/contracts/git-actions';
 import type {
   CaptureCommitDraftService,
-  CheckGitActionScopeService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   CheckProjectService,
   CheckWorktreeService,
@@ -26,10 +26,8 @@ export type GenerateCommitDraftOptions = { deadlineMs: number };
 export class GenerateCommitDraftUseCase {
   private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
-  private readonly checkGitActionScope: CheckGitActionScopeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
-  private readonly checkDiffObservation: CheckDiffObservationService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
   private readonly generateCommitDraft: GenerateCommitDraftService;
   private readonly lanes: Lanes;
@@ -39,10 +37,8 @@ export class GenerateCommitDraftUseCase {
   constructor(
     checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
-    checkGitActionScope: CheckGitActionScopeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
-    checkDiffObservation: CheckDiffObservationService,
     captureCommitDraft: CaptureCommitDraftService,
     generateCommitDraft: GenerateCommitDraftService,
     lanes: Lanes,
@@ -51,10 +47,8 @@ export class GenerateCommitDraftUseCase {
   ) {
     this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
-    this.checkGitActionScope = checkGitActionScope;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
-    this.checkDiffObservation = checkDiffObservation;
     this.captureCommitDraft = captureCommitDraft;
     this.generateCommitDraft = generateCommitDraft;
     this.lanes = lanes;
@@ -72,11 +66,7 @@ export class GenerateCommitDraftUseCase {
       this.laneKeys.project(projectId),
       'read',
       async ({ signal }) => {
-        const worktree = await this.checkWorktree.execute(
-          { worktreeId },
-          signal,
-        );
-        this.checkGitActionScope.execute({ projectId, worktree });
+        await this.checkWorktree.execute({ worktreeId, projectId }, signal);
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,
@@ -85,13 +75,16 @@ export class GenerateCommitDraftUseCase {
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
-        this.checkDiffObservation.execute({
-          expectedStatusToken: input.expectedStatusToken,
-          expectedFiles: [],
-          statusToken: status.statusToken,
-          fingerprints,
-          previousStamp: undefined,
-        });
+        if (
+          !observationHolds({
+            expectedStatusToken: input.expectedStatusToken,
+            expectedFiles: [],
+            statusToken: status.statusToken,
+            fingerprints,
+            previousStamp: undefined,
+          })
+        )
+          throw new WorktreeChangedError();
         return this.captureCommitDraft.execute(
           {
             worktreeId,

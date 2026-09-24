@@ -328,6 +328,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
   'use-case': new Set([
     'domain-api',
+    'rule-api',
+    'error-api',
     'model-api',
     'kernel',
     'contract',

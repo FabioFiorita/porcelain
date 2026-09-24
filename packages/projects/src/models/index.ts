@@ -13,18 +13,6 @@ export type {
   CollectAbsentWorktreesResult,
 } from './collect-absent-worktrees.ts';
 export type {
-  CompareKnownWorktreesInput,
-  CompareKnownWorktreesResult,
-} from './compare-known-worktrees.ts';
-export type {
-  ComposeInventoryInput,
-  ComposeInventoryResult,
-} from './compose-inventory.ts';
-export type {
-  ComposeProjectReportInput,
-  ComposeProjectReportResult,
-} from './compose-project-report.ts';
-export type {
   DiscoverProjectsOptions,
   DiscoverProjectsResult,
 } from './discover-projects.ts';
@@ -33,10 +21,6 @@ export type {
   FilePreferenceKey,
   ProjectFilePreference,
 } from './file-preference.ts';
-export type {
-  FindWorktreeByPathInput,
-  FindWorktreeByPathResult,
-} from './find-worktree-by-path.ts';
 export type { ForgetProjectWorktreesInput } from './forget-project-worktrees.ts';
 export type {
   InspectProjectRepositoryInput,

@@ -4,7 +4,7 @@ import type {
   ProjectWorktrees,
   RegisteredProject,
 } from '@porcelain/projects/models';
-import { ComposeInventoryService } from './compose-inventory-service.ts';
+import { inventoryReport } from './project-report.ts';
 
 function project(id: string, position: number): RegisteredProject {
   return {
@@ -41,22 +41,20 @@ function listing(
   return { projectId, available, worktrees };
 }
 
-const service = new ComposeInventoryService();
-
-describe('ComposeInventoryService', () => {
+describe('inventoryReport', () => {
   it('reports every project in inventory order with its worktrees and review status', () => {
     expect(
-      service.execute({
-        environmentId: 'environment',
-        inventory: {
+      inventoryReport(
+        'environment',
+        {
           projects: [project('first', 1), project('second', 2)],
         },
-        listings: [
+        [
           listing('second', [worktree('w2', 'second')]),
           listing('first', [worktree('w1', 'first')]),
         ],
-        statuses: new Map([['w2', 'pending']]),
-      }),
+        new Map([['w2', 'pending']]),
+      ),
     ).toEqual({
       environmentId: 'environment',
       projects: [
@@ -95,35 +93,35 @@ describe('ComposeInventoryService', () => {
   });
 
   it('reports a project as unavailable when its listing was', () => {
-    const report = service.execute({
-      environmentId: 'environment',
-      inventory: { projects: [project('a', 1)] },
-      listings: [listing('a', [], false)],
-      statuses: new Map(),
-    });
+    const report = inventoryReport(
+      'environment',
+      { projects: [project('a', 1)] },
+      [listing('a', [], false)],
+      new Map(),
+    );
     expect(report.projects[0]?.available).toBe(false);
   });
 
   it('reports a project with no known worktrees with an empty list', () => {
-    const report = service.execute({
-      environmentId: 'environment',
-      inventory: { projects: [project('a', 1)] },
-      listings: [listing('a', [])],
-      statuses: new Map(),
-    });
+    const report = inventoryReport(
+      'environment',
+      { projects: [project('a', 1)] },
+      [listing('a', [])],
+      new Map(),
+    );
     expect(report.projects[0]?.worktrees).toEqual([]);
   });
 
   it('reports only registered projects, whatever the listings hold', () => {
-    const report = service.execute({
-      environmentId: 'environment',
-      inventory: { projects: [project('kept', 1)] },
-      listings: [
+    const report = inventoryReport(
+      'environment',
+      { projects: [project('kept', 1)] },
+      [
         listing('kept', [worktree('w1', 'kept')]),
         listing('removed', [worktree('w2', 'removed')]),
       ],
-      statuses: new Map(),
-    });
+      new Map(),
+    );
     expect(report.projects.map((entry) => entry.id)).toEqual(['kept']);
   });
 });

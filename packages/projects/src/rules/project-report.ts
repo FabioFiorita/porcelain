@@ -1,5 +1,8 @@
-import type { ProjectReport } from '../models/inventory-report.ts';
-import type { ProjectName } from '../models/project.ts';
+import type {
+  InventoryReport,
+  ProjectReport,
+} from '../models/inventory-report.ts';
+import type { Inventory, ProjectName } from '../models/project.ts';
 import type { ProjectWorktrees } from '../models/project-worktrees.ts';
 import type { WorktreeStatuses } from '@porcelain/kernel/models';
 
@@ -20,5 +23,23 @@ export function projectReport(
       available: worktree.available,
       status: statuses.get(worktree.id),
     })),
+  };
+}
+
+export function inventoryReport(
+  environmentId: string,
+  inventory: Inventory,
+  listings: readonly ProjectWorktrees[],
+  statuses: WorktreeStatuses,
+): InventoryReport {
+  const byProject = new Map(
+    listings.map((listing) => [listing.projectId, listing]),
+  );
+  return {
+    environmentId,
+    projects: inventory.projects.flatMap((project) => {
+      const listing = byProject.get(project.id);
+      return listing ? [projectReport(project, listing, statuses)] : [];
+    }),
   };
 }

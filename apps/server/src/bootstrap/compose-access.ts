@@ -6,7 +6,6 @@ import type {
 } from '@porcelain/access/ports';
 import {
   AuthenticateDeviceService,
-  CheckRequestOriginService,
   FlushDeviceActivityService,
   IssuePairingService,
   ListAccessService,
@@ -65,9 +64,7 @@ export function composeAccess(
       ),
     ),
     clearBrowserSession: new ClearBrowserSessionUseCase(),
-    checkRequestOrigin: new CheckRequestOriginUseCase(
-      new CheckRequestOriginService(),
-    ),
+    checkRequestOrigin: new CheckRequestOriginUseCase(),
     flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deviceSightingStore, deviceStore),
       lanes,

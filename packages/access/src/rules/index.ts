@@ -13,4 +13,9 @@ export {
   pairingGrantRedeemable,
   pairingGrantRevocable,
 } from './pairing-grant.ts';
+export {
+  refundPairingAttempt,
+  takePairingAttempt,
+} from './pairing-attempts.ts';
 export { effectivePort, requestAuthority } from './request-authority.ts';
+export { requestOriginCheck } from './request-origin-check.ts';
