@@ -94,11 +94,41 @@ const pluginSchema = z.object({
 });
 
 const tsconfigSchema = z.object({
-  compilerOptions: z
-    .object({ types: z.array(z.string()).optional() })
-    .optional(),
+  compilerOptions: z.record(z.string(), z.unknown()).optional(),
   include: z.array(z.string()).optional(),
 });
+
+const sanctionedRootCompilerOptions: Readonly<Record<string, unknown>> = {
+  target: 'ES2024',
+  module: 'NodeNext',
+  moduleResolution: 'NodeNext',
+  lib: ['ES2024'],
+  types: ['node'],
+  strict: true,
+  noUncheckedIndexedAccess: true,
+  exactOptionalPropertyTypes: true,
+  noImplicitOverride: true,
+  noFallthroughCasesInSwitch: true,
+  noUnusedLocals: true,
+  noUnusedParameters: true,
+  verbatimModuleSyntax: true,
+  allowImportingTsExtensions: true,
+  erasableSyntaxOnly: true,
+  skipLibCheck: true,
+  noEmit: true,
+};
+
+const sanctionedDomainTsconfig: Readonly<Record<string, unknown>> = {
+  extends: '../../tsconfig.json',
+  compilerOptions: { types: [] },
+  include: [
+    'src/**/*.ts',
+    'spec/**/*.ts',
+    '../../architecture/platform/domain-globals.d.ts',
+  ],
+};
+
+const pinnedTsconfigPackages = new Set<string>([...domainPackages, 'kernel']);
 
 const sanctionedOverrides: readonly unknown[] = [
   {
@@ -142,6 +172,15 @@ async function configProblems(): Promise<string[]> {
       `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
     ];
   strictJson('.oxfmtrc.json');
+  if (
+    !isDeepStrictEqual(
+      strictJson('.oxlintrc.json'),
+      strictJson('architecture/lint-config.json'),
+    )
+  )
+    problems.push(
+      '.oxlintrc.json differs from architecture/lint-config.json; the lint configuration is pinned whole, plugins, rules and overrides alike.',
+    );
   const { jsPlugins, rules, overrides } = config.data;
   if (!isDeepStrictEqual(jsPlugins, ['./architecture/oxlint-plugin.mjs']))
     problems.push(
@@ -175,8 +214,18 @@ async function configProblems(): Promise<string[]> {
   const tsconfigs = filesUnder('.').filter((path) =>
     /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
   );
+  if (
+    !isDeepStrictEqual(
+      tsconfigSchema.parse(strictJson('tsconfig.json')).compilerOptions,
+      sanctionedRootCompilerOptions,
+    )
+  )
+    problems.push(
+      'tsconfig.json compilerOptions differ from the sanctioned block in scripts/server-style.ts; every package inherits them.',
+    );
   for (const path of tsconfigs) {
-    const tsconfig = tsconfigSchema.parse(strictJson(path));
+    const raw = strictJson(path);
+    const tsconfig = tsconfigSchema.parse(raw);
     const owner = /^(?:packages\/([^/]+)|apps\/(server))\/tsconfig\.json$/.exec(
       path,
     );
@@ -186,8 +235,15 @@ async function configProblems(): Promise<string[]> {
       if (!tsconfig.include?.includes(pattern))
         problems.push(`${path} includes ${pattern}.`);
     if (
+      pinnedTsconfigPackages.has(name) &&
+      !isDeepStrictEqual(raw, sanctionedDomainTsconfig)
+    )
+      problems.push(
+        `${path} differs from the sanctioned domain tsconfig in scripts/server-style.ts; a domain compiles with types [], lib ES2024 and the domain globals only.`,
+      );
+    if (
       typesFreePackages.has(name) &&
-      !isDeepStrictEqual(tsconfig.compilerOptions?.types, [])
+      !isDeepStrictEqual(tsconfig.compilerOptions, { types: [] })
     )
       problems.push(
         `${path} sets "types": [] so Node globals do not compile in a domain.`,

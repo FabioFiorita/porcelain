@@ -336,6 +336,10 @@ const nodeGlobals = new Set([
   'global',
   'globalThis',
   'NodeJS',
+  'crypto',
+  'performance',
+  'console',
+  'queueMicrotask',
 ]);
 const featureMethods = new Set(['get', 'post', 'put', 'patch', 'delete']);
 const routeHook = /^(?:on|pre)[A-Z]|^(?:handler|errorHandler)$/;
@@ -480,7 +484,7 @@ function globalReferences(context, program, names) {
     .map((reference) => reference.identifier);
 }
 
-const pureGlobals = new Set(['Date', 'Math', 'Reflect']);
+const pureGlobals = new Set(['Date', 'Math', 'Reflect', 'Intl']);
 
 function calledMember(identifier, context) {
   const member = identifier.parent;
@@ -496,6 +500,8 @@ function impureGlobalUse(identifier, context) {
   const name = identifier.name;
   if (name === 'Reflect')
     return 'A rule never reaches through Reflect; call the function it needs by name.';
+  if (name === 'Intl')
+    return 'A rule is deterministic: Intl answers from the machine locale and time zone; the caller passes formatted text or the rule compares plain values.';
   const member = calledMember(identifier, context);
   if (name === 'Math')
     return member === undefined || member === 'random'
