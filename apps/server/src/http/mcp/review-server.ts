@@ -19,7 +19,7 @@ import type { ListCommentThreadsUseCase } from '../../use-cases/reviews/list-com
 import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
 import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
-import type { ResolveCommentThreadUseCase } from '../../use-cases/reviews/resolve-comment-thread.ts';
+import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
 import type { FindWorktreeByPathUseCase } from '../../use-cases/projects/find-worktree-by-path.ts';
 import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
@@ -34,7 +34,7 @@ export type ReviewMcpUseCases = {
     publishReview: Pick<PublishReviewUseCase, 'execute'>;
     readPublishedReview: Pick<ReadPublishedReviewUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
-    resolveCommentThread: Pick<ResolveCommentThreadUseCase, 'execute'>;
+    resolveCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
   };
 };
 

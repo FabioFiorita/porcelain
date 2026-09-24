@@ -10,7 +10,7 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
-export class ResolveCommentThreadUseCase {
+export class UpdateCommentThreadUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly updateCommentThread: UpdateCommentThreadService;
   private readonly lanes: Lanes;

@@ -5,12 +5,12 @@ import {
   resolveCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
-import type { ResolveCommentThreadUseCase } from '../../../use-cases/reviews/resolve-comment-thread.ts';
+import type { UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function resolveCommentThread(
   server: FastifyInstance,
-  options: { useCase: Pick<ResolveCommentThreadUseCase, 'execute'> },
+  options: { useCase: Pick<UpdateCommentThreadUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(

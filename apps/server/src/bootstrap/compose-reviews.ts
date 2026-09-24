@@ -43,7 +43,7 @@ import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summa
 import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
 import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
 import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
-import { ResolveCommentThreadUseCase } from '../use-cases/reviews/resolve-comment-thread.ts';
+import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.ts';
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
@@ -124,7 +124,7 @@ export function composeReviews(
       laneKeys,
       events,
     ),
-    resolveCommentThread: new ResolveCommentThreadUseCase(
+    resolveCommentThread: new UpdateCommentThreadUseCase(
       checkWorktree,
       new UpdateCommentThreadService(commentStore),
       lanes,
