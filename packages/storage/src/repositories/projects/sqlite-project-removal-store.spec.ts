@@ -6,7 +6,7 @@ import type { GitActionReceipt } from '@porcelain/git-actions/models';
 import type { RegisteredProject } from '@porcelain/projects/models';
 import type { CommentThread } from '@porcelain/reviews/models';
 import { openStorageSession, type StorageSession } from '../../index.ts';
-import { createGitActionStore } from '../git-actions/index.ts';
+import { createGitActionReceiptStore } from '../git-actions/index.ts';
 import {
   createCommentSeenStore,
   createCommentStore,
@@ -109,7 +109,7 @@ function seed(session: StorageSession, projectId: string, worktreeId: string) {
     writtenByAgent: false,
   });
   createCommentSeenStore(session).save({ worktreeId, seenThrough: 1 });
-  createGitActionStore(session).insert(receipt(projectId, worktreeId));
+  createGitActionReceiptStore(session).insert(receipt(projectId, worktreeId));
 }
 
 function stored(
@@ -133,7 +133,7 @@ function stored(
       }) !== undefined,
     seenThrough: createCommentSeenStore(session).seenThrough({ worktreeId }),
     receipt:
-      createGitActionStore(session).read({
+      createGitActionReceiptStore(session).read({
         requestId: `request-${worktreeId}`,
       }) !== undefined,
   };

@@ -1,1 +1,1 @@
-export { createGitActionStore } from './create-git-action-store.ts';
+export { createGitActionReceiptStore } from './git-action-stores.ts';

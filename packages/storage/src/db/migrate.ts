@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import type Database from 'better-sqlite3';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
-import { UnsupportedDatabaseVersionError } from '../models/unsupported-database-version-error.ts';
+import { UnsupportedDatabaseVersionError } from '../errors/unsupported-database-version-error.ts';
 
 const migrationsFolder = fileURLToPath(
   new URL('../../drizzle/', import.meta.url),

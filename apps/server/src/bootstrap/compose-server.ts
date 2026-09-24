@@ -24,7 +24,7 @@ import {
   createDeviceStore,
   createEnvironmentIdentityStore,
 } from '@porcelain/storage/access';
-import { createGitActionStore } from '@porcelain/storage/git-actions';
+import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
 import { createInventoryStore } from '@porcelain/storage/projects';
 import {
   createCommentSeenStore,
@@ -137,7 +137,7 @@ export async function openApplication(
   const reviewInvalidation = composeReviewInvalidation(context);
   const deviceConnections = new HeldDeviceConnections();
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
-    createGitActionStore(session),
+    createGitActionReceiptStore(session),
   );
 
   const access = composeAccess(context, {

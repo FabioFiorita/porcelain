@@ -27,7 +27,7 @@ import {
   CheckProjectService,
   type CheckWorktreeService,
 } from '@porcelain/projects/services';
-import { createGitActionStore } from '@porcelain/storage/git-actions';
+import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
 import { GitGitActionRunner } from '../adapters/git-actions/git-git-action-runner.ts';
 import { GitGitBranchReader } from '../adapters/git-actions/git-git-branch-reader.ts';
@@ -65,7 +65,7 @@ export function composeGitActions(
 ) {
   const { session, lanes, laneKeys, events, clock } = context;
   const limits = context.settings.limits.gitActions;
-  const store = createGitActionStore(session);
+  const store = createGitActionReceiptStore(session);
   const checkProject = new CheckProjectService(adapters.inventoryStore);
   const expireGitActionReceipts = new ExpireGitActionReceiptsService(
     store,
