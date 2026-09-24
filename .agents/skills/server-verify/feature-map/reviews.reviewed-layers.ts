@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import {
   apiError,
@@ -7,6 +8,7 @@ import {
   invalidRequest,
   list,
   record,
+  text,
   unknownFingerprint,
   unknownWorktreeId,
   type Session,
@@ -40,6 +42,16 @@ async function published(session: Session) {
 }
 
 const marks = (body: unknown) => list(record(body).marks);
+const worktreeNotice = (session: Session, change: string) => ({
+  type: 'worktree',
+  projectId: session.projectId,
+  worktreeId: session.worktreeId,
+  change,
+});
+const isWorktree =
+  (...changes: string[]) =>
+  (notice: Record<string, unknown>) =>
+    notice.type === 'worktree' && changes.includes(String(notice.change));
 
 export default defineFeature({
   feature: 'reviews.reviewed-layers',
@@ -51,7 +63,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A change to the worktree's files keeps the marks and flags them stale, whether or not a viewer is watching the worktree at the time. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; another fingerprint is a conflict, a layer the published review does not have, or any mark before a review is published, is not found, and neither stores anything.",
+    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A change to the worktree's files keeps the marks and flags them stale, whether or not a viewer is watching the worktree at the time; an edit through the API flags them stale as it answers, and a watching viewer is told once that the files changed, not again when the watcher sees the same write. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; another fingerprint is a conflict, a layer the published review does not have, or any mark before a review is published, is not found, and neither stores anything.",
   cases: [
     defineCase({
       name: 'before any review is published',
@@ -189,6 +201,93 @@ export default defineFeature({
           'list reads the same',
           response.body,
           await read(session, { method: 'GET', path: layers(session) }),
+        );
+      },
+    }),
+    defineCase({
+      name: 'an edit through the API makes the mark stale and announces its files once',
+      async setup(session) {
+        await session.writeFile(
+          session.fixture.readme.path,
+          session.fixture.readme.changed,
+        );
+        const current = await read(session, {
+          method: 'GET',
+          path: worktreePath(session, '/review'),
+        });
+        const republished = await read(session, {
+          method: 'PUT',
+          path: worktreePath(session, '/review'),
+          body: sampleReview(
+            session,
+            Number(record(current.review).revision),
+            layerId,
+            randomUUID(),
+          ),
+        });
+        const fingerprint = String(
+          record(list(record(republished.review).layers)[0]).fingerprint,
+        );
+        await read(session, {
+          method: 'PUT',
+          path: layers(session),
+          body: { layerId, reviewed: true, fingerprint },
+        });
+        const file = await read(session, {
+          method: 'GET',
+          path: worktreePath(session, '/text'),
+          query: { path: session.fixture.readme.path },
+        });
+        return {
+          contentFingerprint: text(file.contentFingerprint),
+          connection: await watching(session),
+        };
+      },
+      request: (session, state) => ({
+        method: 'POST',
+        path: worktreePath(session, '/files'),
+        body: {
+          kind: 'write',
+          path: session.fixture.readme.path,
+          text: `${session.fixture.readme.committed}\nEdited through the API.\n`,
+          expectedFingerprint: state.contentFingerprint,
+        },
+      }),
+      async expect({ response, state, session, check, checkPartial }) {
+        check('status', 200, response.status);
+        const written = await read(session, {
+          method: 'GET',
+          path: worktreePath(session, '/text'),
+          query: { path: session.fixture.readme.path },
+        });
+        check(
+          'body',
+          {
+            path: session.fixture.readme.path,
+            contentFingerprint: written.contentFingerprint,
+          },
+          response.body,
+        );
+        check(
+          'files notice',
+          worktreeNotice(session, 'files'),
+          await state.connection.next(isWorktree('files')),
+        );
+        checkPartial(
+          'the mark is kept and flagged stale',
+          [{ layerId, stale: true }],
+          marks(await read(session, { method: 'GET', path: layers(session) })),
+        );
+        await delay(600);
+        await read(session, {
+          method: 'DELETE',
+          path: layers(session),
+          query: { layerId },
+        });
+        check(
+          'the next files or reviewed notice is the unmark, not a second files notice',
+          worktreeNotice(session, 'reviewed'),
+          await state.connection.next(isWorktree('files', 'reviewed')),
         );
       },
     }),

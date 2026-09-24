@@ -52,13 +52,17 @@ type Destination = {
 
 export type FilePermissions = { fileMode: number; directoryMode: number };
 
+export type FileWriterOptions = FilePermissions & {
+  temporaryName: (id: string) => string;
+};
+
 export class FilesystemFileWriter implements FileWriter {
   private readonly worktrees: ListedWorktrees;
-  private readonly permissions: FilePermissions;
+  private readonly options: FileWriterOptions;
 
-  constructor(worktrees: ListedWorktrees, permissions: FilePermissions) {
+  constructor(worktrees: ListedWorktrees, options: FileWriterOptions) {
     this.worktrees = worktrees;
-    this.permissions = permissions;
+    this.options = options;
   }
 
   async write(input: FileWriteInput, signal?: AbortSignal): Promise<FileWrite> {
@@ -68,7 +72,10 @@ export class FilesystemFileWriter implements FileWriter {
       if (revisionOf(before.info) !== input.revision)
         throw pathRefused('changed');
       const parent = await this.parent(target, signal);
-      const temporary = join(parent.path, `.porcelain-${randomUUID()}.tmp`);
+      const temporary = join(
+        parent.path,
+        this.options.temporaryName(randomUUID()),
+      );
       const handle = await open(
         temporary,
         constants.O_WRONLY |
@@ -113,7 +120,7 @@ export class FilesystemFileWriter implements FileWriter {
             constants.O_CREAT |
             constants.O_EXCL |
             constants.O_NOFOLLOW,
-          this.permissions.fileMode,
+          this.options.fileMode,
         );
         await file.close();
       }
@@ -197,7 +204,7 @@ export class FilesystemFileWriter implements FileWriter {
         throw pathRefused('changed');
     };
     if (from.info.isDirectory()) {
-      await mkdir(to.path, { mode: this.permissions.directoryMode });
+      await mkdir(to.path, { mode: this.options.directoryMode });
       const reservation = await lstat(to.path, { bigint: true });
       try {
         await confirm();

@@ -100,6 +100,7 @@ const fixture = {
   },
   summaryLinkLifetimeMs: 2000,
   gitActionDeadlineMs: 1500,
+  inventoryStaleAfterMs: 200,
 };
 
 try {
@@ -153,6 +154,10 @@ try {
       limits: {
         ...settings.limits,
         jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+        inventory: {
+          ...settings.limits.inventory,
+          staleAfterMs: fixture.inventoryStaleAfterMs,
+        },
         gitActions: {
           ...settings.limits.gitActions,
           deadlineMs: fixture.gitActionDeadlineMs,

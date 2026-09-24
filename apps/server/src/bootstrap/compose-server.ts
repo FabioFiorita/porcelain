@@ -1,7 +1,7 @@
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { ConfirmWorktreeService } from '@porcelain/projects/services';
-import { gitDirectoryName } from '@porcelain/kernel/rules';
+import { gitDirectoryName, isTemporaryWrite } from '@porcelain/kernel/rules';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { openStorageSession } from '@porcelain/storage';
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
@@ -118,6 +118,7 @@ export const openServer: OpenServer = async (input) => {
       worktrees: shared.worktreeAccess,
       projects: () => catalog.listObservations(),
       gitDirectory: gitDirectoryName(),
+      isTemporaryWrite,
     }),
     logger,
     limits.liveUpdates,

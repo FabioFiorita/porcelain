@@ -37,6 +37,7 @@ export type Fixture = {
   web: { shell: string; asset: { path: string; text: string }; escape: string };
   summaryLinkLifetimeMs: number;
   gitActionDeadlineMs: number;
+  inventoryStaleAfterMs: number;
 };
 
 export type GitSubcommand =

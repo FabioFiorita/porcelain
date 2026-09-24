@@ -61,15 +61,18 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
   private readonly worktrees: WorktreeAccessReader<ListedWorktree>;
   private readonly projects: () => readonly ListableProject[];
   private readonly gitDirectory: string;
+  private readonly isTemporaryWrite: (path: string) => boolean;
 
   constructor(options: {
     worktrees: WorktreeAccessReader<ListedWorktree>;
     projects: () => readonly ListableProject[];
     gitDirectory: string;
+    isTemporaryWrite: (path: string) => boolean;
   }) {
     this.worktrees = options.worktrees;
     this.projects = options.projects;
     this.gitDirectory = options.gitDirectory;
+    this.isTemporaryWrite = options.isTemporaryWrite;
   }
 
   async findWorktree(
@@ -146,9 +149,10 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
         state.changed(
           events.flatMap((event) => {
             const path = relative(state.root, event.path);
-            return path === '' || path.startsWith(`..${sep}`) || path === '..'
-              ? []
-              : [path.split(sep).join('/')];
+            if (path === '' || path.startsWith(`..${sep}`) || path === '..')
+              return [];
+            const reported = path.split(sep).join('/');
+            return this.isTemporaryWrite(reported) ? [] : [reported];
           }),
         );
       },

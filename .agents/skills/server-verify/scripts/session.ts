@@ -274,6 +274,7 @@ function fixtureOf(value: unknown): Fixture {
     },
     summaryLinkLifetimeMs: Number(fixture.summaryLinkLifetimeMs),
     gitActionDeadlineMs: Number(fixture.gitActionDeadlineMs),
+    inventoryStaleAfterMs: Number(fixture.inventoryStaleAfterMs),
   };
 }
 

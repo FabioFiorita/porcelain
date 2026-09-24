@@ -1,4 +1,4 @@
-import { gitDirectoryName } from '@porcelain/kernel/rules';
+import { gitDirectoryName, temporaryWriteName } from '@porcelain/kernel/rules';
 import {
   EditFileService,
   ListDirectoryService,
@@ -73,7 +73,10 @@ export function composeFiles(
       dependencies.shared.confirmWorktree,
       new EditFileService(
         fileReader,
-        new FilesystemFileWriter(worktreeAccess, limits.permissions),
+        new FilesystemFileWriter(worktreeAccess, {
+          ...limits.permissions,
+          temporaryName: temporaryWriteName,
+        }),
         limits.editFile,
       ),
       dependencies.invalidateReviewedMarks,

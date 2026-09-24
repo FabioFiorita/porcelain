@@ -8,12 +8,14 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
+import { setTimeout as delay } from 'node:timers/promises';
 import {
   blobOf,
   changes,
   fingerprintOf,
   head,
   inventory,
+  read,
   workingBlobOf,
   worktreeNotFound,
   worktreePath,
@@ -42,7 +44,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    "A reviewer reads a worktree's changes: one entry per changed path with a content fingerprint and every comparison it appears in (staged, unstaged, untracked or unmerged), plus the head commit, branch, any merge in progress and a status token that later reads use to detect that the worktree moved. The fingerprint is stable while the change is and moves when it does. An unknown worktree is not found; a malformed worktree ID is invalid.",
+    "A reviewer reads a worktree's changes: one entry per changed path with a content fingerprint and every comparison it appears in (staged, unstaged, untracked or unmerged), plus the head commit, branch, any merge in progress and a status token that later reads use to detect that the worktree moved. The fingerprint is stable while the change is and moves when it does. A read that finds the worktree's catalog entry stale refreshes the catalog and still answers the same worktree. An unknown worktree is not found; a malformed worktree ID is invalid.",
   cases: [
     defineCase({
       name: 'the sample unstaged change',
@@ -90,6 +92,34 @@ export default defineFeature({
             ],
           },
           response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'reads that find the catalog entry stale refresh it and still answer',
+      async setup(session) {
+        const before = await read(session, {
+          method: 'GET',
+          path: worktreePath(session, '/changes'),
+        });
+        await delay(session.fixture.inventoryStaleAfterMs);
+        return before;
+      },
+      request: (session) =>
+        Array.from({ length: 8 }, () => ({
+          method: 'GET' as const,
+          path: worktreePath(session, '/changes'),
+        })),
+      expect({ responses, state, check }) {
+        check(
+          'every read answers',
+          Array.from({ length: 8 }, () => 200),
+          responses.map((entry) => entry.status),
+        );
+        check(
+          'every read answers the worktree as it was before',
+          Array.from({ length: 8 }, () => state),
+          responses.map((entry) => entry.body),
         );
       },
     }),

@@ -5,5 +5,6 @@ export { instantAfter } from './instant-after.ts';
 export { isTracked } from './is-tracked.ts';
 export { logicalPath, trackedPath } from './logical-path.ts';
 export { sha256Hex } from './sha256-hex.ts';
+export { isTemporaryWrite, temporaryWriteName } from './temporary-write.ts';
 export { utf8ByteLength } from './utf8-byte-length.ts';
 export { withoutGitDirectory } from './without-git-directory.ts';
