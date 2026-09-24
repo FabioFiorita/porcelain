@@ -101,25 +101,14 @@ export const gitActionIntentSchema = z.discriminatedUnion('action', [
   }),
 ]);
 
-export const gitActionExpectationSchema = z
-  .strictObject({
-    headOid: oidSchema.nullable(),
-    branch: z.string().nullable(),
-    inProgress: z.enum(['merge', 'rebase']).nullable(),
-    mergeHeadOid: oidSchema.nullable(),
-    upstreamOid: oidSchema.nullable().optional(),
-    files: z.array(expectedFileSchema).max(2000).optional(),
-  })
-  .transform((expected) => ({
-    headOid: expected.headOid ?? undefined,
-    branch: expected.branch ?? undefined,
-    inProgress: expected.inProgress ?? undefined,
-    mergeHeadOid: expected.mergeHeadOid ?? undefined,
-    ...(expected.upstreamOid === undefined
-      ? {}
-      : { upstream: { oid: expected.upstreamOid ?? undefined } }),
-    ...(expected.files === undefined ? {} : { files: expected.files }),
-  }));
+export const gitActionExpectationSchema = z.strictObject({
+  headOid: absentAsNull(oidSchema),
+  branch: absentAsNull(z.string()),
+  inProgress: absentAsNull(z.enum(['merge', 'rebase'])),
+  mergeHeadOid: absentAsNull(oidSchema),
+  upstreamOid: oidSchema.nullable().optional(),
+  files: z.array(expectedFileSchema).max(2000).optional(),
+});
 
 export const runGitActionRequestSchema = z.strictObject({
   requestId: z.uuid(),
