@@ -28,6 +28,7 @@
     ".agents/skills/server-verify/scripts/**/*.ts",
     ".agents/skills/server-verify/feature-map/**/*.ts",
     "architecture/*.ts",
+    "architecture/probes/*.ts",
     "apps/server/src/adapters/files/node-opendir.d.ts"
   ]
 }
