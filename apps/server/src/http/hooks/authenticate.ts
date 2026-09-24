@@ -1,13 +1,13 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
-import type { AuthenticateDeviceUseCase } from '../../use-cases/access/authenticate-device.ts';
+import type { AuthenticateDeviceUseCasePort } from '../../ports/authenticate-device-use-case-port.ts';
 import { deviceCookie, setDeviceCookie } from './device-cookie.ts';
 
 const AUTHENTICATION_REQUIRED = 'Authentication required';
 
 export type AuthenticateOptions = {
-  access: { authenticateDevice: Pick<AuthenticateDeviceUseCase, 'execute'> };
+  access: { authenticateDevice: AuthenticateDeviceUseCasePort };
   deviceConnections: Pick<DeviceConnectionStore, 'insert'>;
 };
 

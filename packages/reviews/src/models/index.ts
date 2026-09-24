@@ -75,19 +75,9 @@ export type {
   ReadPublishedReviewResult,
 } from './read-published-review.ts';
 export type {
-  ReadReviewDiffsInput,
   ReadReviewEvidenceInput,
   ReadReviewEvidenceResult,
-  ReadReviewFingerprintsInput,
-  ReadReviewStatusInput,
-  ReadReviewTextInput,
-  ReviewFingerprints,
-  ReviewStatus,
 } from './read-review-evidence.ts';
-export type {
-  ReadReviewTextsInput,
-  ReadReviewTextsResult,
-} from './read-review-texts.ts';
 export type {
   ReadReviewLayerInput,
   ReadReviewLayerResult,
@@ -130,7 +120,6 @@ export type {
   ReviewEvidence,
   ReviewTexts,
   ReviewPatch,
-  ReviewText,
 } from './review-evidence.ts';
 export type {
   CodePointer,

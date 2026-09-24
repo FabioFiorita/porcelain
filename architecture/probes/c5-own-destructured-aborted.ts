@@ -10,10 +10,10 @@ export default {
     {
       kind: 'replace',
       path: 'packages/files/src/services/list-directory-service.ts',
-      old: "    if (read.kind === 'failed') throw fileFailureError(read.failure);",
+      old: "    if (read.kind === 'failed') throw this.failure(read.failure);",
       new: `    const { aborted } = signal ?? { aborted: false };
     if (aborted) throw new DirectoryTooLargeError();
-    if (read.kind === 'failed') throw fileFailureError(read.failure);`,
+    if (read.kind === 'failed') throw this.failure(read.failure);`,
     },
   ],
 } satisfies Probe;

@@ -8,11 +8,10 @@ export default {
   rule: 'porcelain(models-file-shape)',
   edits: [
     {
-      kind: 'append',
+      kind: 'replace',
       path: 'packages/reviews/src/models/record-review-activity.ts',
-      content: `
-export type RecordReviewActivityResult = void;
-`,
+      old: 'export type RecordReviewActivityResult = { changed: boolean };',
+      new: 'export type RecordReviewActivityResult = void;',
     },
   ],
 } satisfies Probe;

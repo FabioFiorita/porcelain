@@ -1,6 +1,5 @@
 import { utf8ByteLength, withoutGitDirectory } from '@porcelain/kernel/rules';
 import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
-import { fileFailureError } from '../errors/file-failure-error.ts';
 import type { DirectoryEntry } from '../models/directory-entry.ts';
 import type {
   ListDirectoryInput,
@@ -9,6 +8,11 @@ import type {
 } from '../models/list-directory.ts';
 import type { DirectoryReader } from '../ports/directory-reader.ts';
 import type { IgnoredEntriesReader } from '../ports/ignored-entries-reader.ts';
+import { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import { ContentChangedError } from '../errors/content-changed-error.ts';
+import { UnsupportedEntryNameError } from '../errors/unsupported-entry-name-error.ts';
+import type { ListFailure } from '../models/file-failure.ts';
 
 export class ListDirectoryService {
   private readonly directoryReader: DirectoryReader;
@@ -37,7 +41,7 @@ export class ListDirectoryService {
       },
       signal,
     );
-    if (read.kind === 'failed') throw fileFailureError(read.failure);
+    if (read.kind === 'failed') throw this.failure(read.failure);
     const entries = withoutGitDirectory(read.entries).toSorted(byName);
     if (read.truncated || entries.length > this.options.maxEntries)
       throw new DirectoryTooLargeError();
@@ -61,6 +65,19 @@ export class ListDirectoryService {
     if (utf8ByteLength(JSON.stringify(listing)) > this.options.maxResponseBytes)
       throw new DirectoryTooLargeError();
     return listing;
+  }
+
+  private failure(failure: ListFailure): Error {
+    switch (failure) {
+      case 'missing':
+        return new PathNotFoundError();
+      case 'unreadable':
+        return new PathNotReadableError();
+      case 'changed':
+        return new ContentChangedError();
+      case 'unsupported-name':
+        return new UnsupportedEntryNameError();
+    }
   }
 }
 

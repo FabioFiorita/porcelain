@@ -4,17 +4,17 @@ import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
   GeneratePublishedReviewService,
   ReadPublishedReviewService,
-  ReadReviewEvidenceService,
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
+import type { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ReadPublishedReviewUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readReviewEvidence: ReadReviewEvidenceService;
+  private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly generatePublishedReview: GeneratePublishedReviewService;
   private readonly lanes: Lanes;
@@ -23,7 +23,7 @@ export class ReadPublishedReviewUseCase {
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     readPublishedReview: ReadPublishedReviewService,
-    readReviewEvidence: ReadReviewEvidenceService,
+    readReviewEvidence: ReadReviewEvidenceUseCasePort,
     readEnvironment: ReadEnvironmentService,
     generatePublishedReview: GeneratePublishedReviewService,
     lanes: Lanes,
@@ -55,7 +55,7 @@ export class ReadPublishedReviewUseCase {
         if (published.kind === 'none') return { review: undefined };
         const evidence = await this.readReviewEvidence.execute(
           { worktreeId, layers: published.review.layers },
-          signal,
+          { signal },
         );
         const resolved = this.generatePublishedReview.execute({
           environmentId: this.readEnvironment.execute().environmentId,

@@ -48,6 +48,11 @@ export type {
   ReadTextFileResult,
 } from './read-text-file.ts';
 export type {
+  ReadTextFilesInput,
+  ReadTextFilesOptions,
+  ReadTextFilesResult,
+} from './read-text-files.ts';
+export type {
   WorktreePathsRead,
   WorktreePathsReadInput,
 } from './worktree-paths-read.ts';

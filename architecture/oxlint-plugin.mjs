@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1701,6 +1702,128 @@ export default {
           CallExpression(node) {
             if (memberPath(node.callee)?.join('.') === 'Promise.reject')
               context.report({ node, message });
+          },
+        };
+      },
+    },
+    'failure-in-service': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (isSpec(context)) return {};
+        const service = serviceFile.test(path);
+        const useCase = useCaseFile.test(path);
+        const errors =
+          /^packages\/[^/]+\/src\/errors\/(?!index\.ts$)[^/]+\.ts$/.test(path);
+        if (!service && !useCase && !errors) return {};
+        return {
+          ExportNamedDeclaration(node) {
+            if (
+              errors &&
+              node.declaration &&
+              node.declaration.type !== 'ClassDeclaration'
+            )
+              context.report({
+                node,
+                message:
+                  'An errors/ file exports its one error class; the problem-to-error switch is a private failure(problem) in the service that meets the problem.',
+              });
+          },
+          ClassBody(node) {
+            const failures = node.body.filter(
+              (member) =>
+                member.type === 'MethodDefinition' &&
+                member.key.type === 'Identifier' &&
+                member.key.name === 'failure',
+            );
+            for (const member of failures) {
+              if (useCase)
+                context.report({
+                  node: member,
+                  message:
+                    'A use case maps no problem to an error; the service that meets the problem owns its one private failure(problem).',
+                });
+              else if (member.accessibility !== 'private')
+                context.report({
+                  node: member,
+                  message:
+                    'A service keeps its problem-to-error switch private: private failure(problem).',
+                });
+            }
+            if (service && failures.length > 1)
+              context.report({
+                node: failures[1],
+                message:
+                  'A service has one failure(problem): one switch from its problems to its errors.',
+              });
+          },
+        };
+      },
+    },
+    'cross-domain-through-use-cases': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!portFile.test(path) || indexFile.test(path) || isSpec(context))
+          return {};
+        return {
+          TSMethodSignature(node) {
+            if (propertyName(node, context) === 'execute')
+              context.report({
+                node,
+                message:
+                  "A domain port is named for the fact it reads or writes, never execute: a port shaped like another domain's service carries that domain in disguise; the use case calls the other domain and passes the data on.",
+              });
+          },
+        };
+      },
+    },
+    'use-case-input-is-contract': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!useCaseFile.test(path) || isSpec(context)) return {};
+        const name = posix.basename(path, '.ts');
+        const behindPort = existsSync(
+          posix.join(
+            repositoryRoot,
+            'apps/server/src/ports',
+            `${name}-use-case-port.ts`,
+          ),
+        );
+        if (behindPort) return {};
+        const contractTypes = new Set();
+        const references = (annotation) => {
+          if (annotation?.type === 'TSIntersectionType')
+            return annotation.types.flatMap(references);
+          return [annotation];
+        };
+        return {
+          ImportDeclaration(node) {
+            if (
+              typeof node.source.value === 'string' &&
+              node.source.value.startsWith('@porcelain/contracts/')
+            )
+              for (const specifier of node.specifiers)
+                contractTypes.add(specifier.local.name);
+          },
+          MethodDefinition(node) {
+            if (
+              node.key.type !== 'Identifier' ||
+              node.key.name !== 'execute' ||
+              node.value.params.length !== 2
+            )
+              return;
+            const annotation =
+              node.value.params[0]?.typeAnnotation?.typeAnnotation;
+            for (const reference of references(annotation))
+              if (
+                reference?.type !== 'TSTypeReference' ||
+                reference.typeName.type !== 'Identifier' ||
+                !contractTypes.has(reference.typeName.name)
+              )
+                context.report({
+                  node: reference ?? node,
+                  message:
+                    'A use case reached from a route takes the contract types its route validated (params, query, body), intersected as the route passes them; one reached only from another use case, a hook or the runtime stands behind ports/<name>-use-case-port.ts and may take a domain model.',
+                });
           },
         };
       },

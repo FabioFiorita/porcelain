@@ -26,7 +26,7 @@ export function publishReview(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, review: request.body },
+        { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),
   );

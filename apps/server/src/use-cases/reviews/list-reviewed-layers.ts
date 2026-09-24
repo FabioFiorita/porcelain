@@ -1,3 +1,4 @@
+import type { ReadTextFilesService } from '@porcelain/files/services';
 import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import { reviewedLayerMarks } from '@porcelain/reviews/rules';
@@ -5,7 +6,6 @@ import type {
   ListReviewedLayerPathsService,
   ListReviewedLayersService,
   ReadPublishedReviewService,
-  ReadReviewTextsService,
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -15,7 +15,7 @@ import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-ca
 export class ListReviewedLayersUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
-  private readonly readReviewTexts: ReadReviewTextsService;
+  private readonly readTextFiles: ReadTextFilesService;
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly listReviewedLayers: ListReviewedLayersService;
   private readonly lanes: Lanes;
@@ -24,7 +24,7 @@ export class ListReviewedLayersUseCase {
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
-    readReviewTexts: ReadReviewTextsService,
+    readTextFiles: ReadTextFilesService,
     readPublishedReview: ReadPublishedReviewService,
     listReviewedLayers: ListReviewedLayersService,
     lanes: Lanes,
@@ -32,7 +32,7 @@ export class ListReviewedLayersUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.listReviewedLayerPaths = listReviewedLayerPaths;
-    this.readReviewTexts = readReviewTexts;
+    this.readTextFiles = readTextFiles;
     this.readPublishedReview = readPublishedReview;
     this.listReviewedLayers = listReviewedLayers;
     this.lanes = lanes;
@@ -53,7 +53,7 @@ export class ListReviewedLayersUseCase {
       worktree,
       async ({ signal }) => {
         const { paths } = this.listReviewedLayerPaths.execute({ worktreeId });
-        const texts = await this.readReviewTexts.execute(
+        const { texts } = await this.readTextFiles.execute(
           { worktreeId, paths },
           signal,
         );

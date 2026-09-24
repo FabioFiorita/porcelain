@@ -1,22 +1,25 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { PublishReviewToolResponse } from '@porcelain/contracts/reviews';
-import type { ReviewPublication } from '@porcelain/reviews/models';
+import type {
+  PublishReviewRequest,
+  PublishReviewToolResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
   GeneratePublishedReviewService,
   PublishReviewService,
-  ReadReviewEvidenceService,
 } from '@porcelain/reviews/services';
 import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
+import type { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class PublishReviewUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly confirmWorktree: ConfirmWorktreeService;
-  private readonly readReviewEvidence: ReadReviewEvidenceService;
+  private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly publishReview: PublishReviewService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly generatePublishedReview: GeneratePublishedReviewService;
@@ -27,7 +30,7 @@ export class PublishReviewUseCase {
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     confirmWorktree: ConfirmWorktreeService,
-    readReviewEvidence: ReadReviewEvidenceService,
+    readReviewEvidence: ReadReviewEvidenceUseCasePort,
     publishReview: PublishReviewService,
     readEnvironment: ReadEnvironmentService,
     generatePublishedReview: GeneratePublishedReviewService,
@@ -47,10 +50,10 @@ export class PublishReviewUseCase {
   }
 
   async execute(
-    input: ReviewPublication,
+    input: WorktreeParams & PublishReviewRequest,
     context: OperationContext,
   ): Promise<PublishReviewToolResponse> {
-    const { worktreeId, review: draft } = input;
+    const { worktreeId, ...draft } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, requireAvailableProject: false },
       context,
@@ -61,7 +64,7 @@ export class PublishReviewUseCase {
       async ({ signal }) => {
         const evidence = await this.readReviewEvidence.execute(
           { worktreeId, layers: draft.layers },
-          signal,
+          { signal },
         );
         this.confirmWorktree.execute({ worktree });
         const { review, warnings } = this.publishReview.execute({

@@ -2,11 +2,6 @@ import type { FileChange } from '@porcelain/kernel/models';
 
 export type ReviewTexts = ReadonlyMap<string, string>;
 
-export type ReviewText = {
-  path: string;
-  text: string;
-};
-
 export type ReviewDiffSelection = {
   scope: 'staged' | 'unstaged';
   oldPath?: string | undefined;

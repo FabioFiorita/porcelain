@@ -1,5 +1,9 @@
-import type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';
-import type { CreateCommentThreadInput } from '@porcelain/reviews/models';
+import type {
+  CommentAuthor,
+  CreateCommentThreadRequest,
+  CreateCommentThreadResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { CreateCommentThreadService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -29,7 +33,7 @@ export class CreateCommentThreadUseCase {
   }
 
   async execute(
-    input: CreateCommentThreadInput,
+    input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,
     context: OperationContext,
   ): Promise<CreateCommentThreadResponse> {
     const { worktreeId } = input;

@@ -1,5 +1,8 @@
-import type { ListCommentThreadsResponse } from '@porcelain/contracts/reviews';
-import type { ListCommentThreadsInput } from '@porcelain/reviews/models';
+import type {
+  ListCommentThreadsQuery,
+  ListCommentThreadsResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ListCommentThreadsService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -25,7 +28,7 @@ export class ListCommentThreadsUseCase {
   }
 
   async execute(
-    input: ListCommentThreadsInput,
+    input: WorktreeParams & ListCommentThreadsQuery,
     context: OperationContext,
   ): Promise<ListCommentThreadsResponse> {
     const { worktreeId } = input;

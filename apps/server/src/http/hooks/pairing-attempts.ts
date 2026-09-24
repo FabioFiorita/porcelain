@@ -1,11 +1,11 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { RefundPairingAttemptUseCase } from '../../use-cases/access/refund-pairing-attempt.ts';
-import type { TakePairingAttemptUseCase } from '../../use-cases/access/take-pairing-attempt.ts';
+import type { RefundPairingAttemptUseCasePort } from '../../ports/refund-pairing-attempt-use-case-port.ts';
+import type { TakePairingAttemptUseCasePort } from '../../ports/take-pairing-attempt-use-case-port.ts';
 
 export type PairingAttemptOptions = {
   access: {
-    takePairingAttempt: Pick<TakePairingAttemptUseCase, 'execute'>;
-    refundPairingAttempt: Pick<RefundPairingAttemptUseCase, 'execute'>;
+    takePairingAttempt: TakePairingAttemptUseCasePort;
+    refundPairingAttempt: RefundPairingAttemptUseCasePort;
   };
 };
 

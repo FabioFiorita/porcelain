@@ -26,7 +26,7 @@ export function editFile(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, command: request.body },
+        { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),
   );

@@ -1,10 +1,6 @@
 export type { CommentSeenStore } from './comment-seen-store.ts';
 export type { CommentStore } from './comment-store.ts';
-export type { ReviewDiffReader } from './review-diff-reader.ts';
-export type { ReviewFingerprintReader } from './review-fingerprint-reader.ts';
-export type { ReviewStatusReader } from './review-status-reader.ts';
 export type { ReviewStore } from './review-store.ts';
-export type { ReviewTextReader } from './review-text-reader.ts';
 export type { ReviewedFileStore } from './reviewed-file-store.ts';
 export type { ReviewedLayerStore } from './reviewed-layer-store.ts';
 export type { SignatureSource } from './signature-source.ts';

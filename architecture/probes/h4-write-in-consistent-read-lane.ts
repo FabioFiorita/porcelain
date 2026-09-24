@@ -10,10 +10,10 @@ export default {
     {
       kind: 'replace',
       path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-      old: `    const result = await this.lanes.run(
+      old: `    const { changed, ...seen } = await this.lanes.run(
       this.laneKeys.reviews(worktree),
       'write',`,
-      new: `    const result = await this.lanes.runConsistent(
+      new: `    const { changed, ...seen } = await this.lanes.runConsistent(
       this.laneKeys.reviews(worktree),
       worktree,`,
     },

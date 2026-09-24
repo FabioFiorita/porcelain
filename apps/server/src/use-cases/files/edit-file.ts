@@ -1,5 +1,8 @@
-import type { EditFileResponse } from '@porcelain/contracts/files';
-import type { EditFileInput } from '@porcelain/files/models';
+import type {
+  EditFileRequest,
+  EditFileResponse,
+} from '@porcelain/contracts/files';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { EditFileService } from '@porcelain/files/services';
 import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type { AnnouncedEditStore } from '../../ports/announced-edit-store.ts';
@@ -45,7 +48,7 @@ export class EditFileUseCase {
   }
 
   async execute(
-    input: EditFileInput,
+    input: WorktreeParams & EditFileRequest,
     context: OperationContext,
   ): Promise<EditFileResponse> {
     const { worktreeId } = input;
@@ -54,15 +57,13 @@ export class EditFileUseCase {
       context,
     );
     const paths =
-      input.command.kind === 'move'
-        ? [input.command.path, input.command.destination]
-        : [input.command.path];
+      input.kind === 'move' ? [input.path, input.destination] : [input.path];
     const edited = await this.lanes.run(
       this.laneKeys.repository(worktree),
       'write',
       async ({ signal }) => {
         this.confirmWorktree.execute({ worktree });
-        return this.editFile.execute(input, signal);
+        return this.editFile.execute({ worktreeId, command: input }, signal);
       },
       { callerSignal: context.signal },
     );

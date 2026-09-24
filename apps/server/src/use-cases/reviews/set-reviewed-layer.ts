@@ -1,3 +1,4 @@
+import type { ReadTextFilesService } from '@porcelain/files/services';
 import type {
   SetReviewedLayerRequest,
   SetReviewedLayerResponse,
@@ -5,7 +6,6 @@ import type {
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
   ReadReviewLayerService,
-  ReadReviewTextsService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
 import type { ConfirmWorktreeService } from '@porcelain/projects/services';
@@ -19,7 +19,7 @@ export class SetReviewedLayerUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly readReviewLayer: ReadReviewLayerService;
-  private readonly readReviewTexts: ReadReviewTextsService;
+  private readonly readTextFiles: ReadTextFilesService;
   private readonly setReviewedLayer: SetReviewedLayerService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -29,7 +29,7 @@ export class SetReviewedLayerUseCase {
     checkWorktree: CheckWorktreeUseCasePort,
     confirmWorktree: ConfirmWorktreeService,
     readReviewLayer: ReadReviewLayerService,
-    readReviewTexts: ReadReviewTextsService,
+    readTextFiles: ReadTextFilesService,
     setReviewedLayer: SetReviewedLayerService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -38,7 +38,7 @@ export class SetReviewedLayerUseCase {
     this.checkWorktree = checkWorktree;
     this.confirmWorktree = confirmWorktree;
     this.readReviewLayer = readReviewLayer;
-    this.readReviewTexts = readReviewTexts;
+    this.readTextFiles = readTextFiles;
     this.setReviewedLayer = setReviewedLayer;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -62,7 +62,7 @@ export class SetReviewedLayerUseCase {
           worktreeId,
           layerId: input.layerId,
         });
-        const texts = await this.readReviewTexts.execute(
+        const { texts } = await this.readTextFiles.execute(
           { worktreeId, paths },
           signal,
         );

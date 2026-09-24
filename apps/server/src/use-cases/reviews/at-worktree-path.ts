@@ -1,45 +1,21 @@
-import type { WorktreeKey } from '@porcelain/kernel/models';
+import type {
+  AtPathInput,
+  AtPathOperationUseCasePort,
+  AtPathResponse,
+  FindWorktreeByPathUseCasePort,
+  WorktreeOperationUseCasePort,
+} from '../../ports/at-worktree-path-use-case-port.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 
-export type WorktreeOperation = {
-  execute(input: WorktreeKey, context: OperationContext): Promise<unknown>;
-};
-
-export type AtPathRequest<Operation extends WorktreeOperation> = Omit<
-  Parameters<Operation['execute']>[0],
-  'worktreeId'
->;
-
-export type AtPathResponse<Operation extends WorktreeOperation> = Awaited<
-  ReturnType<Operation['execute']>
->;
-
-export type WorktreeFinder = {
-  execute(
-    input: { path: string },
-    context: OperationContext,
-  ): Promise<WorktreeKey>;
-};
-
-export type AtPathInput<Operation extends WorktreeOperation> = {
-  cwd: string;
-  request: AtPathRequest<Operation>;
-};
-
-type ResolvedOperation<Operation extends WorktreeOperation> = {
-  execute(
-    input: AtPathRequest<Operation> & WorktreeKey,
-    context: OperationContext,
-  ): Promise<AtPathResponse<Operation>>;
-};
-
-export class AtWorktreePathUseCase<Operation extends WorktreeOperation> {
-  private readonly findWorktreeByPath: WorktreeFinder;
-  private readonly operation: ResolvedOperation<Operation>;
+export class AtWorktreePathUseCase<
+  Operation extends WorktreeOperationUseCasePort,
+> {
+  private readonly findWorktreeByPath: FindWorktreeByPathUseCasePort;
+  private readonly operation: AtPathOperationUseCasePort<Operation>;
 
   constructor(
-    findWorktreeByPath: WorktreeFinder,
-    operation: ResolvedOperation<Operation>,
+    findWorktreeByPath: FindWorktreeByPathUseCasePort,
+    operation: AtPathOperationUseCasePort<Operation>,
   ) {
     this.findWorktreeByPath = findWorktreeByPath;
     this.operation = operation;

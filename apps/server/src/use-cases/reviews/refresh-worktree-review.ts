@@ -1,20 +1,20 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
 import type {
   ReadPublishedReviewService,
-  ReadReviewEvidenceService,
   ReconcileReviewedLayersService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
+import type { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class RefreshWorktreeReviewUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readReviewEvidence: ReadReviewEvidenceService;
+  private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly recordReviewActivity: RecordReviewActivityService;
   private readonly reconcileReviewedLayers: ReconcileReviewedLayersService;
   private readonly lanes: Lanes;
@@ -24,7 +24,7 @@ export class RefreshWorktreeReviewUseCase {
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     readPublishedReview: ReadPublishedReviewService,
-    readReviewEvidence: ReadReviewEvidenceService,
+    readReviewEvidence: ReadReviewEvidenceUseCasePort,
     recordReviewActivity: RecordReviewActivityService,
     reconcileReviewedLayers: ReconcileReviewedLayersService,
     lanes: Lanes,
@@ -56,7 +56,7 @@ export class RefreshWorktreeReviewUseCase {
           return { review: false, reviewed: false };
         const evidence = await this.readReviewEvidence.execute(
           { worktreeId, layers: published.review.layers },
-          signal,
+          { signal },
         );
         const activity = this.recordReviewActivity.execute({
           review: published.review,

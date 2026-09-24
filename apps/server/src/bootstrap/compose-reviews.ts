@@ -9,7 +9,6 @@ import {
   PublishReviewService,
   ReadReviewLayerService,
   ReadReviewSummaryService,
-  ReadReviewTextsService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
   ReplyToCommentService,
@@ -19,10 +18,7 @@ import {
 } from '@porcelain/reviews/services';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
-import {
-  AtWorktreePathUseCase,
-  type WorktreeFinder,
-} from '../use-cases/reviews/at-worktree-path.ts';
+import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
@@ -42,6 +38,7 @@ import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import type { FindWorktreeByPathUseCasePort } from '../ports/at-worktree-path-use-case-port.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
@@ -50,7 +47,7 @@ export type ReviewsDependencies = {
   stores: Stores;
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
-  findWorktreeByPath: WorktreeFinder;
+  findWorktreeByPath: FindWorktreeByPathUseCasePort;
 };
 
 export function composeReviews(
@@ -60,7 +57,7 @@ export function composeReviews(
   const { lanes, laneKeys, events, clock, ids, logger } = context;
   const limits = context.settings.limits.reviews;
   const { stores, shared } = dependencies;
-  const { readEnvironment, readTextFile } = shared;
+  const { readEnvironment } = shared;
   const { checkWorktree } = dependencies;
   const signatureSource = new HmacSignatureSource();
   const commentStore = stores.comments;
@@ -73,7 +70,6 @@ export function composeReviews(
     signatureSource,
     limits.summaryLink,
   );
-  const readReviewTexts = new ReadReviewTextsService(readTextFile);
   const setReviewedFiles = new SetReviewedFilesService(
     reviewedFileStore,
     clock,
@@ -234,7 +230,7 @@ export function composeReviews(
     listReviewedLayers: new ListReviewedLayersUseCase(
       checkWorktree,
       new ListReviewedLayerPathsService(reviewStore, reviewedLayerStore),
-      readReviewTexts,
+      shared.readTextFiles,
       readPublishedReview,
       new ListReviewedLayersService(reviewedLayerStore),
       lanes,
@@ -244,7 +240,7 @@ export function composeReviews(
       checkWorktree,
       shared.confirmWorktree,
       new ReadReviewLayerService(reviewStore),
-      readReviewTexts,
+      shared.readTextFiles,
       new SetReviewedLayerService(reviewedLayerStore, clock),
       lanes,
       laneKeys,

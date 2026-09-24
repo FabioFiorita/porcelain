@@ -15,9 +15,9 @@ import {
 } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
 import type {
-  AtWorktreePathUseCase,
-  WorktreeOperation,
-} from '../../use-cases/reviews/at-worktree-path.ts';
+  AtWorktreePathUseCasePort,
+  WorktreeOperationUseCasePort,
+} from '../../ports/at-worktree-path-use-case-port.ts';
 import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
 import type { ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
 import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
@@ -27,10 +27,8 @@ import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-
 import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 
-type AtPath<Operation extends WorktreeOperation> = Pick<
-  AtWorktreePathUseCase<Operation>,
-  'execute'
->;
+type AtPath<Operation extends WorktreeOperationUseCasePort> =
+  AtWorktreePathUseCasePort<Operation>;
 
 export type ReviewMcpUseCases = {
   reviews: {
@@ -84,7 +82,7 @@ export function createReviewMcpServer(
     ({ cwd, ...review }, { signal }) =>
       result(publishReviewToolResponseSchema, async () => {
         const published = await useCases.reviews.publishReviewAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: { review } },
+          { cwd: cwd ?? defaultCwd, request: review },
           { signal },
         );
         return {

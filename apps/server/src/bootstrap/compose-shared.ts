@@ -5,7 +5,10 @@ import {
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import { ReadTextFileService } from '@porcelain/files/services';
+import {
+  ReadTextFileService,
+  ReadTextFilesService,
+} from '@porcelain/files/services';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import {
   ActionsGit,
@@ -34,7 +37,6 @@ import {
   InvalidateReviewedMarksService,
   ReadPublishedReviewService,
   ReadReviewBadgesService,
-  ReadReviewEvidenceService,
   ReconcileReviewedLayersService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
@@ -49,6 +51,7 @@ import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-list
 import type { ServerSettings } from '../config/server-settings.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
+import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
 import type { Stores } from './compose-stores.ts';
 
 export type Shared = ReturnType<typeof composeShared>;
@@ -87,6 +90,10 @@ export function composeShared(dependencies: SharedDependencies) {
   const readTextFile = new ReadTextFileService(
     fileReader,
     new GitHeadTextReader(openInspection),
+    limits.files.readTextFile,
+  );
+  const readTextFiles = new ReadTextFilesService(
+    fileReader,
     limits.files.readTextFile,
   );
   const readWorktreeStatus = new ReadWorktreeStatusService(changeStatusReader);
@@ -141,10 +148,11 @@ export function composeShared(dependencies: SharedDependencies) {
       stores.commentsSeen,
     ),
     readPublishedReview: new ReadPublishedReviewService(stores.reviews),
-    readReviewEvidence: new ReadReviewEvidenceService(
+    readTextFiles,
+    readReviewEvidence: new ReadReviewEvidenceUseCase(
       readWorktreeStatus,
       readChangeFingerprints,
-      readTextFile,
+      readTextFiles,
       readChangeDiffs,
     ),
     recordReviewActivity: new RecordReviewActivityService(stores.reviews),

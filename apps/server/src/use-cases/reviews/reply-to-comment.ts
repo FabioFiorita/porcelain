@@ -1,5 +1,9 @@
-import type { ReplyToCommentResponse } from '@porcelain/contracts/reviews';
-import type { ReplyToCommentInput } from '@porcelain/reviews/models';
+import type {
+  CommentAuthor,
+  CommentThreadParams,
+  ReplyToCommentRequest,
+  ReplyToCommentResponse,
+} from '@porcelain/contracts/reviews';
 import type { ReplyToCommentService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -29,7 +33,7 @@ export class ReplyToCommentUseCase {
   }
 
   async execute(
-    input: ReplyToCommentInput,
+    input: CommentThreadParams & ReplyToCommentRequest & CommentAuthor,
     context: OperationContext,
   ): Promise<ReplyToCommentResponse> {
     const { worktreeId } = input;

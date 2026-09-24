@@ -1,14 +1,14 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyRequest } from 'fastify';
 import type {
-  CheckRequestOriginUseCase,
+  CheckRequestOriginUseCasePort,
   RequestOriginVerdict,
-} from '../../use-cases/access/check-request-origin.ts';
+} from '../../ports/check-request-origin-use-case-port.ts';
 
 type Refusal = Extract<RequestOriginVerdict, { allowed: false }>['refusal'];
 
 export type RequestOriginOptions = {
-  access: { checkRequestOrigin: Pick<CheckRequestOriginUseCase, 'execute'> };
+  access: { checkRequestOrigin: CheckRequestOriginUseCasePort };
   allowedHosts: readonly string[];
 };
 

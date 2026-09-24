@@ -1,14 +1,8 @@
-import type {
-  CheckRequestOriginInput,
-  RequestOriginRefusal,
-} from '@porcelain/access/models';
+import type { CheckRequestOriginInput } from '@porcelain/access/models';
 import type { CheckRequestOriginService } from '@porcelain/access/services';
 import type { Lanes } from '../../runtime/lanes.ts';
+import type { RequestOriginVerdict } from '../../ports/check-request-origin-use-case-port.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
-
-export type RequestOriginVerdict =
-  | { allowed: true }
-  | { allowed: false; refusal: RequestOriginRefusal };
 
 export class CheckRequestOriginUseCase {
   private readonly checkRequestOrigin: CheckRequestOriginService;
