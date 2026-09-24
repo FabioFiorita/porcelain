@@ -5,6 +5,7 @@ import { lstat, open, readlink } from 'node:fs/promises';
 import { dirname, join, sep } from 'node:path';
 import type { WorktreeEntry } from '@porcelain/changes/models';
 import {
+  fileIdentity,
   inspectPath,
   readFailure,
   sameFile,
@@ -67,7 +68,7 @@ async function readEntry(
   if (info.isSymbolicLink()) {
     const link = await readlink(full);
     await verifyPath(before, target);
-    return { kind: 'symlink', target: link, stamp: stampOf(info) };
+    return { kind: 'symlink', target: link, stamp: fileIdentity(info) };
   }
   if (!info.isFile()) return { kind: 'other' };
   const read = await digestFile(full, info, maxDigestBytes, chunkBytes);
@@ -75,13 +76,9 @@ async function readEntry(
   return read;
 }
 
-function stampOf(info: BigIntStats) {
-  return [info.dev, info.ino, info.size, info.ctimeNs, info.mode].join(':');
-}
-
 export async function stampPath(path: string): Promise<string | undefined> {
   try {
-    return stampOf(await lstat(path, { bigint: true }));
+    return fileIdentity(await lstat(path, { bigint: true }));
   } catch {
     return undefined;
   }
@@ -114,7 +111,11 @@ async function digestFile(
     }
     const after = await handle.stat({ bigint: true });
     if (!unchanged(opened, after)) return { kind: 'other' };
-    return { kind: 'file', digest: hash.digest('hex'), stamp: stampOf(after) };
+    return {
+      kind: 'file',
+      digest: hash.digest('hex'),
+      stamp: fileIdentity(after),
+    };
   } finally {
     await handle.close();
   }

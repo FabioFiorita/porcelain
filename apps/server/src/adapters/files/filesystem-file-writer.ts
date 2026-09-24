@@ -27,7 +27,7 @@ import {
   filesystemFailure,
   inspectPath,
   pathRefused,
-  revisionOf,
+  fileIdentity,
   sameEvidence,
   sameFile,
   unchanged,
@@ -69,7 +69,7 @@ export class FilesystemFileWriter implements FileWriter {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const before = await inspectPath(target, signal);
-      if (revisionOf(before.info) !== input.revision)
+      if (fileIdentity(before.info) !== input.revision)
         throw pathRefused('changed');
       const parent = await this.parent(target, signal);
       const temporary = join(

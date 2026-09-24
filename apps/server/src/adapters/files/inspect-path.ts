@@ -88,7 +88,7 @@ export function unchanged(left: BigIntStats, right: BigIntStats) {
   );
 }
 
-export function revisionOf(info: BigIntStats) {
+export function fileIdentity(info: BigIntStats): string {
   return [
     info.dev,
     info.ino,

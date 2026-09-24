@@ -9,7 +9,7 @@ import type { FileReader } from '@porcelain/files/ports';
 import {
   inspectPath,
   readFailure,
-  revisionOf,
+  fileIdentity,
   sameFile,
   unchanged,
   verifyPath,
@@ -87,7 +87,7 @@ export class FilesystemFileReader implements FileReader {
         return {
           kind: 'file',
           bytes: buffer.subarray(0, length),
-          revision: revisionOf(settled),
+          revision: fileIdentity(settled),
         };
       } finally {
         await handle.close();
