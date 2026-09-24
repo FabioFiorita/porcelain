@@ -1,5 +1,5 @@
 import type { GitStatusObservation } from '../dtos/git-status.ts';
 
-export interface StatusReader {
+export type StatusReader = {
   readStatus(signal?: AbortSignal): Promise<GitStatusObservation>;
-}
+};

@@ -1,7 +1,7 @@
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
 
-export interface DiffReader {
+export type DiffReader = {
   readDiff(
     change: GitOrdinaryChange,
     signal?: AbortSignal,
@@ -10,4 +10,4 @@ export interface DiffReader {
     changes: readonly GitOrdinaryChange[],
     signal?: AbortSignal,
   ): Promise<GitDiffResult[]>;
-}
+};

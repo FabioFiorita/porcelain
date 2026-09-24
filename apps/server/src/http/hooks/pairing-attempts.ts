@@ -11,13 +11,19 @@ export type PairingAttemptOptions = {
 
 export function takePairingAttempt(options: PairingAttemptOptions) {
   return async (request: FastifyRequest) => {
-    options.access.takePairingAttempt.execute({ peer: request.ip });
+    await options.access.takePairingAttempt.execute(
+      { peer: request.ip },
+      { signal: request.disconnected },
+    );
   };
 }
 
 export function refundSucceededPairingAttempt(options: PairingAttemptOptions) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     if (reply.statusCode === 200)
-      options.access.refundPairingAttempt.execute({ peer: request.ip });
+      await options.access.refundPairingAttempt.execute(
+        { peer: request.ip },
+        { signal: request.disconnected },
+      );
   };
 }

@@ -1,4 +1,4 @@
-export interface DiscoveryIssue {
+export type DiscoveryIssue = {
   path: string;
   error: unknown;
-}
+};

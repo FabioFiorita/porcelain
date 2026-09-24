@@ -1,0 +1,76 @@
+{
+  "porcelain/port-shape": {
+    "apps/server/src/ports/device-connections.ts": 3,
+    "apps/server/src/ports/event-publisher.ts": 9,
+    "apps/server/src/ports/web-root-files.ts": 7,
+    "apps/server/src/ports/worktree-watcher.ts": 6,
+    "packages/access/src/ports/device-sighting-store.ts": 3,
+    "packages/access/src/ports/device-store.ts": 3,
+    "packages/access/src/ports/pairing-grant-store.ts": 3,
+    "packages/git-actions/src/ports/git-action-receipt-store.ts": 3,
+    "packages/kernel/src/ports/worktree-access-reader.ts": 2,
+    "packages/reviews/src/ports/comment-seen-store.ts": 3,
+    "packages/reviews/src/ports/comment-store.ts": 6,
+    "packages/reviews/src/ports/review-store.ts": 4,
+    "packages/reviews/src/ports/reviewed-file-store.ts": 4,
+    "packages/reviews/src/ports/reviewed-layer-store.ts": 5,
+    "packages/reviews/src/ports/signature-source.ts": 1
+  },
+  "porcelain/no-number-outside-limits": {
+    "apps/server/src/adapters/access/random-secret-source.ts": 1,
+    "apps/server/src/adapters/changes/worktree-files.ts": 3,
+    "apps/server/src/adapters/files/filesystem-file-writer.ts": 2,
+    "apps/server/src/adapters/reviews/random-secret-source.ts": 1,
+    "packages/access/src/rules/credential.ts": 2,
+    "packages/access/src/rules/device-details.ts": 5,
+    "packages/access/src/rules/host-policy.ts": 8,
+    "packages/changes/src/rules/order-comparisons.ts": 2,
+    "packages/files/src/rules/encode-base64.ts": 1,
+    "packages/files/src/rules/serialized-byte-length.ts": 6,
+    "packages/git-actions/src/rules/utf8-byte-length.ts": 6,
+    "packages/projects/src/rules/derive-worktree-id.ts": 1,
+    "packages/reviews/src/rules/resolve-review.ts": 1,
+    "packages/reviews/src/rules/review-diagnostics.ts": 6,
+    "packages/reviews/src/rules/review-digests.ts": 6
+  },
+  "porcelain/fakes-store": {
+    "apps/server/spec/fakes/in-memory-event-publisher.ts": 2,
+    "apps/server/spec/fakes/scripted-inventory-refresh.ts": 2,
+    "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": 1,
+    "packages/access/spec/fakes/sequential-secret-source.ts": 1,
+    "packages/agents/src/commit-planning/commit-planner.spec.ts": 3,
+    "packages/changes/spec/fakes/in-memory-commit-history-reader.ts": 1,
+    "packages/changes/spec/fakes/in-memory-worktree-side-reader.ts": 1,
+    "packages/git-actions/spec/fakes/in-memory-git-action-receipt-store.ts": 1,
+    "packages/git-actions/spec/fakes/scripted-git-action-runner.ts": 1,
+    "packages/kernel/spec/fakes/scripted-worktree-access-reader.ts": 1,
+    "packages/kernel/spec/fakes/sequential-id-source.ts": 1,
+    "packages/projects/spec/fakes/in-memory-file-preference-store.ts": 2,
+    "packages/projects/spec/fakes/scripted-project-repository-reader.ts": 1,
+    "packages/reviews/spec/fakes/in-memory-comment-store.ts": 5,
+    "packages/reviews/spec/fakes/in-memory-review-store.ts": 1,
+    "packages/reviews/spec/fakes/in-memory-reviewed-file-store.ts": 2,
+    "packages/reviews/spec/fakes/in-memory-reviewed-layer-store.ts": 2
+  },
+  "porcelain/operation-class-shape": {
+    "apps/server/src/use-cases/access/check-request-origin.ts": 1,
+    "apps/server/src/use-cases/access/clear-browser-session.ts": 1,
+    "apps/server/src/use-cases/access/read-health.ts": 1,
+    "apps/server/src/use-cases/access/read-owner-status.ts": 1,
+    "apps/server/src/use-cases/git-actions/dismiss-interrupted-git-action.ts": 1,
+    "apps/server/src/use-cases/git-actions/read-git-action-receipt.ts": 1,
+    "apps/server/src/use-cases/git-actions/recover-interrupted-git-actions.ts": 1,
+    "apps/server/src/use-cases/reviews/read-review-summary.ts": 1
+  },
+  "porcelain/events-after-lane": {
+    "apps/server/src/use-cases/files/edit-file.ts": 1,
+    "apps/server/src/use-cases/projects/refresh-inventory.ts": 1,
+    "apps/server/src/use-cases/projects/register-project.ts": 1,
+    "apps/server/src/use-cases/projects/remove-project.ts": 1,
+    "apps/server/src/use-cases/projects/rename-project.ts": 1,
+    "apps/server/src/use-cases/projects/set-file-preference.ts": 1
+  },
+  "lane-mode-matches-service": {
+    "apps/server/src/use-cases/git-actions/run-git-action.ts": 1
+  }
+}

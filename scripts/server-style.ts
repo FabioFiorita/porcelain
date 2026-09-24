@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { readPending, settlePending } from '../architecture/pending.ts';
 import { domainPackages } from '../architecture/policy.ts';
 
 const mode = process.argv[2];
@@ -181,26 +182,78 @@ async function configProblems(): Promise<string[]> {
   return problems;
 }
 
-const executable = join(
-  'node_modules',
-  '.bin',
-  mode === 'lint' ? 'oxlint' : 'oxfmt',
-);
-const options =
-  mode === 'lint'
-    ? [
-        '--type-aware',
-        '--report-unused-disable-directives',
-        '--max-warnings',
-        '0',
-      ]
-    : ['--check'];
-const result = spawnSync(executable, [...options, ...roots], {
-  stdio: 'inherit',
+const diagnosticsSchema = z.object({
+  diagnostics: z.array(
+    z.object({
+      message: z.string(),
+      code: z.string().optional(),
+      severity: z.string(),
+      filename: z.string(),
+      labels: z
+        .array(
+          z.object({
+            span: z.object({ line: z.number(), column: z.number() }),
+          }),
+        )
+        .optional(),
+    }),
+  ),
 });
-if (result.error) throw result.error;
-process.exitCode = result.status ?? 1;
-if (mode === 'lint') {
+
+function lint(): number {
+  const result = spawnSync(
+    join('node_modules', '.bin', 'oxlint'),
+    [
+      '--type-aware',
+      '--report-unused-disable-directives',
+      '--format',
+      'json',
+      ...roots,
+    ],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  if (result.error) throw result.error;
+  const parsed = diagnosticsSchema.safeParse(JSON.parse(result.stdout || '{}'));
+  if (!parsed.success) {
+    process.stderr.write(result.stdout + result.stderr);
+    return 1;
+  }
+  const findings = parsed.data.diagnostics.map((diagnostic) => ({
+    ...diagnostic,
+    rule: (diagnostic.code ?? '').replace(
+      /^porcelain\((.+)\)$/,
+      'porcelain/$1',
+    ),
+    file: diagnostic.filename,
+  }));
+  const settled = settlePending(
+    readPending('architecture/pending.json'),
+    (rule) => rule.startsWith('porcelain/'),
+    findings,
+  );
+  for (const finding of settled.reported) {
+    const span = finding.labels?.[0]?.span;
+    process.stdout.write(
+      `${finding.filename}:${span?.line ?? 0}:${span?.column ?? 0}: ${finding.severity} ${finding.code ?? ''}: ${finding.message}\n`,
+    );
+  }
+  for (const problem of settled.problems) process.stderr.write(`${problem}\n`);
+  process.stdout.write(
+    `${settled.reported.length} findings; ${settled.held} held by architecture/pending.json.\n`,
+  );
+  return settled.reported.length > 0 || settled.problems.length > 0 ? 1 : 0;
+}
+
+if (mode === 'format') {
+  const result = spawnSync(
+    join('node_modules', '.bin', 'oxfmt'),
+    ['--check', ...roots],
+    { stdio: 'inherit' },
+  );
+  if (result.error) throw result.error;
+  process.exitCode = result.status ?? 1;
+} else {
+  process.exitCode = lint();
   const directives = disableDirectives();
   for (const location of directives)
     process.stderr.write(

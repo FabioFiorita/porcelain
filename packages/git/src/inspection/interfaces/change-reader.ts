@@ -1,7 +1,7 @@
 import type { GitBranchDetails } from '../dtos/git-status.ts';
 import type { LineRange } from '../dtos/line-range.ts';
 
-export interface ChangeReader {
+export type ChangeReader = {
   readSubmoduleHeads(
     paths: readonly string[],
     signal?: AbortSignal,
@@ -15,4 +15,4 @@ export interface ChangeReader {
     range: Omit<LineRange, 'at'>,
     signal?: AbortSignal,
   ): Promise<string[]>;
-}
+};

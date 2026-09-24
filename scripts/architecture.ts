@@ -14,6 +14,8 @@ import {
   violation,
   type Classification,
 } from '../architecture/policy.ts';
+import { readPending, settlePending } from '../architecture/pending.ts';
+import { typeRuleFindings } from '../architecture/type-rules.ts';
 
 const dependencySchema = z.object({
   module: z.string(),
@@ -363,12 +365,29 @@ try {
   const sources = sourceRoots.flatMap(sourceFiles);
   const report = scan(sources);
   const { classified, findings } = classifyAll(sources);
-  const violations = [
+  const found = [
     ...findings,
     ...dependencyFindings(report, classified),
     ...packageExportFindings(),
     ...structureFindings(sources, classified),
     ...placementFindings(),
+    ...typeRuleFindings(repositoryRoot),
+  ];
+  const settled = settlePending(
+    readPending(join(repositoryRoot, 'architecture/pending.json')),
+    (rule) => !rule.startsWith('porcelain/'),
+    found.map((finding) => ({
+      ...finding,
+      file: finding.from.replace(/:\d+$/, ''),
+    })),
+  );
+  const violations = [
+    ...settled.reported,
+    ...settled.problems.map((problem) => ({
+      rule: 'pending',
+      from: problem,
+      to: 'architecture/pending.json',
+    })),
   ];
   const byRule = new Map<string, Finding[]>();
   for (const finding of violations) {
@@ -387,7 +406,7 @@ try {
       process.stdout.write(`  ... ${entries.length - 3} more (use --all)\n`);
   }
   process.stdout.write(
-    `${violations.length} violations; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
+    `${violations.length} violations; ${settled.held} held by architecture/pending.json; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
   );
   if (violations.length > 0) process.exitCode = 1;
 } catch (error) {

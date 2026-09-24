@@ -1,17 +1,17 @@
-export interface GitChangeSelection {
+export type GitChangeSelection = {
   scope: 'staged' | 'unstaged';
   oldPath: string | null;
   newPath: string | null;
-}
+};
 
-export interface GitOrdinaryChange extends GitChangeSelection {
+export type GitOrdinaryChange = GitChangeSelection & {
   kind: 'added' | 'modified' | 'deleted' | 'renamed' | 'type-changed';
   oldMode: string;
   newMode: string;
   oldOid: string | null;
   newOid: string | null;
   supported: boolean;
-}
+};
 
 export type GitConflictCode = 'DD' | 'AU' | 'UD' | 'UA' | 'DU' | 'AA' | 'UU';
 
@@ -53,7 +53,7 @@ export type GitBranchDetails = {
   headCommit: { subject: string; body?: string } | null;
 };
 
-export interface GitStatusObservation {
+export type GitStatusObservation = {
   branch?: GitBranchStatus;
   statusToken: string;
   headOid: string | null;
@@ -61,4 +61,4 @@ export interface GitStatusObservation {
   mergeHeadOid?: string | null;
   headCommit?: { subject: string; body?: string } | null;
   changes: GitChange[];
-}
+};

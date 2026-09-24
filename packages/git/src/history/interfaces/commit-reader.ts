@@ -8,7 +8,7 @@ import type {
 } from '../dtos/commit-history.ts';
 import type { GitDiffResult } from '../../inspection/index.ts';
 
-export interface CommitReader {
+export type CommitReader = {
   listCommits(
     request: CommitPageRequest,
     signal?: AbortSignal,
@@ -21,5 +21,5 @@ export interface CommitReader {
     request: CommitDiffsRequest,
     signal?: AbortSignal,
   ): Promise<Map<string, GitDiffResult> | null>;
-}
+};
 export type CommitReaderFactory = (checkout: HistoryCheckout) => CommitReader;

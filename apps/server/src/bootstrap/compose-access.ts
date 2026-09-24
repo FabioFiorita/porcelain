@@ -63,6 +63,8 @@ export function composeAccess(
         clock,
         limits.device,
       ),
+      lanes,
+      laneKeys,
     ),
     clearBrowserSession: new ClearBrowserSessionUseCase(),
     checkRequestOrigin: new CheckRequestOriginUseCase(
@@ -106,6 +108,8 @@ export function composeAccess(
         clock,
         limits.pairingAttempts,
       ),
+      lanes,
+      laneKeys,
     ),
     refundPairingAttempt: new RefundPairingAttemptUseCase(
       new RefundPairingAttemptService(
@@ -113,6 +117,8 @@ export function composeAccess(
         clock,
         limits.pairingAttempts,
       ),
+      lanes,
+      laneKeys,
     ),
     revokeAccess: new RevokeAccessUseCase(
       new RevokePairingGrantService(pairingGrants, clock),
