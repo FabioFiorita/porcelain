@@ -161,7 +161,7 @@ export class WatchWorktrees {
         this.removeProjectDemand(demand, projectId);
     for (const projectId of wantedProjects) {
       if (demand.projects.has(projectId)) continue;
-      const project = this.watcher.findProject(projectId);
+      const project = this.watcher.findProject({ projectId });
       if (project)
         await this.addProjectDemand(demand, project).catch((error: unknown) =>
           this.reportFailure(error),
@@ -219,7 +219,7 @@ export class WatchWorktrees {
     projectId: string,
     worktreeId: string,
   ): Promise<WorktreeEntry | undefined> {
-    const worktree = await this.watcher.findWorktree(worktreeId);
+    const worktree = await this.watcher.findWorktree({ worktreeId });
     if (!worktree || worktree.projectId !== projectId) return undefined;
     const entry: WorktreeEntry = {
       worktree,
@@ -228,9 +228,10 @@ export class WatchWorktrees {
       pendingPaths: new Set(),
       timer: undefined,
     };
-    entry.watch = await this.watcher.watchFiles(worktree, (paths) =>
-      this.queueFiles(entry, paths),
-    );
+    entry.watch = await this.watcher.watchFiles({
+      worktree,
+      changed: (paths) => this.queueFiles(entry, paths),
+    });
     return entry;
   }
 
@@ -250,9 +251,10 @@ export class WatchWorktrees {
       demands: new Set(),
       timer: undefined,
     };
-    entry.watch = await this.watcher.watchRepository(project, () =>
-      this.queueRepository(entry),
-    );
+    entry.watch = await this.watcher.watchRepository({
+      project,
+      changed: () => this.queueRepository(entry),
+    });
     if (demand.closed || this.stopped) {
       await this.stopProject(entry);
       return;
@@ -271,7 +273,7 @@ export class WatchWorktrees {
       entry.pendingPaths.clear();
       const { worktreeId } = entry.worktree;
       this.pathsChanged(worktreeId, changed, () =>
-        this.events.filesChanged(worktreeId, changed),
+        this.events.filesChanged({ worktreeId, paths: changed }),
       );
       if (changed.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
     }, this.options.burstMs);
@@ -288,7 +290,7 @@ export class WatchWorktrees {
       for (const worktree of watched) {
         const { worktreeId } = worktree.worktree;
         this.pathsChanged(worktreeId, [], () =>
-          this.events.worktreeChanged(worktreeId, 'git'),
+          this.events.worktreeChanged({ worktreeId, change: 'git' }),
         );
       }
       this.refreshInventory

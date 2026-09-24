@@ -9,6 +9,10 @@ export type WatchedProject = {
   commonDirectory: string;
 };
 
+export type WatchedWorktreeLookup = { worktreeId: string };
+
+export type WatchedProjectLookup = { projectId: string };
+
 export type IgnoreRulesRefresh = 'unchanged' | 'changed';
 
 export type FileWatch = {
@@ -21,15 +25,21 @@ export type RepositoryWatch = {
   close(): Promise<void>;
 };
 
+export type FileWatchRequest = {
+  worktree: WatchedWorktree;
+  changed: (paths: readonly string[]) => void;
+};
+
+export type RepositoryWatchRequest = {
+  project: WatchedProject;
+  changed: () => void;
+};
+
 export interface WorktreeWatcher {
-  findWorktree(worktreeId: string): Promise<WatchedWorktree | undefined>;
-  findProject(projectId: string): WatchedProject | undefined;
-  watchFiles(
-    worktree: WatchedWorktree,
-    changed: (paths: readonly string[]) => void,
-  ): Promise<FileWatch>;
-  watchRepository(
-    project: WatchedProject,
-    changed: () => void,
-  ): Promise<RepositoryWatch>;
+  findWorktree(
+    input: WatchedWorktreeLookup,
+  ): Promise<WatchedWorktree | undefined>;
+  findProject(input: WatchedProjectLookup): WatchedProject | undefined;
+  watchFiles(input: FileWatchRequest): Promise<FileWatch>;
+  watchRepository(input: RepositoryWatchRequest): Promise<RepositoryWatch>;
 }

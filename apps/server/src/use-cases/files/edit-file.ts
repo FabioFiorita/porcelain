@@ -57,7 +57,7 @@ export class EditFileUseCase {
           worktreeId: input.worktreeId,
           paths,
         });
-        this.events.filesChanged(input.worktreeId, paths);
+        this.events.filesChanged({ worktreeId: input.worktreeId, paths });
         return result;
       },
       { callerSignal: context.signal },

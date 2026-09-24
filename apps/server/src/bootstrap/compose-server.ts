@@ -2,7 +2,7 @@ import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { openStorageSession } from '@porcelain/storage';
-import { HeldDeviceConnections } from '../adapters/access/held-device-connections.ts';
+import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
@@ -14,7 +14,7 @@ import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
-import { FilesystemWebRootFiles } from '../adapters/web/filesystem-web-root-files.ts';
+import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
@@ -71,7 +71,7 @@ export const openServer: OpenServer = async (input) => {
     ids: new RandomIdSource(),
     logger,
   };
-  const deviceConnections = new HeldDeviceConnections();
+  const deviceConnections = new InMemoryDeviceConnectionStore();
   const access = composeAccess(context, {
     stores,
     shared,
@@ -155,7 +155,7 @@ export const openServer: OpenServer = async (input) => {
         logger,
       },
       settings,
-      files: new FilesystemWebRootFiles(settings.webRoot),
+      files: new FilesystemWebRootReader(settings.webRoot),
       logger,
     }),
     owner: createOwnerServer({ application: useCases, logger }),

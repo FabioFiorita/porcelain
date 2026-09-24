@@ -15,7 +15,7 @@ import {
   TakePairingAttemptService,
 } from '@porcelain/access/services';
 import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
-import type { DeviceConnections } from '../ports/device-connections.ts';
+import type { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
@@ -35,7 +35,7 @@ import type { Stores } from './compose-stores.ts';
 export type AccessDependencies = {
   stores: Stores;
   shared: Shared;
-  deviceConnections: DeviceConnections;
+  deviceConnections: DeviceConnectionStore;
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
 };

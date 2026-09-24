@@ -36,7 +36,10 @@ export class SetFilePreferenceUseCase {
       'write',
       async () => {
         const result = this.setFilePreference.execute(input);
-        this.events.projectChanged(input.projectId, 'preferences');
+        this.events.projectChanged({
+          projectId: input.projectId,
+          change: 'preferences',
+        });
         return result;
       },
       { callerSignal: context.signal },

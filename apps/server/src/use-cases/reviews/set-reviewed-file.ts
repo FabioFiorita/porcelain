@@ -71,7 +71,7 @@ export class SetReviewedFileUseCase {
       },
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged(worktreeId, 'reviewed');
+    this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
     return result;
   }
 }

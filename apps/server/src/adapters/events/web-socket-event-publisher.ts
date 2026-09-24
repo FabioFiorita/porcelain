@@ -1,5 +1,10 @@
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type {
+  EventPublisher,
+  FilesChangedNotice,
+  ProjectChangedNotice,
+  WorktreeChangedNotice,
+} from '../../ports/event-publisher.ts';
 import type { LiveConnections } from '../../runtime/live-updates/live-connections.ts';
 
 export class WebSocketEventPublisher implements EventPublisher {
@@ -13,45 +18,38 @@ export class WebSocketEventPublisher implements EventPublisher {
     this.connections.toEveryone({ type: 'inventory' });
   }
 
-  projectChanged(projectId: string, change: 'preferences'): void {
-    this.connections.toProject(projectId, {
+  projectChanged(input: ProjectChangedNotice): void {
+    this.connections.toProject(input.projectId, {
       type: 'project',
-      projectId,
-      change,
+      projectId: input.projectId,
+      change: input.change,
     });
   }
 
-  worktreeChanged(
-    worktreeId: string,
-    change: 'review' | 'reviewed' | 'comments' | 'git',
-  ): void {
-    this.connections.toWorktree(worktreeId, (projectId) => ({
+  worktreeChanged(input: WorktreeChangedNotice): void {
+    this.connections.toWorktree(input.worktreeId, (projectId) => ({
       type: 'worktree',
       projectId,
-      worktreeId,
-      change,
+      worktreeId: input.worktreeId,
+      change: input.change,
     }));
   }
 
-  filesChanged(worktreeId: string, _paths: readonly string[]): void {
-    this.connections.toWorktree(worktreeId, (projectId) => ({
+  filesChanged(input: FilesChangedNotice): void {
+    this.connections.toWorktree(input.worktreeId, (projectId) => ({
       type: 'worktree',
       projectId,
-      worktreeId,
+      worktreeId: input.worktreeId,
       change: 'files',
     }));
   }
 
-  gitActionChanged(receipt: GitActionReceiptView): void {
-    this.connections.toProjectOrWorktree(
-      receipt.projectId,
-      receipt.worktreeId,
-      {
-        type: 'git-action',
-        projectId: receipt.projectId,
-        worktreeId: receipt.worktreeId,
-        receipt,
-      },
-    );
+  gitActionChanged(input: GitActionReceiptView): void {
+    this.connections.toProjectOrWorktree(input.projectId, input.worktreeId, {
+      type: 'git-action',
+      projectId: input.projectId,
+      worktreeId: input.worktreeId,
+      receipt: input,
+    });
   }
 }

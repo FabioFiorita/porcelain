@@ -10,10 +10,14 @@ import type {
 } from '@porcelain/projects/models';
 import type {
   FileWatch,
+  FileWatchRequest,
   IgnoreRulesRefresh,
   RepositoryWatch,
+  RepositoryWatchRequest,
   WatchedProject,
+  WatchedProjectLookup,
   WatchedWorktree,
+  WatchedWorktreeLookup,
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
 
@@ -68,8 +72,12 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     this.projects = options.projects;
   }
 
-  async findWorktree(worktreeId: string): Promise<WatchedWorktree | undefined> {
-    const check = await this.worktrees.forWriting({ worktreeId });
+  async findWorktree(
+    input: WatchedWorktreeLookup,
+  ): Promise<WatchedWorktree | undefined> {
+    const check = await this.worktrees.forWriting({
+      worktreeId: input.worktreeId,
+    });
     if (check.kind !== 'found') return undefined;
     return {
       projectId: check.worktree.projectId,
@@ -78,17 +86,17 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     };
   }
 
-  findProject(projectId: string): WatchedProject | undefined {
-    const project = this.projects().find((entry) => entry.id === projectId);
+  findProject(input: WatchedProjectLookup): WatchedProject | undefined {
+    const project = this.projects().find(
+      (entry) => entry.id === input.projectId,
+    );
     return project
       ? { projectId: project.id, commonDirectory: project.commonDirectory }
       : undefined;
   }
 
-  async watchFiles(
-    worktree: WatchedWorktree,
-    changed: Changed,
-  ): Promise<FileWatch> {
+  async watchFiles(input: FileWatchRequest): Promise<FileWatch> {
+    const { worktree, changed } = input;
     const state: FileWatchState = {
       root: worktree.root,
       ignored: await listIgnoredPaths(worktree.root),
@@ -107,9 +115,9 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
   }
 
   async watchRepository(
-    project: WatchedProject,
-    changed: () => void,
+    input: RepositoryWatchRequest,
   ): Promise<RepositoryWatch> {
+    const { project, changed } = input;
     const subscription = await parcelWatcher.subscribe(
       project.commonDirectory,
       (error, events) => {

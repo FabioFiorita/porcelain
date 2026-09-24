@@ -62,7 +62,7 @@ export function liveUpdates(
       ping: () => socket.ping(),
       terminate: () => socket.terminate(),
     });
-    const releaseDevice = options.deviceConnections.hold({
+    const releaseDevice = options.deviceConnections.insert({
       deviceId: principal.deviceId,
       connection: { close: () => socket.close(4001, 'Device access revoked') },
     });

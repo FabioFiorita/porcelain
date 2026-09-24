@@ -1,6 +1,6 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { DeviceConnections } from '../../ports/device-connections.ts';
+import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
 import type { AuthenticateDeviceUseCase } from '../../use-cases/access/authenticate-device.ts';
 import { deviceCookie, setDeviceCookie } from './device-cookie.ts';
 
@@ -8,7 +8,7 @@ const AUTHENTICATION_REQUIRED = 'Authentication required';
 
 export type AuthenticateOptions = {
   access: { authenticateDevice: Pick<AuthenticateDeviceUseCase, 'execute'> };
-  deviceConnections: Pick<DeviceConnections, 'hold'>;
+  deviceConnections: Pick<DeviceConnectionStore, 'insert'>;
 };
 
 function credentialOf(request: FastifyRequest): string | undefined {
@@ -39,7 +39,7 @@ function holdUntilRevoked(
   deviceConnections: AuthenticateOptions['deviceConnections'],
   deviceId: string,
 ) {
-  const release = deviceConnections.hold({
+  const release = deviceConnections.insert({
     deviceId,
     connection: { close: () => reply.raw.destroy() },
   });

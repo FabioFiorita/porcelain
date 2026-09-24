@@ -1,7 +1,7 @@
 import websocket from '@fastify/websocket';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Logger } from '../ports/logger.ts';
-import type { WebRootFiles } from '../ports/web-root-files.ts';
+import type { WebRootReader } from '../ports/web-root-reader.ts';
 import { apiScope, type ApiUseCases } from './scopes/api.ts';
 import { pageScope, type PageUseCases } from './scopes/page.ts';
 import { createServer } from './server-factory.ts';
@@ -9,7 +9,7 @@ import { createServer } from './server-factory.ts';
 export type NetworkServerOptions = {
   application: ApiUseCases & PageUseCases;
   settings: Pick<ServerSettings, 'allowedHosts' | 'limits'>;
-  files: WebRootFiles;
+  files: WebRootReader;
   logger: Logger;
 };
 

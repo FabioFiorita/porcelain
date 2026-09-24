@@ -1,8 +1,12 @@
 import type {
   FileWatch,
+  FileWatchRequest,
   RepositoryWatch,
+  RepositoryWatchRequest,
   WatchedProject,
+  WatchedProjectLookup,
   WatchedWorktree,
+  WatchedWorktreeLookup,
   WorktreeWatcher,
 } from '../../src/ports/worktree-watcher.ts';
 
@@ -27,18 +31,18 @@ export class InMemoryWorktreeWatcher implements WorktreeWatcher {
     );
   }
 
-  async findWorktree(worktreeId: string): Promise<WatchedWorktree | undefined> {
-    return this.worktrees.get(worktreeId);
+  async findWorktree(
+    input: WatchedWorktreeLookup,
+  ): Promise<WatchedWorktree | undefined> {
+    return this.worktrees.get(input.worktreeId);
   }
 
-  findProject(projectId: string): WatchedProject | undefined {
-    return this.projects.get(projectId);
+  findProject(input: WatchedProjectLookup): WatchedProject | undefined {
+    return this.projects.get(input.projectId);
   }
 
-  async watchFiles(
-    worktree: WatchedWorktree,
-    changed: (paths: readonly string[]) => void,
-  ): Promise<FileWatch> {
+  async watchFiles(input: FileWatchRequest): Promise<FileWatch> {
+    const { worktree, changed } = input;
     this.files.set(worktree.worktreeId, changed);
     return {
       follow: async () => undefined,
@@ -50,9 +54,9 @@ export class InMemoryWorktreeWatcher implements WorktreeWatcher {
   }
 
   async watchRepository(
-    project: WatchedProject,
-    changed: () => void,
+    input: RepositoryWatchRequest,
   ): Promise<RepositoryWatch> {
+    const { project, changed } = input;
     this.repositories.set(project.projectId, changed);
     return {
       close: async () => {

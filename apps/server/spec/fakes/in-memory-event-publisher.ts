@@ -1,5 +1,10 @@
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
-import type { EventPublisher } from '../../src/ports/event-publisher.ts';
+import type {
+  EventPublisher,
+  FilesChangedNotice,
+  ProjectChangedNotice,
+  WorktreeChangedNotice,
+} from '../../src/ports/event-publisher.ts';
 
 export class InMemoryEventPublisher implements EventPublisher {
   private readonly files = new Map<string, readonly string[]>();
@@ -7,20 +12,17 @@ export class InMemoryEventPublisher implements EventPublisher {
 
   inventoryChanged(): void {}
 
-  projectChanged(_projectId: string, _change: 'preferences'): void {}
+  projectChanged(_input: ProjectChangedNotice): void {}
 
-  worktreeChanged(
-    worktreeId: string,
-    change: 'review' | 'reviewed' | 'comments' | 'git',
-  ): void {
-    this.worktrees.set(worktreeId, change);
+  worktreeChanged(input: WorktreeChangedNotice): void {
+    this.worktrees.set(input.worktreeId, input.change);
   }
 
-  filesChanged(worktreeId: string, paths: readonly string[]): void {
-    this.files.set(worktreeId, paths);
+  filesChanged(input: FilesChangedNotice): void {
+    this.files.set(input.worktreeId, input.paths);
   }
 
-  gitActionChanged(_receipt: GitActionReceiptView): void {}
+  gitActionChanged(_input: GitActionReceiptView): void {}
 
   announcedFiles(worktreeId: string): readonly string[] | undefined {
     return this.files.get(worktreeId);

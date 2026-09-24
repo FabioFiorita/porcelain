@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { WebRootFiles } from '../../ports/web-root-files.ts';
+import type { WebRootReader } from '../../ports/web-root-reader.ts';
 import type { ReadReviewSummaryUseCase } from '../../use-cases/reviews/read-review-summary.ts';
 import {
   checkRequestOrigin,
@@ -19,7 +19,7 @@ export async function pageScope(
   options: {
     application: PageUseCases;
     allowedHosts: readonly string[];
-    files: WebRootFiles;
+    files: WebRootReader;
   },
 ) {
   const { application, allowedHosts, files } = options;
