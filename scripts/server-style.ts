@@ -22,8 +22,11 @@ const roots = [
   'apps/server/src',
   'apps/server/spec',
   ...packages,
-  ...(mode === 'lint' ? ['architecture/policy.ts'] : ['architecture']),
+  'packages/storage/scripts',
+  'packages/storage/drizzle.config.ts',
+  'architecture',
   'scripts',
+  'vitest.config.ts',
   '.agents/skills/server-verify/scripts',
   '.agents/skills/server-verify/feature-map',
 ].filter((root) => existsSync(root));
