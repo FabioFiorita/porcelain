@@ -1,12 +1,12 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
-import type { ReadInventoryController } from '../../../controllers/read-inventory-controller.ts';
+import type { ReadInventoryUseCase } from '../../../use-cases/projects/read-inventory.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readInventory(
   server: FastifyInstance,
-  options: { controller: Pick<ReadInventoryController, 'execute'> },
+  options: { useCase: Pick<ReadInventoryUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -17,6 +17,6 @@ export function readInventory(
       },
     },
     async (request) =>
-      options.controller.execute({ signal: request.disconnected }),
+      options.useCase.execute({ signal: request.disconnected }),
   );
 }

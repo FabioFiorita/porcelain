@@ -120,7 +120,7 @@ export async function openApplication(options: ApplicationOptions) {
   });
   const events = new LiveUpdatesAdapter({
     worktrees: worktreeAccess,
-    pathsChanged: reviewInvalidation.invalidateReviewedMarksController,
+    pathsChanged: reviewInvalidation.invalidateReviewedMarks,
     projects: () => inventoryStore.read().projects,
     limits: LIVE_UPDATE_LIMITS,
   });
@@ -158,10 +158,14 @@ export async function openApplication(options: ApplicationOptions) {
     projectFolderReader: options.projectFolderReader,
     projectHome: options.projectHome,
     worktreeDirectory,
+  });
+  const { fileReader, readTextFileService, ...files } = composeFiles({
+    lanes,
+    laneKeys,
+    events,
     worktreeAccess,
   });
-  const files = composeFiles({ lanes, laneKeys, events, worktreeAccess });
-  const changes = composeChanges({
+  const { services: changeServices, ...changes } = composeChanges({
     session,
     lanes,
     laneKeys,
@@ -169,7 +173,7 @@ export async function openApplication(options: ApplicationOptions) {
     inventory: inventoryStore,
     inspection,
     commitGit,
-    readTextFile: files.readTextFileService,
+    readTextFile: readTextFileService,
     reconcileReviewedFiles: reviewInvalidation.reconcileReviewedFiles,
     readInterruptedGitAction,
   });
@@ -179,8 +183,8 @@ export async function openApplication(options: ApplicationOptions) {
     laneKeys,
     events,
     worktreeAccess,
-    readTextFile: files.readTextFileService,
-    changes: changes.services,
+    readTextFile: readTextFileService,
+    changes: changeServices,
     now: options.now,
   });
   const gitActions = composeGitActions({
@@ -190,9 +194,9 @@ export async function openApplication(options: ApplicationOptions) {
     events,
     worktreeAccess,
     actionGit,
-    fileReader: files.fileReader,
-    changes: changes.services,
-    refreshPublishedReview: reviews.refreshReviewActivityController,
+    fileReader,
+    changes: changeServices,
+    refreshPublishedReview: reviews.refreshReviewActivity,
     commitGenerator:
       options.commitGenerator ??
       new CommitGeneratorAdapter(createCommitPlanner()),
@@ -201,69 +205,23 @@ export async function openApplication(options: ApplicationOptions) {
   });
 
   const jobs = [
-    new CollectAbsentWorktreesJob(projects.collectAbsentWorktreesController),
-    new FlushDeviceActivityJob(access.flushDeviceActivityController),
+    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees),
+    new FlushDeviceActivityJob(access.flushDeviceActivity),
   ];
   for (const job of jobs) job.start();
-  gitActions.recoverInterruptedGitActionsController.execute();
-  const firstRefresh = projects.refreshInventoryController.execute({
+  gitActions.recoverInterruptedGitActions.execute();
+  const firstRefresh = projects.refreshInventory.execute({
     signal: options.signal,
   });
   firstRefresh.catch(() => undefined);
 
   return {
-    authenticateDeviceController: access.authenticateDeviceController,
-    checkRequestOriginController: access.checkRequestOriginController,
-    readOwnerStatusController: access.readOwnerStatusController,
-    issuePairingController: access.issuePairingController,
-    listAccessController: access.listAccessController,
-    readHealthController: access.readHealthController,
-    redeemPairingController: access.redeemPairingController,
-    revokeAccessController: access.revokeAccessController,
-    readInventoryController: projects.readInventoryController,
-    resolveWorktreeByPathController: projects.resolveWorktreeByPathController,
-    registerProjectController: projects.registerProjectController,
-    renameProjectController: projects.renameProjectController,
-    removeProjectController: projects.removeProjectController,
-    discoverProjectsController: projects.discoverProjectsController,
-    browseProjectFoldersController: projects.browseProjectFoldersController,
-    listFilePreferencesController: projects.listFilePreferencesController,
-    setFilePreferenceController: projects.setFilePreferenceController,
-    listDirectoryController: files.listDirectoryController,
-    readTextFileController: files.readTextFileController,
-    readFileAssetController: files.readFileAssetController,
-    readPreviewAssetsController: files.readPreviewAssetsController,
-    editFileController: files.editFileController,
-    listWorktreePathsController: files.listWorktreePathsController,
-    readChangesController: changes.readChangesController,
-    readChangeDiffsController: changes.readChangeDiffsController,
-    readChangeLinesController: changes.readChangeLinesController,
-    readGitStatusController: changes.readGitStatusController,
-    listCommitsController: changes.listCommitsController,
-    readCommitFilesController: changes.readCommitFilesController,
-    readCommitDiffsController: changes.readCommitDiffsController,
-    listCommentThreadsController: reviews.listCommentThreadsController,
-    createCommentThreadController: reviews.createCommentThreadController,
-    replyToCommentController: reviews.replyToCommentController,
-    resolveCommentThreadController: reviews.resolveCommentThreadController,
-    markCommentsSeenController: reviews.markCommentsSeenController,
-    publishReviewController: reviews.publishReviewController,
-    readPublishedReviewController: reviews.readPublishedReviewController,
-    readReviewSummaryController: reviews.readReviewSummaryController,
-    listReviewedFilesController: reviews.listReviewedFilesController,
-    setReviewedFileController: reviews.setReviewedFileController,
-    setReviewedFilesController: reviews.setReviewedFilesController,
-    removeReviewedFileController: reviews.removeReviewedFileController,
-    listReviewedLayersController: reviews.listReviewedLayersController,
-    setReviewedLayerController: reviews.setReviewedLayerController,
-    removeReviewedLayerController: reviews.removeReviewedLayerController,
-    runGitActionController: gitActions.runGitActionController,
-    readGitActionReceiptController: gitActions.readGitActionReceiptController,
-    dismissInterruptedGitActionController:
-      gitActions.dismissInterruptedGitActionController,
-    listGitBranchesController: gitActions.listGitBranchesController,
-    listCommitModelsController: gitActions.listCommitModelsController,
-    generateCommitDraftController: gitActions.generateCommitDraftController,
+    access,
+    projects,
+    files,
+    changes,
+    reviews,
+    gitActions,
     liveUpdates: events,
     devices,
     ready: () => firstRefresh,

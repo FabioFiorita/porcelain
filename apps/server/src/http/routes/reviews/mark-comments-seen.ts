@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { MarkCommentsSeenController } from '../../../controllers/mark-comments-seen-controller.ts';
+import type { MarkCommentsSeenUseCase } from '../../../use-cases/reviews/mark-comments-seen.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function markCommentsSeen(
   server: FastifyInstance,
-  options: { controller: Pick<MarkCommentsSeenController, 'execute'> },
+  options: { useCase: Pick<MarkCommentsSeenUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -23,7 +23,7 @@ export function markCommentsSeen(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

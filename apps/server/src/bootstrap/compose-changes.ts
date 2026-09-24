@@ -30,13 +30,13 @@ import { CommitHistoryAdapter } from '../adapters/changes/commit-history-adapter
 import { InspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { OperationGitSessions } from '../adapters/changes/operation-git-sessions.ts';
 import { WorktreeSideAdapter } from '../adapters/changes/worktree-side-adapter.ts';
-import { ListCommitsController } from '../controllers/list-commits-controller.ts';
-import { ReadChangeDiffsController } from '../controllers/read-change-diffs-controller.ts';
-import { ReadChangeLinesController } from '../controllers/read-change-lines-controller.ts';
-import { ReadChangesController } from '../controllers/read-changes-controller.ts';
-import { ReadCommitDiffsController } from '../controllers/read-commit-diffs-controller.ts';
-import { ReadCommitFilesController } from '../controllers/read-commit-files-controller.ts';
-import { ReadGitStatusController } from '../controllers/read-git-status-controller.ts';
+import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
+import { ReadChangeDiffsUseCase } from '../use-cases/changes/read-change-diffs.ts';
+import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.ts';
+import { ReadChangesUseCase } from '../use-cases/changes/read-changes.ts';
+import { ReadCommitDiffsUseCase } from '../use-cases/changes/read-commit-diffs.ts';
+import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.ts';
+import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
@@ -91,7 +91,7 @@ export function composeChanges(deps: {
   const confirmCommit = new ConfirmCommitService(commitHistoryReader);
   const readCommitDiffs = new ReadCommitDiffsService(commitHistoryReader);
   return {
-    readChangesController: new ReadChangesController(
+    readChanges: new ReadChangesUseCase(
       checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
@@ -102,7 +102,7 @@ export function composeChanges(deps: {
       lanes,
       laneKeys,
     ),
-    readChangeDiffsController: new ReadChangeDiffsController(
+    readChangeDiffs: new ReadChangeDiffsUseCase(
       checkWorktree,
       readWorktreeStatus,
       selectDiffComparisons,
@@ -113,14 +113,14 @@ export function composeChanges(deps: {
       lanes,
       laneKeys,
     ),
-    readChangeLinesController: new ReadChangeLinesController(
+    readChangeLines: new ReadChangeLinesUseCase(
       checkWorktree,
       readChangeLines,
       readEnvironment,
       lanes,
       laneKeys,
     ),
-    readGitStatusController: new ReadGitStatusController(
+    readGitStatus: new ReadGitStatusUseCase(
       checkWorktree,
       readWorktreeStatus,
       readBranchDetails,
@@ -129,19 +129,19 @@ export function composeChanges(deps: {
       laneKeys,
       new SharedReads(),
     ),
-    listCommitsController: new ListCommitsController(
+    listCommits: new ListCommitsUseCase(
       checkWorktree,
       listCommits,
       lanes,
       laneKeys,
     ),
-    readCommitFilesController: new ReadCommitFilesController(
+    readCommitFiles: new ReadCommitFilesUseCase(
       checkWorktree,
       readCommitFiles,
       lanes,
       laneKeys,
     ),
-    readCommitDiffsController: new ReadCommitDiffsController(
+    readCommitDiffs: new ReadCommitDiffsUseCase(
       checkWorktree,
       confirmCommit,
       readCommitDiffs,
@@ -157,6 +157,5 @@ export function composeChanges(deps: {
       readChangeDiffs,
       readEnvironment,
     },
-    sessions,
   };
 }

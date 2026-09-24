@@ -6,13 +6,13 @@ import {
   runGitActionResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
-import type { RunGitActionController } from '../../../controllers/run-git-action-controller.ts';
+import type { RunGitActionUseCase } from '../../../use-cases/git-actions/run-git-action.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 import { gitActionReceiptStatus } from '../../status-policy.ts';
 
 export function runAction(
   server: FastifyInstance,
-  options: { controller: Pick<RunGitActionController, 'execute'> },
+  options: { useCase: Pick<RunGitActionUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -31,7 +31,7 @@ export function runAction(
       },
     },
     async (request, reply) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         {
           signal: request.disconnected,

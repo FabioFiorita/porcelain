@@ -23,15 +23,15 @@ import {
 } from '@porcelain/storage/access';
 import { RandomIdSourceAdapter } from '../adapters/runtime/random-id-source-adapter.ts';
 import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts';
-import { AuthenticateDeviceController } from '../controllers/authenticate-device-controller.ts';
-import { CheckRequestOriginController } from '../controllers/check-request-origin-controller.ts';
-import { FlushDeviceActivityController } from '../controllers/flush-device-activity-controller.ts';
-import { IssuePairingController } from '../controllers/issue-pairing-controller.ts';
-import { ListAccessController } from '../controllers/list-access-controller.ts';
-import { ReadHealthController } from '../controllers/read-health-controller.ts';
-import { ReadOwnerStatusController } from '../controllers/read-owner-status-controller.ts';
-import { RedeemPairingController } from '../controllers/redeem-pairing-controller.ts';
-import { RevokeAccessController } from '../controllers/revoke-access-controller.ts';
+import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
+import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
+import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
+import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
+import { ListAccessUseCase } from '../use-cases/access/list-access.ts';
+import { ReadHealthUseCase } from '../use-cases/access/read-health.ts';
+import { ReadOwnerStatusUseCase } from '../use-cases/access/read-owner-status.ts';
+import { RedeemPairingUseCase } from '../use-cases/access/redeem-pairing.ts';
+import { RevokeAccessUseCase } from '../use-cases/access/revoke-access.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 
 export function composeAccess(deps: {
@@ -49,17 +49,17 @@ export function composeAccess(deps: {
     createEnvironmentIdentityStore(deps.session),
   );
   return {
-    authenticateDeviceController: new AuthenticateDeviceController(
+    authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(deps.deviceStore, clock),
     ),
-    checkRequestOriginController: new CheckRequestOriginController(
+    checkRequestOrigin: new CheckRequestOriginUseCase(
       new CheckRequestOriginService(),
     ),
-    flushDeviceActivityController: new FlushDeviceActivityController(
+    flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deps.deviceActivityStore),
       deps.lanes,
     ),
-    issuePairingController: new IssuePairingController(
+    issuePairing: new IssuePairingUseCase(
       readEnvironmentService,
       new IssuePairingService(
         pairingGrantStore,
@@ -69,19 +69,19 @@ export function composeAccess(deps: {
       ),
       deps.lanes,
     ),
-    listAccessController: new ListAccessController(
+    listAccess: new ListAccessUseCase(
       new ListAccessService(pairingGrantStore, deps.deviceStore, clock),
       deps.lanes,
     ),
-    readHealthController: new ReadHealthController(readEnvironmentService),
-    readOwnerStatusController: new ReadOwnerStatusController(
+    readHealth: new ReadHealthUseCase(readEnvironmentService),
+    readOwnerStatus: new ReadOwnerStatusUseCase(
       new ReadOwnerStatusService(deps.runtimeStatusReader),
     ),
-    redeemPairingController: new RedeemPairingController(
+    redeemPairing: new RedeemPairingUseCase(
       new RedeemPairingService(pairingGrantStore, clock, idSource),
       deps.lanes,
     ),
-    revokeAccessController: new RevokeAccessController(
+    revokeAccess: new RevokeAccessUseCase(
       new RevokePairingGrantService(pairingGrantStore, clock),
       new RevokeDeviceService(deps.deviceStore, clock),
       deps.lanes,

@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/changes';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ListCommitsController } from '../../../controllers/list-commits-controller.ts';
+import type { ListCommitsUseCase } from '../../../use-cases/changes/list-commits.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listCommits(
   server: FastifyInstance,
-  options: { controller: Pick<ListCommitsController, 'execute'> },
+  options: { useCase: Pick<ListCommitsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,7 +23,7 @@ export function listCommits(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

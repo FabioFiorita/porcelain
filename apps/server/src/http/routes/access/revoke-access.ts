@@ -4,12 +4,12 @@ import {
   revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
-import type { RevokeAccessController } from '../../../controllers/revoke-access-controller.ts';
+import type { RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function revokeAccess(
   server: FastifyInstance,
-  options: { controller: Pick<RevokeAccessController, 'execute'> },
+  options: { useCase: Pick<RevokeAccessUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -20,6 +20,6 @@ export function revokeAccess(
         response: { ...errorResponses, 200: revokeAccessResponseSchema },
       },
     },
-    (request) => options.controller.execute(request.body, {}),
+    (request) => options.useCase.execute(request.body, {}),
   );
 }

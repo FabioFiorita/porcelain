@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { RemoveReviewedFileController } from '../../../controllers/remove-reviewed-file-controller.ts';
+import type { RemoveReviewedFileUseCase } from '../../../use-cases/reviews/remove-reviewed-file.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function removeReviewedFile(
   server: FastifyInstance,
-  options: { controller: Pick<RemoveReviewedFileController, 'execute'> },
+  options: { useCase: Pick<RemoveReviewedFileUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.delete(
@@ -23,7 +23,7 @@ export function removeReviewedFile(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

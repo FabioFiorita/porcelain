@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/changes';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadChangeDiffsController } from '../../../controllers/read-change-diffs-controller.ts';
+import type { ReadChangeDiffsUseCase } from '../../../use-cases/changes/read-change-diffs.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readChangeDiffs(
   server: FastifyInstance,
-  options: { controller: Pick<ReadChangeDiffsController, 'execute'> },
+  options: { useCase: Pick<ReadChangeDiffsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -23,7 +23,7 @@ export function readChangeDiffs(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

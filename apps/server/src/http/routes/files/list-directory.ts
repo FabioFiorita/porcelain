@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/files';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ListDirectoryController } from '../../../controllers/list-directory-controller.ts';
+import type { ListDirectoryUseCase } from '../../../use-cases/files/list-directory.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listDirectory(
   server: FastifyInstance,
-  options: { controller: Pick<ListDirectoryController, 'execute'> },
+  options: { useCase: Pick<ListDirectoryUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,7 +23,7 @@ export function listDirectory(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

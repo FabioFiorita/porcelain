@@ -1,6 +1,6 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { AuthenticateDeviceController } from '../../controllers/authenticate-device-controller.ts';
+import type { AuthenticateDeviceUseCase } from '../../use-cases/access/authenticate-device.ts';
 import { deviceCookie, setDeviceCookie } from './device-cookie.ts';
 
 const authenticationRequired = 'Authentication required';
@@ -8,7 +8,7 @@ const authenticationRequired = 'Authentication required';
 export type HeldConnection = { close(): void };
 
 export type AuthenticateOptions = {
-  authenticateDeviceController: Pick<AuthenticateDeviceController, 'execute'>;
+  access: { authenticateDevice: Pick<AuthenticateDeviceUseCase, 'execute'> };
   devices: { hold(deviceId: string, connection: HeldConnection): () => void };
 };
 
@@ -22,7 +22,7 @@ export function authenticate(options: AuthenticateOptions) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const credential = credentialOf(request);
     if (!credential) throw httpErrors.unauthorized(authenticationRequired);
-    const device = options.authenticateDeviceController.execute({
+    const device = options.access.authenticateDevice.execute({
       credential,
       address: request.ip,
     });

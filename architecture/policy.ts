@@ -87,7 +87,7 @@ export const requiredServerFiles: readonly string[] = [
 export type Role =
   | 'transport'
   | 'status-policy'
-  | 'controller'
+  | 'use-case'
   | 'installer'
   | 'installer-api'
   | 'domain-api'
@@ -225,7 +225,7 @@ function classifyPackage(name: string, inside: string) {
 function classifyServer(inside: string) {
   const owner = 'server';
   if (/\.(?:test|spec)\.ts$/.test(inside)) return classified('test', owner);
-  if (inside.startsWith('controllers/')) return classified('controller', owner);
+  if (inside.startsWith('use-cases/')) return classified('use-case', owner);
   if (inside.startsWith('jobs/')) return classified('transport', owner);
   if (inside.startsWith('bootstrap/')) return classified('bootstrap', owner);
   if (inside.startsWith('runtime/')) return classified('runtime', owner);
@@ -281,7 +281,7 @@ const domainInternal: readonly Role[] = [
 const everything: readonly Role[] = [
   'transport',
   'status-policy',
-  'controller',
+  'use-case',
   'installer',
   'domain-api',
   'rule-api',
@@ -305,12 +305,12 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'installer-api',
     'transport',
     'status-policy',
-    'controller',
+    'use-case',
     'contract',
     'config',
   ]),
   'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
-  controller: new Set([
+  'use-case': new Set([
     'domain-api',
     'model-api',
     'kernel',
@@ -422,7 +422,7 @@ export function violation(
 const typedRoles = new Set<Role>([
   ...domainInternal,
   ...domainApiRoles,
-  'controller',
+  'use-case',
 ]);
 const boundaryRoles = new Set<Role>([
   'transport',

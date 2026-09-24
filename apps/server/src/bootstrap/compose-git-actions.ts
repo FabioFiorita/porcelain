@@ -14,7 +14,6 @@ import {
   ListCommitModelsService,
   ListGitBranchesService,
   ReadGitActionReceiptService,
-  ReadInterruptedGitActionService,
   RecordGitActionProgressService,
   RecoverInterruptedGitActionsService,
   RunGitActionService,
@@ -32,16 +31,16 @@ import { CommitDraftReaderAdapter } from '../adapters/git-actions/commit-draft-r
 import { GitActionWriterAdapter } from '../adapters/git-actions/git-action-writer-adapter.ts';
 import { GitBranchReaderAdapter } from '../adapters/git-actions/git-branch-reader-adapter.ts';
 import { WorktreeFingerprintReaderAdapter } from '../adapters/git-actions/worktree-fingerprint-reader-adapter.ts';
-import { DismissInterruptedGitActionController } from '../controllers/dismiss-interrupted-git-action-controller.ts';
-import { GenerateCommitDraftController } from '../controllers/generate-commit-draft-controller.ts';
-import { ListCommitModelsController } from '../controllers/list-commit-models-controller.ts';
-import { ListGitBranchesController } from '../controllers/list-git-branches-controller.ts';
-import { ReadGitActionReceiptController } from '../controllers/read-git-action-receipt-controller.ts';
-import { RecoverInterruptedGitActionsController } from '../controllers/recover-interrupted-git-actions-controller.ts';
+import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
+import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
+import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-models.ts';
+import { ListGitBranchesUseCase } from '../use-cases/git-actions/list-git-branches.ts';
+import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
+import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import {
-  RunGitActionController,
+  RunGitActionUseCase,
   type PublishedReviewRefresh,
-} from '../controllers/run-git-action-controller.ts';
+} from '../use-cases/git-actions/run-git-action.ts';
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
@@ -79,7 +78,7 @@ export function composeGitActions(deps: GitActionsDependencies) {
     clock,
   );
   return {
-    runGitActionController: new RunGitActionController(
+    runGitAction: new RunGitActionUseCase(
       checkProject,
       checkWorktree,
       expireGitActionReceipts,
@@ -96,16 +95,15 @@ export function composeGitActions(deps: GitActionsDependencies) {
       deps.events,
       { deadlineMs: deps.gitActionDeadlineMs },
     ),
-    readGitActionReceiptController: new ReadGitActionReceiptController(
+    readGitActionReceipt: new ReadGitActionReceiptUseCase(
       new ReadGitActionReceiptService(store),
       deps.lanes,
     ),
-    dismissInterruptedGitActionController:
-      new DismissInterruptedGitActionController(
-        new DismissInterruptedGitActionService(store, clock),
-        deps.lanes,
-      ),
-    listGitBranchesController: new ListGitBranchesController(
+    dismissInterruptedGitAction: new DismissInterruptedGitActionUseCase(
+      new DismissInterruptedGitActionService(store, clock),
+      deps.lanes,
+    ),
+    listGitBranches: new ListGitBranchesUseCase(
       checkProject,
       checkWorktree,
       new ListGitBranchesService(
@@ -114,12 +112,12 @@ export function composeGitActions(deps: GitActionsDependencies) {
       deps.lanes,
       deps.laneKeys,
     ),
-    listCommitModelsController: new ListCommitModelsController(
+    listCommitModels: new ListCommitModelsUseCase(
       new ListCommitModelsService(deps.commitGenerator),
       deps.lanes,
       { deadlineMs: deps.commitModelDeadlineMs },
     ),
-    generateCommitDraftController: new GenerateCommitDraftController(
+    generateCommitDraft: new GenerateCommitDraftUseCase(
       checkProject,
       checkWorktree,
       new CaptureCommitDraftService(
@@ -136,11 +134,9 @@ export function composeGitActions(deps: GitActionsDependencies) {
       deps.laneKeys,
       { deadlineMs: deps.commitModelDeadlineMs },
     ),
-    recoverInterruptedGitActionsController:
-      new RecoverInterruptedGitActionsController(
-        new RecoverInterruptedGitActionsService(store, store, clock),
-        expireGitActionReceipts,
-      ),
-    readInterruptedGitActionService: new ReadInterruptedGitActionService(store),
+    recoverInterruptedGitActions: new RecoverInterruptedGitActionsUseCase(
+      new RecoverInterruptedGitActionsService(store, store, clock),
+      expireGitActionReceipts,
+    ),
   };
 }

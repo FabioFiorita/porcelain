@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   classify,
+  domainPackages,
   forbiddenExternal,
   gitCapabilityViolation,
   helpersFolderViolation,
@@ -163,6 +164,10 @@ function packageExportFindings(): Finding[] {
   return result;
 }
 
+const useCaseFile = new RegExp(
+  `^(?:${domainPackages.join('|')})/[a-z0-9]+(?:-[a-z0-9]+)*\\.ts$`,
+);
+
 function structureFindings(
   sources: readonly string[],
   classified: ReadonlyMap<string, Classification>,
@@ -194,11 +199,14 @@ function structureFindings(
         from: path,
         to: 'http/routes/<feature>/<operation>.ts',
       });
-    if (info.role === 'controller' && !/-controller\.ts$/.test(path))
+    if (
+      info.role === 'use-case' &&
+      !useCaseFile.test(path.slice('apps/server/src/use-cases/'.length))
+    )
       result.push({
-        rule: 'controller-file-name',
+        rule: 'use-case-file-name',
         from: path,
-        to: '*-controller.ts',
+        to: 'use-cases/<area>/<verb-noun>.ts',
       });
     if (info.role === 'service' && !/-service\.ts$/.test(path))
       result.push({

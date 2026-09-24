@@ -14,36 +14,34 @@ import {
   resolveCommentToolRequestSchema,
 } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
-import type { CreateCommentThreadController } from '../../controllers/create-comment-thread-controller.ts';
-import type { ListCommentThreadsController } from '../../controllers/list-comment-threads-controller.ts';
-import type { PublishReviewController } from '../../controllers/publish-review-controller.ts';
-import type { ReadPublishedReviewController } from '../../controllers/read-published-review-controller.ts';
-import type { ReplyToCommentController } from '../../controllers/reply-to-comment-controller.ts';
-import type { ResolveCommentThreadController } from '../../controllers/resolve-comment-thread-controller.ts';
-import type { ResolveWorktreeByPathController } from '../../controllers/resolve-worktree-by-path-controller.ts';
+import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
+import type { ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
+import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
+import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
+import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
+import type { ResolveCommentThreadUseCase } from '../../use-cases/reviews/resolve-comment-thread.ts';
+import type { ResolveWorktreeByPathUseCase } from '../../use-cases/projects/resolve-worktree-by-path.ts';
 import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 
-export type ReviewMcpControllers = {
-  resolveWorktreeByPathController: Pick<
-    ResolveWorktreeByPathController,
-    'execute'
-  >;
-  publishReviewController: Pick<PublishReviewController, 'execute'>;
-  readPublishedReviewController: Pick<ReadPublishedReviewController, 'execute'>;
-  listCommentThreadsController: Pick<ListCommentThreadsController, 'execute'>;
-  createCommentThreadController: Pick<CreateCommentThreadController, 'execute'>;
-  replyToCommentController: Pick<ReplyToCommentController, 'execute'>;
-  resolveCommentThreadController: Pick<
-    ResolveCommentThreadController,
-    'execute'
-  >;
+export type ReviewMcpUseCases = {
+  projects: {
+    resolveWorktreeByPath: Pick<ResolveWorktreeByPathUseCase, 'execute'>;
+  };
+  reviews: {
+    createCommentThread: Pick<CreateCommentThreadUseCase, 'execute'>;
+    listCommentThreads: Pick<ListCommentThreadsUseCase, 'execute'>;
+    publishReview: Pick<PublishReviewUseCase, 'execute'>;
+    readPublishedReview: Pick<ReadPublishedReviewUseCase, 'execute'>;
+    replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
+    resolveCommentThread: Pick<ResolveCommentThreadUseCase, 'execute'>;
+  };
 };
 
 const agent = { kind: 'agent' } as const;
 
 export function createReviewMcpServer(
-  controllers: ReviewMcpControllers,
+  useCases: ReviewMcpUseCases,
   defaultCwd: string,
 ) {
   const server = new McpServer(
@@ -55,7 +53,7 @@ export function createReviewMcpServer(
   );
   const worktreeAt = async (cwd: string | undefined, signal: AbortSignal) =>
     (
-      await controllers.resolveWorktreeByPathController.execute(
+      await useCases.projects.resolveWorktreeByPath.execute(
         { path: cwd ?? defaultCwd },
         { signal },
       )
@@ -82,7 +80,7 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...review }, { signal }) =>
       result(publishReviewToolResponseSchema, async () =>
-        controllers.publishReviewController.execute(
+        useCases.reviews.publishReview.execute(
           { worktreeId: await worktreeAt(cwd, signal), review },
           { signal },
         ),
@@ -98,7 +96,7 @@ export function createReviewMcpServer(
     },
     ({ cwd }, { signal }) =>
       result(readPublishedReviewResponseSchema, async () =>
-        controllers.readPublishedReviewController.execute(
+        useCases.reviews.readPublishedReview.execute(
           { worktreeId: await worktreeAt(cwd, signal) },
           { signal },
         ),
@@ -114,7 +112,7 @@ export function createReviewMcpServer(
     },
     ({ cwd, scope }, { signal }) =>
       result(listCommentThreadsResponseSchema, async () =>
-        controllers.listCommentThreadsController.execute(
+        useCases.reviews.listCommentThreads.execute(
           { worktreeId: await worktreeAt(cwd, signal), scope },
           { signal },
         ),
@@ -129,7 +127,7 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...input }, { signal }) =>
       result(createCommentThreadResponseSchema, async () =>
-        controllers.createCommentThreadController.execute(
+        useCases.reviews.createCommentThread.execute(
           {
             worktreeId: await worktreeAt(cwd, signal),
             ...input,
@@ -148,7 +146,7 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...input }, { signal }) =>
       result(replyToCommentResponseSchema, async () =>
-        controllers.replyToCommentController.execute(
+        useCases.reviews.replyToComment.execute(
           {
             worktreeId: await worktreeAt(cwd, signal),
             ...input,
@@ -166,7 +164,7 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...input }, { signal }) =>
       result(resolveCommentThreadResponseSchema, async () =>
-        controllers.resolveCommentThreadController.execute(
+        useCases.reviews.resolveCommentThread.execute(
           { worktreeId: await worktreeAt(cwd, signal), ...input },
           { signal },
         ),

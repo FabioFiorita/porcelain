@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/files';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadTextFileController } from '../../../controllers/read-text-file-controller.ts';
+import type { ReadTextFileUseCase } from '../../../use-cases/files/read-text-file.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readTextFile(
   server: FastifyInstance,
-  options: { controller: Pick<ReadTextFileController, 'execute'> },
+  options: { useCase: Pick<ReadTextFileUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,7 +23,7 @@ export function readTextFile(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

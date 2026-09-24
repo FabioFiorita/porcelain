@@ -5,7 +5,7 @@ const domainSource = new RegExp(
 const domainModule = new RegExp(
   `^@porcelain/(?:${domainPackage}/(?:services|models)|kernel/models)$`,
 );
-const controllerSource = /\/apps\/server\/src\/controllers\//;
+const useCaseSource = /\/apps\/server\/src\/use-cases\//;
 const modelsSource =
   /\/packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/.+)\.ts$/;
 const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
@@ -47,11 +47,11 @@ function normalizedFilename(filename) {
 function operationRole(filename) {
   const path = normalizedFilename(filename);
   if (
-    /\/apps\/server\/src\/controllers\/(?:[^/]+\/)*[^/]+-controller\.ts$/.test(
+    new RegExp(`/apps/server/src/use-cases/${domainPackage}/[^/]+\\.ts$`).test(
       path,
     )
   )
-    return 'Controller';
+    return 'UseCase';
   if (
     /\/packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service\.ts$/.test(
       path,
@@ -61,14 +61,15 @@ function operationRole(filename) {
   return undefined;
 }
 
-function expectedClassName(filename) {
-  return normalizedFilename(filename)
+function expectedClassName(filename, role) {
+  const name = normalizedFilename(filename)
     .split('/')
     .at(-1)
     .slice(0, -3)
     .split('-')
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join('');
+  return role === 'UseCase' ? `${name}UseCase` : name;
 }
 
 function memberName(callee) {
@@ -121,10 +122,10 @@ function executeSignatureProblem(role, execute) {
   const rest =
     parameterName(parameters[0]) === 'input' ? parameters.slice(1) : parameters;
   const last = rest[0];
-  if (role === 'Controller')
+  if (role === 'UseCase')
     return rest.length <= 1 && (!last || parameterName(last) === 'context')
       ? undefined
-      : 'Controller execute takes (), (input), (context) or (input, context).';
+      : 'Use case execute takes (), (input), (context) or (input, context).';
   return rest.length <= 1 &&
     (!last || (parameterName(last) === 'signal' && last.optional))
     ? undefined
@@ -142,7 +143,7 @@ function objectProperty(object, name) {
     : undefined;
 }
 
-function isControllerExecute(callee) {
+function isUseCaseExecute(callee) {
   return (
     callee.type === 'MemberExpression' &&
     !callee.computed &&
@@ -153,7 +154,7 @@ function isControllerExecute(callee) {
     callee.object.object.type === 'Identifier' &&
     callee.object.object.name === 'options' &&
     callee.object.property.type === 'Identifier' &&
-    callee.object.property.name === 'controller'
+    callee.object.property.name === 'useCase'
   );
 }
 
@@ -222,14 +223,14 @@ function pageSendArgument(handler) {
 
 function isPageBody(argument, renderers) {
   if (argument?.type !== 'CallExpression') return false;
-  if (isControllerExecute(argument.callee)) return true;
+  if (isUseCaseExecute(argument.callee)) return true;
   const rendered = argument.arguments[0];
   return (
     argument.callee.type === 'Identifier' &&
     renderers.has(argument.callee.name) &&
     argument.arguments.length === 1 &&
     rendered.type === 'CallExpression' &&
-    isControllerExecute(rendered.callee)
+    isUseCaseExecute(rendered.callee)
   );
 }
 
@@ -455,7 +456,7 @@ export default {
         const path = normalizedFilename(context.filename);
         if (!composeSource.test(path)) return {};
         const message =
-          'Composition constructs only; decisions belong in controllers and services, schedules in jobs/.';
+          'Composition constructs only; decisions belong in use cases and services, schedules in jobs/.';
         const report = (node) => context.report({ node, message });
         return {
           IfStatement: report,
@@ -493,7 +494,7 @@ export default {
     'no-null-in-domain': {
       create(context) {
         const path = normalizedFilename(context.filename);
-        if (!domainSource.test(path) && !controllerSource.test(path)) return {};
+        if (!domainSource.test(path) && !useCaseSource.test(path)) return {};
         const message =
           'Use undefined for absence; null stays at the SQL and wire boundaries.';
         return {
@@ -506,22 +507,22 @@ export default {
         };
       },
     },
-    'controller-imports': {
+    'use-case-imports': {
       create(context) {
         const path = normalizedFilename(context.filename);
-        if (!controllerSource.test(path)) return {};
+        if (!useCaseSource.test(path)) return {};
         const reexport = (node) =>
           context.report({
             node,
             message:
-              'Controllers export their class only; they do not re-export.',
+              'Use cases export their class only; they do not re-export.',
           });
         return {
           ImportDeclaration(node) {
             const source = node.source.value;
             if (
               typeof source === 'string' &&
-              /^\.\.\/runtime\/[^/]+\.ts$/.test(source)
+              /^\.\.\/\.\.\/runtime\/[^/]+\.ts$/.test(source)
             )
               return;
             if (
@@ -533,14 +534,14 @@ export default {
                 context.report({
                   node,
                   message:
-                    'Controllers import services, models and contracts as types only.',
+                    'Use cases import services, models and contracts as types only.',
                 });
               return;
             }
             context.report({
               node,
               message:
-                'Controllers import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> and ../runtime/<file>.',
+                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> and ../../runtime/<file>.',
             });
           },
           ExportNamedDeclaration(node) {
@@ -553,7 +554,7 @@ export default {
     'no-schema-parse-in-typed-code': {
       create(context) {
         const path = normalizedFilename(context.filename);
-        if (!controllerSource.test(path) && !typedPackageSource.test(path))
+        if (!useCaseSource.test(path) && !typedPackageSource.test(path))
           return {};
         const message =
           'Typed code trusts its input; parse untrusted data at the transport boundary.';
@@ -591,7 +592,8 @@ export default {
       create(context) {
         const role = operationRole(context.filename);
         if (!role) return {};
-        const expectedName = expectedClassName(context.filename);
+        const expectedName = expectedClassName(context.filename, role);
+        const roleLabel = role === 'UseCase' ? 'Use case' : role;
         const exportMessage = `Export only the ${expectedName} class and types from this file.`;
         let found = 0;
         return {
@@ -637,20 +639,20 @@ export default {
                   )
                     context.report({
                       node: parameter,
-                      message: `${role} classes expose only execute; make constructor properties private.`,
+                      message: `${roleLabel} classes expose only execute; make constructor properties private.`,
                     });
                 continue;
               }
               if (isPrivateMember(member)) continue;
               context.report({
                 node: member,
-                message: `${role} classes expose only execute; make other members private.`,
+                message: `${roleLabel} classes expose only execute; make other members private.`,
               });
             }
             if (executes.length !== 1) {
               context.report({
                 node: declaration,
-                message: `${role} classes need one public execute method.`,
+                message: `${roleLabel} classes need one public execute method.`,
               });
               return;
             }
@@ -686,7 +688,7 @@ export default {
         if (!routeSource.test(path)) return {};
         const page = pageSource.test(path);
         let registrations = 0;
-        let controllerCalls = 0;
+        let useCaseCalls = 0;
         let renderers = new Set();
         const contractSchemas = new Set();
         return {
@@ -710,7 +712,7 @@ export default {
           CallExpression(node) {
             const callee = node.callee;
             if (callee.type !== 'MemberExpression' || callee.computed) return;
-            if (isControllerExecute(callee)) controllerCalls += 1;
+            if (isUseCaseExecute(callee)) useCaseCalls += 1;
             if (
               callee.object.type !== 'Identifier' ||
               callee.object.name !== 'api' ||
@@ -772,24 +774,24 @@ export default {
                 context.report({
                   node: handler,
                   message:
-                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.controller.execute(...)) or .send(render(options.controller.execute(...))) where render is a one-parameter function declared in this file.',
+                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.useCase.execute(...)) or .send(render(options.useCase.execute(...))) where render is a one-parameter function declared in this file.',
                 });
               return;
             }
             const call = handlerCall(handler);
-            if (!call || !isControllerExecute(call.callee))
+            if (!call || !isUseCaseExecute(call.callee))
               context.report({
                 node: handler,
                 message:
-                  'The handler body is one call to options.controller.execute.',
+                  'The handler body is one call to options.useCase.execute.',
               });
           },
           'Program:exit'(node) {
-            if (registrations !== 1 || controllerCalls !== 1)
+            if (registrations !== 1 || useCaseCalls !== 1)
               context.report({
                 node,
                 message:
-                  'A feature route registers one endpoint and calls options.controller.execute once.',
+                  'A feature route registers one endpoint and calls options.useCase.execute once.',
               });
           },
         };

@@ -5,12 +5,12 @@ import {
   readCommitFilesResponseSchema,
 } from '@porcelain/contracts/changes';
 import type { FastifyInstance } from 'fastify';
-import type { ReadCommitFilesController } from '../../../controllers/read-commit-files-controller.ts';
+import type { ReadCommitFilesUseCase } from '../../../use-cases/changes/read-commit-files.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readCommitFiles(
   server: FastifyInstance,
-  options: { controller: Pick<ReadCommitFilesController, 'execute'> },
+  options: { useCase: Pick<ReadCommitFilesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,7 +23,7 @@ export function readCommitFiles(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

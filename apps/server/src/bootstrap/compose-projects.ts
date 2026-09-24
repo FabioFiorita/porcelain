@@ -36,19 +36,18 @@ import {
 } from '@porcelain/storage/projects';
 import { ProjectFolderReaderAdapter } from '../adapters/projects/project-folder-reader-adapter.ts';
 import { ProjectRepositoryReaderAdapter } from '../adapters/projects/project-repository-reader-adapter.ts';
-import type { WorktreeAccessAdapter } from '../adapters/projects/worktree-access-adapter.ts';
 import type { WorktreeDirectoryAdapter } from '../adapters/projects/worktree-directory-adapter.ts';
-import { BrowseProjectFoldersController } from '../controllers/browse-project-folders-controller.ts';
-import { CollectAbsentWorktreesController } from '../controllers/collect-absent-worktrees-controller.ts';
-import { DiscoverProjectsController } from '../controllers/discover-projects-controller.ts';
-import { ListFilePreferencesController } from '../controllers/list-file-preferences-controller.ts';
-import { ReadInventoryController } from '../controllers/read-inventory-controller.ts';
-import { RefreshInventoryController } from '../controllers/refresh-inventory-controller.ts';
-import { RegisterProjectController } from '../controllers/register-project-controller.ts';
-import { RemoveProjectController } from '../controllers/remove-project-controller.ts';
-import { RenameProjectController } from '../controllers/rename-project-controller.ts';
-import { ResolveWorktreeByPathController } from '../controllers/resolve-worktree-by-path-controller.ts';
-import { SetFilePreferenceController } from '../controllers/set-file-preference-controller.ts';
+import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
+import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
+import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
+import { ListFilePreferencesUseCase } from '../use-cases/projects/list-file-preferences.ts';
+import { ReadInventoryUseCase } from '../use-cases/projects/read-inventory.ts';
+import { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
+import { RegisterProjectUseCase } from '../use-cases/projects/register-project.ts';
+import { RemoveProjectUseCase } from '../use-cases/projects/remove-project.ts';
+import { RenameProjectUseCase } from '../use-cases/projects/rename-project.ts';
+import { ResolveWorktreeByPathUseCase } from '../use-cases/projects/resolve-worktree-by-path.ts';
+import { SetFilePreferenceUseCase } from '../use-cases/projects/set-file-preference.ts';
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
@@ -65,7 +64,6 @@ export type ProjectsDependencies = {
   projectFolderReader?: ProjectFolderReader | undefined;
   projectHome: string;
   worktreeDirectory: WorktreeDirectoryAdapter;
-  worktreeAccess: WorktreeAccessAdapter;
 };
 
 export function composeProjects(deps: ProjectsDependencies) {
@@ -76,7 +74,7 @@ export function composeProjects(deps: ProjectsDependencies) {
   const projectFolderReader =
     deps.projectFolderReader ?? new ProjectFolderReaderAdapter();
   const projectRepositoryReader = new ProjectRepositoryReaderAdapter(deps.git);
-  const { worktreeDirectory, worktreeAccess } = deps;
+  const { worktreeDirectory } = deps;
 
   const listRegisteredProjects = new ListRegisteredProjectsService(
     inventoryStore,
@@ -97,9 +95,7 @@ export function composeProjects(deps: ProjectsDependencies) {
   );
 
   return {
-    worktreeAccess,
-    worktreeDirectory,
-    readInventoryController: new ReadInventoryController(
+    readInventory: new ReadInventoryUseCase(
       listRegisteredProjects,
       listProjectWorktrees,
       updateProjectAvailability,
@@ -109,14 +105,14 @@ export function composeProjects(deps: ProjectsDependencies) {
       lanes,
       laneKeys,
     ),
-    resolveWorktreeByPathController: new ResolveWorktreeByPathController(
+    resolveWorktreeByPath: new ResolveWorktreeByPathUseCase(
       listRegisteredProjects,
       listProjectWorktrees,
       new ResolveWorktreeByPathService(),
       lanes,
       laneKeys,
     ),
-    refreshInventoryController: new RefreshInventoryController(
+    refreshInventory: new RefreshInventoryUseCase(
       new MarkProjectsUnavailableService(inventoryStore),
       listRegisteredProjects,
       listProjectWorktrees,
@@ -125,7 +121,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       lanes,
       laneKeys,
     ),
-    registerProjectController: new RegisterProjectController(
+    registerProject: new RegisterProjectUseCase(
       new InspectProjectRepositoryService(projectRepositoryReader),
       new ListOtherProjectsService(inventoryStore),
       listProjectWorktrees,
@@ -137,20 +133,20 @@ export function composeProjects(deps: ProjectsDependencies) {
       laneKeys,
       events,
     ),
-    renameProjectController: new RenameProjectController(
+    renameProject: new RenameProjectUseCase(
       new RenameProjectService(inventoryStore),
       lanes,
       laneKeys,
       events,
     ),
-    removeProjectController: new RemoveProjectController(
+    removeProject: new RemoveProjectUseCase(
       new RemoveProjectService(createProjectRemovalStore(deps.session)),
       new ForgetProjectWorktreesService(worktreeDirectory),
       lanes,
       laneKeys,
       events,
     ),
-    discoverProjectsController: new DiscoverProjectsController(
+    discoverProjects: new DiscoverProjectsUseCase(
       new DiscoverProjectsService(
         inventoryStore,
         projectFolderReader,
@@ -160,7 +156,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       lanes,
       laneKeys,
     ),
-    browseProjectFoldersController: new BrowseProjectFoldersController(
+    browseProjectFolders: new BrowseProjectFoldersUseCase(
       new BrowseProjectFoldersService(
         projectFolderReader,
         projectRepositoryReader,
@@ -169,16 +165,16 @@ export function composeProjects(deps: ProjectsDependencies) {
       lanes,
       laneKeys,
     ),
-    listFilePreferencesController: new ListFilePreferencesController(
+    listFilePreferences: new ListFilePreferencesUseCase(
       new ListFilePreferencesService(inventoryStore, filePreferenceStore),
       lanes,
     ),
-    setFilePreferenceController: new SetFilePreferenceController(
+    setFilePreference: new SetFilePreferenceUseCase(
       new SetFilePreferenceService(inventoryStore, filePreferenceStore),
       lanes,
       events,
     ),
-    collectAbsentWorktreesController: new CollectAbsentWorktreesController(
+    collectAbsentWorktrees: new CollectAbsentWorktreesUseCase(
       new CollectAbsentWorktreesService(worktreePresenceStore, deps.clock),
       lanes,
       laneKeys,

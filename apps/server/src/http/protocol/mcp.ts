@@ -5,7 +5,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import { reviewMcpBodyLimit } from '../../config/request-limits.ts';
 import {
   createReviewMcpServer,
-  type ReviewMcpControllers,
+  type ReviewMcpUseCases,
 } from '../mcp/review-server.ts';
 
 function asTransport(transport: StreamableHTTPServerTransport): Transport {
@@ -28,7 +28,7 @@ function keepHookHeaders(reply: FastifyReply) {
 
 export function reviewMcp(
   server: FastifyInstance,
-  options: { controllers: ReviewMcpControllers },
+  options: { useCases: ReviewMcpUseCases },
 ) {
   server.all(
     '/mcp',
@@ -40,7 +40,7 @@ export function reviewMcp(
       }
       const cwd = request.headers['x-porcelain-cwd'];
       const mcp = createReviewMcpServer(
-        options.controllers,
+        options.useCases,
         typeof cwd === 'string' ? cwd : process.cwd(),
       );
       const transport = new StreamableHTTPServerTransport({

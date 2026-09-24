@@ -13,7 +13,7 @@
     "porcelain/models-are-types": "error",
     "porcelain/bootstrap-constructs-only": "error",
     "porcelain/no-null-in-domain": "error",
-    "porcelain/controller-imports": "error",
+    "porcelain/use-case-imports": "error",
     "porcelain/no-schema-parse-in-typed-code": "error",
     "porcelain/operation-class-shape": "error",
     "porcelain/feature-route-shape": "error",

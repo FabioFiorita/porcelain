@@ -43,23 +43,23 @@ import { SystemClockAdapter } from '../adapters/runtime/system-clock-adapter.ts'
 import { SecretSourceAdapter } from '../adapters/reviews/secret-source-adapter.ts';
 import { WorktreeChangeAdapter } from '../adapters/reviews/worktree-change-adapter.ts';
 import { WorktreeTextAdapter } from '../adapters/reviews/worktree-text-adapter.ts';
-import { CreateCommentThreadController } from '../controllers/create-comment-thread-controller.ts';
-import { InvalidateReviewedMarksController } from '../controllers/invalidate-reviewed-marks-controller.ts';
-import { ListCommentThreadsController } from '../controllers/list-comment-threads-controller.ts';
-import { ListReviewedFilesController } from '../controllers/list-reviewed-files-controller.ts';
-import { ListReviewedLayersController } from '../controllers/list-reviewed-layers-controller.ts';
-import { MarkCommentsSeenController } from '../controllers/mark-comments-seen-controller.ts';
-import { PublishReviewController } from '../controllers/publish-review-controller.ts';
-import { ReadPublishedReviewController } from '../controllers/read-published-review-controller.ts';
-import { ReadReviewSummaryController } from '../controllers/read-review-summary-controller.ts';
-import { RefreshReviewActivityController } from '../controllers/refresh-review-activity-controller.ts';
-import { RemoveReviewedFileController } from '../controllers/remove-reviewed-file-controller.ts';
-import { RemoveReviewedLayerController } from '../controllers/remove-reviewed-layer-controller.ts';
-import { ReplyToCommentController } from '../controllers/reply-to-comment-controller.ts';
-import { ResolveCommentThreadController } from '../controllers/resolve-comment-thread-controller.ts';
-import { SetReviewedFileController } from '../controllers/set-reviewed-file-controller.ts';
-import { SetReviewedFilesController } from '../controllers/set-reviewed-files-controller.ts';
-import { SetReviewedLayerController } from '../controllers/set-reviewed-layer-controller.ts';
+import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
+import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
+import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
+import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-files.ts';
+import { ListReviewedLayersUseCase } from '../use-cases/reviews/list-reviewed-layers.ts';
+import { MarkCommentsSeenUseCase } from '../use-cases/reviews/mark-comments-seen.ts';
+import { PublishReviewUseCase } from '../use-cases/reviews/publish-review.ts';
+import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-review.ts';
+import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
+import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
+import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
+import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
+import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
+import { ResolveCommentThreadUseCase } from '../use-cases/reviews/resolve-comment-thread.ts';
+import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.ts';
+import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
+import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 import type { composeChanges } from './compose-changes.ts';
@@ -80,7 +80,7 @@ export function composeReviewInvalidation(deps: {
 }) {
   const reviewedFileStore = createReviewedFileStore(deps.session);
   return {
-    invalidateReviewedMarksController: new InvalidateReviewedMarksController(
+    invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
       new InvalidateReviewedMarksService(
         reviewedFileStore,
         createReviewedLayerStore(deps.session),
@@ -137,34 +137,34 @@ export function composeReviews(deps: {
 
   const liveUpdates = deps.events;
   return {
-    listCommentThreadsController: new ListCommentThreadsController(
+    listCommentThreads: new ListCommentThreadsUseCase(
       checkWorktreeAccess,
       new ListCommentThreadsService(commentStore),
       lanes,
       laneKeys,
     ),
-    createCommentThreadController: new CreateCommentThreadController(
+    createCommentThread: new CreateCommentThreadUseCase(
       checkWorktreeAccess,
       new CreateCommentThreadService(commentStore, idSource, clock),
       lanes,
       laneKeys,
       liveUpdates,
     ),
-    replyToCommentController: new ReplyToCommentController(
+    replyToComment: new ReplyToCommentUseCase(
       checkWorktreeAccess,
       new ReplyToCommentService(commentStore, idSource, clock),
       lanes,
       laneKeys,
       liveUpdates,
     ),
-    resolveCommentThreadController: new ResolveCommentThreadController(
+    resolveCommentThread: new ResolveCommentThreadUseCase(
       checkWorktreeAccess,
       new ResolveCommentThreadService(commentStore),
       lanes,
       laneKeys,
       liveUpdates,
     ),
-    markCommentsSeenController: new MarkCommentsSeenController(
+    markCommentsSeen: new MarkCommentsSeenUseCase(
       checkWorktreeAccess,
       new MarkCommentsSeenService(
         createCommentSeenStore(deps.session),
@@ -174,7 +174,7 @@ export function composeReviews(deps: {
       laneKeys,
       liveUpdates,
     ),
-    publishReviewController: new PublishReviewController(
+    publishReview: new PublishReviewUseCase(
       checkWorktreeAccess,
       readReviewFiles,
       new PublishReviewService(
@@ -191,7 +191,7 @@ export function composeReviews(deps: {
       laneKeys,
       liveUpdates,
     ),
-    readPublishedReviewController: new ReadPublishedReviewController(
+    readPublishedReview: new ReadPublishedReviewUseCase(
       checkWorktreeAccess,
       readPublishedReview,
       readReviewChanges,
@@ -203,7 +203,7 @@ export function composeReviews(deps: {
       lanes,
       laneKeys,
     ),
-    refreshReviewActivityController: new RefreshReviewActivityController(
+    refreshReviewActivity: new RefreshReviewActivityUseCase(
       readPublishedReview,
       readReviewChanges,
       readReviewPatches,
@@ -213,17 +213,17 @@ export function composeReviews(deps: {
       readEnvironment,
       lanes,
     ),
-    readReviewSummaryController: new ReadReviewSummaryController(
+    readReviewSummary: new ReadReviewSummaryUseCase(
       new ReadReviewSummaryService(reviewStore, clock),
       lanes,
     ),
-    listReviewedFilesController: new ListReviewedFilesController(
+    listReviewedFiles: new ListReviewedFilesUseCase(
       checkWorktreeAccess,
       new ListReviewedFilesService(reviewedFileStore),
       lanes,
       laneKeys,
     ),
-    setReviewedFileController: new SetReviewedFileController(
+    setReviewedFile: new SetReviewedFileUseCase(
       checkWorktreeAccess,
       readCurrentChanges,
       setReviewedFiles,
@@ -231,7 +231,7 @@ export function composeReviews(deps: {
       laneKeys,
       liveUpdates,
     ),
-    setReviewedFilesController: new SetReviewedFilesController(
+    setReviewedFiles: new SetReviewedFilesUseCase(
       checkWorktreeAccess,
       readCurrentChanges,
       setReviewedFiles,
@@ -239,20 +239,20 @@ export function composeReviews(deps: {
       laneKeys,
       liveUpdates,
     ),
-    removeReviewedFileController: new RemoveReviewedFileController(
+    removeReviewedFile: new RemoveReviewedFileUseCase(
       checkWorktreeAccess,
       new RemoveReviewedFileService(reviewedFileStore),
       lanes,
       laneKeys,
       liveUpdates,
     ),
-    listReviewedLayersController: new ListReviewedLayersController(
+    listReviewedLayers: new ListReviewedLayersUseCase(
       checkWorktreeAccess,
       new ListReviewedLayersService(reviewedLayerStore),
       lanes,
       laneKeys,
     ),
-    setReviewedLayerController: new SetReviewedLayerController(
+    setReviewedLayer: new SetReviewedLayerUseCase(
       checkWorktreeAccess,
       readPublishedReview,
       readReviewFiles,
@@ -261,7 +261,7 @@ export function composeReviews(deps: {
       laneKeys,
       liveUpdates,
     ),
-    removeReviewedLayerController: new RemoveReviewedLayerController(
+    removeReviewedLayer: new RemoveReviewedLayerUseCase(
       checkWorktreeAccess,
       new RemoveReviewedLayerService(reviewedLayerStore),
       lanes,

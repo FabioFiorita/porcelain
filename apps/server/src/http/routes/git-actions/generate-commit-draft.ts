@@ -5,12 +5,12 @@ import {
   gitActionScopeSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
-import type { GenerateCommitDraftController } from '../../../controllers/generate-commit-draft-controller.ts';
+import type { GenerateCommitDraftUseCase } from '../../../use-cases/git-actions/generate-commit-draft.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function generateCommitDraft(
   server: FastifyInstance,
-  options: { controller: Pick<GenerateCommitDraftController, 'execute'> },
+  options: { useCase: Pick<GenerateCommitDraftUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -23,7 +23,7 @@ export function generateCommitDraft(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

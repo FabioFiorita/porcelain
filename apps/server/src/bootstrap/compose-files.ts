@@ -14,12 +14,12 @@ import { FileReaderAdapter } from '../adapters/files/file-reader-adapter.ts';
 import { FileWriterAdapter } from '../adapters/files/file-writer-adapter.ts';
 import { IgnoredEntriesReaderAdapter } from '../adapters/files/ignored-entries-reader-adapter.ts';
 import { WorktreePathsReaderAdapter } from '../adapters/files/worktree-paths-reader-adapter.ts';
-import { EditFileController } from '../controllers/edit-file-controller.ts';
-import { ListDirectoryController } from '../controllers/list-directory-controller.ts';
-import { ListWorktreePathsController } from '../controllers/list-worktree-paths-controller.ts';
-import { ReadFileAssetController } from '../controllers/read-file-asset-controller.ts';
-import { ReadPreviewAssetsController } from '../controllers/read-preview-assets-controller.ts';
-import { ReadTextFileController } from '../controllers/read-text-file-controller.ts';
+import { EditFileUseCase } from '../use-cases/files/edit-file.ts';
+import { ListDirectoryUseCase } from '../use-cases/files/list-directory.ts';
+import { ListWorktreePathsUseCase } from '../use-cases/files/list-worktree-paths.ts';
+import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
+import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
+import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
 import type { EventPublisher } from '../runtime/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
@@ -37,7 +37,7 @@ export function composeFiles(deps: {
   return {
     fileReader,
     readTextFileService,
-    listDirectoryController: new ListDirectoryController(
+    listDirectory: new ListDirectoryUseCase(
       checkWorktree,
       new ListDirectoryService(
         new DirectoryReaderAdapter(worktreeAccess),
@@ -46,32 +46,32 @@ export function composeFiles(deps: {
       lanes,
       laneKeys,
     ),
-    readTextFileController: new ReadTextFileController(
+    readTextFile: new ReadTextFileUseCase(
       checkWorktree,
       readTextFileService,
       lanes,
       laneKeys,
     ),
-    readFileAssetController: new ReadFileAssetController(
+    readFileAsset: new ReadFileAssetUseCase(
       checkWorktree,
       new ReadFileAssetService(fileReader),
       lanes,
       laneKeys,
     ),
-    readPreviewAssetsController: new ReadPreviewAssetsController(
+    readPreviewAssets: new ReadPreviewAssetsUseCase(
       checkWorktree,
       new ReadPreviewAssetsService(fileReader),
       lanes,
       laneKeys,
     ),
-    editFileController: new EditFileController(
+    editFile: new EditFileUseCase(
       checkWorktree,
       new EditFileService(fileReader, new FileWriterAdapter(worktreeAccess)),
       lanes,
       laneKeys,
       events,
     ),
-    listWorktreePathsController: new ListWorktreePathsController(
+    listWorktreePaths: new ListWorktreePathsUseCase(
       checkWorktree,
       new ListWorktreePathsService(
         new WorktreePathsReaderAdapter(worktreeAccess),

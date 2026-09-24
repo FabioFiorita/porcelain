@@ -5,12 +5,12 @@ import {
   setFilePreferenceResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
-import type { SetFilePreferenceController } from '../../../controllers/set-file-preference-controller.ts';
+import type { SetFilePreferenceUseCase } from '../../../use-cases/projects/set-file-preference.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function setFilePreference(
   server: FastifyInstance,
-  options: { controller: Pick<SetFilePreferenceController, 'execute'> },
+  options: { useCase: Pick<SetFilePreferenceUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(
@@ -23,7 +23,7 @@ export function setFilePreference(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

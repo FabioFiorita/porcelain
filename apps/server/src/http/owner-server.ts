@@ -6,9 +6,9 @@ import {
 } from '@fastify/type-provider-zod';
 import Fastify from 'fastify';
 import { handleError } from './error-handler.ts';
-import { ownerScope, type OwnerControllers } from './scopes/owner.ts';
+import { ownerScope, type OwnerUseCases } from './scopes/owner.ts';
 
-export function createOwnerServer(options: { application: OwnerControllers }) {
+export function createOwnerServer(options: { application: OwnerUseCases }) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);

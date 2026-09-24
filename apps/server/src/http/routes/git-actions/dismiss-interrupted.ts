@@ -4,13 +4,13 @@ import {
   dismissInterruptedGitActionResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
-import type { DismissInterruptedGitActionController } from '../../../controllers/dismiss-interrupted-git-action-controller.ts';
+import type { DismissInterruptedGitActionUseCase } from '../../../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function dismissInterrupted(
   server: FastifyInstance,
   options: {
-    controller: Pick<DismissInterruptedGitActionController, 'execute'>;
+    useCase: Pick<DismissInterruptedGitActionUseCase, 'execute'>;
   },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
@@ -25,6 +25,6 @@ export function dismissInterrupted(
         },
       },
     },
-    async (request) => options.controller.execute(request.params),
+    async (request) => options.useCase.execute(request.params),
   );
 }

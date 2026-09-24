@@ -2,12 +2,12 @@ import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { listWorktreePathsResponseSchema } from '@porcelain/contracts/files';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ListWorktreePathsController } from '../../../controllers/list-worktree-paths-controller.ts';
+import type { ListWorktreePathsUseCase } from '../../../use-cases/files/list-worktree-paths.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listWorktreePaths(
   server: FastifyInstance,
-  options: { controller: Pick<ListWorktreePathsController, 'execute'> },
+  options: { useCase: Pick<ListWorktreePathsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -19,7 +19,7 @@ export function listWorktreePaths(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

@@ -4,12 +4,12 @@ import {
   listFilePreferencesResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
-import type { ListFilePreferencesController } from '../../../controllers/list-file-preferences-controller.ts';
+import type { ListFilePreferencesUseCase } from '../../../use-cases/projects/list-file-preferences.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listFilePreferences(
   server: FastifyInstance,
-  options: { controller: Pick<ListFilePreferencesController, 'execute'> },
+  options: { useCase: Pick<ListFilePreferencesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -21,7 +21,7 @@ export function listFilePreferences(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

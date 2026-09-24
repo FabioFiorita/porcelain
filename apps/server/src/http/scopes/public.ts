@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { ReadHealthController } from '../../controllers/read-health-controller.ts';
-import type { RedeemPairingController } from '../../controllers/redeem-pairing-controller.ts';
+import type { ReadHealthUseCase } from '../../use-cases/access/read-health.ts';
+import type { RedeemPairingUseCase } from '../../use-cases/access/redeem-pairing.ts';
 import {
   AttemptLimit,
   refundSucceededAttempt,
@@ -18,32 +18,33 @@ import {
 import { readHealth } from '../routes/access/read-health.ts';
 import { redeemPairing } from '../routes/access/redeem-pairing.ts';
 
-export type PublicControllers = AuthenticateOptions &
-  Pick<RequestOriginOptions, 'checkRequestOriginController'> &
+export type PublicUseCases = AuthenticateOptions &
+  Pick<RequestOriginOptions, 'access'> &
   LiveUpdatesOptions & {
-    readHealthController: Pick<ReadHealthController, 'execute'>;
-    redeemPairingController: Pick<RedeemPairingController, 'execute'>;
+    access: {
+      readHealth: Pick<ReadHealthUseCase, 'execute'>;
+      redeemPairing: Pick<RedeemPairingUseCase, 'execute'>;
+    };
   };
 
 export async function publicScope(
   server: FastifyInstance,
   options: {
-    application: PublicControllers;
+    application: PublicUseCases;
     allowedHosts: readonly string[];
   },
 ) {
   const { application } = options;
   server.addHook('onRequest', preventCaching);
   server.register(liveUpdates, {
-    authenticateDeviceController: application.authenticateDeviceController,
+    access: application.access,
     devices: application.devices,
     liveUpdates: application.liveUpdates,
-    checkRequestOriginController: application.checkRequestOriginController,
     allowedHosts: options.allowedHosts,
   });
   server.register(clearBrowserSession);
   server.register(readHealth, {
-    controller: application.readHealthController,
+    useCase: application.access.readHealth,
   });
   server.register(async (pairing) => {
     const limit = new AttemptLimit();
@@ -51,7 +52,7 @@ export async function publicScope(
     pairing.addHook('onResponse', refundSucceededAttempt(limit));
     pairing.addHook('preSerialization', deliverBrowserCredential);
     pairing.register(redeemPairing, {
-      controller: application.redeemPairingController,
+      useCase: application.access.redeemPairing,
     });
   });
 }

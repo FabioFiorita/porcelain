@@ -1,11 +1,11 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
-import type { ReadHealthController } from '../../../controllers/read-health-controller.ts';
+import type { ReadHealthUseCase } from '../../../use-cases/access/read-health.ts';
 
 export function readHealth(
   server: FastifyInstance,
-  options: { controller: Pick<ReadHealthController, 'execute'> },
+  options: { useCase: Pick<ReadHealthUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -15,6 +15,6 @@ export function readHealth(
         response: { 200: readHealthResponseSchema },
       },
     },
-    () => options.controller.execute(),
+    () => options.useCase.execute(),
   );
 }

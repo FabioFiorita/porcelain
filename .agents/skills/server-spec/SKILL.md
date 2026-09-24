@@ -1,6 +1,6 @@
 ---
 name: server-spec
-description: Decide whether a Porcelain server unit needs a behaviour spec, derive its cases from the unit's promise, and write it with in-memory fakes. Use when adding or changing a service, rule, parser or sequencing controller; use server-verify for HTTP evidence.
+description: Decide whether a Porcelain server unit needs a behaviour spec, derive its cases from the unit's promise, and write it with in-memory fakes. Use when adding or changing a service, rule, parser or sequencing use case; use server-verify for HTTP evidence.
 ---
 
 # Server specs
@@ -15,11 +15,11 @@ Spec a unit that decides:
 
 - services and rules;
 - parsers of external output (Git porcelain, model output);
-- controllers whose sequence is itself the behaviour: ordering, event timing, lane choice.
+- use cases whose sequence is itself the behaviour: ordering, event timing, lane choice.
 
 Ask: would a plausible wrong implementation pass without this spec? If not, write none. Coverage is never a reason.
 
-Never spec libraries we chose (Zod parsing, Fastify routing, Drizzle query building), a service or controller that forwards one call, facts TypeScript already enforces, private helpers, or bootstrap wiring.
+Never spec libraries we chose (Zod parsing, Fastify routing, Drizzle query building), a service or use case that forwards one call, facts TypeScript already enforces, private helpers, or bootstrap wiring.
 
 ## 2. Derive the cases before reading the implementation
 

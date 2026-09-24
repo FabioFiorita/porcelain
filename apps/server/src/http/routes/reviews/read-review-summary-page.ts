@@ -6,11 +6,11 @@ import {
   readReviewSummaryResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
-import type { ReadReviewSummaryController } from '../../../controllers/read-review-summary-controller.ts';
+import type { ReadReviewSummaryUseCase } from '../../../use-cases/reviews/read-review-summary.ts';
 
 export function readReviewSummaryPage(
   server: FastifyInstance,
-  options: { controller: Pick<ReadReviewSummaryController, 'execute'> },
+  options: { useCase: Pick<ReadReviewSummaryUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -36,7 +36,7 @@ export function readReviewSummaryPage(
         .type('text/html; charset=utf-8')
         .send(
           injectBridge(
-            options.controller.execute({ ...request.params, ...request.query }),
+            options.useCase.execute({ ...request.params, ...request.query }),
           ),
         ),
   );

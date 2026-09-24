@@ -4,12 +4,12 @@ import {
   removeProjectResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
-import type { RemoveProjectController } from '../../../controllers/remove-project-controller.ts';
+import type { RemoveProjectUseCase } from '../../../use-cases/projects/remove-project.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function removeProject(
   server: FastifyInstance,
-  options: { controller: Pick<RemoveProjectController, 'execute'> },
+  options: { useCase: Pick<RemoveProjectUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.delete(
@@ -21,7 +21,7 @@ export function removeProject(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

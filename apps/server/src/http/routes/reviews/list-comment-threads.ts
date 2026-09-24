@@ -2,12 +2,12 @@ import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { listCommentThreadsResponseSchema } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ListCommentThreadsController } from '../../../controllers/list-comment-threads-controller.ts';
+import type { ListCommentThreadsUseCase } from '../../../use-cases/reviews/list-comment-threads.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listCommentThreads(
   server: FastifyInstance,
-  options: { controller: Pick<ListCommentThreadsController, 'execute'> },
+  options: { useCase: Pick<ListCommentThreadsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -19,7 +19,7 @@ export function listCommentThreads(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

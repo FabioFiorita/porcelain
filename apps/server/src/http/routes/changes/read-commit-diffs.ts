@@ -5,12 +5,12 @@ import {
   readCommitDiffsResponseSchema,
 } from '@porcelain/contracts/changes';
 import type { FastifyInstance } from 'fastify';
-import type { ReadCommitDiffsController } from '../../../controllers/read-commit-diffs-controller.ts';
+import type { ReadCommitDiffsUseCase } from '../../../use-cases/changes/read-commit-diffs.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readCommitDiffs(
   server: FastifyInstance,
-  options: { controller: Pick<ReadCommitDiffsController, 'execute'> },
+  options: { useCase: Pick<ReadCommitDiffsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -23,7 +23,7 @@ export function readCommitDiffs(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

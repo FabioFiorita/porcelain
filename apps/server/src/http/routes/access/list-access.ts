@@ -1,12 +1,12 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { listAccessResponseSchema } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
-import type { ListAccessController } from '../../../controllers/list-access-controller.ts';
+import type { ListAccessUseCase } from '../../../use-cases/access/list-access.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listAccess(
   server: FastifyInstance,
-  options: { controller: Pick<ListAccessController, 'execute'> },
+  options: { useCase: Pick<ListAccessUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -16,6 +16,6 @@ export function listAccess(
         response: { ...errorResponses, 200: listAccessResponseSchema },
       },
     },
-    () => options.controller.execute({}),
+    () => options.useCase.execute({}),
   );
 }

@@ -1,13 +1,18 @@
-import type { FlushDeviceActivityController } from '../controllers/flush-device-activity-controller.ts';
+import type { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 
 const FLUSH_INTERVAL_MS = 60_000;
 
 export class FlushDeviceActivityJob {
-  private readonly controller: Pick<FlushDeviceActivityController, 'execute'>;
+  private readonly flushDeviceActivity: Pick<
+    FlushDeviceActivityUseCase,
+    'execute'
+  >;
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(controller: Pick<FlushDeviceActivityController, 'execute'>) {
-    this.controller = controller;
+  constructor(
+    flushDeviceActivity: Pick<FlushDeviceActivityUseCase, 'execute'>,
+  ) {
+    this.flushDeviceActivity = flushDeviceActivity;
   }
 
   start(): void {
@@ -24,6 +29,6 @@ export class FlushDeviceActivityJob {
   }
 
   private flush(): void {
-    this.controller.execute({}).catch(() => undefined);
+    this.flushDeviceActivity.execute({}).catch(() => undefined);
   }
 }

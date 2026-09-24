@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { RemoveReviewedLayerController } from '../../../controllers/remove-reviewed-layer-controller.ts';
+import type { RemoveReviewedLayerUseCase } from '../../../use-cases/reviews/remove-reviewed-layer.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function removeReviewedLayer(
   server: FastifyInstance,
-  options: { controller: Pick<RemoveReviewedLayerController, 'execute'> },
+  options: { useCase: Pick<RemoveReviewedLayerUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.delete(
@@ -23,7 +23,7 @@ export function removeReviewedLayer(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

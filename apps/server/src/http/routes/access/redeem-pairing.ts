@@ -4,12 +4,12 @@ import {
   redeemPairingResponseSchema,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
-import type { RedeemPairingController } from '../../../controllers/redeem-pairing-controller.ts';
+import type { RedeemPairingUseCase } from '../../../use-cases/access/redeem-pairing.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function redeemPairing(
   server: FastifyInstance,
-  options: { controller: Pick<RedeemPairingController, 'execute'> },
+  options: { useCase: Pick<RedeemPairingUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -21,7 +21,7 @@ export function redeemPairing(
       },
     },
     (request) =>
-      options.controller.execute(request.body, {
+      options.useCase.execute(request.body, {
         signal: request.disconnected,
       }),
   );

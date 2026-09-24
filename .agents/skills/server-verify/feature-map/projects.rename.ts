@@ -39,7 +39,7 @@ export default defineFeature({
   locations: [
     'apps/server/src/http/routes/projects/rename.ts',
     'packages/contracts/src/projects/inventory.ts',
-    'apps/server/src/controllers/rename-project-controller.ts',
+    'apps/server/src/use-cases/projects/rename-project.ts',
     'packages/projects/src/services/rename-project-service.ts',
     'packages/storage/src/repositories/projects/inventory-repository.ts',
   ],

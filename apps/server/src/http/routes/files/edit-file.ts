@@ -5,13 +5,13 @@ import {
 } from '@porcelain/contracts/files';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { EditFileController } from '../../../controllers/edit-file-controller.ts';
+import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
 import { editFileBodyLimit } from '../../../config/request-limits.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function editFile(
   server: FastifyInstance,
-  options: { controller: Pick<EditFileController, 'execute'> },
+  options: { useCase: Pick<EditFileUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -25,7 +25,7 @@ export function editFile(
       bodyLimit: editFileBodyLimit,
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, command: request.body },
         { signal: request.disconnected },
       ),

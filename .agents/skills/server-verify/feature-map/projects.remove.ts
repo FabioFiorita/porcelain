@@ -21,7 +21,7 @@ export default defineFeature({
   locations: [
     'apps/server/src/http/routes/projects/remove.ts',
     'packages/contracts/src/projects/inventory.ts',
-    'apps/server/src/controllers/remove-project-controller.ts',
+    'apps/server/src/use-cases/projects/remove-project.ts',
     'packages/projects/src/services/remove-project-service.ts',
     'packages/projects/src/services/forget-project-worktrees-service.ts',
     'packages/projects/src/ports/project-removal-store.ts',

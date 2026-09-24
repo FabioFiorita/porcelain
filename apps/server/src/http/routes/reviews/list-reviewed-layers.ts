@@ -2,12 +2,12 @@ import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { listReviewedLayersResponseSchema } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ListReviewedLayersController } from '../../../controllers/list-reviewed-layers-controller.ts';
+import type { ListReviewedLayersUseCase } from '../../../use-cases/reviews/list-reviewed-layers.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listReviewedLayers(
   server: FastifyInstance,
-  options: { controller: Pick<ListReviewedLayersController, 'execute'> },
+  options: { useCase: Pick<ListReviewedLayersUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -19,7 +19,7 @@ export function listReviewedLayers(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

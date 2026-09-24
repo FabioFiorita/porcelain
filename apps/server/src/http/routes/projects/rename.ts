@@ -5,12 +5,12 @@ import {
   renameProjectResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
-import type { RenameProjectController } from '../../../controllers/rename-project-controller.ts';
+import type { RenameProjectUseCase } from '../../../use-cases/projects/rename-project.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function renameProject(
   server: FastifyInstance,
-  options: { controller: Pick<RenameProjectController, 'execute'> },
+  options: { useCase: Pick<RenameProjectUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.patch(
@@ -23,7 +23,7 @@ export function renameProject(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/changes';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadChangeLinesController } from '../../../controllers/read-change-lines-controller.ts';
+import type { ReadChangeLinesUseCase } from '../../../use-cases/changes/read-change-lines.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readChangeLines(
   server: FastifyInstance,
-  options: { controller: Pick<ReadChangeLinesController, 'execute'> },
+  options: { useCase: Pick<ReadChangeLinesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,7 +23,7 @@ export function readChangeLines(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

@@ -143,7 +143,7 @@ export async function startRuntime(
       refreshed: () => application.ready(),
       issuePairing: async (labels, addresses) =>
         (
-          await application.issuePairingController.execute(
+          await application.access.issuePairing.execute(
             { labels: [...labels], addresses: [...addresses] },
             {},
           )

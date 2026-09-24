@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/files';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadPreviewAssetsController } from '../../../controllers/read-preview-assets-controller.ts';
+import type { ReadPreviewAssetsUseCase } from '../../../use-cases/files/read-preview-assets.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readPreviewAssets(
   server: FastifyInstance,
-  options: { controller: Pick<ReadPreviewAssetsController, 'execute'> },
+  options: { useCase: Pick<ReadPreviewAssetsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -23,7 +23,7 @@ export function readPreviewAssets(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { SetReviewedFilesController } from '../../../controllers/set-reviewed-files-controller.ts';
+import type { SetReviewedFilesUseCase } from '../../../use-cases/reviews/set-reviewed-files.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function setReviewedFiles(
   server: FastifyInstance,
-  options: { controller: Pick<SetReviewedFilesController, 'execute'> },
+  options: { useCase: Pick<SetReviewedFilesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(
@@ -23,7 +23,7 @@ export function setReviewedFiles(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),

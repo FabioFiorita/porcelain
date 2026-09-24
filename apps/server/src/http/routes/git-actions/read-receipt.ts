@@ -4,12 +4,12 @@ import {
   readGitActionReceiptResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
-import type { ReadGitActionReceiptController } from '../../../controllers/read-git-action-receipt-controller.ts';
+import type { ReadGitActionReceiptUseCase } from '../../../use-cases/git-actions/read-git-action-receipt.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readReceipt(
   server: FastifyInstance,
-  options: { controller: Pick<ReadGitActionReceiptController, 'execute'> },
+  options: { useCase: Pick<ReadGitActionReceiptUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,6 +23,6 @@ export function readReceipt(
         },
       },
     },
-    async (request) => options.controller.execute(request.params),
+    async (request) => options.useCase.execute(request.params),
   );
 }

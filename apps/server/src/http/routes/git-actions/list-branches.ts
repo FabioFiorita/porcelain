@@ -4,12 +4,12 @@ import {
   listGitBranchesResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import type { FastifyInstance } from 'fastify';
-import type { ListGitBranchesController } from '../../../controllers/list-git-branches-controller.ts';
+import type { ListGitBranchesUseCase } from '../../../use-cases/git-actions/list-git-branches.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function listBranches(
   server: FastifyInstance,
-  options: { controller: Pick<ListGitBranchesController, 'execute'> },
+  options: { useCase: Pick<ListGitBranchesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -21,7 +21,7 @@ export function listBranches(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

@@ -1,22 +1,24 @@
-import type { CollectAbsentWorktreesController } from '../controllers/collect-absent-worktrees-controller.ts';
+import type { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 
 const COLLECTION_INTERVAL_MS = 60 * 60_000;
 
 export class CollectAbsentWorktreesJob {
-  private readonly controller: Pick<
-    CollectAbsentWorktreesController,
+  private readonly collectAbsentWorktrees: Pick<
+    CollectAbsentWorktreesUseCase,
     'execute'
   >;
   private timer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(controller: Pick<CollectAbsentWorktreesController, 'execute'>) {
-    this.controller = controller;
+  constructor(
+    collectAbsentWorktrees: Pick<CollectAbsentWorktreesUseCase, 'execute'>,
+  ) {
+    this.collectAbsentWorktrees = collectAbsentWorktrees;
   }
 
   start(): void {
     this.stop();
     this.timer = setInterval(() => {
-      this.controller.execute({}).catch(() => undefined);
+      this.collectAbsentWorktrees.execute({}).catch(() => undefined);
     }, COLLECTION_INTERVAL_MS);
     this.timer.unref();
   }

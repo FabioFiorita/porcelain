@@ -4,12 +4,12 @@ import {
   issuePairingResponseSchema,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
-import type { IssuePairingController } from '../../../controllers/issue-pairing-controller.ts';
+import type { IssuePairingUseCase } from '../../../use-cases/access/issue-pairing.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function issuePairing(
   server: FastifyInstance,
-  options: { controller: Pick<IssuePairingController, 'execute'> },
+  options: { useCase: Pick<IssuePairingUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -20,6 +20,6 @@ export function issuePairing(
         response: { ...errorResponses, 200: issuePairingResponseSchema },
       },
     },
-    (request) => options.controller.execute(request.body, {}),
+    (request) => options.useCase.execute(request.body, {}),
   );
 }

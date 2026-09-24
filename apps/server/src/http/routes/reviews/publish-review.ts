@@ -5,13 +5,13 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { PublishReviewController } from '../../../controllers/publish-review-controller.ts';
+import type { PublishReviewUseCase } from '../../../use-cases/reviews/publish-review.ts';
 import { publishReviewBodyLimit } from '../../../config/request-limits.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function publishReview(
   server: FastifyInstance,
-  options: { controller: Pick<PublishReviewController, 'execute'> },
+  options: { useCase: Pick<PublishReviewUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(
@@ -25,7 +25,7 @@ export function publishReview(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, review: request.body },
         { signal: request.disconnected },
       ),

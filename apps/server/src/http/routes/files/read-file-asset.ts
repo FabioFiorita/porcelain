@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/files';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadFileAssetController } from '../../../controllers/read-file-asset-controller.ts';
+import type { ReadFileAssetUseCase } from '../../../use-cases/files/read-file-asset.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readFileAsset(
   server: FastifyInstance,
-  options: { controller: Pick<ReadFileAssetController, 'execute'> },
+  options: { useCase: Pick<ReadFileAssetUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -23,7 +23,7 @@ export function readFileAsset(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),

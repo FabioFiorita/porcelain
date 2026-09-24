@@ -2,12 +2,12 @@ import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { readGitStatusResponseSchema } from '@porcelain/contracts/changes';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadGitStatusController } from '../../../controllers/read-git-status-controller.ts';
+import type { ReadGitStatusUseCase } from '../../../use-cases/changes/read-git-status.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readGitStatus(
   server: FastifyInstance,
-  options: { controller: Pick<ReadGitStatusController, 'execute'> },
+  options: { useCase: Pick<ReadGitStatusUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -19,7 +19,7 @@ export function readGitStatus(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

@@ -4,12 +4,12 @@ import {
   registerProjectResponseSchema,
 } from '@porcelain/contracts/projects';
 import type { FastifyInstance } from 'fastify';
-import type { RegisterProjectController } from '../../../controllers/register-project-controller.ts';
+import type { RegisterProjectUseCase } from '../../../use-cases/projects/register-project.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function registerProject(
   server: FastifyInstance,
-  options: { controller: Pick<RegisterProjectController, 'execute'> },
+  options: { useCase: Pick<RegisterProjectUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.post(
@@ -21,7 +21,7 @@ export function registerProject(
       },
     },
     async (request) =>
-      options.controller.execute(request.body, {
+      options.useCase.execute(request.body, {
         signal: request.disconnected,
       }),
   );

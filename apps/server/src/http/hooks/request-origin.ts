@@ -1,9 +1,9 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyRequest } from 'fastify';
-import type { CheckRequestOriginController } from '../../controllers/check-request-origin-controller.ts';
+import type { CheckRequestOriginUseCase } from '../../use-cases/access/check-request-origin.ts';
 
 export type RequestOriginOptions = {
-  checkRequestOriginController: Pick<CheckRequestOriginController, 'execute'>;
+  access: { checkRequestOrigin: Pick<CheckRequestOriginUseCase, 'execute'> };
   allowedHosts: readonly string[];
 };
 
@@ -12,7 +12,7 @@ export function checkRequestOrigin(
   requireSameOrigin = false,
 ) {
   return async (request: FastifyRequest) => {
-    const result = options.checkRequestOriginController.execute({
+    const result = options.access.checkRequestOrigin.execute({
       host: request.headers.host,
       origin: request.headers.origin,
       method: request.method,

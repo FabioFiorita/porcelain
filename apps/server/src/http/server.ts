@@ -62,7 +62,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   server.addHook(
     'onRequest',
     checkRequestOrigin({
-      checkRequestOriginController: application.checkRequestOriginController,
+      access: application.access,
       allowedHosts,
     }),
   );
@@ -74,7 +74,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
     { prefix: '/api' },
   );
   server.register(readReviewSummaryPage, {
-    controller: application.readReviewSummaryController,
+    useCase: application.reviews.readReviewSummary,
   });
   if (webRoot !== undefined)
     server.register(staticFiles, {

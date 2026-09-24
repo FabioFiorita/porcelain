@@ -2,12 +2,12 @@ import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { ReadChangesController } from '../../../controllers/read-changes-controller.ts';
+import type { ReadChangesUseCase } from '../../../use-cases/changes/read-changes.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function readChanges(
   server: FastifyInstance,
-  options: { controller: Pick<ReadChangesController, 'execute'> },
+  options: { useCase: Pick<ReadChangesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.get(
@@ -19,7 +19,7 @@ export function readChanges(
       },
     },
     async (request) =>
-      options.controller.execute(request.params, {
+      options.useCase.execute(request.params, {
         signal: request.disconnected,
       }),
   );

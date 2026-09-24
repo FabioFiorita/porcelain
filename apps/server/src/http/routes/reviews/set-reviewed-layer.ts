@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { SetReviewedLayerController } from '../../../controllers/set-reviewed-layer-controller.ts';
+import type { SetReviewedLayerUseCase } from '../../../use-cases/reviews/set-reviewed-layer.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function setReviewedLayer(
   server: FastifyInstance,
-  options: { controller: Pick<SetReviewedLayerController, 'execute'> },
+  options: { useCase: Pick<SetReviewedLayerUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(
@@ -23,7 +23,7 @@ export function setReviewedLayer(
       },
     },
     async (request) =>
-      options.controller.execute(
+      options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),
