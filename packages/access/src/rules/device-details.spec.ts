@@ -18,16 +18,15 @@ describe('validLabel', () => {
     expect(validLabel('   ', LABEL_LENGTH)).toBeUndefined();
   });
 
-  it('refuses control characters, including C1 controls', () => {
-    for (const label of [
-      'Phone\n2',
-      'Phone\u0000',
-      'Phone\u007f',
-      'Ph\u0085one',
-      'Ph\u001fone',
-      'Ph\u009fone',
-    ])
-      expect(validLabel(label, LABEL_LENGTH)).toBeUndefined();
+  it.each([
+    { name: 'a line feed', label: 'Phone\n2' },
+    { name: 'a NUL', label: 'Phone\u0000' },
+    { name: 'a DEL', label: 'Phone\u007f' },
+    { name: 'a C1 next line', label: 'Ph\u0085one' },
+    { name: 'the last C0 control', label: 'Ph\u001fone' },
+    { name: 'the last C1 control', label: 'Ph\u009fone' },
+  ])('refuses a label holding $name', ({ label }) => {
+    expect(validLabel(label, LABEL_LENGTH)).toBeUndefined();
   });
 
   it('keeps printable characters just past the control ranges', () => {

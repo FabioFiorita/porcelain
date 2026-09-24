@@ -6,7 +6,8 @@ import type {
 } from '../models/review-evidence.ts';
 import { textLines } from './review-evidence.ts';
 
-const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+const HUNK_HEADER =
+  /^@@ -(?<oldStart>\d+)(?:,(?<oldCount>\d+))? \+(?<newStart>\d+)(?:,(?<newCount>\d+))? @@/;
 
 function addAll(
   target: Map<string, Set<number>>,
@@ -26,9 +27,9 @@ function patchLineChanges(patch: string): {
   const deleted = new Set<number>();
   let line = 0;
   for (const value of patch.split('\n')) {
-    const header = HUNK_HEADER.exec(value);
+    const header = HUNK_HEADER.exec(value)?.groups;
     if (header) {
-      line = Number(header[3]);
+      line = Number(header.newStart);
     } else if (value.startsWith('+') && !value.startsWith('+++')) {
       changed.add(Math.max(1, line));
       line += 1;
@@ -47,12 +48,14 @@ function mapOldLine(patch: string, target: number): number | undefined {
   let oldLine = 1;
   let newLine = 1;
   for (const value of patch.split('\n')) {
-    const header = HUNK_HEADER.exec(value);
+    const header = HUNK_HEADER.exec(value)?.groups;
     if (header) {
-      const oldCount = header[2] === undefined ? 1 : Number(header[2]);
-      const newCount = header[4] === undefined ? 1 : Number(header[4]);
-      const nextOld = Number(header[1]) + (oldCount === 0 ? 1 : 0);
-      const nextNew = Number(header[3]) + (newCount === 0 ? 1 : 0);
+      const oldCount =
+        header.oldCount === undefined ? 1 : Number(header.oldCount);
+      const newCount =
+        header.newCount === undefined ? 1 : Number(header.newCount);
+      const nextOld = Number(header.oldStart) + (oldCount === 0 ? 1 : 0);
+      const nextNew = Number(header.newStart) + (newCount === 0 ? 1 : 0);
       if (target < nextOld) return target + (newLine - oldLine);
       oldLine = nextOld;
       newLine = nextNew;

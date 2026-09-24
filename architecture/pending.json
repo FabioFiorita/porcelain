@@ -18,14 +18,6 @@
       "A port method takes (), (input) or (input, signal): one input object, then the signal.": 4
     }
   },
-  "porcelain/no-number-outside-limits": {
-    "packages/access/src/rules/credential.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 2
-    },
-    "packages/reviews/src/rules/review-diagnostics.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 6
-    }
-  },
   "porcelain/fakes-store": {
     "apps/server/spec/fakes/in-memory-event-publisher.ts": {
       "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
@@ -115,11 +107,6 @@
     },
     "apps/server/src/use-cases/projects/set-file-preference.ts": {
       "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    }
-  },
-  "porcelain/spec-one-case-per-behaviour": {
-    "packages/access/src/rules/device-details.spec.ts": {
-      "One case per behaviour: turn the loop into it.each with a sentence title per row.": 1
     }
   },
   "lane-mode-matches-service": {

@@ -21,11 +21,11 @@ export function parseCredential(
   kind: CredentialKind,
   value: string,
 ): CredentialParts | undefined {
-  const match = new RegExp(
-    `^${kind}_(${ID_PATTERN})_(${SECRET_PATTERN})$`,
-  ).exec(value);
-  return match?.[1] && match[2]
-    ? { id: match[1], secret: match[2] }
+  const parts = new RegExp(
+    `^${kind}_(?<id>${ID_PATTERN})_(?<secret>${SECRET_PATTERN})$`,
+  ).exec(value)?.groups;
+  return parts?.id && parts.secret
+    ? { id: parts.id, secret: parts.secret }
     : undefined;
 }
 
