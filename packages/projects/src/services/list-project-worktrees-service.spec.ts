@@ -56,6 +56,7 @@ describe('ListProjectWorktreesService', () => {
     reader.answer({
       kind: 'listed',
       projectId: project.id,
+      repositoryIdentity: project.repositoryIdentity,
       worktrees: [worktree('main')],
       unidentified: 0,
     });
@@ -72,6 +73,7 @@ describe('ListProjectWorktreesService', () => {
     reader.answer({
       kind: 'listed',
       projectId: project.id,
+      repositoryIdentity: project.repositoryIdentity,
       worktrees: [worktree('main')],
       unidentified: 1,
     });
@@ -80,7 +82,7 @@ describe('ListProjectWorktreesService', () => {
     expect(result.complete).toBe(false);
   });
 
-  it.each(['unavailable', 'timed-out', 'moved'] as const)(
+  it.each(['unavailable', 'timed-out'] as const)(
     'shows the last seen worktrees as unavailable when the listing is %s',
     async (kind) => {
       const reader = new ScriptedWorktreeListingReader();
@@ -94,6 +96,24 @@ describe('ListProjectWorktreesService', () => {
       });
     },
   );
+
+  it('shows the last seen worktrees as unavailable when the folder now holds another repository', async () => {
+    const reader = new ScriptedWorktreeListingReader();
+    reader.answer({
+      kind: 'listed',
+      projectId: project.id,
+      repositoryIdentity: 'identity-2',
+      worktrees: [worktree('main')],
+      unidentified: 0,
+    });
+    const catalog = seen([worktree('main')]);
+    expect(await service(reader, catalog).execute({ project })).toEqual({
+      projectId: project.id,
+      available: false,
+      complete: false,
+      worktrees: [worktree('main', false)],
+    });
+  });
 
   it('reports an unlisted project with nothing seen before as empty', async () => {
     const reader = new ScriptedWorktreeListingReader();

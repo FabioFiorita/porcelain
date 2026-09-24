@@ -4,6 +4,7 @@ import type {
 } from '../models/list-project-worktrees.ts';
 import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
 import type { WorktreeListingReader } from '../ports/worktree-listing-reader.ts';
+import { repositoryMoved } from '../rules/repository-moved.ts';
 import { unavailableWorktrees } from '../rules/unavailable-worktrees.ts';
 
 export class ListProjectWorktreesService {
@@ -23,7 +24,7 @@ export class ListProjectWorktreesService {
     signal?: AbortSignal,
   ): Promise<ListProjectWorktreesResult> {
     const listing = await this.worktreeListing.list(input.project, signal);
-    if (listing.kind === 'listed')
+    if (listing.kind === 'listed' && !repositoryMoved(input.project, listing))
       return {
         projectId: listing.projectId,
         available: true,

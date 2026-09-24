@@ -53,8 +53,6 @@ export class GitWorktreeListingReader implements WorktreeListingReader {
       return { kind: 'unavailable', projectId: project.id };
     }
     const { repository } = discovered;
-    if (repository.repositoryIdentity !== project.repositoryIdentity)
-      return { kind: 'moved', projectId: project.id };
     const worktrees: ListedWorktree[] = [];
     let unidentified = 0;
     for (const worktree of repository.worktrees) {
@@ -76,6 +74,12 @@ export class GitWorktreeListingReader implements WorktreeListingReader {
         repositoryId: repository.repositoryIdentity,
       });
     }
-    return { kind: 'listed', projectId: project.id, worktrees, unidentified };
+    return {
+      kind: 'listed',
+      projectId: project.id,
+      repositoryIdentity: repository.repositoryIdentity,
+      worktrees,
+      unidentified,
+    };
   }
 }
