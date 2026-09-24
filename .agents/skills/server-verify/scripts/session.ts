@@ -67,9 +67,19 @@ const quietHeaders = new Set([
   'keep-alive',
   'content-length',
 ]);
-const secretKeys = new Set(['credential', 'code', 'link', 'signature']);
+const secretKeys = new Set([
+  'credential',
+  'code',
+  'link',
+  'signature',
+  'token',
+  'secret',
+]);
 const signedLink =
   /\/review-summaries\/([^/?#\s"]+)\?[^#\s"]*?signature=([^&#\s"]+)/g;
+const issuedToken =
+  /pc[a-z]_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_([A-Za-z0-9_-]{43})/g;
+const setCookie = /(?:^|\n)[^=;\s]+=([^;\n]+)/g;
 const readyTimeoutMs = 30_000;
 const stopTimeoutMs = 10_000;
 const requestTimeoutMs = 30_000;
@@ -91,8 +101,12 @@ export class Recorder {
       for (const entry of value) this.harvest(entry);
     else if (isRecord(value))
       for (const [key, entry] of Object.entries(value)) {
+        this.harvestText(key);
         if (secretKeys.has(key) && typeof entry === 'string')
           this.secret(entry);
+        if (key === 'set-cookie' && typeof entry === 'string')
+          for (const [, cookie] of entry.matchAll(setCookie))
+            if (cookie !== undefined) this.secret(cookie);
         this.harvest(entry);
       }
   }
@@ -101,6 +115,10 @@ export class Recorder {
     for (const [link, token, signature] of value.matchAll(signedLink))
       for (const secret of [link, token, signature])
         if (secret !== undefined) this.secret(secret);
+    for (const [token, secret] of value.matchAll(issuedToken)) {
+      this.secret(token);
+      if (secret !== undefined) this.secret(secret);
+    }
   }
 
   harvestAuth(auth: HttpRequest['auth']) {
@@ -113,16 +131,52 @@ export class Recorder {
     }
   }
 
+  private forms(): string[] {
+    return [
+      ...new Set(
+        [...this.secrets].flatMap((secret) => [
+          secret,
+          encodeURIComponent(secret),
+          secret.replaceAll('&', '&amp;'),
+          JSON.stringify(secret).slice(1, -1),
+        ]),
+      ),
+    ].sort((a, b) => b.length - a.length);
+  }
+
   scrub(value: string): string {
     let result = value;
-    for (const secret of [...this.secrets].sort((a, b) => b.length - a.length))
-      result = result.replaceAll(secret, '[redacted]');
+    for (const form of this.forms())
+      result = result.replaceAll(form, '[redacted]');
     return result;
   }
 
   redact(value: unknown): unknown {
-    const parsed: unknown = JSON.parse(this.scrub(JSON.stringify(value)));
-    return parsed;
+    this.harvest(value);
+    const forms = this.forms();
+    const scrub = (text: string) =>
+      forms.reduce(
+        (result, form) => result.replaceAll(form, '[redacted]'),
+        text,
+      );
+    const walk = (entry: unknown): unknown => {
+      if (typeof entry === 'string') return scrub(entry);
+      if (Array.isArray(entry)) return entry.map(walk);
+      if (isRecord(entry))
+        return Object.fromEntries(
+          Object.entries(entry).map(([key, child]) => [
+            scrub(key),
+            walk(child),
+          ]),
+        );
+      return entry;
+    };
+    return walk(value);
+  }
+
+  leaks(serialized: string): number {
+    return [...this.secrets].filter((secret) => serialized.includes(secret))
+      .length;
   }
 }
 
@@ -504,6 +558,7 @@ export class IsolatedServer {
       headers['content-type'] = request.contentType ?? 'application/json';
     }
     recorder.harvest(request.body);
+    recorder.harvest(request.headers ?? {});
     recorder.harvestText(path);
     recorder.harvestAuth(request.auth);
     const recordedHeaders = { ...headers };
@@ -540,6 +595,7 @@ export class IsolatedServer {
         payload,
       );
       recorder.harvest(response.body);
+      recorder.harvest(response.headers);
       const cookie = /porcelain_device=([^;]+)/.exec(
         response.headers['set-cookie'] ?? '',
       );
@@ -641,6 +697,7 @@ export class IsolatedServer {
     };
     socket.addEventListener('message', (event) => {
       const value = record(JSON.parse(String(event.data)));
+      recorder.harvest(value);
       recorder.provenance.observe('live notice', value);
       received.push(value);
       step.received.push(value);

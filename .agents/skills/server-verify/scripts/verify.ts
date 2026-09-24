@@ -30,6 +30,7 @@ type CaseEvidence = {
   assertionCount: number;
   steps: Step[];
   assertions: Assertion[];
+  serverStderr: string;
 };
 type RouteCoverage = {
   registered: readonly string[];
@@ -220,7 +221,9 @@ async function runCases(
       assertionCount: 0,
       steps: recorder.steps,
       assertions,
+      serverStderr: '',
     };
+    const stderrFrom = server.logs().stderr.length;
     cases.push(evidence);
     try {
       await testCase.run(server.session(recorder, ids), {
@@ -237,6 +240,7 @@ async function runCases(
       evidence.error = message(error);
     } finally {
       for (const cleanup of recorder.cleanups) cleanup();
+      evidence.serverStderr = server.logs().stderr.slice(stderrFrom);
     }
     evidence.assertionCount = assertions.length;
     evidence.passed =
@@ -265,6 +269,8 @@ async function runFeature(
     setupError ??= stopError;
   }
 
+  const logs = server?.logs() ?? { stdout: '', stderr: '' };
+  recorder.harvest({ cases, logs });
   const requested = cases
     .flatMap((entry) => entry.steps.map(requestedRoute))
     .filter((route) => route !== undefined);
@@ -287,7 +293,7 @@ async function runFeature(
         ),
     ]),
   ].map((failure) => recorder.scrub(failure));
-  const passed = failures.length === 0 && assertions.length > 0;
+  let passed = failures.length === 0 && assertions.length > 0;
   const passedAssertions = assertions.filter((entry) => entry.passed).length;
   const weakAssertions = assertions.filter((entry) => entry.weak).length;
   const evidencePath = join(evidenceDirectory, `${feature.feature}.json`);
@@ -307,11 +313,21 @@ async function runFeature(
       ? { address: server.address, repository: server.repository }
       : null,
     cases,
-    logs: server?.logs() ?? { stdout: '', stderr: '' },
+    logs,
   });
-  await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, {
-    mode: 0o600,
-  });
+  const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
+  const leaked = recorder.leaks(serialized) > 0;
+  if (leaked) {
+    passed = false;
+    failures.push('evidence withheld: a secret survived redaction');
+  }
+  await writeFile(
+    evidencePath,
+    leaked
+      ? `${JSON.stringify({ feature: feature.feature, passed, failures }, null, 2)}\n`
+      : serialized,
+    { mode: 0o600 },
+  );
   return {
     feature: feature.feature,
     intent: feature.intent,
