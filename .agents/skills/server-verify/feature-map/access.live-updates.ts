@@ -109,7 +109,11 @@ export default defineFeature({
       }),
       async expect({ response, state, session, check }) {
         check('status', 200, response.status);
-        check('one thread written', 1, list(response.body).length);
+        check(
+          'the written thread',
+          'Announced',
+          record(list(record(response.body).messages)[0]).body,
+        );
         check(
           'notice',
           worktreeNotice(session, 'comments'),
