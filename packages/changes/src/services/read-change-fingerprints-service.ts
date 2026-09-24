@@ -34,7 +34,7 @@ export class ReadChangeFingerprintsService {
         : input.comparisons.filter((comparison) =>
             wanted.has(logicalPath(comparison)),
           );
-    const paths = sidePaths(comparisons);
+    const paths = sidePaths(comparisons, this.options.maxPathLength);
     const [entries, heads, stagingStamp] = await Promise.all([
       paths.files.length === 0
         ? new Map()

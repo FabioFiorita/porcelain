@@ -71,7 +71,7 @@ export type Limits = {
   changes: {
     status: { maxChanges: number };
     changeLines: { maxLines: number };
-    fingerprints: { maxDigestBytes: number };
+    fingerprints: { maxDigestBytes: number; maxPathLength: number };
     worktreeReads: { chunkBytes: number; concurrency: number };
   };
   reviews: {
@@ -245,7 +245,7 @@ export const LIMITS: Limits = {
   changes: {
     status: { maxChanges: CHANGED_PATHS },
     changeLines: { maxLines: 2000 },
-    fingerprints: { maxDigestBytes: 64 * MEBIBYTE },
+    fingerprints: { maxDigestBytes: 64 * MEBIBYTE, maxPathLength: PATH_LENGTH },
     worktreeReads: { chunkBytes: MEBIBYTE, concurrency: 8 },
   },
   reviews: {

@@ -9,4 +9,7 @@ export type ReadChangeFingerprintsInput = {
 
 export type ReadChangeFingerprintsResult = ChangeFingerprints;
 
-export type ReadChangeFingerprintsOptions = { maxDigestBytes: number };
+export type ReadChangeFingerprintsOptions = {
+  maxDigestBytes: number;
+  maxPathLength: number;
+};

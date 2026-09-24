@@ -1,9 +1,13 @@
 import type { ChangeComparison } from '@porcelain/kernel/models';
+import { isRelativePath } from '@porcelain/kernel/rules';
 import type { SidePaths } from '../models/worktree-side.ts';
 
 const SUBMODULE_MODE = '160000';
 
-export function sidePaths(comparisons: readonly ChangeComparison[]): SidePaths {
+export function sidePaths(
+  comparisons: readonly ChangeComparison[],
+  maxPathLength: number,
+): SidePaths {
   const submodule = new Map<string, boolean>();
   for (const comparison of comparisons) {
     if (comparison.scope === 'untracked' || comparison.scope === 'unmerged')
@@ -15,7 +19,9 @@ export function sidePaths(comparisons: readonly ChangeComparison[]): SidePaths {
     )
       submodule.set(comparison.newPath, comparison.newMode === SUBMODULE_MODE);
   }
-  const paths = [...submodule];
+  const paths = [...submodule].filter(([path]) =>
+    isRelativePath(path, maxPathLength),
+  );
   return {
     files: paths.flatMap(([path, gitlink]) => (gitlink ? [] : [path])),
     submodules: paths.flatMap(([path, gitlink]) => (gitlink ? [path] : [])),

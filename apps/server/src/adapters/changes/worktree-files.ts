@@ -57,10 +57,8 @@ async function readEntry(
   maxDigestBytes: number,
   chunkBytes: number,
 ): Promise<WorktreeEntry | undefined> {
-  if (path === '' || path.split('/').some((part) => part === '..'))
-    return undefined;
   const parent = dirname(path);
-  const target = { worktreeId: '', root, path: parent === '.' ? '' : parent };
+  const target = { root, path: parent === '.' ? '' : parent };
   const before = await inspectPath(target);
   if (!before.info.isDirectory()) return undefined;
   const full = join(before.path, path.split('/').at(-1) ?? '');
