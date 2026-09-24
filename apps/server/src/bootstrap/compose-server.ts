@@ -48,6 +48,7 @@ import type { ServerSettings } from '../config/server-settings.ts';
 import { CollectAbsentWorktreesJob } from '../jobs/collect-absent-worktrees-job.ts';
 import { FlushDeviceActivityJob } from '../jobs/flush-device-activity-job.ts';
 import type { Job } from '../jobs/job.ts';
+import { RefreshInventoryJob } from '../jobs/refresh-inventory-job.ts';
 import { StartupJob } from '../jobs/startup-job.ts';
 import { WatchWorktreesJob } from '../jobs/watch-worktrees-job.ts';
 import { Lanes } from '../runtime/lanes.ts';
@@ -126,15 +127,6 @@ export async function openApplication(
     createEnvironmentIdentityStore(session),
   );
   const reviewInvalidation = composeReviewInvalidation(context);
-  const worktreeWatches = new WatchWorktreesJob(
-    reviewInvalidation.invalidateReviewedMarks,
-    events,
-    new ParcelWorktreeWatcher({
-      worktrees: worktreeAccess,
-      projects: () => inventoryStore.read().projects,
-    }),
-    limits.liveUpdates,
-  );
   const deviceConnections = new HeldDeviceConnections();
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
     createGitActionStore(session),
@@ -190,6 +182,16 @@ export async function openApplication(
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
   });
+  const worktreeWatches = new WatchWorktreesJob(
+    reviewInvalidation.invalidateReviewedMarks,
+    projects.refreshInventory,
+    events,
+    new ParcelWorktreeWatcher({
+      worktrees: worktreeAccess,
+      projects: () => inventoryStore.read().projects,
+    }),
+    limits.liveUpdates,
+  );
   const jobs: readonly Job[] = [
     worktreeWatches,
     new StartupJob(
@@ -197,6 +199,9 @@ export async function openApplication(
       projects.refreshInventory,
       events,
     ),
+    new RefreshInventoryJob(projects.refreshInventory, events, {
+      intervalMs: limits.jobs.refreshInventoryMs,
+    }),
     new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees, events, {
       intervalMs: limits.jobs.collectAbsentWorktreesMs,
     }),

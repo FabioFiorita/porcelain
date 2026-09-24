@@ -4,6 +4,7 @@ export type JobName =
   | 'startup'
   | 'collect-absent-worktrees'
   | 'flush-device-activity'
+  | 'refresh-inventory'
   | 'watch-worktrees';
 
 export interface EventPublisher {

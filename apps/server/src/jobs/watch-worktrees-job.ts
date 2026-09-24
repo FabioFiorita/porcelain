@@ -11,6 +11,7 @@ import type {
   WatchedWorktree,
   WorktreeWatcher,
 } from '../ports/worktree-watcher.ts';
+import type { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
 import type { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { LiveUpdateCapacityError } from './errors/live-update-capacity-error.ts';
 import type { Job } from './job.ts';
@@ -59,6 +60,7 @@ export class WatchWorktreesJob implements Job {
     InvalidateReviewedMarksUseCase,
     'execute'
   >;
+  private readonly refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>;
   private readonly events: EventPublisher;
   private readonly watcher: WorktreeWatcher;
   private readonly options: WatchWorktreesOptions;
@@ -71,11 +73,13 @@ export class WatchWorktreesJob implements Job {
 
   constructor(
     invalidateReviewedMarks: Pick<InvalidateReviewedMarksUseCase, 'execute'>,
+    refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>,
     events: EventPublisher,
     watcher: WorktreeWatcher,
     options: WatchWorktreesOptions,
   ) {
     this.invalidateReviewedMarks = invalidateReviewedMarks;
+    this.refreshInventory = refreshInventory;
     this.events = events;
     this.watcher = watcher;
     this.options = options;
@@ -277,7 +281,9 @@ export class WatchWorktreesJob implements Job {
           this.events.worktreeChanged(worktreeId, 'git'),
         );
       }
-      this.events.inventoryChanged();
+      this.refreshInventory
+        .execute({})
+        .catch((error: unknown) => this.reportFailure(error));
       this.queueIgnoreRules(watched);
     }, this.options.burstMs);
     entry.timer.unref();

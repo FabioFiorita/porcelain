@@ -13,6 +13,10 @@ export type {
   CollectAbsentWorktreesResult,
 } from './collect-absent-worktrees.ts';
 export type {
+  CompareKnownWorktreesInput,
+  CompareKnownWorktreesResult,
+} from './compare-known-worktrees.ts';
+export type {
   ComposeInventoryInput,
   ComposeInventoryResult,
 } from './compose-inventory.ts';

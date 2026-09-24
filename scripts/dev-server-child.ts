@@ -61,8 +61,19 @@ try {
   await git('commit', '-m', fixture.initialCommit);
   await writeFile(readme, fixture.readme.changed);
 
+  const settings = readServerSettings({
+    dataDirectory: state,
+    projectHome: root,
+    port: 0,
+  });
   server = await startRuntime(
-    readServerSettings({ dataDirectory: state, projectHome: root, port: 0 }),
+    {
+      ...settings,
+      limits: {
+        ...settings.limits,
+        jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+      },
+    },
     shutdown.signal,
   );
   const [grant] = await server.issuePairing(

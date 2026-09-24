@@ -5,8 +5,18 @@ import {
   defineFeature,
   list,
   record,
+  type HttpRequest,
   type Session,
 } from '../scripts/feature.ts';
+import { eventually } from '../scripts/fixture.ts';
+
+const inventory: HttpRequest = { method: 'GET', path: '/api/inventory' };
+
+const everyProjectIs =
+  (available: boolean) => (body: Record<string, unknown>) =>
+    list(body.projects).every(
+      (project) => record(project).available === available,
+    );
 
 const registered = (session: Session, available: boolean) => ({
   id: session.projectId,
@@ -30,7 +40,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    "A paired client reads the inventory: the server's environment and every registered project with its availability and worktrees. Each worktree reports its path, whether it is the main checkout, its branch ref, availability and review status (null until a review is published). A project whose folder has gone away stays registered and is reported unavailable, with its worktrees, until the folder is back.",
+    "A paired client reads the inventory: the server's environment and every registered project with its availability and worktrees. Each worktree reports its path, whether it is the main checkout, its branch ref, availability and review status (null until a review is published). Reading the inventory never runs Git: it answers what the last refresh stored, and the server refreshes on a timer and when a watched repository changes. A project whose folder has gone away stays registered and is reported unavailable, with its worktrees, from the next refresh until a refresh after the folder is back.",
   cases: [
     defineCase({
       name: 'registered sample repository',
@@ -51,6 +61,7 @@ export default defineFeature({
       async setup(session) {
         const moved = `${session.repository}-moved`;
         await rename(session.repository, moved);
+        await eventually(session, inventory, everyProjectIs(false));
         return moved;
       },
       request: () => ({ method: 'GET', path: '/api/inventory' }),
@@ -67,10 +78,8 @@ export default defineFeature({
           'available again once the folder is back',
           [registered(session, true)],
           list(
-            record(
-              (await session.send({ method: 'GET', path: '/api/inventory' }))
-                .body,
-            ).projects,
+            (await eventually(session, inventory, everyProjectIs(true)))
+              .projects,
           ),
         );
       },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryEventPublisher } from '../../spec/fakes/in-memory-event-publisher.ts';
 import { InMemoryWorktreeWatcher } from '../../spec/fakes/in-memory-worktree-watcher.ts';
+import { ScriptedInventoryRefresh } from '../../spec/fakes/scripted-inventory-refresh.ts';
 import { ScriptedReviewedMarksInvalidation } from '../../spec/fakes/scripted-reviewed-marks-invalidation.ts';
 import { WatchWorktreesJob } from './watch-worktrees-job.ts';
 
@@ -15,6 +16,7 @@ function subject(limits = { maxConnections: 4, maxWatchedWorktrees: 4 }) {
   const watcher = new InMemoryWorktreeWatcher();
   const events = new InMemoryEventPublisher();
   const invalidation = new ScriptedReviewedMarksInvalidation();
+  const refresh = new ScriptedInventoryRefresh();
   for (const worktreeId of ['one', 'two', 'three'])
     watcher.worktrees.set(worktreeId, {
       projectId: PROJECT,
@@ -25,12 +27,12 @@ function subject(limits = { maxConnections: 4, maxWatchedWorktrees: 4 }) {
     projectId: PROJECT,
     commonDirectory: '/repositories/one/.git',
   });
-  const job = new WatchWorktreesJob(invalidation, events, watcher, {
+  const job = new WatchWorktreesJob(invalidation, refresh, events, watcher, {
     ...limits,
     burstMs: 1,
   });
   job.start();
-  return { job, watcher, events, invalidation };
+  return { job, watcher, events, invalidation, refresh };
 }
 
 function wish(worktreeId: string, projectId = PROJECT) {
@@ -92,8 +94,8 @@ describe('WatchWorktreesJob', () => {
     expect(events.announcedFiles.get('one')).toBe(1);
   });
 
-  it('announces a repository change to every watched worktree of the project and to the inventory', async () => {
-    const { job, watcher, events } = subject();
+  it('announces a repository change to every watched worktree of the project and refreshes the inventory', async () => {
+    const { job, watcher, events, refresh } = subject();
     await job
       .open()
       .replace({ projects: [PROJECT], worktrees: [wish('one'), wish('two')] });
@@ -105,7 +107,7 @@ describe('WatchWorktreesJob', () => {
         ['two', 'git'],
       ]),
     );
-    expect(events.inventoryAnnouncements).toBe(1);
+    expect(refresh.refreshes).toBe(1);
   });
 
   it('stops watching a worktree once no client names it', async () => {

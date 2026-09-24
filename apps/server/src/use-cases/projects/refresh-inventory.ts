@@ -1,4 +1,6 @@
 import type {
+  CompareKnownWorktreesService,
+  ListKnownWorktreesService,
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
   MarkProjectsUnavailableService,
@@ -11,30 +13,36 @@ import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class RefreshInventoryUseCase {
-  private readonly markProjectsUnavailable: MarkProjectsUnavailableService;
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
+  private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly listProjectWorktrees: ListProjectWorktreesService;
+  private readonly markProjectsUnavailable: MarkProjectsUnavailableService;
   private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
   private readonly recordWorktreePresence: RecordWorktreePresenceService;
+  private readonly compareKnownWorktrees: CompareKnownWorktreesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    markProjectsUnavailable: MarkProjectsUnavailableService,
     listRegisteredProjects: ListRegisteredProjectsService,
+    listKnownWorktrees: ListKnownWorktreesService,
     listProjectWorktrees: ListProjectWorktreesService,
+    markProjectsUnavailable: MarkProjectsUnavailableService,
     updateProjectAvailability: UpdateProjectAvailabilityService,
     recordWorktreePresence: RecordWorktreePresenceService,
+    compareKnownWorktrees: CompareKnownWorktreesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.markProjectsUnavailable = markProjectsUnavailable;
     this.listRegisteredProjects = listRegisteredProjects;
+    this.listKnownWorktrees = listKnownWorktrees;
     this.listProjectWorktrees = listProjectWorktrees;
+    this.markProjectsUnavailable = markProjectsUnavailable;
     this.updateProjectAvailability = updateProjectAvailability;
     this.recordWorktreePresence = recordWorktreePresence;
+    this.compareKnownWorktrees = compareKnownWorktrees;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -45,18 +53,23 @@ export class RefreshInventoryUseCase {
       this.laneKeys.inventory(),
       'write',
       async ({ signal }) => {
-        this.markProjectsUnavailable.execute();
-        const { projects } = this.listRegisteredProjects.execute();
+        const inventory = this.listRegisteredProjects.execute();
+        const before = this.listKnownWorktrees.execute(inventory).listings;
         const listings = await Promise.all(
-          projects.map((project) =>
+          inventory.projects.map((project) =>
             this.listProjectWorktrees.execute({ project }, signal),
           ),
         );
+        this.markProjectsUnavailable.execute();
         for (const worktrees of listings) {
           this.updateProjectAvailability.execute({ worktrees });
           this.recordWorktreePresence.execute({ worktrees });
         }
-        this.events.inventoryChanged();
+        const after = this.listKnownWorktrees.execute(
+          this.listRegisteredProjects.execute(),
+        ).listings;
+        if (this.compareKnownWorktrees.execute({ before, after }).changed)
+          this.events.inventoryChanged();
       },
       { callerSignal: context.signal },
     );

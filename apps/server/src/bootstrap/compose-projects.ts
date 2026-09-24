@@ -7,6 +7,7 @@ import type {
 import {
   BrowseProjectFoldersService,
   CollectAbsentWorktreesService,
+  CompareKnownWorktreesService,
   ComposeInventoryService,
   ComposeProjectReportService,
   DiscoverProjectsService,
@@ -69,6 +70,7 @@ export function composeProjects(
   const projectRepositoryReader = new GitProjectRepositoryReader(adapters.git);
 
   const listRegisteredProjects = new ListRegisteredProjectsService(inventory);
+  const listKnownWorktrees = new ListKnownWorktreesService(worktreeDirectory);
   const listProjectWorktrees = new ListProjectWorktreesService(
     worktreeDirectory,
   );
@@ -87,7 +89,7 @@ export function composeProjects(
   return {
     readInventory: new ReadInventoryUseCase(
       listRegisteredProjects,
-      new ListKnownWorktreesService(worktreeDirectory),
+      listKnownWorktrees,
       readWorktreeStatuses,
       new ComposeInventoryService(),
       lanes,
@@ -101,11 +103,13 @@ export function composeProjects(
       laneKeys,
     ),
     refreshInventory: new RefreshInventoryUseCase(
-      new MarkProjectsUnavailableService(inventory),
       listRegisteredProjects,
+      listKnownWorktrees,
       listProjectWorktrees,
+      new MarkProjectsUnavailableService(inventory),
       updateProjectAvailability,
       recordWorktreePresence,
+      new CompareKnownWorktreesService(),
       lanes,
       laneKeys,
       events,
