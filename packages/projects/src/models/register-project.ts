@@ -6,4 +6,7 @@ export type RegisterProjectInput = {
   originUrl: string | undefined;
 };
 
-export type RegisterProjectResult = RegisteredProject;
+export type RegisterProjectResult = {
+  project: RegisteredProject;
+  changed: boolean;
+};

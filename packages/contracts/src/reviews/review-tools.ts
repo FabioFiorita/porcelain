@@ -3,7 +3,7 @@ import {
   commentThreadScopeSchema,
   createCommentThreadRequestSchema,
   replyToCommentRequestSchema,
-  resolveCommentThreadRequestSchema,
+  updateCommentThreadRequestSchema,
 } from './comments.ts';
 import {
   publishReviewRequestSchema,
@@ -35,7 +35,7 @@ export const replyToCommentToolRequestSchema = reviewToolScopeSchema.extend({
 });
 export const resolveCommentToolRequestSchema = reviewToolScopeSchema.extend({
   threadId: z.uuid(),
-  ...resolveCommentThreadRequestSchema.shape,
+  ...updateCommentThreadRequestSchema.shape,
 });
 
 export type PublishReviewToolResponse = z.output<

@@ -58,14 +58,11 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
 }
 
 export class ParcelWorktreeWatcher implements WorktreeWatcher {
-  private readonly worktrees: Pick<
-    WorktreeAccessReader<ListedWorktree>,
-    'forWriting'
-  >;
+  private readonly worktrees: WorktreeAccessReader<ListedWorktree>;
   private readonly projects: () => readonly ListableProject[];
 
   constructor(options: {
-    worktrees: Pick<WorktreeAccessReader<ListedWorktree>, 'forWriting'>;
+    worktrees: WorktreeAccessReader<ListedWorktree>;
     projects: () => readonly ListableProject[];
   }) {
     this.worktrees = options.worktrees;
@@ -75,10 +72,10 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
   async findWorktree(
     input: WatchedWorktreeLookup,
   ): Promise<WatchedWorktree | undefined> {
-    const check = await this.worktrees.forWriting({
+    const check = await this.worktrees.known({
       worktreeId: input.worktreeId,
     });
-    if (check.kind !== 'found') return undefined;
+    if (check.kind !== 'found' || !check.worktree.available) return undefined;
     return {
       projectId: check.worktree.projectId,
       worktreeId: check.worktree.id,

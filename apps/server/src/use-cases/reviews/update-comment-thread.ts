@@ -1,7 +1,7 @@
 import type {
   CommentThreadParams,
-  ResolveCommentThreadRequest,
-  ResolveCommentThreadResponse,
+  UpdateCommentThreadRequest,
+  UpdateCommentThreadResponse,
 } from '@porcelain/contracts/reviews';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { UpdateCommentThreadService } from '@porcelain/reviews/services';
@@ -32,9 +32,9 @@ export class UpdateCommentThreadUseCase {
   }
 
   async execute(
-    input: CommentThreadParams & ResolveCommentThreadRequest,
+    input: CommentThreadParams & UpdateCommentThreadRequest,
     context: OperationContext,
-  ): Promise<ResolveCommentThreadResponse> {
+  ): Promise<UpdateCommentThreadResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'writing' },

@@ -3,10 +3,12 @@ import type {
   RegisterProjectInput,
   RegisterProjectResult,
 } from '../models/register-project.ts';
+import type { RegisteredProject } from '../models/project.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 import { deriveProjectName } from '../rules/derive-project-name.ts';
 import { nextPosition } from '../rules/next-position.ts';
 import { parentFolder } from '../rules/parent-folder.ts';
+import { sameProject } from '../rules/same-project.ts';
 
 export class RegisterProjectService {
   private readonly inventory: InventoryStore;
@@ -23,7 +25,7 @@ export class RegisterProjectService {
     const previous = projects.find(
       (project) => project.repositoryIdentity === repository.repositoryIdentity,
     );
-    const project: RegisterProjectResult = {
+    const project: RegisteredProject = {
       id: previous?.id ?? this.idSource.next(),
       name: previous?.namedByOwner
         ? previous.name
@@ -38,7 +40,8 @@ export class RegisterProjectService {
       available: true,
       position: previous?.position ?? nextPosition(projects),
     };
-    this.inventory.save(project);
-    return project;
+    const changed = previous === undefined || !sameProject(previous, project);
+    if (changed) this.inventory.save(project);
+    return { project, changed };
   }
 }

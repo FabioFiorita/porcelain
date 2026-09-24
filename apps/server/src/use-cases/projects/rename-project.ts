@@ -37,7 +37,7 @@ export class RenameProjectUseCase {
       async () => this.renameProject.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.inventoryChanged();
-    return result;
+    if (result.changed) this.events.inventoryChanged();
+    return result.project;
   }
 }

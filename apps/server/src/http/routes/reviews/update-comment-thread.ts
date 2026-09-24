@@ -1,14 +1,14 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
   commentThreadParamsSchema,
-  resolveCommentThreadRequestSchema,
-  resolveCommentThreadResponseSchema,
+  updateCommentThreadRequestSchema,
+  updateCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
 import type { UpdateCommentThreadUseCase } from '../../../use-cases/reviews/update-comment-thread.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
-export function resolveCommentThread(
+export function updateCommentThread(
   server: FastifyInstance,
   options: { useCase: Pick<UpdateCommentThreadUseCase, 'execute'> },
 ) {
@@ -18,10 +18,10 @@ export function resolveCommentThread(
     {
       schema: {
         params: commentThreadParamsSchema,
-        body: resolveCommentThreadRequestSchema,
+        body: updateCommentThreadRequestSchema,
         response: {
           ...errorResponses,
-          200: resolveCommentThreadResponseSchema,
+          200: updateCommentThreadResponseSchema,
         },
       },
     },

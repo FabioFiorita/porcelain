@@ -42,6 +42,7 @@ describe('SetFilePreferenceService', () => {
       }),
     ).toEqual({
       preferences: [{ path: 'README.md', pinned: true, hidden: false }],
+      changed: true,
     });
   });
 
@@ -60,7 +61,10 @@ describe('SetFilePreferenceService', () => {
         flag: 'hidden',
         value: true,
       }),
-    ).toEqual({ preferences: [{ path: 'a.md', pinned: true, hidden: true }] });
+    ).toEqual({
+      preferences: [{ path: 'a.md', pinned: true, hidden: true }],
+      changed: true,
+    });
   });
 
   it('forgets a path once neither flag is set', () => {
@@ -78,19 +82,42 @@ describe('SetFilePreferenceService', () => {
         flag: 'pinned',
         value: false,
       }),
-    ).toEqual({ preferences: [] });
+    ).toEqual({ preferences: [], changed: true });
     expect(preferences.count({ projectId: project.id })).toBe(0);
   });
 
-  it('stores nothing when clearing a flag on a path without preferences', () => {
+  it('stores nothing and reports no change when clearing a flag on a path without preferences', () => {
     const { preferences, service } = setup();
+    expect(
+      service.execute({
+        projectId: project.id,
+        path: 'a.md',
+        flag: 'hidden',
+        value: false,
+      }).changed,
+    ).toBe(false);
+    expect(preferences.count({ projectId: project.id })).toBe(0);
+  });
+
+  it('reports no change when a flag is set to the value it already has', () => {
+    const { service } = setup();
     service.execute({
       projectId: project.id,
       path: 'a.md',
-      flag: 'hidden',
-      value: false,
+      flag: 'pinned',
+      value: true,
     });
-    expect(preferences.count({ projectId: project.id })).toBe(0);
+    expect(
+      service.execute({
+        projectId: project.id,
+        path: 'a.md',
+        flag: 'pinned',
+        value: true,
+      }),
+    ).toEqual({
+      preferences: [{ path: 'a.md', pinned: true, hidden: false }],
+      changed: false,
+    });
   });
 
   it('refuses an unknown project', () => {

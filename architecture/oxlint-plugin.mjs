@@ -249,15 +249,16 @@ function pageSendArgument(handler) {
     : undefined;
 }
 
-function isPageBody(argument, renderers) {
+function isPageBody(sent, renderers) {
+  const argument = awaited(sent);
   if (argument?.type !== 'CallExpression') return false;
   if (isUseCaseExecute(argument.callee)) return true;
-  const rendered = argument.arguments[0];
+  const rendered = awaited(argument.arguments[0]);
   return (
     argument.callee.type === 'Identifier' &&
     renderers.has(argument.callee.name) &&
     argument.arguments.length === 1 &&
-    rendered.type === 'CallExpression' &&
+    rendered?.type === 'CallExpression' &&
     isUseCaseExecute(rendered.callee)
   );
 }
@@ -2692,7 +2693,7 @@ export default {
                 context.report({
                   node: handler,
                   message:
-                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.useCase.execute(...)) or .send(render(options.useCase.execute(...))) where render is imported from http/presenters/.',
+                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(await options.useCase.execute(...)) or .send(render(await options.useCase.execute(...))) where render is imported from http/presenters/.',
                 });
               return;
             }

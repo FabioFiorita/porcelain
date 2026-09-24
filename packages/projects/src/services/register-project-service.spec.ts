@@ -41,7 +41,7 @@ function setup(projects: RegisteredProject[] = []) {
 describe('RegisterProjectService', () => {
   it('registers a new repository under a new id, named after its origin', () => {
     const { inventory, service } = setup();
-    const project = service.execute({
+    const { project } = service.execute({
       repository,
       originUrl: 'git@example.com:team/backend.git',
     });
@@ -59,9 +59,9 @@ describe('RegisterProjectService', () => {
 
   it('names a repository without an origin after its main checkout', () => {
     const { service } = setup();
-    expect(service.execute({ repository, originUrl: undefined }).name).toBe(
-      'api',
-    );
+    expect(
+      service.execute({ repository, originUrl: undefined }).project.name,
+    ).toBe('api');
   });
 
   it('names a repository without a main checkout after the folder holding its Git directory', () => {
@@ -74,13 +74,13 @@ describe('RegisterProjectService', () => {
           worktrees: [],
         },
         originUrl: undefined,
-      }).name,
+      }).project.name,
     ).toBe('bare');
   });
 
   it('returns the existing project when the repository is registered again', () => {
     const { inventory, service } = setup([registered({})]);
-    const project = service.execute({ repository, originUrl: undefined });
+    const { project } = service.execute({ repository, originUrl: undefined });
     expect(project.id).toBe('existing');
     expect(project.commonDirectory).toBe('/srv/api/.git');
     expect(project.available).toBe(true);
@@ -91,7 +91,7 @@ describe('RegisterProjectService', () => {
     const { service } = setup([
       registered({ name: 'Billing', namedByOwner: true }),
     ]);
-    const project = service.execute({
+    const { project } = service.execute({
       repository,
       originUrl: 'https://example.com/team/backend.git',
     });
@@ -105,8 +105,30 @@ describe('RegisterProjectService', () => {
       service.execute({
         repository,
         originUrl: 'https://example.com/team/new.git',
-      }).name,
+      }).project.name,
     ).toBe('new');
+  });
+
+  it('reports a change when it registers a new repository', () => {
+    const { service } = setup();
+    expect(service.execute({ repository, originUrl: undefined }).changed).toBe(
+      true,
+    );
+  });
+
+  it('reports no change when the same repository is registered again as it is', () => {
+    const { service } = setup();
+    service.execute({ repository, originUrl: undefined });
+    expect(service.execute({ repository, originUrl: undefined }).changed).toBe(
+      false,
+    );
+  });
+
+  it('reports a change when registering again makes an unavailable project available', () => {
+    const { service } = setup([registered({ available: false })]);
+    expect(service.execute({ repository, originUrl: undefined }).changed).toBe(
+      true,
+    );
   });
 
   it('lists a new repository after every project registered before it', () => {
@@ -114,7 +136,7 @@ describe('RegisterProjectService', () => {
       registered({ id: 'first', repositoryIdentity: 'other-1', position: 1 }),
       registered({ id: 'second', repositoryIdentity: 'other-2', position: 4 }),
     ]);
-    const project = service.execute({ repository, originUrl: undefined });
+    const { project } = service.execute({ repository, originUrl: undefined });
     expect(project.position).toBe(5);
     expect(inventory.read().projects.map((entry) => entry.id)).toEqual([
       'first',

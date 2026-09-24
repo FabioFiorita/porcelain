@@ -25,7 +25,10 @@ export type {
   UntrackedFileRequest,
 } from './commit-draft-evidence.ts';
 export type { GitActionProblem } from './git-action-problem.ts';
-export type { DismissInterruptedGitActionInput } from './dismiss-interrupted-git-action.ts';
+export type {
+  DismissInterruptedGitActionInput,
+  DismissInterruptedGitActionResult,
+} from './dismiss-interrupted-git-action.ts';
 export type {
   FinishGitActionInput,
   FinishGitActionResult,

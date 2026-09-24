@@ -7,8 +7,8 @@ export {
   markCommentsSeenResponseSchema,
   replyToCommentRequestSchema,
   replyToCommentResponseSchema,
-  resolveCommentThreadRequestSchema,
-  resolveCommentThreadResponseSchema,
+  updateCommentThreadRequestSchema,
+  updateCommentThreadResponseSchema,
   type CommentThreadParams,
   type CommentThreadScope,
   type CreateCommentThreadRequest,
@@ -18,8 +18,8 @@ export {
   type MarkCommentsSeenResponse,
   type ReplyToCommentRequest,
   type ReplyToCommentResponse,
-  type ResolveCommentThreadRequest,
-  type ResolveCommentThreadResponse,
+  type UpdateCommentThreadRequest,
+  type UpdateCommentThreadResponse,
 } from './comments.ts';
 export {
   publishReviewRequestSchema,

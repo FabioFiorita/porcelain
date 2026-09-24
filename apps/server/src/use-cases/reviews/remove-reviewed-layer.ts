@@ -46,7 +46,9 @@ export class RemoveReviewedLayerUseCase {
       async () => this.removeReviewedLayer.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
-    return result;
+    const { removed, ...response } = result;
+    if (removed)
+      this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
+    return response;
   }
 }

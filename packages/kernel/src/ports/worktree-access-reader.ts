@@ -9,8 +9,4 @@ export interface WorktreeAccessReader<Found extends Worktree = Worktree> {
     input: WorktreeKey,
     signal?: AbortSignal,
   ): Promise<WorktreeCheck<Found>>;
-  forWriting(
-    input: WorktreeKey,
-    signal?: AbortSignal,
-  ): Promise<WorktreeCheck<Found>>;
 }

@@ -1,7 +1,1 @@
-{
-  "porcelain/operation-class-shape": {
-    "apps/server/src/use-cases/reviews/read-review-summary.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    }
-  }
-}
+{}

@@ -81,7 +81,7 @@ import { listReviewedLayers } from '../routes/reviews/list-reviewed-layers.ts';
 import { removeReviewedFile } from '../routes/reviews/remove-reviewed-file.ts';
 import { removeReviewedLayer } from '../routes/reviews/remove-reviewed-layer.ts';
 import { replyToComment } from '../routes/reviews/reply-to-comment.ts';
-import { resolveCommentThread } from '../routes/reviews/resolve-comment-thread.ts';
+import { updateCommentThread } from '../routes/reviews/update-comment-thread.ts';
 import { setReviewedFile } from '../routes/reviews/set-reviewed-file.ts';
 import { setReviewedFiles } from '../routes/reviews/set-reviewed-files.ts';
 import { setReviewedLayer } from '../routes/reviews/set-reviewed-layer.ts';
@@ -125,7 +125,7 @@ export type PairedUseCases = {
     removeReviewedFile: Pick<RemoveReviewedFileUseCase, 'execute'>;
     removeReviewedLayer: Pick<RemoveReviewedLayerUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
-    resolveCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
+    updateCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
     setReviewedFile: Pick<SetReviewedFileUseCase, 'execute'>;
     setReviewedFiles: Pick<SetReviewedFilesUseCase, 'execute'>;
     setReviewedLayer: Pick<SetReviewedLayerUseCase, 'execute'>;
@@ -214,8 +214,8 @@ export async function pairedScope(
   server.register(replyToComment, {
     useCase: options.application.reviews.replyToComment,
   });
-  server.register(resolveCommentThread, {
-    useCase: options.application.reviews.resolveCommentThread,
+  server.register(updateCommentThread, {
+    useCase: options.application.reviews.updateCommentThread,
   });
   server.register(markCommentsSeen, {
     useCase: options.application.reviews.markCommentsSeen,

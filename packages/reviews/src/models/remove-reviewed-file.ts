@@ -5,4 +5,4 @@ export type RemoveReviewedFileInput = {
   path: string;
 };
 
-export type RemoveReviewedFileResult = ReviewedFiles;
+export type RemoveReviewedFileResult = ReviewedFiles & { removed: boolean };

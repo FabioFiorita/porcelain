@@ -13,7 +13,14 @@ export class RemoveReviewedLayerService {
 
   execute(input: RemoveReviewedLayerInput): RemoveReviewedLayerResult {
     const { worktreeId, layerId } = input;
-    this.reviewedLayers.remove({ worktreeId, layerId });
-    return { worktreeId, marks: this.reviewedLayers.list({ worktreeId }) };
+    const removed = this.reviewedLayers
+      .list({ worktreeId })
+      .some((mark) => mark.layerId === layerId);
+    if (removed) this.reviewedLayers.remove({ worktreeId, layerId });
+    return {
+      worktreeId,
+      marks: this.reviewedLayers.list({ worktreeId }),
+      removed,
+    };
   }
 }

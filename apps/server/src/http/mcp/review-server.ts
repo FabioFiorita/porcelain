@@ -10,7 +10,7 @@ import {
   readReviewToolRequestSchema,
   replyToCommentResponseSchema,
   replyToCommentToolRequestSchema,
-  resolveCommentThreadResponseSchema,
+  updateCommentThreadResponseSchema,
   resolveCommentToolRequestSchema,
 } from '@porcelain/contracts/reviews';
 import { z } from 'zod';
@@ -34,7 +34,7 @@ export type ReviewMcpUseCases = {
     publishReview: Pick<PublishReviewUseCase, 'execute'>;
     readPublishedReview: Pick<ReadPublishedReviewUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
-    resolveCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
+    updateCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
   };
 };
 
@@ -174,8 +174,8 @@ export function createReviewMcpServer(
       inputSchema: resolveCommentToolRequestSchema,
     },
     ({ cwd, ...input }, { signal }) =>
-      result(resolveCommentThreadResponseSchema, async () =>
-        useCases.reviews.resolveCommentThread.execute(
+      result(updateCommentThreadResponseSchema, async () =>
+        useCases.reviews.updateCommentThread.execute(
           { worktreeId: await worktreeAt(cwd, signal), ...input },
           { signal },
         ),

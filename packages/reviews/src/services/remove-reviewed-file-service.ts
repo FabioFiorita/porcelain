@@ -14,10 +14,14 @@ export class RemoveReviewedFileService {
 
   execute(input: RemoveReviewedFileInput): RemoveReviewedFileResult {
     const { worktreeId } = input;
-    this.reviewedFiles.remove({ worktreeId, paths: [input.path] });
+    const removed = this.reviewedFiles
+      .list({ worktreeId })
+      .some((mark) => mark.path === input.path);
+    if (removed) this.reviewedFiles.remove({ worktreeId, paths: [input.path] });
     return {
       worktreeId,
       marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
+      removed,
     };
   }
 }

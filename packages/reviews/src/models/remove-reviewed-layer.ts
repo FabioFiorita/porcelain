@@ -5,4 +5,4 @@ export type RemoveReviewedLayerInput = {
   layerId: string;
 };
 
-export type RemoveReviewedLayerResult = ReviewedLayers;
+export type RemoveReviewedLayerResult = ReviewedLayers & { removed: boolean };

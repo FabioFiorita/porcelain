@@ -7,6 +7,9 @@ export type SetFilePreferenceInput = {
   value: boolean;
 };
 
-export type SetFilePreferenceResult = { preferences: FilePreference[] };
+export type SetFilePreferenceResult = {
+  preferences: FilePreference[];
+  changed: boolean;
+};
 
 export type SetFilePreferenceOptions = { maxPreferences: number };

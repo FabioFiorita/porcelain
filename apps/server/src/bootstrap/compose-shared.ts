@@ -73,10 +73,7 @@ export function composeShared(dependencies: SharedDependencies) {
     timeoutMs: limits.inventory.listingTimeoutMs,
     worktreeId: dependencies.worktreeId,
   });
-  const worktreeAccess = new GitWorktreeAccessReader(
-    worktreeDirectory,
-    stores.inventory,
-  );
+  const worktreeAccess = new GitWorktreeAccessReader(worktreeDirectory);
   const openInspection = inspectionCheckouts(worktreeAccess, inspection);
   const changeStatusReader = new GitChangeStatusReader(openInspection);
   const fileReader = new FilesystemFileReader(worktreeAccess);
@@ -102,7 +99,7 @@ export function composeShared(dependencies: SharedDependencies) {
     openInspection,
     changeStatusReader,
     fileReader,
-    checkWorktree: new CheckWorktreeService(worktreeAccess),
+    checkWorktree: new CheckWorktreeService(worktreeAccess, stores.inventory),
     readEnvironment: new ReadEnvironmentService(stores.environmentIdentity),
     readTextFile,
     readWorktreeStatus,

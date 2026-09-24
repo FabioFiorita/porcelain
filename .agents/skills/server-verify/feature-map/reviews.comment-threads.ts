@@ -3,7 +3,7 @@ import {
   createCommentThreadResponseSchema,
   listCommentThreadsResponseSchema,
   replyToCommentResponseSchema,
-  resolveCommentThreadResponseSchema,
+  updateCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
 import {
   apiError,
@@ -198,7 +198,7 @@ export default defineFeature({
         );
         checkContract(
           'resolution contract',
-          resolveCommentThreadResponseSchema,
+          updateCommentThreadResponseSchema,
           responses[1]?.body,
         );
         checkPartial(

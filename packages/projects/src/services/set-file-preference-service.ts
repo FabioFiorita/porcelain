@@ -35,8 +35,13 @@ export class SetFilePreferenceService {
       hidden: existing?.hidden ?? false,
       [input.flag]: input.value,
     };
+    const changed =
+      (existing?.pinned ?? false) !== next.pinned ||
+      (existing?.hidden ?? false) !== next.hidden;
+    if (!changed)
+      return { preferences: this.filePreference.list({ projectId }), changed };
     if (!next.pinned && !next.hidden) {
-      if (existing) this.filePreference.remove({ projectId, path });
+      this.filePreference.remove({ projectId, path });
     } else {
       if (
         !existing &&
@@ -45,6 +50,6 @@ export class SetFilePreferenceService {
         throw new FilePreferenceLimitError();
       this.filePreference.save({ projectId, preference: next });
     }
-    return { preferences: this.filePreference.list({ projectId }) };
+    return { preferences: this.filePreference.list({ projectId }), changed };
   }
 }

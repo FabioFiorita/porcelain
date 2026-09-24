@@ -48,6 +48,27 @@ describe('DismissInterruptedGitActionService', () => {
     ).toBeUndefined();
   });
 
+  it('answers the dismissed receipt', () => {
+    const { service } = subject();
+    expect(service.execute(scope)).toMatchObject({
+      kind: 'dismissed',
+      receipt: { requestId: REQUEST_ID, state: 'interrupted' },
+    });
+  });
+
+  it('keeps the first dismissal when the same action is dismissed again', () => {
+    const { store, service } = subject();
+    service.execute(scope);
+    const again = new DismissInterruptedGitActionService(
+      store,
+      new FixedClock('2026-09-23T14:00:00.000Z'),
+    );
+    expect(again.execute(scope).kind).toBe('already-dismissed');
+    expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBe(
+      dismissedAt,
+    );
+  });
+
   it('does not find a request it never accepted', () => {
     const { service } = subject();
     expect(() =>

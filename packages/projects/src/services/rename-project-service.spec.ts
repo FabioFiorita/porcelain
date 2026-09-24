@@ -24,10 +24,28 @@ describe('RenameProjectService', () => {
     const { service } = setup();
     expect(service.execute({ projectId: project.id, name: 'Billing' })).toEqual(
       {
-        id: project.id,
-        name: 'Billing',
+        project: { id: project.id, name: 'Billing' },
+        changed: true,
       },
     );
+  });
+
+  it('reports no change when the owner gives the name the project already has', () => {
+    const { service } = setup();
+    service.execute({ projectId: project.id, name: 'Billing' });
+    expect(
+      service.execute({ projectId: project.id, name: 'Billing' }).changed,
+    ).toBe(false);
+  });
+
+  it('reports a change when the owner confirms a derived name as their own', () => {
+    const { inventory, service } = setup();
+    expect(
+      service.execute({ projectId: project.id, name: project.name }).changed,
+    ).toBe(true);
+    expect(inventory.read().projects).toEqual([
+      { ...project, namedByOwner: true },
+    ]);
   });
 
   it("stores the name as the owner's own, changing nothing else", () => {

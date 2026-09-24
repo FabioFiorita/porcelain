@@ -80,10 +80,10 @@ export const replyToCommentRequestSchema = z.strictObject({
 });
 export const replyToCommentResponseSchema = commentThreadSchema;
 
-export const resolveCommentThreadRequestSchema = z.strictObject({
+export const updateCommentThreadRequestSchema = z.strictObject({
   resolved: z.boolean(),
 });
-export const resolveCommentThreadResponseSchema = commentThreadSchema;
+export const updateCommentThreadResponseSchema = commentThreadSchema;
 
 export const markCommentsSeenRequestSchema = z.strictObject({
   throughRevision: z.number().int().nonnegative(),
@@ -110,11 +110,11 @@ export type ReplyToCommentRequest = z.output<
 export type ReplyToCommentResponse = z.output<
   typeof replyToCommentResponseSchema
 >;
-export type ResolveCommentThreadRequest = z.output<
-  typeof resolveCommentThreadRequestSchema
+export type UpdateCommentThreadRequest = z.output<
+  typeof updateCommentThreadRequestSchema
 >;
-export type ResolveCommentThreadResponse = z.output<
-  typeof resolveCommentThreadResponseSchema
+export type UpdateCommentThreadResponse = z.output<
+  typeof updateCommentThreadResponseSchema
 >;
 export type MarkCommentsSeenRequest = z.output<
   typeof markCommentsSeenRequestSchema

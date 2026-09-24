@@ -8,5 +8,6 @@ export { parentFolder } from './parent-folder.ts';
 export { inventoryReport, projectReport } from './project-report.ts';
 export { unavailableWorktrees } from './unavailable-worktrees.ts';
 export { worktreeAtPath } from './worktree-at-path.ts';
+export { worktreeIsWritable } from './worktree-is-writable.ts';
 export { absolutePath, containsPath } from './worktree-path.ts';
 export { expired, observed, sighted } from './worktree-presence.ts';

@@ -31,7 +31,10 @@ export function readReviewSummaryPage(
         .type('text/html; charset=utf-8')
         .send(
           summaryPage(
-            options.useCase.execute({ ...request.params, ...request.query }),
+            await options.useCase.execute(
+              { ...request.params, ...request.query },
+              { signal: request.disconnected },
+            ),
           ),
         ),
   );

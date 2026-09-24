@@ -106,7 +106,7 @@ export function composeReviews(
       laneKeys,
       events,
     ),
-    resolveCommentThread: new UpdateCommentThreadUseCase(
+    updateCommentThread: new UpdateCommentThreadUseCase(
       checkWorktree,
       new UpdateCommentThreadService(commentStore),
       lanes,
@@ -147,6 +147,7 @@ export function composeReviews(
     readReviewSummary: new ReadReviewSummaryUseCase(
       new ReadReviewSummaryService(reviewStore, clock, signatureSource),
       lanes,
+      laneKeys,
     ),
     listReviewedFiles: new ListReviewedFilesUseCase(
       checkWorktree,

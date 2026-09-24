@@ -13,7 +13,6 @@ export { ReadReviewBadgesService } from './read-review-badges-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
 export { ReadReviewTextsService } from './read-review-texts-service.ts';
 export { ReadReviewSummaryService } from './read-review-summary-service.ts';
-export { ReconcileReviewedFilesService } from './reconcile-reviewed-files-service.ts';
 export { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';
 export { RecordReviewActivityService } from './record-review-activity-service.ts';
 export { RemoveReviewedFileService } from './remove-reviewed-file-service.ts';
