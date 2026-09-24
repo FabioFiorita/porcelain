@@ -3,7 +3,6 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { readPending, settlePending } from '../architecture/pending.ts';
 import { domainPackages } from '../architecture/policy.ts';
 
 const mode = process.argv[2];
@@ -226,22 +225,14 @@ function lint(): number {
     ),
     file: diagnostic.filename,
   }));
-  const settled = settlePending(
-    readPending('architecture/pending.json'),
-    (rule) => rule.startsWith('porcelain/'),
-    findings,
-  );
-  for (const finding of settled.reported) {
+  for (const finding of findings) {
     const span = finding.labels?.[0]?.span;
     process.stdout.write(
       `${finding.filename}:${span?.line ?? 0}:${span?.column ?? 0}: ${finding.severity} ${finding.code ?? ''}: ${finding.message}\n`,
     );
   }
-  for (const problem of settled.problems) process.stderr.write(`${problem}\n`);
-  process.stdout.write(
-    `${settled.reported.length} findings; ${settled.held} held by architecture/pending.json.\n`,
-  );
-  return settled.reported.length > 0 || settled.problems.length > 0 ? 1 : 0;
+  process.stdout.write(`${findings.length} findings.\n`);
+  return findings.length > 0 ? 1 : 0;
 }
 
 if (mode === 'format') {
