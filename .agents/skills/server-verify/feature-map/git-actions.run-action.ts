@@ -354,6 +354,37 @@ export default defineFeature({
       },
     }),
     defineCase({
+      name: 'a file that changed since it was looked at',
+      async setup(session) {
+        const path = session.fixture.readme.path;
+        await session.writeFile(path, 'Looked at\n');
+        const expected = await readmeExpected(session);
+        await session.writeFile(path, 'Changed after looking\n');
+        return action(session, { action: 'discard', path }, expected);
+      },
+      request: (session, body) => run(session, body),
+      async expect({ response, state, session, check, checkPartial }) {
+        check('accepted', 202, response.status);
+        checkPartial(
+          'running receipt',
+          { requestId: state.requestId, action: 'discard', state: 'running' },
+          response.body,
+        );
+        const settled = await settledReceipt(session, state.requestId);
+        checkPartial(
+          'rejected',
+          { state: 'rejected', reason: 'CHANGED_SINCE_LOOKED' },
+          settled.receipt,
+        );
+        check(
+          'the newer content is kept',
+          'Changed after looking\n',
+          await session.readFile(session.fixture.readme.path),
+        );
+        await session.git('checkout', '--', session.fixture.readme.path);
+      },
+    }),
+    defineCase({
       name: 'switch to another branch',
       setup: (session) =>
         action(session, { action: 'switch-branch', branch: 'feature' }),

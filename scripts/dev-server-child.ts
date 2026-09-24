@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -60,7 +60,12 @@ function askOwner(socketPath: string, path: string, body: unknown) {
 
 const committed = '# Sample repository\n';
 const fixture = {
-  folders: { home: 'home', repository: 'repository', state: 'state' },
+  folders: {
+    home: 'home',
+    repository: 'repository',
+    state: 'state',
+    web: 'web',
+  },
   branch: 'main',
   device: { label: 'Development setup', platform: 'Development' },
   readme: {
@@ -69,6 +74,12 @@ const fixture = {
     changed: `${committed}\nA change to review.\n`,
   },
   initialCommit: 'Initial commit',
+  web: {
+    shell: '<!doctype html><title>Porcelain</title>\n',
+    asset: { path: 'assets/app-0123abcd.js', text: 'export {};\n' },
+    escape: 'leak.txt',
+  },
+  summaryLinkLifetimeMs: 2000,
 };
 
 try {
@@ -101,10 +112,17 @@ try {
   await git('commit', '-m', fixture.initialCommit);
   await writeFile(readme, fixture.readme.changed);
 
+  const web = join(root, fixture.folders.web);
+  await mkdir(join(web, 'assets'), { recursive: true });
+  await writeFile(join(web, 'index.html'), fixture.web.shell);
+  await writeFile(join(web, fixture.web.asset.path), fixture.web.asset.text);
+  await symlink('../credential.json', join(web, fixture.web.escape));
+
   const settings = readServerSettings({
     dataDirectory: state,
     projectHome: root,
     port: 0,
+    webRoot: web,
   });
   server = await startRuntime(
     {
@@ -112,6 +130,13 @@ try {
       limits: {
         ...settings.limits,
         jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+        reviews: {
+          ...settings.limits.reviews,
+          summaryLink: {
+            ...settings.limits.reviews.summaryLink,
+            lifetimeMs: fixture.summaryLinkLifetimeMs,
+          },
+        },
       },
     },
     shutdown.signal,

@@ -53,7 +53,7 @@ function routePattern(reach: string): RegExp {
     .map((part) =>
       part.startsWith(':')
         ? '[^/?]+'
-        : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+        : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replaceAll('\\*', '.*'),
     )
     .join('');
   return new RegExp(`^${escaped}(?:\\?.*)?$`);

@@ -248,3 +248,49 @@ export function deviceCookie(header: string | undefined) {
   const match = /^([^=;]+)=[^;]+; (.+)$/.exec(header ?? '');
   return match ? { name: match[1], attributes: match[2] } : { header };
 }
+
+export const unreadablePath = apiError(
+  422,
+  'Unprocessable Entity',
+  'Path could not be read',
+);
+
+export const credentialLink = '../credential.json';
+
+export const mcpHeaders = (cwd: string) => ({
+  accept: 'application/json, text/event-stream',
+  'x-porcelain-cwd': cwd,
+});
+
+export function toolCall(
+  session: Session,
+  id: number,
+  name: string,
+  input: Record<string, unknown>,
+): HttpRequest {
+  return {
+    method: 'POST',
+    path: '/mcp',
+    target: 'owner',
+    headers: mcpHeaders(session.repository),
+    body: {
+      jsonrpc: '2.0',
+      id,
+      method: 'tools/call',
+      params: { name, arguments: input },
+    },
+  };
+}
+
+export function toolResult(body: unknown) {
+  return record(record(body).result);
+}
+
+export function toolText(body: unknown) {
+  return text(record(list(toolResult(body).content)[0]).text);
+}
+
+export function toolValue(body: unknown): unknown {
+  const value: unknown = JSON.parse(toolText(body));
+  return value;
+}

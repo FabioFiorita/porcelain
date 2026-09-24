@@ -200,7 +200,8 @@ export class Provenance {
         Array.isArray(value) ? value : Object.values(value)
       ).map((child) => visit(child, false));
       if (children.includes('unknown')) return 'unknown';
-      return children.includes('credited') ? 'credited' : 'unknown';
+      if (children.includes('credited')) return 'credited';
+      return top ? 'unknown' : 'neutral';
     };
     const count = () => {
       for (const apply of evidence) apply();
@@ -251,7 +252,11 @@ export class Provenance {
     const target = observation.parts.get(part) ?? contents();
     observation.parts.set(part, target);
     const walk = (entry: unknown) => {
-      if (typeof entry === 'string') target.texts.push(entry);
+      if (typeof entry === 'string') {
+        target.texts.push(entry);
+        const embedded = embeddedJson(entry);
+        if (embedded !== undefined) walkLeaves(embedded);
+      }
       if (typeof entry !== 'object' || entry === null) {
         target.leaves.add(entry);
         return;
@@ -267,6 +272,28 @@ export class Provenance {
         walk(child);
       }
     };
+    const walkLeaves = (entry: unknown) => {
+      if (typeof entry !== 'object' || entry === null) {
+        target.leaves.add(entry);
+        if (typeof entry === 'string') target.texts.push(entry);
+        return;
+      }
+      if (Array.isArray(entry)) target.leaves.add(entry.length);
+      for (const [key, child] of Object.entries(entry)) {
+        if (!Array.isArray(entry)) target.leaves.add(key);
+        walkLeaves(child);
+      }
+    };
     walk(value);
+  }
+}
+
+function embeddedJson(value: string): unknown {
+  if (!/^\s*[[{]/.test(value)) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed;
+  } catch {
+    return undefined;
   }
 }

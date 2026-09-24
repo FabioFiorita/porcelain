@@ -8,7 +8,13 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { read, worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import {
+  credentialLink,
+  read,
+  unreadablePath,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 const text = (session: Session, path: string) => ({
   method: 'GET' as const,
@@ -22,7 +28,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    'A reviewer reads a UTF-8 text file from the worktree as it is on disk, with its byte length and a content fingerprint that a later edit must present; the fingerprint stays while the content does and moves when it changes. Binary or non-UTF-8 files are refused as unsupported text; paths that escape the worktree, absolute paths and the root are invalid; a missing file is not found.',
+    'A reviewer reads a UTF-8 text file from the worktree as it is on disk, with its byte length and a content fingerprint that a later edit must present; the fingerprint stays while the content does and moves when it changes. Binary or non-UTF-8 files are refused as unsupported text; paths that escape the worktree, absolute paths and the root are invalid; a missing file is not found. A symbolic link is never followed, even to a file inside the worktree: it cannot be read (422).',
   cases: [
     defineCase({
       name: 'the changed README',
@@ -128,6 +134,23 @@ export default defineFeature({
           worktreeNotFound,
           responses[3]?.body,
         );
+      },
+    }),
+    defineCase({
+      name: 'a symbolic link, whether it leaves the worktree or not',
+      async setup(session) {
+        await session.symlink(credentialLink, 'escape.txt');
+        await session.symlink(session.fixture.readme.path, 'inside.md');
+      },
+      request: (session) => [
+        text(session, 'escape.txt'),
+        text(session, 'inside.md'),
+      ],
+      expect({ responses, check }) {
+        check('escaping link status', 422, responses[0]?.status);
+        check('escaping link error body', unreadablePath, responses[0]?.body);
+        check('inside link status', 422, responses[1]?.status);
+        check('inside link error body', unreadablePath, responses[1]?.body);
       },
     }),
   ],

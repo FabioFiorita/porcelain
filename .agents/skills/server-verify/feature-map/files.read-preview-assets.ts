@@ -5,7 +5,11 @@ import {
   invalidRequest,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
-import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import {
+  credentialLink,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
 
@@ -15,7 +19,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    'A Markdown preview asks for the images a document references, by paths relative to that document. Each is answered in request order as an asset (media type and base64) or as unavailable, including paths that are missing or escape the worktree, so one bad reference never fails the preview.',
+    'A Markdown preview asks for the images a document references, by paths relative to that document. Each is answered in request order as an asset (media type and base64) or as unavailable, including paths that are missing or escape the worktree, so one bad reference never fails the preview. A symbolic link that leaves the worktree is unavailable too.',
   cases: [
     defineCase({
       name: 'found, missing and escaping references',
@@ -77,6 +81,33 @@ export default defineFeature({
           'unknown worktree error body',
           worktreeNotFound,
           responses[1]?.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'a symbolic link out of the worktree',
+      setup: (session) => session.symlink(credentialLink, 'escape.svg'),
+      request: (session) => ({
+        method: 'POST',
+        path: worktreePath(session, '/preview-assets'),
+        body: { document: 'README.md', paths: ['escape.svg', 'logo.svg'] },
+      }),
+      expect({ response, check }) {
+        check('status', 200, response.status);
+        check(
+          'the link is unavailable and the image beside it is not',
+          {
+            assets: [
+              { kind: 'unavailable', path: 'escape.svg' },
+              {
+                kind: 'asset',
+                path: 'logo.svg',
+                mediaType: 'image/svg+xml',
+                base64: Buffer.from(svg).toString('base64'),
+              },
+            ],
+          },
+          response.body,
         );
       },
     }),

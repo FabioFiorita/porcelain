@@ -14,15 +14,11 @@ import {
   unauthenticated,
   type HttpRequest,
 } from '../scripts/feature.ts';
-import { pairDevice, read } from '../scripts/fixture.ts';
+import { mcpHeaders, pairDevice, read } from '../scripts/fixture.ts';
 
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
   ...request,
   target: 'owner',
-});
-const mcpHeaders = (cwd: string) => ({
-  accept: 'application/json, text/event-stream',
-  'x-porcelain-cwd': cwd,
 });
 
 export default defineFeature({
@@ -38,7 +34,7 @@ export default defineFeature({
   paired: false,
   intent: 'observed',
   behaviour:
-    "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses (a request naming an address the server does not answer at, or a blank label, issues nothing), revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only.",
+    "The owner socket is the machine owner's local control surface; reaching it is the authorization. It reports where the server runs, lists pairing grants and devices, issues one-time pairing codes for the server's addresses (a request naming an address the server does not answer at, or a blank label, issues nothing), revokes a grant or a device (a revoked device's credential stops working), and serves the review MCP endpoint over POST only. None of it is reachable from the network listener, even with a paired credential: a read there answers the web shell and a write is not found.",
   cases: [
     defineCase({
       name: 'status',
@@ -317,6 +313,55 @@ export default defineFeature({
           response.body,
         );
         check('allow header', 'POST', response.headers.allow);
+      },
+    }),
+    defineCase({
+      name: 'owner routes are absent on the network listener',
+      setup: (session) =>
+        read(session, owner({ method: 'GET', path: '/access' })),
+      request: (session) => [
+        { method: 'GET', path: '/status' },
+        { method: 'GET', path: '/access' },
+        {
+          method: 'POST',
+          path: '/pairings',
+          body: { labels: ['Intruder'], addresses: [session.address] },
+        },
+        { method: 'POST', path: '/access/revoke', body: { id: 'unknown' } },
+        {
+          method: 'POST',
+          path: '/mcp',
+          headers: mcpHeaders(session.repository),
+          body: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+        },
+      ],
+      async expect({ responses, state, session, check }) {
+        for (const [index, response] of responses.slice(0, 2).entries()) {
+          check(`read ${index + 1} status`, 200, response.status);
+          check(
+            `read ${index + 1} answers the web shell, not the owner`,
+            session.fixture.web.shell,
+            response.body,
+          );
+        }
+        for (const [index, response] of responses.slice(2).entries()) {
+          const request = [
+            'POST:/pairings',
+            'POST:/access/revoke',
+            'POST:/mcp',
+          ][index];
+          check(`write ${index + 1} status`, 404, response.status);
+          check(
+            `write ${index + 1} error body`,
+            apiError(404, 'Not Found', `Route ${request} not found`),
+            response.body,
+          );
+        }
+        check(
+          'nothing was issued or revoked',
+          state,
+          await read(session, owner({ method: 'GET', path: '/access' })),
+        );
       },
     }),
   ],

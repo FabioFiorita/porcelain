@@ -1,5 +1,5 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -37,6 +37,7 @@ type GitStep = {
   error?: string;
 };
 type FileStep = { phase: Phase; kind: 'file'; path: string; bytes: number };
+type LinkStep = { phase: Phase; kind: 'link'; path: string; target: string };
 type LiveStep = {
   phase: Phase;
   kind: 'live';
@@ -46,7 +47,7 @@ type LiveStep = {
   closed?: { code: number; reason: string };
   error?: string;
 };
-export type Step = HttpStep | GitStep | FileStep | LiveStep;
+export type Step = HttpStep | GitStep | FileStep | LinkStep | LiveStep;
 
 type Manifest = {
   address: string;
@@ -157,11 +158,14 @@ function fixtureOf(value: unknown): Fixture {
   const device = record(fixture.device);
   const readme = record(fixture.readme);
   const folders = record(fixture.folders);
+  const web = record(fixture.web);
+  const asset = record(web.asset);
   return {
     folders: {
       home: text(folders.home),
       repository: text(folders.repository),
       state: text(folders.state),
+      web: text(folders.web),
     },
     branch: text(fixture.branch),
     device: { label: text(device.label), platform: text(device.platform) },
@@ -171,6 +175,12 @@ function fixtureOf(value: unknown): Fixture {
       changed: text(readme.changed),
     },
     initialCommit: text(fixture.initialCommit),
+    web: {
+      shell: text(web.shell),
+      asset: { path: text(asset.path), text: text(asset.text) },
+      escape: text(web.escape),
+    },
+    summaryLinkLifetimeMs: Number(fixture.summaryLinkLifetimeMs),
   };
 }
 
@@ -394,6 +404,15 @@ export class IsolatedServer {
         });
         recorder.provenance.observe(`file ${path}`, content);
         return content;
+      },
+      symlink: async (target, path) => {
+        await symlink(target, inside(path));
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'link',
+          path,
+          target,
+        });
       },
       entries: async (path) => {
         const names = (await readdir(inside(path, this.projectHome))).sort();

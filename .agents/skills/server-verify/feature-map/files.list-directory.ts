@@ -4,10 +4,16 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  list,
+  record,
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import {
+  unreadablePath,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 const directory = (session: Session, path?: string) => ({
   method: 'GET' as const,
@@ -21,7 +27,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer browses a worktree folder by folder, from the root (empty path). Entries are named with their kind and ignored entries are flagged. The .git folder is never listed, and a path into it is invalid input like any path that escapes the worktree; a missing folder is not found.',
+    'A reviewer browses a worktree folder by folder, from the root (empty path). Entries are named with their kind and ignored entries are flagged. The .git folder is never listed, and a path into it is invalid input like any path that escapes the worktree; a missing folder is not found. A symbolic link is listed as a link with its target and is not followed: a folder behind one that leaves the worktree cannot be read (422).',
   cases: [
     defineCase({
       name: 'root with an ignored file',
@@ -93,6 +99,23 @@ export default defineFeature({
           'unknown worktree error body',
           worktreeNotFound,
           responses[2]?.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'a symbolic link out of the worktree',
+      setup: (session) => session.symlink('..', 'up'),
+      request: (session) => [directory(session, 'up'), directory(session, '')],
+      expect({ responses, check, checkPartial }) {
+        check('link status', 422, responses[0]?.status);
+        check('link error body', unreadablePath, responses[0]?.body);
+        check('root status', 200, responses[1]?.status);
+        checkPartial(
+          'the root names the link without following it',
+          [{ name: 'up', kind: 'symlink', target: '..' }],
+          list(record(responses[1]?.body).entries).filter(
+            (entry) => record(entry).name === 'up',
+          ),
         );
       },
     }),

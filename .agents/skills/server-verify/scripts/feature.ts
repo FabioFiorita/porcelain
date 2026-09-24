@@ -1,7 +1,7 @@
 export type Intent = 'observed' | 'intended';
 
 export type HttpRequest = {
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  method: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   query?: Record<string, string | number | boolean>;
   body?: unknown;
@@ -29,11 +29,13 @@ export type LiveConnection = {
 };
 
 export type Fixture = {
-  folders: { home: string; repository: string; state: string };
+  folders: { home: string; repository: string; state: string; web: string };
   branch: string;
   device: { label: string; platform: string };
   readme: { path: string; committed: string; changed: string };
   initialCommit: string;
+  web: { shell: string; asset: { path: string; text: string }; escape: string };
+  summaryLinkLifetimeMs: number;
 };
 
 export type Session = {
@@ -49,6 +51,7 @@ export type Session = {
   git(...args: string[]): Promise<string>;
   writeFile(path: string, content: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<string>;
+  symlink(target: string, path: string): Promise<void>;
   entries(path: string): Promise<string[]>;
   secret(value: string): void;
 };

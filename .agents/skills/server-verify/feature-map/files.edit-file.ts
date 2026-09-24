@@ -9,7 +9,13 @@ import {
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
-import { read, worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
+import {
+  credentialLink,
+  read,
+  unreadablePath,
+  worktreeNotFound,
+  worktreePath,
+} from '../scripts/fixture.ts';
 
 const edit = (session: Session, body: unknown) => ({
   method: 'POST' as const,
@@ -31,7 +37,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "The owner edits a worktree in place instead of opening an editor: writes a text file only if its content still matches the fingerprint they read, creates a file or folder, moves an entry, or moves it to the machine's trash. Each answers with the resulting path (and the new fingerprint after a write). Writing over changed content, or creating over an existing entry, is a conflict; paths inside .git and paths that escape the worktree are invalid input.",
+    "The owner edits a worktree in place instead of opening an editor: writes a text file only if its content still matches the fingerprint they read, creates a file or folder, moves an entry, or moves it to the machine's trash. Each answers with the resulting path (and the new fingerprint after a write). Writing over changed content, or creating over an existing entry, is a conflict; paths inside .git and paths that escape the worktree are invalid input. Creating, moving or writing through a symbolic link that leaves the worktree cannot be done (422) and touches nothing outside it.",
   cases: [
     defineCase({
       name: 'write with the current fingerprint',
@@ -248,6 +254,52 @@ export default defineFeature({
         check('nothing escaped', state, await session.entries('..'));
         check(
           'README untouched',
+          'Changed elsewhere\n',
+          await session.readFile(session.fixture.readme.path),
+        );
+      },
+    }),
+    defineCase({
+      name: 'through a symbolic link out of the worktree',
+      async setup(session) {
+        await session.symlink('..', 'up');
+        await session.symlink(credentialLink, 'escape.txt');
+        return session.entries('..');
+      },
+      request: (session) => [
+        edit(session, {
+          kind: 'create',
+          path: 'up/planted.md',
+          entryKind: 'file',
+        }),
+        edit(session, {
+          kind: 'move',
+          path: session.fixture.readme.path,
+          destination: 'up/moved.md',
+        }),
+        edit(session, {
+          kind: 'write',
+          path: 'escape.txt',
+          text: 'Overwritten\n',
+          expectedFingerprint: unknownFingerprint,
+        }),
+      ],
+      async expect({ responses, state, session, check }) {
+        for (const [index, response] of responses.entries()) {
+          check(`request ${index + 1} status`, 422, response.status);
+          check(
+            `request ${index + 1} error body`,
+            unreadablePath,
+            response.body,
+          );
+        }
+        check(
+          'nothing reached the project home',
+          state,
+          await session.entries('..'),
+        );
+        check(
+          'README stays where it was',
           'Changed elsewhere\n',
           await session.readFile(session.fixture.readme.path),
         );
