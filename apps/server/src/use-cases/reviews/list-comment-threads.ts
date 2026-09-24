@@ -34,7 +34,7 @@ export class ListCommentThreadsUseCase {
       context.signal,
     );
     return this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'read',
       async () => this.listCommentThreads.execute(input),
       { callerSignal: context.signal },

@@ -32,7 +32,7 @@ export class InvalidateReviewedMarksUseCase {
       context.signal,
     );
     return this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'write',
       async () => this.invalidateReviewedMarks.execute(input),
       { callerSignal: context.signal },

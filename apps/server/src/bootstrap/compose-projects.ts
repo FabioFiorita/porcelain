@@ -5,6 +5,7 @@ import {
   DiscoverProjectsService,
   ForgetProjectWorktreesService,
   InspectProjectRepositoryService,
+  ListExpiredWorktreesService,
   ListFilePreferencesService,
   ListOtherProjectsService,
   ListProjectWorktreesService,
@@ -152,6 +153,12 @@ export function composeProjects(
       events,
     ),
     collectAbsentWorktrees: new CollectAbsentWorktreesUseCase(
+      new ListExpiredWorktreesService(
+        worktreePresence,
+        inventory,
+        clock,
+        limits.presence,
+      ),
       new CollectAbsentWorktreesService(
         worktreePresence,
         clock,

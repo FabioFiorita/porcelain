@@ -23,6 +23,7 @@ import {
 import {
   CheckWorktreeService,
   ListKnownWorktreesService,
+  ListRecordedWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import {
@@ -110,6 +111,10 @@ export function composeShared(dependencies: SharedDependencies) {
     ),
     listRegisteredProjects: new ListRegisteredProjectsService(stores.inventory),
     listKnownWorktrees: new ListKnownWorktreesService(worktreeDirectory),
+    listRecordedWorktrees: new ListRecordedWorktreesService(
+      stores.worktreePresence,
+      stores.inventory,
+    ),
     readWorktreeStatuses: new ReadReviewBadgesService(
       stores.reviews,
       stores.reviewedLayers,

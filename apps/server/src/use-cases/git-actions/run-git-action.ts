@@ -100,10 +100,10 @@ export class RunGitActionUseCase {
     );
     const { projectId } = worktree;
     const accepted = await this.lanes.run(
-      this.laneKeys.inventory(),
+      this.laneKeys.receipts(worktree),
       'write',
       async () => {
-        this.expireGitActionReceipts.execute();
+        this.expireGitActionReceipts.execute({ worktreeId });
         return this.acceptGitAction.execute({
           projectId,
           worktreeId,
@@ -126,12 +126,14 @@ export class RunGitActionUseCase {
 
   private runInBackground(worktree: Worktree, run: GitActionRun): void {
     this.lanes.background(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.receipts(worktree),
       ({ signal }) => this.settle(worktree, run, signal),
       {
         deadlineMs: this.options.deadlineMs,
         onFailure: (error) =>
-          this.lanes.finish(async () => this.abandon(run, error)),
+          this.lanes.finish(async () => this.abandon(run, error), {
+            lane: this.laneKeys.receipts(worktree),
+          }),
       },
     );
   }
@@ -156,7 +158,7 @@ export class RunGitActionUseCase {
     this.events.gitActionChanged(receipt);
     if (ran.reviewStale)
       this.lanes.background(
-        this.laneKeys.repository(worktree),
+        this.laneKeys.reviews(worktree),
         (admission) => this.refreshReview(run.worktreeId, admission.signal),
         {
           onFailure: (error) =>

@@ -39,7 +39,7 @@ export class DismissInterruptedGitActionUseCase {
       context.signal,
     );
     const result = await this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.receipts(worktree),
       'write',
       async () =>
         this.dismissInterruptedGitAction.execute({

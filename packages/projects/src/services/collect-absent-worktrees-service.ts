@@ -1,3 +1,4 @@
+import type { WorktreeKeys } from '@porcelain/kernel/models';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
   CollectAbsentWorktreesOptions,
@@ -21,9 +22,10 @@ export class CollectAbsentWorktreesService {
     this.options = options;
   }
 
-  execute(): CollectAbsentWorktreesResult {
+  execute(input: WorktreeKeys): CollectAbsentWorktreesResult {
+    const named = new Set(input.worktreeIds);
     const collected = expired(
-      this.worktreePresence.list(),
+      this.worktreePresence.list().filter((row) => named.has(row.worktreeId)),
       this.clock.now(),
       this.options.graceMs,
     );

@@ -4,10 +4,12 @@ export { CollectAbsentWorktreesService } from './collect-absent-worktrees-servic
 export { DiscoverProjectsService } from './discover-projects-service.ts';
 export { ForgetProjectWorktreesService } from './forget-project-worktrees-service.ts';
 export { InspectProjectRepositoryService } from './inspect-project-repository-service.ts';
+export { ListExpiredWorktreesService } from './list-expired-worktrees-service.ts';
 export { ListFilePreferencesService } from './list-file-preferences-service.ts';
 export { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
 export { ListOtherProjectsService } from './list-other-projects-service.ts';
 export { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
+export { ListRecordedWorktreesService } from './list-recorded-worktrees-service.ts';
 export { ListRegisteredProjectsService } from './list-registered-projects-service.ts';
 export { MarkProjectsUnavailableService } from './mark-projects-unavailable-service.ts';
 export { ReadRepositoryOriginService } from './read-repository-origin-service.ts';

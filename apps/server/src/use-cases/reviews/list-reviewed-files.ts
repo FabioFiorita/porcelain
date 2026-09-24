@@ -34,7 +34,7 @@ export class ListReviewedFilesUseCase {
       context.signal,
     );
     return this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'read',
       async () => this.listReviewedFiles.execute({ worktreeId }),
       { callerSignal: context.signal },

@@ -1,3 +1,5 @@
+import type { Worktree } from '@porcelain/kernel/models';
+import type { RegisteredProject } from '../models/project.ts';
 import type { WorktreePresence } from '../models/worktree-presence.ts';
 
 export function sighted(
@@ -42,4 +44,19 @@ export function expired(
         Date.parse(now) - Date.parse(row.missingSince) > graceMs,
     )
     .map((row) => row.worktreeId);
+}
+
+export function recordedWorktrees(
+  rows: readonly WorktreePresence[],
+  projects: readonly RegisteredProject[],
+): Worktree[] {
+  const repositories = new Map(
+    projects.map((project) => [project.id, project.repositoryIdentity]),
+  );
+  return rows.flatMap((row) => {
+    const repositoryId = repositories.get(row.projectId);
+    return repositoryId === undefined
+      ? []
+      : [{ id: row.worktreeId, projectId: row.projectId, repositoryId }];
+  });
 }

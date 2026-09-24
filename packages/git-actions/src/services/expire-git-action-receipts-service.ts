@@ -1,3 +1,4 @@
+import type { WorktreeKey } from '@porcelain/kernel/models';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { expiredReceipts } from '../rules/expired-receipts.ts';
@@ -18,12 +19,16 @@ export class ExpireGitActionReceiptsService {
     this.options = options;
   }
 
-  execute(): void {
+  execute(input: WorktreeKey): void {
     this.gitActionReceipts.remove({
       requestIds: expiredReceipts(
         this.gitActionReceipts.finished(),
         this.clock.now(),
         this.options.retentionMs,
+      ).filter(
+        (requestId) =>
+          this.gitActionReceipts.read({ requestId })?.worktreeId ===
+          input.worktreeId,
       ),
     });
   }

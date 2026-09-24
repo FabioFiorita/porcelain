@@ -48,7 +48,7 @@ export class ReadPublishedReviewUseCase {
       context.signal,
     );
     return this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'read',
       async ({ signal }) => {
         const published = this.readPublishedReview.execute({ worktreeId });

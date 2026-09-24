@@ -37,4 +37,12 @@ export class GitLaneKeys implements LaneKeys {
   repository(worktree: Worktree): string {
     return worktree.repositoryId;
   }
+
+  receipts(worktree: Worktree): string {
+    return this.repository(worktree);
+  }
+
+  reviews(worktree: Worktree): string {
+    return this.repository(worktree);
+  }
 }

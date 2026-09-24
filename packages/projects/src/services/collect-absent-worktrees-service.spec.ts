@@ -26,12 +26,14 @@ function setup(now: string, rows: WorktreePresence[]) {
 }
 
 describe('CollectAbsentWorktreesService', () => {
-  it('collects a worktree absent for longer than the grace period and forgets it', () => {
+  it('collects a named worktree absent for longer than the grace period and forgets it', () => {
     const { presence, service } = setup('2026-08-31T00:00:00.001Z', [
       row('gone', '2026-08-01T00:00:00.000Z'),
       row('here', undefined),
     ]);
-    expect(service.execute()).toEqual({ collected: ['gone'] });
+    expect(service.execute({ worktreeIds: ['gone'] })).toEqual({
+      collected: ['gone'],
+    });
     expect(presence.list()).toEqual([row('here', undefined)]);
   });
 
@@ -39,28 +41,39 @@ describe('CollectAbsentWorktreesService', () => {
     const { presence, service } = setup('2026-08-31T00:00:00.000Z', [
       row('gone', '2026-08-01T00:00:00.000Z'),
     ]);
-    expect(service.execute()).toEqual({ collected: [] });
+    expect(service.execute({ worktreeIds: ['gone'] })).toEqual({
+      collected: [],
+    });
     expect(presence.list()).toEqual([row('gone', '2026-08-01T00:00:00.000Z')]);
   });
 
-  it('never collects a worktree that is present, however long it has been known', () => {
-    const { service } = setup('2100-01-01T00:00:00.000Z', [
-      row('here', undefined),
+  it('keeps a named worktree that came back after it was listed as expired', () => {
+    const { presence, service } = setup('2100-01-01T00:00:00.000Z', [
+      row('back', undefined),
     ]);
-    expect(service.execute()).toEqual({ collected: [] });
+    expect(service.execute({ worktreeIds: ['back'] })).toEqual({
+      collected: [],
+    });
+    expect(presence.list()).toEqual([row('back', undefined)]);
   });
 
-  it('collects expired worktrees of every project at once', () => {
+  it('leaves expired worktrees it was not asked to collect', () => {
     const { presence, service } = setup('2026-12-01T00:00:00.000Z', [
       row('first', '2026-08-01T00:00:00.000Z', 'project-1'),
       row('second', '2026-08-01T00:00:00.000Z', 'project-2'),
     ]);
-    expect(service.execute().collected.toSorted()).toEqual(['first', 'second']);
-    expect(presence.list()).toEqual([]);
+    expect(service.execute({ worktreeIds: ['first'] })).toEqual({
+      collected: ['first'],
+    });
+    expect(presence.list()).toEqual([
+      row('second', '2026-08-01T00:00:00.000Z', 'project-2'),
+    ]);
   });
 
-  it('collects nothing when nothing is known', () => {
+  it('collects nothing for a worktree it does not know', () => {
     const { service } = setup('2026-12-01T00:00:00.000Z', []);
-    expect(service.execute()).toEqual({ collected: [] });
+    expect(service.execute({ worktreeIds: ['unknown'] })).toEqual({
+      collected: [],
+    });
   });
 });

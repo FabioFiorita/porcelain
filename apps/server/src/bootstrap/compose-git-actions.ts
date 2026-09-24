@@ -75,6 +75,7 @@ export function composeGitActions(
       { deadlineMs: limits.deadlineMs },
     ),
     readGitActionReceipt: new ReadGitActionReceiptUseCase(
+      shared.checkWorktree,
       new ReadGitActionReceiptService(store),
       lanes,
       laneKeys,
@@ -117,6 +118,7 @@ export function composeGitActions(
       { deadlineMs: limits.processDeadlineMs },
     ),
     recoverInterruptedGitActions: new RecoverInterruptedGitActionsUseCase(
+      shared.listRecordedWorktrees,
       new RecoverInterruptedGitActionsService(store, clock),
       expireGitActionReceipts,
       lanes,

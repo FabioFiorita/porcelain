@@ -237,13 +237,27 @@ export class Lanes {
     return task;
   }
 
-  finish(work: () => Promise<unknown>): Promise<void> {
-    const task = (async () => work())().then(
+  finish(
+    work: () => Promise<unknown>,
+    options: { lane: string },
+  ): Promise<void> {
+    const task = this.admitWhileClosing(options.lane, work).then(
       () => undefined,
       () => undefined,
     );
     this.track(task);
     return task;
+  }
+
+  private async admitWhileClosing(lane: string, work: () => Promise<unknown>) {
+    const gate = this.gate(lane);
+    await gate.enter('write');
+    try {
+      return await work();
+    } finally {
+      gate.leave('write');
+      if (gate.idle) this.gates.delete(lane);
+    }
   }
 
   private track(task: Promise<unknown>) {

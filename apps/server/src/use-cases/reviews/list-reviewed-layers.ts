@@ -49,7 +49,7 @@ export class ListReviewedLayersUseCase {
       context.signal,
     );
     return this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'read',
       async ({ signal }) => {
         const { paths } = this.listReviewedLayerPaths.execute({ worktreeId });

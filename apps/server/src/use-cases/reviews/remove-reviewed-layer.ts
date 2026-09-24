@@ -41,7 +41,7 @@ export class RemoveReviewedLayerUseCase {
       context.signal,
     );
     const result = await this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'write',
       async () => this.removeReviewedLayer.execute(input),
       { callerSignal: context.signal },

@@ -46,15 +46,39 @@ describe('Lanes', () => {
     const subject = lanes();
     const release = Promise.withResolvers<void>();
     const recorded: string[] = [];
-    void subject.finish(async () => {
-      await release.promise;
-      recorded.push('before close');
-    });
+    void subject.finish(
+      async () => {
+        await release.promise;
+        recorded.push('before close');
+      },
+      { lane: 'first' },
+    );
     const closing = subject.close();
-    void subject.finish(async () => recorded.push('after close'));
+    void subject.finish(async () => recorded.push('after close'), {
+      lane: 'second',
+    });
     release.resolve();
     await closing;
     expect(recorded.toSorted()).toEqual(['after close', 'before close']);
+  });
+
+  it('runs finish work in its lane only after the work that holds the lane, even while closing', async () => {
+    const subject = lanes();
+    const order: string[] = [];
+    const holding = Promise.withResolvers<void>();
+    const write = subject.run('repository', 'write', async () => {
+      await holding.promise;
+      order.push('write');
+    });
+    const finished = subject.finish(async () => order.push('finish'), {
+      lane: 'repository',
+    });
+    const closing = subject.close();
+    holding.resolve();
+    await write.catch(() => undefined);
+    await finished;
+    await closing;
+    expect(order).toEqual(['write', 'finish']);
   });
 
   it('hands background work past its deadline to the failure handler', async () => {

@@ -10,6 +10,7 @@ export type {
 export type {
   CollectAbsentWorktreesOptions,
   CollectAbsentWorktreesResult,
+  RecordedWorktreesResult,
 } from './collect-absent-worktrees.ts';
 export type {
   DiscoverProjectsOptions,

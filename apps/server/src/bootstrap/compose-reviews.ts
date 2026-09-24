@@ -183,7 +183,6 @@ export function composeReviews(
     readReviewSummary: new ReadReviewSummaryUseCase(
       new ReadReviewSummaryService(reviewStore, clock, signatureSource),
       lanes,
-      laneKeys,
     ),
     listReviewedFiles: new ListReviewedFilesUseCase(
       checkWorktree,

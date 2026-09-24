@@ -51,7 +51,7 @@ export class SetReviewedFilesUseCase {
       context.signal,
     );
     const result = await this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'write',
       async ({ signal }) => {
         const status = await this.readWorktreeStatus.execute(

@@ -38,7 +38,7 @@ export class ReplyToCommentUseCase {
       context.signal,
     );
     const thread = await this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'write',
       async () => this.replyToComment.execute(input),
       { callerSignal: context.signal },

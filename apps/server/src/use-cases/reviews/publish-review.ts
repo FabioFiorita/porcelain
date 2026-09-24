@@ -52,7 +52,7 @@ export class PublishReviewUseCase {
       context.signal,
     );
     const published = await this.lanes.run(
-      this.laneKeys.repository(worktree),
+      this.laneKeys.reviews(worktree),
       'write',
       async ({ signal }) => {
         const evidence = await this.readReviewEvidence.execute(
