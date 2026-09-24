@@ -30,11 +30,9 @@ jobs:
       - run: pnpm test
       - run: pnpm db:check
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
-      - name: Probe the sandbox; the runner cannot create a network namespace, so the net keeps the host network there
-        run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --new-session --die-with-parent -- true
-      - name: Verification net without the network namespace (the host network is the only isolation the runner refuses)
-        run: node .agents/skills/server-verify/scripts/verify.ts --all
-        env:
-          PORCELAIN_SANDBOX_NETWORK: host
+      - name: Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
+      - run: node .agents/skills/server-verify/scripts/verify.ts --all
       - run: pnpm arch:check
       - run: pnpm probes
