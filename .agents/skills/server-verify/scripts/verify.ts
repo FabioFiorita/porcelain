@@ -179,7 +179,13 @@ function checks(
         name,
         String(pattern),
         actual,
-        { kind: 'match' },
+        {
+          kind: 'match',
+          empty: new RegExp(
+            pattern.source,
+            pattern.flags.replace(/[gy]/g, ''),
+          ).test(''),
+        },
         typeof actual === 'string' && pattern.test(actual),
       );
     },

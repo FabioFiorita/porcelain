@@ -42,7 +42,7 @@ export type Claim =
   | { kind: 'exact' | 'partial'; expected: unknown }
   | { kind: 'differs'; baseline: unknown }
   | { kind: 'contract'; exported: boolean }
-  | { kind: 'match' };
+  | { kind: 'match'; empty: boolean };
 
 type Credit = 'credited' | 'neutral' | 'unknown';
 
@@ -56,6 +56,8 @@ export const weakness = {
     'its actual value is only part of an observed text; assert the whole value or use checkMatch',
   unobserved:
     'its actual value was not taken from a response, a notice, Git or a file',
+  reread: 'its expected value is the same request read again',
+  anything: 'its pattern matches the empty string, so it matches anything',
 };
 
 const phaseLabels: Record<Phase, string> = {
@@ -268,19 +270,37 @@ export class Provenance {
     credited: ReadonlySet<Observation>,
     touched: readonly Touch[],
   ): string | undefined {
-    if (claim.kind === 'exact' || claim.kind === 'partial')
-      return this.copiedFrom(claim.expected, credited) ||
-        touched.some(
-          (entry) =>
-            !entry.consumed &&
-            credited.has(entry.observation) &&
-            (Object.is(entry.value, claim.expected) ||
-              (typeof claim.expected === 'object' &&
-                claim.expected !== null &&
-                isDeepStrictEqual(entry.value, claim.expected))),
-        )
-        ? weakness.copied
+    if (claim.kind === 'exact' || claim.kind === 'partial') {
+      const expected = claim.expected;
+      const touchedExpected = touched.filter(
+        (entry) =>
+          !entry.consumed &&
+          (Object.is(entry.value, expected) ||
+            (typeof expected === 'object' &&
+              expected !== null &&
+              isDeepStrictEqual(entry.value, expected))),
+      );
+      if (
+        this.copiedFrom(expected, credited) ||
+        touchedExpected.some((entry) => credited.has(entry.observation))
+      )
+        return weakness.copied;
+      const node =
+        typeof expected === 'object' && expected !== null
+          ? this.nodes.get(expected)
+          : undefined;
+      return this.rereadOf(
+        [
+          ...(node ? [node.observation] : []),
+          ...touchedExpected.map((entry) => entry.observation),
+        ],
+        credited,
+      )
+        ? weakness.reread
         : undefined;
+    }
+    if (claim.kind === 'match')
+      return claim.empty ? weakness.anything : undefined;
     if (claim.kind === 'contract')
       return claim.exported ? undefined : weakness.contract;
     if (claim.kind !== 'differs') return undefined;
@@ -302,6 +322,26 @@ export class Provenance {
     )
       ? undefined
       : weakness.baseline;
+  }
+
+  private rereadOf(
+    origins: readonly Observation[],
+    credited: ReadonlySet<Observation>,
+  ): boolean {
+    const requests = new Set(
+      [...credited].flatMap((observation) =>
+        observation.exchange ? [observation.exchange.request] : [],
+      ),
+    );
+    const earliest = Math.min(
+      ...[...credited].map((observation) => observation.order),
+    );
+    return origins.some(
+      (observation) =>
+        observation.exchange !== undefined &&
+        observation.order > earliest &&
+        requests.has(observation.exchange.request),
+    );
   }
 
   private copiedFrom(
