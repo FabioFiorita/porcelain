@@ -24,7 +24,7 @@ export class InMemoryWorktreeCatalogStore implements WorktreeCatalogStore {
     );
   }
 
-  observations(): CatalogObservation[] {
+  listObservations(): CatalogObservation[] {
     return this.snapshot.projects.map((project) => ({
       ...project.observation,
     }));

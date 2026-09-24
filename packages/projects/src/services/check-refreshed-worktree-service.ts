@@ -33,7 +33,7 @@ export class CheckRefreshedWorktreeService {
     const answer = checkedWorktree(
       input,
       entry,
-      this.catalog.observations(),
+      this.catalog.listObservations(),
       entry && input.requireAvailableProject
         ? this.inventory.find({ projectId: entry.worktree.projectId })
         : undefined,

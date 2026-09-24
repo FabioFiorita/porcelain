@@ -154,7 +154,7 @@ export default defineFeature({
         check('status', 404, response.status);
         check(
           'error body',
-          apiError(404, 'Not Found', 'Git action receipt not found'),
+          apiError(404, 'Not Found', 'Worktree not found'),
           response.body,
         );
       },

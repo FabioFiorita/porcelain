@@ -61,7 +61,7 @@ export const openServer: OpenServer = async (input) => {
   const clock = new SystemClock();
   const lanes = new Lanes({
     deadlineMs: () =>
-      operationDeadlineMs(catalog.observations().length, limits),
+      operationDeadlineMs(catalog.listObservations().length, limits),
     readCapacity: limits.lanes.readCapacity,
     consistency: new ConfirmWorktreeService(catalog),
     closeResources: () => session.close(),
@@ -113,7 +113,7 @@ export const openServer: OpenServer = async (input) => {
     events,
     new ParcelWorktreeWatcher({
       worktrees: shared.worktreeAccess,
-      projects: () => catalog.observations(),
+      projects: () => catalog.listObservations(),
     }),
     logger,
     limits.liveUpdates,

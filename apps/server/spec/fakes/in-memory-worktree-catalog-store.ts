@@ -23,7 +23,7 @@ export class InMemoryWorktreeCatalogStore implements WorktreeCatalogStore {
       .map((entry) => entry.worktree);
   }
 
-  observations(): CatalogObservation[] {
+  listObservations(): CatalogObservation[] {
     return this.snapshot.projects.map((project) => ({
       ...project.observation,
     }));

@@ -32,6 +32,7 @@ const roots = [
   'vitest.config.ts',
   '.agents/skills/server-verify/scripts',
   '.agents/skills/server-verify/feature-map',
+  '.agents/skills/server-verify/negative',
 ].filter((root) => existsSync(root));
 
 const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;

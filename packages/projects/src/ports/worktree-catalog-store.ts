@@ -10,6 +10,6 @@ import type {
 export interface WorktreeCatalogStore {
   find(input: WorktreeKey): CatalogEntry | undefined;
   lastSeen(input: ProjectKey): ListedWorktree[];
-  observations(): CatalogObservation[];
+  listObservations(): CatalogObservation[];
   save(input: CatalogSnapshot): void;
 }

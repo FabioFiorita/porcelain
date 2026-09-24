@@ -11,13 +11,13 @@ export default {
       kind: 'replace',
       path: 'apps/server/src/use-cases/projects/set-file-preference.ts',
       old: `    const result = await this.lanes.run(
-      this.laneKeys.project(input.projectId),
+      this.laneKeys.project(project),
       'write',
       async () => this.setFilePreference.execute(input),
       { callerSignal: context.signal },
     );`,
       new: `    await this.lanes.run(
-      this.laneKeys.project(input.projectId),
+      this.laneKeys.project(project),
       'read',
       async () => undefined,
       { callerSignal: context.signal },

@@ -86,7 +86,7 @@ describe('RecordWorktreeCatalogService', () => {
       [project('api')],
       [{ projectId: 'api', available: false, worktrees: [kept] }],
     );
-    expect(catalog.observations()).toMatchObject([
+    expect(catalog.listObservations()).toMatchObject([
       { id: 'api', observedAt: now, listed: false },
     ]);
     expect(catalog.lastSeen({ projectId: 'api' })).toEqual([kept]);
@@ -122,8 +122,8 @@ describe('RecordWorktreeCatalogService', () => {
       ],
     );
     expect(catalog.find({ worktreeId: 'main' })).toBeUndefined();
-    expect(catalog.observations().map((observation) => observation.id)).toEqual(
-      ['web'],
-    );
+    expect(
+      catalog.listObservations().map((observation) => observation.id),
+    ).toEqual(['web']);
   });
 });
