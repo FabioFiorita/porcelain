@@ -33,6 +33,7 @@ export async function liveScope(
   server.register(liveUpdates, {
     devices: application.devices,
     liveUpdates: application.liveUpdates,
+    worktreeWatches: application.worktreeWatches,
     pingMs: options.pingMs,
   });
 }

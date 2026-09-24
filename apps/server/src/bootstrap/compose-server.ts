@@ -24,6 +24,7 @@ import { createInventoryStore } from '@porcelain/storage/projects';
 import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
+import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
 import { ProcessCommitDraftWriter } from '../adapters/git-actions/process-commit-draft-writer.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
@@ -37,6 +38,7 @@ import { CollectAbsentWorktreesJob } from '../jobs/collect-absent-worktrees-job.
 import { FlushDeviceActivityJob } from '../jobs/flush-device-activity-job.ts';
 import type { Job } from '../jobs/job.ts';
 import { StartupJob } from '../jobs/startup-job.ts';
+import { WatchWorktreesJob } from '../jobs/watch-worktrees-job.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
@@ -102,12 +104,16 @@ export async function openApplication(
     lanes,
     laneKeys,
   });
-  const events = new WebSocketEventPublisher({
-    worktrees: worktreeAccess,
-    pathsChanged: reviewInvalidation.invalidateReviewedMarks,
-    projects: () => inventoryStore.read().projects,
-    limits: limits.liveUpdates,
-  });
+  const events = new WebSocketEventPublisher({ limits: limits.liveUpdates });
+  const worktreeWatches = new WatchWorktreesJob(
+    reviewInvalidation.invalidateReviewedMarks,
+    events,
+    new ParcelWorktreeWatcher({
+      worktrees: worktreeAccess,
+      projects: () => inventoryStore.read().projects,
+    }),
+    limits.liveUpdates,
+  );
   const devices = new CachedDeviceStore(createDeviceStore(session));
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
     createGitActionStore(session),
@@ -177,6 +183,7 @@ export async function openApplication(
     commitModelDeadlineMs: limits.gitActions.commitModelDeadlineMs,
   });
   const jobs: readonly Job[] = [
+    worktreeWatches,
     new StartupJob(
       gitActions.recoverInterruptedGitActions,
       projects.refreshInventory,
@@ -198,6 +205,7 @@ export async function openApplication(
     reviews,
     gitActions,
     liveUpdates: events,
+    worktreeWatches,
     devices,
     jobs,
     close: async () => {

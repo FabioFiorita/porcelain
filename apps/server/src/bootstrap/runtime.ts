@@ -49,7 +49,7 @@ async function closeListener(server: FastifyInstance) {
   }
 }
 
-function startJobs(jobs: readonly Job[]): readonly Job[] {
+async function startJobs(jobs: readonly Job[]): Promise<readonly Job[]> {
   const started: Job[] = [];
   try {
     for (const job of jobs) {
@@ -57,14 +57,14 @@ function startJobs(jobs: readonly Job[]): readonly Job[] {
       started.push(job);
     }
   } catch (error) {
-    stopJobs(started);
+    await stopJobs(started);
     throw error;
   }
   return started;
 }
 
-function stopJobs(jobs: readonly Job[]): void {
-  for (const job of jobs) job.stop();
+async function stopJobs(jobs: readonly Job[]): Promise<void> {
+  for (const job of jobs) await job.stop();
 }
 
 async function shutDown(parts: RuntimeParts) {
@@ -78,7 +78,7 @@ async function shutDown(parts: RuntimeParts) {
     }
   };
   if (network) await stage(() => closeListener(network));
-  if (jobs) await stage(async () => stopJobs(jobs));
+  if (jobs) await stage(() => stopJobs(jobs));
   if (application) await stage(() => application.close());
   if (owner) await stage(() => closeListener(owner));
   if (failures.length > 0) throw failures[0];
@@ -133,7 +133,7 @@ export async function startRuntime(
     );
     const application = parts.application;
     signal.throwIfAborted();
-    parts.jobs = startJobs(application.jobs);
+    parts.jobs = await startJobs(application.jobs);
     parts.network = createNetworkServer({ application, settings });
     const address = await parts.network.listen({ host, port });
     status.address = address;

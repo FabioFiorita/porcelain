@@ -1,17 +1,26 @@
 import {
   liveSubscriptionSchema,
   type LiveNotice,
-  type LiveSubscription,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
+import type {
+  FollowedTargets,
+  WatchRequest,
+} from '../../ports/followed-targets.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
 import { callerOf } from '../principal.ts';
 
 export type LiveUpdatesOptions = {
   liveUpdates: {
     connect(send: (notice: LiveNotice) => void): {
-      subscribe(value: LiveSubscription): Promise<void>;
+      follow(targets: FollowedTargets): void;
+      close(): void;
+    };
+  };
+  worktreeWatches: {
+    open(): {
+      replace(request: WatchRequest): Promise<FollowedTargets>;
       close(): void;
     };
   };
@@ -29,6 +38,7 @@ export function liveUpdates(
       return;
     }
     let alive = true;
+    const watches = options.worktreeWatches.open();
     const connection = options.liveUpdates.connect((notice) => {
       if (socket.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify(notice));
@@ -45,6 +55,7 @@ export function liveUpdates(
     const close = () => {
       clearInterval(heartbeat);
       releaseDevice();
+      watches.close();
       connection.close();
     };
     socket.on('pong', () => {
@@ -65,9 +76,10 @@ export function liveUpdates(
       }
       const parsed = liveSubscriptionSchema.safeParse(value);
       if (!parsed.success) return socket.close(1008, 'Invalid subscription');
-      void connection.subscribe(parsed.data).catch(() => {
-        socket.close(1008, 'Subscription refused');
-      });
+      watches.replace(parsed.data).then(
+        (targets) => connection.follow(targets),
+        () => socket.close(1008, 'Subscription refused'),
+      );
     });
     socket.once('close', close);
     socket.once('error', close);
