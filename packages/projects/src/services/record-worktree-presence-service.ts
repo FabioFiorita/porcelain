@@ -22,12 +22,8 @@ export class RecordWorktreePresenceService {
 
   execute(input: RecordWorktreePresenceInput): void {
     const { projectId, available, complete, worktrees } = input.worktrees;
-    if (
-      !this.inventory
-        .read()
-        .projects.some((project) => project.id === projectId)
-    )
-      throw new ProjectNotFoundError();
+    const project = this.inventory.find({ projectId });
+    if (!project) throw new ProjectNotFoundError();
     if (!available) return;
     const rows = this.worktreePresence.read({ projectId });
     const presentIds = worktrees.map((worktree) => worktree.id);

@@ -13,9 +13,7 @@ export class CheckProjectService {
   }
 
   execute(input: CheckProjectInput): CheckProjectResult {
-    const project = this.inventory
-      .read()
-      .projects.find((entry) => entry.id === input.projectId);
+    const project = this.inventory.find({ projectId: input.projectId });
     if (!project) throw new ProjectNotFoundError();
     return project;
   }

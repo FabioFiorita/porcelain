@@ -26,12 +26,8 @@ export class SetFilePreferenceService {
 
   execute(input: SetFilePreferenceInput): SetFilePreferenceResult {
     const { projectId, path } = input;
-    if (
-      !this.inventory
-        .read()
-        .projects.some((project) => project.id === projectId)
-    )
-      throw new ProjectNotFoundError();
+    const project = this.inventory.find({ projectId });
+    if (!project) throw new ProjectNotFoundError();
     const existing = this.filePreference.find({ projectId, path });
     const next: FilePreference = {
       path,

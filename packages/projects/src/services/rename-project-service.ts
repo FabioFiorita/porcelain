@@ -13,9 +13,7 @@ export class RenameProjectService {
   }
 
   execute(input: RenameProjectInput): RenameProjectResult {
-    const project = this.inventory
-      .read()
-      .projects.find((entry) => entry.id === input.projectId);
+    const project = this.inventory.find({ projectId: input.projectId });
     if (!project) throw new ProjectNotFoundError();
     this.inventory.save({ ...project, name: input.name, namedByOwner: true });
     return { id: project.id, name: input.name };

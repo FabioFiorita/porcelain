@@ -27,7 +27,6 @@ import {
 import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
 import {
   createFilePreferenceStore,
-  createProjectRemovalStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
@@ -127,7 +126,7 @@ export function composeProjects(
       events,
     ),
     removeProject: new RemoveProjectUseCase(
-      new RemoveProjectService(createProjectRemovalStore(session)),
+      new RemoveProjectService(inventory),
       new ForgetProjectWorktreesService(worktreeDirectory),
       lanes,
       laneKeys,

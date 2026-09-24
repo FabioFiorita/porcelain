@@ -2,16 +2,19 @@ import type {
   RemoveProjectInput,
   RemoveProjectResult,
 } from '../models/remove-project.ts';
-import type { ProjectRemovalStore } from '../ports/project-removal-store.ts';
+import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class RemoveProjectService {
-  private readonly projectRemoval: ProjectRemovalStore;
+  private readonly inventory: InventoryStore;
 
-  constructor(projectRemoval: ProjectRemovalStore) {
-    this.projectRemoval = projectRemoval;
+  constructor(inventory: InventoryStore) {
+    this.inventory = inventory;
   }
 
   execute(input: RemoveProjectInput): RemoveProjectResult {
-    return this.projectRemoval.remove({ projectId: input.projectId });
+    const { projectId } = input;
+    if (!this.inventory.find({ projectId })) return { deleted: false };
+    this.inventory.remove({ projectId });
+    return { deleted: true };
   }
 }

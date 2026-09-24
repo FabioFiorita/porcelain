@@ -11,9 +11,7 @@ export class UpdateProjectAvailabilityService {
 
   execute(input: UpdateProjectAvailabilityInput): void {
     const { projectId, available } = input.worktrees;
-    const project = this.inventory
-      .read()
-      .projects.find((entry) => entry.id === projectId);
+    const project = this.inventory.find({ projectId });
     if (!project) throw new ProjectNotFoundError();
     if (project.available === available) return;
     this.inventory.save({ ...project, available });

@@ -16,12 +16,8 @@ export class ListFilePreferencesService {
   }
 
   execute(input: ListFilePreferencesInput): ListFilePreferencesResult {
-    if (
-      !this.inventory
-        .read()
-        .projects.some((project) => project.id === input.projectId)
-    )
-      throw new ProjectNotFoundError();
+    const project = this.inventory.find({ projectId: input.projectId });
+    if (!project) throw new ProjectNotFoundError();
     return {
       preferences: this.filePreference.list({ projectId: input.projectId }),
     };
