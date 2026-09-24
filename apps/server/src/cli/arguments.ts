@@ -346,7 +346,7 @@ export function parseCliArguments(
   const host = parsed.lan ? '0.0.0.0' : (parsed.host ?? environment.host);
   const allowedHosts = [
     ...new Set([
-      ...(parsed.host && host && !WILDCARD_HOSTS.has(host) ? [host] : []),
+      ...(parsed.host && !WILDCARD_HOSTS.has(parsed.host) ? [parsed.host] : []),
       ...parsed.allowHosts,
       ...environment.allowedHosts,
     ]),

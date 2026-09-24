@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { parseCliArguments } from '../cli/arguments.ts';
 import { runCommand } from '../cli/commands.ts';
 import type { StartServer } from '../cli/launcher.ts';
@@ -15,7 +16,6 @@ import type { PorcelainEnvironment } from '../config/environment-settings.ts';
 import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
-import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { startRuntime } from './runtime.ts';
 
 const actionableErrors = [
