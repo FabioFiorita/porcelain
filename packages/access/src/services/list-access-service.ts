@@ -2,7 +2,7 @@ import type { Clock } from '@porcelain/kernel/ports';
 import type { ListAccessResult } from '../models/list-access.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
-import { inCreationOrder } from '../rules/creation-order.ts';
+import { deviceRevoked } from '../rules/device-activity.ts';
 import { pairingGrantPending } from '../rules/pairing-grant.ts';
 
 export class ListAccessService {
@@ -23,7 +23,8 @@ export class ListAccessService {
   execute(): ListAccessResult {
     const now = this.clock.now();
     return {
-      grants: inCreationOrder(this.pairingGrants.list())
+      grants: this.pairingGrants
+        .list()
         .filter((grant) => pairingGrantPending(grant, now))
         .map(({ id, label, addresses, createdAt, expiresAt }) => ({
           id,
@@ -32,8 +33,9 @@ export class ListAccessService {
           createdAt,
           expiresAt,
         })),
-      devices: inCreationOrder(this.devices.list())
-        .filter((device) => device.revokedAt === undefined)
+      devices: this.devices
+        .list()
+        .filter((device) => !deviceRevoked(device))
         .map(
           ({
             id,

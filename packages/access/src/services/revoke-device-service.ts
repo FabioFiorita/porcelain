@@ -5,6 +5,7 @@ import type {
 } from '../models/revoke-device.ts';
 import type { DeviceSightingStore } from '../ports/device-sighting-store.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
+import { deviceRevoked } from '../rules/device-activity.ts';
 
 export class RevokeDeviceService {
   private readonly devices: DeviceStore;
@@ -23,8 +24,7 @@ export class RevokeDeviceService {
 
   execute(input: RevokeDeviceInput): RevokeDeviceResult {
     const device = this.devices.find({ deviceId: input.id });
-    if (!device || device.revokedAt !== undefined)
-      return { kind: 'not-revoked' };
+    if (!device || deviceRevoked(device)) return { kind: 'not-revoked' };
     this.devices.markRevoked({ device, revokedAt: this.clock.now() });
     this.deviceSightings.remove({ deviceId: device.id });
     return { kind: 'revoked' };

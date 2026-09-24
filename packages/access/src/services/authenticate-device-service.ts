@@ -9,7 +9,7 @@ import type { DeviceStore } from '../ports/device-store.ts';
 import { parseCredential, secretMatches } from '../rules/credential.ts';
 import {
   deviceUsable,
-  idleMilliseconds,
+  sightingDue,
   sighted,
 } from '../rules/device-activity.ts';
 
@@ -42,7 +42,7 @@ export class AuthenticateDeviceService {
     const now = this.clock.now();
     if (!deviceUsable(device, now, this.options.unusedLifetimeMs))
       return { kind: 'refused' };
-    if (idleMilliseconds(device, now) > 0)
+    if (sightingDue(device, now))
       this.deviceSightings.save({
         device: sighted(device, now, input.address),
       });
