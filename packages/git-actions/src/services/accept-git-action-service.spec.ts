@@ -114,69 +114,88 @@ describe('AcceptGitActionService', () => {
     ).toThrow(GitActionReceiptMismatchError);
   });
 
-  it('names each malformed request by its error and keeps nothing', () => {
-    const upstream = { remoteName: 'origin', sourceRef: 'refs/heads/main' };
-    const cases: [Partial<AcceptGitActionInput>, new () => Error][] = [
-      [
-        { expected: { ...CLEAN_EXPECTATION, files: [readme, readme] } },
-        DuplicateExpectedFileError,
-      ],
-      [
-        { expected: { ...CLEAN_EXPECTATION, inProgress: 'merge' } },
-        MergeExpectationMismatchError,
-      ],
-      [
-        {
-          intent: { action: 'commit', message: 'Fix', paths: [] },
-          expected: { ...CLEAN_EXPECTATION, files: [] },
+  const upstream = { remoteName: 'origin', sourceRef: 'refs/heads/main' };
+  it.each([
+    {
+      name: 'two expectations for one file',
+      change: {
+        expected: { ...CLEAN_EXPECTATION, files: [readme, readme] },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: DuplicateExpectedFileError,
+    },
+    {
+      name: 'a merge expectation that does not agree with itself',
+      change: {
+        expected: { ...CLEAN_EXPECTATION, inProgress: 'merge' },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: MergeExpectationMismatchError,
+    },
+    {
+      name: 'a commit that selects no path',
+      change: {
+        intent: { action: 'commit', message: 'Fix', paths: [] },
+        expected: { ...CLEAN_EXPECTATION, files: [] },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: EmptyCommitSelectionError,
+    },
+    {
+      name: 'a commit that expects none of the files it selects',
+      change: {
+        intent: { action: 'commit', message: 'Fix', paths: ['README.md'] },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: MissingExpectedFilesError,
+    },
+    {
+      name: 'a commit of a path it does not expect',
+      change: {
+        intent: { action: 'commit', message: 'Fix', paths: ['GUIDE.md'] },
+        expected: { ...CLEAN_EXPECTATION, files: [readme] },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: ExpectedFilesMismatchError,
+    },
+    {
+      name: 'a discard whose expected files do not name its path',
+      change: {
+        intent: { action: 'discard', path: 'README.md' },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: DiscardExpectationMismatchError,
+    },
+    {
+      name: 'a stash that states no expected files',
+      change: {
+        intent: {
+          action: 'stash-create',
+          message: 'Park',
+          includeUntracked: true,
         },
-        EmptyCommitSelectionError,
-      ],
-      [
-        { intent: { action: 'commit', message: 'Fix', paths: ['README.md'] } },
-        MissingExpectedFilesError,
-      ],
-      [
-        {
-          intent: { action: 'commit', message: 'Fix', paths: ['GUIDE.md'] },
-          expected: { ...CLEAN_EXPECTATION, files: [readme] },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: MissingExpectedFilesError,
+    },
+    {
+      name: 'a fetch without its upstream',
+      change: {
+        intent: { action: 'fetch', ...upstream },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: MissingUpstreamExpectationError,
+    },
+    {
+      name: 'a discard of an empty hunk range',
+      change: {
+        intent: {
+          action: 'discard',
+          path: 'README.md',
+          hunk: { scope: 'unstaged', startLine: 4, endLine: 3 },
         },
-        ExpectedFilesMismatchError,
-      ],
-      [
-        { intent: { action: 'discard', path: 'README.md' } },
-        DiscardExpectationMismatchError,
-      ],
-      [
-        {
-          intent: {
-            action: 'stash-create',
-            message: 'Park',
-            includeUntracked: true,
-          },
-        },
-        MissingExpectedFilesError,
-      ],
-      [
-        { intent: { action: 'fetch', ...upstream } },
-        MissingUpstreamExpectationError,
-      ],
-      [
-        {
-          intent: {
-            action: 'discard',
-            path: 'README.md',
-            hunk: { scope: 'unstaged', startLine: 4, endLine: 3 },
-          },
-          expected: { ...CLEAN_EXPECTATION, files: [readme] },
-        },
-        InvalidHunkRangeError,
-      ],
-    ];
-    for (const [change, error] of cases) {
+        expected: { ...CLEAN_EXPECTATION, files: [readme] },
+      } satisfies Partial<AcceptGitActionInput>,
+      error: InvalidHunkRangeError,
+    },
+  ])(
+    'refuses $name with its own error and keeps nothing',
+    ({ change, error }) => {
       const { store, service } = subject();
       expect(() => service.execute({ ...request, ...change })).toThrow(error);
       expect(store.all()).toEqual([]);
-    }
-  });
+    },
+  );
 });

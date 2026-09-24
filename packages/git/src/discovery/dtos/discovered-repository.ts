@@ -1,13 +1,13 @@
-export interface DiscoveredWorktree {
+export type DiscoveredWorktree = {
   path: string;
   metadataIdentity: string | null;
   administrativeDirectory: string;
   main: boolean;
   branch: string | null;
   available: boolean;
-}
-export interface DiscoveredRepository {
+};
+export type DiscoveredRepository = {
   commonDirectory: string;
   repositoryIdentity: string;
   worktrees: DiscoveredWorktree[];
-}
+};

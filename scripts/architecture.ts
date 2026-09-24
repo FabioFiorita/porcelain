@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
@@ -14,6 +14,8 @@ import {
   violation,
   type Classification,
 } from '../architecture/policy.ts';
+import { readPending, settlePending } from '../architecture/pending.ts';
+import { typeRuleFindings } from '../architecture/type-rules.ts';
 
 const dependencySchema = z.object({
   module: z.string(),
@@ -53,7 +55,6 @@ const packageNames = readdirSync(join(repositoryRoot, 'packages'), {
   .filter(
     (entry) =>
       entry.isDirectory() &&
-      entry.name !== 'client' &&
       existsSync(join(repositoryRoot, 'packages', entry.name, 'src')),
   )
   .map((entry) => entry.name);
@@ -66,14 +67,70 @@ const sourceRoots = [
   ]),
 ].filter((root) => existsSync(join(repositoryRoot, root)));
 
+const ignoredDirectories = new Set(['node_modules', 'dist', '.vite', '.turbo']);
+const ignoredFile = /(?:^\.DS_Store|\.tsbuildinfo)$/;
+const codeFile = /\.[cm]?[jt]sx?$/;
+
+function filesUnder(directory: string): string[] {
+  if (!existsSync(join(repositoryRoot, directory))) return [];
+  return readdirSync(join(repositoryRoot, directory), {
+    withFileTypes: true,
+  }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory())
+      return ignoredDirectories.has(entry.name) ? [] : filesUnder(path);
+    return entry.isFile() && !ignoredFile.test(entry.name) ? [path] : [];
+  });
+}
+
 function sourceFiles(directory: string): string[] {
-  return readdirSync(join(repositoryRoot, directory), { withFileTypes: true })
-    .flatMap((entry) => {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) return sourceFiles(path);
-      return entry.isFile() && /\.tsx?$/.test(entry.name) ? [path] : [];
-    })
-    .map((path) => relative(repositoryRoot, join(repositoryRoot, path)));
+  return filesUnder(directory).filter((path) => codeFile.test(path));
+}
+
+const permittedOutsideRoots: readonly RegExp[] = [
+  /^(?:packages\/[^/]+|apps\/server)\/(?:package|tsconfig)\.json$/,
+  /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
+  /^packages\/storage\/drizzle\.config\.ts$/,
+  /^packages\/storage\/scripts\/[^/]+\.ts$/,
+];
+const insideRoot = /^(?:packages\/[^/]+|apps\/server)\/(?:src|spec)\//;
+const fixtureData = /^packages\/[^/]+\/spec\/fixtures\//;
+
+function placementFindings(): Finding[] {
+  const files = [
+    ...readdirSync(join(repositoryRoot, 'packages'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => filesUnder(join('packages', entry.name))),
+    ...filesUnder('apps/server'),
+  ];
+  return files.flatMap((path) => {
+    if (insideRoot.test(path)) {
+      if (/\.ts$/.test(path) && !/\.[cm]ts$/.test(path)) return [];
+      if (fixtureData.test(path) && !codeFile.test(path)) return [];
+      return [
+        {
+          rule: 'code-outside-roots',
+          from: path,
+          to: 'src/ and spec/ hold .ts files only; fixture data lives in spec/fixtures/',
+        },
+      ];
+    }
+    if (permittedOutsideRoots.some((pattern) => pattern.test(path))) return [];
+    return [
+      {
+        rule: 'code-outside-roots',
+        from: path,
+        to: 'package.json, tsconfig.json, and for storage drizzle/, drizzle.config.ts and scripts/*.ts',
+      },
+    ];
+  });
+}
+
+function isRepositoryPath(resolved: string): boolean {
+  return (
+    !resolved.split('/').includes('node_modules') &&
+    existsSync(join(repositoryRoot, resolved))
+  );
 }
 
 function scan(sources: readonly string[]): CruiseReport {
@@ -283,6 +340,12 @@ function dependencyFindings(
           from: module.source,
           to: dependency.resolved,
         });
+      } else if (isRepositoryPath(dependency.resolved)) {
+        result.push({
+          rule: 'import-outside-source-roots',
+          from: module.source,
+          to: dependency.resolved,
+        });
       } else if (forbiddenExternal(from.role, dependency.module)) {
         result.push({
           rule: `${from.role}-cannot-import-external`,
@@ -301,11 +364,30 @@ try {
   const sources = sourceRoots.flatMap(sourceFiles);
   const report = scan(sources);
   const { classified, findings } = classifyAll(sources);
-  const violations = [
+  const found = [
     ...findings,
     ...dependencyFindings(report, classified),
     ...packageExportFindings(),
     ...structureFindings(sources, classified),
+    ...placementFindings(),
+    ...typeRuleFindings(repositoryRoot),
+  ];
+  const settled = settlePending(
+    readPending(join(repositoryRoot, 'architecture/pending.json')),
+    (rule) => !rule.startsWith('porcelain/'),
+    found.map((finding) => ({
+      ...finding,
+      file: finding.from.replace(/:\d+$/, ''),
+      message: finding.to,
+    })),
+  );
+  const violations = [
+    ...settled.reported,
+    ...settled.problems.map((problem) => ({
+      rule: 'pending',
+      from: problem,
+      to: 'architecture/pending.json',
+    })),
   ];
   const byRule = new Map<string, Finding[]>();
   for (const finding of violations) {
@@ -324,7 +406,7 @@ try {
       process.stdout.write(`  ... ${entries.length - 3} more (use --all)\n`);
   }
   process.stdout.write(
-    `${violations.length} violations; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
+    `${violations.length} violations; ${settled.held} held by architecture/pending.json; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
   );
   if (violations.length > 0) process.exitCode = 1;
 } catch (error) {

@@ -5,7 +5,7 @@ export type HeadSnapshot = {
     | { kind: 'detached' }
     | { kind: 'unborn'; ref: string };
 };
-export interface CommitSummary {
+export type CommitSummary = {
   oid: string;
   parentOids: string[];
   author: { name: string; timestamp: string };
@@ -14,51 +14,51 @@ export interface CommitSummary {
   body: string | null;
   bodyTruncated: boolean;
   refs: string[];
-}
-export interface CommitPageRequest {
+};
+export type CommitPageRequest = {
   limit?: number;
   after?: string[];
   tip?: string;
-}
-export interface CommitPage {
+};
+export type CommitPage = {
   snapshot: HeadSnapshot | null;
   commits: CommitSummary[];
   nextAfter: string[] | null;
   tip: string | null;
   boundary: 'shallow' | 'wide' | null;
   restarted: boolean;
-}
-export interface HistorySnapshot {
+};
+export type HistorySnapshot = {
   graph: string;
   shallow: boolean;
-}
-export interface CommitFilesRequest {
+};
+export type CommitFilesRequest = {
   oid: string;
   parent?: number;
-}
-export interface CommitFile {
+};
+export type CommitFile = {
   oldPath: string | null;
   newPath: string | null;
   status: 'added' | 'deleted' | 'modified' | 'renamed' | 'type-changed';
   oldMode: string;
   newMode: string;
-}
-export interface CommitFiles {
+};
+export type CommitFiles = {
   commit: CommitSummary;
   comparison:
     | { kind: 'parent'; parentNumber: number; baseOid: string }
     | { kind: 'empty-tree' };
   files: CommitFile[];
-}
-export interface CommitDiffsRequest {
+};
+export type CommitDiffsRequest = {
   oid: string;
   parent?: number;
   paths: string[];
-}
-export interface HistoryCheckout {
+};
+export type HistoryCheckout = {
   path: string;
   commonDirectory: string;
   administrativeDirectory: string;
   repositoryIdentity: string;
   metadataIdentity: string;
-}
+};

@@ -1,0 +1,10 @@
+diff --git a/a.txt b/a.txt
+index b2f931a..1981a8c 100644
+--- a/a.txt
++++ b/a.txt
+@@ -2 +2 @@ one
+-two
++TWO
+@@ -5,0 +6,2 @@ five
++six
++seven

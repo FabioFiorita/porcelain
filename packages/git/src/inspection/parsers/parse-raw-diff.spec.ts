@@ -89,16 +89,21 @@ describe('parseRawDiff', () => {
     );
   });
 
-  it('rejects a malformed entry header', () => {
-    for (const meta of [
-      ':100644 b89df23 0000000 M',
-      ':100644 100644 b89df23 0000000 m',
-      ':10064 100644 b89df23 0000000 M',
-      ':100644 100644 XYZ 0000000 M',
-    ])
-      expect(() => parseRawDiff(Buffer.from(`${meta}\0b.txt\0`))).toThrow(
-        'Invalid Git diff output',
-      );
+  it.each([
+    { name: 'a header missing a mode', meta: ':100644 b89df23 0000000 M' },
+    {
+      name: 'a lowercase status letter',
+      meta: ':100644 100644 b89df23 0000000 m',
+    },
+    { name: 'a short mode', meta: ':10064 100644 b89df23 0000000 M' },
+    {
+      name: 'an object name that is not hexadecimal',
+      meta: ':100644 100644 XYZ 0000000 M',
+    },
+  ])('rejects an entry header with $name', ({ meta }) => {
+    expect(() => parseRawDiff(Buffer.from(`${meta}\0b.txt\0`))).toThrow(
+      'Invalid Git diff output',
+    );
   });
 
   it('rejects a path that is not valid UTF-8', () => {

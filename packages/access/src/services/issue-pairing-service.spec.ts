@@ -55,8 +55,9 @@ describe('IssuePairingService', () => {
       environmentId,
     });
     expect(grants.map(({ grant }) => grant.label)).toEqual(['Phone', 'Tablet']);
-    for (const { grant, code } of grants)
-      expect(parseCredential('pcp', code)?.id).toBe(grant.id);
+    expect(grants.map(({ code }) => parseCredential('pcp', code)?.id)).toEqual(
+      grants.map(({ grant }) => grant.id),
+    );
     expect(new Set(grants.map(({ code }) => code)).size).toBe(2);
   });
 

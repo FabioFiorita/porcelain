@@ -150,15 +150,19 @@ describe('GeneratePublishedReviewService', () => {
     ).toEqual({ state: 'committed', startLine: 4, endLine: 4 });
   });
 
-  it('locates a step as changed when its lines are gone or its file cannot be read', () => {
-    const unreadable: ReviewTextRead = {
-      status: 'rejected',
-      reason: new Error('missing'),
-    };
-    for (const texts of [[text('README.md', 'first\nsecond\n')], [unreadable]])
-      expect(generate({ texts }).layers[0]?.steps[0]?.location).toEqual({
-        state: 'changed',
-      });
+  it.each<{ name: string; texts: ReviewTextRead[] }>([
+    {
+      name: 'its lines are gone',
+      texts: [text('README.md', 'first\nsecond\n')],
+    },
+    {
+      name: 'its file cannot be read',
+      texts: [{ status: 'rejected', reason: new Error('missing') }],
+    },
+  ])('locates a step as changed when $name', ({ texts }) => {
+    expect(generate({ texts }).layers[0]?.steps[0]?.location).toEqual({
+      state: 'changed',
+    });
   });
 
   it('lists changed lines outside the paragraphs the steps explain', () => {

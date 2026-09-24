@@ -88,20 +88,37 @@ describe('CreateCommentThreadService', () => {
     expect(store.list({ worktreeId })).toHaveLength(1);
   });
 
-  it('refuses a thread id reused for different content, another anchor or another worktree', () => {
+  const ids = { threadId: 'thread-1', messageId: 'message-1' };
+  it.each([
+    {
+      name: 'different content',
+      attempt: input({ ...ids, body: 'Something else' }),
+    },
+    {
+      name: 'another anchor',
+      attempt: input({
+        ...ids,
+        anchor: { kind: 'file', filePath: 'OTHER.md' },
+      }),
+    },
+    {
+      name: 'another worktree',
+      attempt: input({ ...ids, worktreeId: 'b'.repeat(64) }),
+    },
+    {
+      name: 'another writer',
+      attempt: input({ ...ids, writer: { kind: 'agent' } }),
+    },
+    {
+      name: 'another message id',
+      attempt: input({ ...ids, messageId: 'message-2' }),
+    },
+  ])('refuses a thread id reused for $name', ({ attempt }) => {
     const { service } = setup();
-    const ids = { threadId: 'thread-1', messageId: 'message-1' };
     service.execute(input(ids));
-    for (const attempt of [
-      input({ ...ids, body: 'Something else' }),
-      input({ ...ids, anchor: { kind: 'file', filePath: 'OTHER.md' } }),
-      input({ ...ids, worktreeId: 'b'.repeat(64) }),
-      input({ ...ids, writer: { kind: 'agent' } }),
-      input({ ...ids, messageId: 'message-2' }),
-    ])
-      expect(() => service.execute(attempt)).toThrow(
-        CommentIdentityConflictError,
-      );
+    expect(() => service.execute(attempt)).toThrow(
+      CommentIdentityConflictError,
+    );
   });
 
   it('refuses a new thread whose message id already belongs to another thread', () => {
@@ -145,26 +162,30 @@ describe('CreateCommentThreadService', () => {
     ).toMatchObject({ startLine: 3, endLine: 3 });
   });
 
-  it('refuses a commit comparison without an object id and another comparison with a revision', () => {
-    const { service, store } = setup();
-    const anchors: CommentAnchor[] = [
-      {
+  it.each<{ name: string; anchor: CommentAnchor }>([
+    {
+      name: 'a commit comparison without an object id',
+      anchor: {
         kind: 'file',
         filePath: 'README.md',
         comparison: { kind: 'commit', parent: 1 },
         revision: 'main',
       },
-      {
+    },
+    {
+      name: 'a file comparison with a revision',
+      anchor: {
         kind: 'file',
         filePath: 'README.md',
         comparison: { kind: 'file' },
         revision: 'a'.repeat(40),
       },
-    ];
-    for (const anchor of anchors)
-      expect(() => service.execute(input({ anchor }))).toThrow(
-        CommentRevisionMismatchError,
-      );
+    },
+  ])('refuses $name and stores nothing', ({ anchor }) => {
+    const { service, store } = setup();
+    expect(() => service.execute(input({ anchor }))).toThrow(
+      CommentRevisionMismatchError,
+    );
     expect(store.list({ worktreeId })).toEqual([]);
   });
 

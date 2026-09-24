@@ -12,25 +12,25 @@ import type { CommentStore } from '../../src/ports/comment-store.ts';
 type Row = {
   thread: CommentThread;
   sizeBytes: number;
-  agentRevision: number | undefined;
+  writtenByAgent: boolean;
+  agentRevision: number;
 };
 
 export class InMemoryCommentStore implements CommentStore {
-  private rows: Row[] = [];
+  private readonly rows = new Map<string, Row>();
 
   list(input: { worktreeId: string }): CommentThread[] {
-    return this.rows
+    return this.stored()
       .filter((row) => row.thread.worktreeId === input.worktreeId)
       .map((row) => structuredClone(row.thread));
   }
 
   find(input: { threadId: string }): CommentThread | undefined {
-    const row = this.rows.find((entry) => entry.thread.id === input.threadId);
-    return row && structuredClone(row.thread);
+    return structuredClone(this.rows.get(input.threadId)?.thread);
   }
 
   findMessage(input: { messageId: string }): PostedCommentMessage | undefined {
-    return this.rows
+    return this.stored()
       .flatMap(({ thread }) =>
         thread.messages
           .filter((message) => message.id === input.messageId)
@@ -44,7 +44,7 @@ export class InMemoryCommentStore implements CommentStore {
   }
 
   usage(input: { worktreeId: string }): CommentUsage {
-    const rows = this.rows.filter(
+    const rows = this.stored().filter(
       (row) => row.thread.worktreeId === input.worktreeId,
     );
     return {
@@ -60,18 +60,17 @@ export class InMemoryCommentStore implements CommentStore {
   agentRepliesByWorktrees(input: {
     worktreeIds: readonly string[];
   }): AgentReply[] {
-    return this.rows.flatMap(({ thread, agentRevision }) =>
-      agentRevision !== undefined &&
-      input.worktreeIds.includes(thread.worktreeId)
-        ? [
-            {
-              worktreeId: thread.worktreeId,
-              threadId: thread.id,
-              revision: agentRevision,
-            },
-          ]
-        : [],
-    );
+    return this.stored()
+      .filter(
+        (row) =>
+          row.writtenByAgent &&
+          input.worktreeIds.includes(row.thread.worktreeId),
+      )
+      .map(({ thread, agentRevision }) => ({
+        worktreeId: thread.worktreeId,
+        threadId: thread.id,
+        revision: agentRevision,
+      }));
   }
 
   insert(input: NewCommentThread): CommentThread {
@@ -80,57 +79,58 @@ export class InMemoryCommentStore implements CommentStore {
       resolved: false,
       revision: this.nextRevision(),
     };
-    this.rows = [
-      ...this.rows,
-      {
-        thread,
-        sizeBytes: input.sizeBytes,
-        agentRevision: input.writtenByAgent ? thread.revision : undefined,
-      },
-    ];
+    this.rows.set(thread.id, {
+      thread,
+      sizeBytes: input.sizeBytes,
+      writtenByAgent: input.writtenByAgent,
+      agentRevision: thread.revision,
+    });
     return structuredClone(thread);
   }
 
   append(input: CommentReply): CommentThread {
     const revision = this.nextRevision();
-    return this.replace(
-      {
-        ...input.thread,
-        messages: [...input.thread.messages, input.message],
+    this.change(input.thread.id, (row) => ({
+      thread: {
+        ...row.thread,
+        messages: [...row.thread.messages, structuredClone(input.message)],
         revision,
       },
-      input.sizeBytes,
-      input.writtenByAgent ? revision : undefined,
-    );
+      sizeBytes: input.sizeBytes,
+      writtenByAgent: input.writtenByAgent,
+      agentRevision: revision,
+    }));
+    return structuredClone({
+      ...input.thread,
+      messages: [...input.thread.messages, input.message],
+      revision,
+    });
   }
 
   resolve(input: CommentResolution): CommentThread {
-    const row = this.rows.find((entry) => entry.thread.id === input.thread.id);
-    return this.replace(
-      {
-        ...input.thread,
-        resolved: input.resolved,
-        revision: this.nextRevision(),
-      },
-      row?.sizeBytes ?? 0,
-      row?.agentRevision,
-    );
+    const revision = this.nextRevision();
+    this.change(input.thread.id, (row) => ({
+      ...row,
+      thread: { ...row.thread, resolved: input.resolved, revision },
+    }));
+    return structuredClone({
+      ...input.thread,
+      resolved: input.resolved,
+      revision,
+    });
+  }
+
+  private stored(): Row[] {
+    return [...this.rows.values()];
   }
 
   private nextRevision(): number {
-    return Math.max(0, ...this.rows.map((row) => row.thread.revision)) + 1;
+    return Math.max(0, ...this.stored().map((row) => row.thread.revision)) + 1;
   }
 
-  private replace(
-    thread: CommentThread,
-    sizeBytes: number,
-    agentRevision: number | undefined,
-  ): CommentThread {
-    this.rows = this.rows.map((row) =>
-      row.thread.id === thread.id
-        ? { thread: structuredClone(thread), sizeBytes, agentRevision }
-        : row,
-    );
-    return structuredClone(thread);
+  private change(threadId: string, update: (row: Row) => Row): void {
+    this.stored()
+      .filter((row) => row.thread.id === threadId)
+      .forEach((row) => this.rows.set(threadId, update(row)));
   }
 }

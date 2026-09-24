@@ -131,13 +131,29 @@ function executeSignatureProblem(role, execute) {
     parameterName(parameters[0]) === 'input' ? parameters.slice(1) : parameters;
   const last = rest[0];
   if (role === 'UseCase')
-    return rest.length <= 1 && (!last || parameterName(last) === 'context')
+    return rest.length === 1 && parameterName(last) === 'context'
       ? undefined
-      : 'Use case execute takes (), (input), (context) or (input, context).';
+      : 'Use case execute takes (context) or (input, context); the context always comes last.';
   return rest.length <= 1 &&
     (!last || (parameterName(last) === 'signal' && last.optional))
     ? undefined
     : 'Service execute takes (), (input), (signal?) or (input, signal?).';
+}
+
+function openParameterType(annotation) {
+  if (!annotation) return false;
+  if (openTypes.has(annotation.type)) return true;
+  if (annotation.type === 'TSTypeLiteral')
+    return annotation.members.length === 0;
+  if (
+    annotation.type !== 'TSTypeReference' ||
+    annotation.typeName.type !== 'Identifier' ||
+    annotation.typeName.name !== 'Record'
+  )
+    return false;
+  const [key] =
+    (annotation.typeArguments ?? annotation.typeParameters)?.params ?? [];
+  return key?.type === 'TSNeverKeyword';
 }
 
 function objectProperty(object, name) {
@@ -243,12 +259,13 @@ function isPageBody(argument, renderers) {
 }
 
 const specSource = /\.spec\.ts$/;
+const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/[^/]+\.ts$/;
 const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
 const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors)|kernel/(?:models|rules|errors|fakes))$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors|store-contracts)|kernel/(?:models|rules|errors|fakes))$`,
 );
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
@@ -264,9 +281,25 @@ const interactionMatchers = new Set([
 ]);
 const testFunctions = new Set(['describe', 'suite', 'it', 'test']);
 const caseFunctions = new Set(['it', 'test']);
-const skippingModifiers = new Set(['skip', 'only', 'todo', 'skipIf', 'runIf']);
+const skippingModifiers = new Set([
+  'skip',
+  'only',
+  'todo',
+  'skipIf',
+  'runIf',
+  'fails',
+]);
+const loopTypes = new Set([
+  'ForStatement',
+  'ForInStatement',
+  'ForOfStatement',
+  'WhileStatement',
+  'DoWhileStatement',
+]);
 const httpStatus =
   /(?:^|\s)[1-5]\d\d(?=\s*$|\s+(?:when|if|for|unless)\b)|^\s*[1-5]\d\d\b|\bhttp\s+(?:status|code|[1-5]\d\d)\b|\bstatus\s+code|\b(?:status|code)\s+[1-5]\d\d\b/i;
+const statusNumber =
+  /(?<![\w.-])(?:10[0-3]|20[0-8]|226|30[0-8]|4(?:0\d|1[0-8]|2[1-689]|31|51)|50[0-8]|51[01])(?![\w.-])(?!\s+(?:commits?|files?|bytes?|paths?|entries|lines?|threads?|items?|ms|characters?|chars?)\b)/;
 
 const repositoryRoot = normalizedFilename(
   fileURLToPath(new URL('..', import.meta.url)),
@@ -297,7 +330,6 @@ const nodeGlobals = new Set([
 ]);
 const featureMethods = new Set(['get', 'post', 'put', 'patch', 'delete']);
 const routeHook = /^(?:on|pre)[A-Z]|^(?:handler|errorHandler)$/;
-const writingField = /^(?:set|record|reconcile|update|remove|collect)[A-Z]/;
 const pureConstructors = new Set(['Map', 'Set', 'RegExp']);
 const pureCrypto = new Set(['createHash', 'timingSafeEqual']);
 const primitiveTypes = new Set([
@@ -313,7 +345,8 @@ const primitiveTypes = new Set([
   'TSLiteralType',
   'TSTemplateLiteralType',
 ]);
-const portName = /(?:Store|Reader|Writer|Runner|Source|^Clock)$/;
+const portName =
+  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|^Clock)$/;
 const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential)[A-Z]/;
 const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
 const camelCase = /^[a-z][A-Za-z0-9]*$/;
@@ -322,11 +355,25 @@ const disableDirective = /^\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
 const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
 const packageSource = /^packages\/[^/]+\/src\//;
+const serverSource = /^(?:packages\/[^/]+|apps\/server)\/src\//;
 const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
 const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
-const kernelFile = /^packages\/kernel\/src\/(?:models|ports)\//;
+const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
+const runtimeFile = /^apps\/server\/src\/runtime\//;
+const scopeFile = /^apps\/server\/src\/http\/scopes\/[^/]+\.ts$/;
+const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
+const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
+const signalMembers = new Set(['throwIfAborted', 'aborted', 'onabort']);
+const openTypes = new Set([
+  'TSObjectKeyword',
+  'TSUnknownKeyword',
+  'TSAnyKeyword',
+]);
+const kernelFile = /^packages\/kernel\/src\//;
+const numberFreeFile =
+  /^(?:packages\/[^/]+\/src\/(?:rules|services)\/|apps\/server\/src\/(?:adapters|use-cases|jobs)\/)/;
 const useCaseFile = /^apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
 const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
@@ -335,9 +382,9 @@ const clockFile =
   /^(?:packages\/[^/]+\/src\/rules|apps\/server\/src\/adapters)\//;
 const indexFile = /^packages\/[^/]+\/src\/(?:.+\/)?index\.ts$/;
 const operationFile =
-  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/controllers\/(?:[^/]+\/)*[^/]+-controller|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
+  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
 const domainCode = new RegExp(
-  `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/(?:controllers|use-cases)/)`,
+  `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/use-cases/)`,
 );
 
 function repositoryPath(context) {
@@ -418,6 +465,53 @@ function globalReferences(context, program, names) {
   return [...scope.through, ...builtin]
     .filter((reference) => names.has(reference.identifier.name))
     .map((reference) => reference.identifier);
+}
+
+const pureGlobals = new Set(['Date', 'Math', 'Reflect']);
+
+function calledMember(identifier, context) {
+  const member = identifier.parent;
+  if (member?.type !== 'MemberExpression' || member.object !== identifier)
+    return undefined;
+  const call = member.parent;
+  return call?.type === 'CallExpression' && call.callee === member
+    ? propertyName(member, context)
+    : undefined;
+}
+
+function impureGlobalUse(identifier, context) {
+  const name = identifier.name;
+  if (name === 'Reflect')
+    return 'A rule never reaches through Reflect; call the function it needs by name.';
+  const member = calledMember(identifier, context);
+  if (name === 'Math')
+    return member === undefined || member === 'random'
+      ? 'A rule is deterministic: call Math functions by name, never Math.random or an alias of Math.'
+      : undefined;
+  const parent = identifier.parent;
+  if (
+    parent?.type === 'NewExpression' &&
+    parent.callee === identifier &&
+    parent.arguments.length === 1 &&
+    parent.arguments[0].type !== 'SpreadElement'
+  )
+    return undefined;
+  return member === 'parse'
+    ? undefined
+    : 'A rule takes the current time as an ISO string from its caller; it uses Date only as Date.parse(text) or new Date(instant).';
+}
+
+function signalValue(node) {
+  if (!node) return false;
+  if (node.type === 'LogicalExpression') return signalValue(node.left);
+  if (node.type === 'ChainExpression') return signalValue(node.expression);
+  const name =
+    node.type === 'Identifier'
+      ? node.name
+      : node.type === 'MemberExpression' && !node.computed
+        ? node.property.name
+        : undefined;
+  return /signal$/i.test(name ?? '');
 }
 
 function within(node, container) {
@@ -670,7 +764,8 @@ function moduleVisitors(check) {
 }
 
 function isSpec(context) {
-  return specSource.test(normalizedFilename(context.filename));
+  const path = normalizedFilename(context.filename);
+  return specSource.test(path) || storeContractSource.test(path);
 }
 
 function chainRoot(node) {
@@ -706,7 +801,12 @@ function allowedSpecImport(filename, source) {
     `file://${path.startsWith('/') ? '' : '/'}${path}`,
   ).pathname;
   if (storageSpec.test(path)) return storagePublicApi.test(target);
-  return /\/spec\/(?:fakes|fixtures)\/.+\.ts$/.test(target);
+  if (storeContractSource.test(path))
+    return (
+      /\/src\/(?:ports|models|errors)\/[^/]+\.ts$/.test(target) ||
+      /\/spec\/contracts\/[^/]+\.ts$/.test(target)
+    );
+  return /\/spec\/(?:fakes|fixtures|contracts)\/.+\.ts$/.test(target);
 }
 
 export default {
@@ -833,7 +933,29 @@ export default {
       create(context) {
         const path = normalizedFilename(context.filename);
         if (!routeSource.test(path) || pageSource.test(path)) return {};
+        const statusFunctions = new Set();
         return {
+          ImportDeclaration(node) {
+            if (!/(?:^|\/)status-policy\.ts$/.test(node.source.value)) return;
+            for (const specifier of node.specifiers)
+              if (specifier.type === 'ImportSpecifier')
+                statusFunctions.add(specifier.local.name);
+          },
+          'CallExpression:exit'(node) {
+            const argument = node.arguments[0];
+            if (
+              node.callee.type === 'MemberExpression' &&
+              propertyName(node.callee, context) === 'code' &&
+              argument?.type === 'CallExpression' &&
+              (argument.callee.type !== 'Identifier' ||
+                !statusFunctions.has(argument.callee.name))
+            )
+              context.report({
+                node: argument,
+                message:
+                  'A route decides no status; reply.code takes a literal or a function imported from status-policy.ts.',
+              });
+          },
           CallExpression(node) {
             const callee = node.callee;
             if (
@@ -1020,35 +1142,148 @@ export default {
         });
       },
     },
-    'write-needs-write-lane': {
+    'scope-shape': {
       create(context) {
-        const readLanes = [];
-        const isReadLane = (node) =>
-          node.callee.type === 'MemberExpression' &&
-          propertyName(node.callee, context) === 'run' &&
-          memberPath(node.callee.object)?.at(-1) === 'lanes' &&
-          staticString(node.arguments[1], context) === 'read' &&
-          isFunction(node.arguments[2]);
+        if (!scopeFile.test(repositoryPath(context))) return {};
         return {
-          CallExpression(node) {
-            if (isReadLane(node)) {
-              readLanes.push(node.arguments[2]);
-              return;
+          Program(program) {
+            for (const plugin of routePlugins(program)) {
+              const server = plugin.params[0];
+              if (server?.type !== 'Identifier') continue;
+              for (const variable of context.sourceCode
+                .getDeclaredVariables(plugin)
+                .filter((entry) => entry.name === server.name))
+                for (const reference of variable.references) {
+                  const member = reference.identifier.parent;
+                  const call = member?.parent;
+                  const method =
+                    member?.type === 'MemberExpression' &&
+                    member.object === reference.identifier
+                      ? propertyName(member, context)
+                      : undefined;
+                  if (
+                    call?.type === 'CallExpression' &&
+                    call.callee === member &&
+                    (method === 'register' || method === 'addHook')
+                  )
+                    continue;
+                  context.report({
+                    node: reference.identifier,
+                    message:
+                      'A scope only registers routes and adds hooks; an endpoint lives in http/routes/<feature>/<operation>.ts with a schema and a use case.',
+                  });
+                }
             }
-            if (!readLanes.some((callback) => within(node, callback))) return;
-            const path = memberPath(node.callee);
+          },
+        };
+      },
+    },
+    'interfaces-only-in-ports': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!serverCode.test(path) || anyPortFile.test(path)) return {};
+        return {
+          TSInterfaceDeclaration(node) {
             if (
-              path?.[0] === 'this' &&
-              path.length >= 2 &&
-              writingField.test(path[1])
+              context.sourceCode
+                .getAncestors(node)
+                .some(
+                  (ancestor) =>
+                    ancestor.type === 'TSModuleDeclaration' &&
+                    ancestor.id?.type === 'Literal',
+                )
+            )
+              return;
+            context.report({
+              node: node.id,
+              message:
+                'Write a type alias; an interface is a port and lives in ports/.',
+            });
+          },
+        };
+      },
+    },
+    'adapters-report-facts': {
+      create(context) {
+        if (!adapterFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const gitDirectory = (node) =>
+          staticString(node, context)?.toLowerCase() === '.git';
+        return {
+          BinaryExpression(node) {
+            if (
+              ['===', '!==', '==', '!='].includes(node.operator) &&
+              (gitDirectory(node.left) || gitDirectory(node.right))
             )
               context.report({
                 node,
-                message: `A read lane never writes; run ${path[1]} in its own write lane after the read returns.`,
+                message:
+                  'An adapter reports every entry; whether .git is shown is a domain rule the service applies.',
+              });
+          },
+        };
+      },
+    },
+    'no-interface-in-runtime': {
+      create(context) {
+        if (!runtimeFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        return {
+          TSInterfaceDeclaration(node) {
+            context.report({
+              node,
+              message:
+                'runtime/ implements the lanes; a contract the server depends on is a port in apps/server/src/ports/.',
+            });
+          },
+        };
+      },
+    },
+    'fixture-imports': {
+      create(context) {
+        if (!fixtureFile.test(repositoryPath(context))) return {};
+        return moduleVisitors((node) => {
+          const source = moduleSource(node);
+          if (source !== undefined && fixtureModules.has(source)) return;
+          context.report({
+            node: node.source ?? node,
+            message:
+              'A fixture helper reads captured output with node:fs, node:path and node:url only.',
+          });
+        });
+      },
+    },
+    'events-after-lane': {
+      create(context) {
+        if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const lanes = [];
+        const isLaneRun = (node) =>
+          node.callee.type === 'MemberExpression' &&
+          propertyName(node.callee, context) === 'run' &&
+          memberPath(node.callee.object)?.at(-1) === 'lanes';
+        return {
+          CallExpression(node) {
+            if (isLaneRun(node)) {
+              lanes.push(node);
+              return;
+            }
+            const path = memberPath(node.callee);
+            if (
+              path?.[0] === 'this' &&
+              path[1] === 'events' &&
+              lanes.some((lane) =>
+                lane.arguments.slice(2, 3).some((work) => within(node, work)),
+              )
+            )
+              context.report({
+                node,
+                message:
+                  'Publish after the lane settles: return whether anything changed from the lane and publish outside it.',
               });
           },
           'CallExpression:exit'(node) {
-            if (isReadLane(node)) readLanes.pop();
+            if (lanes.at(-1) === node) lanes.pop();
           },
         };
       },
@@ -1112,12 +1347,40 @@ export default {
           },
           CallExpression(node) {
             if (
-              ['Date', 'Date.now'].includes(memberPath(node.callee)?.join('.'))
+              node.callee.type === 'Identifier' &&
+              /(?:^|[a-z])Error$/.test(node.callee.name)
             )
               context.report({
                 node,
                 message:
-                  'A rule takes the current time as an ISO string from its caller; it never reads the clock.',
+                  'A rule returns a value or an outcome; it never builds an error, with or without new.',
+              });
+          },
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              pureGlobals,
+            )) {
+              const problem = impureGlobalUse(identifier, context);
+              if (problem)
+                context.report({ node: identifier, message: problem });
+            }
+          },
+        };
+      },
+    },
+    'static-imports': {
+      create(context) {
+        if (!serverSource.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        return {
+          ImportExpression(node) {
+            if (moduleSource(node) === undefined)
+              context.report({
+                node,
+                message:
+                  'Import a module by a literal path; a computed import() hides a dependency from arch:check.',
               });
           },
         };
@@ -1311,20 +1574,49 @@ export default {
           return {};
         const message =
           'Pass the signal to the port and never inspect it; an abort propagates as an error.';
+        const inspects = (name, owner) =>
+          signalMembers.has(name ?? '') ||
+          (name === 'reason' && signalValue(owner));
         return {
           MemberExpression(node) {
-            if (
-              ['throwIfAborted', 'aborted', 'onabort'].includes(
-                propertyName(node, context) ?? '',
-              )
-            )
+            if (inspects(propertyName(node, context), node.object))
               context.report({ node, message });
+          },
+          ObjectPattern(node) {
+            const owner =
+              node.parent?.type === 'VariableDeclarator'
+                ? node.parent.init
+                : node.parent?.type === 'AssignmentPattern'
+                  ? node.parent.right
+                  : undefined;
+            const parameter =
+              node.parent?.type === 'AssignmentPattern'
+                ? node.parent.parent
+                : node.parent;
+            const fromSignal =
+              signalValue(owner) ||
+              (isFunction(parameter) && parameter.params.includes(node));
+            for (const property of node.properties)
+              if (
+                property.type === 'Property' &&
+                (signalMembers.has(propertyName(property, context) ?? '') ||
+                  (fromSignal && propertyName(property, context) === 'reason'))
+              )
+                context.report({ node: property, message });
           },
           CallExpression(node) {
             if (
               node.callee.type === 'MemberExpression' &&
               propertyName(node.callee, context) === 'addEventListener' &&
               staticString(node.arguments[0], context) === 'abort'
+            )
+              context.report({ node, message });
+            if (
+              memberPath(node.callee)?.[0] === 'Reflect' &&
+              inspects(
+                staticString(node.arguments[1], context),
+                node.arguments[0],
+              )
             )
               context.report({ node, message });
           },
@@ -1379,9 +1671,10 @@ export default {
     'port-shape': {
       create(context) {
         const path = repositoryPath(context);
-        if (!portFile.test(path) || indexFile.test(path) || isSpec(context))
+        if (!anyPortFile.test(path) || indexFile.test(path) || isSpec(context))
           return {};
-        const checkParameters = (node, parameters) => {
+        const visitorKeys = context.sourceCode.visitorKeys;
+        const checkParameters = (node, parameters, returned) => {
           const names = parameters.map(parameterName);
           if (
             parameters.length > 2 ||
@@ -1393,6 +1686,19 @@ export default {
               message:
                 'A port method takes (), (input) or (input, signal): one input object, then the signal.',
             });
+          const input = parameters[0]?.typeAnnotation?.typeAnnotation;
+          if (input && input.type !== 'TSTypeReference')
+            context.report({
+              node: input,
+              message:
+                'A port input is a named model from models/ or the kernel, never an inline or primitive type.',
+            });
+          if (containsType(returned, 'TSTypeLiteral', visitorKeys))
+            context.report({
+              node: returned,
+              message:
+                'A port answers a named model from its own models/ or the kernel; an inline shape copies another domain unseen.',
+            });
         };
         return {
           TSInterfaceDeclaration(node) {
@@ -1400,17 +1706,25 @@ export default {
               context.report({
                 node: node.id,
                 message:
-                  'Name a port for its role: it ends in Store, Reader, Writer, Runner or Source, or it is Clock.',
+                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger, or it is Clock.',
               });
             for (const member of node.body.body) {
               if (member.type === 'TSMethodSignature')
-                checkParameters(member, member.params);
+                checkParameters(
+                  member,
+                  member.params,
+                  member.returnType?.typeAnnotation,
+                );
               const annotation = member.typeAnnotation?.typeAnnotation;
               if (
                 member.type === 'TSPropertySignature' &&
                 annotation?.type === 'TSFunctionType'
               )
-                checkParameters(member, annotation.params);
+                checkParameters(
+                  member,
+                  annotation.params,
+                  annotation.returnType?.typeAnnotation,
+                );
             }
           },
         };
@@ -1464,6 +1778,53 @@ export default {
         };
       },
     },
+    'no-number-outside-limits': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!numberFreeFile.test(path) || isSpec(context)) return {};
+        const message =
+          'A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.';
+        const hiddenNumber = (node) => {
+          const text = staticString(node, context);
+          return text !== undefined && Number(text) > 1;
+        };
+        return {
+          CallExpression(node) {
+            const callee = memberPath(node.callee)?.join('.');
+            if (
+              [
+                'Number',
+                'parseInt',
+                'parseFloat',
+                'Number.parseInt',
+                'Number.parseFloat',
+              ].includes(callee ?? '') &&
+              hiddenNumber(node.arguments[0])
+            )
+              context.report({ node, message });
+          },
+          UnaryExpression(node) {
+            if (
+              (node.operator === '+' || node.operator === '-') &&
+              hiddenNumber(node.argument)
+            )
+              context.report({ node, message });
+          },
+          Literal(node) {
+            if (
+              typeof node.value === 'number' &&
+              node.value > 1 &&
+              node.parent?.type !== 'TSLiteralType'
+            )
+              context.report({
+                node,
+                message:
+                  'A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.',
+              });
+          },
+        };
+      },
+    },
     naming: {
       create(context) {
         const path = repositoryPath(context);
@@ -1492,22 +1853,21 @@ export default {
             context.report({
               node,
               message:
-                'Name a readonly field in camelCase after its type, without the Service or Store suffix.',
+                'Name a field in camelCase after its type, without the Service or Store suffix.',
             });
         };
         return {
           ClassDeclaration: checkClass,
           ClassExpression: checkClass,
           PropertyDefinition(node) {
-            if (node.readonly && !node.static)
-              checkField(node.key, node.key.name);
+            if (!node.static) checkField(node.key, node.key.name);
           },
           TSParameterProperty(node) {
             const parameter =
               node.parameter.type === 'AssignmentPattern'
                 ? node.parameter.left
                 : node.parameter;
-            if (node.readonly) checkField(parameter, parameter.name);
+            checkField(parameter, parameter.name);
           },
           Program(program) {
             for (const statement of program.body) {
@@ -1577,17 +1937,21 @@ export default {
           'Composition builds objects only; defaults belong in config, starting and running in runtime and jobs.';
         return {
           LogicalExpression(node) {
-            if (node.operator === '??') context.report({ node, message });
+            context.report({ node, message });
           },
           AssignmentExpression(node) {
-            if (node.operator === '??=') context.report({ node, message });
+            if (node.operator !== '=') context.report({ node, message });
           },
-          MemberExpression(node) {
-            if (
-              node.object.type === 'Identifier' &&
-              node.object.name === 'process'
-            )
-              context.report({ node, message });
+          AssignmentPattern(node) {
+            context.report({ node, message });
+          },
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              new Set(['process', 'globalThis', 'global']),
+            ))
+              context.report({ node: identifier, message });
           },
           CallExpression(node) {
             if (
@@ -1603,14 +1967,31 @@ export default {
     },
     'fakes-store': {
       create(context) {
-        if (!fakeFile.test(repositoryPath(context))) return {};
-        const decides = (node) =>
-          context.report({
-            node,
-            message:
-              'A fake stores and returns; a decision belongs in rules/ and the port gets simpler.',
-          });
+        const fake = fakeFile.test(repositoryPath(context));
+        if (!fake && !isSpec(context)) return {};
+        const portClasses = [];
+        const inFake = () => fake || portClasses.length > 0;
+        const enter = (node) => {
+          if ((node.implements ?? []).length > 0) portClasses.push(node);
+        };
+        const leave = (node) => {
+          if (portClasses.at(-1) === node) portClasses.pop();
+        };
+        const report = (node, message) => {
+          if (inFake()) context.report({ node, message });
+        };
+        const decision =
+          'A fake stores and returns; a decision belongs in rules/ and the port gets simpler.';
+        const recording =
+          'A fake stores state, it never records calls; assert through what the port reads back.';
+        const decides = (node) => report(node, decision);
+        const onField = (node) =>
+          node?.type === 'MemberExpression' && memberPath(node)?.[0] === 'this';
         return {
+          ClassDeclaration: enter,
+          ClassExpression: enter,
+          'ClassDeclaration:exit': leave,
+          'ClassExpression:exit': leave,
           IfStatement: decides,
           SwitchStatement: decides,
           ForStatement: decides,
@@ -1618,24 +1999,52 @@ export default {
           ForOfStatement: decides,
           WhileStatement: decides,
           DoWhileStatement: decides,
+          ConditionalExpression: decides,
           ThrowStatement(node) {
-            context.report({
+            report(
               node,
-              message:
-                'A fake never throws; script the outcome through what the port returns.',
-            });
+              'A fake never throws; script the outcome through what the port returns.',
+            );
+          },
+          AssignmentExpression(node) {
+            if (!onField(node.left)) return;
+            if (node.operator !== '=') report(node, recording);
+            const appended =
+              node.right.type === 'ArrayExpression' &&
+              node.right.elements.some(
+                (element) =>
+                  element?.type === 'SpreadElement' &&
+                  onField(element.argument) &&
+                  context.sourceCode.getText(element.argument) ===
+                    context.sourceCode.getText(node.left),
+              );
+            if (appended) report(node, recording);
+          },
+          UpdateExpression(node) {
+            if (onField(node.argument)) report(node, recording);
+          },
+          PropertyDefinition(node) {
+            if (!node.static && !node.readonly && !isPrivateMember(node))
+              report(
+                node,
+                'A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.',
+              );
           },
           CallExpression(node) {
+            const name =
+              node.callee.type === 'MemberExpression'
+                ? propertyName(node.callee, context)
+                : undefined;
             if (
-              node.callee.type === 'MemberExpression' &&
-              propertyName(node.callee, context) === 'push' &&
+              (name === 'push' || name === 'unshift') &&
               node.callee.object.type === 'MemberExpression'
             )
-              context.report({
+              report(node, recording);
+            if (memberPath(node.callee)?.join('.') === 'Promise.reject')
+              report(
                 node,
-                message:
-                  'A fake stores state, it never records calls; assert through what the port reads back.',
-              });
+                'A fake never rejects; script the outcome through what the port returns.',
+              );
           },
         };
       },
@@ -1659,7 +2068,8 @@ export default {
                 specifier.type === 'ImportNamespaceSpecifier' ||
                 specifier.type === 'ImportDefaultSpecifier' ||
                 (specifier.imported.type === 'Identifier' &&
-                  specifier.imported.name === 'vi')
+                  (specifier.imported.name === 'vi' ||
+                    specifier.imported.name === 'vitest'))
               )
                 context.report({
                   node: specifier,
@@ -1693,17 +2103,70 @@ export default {
     'spec-no-skips': {
       create(context) {
         if (!isSpec(context)) return {};
+        const message =
+          'Every spec runs every time; remove the skip, only, todo or fails.';
         return {
           MemberExpression(node) {
-            if (
-              skippingModifiers.has(memberName(node) ?? '') &&
-              testFunctions.has(chainRoot(node) ?? '')
-            )
+            const testMember = testFunctions.has(chainRoot(node) ?? '');
+            if (testMember && node.computed && memberName(node) === undefined) {
               context.report({
                 node: node.property,
                 message:
-                  'Every spec runs every time; remove the skip, only or todo.',
+                  'Call describe, it and test by their names; a computed member hides a skip.',
               });
+              return;
+            }
+            if (
+              (skippingModifiers.has(memberName(node) ?? '') && testMember) ||
+              (!node.computed && memberName(node) === 'skip')
+            )
+              context.report({ node: node.property, message });
+          },
+          ObjectPattern(node) {
+            for (const property of node.properties)
+              if (
+                property.type === 'Property' &&
+                propertyName(property, context) === 'skip'
+              )
+                context.report({ node: property, message });
+          },
+        };
+      },
+    },
+    'spec-one-case-per-behaviour': {
+      create(context) {
+        if (!isSpec(context)) return {};
+        return {
+          CallExpression(node) {
+            if (
+              node.callee.type !== 'Identifier' ||
+              node.callee.name !== 'expect'
+            )
+              return;
+            for (const ancestor of context.sourceCode
+              .getAncestors(node)
+              .reverse()) {
+              if (
+                isFunction(ancestor) &&
+                ancestor.parent?.type === 'CallExpression' &&
+                caseFunctions.has(chainRoot(ancestor.parent.callee) ?? '')
+              )
+                return;
+              const loop =
+                loopTypes.has(ancestor.type) ||
+                (isFunction(ancestor) &&
+                  ancestor.parent?.type === 'CallExpression' &&
+                  ancestor.parent.callee.type === 'MemberExpression' &&
+                  propertyName(ancestor.parent.callee, context) === 'forEach');
+              if (loop) {
+                context.report({
+                  node,
+                  message:
+                    'One case per behaviour: turn the loop into it.each with a sentence title per row.',
+                });
+                return;
+              }
+            }
           },
         };
       },
@@ -1734,7 +2197,7 @@ export default {
                 message:
                   'Name the case as a sentence of behaviour, not with "should".',
               });
-            if (httpStatus.test(title))
+            if (httpStatus.test(title) || statusNumber.test(title))
               context.report({
                 node: node.arguments[0],
                 message:
@@ -1979,7 +2442,7 @@ export default {
                 member.type === 'MethodDefinition' &&
                 member.kind === 'constructor'
               ) {
-                for (const parameter of member.value.params)
+                for (const parameter of member.value.params) {
                   if (
                     parameter.type === 'TSParameterProperty' &&
                     parameter.accessibility !== 'private' &&
@@ -1989,8 +2452,26 @@ export default {
                       node: parameter,
                       message: `${roleLabel} classes expose only execute; make constructor properties private.`,
                     });
+                  if (
+                    parameter.type === 'TSParameterProperty' &&
+                    !parameter.readonly
+                  )
+                    context.report({
+                      node: parameter,
+                      message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state.`,
+                    });
+                }
                 continue;
               }
+              if (
+                (member.type === 'PropertyDefinition' ||
+                  member.type === 'AccessorProperty') &&
+                !member.readonly
+              )
+                context.report({
+                  node: member,
+                  message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state.`,
+                });
               if (isPrivateMember(member)) continue;
               context.report({
                 node: member,
@@ -2013,6 +2494,13 @@ export default {
               });
             const problem = executeSignatureProblem(role, execute);
             if (problem) context.report({ node: execute, message: problem });
+            for (const parameter of execute.value.params)
+              if (openParameterType(parameter.typeAnnotation?.typeAnnotation))
+                context.report({
+                  node: parameter,
+                  message:
+                    'Name the execute input in models/; Record<never, never>, {}, object and unknown say nothing. Drop the parameter when there is no input.',
+                });
           },
           ExportDefaultDeclaration(node) {
             context.report({ node, message: exportMessage });

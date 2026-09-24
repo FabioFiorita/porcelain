@@ -44,15 +44,23 @@ describe('summaryStyleWarnings', () => {
     expect(warnings[0]).toMatch(/^No authored CSS was detected/);
   });
 
-  it('does not count empty styles as authored CSS', () => {
-    for (const markup of [
-      page('<style></style>'),
-      page('<style>   </style>'),
-      page('<style>/* later */</style>'),
-      page('', '<h1 style="">Summary</h1>'),
-      page('', '<h1 style=" color:red">Summary</h1>'),
-    ])
-      expect(summaryStyleWarnings(markup)).toHaveLength(1);
+  it.each([
+    { name: 'an empty style element', markup: page('<style></style>') },
+    { name: 'a blank style element', markup: page('<style>   </style>') },
+    {
+      name: 'a style element holding only a comment',
+      markup: page('<style>/* later */</style>'),
+    },
+    {
+      name: 'an empty style attribute',
+      markup: page('', '<h1 style="">Summary</h1>'),
+    },
+    {
+      name: 'a style attribute that starts with a space',
+      markup: page('', '<h1 style=" color:red">Summary</h1>'),
+    },
+  ])('does not count $name as authored CSS', ({ markup }) => {
+    expect(summaryStyleWarnings(markup)).toHaveLength(1);
   });
 
   it('ignores styles hidden in comments or written by scripts', () => {

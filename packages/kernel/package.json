@@ -11,6 +11,6 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests --config ../../vitest.config.ts --project @porcelain/kernel"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/kernel"
   }
 }

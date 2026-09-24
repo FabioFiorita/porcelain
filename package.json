@@ -8,7 +8,7 @@
     "lint:server": "node scripts/server-style.ts lint",
     "format:server:check": "node scripts/server-style.ts format",
     "arch:check": "node scripts/architecture.ts check",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "db:generate": "pnpm --filter @porcelain/storage db:generate",
     "db:check": "pnpm --filter @porcelain/storage db:check",
     "dev": "pnpm dev:server",

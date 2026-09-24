@@ -59,15 +59,20 @@ describe('commitGroupsCoverSelection', () => {
     ).toBe(false);
   });
 
-  it('refuses a missing, repeated or unknown path', () => {
-    for (const groups of [
-      [group('Rename', 'old.md', 'new.md')],
-      [group('All', 'old.md', 'new.md', 'README.md', 'README.md')],
-      [group('All', 'old.md', 'new.md', 'GUIDE.md')],
-    ])
-      expect(
-        commitGroupsCoverSelection(groups, capture, 'groups', limits),
-      ).toBe(false);
+  it.each([
+    { name: 'a missing path', groups: [group('Rename', 'old.md', 'new.md')] },
+    {
+      name: 'a repeated path',
+      groups: [group('All', 'old.md', 'new.md', 'README.md', 'README.md')],
+    },
+    {
+      name: 'an unknown path',
+      groups: [group('All', 'old.md', 'new.md', 'GUIDE.md')],
+    },
+  ])('refuses $name', ({ groups }) => {
+    expect(commitGroupsCoverSelection(groups, capture, 'groups', limits)).toBe(
+      false,
+    );
   });
 
   it('refuses no groups and an empty group', () => {
@@ -111,16 +116,18 @@ describe('commitGroupsCoverSelection', () => {
     ).toBe(false);
   });
 
-  it('refuses a blank message or one holding a NUL character', () => {
-    for (const message of ['   ', 'Fix\0'])
-      expect(
-        commitGroupsCoverSelection(
-          [group(message, 'old.md', 'new.md', 'README.md')],
-          capture,
-          'message',
-          limits,
-        ),
-      ).toBe(false);
+  it.each([
+    { name: 'a blank message', message: '   ' },
+    { name: 'a message holding a NUL character', message: 'Fix\0' },
+  ])('refuses $name', ({ message }) => {
+    expect(
+      commitGroupsCoverSelection(
+        [group(message, 'old.md', 'new.md', 'README.md')],
+        capture,
+        'message',
+        limits,
+      ),
+    ).toBe(false);
   });
 
   it('measures the message limit in UTF-8 bytes', () => {

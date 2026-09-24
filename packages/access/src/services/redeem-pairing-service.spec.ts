@@ -97,17 +97,26 @@ describe('RedeemPairingService', () => {
     expect(devices.list()).toHaveLength(1);
   });
 
-  it('refuses a malformed code, an unknown grant, a wrong secret and a device credential alike', () => {
-    const { service, code } = setup();
-    for (const attempt of [
-      'pcp_unknown',
-      credential('pcp', 'bbbbbbbb-0000-4000-8000-000000000002', secret).token,
-      credential('pcp', grantId, 'w'.repeat(43)).token,
-      code.replace('pcp_', 'pcd_'),
-    ])
-      expect(() => service.execute({ code: attempt, platform: 'iOS' })).toThrow(
-        InvalidPairingError,
-      );
+  it.each([
+    { name: 'a malformed code', attempt: 'pcp_unknown' },
+    {
+      name: 'an unknown grant',
+      attempt: credential('pcp', 'bbbbbbbb-0000-4000-8000-000000000002', secret)
+        .token,
+    },
+    {
+      name: 'a wrong secret',
+      attempt: credential('pcp', grantId, 'w'.repeat(43)).token,
+    },
+    {
+      name: 'a device credential',
+      attempt: credential('pcd', grantId, secret).token,
+    },
+  ])('refuses $name as an invalid pairing', ({ attempt }) => {
+    const { service } = setup();
+    expect(() => service.execute({ code: attempt, platform: 'iOS' })).toThrow(
+      InvalidPairingError,
+    );
   });
 
   it('accepts a code until the moment it expires', () => {

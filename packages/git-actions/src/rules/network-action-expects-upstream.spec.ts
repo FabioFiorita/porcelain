@@ -4,18 +4,17 @@ import { networkActionExpectsUpstream } from './network-action-expects-upstream.
 const remote = { remoteName: 'origin', sourceRef: 'refs/heads/main' };
 
 describe('networkActionExpectsUpstream', () => {
-  it('refuses fetch, pull and push that do not state the upstream', () => {
-    for (const intent of [
-      { action: 'fetch' as const, ...remote },
-      { action: 'pull' as const, ...remote },
-      {
-        action: 'push' as const,
-        remoteName: 'origin',
-        destinationRef: 'refs/heads/main',
-        allowCreate: false,
-      },
-    ])
-      expect(networkActionExpectsUpstream(intent, {})).toBe(false);
+  it.each([
+    { action: 'fetch' as const, ...remote },
+    { action: 'pull' as const, ...remote },
+    {
+      action: 'push' as const,
+      remoteName: 'origin',
+      destinationRef: 'refs/heads/main',
+      allowCreate: false,
+    },
+  ])('refuses a $action that does not state the upstream', (intent) => {
+    expect(networkActionExpectsUpstream(intent, {})).toBe(false);
   });
 
   it('accepts an upstream the client saw at a commit', () => {

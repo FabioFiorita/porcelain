@@ -92,17 +92,19 @@ describe('reviewDraftProblem', () => {
     );
   });
 
-  it('refuses a layer arrow from or to a step the layer does not have', () => {
-    for (const arrow of [
-      { from: 'step-a', to: 'elsewhere' },
-      { from: 'elsewhere', to: 'step-b' },
-    ])
+  it.each([
+    { name: 'to', arrow: { from: 'step-a', to: 'elsewhere' } },
+    { name: 'from', arrow: { from: 'elsewhere', to: 'step-b' } },
+  ])(
+    'refuses a layer arrow $name a step the layer does not have',
+    ({ arrow }) => {
       expect(
         reviewDraftProblem(
           draft({ layers: [layer('layer-a', { arrows: [arrow] })] }),
         ),
       ).toBe('unknown-arrow-step');
-  });
+    },
+  );
 
   it('refuses a layer arrow that names a step of another layer', () => {
     const other = layer('layer-b', {
@@ -129,17 +131,19 @@ describe('reviewDraftProblem', () => {
     ).toBe('box-lane-out-of-range');
   });
 
-  it('refuses a diagram arrow from or to a box the diagram does not have', () => {
-    for (const arrow of [
-      { from: 'box-a', to: 'box-z' },
-      { from: 'box-z', to: 'box-b' },
-    ])
+  it.each([
+    { name: 'to', arrow: { from: 'box-a', to: 'box-z' } },
+    { name: 'from', arrow: { from: 'box-z', to: 'box-b' } },
+  ])(
+    'refuses a diagram arrow $name a box the diagram does not have',
+    ({ arrow }) => {
       expect(
         reviewDraftProblem(
           draft({ diagram: { after: diagram({ arrows: [arrow] }) } }),
         ),
       ).toBe('unknown-arrow-box');
-  });
+    },
+  );
 
   it('refuses a layer id used twice in the review', () => {
     expect(

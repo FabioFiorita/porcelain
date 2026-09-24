@@ -21,10 +21,10 @@ export function authenticate(options: AuthenticateOptions) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const credential = credentialOf(request);
     if (!credential) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
-    const device = options.access.authenticateDevice.execute({
-      credential,
-      address: request.ip,
-    });
+    const device = await options.access.authenticateDevice.execute(
+      { credential, address: request.ip },
+      { signal: request.disconnected },
+    );
     if (!device) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
     request.principal = { kind: 'device', deviceId: device.deviceId };
     if (!request.ws)

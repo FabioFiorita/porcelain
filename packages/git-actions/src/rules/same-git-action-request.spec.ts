@@ -35,13 +35,27 @@ describe('sameGitActionRequest', () => {
     expect(sameGitActionRequest(stored, structuredClone(request))).toBe(true);
   });
 
-  it('tells apart a request with another message, expectation or scope', () => {
-    for (const other of [
-      { ...request, intent: { ...request.intent, message: 'Other' } },
-      { ...request, expected: { ...request.expected, branch: 'feature' } },
-      { ...request, worktreeId: 'f'.repeat(32) },
-      { ...request, projectId: '11111111-1111-4111-8111-111111111111' },
-    ])
-      expect(sameGitActionRequest(stored, other)).toBe(false);
+  it.each([
+    {
+      name: 'another message',
+      other: { ...request, intent: { ...request.intent, message: 'Other' } },
+    },
+    {
+      name: 'another expectation',
+      other: {
+        ...request,
+        expected: { ...request.expected, branch: 'feature' },
+      },
+    },
+    {
+      name: 'another worktree',
+      other: { ...request, worktreeId: 'f'.repeat(32) },
+    },
+    {
+      name: 'another project',
+      other: { ...request, projectId: '11111111-1111-4111-8111-111111111111' },
+    },
+  ])('tells apart a request with $name', ({ other }) => {
+    expect(sameGitActionRequest(stored, other)).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ import type {
   GitActionOutcome,
 } from '../dtos/git-action.ts';
 
-export interface GitActionWriter {
+export type GitActionWriter = {
   readSelectedDiff(
     headOid: string | null,
     paths: readonly string[],
@@ -21,7 +21,7 @@ export interface GitActionWriter {
     onProgress?: (line: string) => void,
     verifyTarget?: () => Promise<void>,
   ): Promise<GitActionOutcome>;
-}
+};
 
 export type GitActionWriterFactory = (
   session: CheckoutSession,
