@@ -137,7 +137,8 @@ export class RunGitActionUseCase {
       ({ signal }) => this.settle(worktree, run, signal),
       {
         deadlineMs: this.options.deadlineMs,
-        onFailure: (error) => this.abandon(run, error),
+        onFailure: (error) =>
+          this.lanes.finish(async () => this.abandon(run, error)),
       },
     );
   }

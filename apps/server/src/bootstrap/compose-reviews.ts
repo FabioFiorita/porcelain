@@ -14,9 +14,6 @@ import {
   ReadPublishedReviewService,
   ReadReviewLayerService,
   ReadReviewSummaryService,
-  ReconcileReviewedFilesService,
-  ReconcileReviewedLayersService,
-  RecordReviewActivityService,
   RefreshReviewActivityService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
@@ -66,9 +63,8 @@ export function composeReviewInvalidation(
   context: ComposeContext,
   checkWorktree: CheckWorktreeService,
 ) {
-  const reviewedFileStore = createReviewedFileStore(context.session);
   const invalidateReviewedMarks = new InvalidateReviewedMarksService(
-    reviewedFileStore,
+    createReviewedFileStore(context.session),
     createReviewedLayerStore(context.session),
   );
   return {
@@ -78,12 +74,7 @@ export function composeReviewInvalidation(
       context.lanes,
       context.laneKeys,
     ),
-    services: {
-      invalidateReviewedMarks,
-      reconcileReviewedFiles: new ReconcileReviewedFilesService(
-        reviewedFileStore,
-      ),
-    },
+    services: { invalidateReviewedMarks },
   };
 }
 
@@ -106,7 +97,6 @@ export function composeReviews(
     signatureSource,
     limits.summaryLink,
   );
-  const recordReviewActivity = new RecordReviewActivityService(reviewStore);
   const setReviewedFiles = new SetReviewedFilesService(
     reviewedFileStore,
     clock,
@@ -178,7 +168,6 @@ export function composeReviews(
       changes.readChangeDiffs,
       readEnvironment,
       generatePublishedReview,
-      recordReviewActivity,
       lanes,
       laneKeys,
     ),
@@ -188,9 +177,6 @@ export function composeReviews(
     ),
     listReviewedFiles: new ListReviewedFilesUseCase(
       checkWorktree,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
-      new ReconcileReviewedFilesService(reviewedFileStore),
       new ListReviewedFilesService(reviewedFileStore),
       lanes,
       laneKeys,
@@ -224,7 +210,7 @@ export function composeReviews(
       checkWorktree,
       new ListReviewedLayerPathsService(reviewStore, reviewedLayerStore),
       readTextFile,
-      new ReconcileReviewedLayersService(reviewStore, reviewedLayerStore),
+      readPublishedReview,
       new ListReviewedLayersService(reviewedLayerStore),
       lanes,
       laneKeys,

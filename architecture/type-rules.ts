@@ -40,7 +40,14 @@ const domainShapeFile = new RegExp(
   `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$)[^/]+\\.ts$`,
 );
 
-type Lane = 'read' | 'write' | 'background' | 'unqueued' | 'none' | 'unknown';
+type Lane =
+  | 'read'
+  | 'write'
+  | 'background'
+  | 'finish'
+  | 'unqueued'
+  | 'none'
+  | 'unknown';
 
 function children(node: Node): Node[] {
   const result: Node[] = [];
@@ -198,6 +205,8 @@ function laneOf(call: Node, callback: Node): Lane | undefined {
     return second === callback ? 'background' : undefined;
   if (method.text === 'unqueued')
     return first === callback ? 'unqueued' : undefined;
+  if (method.text === 'finish')
+    return first === callback ? 'finish' : undefined;
   if (method.text !== 'run' || third !== callback) return undefined;
   if (second && isStringLiteral(second))
     return second.text === 'read' || second.text === 'write'
@@ -270,13 +279,13 @@ function laneFindings(
     if (!writer) continue;
     const lanes = lanesAround(node, new Set());
     const wrong = lanes.filter(
-      (lane) => lane !== 'write' && lane !== 'background',
+      (lane) => lane !== 'write' && lane !== 'background' && lane !== 'finish',
     );
     if (wrong.length > 0)
       result.push({
         rule: 'lane-mode-matches-service',
         from: where(root, node),
-        to: `${field} writes; call it inside a 'write' lane or lanes.background, never in ${[...new Set(wrong)].join(' or ')} lane`,
+        to: `${field} writes; call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in ${[...new Set(wrong)].join(' or ')} lane`,
       });
   }
   return result;

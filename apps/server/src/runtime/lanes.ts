@@ -197,16 +197,14 @@ export class Lanes {
     work: (admission: Admission) => Promise<void>,
     options: {
       deadlineMs?: number | undefined;
-      onFailure: (error: unknown) => void;
+      onFailure: (error: unknown) => unknown;
     },
   ): void {
     this.track(
       this.run(lane, 'write', work, {
         deadlineMs: options.deadlineMs,
         untilSettled: true,
-      }).catch((error: unknown) =>
-        this.finish(async () => options.onFailure(error)),
-      ),
+      }).catch((error: unknown) => options.onFailure(error)),
     );
   }
 

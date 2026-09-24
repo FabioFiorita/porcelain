@@ -164,10 +164,5 @@
     "packages/access/src/rules/device-details.spec.ts": {
       "One case per behaviour: turn the loop into it.each with a sentence title per row.": 1
     }
-  },
-  "lane-mode-matches-service": {
-    "apps/server/src/use-cases/git-actions/run-git-action.ts": {
-      "interruptGitAction writes; call it inside a 'write' lane or lanes.background, never in none lane": 1
-    }
   }
 }

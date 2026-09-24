@@ -178,7 +178,6 @@ export async function openApplication(
     inspection,
     commitGit,
     readTextFile: readTextFileService,
-    reconcileReviewedFiles: reviewInvalidation.services.reconcileReviewedFiles,
     readInterruptedGitAction,
   });
   const { services: reviewServices, ...reviews } = composeReviews(context, {

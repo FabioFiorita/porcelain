@@ -1,73 +1,95 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import type { ReadPublishedReviewResponse } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadTextFileService } from '@porcelain/files/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
-  GeneratePublishedReviewService,
-  ReadPublishedReviewService,
-} from '@porcelain/reviews/services';
+  CheckWorktreeService,
+  ListKnownWorktreesService,
+  ListRegisteredProjectsService,
+} from '@porcelain/projects/services';
 import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
+import type {
+  ReadPublishedReviewService,
+  RefreshReviewActivityService,
+} from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
-export class ReadPublishedReviewUseCase {
+export class RefreshReviewActivityUseCase {
+  private readonly listRegisteredProjects: ListRegisteredProjectsService;
+  private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly checkWorktree: CheckWorktreeService;
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly readTextFile: ReadTextFileService;
   private readonly readChangeDiffs: ReadChangeDiffsService;
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly generatePublishedReview: GeneratePublishedReviewService;
+  private readonly refreshReviewActivity: RefreshReviewActivityService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
+    listRegisteredProjects: ListRegisteredProjectsService,
+    listKnownWorktrees: ListKnownWorktreesService,
     checkWorktree: CheckWorktreeService,
     readPublishedReview: ReadPublishedReviewService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     readTextFile: ReadTextFileService,
     readChangeDiffs: ReadChangeDiffsService,
-    readEnvironment: ReadEnvironmentService,
-    generatePublishedReview: GeneratePublishedReviewService,
+    refreshReviewActivity: RefreshReviewActivityService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
+    this.listRegisteredProjects = listRegisteredProjects;
+    this.listKnownWorktrees = listKnownWorktrees;
     this.checkWorktree = checkWorktree;
     this.readPublishedReview = readPublishedReview;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
     this.readTextFile = readTextFile;
     this.readChangeDiffs = readChangeDiffs;
-    this.readEnvironment = readEnvironment;
-    this.generatePublishedReview = generatePublishedReview;
+    this.refreshReviewActivity = refreshReviewActivity;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
 
-  async execute(
-    input: WorktreeParams,
+  async execute(context: OperationContext): Promise<void> {
+    const { listings } = await this.lanes.run(
+      this.laneKeys.inventory(),
+      'read',
+      async () =>
+        this.listKnownWorktrees.execute(this.listRegisteredProjects.execute()),
+      { callerSignal: context.signal },
+    );
+    const refreshed = await Promise.allSettled(
+      listings.flatMap((listing) =>
+        listing.worktrees
+          .filter((worktree) => worktree.available)
+          .map((worktree) => this.refresh(worktree.id, context)),
+      ),
+    );
+    const failed = refreshed.find((result) => result.status === 'rejected');
+    if (failed) throw failed.reason;
+  }
+
+  private async refresh(
+    worktreeId: string,
     context: OperationContext,
-  ): Promise<ReadPublishedReviewResponse> {
-    const { worktreeId } = input;
+  ): Promise<void> {
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
       context.signal,
     );
-    return this.lanes.run(
+    await this.lanes.run(
       this.laneKeys.repository(worktree),
-      'read',
+      'write',
       async ({ signal }) => {
         const published = this.readPublishedReview.execute({ worktreeId });
-        if (published.kind === 'none') return { review: undefined };
+        if (published.kind === 'none') return;
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,
@@ -85,14 +107,12 @@ export class ReadPublishedReviewUseCase {
           { worktreeId, comparisons: trackedComparisons(changes) },
           signal,
         );
-        const resolved = this.generatePublishedReview.execute({
-          environmentId: this.readEnvironment.execute().environmentId,
+        this.refreshReviewActivity.execute({
           review: published.review,
           changes,
           texts,
           diffs,
         });
-        return { review: resolved };
       },
       { callerSignal: context.signal },
     );
