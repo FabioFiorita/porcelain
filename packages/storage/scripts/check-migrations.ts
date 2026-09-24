@@ -1,4 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import Database from 'better-sqlite3';
 import {
   generateSQLiteDrizzleJson,
@@ -8,6 +10,7 @@ import { migrateDatabase } from '../src/db/migrate.ts';
 
 const schemaDirectory = new URL('../src/db/schema/', import.meta.url);
 const metaDirectory = new URL('../drizzle/meta/', import.meta.url);
+const drizzleDirectory = new URL('../drizzle/', import.meta.url);
 const emptySnapshot = {
   version: '6',
   dialect: 'sqlite',
@@ -100,6 +103,68 @@ function differences(expected: object, actual: object, path = ''): string[] {
   });
 }
 
+function git(args: readonly string[]): string | undefined {
+  const result = spawnSync('git', args, {
+    cwd: fileURLToPath(drizzleDirectory),
+    encoding: 'utf8',
+  });
+  return result.status === 0 ? result.stdout : undefined;
+}
+
+function shippedBase(): { commit: string; name: string } | undefined {
+  const mergeBase = git(['merge-base', 'HEAD', 'origin/main'])?.trim();
+  if (mergeBase)
+    return {
+      commit: mergeBase,
+      name: `the merge base with origin/main (${mergeBase.slice(0, 12)})`,
+    };
+  const parent = git(['rev-parse', '--verify', '--quiet', 'HEAD~1'])?.trim();
+  if (parent)
+    return {
+      commit: parent,
+      name: `HEAD~1 (${parent.slice(0, 12)}), as there is no origin/main`,
+    };
+  return undefined;
+}
+
+function journalProblems(base: { commit: string; name: string }): string[] {
+  const journal = readFileSync(new URL('_journal.json', metaDirectory), 'utf8');
+  const journaled = new Set(
+    [...journal.matchAll(/"tag": "([^"]+)"/g)].map(
+      (match) => `${match[1]}.sql`,
+    ),
+  );
+  const files = readdirSync(drizzleDirectory).filter((file) =>
+    file.endsWith('.sql'),
+  );
+  const problems = files
+    .filter((file) => !journaled.has(file))
+    .map(
+      (file) =>
+        `Migration outside the journal: ${file} has no journal entry, so drizzle never applies it; generate migrations with pnpm db:generate.`,
+    );
+  for (const file of files.filter((entry) => journaled.has(entry))) {
+    const text = readFileSync(new URL(file, drizzleDirectory), 'utf8');
+    for (const { commit, name } of [base, { commit: 'HEAD', name: 'HEAD' }]) {
+      const shipped = git(['show', `${commit}:./${file}`]);
+      if (shipped !== undefined && shipped !== text) {
+        problems.push(
+          `Shipped migration edited: ${file} differs from ${name}; an applied migration never changes, so add a new migration instead.`,
+        );
+        break;
+      }
+    }
+  }
+  return problems;
+}
+
+const base = shippedBase();
+const history = base
+  ? journalProblems(base)
+  : [
+      'No shipped base: neither origin/main nor HEAD~1 resolves, so an edited migration cannot be told from a new one; fetch the history.',
+    ];
+
 const current = await schemaSnapshot();
 const pending = await generateSQLiteMigration(latestSnapshot(), current);
 
@@ -114,5 +179,10 @@ const drift = differences(structure(fromSchema), structure(fromMigrations));
 for (const statement of pending)
   console.error(`Schema change without a migration: ${statement}`);
 for (const line of drift) console.error(`Migrated database differs: ${line}`);
-if (pending.length > 0 || drift.length > 0) process.exitCode = 1;
-else console.log('Schema, snapshots and migrations agree');
+for (const line of history) console.error(line);
+if (pending.length > 0 || drift.length > 0 || history.length > 0)
+  process.exitCode = 1;
+else
+  console.log(
+    `Schema, snapshots and migrations agree; every journaled migration matches ${base?.name ?? 'its shipped base'} and HEAD`,
+  );

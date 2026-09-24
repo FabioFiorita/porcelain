@@ -27,11 +27,20 @@ type Outcome = { verdict: Verdict; detail: string[] };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const probeFolder = join(root, 'architecture', 'probes');
-const gateScripts: Record<ProbeGate, string> = {
-  lint: 'lint:server',
-  arch: 'arch:check',
-  typecheck: 'typecheck:server',
-  test: 'test',
+const gateCommands: Record<
+  ProbeGate,
+  (probe: LoadedProbe) => readonly [string, ...string[]]
+> = {
+  lint: () => ['pnpm', 'lint:server'],
+  arch: () => ['pnpm', 'arch:check'],
+  typecheck: () => ['pnpm', 'typecheck:server'],
+  test: () => ['pnpm', 'test'],
+  db: () => ['pnpm', 'db:check'],
+  verify: (probe) => [
+    'node',
+    '.agents/skills/server-verify/scripts/verify.ts',
+    probe.feature ?? '--all',
+  ],
 };
 const moduleSchema = z.object({ default: probeSchema });
 
@@ -146,9 +155,12 @@ function restore(planted: Planted): void {
     throw new Error(`The checkout is not clean after a probe:\n${left}`);
 }
 
-function runGate(gate: ProbeGate): Promise<{ status: number; output: string }> {
+function runGate(
+  command: readonly [string, ...string[]],
+): Promise<{ status: number; output: string }> {
   return new Promise((done, fail) => {
-    const child = spawn('pnpm', [gateScripts[gate]], { cwd: root });
+    const [program, ...args] = command;
+    const child = spawn(program, args, { cwd: root });
     running = child;
     const chunks: Buffer[] = [];
     child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -176,7 +188,8 @@ async function attempt(probe: LoadedProbe): Promise<Outcome> {
     };
   }
   try {
-    const { status, output } = await runGate(probe.gate);
+    const command = gateCommands[probe.gate](probe);
+    const { status, output } = await runGate(command);
     if (status !== 0 && output.includes(probe.rule))
       return { verdict: 'rejected', detail: [] };
     const lines = output.split('\n').filter((line) => line.trim() !== '');
@@ -184,8 +197,8 @@ async function attempt(probe: LoadedProbe): Promise<Outcome> {
       verdict: 'NOT REJECTED',
       detail: [
         status === 0
-          ? `${gateScripts[probe.gate]} passed`
-          : `${gateScripts[probe.gate]} failed without ${probe.rule}`,
+          ? `${command.join(' ')} passed`
+          : `${command.join(' ')} failed without ${probe.rule}`,
         ...lines.slice(-12),
       ],
     };

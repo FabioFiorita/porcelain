@@ -46,7 +46,14 @@ const probeEditSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
-export const probeGates = ['lint', 'arch', 'typecheck', 'test'] as const;
+export const probeGates = [
+  'lint',
+  'arch',
+  'typecheck',
+  'test',
+  'db',
+  'verify',
+] as const;
 
 export type ProbeGate = (typeof probeGates)[number];
 
@@ -72,6 +79,17 @@ export const ruleShapes: Readonly<
     shape:
       '<Name>Error: <message>, as vitest prints a failed case, or a line the spec-discipline reporter prints',
   },
+  db: {
+    pattern:
+      /^(?:Schema change without a migration|Migrated database differs|Migration outside the journal|Shipped migration edited|No shipped base): \S.*$/,
+    shape:
+      '<problem>: <detail>, as check-migrations.ts prints one problem per line',
+  },
+  verify: {
+    pattern: /^[^:\s][^:\n]*: \S.*$/,
+    shape:
+      '<case or net part>: <reason>, as the net prints each failure under its FAIL line',
+  },
 };
 
 export const probeSchema = z
@@ -80,9 +98,16 @@ export const probeSchema = z
     plants: z.string().min(1),
     gate: z.enum(probeGates),
     rule: z.string().min(1),
+    feature: z.string().min(1).optional(),
     edits: z.array(probeEditSchema).min(1),
   })
   .superRefine((probe, context) => {
+    if (probe.feature !== undefined && probe.gate !== 'verify')
+      context.addIssue({
+        code: 'custom',
+        path: ['feature'],
+        message: 'only a verify probe names the feature the net runs',
+      });
     const { pattern, shape } = ruleShapes[probe.gate];
     if (!pattern.test(probe.rule))
       context.addIssue({
