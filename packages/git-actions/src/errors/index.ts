@@ -10,6 +10,7 @@ export { EmptyCommitSelectionError } from './empty-commit-selection-error.ts';
 export { ExpectedFilesMismatchError } from './expected-files-mismatch-error.ts';
 export { GitActionNotFoundError } from './git-action-not-found-error.ts';
 export { GitActionReceiptMismatchError } from './git-action-receipt-mismatch-error.ts';
+export { InvalidHunkRangeError } from './invalid-hunk-range-error.ts';
 export { MergeExpectationMismatchError } from './merge-expectation-mismatch-error.ts';
 export { MissingExpectedFilesError } from './missing-expected-files-error.ts';
 export { MissingUpstreamExpectationError } from './missing-upstream-expectation-error.ts';

@@ -2,6 +2,7 @@ import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { BoxLaneOutOfRangeError } from '../errors/box-lane-out-of-range-error.ts';
 import { DuplicateLayerIdError } from '../errors/duplicate-layer-id-error.ts';
 import { DuplicateStepIdError } from '../errors/duplicate-step-id-error.ts';
+import { InvalidLineRangeError } from '../errors/invalid-line-range-error.ts';
 import { ReviewConflictError } from '../errors/review-conflict-error.ts';
 import { StepLaneOutOfRangeError } from '../errors/step-lane-out-of-range-error.ts';
 import { UnknownArrowBoxError } from '../errors/unknown-arrow-box-error.ts';
@@ -82,6 +83,8 @@ export class PublishReviewService {
         return new DuplicateLayerIdError();
       case 'duplicate-step-id':
         return new DuplicateStepIdError();
+      case 'reversed-pointer':
+        return new InvalidLineRangeError();
       case 'step-lane-out-of-range':
         return new StepLaneOutOfRangeError();
       case 'unknown-arrow-step':

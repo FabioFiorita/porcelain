@@ -65,7 +65,14 @@ export const browseProjectFoldersResponseSchema = z.object({
 });
 
 export const renameProjectRequestSchema = z.strictObject({
-  name: z.string().trim().min(1).max(100),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value), {
+      message: 'The name must not contain control characters',
+    }),
 });
 export const renameProjectResponseSchema = z.object({
   id: z.uuid(),

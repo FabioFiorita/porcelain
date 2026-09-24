@@ -4,6 +4,7 @@ import { DuplicateExpectedFileError } from '../errors/duplicate-expected-file-er
 import { EmptyCommitSelectionError } from '../errors/empty-commit-selection-error.ts';
 import { ExpectedFilesMismatchError } from '../errors/expected-files-mismatch-error.ts';
 import { GitActionReceiptMismatchError } from '../errors/git-action-receipt-mismatch-error.ts';
+import { InvalidHunkRangeError } from '../errors/invalid-hunk-range-error.ts';
 import { MergeExpectationMismatchError } from '../errors/merge-expectation-mismatch-error.ts';
 import { MissingExpectedFilesError } from '../errors/missing-expected-files-error.ts';
 import { MissingUpstreamExpectationError } from '../errors/missing-upstream-expectation-error.ts';
@@ -21,6 +22,7 @@ import { discardExpectsItsPath } from '../rules/discard-expects-its-path.ts';
 import { expectedFilesAreUnique } from '../rules/expected-files-are-unique.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 import { gitActionTarget } from '../rules/git-action-target.ts';
+import { hunkRangeIsOrdered } from '../rules/hunk-range-is-ordered.ts';
 import { mergeExpectationAgrees } from '../rules/merge-expectation-agrees.ts';
 import { networkActionExpectsUpstream } from '../rules/network-action-expects-upstream.ts';
 import { sameGitActionRequest } from '../rules/same-git-action-request.ts';
@@ -77,6 +79,7 @@ export class AcceptGitActionService {
     intent: GitActionIntent,
     expected: GitActionExpectation,
   ): void {
+    if (!hunkRangeIsOrdered(intent)) throw new InvalidHunkRangeError();
     if (!expectedFilesAreUnique(expected))
       throw new DuplicateExpectedFileError();
     if (!mergeExpectationAgrees(expected))

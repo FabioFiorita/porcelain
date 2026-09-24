@@ -1,3 +1,4 @@
+import { InvalidLineRangeError } from '../errors/invalid-line-range-error.ts';
 import type {
   ReadChangeLinesInput,
   ReadChangeLinesOptions,
@@ -13,6 +14,7 @@ export class ReadChangeLinesService {
 
   execute(input: ReadChangeLinesInput): ReadChangeLinesResult {
     const { path, from, at } = input;
+    if (input.to < from) throw new InvalidLineRangeError();
     const to = Math.min(input.to, from + this.options.maxLines - 1);
     const lines = input.text.split('\n');
     const count =

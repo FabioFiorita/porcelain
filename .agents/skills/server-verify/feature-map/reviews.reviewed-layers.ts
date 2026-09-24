@@ -26,6 +26,7 @@ const staleMark = apiError(
   'Conflict',
   'The reviewed mark is based on a version that has changed',
 );
+const layerNotFound = apiError(404, 'Not Found', 'Review layer not found');
 const layerId = randomUUID();
 const strayLayerId = randomUUID();
 
@@ -55,7 +56,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A change to the worktree's files keeps the marks and flags them stale, whether or not a viewer is watching the worktree at the time. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; any other layer or fingerprint, or any mark before a review is published, is a conflict and stores nothing.",
+    "A reviewer marks layers of the published review as reviewed at the layer fingerprint they saw, and unmarks them; each answer is the worktree's full list of layer marks with whether each is stale. A change to the worktree's files keeps the marks and flags them stale, whether or not a viewer is watching the worktree at the time. A mark is accepted only for a layer of the published review at the fingerprint that layer has now; another fingerprint is a conflict, a layer the published review does not have, or any mark before a review is published, is not found, and neither stores anything.",
   cases: [
     defineCase({
       name: 'before any review is published',
@@ -65,8 +66,8 @@ export default defineFeature({
         body: { layerId, reviewed: true, fingerprint: unknownFingerprint },
       }),
       async expect({ response, session, check }) {
-        check('status', 409, response.status);
-        check('error body', staleMark, response.body);
+        check('status', 404, response.status);
+        check('error body', layerNotFound, response.body);
         check(
           'nothing is stored',
           [],
@@ -119,11 +120,11 @@ export default defineFeature({
       async expect({ responses, session, check }) {
         check(
           'statuses',
-          [409, 409],
+          [409, 404],
           responses.map((entry) => entry.status),
         );
-        for (const [index, response] of responses.entries())
-          check(`request ${index + 1} error body`, staleMark, response.body);
+        check('request 1 error body', staleMark, responses[0]?.body);
+        check('request 2 error body', layerNotFound, responses[1]?.body);
         check(
           'the earlier mark is kept as it was',
           [layerId],

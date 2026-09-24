@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   SelectionMismatchError,
+  UnnamedDiffSelectionError,
   WorktreeChangedError,
 } from '@porcelain/changes/errors';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
@@ -44,6 +45,18 @@ describe('SelectDiffComparisonsService', () => {
       comparisons: [modified('unstaged', 'a.md'), renamed],
       paths: ['a.md', 'GUIDE.md'],
     });
+  });
+
+  it('refuses a selection that names neither an old nor a new path', () => {
+    expect(() =>
+      select.execute({
+        status,
+        expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
+        selections: [
+          { scope: 'unstaged', oldPath: undefined, newPath: undefined },
+        ],
+      }),
+    ).toThrow(UnnamedDiffSelectionError);
   });
 
   it('refuses a selection whose file was not stated', () => {

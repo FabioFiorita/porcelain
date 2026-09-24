@@ -1,6 +1,8 @@
 import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
+import { CommentRevisionMismatchError } from '../errors/comment-revision-mismatch-error.ts';
+import { InvalidLineRangeError } from '../errors/invalid-line-range-error.ts';
 import type {
   CommentContent,
   CommentLimits,
@@ -11,6 +13,7 @@ import type {
 } from '../models/create-comment-thread.ts';
 import type { CommentStore } from '../ports/comment-store.ts';
 import {
+  commentAnchorProblem,
   commentAuthor,
   commentStorageSize,
   repeatsCreation,
@@ -36,6 +39,10 @@ export class CreateCommentThreadService {
   }
 
   execute(input: CreateCommentThreadInput): CreateCommentThreadResult {
+    const problem = commentAnchorProblem(input.anchor);
+    if (problem === 'reversed-range') throw new InvalidLineRangeError();
+    if (problem === 'revision-mismatch')
+      throw new CommentRevisionMismatchError();
     const threadId = input.threadId ?? this.idSource.next();
     const messageId = input.messageId ?? this.idSource.next();
     const author = commentAuthor(input.writer);

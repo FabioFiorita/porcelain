@@ -10,6 +10,21 @@ import type {
 } from '../models/comment-thread.ts';
 import { utf8ByteLength } from './review-digests.ts';
 
+const COMMIT_REVISION = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/;
+
+export function commentAnchorProblem(
+  anchor: CommentAnchor,
+): 'reversed-range' | 'revision-mismatch' | undefined {
+  if (anchor.kind === 'codeRange' && anchor.endLine < anchor.startLine)
+    return 'reversed-range';
+  if (anchor.comparison === undefined) return undefined;
+  const fits =
+    anchor.comparison.kind === 'commit'
+      ? COMMIT_REVISION.test(anchor.revision ?? '')
+      : anchor.revision === undefined;
+  return fits ? undefined : 'revision-mismatch';
+}
+
 export function commentAuthor(writer: CommentWriter): CommentAuthor {
   return writer.kind === 'agent' ? 'agent' : 'reviewer';
 }

@@ -4,6 +4,7 @@ import {
   EmptyCommitSelectionError,
   ExpectedFilesMismatchError,
   GitActionReceiptMismatchError,
+  InvalidHunkRangeError,
   MergeExpectationMismatchError,
   MissingExpectedFilesError,
   MissingUpstreamExpectationError,
@@ -159,6 +160,17 @@ describe('AcceptGitActionService', () => {
       [
         { intent: { action: 'fetch', ...upstream } },
         MissingUpstreamExpectationError,
+      ],
+      [
+        {
+          intent: {
+            action: 'discard',
+            path: 'README.md',
+            hunk: { scope: 'unstaged', startLine: 4, endLine: 3 },
+          },
+          expected: { ...CLEAN_EXPECTATION, files: [readme] },
+        },
+        InvalidHunkRangeError,
       ],
     ];
     for (const [change, error] of cases) {

@@ -18,7 +18,11 @@ const evidence = {
   revision: z.string().min(1).max(256).optional(),
   contentFingerprint: z.string().min(1).max(256).optional(),
 };
-const bodySchema = z.string().min(1).max(16000);
+const bodySchema = z
+  .string()
+  .min(1)
+  .max(16000)
+  .refine((value) => value.trim().length > 0 && !value.includes('\0'));
 
 const commentAuthorSchema = z.enum(['reviewer', 'agent']);
 

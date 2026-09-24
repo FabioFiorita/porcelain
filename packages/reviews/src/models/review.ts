@@ -88,6 +88,7 @@ export type Review = {
 
 export type ReviewDraftProblem =
   | 'duplicate-layer-id'
+  | 'reversed-pointer'
   | 'duplicate-step-id'
   | 'step-lane-out-of-range'
   | 'unknown-arrow-step'

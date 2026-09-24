@@ -12,6 +12,12 @@ export const relativePathSchema = z
       path.isWellFormed() &&
       path
         .split('/')
-        .every((part) => part !== '' && part !== '.' && part !== '..'),
+        .every(
+          (part) =>
+            part !== '' &&
+            part !== '.' &&
+            part !== '..' &&
+            part.toLowerCase() !== '.git',
+        ),
     'Expected a normalized relative path',
   );

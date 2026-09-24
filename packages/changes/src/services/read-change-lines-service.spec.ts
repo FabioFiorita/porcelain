@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { InvalidLineRangeError } from '../errors/invalid-line-range-error.ts';
 import { ReadChangeLinesService } from './read-change-lines-service.ts';
 
 const text = 'one\ntwo\nthree\n';
@@ -51,6 +52,18 @@ describe('ReadChangeLinesService', () => {
     expect(
       read.execute({ text, path: 'a.md', from: 5, to: 9, at: 'head' }),
     ).toEqual({ at: 'head', path: 'a.md', from: 5, to: 4, lines: [] });
+  });
+
+  it('refuses a range that ends before it starts', () => {
+    expect(() =>
+      read.execute({ text, path: 'a.md', from: 3, to: 2, at: 'head' }),
+    ).toThrow(InvalidLineRangeError);
+  });
+
+  it('answers the single line of a range that starts and ends on it', () => {
+    expect(
+      read.execute({ text, path: 'a.md', from: 2, to: 2, at: 'head' }).lines,
+    ).toEqual(['two']);
   });
 
   it('stops at the line limit and reports where it stopped', () => {

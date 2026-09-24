@@ -5,11 +5,32 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { gitActionReceiptSchema } from '../shared/git-action-receipt.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-const messageSchema = z.string().min(1).max(16_384);
-const refSchema = z.string().min(12).max(1024).startsWith('refs/heads/');
-const branchSchema = z.string().min(1).max(1024);
+const MAX_MESSAGE_BYTES = 16_384;
+
+const messageSchema = z
+  .string()
+  .min(1)
+  .max(MAX_MESSAGE_BYTES)
+  .refine(
+    (value) =>
+      value.trim().length > 0 &&
+      !value.includes('\0') &&
+      utf8ByteLength(value) <= MAX_MESSAGE_BYTES,
+  );
+const refSchema = z
+  .string()
+  .min(12)
+  .max(1024)
+  .startsWith('refs/heads/')
+  .refine((value) => !value.includes('\0'));
+const branchSchema = z
+  .string()
+  .min(1)
+  .max(1024)
+  .refine((value) => !value.includes('\0'));
 const remoteSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/);
 const expectedFileSchema = z.strictObject({
   path: relativePathSchema,

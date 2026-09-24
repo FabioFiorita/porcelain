@@ -11,6 +11,8 @@ function repeats(values: readonly string[]): boolean {
 
 function layerProblem(layer: LayerDraft): ReviewDraftProblem | undefined {
   if (repeats(layer.steps.map((step) => step.id))) return 'duplicate-step-id';
+  if (layer.steps.some((step) => step.pointer.endLine < step.pointer.startLine))
+    return 'reversed-pointer';
   if (layer.steps.some((step) => step.lane >= layer.lanes.length))
     return 'step-lane-out-of-range';
   const steps = new Set(layer.steps.map((step) => step.id));

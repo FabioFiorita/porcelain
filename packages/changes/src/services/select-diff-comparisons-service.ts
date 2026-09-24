@@ -1,5 +1,6 @@
 import type { TrackedComparison } from '@porcelain/kernel/models';
 import { SelectionMismatchError } from '../errors/selection-mismatch-error.ts';
+import { UnnamedDiffSelectionError } from '../errors/unnamed-diff-selection-error.ts';
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
 import type {
   SelectDiffComparisonsInput,
@@ -8,6 +9,13 @@ import type {
 
 export class SelectDiffComparisonsService {
   execute(input: SelectDiffComparisonsInput): SelectDiffComparisonsResult {
+    if (
+      input.selections.some(
+        (selection) =>
+          selection.oldPath === undefined && selection.newPath === undefined,
+      )
+    )
+      throw new UnnamedDiffSelectionError();
     const expected = new Set(input.expectedFiles.map((file) => file.path));
     const selected = new Set(
       input.selections.map(

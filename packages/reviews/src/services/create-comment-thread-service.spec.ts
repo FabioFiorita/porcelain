@@ -3,8 +3,13 @@ import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
+  CommentRevisionMismatchError,
+  InvalidLineRangeError,
 } from '@porcelain/reviews/errors';
-import type { CreateCommentThreadInput } from '@porcelain/reviews/models';
+import type {
+  CommentAnchor,
+  CreateCommentThreadInput,
+} from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { CreateCommentThreadService } from './create-comment-thread-service.ts';
 
@@ -105,6 +110,73 @@ describe('CreateCommentThreadService', () => {
     expect(() =>
       service.execute(input({ threadId: 'thread-2', messageId: 'message-1' })),
     ).toThrow(CommentIdentityConflictError);
+  });
+
+  it('refuses a code range that ends before it starts and stores nothing', () => {
+    const { service, store } = setup();
+    expect(() =>
+      service.execute(
+        input({
+          anchor: {
+            kind: 'codeRange',
+            filePath: 'README.md',
+            startLine: 3,
+            endLine: 2,
+          },
+        }),
+      ),
+    ).toThrow(InvalidLineRangeError);
+    expect(store.list({ worktreeId })).toEqual([]);
+  });
+
+  it('opens a thread on a one-line code range', () => {
+    const { service } = setup();
+    expect(
+      service.execute(
+        input({
+          anchor: {
+            kind: 'codeRange',
+            filePath: 'README.md',
+            startLine: 3,
+            endLine: 3,
+          },
+        }),
+      ).anchor,
+    ).toMatchObject({ startLine: 3, endLine: 3 });
+  });
+
+  it('refuses a commit comparison without an object id and another comparison with a revision', () => {
+    const { service, store } = setup();
+    const anchors: CommentAnchor[] = [
+      {
+        kind: 'file',
+        filePath: 'README.md',
+        comparison: { kind: 'commit', parent: 1 },
+        revision: 'main',
+      },
+      {
+        kind: 'file',
+        filePath: 'README.md',
+        comparison: { kind: 'file' },
+        revision: 'a'.repeat(40),
+      },
+    ];
+    for (const anchor of anchors)
+      expect(() => service.execute(input({ anchor }))).toThrow(
+        CommentRevisionMismatchError,
+      );
+    expect(store.list({ worktreeId })).toEqual([]);
+  });
+
+  it('opens a thread on a commit comparison that names its object id', () => {
+    const { service } = setup();
+    const anchor: CommentAnchor = {
+      kind: 'file',
+      filePath: 'README.md',
+      comparison: { kind: 'commit', parent: 1 },
+      revision: 'a'.repeat(40),
+    };
+    expect(service.execute(input({ anchor })).anchor).toEqual(anchor);
   });
 
   it('opens the hundredth thread of a worktree and refuses the next', () => {

@@ -11,8 +11,8 @@ const editableTextSchema = z
   .string()
   .max(MAX_TEXT_BYTES)
   .refine(
-    (text) => utf8ByteLength(text) <= MAX_TEXT_BYTES,
-    'Expected UTF-8 text within the write limit',
+    (text) => !text.includes('\0') && utf8ByteLength(text) <= MAX_TEXT_BYTES,
+    'Expected UTF-8 text without NUL within the write limit',
   );
 
 export const listDirectoryQuerySchema = z.strictObject({

@@ -4,6 +4,7 @@ import {
   BoxLaneOutOfRangeError,
   DuplicateLayerIdError,
   DuplicateStepIdError,
+  InvalidLineRangeError,
   ReviewConflictError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
@@ -163,6 +164,25 @@ describe('PublishReviewService', () => {
           layers: [layer({ steps: [...layer().steps, ...layer().steps] })],
         }),
         DuplicateStepIdError,
+      ],
+      [
+        draft({
+          layers: [
+            layer({
+              steps: [
+                {
+                  id: 'step-1',
+                  lane: 0,
+                  title: 'Backwards',
+                  text: 'Ends before it starts',
+                  kind: 'changed',
+                  pointer: { path: 'README.md', startLine: 3, endLine: 2 },
+                },
+              ],
+            }),
+          ],
+        }),
+        InvalidLineRangeError,
       ],
       [draft({ layers: [layer({ lanes: [] })] }), StepLaneOutOfRangeError],
       [
