@@ -1,4 +1,3 @@
-export type { CheckWorktreeInput } from './check-worktree.ts';
 export type { DirectoryEntry, EntryKind } from './directory-entry.ts';
 export type { DirectoryRead, DirectoryReadInput } from './directory-read.ts';
 export type { EditFileInput, EditFileResult } from './edit-file.ts';

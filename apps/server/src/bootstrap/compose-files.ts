@@ -1,5 +1,4 @@
 import {
-  CheckWorktreeService,
   EditFileService,
   ListDirectoryService,
   ListWorktreePathsService,
@@ -8,6 +7,7 @@ import {
   ReadTextFileService,
 } from '@porcelain/files/services';
 import type { ListedWorktree } from '@porcelain/projects/models';
+import { CheckWorktreeService } from '@porcelain/projects/services';
 import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';

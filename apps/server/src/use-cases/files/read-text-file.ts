@@ -3,10 +3,8 @@ import type {
   ReadTextFileResponse,
 } from '@porcelain/contracts/files';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
-  CheckWorktreeService,
-  ReadTextFileService,
-} from '@porcelain/files/services';
+import type { ReadTextFileService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';

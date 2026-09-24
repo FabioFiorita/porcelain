@@ -1,9 +1,7 @@
 import type { EditFileResponse } from '@porcelain/contracts/files';
 import type { EditFileInput } from '@porcelain/files/models';
-import type {
-  CheckWorktreeService,
-  EditFileService,
-} from '@porcelain/files/services';
+import type { EditFileService } from '@porcelain/files/services';
+import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
