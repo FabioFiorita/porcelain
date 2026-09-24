@@ -1,15 +1,15 @@
 import { readBranchTracking } from './commands/read-branch-tracking.ts';
 import { readDiff, readDiffs } from './commands/read-diff.ts';
 import { readDiscarded } from './commands/read-discarded.ts';
+import { readHeadBlob } from './commands/read-head-blob.ts';
 import { readHeadCommit } from './commands/read-head-commit.ts';
 import { readInProgress } from './commands/read-in-progress.ts';
-import { readLines } from './commands/read-lines.ts';
 import { readStashes } from './commands/read-stashes.ts';
 import { readStatus } from './commands/read-status.ts';
 import { readSubmoduleHeads } from './commands/read-submodule-heads.ts';
 import { readUpstreamOid } from './commands/read-upstream-oid.ts';
 import type { GitBranchDetails, GitOrdinaryChange } from './dtos/git-status.ts';
-import type { LineRange } from './dtos/line-range.ts';
+import type { HeadBlob, HeadBlobRequest } from './dtos/head-blob.ts';
 import type { ChangeReader } from './interfaces/change-reader.ts';
 import type { DiffReader } from './interfaces/diff-reader.ts';
 import type { CheckoutSession } from './interfaces/git-session.ts';
@@ -74,8 +74,11 @@ export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
     };
   }
 
-  async readLines(range: Omit<LineRange, 'at'>, signal?: AbortSignal) {
+  async readHeadBlob(
+    request: HeadBlobRequest,
+    signal?: AbortSignal,
+  ): Promise<HeadBlob> {
     await this.session.verify(signal);
-    return readLines(this.session, range, signal);
+    return readHeadBlob(this.session, request, signal);
   }
 }

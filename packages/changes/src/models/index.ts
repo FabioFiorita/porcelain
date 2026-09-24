@@ -67,10 +67,6 @@ export type {
   ReadCommitFilesResult,
 } from './read-commit-files.ts';
 export type {
-  ReadHeadTextInput,
-  ReadHeadTextResult,
-} from './read-head-text.ts';
-export type {
   ReadWorktreeStatusInput,
   ReadWorktreeStatusResult,
 } from './read-worktree-status.ts';

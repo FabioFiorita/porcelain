@@ -16,10 +16,16 @@ function text(content: string, byteLength: number): TextRead {
   return { kind: 'text', text: content, byteLength, revision: 'r1' };
 }
 
-function serviceWith(texts: Record<string, TextRead>, maxBytes = 1024 * 1024) {
-  return new ReadTextFileService(new InMemoryFileReader({ texts }), {
-    maxBytes,
-  });
+function serviceWith(
+  texts: Record<string, TextRead>,
+  maxBytes = 1024 * 1024,
+  head: Record<string, TextRead> = {},
+) {
+  return new ReadTextFileService(
+    new InMemoryFileReader({ texts }),
+    new InMemoryFileReader({ texts: head }),
+    { maxBytes },
+  );
 }
 
 describe('ReadTextFileService', () => {
@@ -37,6 +43,38 @@ describe('ReadTextFileService', () => {
         '7b49b9e063bd91a4f9252b413261f5557b9c570aa61516989499f64a62dbcdd6',
     });
   });
+
+  it('reads the committed text from HEAD rather than the worktree', async () => {
+    const service = serviceWith({ 'README.md': text('edited\n', 7) }, 1024, {
+      'README.md': text('committed\n', 10),
+    });
+    await expect(
+      service.execute({ worktreeId, path: 'README.md', at: 'head' }),
+    ).resolves.toMatchObject({ text: 'committed\n', byteLength: 10 });
+  });
+
+  it.each([
+    {
+      name: 'too large',
+      read: { kind: 'too-large' as const },
+      error: FileTooLargeError,
+    },
+    {
+      name: 'not text',
+      read: { kind: 'failed' as const, failure: 'unsupported-text' as const },
+      error: UnsupportedTextError,
+    },
+  ])(
+    'refuses committed text that is $name, as it refuses the worktree side',
+    async ({ read, error }) => {
+      const service = serviceWith({ 'README.md': text('edited\n', 7) }, 1024, {
+        'README.md': read,
+      });
+      await expect(
+        service.execute({ worktreeId, path: 'README.md', at: 'head' }),
+      ).rejects.toThrow(error);
+    },
+  );
 
   it('refuses a file the reader stopped reading at the limit', async () => {
     const service = serviceWith({ 'big.txt': { kind: 'too-large' } });

@@ -1,6 +1,7 @@
 export type ReadTextFileInput = {
   worktreeId: string;
   path: string;
+  at?: 'head' | 'worktree' | undefined;
 };
 
 export type ReadTextFileResult = {

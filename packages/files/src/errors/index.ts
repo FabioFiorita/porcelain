@@ -2,6 +2,7 @@ export { ContentChangedError } from './content-changed-error.ts';
 export { CrossDeviceMoveError } from './cross-device-move-error.ts';
 export { DirectoryTooLargeError } from './directory-too-large-error.ts';
 export { EntryExistsError } from './entry-exists-error.ts';
+export { fileFailureError } from './file-failure-error.ts';
 export { FileTooLargeError } from './file-too-large-error.ts';
 export { InvalidMoveError } from './invalid-move-error.ts';
 export { PathNotFoundError } from './path-not-found-error.ts';

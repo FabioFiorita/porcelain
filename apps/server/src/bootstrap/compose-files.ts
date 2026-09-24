@@ -9,10 +9,13 @@ import {
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
+import type { InspectionFactory } from '@porcelain/git/inspection';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
+import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { FilesystemFileWriter } from '../adapters/files/filesystem-file-writer.ts';
+import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
 import { GitIgnoredEntriesReader } from '../adapters/files/git-ignored-entries-reader.ts';
 import { GitWorktreePathsReader } from '../adapters/files/git-worktree-paths-reader.ts';
 import { EditFileUseCase } from '../use-cases/files/edit-file.ts';
@@ -27,6 +30,7 @@ export type FilesAdapters = {
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
   invalidateReviewedMarks: InvalidateReviewedMarksService;
+  inspection: InspectionFactory;
 };
 
 export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
@@ -36,6 +40,9 @@ export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
   const fileReader = new FilesystemFileReader(worktreeAccess);
   const readTextFileService = new ReadTextFileService(
     fileReader,
+    new GitHeadTextReader(
+      inspectionCheckouts(worktreeAccess, adapters.inspection),
+    ),
     limits.readTextFile,
   );
   return {

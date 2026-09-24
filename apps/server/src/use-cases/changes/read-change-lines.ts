@@ -1,5 +1,4 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHeadTextService } from '@porcelain/changes/services';
 import { lineRangeProblem, sliceChangeLines } from '@porcelain/changes/rules';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type {
@@ -17,7 +16,6 @@ export type ReadChangeLinesOptions = { maxLines: number };
 
 export class ReadChangeLinesUseCase {
   private readonly checkWorktree: CheckWorktreeService;
-  private readonly readHeadText: ReadHeadTextService;
   private readonly readTextFile: ReadTextFileService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
@@ -26,7 +24,6 @@ export class ReadChangeLinesUseCase {
 
   constructor(
     checkWorktree: CheckWorktreeService,
-    readHeadText: ReadHeadTextService,
     readTextFile: ReadTextFileService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
@@ -34,7 +31,6 @@ export class ReadChangeLinesUseCase {
     options: ReadChangeLinesOptions,
   ) {
     this.checkWorktree = checkWorktree;
-    this.readHeadText = readHeadText;
     this.readTextFile = readTextFile;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
@@ -52,10 +48,10 @@ export class ReadChangeLinesUseCase {
       'read',
       async ({ signal }) => {
         await this.checkWorktree.execute({ worktreeId }, signal);
-        const { text } =
-          at === 'head'
-            ? await this.readHeadText.execute({ worktreeId, path }, signal)
-            : await this.readTextFile.execute({ worktreeId, path }, signal);
+        const { text } = await this.readTextFile.execute(
+          { worktreeId, path, at },
+          signal,
+        );
         const problem = lineRangeProblem({ from, to });
         if (problem) throw new InvalidLineRangeError();
         const lines = sliceChangeLines(

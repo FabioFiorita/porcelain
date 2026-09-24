@@ -1,23 +1,18 @@
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
-import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
-import { EntryExistsError } from '../errors/entry-exists-error.ts';
+import { fileFailureError } from '../errors/file-failure-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
 import { InvalidMoveError } from '../errors/invalid-move-error.ts';
-import { PathNotFoundError } from '../errors/path-not-found-error.ts';
-import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
-import { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
-import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
 import type {
   EditFileInput,
   EditFileOptions,
   EditFileResult,
 } from '../models/edit-file.ts';
-import type { TextFailure, WriteFailure } from '../models/file-failure.ts';
 import type { FileLocation } from '../models/file-location.ts';
 import type { FileWrite } from '../models/file-write.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import type { FileWriter } from '../ports/file-writer.ts';
+import { moveProblem } from '../rules/move-problem.ts';
 
 export class EditFileService {
   private readonly fileReader: FileReader;
@@ -56,10 +51,7 @@ export class EditFileService {
         );
         return { path: command.path };
       case 'move':
-        if (
-          command.destination === command.path ||
-          command.destination.startsWith(`${command.path}/`)
-        )
+        if (moveProblem(command.path, command.destination))
           throw new InvalidMoveError();
         this.succeed(
           await this.fileWriter.move(
@@ -93,12 +85,8 @@ export class EditFileService {
       { ...location, maxBytes: this.options.maxCurrentBytes },
       signal,
     );
-    if (current.kind === 'failed') throw this.failure(current.failure);
-    if (
-      current.kind === 'too-large' ||
-      current.byteLength > this.options.maxCurrentBytes
-    )
-      throw new FileTooLargeError();
+    if (current.kind === 'failed') throw fileFailureError(current.failure);
+    if (current.kind === 'too-large') throw new FileTooLargeError();
     if (sha256Hex(current.text) !== expectedFingerprint)
       throw new ContentChangedError();
     this.succeed(
@@ -114,25 +102,6 @@ export class EditFileService {
   }
 
   private succeed(write: FileWrite): void {
-    if (write.kind === 'failed') throw this.failure(write.failure);
-  }
-
-  private failure(failure: TextFailure | WriteFailure): Error {
-    switch (failure) {
-      case 'missing':
-        return new PathNotFoundError();
-      case 'unreadable':
-        return new PathNotReadableError();
-      case 'changed':
-        return new ContentChangedError();
-      case 'unsupported-text':
-        return new UnsupportedTextError();
-      case 'exists':
-        return new EntryExistsError();
-      case 'cross-device':
-        return new CrossDeviceMoveError();
-      case 'trash-unavailable':
-        return new TrashUnavailableError();
-    }
+    if (write.kind === 'failed') throw fileFailureError(write.failure);
   }
 }

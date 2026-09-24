@@ -168,6 +168,7 @@ export async function openApplication(
     checkWorktree,
     invalidateReviewedMarks:
       reviewInvalidation.services.invalidateReviewedMarks,
+    inspection,
   });
   const { services: changeServices, ...changes } = composeChanges(context, {
     worktreeAccess,

@@ -1,5 +1,5 @@
 import type { GitBranchDetails } from '../dtos/git-status.ts';
-import type { LineRange } from '../dtos/line-range.ts';
+import type { HeadBlob, HeadBlobRequest } from '../dtos/head-blob.ts';
 
 export type ChangeReader = {
   readSubmoduleHeads(
@@ -11,8 +11,8 @@ export type ChangeReader = {
     headOid: string | null,
     signal?: AbortSignal,
   ): Promise<GitBranchDetails>;
-  readLines(
-    range: Omit<LineRange, 'at'>,
+  readHeadBlob(
+    request: HeadBlobRequest,
     signal?: AbortSignal,
-  ): Promise<string[]>;
+  ): Promise<HeadBlob>;
 };

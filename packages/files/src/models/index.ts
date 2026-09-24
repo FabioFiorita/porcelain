@@ -51,3 +51,4 @@ export type {
   WorktreePathsRead,
   WorktreePathsReadInput,
 } from './worktree-paths-read.ts';
+export type { MoveProblem } from './move-problem.ts';

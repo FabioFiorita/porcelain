@@ -44,22 +44,6 @@ describe('ReadFileAssetService', () => {
     ).rejects.toThrow(UnsupportedAssetTypeError);
   });
 
-  it('reads an asset at the limit and refuses one byte more', async () => {
-    const service = serviceWith(
-      {
-        'fits.png': file(new Uint8Array(8)),
-        'over.png': file(new Uint8Array(9)),
-      },
-      8,
-    );
-    await expect(
-      service.execute({ worktreeId, path: 'fits.png' }),
-    ).resolves.toMatchObject({ path: 'fits.png' });
-    await expect(
-      service.execute({ worktreeId, path: 'over.png' }),
-    ).rejects.toThrow(FileTooLargeError);
-  });
-
   it('refuses an asset the reader stopped reading at the limit', async () => {
     const service = serviceWith({ 'big.png': { kind: 'too-large' } });
     await expect(

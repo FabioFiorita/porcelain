@@ -7,7 +7,6 @@ import {
   ReadChangeFingerprintsService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
-  ReadHeadTextService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import type { ReadTextFileService } from '@porcelain/files/services';
@@ -21,7 +20,6 @@ import type { InspectionFactory } from '@porcelain/git/inspection';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
 import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
 import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
-import { GitHeadTextReader } from '../adapters/changes/git-head-text-reader.ts';
 import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
@@ -61,7 +59,6 @@ export function composeChanges(
     limits.worktreeReads,
   );
   const changeDiffReader = new GitChangeDiffReader(openInspection);
-  const headTextReader = new GitHeadTextReader(openInspection);
   const commitHistoryReader = new GitCommitHistoryReader(
     adapters.worktreeAccess,
     adapters.commitGit,
@@ -74,7 +71,6 @@ export function composeChanges(
     limits.fingerprints,
   );
   const readChangeDiffs = new ReadChangeDiffsService(changeDiffReader);
-  const readHeadText = new ReadHeadTextService(headTextReader);
   const listCommits = new ListCommitsService(commitHistoryReader);
   const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
   const checkCommit = new CheckCommitService(commitHistoryReader);
@@ -101,7 +97,6 @@ export function composeChanges(
     ),
     readChangeLines: new ReadChangeLinesUseCase(
       checkWorktree,
-      readHeadText,
       adapters.readTextFile,
       readEnvironment,
       lanes,

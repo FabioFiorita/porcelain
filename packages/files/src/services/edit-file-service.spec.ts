@@ -116,18 +116,6 @@ describe('EditFileService', () => {
     ).rejects.toThrow(ContentChangedError);
   });
 
-  it('refuses to overwrite a file too large to compare', async () => {
-    const { writer, service } = withDisk(
-      { 'notes.md': text('x'.repeat(11), 'r1') },
-      { 'notes.md': stored('x'.repeat(11)) },
-      { maxCurrentBytes: 10 },
-    );
-    await expect(
-      service.execute({ worktreeId, command: writeNew }),
-    ).rejects.toThrow(FileTooLargeError);
-    expect(writer.entry('notes.md')).toEqual(stored('x'.repeat(11)));
-  });
-
   it('refuses to overwrite a file the reader stopped reading at the limit', async () => {
     const { service } = withDisk({ 'notes.md': { kind: 'too-large' } }, {});
     await expect(

@@ -100,7 +100,7 @@ export class FilesystemFileReader implements FileReader {
   }
 }
 
-function decodedText(bytes: Uint8Array) {
+export function decodedText(bytes: Uint8Array): string | undefined {
   if (bytes.includes(0)) return undefined;
   try {
     return textDecoder.decode(bytes);
