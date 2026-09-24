@@ -3,7 +3,7 @@ import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { parseCliArguments } from '../cli/arguments.ts';
 import { runCommand } from '../cli/commands.ts';
 import type { StartServer } from '../cli/launcher.ts';
-import { OwnerRequestError } from '../cli/owner-client.ts';
+import { OwnerRequestError, probeOwnerSocket } from '../cli/owner-client.ts';
 import { isServiceFailure } from '../cli/service.ts';
 import { installShutdownSignals } from '../cli/signals.ts';
 import {
@@ -13,10 +13,11 @@ import {
 import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 import { SocketPathTooLongError } from '../config/errors/socket-path-too-long-error.ts';
 import type { PorcelainEnvironment } from '../config/environment-settings.ts';
-import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
-import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
-import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
-import { startRuntime } from './runtime.ts';
+import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-insecure-error.ts';
+import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
+import { OwnerSocketUnreadableError } from '../runtime/errors/owner-socket-unreadable-error.ts';
+import { startApplication } from '../runtime/start-application.ts';
+import { openServer } from './compose-server.ts';
 
 const actionableErrors = [
   ServeConfigurationError,
@@ -26,6 +27,13 @@ const actionableErrors = [
   OwnerSocketUnreadableError,
   SocketPathTooLongError,
 ];
+
+export const startServer: StartServer = (settings, signal) =>
+  startApplication(settings, signal, {
+    openServer,
+    ownerProbe: probeOwnerSocket,
+    clock: new SystemClock(),
+  });
 
 export type CliDependencies = {
   homeDirectory?: string;
@@ -66,7 +74,7 @@ export async function runCli(
       homeDirectory,
       searchPath: environment.PATH ?? '',
       clock: new SystemClock(),
-      startServer: dependencies.startServer ?? startRuntime,
+      startServer: dependencies.startServer ?? startServer,
       stdout,
       stderr,
     });

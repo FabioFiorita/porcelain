@@ -2,11 +2,11 @@ import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import {
-  startRuntime,
-  type Runtime,
-} from '../apps/server/src/bootstrap/runtime.ts';
+import { issuePairingResponseSchema } from '@porcelain/contracts/access';
+import { startServer } from '../apps/server/src/bootstrap/main.ts';
+import { askOwner } from '../apps/server/src/cli/owner-client.ts';
 import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
+import type { Runtime } from '../apps/server/src/runtime/start-application.ts';
 
 const execute = promisify(execFile);
 const shutdown = new AbortController();
@@ -66,7 +66,7 @@ try {
     projectHome: root,
     port: 0,
   });
-  server = await startRuntime(
+  server = await startServer(
     {
       ...settings,
       limits: {
@@ -76,10 +76,12 @@ try {
     },
     shutdown.signal,
   );
-  const [grant] = await server.issuePairing(
-    [fixture.device.label],
-    [new URL(server.address).origin],
-  );
+  const [grant] = issuePairingResponseSchema.parse(
+    await askOwner(state, 'POST', '/pairings', {
+      labels: [fixture.device.label],
+      addresses: [new URL(server.address).origin],
+    }),
+  ).grants;
   if (!grant) throw new Error('Could not create a development pairing');
   const paired = await fetch(`${server.address}/api/pair`, {
     method: 'POST',

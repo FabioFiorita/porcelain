@@ -13,12 +13,15 @@ function pathIsWithin(root: string, candidate: string): boolean {
 
 export class FilesystemWebRootFiles implements WebRootFiles {
   readonly root: string;
+  private readonly served: boolean;
 
-  constructor(root: string) {
-    this.root = root;
+  constructor(root: string | undefined) {
+    this.root = root ?? '';
+    this.served = root !== undefined;
   }
 
   async file(candidate: string): Promise<WebRootFile | undefined> {
+    if (!this.served) return undefined;
     let canonicalRoot: string;
     let canonicalCandidate: string;
     try {
@@ -39,6 +42,7 @@ export class FilesystemWebRootFiles implements WebRootFiles {
   }
 
   async exists(candidate: string): Promise<boolean> {
+    if (!this.served) return false;
     try {
       await lstat(candidate);
       return true;

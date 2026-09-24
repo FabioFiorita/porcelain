@@ -1,4 +1,4 @@
-import { startRuntime } from '../bootstrap/runtime.ts';
+import { startServer } from '../bootstrap/main.ts';
 import type { ServeSettings } from './arguments.ts';
 import {
   runLocalServer as serveLocally,
@@ -18,7 +18,7 @@ export function runLocalServer(
   dependencies: Partial<LauncherDependencies> = {},
 ): Promise<void> {
   return serveLocally(settings, signal, {
-    startServer: startRuntime,
+    startServer,
     output: (message) => writeStandardOutput(`${message}\n`),
     ...dependencies,
   });

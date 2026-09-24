@@ -101,6 +101,8 @@ export type Limits = {
     flushDeviceActivityMs: number;
   };
   http: { reviewBodyBytes: number; editFileBodyBytes: number };
+  locks: { startupWaitMs: number; pollMs: number };
+  listeners: { closeGraceMs: number };
   owner: {
     requestTimeoutMs: number;
     probeTimeoutMs: number;
@@ -206,6 +208,8 @@ export const LIMITS: Limits = {
     reviewBodyBytes: JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + MEBIBYTE,
     editFileBodyBytes: 8 * MEBIBYTE,
   },
+  locks: { startupWaitMs: 10 * SECOND_MS, pollMs: 25 },
+  listeners: { closeGraceMs: 5 * SECOND_MS },
   owner: {
     requestTimeoutMs: 10 * SECOND_MS,
     probeTimeoutMs: 5 * SECOND_MS,

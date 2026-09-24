@@ -7,14 +7,13 @@ import {
 import websocket from '@fastify/websocket';
 import type { Principal } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
-import { FilesystemWebRootFiles } from '../adapters/web/filesystem-web-root-files.ts';
-import type { ServerApplication } from '../bootstrap/compose-server.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Logger } from '../ports/logger.ts';
+import type { WebRootFiles } from '../ports/web-root-files.ts';
 import { errorHandler } from './error-handler.ts';
 import { callerOf } from './principal.ts';
-import { apiScope } from './scopes/api.ts';
-import { pageScope } from './scopes/page.ts';
+import { apiScope, type ApiUseCases } from './scopes/api.ts';
+import { pageScope, type PageUseCases } from './scopes/page.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -25,14 +24,15 @@ declare module 'fastify' {
 }
 
 export type NetworkServerOptions = {
-  application: ServerApplication;
-  settings: Pick<ServerSettings, 'webRoot' | 'allowedHosts' | 'limits'>;
+  application: ApiUseCases & PageUseCases;
+  settings: Pick<ServerSettings, 'allowedHosts' | 'limits'>;
+  files: WebRootFiles;
   logger: Logger;
 };
 
 export function createNetworkServer(options: NetworkServerOptions) {
   const { application, settings } = options;
-  const { allowedHosts, webRoot } = settings;
+  const { allowedHosts } = settings;
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
@@ -68,8 +68,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   server.register(pageScope, {
     application,
     allowedHosts,
-    files:
-      webRoot === undefined ? undefined : new FilesystemWebRootFiles(webRoot),
+    files: options.files,
   });
   return server;
 }

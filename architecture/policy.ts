@@ -269,7 +269,7 @@ function classifyServer(inside: string) {
       return classified('transport', owner);
     if (http === 'status-policy.ts') return classified('status-policy', owner);
     if (http === 'server.ts' || http === 'owner-server.ts')
-      return classified('bootstrap', owner);
+      return classified('transport', owner);
     return;
   }
   return;
@@ -423,7 +423,21 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
-  bootstrap: new Set(everything),
+  bootstrap: new Set([
+    'bootstrap',
+    'transport',
+    'use-case',
+    'domain-api',
+    'rule-api',
+    'port-api',
+    'gateway',
+    'gateway-api',
+    'repository-api',
+    'runtime',
+    'server-port',
+    'config',
+    'kernel',
+  ]),
   contract: new Set(['contract']),
   config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),

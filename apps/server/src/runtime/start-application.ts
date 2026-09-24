@@ -1,38 +1,59 @@
 import { rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { networkInterfaces } from 'node:os';
-import type { FastifyInstance } from 'fastify';
-import { openApplication, type ServerApplication } from './compose-server.ts';
+import type {
+  HostPolicy,
+  PairingReach,
+  RuntimeStatus,
+} from '@porcelain/access/models';
+import type { Clock } from '@porcelain/kernel/ports';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
-import type { Job } from '../runtime/job.ts';
-import { closeListener } from '../runtime/close-listener.ts';
-import type { IssuePairingResponse } from '@porcelain/contracts/access';
-import { createOwnerServer } from '../http/owner-server.ts';
-import { createNetworkServer } from '../http/server.ts';
-import { probeOwnerSocket } from '../cli/owner-client.ts';
-import type { HostPolicy, RuntimeStatus } from '@porcelain/access/models';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
+import { closeListener, type ClosableListener } from './close-listener.ts';
 import { prepareDataDirectory } from './data-directory.ts';
+import { acquireDirectoryLock } from './directory-lock.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
+import type { Job } from './job.ts';
 import { restrictOwnerSocket } from './owner-socket.ts';
-import { acquireStartupLock } from './startup-lock.ts';
+
+export type NetworkListener = ClosableListener & {
+  listen(options: { host: string; port: number }): Promise<string>;
+};
+
+export type SocketListener = ClosableListener & {
+  listen(options: { path: string }): Promise<string>;
+};
+
+export type OpenedServer = {
+  jobs: readonly Job[];
+  network: NetworkListener;
+  owner: SocketListener;
+  close(): Promise<void>;
+};
+
+export type OpenServer = (input: {
+  settings: ServerSettings;
+  pairingReach: () => PairingReach;
+  runtimeStatus: () => RuntimeStatus;
+  signal: AbortSignal;
+}) => Promise<OpenedServer>;
+
+export type ApplicationStarter = {
+  openServer: OpenServer;
+  ownerProbe: OwnerProbe;
+  clock: Clock;
+};
 
 export type Runtime = {
   address: string;
   socketPath: string;
-  issuePairing(
-    labels: readonly string[],
-    addresses: readonly string[],
-  ): Promise<IssuePairingResponse['grants']>;
   close(): Promise<void>;
 };
 
-const LISTENER_CLOSE_GRACE_MS = 5000;
-
 type RuntimeParts = {
-  network?: FastifyInstance | undefined;
-  owner?: FastifyInstance | undefined;
-  application?: ServerApplication | undefined;
+  opened?: OpenedServer | undefined;
   jobs?: readonly Job[] | undefined;
 };
 
@@ -54,8 +75,8 @@ async function stopJobs(jobs: readonly Job[]): Promise<void> {
   for (const job of jobs) await job.stop();
 }
 
-async function shutDown(parts: RuntimeParts) {
-  const { network, owner, application, jobs } = parts;
+async function shutDown(parts: RuntimeParts, graceMs: number) {
+  const { opened, jobs } = parts;
   const failures: unknown[] = [];
   const stage = async (work: () => Promise<void>) => {
     try {
@@ -64,11 +85,10 @@ async function shutDown(parts: RuntimeParts) {
       failures.push(error);
     }
   };
-  if (network)
-    await stage(() => closeListener(network, LISTENER_CLOSE_GRACE_MS));
+  if (opened) await stage(() => closeListener(opened.network, graceMs));
   if (jobs) await stage(() => stopJobs(jobs));
-  if (application) await stage(() => application.close());
-  if (owner) await stage(() => closeListener(owner, LISTENER_CLOSE_GRACE_MS));
+  if (opened) await stage(() => opened.close());
+  if (opened) await stage(() => closeListener(opened.owner, graceMs));
   if (failures.length > 0) throw failures[0];
 }
 
@@ -81,11 +101,12 @@ function listeningOn(host: string): string[] {
     .map((entry) => entry.address);
 }
 
-export async function startRuntime(
+export async function startApplication(
   settings: ServerSettings,
   signal: AbortSignal,
+  starter: ApplicationStarter,
 ): Promise<Runtime> {
-  const { host, port, allowedHosts } = settings;
+  const { host, port, allowedHosts, limits } = settings;
   signal.throwIfAborted();
   const directory = prepareDataDirectory(settings.dataDirectory);
   const socketPath = ownerSocketPath(directory);
@@ -99,61 +120,52 @@ export async function startRuntime(
     dataDirectory: directory,
     pid: process.pid,
   };
-  const lock = await acquireStartupLock(directory);
+  const lock = await acquireDirectoryLock({
+    path: join(directory, 'server.lock'),
+    waitMs: limits.locks.startupWaitMs,
+    pollMs: limits.locks.pollMs,
+    clock: starter.clock,
+    held: () => new DataDirectoryOwnedError(directory),
+  });
   try {
     signal.throwIfAborted();
-    const probe = await probeOwnerSocket(socketPath);
+    const probe = await starter.ownerProbe(
+      socketPath,
+      limits.owner.probeTimeoutMs,
+    );
     if (probe.kind === 'running') throw new DataDirectoryOwnedError(directory);
     if (probe.kind === 'unreadable')
       throw new OwnerSocketUnreadableError(socketPath, probe.reason);
     rmSync(socketPath, { force: true });
     signal.throwIfAborted();
-    parts.application = await openApplication(
-      { ...settings, dataDirectory: directory },
-      {
-        pairingReach: () => reach,
-        runtimeStatus: () => status,
-        signal,
-      },
-    );
-    const application = parts.application;
-    signal.throwIfAborted();
-    parts.jobs = await startJobs(application.jobs);
-    parts.network = createNetworkServer({
-      application,
-      settings,
-      logger: application.logger,
+    parts.opened = await starter.openServer({
+      settings: { ...settings, dataDirectory: directory },
+      pairingReach: () => reach,
+      runtimeStatus: () => status,
+      signal,
     });
-    const address = await parts.network.listen({ host, port });
+    const opened = parts.opened;
+    signal.throwIfAborted();
+    parts.jobs = await startJobs(opened.jobs);
+    const address = await opened.network.listen({ host, port });
     status.address = address;
     reach.port = Number(new URL(address).port);
     reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
-    parts.owner = createOwnerServer({
-      application,
-      logger: application.logger,
-    });
-    await parts.owner.listen({ path: socketPath });
+    await opened.owner.listen({ path: socketPath });
     restrictOwnerSocket(socketPath);
     const closing: { started?: Promise<void> } = {};
     return {
       address,
       socketPath,
-      issuePairing: async (labels, addresses) =>
-        (
-          await application.access.issuePairing.execute(
-            { labels: [...labels], addresses: [...addresses] },
-            {},
-          )
-        ).grants,
       close: () => {
-        closing.started ??= shutDown(parts);
+        closing.started ??= shutDown(parts, limits.listeners.closeGraceMs);
         return closing.started;
       },
     };
   } catch (error) {
-    await shutDown(parts).catch(() => undefined);
+    await shutDown(parts, limits.listeners.closeGraceMs).catch(() => undefined);
     throw error;
   } finally {
-    lock.release();
+    await lock.release();
   }
 }

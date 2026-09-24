@@ -7,7 +7,10 @@ import {
   type InstallOutcome,
   type InstallSettings,
 } from './install.ts';
-import { acquireManagementLock } from './management-lock.ts';
+import { join } from 'node:path';
+import { LIMITS } from '../config/limits.ts';
+import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
+import { ManagementLockHeldError } from './errors/management-lock-held-error.ts';
 import { servicePaths } from './paths.ts';
 import { serviceSearchPath } from './search-path.ts';
 import type { Clock } from '@porcelain/kernel/ports';
@@ -53,14 +56,17 @@ export class Installer {
   }
 
   private async locked<T>(work: () => Promise<T>): Promise<T> {
-    const release = await acquireManagementLock(
-      this.context.paths.root,
-      this.context.clock,
-    );
+    const lock = await acquireDirectoryLock({
+      path: join(this.context.paths.root, 'management.lock'),
+      waitMs: 0,
+      pollMs: LIMITS.locks.pollMs,
+      clock: this.context.clock,
+      held: () => new ManagementLockHeldError(),
+    });
     try {
       return await work();
     } finally {
-      await release();
+      await lock.release();
     }
   }
 }

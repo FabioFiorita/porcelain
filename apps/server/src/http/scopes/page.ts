@@ -18,7 +18,7 @@ export async function pageScope(
   options: {
     application: PageUseCases;
     allowedHosts: readonly string[];
-    files: WebRootFiles | undefined;
+    files: WebRootFiles;
   },
 ) {
   const { application, allowedHosts, files } = options;
@@ -29,5 +29,5 @@ export async function pageScope(
   server.register(readReviewSummaryPage, {
     useCase: application.reviews.readReviewSummary,
   });
-  if (files !== undefined) server.register(staticFiles, { files });
+  server.register(staticFiles, { files });
 }

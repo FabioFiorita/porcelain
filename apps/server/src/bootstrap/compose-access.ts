@@ -1,6 +1,4 @@
 import type {
-  DeviceSightingStore,
-  DeviceStore,
   PairingReachReader,
   RuntimeStatusReader,
 } from '@porcelain/access/ports';
@@ -9,7 +7,6 @@ import {
   FlushDeviceActivityService,
   IssuePairingService,
   ListAccessService,
-  type ReadEnvironmentService,
   ReadOwnerStatusService,
   RedeemPairingService,
   RefundPairingAttemptService,
@@ -17,8 +14,6 @@ import {
   RevokePairingGrantService,
   TakePairingAttemptService,
 } from '@porcelain/access/services';
-import { createPairingGrantStore } from '@porcelain/storage/access';
-import { InMemoryPairingAttemptStore } from '../adapters/access/in-memory-pairing-attempt-store.ts';
 import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
 import type { DeviceConnections } from '../ports/device-connections.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
@@ -34,11 +29,12 @@ import { RefundPairingAttemptUseCase } from '../use-cases/access/refund-pairing-
 import { RevokeAccessUseCase } from '../use-cases/access/revoke-access.ts';
 import { TakePairingAttemptUseCase } from '../use-cases/access/take-pairing-attempt.ts';
 import type { ComposeContext } from './compose-context.ts';
+import type { Shared } from './compose-shared.ts';
+import type { Stores } from './compose-stores.ts';
 
-export type AccessAdapters = {
-  readEnvironment: ReadEnvironmentService;
-  deviceStore: DeviceStore;
-  deviceSightingStore: DeviceSightingStore;
+export type AccessDependencies = {
+  stores: Stores;
+  shared: Shared;
   deviceConnections: DeviceConnections;
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
@@ -46,14 +42,16 @@ export type AccessAdapters = {
 
 export function composeAccess(
   context: ComposeContext,
-  adapters: AccessAdapters,
+  dependencies: AccessDependencies,
 ) {
-  const { session, lanes, laneKeys, clock, ids } = context;
+  const { lanes, laneKeys, clock, ids } = context;
+  const { stores } = dependencies;
+  const { readEnvironment } = dependencies.shared;
   const limits = context.settings.limits.access;
-  const { readEnvironment, deviceStore, deviceSightingStore } = adapters;
+  const deviceStore = stores.devices;
+  const deviceSightingStore = stores.deviceSightings;
+  const { pairingGrants, pairingAttempts } = stores;
   const secretSource = new RandomSecretSource(limits.credentials);
-  const pairingGrants = createPairingGrantStore(session);
-  const pairingAttempts = new InMemoryPairingAttemptStore();
   return {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(
@@ -76,7 +74,7 @@ export function composeAccess(
       readEnvironment,
       new IssuePairingService(
         pairingGrants,
-        adapters.pairingReachReader,
+        dependencies.pairingReachReader,
         clock,
         ids,
         secretSource,
@@ -93,7 +91,7 @@ export function composeAccess(
     ),
     readHealth: new ReadHealthUseCase(readEnvironment),
     readOwnerStatus: new ReadOwnerStatusUseCase(
-      new ReadOwnerStatusService(adapters.runtimeStatusReader),
+      new ReadOwnerStatusService(dependencies.runtimeStatusReader),
     ),
     redeemPairing: new RedeemPairingUseCase(
       new RedeemPairingService(
@@ -127,7 +125,7 @@ export function composeAccess(
     revokeAccess: new RevokeAccessUseCase(
       new RevokePairingGrantService(pairingGrants, clock),
       new RevokeDeviceService(deviceStore, deviceSightingStore, clock),
-      adapters.deviceConnections,
+      dependencies.deviceConnections,
       lanes,
       laneKeys,
     ),

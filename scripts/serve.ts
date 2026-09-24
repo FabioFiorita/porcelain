@@ -13,7 +13,7 @@ import {
   serveHelp,
   statusExitCodes,
 } from '../apps/server/src/cli/index.ts';
-import type { startRuntime } from '../apps/server/src/bootstrap/runtime.ts';
+import type { StartServer } from '../apps/server/src/cli/launcher.ts';
 
 export {
   installShutdownSignals,
@@ -27,7 +27,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export type ServeDependencies = {
   buildWeb?: (signal: AbortSignal, outputDirectory: string) => Promise<void>;
-  startServer?: typeof startRuntime;
+  startServer?: StartServer;
   output?: (message: string) => void;
   repositoryRoot?: string;
 };
