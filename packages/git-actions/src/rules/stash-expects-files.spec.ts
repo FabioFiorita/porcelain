@@ -1,4 +1,3 @@
-import { MissingExpectedFilesError } from '@porcelain/git-actions/errors';
 import { describe, expect, it } from 'vitest';
 import { stashExpectsFiles } from './stash-expects-files.ts';
 
@@ -15,23 +14,21 @@ describe('stashExpectsFiles', () => {
       { action: 'stash-apply' as const, stashOid, restoreIndex: false },
       { action: 'stash-pop' as const, stashOid, restoreIndex: true },
     ])
-      expect(() => stashExpectsFiles(intent, {})).toThrow(
-        MissingExpectedFilesError,
-      );
+      expect(stashExpectsFiles(intent, {})).toBe(false);
   });
 
   it('accepts a stash that expects a clean worktree', () => {
-    expect(() =>
+    expect(
       stashExpectsFiles(
         { action: 'stash-pop', stashOid, restoreIndex: false },
         { files: [] },
       ),
-    ).not.toThrow();
+    ).toBe(true);
   });
 
   it('leaves other actions alone', () => {
-    expect(() =>
+    expect(
       stashExpectsFiles({ action: 'switch-branch', branch: 'main' }, {}),
-    ).not.toThrow();
+    ).toBe(true);
   });
 });

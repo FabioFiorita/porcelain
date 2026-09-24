@@ -1,23 +1,30 @@
-import { describe, expect, it } from 'vitest';
 import {
   CommitDraftSelectionError,
   CommitDraftTooLargeError,
-  CommitDraftUnavailableError,
   WorktreeChangedError,
 } from '@porcelain/git-actions/errors';
-import type { CommitDraftObservation } from '@porcelain/git-actions/models';
+import type {
+  CommitDraftObservation,
+  UntrackedFileRead,
+} from '@porcelain/git-actions/models';
 import type { FileChange } from '@porcelain/kernel/models';
+import { describe, expect, it } from 'vitest';
 import {
-  guideFingerprint,
-  headOid,
-  projectId,
-  readmeFingerprint,
-  worktreeId,
+  GUIDE_FINGERPRINT,
+  HEAD_OID,
+  README_FINGERPRINT,
+  WORKTREE_ID,
 } from '../../spec/fakes/git-action-samples.ts';
-import { InMemoryCommitDraftReader } from '../../spec/fakes/in-memory-commit-draft-reader.ts';
+import { InMemorySelectedDiffReader } from '../../spec/fakes/in-memory-selected-diff-reader.ts';
+import { InMemoryUntrackedFileReader } from '../../spec/fakes/in-memory-untracked-file-reader.ts';
 import { CaptureCommitDraftService } from './capture-commit-draft-service.ts';
 
 const statusToken = '1'.repeat(64);
+const limits = {
+  maxComparisons: 3,
+  maxEvidenceBytes: 4096,
+  maxUntrackedBytes: 1024,
+};
 const modified = (path: string, fingerprint: string): FileChange => ({
   path,
   fingerprint,
@@ -37,7 +44,7 @@ const modified = (path: string, fingerprint: string): FileChange => ({
 });
 const renamed: FileChange = {
   path: 'GUIDE.md',
-  fingerprint: guideFingerprint,
+  fingerprint: GUIDE_FINGERPRINT,
   comparisons: [
     {
       scope: 'staged',
@@ -59,123 +66,159 @@ const untracked: FileChange = {
 };
 const observed = (...changes: FileChange[]): CommitDraftObservation => ({
   statusToken,
-  headOid,
+  headOid: HEAD_OID,
   changes,
 });
-const input = (...paths: string[]) => ({
-  projectId,
-  worktreeId,
+const input = (observation: CommitDraftObservation, ...paths: string[]) => ({
+  worktreeId: WORKTREE_ID,
+  observation,
   expectedStatusToken: statusToken,
   paths,
 });
 
+function evidence(text: string): unknown {
+  return JSON.parse(text);
+}
+
+function service(
+  patches: Record<string, string> = {},
+  files: Record<string, UntrackedFileRead> = {},
+  options = limits,
+) {
+  return new CaptureCommitDraftService(
+    new InMemorySelectedDiffReader(patches),
+    new InMemoryUntrackedFileReader(files),
+    options,
+  );
+}
+
 describe('CaptureCommitDraftService', () => {
-  it('captures the selected change with its diff and confirms the worktree held still', async () => {
-    const reader = new InMemoryCommitDraftReader(
-      observed(modified('README.md', readmeFingerprint)),
-      'diff --git a/README.md b/README.md',
-    );
-    const capture = await new CaptureCommitDraftService(reader).execute(
-      input('README.md', 'README.md'),
+  it('captures the selected change once, with its diff and fingerprint', async () => {
+    const capture = await service({
+      'README.md': 'diff --git a/README.md b/README.md',
+    }).execute(
+      input(
+        observed(
+          modified('README.md', README_FINGERPRINT),
+          modified('OTHER.md', GUIDE_FINGERPRINT),
+        ),
+        'README.md',
+        'README.md',
+      ),
     );
     expect(capture.paths).toEqual(['README.md']);
     expect(capture.bundles).toEqual([['README.md']]);
     expect(capture.expectedFiles).toEqual([
-      { path: 'README.md', fingerprint: readmeFingerprint },
+      { path: 'README.md', fingerprint: README_FINGERPRINT },
     ]);
-    expect(capture.evidence).toContain('diff --git a/README.md b/README.md');
-    expect(reader.confirmed).toBe(1);
+    expect(evidence(capture.evidence)).toMatchObject({
+      patch: 'diff --git a/README.md b/README.md',
+    });
   });
 
   it('refuses when the status moved since the client looked', async () => {
-    const reader = new InMemoryCommitDraftReader({
-      ...observed(modified('README.md', readmeFingerprint)),
-      statusToken: '5'.repeat(64),
-    });
     await expect(
-      new CaptureCommitDraftService(reader).execute(input('README.md')),
+      service().execute({
+        ...input(observed(modified('README.md', README_FINGERPRINT))),
+        expectedStatusToken: '5'.repeat(64),
+        paths: ['README.md'],
+      }),
     ).rejects.toThrow(WorktreeChangedError);
   });
 
   it('refuses a path that is not a change', async () => {
-    const reader = new InMemoryCommitDraftReader(
-      observed(modified('README.md', readmeFingerprint)),
-    );
     await expect(
-      new CaptureCommitDraftService(reader).execute(input('missing.md')),
+      service().execute(
+        input(
+          observed(modified('README.md', README_FINGERPRINT)),
+          'missing.md',
+        ),
+      ),
     ).rejects.toThrow(CommitDraftSelectionError);
   });
 
   it('refuses a change it cannot fingerprint', async () => {
-    const reader = new InMemoryCommitDraftReader(
-      observed({
-        ...modified('README.md', readmeFingerprint),
-        fingerprint: undefined,
-      }),
-    );
     await expect(
-      new CaptureCommitDraftService(reader).execute(input('README.md')),
+      service().execute(
+        input(
+          observed({
+            ...modified('README.md', README_FINGERPRINT),
+            fingerprint: undefined,
+          }),
+          'README.md',
+        ),
+      ),
     ).rejects.toThrow(CommitDraftSelectionError);
   });
 
-  it('keeps both sides of a selected rename in one bundle', async () => {
-    const reader = new InMemoryCommitDraftReader(observed(renamed), 'patch');
-    const capture = await new CaptureCommitDraftService(reader).execute(
-      input('GUIDE.md', 'OLD.md'),
-    );
+  it('keeps both sides of a selected rename in one bundle and diffs both', async () => {
+    const capture = await service({
+      'GUIDE.md': '+new side',
+      'OLD.md': '-old side',
+    }).execute(input(observed(renamed), 'GUIDE.md', 'OLD.md'));
     expect(capture.bundles).toEqual([['GUIDE.md', 'OLD.md']]);
-    expect(reader.diffRequests).toEqual([['GUIDE.md', 'OLD.md']]);
+    expect(evidence(capture.evidence)).toMatchObject({
+      patch: '+new side-old side',
+    });
   });
 
-  it('reads untracked files as content instead of a diff', async () => {
-    const reader = new InMemoryCommitDraftReader(observed(untracked), '', {
-      'notes.md': {
-        kind: 'file',
-        worktreeId,
-        path: 'notes.md',
-        encoding: 'utf-8',
-        byteLength: 5,
-        text: 'hello',
+  it('reads an untracked file as content instead of a diff', async () => {
+    const capture = await service(
+      { 'notes.md': 'never diffed' },
+      { 'notes.md': { kind: 'text', text: 'hello', byteLength: 5 } },
+    ).execute(input(observed(untracked), 'notes.md'));
+    expect(evidence(capture.evidence)).toMatchObject({
+      patch: '',
+      untracked: {
+        'notes.md': {
+          kind: 'file',
+          worktreeId: WORKTREE_ID,
+          path: 'notes.md',
+          encoding: 'utf-8',
+          byteLength: 5,
+          text: 'hello',
+        },
       },
     });
-    const capture = await new CaptureCommitDraftService(reader).execute(
-      input('notes.md'),
-    );
-    expect(reader.diffRequests).toEqual([]);
-    expect(capture.evidence).toContain('"text":"hello"');
   });
 
-  it('refuses when Git cannot produce the selected diff', async () => {
-    const reader = new InMemoryCommitDraftReader(
-      observed(modified('README.md', readmeFingerprint)),
-      false,
-    );
-    await expect(
-      new CaptureCommitDraftService(reader).execute(input('README.md')),
-    ).rejects.toThrow(CommitDraftUnavailableError);
+  it('names why an untracked file was left out of the evidence', async () => {
+    const tooLarge = await service(
+      {},
+      { 'notes.md': { kind: 'too-large' } },
+    ).execute(input(observed(untracked), 'notes.md'));
+    const unreadable = await service(
+      {},
+      { 'notes.md': { kind: 'failed', failure: 'unsupported-text' } },
+    ).execute(input(observed(untracked), 'notes.md'));
+    expect(evidence(tooLarge.evidence)).toMatchObject({
+      untracked: { 'notes.md': { kind: 'omitted', reason: 'too-large' } },
+    });
+    expect(evidence(unreadable.evidence)).toMatchObject({
+      untracked: {
+        'notes.md': { kind: 'omitted', reason: 'unsupported-text' },
+      },
+    });
   });
 
-  it('refuses a selection with more comparisons than a draft can hold', async () => {
-    const changes = Array.from({ length: 201 }, (_, index) =>
-      modified(`file-${index}.md`, readmeFingerprint),
+  it('accepts as many compared changes as the limit and refuses one more', async () => {
+    const changes = Array.from({ length: 4 }, (_, index) =>
+      modified(`file-${index}.md`, README_FINGERPRINT),
     );
-    const reader = new InMemoryCommitDraftReader(observed(...changes));
+    const paths = changes.map((change) => change.path);
     await expect(
-      new CaptureCommitDraftService(reader).execute(
-        input(...changes.map((change) => change.path)),
+      service().execute(input(observed(...changes), ...paths.slice(0, 3))),
+    ).resolves.toMatchObject({ paths: paths.slice(0, 3) });
+    await expect(
+      service().execute(input(observed(...changes), ...paths)),
+    ).rejects.toThrow(CommitDraftTooLargeError);
+  });
+
+  it('refuses evidence larger than its limit', async () => {
+    await expect(
+      service({ 'README.md': 'x'.repeat(4096) }).execute(
+        input(observed(modified('README.md', README_FINGERPRINT)), 'README.md'),
       ),
     ).rejects.toThrow(CommitDraftTooLargeError);
-    expect(reader.diffRequests).toEqual([]);
-  });
-
-  it('refuses evidence larger than one mebibyte before confirming', async () => {
-    const reader = new InMemoryCommitDraftReader(
-      observed(modified('README.md', readmeFingerprint)),
-      'x'.repeat(1024 * 1024),
-    );
-    await expect(
-      new CaptureCommitDraftService(reader).execute(input('README.md')),
-    ).rejects.toThrow(CommitDraftTooLargeError);
-    expect(reader.confirmed).toBe(0);
   });
 });

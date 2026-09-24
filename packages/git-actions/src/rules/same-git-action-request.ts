@@ -1,5 +1,5 @@
 import type { GitActionReceipt } from '../models/git-action-receipt.ts';
-import type { AcceptGitActionInput } from '../models/git-action-operations.ts';
+import type { AcceptGitActionInput } from '../models/accept-git-action.ts';
 
 export function sameGitActionRequest(
   receipt: GitActionReceipt,

@@ -1,7 +1,7 @@
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { describe, expect, it } from 'vitest';
 import { sampleReceipt } from '../../spec/fakes/git-action-samples.ts';
-import { InMemoryGitActionStore } from '../../spec/fakes/in-memory-git-action-store.ts';
+import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { ReadGitActionReceiptService } from './read-git-action-receipt-service.ts';
 
 describe('ReadGitActionReceiptService', () => {
@@ -9,10 +9,10 @@ describe('ReadGitActionReceiptService', () => {
     const receipt = sampleReceipt({
       state: 'rejected',
       reason: 'CHANGED_SINCE_LOOKED',
-      finishedAt: 9,
+      finishedAt: '2026-09-01T10:00:01.000Z',
     });
     const view = new ReadGitActionReceiptService(
-      new InMemoryGitActionStore([receipt]),
+      new InMemoryGitActionReceiptStore([receipt]),
     ).execute({ requestId: receipt.requestId });
     expect(view).toEqual({
       requestId: receipt.requestId,
@@ -23,13 +23,15 @@ describe('ReadGitActionReceiptService', () => {
       reason: 'CHANGED_SINCE_LOOKED',
       progress: [],
       acceptedAt: receipt.acceptedAt,
-      finishedAt: 9,
+      finishedAt: '2026-09-01T10:00:01.000Z',
     });
   });
 
   it('does not find a request it never accepted', () => {
     expect(() =>
-      new ReadGitActionReceiptService(new InMemoryGitActionStore()).execute({
+      new ReadGitActionReceiptService(
+        new InMemoryGitActionReceiptStore(),
+      ).execute({
         requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
       }),
     ).toThrow(GitActionNotFoundError);

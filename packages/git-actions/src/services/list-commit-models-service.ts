@@ -1,4 +1,4 @@
-import type { CommitModel } from '../models/commit-draft.ts';
+import type { ListCommitModelsResult } from '../models/list-commit-models.ts';
 import type { CommitModelReader } from '../ports/commit-model-reader.ts';
 
 export class ListCommitModelsService {
@@ -8,7 +8,7 @@ export class ListCommitModelsService {
     this.commitModelReader = commitModelReader;
   }
 
-  execute(signal?: AbortSignal): Promise<CommitModel[]> {
-    return this.commitModelReader.list(signal);
+  execute(): Promise<ListCommitModelsResult> {
+    return this.commitModelReader.list();
   }
 }

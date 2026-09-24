@@ -1,4 +1,3 @@
-import { MissingUpstreamExpectationError } from '@porcelain/git-actions/errors';
 import { describe, expect, it } from 'vitest';
 import { networkActionExpectsUpstream } from './network-action-expects-upstream.ts';
 
@@ -16,22 +15,20 @@ describe('networkActionExpectsUpstream', () => {
         allowCreate: false,
       },
     ])
-      expect(() => networkActionExpectsUpstream(intent, {})).toThrow(
-        MissingUpstreamExpectationError,
-      );
+      expect(networkActionExpectsUpstream(intent, {})).toBe(false);
   });
 
   it('accepts an upstream the client saw at a commit', () => {
-    expect(() =>
+    expect(
       networkActionExpectsUpstream(
         { action: 'fetch', ...remote },
         { upstream: { oid: 'e'.repeat(40) } },
       ),
-    ).not.toThrow();
+    ).toBe(true);
   });
 
   it('accepts an upstream the client saw as not existing yet', () => {
-    expect(() =>
+    expect(
       networkActionExpectsUpstream(
         {
           action: 'push',
@@ -41,15 +38,15 @@ describe('networkActionExpectsUpstream', () => {
         },
         { upstream: {} },
       ),
-    ).not.toThrow();
+    ).toBe(true);
   });
 
   it('leaves local actions alone', () => {
-    expect(() =>
+    expect(
       networkActionExpectsUpstream(
         { action: 'create-branch', branch: 'feature', switchTo: false },
         {},
       ),
-    ).not.toThrow();
+    ).toBe(true);
   });
 });
