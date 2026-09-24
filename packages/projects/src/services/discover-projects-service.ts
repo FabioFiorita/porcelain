@@ -6,6 +6,12 @@ import type {
 import type { ProjectFolderReader } from '../ports/project-folder-reader.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
 import { discoveryRoots } from '../rules/discovery-roots.ts';
+import {
+  discoveryLimited,
+  nextDiscoveryFolder,
+  startDiscoveryWalk,
+  visitDiscoveryFolder,
+} from '../rules/discovery-walk.ts';
 import { folderName } from '../rules/folder-name.ts';
 
 export class DiscoverProjectsService {
@@ -27,23 +33,32 @@ export class DiscoverProjectsService {
     input: DiscoverProjectsInput,
     signal?: AbortSignal,
   ): Promise<DiscoverProjectsResult> {
-    const search = await this.projectFolderReader.search(
-      {
-        roots: discoveryRoots(this.options.home, input.projects),
-        maxDepth: this.options.maxDepth,
-        maxFolders: this.options.maxFolders,
-        maxEntries: this.options.maxEntries,
-        skipHidden: true,
-        skippedNames: this.options.skippedNames,
-      },
-      signal,
+    const policy = {
+      maxDepth: this.options.maxDepth,
+      maxFolders: this.options.maxFolders,
+      skipHidden: true,
+      skippedNames: this.options.skippedNames,
+    };
+    let walk = startDiscoveryWalk(
+      discoveryRoots(this.options.home, input.projects),
     );
+    for (
+      let folder = nextDiscoveryFolder(walk, policy);
+      folder !== undefined;
+      folder = nextDiscoveryFolder(walk, policy)
+    ) {
+      const read = await this.projectFolderReader.read(
+        { path: folder.path, maxEntries: this.options.maxEntries },
+        signal,
+      );
+      walk = visitDiscoveryFolder(walk, folder, read, policy);
+    }
     const discovery: DiscoverProjectsResult = {
       repositories: [],
-      limited: search.limited,
+      limited: discoveryLimited(walk, policy),
     };
     const identities = new Set<string>();
-    for (const candidate of search.candidates) {
+    for (const candidate of walk.candidates) {
       if (discovery.repositories.length >= this.options.maxRepositories) {
         discovery.limited = true;
         break;

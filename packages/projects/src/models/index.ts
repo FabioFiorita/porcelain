@@ -61,8 +61,9 @@ export type { ListRegisteredProjectsResult } from './list-registered-projects.ts
 export type { ListedWorktree } from './listed-worktree.ts';
 export type {
   FolderEntry,
-  FolderSearch,
-  FolderSearchResult,
+  DiscoveryFolder,
+  DiscoveryPolicy,
+  DiscoveryWalk,
   ProjectFolderContents,
   ProjectFolderRead,
   ProjectLocation,

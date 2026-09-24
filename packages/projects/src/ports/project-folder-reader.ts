@@ -1,6 +1,4 @@
 import type {
-  FolderSearch,
-  FolderSearchResult,
   ProjectFolderRead,
   ReadProjectFolderInput,
 } from '../models/project-folder.ts';
@@ -10,8 +8,4 @@ export interface ProjectFolderReader {
     input: ReadProjectFolderInput,
     signal?: AbortSignal,
   ): Promise<ProjectFolderRead>;
-  search(
-    input: FolderSearch,
-    signal?: AbortSignal,
-  ): Promise<FolderSearchResult>;
 }

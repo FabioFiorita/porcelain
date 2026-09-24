@@ -18,16 +18,19 @@ export type ProjectFolderRead =
   | { kind: 'unreadable' }
   | { kind: 'unsupported-name' };
 
-export type FolderSearch = {
-  roots: string[];
-  maxDepth: number;
-  maxFolders: number;
-  maxEntries: number;
-  skipHidden: boolean;
-  skippedNames: readonly string[];
+export type DiscoveryFolder = { path: string; depth: number };
+
+export type DiscoveryWalk = {
+  queue: readonly DiscoveryFolder[];
+  next: number;
+  visited: ReadonlySet<string>;
+  candidates: readonly string[];
+  limited: boolean;
 };
 
-export type FolderSearchResult = {
-  candidates: string[];
-  limited: boolean;
+export type DiscoveryPolicy = {
+  maxDepth: number;
+  maxFolders: number;
+  skipHidden: boolean;
+  skippedNames: readonly string[];
 };

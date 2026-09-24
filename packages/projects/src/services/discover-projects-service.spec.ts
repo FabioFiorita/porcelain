@@ -39,7 +39,28 @@ function setup(
   limited = false,
 ) {
   const folders = new ScriptedProjectFolderReader();
-  folders.searchFinds(roots, { candidates, limited });
+  for (const root of roots)
+    folders.folder({
+      path: root,
+      parent: undefined,
+      directories: candidates
+        .filter((path) => path.startsWith(`${root}/`))
+        .map((path) => ({
+          name: path.slice(root.length + 1),
+          path,
+          symbolicLink: false,
+        })),
+      gitMarker: false,
+      truncated: limited && root === home,
+    });
+  for (const path of candidates)
+    folders.folder({
+      path,
+      parent: undefined,
+      directories: [],
+      gitMarker: true,
+      truncated: false,
+    });
   const reader = new ScriptedProjectRepositoryReader({ repositories });
   const service = new DiscoverProjectsService(folders, reader, {
     home,
@@ -100,7 +121,7 @@ describe('DiscoverProjectsService', () => {
     });
   });
 
-  it('says the search was cut short when the folder search was', async () => {
+  it('says the search was cut short when a folder was listed only in part', async () => {
     const { service } = setup([], {}, true);
     expect((await service.execute(inventory)).limited).toBe(true);
   });
