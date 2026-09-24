@@ -127,6 +127,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       recordWorktreePresence,
       lanes,
       laneKeys,
+      events,
     ),
     registerProject: new RegisterProjectUseCase(
       new InspectProjectRepositoryService(projectRepositoryReader),
