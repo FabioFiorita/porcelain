@@ -27,4 +27,4 @@ export {
   type RevokeAccessRequest,
   type RevokeAccessResponse,
 } from './pairing.ts';
-export type { AuthenticatedPrincipal, Principal } from './principal.ts';
+export type { Principal } from './principal.ts';

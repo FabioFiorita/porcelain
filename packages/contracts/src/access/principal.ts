@@ -1,6 +1,8 @@
-export type AuthenticatedPrincipal =
-  | { kind: 'owner' }
-  | { kind: 'agent' }
-  | { kind: 'viewer'; deviceId: string | null };
+import { z } from 'zod';
 
-export type Principal = AuthenticatedPrincipal | { kind: 'anonymous' };
+export const principalSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('owner') }),
+  z.object({ kind: z.literal('device'), deviceId: z.uuid() }),
+]);
+
+export type Principal = z.output<typeof principalSchema>;
