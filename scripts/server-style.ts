@@ -88,6 +88,68 @@ function disableDirectives(): Problem[] {
   );
 }
 
+function codeOutsideLintRoots(): Problem[] {
+  const listed = spawnSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  if (listed.error) throw listed.error;
+  return listed.stdout
+    .split('\n')
+    .filter(
+      (path) =>
+        lintedFile.test(path) &&
+        existsSync(path) &&
+        !path.startsWith('apps/web/') &&
+        !path.startsWith('.claude/') &&
+        !roots.some((root) => path === root || path.startsWith(`${root}/`)),
+    )
+    .map((path) =>
+      problem(
+        'code-outside-lint-roots',
+        `${path}: code lives under a lint root (${roots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check.`,
+      ),
+    );
+}
+
+const ciSchema = z.strictObject({
+  workflow: z.array(z.string()),
+  prePush: z.array(z.string()),
+});
+
+function ciProblems(): Problem[] {
+  const sanctioned = ciSchema.parse(
+    strictJson('architecture/sanctioned/ci.json'),
+  );
+  const workflow = [
+    ...readFileSync('.github/workflows/server.yml', 'utf8').matchAll(
+      /^\s*(?:- )?run: (.+)$/gm,
+    ),
+  ].map((match) => match[1] ?? '');
+  const prePush = readFileSync('.githooks/pre-push', 'utf8')
+    .split('\n')
+    .filter((line) => line.trim() !== '');
+  return [
+    ...(isDeepStrictEqual(workflow, sanctioned.workflow)
+      ? []
+      : [
+          problem(
+            'ci-steps',
+            '.github/workflows/server.yml runs the steps architecture/sanctioned/ci.json lists, in that order; a gate leaves CI only through the sanctioned list.',
+          ),
+        ]),
+    ...(isDeepStrictEqual(prePush, sanctioned.prePush)
+      ? []
+      : [
+          problem(
+            'ci-steps',
+            '.githooks/pre-push runs the lines architecture/sanctioned/ci.json lists; a gate leaves the hook only through the sanctioned list.',
+          ),
+        ]),
+  ];
+}
+
 function strayLintConfigs(): Problem[] {
   return filesUnder('.')
     .filter(
@@ -321,6 +383,7 @@ async function configProblems(): Promise<Problem[]> {
       );
   }
   problems.push(...scriptProblems());
+  problems.push(...ciProblems());
   problems.push(...(await configModuleProblems()));
   problems.push(...(await ruleProblems()));
   return problems;
@@ -527,6 +590,7 @@ if (mode === 'format') {
   const problems = [
     ...disableDirectives(),
     ...strayLintConfigs(),
+    ...codeOutsideLintRoots(),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

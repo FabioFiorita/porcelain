@@ -75,6 +75,8 @@
     "only-throw-error"
   ],
   "style": [
+    "ci-steps",
+    "code-outside-lint-roots",
     "cruiser-config",
     "disable-directives",
     "lint-config",

@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { loadFeatures, loadNegatives, reachesOf } from './catalogue.ts';
+import {
+  loadFeatures,
+  loadNegatives,
+  reachesOf,
+  recordedNegatives,
+} from './catalogue.ts';
 import {
   isRecord,
   list,
@@ -493,8 +498,15 @@ for (const reach of coverage.unregistered)
   process.stdout.write(
     `  - ${reach} is reached by a feature but no route is registered for it\n`,
   );
+const negativesMissing =
+  argument === '--all' && negatives.length < recordedNegatives;
+if (negativesMissing)
+  process.stdout.write(
+    `  - negatives: negative/ holds fewer negative features than the net records (${negatives.length} of ${recordedNegatives}); a negative proves the net still judges hollow cases weak, so none is deleted to pass\n`,
+  );
 const passed =
   !interrupted &&
+  !negativesMissing &&
   registered !== undefined &&
   coverage.unreached.length === 0 &&
   coverage.unregistered.length === 0 &&

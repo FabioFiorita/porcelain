@@ -203,6 +203,8 @@ export const styleRules = [
   'package-scripts',
   'vitest-config',
   'cruiser-config',
+  'ci-steps',
+  'code-outside-lint-roots',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];

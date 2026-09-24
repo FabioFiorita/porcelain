@@ -21,6 +21,8 @@ export function loadFeatures(except?: string): Promise<Feature[]> {
   return loadFrom(join(skillDirectory, 'feature-map'), except);
 }
 
+export const recordedNegatives = 2;
+
 export function loadNegatives(): Promise<Feature[]> {
   return loadFrom(join(skillDirectory, 'negative'));
 }
