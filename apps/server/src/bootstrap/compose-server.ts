@@ -120,7 +120,7 @@ export async function openApplication(
     inventoryStore,
   );
   const checkWorktree = new CheckWorktreeService(worktreeAccess);
-  const laneKeys = new GitLaneKeys(worktreeDirectory, inventoryStore);
+  const laneKeys = new GitLaneKeys(inventoryStore);
   const events = new WebSocketEventPublisher({ limits: limits.liveUpdates });
   const context: ComposeContext = {
     session,
@@ -134,7 +134,7 @@ export async function openApplication(
   const readEnvironment = new ReadEnvironmentService(
     createEnvironmentIdentityStore(session),
   );
-  const reviewInvalidation = composeReviewInvalidation(context);
+  const reviewInvalidation = composeReviewInvalidation(context, checkWorktree);
   const deviceConnections = new HeldDeviceConnections();
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
     createGitActionReceiptStore(session),
@@ -177,7 +177,6 @@ export async function openApplication(
     inspection,
     commitGit,
     readTextFile: readTextFileService,
-    reconcileReviewedFiles: reviewInvalidation.services.reconcileReviewedFiles,
     readInterruptedGitAction,
   });
   const { services: reviewServices, ...reviews } = composeReviews(context, {

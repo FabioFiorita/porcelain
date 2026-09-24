@@ -16,8 +16,6 @@ import {
   ReadReviewLayerService,
   ReadReviewTextsService,
   ReadReviewSummaryService,
-  ReconcileReviewedFilesService,
-  ReconcileReviewedLayersService,
   RecordReviewActivityService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
@@ -47,7 +45,7 @@ import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summa
 import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
 import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
 import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
-import { ResolveCommentThreadUseCase } from '../use-cases/reviews/resolve-comment-thread.ts';
+import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.ts';
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
@@ -63,24 +61,22 @@ export type ReviewsAdapters = {
   changes: ChangesServices;
 };
 
-export function composeReviewInvalidation(context: ComposeContext) {
-  const reviewedFileStore = createReviewedFileStore(context.session);
+export function composeReviewInvalidation(
+  context: ComposeContext,
+  checkWorktree: CheckWorktreeService,
+) {
   const invalidateReviewedMarks = new InvalidateReviewedMarksService(
-    reviewedFileStore,
+    createReviewedFileStore(context.session),
     createReviewedLayerStore(context.session),
   );
   return {
     invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
+      checkWorktree,
       invalidateReviewedMarks,
       context.lanes,
       context.laneKeys,
     ),
-    services: {
-      invalidateReviewedMarks,
-      reconcileReviewedFiles: new ReconcileReviewedFilesService(
-        reviewedFileStore,
-      ),
-    },
+    services: { invalidateReviewedMarks },
   };
 }
 
@@ -138,7 +134,7 @@ export function composeReviews(
       laneKeys,
       events,
     ),
-    resolveCommentThread: new ResolveCommentThreadUseCase(
+    resolveCommentThread: new UpdateCommentThreadUseCase(
       checkWorktree,
       new UpdateCommentThreadService(commentStore),
       lanes,
@@ -176,7 +172,6 @@ export function composeReviews(
       readReviewEvidence,
       readEnvironment,
       generatePublishedReview,
-      recordReviewActivity,
       lanes,
       laneKeys,
     ),
@@ -186,9 +181,6 @@ export function composeReviews(
     ),
     listReviewedFiles: new ListReviewedFilesUseCase(
       checkWorktree,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
-      new ReconcileReviewedFilesService(reviewedFileStore),
       new ListReviewedFilesService(reviewedFileStore),
       lanes,
       laneKeys,
@@ -222,7 +214,7 @@ export function composeReviews(
       checkWorktree,
       new ListReviewedLayerPathsService(reviewStore, reviewedLayerStore),
       readReviewTexts,
-      new ReconcileReviewedLayersService(reviewStore, reviewedLayerStore),
+      readPublishedReview,
       new ListReviewedLayersService(reviewedLayerStore),
       lanes,
       laneKeys,

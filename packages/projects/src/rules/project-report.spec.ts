@@ -30,6 +30,7 @@ function worktree(id: string, projectId: string): ListedWorktree {
     administrativeDirectory: `/srv/${projectId}/.git`,
     commonDirectory: `/srv/${projectId}/.git`,
     repositoryIdentity: `identity-${projectId}`,
+    repositoryId: `identity-${projectId}`,
   };
 }
 

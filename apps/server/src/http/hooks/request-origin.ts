@@ -34,15 +34,18 @@ export function checkRequestOrigin(
   requireSameOrigin = false,
 ) {
   return async (request: FastifyRequest) => {
-    const result = options.access.checkRequestOrigin.execute({
-      host: request.headers.host,
-      origin: request.headers.origin,
-      method: request.method,
-      scheme: request.protocol,
-      localAddress: request.socket.localAddress,
-      allowedHosts: options.allowedHosts,
-      requireSameOrigin,
-    });
+    const result = await options.access.checkRequestOrigin.execute(
+      {
+        host: request.headers.host,
+        origin: request.headers.origin,
+        method: request.method,
+        scheme: request.protocol,
+        localAddress: request.socket.localAddress,
+        allowedHosts: options.allowedHosts,
+        requireSameOrigin,
+      },
+      {},
+    );
     if (!result.allowed)
       throw httpErrors.forbidden(refusalMessage(result.refusal));
   };

@@ -7,7 +7,6 @@ import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
-import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -18,7 +17,6 @@ export class ReadChangesUseCase {
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly readInterruptedGitAction: ReadInterruptedGitActionService;
   private readonly readEnvironment: ReadEnvironmentService;
-  private readonly reconcileReviewedFiles: ReconcileReviewedFilesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -28,7 +26,6 @@ export class ReadChangesUseCase {
     readChangeFingerprints: ReadChangeFingerprintsService,
     readInterruptedGitAction: ReadInterruptedGitActionService,
     readEnvironment: ReadEnvironmentService,
-    reconcileReviewedFiles: ReconcileReviewedFilesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -37,7 +34,6 @@ export class ReadChangesUseCase {
     this.readChangeFingerprints = readChangeFingerprints;
     this.readInterruptedGitAction = readInterruptedGitAction;
     this.readEnvironment = readEnvironment;
-    this.reconcileReviewedFiles = reconcileReviewedFiles;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -47,12 +43,14 @@ export class ReadChangesUseCase {
     context: OperationContext,
   ): Promise<ReadChangesResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
-    const response = await this.lanes.run<ReadChangesResponse>(
-      lane,
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    return this.lanes.run<ReadChangesResponse>(
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute({ worktreeId }, signal);
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,
@@ -61,7 +59,10 @@ export class ReadChangesUseCase {
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         const interrupted = this.readInterruptedGitAction.execute({
           worktreeId,
         });
@@ -84,18 +85,5 @@ export class ReadChangesUseCase {
       },
       { callerSignal: context.signal },
     );
-    await this.lanes.run(
-      lane,
-      'write',
-      async () =>
-        this.reconcileReviewedFiles.execute({
-          worktreeId,
-          fingerprints: new Map(
-            response.changes.map((change) => [change.path, change.fingerprint]),
-          ),
-        }),
-      { callerSignal: context.signal },
-    );
-    return response;
   }
 }

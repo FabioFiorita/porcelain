@@ -34,7 +34,7 @@ import type { RemoveReviewedFileUseCase } from '../../use-cases/reviews/remove-r
 import type { RemoveReviewedLayerUseCase } from '../../use-cases/reviews/remove-reviewed-layer.ts';
 import type { RenameProjectUseCase } from '../../use-cases/projects/rename-project.ts';
 import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
-import type { ResolveCommentThreadUseCase } from '../../use-cases/reviews/resolve-comment-thread.ts';
+import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
 import type { RunGitActionUseCase } from '../../use-cases/git-actions/run-git-action.ts';
 import type { SetFilePreferenceUseCase } from '../../use-cases/projects/set-file-preference.ts';
 import type { SetReviewedFileUseCase } from '../../use-cases/reviews/set-reviewed-file.ts';
@@ -125,7 +125,7 @@ export type PairedUseCases = {
     removeReviewedFile: Pick<RemoveReviewedFileUseCase, 'execute'>;
     removeReviewedLayer: Pick<RemoveReviewedLayerUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
-    resolveCommentThread: Pick<ResolveCommentThreadUseCase, 'execute'>;
+    resolveCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
     setReviewedFile: Pick<SetReviewedFileUseCase, 'execute'>;
     setReviewedFiles: Pick<SetReviewedFilesUseCase, 'execute'>;
     setReviewedLayer: Pick<SetReviewedLayerUseCase, 'execute'>;

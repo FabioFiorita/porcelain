@@ -154,6 +154,7 @@ export function composeProjects(
     listFilePreferences: new ListFilePreferencesUseCase(
       new ListFilePreferencesService(inventory, filePreference),
       lanes,
+      laneKeys,
     ),
     setFilePreference: new SetFilePreferenceUseCase(
       new SetFilePreferenceService(

@@ -6,7 +6,6 @@ import type {
   GeneratePublishedReviewService,
   ReadPublishedReviewService,
   ReadReviewEvidenceService,
-  RecordReviewActivityService,
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -18,7 +17,6 @@ export class ReadPublishedReviewUseCase {
   private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly generatePublishedReview: GeneratePublishedReviewService;
-  private readonly recordReviewActivity: RecordReviewActivityService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -28,7 +26,6 @@ export class ReadPublishedReviewUseCase {
     readReviewEvidence: ReadReviewEvidenceService,
     readEnvironment: ReadEnvironmentService,
     generatePublishedReview: GeneratePublishedReviewService,
-    recordReviewActivity: RecordReviewActivityService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -37,7 +34,6 @@ export class ReadPublishedReviewUseCase {
     this.readReviewEvidence = readReviewEvidence;
     this.readEnvironment = readEnvironment;
     this.generatePublishedReview = generatePublishedReview;
-    this.recordReviewActivity = recordReviewActivity;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -47,17 +43,16 @@ export class ReadPublishedReviewUseCase {
     context: OperationContext,
   ): Promise<ReadPublishedReviewResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
-    const read = await this.lanes.run(
-      lane,
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    return this.lanes.run(
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          signal,
-        );
         const published = this.readPublishedReview.execute({ worktreeId });
-        if (published.kind === 'none') return published;
+        if (published.kind === 'none') return { review: undefined };
         const evidence = await this.readReviewEvidence.execute(
           { worktreeId, layers: published.review.layers },
           signal,
@@ -67,21 +62,9 @@ export class ReadPublishedReviewUseCase {
           review: published.review,
           evidence,
         });
-        return { ...published, evidence, resolved };
+        return { review: resolved };
       },
       { callerSignal: context.signal },
     );
-    if (read.kind === 'none') return { review: undefined };
-    await this.lanes.run(
-      lane,
-      'write',
-      async () =>
-        this.recordReviewActivity.execute({
-          review: read.review,
-          evidence: read.evidence,
-        }),
-      { callerSignal: context.signal },
-    );
-    return { review: read.resolved };
   }
 }

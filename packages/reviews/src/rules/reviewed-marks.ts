@@ -71,11 +71,31 @@ export function markStaleness<
   const stale: string[] = [];
   const fresh: string[] = [];
   for (const mark of marks) {
-    const isStale = current.get(key(mark)) !== mark.fingerprint;
+    const isStale = markIsStale(mark, key(mark), current);
     if (isStale === mark.stale) continue;
     (isStale ? stale : fresh).push(key(mark));
   }
   return { stale, fresh };
+}
+
+function markIsStale(
+  mark: { fingerprint: string },
+  key: string,
+  current: ReadonlyMap<string, string | undefined>,
+): boolean {
+  return current.get(key) !== mark.fingerprint;
+}
+
+export function reviewedLayerMarks(
+  marks: readonly ReviewedLayerMark[],
+  layers: readonly ReviewLayer[],
+  texts: ReviewTexts,
+): ReviewedLayerMark[] {
+  const current = currentLayerFingerprints(layers, texts);
+  return marks.map((mark) => ({
+    ...mark,
+    stale: markIsStale(mark, mark.layerId, current),
+  }));
 }
 
 export function reviewedMarks(

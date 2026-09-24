@@ -2,14 +2,14 @@ import type { IgnoredEntriesReadInput } from '@porcelain/files/models';
 import type { IgnoredEntriesReader } from '@porcelain/files/ports';
 import { checkIgnored } from '@porcelain/git/inspection';
 import {
-  knownWorktree,
-  type KnownWorktrees,
+  listedWorktree,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
-  private readonly worktrees: KnownWorktrees;
+  private readonly worktrees: ListedWorktrees;
 
-  constructor(worktrees: KnownWorktrees) {
+  constructor(worktrees: ListedWorktrees) {
     this.worktrees = worktrees;
   }
 
@@ -17,7 +17,7 @@ export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
     input: IgnoredEntriesReadInput,
     signal?: AbortSignal,
   ): Promise<ReadonlySet<string>> {
-    const checkout = await knownWorktree(
+    const checkout = await listedWorktree(
       this.worktrees,
       input.worktreeId,
       signal,

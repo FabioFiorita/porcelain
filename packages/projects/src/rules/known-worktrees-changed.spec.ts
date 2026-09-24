@@ -16,6 +16,7 @@ const main: ListedWorktree = {
   administrativeDirectory: '/repositories/one/.git',
   commonDirectory: '/repositories/one/.git',
   repositoryIdentity: 'repository-1',
+  repositoryId: 'repository-1',
 };
 
 function listing(

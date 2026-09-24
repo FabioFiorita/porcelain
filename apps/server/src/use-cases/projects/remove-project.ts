@@ -32,11 +32,11 @@ export class RemoveProjectUseCase {
     this.events = events;
   }
 
-  execute(
+  async execute(
     input: RemoveProjectParams,
     context: OperationContext,
   ): Promise<RemoveProjectResponse> {
-    return this.lanes.run(
+    const result = await this.lanes.run(
       this.laneKeys.project(input.projectId),
       'write',
       ({ signal }) =>
@@ -45,14 +45,14 @@ export class RemoveProjectUseCase {
           'write',
           async () => {
             const result = this.removeProject.execute(input);
-            if (!result.deleted) return result;
-            this.forgetProjectWorktrees.execute(input);
-            this.events.inventoryChanged();
+            if (result.deleted) this.forgetProjectWorktrees.execute(input);
             return result;
           },
           { callerSignal: signal },
         ),
       { callerSignal: context.signal },
     );
+    if (result.deleted) this.events.inventoryChanged();
+    return result;
   }
 }

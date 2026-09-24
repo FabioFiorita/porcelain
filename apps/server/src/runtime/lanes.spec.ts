@@ -42,6 +42,21 @@ describe('Lanes', () => {
     expect(failures).toEqual([cause]);
   });
 
+  it('runs work handed to finish after closing began, and closing waits for it', async () => {
+    const subject = lanes();
+    const release = Promise.withResolvers<void>();
+    const recorded: string[] = [];
+    void subject.finish(async () => {
+      await release.promise;
+      recorded.push('before close');
+    });
+    const closing = subject.close();
+    void subject.finish(async () => recorded.push('after close'));
+    release.resolve();
+    await closing;
+    expect(recorded.toSorted()).toEqual(['after close', 'before close']);
+  });
+
   it('hands background work past its deadline to the failure handler', async () => {
     const subject = lanes();
     const failed = Promise.withResolvers<unknown>();

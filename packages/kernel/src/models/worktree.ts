@@ -1,4 +1,4 @@
-export type Worktree = { id: string; projectId: string };
+export type Worktree = { id: string; projectId: string; repositoryId: string };
 
 export type WorktreeCheck<Found extends Worktree = Worktree> =
   | { kind: 'found'; worktree: Found }

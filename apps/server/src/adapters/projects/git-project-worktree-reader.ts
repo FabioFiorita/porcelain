@@ -80,10 +80,6 @@ export class GitWorktreeCatalogStore implements WorktreeCatalogStore {
     };
   }
 
-  repositoryOf(worktreeId: string): string | undefined {
-    return this.entries.get(worktreeId)?.repositoryIdentity;
-  }
-
   private async listNow(
     project: ListableProject,
     signal?: AbortSignal,
@@ -125,6 +121,7 @@ export class GitWorktreeCatalogStore implements WorktreeCatalogStore {
         administrativeDirectory: worktree.administrativeDirectory,
         commonDirectory: repository.commonDirectory,
         repositoryIdentity: repository.repositoryIdentity,
+        repositoryId: repository.repositoryIdentity,
       });
     }
     this.remove({ projectId: project.id });

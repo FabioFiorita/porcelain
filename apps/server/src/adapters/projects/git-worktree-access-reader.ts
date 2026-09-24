@@ -1,8 +1,18 @@
 import type { WorktreeCheck } from '@porcelain/kernel/models';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import type {
+  ListedWorktree,
+  RegisteredProject,
+} from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
 import type { GitWorktreeCatalogStore } from './git-project-worktree-reader.ts';
+
+function worktreeIsWritable(
+  worktree: ListedWorktree,
+  project: RegisteredProject | undefined,
+): boolean {
+  return project?.available === true && worktree.available;
+}
 
 export class GitWorktreeAccessReader implements WorktreeAccessReader<ListedWorktree> {
   private readonly worktreeDirectory: Pick<GitWorktreeCatalogStore, 'find'>;
@@ -37,7 +47,7 @@ export class GitWorktreeAccessReader implements WorktreeAccessReader<ListedWorkt
     const project = this.inventory
       .read()
       .projects.find((entry) => entry.id === check.worktree.projectId);
-    return project?.available && check.worktree.available
+    return worktreeIsWritable(check.worktree, project)
       ? check
       : { kind: 'unavailable' };
   }

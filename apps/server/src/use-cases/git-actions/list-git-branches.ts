@@ -32,17 +32,20 @@ export class ListGitBranchesUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
+  async execute(
     input: GitActionScope,
     context: OperationContext,
   ): Promise<ListGitBranchesResponse> {
     const { projectId, worktreeId } = input;
+    this.checkProject.execute({ projectId });
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, projectId, purpose: 'reading' },
+      context.signal,
+    );
     return this.lanes.run(
-      this.laneKeys.project(projectId),
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        this.checkProject.execute({ projectId });
-        await this.checkWorktree.execute({ worktreeId, projectId }, signal);
         return this.listGitBranches.execute(input, signal);
       },
       { callerSignal: context.signal },

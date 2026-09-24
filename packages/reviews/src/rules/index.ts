@@ -33,6 +33,7 @@ export {
   evictedPaths,
   currentLayerFingerprints,
   markedLayers,
+  reviewedLayerMarks,
   reviewedMarks,
   selectReviewedFiles,
   markStaleness,

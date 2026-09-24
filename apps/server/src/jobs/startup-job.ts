@@ -27,7 +27,7 @@ export class StartupJob implements Job {
 
   start(): void {
     this.recoverInterruptedGitActions
-      .execute()
+      .execute({ signal: this.stopped.signal })
       .catch((error: unknown) => this.reportFailure(error));
     this.refreshInventory
       .execute({ signal: this.stopped.signal })

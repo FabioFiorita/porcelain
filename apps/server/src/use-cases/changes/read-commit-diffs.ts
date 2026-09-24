@@ -33,22 +33,28 @@ export class ReadCommitDiffsUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
+  async execute(
     input: ReadCommitDiffsParams & ReadCommitDiffsRequest,
     context: OperationContext,
   ): Promise<ReadCommitDiffsResponse> {
     const { worktreeId, oid, parent, paths } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
     return this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute({ worktreeId }, signal);
         await this.checkCommit.execute({ worktreeId, oid, parent }, signal);
         const diffs = await this.readCommitDiffs.execute(
           { worktreeId, oid, parent, paths },
           signal,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         return diffs;
       },
       { callerSignal: context.signal },

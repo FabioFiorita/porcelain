@@ -16,7 +16,7 @@ import type {
   RecordGitActionProgressService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
-import type { FileChange } from '@porcelain/kernel/models';
+import type { FileChange, Worktree } from '@porcelain/kernel/models';
 import type {
   CheckProjectService,
   CheckWorktreeService,
@@ -97,9 +97,9 @@ export class RunGitActionUseCase {
     const { projectId, worktreeId } = input;
     const { upstreamOid, ...expected } = input.expected;
     this.checkProject.execute({ projectId });
-    await this.lanes.unqueued(
-      (signal) => this.checkWorktree.execute({ worktreeId, projectId }, signal),
-      { callerSignal: context.signal },
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, projectId, purpose: 'writing' },
+      context.signal,
     );
     const accepted = await this.lanes.run(
       this.laneKeys.inventory(),
@@ -121,23 +121,28 @@ export class RunGitActionUseCase {
     );
     if (accepted.kind === 'accepted') {
       this.events.gitActionChanged(accepted.receipt);
-      this.runInBackground(accepted.run);
+      this.runInBackground(worktree, accepted.run);
     }
     return accepted.receipt;
   }
 
-  private runInBackground(run: GitActionRun): void {
+  private runInBackground(worktree: Worktree, run: GitActionRun): void {
     this.lanes.background(
-      this.laneKeys.project(run.projectId),
-      ({ signal }) => this.settle(run, signal),
+      this.laneKeys.repository(worktree),
+      ({ signal }) => this.settle(worktree, run, signal),
       {
         deadlineMs: this.options.deadlineMs,
-        onFailure: (error) => this.abandon(run, error),
+        onFailure: (error) =>
+          this.lanes.finish(async () => this.abandon(run, error)),
       },
     );
   }
 
-  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
+  private async settle(
+    worktree: Worktree,
+    run: GitActionRun,
+    signal: AbortSignal,
+  ): Promise<void> {
     const ran = await this.runGitAction.execute(
       {
         run,
@@ -153,7 +158,7 @@ export class RunGitActionUseCase {
     this.events.gitActionChanged(receipt);
     if (ran.reviewStale)
       this.lanes.background(
-        this.laneKeys.worktree(run.worktreeId),
+        this.laneKeys.repository(worktree),
         (admission) => this.refreshReview(run.worktreeId, admission.signal),
         { onFailure: (error) => this.events.gitActionFailed(receipt, error) },
       );

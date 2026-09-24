@@ -57,11 +57,11 @@ export class RegisterProjectUseCase {
     this.events = events;
   }
 
-  execute(
+  async execute(
     input: RegisterProjectRequest,
     context: OperationContext,
   ): Promise<RegisterProjectResponse> {
-    return this.lanes.run(
+    const report = await this.lanes.run(
       this.laneKeys.inventory(),
       'write',
       async ({ signal }) => {
@@ -89,11 +89,11 @@ export class RegisterProjectUseCase {
         const { statuses } = this.readWorktreeStatuses.execute({
           worktreeIds: worktrees.worktrees.map((worktree) => worktree.id),
         });
-        const report = projectReport(project, worktrees, statuses);
-        this.events.inventoryChanged();
-        return report;
+        return projectReport(project, worktrees, statuses);
       },
       { callerSignal: context.signal },
     );
+    this.events.inventoryChanged();
+    return report;
   }
 }

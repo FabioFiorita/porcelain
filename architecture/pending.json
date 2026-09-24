@@ -1,4 +1,22 @@
 {
+  "porcelain/fakes-store": {
+    "apps/server/spec/fakes/in-memory-event-publisher.ts": {
+      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
+      "A fake stores state, it never records calls; assert through what the port reads back.": 1
+    },
+    "apps/server/spec/fakes/scripted-inventory-refresh.ts": {
+      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
+      "A fake stores state, it never records calls; assert through what the port reads back.": 1
+    },
+    "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": {
+      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
+    }
+  },
+  "porcelain/operation-class-shape": {
+    "apps/server/src/use-cases/reviews/read-review-summary.ts": {
+      "Use case execute takes (context) or (input, context); the context always comes last.": 1
+    }
+  },
   "porcelain/port-shape": {
     "apps/server/src/ports/device-connections.ts": {
       "A port input is a named model from models/ or the kernel, never an inline or primitive type.": 2,
@@ -16,70 +34,6 @@
     "apps/server/src/ports/worktree-watcher.ts": {
       "A port input is a named model from models/ or the kernel, never an inline or primitive type.": 2,
       "A port method takes (), (input) or (input, signal): one input object, then the signal.": 4
-    }
-  },
-  "porcelain/fakes-store": {
-    "apps/server/spec/fakes/in-memory-event-publisher.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
-    },
-    "apps/server/spec/fakes/scripted-inventory-refresh.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1,
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
-    },
-    "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
-    }
-  },
-  "porcelain/operation-class-shape": {
-    "apps/server/src/use-cases/access/check-request-origin.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/access/clear-browser-session.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/access/read-health.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/access/read-owner-status.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/git-actions/dismiss-interrupted-git-action.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/git-actions/read-git-action-receipt.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/git-actions/recover-interrupted-git-actions.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/reviews/read-review-summary.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    }
-  },
-  "porcelain/events-after-lane": {
-    "apps/server/src/use-cases/files/edit-file.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/refresh-inventory.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/register-project.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/remove-project.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/rename-project.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    },
-    "apps/server/src/use-cases/projects/set-file-preference.ts": {
-      "Publish after the lane settles: return whether anything changed from the lane and publish outside it.": 1
-    }
-  },
-  "lane-mode-matches-service": {
-    "apps/server/src/use-cases/git-actions/run-git-action.ts": {
-      "interruptGitAction writes; call it inside a 'write' lane or lanes.background, never in none lane": 1
     }
   }
 }

@@ -47,14 +47,14 @@ export class PublishReviewUseCase {
     context: OperationContext,
   ): Promise<PublishReviewToolResponse> {
     const { worktreeId, review: draft } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'writing' },
+      context.signal,
+    );
     const published = await this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'write',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'writing' },
-          signal,
-        );
         const evidence = await this.readReviewEvidence.execute(
           { worktreeId, layers: draft.layers },
           signal,

@@ -14,7 +14,6 @@ import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/ser
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
-import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { CommitReaderFactory } from '@porcelain/git/history';
 import type { InspectionFactory } from '@porcelain/git/inspection';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
@@ -39,7 +38,6 @@ export type ChangesAdapters = {
   inspection: InspectionFactory;
   commitGit: CommitReaderFactory;
   readTextFile: ReadTextFileService;
-  reconcileReviewedFiles: ReconcileReviewedFilesService;
   readInterruptedGitAction: ReadInterruptedGitActionService;
 };
 
@@ -82,7 +80,6 @@ export function composeChanges(
       readChangeFingerprints,
       adapters.readInterruptedGitAction,
       readEnvironment,
-      adapters.reconcileReviewedFiles,
       lanes,
       laneKeys,
     ),

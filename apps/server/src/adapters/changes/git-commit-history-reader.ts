@@ -10,19 +10,21 @@ import type {
 import type { CommitHistoryReader } from '@porcelain/changes/ports';
 import {
   HistorySnapshotUnavailableError,
-  HistoryWorktreeUnavailableError,
   type CommitReaderFactory,
   type CommitSummary as GitCommitSummary,
 } from '@porcelain/git/history';
-import type { WritableWorktrees } from '../projects/checkout-session.ts';
+import {
+  listedWorktree,
+  type ListedWorktrees,
+} from '../projects/checkout-session.ts';
 
 type CommitReader = ReturnType<CommitReaderFactory>;
 
 export class GitCommitHistoryReader implements CommitHistoryReader {
-  private readonly worktrees: WritableWorktrees;
+  private readonly worktrees: ListedWorktrees;
   private readonly git: CommitReaderFactory;
 
-  constructor(worktrees: WritableWorktrees, git: CommitReaderFactory) {
+  constructor(worktrees: ListedWorktrees, git: CommitReaderFactory) {
     this.worktrees = worktrees;
     this.git = git;
   }
@@ -117,9 +119,7 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
     signal?: AbortSignal,
   ): Promise<CommitReader> {
     signal?.throwIfAborted();
-    const check = await this.worktrees.forWriting({ worktreeId }, signal);
-    if (check.kind !== 'found') throw new HistoryWorktreeUnavailableError();
-    const { worktree } = check;
+    const worktree = await listedWorktree(this.worktrees, worktreeId, signal);
     return this.git({
       path: worktree.path,
       commonDirectory: worktree.commonDirectory,
