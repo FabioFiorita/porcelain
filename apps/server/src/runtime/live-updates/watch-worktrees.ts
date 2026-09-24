@@ -1,4 +1,3 @@
-import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
 import type {
   AnnouncedEdit,
   AnnouncedEditStore,
@@ -18,20 +17,13 @@ import type {
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
 import type { JobWork } from '../interval-job.ts';
-import type { OperationContext } from '../operation-context.ts';
+import type { ReviewedMarksInvalidation } from '../reviewed-marks-invalidation.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;
   maxWatchedWorktrees: number;
   burstMs: number;
   announcedEditMs: number;
-};
-
-export type ReviewedMarksInvalidation = {
-  execute(
-    input: InvalidateReviewedMarksInput,
-    context: OperationContext,
-  ): Promise<unknown>;
 };
 
 export type WatchDemand = {

@@ -16,6 +16,7 @@ import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
 import type { AnnouncedEditStore } from '../ports/announced-edit-store.ts';
+import type { ReviewedMarksInvalidation } from '../runtime/reviewed-marks-invalidation.ts';
 import type { WorktreeCheck } from '../runtime/worktree-check.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
@@ -23,6 +24,7 @@ import type { Shared } from './compose-shared.ts';
 export type FilesDependencies = {
   shared: Shared;
   checkWorktree: WorktreeCheck;
+  invalidateReviewedMarks: ReviewedMarksInvalidation;
   announcedEdits: AnnouncedEditStore;
 };
 
@@ -30,7 +32,7 @@ export function composeFiles(
   context: ComposeContext,
   dependencies: FilesDependencies,
 ) {
-  const { lanes, laneKeys, events } = context;
+  const { lanes, laneKeys, events, logger } = context;
   const limits = context.settings.limits.files;
   const { worktreeAccess, fileReader } = dependencies.shared;
   const { checkWorktree } = dependencies;
@@ -65,16 +67,18 @@ export function composeFiles(
     ),
     editFile: new EditFileUseCase(
       checkWorktree,
+      dependencies.shared.confirmWorktree,
       new EditFileService(
         fileReader,
         new FilesystemFileWriter(worktreeAccess, limits.permissions),
         limits.editFile,
       ),
-      dependencies.shared.invalidateReviewedMarks,
+      dependencies.invalidateReviewedMarks,
       lanes,
       laneKeys,
       events,
       dependencies.announcedEdits,
+      logger,
     ),
     listWorktreePaths: new ListWorktreePathsUseCase(
       checkWorktree,

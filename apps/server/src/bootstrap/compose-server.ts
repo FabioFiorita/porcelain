@@ -121,6 +121,7 @@ export const openServer: OpenServer = async (input) => {
   const files = composeFiles(context, {
     shared,
     checkWorktree,
+    invalidateReviewedMarks: reviews.invalidateReviewedMarks,
     announcedEdits: worktreeWatches,
   });
   const commitPlanner = createCommitPlanner();
