@@ -26,8 +26,10 @@ export type UnexplainedChange = {
   binary?: boolean | undefined;
 };
 
-export type SummaryLink = {
-  url: string;
+export type SummaryGrant = {
+  token: string;
+  expires: string;
+  signature: string;
   byteLength: number;
 };
 
@@ -42,7 +44,7 @@ export type ResolvedReview = {
   publishedAt: string;
   active: boolean;
   diagnostics: 'current';
-  summary: SummaryLink;
+  summary: SummaryGrant;
   diagram?: ReviewDiagram | undefined;
   layers: ResolvedLayer[];
   notExplained: UnexplainedChange[];

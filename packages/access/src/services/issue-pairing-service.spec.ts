@@ -83,25 +83,15 @@ describe('IssuePairingService', () => {
     expect(issueOne(service, addresses).grant.addresses).toEqual(addresses);
   });
 
-  it('links to the pair page at the first address with the code and environment in the fragment', () => {
-    const { service } = setup();
-    const issued = issueOne(service);
-    const link = new URL(issued.link);
-    expect(`${link.origin}${link.pathname}`).toBe(`${address}/pair`);
-    const fragment = new URLSearchParams(link.hash.slice(1));
-    expect(fragment.get('c')).toBe(issued.code);
-    expect(fragment.get('e')).toBe(environmentId);
-    expect(fragment.has('a')).toBe(false);
-  });
-
-  it('lists every address in the link when the grant has more than one', () => {
+  it('hands the link its parts: every address in order, the code and the environment', () => {
     const { service } = setup();
     const addresses = ['http://laptop.local:4173', address];
-    const link = new URL(issueOne(service, addresses).link);
-    expect(link.origin).toBe('http://laptop.local:4173');
-    expect(new URLSearchParams(link.hash.slice(1)).get('a')).toBe(
-      addresses.join(','),
-    );
+    const issued = issueOne(service, addresses);
+    expect(issued.link).toEqual({
+      addresses,
+      code: issued.code,
+      environmentId,
+    });
   });
 
   it('refuses an address the server does not answer at and issues nothing', () => {

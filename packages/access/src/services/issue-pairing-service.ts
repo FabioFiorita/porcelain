@@ -95,13 +95,10 @@ export class IssuePairingService {
     code: string,
     environmentId: string,
   ): IssuedPairingGrant {
-    const fragment = new URLSearchParams({ c: code, e: environmentId });
-    if (grant.addresses.length > 1)
-      fragment.set('a', grant.addresses.join(','));
     return {
       grant,
       code,
-      link: `${grant.addresses[0] ?? ''}/pair#${fragment.toString()}`,
+      link: { addresses: [...grant.addresses], code, environmentId },
     };
   }
 }

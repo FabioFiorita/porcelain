@@ -6,10 +6,16 @@ export type IssuePairingInput = {
   environmentId: string;
 };
 
+export type PairingLink = {
+  addresses: string[];
+  code: string;
+  environmentId: string;
+};
+
 export type IssuedPairingGrant = {
   grant: PairingGrant;
   code: string;
-  link: string;
+  link: PairingLink;
 };
 
 export type IssuePairingResult = { grants: IssuedPairingGrant[] };

@@ -6,6 +6,7 @@ import {
   REVIEW_SUMMARY_MEBIBYTES,
 } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { reviewSummaryLinkSchema } from './review-summary-link.ts';
 import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
@@ -121,10 +122,7 @@ const publishedReviewSchema = z.object({
   publishedAt: z.iso.datetime(),
   active: z.boolean(),
   diagnostics: z.enum(['current', 'unavailable']),
-  summary: z.object({
-    url: z.string().min(1),
-    byteLength: z.number().int().positive(),
-  }),
+  summary: reviewSummaryLinkSchema,
   diagram: reviewDiagramSchema.optional(),
   layers: z.array(resolvedReviewLayerSchema).max(100),
   notExplained: z.array(notExplainedSchema).max(2_000),

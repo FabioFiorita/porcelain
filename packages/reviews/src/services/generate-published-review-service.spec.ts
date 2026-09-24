@@ -201,14 +201,13 @@ describe('GeneratePublishedReviewService', () => {
     ]);
   });
 
-  it('signs a summary link that expires one lifetime after now', () => {
+  it('grants the summary until one lifetime after now, signed for its token and expiry', () => {
     const expires = '2026-01-01T01:00:00.000Z';
-    const url = new URL(generate(stillChanged).summary.url, 'http://x');
-    expect(url.pathname).toBe(`/review-summaries/${token}`);
-    expect(url.searchParams.get('expires')).toBe(expires);
-    expect(url.searchParams.get('signature')).toBe(
-      `secret:${token}\0${expires}`,
-    );
+    expect(generate(stillChanged).summary).toMatchObject({
+      token,
+      expires,
+      signature: `secret:${token}\0${expires}`,
+    });
   });
 
   it('measures the summary in UTF-8 bytes', () => {

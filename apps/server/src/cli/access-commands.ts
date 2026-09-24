@@ -1,5 +1,6 @@
 import {
   issuePairingResponseSchema,
+  pairingLink,
   listAccessResponseSchema,
   revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
@@ -47,8 +48,9 @@ export async function issuePairings(
   );
   for (const grant of answer.grants) {
     output.stdout(`${printable(grant.grant.label, DEVICE_LABEL_LENGTH)}\n`);
-    output.stdout(`${grant.link}\n`);
-    if (withQr) output.stdout(`${await qr(grant.link)}\n`);
+    const link = pairingLink(grant.link);
+    output.stdout(`${link}\n`);
+    if (withQr) output.stdout(`${await qr(link)}\n`);
     output.stdout(`Expires ${grant.grant.expiresAt}\n\n`);
   }
   output.stdout(

@@ -31,7 +31,7 @@ describe('requestOriginCheck', () => {
   ])('refuses a request whose Host header is %s', (_, host) => {
     expect(check({ host })).toEqual({
       kind: 'refused',
-      reason: 'The Host header is missing or malformed',
+      refusal: { kind: 'host-malformed' },
     });
   });
 
@@ -40,7 +40,7 @@ describe('requestOriginCheck', () => {
       check({ host: 'attacker.example:4173', localAddress: '192.168.1.5' }),
     ).toEqual({
       kind: 'refused',
-      reason: 'This server does not answer to the host attacker.example',
+      refusal: { kind: 'host-not-allowed', hostname: 'attacker.example' },
     });
   });
 
@@ -61,18 +61,18 @@ describe('requestOriginCheck', () => {
   it('requires an origin where same origin is demanded, even for a read', () => {
     expect(check({ requireSameOrigin: true })).toEqual({
       kind: 'refused',
-      reason: 'The Origin header is required',
+      refusal: { kind: 'origin-required' },
     });
   });
 
   it('refuses a write from an opaque or malformed origin', () => {
     expect(check({ method: 'POST', origin: 'null' })).toEqual({
       kind: 'refused',
-      reason: 'An opaque origin cannot write',
+      refusal: { kind: 'origin-opaque' },
     });
     expect(check({ method: 'POST', origin: 'not a url' })).toEqual({
       kind: 'refused',
-      reason: 'The Origin header is malformed',
+      refusal: { kind: 'origin-malformed' },
     });
   });
 
@@ -83,7 +83,7 @@ describe('requestOriginCheck', () => {
   ])('refuses a write from %s', (_, origin) => {
     expect(check({ method: 'PATCH', origin })).toEqual({
       kind: 'refused',
-      reason: `The origin ${origin} cannot write here`,
+      refusal: { kind: 'cross-origin', origin },
     });
   });
 
@@ -109,7 +109,7 @@ describe('requestOriginCheck', () => {
       check({ requireSameOrigin: true, origin: 'http://elsewhere.example' }),
     ).toEqual({
       kind: 'refused',
-      reason: 'The origin http://elsewhere.example cannot write here',
+      refusal: { kind: 'cross-origin', origin: 'http://elsewhere.example' },
     });
     expect(
       check({ requireSameOrigin: true, origin: 'http://127.0.0.1:4173' }),

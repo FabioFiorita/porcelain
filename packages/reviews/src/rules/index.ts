@@ -19,11 +19,7 @@ export {
 } from './resolve-review.ts';
 export { reviewActivity } from './review-activity.ts';
 export { reviewDiagnostics } from './review-diagnostics.ts';
-export {
-  summaryExpired,
-  summaryMessage,
-  summaryUrl,
-} from './review-digests.ts';
+export { summaryExpired, summaryMessage } from './review-digests.ts';
 export { reviewDraftProblem } from './review-draft.ts';
 export {
   publishedLines,

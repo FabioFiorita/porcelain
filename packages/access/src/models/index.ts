@@ -7,6 +7,7 @@ export type {
 export type {
   CheckRequestOriginInput,
   CheckRequestOriginResult,
+  RequestOriginRefusal,
 } from './check-request-origin.ts';
 export type {
   Credential,
@@ -20,6 +21,7 @@ export type {
   IssuePairingInput,
   IssuePairingOptions,
   IssuePairingResult,
+  PairingLink,
 } from './issue-pairing.ts';
 export type { ListAccessResult } from './list-access.ts';
 export type {

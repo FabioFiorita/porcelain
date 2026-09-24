@@ -288,7 +288,7 @@ describe('PublishReviewService', () => {
       draft: draft({ summaryHtml: '<h1>Summary</h1>' }),
       evidence: evidence(),
     });
-    expect(warnings).toHaveLength(1);
+    expect(warnings).toEqual(['missing-style']);
     expect(store.read({ worktreeId })?.revision).toBe(1);
   });
 });

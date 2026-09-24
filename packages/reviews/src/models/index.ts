@@ -50,6 +50,7 @@ export type {
   PublishReviewInput,
   PublishReviewResult,
   ReviewPublication,
+  SummaryStyleWarning,
 } from './publish-review.ts';
 export type {
   ResolvedLayer,
@@ -57,7 +58,7 @@ export type {
   ResolvedStep,
   ReviewResolution,
   StepLocation,
-  SummaryLink,
+  SummaryGrant,
   SummaryLinkLimits,
   UnexplainedChange,
 } from './resolved-review.ts';

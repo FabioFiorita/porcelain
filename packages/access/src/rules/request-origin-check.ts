@@ -1,14 +1,15 @@
 import type {
   CheckRequestOriginInput,
   CheckRequestOriginResult,
+  RequestOriginRefusal,
 } from '../models/check-request-origin.ts';
 import { canonicalHostname, hostnameAllowed } from './host-policy.ts';
 import { effectivePort, requestAuthority } from './request-authority.ts';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-function refused(reason: string): CheckRequestOriginResult {
-  return { kind: 'refused', reason };
+function refused(refusal: RequestOriginRefusal): CheckRequestOriginResult {
+  return { kind: 'refused', refusal };
 }
 
 export function requestOriginCheck(
@@ -16,26 +17,23 @@ export function requestOriginCheck(
 ): CheckRequestOriginResult {
   const authority =
     input.host === undefined ? undefined : requestAuthority(input.host);
-  if (authority === undefined)
-    return refused('The Host header is missing or malformed');
+  if (authority === undefined) return refused({ kind: 'host-malformed' });
   const policy = {
     allowedHosts: input.allowedHosts,
     localAddresses:
       input.localAddress === undefined ? [] : [input.localAddress],
   };
   if (!hostnameAllowed(authority.hostname, policy))
-    return refused(
-      `This server does not answer to the host ${authority.hostname}`,
-    );
+    return refused({ kind: 'host-not-allowed', hostname: authority.hostname });
   if (SAFE_METHODS.has(input.method) && !input.requireSameOrigin)
     return { kind: 'allowed' };
   if (input.origin === undefined)
     return input.requireSameOrigin
-      ? refused('The Origin header is required')
+      ? refused({ kind: 'origin-required' })
       : { kind: 'allowed' };
-  if (input.origin === 'null') return refused('An opaque origin cannot write');
+  if (input.origin === 'null') return refused({ kind: 'origin-opaque' });
   const origin = URL.parse(input.origin);
-  if (!origin) return refused('The Origin header is malformed');
+  if (!origin) return refused({ kind: 'origin-malformed' });
   const scheme = origin.protocol.replace(/:$/, '');
   const sameOrigin =
     scheme === input.scheme &&
@@ -44,5 +42,5 @@ export function requestOriginCheck(
       effectivePort(input.scheme, authority.port);
   return sameOrigin
     ? { kind: 'allowed' }
-    : refused(`The origin ${input.origin} cannot write here`);
+    : refused({ kind: 'cross-origin', origin: input.origin });
 }

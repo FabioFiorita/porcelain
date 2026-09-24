@@ -28,3 +28,4 @@ export {
   type RevokeAccessResponse,
 } from './pairing.ts';
 export type { Principal } from './principal.ts';
+export { pairingLink, type PairingLinkParts } from './pairing-link.ts';

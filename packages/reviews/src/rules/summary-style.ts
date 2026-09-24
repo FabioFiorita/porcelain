@@ -1,5 +1,4 @@
-const MISSING_STYLE_WARNING =
-  'No authored CSS was detected in the summary HTML. The review was published. Add CSS and republish, matching the reviewed application’s colors, background, typography and components where possible. Style the layer links and content hierarchy, then visually verify the result. If styles are generated at runtime, verify that they load correctly.';
+import type { SummaryStyleWarning } from '../models/publish-review.ts';
 
 const styleElement = /<style\b[^>]*>\s*[^<\s][\s\S]*?<\/style\s*>/i;
 const styleAttribute =
@@ -7,7 +6,7 @@ const styleAttribute =
 const stylesheetLink =
   /<link\b(?=[^>]*\brel\s*=\s*(?:"[^"<>]*\bstylesheet\b[^"<>]*"|'[^'<>]*\bstylesheet\b[^'<>]*'|stylesheet(?=\s|\/?>)))[^>]*>/i;
 
-export function summaryStyleWarnings(html: string): string[] {
+export function summaryStyleWarnings(html: string): SummaryStyleWarning[] {
   const markup = html
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
@@ -16,5 +15,5 @@ export function summaryStyleWarnings(html: string): string[] {
     styleElement.test(markup) ||
     styleAttribute.test(markup) ||
     stylesheetLink.test(markup);
-  return authored ? [] : [MISSING_STYLE_WARNING];
+  return authored ? [] : ['missing-style'];
 }

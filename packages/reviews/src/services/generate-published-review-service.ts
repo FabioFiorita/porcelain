@@ -11,7 +11,7 @@ import {
   reviewIsActive,
   unexplainedChanges,
 } from '../rules/resolve-review.ts';
-import { summaryMessage, summaryUrl } from '../rules/review-digests.ts';
+import { summaryMessage } from '../rules/review-digests.ts';
 
 export class GeneratePublishedReviewService {
   private readonly clock: Clock;
@@ -44,7 +44,9 @@ export class GeneratePublishedReviewService {
       active: reviewIsActive(layers),
       diagnostics: 'current',
       summary: {
-        url: summaryUrl(review.summaryToken, expires, signature),
+        token: review.summaryToken,
+        expires,
+        signature,
         byteLength: utf8ByteLength(review.summaryHtml),
       },
       ...(review.diagram === undefined

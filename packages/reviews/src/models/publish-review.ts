@@ -14,5 +14,7 @@ export type PublishReviewInput = {
 
 export type PublishReviewResult = {
   review: Review;
-  warnings: string[];
+  warnings: SummaryStyleWarning[];
 };
+
+export type SummaryStyleWarning = 'missing-style';

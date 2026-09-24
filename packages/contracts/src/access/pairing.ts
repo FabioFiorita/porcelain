@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pairingLinkSchema } from './pairing-link.ts';
 import {
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
@@ -46,7 +47,11 @@ export const issuePairingRequestSchema = z.strictObject({
 });
 export const issuePairingResponseSchema = z.object({
   grants: z.array(
-    z.object({ grant: pairingGrantSchema, code: z.string(), link: z.string() }),
+    z.object({
+      grant: pairingGrantSchema,
+      code: z.string(),
+      link: pairingLinkSchema,
+    }),
   ),
 });
 

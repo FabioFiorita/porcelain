@@ -39,9 +39,7 @@ describe('summaryStyleWarnings', () => {
   });
 
   it('warns once when the page has no authored CSS', () => {
-    const warnings = summaryStyleWarnings(page(''));
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toMatch(/^No authored CSS was detected/);
+    expect(summaryStyleWarnings(page(''))).toEqual(['missing-style']);
   });
 
   it.each([

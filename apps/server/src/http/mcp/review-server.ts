@@ -40,6 +40,11 @@ export type ReviewMcpUseCases = {
 
 const agent = { kind: 'agent' } as const;
 
+const summaryWarnings: Readonly<Record<string, string>> = {
+  'missing-style':
+    'No authored CSS was detected in the summary HTML. The review was published. Add CSS and republish, matching the reviewed application’s colors, background, typography and components where possible. Style the layer links and content hierarchy, then visually verify the result. If styles are generated at runtime, verify that they load correctly.',
+};
+
 export function createReviewMcpServer(
   useCases: ReviewMcpUseCases,
   defaultCwd: string,
@@ -79,12 +84,18 @@ export function createReviewMcpServer(
       inputSchema: publishReviewToolRequestSchema,
     },
     ({ cwd, ...review }, { signal }) =>
-      result(publishReviewToolResponseSchema, async () =>
-        useCases.reviews.publishReview.execute(
+      result(publishReviewToolResponseSchema, async () => {
+        const published = await useCases.reviews.publishReview.execute(
           { worktreeId: await worktreeAt(cwd, signal), review },
           { signal },
-        ),
-      ),
+        );
+        return {
+          ...published,
+          warnings: published.warnings.map(
+            (warning) => summaryWarnings[warning] ?? warning,
+          ),
+        };
+      }),
   );
   server.registerTool(
     'read_review',

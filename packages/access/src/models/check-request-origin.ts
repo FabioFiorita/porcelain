@@ -8,6 +8,14 @@ export type CheckRequestOriginInput = {
   requireSameOrigin: boolean;
 };
 
+export type RequestOriginRefusal =
+  | { kind: 'host-malformed' }
+  | { kind: 'host-not-allowed'; hostname: string }
+  | { kind: 'origin-required' }
+  | { kind: 'origin-opaque' }
+  | { kind: 'origin-malformed' }
+  | { kind: 'cross-origin'; origin: string };
+
 export type CheckRequestOriginResult =
   | { kind: 'allowed' }
-  | { kind: 'refused'; reason: string };
+  | { kind: 'refused'; refusal: RequestOriginRefusal };
