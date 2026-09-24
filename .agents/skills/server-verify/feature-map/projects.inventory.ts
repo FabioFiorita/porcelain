@@ -1,4 +1,3 @@
-import { rename } from 'node:fs/promises';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   defineCase,
@@ -60,7 +59,7 @@ export default defineFeature({
       name: 'a project whose folder has gone away',
       async setup(session) {
         const moved = `${session.repository}-moved`;
-        await rename(session.repository, moved);
+        await session.rename(session.repository, moved);
         await eventually(session, inventory, everyProjectIs(false));
         return moved;
       },
@@ -73,7 +72,7 @@ export default defineFeature({
           [registered(session, false)],
           list(record(response.body).projects),
         );
-        await rename(state, session.repository);
+        await session.rename(state, session.repository);
         check(
           'available again once the folder is back',
           [registered(session, true)],
