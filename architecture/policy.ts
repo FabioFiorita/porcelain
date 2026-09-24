@@ -462,7 +462,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'server-port',
     'fake',
   ]),
-  fixture: new Set(['model']),
+  fixture: new Set(['model', 'kernel']),
   capture: new Set(),
   'store-contract': new Set([
     'kernel',
@@ -521,7 +521,11 @@ export function violation(
     (from.owner !== 'server' || to.role === 'fake')
   )
     return 'fake-imports-own-package-only';
-  if (from.role === 'fixture' && to.owner !== from.owner)
+  if (
+    from.role === 'fixture' &&
+    to.owner !== from.owner &&
+    !(to.owner === 'kernel' && to.role === 'kernel')
+  )
     return 'fixture-imports-own-package-models-only';
   if (from.owner !== 'server' && to.owner === 'server')
     return 'package-cannot-import-server';

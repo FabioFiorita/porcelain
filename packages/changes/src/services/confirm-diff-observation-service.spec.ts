@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
-import { fileChange, modified } from '../../spec/fakes/comparisons.ts';
+import { fileChange, modified } from '../../spec/fixtures/comparisons.ts';
 import { ConfirmDiffObservationService } from './confirm-diff-observation-service.ts';
 
 const token = 't'.repeat(64);

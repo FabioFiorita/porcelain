@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorktreeEntry } from '@porcelain/changes/models';
 import { ReadChangeFingerprintsService } from './read-change-fingerprints-service.ts';
-import { modified } from '../../spec/fakes/comparisons.ts';
+import { modified } from '../../spec/fixtures/comparisons.ts';
 import { InMemoryWorktreeSideReader } from '../../spec/fakes/in-memory-worktree-side-reader.ts';
 
 const limits = { maxDigestBytes: 1024, maxPathLength: 4096 };

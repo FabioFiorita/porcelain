@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assembleChanges } from './assemble-changes.ts';
-import { modified } from '../../spec/fakes/comparisons.ts';
+import { modified } from '../../spec/fixtures/comparisons.ts';
 
 describe('assembleChanges', () => {
   it('groups every comparison of a path into one change, staged before unstaged', () => {

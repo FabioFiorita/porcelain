@@ -52,7 +52,7 @@ For a behaviour change, write the failing case first when a focused spec can exp
 ## 6. Placement
 
 - `<name>.spec.ts` sits beside the file it describes.
-- Fakes live in `packages/<domain>/spec/fakes/`; captured output lives in `packages/<domain>/spec/fixtures/` and is read through that folder's `fixture.ts` helper. Both sit outside `src`, so production code cannot import them.
+- Fakes live in `packages/<domain>/spec/fakes/`. Captured output and sample builders, the functions and constants that build a model value for a spec, live in `packages/<domain>/spec/fixtures/`; captured output is read through that folder's `fixture.ts` helper. Both sit outside `src`, so production code cannot import them.
 
 The `spec-*` rules in `architecture/oxlint-plugin.mjs` and the `fake` and `fixture` roles in `architecture/policy.ts` enforce the forbidden APIs, names and imports; read them rather than a list here.
 

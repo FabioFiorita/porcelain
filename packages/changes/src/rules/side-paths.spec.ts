@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sidePaths } from './side-paths.ts';
-import { modified, unmerged } from '../../spec/fakes/comparisons.ts';
+import { modified, unmerged } from '../../spec/fixtures/comparisons.ts';
 
 describe('sidePaths', () => {
   it('reads untracked, conflicted and unstaged files from the worktree', () => {

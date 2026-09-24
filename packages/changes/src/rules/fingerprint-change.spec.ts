@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fingerprintChange } from './fingerprint-change.ts';
-import { modified, unmerged } from '../../spec/fakes/comparisons.ts';
+import { modified, unmerged } from '../../spec/fixtures/comparisons.ts';
 
 const sampleDigest =
   '5805fc9b5cf5a14cea6b2274b2ef5afac4bf9261823de0a3e94ead6c915f6baf';

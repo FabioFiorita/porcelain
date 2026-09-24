@@ -4,7 +4,7 @@ import {
   diffSelectionProblem,
   matchDiffSelections,
 } from './match-diff-selections.ts';
-import { modified } from '../../spec/fakes/comparisons.ts';
+import { modified } from '../../spec/fixtures/comparisons.ts';
 
 const renamed = {
   ...modified('staged', 'GUIDE.md', '1'.repeat(40)),

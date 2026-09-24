@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { observationProblem } from './observation-problem.ts';
-import { fileChange, modified } from '../../spec/fakes/comparisons.ts';
+import { fileChange, modified } from '../../spec/fixtures/comparisons.ts';
 
 const token = 't'.repeat(64);
 const fingerprint = 'f'.repeat(64);

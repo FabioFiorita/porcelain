@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { IncompleteDiffReadError } from '@porcelain/changes/errors';
 import { ReadChangeDiffsService } from './read-change-diffs-service.ts';
-import { modified } from '../../spec/fakes/comparisons.ts';
+import { modified } from '../../spec/fixtures/comparisons.ts';
 import {
   diffKey,
   ScriptedChangeDiffReader,

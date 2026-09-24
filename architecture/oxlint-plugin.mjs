@@ -413,7 +413,8 @@ const captureModules = new Set([
   'node:path',
   'node:url',
 ]);
-const fixtureModelSource = /^\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts$/;
+const fixtureModelSource =
+  /^(?:\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts|@porcelain\/kernel\/models)$/;
 const signalMembers = new Set(['throwIfAborted', 'aborted', 'onabort']);
 const openTypes = new Set([
   'TSObjectKeyword',
@@ -1743,7 +1744,7 @@ export default {
           context.report({
             node: node.source ?? node,
             message:
-              'A fixture reads captured output with node:fs, node:path and node:url, and imports only types from its own package models.',
+              'A fixture reads captured output with node:fs, node:path and node:url, and imports only types from its own package models and the kernel models.',
           });
         });
       },

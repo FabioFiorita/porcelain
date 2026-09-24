@@ -5,7 +5,7 @@ import {
 } from '@porcelain/changes/errors';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
-import { modified } from '../../spec/fakes/comparisons.ts';
+import { modified } from '../../spec/fixtures/comparisons.ts';
 import { CheckDiffSelectionService } from './check-diff-selection-service.ts';
 
 const status: ChangeStatusObservation = {
