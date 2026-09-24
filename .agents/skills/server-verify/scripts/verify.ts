@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,7 @@ import {
 } from './feature.ts';
 import { expectedWeakness, Provenance } from './provenance.ts';
 import { IsolatedServer, Recorder, type Step } from './session.ts';
+import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
 
 type Assertion = {
   name: string;
@@ -247,13 +248,14 @@ async function runCases(
 async function runFeature(
   feature: Feature,
   evidenceDirectory: string,
+  build: string,
 ): Promise<FeatureResult> {
   const recorder = new Recorder();
   let cases: CaseEvidence[] = [];
   let setupError: string | undefined;
   let server: IsolatedServer | undefined;
   try {
-    server = await IsolatedServer.start(repositoryRoot);
+    server = await IsolatedServer.start(repositoryRoot, build);
     recorder.secret(server.credential);
     cases = await runCases(feature, server, recorder);
   } catch (error) {
@@ -351,6 +353,8 @@ if (selected.length === 0) {
 const evidenceDirectory = await mkdtemp(
   join(tmpdir(), 'porcelain-server-verify-'),
 );
+const build = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
+await buildIsolatedServer(build);
 let interrupted = false;
 process.once('SIGINT', () => {
   interrupted = true;
@@ -358,7 +362,7 @@ process.once('SIGINT', () => {
 const results: FeatureResult[] = [];
 for (const feature of selected) {
   if (interrupted) break;
-  const result = await runFeature(feature, evidenceDirectory);
+  const result = await runFeature(feature, evidenceDirectory, build);
   results.push(result);
   process.stdout.write(
     `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases\n`,
@@ -409,4 +413,5 @@ await writeFile(
 process.stdout.write(
   `${passed ? 'PASS' : 'FAIL'} ${results.filter((entry) => entry.passed).length}/${selected.length} features, ${total((entry) => entry.cases)} cases, ${total((entry) => entry.passedAssertions)}/${total((entry) => entry.assertions)} assertions, ${total((entry) => entry.weakAssertions)} weak, ${coverage.registered.length - coverage.unreached.length}/${coverage.registered.length} routes reached; evidence: ${evidenceDirectory}\n`,
 );
+await rm(build, { recursive: true, force: true });
 if (!passed) process.exitCode = 1;

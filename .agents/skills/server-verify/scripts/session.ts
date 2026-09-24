@@ -1,7 +1,8 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { existsSync, realpathSync } from 'node:fs';
 import { readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 import {
   isRecord,
@@ -123,6 +124,12 @@ export class Recorder {
     const parsed: unknown = JSON.parse(this.scrub(JSON.stringify(value)));
     return parsed;
   }
+}
+
+function realPrefix(path: string): string {
+  if (existsSync(path)) return realpathSync(path);
+  const parent = dirname(path);
+  return parent === path ? path : join(realPrefix(parent), basename(path));
 }
 
 function headersOf(headers: IncomingHttpHeaders): Record<string, string> {
@@ -281,11 +288,18 @@ export class IsolatedServer {
     this.credential = credential;
   }
 
-  static async start(repositoryRoot: string): Promise<IsolatedServer> {
-    const child = spawn(process.execPath, ['scripts/dev-server.ts'], {
-      cwd: repositoryRoot,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+  static async start(
+    repositoryRoot: string,
+    build: string,
+  ): Promise<IsolatedServer> {
+    const child = spawn(
+      process.execPath,
+      ['scripts/dev-server.ts', '--server', build],
+      {
+        cwd: repositoryRoot,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     const output = { stdout: '', stderr: '' };
     const exited = new Promise<void>((resolveExit) =>
       child.once('close', () => resolveExit()),
@@ -347,6 +361,9 @@ export class IsolatedServer {
       GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: '/dev/null',
       GIT_TERMINAL_PROMPT: '0',
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'core.hooksPath',
+      GIT_CONFIG_VALUE_0: '/dev/null',
       GIT_AUTHOR_NAME: 'Porcelain Verification',
       GIT_AUTHOR_EMAIL: 'verify@example.invalid',
       GIT_COMMITTER_NAME: 'Porcelain Verification',
@@ -356,7 +373,9 @@ export class IsolatedServer {
     };
     const inside = (path: string, root = this.repository) => {
       const absolute = resolve(this.repository, path);
-      if (absolute !== root && !absolute.startsWith(`${root}/`))
+      const real = realpathSync(root);
+      const reached = realPrefix(absolute);
+      if (reached !== real && !reached.startsWith(`${real}${sep}`))
         throw new Error(`${path} is outside ${root}`);
       return absolute;
     };

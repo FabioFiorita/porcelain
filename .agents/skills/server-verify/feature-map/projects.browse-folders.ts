@@ -4,8 +4,6 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
 } from '../scripts/feature.ts';
 
 export default defineFeature({
@@ -74,21 +72,23 @@ export default defineFeature({
       request: () => ({
         method: 'GET',
         path: '/api/projects/folders',
-        query: { path: '/usr' },
+        query: { path: '/opt/porcelain' },
       }),
-      expect({ response, check, checkPartial }) {
+      expect({ response, check }) {
         check('status', 200, response.status);
-        checkPartial(
-          'lists it',
-          { path: '/usr', parent: '/', repository: false },
-          response.body,
-        );
         check(
-          'lists its folders',
-          [{ name: 'bin', path: '/usr/bin' }],
-          list(record(response.body).directories).filter(
-            (entry) => record(entry).path === '/usr/bin',
-          ),
+          'lists the sandbox folder that holds the server',
+          {
+            path: '/opt/porcelain',
+            parent: '/opt',
+            directories: [
+              { name: 'bin', path: '/opt/porcelain/bin' },
+              { name: 'server', path: '/opt/porcelain/server' },
+            ],
+            repository: false,
+            truncated: false,
+          },
+          response.body,
         );
       },
     }),

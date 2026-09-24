@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { subscribe } from 'node:diagnostics_channel';
 import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
+import { connect, createServer } from 'node:net';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
@@ -19,10 +20,20 @@ const shutdown = new AbortController();
 const stop = () => shutdown.abort();
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
+process.stdin.on('end', stop);
+process.stdin.resume();
 
 const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
+const port = Number(process.env.PORCELAIN_DEV_PORT ?? '0');
 let server: Runtime | undefined;
+const relay = createServer((incoming) => {
+  const address = new URL(server?.address ?? 'http://127.0.0.1:0');
+  const outgoing = connect(Number(address.port), address.hostname);
+  incoming.pipe(outgoing).pipe(incoming);
+  incoming.on('error', () => outgoing.destroy());
+  outgoing.on('error', () => incoming.destroy());
+});
 
 type RouteOptions = { method: string | readonly string[]; url: string };
 type RouteHost = {
@@ -139,6 +150,9 @@ try {
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_TERMINAL_PROMPT: '0',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'core.hooksPath',
+    GIT_CONFIG_VALUE_0: '/dev/null',
     GCM_INTERACTIVE: 'Never',
   });
 
@@ -164,7 +178,7 @@ try {
   const settings = readServerSettings({
     dataDirectory: state,
     projectHome: root,
-    port: 0,
+    port,
     webRoot: web,
   });
   server = await startRuntime(
@@ -221,6 +235,11 @@ try {
       `Sample repository registration failed: ${registered.status}`,
     );
 
+  await new Promise<void>((resolveRelay, rejectRelay) => {
+    relay.once('error', rejectRelay);
+    relay.listen(join(root, 'network.sock'), () => resolveRelay());
+  });
+
   const credentialFile = join(root, 'credential.json');
   await writeFile(credentialFile, `${JSON.stringify({ credential })}\n`, {
     mode: 0o600,
@@ -249,8 +268,10 @@ try {
   }
 } finally {
   try {
+    relay.close();
     await server?.close();
   } finally {
+    process.stdin.destroy();
     process.off('SIGINT', stop);
     process.off('SIGTERM', stop);
   }
