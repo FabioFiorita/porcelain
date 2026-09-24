@@ -42,16 +42,19 @@ export class ReadChangeLinesUseCase {
     this.options = options;
   }
 
-  execute(
+  async execute(
     input: WorktreeParams & ReadChangeLinesQuery,
     context: OperationContext,
   ): Promise<ReadChangeLinesResponse> {
     const { worktreeId, path, from, to, at } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId },
+      context.signal,
+    );
     return this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute({ worktreeId }, signal);
         const { text } =
           at === 'head'
             ? await this.readHeadText.execute({ worktreeId, path }, signal)

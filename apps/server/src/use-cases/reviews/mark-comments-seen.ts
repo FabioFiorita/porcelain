@@ -36,16 +36,14 @@ export class MarkCommentsSeenUseCase {
     context: OperationContext,
   ): Promise<MarkCommentsSeenResponse> {
     const { worktreeId } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'writing' },
+      context.signal,
+    );
     const result = await this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'write',
-      async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'writing' },
-          signal,
-        );
-        return this.markCommentsSeen.execute(input);
-      },
+      async () => this.markCommentsSeen.execute(input),
       { callerSignal: context.signal },
     );
     this.events.worktreeChanged(worktreeId, 'comments');

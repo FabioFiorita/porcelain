@@ -14,6 +14,7 @@ function worktree(id: string, path: string) {
     administrativeDirectory: `${path}/.git`,
     commonDirectory: '/code/app/.git',
     repositoryIdentity: 'repository',
+    repositoryId: 'repository',
   };
 }
 

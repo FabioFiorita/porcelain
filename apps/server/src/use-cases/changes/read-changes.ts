@@ -47,12 +47,15 @@ export class ReadChangesUseCase {
     context: OperationContext,
   ): Promise<ReadChangesResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    const lane = this.laneKeys.repository(worktree);
     const response = await this.lanes.run<ReadChangesResponse>(
       lane,
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute({ worktreeId }, signal);
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,

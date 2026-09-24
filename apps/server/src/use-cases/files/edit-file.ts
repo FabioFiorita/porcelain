@@ -32,18 +32,18 @@ export class EditFileUseCase {
     this.events = events;
   }
 
-  execute(
+  async execute(
     input: EditFileInput,
     context: OperationContext,
   ): Promise<EditFileResponse> {
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId: input.worktreeId, purpose: 'writing' },
+      context.signal,
+    );
     return this.lanes.run(
-      this.laneKeys.worktree(input.worktreeId),
+      this.laneKeys.repository(worktree),
       'write',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId: input.worktreeId, purpose: 'writing' },
-          signal,
-        );
         const result = await this.editFile.execute(input, signal);
         await this.checkWorktree.execute(
           { worktreeId: input.worktreeId, purpose: 'writing' },

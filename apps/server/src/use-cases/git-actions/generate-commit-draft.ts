@@ -62,11 +62,14 @@ export class GenerateCommitDraftUseCase {
   ): Promise<GenerateCommitDraftResponse> {
     const { projectId, worktreeId } = input;
     this.checkProject.execute({ projectId });
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, projectId },
+      context.signal,
+    );
     const capture = await this.lanes.run(
-      this.laneKeys.project(projectId),
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute({ worktreeId, projectId }, signal);
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,

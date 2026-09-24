@@ -33,16 +33,14 @@ export class CreateCommentThreadUseCase {
     context: OperationContext,
   ): Promise<CreateCommentThreadResponse> {
     const { worktreeId } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'writing' },
+      context.signal,
+    );
     const thread = await this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'write',
-      async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'writing' },
-          signal,
-        );
-        return this.createCommentThread.execute(input);
-      },
+      async () => this.createCommentThread.execute(input),
       { callerSignal: context.signal },
     );
     this.events.worktreeChanged(worktreeId, 'comments');

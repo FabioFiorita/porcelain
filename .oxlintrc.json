@@ -51,6 +51,7 @@
     "porcelain/no-interface-in-runtime": "error",
     "porcelain/fixture-imports": "error",
     "porcelain/events-after-lane": "error",
+    "porcelain/lane-after-check": "error",
     "porcelain/interfaces-only-in-ports": "error",
     "porcelain/adapters-report-facts": "error",
     "typescript/no-explicit-any": "error",

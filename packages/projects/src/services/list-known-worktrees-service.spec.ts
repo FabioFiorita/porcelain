@@ -34,6 +34,7 @@ function worktree(
     administrativeDirectory: `/srv/${projectId}/.git/worktrees/${id}`,
     commonDirectory: `/srv/${projectId}/.git`,
     repositoryIdentity: `identity-${projectId}`,
+    repositoryId: `identity-${projectId}`,
   };
 }
 

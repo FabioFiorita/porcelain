@@ -1,24 +1,15 @@
+import type { Worktree } from '@porcelain/kernel/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { GitProjectWorktreeReader } from './git-project-worktree-reader.ts';
 
 const ACCESS = 'access';
 const INVENTORY = 'inventory';
 const FILESYSTEM = 'filesystem';
-const UNRESOLVED = 'unresolved';
 
 export class GitLaneKeys implements LaneKeys {
-  private readonly worktreeDirectory: Pick<
-    GitProjectWorktreeReader,
-    'repositoryOf'
-  >;
   private readonly projectInventory: InventoryStore;
 
-  constructor(
-    worktreeDirectory: Pick<GitProjectWorktreeReader, 'repositoryOf'>,
-    projectInventory: InventoryStore,
-  ) {
-    this.worktreeDirectory = worktreeDirectory;
+  constructor(projectInventory: InventoryStore) {
     this.projectInventory = projectInventory;
   }
 
@@ -39,11 +30,11 @@ export class GitLaneKeys implements LaneKeys {
       this.projectInventory
         .read()
         .projects.find((project) => project.id === projectId)
-        ?.repositoryIdentity ?? UNRESOLVED
+        ?.repositoryIdentity ?? `project\0${projectId}`
     );
   }
 
-  worktree(worktreeId: string): string {
-    return this.worktreeDirectory.repositoryOf(worktreeId) ?? UNRESOLVED;
+  repository(worktree: Worktree): string {
+    return worktree.repositoryId;
   }
 }

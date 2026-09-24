@@ -46,14 +46,14 @@ export class SetReviewedLayerUseCase {
     context: OperationContext,
   ): Promise<SetReviewedLayerResponse> {
     const { worktreeId } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'writing' },
+      context.signal,
+    );
     const result = await this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'write',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'writing' },
-          signal,
-        );
         const { layer, paths } = this.readReviewLayer.execute({
           worktreeId,
           layerId: input.layerId,

@@ -4,7 +4,11 @@ import { ScriptedWorktreeAccessReader } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
 import { CheckWorktreeService } from './check-worktree-service.ts';
 
-const worktree = { id: 'worktree-1', projectId: 'project-1' };
+const worktree = {
+  id: 'worktree-1',
+  projectId: 'project-1',
+  repositoryId: 'repository-1',
+};
 
 function setup() {
   const access = new ScriptedWorktreeAccessReader();

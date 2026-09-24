@@ -62,7 +62,10 @@ export type ReviewsAdapters = {
   changes: ChangesServices;
 };
 
-export function composeReviewInvalidation(context: ComposeContext) {
+export function composeReviewInvalidation(
+  context: ComposeContext,
+  checkWorktree: CheckWorktreeService,
+) {
   const reviewedFileStore = createReviewedFileStore(context.session);
   const invalidateReviewedMarks = new InvalidateReviewedMarksService(
     reviewedFileStore,
@@ -70,6 +73,7 @@ export function composeReviewInvalidation(context: ComposeContext) {
   );
   return {
     invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
+      checkWorktree,
       invalidateReviewedMarks,
       context.lanes,
       context.laneKeys,

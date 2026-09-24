@@ -1288,6 +1288,48 @@ export default {
         };
       },
     },
+    'lane-after-check': {
+      create(context) {
+        if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const methods = [];
+        const calls = (node, owner, method) => {
+          const path = memberPath(node.callee);
+          return (
+            path?.length === 3 &&
+            path[0] === 'this' &&
+            path[1] === owner &&
+            (method === undefined || path[2] === method)
+          );
+        };
+        return {
+          MethodDefinition() {
+            methods.push({ checks: [], keys: [] });
+          },
+          CallExpression(node) {
+            const method = methods.at(-1);
+            if (!method) return;
+            if (calls(node, 'checkWorktree', 'execute'))
+              method.checks.push(node);
+            else if (calls(node, 'laneKeys')) method.keys.push(node);
+          },
+          'MethodDefinition:exit'() {
+            const method = methods.pop();
+            if (!method || method.checks.length === 0) return;
+            const first = Math.min(
+              ...method.checks.map((check) => check.range[0]),
+            );
+            for (const key of method.keys)
+              if (key.range[0] < first)
+                context.report({
+                  node: key,
+                  message:
+                    'Resolve the worktree with checkWorktree before choosing its lane; the lane is a property of the resolved worktree.',
+                });
+          },
+        };
+      },
+    },
     'rules-are-pure': {
       create(context) {
         if (!ruleFile.test(repositoryPath(context)) || isSpec(context))

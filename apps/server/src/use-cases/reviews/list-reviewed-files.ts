@@ -45,15 +45,15 @@ export class ListReviewedFilesUseCase {
     context: OperationContext,
   ): Promise<ListReviewedFilesResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    const lane = this.laneKeys.repository(worktree);
     const changes = await this.lanes.run(
       lane,
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          signal,
-        );
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,

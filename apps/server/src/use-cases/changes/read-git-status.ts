@@ -38,12 +38,16 @@ export class ReadGitStatusUseCase {
     this.sharedReads = sharedReads;
   }
 
-  execute(
+  async execute(
     input: WorktreeParams,
     context: OperationContext,
   ): Promise<ReadGitStatusResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    const lane = this.laneKeys.repository(worktree);
     return this.sharedReads.run(
       `status\0${lane}\0${worktreeId}`,
       (shared) =>
@@ -51,7 +55,6 @@ export class ReadGitStatusUseCase {
           lane,
           'read',
           async ({ signal }) => {
-            await this.checkWorktree.execute({ worktreeId }, signal);
             const status = await this.readWorktreeStatus.execute(
               { worktreeId },
               signal,

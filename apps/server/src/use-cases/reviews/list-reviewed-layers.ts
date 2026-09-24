@@ -43,15 +43,15 @@ export class ListReviewedLayersUseCase {
     context: OperationContext,
   ): Promise<ListReviewedLayersResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    const lane = this.laneKeys.repository(worktree);
     const texts = await this.lanes.run(
       lane,
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          signal,
-        );
         const { paths } = this.listReviewedLayerPaths.execute({ worktreeId });
         return Promise.allSettled(
           paths.map((path) =>

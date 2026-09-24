@@ -27,16 +27,19 @@ export class ListCommitsUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
+  async execute(
     input: WorktreeParams & ListCommitsQuery,
     context: OperationContext,
   ): Promise<ListCommitsResponse> {
     const { worktreeId, limit, after, tip } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId },
+      context.signal,
+    );
     return this.lanes.run(
-      this.laneKeys.worktree(worktreeId),
+      this.laneKeys.repository(worktree),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute({ worktreeId }, signal);
         const page = await this.listCommits.execute(
           { worktreeId, limit, after, tip },
           signal,

@@ -62,15 +62,15 @@ export class ReadPublishedReviewUseCase {
     context: OperationContext,
   ): Promise<ReadPublishedReviewResponse> {
     const { worktreeId } = input;
-    const lane = this.laneKeys.worktree(worktreeId);
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, purpose: 'reading' },
+      context.signal,
+    );
+    const lane = this.laneKeys.repository(worktree);
     const read = await this.lanes.run(
       lane,
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          signal,
-        );
         const published = this.readPublishedReview.execute({ worktreeId });
         if (published.kind === 'none') return published;
         const status = await this.readWorktreeStatus.execute(
