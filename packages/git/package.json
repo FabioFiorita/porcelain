@@ -13,6 +13,7 @@
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/git"
   },
   "dependencies": {
+    "@porcelain/kernel": "workspace:*",
     "@porcelain/process": "workspace:*"
   }
 }

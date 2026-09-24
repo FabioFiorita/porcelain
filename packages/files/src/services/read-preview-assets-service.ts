@@ -1,3 +1,4 @@
+import { isRelativePath } from '@porcelain/kernel/rules';
 import type { FileReadInput } from '../models/file-read.ts';
 import type { PreviewAsset } from '../models/preview-asset.ts';
 import type {
@@ -8,7 +9,6 @@ import type {
 import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
 import { encodeBase64 } from '../rules/encode-base64.ts';
-import { isWorktreeRelativePath } from '../rules/worktree-relative-path.ts';
 
 export class ReadPreviewAssetsService {
   private readonly fileReader: FileReader;
@@ -60,7 +60,7 @@ export class ReadPreviewAssetsService {
 
   private servable(directory: string, path: string): boolean {
     return (
-      isWorktreeRelativePath(path, this.options.maxPathLength) &&
+      isRelativePath(path, this.options.maxPathLength) &&
       (directory === '' || path.startsWith(`${directory}/`))
     );
   }

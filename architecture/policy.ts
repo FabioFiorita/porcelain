@@ -527,6 +527,8 @@ export function violation(
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))
     return 'git-cannot-import-domain';
+  if (from.owner === 'git' && to.owner === 'kernel' && to.role === 'rule-api')
+    return;
   if (
     domainSet.has(from.owner) &&
     domainSet.has(to.owner) &&

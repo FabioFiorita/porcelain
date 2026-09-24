@@ -369,6 +369,9 @@ importers:
 
   packages/git:
     dependencies:
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       '@porcelain/process':
         specifier: workspace:*
         version: link:../process

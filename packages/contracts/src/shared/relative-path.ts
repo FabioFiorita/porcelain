@@ -1,3 +1,4 @@
+import { isRelativePath } from '@porcelain/kernel/rules';
 import { z } from 'zod';
 import { PATH_LENGTH } from './limits.ts';
 
@@ -6,19 +7,6 @@ export const relativePathSchema = z
   .min(1)
   .max(PATH_LENGTH)
   .refine(
-    (path) =>
-      !path.includes('\0') &&
-      !path.includes('\\') &&
-      !/^[A-Za-z]:/.test(path) &&
-      path.isWellFormed() &&
-      path
-        .split('/')
-        .every(
-          (part) =>
-            part !== '' &&
-            part !== '.' &&
-            part !== '..' &&
-            part.toLowerCase() !== '.git',
-        ),
+    (path) => isRelativePath(path, PATH_LENGTH),
     'Expected a normalized relative path',
   );

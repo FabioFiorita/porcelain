@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isWorktreeRelativePath } from './worktree-relative-path.ts';
+import { isRelativePath } from './relative-path.ts';
 
-const relative = (path: string) => isWorktreeRelativePath(path, 4096);
+const relative = (path: string) => isRelativePath(path, 4096);
 
-describe('isWorktreeRelativePath', () => {
+describe('isRelativePath', () => {
   it('accepts normalized paths inside the worktree', () => {
     expect(
       ['logo.svg', 'docs/images/logo.svg', '.github/icon.png', 'a..b/c'].map(
@@ -41,8 +41,8 @@ describe('isWorktreeRelativePath', () => {
   });
 
   it('accepts a path at the length limit and refuses one character more', () => {
-    expect(isWorktreeRelativePath('a'.repeat(10), 10)).toBe(true);
-    expect(isWorktreeRelativePath('a'.repeat(11), 10)).toBe(false);
+    expect(isRelativePath('a'.repeat(10), 10)).toBe(true);
+    expect(isRelativePath('a'.repeat(11), 10)).toBe(false);
   });
 
   it('refuses text holding a lone surrogate', () => {

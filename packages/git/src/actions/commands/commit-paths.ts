@@ -7,6 +7,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { isRelativePath } from '@porcelain/kernel/rules';
 import { isMissing } from '../../shared/errno.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
@@ -34,11 +35,7 @@ export async function commitPaths(
   if (
     paths.length > process.limits.actions.maxCommitPaths ||
     paths.some(
-      (path) =>
-        !path ||
-        path.includes('\0') ||
-        path.startsWith('/') ||
-        path.split('/').some((part) => ['', '.', '..', '.git'].includes(part)),
+      (path) => !isRelativePath(path, process.limits.inspection.maxPathLength),
     )
   )
     throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
