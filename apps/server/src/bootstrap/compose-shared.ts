@@ -35,9 +35,9 @@ import {
 } from '@porcelain/projects/services';
 import {
   InvalidateReviewedMarksService,
+  ListReviewedLayerPathsService,
   ReadPublishedReviewService,
   ReadReviewBadgesService,
-  ReconcileReviewedLayersService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
@@ -148,6 +148,10 @@ export function composeShared(dependencies: SharedDependencies) {
       stores.commentsSeen,
     ),
     readPublishedReview: new ReadPublishedReviewService(stores.reviews),
+    listReviewedLayerPaths: new ListReviewedLayerPathsService(
+      stores.reviews,
+      stores.reviewedLayers,
+    ),
     readTextFiles,
     readReviewEvidence: new ReadReviewEvidenceUseCase(
       readWorktreeStatus,
@@ -156,13 +160,8 @@ export function composeShared(dependencies: SharedDependencies) {
       readChangeDiffs,
     ),
     recordReviewActivity: new RecordReviewActivityService(stores.reviews),
-    reconcileReviewedLayers: new ReconcileReviewedLayersService(
-      stores.reviews,
-      stores.reviewedLayers,
-    ),
     invalidateReviewedMarks: new InvalidateReviewedMarksService(
       stores.reviewedFiles,
-      stores.reviewedLayers,
     ),
   };
 }

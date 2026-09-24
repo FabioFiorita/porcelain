@@ -26,20 +26,19 @@ const layer: ReviewLayer = {
 
 const reviewed = new Map([['README.md', 'first\nadded\n']]);
 
-function mark(fingerprint: string, stale: boolean): ReviewedLayerMark {
+function mark(fingerprint: string): ReviewedLayerMark {
   return {
     layerId: layer.id,
     fingerprint,
     reviewedAt: '2026-09-01T00:00:00.000Z',
-    stale,
   };
 }
 
 describe('reviewedLayerMarks', () => {
   it('marks a layer fresh while its lines read as they did when it was reviewed', () => {
     const seen = currentLayerFingerprint(layer, reviewed);
-    expect(reviewedLayerMarks([mark(seen, true)], [layer], reviewed)).toEqual([
-      mark(seen, false),
+    expect(reviewedLayerMarks([mark(seen)], [layer], reviewed)).toEqual([
+      { ...mark(seen), stale: false },
     ]);
   });
 
@@ -47,17 +46,17 @@ describe('reviewedLayerMarks', () => {
     const seen = currentLayerFingerprint(layer, reviewed);
     expect(
       reviewedLayerMarks(
-        [mark(seen, false)],
+        [mark(seen)],
         [layer],
         new Map([['README.md', 'first\nchanged\n']]),
       ),
-    ).toEqual([mark(seen, true)]);
+    ).toEqual([{ ...mark(seen), stale: true }]);
   });
 
   it('marks a layer stale when the published review no longer has it', () => {
     const seen = currentLayerFingerprint(layer, reviewed);
-    expect(reviewedLayerMarks([mark(seen, false)], [], reviewed)).toEqual([
-      mark(seen, true),
+    expect(reviewedLayerMarks([mark(seen)], [], reviewed)).toEqual([
+      { ...mark(seen), stale: true },
     ]);
   });
 

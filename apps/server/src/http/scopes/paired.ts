@@ -38,7 +38,6 @@ import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-com
 import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
 import type { RunGitActionUseCase } from '../../use-cases/git-actions/run-git-action.ts';
 import type { SetFilePreferenceUseCase } from '../../use-cases/projects/set-file-preference.ts';
-import type { SetReviewedFileUseCase } from '../../use-cases/reviews/set-reviewed-file.ts';
 import type { SetReviewedFilesUseCase } from '../../use-cases/reviews/set-reviewed-files.ts';
 import type { SetReviewedLayerUseCase } from '../../use-cases/reviews/set-reviewed-layer.ts';
 import {
@@ -127,7 +126,6 @@ export type PairedUseCases = {
     removeReviewedLayer: Pick<RemoveReviewedLayerUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
     updateCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
-    setReviewedFile: Pick<SetReviewedFileUseCase, 'execute'>;
     setReviewedFiles: Pick<SetReviewedFilesUseCase, 'execute'>;
     setReviewedLayer: Pick<SetReviewedLayerUseCase, 'execute'>;
   };
@@ -191,7 +189,7 @@ export async function pairedScope(
     useCase: options.application.reviews.listReviewedFiles,
   });
   server.register(setReviewedFile, {
-    useCase: options.application.reviews.setReviewedFile,
+    useCase: options.application.reviews.setReviewedFiles,
   });
   server.register(setReviewedFiles, {
     useCase: options.application.reviews.setReviewedFiles,

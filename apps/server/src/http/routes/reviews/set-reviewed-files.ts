@@ -24,7 +24,7 @@ export function setReviewedFiles(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, ...request.body },
+        { ...request.params, ...request.body, onConflict: 'report' },
         { signal: request.disconnected },
       ),
   );

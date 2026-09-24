@@ -5,12 +5,12 @@ import {
 } from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
-import type { SetReviewedFileUseCase } from '../../../use-cases/reviews/set-reviewed-file.ts';
+import type { SetReviewedFilesUseCase } from '../../../use-cases/reviews/set-reviewed-files.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function setReviewedFile(
   server: FastifyInstance,
-  options: { useCase: Pick<SetReviewedFileUseCase, 'execute'> },
+  options: { useCase: Pick<SetReviewedFilesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.put(
@@ -24,7 +24,7 @@ export function setReviewedFile(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, ...request.body },
+        { ...request.params, ...request.body, onConflict: 'refuse' },
         { signal: request.disconnected },
       ),
   );

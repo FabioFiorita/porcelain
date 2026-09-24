@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { ReviewLayer, ReviewTexts } from '@porcelain/reviews/models';
+import type { ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
-import { ListReviewedLayerPathsService } from '@porcelain/reviews/services';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
-import { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';
+import { ListReviewedLayerPathsService } from './list-reviewed-layer-paths-service.ts';
 
 const worktreeId = 'a'.repeat(64);
 
@@ -33,11 +32,7 @@ const readmeLayer = layer('layer-1', 'README.md');
 const guideLayer = layer('layer-2', 'GUIDE.md');
 const reviewed = 'first\nadded\n';
 
-function texts(path: string, content: string): ReviewTexts {
-  return new Map([[path, content]]);
-}
-
-function setup(stale = false) {
+function setup() {
   const reviews = new InMemoryReviewStore();
   reviews.save({
     worktreeId,
@@ -60,56 +55,19 @@ function setup(stale = false) {
           new Map([['README.md', reviewed]]),
         ),
         reviewedAt: '2026-01-01T00:00:00.000Z',
-        stale,
       },
     ],
   });
   return {
     marks,
     paths: new ListReviewedLayerPathsService(reviews, marks),
-    reconcile: new ReconcileReviewedLayersService(reviews, marks),
   };
 }
-
-const staleness = (marks: InMemoryReviewedLayerStore) =>
-  marks.list({ worktreeId }).map((mark) => [mark.layerId, mark.stale]);
 
 describe('ListReviewedLayerPathsService', () => {
   it('names only the files that the marked layers point at', () => {
     expect(setup().paths.execute({ worktreeId })).toEqual({
       paths: ['README.md'],
     });
-  });
-});
-
-describe('ReconcileReviewedLayersService', () => {
-  it('flags a mark stale once the lines its layer points at changed', () => {
-    const { marks, reconcile } = setup();
-    expect(
-      reconcile.execute({
-        worktreeId,
-        texts: texts('README.md', 'first\nchanged\n'),
-      }),
-    ).toEqual({ changed: true });
-    expect(staleness(marks)).toEqual([['layer-1', true]]);
-  });
-
-  it('clears the flag once the lines read as they did when marked', () => {
-    const { marks, reconcile } = setup(true);
-    reconcile.execute({ worktreeId, texts: texts('README.md', reviewed) });
-    expect(staleness(marks)).toEqual([['layer-1', false]]);
-  });
-
-  it('reports no change while every mark already says what the lines show', () => {
-    const { reconcile } = setup();
-    expect(
-      reconcile.execute({ worktreeId, texts: texts('README.md', reviewed) }),
-    ).toEqual({ changed: false });
-  });
-
-  it('flags a mark stale when its file can no longer be read', () => {
-    const { marks, reconcile } = setup();
-    reconcile.execute({ worktreeId, texts: new Map() });
-    expect(staleness(marks)).toEqual([['layer-1', true]]);
   });
 });

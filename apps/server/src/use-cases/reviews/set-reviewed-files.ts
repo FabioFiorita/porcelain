@@ -3,6 +3,8 @@ import type {
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import type {
+  ReviewedFileConflictPolicy,
+  SetReviewedFileRequest,
   SetReviewedFilesRequest,
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
@@ -46,7 +48,9 @@ export class SetReviewedFilesUseCase {
   }
 
   async execute(
-    input: WorktreeParams & SetReviewedFilesRequest,
+    input: WorktreeParams &
+      (SetReviewedFilesRequest | SetReviewedFileRequest) &
+      ReviewedFileConflictPolicy,
     context: OperationContext,
   ): Promise<SetReviewedFilesResponse> {
     const { worktreeId } = input;
@@ -69,9 +73,12 @@ export class SetReviewedFilesUseCase {
         this.confirmWorktree.execute({ worktree });
         return this.setReviewedFiles.execute({
           worktreeId,
-          files: input.files,
+          files:
+            'files' in input
+              ? input.files
+              : [{ path: input.path, fingerprint: input.fingerprint }],
           changes,
-          onConflict: 'report',
+          onConflict: input.onConflict,
         });
       },
       { callerSignal: context.signal },

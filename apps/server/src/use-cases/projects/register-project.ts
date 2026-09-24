@@ -11,7 +11,12 @@ import type {
   ReadRepositoryOriginService,
   RegisterProjectService,
 } from '@porcelain/projects/services';
-import type { ReadReviewBadgesService } from '@porcelain/reviews/services';
+import type { ReadTextFilesService } from '@porcelain/files/services';
+import type { ReviewTexts } from '@porcelain/reviews/models';
+import type {
+  ListReviewedLayerPathsService,
+  ReadReviewBadgesService,
+} from '@porcelain/reviews/services';
 import { registeredProjectReport } from '@porcelain/projects/rules';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { JobWork } from '../../ports/job-work.ts';
@@ -27,6 +32,8 @@ export class RegisterProjectUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly readWorktreeStatuses: ReadReviewBadgesService;
+  private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
+  private readonly readTextFiles: ReadTextFilesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -39,6 +46,8 @@ export class RegisterProjectUseCase {
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
     readWorktreeStatuses: ReadReviewBadgesService,
+    listReviewedLayerPaths: ListReviewedLayerPathsService,
+    readTextFiles: ReadTextFilesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
@@ -50,6 +59,8 @@ export class RegisterProjectUseCase {
     this.listRegisteredProjects = listRegisteredProjects;
     this.listKnownWorktrees = listKnownWorktrees;
     this.readWorktreeStatuses = readWorktreeStatuses;
+    this.listReviewedLayerPaths = listReviewedLayerPaths;
+    this.readTextFiles = readTextFiles;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -100,10 +111,33 @@ export class RegisterProjectUseCase {
               this.lanes.run(
                 this.laneKeys.reviews(first),
                 'read',
-                async () =>
-                  this.readWorktreeStatuses.execute({
-                    worktreeIds: worktrees.map((worktree) => worktree.id),
-                  }).statuses,
+                async ({ signal }) => {
+                  const worktreeIds = worktrees.map((worktree) => worktree.id);
+                  const texts = new Map(
+                    await Promise.all(
+                      worktreeIds.map(
+                        async (worktreeId): Promise<[string, ReviewTexts]> => [
+                          worktreeId,
+                          (
+                            await this.readTextFiles.execute(
+                              {
+                                worktreeId,
+                                paths: this.listReviewedLayerPaths.execute({
+                                  worktreeId,
+                                }).paths,
+                              },
+                              signal,
+                            )
+                          ).texts,
+                        ],
+                      ),
+                    ),
+                  );
+                  return this.readWorktreeStatuses.execute({
+                    worktreeIds,
+                    texts,
+                  }).statuses;
+                },
                 { callerSignal: context.signal },
               ),
             ]

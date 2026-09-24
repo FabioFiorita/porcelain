@@ -36,7 +36,6 @@ export {
   reviewedLayerMarks,
   reviewedMarks,
   selectReviewedFiles,
-  markStaleness,
   touchedMarks,
 } from './reviewed-marks.ts';
 export { summaryStyleWarnings } from './summary-style.ts';

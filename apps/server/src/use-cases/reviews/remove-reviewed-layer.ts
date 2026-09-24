@@ -3,7 +3,12 @@ import type {
   RemoveReviewedLayerResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { RemoveReviewedLayerService } from '@porcelain/reviews/services';
+import type { ReadTextFilesService } from '@porcelain/files/services';
+import type {
+  ListReviewedLayerPathsService,
+  ListReviewedLayersService,
+  RemoveReviewedLayerService,
+} from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -13,6 +18,9 @@ import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-ca
 export class RemoveReviewedLayerUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly removeReviewedLayer: RemoveReviewedLayerService;
+  private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
+  private readonly readTextFiles: ReadTextFilesService;
+  private readonly listReviewedLayers: ListReviewedLayersService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -20,12 +28,18 @@ export class RemoveReviewedLayerUseCase {
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     removeReviewedLayer: RemoveReviewedLayerService,
+    listReviewedLayerPaths: ListReviewedLayerPathsService,
+    readTextFiles: ReadTextFilesService,
+    listReviewedLayers: ListReviewedLayersService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
     this.checkWorktree = checkWorktree;
     this.removeReviewedLayer = removeReviewedLayer;
+    this.listReviewedLayerPaths = listReviewedLayerPaths;
+    this.readTextFiles = readTextFiles;
+    this.listReviewedLayers = listReviewedLayers;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -43,7 +57,25 @@ export class RemoveReviewedLayerUseCase {
     const result = await this.lanes.run(
       this.laneKeys.reviews(worktree),
       'write',
-      async () => this.removeReviewedLayer.execute(input),
+      async ({ signal }) => {
+        const { removed } = this.removeReviewedLayer.execute(input);
+        return {
+          removed,
+          ...this.listReviewedLayers.execute({
+            worktreeId,
+            texts: (
+              await this.readTextFiles.execute(
+                {
+                  worktreeId,
+                  paths: this.listReviewedLayerPaths.execute({ worktreeId })
+                    .paths,
+                },
+                signal,
+              )
+            ).texts,
+          }),
+        };
+      },
       { callerSignal: context.signal },
     );
     const { removed, ...response } = result;

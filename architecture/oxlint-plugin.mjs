@@ -1929,8 +1929,13 @@ export default {
         if (behindPort) return {};
         const contractTypes = new Set();
         const references = (annotation) => {
-          if (annotation?.type === 'TSIntersectionType')
+          if (
+            annotation?.type === 'TSIntersectionType' ||
+            annotation?.type === 'TSUnionType'
+          )
             return annotation.types.flatMap(references);
+          if (annotation?.type === 'TSParenthesizedType')
+            return references(annotation.typeAnnotation);
           return [annotation];
         };
         return {

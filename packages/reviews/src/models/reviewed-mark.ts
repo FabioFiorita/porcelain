@@ -36,12 +36,13 @@ export type ReviewedLayerMark = {
   layerId: string;
   fingerprint: string;
   reviewedAt: string;
-  stale: boolean;
 };
+
+export type ListedReviewedLayerMark = ReviewedLayerMark & { stale: boolean };
 
 export type ReviewedLayers = {
   worktreeId: string;
-  marks: ReviewedLayerMark[];
+  marks: ListedReviewedLayerMark[];
 };
 
 export type WorktreeReviewedLayerMark = ReviewedLayerMark & {
@@ -70,11 +71,3 @@ export type ReviewedLayerSave = {
 };
 
 export type ReviewedLayerRemoval = { worktreeId: string; layerId: string };
-
-export type ReviewedLayerStaleness = {
-  worktreeId: string;
-  layerIds: readonly string[];
-  stale: boolean;
-};
-
-export type MarkStaleness = { stale: string[]; fresh: string[] };

@@ -91,10 +91,6 @@ export type {
   ReadReviewBadgesResult,
 } from './read-review-badges.ts';
 export type {
-  ReconcileReviewedLayersInput,
-  ReconcileReviewedLayersResult,
-} from './reconcile-reviewed-layers.ts';
-export type {
   RecordReviewActivityInput,
   RecordReviewActivityResult,
 } from './record-review-activity.ts';
@@ -141,7 +137,6 @@ export type {
   StepDraft,
 } from './review.ts';
 export type {
-  MarkStaleness,
   ReviewedFile,
   ReviewedFileConflict,
   ReviewedFileLimits,
@@ -151,10 +146,10 @@ export type {
   ReviewedFileSelection,
   ReviewedFileStaleness,
   ReviewedFiles,
+  ListedReviewedLayerMark,
   ReviewedLayerMark,
   ReviewedLayerRemoval,
   ReviewedLayerSave,
-  ReviewedLayerStaleness,
   ReviewedLayers,
   ReviewedMark,
   WorktreeReviewedLayerMark,

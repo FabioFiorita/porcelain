@@ -34,6 +34,7 @@ export class ReadReviewBadgesService {
         this.reviewedLayers.byWorktrees({ worktreeIds }),
         this.comments.listAgentReplies({ worktreeIds }),
         this.commentSeen.seenByWorktrees({ worktreeIds }),
+        input.texts,
       ),
     };
   }

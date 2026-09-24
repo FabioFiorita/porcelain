@@ -1,22 +1,19 @@
-import type { ReadTextFilesService } from '@porcelain/files/services';
 import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import { reviewedLayerMarks } from '@porcelain/reviews/rules';
+import type { ReadTextFilesService } from '@porcelain/files/services';
 import type {
   ListReviewedLayerPathsService,
   ListReviewedLayersService,
-  ReadPublishedReviewService,
 } from '@porcelain/reviews/services';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ListReviewedLayersUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
   private readonly readTextFiles: ReadTextFilesService;
-  private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly listReviewedLayers: ListReviewedLayersService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -25,7 +22,6 @@ export class ListReviewedLayersUseCase {
     checkWorktree: CheckWorktreeUseCasePort,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
     readTextFiles: ReadTextFilesService,
-    readPublishedReview: ReadPublishedReviewService,
     listReviewedLayers: ListReviewedLayersService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -33,7 +29,6 @@ export class ListReviewedLayersUseCase {
     this.checkWorktree = checkWorktree;
     this.listReviewedLayerPaths = listReviewedLayerPaths;
     this.readTextFiles = readTextFiles;
-    this.readPublishedReview = readPublishedReview;
     this.listReviewedLayers = listReviewedLayers;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -52,21 +47,17 @@ export class ListReviewedLayersUseCase {
       this.laneKeys.reviews(worktree),
       worktree,
       async ({ signal }) => {
-        const { paths } = this.listReviewedLayerPaths.execute({ worktreeId });
-        const { texts } = await this.readTextFiles.execute(
-          { worktreeId, paths },
+        const { paths: marked } = this.listReviewedLayerPaths.execute({
+          worktreeId,
+        });
+        const listed = await this.readTextFiles.execute(
+          { worktreeId, paths: marked },
           signal,
         );
-        const published = this.readPublishedReview.execute({ worktreeId });
-        const stored = this.listReviewedLayers.execute({ worktreeId });
-        return {
+        return this.listReviewedLayers.execute({
           worktreeId,
-          marks: reviewedLayerMarks(
-            stored.marks,
-            published.kind === 'published' ? published.review.layers : [],
-            texts,
-          ),
-        };
+          texts: listed.texts,
+        });
       },
       { callerSignal: context.signal },
     );

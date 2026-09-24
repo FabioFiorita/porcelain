@@ -76,6 +76,7 @@ export {
   type RemoveReviewedLayerResponse,
   type SetReviewedFileRequest,
   type SetReviewedFileResponse,
+  type ReviewedFileConflictPolicy,
   type SetReviewedFilesRequest,
   type SetReviewedFilesResponse,
   type SetReviewedLayerRequest,

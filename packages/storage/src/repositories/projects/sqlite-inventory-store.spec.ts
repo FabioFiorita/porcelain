@@ -99,7 +99,6 @@ function seed(session: StorageSession, projectId: string, worktreeId: string) {
         layerId: 'layer',
         fingerprint: 'fingerprint',
         reviewedAt: at,
-        stale: false,
       },
     ],
   });

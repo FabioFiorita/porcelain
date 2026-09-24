@@ -1,10 +1,4 @@
-import {
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-} from 'drizzle-orm/sqlite-core';
+import { index, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { worktreePresence } from './worktree-presence.ts';
 
 export const reviewedLayers = sqliteTable(
@@ -16,7 +10,6 @@ export const reviewedLayers = sqliteTable(
     layerId: text('layer_id').notNull(),
     fingerprint: text('fingerprint').notNull(),
     reviewedAt: text('reviewed_at').notNull(),
-    stale: integer('stale', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
     primaryKey({ columns: [table.worktreeId, table.layerId] }),

@@ -11,7 +11,6 @@ function mark(layerId: string) {
     layerId,
     fingerprint: `fingerprint-${layerId}`,
     reviewedAt,
-    stale: false,
   };
 }
 
@@ -25,13 +24,12 @@ function setup() {
 }
 
 describe('RemoveReviewedLayerService', () => {
-  it('removes the mark and answers the marks that remain', () => {
-    const { service } = setup();
+  it('removes the mark, keeps the others and reports the removal', () => {
+    const { store, service } = setup();
     expect(service.execute({ worktreeId, layerId: 'layer-1' })).toEqual({
-      worktreeId,
-      marks: [mark('layer-2')],
       removed: true,
     });
+    expect(store.list({ worktreeId })).toEqual([mark('layer-2')]);
   });
 
   it('leaves the same layer marked in another worktree', () => {

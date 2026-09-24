@@ -11,7 +11,6 @@ export { ReadPublishedReviewService } from './read-published-review-service.ts';
 export { ReadReviewBadgesService } from './read-review-badges-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
 export { ReadReviewSummaryService } from './read-review-summary-service.ts';
-export { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';
 export { RecordReviewActivityService } from './record-review-activity-service.ts';
 export { RemoveReviewedFileService } from './remove-reviewed-file-service.ts';
 export { RemoveReviewedLayerService } from './remove-reviewed-layer-service.ts';

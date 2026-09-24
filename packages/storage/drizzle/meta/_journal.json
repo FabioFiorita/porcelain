@@ -99,6 +99,13 @@
       "when": 1790261397066,
       "tag": "0013_monotonic_comment_revision",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790279091760,
+      "tag": "0014_reviewed_layers_without_stale",
+      "breakpoints": true
     }
   ]
 }

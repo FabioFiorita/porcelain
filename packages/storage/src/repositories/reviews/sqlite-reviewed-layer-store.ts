@@ -21,7 +21,6 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
         layerId: reviewedLayers.layerId,
         fingerprint: reviewedLayers.fingerprint,
         reviewedAt: reviewedLayers.reviewedAt,
-        stale: reviewedLayers.stale,
       })
       .from(reviewedLayers)
       .where(eq(reviewedLayers.worktreeId, input.worktreeId))
@@ -38,7 +37,6 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
         layerId: reviewedLayers.layerId,
         fingerprint: reviewedLayers.fingerprint,
         reviewedAt: reviewedLayers.reviewedAt,
-        stale: reviewedLayers.stale,
       })
       .from(reviewedLayers)
       .where(inArray(reviewedLayers.worktreeId, [...input.worktreeIds]))
@@ -57,7 +55,6 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
               set: {
                 fingerprint: mark.fingerprint,
                 reviewedAt: mark.reviewedAt,
-                stale: mark.stale,
               },
             })
             .run();
@@ -74,28 +71,6 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
             and(
               eq(reviewedLayers.worktreeId, input.worktreeId),
               eq(reviewedLayers.layerId, input.layerId),
-            ),
-          )
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  setStale(input: {
-    worktreeId: string;
-    layerIds: readonly string[];
-    stale: boolean;
-  }): void {
-    if (input.layerIds.length === 0) return;
-    this.db.transaction(
-      (tx) => {
-        tx.update(reviewedLayers)
-          .set({ stale: input.stale })
-          .where(
-            and(
-              eq(reviewedLayers.worktreeId, input.worktreeId),
-              inArray(reviewedLayers.layerId, [...input.layerIds]),
             ),
           )
           .run();

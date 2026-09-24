@@ -3,7 +3,6 @@ import {
   GeneratePublishedReviewService,
   ListCommentThreadsService,
   ListReviewedFilesService,
-  ListReviewedLayerPathsService,
   ListReviewedLayersService,
   MarkCommentsSeenService,
   PublishReviewService,
@@ -33,7 +32,6 @@ import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed
 import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
 import { RefreshWorktreeReviewUseCase } from '../use-cases/reviews/refresh-worktree-review.ts';
 import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
-import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.ts';
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
@@ -133,10 +131,14 @@ export function composeReviews(
     readPublishedReview,
     shared.readReviewEvidence,
     shared.recordReviewActivity,
-    shared.reconcileReviewedLayers,
     lanes,
     laneKeys,
     events,
+  );
+  const listReviewedLayerPaths = shared.listReviewedLayerPaths;
+  const listReviewedLayers = new ListReviewedLayersService(
+    reviewStore,
+    reviewedLayerStore,
   );
   const { findWorktreeByPath } = dependencies;
 
@@ -200,16 +202,6 @@ export function composeReviews(
       lanes,
       laneKeys,
     ),
-    setReviewedFile: new SetReviewedFileUseCase(
-      checkWorktree,
-      shared.confirmWorktree,
-      shared.readWorktreeStatus,
-      shared.readChangeFingerprints,
-      setReviewedFiles,
-      lanes,
-      laneKeys,
-      events,
-    ),
     setReviewedFiles: new SetReviewedFilesUseCase(
       checkWorktree,
       shared.confirmWorktree,
@@ -229,10 +221,9 @@ export function composeReviews(
     ),
     listReviewedLayers: new ListReviewedLayersUseCase(
       checkWorktree,
-      new ListReviewedLayerPathsService(reviewStore, reviewedLayerStore),
+      listReviewedLayerPaths,
       shared.readTextFiles,
-      readPublishedReview,
-      new ListReviewedLayersService(reviewedLayerStore),
+      listReviewedLayers,
       lanes,
       laneKeys,
     ),
@@ -242,6 +233,8 @@ export function composeReviews(
       new ReadReviewLayerService(reviewStore),
       shared.readTextFiles,
       new SetReviewedLayerService(reviewedLayerStore, clock),
+      listReviewedLayerPaths,
+      listReviewedLayers,
       lanes,
       laneKeys,
       events,
@@ -249,6 +242,9 @@ export function composeReviews(
     removeReviewedLayer: new RemoveReviewedLayerUseCase(
       checkWorktree,
       new RemoveReviewedLayerService(reviewedLayerStore),
+      listReviewedLayerPaths,
+      shared.readTextFiles,
+      listReviewedLayers,
       lanes,
       laneKeys,
       events,

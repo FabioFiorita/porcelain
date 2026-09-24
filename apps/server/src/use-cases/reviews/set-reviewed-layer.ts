@@ -5,6 +5,8 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
+  ListReviewedLayerPathsService,
+  ListReviewedLayersService,
   ReadReviewLayerService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
@@ -21,6 +23,8 @@ export class SetReviewedLayerUseCase {
   private readonly readReviewLayer: ReadReviewLayerService;
   private readonly readTextFiles: ReadTextFilesService;
   private readonly setReviewedLayer: SetReviewedLayerService;
+  private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
+  private readonly listReviewedLayers: ListReviewedLayersService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -31,6 +35,8 @@ export class SetReviewedLayerUseCase {
     readReviewLayer: ReadReviewLayerService,
     readTextFiles: ReadTextFilesService,
     setReviewedLayer: SetReviewedLayerService,
+    listReviewedLayerPaths: ListReviewedLayerPathsService,
+    listReviewedLayers: ListReviewedLayersService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
@@ -40,6 +46,8 @@ export class SetReviewedLayerUseCase {
     this.readReviewLayer = readReviewLayer;
     this.readTextFiles = readTextFiles;
     this.setReviewedLayer = setReviewedLayer;
+    this.listReviewedLayerPaths = listReviewedLayerPaths;
+    this.listReviewedLayers = listReviewedLayers;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -67,11 +75,22 @@ export class SetReviewedLayerUseCase {
           signal,
         );
         this.confirmWorktree.execute({ worktree });
-        return this.setReviewedLayer.execute({
+        this.setReviewedLayer.execute({
           worktreeId,
           layer,
           fingerprint: input.fingerprint,
           texts,
+        });
+        const { paths: marked } = this.listReviewedLayerPaths.execute({
+          worktreeId,
+        });
+        const listed = await this.readTextFiles.execute(
+          { worktreeId, paths: marked },
+          signal,
+        );
+        return this.listReviewedLayers.execute({
+          worktreeId,
+          texts: listed.texts,
         });
       },
       { callerSignal: context.signal },

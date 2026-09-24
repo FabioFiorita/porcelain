@@ -17,10 +17,6 @@ export class RemoveReviewedLayerService {
       .list({ worktreeId })
       .some((mark) => mark.layerId === layerId);
     if (removed) this.reviewedLayers.remove({ worktreeId, layerId });
-    return {
-      worktreeId,
-      marks: this.reviewedLayers.list({ worktreeId }),
-      removed,
-    };
+    return { removed };
   }
 }

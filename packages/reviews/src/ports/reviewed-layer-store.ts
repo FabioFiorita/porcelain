@@ -3,7 +3,6 @@ import type {
   ReviewedLayerMark,
   ReviewedLayerRemoval,
   ReviewedLayerSave,
-  ReviewedLayerStaleness,
   WorktreeReviewedLayerMark,
 } from '../models/reviewed-mark.ts';
 
@@ -12,5 +11,4 @@ export interface ReviewedLayerStore {
   byWorktrees(input: WorktreeKeys): WorktreeReviewedLayerMark[];
   save(input: ReviewedLayerSave): void;
   remove(input: ReviewedLayerRemoval): void;
-  setStale(input: ReviewedLayerStaleness): void;
 }

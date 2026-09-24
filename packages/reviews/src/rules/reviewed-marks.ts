@@ -7,9 +7,9 @@ import type {
   ReviewedFileConflict,
   ReviewedFileMark,
   ReviewedFileSelection,
+  ListedReviewedLayerMark,
   ReviewedLayerMark,
   ReviewedMark,
-  MarkStaleness,
 } from '../models/reviewed-mark.ts';
 import { currentLayerFingerprint } from './resolve-review.ts';
 
@@ -61,23 +61,6 @@ export function touchedMarks(
   );
 }
 
-export function markStaleness<
-  Mark extends { fingerprint: string; stale: boolean },
->(
-  marks: readonly Mark[],
-  key: (mark: Mark) => string,
-  current: ReadonlyMap<string, string | undefined>,
-): MarkStaleness {
-  const stale: string[] = [];
-  const fresh: string[] = [];
-  for (const mark of marks) {
-    const isStale = markIsStale(mark, key(mark), current);
-    if (isStale === mark.stale) continue;
-    (isStale ? stale : fresh).push(key(mark));
-  }
-  return { stale, fresh };
-}
-
 function markIsStale(
   mark: { fingerprint: string },
   key: string,
@@ -90,7 +73,7 @@ export function reviewedLayerMarks(
   marks: readonly ReviewedLayerMark[],
   layers: readonly ReviewLayer[],
   texts: ReviewTexts,
-): ReviewedLayerMark[] {
+): ListedReviewedLayerMark[] {
   const current = currentLayerFingerprints(layers, texts);
   return marks.map((mark) => ({
     ...mark,

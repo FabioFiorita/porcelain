@@ -6,7 +6,10 @@ import type {
   ReviewLayer,
   WorktreeReviewedLayerMark,
 } from '@porcelain/reviews/models';
+import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { worktreeStatuses } from './worktree-statuses.ts';
+
+const noTexts = new Map();
 
 const worktreeId = 'worktree';
 const otherWorktreeId = 'other-worktree';
@@ -43,9 +46,8 @@ function mark(
   return {
     worktreeId,
     layerId,
-    fingerprint: `${layerId}-fingerprint`,
+    fingerprint: currentLayerFingerprint(layer(layerId), new Map()),
     reviewedAt: '2026-09-24T09:05:00.000Z',
-    stale: false,
     ...overrides,
   };
 }
@@ -71,18 +73,22 @@ const bothMarked = [mark('first'), mark('second')];
 
 describe('worktreeStatuses', () => {
   it('gives no status to a worktree with no review and no agent reply', () => {
-    expect(worktreeStatuses([], [], [], []).get(worktreeId)).toBeUndefined();
+    expect(
+      worktreeStatuses([], [], [], [], noTexts).get(worktreeId),
+    ).toBeUndefined();
   });
 
   it('marks a worktree reviewed when every layer of its active review has a fresh mark', () => {
     expect(
-      worktreeStatuses([review()], bothMarked, [], []).get(worktreeId),
+      worktreeStatuses([review()], bothMarked, [], [], noTexts).get(worktreeId),
     ).toBe('reviewed');
   });
 
   it('keeps a worktree pending while a layer has no mark', () => {
     expect(
-      worktreeStatuses([review()], [mark('first')], [], []).get(worktreeId),
+      worktreeStatuses([review()], [mark('first')], [], [], noTexts).get(
+        worktreeId,
+      ),
     ).toBe('pending');
   });
 
@@ -93,17 +99,22 @@ describe('worktreeStatuses', () => {
         [mark('first'), mark('second', { fingerprint: 'earlier' })],
         [],
         [],
+        noTexts,
       ).get(worktreeId),
     ).toBe('pending');
   });
 
-  it('keeps a worktree pending when a mark went stale', () => {
+  it('keeps a worktree pending when the lines a mark covers changed since it was marked', () => {
     expect(
       worktreeStatuses(
         [review()],
-        [mark('first'), mark('second', { stale: true })],
+        [
+          mark('first'),
+          mark('second', { fingerprint: 'an earlier fingerprint' }),
+        ],
         [],
         [],
+        noTexts,
       ).get(worktreeId),
     ).toBe('pending');
   });
@@ -115,6 +126,7 @@ describe('worktreeStatuses', () => {
         bothMarked.map((entry) => ({ ...entry, worktreeId: otherWorktreeId })),
         [],
         [],
+        noTexts,
       ).get(worktreeId),
     ).toBe('pending');
   });
@@ -128,6 +140,7 @@ describe('worktreeStatuses', () => {
       bothMarked,
       [],
       [],
+      noTexts,
     );
     expect(statuses.get(worktreeId)).toBeUndefined();
     expect(statuses.get(otherWorktreeId)).toBeUndefined();
@@ -135,7 +148,9 @@ describe('worktreeStatuses', () => {
 
   it('reports an agent reply the owner has never seen, over the review status', () => {
     expect(
-      worktreeStatuses([review()], bothMarked, [reply(3)], []).get(worktreeId),
+      worktreeStatuses([review()], bothMarked, [reply(3)], [], noTexts).get(
+        worktreeId,
+      ),
     ).toBe('replied');
   });
 
@@ -146,14 +161,15 @@ describe('worktreeStatuses', () => {
         bothMarked,
         [reply(3, worktreeId, true)],
         [],
+        noTexts,
       ).get(worktreeId),
     ).toBe('reviewed');
   });
 
   it('reports a reply in a worktree that has no review', () => {
-    expect(worktreeStatuses([], [], [reply(1)], []).get(worktreeId)).toBe(
-      'replied',
-    );
+    expect(
+      worktreeStatuses([], [], [reply(1)], [], noTexts).get(worktreeId),
+    ).toBe('replied');
   });
 
   it('stops reporting replies once the seen mark reaches the latest one', () => {
@@ -163,21 +179,28 @@ describe('worktreeStatuses', () => {
         bothMarked,
         [reply(2), reply(4)],
         [seen(4)],
+        noTexts,
       ).get(worktreeId),
     ).toBe('reviewed');
   });
 
   it('reports a reply written after the seen mark', () => {
     expect(
-      worktreeStatuses([], [], [reply(2), reply(5)], [seen(4)]).get(worktreeId),
+      worktreeStatuses([], [], [reply(2), reply(5)], [seen(4)], noTexts).get(
+        worktreeId,
+      ),
     ).toBe('replied');
   });
 
   it('does not let a seen mark of another worktree hide a reply', () => {
     expect(
-      worktreeStatuses([], [], [reply(2)], [seen(9, otherWorktreeId)]).get(
-        worktreeId,
-      ),
+      worktreeStatuses(
+        [],
+        [],
+        [reply(2)],
+        [seen(9, otherWorktreeId)],
+        noTexts,
+      ).get(worktreeId),
     ).toBe('replied');
   });
 });

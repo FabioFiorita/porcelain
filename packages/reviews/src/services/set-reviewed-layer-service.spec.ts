@@ -60,9 +60,8 @@ describe('SetReviewedLayerService', () => {
       layerId: 'layer-1',
       fingerprint: seen,
       reviewedAt: '2026-01-01T00:00:00.000Z',
-      stale: false,
     };
-    expect(result).toEqual({ worktreeId, marks: [mark] });
+    expect(result).toEqual(mark);
     expect(store.list({ worktreeId })).toEqual([mark]);
   });
 
@@ -74,8 +73,8 @@ describe('SetReviewedLayerService', () => {
         layer,
         fingerprint: seen,
         texts: readme('zero\nfirst\nadded\n'),
-      }).marks,
-    ).toHaveLength(1);
+      }).fingerprint,
+    ).toBe(seen);
   });
 
   it.each([
@@ -91,24 +90,4 @@ describe('SetReviewedLayerService', () => {
       expect(store.list({ worktreeId })).toEqual([]);
     },
   );
-
-  it('marks a stale layer fresh again at its new fingerprint', () => {
-    const { service, store } = setup();
-    service.execute({
-      worktreeId,
-      layer,
-      fingerprint: seen,
-      texts: readme('first\nadded\n'),
-    });
-    store.setStale({ worktreeId, layerIds: ['layer-1'], stale: true });
-    service.execute({
-      worktreeId,
-      layer,
-      fingerprint: seen,
-      texts: readme('first\nadded\n'),
-    });
-    expect(store.list({ worktreeId })).toEqual([
-      expect.objectContaining({ layerId: 'layer-1', stale: false }),
-    ]);
-  });
 });

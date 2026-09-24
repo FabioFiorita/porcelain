@@ -20,17 +20,12 @@ export class SetReviewedLayerService {
     const { worktreeId, layer, fingerprint } = input;
     if (currentLayerFingerprint(layer, input.texts) !== fingerprint)
       throw new ReviewedMarkConflictError();
-    this.reviewedLayers.save({
-      worktreeId,
-      marks: [
-        {
-          layerId: layer.id,
-          fingerprint,
-          reviewedAt: this.clock.now(),
-          stale: false,
-        },
-      ],
-    });
-    return { worktreeId, marks: this.reviewedLayers.list({ worktreeId }) };
+    const mark = {
+      layerId: layer.id,
+      fingerprint,
+      reviewedAt: this.clock.now(),
+    };
+    this.reviewedLayers.save({ worktreeId, marks: [mark] });
+    return mark;
   }
 }

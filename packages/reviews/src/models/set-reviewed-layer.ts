@@ -1,6 +1,6 @@
 import type { ReviewTexts } from './review-evidence.ts';
 import type { ReviewLayer } from './review.ts';
-import type { ReviewedLayers } from './reviewed-mark.ts';
+import type { ReviewedLayerMark } from './reviewed-mark.ts';
 
 export type SetReviewedLayerInput = {
   worktreeId: string;
@@ -9,4 +9,4 @@ export type SetReviewedLayerInput = {
   texts: ReviewTexts;
 };
 
-export type SetReviewedLayerResult = ReviewedLayers;
+export type SetReviewedLayerResult = ReviewedLayerMark;

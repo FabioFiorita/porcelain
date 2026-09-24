@@ -19,7 +19,6 @@ function mark(
     layerId,
     fingerprint: `fingerprint-${layerId}`,
     reviewedAt,
-    stale: false,
   };
 }
 
@@ -101,20 +100,6 @@ export function reviewedLayerStoreContract(
       store.remove({ worktreeId: first, layerId: 'removed' });
       expect(store.list({ worktreeId: first })).toEqual([mark('kept')]);
       expect(store.list({ worktreeId: second })).toEqual([mark('removed')]);
-    });
-
-    it('marks the asked layers stale and fresh again, leaving the others', () => {
-      store.save({ worktreeId: first, marks: [mark('a')] });
-      store.save({ worktreeId: first, marks: [mark('b')] });
-      store.save({ worktreeId: second, marks: [mark('a')] });
-      store.setStale({ worktreeId: first, layerIds: ['a'], stale: true });
-      expect(store.list({ worktreeId: first })).toEqual([
-        { ...mark('a'), stale: true },
-        mark('b'),
-      ]);
-      expect(store.list({ worktreeId: second })).toEqual([mark('a')]);
-      store.setStale({ worktreeId: first, layerIds: ['a'], stale: false });
-      expect(store.list({ worktreeId: first })).toEqual([mark('a'), mark('b')]);
     });
 
     it('hands out copies, so changing a returned mark leaves the stored one unchanged', () => {
