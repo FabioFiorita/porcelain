@@ -1,9 +1,10 @@
+import type { CheckWorktreeService } from '@porcelain/changes/services';
 import type {
   GitActionScope,
   ListGitBranchesResponse,
 } from '@porcelain/contracts/git-actions';
 import type {
-  CheckWorktreeService,
+  CheckGitActionScopeService,
   ListGitBranchesService,
 } from '@porcelain/git-actions/services';
 import type { CheckProjectService } from '@porcelain/projects/services';
@@ -14,6 +15,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ListGitBranchesUseCase {
   private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkGitActionScope: CheckGitActionScopeService;
   private readonly listGitBranches: ListGitBranchesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -21,12 +23,14 @@ export class ListGitBranchesUseCase {
   constructor(
     checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
+    checkGitActionScope: CheckGitActionScopeService,
     listGitBranches: ListGitBranchesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
     this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
+    this.checkGitActionScope = checkGitActionScope;
     this.listGitBranches = listGitBranches;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -36,12 +40,17 @@ export class ListGitBranchesUseCase {
     input: GitActionScope,
     context: OperationContext,
   ): Promise<ListGitBranchesResponse> {
+    const { projectId, worktreeId } = input;
     return this.lanes.run(
-      this.laneKeys.project(input.projectId),
+      this.laneKeys.project(projectId),
       'read',
       async ({ signal }) => {
-        this.checkProject.execute({ projectId: input.projectId });
-        await this.checkWorktree.execute(input, signal);
+        this.checkProject.execute({ projectId });
+        const worktree = await this.checkWorktree.execute(
+          { worktreeId },
+          signal,
+        );
+        this.checkGitActionScope.execute({ projectId, worktree });
         return this.listGitBranches.execute(input, signal);
       },
       { callerSignal: context.signal },

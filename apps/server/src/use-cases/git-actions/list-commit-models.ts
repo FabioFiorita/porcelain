@@ -21,9 +21,9 @@ export class ListCommitModelsUseCase {
   }
 
   execute(context: OperationContext): Promise<ListCommitModelsResponse> {
-    return this.lanes.unqueued(
-      (signal) => this.listCommitModels.execute(signal),
-      { callerSignal: context.signal, deadlineMs: this.options.deadlineMs },
-    );
+    return this.lanes.unqueued(() => this.listCommitModels.execute(), {
+      callerSignal: context.signal,
+      deadlineMs: this.options.deadlineMs,
+    });
   }
 }

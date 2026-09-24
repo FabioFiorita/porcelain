@@ -1,50 +1,56 @@
 import type {
   GitActionExpectation,
-  GitActionOutcome,
-  GitActionProgressListener,
-  GitActionRun,
+  GitActionRunnerOutcome,
+  GitActionRunRequest,
 } from '@porcelain/git-actions/models';
-import type { GitActionWriter } from '@porcelain/git-actions/ports';
+import type { GitActionRunner } from '@porcelain/git-actions/ports';
 import {
   GitActionRejectedError,
   type GitActionExpectation as GitExpectation,
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import { RequestGitSession } from '@porcelain/git/inspection';
-import type { ActionCheckouts } from './action-checkout.ts';
+import { GitTimeoutError, RequestGitSession } from '@porcelain/git/inspection';
+import {
+  openCheckout,
+  type WritableWorktrees,
+} from '../projects/checkout-session.ts';
 
-export class GitGitActionWriter implements GitActionWriter {
-  private readonly checkouts: ActionCheckouts;
+export class GitGitActionRunner implements GitActionRunner {
+  private readonly worktrees: WritableWorktrees;
   private readonly git: GitActionWriterFactory;
 
-  constructor(checkouts: ActionCheckouts, git: GitActionWriterFactory) {
-    this.checkouts = checkouts;
+  constructor(worktrees: WritableWorktrees, git: GitActionWriterFactory) {
+    this.worktrees = worktrees;
     this.git = git;
   }
 
   async run(
-    run: GitActionRun,
-    onProgress: GitActionProgressListener | undefined,
+    input: GitActionRunRequest,
     signal?: AbortSignal,
-  ): Promise<GitActionOutcome> {
-    const session = new RequestGitSession();
+  ): Promise<GitActionRunnerOutcome> {
+    const { run } = input;
     try {
-      const { checkout } = await this.checkouts.resolve(run, session, signal);
-      return await this.git(checkout).executeDirect(
-        run.requestId,
-        run.intent,
-        gitExpectation(run.expected),
-        signal ?? new AbortController().signal,
-        onProgress,
+      const { checkout } = await openCheckout(
+        this.worktrees,
+        new RequestGitSession(),
+        run.worktreeId,
+        signal,
       );
-    } catch (error) {
-      if (!(error instanceof GitActionRejectedError)) throw error;
       return {
-        state: 'rejected',
-        reason: error.reason,
-        ...(error.detail === undefined ? {} : { message: error.detail }),
-        refreshRequired: false,
+        kind: 'finished',
+        outcome: await this.git(checkout).executeDirect(
+          run.requestId,
+          run.intent,
+          gitExpectation(run.expected),
+          signal ?? new AbortController().signal,
+          input.onProgress,
+        ),
       };
+    } catch (error) {
+      if (error instanceof GitActionRejectedError)
+        return { kind: 'refused', reason: error.reason, detail: error.detail };
+      if (error instanceof GitTimeoutError) return { kind: 'timed-out' };
+      throw error;
     }
   }
 }
