@@ -169,10 +169,7 @@ describe('SqliteProjectRemovalStore', () => {
 
   beforeEach(() => {
     dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-    session = openStorageSession(dataDirectory, {
-      worktreeId: (projectId, metadataIdentity) =>
-        `${projectId}:${metadataIdentity}`,
-    });
+    session = openStorageSession(dataDirectory);
   });
 
   afterEach(() => {

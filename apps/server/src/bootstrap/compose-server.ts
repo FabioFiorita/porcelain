@@ -89,9 +89,7 @@ export async function openApplication(
       limits.projects.worktreeIds.length,
     );
   const gitVersion = await readGitVersion(dependencies.signal);
-  const session = openStorageSession(settings.dataDirectory, {
-    worktreeId,
-  });
+  const session = openStorageSession(settings.dataDirectory);
   const inventoryStore = createInventoryStore(session);
   const lanes = new Lanes({
     deadlineMs: () =>
