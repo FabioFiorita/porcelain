@@ -1,15 +1,9 @@
-import {
-  basename,
-  extname,
-  isAbsolute,
-  relative,
-  resolve,
-  sep,
-} from 'node:path';
+import { basename, extname, isAbsolute, posix } from 'node:path';
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyInstance } from 'fastify';
-import type { WebRootFiles } from '../ports/web-root-files.ts';
+import type { WebRootReader } from '../ports/web-root-reader.ts';
 
+const SHELL = 'index.html';
 const NO_CACHE = 'no-cache';
 const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 
@@ -61,33 +55,15 @@ function decodePath(urlPath: string): string | null {
   }
 }
 
-function pathIsWithin(root: string, candidate: string): boolean {
-  const child = relative(root, candidate);
-  return (
-    child === '' ||
-    (child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child))
-  );
-}
-
-export function resolveStaticPath(
-  root: string,
-  urlPath: string,
-): string | null {
+function requestedPath(urlPath: string): string | null {
   const decoded = decodePath(urlPath);
   if (decoded === null) return null;
-
   const requested =
     decoded === '' || decoded.endsWith('/') ? `${decoded}index.html` : decoded;
-  const relativePath = requested.replace(/^\/+/, '');
-  if (isAbsolute(relativePath)) return null;
-
-  try {
-    const resolvedRoot = resolve(root);
-    const candidate = resolve(resolvedRoot, relativePath);
-    return pathIsWithin(resolvedRoot, candidate) ? candidate : null;
-  } catch {
-    return null;
-  }
+  const path = posix.normalize(requested.replace(/^\/+/, ''));
+  return path === '..' || path.startsWith('../') || isAbsolute(path)
+    ? null
+    : path;
 }
 
 function isApiRequestPath(urlPath: string): boolean {
@@ -97,7 +73,7 @@ function isApiRequestPath(urlPath: string): boolean {
   return normalized === '/api' || normalized.startsWith('/api/');
 }
 
-export function contentTypeForPath(filePath: string): string {
+function contentTypeForPath(filePath: string): string {
   const extension = extname(filePath).slice(1).toLowerCase();
   return contentTypes[extension] ?? 'application/octet-stream';
 }
@@ -125,27 +101,25 @@ function isClientRoute(urlPath: string): boolean {
 }
 
 async function findStaticFile(
-  files: WebRootFiles,
+  files: WebRootReader,
   urlPath: string,
 ): Promise<StaticFile | null> {
   if (isApiRequestPath(urlPath)) return null;
-  const candidate = resolveStaticPath(files.root, urlPath);
-  if (candidate === null) return null;
+  const path = requestedPath(urlPath);
+  if (path === null) return null;
 
-  const direct = await files.file(candidate);
+  const direct = await files.find({ path });
   if (direct) return { ...direct, fallback: false };
-  if (await files.exists(candidate)) return null;
+  if (await files.exists({ path })) return null;
   if (!isClientRoute(urlPath)) return null;
 
-  const shell = resolveStaticPath(files.root, '/');
-  if (shell === null) return null;
-  const fallback = await files.file(shell);
+  const fallback = await files.find({ path: SHELL });
   return fallback ? { ...fallback, fallback: true } : null;
 }
 
 export function staticFiles(
   server: FastifyInstance,
-  options: { files: WebRootFiles },
+  options: { files: WebRootReader },
 ) {
   server.route({
     method: ['GET', 'HEAD'],
@@ -165,7 +139,9 @@ export function staticFiles(
         .header('Content-Length', String(file.size))
         .type(contentTypeForPath(file.path));
       if (request.method === 'HEAD') return reply.send();
-      return reply.send(options.files.stream(file.path));
+      return reply.send(
+        options.files.open({ path: file.path, size: file.size }),
+      );
     },
   });
 }

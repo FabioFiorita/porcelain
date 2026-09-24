@@ -7,13 +7,14 @@ import {
   type ServiceStatus,
 } from '../installer/index.ts';
 import type { Clock } from '@porcelain/kernel/ports';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { ServiceSettings } from './arguments.ts';
-import { probeOwnerSocket } from './owner-client.ts';
 
 export type ServiceCommandDependencies = {
   homeDirectory: string;
   searchPath: string;
   clock: Clock;
+  ownerProbe: OwnerProbe;
   stdout: (message: string) => void;
 };
 
@@ -71,7 +72,7 @@ async function runService(
     packageRoot: identity.packageRoot,
     packageVersion: identity.packageVersion,
     searchPath: dependencies.searchPath,
-    probe: probeOwnerSocket,
+    ownerProbe: dependencies.ownerProbe,
     clock: dependencies.clock,
   });
   if (settings.action === 'status') {
@@ -85,7 +86,7 @@ async function runService(
     );
     if (result.backup !== undefined)
       dependencies.stdout(`Database backup: ${result.backup}\n`);
-    if ('lingerCommand' in result && result.lingerCommand !== undefined)
+    if (result.lingerCommand !== undefined)
       dependencies.stdout(
         `Lingering needs administrator permission. Run exactly:\n${result.lingerCommand}\n`,
       );

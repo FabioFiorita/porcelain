@@ -1,51 +1,82 @@
 import type {
   FileWatch,
+  FileWatchRequest,
   RepositoryWatch,
+  RepositoryWatchRequest,
   WatchedProject,
+  WatchedProjectLookup,
   WatchedWorktree,
+  WatchedWorktreeLookup,
   WorktreeWatcher,
 } from '../../src/ports/worktree-watcher.ts';
 
+type Listeners<T> = Map<string, T>;
+
 export class InMemoryWorktreeWatcher implements WorktreeWatcher {
-  readonly worktrees = new Map<string, WatchedWorktree>();
-  readonly projects = new Map<string, WatchedProject>();
-  readonly fileListeners = new Map<
-    string,
-    (paths: readonly string[]) => void
-  >();
-  readonly repositoryListeners = new Map<string, () => void>();
+  private readonly worktrees: ReadonlyMap<string, WatchedWorktree>;
+  private readonly projects: ReadonlyMap<string, WatchedProject>;
+  private readonly files: Listeners<(paths: readonly string[]) => void> =
+    new Map();
+  private readonly repositories: Listeners<() => void> = new Map();
 
-  async findWorktree(worktreeId: string): Promise<WatchedWorktree | undefined> {
-    return this.worktrees.get(worktreeId);
+  constructor(seed: {
+    worktrees: readonly WatchedWorktree[];
+    projects: readonly WatchedProject[];
+  }) {
+    this.worktrees = new Map(
+      seed.worktrees.map((worktree) => [worktree.worktreeId, worktree]),
+    );
+    this.projects = new Map(
+      seed.projects.map((project) => [project.projectId, project]),
+    );
   }
 
-  findProject(projectId: string): WatchedProject | undefined {
-    return this.projects.get(projectId);
+  async findWorktree(
+    input: WatchedWorktreeLookup,
+  ): Promise<WatchedWorktree | undefined> {
+    return this.worktrees.get(input.worktreeId);
   }
 
-  async watchFiles(
-    worktree: WatchedWorktree,
-    changed: (paths: readonly string[]) => void,
-  ): Promise<FileWatch> {
-    this.fileListeners.set(worktree.worktreeId, changed);
+  findProject(input: WatchedProjectLookup): WatchedProject | undefined {
+    return this.projects.get(input.projectId);
+  }
+
+  async watchFiles(input: FileWatchRequest): Promise<FileWatch> {
+    const { worktree, changed } = input;
+    this.files.set(worktree.worktreeId, changed);
     return {
       follow: async () => undefined,
       refreshIgnoreRules: async () => 'unchanged',
       close: async () => {
-        this.fileListeners.delete(worktree.worktreeId);
+        this.files.delete(worktree.worktreeId);
       },
     };
   }
 
   async watchRepository(
-    project: WatchedProject,
-    changed: () => void,
+    input: RepositoryWatchRequest,
   ): Promise<RepositoryWatch> {
-    this.repositoryListeners.set(project.projectId, changed);
+    const { project, changed } = input;
+    this.repositories.set(project.projectId, changed);
     return {
       close: async () => {
-        this.repositoryListeners.delete(project.projectId);
+        this.repositories.delete(project.projectId);
       },
+    };
+  }
+
+  changeFiles(worktreeId: string, paths: readonly string[]): void {
+    this.files.get(worktreeId)?.(paths);
+  }
+
+  changeRepository(projectId: string): void {
+    this.repositories.get(projectId)?.();
+  }
+
+  watched(): { worktrees: string[]; projects: string[] } {
+    return {
+      worktrees: [...this.files.keys()],
+      projects: [...this.repositories.keys()],
     };
   }
 }

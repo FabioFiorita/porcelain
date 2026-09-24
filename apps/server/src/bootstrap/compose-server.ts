@@ -1,41 +1,9 @@
-import type { PairingReach, RuntimeStatus } from '@porcelain/access/models';
-import { ReadEnvironmentService } from '@porcelain/access/services';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
-import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
-import {
-  ActionsGit,
-  type GitActionWriterFactory,
-} from '@porcelain/git/actions';
-import {
-  DiscoveryGit,
-  readGitVersion,
-  type GitFactory,
-} from '@porcelain/git/discovery';
-import { HistoryGit, type CommitReaderFactory } from '@porcelain/git/history';
-import {
-  InspectionGit,
-  type InspectionFactory,
-} from '@porcelain/git/inspection';
+import { readGitVersion } from '@porcelain/git/discovery';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
-import { CheckWorktreeService } from '@porcelain/projects/services';
-import { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import { openStorageSession } from '@porcelain/storage';
-import {
-  createDeviceStore,
-  createEnvironmentIdentityStore,
-} from '@porcelain/storage/access';
-import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
-import { createInventoryStore } from '@porcelain/storage/projects';
-import {
-  createCommentSeenStore,
-  createCommentStore,
-  createReviewedLayerStore,
-  createReviewStore,
-} from '@porcelain/storage/reviews';
-import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
-import { HeldDeviceConnections } from '../adapters/access/held-device-connections.ts';
+import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
-import { InMemoryDeviceSightingStore } from '../adapters/access/in-memory-device-sighting-store.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
@@ -43,44 +11,35 @@ import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
-import { GitWorktreeCatalogStore } from '../adapters/projects/git-project-worktree-reader.ts';
-import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
+import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
+import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
-import type { ServerSettings } from '../config/server-settings.ts';
-import { CollectAbsentWorktreesJob } from '../jobs/collect-absent-worktrees-job.ts';
-import { FlushDeviceActivityJob } from '../jobs/flush-device-activity-job.ts';
-import type { Job } from '../jobs/job.ts';
-import { RefreshInventoryJob } from '../jobs/refresh-inventory-job.ts';
-import { StartupJob } from '../jobs/startup-job.ts';
-import { WatchWorktreesJob } from '../jobs/watch-worktrees-job.ts';
+import { createOwnerServer } from '../http/owner-server.ts';
+import { createNetworkServer } from '../http/server.ts';
+import { IntervalJob, JobSequence } from '../runtime/interval-job.ts';
+import type { Job } from '../runtime/job.ts';
 import { Lanes } from '../runtime/lanes.ts';
-import { LaunchLimit } from '../runtime/launch-limit.ts';
-import { SharedReads } from '../runtime/shared-reads.ts';
+import {
+  LiveConnections,
+  LiveHeartbeat,
+  LivePing,
+} from '../runtime/live-updates/live-connections.ts';
+import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
+import type { OpenServer } from '../runtime/start-application.ts';
 import { composeAccess } from './compose-access.ts';
 import { composeChanges } from './compose-changes.ts';
 import type { ComposeContext } from './compose-context.ts';
 import { composeFiles } from './compose-files.ts';
 import { composeGitActions } from './compose-git-actions.ts';
 import { composeProjects } from './compose-projects.ts';
-import {
-  composeReviewInvalidation,
-  composeReviews,
-} from './compose-reviews.ts';
+import { composeReviews } from './compose-reviews.ts';
+import { composeShared } from './compose-shared.ts';
+import { composeStores } from './compose-stores.ts';
 
-export type ApplicationDependencies = {
-  pairingReach: () => PairingReach;
-  runtimeStatus: () => RuntimeStatus;
-  signal: AbortSignal;
-};
-
-export type ServerApplication = Awaited<ReturnType<typeof openApplication>>;
-
-export async function openApplication(
-  settings: ServerSettings,
-  dependencies: ApplicationDependencies,
-) {
+export const openServer: OpenServer = async (input) => {
+  const { settings } = input;
   const { limits } = settings;
   const worktreeId = (projectId: string, metadataIdentity: string) =>
     deriveWorktreeId(
@@ -88,158 +47,124 @@ export async function openApplication(
       metadataIdentity,
       limits.projects.worktreeIds.length,
     );
-  const gitVersion = await readGitVersion(dependencies.signal);
+  const gitVersion = await readGitVersion(input.signal);
   const session = openStorageSession(settings.dataDirectory);
-  const inventoryStore = createInventoryStore(session);
+  const stores = composeStores(session);
   const lanes = new Lanes({
     deadlineMs: () =>
-      operationDeadlineMs(inventoryStore.read().projects.length, limits),
+      operationDeadlineMs(stores.inventory.read().projects.length, limits),
     readCapacity: limits.lanes.readCapacity,
     closeResources: () => session.close(),
   });
-  const git: GitFactory = (checkout) => new DiscoveryGit(checkout);
-  const actionGit: GitActionWriterFactory = (checkout) =>
-    new ActionsGit(checkout);
-  const commitGit: CommitReaderFactory = (checkout) =>
-    new HistoryGit(checkout, gitVersion);
-  const inspection: InspectionFactory = (checkout) =>
-    new InspectionGit(checkout);
   const clock = new SystemClock();
-  const ids = new RandomIdSource();
-
-  const worktreeDirectory = new GitWorktreeCatalogStore({
-    git,
-    inventoryStore,
-    sharedReads: new SharedReads(),
-    launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
-    timeoutMs: limits.inventory.listingTimeoutMs,
-    worktreeId,
-  });
-  const worktreeAccess = new GitWorktreeAccessReader(
-    worktreeDirectory,
-    inventoryStore,
-  );
-  const checkWorktree = new CheckWorktreeService(worktreeAccess);
-  const laneKeys = new GitLaneKeys(inventoryStore);
-  const events = new WebSocketEventPublisher({ limits: limits.liveUpdates });
+  const logger = new StderrLogger(clock);
+  const liveConnections = new LiveConnections();
+  const events = new WebSocketEventPublisher(liveConnections);
+  const shared = composeShared({ settings, stores, gitVersion, worktreeId });
   const context: ComposeContext = {
-    session,
     lanes,
-    laneKeys,
+    laneKeys: new GitLaneKeys(stores.inventory),
     events,
     settings,
     clock,
-    ids,
+    ids: new RandomIdSource(),
+    logger,
   };
-  const readEnvironment = new ReadEnvironmentService(
-    createEnvironmentIdentityStore(session),
-  );
-  const reviewInvalidation = composeReviewInvalidation(context, checkWorktree);
-  const deviceConnections = new HeldDeviceConnections();
-  const readInterruptedGitAction = new ReadInterruptedGitActionService(
-    createGitActionReceiptStore(session),
-  );
-
+  const deviceConnections = new InMemoryDeviceConnectionStore();
   const access = composeAccess(context, {
-    readEnvironment,
-    deviceStore: new CachedDeviceStore(createDeviceStore(session)),
-    deviceSightingStore: new InMemoryDeviceSightingStore(),
+    stores,
+    shared,
     deviceConnections,
-    pairingReachReader: new HttpPairingReachReader(dependencies.pairingReach),
-    runtimeStatusReader: new ProcessRuntimeStatusReader(
-      dependencies.runtimeStatus,
-    ),
+    pairingReachReader: new HttpPairingReachReader(input.pairingReach),
+    runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
   });
   const projects = composeProjects(context, {
-    readEnvironment,
-    git,
-    inventoryStore,
-    readWorktreeStatuses: new ReadReviewBadgesService(
-      createReviewStore(session),
-      createReviewedLayerStore(session),
-      createCommentStore(session),
-      createCommentSeenStore(session),
-    ),
+    stores,
+    shared,
     projectFolderReader: new FilesystemProjectFolderReader(),
-    worktreeDirectory,
   });
-  const { fileReader, readTextFileService, ...files } = composeFiles(context, {
-    worktreeAccess,
-    checkWorktree,
-    invalidateReviewedMarks:
-      reviewInvalidation.services.invalidateReviewedMarks,
-    inspection,
-  });
-  const { services: changeServices, ...changes } = composeChanges(context, {
-    worktreeAccess,
-    checkWorktree,
-    readEnvironment,
-    inspection,
-    commitGit,
-    readTextFile: readTextFileService,
-    readInterruptedGitAction,
-  });
-  const { services: reviewServices, ...reviews } = composeReviews(context, {
-    checkWorktree,
-    readEnvironment,
-    readTextFile: readTextFileService,
-    changes: changeServices,
-  });
+  const files = composeFiles(context, { shared });
+  const changes = composeChanges(context, { shared });
+  const reviews = composeReviews(context, { stores, shared });
   const commitPlanner = createCommitPlanner();
   const gitActions = composeGitActions(context, {
-    worktreeAccess,
-    checkWorktree,
-    inventoryStore,
-    actionGit,
-    fileReader,
-    changes: changeServices,
-    readTextFile: readTextFileService,
-    reviews: reviewServices,
+    stores,
+    shared,
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
   });
-  const worktreeWatches = new WatchWorktreesJob(
-    reviewInvalidation.invalidateReviewedMarks,
+  const worktreeWatches = new WatchWorktrees(
+    reviews.invalidateReviewedMarks,
     projects.refreshInventory,
     events,
     new ParcelWorktreeWatcher({
-      worktrees: worktreeAccess,
-      projects: () => inventoryStore.read().projects,
+      worktrees: shared.worktreeAccess,
+      projects: () => stores.inventory.read().projects,
     }),
+    logger,
     limits.liveUpdates,
   );
   const jobs: readonly Job[] = [
-    worktreeWatches,
-    new StartupJob(
+    new IntervalJob(
+      'recover-interrupted-git-actions',
       gitActions.recoverInterruptedGitActions,
-      projects.refreshInventory,
-      events,
+      { atStart: true },
+      logger,
     ),
-    new RefreshInventoryJob(projects.refreshInventory, events, {
-      intervalMs: limits.jobs.refreshInventoryMs,
-    }),
-    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees, events, {
-      intervalMs: limits.jobs.collectAbsentWorktreesMs,
-    }),
-    new FlushDeviceActivityJob(access.flushDeviceActivity, events, {
-      intervalMs: limits.jobs.flushDeviceActivityMs,
-    }),
+    new IntervalJob(
+      'refresh-inventory',
+      new JobSequence([
+        projects.refreshInventory,
+        reviews.refreshReviewActivity,
+      ]),
+      { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
+      logger,
+    ),
+    new IntervalJob(
+      'collect-absent-worktrees',
+      projects.collectAbsentWorktrees,
+      { everyMs: limits.jobs.collectAbsentWorktreesMs },
+      logger,
+    ),
+    new IntervalJob(
+      'flush-device-activity',
+      access.flushDeviceActivity,
+      { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
+      logger,
+    ),
+    new IntervalJob(
+      'heartbeat',
+      new LiveHeartbeat(liveConnections),
+      { everyMs: limits.liveUpdates.heartbeatMs },
+      logger,
+    ),
+    new IntervalJob(
+      'ping-live-clients',
+      new LivePing(liveConnections),
+      { everyMs: limits.liveUpdates.pingMs },
+      logger,
+    ),
   ];
-
+  const useCases = { access, projects, files, changes, reviews, gitActions };
   return {
-    access,
-    projects,
-    files,
-    changes,
-    reviews,
-    gitActions,
-    liveUpdates: events,
-    worktreeWatches,
-    deviceConnections,
     jobs,
+    network: createNetworkServer({
+      application: {
+        ...useCases,
+        liveUpdates: liveConnections,
+        worktreeWatches,
+        deviceConnections,
+        logger,
+      },
+      settings,
+      files: new FilesystemWebRootReader(settings.webRoot),
+      logger,
+    }),
+    owner: createOwnerServer({ application: useCases, logger }),
     close: async () => {
-      await events.close();
+      await worktreeWatches.close();
+      liveConnections.close();
       await lanes.close();
     },
   };
-}
+};

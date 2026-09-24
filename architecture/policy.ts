@@ -254,15 +254,15 @@ function classifyServer(inside: string) {
     return classified('installer-api', owner);
   if (inside.startsWith('installer/')) return classified('installer', owner);
   if (inside.startsWith('config/')) return classified('config', owner);
-  if (inside === 'cli/index.ts') return classified('bootstrap', owner);
   if (inside.startsWith('cli/')) return classified('transport', owner);
   if (inside.startsWith('http/')) {
     const http = inside.slice('http/'.length);
     if (
-      /^(?:scopes|hooks|routes|mcp|protocol)\//.test(http) ||
+      /^(?:scopes|hooks|routes|mcp|protocol|presenters)\//.test(http) ||
       [
         'schemas/error-responses.ts',
         'error-handler.ts',
+        'server-factory.ts',
         'static-files.ts',
         'principal.ts',
       ].includes(http)
@@ -270,7 +270,7 @@ function classifyServer(inside: string) {
       return classified('transport', owner);
     if (http === 'status-policy.ts') return classified('status-policy', owner);
     if (http === 'server.ts' || http === 'owner-server.ts')
-      return classified('bootstrap', owner);
+      return classified('transport', owner);
     return;
   }
   return;
@@ -351,6 +351,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   installer: new Set([
     'installer',
+    'runtime',
     'server-port',
     'config',
     'kernel',
@@ -414,9 +415,30 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'gateway-api': new Set(['gateway']),
   'process-api': new Set(['process']),
   process: new Set(['process']),
-  runtime: new Set(['kernel', 'runtime', 'model-api', 'config']),
+  runtime: new Set([
+    'kernel',
+    'runtime',
+    'model-api',
+    'config',
+    'server-port',
+    'contract',
+  ]),
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
-  bootstrap: new Set(everything),
+  bootstrap: new Set([
+    'bootstrap',
+    'transport',
+    'use-case',
+    'domain-api',
+    'rule-api',
+    'port-api',
+    'gateway',
+    'gateway-api',
+    'repository-api',
+    'runtime',
+    'server-port',
+    'config',
+    'kernel',
+  ]),
   contract: new Set(['contract']),
   config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),

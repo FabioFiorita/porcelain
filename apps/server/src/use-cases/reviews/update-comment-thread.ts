@@ -46,7 +46,7 @@ export class UpdateCommentThreadUseCase {
       async () => this.updateCommentThread.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged(worktreeId, 'comments');
+    this.events.worktreeChanged({ worktreeId, change: 'comments' });
     return thread;
   }
 }

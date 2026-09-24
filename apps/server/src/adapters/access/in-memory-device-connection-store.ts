@@ -1,12 +1,15 @@
 import type {
+  DeviceConnection,
   DeviceConnections,
+  DeviceConnectionStore,
   HeldConnection,
-} from '../../ports/device-connections.ts';
+  ReleaseConnection,
+} from '../../ports/device-connection-store.ts';
 
-export class HeldDeviceConnections implements DeviceConnections {
+export class InMemoryDeviceConnectionStore implements DeviceConnectionStore {
   private readonly connections = new Map<string, Set<HeldConnection>>();
 
-  hold(input: { deviceId: string; connection: HeldConnection }): () => void {
+  insert(input: DeviceConnection): ReleaseConnection {
     const held =
       this.connections.get(input.deviceId) ?? new Set<HeldConnection>();
     held.add(input.connection);
@@ -17,7 +20,7 @@ export class HeldDeviceConnections implements DeviceConnections {
     };
   }
 
-  close(input: { deviceId: string }): void {
+  remove(input: DeviceConnections): void {
     const held = this.connections.get(input.deviceId) ?? new Set();
     this.connections.delete(input.deviceId);
     for (const connection of held) connection.close();

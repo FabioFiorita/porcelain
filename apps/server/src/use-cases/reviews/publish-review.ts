@@ -75,7 +75,7 @@ export class PublishReviewUseCase {
       },
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged(worktreeId, 'review');
+    this.events.worktreeChanged({ worktreeId, change: 'review' });
     return published;
   }
 }

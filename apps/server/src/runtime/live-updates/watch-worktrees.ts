@@ -1,8 +1,10 @@
-import type { EventPublisher } from '../ports/event-publisher.ts';
+import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type {
   FollowedTargets,
   WatchRequest,
-} from '../ports/followed-targets.ts';
+} from '../../ports/followed-targets.ts';
+import type { Logger } from '../../ports/logger.ts';
 import type {
   FileWatch,
   IgnoreRulesRefresh,
@@ -10,11 +12,9 @@ import type {
   WatchedProject,
   WatchedWorktree,
   WorktreeWatcher,
-} from '../ports/worktree-watcher.ts';
-import type { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
-import type { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
-import { LiveUpdateCapacityError } from './errors/live-update-capacity-error.ts';
-import type { Job } from './job.ts';
+} from '../../ports/worktree-watcher.ts';
+import type { JobWork } from '../interval-job.ts';
+import type { OperationContext } from '../operation-context.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;
@@ -22,10 +22,21 @@ export type WatchWorktreesOptions = {
   burstMs: number;
 };
 
+export type ReviewedMarksInvalidation = {
+  execute(
+    input: InvalidateReviewedMarksInput,
+    context: OperationContext,
+  ): Promise<unknown>;
+};
+
 export type WatchDemand = {
   replace(request: WatchRequest): Promise<FollowedTargets>;
   close(): void;
 };
+
+export type OpenedWatch =
+  | { kind: 'opened'; demand: WatchDemand }
+  | { kind: 'at-capacity' };
 
 type Demand = {
   projects: Set<string>;
@@ -55,41 +66,37 @@ function changesIgnoreRules(path: string): boolean {
   return path === '.gitignore' || path.endsWith('/.gitignore');
 }
 
-export class WatchWorktreesJob implements Job {
-  private readonly invalidateReviewedMarks: Pick<
-    InvalidateReviewedMarksUseCase,
-    'execute'
-  >;
-  private readonly refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>;
+export class WatchWorktrees {
+  private readonly invalidateReviewedMarks: ReviewedMarksInvalidation;
+  private readonly refreshInventory: JobWork;
   private readonly events: EventPublisher;
   private readonly watcher: WorktreeWatcher;
+  private readonly logger: Logger;
   private readonly options: WatchWorktreesOptions;
   private readonly demands = new Set<Demand>();
   private readonly worktrees = new Map<string, WorktreeEntry>();
   private readonly projects = new Map<string, ProjectEntry>();
   private readonly pendingStops = new Set<Promise<void>>();
   private registryUpdate: Promise<void> = Promise.resolve();
-  private stopped = true;
+  private stopped = false;
 
   constructor(
-    invalidateReviewedMarks: Pick<InvalidateReviewedMarksUseCase, 'execute'>,
-    refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>,
+    invalidateReviewedMarks: ReviewedMarksInvalidation,
+    refreshInventory: JobWork,
     events: EventPublisher,
     watcher: WorktreeWatcher,
+    logger: Logger,
     options: WatchWorktreesOptions,
   ) {
     this.invalidateReviewedMarks = invalidateReviewedMarks;
     this.refreshInventory = refreshInventory;
     this.events = events;
     this.watcher = watcher;
+    this.logger = logger;
     this.options = options;
   }
 
-  start(): void {
-    this.stopped = false;
-  }
-
-  async stop(): Promise<void> {
+  async close(): Promise<void> {
     this.stopped = true;
     for (const demand of this.demands) {
       demand.closed = true;
@@ -109,9 +116,9 @@ export class WatchWorktreesJob implements Job {
     ]);
   }
 
-  open(): WatchDemand {
+  open(): OpenedWatch {
     if (this.stopped || this.demands.size >= this.options.maxConnections)
-      throw new LiveUpdateCapacityError();
+      return { kind: 'at-capacity' };
     const demand: Demand = {
       projects: new Set(),
       worktrees: new Map(),
@@ -120,14 +127,17 @@ export class WatchWorktreesJob implements Job {
     };
     this.demands.add(demand);
     return {
-      replace: (request) => {
-        const update = demand.update.then(() =>
-          this.updateRegistry(() => this.replace(demand, request)),
-        );
-        demand.update = update.catch(settledEitherWay);
-        return update;
+      kind: 'opened',
+      demand: {
+        replace: (request) => {
+          const update = demand.update.then(() =>
+            this.updateRegistry(() => this.replace(demand, request)),
+          );
+          demand.update = update.catch(settledEitherWay);
+          return update;
+        },
+        close: () => this.release(demand),
       },
-      close: () => this.close(demand),
     };
   }
 
@@ -151,7 +161,7 @@ export class WatchWorktreesJob implements Job {
         this.removeProjectDemand(demand, projectId);
     for (const projectId of wantedProjects) {
       if (demand.projects.has(projectId)) continue;
-      const project = this.watcher.findProject(projectId);
+      const project = this.watcher.findProject({ projectId });
       if (project)
         await this.addProjectDemand(demand, project).catch((error: unknown) =>
           this.reportFailure(error),
@@ -209,7 +219,7 @@ export class WatchWorktreesJob implements Job {
     projectId: string,
     worktreeId: string,
   ): Promise<WorktreeEntry | undefined> {
-    const worktree = await this.watcher.findWorktree(worktreeId);
+    const worktree = await this.watcher.findWorktree({ worktreeId });
     if (!worktree || worktree.projectId !== projectId) return undefined;
     const entry: WorktreeEntry = {
       worktree,
@@ -218,9 +228,10 @@ export class WatchWorktreesJob implements Job {
       pendingPaths: new Set(),
       timer: undefined,
     };
-    entry.watch = await this.watcher.watchFiles(worktree, (paths) =>
-      this.queueFiles(entry, paths),
-    );
+    entry.watch = await this.watcher.watchFiles({
+      worktree,
+      changed: (paths) => this.queueFiles(entry, paths),
+    });
     return entry;
   }
 
@@ -240,9 +251,10 @@ export class WatchWorktreesJob implements Job {
       demands: new Set(),
       timer: undefined,
     };
-    entry.watch = await this.watcher.watchRepository(project, () =>
-      this.queueRepository(entry),
-    );
+    entry.watch = await this.watcher.watchRepository({
+      project,
+      changed: () => this.queueRepository(entry),
+    });
     if (demand.closed || this.stopped) {
       await this.stopProject(entry);
       return;
@@ -261,7 +273,7 @@ export class WatchWorktreesJob implements Job {
       entry.pendingPaths.clear();
       const { worktreeId } = entry.worktree;
       this.pathsChanged(worktreeId, changed, () =>
-        this.events.filesChanged(worktreeId, changed),
+        this.events.filesChanged({ worktreeId, paths: changed }),
       );
       if (changed.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
     }, this.options.burstMs);
@@ -278,7 +290,7 @@ export class WatchWorktreesJob implements Job {
       for (const worktree of watched) {
         const { worktreeId } = worktree.worktree;
         this.pathsChanged(worktreeId, [], () =>
-          this.events.worktreeChanged(worktreeId, 'git'),
+          this.events.worktreeChanged({ worktreeId, change: 'git' }),
         );
       }
       this.refreshInventory
@@ -348,7 +360,7 @@ export class WatchWorktreesJob implements Job {
     this.trackStop(this.stopProject(entry));
   }
 
-  private close(demand: Demand): void {
+  private release(demand: Demand): void {
     if (demand.closed) return;
     demand.closed = true;
     this.demands.delete(demand);
@@ -381,7 +393,7 @@ export class WatchWorktreesJob implements Job {
   }
 
   private reportFailure(error: unknown): undefined {
-    this.events.jobFailed('watch-worktrees', error);
+    this.logger.failure({ kind: 'live-updates', error });
     return undefined;
   }
 }

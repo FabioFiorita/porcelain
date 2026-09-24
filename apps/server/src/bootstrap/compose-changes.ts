@@ -1,26 +1,11 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
 import {
   CheckCommitService,
   ListCommitsService,
   ReadBranchDetailsService,
-  ReadChangeDiffsService,
-  ReadChangeFingerprintsService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
-  ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import type { ReadTextFileService } from '@porcelain/files/services';
-import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
-import type { ListedWorktree } from '@porcelain/projects/models';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
-import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
-import type { CommitReaderFactory } from '@porcelain/git/history';
-import type { InspectionFactory } from '@porcelain/git/inspection';
-import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
-import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
 import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
-import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
-import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
 import { ReadChangeDiffsUseCase } from '../use-cases/changes/read-change-diffs.ts';
 import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.ts';
@@ -30,45 +15,31 @@ import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.t
 import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import type { ComposeContext } from './compose-context.ts';
+import type { Shared } from './compose-shared.ts';
 
-export type ChangesAdapters = {
-  worktreeAccess: WorktreeAccessReader<ListedWorktree>;
-  checkWorktree: CheckWorktreeService;
-  readEnvironment: ReadEnvironmentService;
-  inspection: InspectionFactory;
-  commitGit: CommitReaderFactory;
-  readTextFile: ReadTextFileService;
-  readInterruptedGitAction: ReadInterruptedGitActionService;
-};
+export type ChangesDependencies = { shared: Shared };
 
 export function composeChanges(
   context: ComposeContext,
-  adapters: ChangesAdapters,
+  dependencies: ChangesDependencies,
 ) {
   const { lanes, laneKeys } = context;
+  const { shared } = dependencies;
   const limits = context.settings.limits.changes;
-  const openInspection = inspectionCheckouts(
-    adapters.worktreeAccess,
-    adapters.inspection,
-  );
-  const changeStatusReader = new GitChangeStatusReader(openInspection);
-  const worktreeSideReader = new GitWorktreeSideReader(
-    openInspection,
-    limits.worktreeReads,
-  );
-  const changeDiffReader = new GitChangeDiffReader(openInspection);
+  const {
+    checkWorktree,
+    readEnvironment,
+    readWorktreeStatus,
+    readChangeFingerprints,
+    readChangeDiffs,
+  } = shared;
   const commitHistoryReader = new GitCommitHistoryReader(
-    adapters.worktreeAccess,
-    adapters.commitGit,
+    shared.worktreeAccess,
+    shared.commitGit,
   );
-  const { checkWorktree, readEnvironment } = adapters;
-  const readWorktreeStatus = new ReadWorktreeStatusService(changeStatusReader);
-  const readBranchDetails = new ReadBranchDetailsService(changeStatusReader);
-  const readChangeFingerprints = new ReadChangeFingerprintsService(
-    worktreeSideReader,
-    limits.fingerprints,
+  const readBranchDetails = new ReadBranchDetailsService(
+    shared.changeStatusReader,
   );
-  const readChangeDiffs = new ReadChangeDiffsService(changeDiffReader);
   const listCommits = new ListCommitsService(commitHistoryReader);
   const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
   const checkCommit = new CheckCommitService(commitHistoryReader);
@@ -78,7 +49,7 @@ export function composeChanges(
       checkWorktree,
       readWorktreeStatus,
       readChangeFingerprints,
-      adapters.readInterruptedGitAction,
+      shared.readInterruptedGitAction,
       readEnvironment,
       lanes,
       laneKeys,
@@ -94,7 +65,7 @@ export function composeChanges(
     ),
     readChangeLines: new ReadChangeLinesUseCase(
       checkWorktree,
-      adapters.readTextFile,
+      shared.readTextFile,
       readEnvironment,
       lanes,
       laneKeys,
@@ -128,10 +99,5 @@ export function composeChanges(
       lanes,
       laneKeys,
     ),
-    services: {
-      readWorktreeStatus,
-      readChangeFingerprints,
-      readChangeDiffs,
-    },
   };
 }

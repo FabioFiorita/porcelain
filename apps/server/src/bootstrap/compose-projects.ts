@@ -1,9 +1,4 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { GitFactory } from '@porcelain/git/discovery';
-import type {
-  InventoryStore,
-  ProjectFolderReader,
-} from '@porcelain/projects/ports';
+import type { ProjectFolderReader } from '@porcelain/projects/ports';
 import {
   BrowseProjectFoldersService,
   CollectAbsentWorktreesService,
@@ -11,10 +6,8 @@ import {
   ForgetProjectWorktreesService,
   InspectProjectRepositoryService,
   ListFilePreferencesService,
-  ListKnownWorktreesService,
   ListOtherProjectsService,
   ListProjectWorktreesService,
-  ListRegisteredProjectsService,
   MarkProjectsUnavailableService,
   ReadRepositoryOriginService,
   RecordWorktreePresenceService,
@@ -24,13 +17,7 @@ import {
   SetFilePreferenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
-import type { ReadReviewBadgesService } from '@porcelain/reviews/services';
-import {
-  createFilePreferenceStore,
-  createWorktreePresenceStore,
-} from '@porcelain/storage/projects';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
-import type { GitWorktreeCatalogStore } from '../adapters/projects/git-project-worktree-reader.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
@@ -43,30 +30,29 @@ import { RemoveProjectUseCase } from '../use-cases/projects/remove-project.ts';
 import { RenameProjectUseCase } from '../use-cases/projects/rename-project.ts';
 import { SetFilePreferenceUseCase } from '../use-cases/projects/set-file-preference.ts';
 import type { ComposeContext } from './compose-context.ts';
+import type { Shared } from './compose-shared.ts';
+import type { Stores } from './compose-stores.ts';
 
-export type ProjectsAdapters = {
-  readEnvironment: ReadEnvironmentService;
-  git: GitFactory;
-  inventoryStore: InventoryStore;
-  readWorktreeStatuses: ReadReviewBadgesService;
+export type ProjectsDependencies = {
+  stores: Stores;
+  shared: Shared;
   projectFolderReader: ProjectFolderReader;
-  worktreeDirectory: GitWorktreeCatalogStore;
 };
 
 export function composeProjects(
   context: ComposeContext,
-  adapters: ProjectsAdapters,
+  dependencies: ProjectsDependencies,
 ) {
-  const { session, lanes, laneKeys, events, clock, ids, settings } = context;
+  const { lanes, laneKeys, events, clock, ids, settings } = context;
   const limits = settings.limits.projects;
-  const inventory = adapters.inventoryStore;
-  const worktreePresence = createWorktreePresenceStore(session);
-  const filePreference = createFilePreferenceStore(session);
-  const { projectFolderReader, worktreeDirectory } = adapters;
-  const projectRepositoryReader = new GitProjectRepositoryReader(adapters.git);
+  const { stores, shared, projectFolderReader } = dependencies;
+  const inventory = stores.inventory;
+  const worktreePresence = stores.worktreePresence;
+  const filePreference = stores.filePreferences;
+  const { worktreeDirectory, readWorktreeStatuses } = shared;
+  const projectRepositoryReader = new GitProjectRepositoryReader(shared.git);
 
-  const listRegisteredProjects = new ListRegisteredProjectsService(inventory);
-  const listKnownWorktrees = new ListKnownWorktreesService(worktreeDirectory);
+  const { listRegisteredProjects, listKnownWorktrees } = shared;
   const listProjectWorktrees = new ListProjectWorktreesService(
     worktreeDirectory,
   );
@@ -78,14 +64,13 @@ export function composeProjects(
     worktreePresence,
     clock,
   );
-  const { readWorktreeStatuses } = adapters;
 
   return {
     readInventory: new ReadInventoryUseCase(
       listRegisteredProjects,
       listKnownWorktrees,
       readWorktreeStatuses,
-      adapters.readEnvironment,
+      shared.readEnvironment,
       lanes,
       laneKeys,
     ),

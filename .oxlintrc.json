@@ -49,6 +49,7 @@
     "porcelain/fakes-store": "error",
     "porcelain/scope-shape": "error",
     "porcelain/no-interface-in-runtime": "error",
+    "porcelain/timers-in-runtime": "error",
     "porcelain/fixture-imports": "error",
     "porcelain/events-after-lane": "error",
     "porcelain/lane-after-check": "error",

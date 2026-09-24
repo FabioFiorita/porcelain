@@ -20,6 +20,9 @@ export function issuePairing(
         response: { ...errorResponses, 200: issuePairingResponseSchema },
       },
     },
-    (request) => options.useCase.execute(request.body, {}),
+    (request) =>
+      options.useCase.execute(request.body, {
+        signal: request.disconnected,
+      }),
   );
 }

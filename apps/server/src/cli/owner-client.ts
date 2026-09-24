@@ -1,8 +1,4 @@
 import { request as httpRequest } from 'node:http';
-import {
-  readOwnerStatusResponseSchema,
-  type ReadOwnerStatusResponse,
-} from '@porcelain/contracts/access';
 import { LIMITS } from '../config/limits.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
@@ -10,11 +6,6 @@ import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts'
 export class OwnerRequestError extends Error {
   override readonly name = 'OwnerRequestError';
 }
-
-export type OwnerSocketProbe =
-  | { kind: 'running'; status: ReadOwnerStatusResponse }
-  | { kind: 'absent' }
-  | { kind: 'unreadable'; reason: string };
 
 type OwnerExchange = {
   method: 'GET' | 'POST';
@@ -128,39 +119,6 @@ export async function askOwner(
   if (parsed === undefined)
     throw new OwnerRequestError('The server answered unrecognizably.');
   return parsed;
-}
-
-export async function probeOwnerSocket(
-  socketPath: string,
-  timeoutMs = LIMITS.owner.probeTimeoutMs,
-): Promise<OwnerSocketProbe> {
-  let answer: OwnerAnswer;
-  try {
-    answer = await exchange(socketPath, {
-      method: 'GET',
-      path: '/status',
-      timeoutMs,
-      timeoutMessage: 'the owner socket did not answer in time',
-    });
-  } catch (error) {
-    return socketAbsent(error)
-      ? { kind: 'absent' }
-      : { kind: 'unreadable', reason: reasonOf(error) };
-  }
-  if (answer.status !== 200)
-    return {
-      kind: 'unreadable',
-      reason: `the owner socket answered ${answer.status || 'nothing'}`,
-    };
-  const parsed = readOwnerStatusResponseSchema.safeParse(
-    parsedJson(answer.body),
-  );
-  return parsed.success
-    ? { kind: 'running', status: parsed.data }
-    : {
-        kind: 'unreadable',
-        reason: 'the owner socket answered something unrecognizable',
-      };
 }
 
 export async function relayToOwner(

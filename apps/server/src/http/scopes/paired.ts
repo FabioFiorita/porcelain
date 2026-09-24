@@ -53,23 +53,23 @@ import { listWorktreePaths } from '../routes/files/list-worktree-paths.ts';
 import { readFileAsset } from '../routes/files/read-file-asset.ts';
 import { readPreviewAssets } from '../routes/files/read-preview-assets.ts';
 import { readTextFile } from '../routes/files/read-text-file.ts';
-import { dismissInterrupted } from '../routes/git-actions/dismiss-interrupted.ts';
+import { dismissInterruptedGitAction } from '../routes/git-actions/dismiss-interrupted-git-action.ts';
 import { generateCommitDraft } from '../routes/git-actions/generate-commit-draft.ts';
-import { listBranches } from '../routes/git-actions/list-branches.ts';
+import { listGitBranches } from '../routes/git-actions/list-git-branches.ts';
 import { listCommitModels } from '../routes/git-actions/list-commit-models.ts';
-import { readReceipt } from '../routes/git-actions/read-receipt.ts';
-import { runAction } from '../routes/git-actions/run-action.ts';
+import { readGitActionReceipt } from '../routes/git-actions/read-git-action-receipt.ts';
+import { runGitAction } from '../routes/git-actions/run-git-action.ts';
 import { readChanges } from '../routes/changes/read-changes.ts';
 import { readChangeDiffs } from '../routes/changes/read-change-diffs.ts';
 import { readChangeLines } from '../routes/changes/read-change-lines.ts';
 import { readGitStatus } from '../routes/changes/read-git-status.ts';
-import { browseProjectFolders } from '../routes/projects/browse-folders.ts';
-import { discoverProjects } from '../routes/projects/discover.ts';
+import { browseProjectFolders } from '../routes/projects/browse-project-folders.ts';
+import { discoverProjects } from '../routes/projects/discover-projects.ts';
 import { listFilePreferences } from '../routes/projects/list-file-preferences.ts';
 import { readInventory } from '../routes/projects/read-inventory.ts';
-import { registerProject } from '../routes/projects/register.ts';
-import { removeProject } from '../routes/projects/remove.ts';
-import { renameProject } from '../routes/projects/rename.ts';
+import { registerProject } from '../routes/projects/register-project.ts';
+import { removeProject } from '../routes/projects/remove-project.ts';
+import { renameProject } from '../routes/projects/rename-project.ts';
 import { setFilePreference } from '../routes/projects/set-file-preference.ts';
 import { createCommentThread } from '../routes/reviews/create-comment-thread.ts';
 import { listCommentThreads } from '../routes/reviews/list-comment-threads.ts';
@@ -148,16 +148,16 @@ export async function pairedScope(
   options: { application: PairedUseCases & AuthenticateOptions },
 ) {
   server.addHook('onRequest', authenticate(options.application));
-  server.register(runAction, {
+  server.register(runGitAction, {
     useCase: options.application.gitActions.runGitAction,
   });
-  server.register(readReceipt, {
+  server.register(readGitActionReceipt, {
     useCase: options.application.gitActions.readGitActionReceipt,
   });
-  server.register(dismissInterrupted, {
+  server.register(dismissInterruptedGitAction, {
     useCase: options.application.gitActions.dismissInterruptedGitAction,
   });
-  server.register(listBranches, {
+  server.register(listGitBranches, {
     useCase: options.application.gitActions.listGitBranches,
   });
   server.register(listCommitModels, {

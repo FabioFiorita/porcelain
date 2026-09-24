@@ -20,16 +20,11 @@ export async function apiScope(
   options: {
     application: ApiUseCases;
     allowedHosts: readonly string[];
-    pingMs: number;
   },
 ) {
   const { application, allowedHosts } = options;
   server.addHook('onRequest', preventCaching);
-  server.register(liveScope, {
-    application,
-    allowedHosts,
-    pingMs: options.pingMs,
-  });
+  server.register(liveScope, { application, allowedHosts });
   server.register(async (http) => {
     http.addHook(
       'onRequest',

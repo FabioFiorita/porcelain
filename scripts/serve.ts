@@ -4,33 +4,14 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  installShutdownSignals,
-  parseCliArguments,
-  reportStatus,
-  runLocalServer,
-  ServeConfigurationError,
-  type ServeSettings,
-  serveHelp,
-  statusExitCodes,
-} from '../apps/server/src/cli/index.ts';
-import type { startRuntime } from '../apps/server/src/bootstrap/runtime.ts';
-
-export {
-  installShutdownSignals,
-  parseCliArguments,
-  ServeConfigurationError,
-  type ServeSettings,
-  serveHelp,
-} from '../apps/server/src/cli/index.ts';
+  runCli,
+  startupFailureMessage,
+} from '../apps/server/src/bootstrap/main.ts';
+import { parseCliArguments } from '../apps/server/src/cli/arguments.ts';
+import { installShutdownSignals } from '../apps/server/src/cli/signals.ts';
+import { ServeConfigurationError } from '../apps/server/src/config/errors/serve-configuration-error.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-export type ServeDependencies = {
-  buildWeb?: (signal: AbortSignal, outputDirectory: string) => Promise<void>;
-  startServer?: typeof startRuntime;
-  output?: (message: string) => void;
-  repositoryRoot?: string;
-};
 
 export type BuildCommandOptions = {
   cancellationGraceMs?: number;
@@ -187,40 +168,6 @@ export async function runBuildCommand(
   });
 }
 
-export async function runServe(
-  settings: ServeSettings,
-  signal: AbortSignal,
-  dependencies: ServeDependencies = {},
-): Promise<void> {
-  const repository = dependencies.repositoryRoot ?? repositoryRoot;
-  const output =
-    dependencies.output ??
-    ((message: string) => process.stdout.write(`${message}\n`));
-  const build =
-    dependencies.buildWeb ??
-    ((buildSignal: AbortSignal, outputDirectory: string) =>
-      buildWeb(repository, outputDirectory, buildSignal));
-  const temporaryWebRoot = dependencies.buildWeb
-    ? undefined
-    : await mkdtemp(join(tmpdir(), 'porcelain-web-'));
-  const webRoot = temporaryWebRoot ?? settings.webRoot;
-  try {
-    await build(signal, webRoot);
-    await assertWebRoot(webRoot);
-    signal.throwIfAborted();
-    await runLocalServer(
-      { ...settings, webRoot },
-      signal,
-      dependencies.startServer
-        ? { startServer: dependencies.startServer, output }
-        : { output },
-    );
-  } finally {
-    if (temporaryWebRoot)
-      await rm(temporaryWebRoot, { recursive: true, force: true });
-  }
-}
-
 async function assertWebRoot(webRoot: string): Promise<void> {
   try {
     const index = await stat(join(webRoot, 'index.html'));
@@ -231,54 +178,43 @@ async function assertWebRoot(webRoot: string): Promise<void> {
   );
 }
 
-function formatStartupError(error: unknown): string {
-  if (error instanceof ServeConfigurationError) return error.message;
-  if (
-    error instanceof Error &&
-    (error.name === 'DataDirectoryOwnedError' ||
-      error.name === 'DataDirectoryInsecureError' ||
-      error.name === 'SocketPathTooLongError')
-  )
-    return error.message;
-  return 'Porcelain could not start. Check the build, data directory, and port.';
+function servesLocally(args: readonly string[]): boolean {
+  try {
+    return parseCliArguments(args, process.env, homedir()).command === 'serve';
+  } catch {
+    return false;
+  }
 }
 
-async function main(): Promise<void> {
+async function buildInto(webRoot: string): Promise<boolean> {
   const controller = new AbortController();
   const removeShutdownSignals = installShutdownSignals(controller);
   try {
-    const parsed = parseCliArguments(
-      process.argv.slice(2),
-      process.env,
-      homedir(),
-    );
-    if (parsed.command === 'help') {
-      process.stdout.write(serveHelp);
-      return;
-    }
-    if (parsed.command === 'status') {
-      const code = await reportStatus(parsed.settings, {
-        stdout: (message) => process.stdout.write(message),
-        stderr: (message) => process.stderr.write(message),
-      });
-      if (code !== statusExitCodes.running) process.exitCode = code;
-      return;
-    }
-    if (parsed.command !== 'serve') {
-      process.stderr.write(
-        `Use the installed porcelain command for ${parsed.command}.\n`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-    await runServe(parsed.settings, controller.signal);
+    await buildWeb(repositoryRoot, webRoot, controller.signal);
+    await assertWebRoot(webRoot);
+    return !controller.signal.aborted;
   } catch (error) {
     if (!controller.signal.aborted) {
-      process.stderr.write(`${formatStartupError(error)}\n`);
+      process.stderr.write(`${startupFailureMessage(error)}\n`);
       process.exitCode = 1;
     }
+    return false;
   } finally {
     removeShutdownSignals();
+  }
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (!servesLocally(args)) {
+    await runCli(args);
+    return;
+  }
+  const webRoot = await mkdtemp(join(tmpdir(), 'porcelain-web-'));
+  try {
+    if (await buildInto(webRoot)) await runCli(args, process.env, { webRoot });
+  } finally {
+    await rm(webRoot, { recursive: true, force: true });
   }
 }
 

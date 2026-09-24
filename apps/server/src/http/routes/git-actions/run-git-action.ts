@@ -10,7 +10,7 @@ import type { RunGitActionUseCase } from '../../../use-cases/git-actions/run-git
 import { errorResponses } from '../../schemas/error-responses.ts';
 import { gitActionReceiptStatus } from '../../status-policy.ts';
 
-export function runAction(
+export function runGitAction(
   server: FastifyInstance,
   options: { useCase: Pick<RunGitActionUseCase, 'execute'> },
 ) {

@@ -1,4 +1,9 @@
 import { homedir } from 'node:os';
+import {
+  InvalidDataDirectoryError,
+  UnsupportedDatabaseVersionError,
+} from '@porcelain/storage';
+import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { parseCliArguments } from '../cli/arguments.ts';
 import { runCommand } from '../cli/commands.ts';
@@ -13,10 +18,12 @@ import {
 import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 import { SocketPathTooLongError } from '../config/errors/socket-path-too-long-error.ts';
 import type { PorcelainEnvironment } from '../config/environment-settings.ts';
-import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
-import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
-import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
-import { startRuntime } from './runtime.ts';
+import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-insecure-error.ts';
+import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
+import { OwnerSocketUnreadableError } from '../runtime/errors/owner-socket-unreadable-error.ts';
+import { OwnerSocketModeError } from '../runtime/errors/owner-socket-mode-error.ts';
+import { startApplication } from '../runtime/start-application.ts';
+import { openServer } from './compose-server.ts';
 
 const actionableErrors = [
   ServeConfigurationError,
@@ -24,8 +31,20 @@ const actionableErrors = [
   DataDirectoryOwnedError,
   DataDirectoryInsecureError,
   OwnerSocketUnreadableError,
+  OwnerSocketModeError,
   SocketPathTooLongError,
+  InvalidDataDirectoryError,
+  UnsupportedDatabaseVersionError,
 ];
+
+const ownerProbe = new SocketOwnerProbe();
+
+export const startServer: StartServer = (settings, signal) =>
+  startApplication(settings, signal, {
+    openServer,
+    ownerProbe,
+    clock: new SystemClock(),
+  });
 
 export type CliDependencies = {
   homeDirectory?: string;
@@ -35,7 +54,7 @@ export type CliDependencies = {
   stderr?: (message: string) => void;
 };
 
-function failureMessage(error: unknown): string {
+export function startupFailureMessage(error: unknown): string {
   const actionable =
     isServiceFailure(error) ||
     actionableErrors.some((known) => error instanceof known);
@@ -66,14 +85,15 @@ export async function runCli(
       homeDirectory,
       searchPath: environment.PATH ?? '',
       clock: new SystemClock(),
-      startServer: dependencies.startServer ?? startRuntime,
+      ownerProbe,
+      startServer: dependencies.startServer ?? startServer,
       stdout,
       stderr,
     });
     if (exitCode !== 0) process.exitCode = exitCode;
   } catch (error) {
     if (!shutdown.signal.aborted) {
-      stderr(`${failureMessage(error)}\n`);
+      stderr(`${startupFailureMessage(error)}\n`);
       process.exitCode = 1;
     }
   } finally {

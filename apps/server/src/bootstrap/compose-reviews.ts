@@ -1,22 +1,15 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadTextFileService } from '@porcelain/files/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import {
   CreateCommentThreadService,
   GeneratePublishedReviewService,
-  InvalidateReviewedMarksService,
   ListCommentThreadsService,
   ListReviewedFilesService,
   ListReviewedLayerPathsService,
   ListReviewedLayersService,
   MarkCommentsSeenService,
   PublishReviewService,
-  ReadPublishedReviewService,
-  ReadReviewEvidenceService,
   ReadReviewLayerService,
-  ReadReviewTextsService,
   ReadReviewSummaryService,
-  RecordReviewActivityService,
+  ReadReviewTextsService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
   ReplyToCommentService,
@@ -24,13 +17,6 @@ import {
   SetReviewedLayerService,
   UpdateCommentThreadService,
 } from '@porcelain/reviews/services';
-import {
-  createCommentSeenStore,
-  createCommentStore,
-  createReviewedFileStore,
-  createReviewedLayerStore,
-  createReviewStore,
-} from '@porcelain/storage/reviews';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
 import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
@@ -44,69 +30,38 @@ import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-
 import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
 import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
 import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
+import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
 import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
-import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.ts';
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
-import type { composeChanges } from './compose-changes.ts';
+import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
 import type { ComposeContext } from './compose-context.ts';
+import type { Shared } from './compose-shared.ts';
+import type { Stores } from './compose-stores.ts';
 
-type ChangesServices = ReturnType<typeof composeChanges>['services'];
-
-export type ReviewsAdapters = {
-  checkWorktree: CheckWorktreeService;
-  readEnvironment: ReadEnvironmentService;
-  readTextFile: ReadTextFileService;
-  changes: ChangesServices;
-};
-
-export function composeReviewInvalidation(
-  context: ComposeContext,
-  checkWorktree: CheckWorktreeService,
-) {
-  const invalidateReviewedMarks = new InvalidateReviewedMarksService(
-    createReviewedFileStore(context.session),
-    createReviewedLayerStore(context.session),
-  );
-  return {
-    invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
-      checkWorktree,
-      invalidateReviewedMarks,
-      context.lanes,
-      context.laneKeys,
-    ),
-    services: { invalidateReviewedMarks },
-  };
-}
+export type ReviewsDependencies = { stores: Stores; shared: Shared };
 
 export function composeReviews(
   context: ComposeContext,
-  adapters: ReviewsAdapters,
+  dependencies: ReviewsDependencies,
 ) {
-  const { session, lanes, laneKeys, events, clock, ids } = context;
+  const { lanes, laneKeys, events, clock, ids } = context;
   const limits = context.settings.limits.reviews;
-  const { checkWorktree, readEnvironment, readTextFile, changes } = adapters;
+  const { stores, shared } = dependencies;
+  const { checkWorktree, readEnvironment, readTextFile } = shared;
   const signatureSource = new HmacSignatureSource();
-  const commentStore = createCommentStore(session);
-  const reviewStore = createReviewStore(session);
-  const reviewedFileStore = createReviewedFileStore(session);
-  const reviewedLayerStore = createReviewedLayerStore(session);
-
-  const readPublishedReview = new ReadPublishedReviewService(reviewStore);
+  const commentStore = stores.comments;
+  const reviewStore = stores.reviews;
+  const reviewedFileStore = stores.reviewedFiles;
+  const reviewedLayerStore = stores.reviewedLayers;
+  const { readPublishedReview } = shared;
   const generatePublishedReview = new GeneratePublishedReviewService(
     clock,
     signatureSource,
     limits.summaryLink,
   );
-  const recordReviewActivity = new RecordReviewActivityService(reviewStore);
   const readReviewTexts = new ReadReviewTextsService(readTextFile);
-  const readReviewEvidence = new ReadReviewEvidenceService(
-    changes.readWorktreeStatus,
-    changes.readChangeFingerprints,
-    readTextFile,
-    changes.readChangeDiffs,
-  );
   const setReviewedFiles = new SetReviewedFilesService(
     reviewedFileStore,
     clock,
@@ -114,6 +69,23 @@ export function composeReviews(
   );
 
   return {
+    refreshReviewActivity: new RefreshReviewActivityUseCase(
+      shared.listRegisteredProjects,
+      shared.listKnownWorktrees,
+      checkWorktree,
+      readPublishedReview,
+      shared.readReviewEvidence,
+      shared.recordReviewActivity,
+      shared.reconcileReviewedLayers,
+      lanes,
+      laneKeys,
+    ),
+    invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
+      checkWorktree,
+      shared.invalidateReviewedMarks,
+      lanes,
+      laneKeys,
+    ),
     listCommentThreads: new ListCommentThreadsUseCase(
       checkWorktree,
       new ListCommentThreadsService(commentStore),
@@ -143,17 +115,14 @@ export function composeReviews(
     ),
     markCommentsSeen: new MarkCommentsSeenUseCase(
       checkWorktree,
-      new MarkCommentsSeenService(
-        createCommentSeenStore(session),
-        commentStore,
-      ),
+      new MarkCommentsSeenService(stores.commentsSeen, commentStore),
       lanes,
       laneKeys,
       events,
     ),
     publishReview: new PublishReviewUseCase(
       checkWorktree,
-      readReviewEvidence,
+      shared.readReviewEvidence,
       new PublishReviewService(
         reviewStore,
         clock,
@@ -169,7 +138,7 @@ export function composeReviews(
     readPublishedReview: new ReadPublishedReviewUseCase(
       checkWorktree,
       readPublishedReview,
-      readReviewEvidence,
+      shared.readReviewEvidence,
       readEnvironment,
       generatePublishedReview,
       lanes,
@@ -187,8 +156,8 @@ export function composeReviews(
     ),
     setReviewedFile: new SetReviewedFileUseCase(
       checkWorktree,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
+      shared.readWorktreeStatus,
+      shared.readChangeFingerprints,
       setReviewedFiles,
       lanes,
       laneKeys,
@@ -196,8 +165,8 @@ export function composeReviews(
     ),
     setReviewedFiles: new SetReviewedFilesUseCase(
       checkWorktree,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
+      shared.readWorktreeStatus,
+      shared.readChangeFingerprints,
       setReviewedFiles,
       lanes,
       laneKeys,
@@ -235,10 +204,5 @@ export function composeReviews(
       laneKeys,
       events,
     ),
-    services: {
-      readPublishedReview,
-      readReviewEvidence,
-      recordReviewActivity,
-    },
   };
 }

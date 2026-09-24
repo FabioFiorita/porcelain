@@ -46,7 +46,7 @@ export class RemoveReviewedFileUseCase {
       async () => this.removeReviewedFile.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.worktreeChanged(worktreeId, 'reviewed');
+    this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
     return result;
   }
 }

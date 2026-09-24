@@ -16,6 +16,6 @@ export function listAccess(
         response: { ...errorResponses, 200: listAccessResponseSchema },
       },
     },
-    () => options.useCase.execute({}),
+    (request) => options.useCase.execute({ signal: request.disconnected }),
   );
 }

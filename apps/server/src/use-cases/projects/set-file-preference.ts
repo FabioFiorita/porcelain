@@ -37,7 +37,10 @@ export class SetFilePreferenceUseCase {
       async () => this.setFilePreference.execute(input),
       { callerSignal: context.signal },
     );
-    this.events.projectChanged(input.projectId, 'preferences');
+    this.events.projectChanged({
+      projectId: input.projectId,
+      change: 'preferences',
+    });
     return result;
   }
 }

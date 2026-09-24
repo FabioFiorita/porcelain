@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import type { DismissInterruptedGitActionUseCase } from '../../../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
-export function dismissInterrupted(
+export function dismissInterruptedGitAction(
   server: FastifyInstance,
   options: {
     useCase: Pick<DismissInterruptedGitActionUseCase, 'execute'>;

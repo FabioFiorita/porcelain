@@ -1,142 +1,55 @@
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
-import type { Limits } from '../../config/limits.ts';
-import type { EventPublisher, JobName } from '../../ports/event-publisher.ts';
-import type { FollowedTargets } from '../../ports/followed-targets.ts';
-
-type WorktreeChange = 'files' | 'git' | 'reviewed' | 'comments' | 'review';
-
-export type LiveNotice =
-  | { type: 'ready' }
-  | { type: 'heartbeat' }
-  | { type: 'inventory' }
-  | {
-      type: 'git-action';
-      projectId: string;
-      worktreeId: string;
-      receipt: GitActionReceiptView;
-    }
-  | { type: 'project'; projectId: string; change: 'files' | 'preferences' }
-  | {
-      type: 'worktree';
-      projectId: string;
-      worktreeId: string;
-      change: WorktreeChange;
-    };
-
-export type LiveUpdatesLimits = Pick<
-  Limits['liveUpdates'],
-  'maxConnections' | 'maxWatchedWorktrees' | 'burstMs' | 'heartbeatMs'
->;
-
-export type LiveClient = {
-  follow(targets: FollowedTargets): void;
-  close(): void;
-};
-
-type Send = (notice: LiveNotice) => void;
-
-type ClientState = {
-  send: Send;
-  projects: ReadonlySet<string>;
-  worktrees: ReadonlyMap<string, string>;
-};
+import type {
+  EventPublisher,
+  FilesChangedNotice,
+  ProjectChangedNotice,
+  WorktreeChangedNotice,
+} from '../../ports/event-publisher.ts';
+import type { LiveConnections } from '../../runtime/live-updates/live-connections.ts';
 
 export class WebSocketEventPublisher implements EventPublisher {
-  private readonly clients = new Set<ClientState>();
-  private readonly heartbeat: NodeJS.Timeout;
+  private readonly connections: LiveConnections;
 
-  constructor(options: { limits: Pick<LiveUpdatesLimits, 'heartbeatMs'> }) {
-    this.heartbeat = setInterval(
-      () => this.broadcast({ type: 'heartbeat' }),
-      options.limits.heartbeatMs,
-    );
-    this.heartbeat.unref();
-  }
-
-  connect(send: Send): LiveClient {
-    const state: ClientState = {
-      send,
-      projects: new Set(),
-      worktrees: new Map(),
-    };
-    this.clients.add(state);
-    send({ type: 'ready' });
-    return {
-      follow: (targets) => {
-        if (!this.clients.has(state)) return;
-        state.projects = new Set(targets.projects);
-        state.worktrees = new Map(
-          targets.worktrees.map((entry) => [entry.worktreeId, entry.projectId]),
-        );
-      },
-      close: () => {
-        this.clients.delete(state);
-      },
-    };
+  constructor(connections: LiveConnections) {
+    this.connections = connections;
   }
 
   inventoryChanged(): void {
-    this.broadcast({ type: 'inventory' });
+    this.connections.toEveryone({ type: 'inventory' });
   }
 
-  projectChanged(projectId: string, change: 'preferences'): void {
-    for (const client of this.clients)
-      if (client.projects.has(projectId))
-        client.send({ type: 'project', projectId, change });
+  projectChanged(input: ProjectChangedNotice): void {
+    this.connections.toProject(input.projectId, {
+      type: 'project',
+      projectId: input.projectId,
+      change: input.change,
+    });
   }
 
-  worktreeChanged(
-    worktreeId: string,
-    change: 'review' | 'reviewed' | 'comments' | 'git',
-  ): void {
-    this.announceWorktree(worktreeId, change);
+  worktreeChanged(input: WorktreeChangedNotice): void {
+    this.connections.toWorktree(input.worktreeId, (projectId) => ({
+      type: 'worktree',
+      projectId,
+      worktreeId: input.worktreeId,
+      change: input.change,
+    }));
   }
 
-  filesChanged(worktreeId: string, _paths: readonly string[]): void {
-    this.announceWorktree(worktreeId, 'files');
+  filesChanged(input: FilesChangedNotice): void {
+    this.connections.toWorktree(input.worktreeId, (projectId) => ({
+      type: 'worktree',
+      projectId,
+      worktreeId: input.worktreeId,
+      change: 'files',
+    }));
   }
 
-  gitActionChanged(receipt: GitActionReceiptView): void {
-    const notice: LiveNotice = {
+  gitActionChanged(input: GitActionReceiptView): void {
+    this.connections.toProjectOrWorktree(input.projectId, input.worktreeId, {
       type: 'git-action',
-      projectId: receipt.projectId,
-      worktreeId: receipt.worktreeId,
-      receipt,
-    };
-    for (const client of this.clients)
-      if (
-        client.projects.has(receipt.projectId) ||
-        client.worktrees.get(receipt.worktreeId) === receipt.projectId
-      )
-        client.send(notice);
-  }
-
-  gitActionFailed(receipt: GitActionReceiptView, error: unknown): void {
-    const detail = error instanceof Error ? error.message : String(error);
-    process.stderr.write(
-      `Porcelain git action ${receipt.requestId} (${receipt.action}) failed in the background: ${detail}\n`,
-    );
-  }
-
-  jobFailed(job: JobName, error: unknown): void {
-    const detail = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`Porcelain job ${job} failed: ${detail}\n`);
-  }
-
-  async close(): Promise<void> {
-    clearInterval(this.heartbeat);
-    this.clients.clear();
-  }
-
-  private broadcast(notice: LiveNotice): void {
-    for (const client of this.clients) client.send(notice);
-  }
-
-  private announceWorktree(worktreeId: string, change: WorktreeChange): void {
-    for (const client of this.clients) {
-      const projectId = client.worktrees.get(worktreeId);
-      if (projectId !== undefined)
-        client.send({ type: 'worktree', projectId, worktreeId, change });
-    }
+      projectId: input.projectId,
+      worktreeId: input.worktreeId,
+      receipt: input,
+    });
   }
 }

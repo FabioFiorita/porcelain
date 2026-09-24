@@ -243,6 +243,11 @@ const rules: readonly StatusRule[] = [
     statusCode: 422,
   },
   {
+    errors: [GitActionRejectedError],
+    statusCode: 422,
+    message: 'Git refused the operation; refresh and try again',
+  },
+  {
     errors: [UnsupportedGitFiltersError],
     statusCode: 422,
     message: 'Git conversion filters are unsupported for worktree inspection',
@@ -311,11 +316,6 @@ function isHttpError(error: unknown): error is HttpError {
 
 export function toStatusResponse(error: unknown): StatusResponse {
   if (isHttpError(error)) return response(error.statusCode, error.message);
-  if (error instanceof GitActionRejectedError)
-    return response(
-      409,
-      error.detail ?? 'Git action unavailable; refresh and prepare again',
-    );
   if (error instanceof Error) {
     const rule = rules.find((entry) =>
       entry.errors.some((errorClass) => error instanceof errorClass),

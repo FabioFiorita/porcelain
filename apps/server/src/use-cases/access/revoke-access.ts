@@ -6,7 +6,7 @@ import type {
   RevokeAccessRequest,
   RevokeAccessResponse,
 } from '@porcelain/contracts/access';
-import type { DeviceConnections } from '../../ports/device-connections.ts';
+import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -14,14 +14,14 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class RevokeAccessUseCase {
   private readonly revokePairingGrant: RevokePairingGrantService;
   private readonly revokeDevice: RevokeDeviceService;
-  private readonly deviceConnections: DeviceConnections;
+  private readonly deviceConnections: DeviceConnectionStore;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
     revokePairingGrant: RevokePairingGrantService,
     revokeDevice: RevokeDeviceService,
-    deviceConnections: DeviceConnections,
+    deviceConnections: DeviceConnectionStore,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -43,7 +43,7 @@ export class RevokeAccessUseCase {
         if (this.revokePairingGrant.execute(input).kind === 'revoked')
           return { revoked: true, kind: 'grant' };
         if (this.revokeDevice.execute(input).kind === 'revoked') {
-          this.deviceConnections.close({ deviceId: input.id });
+          this.deviceConnections.remove({ deviceId: input.id });
           return { revoked: true, kind: 'device' };
         }
         return { revoked: false };

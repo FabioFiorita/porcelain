@@ -4,18 +4,9 @@ import {
   ListWorktreePathsService,
   ReadFileAssetService,
   ReadPreviewAssetsService,
-  ReadTextFileService,
 } from '@porcelain/files/services';
-import type { ListedWorktree } from '@porcelain/projects/models';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
-import type { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
-import type { InspectionFactory } from '@porcelain/git/inspection';
-import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import { FilesystemDirectoryReader } from '../adapters/files/filesystem-directory-reader.ts';
-import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
-import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { FilesystemFileWriter } from '../adapters/files/filesystem-file-writer.ts';
-import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
 import { GitIgnoredEntriesReader } from '../adapters/files/git-ignored-entries-reader.ts';
 import { GitWorktreePathsReader } from '../adapters/files/git-worktree-paths-reader.ts';
 import { EditFileUseCase } from '../use-cases/files/edit-file.ts';
@@ -25,29 +16,18 @@ import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
 import type { ComposeContext } from './compose-context.ts';
+import type { Shared } from './compose-shared.ts';
 
-export type FilesAdapters = {
-  worktreeAccess: WorktreeAccessReader<ListedWorktree>;
-  checkWorktree: CheckWorktreeService;
-  invalidateReviewedMarks: InvalidateReviewedMarksService;
-  inspection: InspectionFactory;
-};
+export type FilesDependencies = { shared: Shared };
 
-export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
+export function composeFiles(
+  context: ComposeContext,
+  dependencies: FilesDependencies,
+) {
   const { lanes, laneKeys, events } = context;
   const limits = context.settings.limits.files;
-  const { worktreeAccess, checkWorktree } = adapters;
-  const fileReader = new FilesystemFileReader(worktreeAccess);
-  const readTextFileService = new ReadTextFileService(
-    fileReader,
-    new GitHeadTextReader(
-      inspectionCheckouts(worktreeAccess, adapters.inspection),
-    ),
-    limits.readTextFile,
-  );
+  const { worktreeAccess, checkWorktree, fileReader } = dependencies.shared;
   return {
-    fileReader,
-    readTextFileService,
     listDirectory: new ListDirectoryUseCase(
       checkWorktree,
       new ListDirectoryService(
@@ -60,7 +40,7 @@ export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
     ),
     readTextFile: new ReadTextFileUseCase(
       checkWorktree,
-      readTextFileService,
+      dependencies.shared.readTextFile,
       lanes,
       laneKeys,
     ),
@@ -83,7 +63,7 @@ export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
         new FilesystemFileWriter(worktreeAccess, limits.permissions),
         limits.editFile,
       ),
-      adapters.invalidateReviewedMarks,
+      dependencies.shared.invalidateReviewedMarks,
       lanes,
       laneKeys,
       events,

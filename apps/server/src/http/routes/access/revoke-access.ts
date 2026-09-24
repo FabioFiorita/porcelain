@@ -20,6 +20,9 @@ export function revokeAccess(
         response: { ...errorResponses, 200: revokeAccessResponseSchema },
       },
     },
-    (request) => options.useCase.execute(request.body, {}),
+    (request) =>
+      options.useCase.execute(request.body, {
+        signal: request.disconnected,
+      }),
   );
 }

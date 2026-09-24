@@ -1,40 +1,34 @@
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
 import type {
   EventPublisher,
-  JobName,
+  FilesChangedNotice,
+  ProjectChangedNotice,
+  WorktreeChangedNotice,
 } from '../../src/ports/event-publisher.ts';
 
 export class InMemoryEventPublisher implements EventPublisher {
-  readonly announcedFiles = new Map<string, number>();
-  readonly worktreeChanges = new Map<string, string>();
-  readonly failures = new Map<JobName, unknown>();
-  inventoryAnnouncements = 0;
+  private readonly files = new Map<string, readonly string[]>();
+  private readonly worktrees = new Map<string, string>();
 
-  inventoryChanged(): void {
-    this.inventoryAnnouncements += 1;
+  inventoryChanged(): void {}
+
+  projectChanged(_input: ProjectChangedNotice): void {}
+
+  worktreeChanged(input: WorktreeChangedNotice): void {
+    this.worktrees.set(input.worktreeId, input.change);
   }
 
-  projectChanged(_projectId: string, _change: 'preferences'): void {}
-
-  worktreeChanged(
-    worktreeId: string,
-    change: 'review' | 'reviewed' | 'comments' | 'git',
-  ): void {
-    this.worktreeChanges.set(worktreeId, change);
+  filesChanged(input: FilesChangedNotice): void {
+    this.files.set(input.worktreeId, input.paths);
   }
 
-  filesChanged(worktreeId: string, _paths: readonly string[]): void {
-    this.announcedFiles.set(
-      worktreeId,
-      (this.announcedFiles.get(worktreeId) ?? 0) + 1,
-    );
+  gitActionChanged(_input: GitActionReceiptView): void {}
+
+  announcedFiles(worktreeId: string): readonly string[] | undefined {
+    return this.files.get(worktreeId);
   }
 
-  gitActionChanged(_receipt: GitActionReceiptView): void {}
-
-  gitActionFailed(_receipt: GitActionReceiptView, _error: unknown): void {}
-
-  jobFailed(job: JobName, error: unknown): void {
-    this.failures.set(job, error);
+  announcedChange(worktreeId: string): string | undefined {
+    return this.worktrees.get(worktreeId);
   }
 }

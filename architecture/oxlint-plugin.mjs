@@ -197,21 +197,25 @@ function isStringLiteral(node) {
   return node.type === 'Literal' && typeof node.value === 'string';
 }
 
+const presenterModule = /(?:^|\/)presenters\/[^/]+\.ts$/;
+
 function pageRenderers(program) {
   return new Set(
     program.body
-      .map((statement) =>
-        statement.type === 'ExportNamedDeclaration'
-          ? statement.declaration
-          : statement,
-      )
       .filter(
         (statement) =>
-          statement?.type === 'FunctionDeclaration' &&
-          statement.id &&
-          statement.params.length === 1,
+          statement.type === 'ImportDeclaration' &&
+          statement.importKind !== 'type' &&
+          typeof statement.source.value === 'string' &&
+          presenterModule.test(statement.source.value),
       )
-      .map((statement) => statement.id.name),
+      .flatMap((statement) => statement.specifiers)
+      .filter(
+        (specifier) =>
+          specifier.type === 'ImportSpecifier' &&
+          specifier.importKind !== 'type',
+      )
+      .map((specifier) => specifier.local.name),
   );
 }
 
@@ -264,6 +268,9 @@ const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
 const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
+const statusPolicySpec = /\/apps\/server\/src\/http\/status-policy\.spec\.ts$/;
+const gitCapabilityEntry =
+  /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
 const specPackageEntry = new RegExp(
   `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors|store-contracts)|kernel/(?:models|rules|errors|fakes))$`,
 );
@@ -362,6 +369,9 @@ const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
 const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
 const runtimeFile = /^apps\/server\/src\/runtime\//;
+const serverAppFile = /^apps\/server\/src\//;
+const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
+const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
 const scopeFile = /^apps\/server\/src\/http\/scopes\/[^/]+\.ts$/;
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
@@ -792,8 +802,10 @@ function caseTitle(node) {
 function allowedSpecImport(filename, source) {
   if (source === 'vitest') return true;
   if (specNodeModule.test(source) || specPackageEntry.test(source)) return true;
-  if (!source.startsWith('.')) return false;
   const path = normalizedFilename(filename);
+  if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
+    return true;
+  if (!source.startsWith('.')) return false;
   const unit = path.split('/').at(-1).replace(specSource, '.ts');
   if (source === `./${unit}`) return true;
   const target = new URL(
@@ -1235,6 +1247,34 @@ export default {
               message:
                 'runtime/ implements the lanes; a contract the server depends on is a port in apps/server/src/ports/.',
             });
+          },
+        };
+      },
+    },
+    'timers-in-runtime': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !serverAppFile.test(path) ||
+          runtimeFile.test(path) ||
+          isSpec(context)
+        )
+          return {};
+        const message =
+          'A schedule lives in apps/server/src/runtime: repeating work is an IntervalJob, a wait is a runtime helper; setTimeout and setInterval appear nowhere else.';
+        return {
+          ...moduleVisitors((node) => {
+            const source = moduleSource(node);
+            if (source !== undefined && timerModule.test(source))
+              context.report({ node: node.source ?? node, message });
+          }),
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              timerGlobals,
+            ))
+              context.report({ node: identifier, message });
           },
         };
       },
@@ -2652,7 +2692,7 @@ export default {
                 context.report({
                   node: handler,
                   message:
-                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.useCase.execute(...)) or .send(render(options.useCase.execute(...))) where render is a one-parameter function declared in this file.',
+                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(options.useCase.execute(...)) or .send(render(options.useCase.execute(...))) where render is imported from http/presenters/.',
                 });
               return;
             }
