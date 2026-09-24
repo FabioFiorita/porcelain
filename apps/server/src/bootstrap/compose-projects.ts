@@ -40,13 +40,13 @@ import type { GitProjectWorktreeReader } from '../adapters/projects/git-project-
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
+import { FindWorktreeByPathUseCase } from '../use-cases/projects/find-worktree-by-path.ts';
 import { ListFilePreferencesUseCase } from '../use-cases/projects/list-file-preferences.ts';
 import { ReadInventoryUseCase } from '../use-cases/projects/read-inventory.ts';
 import { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
 import { RegisterProjectUseCase } from '../use-cases/projects/register-project.ts';
 import { RemoveProjectUseCase } from '../use-cases/projects/remove-project.ts';
 import { RenameProjectUseCase } from '../use-cases/projects/rename-project.ts';
-import { ResolveWorktreeByPathUseCase } from '../use-cases/projects/resolve-worktree-by-path.ts';
 import { SetFilePreferenceUseCase } from '../use-cases/projects/set-file-preference.ts';
 import type { ComposeContext } from './compose-context.ts';
 
@@ -98,7 +98,7 @@ export function composeProjects(
       lanes,
       laneKeys,
     ),
-    resolveWorktreeByPath: new ResolveWorktreeByPathUseCase(
+    findWorktreeByPath: new FindWorktreeByPathUseCase(
       listRegisteredProjects,
       listProjectWorktrees,
       new FindWorktreeByPathService(),

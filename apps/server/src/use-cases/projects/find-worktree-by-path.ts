@@ -1,6 +1,6 @@
 import type {
-  ResolveWorktreeByPathRequest,
-  ResolveWorktreeByPathResponse,
+  FindWorktreeByPathRequest,
+  FindWorktreeByPathResponse,
 } from '@porcelain/contracts/projects';
 import type {
   FindWorktreeByPathService,
@@ -11,7 +11,7 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
-export class ResolveWorktreeByPathUseCase {
+export class FindWorktreeByPathUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listProjectWorktrees: ListProjectWorktreesService;
   private readonly findWorktreeByPath: FindWorktreeByPathService;
@@ -33,9 +33,9 @@ export class ResolveWorktreeByPathUseCase {
   }
 
   execute(
-    input: ResolveWorktreeByPathRequest,
+    input: FindWorktreeByPathRequest,
     context: OperationContext,
-  ): Promise<ResolveWorktreeByPathResponse> {
+  ): Promise<FindWorktreeByPathResponse> {
     return this.lanes.run(
       this.laneKeys.inventory(),
       'read',

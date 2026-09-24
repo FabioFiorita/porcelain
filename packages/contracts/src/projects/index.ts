@@ -35,8 +35,8 @@ export {
   type SetFilePreferenceParams,
 } from './inventory.ts';
 export {
-  resolveWorktreeByPathRequestSchema,
-  resolveWorktreeByPathResponseSchema,
-  type ResolveWorktreeByPathRequest,
-  type ResolveWorktreeByPathResponse,
+  findWorktreeByPathRequestSchema,
+  findWorktreeByPathResponseSchema,
+  type FindWorktreeByPathRequest,
+  type FindWorktreeByPathResponse,
 } from './worktree-path.ts';

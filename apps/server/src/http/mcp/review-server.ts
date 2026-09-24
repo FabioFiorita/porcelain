@@ -20,13 +20,13 @@ import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-revie
 import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
 import type { ResolveCommentThreadUseCase } from '../../use-cases/reviews/resolve-comment-thread.ts';
-import type { ResolveWorktreeByPathUseCase } from '../../use-cases/projects/resolve-worktree-by-path.ts';
+import type { FindWorktreeByPathUseCase } from '../../use-cases/projects/find-worktree-by-path.ts';
 import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 
 export type ReviewMcpUseCases = {
   projects: {
-    resolveWorktreeByPath: Pick<ResolveWorktreeByPathUseCase, 'execute'>;
+    findWorktreeByPath: Pick<FindWorktreeByPathUseCase, 'execute'>;
   };
   reviews: {
     createCommentThread: Pick<CreateCommentThreadUseCase, 'execute'>;
@@ -53,7 +53,7 @@ export function createReviewMcpServer(
   );
   const worktreeAt = async (cwd: string | undefined, signal: AbortSignal) =>
     (
-      await useCases.projects.resolveWorktreeByPath.execute(
+      await useCases.projects.findWorktreeByPath.execute(
         { path: cwd ?? defaultCwd },
         { signal },
       )
