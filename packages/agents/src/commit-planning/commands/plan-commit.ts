@@ -16,7 +16,7 @@ export function planCommit(
   );
 }
 
-function commitPlanPrompt(request: CommitPlanRequest): string {
+export function commitPlanPrompt(request: CommitPlanRequest): string {
   const shape =
     request.mode === 'message'
       ? 'exactly one concise commit message'

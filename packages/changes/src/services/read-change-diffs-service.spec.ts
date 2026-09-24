@@ -2,19 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { IncompleteDiffReadError } from '@porcelain/changes/errors';
 import { ReadChangeDiffsService } from './read-change-diffs-service.ts';
 import { modified } from '../../spec/fakes/comparisons.ts';
-import { ScriptedChangeDiffReader } from '../../spec/fakes/scripted-change-diff-reader.ts';
+import {
+  diffKey,
+  ScriptedChangeDiffReader,
+} from '../../spec/fakes/scripted-change-diff-reader.ts';
 
-const comparisons = [modified('unstaged', 'a.md'), modified('staged', 'b.md')];
+const a = modified('unstaged', 'a.md');
+const b = modified('staged', 'b.md');
 
 describe('ReadChangeDiffsService', () => {
   it('pairs each selected comparison with its diff, in request order', async () => {
-    const diffs = new ScriptedChangeDiffReader();
-    diffs.contents.push(
-      { kind: 'text', patch: 'patch-a' },
-      { kind: 'metadata-only', patch: '' },
+    const read = new ReadChangeDiffsService(
+      new ScriptedChangeDiffReader(
+        new Map([
+          [diffKey(b), { kind: 'metadata-only', patch: '' }],
+          [diffKey(a), { kind: 'text', patch: 'patch-a' }],
+        ]),
+      ),
     );
-    const read = new ReadChangeDiffsService(diffs);
-    expect(await read.execute({ worktreeId: 'w', comparisons })).toEqual([
+    expect(
+      await read.execute({ worktreeId: 'w', comparisons: [a, b] }),
+    ).toEqual([
       {
         selection: { scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' },
         content: { kind: 'text', patch: 'patch-a' },
@@ -27,11 +35,13 @@ describe('ReadChangeDiffsService', () => {
   });
 
   it('fails instead of answering with a missing diff', async () => {
-    const diffs = new ScriptedChangeDiffReader();
-    diffs.contents.push({ kind: 'text', patch: 'patch-a' });
-    const read = new ReadChangeDiffsService(diffs);
+    const read = new ReadChangeDiffsService(
+      new ScriptedChangeDiffReader(
+        new Map([[diffKey(a), { kind: 'text', patch: 'patch-a' }]]),
+      ),
+    );
     await expect(
-      read.execute({ worktreeId: 'w', comparisons }),
+      read.execute({ worktreeId: 'w', comparisons: [a, b] }),
     ).rejects.toThrow(IncompleteDiffReadError);
   });
 });

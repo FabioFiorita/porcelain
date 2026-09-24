@@ -48,10 +48,10 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
   }
 
   finished(): FinishedGitAction[] {
-    return this.all().flatMap((receipt) =>
-      receipt.finishedAt === undefined
-        ? []
-        : [{ requestId: receipt.requestId, finishedAt: receipt.finishedAt }],
+    return this.all().flatMap(({ requestId, finishedAt }) =>
+      [finishedAt]
+        .filter((at) => at !== undefined)
+        .map((at) => ({ requestId, finishedAt: at })),
     );
   }
 

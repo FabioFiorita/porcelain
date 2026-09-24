@@ -1,13 +1,13 @@
 import type {
   GitActionOutcome,
   GitActionRunnerOutcome,
+  RunGitActionInput,
 } from '@porcelain/git-actions/models';
 import type { FileChange } from '@porcelain/kernel/models';
 import { describe, expect, it } from 'vitest';
 import {
   CLEAN_EXPECTATION,
   GUIDE_FINGERPRINT,
-  HEAD_OID,
   README_FINGERPRINT,
   sampleRun,
 } from '../../spec/fakes/git-action-samples.ts';
@@ -31,23 +31,27 @@ const change = (path: string, fingerprint: string | undefined): FileChange => ({
   comparisons: [{ scope: 'untracked', path }],
 });
 
+const gitRan = 'Git ran';
+
 function subject(
   answer: GitActionRunnerOutcome = { kind: 'finished', outcome: succeeded },
-  progress: string[] = [],
+  progress: string[] = [gitRan],
 ) {
-  const runner = new ScriptedGitActionRunner({
-    answer,
-    headOid: HEAD_OID,
-    headAfterRun: movedHead,
-    progress,
-  });
-  return { runner, service: new RunGitActionService(runner) };
+  const lines: string[] = [];
+  const runner = new ScriptedGitActionRunner({ answer, progress });
+  const service = new RunGitActionService(runner);
+  return {
+    lines,
+    execute: (input: Omit<RunGitActionInput, 'onProgress'>) =>
+      service.execute({ ...input, onProgress: (line) => lines.push(line) }),
+    service,
+  };
 }
 
 describe('RunGitActionService', () => {
   it('runs the action when the expected files are unchanged', async () => {
-    const { runner, service } = subject();
-    const ran = await service.execute({
+    const { lines, execute } = subject();
+    const ran = await execute({
       run: commit,
       changes: [
         change('README.md', README_FINGERPRINT),
@@ -55,12 +59,12 @@ describe('RunGitActionService', () => {
       ],
     });
     expect(ran.outcome).toEqual(succeeded);
-    expect(runner.headOid).toBe(movedHead);
+    expect(lines).toEqual([gitRan]);
   });
 
   it('rejects without touching the worktree when an expected file changed', async () => {
-    const { runner, service } = subject();
-    const ran = await service.execute({
+    const { lines, execute } = subject();
+    const ran = await execute({
       run: commit,
       changes: [change('README.md', GUIDE_FINGERPRINT)],
     });
@@ -69,12 +73,12 @@ describe('RunGitActionService', () => {
       reason: 'CHANGED_SINCE_LOOKED',
       refreshRequired: false,
     });
-    expect(runner.headOid).toBe(HEAD_OID);
+    expect(lines).toEqual([]);
   });
 
   it('rejects a stash when the worktree gained a change it did not expect', async () => {
-    const { runner, service } = subject();
-    const ran = await service.execute({
+    const { lines, execute } = subject();
+    const ran = await execute({
       run: sampleRun(
         { action: 'stash-create', message: 'Park', includeUntracked: true },
         { ...CLEAN_EXPECTATION, files: [readme] },
@@ -85,12 +89,12 @@ describe('RunGitActionService', () => {
       ],
     });
     expect(ran.outcome.reason).toBe('CHANGED_SINCE_LOOKED');
-    expect(runner.headOid).toBe(HEAD_OID);
+    expect(lines).toEqual([]);
   });
 
   it('checks a merge commit against the whole change list', async () => {
-    const { runner, service } = subject();
-    const ran = await service.execute({
+    const { lines, execute } = subject();
+    const ran = await execute({
       run: sampleRun(
         { action: 'commit', message: 'Merge', paths: [] },
         {
@@ -106,12 +110,12 @@ describe('RunGitActionService', () => {
       ],
     });
     expect(ran.outcome.reason).toBe('CHANGED_SINCE_LOOKED');
-    expect(runner.headOid).toBe(HEAD_OID);
+    expect(lines).toEqual([]);
   });
 
   it('runs an action that expects no files whatever the worktree holds', async () => {
-    const { runner, service } = subject();
-    const ran = await service.execute({
+    const { lines, execute } = subject();
+    const ran = await execute({
       run: sampleRun({
         action: 'create-branch',
         branch: 'feature',
@@ -120,16 +124,16 @@ describe('RunGitActionService', () => {
       changes: [change('README.md', GUIDE_FINGERPRINT)],
     });
     expect(ran.outcome.state).toBe('succeeded');
-    expect(runner.headOid).toBe(movedHead);
+    expect(lines).toEqual([gitRan]);
   });
 
   it('reports an action Git refused as rejected with its reason and detail', async () => {
-    const { service } = subject({
+    const { execute } = subject({
       kind: 'refused',
       reason: 'NON_FAST_FORWARD',
       detail: 'Updates were rejected',
     });
-    const ran = await service.execute({
+    const ran = await execute({
       run: sampleRun({ action: 'switch-branch', branch: 'main' }),
       changes: [],
     });
@@ -142,8 +146,8 @@ describe('RunGitActionService', () => {
   });
 
   it('reports an action Git stopped at its deadline as interrupted', async () => {
-    const { service } = subject({ kind: 'timed-out' });
-    const ran = await service.execute({
+    const { execute } = subject({ kind: 'timed-out' });
+    const ran = await execute({
       run: sampleRun({ action: 'switch-branch', branch: 'main' }),
       changes: [],
     });

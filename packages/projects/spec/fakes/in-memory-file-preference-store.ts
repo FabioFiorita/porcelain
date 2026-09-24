@@ -9,12 +9,24 @@ import type { FilePreferenceStore } from '../../src/ports/file-preference-store.
 type Row = ProjectFilePreference;
 
 export class InMemoryFilePreferenceStore implements FilePreferenceStore {
-  private rows = new Map<string, Row>();
+  private readonly rows: Map<string, Row>;
+
+  constructor(rows: readonly Row[] = []) {
+    this.rows = new Map(
+      rows.map((row) => [
+        key({ projectId: row.projectId, path: row.preference.path }),
+        { projectId: row.projectId, preference: { ...row.preference } },
+      ]),
+    );
+  }
 
   list(input: ProjectKey): FilePreference[] {
     return this.project(input)
       .map((row) => ({ ...row.preference }))
-      .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+      .sort(
+        (left, right) =>
+          Number(left.path > right.path) - Number(left.path < right.path),
+      );
   }
 
   find(input: FilePreferenceKey): FilePreference | undefined {

@@ -3,24 +3,21 @@ import { CommitPlanner } from './commit-planner.ts';
 
 type Provider = ConstructorParameters<typeof CommitPlanner>[0][number];
 
-class AnsweringProvider implements Provider {
+class ScriptedProvider implements Provider {
   readonly name: string;
-  readonly questions: { model: string; prompt: string }[] = [];
-  private readonly reply: unknown;
+  private readonly replies: ReadonlyMap<string, unknown>;
 
-  constructor(name: string, reply: unknown) {
+  constructor(name: string, replies: Record<string, unknown>) {
     this.name = name;
-    this.reply = reply;
+    this.replies = new Map(Object.entries(replies));
   }
 
   async models() {
     return [{ id: `${this.name}:small`, label: `${this.name} small` }];
   }
 
-  async answer(model: string, prompt: string) {
-    this.questions.push({ model, prompt });
-    if (this.reply instanceof Error) throw this.reply;
-    return this.reply;
+  async answer(model: string) {
+    return this.replies.get(model);
   }
 }
 
@@ -34,18 +31,13 @@ const plan = { groups: [{ message: 'Fix', paths: ['README.md'] }] };
 
 describe('CommitPlanner', () => {
   it('asks the named provider for the named model and returns its plan', async () => {
-    const codex = new AnsweringProvider('codex', plan);
-    const claude = new AnsweringProvider('claude', plan);
+    const codex = new ScriptedProvider('codex', { sonnet: 'not json' });
+    const claude = new ScriptedProvider('claude', {
+      'claude:sonnet': 'not json',
+      sonnet: plan,
+    });
     const groups = await new CommitPlanner([codex, claude]).plan(request);
     expect(groups).toEqual(plan.groups);
-    expect(codex.questions).toEqual([]);
-    expect(claude.questions.map((question) => question.model)).toEqual([
-      'sonnet',
-    ]);
-    expect(claude.questions[0]?.prompt).toContain('{"patch":"diff"}');
-    expect(claude.questions[0]?.prompt).toContain(
-      'exactly one concise commit message',
-    );
   });
 
   it.each([
@@ -56,7 +48,9 @@ describe('CommitPlanner', () => {
     'claude:',
     'claude:-sonnet',
   ])('refuses the model %j, which it cannot route to', async (model) => {
-    const planner = new CommitPlanner([new AnsweringProvider('claude', plan)]);
+    const planner = new CommitPlanner([
+      new ScriptedProvider('claude', { sonnet: plan }),
+    ]);
     await expect(planner.plan({ ...request, model })).rejects.toMatchObject({
       name: 'UnsupportedCommitModelError',
     });
@@ -64,20 +58,19 @@ describe('CommitPlanner', () => {
 
   it.each([
     { name: 'an unreadable answer', reply: 'not json' },
-    {
-      name: 'an unexpected failure',
-      reply: new SyntaxError('Unexpected token'),
-    },
+    { name: 'no answer at all', reply: undefined },
   ])('reports $name as a failed plan', async ({ reply }) => {
     await expect(
-      new CommitPlanner([new AnsweringProvider('claude', reply)]).plan(request),
+      new CommitPlanner([
+        new ScriptedProvider('claude', { sonnet: reply }),
+      ]).plan(request),
     ).rejects.toMatchObject({ name: 'CommitPlanFailedError' });
   });
 
   it('lists the models of every provider in order', async () => {
     const models = await new CommitPlanner([
-      new AnsweringProvider('codex', plan),
-      new AnsweringProvider('claude', plan),
+      new ScriptedProvider('codex', {}),
+      new ScriptedProvider('claude', {}),
     ]).models();
     expect(models.map((model) => model.id)).toEqual([
       'codex:small',

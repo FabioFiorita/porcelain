@@ -1,52 +1,64 @@
-import type { ReviewedFileMark } from '../../src/models/reviewed-mark.ts';
+import type { WorktreeKey } from '@porcelain/kernel/models';
+import type {
+  ReviewedFileMark,
+  ReviewedFileRemoval,
+  ReviewedFileSave,
+  ReviewedFileStaleness,
+} from '../../src/models/reviewed-mark.ts';
 import type { ReviewedFileStore } from '../../src/ports/reviewed-file-store.ts';
 
 type Row = { worktreeId: string; mark: ReviewedFileMark };
 
-export class InMemoryReviewedFileStore implements ReviewedFileStore {
-  private rows: Row[] = [];
+function rowKey(worktreeId: string, path: string): string {
+  return `${worktreeId}\0${path}`;
+}
 
-  list(input: { worktreeId: string }): ReviewedFileMark[] {
-    return this.rows
+export class InMemoryReviewedFileStore implements ReviewedFileStore {
+  private readonly rows: Map<string, Row>;
+
+  constructor(rows: readonly Row[] = []) {
+    this.rows = new Map(
+      rows.map((row) => [
+        rowKey(row.worktreeId, row.mark.path),
+        { worktreeId: row.worktreeId, mark: { ...row.mark } },
+      ]),
+    );
+  }
+
+  list(input: WorktreeKey): ReviewedFileMark[] {
+    return [...this.rows.values()]
       .filter((row) => row.worktreeId === input.worktreeId)
       .map((row) => ({ ...row.mark }))
-      .sort((left, right) => (left.path < right.path ? -1 : 1));
+      .sort(
+        (left, right) =>
+          Number(left.path > right.path) - Number(left.path < right.path),
+      );
   }
 
-  save(input: {
-    worktreeId: string;
-    marks: readonly ReviewedFileMark[];
-  }): void {
-    const saved = new Set(input.marks.map((mark) => mark.path));
-    this.rows = [
-      ...this.rows.filter(
-        (row) =>
-          row.worktreeId !== input.worktreeId || !saved.has(row.mark.path),
-      ),
-      ...input.marks.map((mark) => ({
+  save(input: ReviewedFileSave): void {
+    input.marks.forEach((mark) =>
+      this.rows.set(rowKey(input.worktreeId, mark.path), {
         worktreeId: input.worktreeId,
         mark: { ...mark },
-      })),
-    ];
-  }
-
-  remove(input: { worktreeId: string; paths: readonly string[] }): void {
-    this.rows = this.rows.filter(
-      (row) =>
-        row.worktreeId !== input.worktreeId ||
-        !input.paths.includes(row.mark.path),
+      }),
     );
   }
 
-  setStale(input: {
-    worktreeId: string;
-    paths: readonly string[];
-    stale: boolean;
-  }): void {
-    this.rows = this.rows.map((row) =>
-      row.worktreeId === input.worktreeId && input.paths.includes(row.mark.path)
-        ? { ...row, mark: { ...row.mark, stale: input.stale } }
-        : row,
+  remove(input: ReviewedFileRemoval): void {
+    input.paths.forEach((path) =>
+      this.rows.delete(rowKey(input.worktreeId, path)),
     );
+  }
+
+  setStale(input: ReviewedFileStaleness): void {
+    input.paths
+      .map((path) => this.rows.get(rowKey(input.worktreeId, path)))
+      .filter((row) => row !== undefined)
+      .forEach((row) =>
+        this.rows.set(rowKey(row.worktreeId, row.mark.path), {
+          worktreeId: row.worktreeId,
+          mark: { ...row.mark, stale: input.stale },
+        }),
+      );
   }
 }

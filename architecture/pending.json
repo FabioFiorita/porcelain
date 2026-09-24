@@ -30,37 +30,8 @@
     "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": {
       "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
     },
-    "packages/agents/src/commit-planning/commit-planner.spec.ts": {
-      "A fake never throws; script the outcome through what the port returns.": 1,
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1,
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
-    },
-    "packages/changes/spec/fakes/in-memory-commit-history-reader.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1
-    },
-    "packages/changes/spec/fakes/in-memory-worktree-side-reader.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
-    },
-    "packages/git-actions/spec/fakes/in-memory-git-action-receipt-store.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1
-    },
-    "packages/git-actions/spec/fakes/scripted-git-action-runner.ts": {
-      "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
-    },
-    "packages/kernel/spec/fakes/scripted-worktree-access-reader.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1
-    },
-    "packages/projects/spec/fakes/in-memory-file-preference-store.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 2
-    },
     "packages/projects/spec/fakes/scripted-project-repository-reader.ts": {
       "A fake never rejects; script the outcome through what the port returns.": 1
-    },
-    "packages/reviews/spec/fakes/in-memory-review-store.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1
-    },
-    "packages/reviews/spec/fakes/in-memory-reviewed-file-store.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 2
     }
   },
   "porcelain/operation-class-shape": {
