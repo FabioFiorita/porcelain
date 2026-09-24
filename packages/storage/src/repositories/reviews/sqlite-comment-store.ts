@@ -1,5 +1,6 @@
-import { asc, count, eq, inArray, max, sum } from 'drizzle-orm';
+import { asc, count, eq, inArray, max, sql, sum } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { commentRevision } from '../../db/schema/comment-revision.ts';
 import {
   commentMessages,
   commentThreads,
@@ -46,12 +47,15 @@ function threadFromRows(
 }
 
 function nextRevision(tx: Transaction): number {
-  return (
-    (tx
-      .select({ revision: max(commentThreads.revision) })
-      .from(commentThreads)
-      .get()?.revision ?? 0) + 1
-  );
+  return tx
+    .insert(commentRevision)
+    .values({ singleton: 1, revision: 1 })
+    .onConflictDoUpdate({
+      target: commentRevision.singleton,
+      set: { revision: sql`${commentRevision.revision} + 1` },
+    })
+    .returning({ revision: commentRevision.revision })
+    .get().revision;
 }
 
 export class SqliteCommentStore implements CommentStore {

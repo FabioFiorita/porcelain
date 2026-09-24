@@ -9,7 +9,7 @@ import {
   createInventoryStore,
   createWorktreePresenceStore,
 } from '../projects/index.ts';
-import { createGitActionStore } from './index.ts';
+import { createGitActionReceiptStore } from './index.ts';
 
 function openScoped(projectId: string, worktreeIds: readonly string[]) {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
@@ -43,7 +43,7 @@ gitActionReceiptStoreContract(
   'SqliteGitActionReceiptStore',
   ({ projectId, worktreeIds }) => {
     const { session, close } = openScoped(projectId, worktreeIds);
-    return { store: createGitActionStore(session), close };
+    return { store: createGitActionReceiptStore(session), close };
   },
 );
 
@@ -76,7 +76,7 @@ describe('SqliteGitActionReceiptStore collection', () => {
   });
 
   it('removes the receipts of a worktree when the worktree is collected, and keeps the others', () => {
-    const store = createGitActionStore(opened.session);
+    const store = createGitActionReceiptStore(opened.session);
     store.insert(receipt('collected', 'collected'));
     store.insert(receipt('kept', 'kept'));
     createWorktreePresenceStore(opened.session).remove({

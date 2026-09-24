@@ -222,7 +222,7 @@ function classifyPackage(name: string, inside: string) {
       return classified('repository-api', name);
     if (inside.startsWith('repositories/') || inside.startsWith('db/'))
       return classified('repository', name);
-    if (inside.startsWith('models/')) return classified('error', name);
+    if (inside.startsWith('errors/')) return classified('error', name);
     return;
   }
   if (name === 'kernel') {

@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { InvalidDataDirectoryError } from '../models/invalid-data-directory-error.ts';
+import { InvalidDataDirectoryError } from '../errors/invalid-data-directory-error.ts';
 import { DATABASE_FILE } from './database-files.ts';
 import { createEnvironmentIdentity } from './environment-identity.ts';
 import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
