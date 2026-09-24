@@ -32,7 +32,7 @@ export async function commitPaths(
   if (intent.action === 'commit' && paths.length === 0 && !merging)
     throw new GitActionRejectedError('REQUEST_MISMATCH');
   if (
-    paths.length > 2000 ||
+    paths.length > process.limits.actions.maxCommitPaths ||
     paths.some(
       (path) =>
         !path ||
@@ -42,8 +42,7 @@ export async function commitPaths(
     )
   )
     throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
-      detail:
-        'Porcelain commits at most 2,000 files at once, each inside the checkout and outside `.git`. Select fewer files and try again.',
+      detail: `Porcelain commits at most ${process.limits.actions.maxCommitPaths.toLocaleString('en-US')} files at once, each inside the checkout and outside \`.git\`. Select fewer files and try again.`,
     });
   const indexPath = (
     await readActionCommand(
@@ -145,7 +144,10 @@ export async function commitPaths(
     );
     const failure = processFailure(committed);
     if (failure?.state === 'rejected') return failure;
-    const head = await readActionHead(process, AbortSignal.timeout(5000));
+    const head = await readActionHead(
+      process,
+      AbortSignal.timeout(process.limits.followUpTimeoutMs),
+    );
     if (head !== preparation.preview.headOid && !messageOnly) {
       await lock.writeFile(await readFile(indexFile));
       await lock.sync();

@@ -9,8 +9,6 @@ export type RawDiffEntry = {
 };
 
 const META = /^:([0-7]{6}) ([0-7]{6}) [0-9a-f]+ [0-9a-f]+ ([A-Z])\d*$/u;
-const COLON = 0x3a;
-const NEWLINE = 0x0a;
 
 export function parseRawDiff(
   output: Buffer,
@@ -31,11 +29,14 @@ export function parseRawDiff(
     at = end + 1;
     return value;
   };
-  const recordStart = () =>
-    output[at] === COLON ||
-    (output[at] === NEWLINE && output[at + 1] === COLON);
+  const recordStart = () => {
+    const code = output[at];
+    const nextCode = output[at + 1];
+    return code === 0x3a || (code === 0x0a && nextCode === 0x3a);
+  };
   while (at < output.length && recordStart()) {
-    if (output[at] === NEWLINE) at += 1;
+    const code = output[at];
+    if (code === 0x0a) at += 1;
     const meta = META.exec(field());
     if (!meta) throw new InvalidGitDiffError();
     const [, oldMode = '', newMode = '', status = ''] = meta;

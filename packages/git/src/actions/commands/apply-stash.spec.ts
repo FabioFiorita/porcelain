@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { applyStash } from './apply-stash.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 type Runner = Parameters<typeof applyStash>[0];
 
@@ -23,6 +24,7 @@ const stashLog = () => git('stash', 'list', '--format=%H%x00%gd%x00%gs');
 const stashes = () => git('stash', 'list', '--format=%H');
 
 const runner: Runner = {
+  limits: gitLimits,
   execute: (args, signal, input, options) => {
     signal.throwIfAborted();
     const done = spawnSync('git', ['-C', checkout, ...args], {

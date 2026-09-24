@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readCommitDiffs, readDiff, readDiffs } from './read-diff.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 type Change = Parameters<typeof readDiff>[1];
 
@@ -66,7 +67,9 @@ afterEach(() => {
 describe('readDiff', () => {
   it('reads the unstaged patch of a modified file', async () => {
     write('a.txt', 'one\nTWO\nthree\n');
-    expect(await readDiff(session(), change('unstaged', 'a.txt'))).toEqual({
+    expect(
+      await readDiff(session(), change('unstaged', 'a.txt'), gitLimits),
+    ).toEqual({
       kind: 'text',
       patch: `${modifiedPatch('a.txt', short('HEAD:a.txt'), git('hash-object', 'a.txt').slice(0, 7))}@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n`,
     });
@@ -76,7 +79,9 @@ describe('readDiff', () => {
     write('a.txt', 'one\nTWO\nthree\n');
     git('add', 'a.txt');
     write('a.txt', 'one\nTHREE\nthree\n');
-    expect(await readDiff(session(), change('staged', 'a.txt'))).toEqual({
+    expect(
+      await readDiff(session(), change('staged', 'a.txt'), gitLimits),
+    ).toEqual({
       kind: 'text',
       patch: `${modifiedPatch('a.txt', short('HEAD:a.txt'), short(':a.txt'))}@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n`,
     });
@@ -93,7 +98,9 @@ describe('readDiff', () => {
       '*.txt diff=shout\n',
     );
     write('a.txt', 'one\nTWO\nthree\n');
-    expect(await readDiff(session(), change('unstaged', 'a.txt'))).toEqual({
+    expect(
+      await readDiff(session(), change('unstaged', 'a.txt'), gitLimits),
+    ).toEqual({
       kind: 'text',
       patch: `${modifiedPatch('a.txt', short('HEAD:a.txt'), git('hash-object', 'a.txt').slice(0, 7))}@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n`,
     });
@@ -101,7 +108,9 @@ describe('readDiff', () => {
 
   it('reports a binary change without a patch', async () => {
     write('a.txt', Buffer.from([0, 1, 2, 0]));
-    expect(await readDiff(session(), change('unstaged', 'a.txt'))).toEqual({
+    expect(
+      await readDiff(session(), change('unstaged', 'a.txt'), gitLimits),
+    ).toEqual({
       kind: 'binary',
     });
   });
@@ -112,6 +121,7 @@ describe('readDiff', () => {
       await readDiff(
         session(),
         change('unstaged', 'a.txt', { newMode: '100755' }),
+        gitLimits,
       ),
     ).toEqual({
       kind: 'metadata-only',
@@ -125,6 +135,7 @@ describe('readDiff', () => {
       await readDiff(
         session(),
         change('staged', 'b.txt', { kind: 'renamed', oldPath: 'a.txt' }),
+        gitLimits,
       ),
     ).toEqual({
       kind: 'metadata-only',
@@ -134,7 +145,9 @@ describe('readDiff', () => {
   });
 
   it('returns an empty metadata patch when the file no longer differs', async () => {
-    expect(await readDiff(session(), change('unstaged', 'a.txt'))).toEqual({
+    expect(
+      await readDiff(session(), change('unstaged', 'a.txt'), gitLimits),
+    ).toEqual({
       kind: 'metadata-only',
       patch: '',
     });
@@ -149,6 +162,7 @@ describe('readDiff', () => {
           newMode: '160000',
           supported: false,
         }),
+        gitLimits,
       ),
     ).toEqual({ kind: 'omitted', reason: 'unsupported-submodule' });
   });
@@ -166,6 +180,7 @@ describe('readDiff', () => {
       await readDiff(
         session(),
         change('staged', 'large.txt', { kind: 'added', oldPath: null }),
+        gitLimits,
       ),
     ).toEqual({ kind: 'omitted', reason: 'size-limit' });
   });
@@ -175,7 +190,7 @@ describe('readDiff', () => {
     commit('filter');
     write('a.txt', 'one\nTWO\nthree\n');
     await expect(
-      readDiff(session(), change('unstaged', 'a.txt')),
+      readDiff(session(), change('unstaged', 'a.txt'), gitLimits),
     ).rejects.toMatchObject({ name: 'UnsupportedGitFiltersError' });
   });
 
@@ -184,7 +199,9 @@ describe('readDiff', () => {
     commit('filter');
     write('a.txt', 'one\nTWO\nthree\n');
     git('add', 'a.txt');
-    expect(await readDiff(session(), change('staged', 'a.txt'))).toMatchObject({
+    expect(
+      await readDiff(session(), change('staged', 'a.txt'), gitLimits),
+    ).toMatchObject({
       kind: 'text',
     });
   });
@@ -198,10 +215,11 @@ describe('readDiffs', () => {
     const staged = short(':a.txt');
     const worktree = git('hash-object', 'a.txt').slice(0, 7);
     expect(
-      await readDiffs(session(), [
-        change('unstaged', 'a.txt'),
-        change('staged', 'a.txt'),
-      ]),
+      await readDiffs(
+        session(),
+        [change('unstaged', 'a.txt'), change('staged', 'a.txt')],
+        gitLimits,
+      ),
     ).toEqual([
       {
         kind: 'text',
@@ -220,7 +238,9 @@ describe('readCommitDiffs', () => {
     write('a.txt', 'one\nTWO\nthree\n');
     write('b.txt', 'bee\n');
     const oid = commit('second');
-    expect(await readCommitDiffs(checkout, oid, 1, ['a.txt'])).toEqual(
+    expect(
+      await readCommitDiffs(checkout, oid, 1, ['a.txt'], gitLimits),
+    ).toEqual(
       new Map([
         [
           'a.txt',
@@ -235,7 +255,9 @@ describe('readCommitDiffs', () => {
 
   it('reads the root commit as adding its files', async () => {
     const root = git('rev-list', '--max-parents=0', 'HEAD');
-    expect(await readCommitDiffs(checkout, root, 1, ['a.txt'])).toEqual(
+    expect(
+      await readCommitDiffs(checkout, root, 1, ['a.txt'], gitLimits),
+    ).toEqual(
       new Map([
         [
           'a.txt',
@@ -264,10 +286,13 @@ describe('readCommitDiffs', () => {
       const merge = git('rev-parse', 'HEAD');
       expect([
         ...(
-          (await readCommitDiffs(checkout, merge, parent, [
-            'a.txt',
-            'b.txt',
-          ])) ?? new Map()
+          (await readCommitDiffs(
+            checkout,
+            merge,
+            parent,
+            ['a.txt', 'b.txt'],
+            gitLimits,
+          )) ?? new Map()
         ).keys(),
       ]).toEqual(paths);
     },

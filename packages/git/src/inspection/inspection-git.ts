@@ -10,17 +10,17 @@ import { readSubmoduleHeads } from './commands/read-submodule-heads.ts';
 import { readUpstreamOid } from './commands/read-upstream-oid.ts';
 import type { GitBranchDetails, GitOrdinaryChange } from './dtos/git-status.ts';
 import type { HeadBlob, HeadBlobRequest } from './dtos/head-blob.ts';
-import type { InspectionLimits } from './dtos/inspection-limits.ts';
 import type { ChangeReader } from './interfaces/change-reader.ts';
 import type { DiffReader } from './interfaces/diff-reader.ts';
 import type { CheckoutSession } from './interfaces/git-session.ts';
 import type { StatusReader } from './interfaces/status-reader.ts';
+import type { GitLimits } from '../shared/dtos/git-limits.ts';
 
 export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
   private readonly session: CheckoutSession;
-  private readonly limits: InspectionLimits;
+  private readonly limits: GitLimits;
 
-  constructor(session: CheckoutSession, limits: InspectionLimits) {
+  constructor(session: CheckoutSession, limits: GitLimits) {
     this.session = session;
     this.limits = limits;
   }
@@ -36,17 +36,17 @@ export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
 
   async readDiff(change: GitOrdinaryChange, signal?: AbortSignal) {
     await this.session.verify(signal);
-    return readDiff(this.session, change, signal);
+    return readDiff(this.session, change, this.limits, signal);
   }
 
   async readDiffs(changes: readonly GitOrdinaryChange[], signal?: AbortSignal) {
     await this.session.verify(signal);
-    return readDiffs(this.session, changes, signal);
+    return readDiffs(this.session, changes, this.limits, signal);
   }
 
   async readSubmoduleHeads(paths: readonly string[], signal?: AbortSignal) {
     await this.session.verify(signal);
-    return readSubmoduleHeads(this.session, paths, signal);
+    return readSubmoduleHeads(this.session, paths, this.limits, signal);
   }
 
   async readBranchDetails(
@@ -56,23 +56,24 @@ export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
   ): Promise<GitBranchDetails> {
     await this.session.verify(signal);
     const checkout = this.session.path;
+    const limits = this.limits;
     const tracking = branch
-      ? await readBranchTracking(checkout, branch, signal)
+      ? await readBranchTracking(checkout, branch, limits, signal)
       : undefined;
-    const stashes = await readStashes(checkout, signal);
+    const stashes = await readStashes(checkout, limits, signal);
     const headCommit = headOid
-      ? await readHeadCommit(checkout, headOid, signal)
+      ? await readHeadCommit(checkout, headOid, limits, signal)
       : null;
     const upstreamOid =
       tracking?.remoteName && tracking.upstream
-        ? await readUpstreamOid(checkout, tracking.upstream, signal)
+        ? await readUpstreamOid(checkout, tracking.upstream, limits, signal)
         : null;
     return {
       remoteName: tracking?.remoteName ?? null,
       sourceRef: tracking?.sourceRef ?? null,
       upstreamOid,
       stashes,
-      discarded: await readDiscarded(checkout, signal),
+      discarded: await readDiscarded(checkout, limits, signal),
       headCommit,
     };
   }
@@ -82,6 +83,6 @@ export class InspectionGit implements StatusReader, DiffReader, ChangeReader {
     signal?: AbortSignal,
   ): Promise<HeadBlob> {
     await this.session.verify(signal);
-    return readHeadBlob(this.session, request, signal);
+    return readHeadBlob(this.session, request, this.limits, signal);
   }
 }

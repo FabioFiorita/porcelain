@@ -5,6 +5,7 @@ import {
   type InspectionReader,
 } from '@porcelain/git/inspection';
 import type { ListedWorktree } from '@porcelain/projects/models';
+import type { Limits } from '../../config/limits.ts';
 import {
   openCheckout,
   type ListedWorktrees,
@@ -23,13 +24,14 @@ export type OpenInspection = (
 export function inspectionCheckouts(
   worktrees: ListedWorktrees,
   inspection: InspectionFactory,
+  limits: Limits['git'],
 ): OpenInspection {
   const sessions = new WeakMap<AbortSignal, GitSession>();
   const sessionFor = (signal?: AbortSignal): GitSession => {
-    if (signal === undefined) return new RequestGitSession();
+    if (signal === undefined) return new RequestGitSession(limits);
     const existing = sessions.get(signal);
     if (existing) return existing;
-    const created = new RequestGitSession();
+    const created = new RequestGitSession(limits);
     sessions.set(signal, created);
     return created;
   };

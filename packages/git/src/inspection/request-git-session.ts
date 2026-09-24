@@ -1,15 +1,15 @@
 import { verifyCheckout } from './commands/verify-checkout.ts';
 import type {
   CheckoutSession as CheckoutSessionPort,
-  CheckoutVerifier,
   GitSession as GitSessionPort,
 } from './interfaces/git-session.ts';
+import type { GitLimits } from '../shared/dtos/git-limits.ts';
 
 export class RequestCheckoutSession implements CheckoutSessionPort {
   readonly path: string;
   private readonly metadataIdentity: string;
   private readonly repositoryIdentity: string;
-  private readonly verifier: CheckoutVerifier;
+  private readonly limits: GitLimits;
   private verified: Promise<void> | undefined;
   private filters: Promise<string[]> | undefined;
 
@@ -17,19 +17,20 @@ export class RequestCheckoutSession implements CheckoutSessionPort {
     path: string,
     metadataIdentity: string,
     repositoryIdentity: string,
-    verifier: CheckoutVerifier = verifyCheckout,
+    limits: GitLimits,
   ) {
     this.path = path;
     this.metadataIdentity = metadataIdentity;
     this.repositoryIdentity = repositoryIdentity;
-    this.verifier = verifier;
+    this.limits = limits;
   }
 
   verify(signal?: AbortSignal): Promise<void> {
-    this.verified ??= this.verifier(
+    this.verified ??= verifyCheckout(
       this.path,
       this.metadataIdentity,
       this.repositoryIdentity,
+      this.limits,
       signal,
     ).catch((cause: unknown) => {
       this.verified = undefined;
@@ -54,10 +55,10 @@ export class RequestCheckoutSession implements CheckoutSessionPort {
 
 export class RequestGitSession implements GitSessionPort {
   private readonly checkouts = new Map<string, RequestCheckoutSession>();
-  private readonly verifier: CheckoutVerifier;
+  private readonly limits: GitLimits;
 
-  constructor(verifier: CheckoutVerifier = verifyCheckout) {
-    this.verifier = verifier;
+  constructor(limits: GitLimits) {
+    this.limits = limits;
   }
 
   async confirmAll(signal?: AbortSignal): Promise<void> {
@@ -77,7 +78,7 @@ export class RequestGitSession implements GitSessionPort {
       path,
       metadataIdentity,
       repositoryIdentity,
-      this.verifier,
+      this.limits,
     );
     this.checkouts.set(key, created);
     return created;

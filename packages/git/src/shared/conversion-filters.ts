@@ -1,5 +1,6 @@
 const FILTER_OPERATIONS = ['clean', 'smudge', 'process'] as const;
 const FILTER_KEY = /^filter\.(.+)\.(?:clean|smudge|process)$/u;
+const ATTRIBUTE_RECORD = /([^\0]*)\0[^\0]*\0([^\0]*)\0/gu;
 
 export type ConfigEntry = { key: string; value: string };
 
@@ -31,14 +32,9 @@ export function filterDrivers(config: string): Map<string, string> {
 export function parseFilterAttributes(
   output: string,
 ): { path: string; filter: string }[] {
-  const fields = output.split('\0');
-  const records: { path: string; filter: string }[] = [];
-  for (let index = 0; index + 3 < fields.length; index += 3)
-    records.push({
-      path: fields[index] ?? '',
-      filter: fields[index + 2] ?? '',
-    });
-  return records;
+  return [...output.matchAll(ATTRIBUTE_RECORD)].map(
+    ([, path = '', filter = '']) => ({ path, filter }),
+  );
 }
 
 export function disabledFilterConfig(drivers: Iterable<string>): string[] {

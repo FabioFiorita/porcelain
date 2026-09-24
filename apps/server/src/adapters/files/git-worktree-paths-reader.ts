@@ -7,6 +7,7 @@ import {
   InspectionLimitError,
   listTrackedPaths,
 } from '@porcelain/git/inspection';
+import type { Limits } from '../../config/limits.ts';
 import {
   listedWorktree,
   type ListedWorktrees,
@@ -14,9 +15,11 @@ import {
 
 export class GitWorktreePathsReader implements WorktreePathsReader {
   private readonly worktrees: ListedWorktrees;
+  private readonly limits: Limits['git'];
 
-  constructor(worktrees: ListedWorktrees) {
+  constructor(worktrees: ListedWorktrees, limits: Limits['git']) {
     this.worktrees = worktrees;
+    this.limits = limits;
   }
 
   async read(
@@ -29,7 +32,7 @@ export class GitWorktreePathsReader implements WorktreePathsReader {
       signal,
     );
     try {
-      const listed = await listTrackedPaths(checkout.path, signal);
+      const listed = await listTrackedPaths(checkout.path, this.limits, signal);
       return listed.complete
         ? { kind: 'listed', paths: listed.paths }
         : { kind: 'too-large' };

@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import {
   InvalidGitDiffError,
   parseRawDiff,
@@ -25,8 +26,6 @@ import {
 } from './inspect-history-checkout.ts';
 import { runHistory } from './run-history.ts';
 
-const MAX_COMMIT_FILES = 10_000;
-
 const DIFF_FLAGS = [
   '--no-textconv',
   '--no-ext-diff',
@@ -38,6 +37,7 @@ export async function readCommitFiles(
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   request: CommitFilesRequest,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<CommitFiles> {
   await inspectHistoryCheckout(checkout, gitVersion, signal);
@@ -56,16 +56,17 @@ export async function readCommitFiles(
       request.oid,
       '--',
     ],
+    limits,
     signal,
   );
   const header = decodeHistory(output).split('\0').slice(0, COMMIT_FIELDS);
-  const commit = parseCommitRecord(header);
+  const commit = parseCommitRecord(header, limits);
   const parentOid = commit.parentOids[parent - 1];
   if (request.parent !== undefined && parentOid === undefined)
     throw new InvalidHistoryRequestError();
   const files =
     parent === 1 || parentOid === undefined
-      ? parseFiles(output, Buffer.byteLength(`${header.join('\0')}\0`))
+      ? parseFiles(output, Buffer.byteLength(`${header.join('\0')}\0`), limits)
       : parseFiles(
           await runHistory(
             checkout.path,
@@ -80,9 +81,11 @@ export async function readCommitFiles(
               request.oid,
               '--',
             ],
+            limits,
             signal,
           ),
           0,
+          limits,
         );
   await confirmHistoryCheckout(checkout, signal);
   return {
@@ -95,7 +98,11 @@ export async function readCommitFiles(
   };
 }
 
-function parseFiles(output: Buffer, start: number): CommitFile[] {
+function parseFiles(
+  output: Buffer,
+  start: number,
+  limits: GitLimits,
+): CommitFile[] {
   let entries: RawDiffEntry[];
   try {
     entries = parseRawDiff(output, start).entries;
@@ -104,7 +111,8 @@ function parseFiles(output: Buffer, start: number): CommitFile[] {
       throw new UnsupportedHistoryDataError({ cause });
     throw cause;
   }
-  if (entries.length > MAX_COMMIT_FILES) throw new ReadLimitExceededError();
+  if (entries.length > limits.history.maxCommitFiles)
+    throw new ReadLimitExceededError();
   return entries.map((entry) => {
     const status = fileStatus(entry.status);
     return {

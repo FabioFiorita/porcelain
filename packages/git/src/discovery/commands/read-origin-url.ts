@@ -1,16 +1,19 @@
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runGitRead } from '../../shared/run-git.ts';
 
-const NO_SUCH_REMOTE = 2;
+const remoteExitCodes = { noSuchRemote: 2 };
 
 export async function readOriginUrl(
   checkout: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<string | null> {
   try {
     const output = await runGitRead(
       checkout,
       ['remote', 'get-url', 'origin'],
+      limits,
       signal,
     );
     const url = output.toString('utf8').trim();
@@ -18,7 +21,7 @@ export async function readOriginUrl(
   } catch (failure) {
     if (
       failure instanceof GitCommandError &&
-      failure.exitCode === NO_SUCH_REMOTE
+      failure.exitCode === remoteExitCodes.noSuchRemote
     )
       return null;
     throw failure;

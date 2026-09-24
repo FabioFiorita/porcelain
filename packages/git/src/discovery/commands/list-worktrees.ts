@@ -13,10 +13,12 @@ import {
   realpathOrSelf,
 } from '../../shared/gitdir.ts';
 import { identity } from '../../shared/identity.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runGitRead } from '../../shared/run-git.ts';
 
 export async function listWorktrees(
   checkout: string,
+  limits: GitLimits,
   signal?: AbortSignal,
   known?: { commonDirectory: string },
 ): Promise<DiscoveryResult> {
@@ -27,6 +29,7 @@ export async function listWorktrees(
         await runGitRead(
           checkout,
           ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+          limits,
           signal,
         )
       )
@@ -39,6 +42,7 @@ export async function listWorktrees(
       await runGitRead(
         checkout,
         ['worktree', 'list', '--porcelain', '-z'],
+        limits,
         signal,
       )
     ).toString('utf8'),

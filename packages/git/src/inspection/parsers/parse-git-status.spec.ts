@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseGitStatus } from './parse-git-status.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 const HEAD = 'f4e8dd3408852fb71b1581394612bcf35e414dfc';
 const A = 'b2f931a67315c95c5daab3aac6de62e534808476';
@@ -14,7 +15,7 @@ const working = fixture('status/working.txt');
 
 describe('parseGitStatus', () => {
   it('reads the branch, its upstream and how far it has diverged', () => {
-    expect(parseGitStatus(working).branch).toEqual({
+    expect(parseGitStatus(working, gitLimits).branch).toEqual({
       name: 'main',
       upstream: 'origin/main',
       ahead: 1,
@@ -23,7 +24,7 @@ describe('parseGitStatus', () => {
   });
 
   it('reads modified, added, renamed and untracked paths per scope', () => {
-    expect(parseGitStatus(working).changes).toEqual([
+    expect(parseGitStatus(working, gitLimits).changes).toEqual([
       {
         scope: 'unstaged',
         kind: 'modified',
@@ -62,7 +63,9 @@ describe('parseGitStatus', () => {
   });
 
   it('reads a conflicted path with its three stages', () => {
-    expect(parseGitStatus(fixture('status/conflicted.txt')).changes).toEqual([
+    expect(
+      parseGitStatus(fixture('status/conflicted.txt'), gitLimits).changes,
+    ).toEqual([
       {
         scope: 'unmerged',
         path: 'my file.txt',
@@ -78,41 +81,46 @@ describe('parseGitStatus', () => {
   });
 
   it('reads a repository without commits and a detached HEAD', () => {
-    const initial = parseGitStatus(fixture('status/initial.txt'));
-    const detached = parseGitStatus(fixture('status/detached.txt'));
+    const initial = parseGitStatus(fixture('status/initial.txt'), gitLimits);
+    const detached = parseGitStatus(fixture('status/detached.txt'), gitLimits);
     expect([initial.headOid, detached.branch?.name]).toEqual([null, null]);
   });
 
   it('marks a submodule change as unsupported', () => {
     expect(
-      parseGitStatus(fixture('status/submodule.txt')).changes,
+      parseGitStatus(fixture('status/submodule.txt'), gitLimits).changes,
     ).toMatchObject([{ supported: false }]);
   });
 
   it('gives the same output the same token and different output another', () => {
-    const token = parseGitStatus(working).statusToken;
-    expect(parseGitStatus(Buffer.from(working)).statusToken).toBe(token);
-    expect(parseGitStatus(fixture('status/detached.txt')).statusToken).not.toBe(
+    const token = parseGitStatus(working, gitLimits).statusToken;
+    expect(parseGitStatus(Buffer.from(working), gitLimits).statusToken).toBe(
       token,
     );
+    expect(
+      parseGitStatus(fixture('status/detached.txt'), gitLimits).statusToken,
+    ).not.toBe(token);
   });
 
   it('rejects output cut off before its final terminator', () => {
     expect(() =>
-      parseGitStatus(fixture('status/working-truncated.txt')),
+      parseGitStatus(fixture('status/working-truncated.txt'), gitLimits),
     ).toThrow('Invalid Git status output');
   });
 
   it('rejects a record with a malformed mode', () => {
     expect(() =>
-      parseGitStatus(fixture('status/working-malformed-hand-edited.txt')),
+      parseGitStatus(
+        fixture('status/working-malformed-hand-edited.txt'),
+        gitLimits,
+      ),
     ).toThrow('Invalid Git status output');
   });
 
   it('rejects output without a head object name', () => {
-    expect(() => parseGitStatus(records('# branch.head main'))).toThrow(
-      'Invalid Git status output',
-    );
+    expect(() =>
+      parseGitStatus(records('# branch.head main'), gitLimits),
+    ).toThrow('Invalid Git status output');
   });
 
   it.each([
@@ -135,7 +143,7 @@ describe('parseGitStatus', () => {
     },
   ])('rejects $name', ({ record }) => {
     expect(() =>
-      parseGitStatus(records(`# branch.oid ${HEAD}`, record)),
+      parseGitStatus(records(`# branch.oid ${HEAD}`, record), gitLimits),
     ).toThrow('Invalid Git status output');
   });
 
@@ -143,7 +151,7 @@ describe('parseGitStatus', () => {
     'refuses the path %j, which escapes the checkout',
     (path) => {
       expect(() =>
-        parseGitStatus(records(`# branch.oid ${HEAD}`, `? ${path}`)),
+        parseGitStatus(records(`# branch.oid ${HEAD}`, `? ${path}`), gitLimits),
       ).toThrow('Git paths require valid UTF-8');
     },
   );
@@ -155,6 +163,7 @@ describe('parseGitStatus', () => {
           records(`# branch.oid ${HEAD}`),
           Buffer.from([0x3f, 0x20, 0xff, 0xfe, 0x00]),
         ]),
+        gitLimits,
       ),
     ).toThrow('Git paths require valid UTF-8');
   });

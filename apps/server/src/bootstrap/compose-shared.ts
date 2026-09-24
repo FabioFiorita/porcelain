@@ -68,13 +68,13 @@ export type SharedDependencies = {
 export function composeShared(dependencies: SharedDependencies) {
   const { stores, catalog, gitVersion } = dependencies;
   const { limits } = dependencies.settings;
-  const git: GitFactory = (checkout) => new DiscoveryGit(checkout);
+  const git: GitFactory = (checkout) => new DiscoveryGit(checkout, limits.git);
   const actionGit: GitActionWriterFactory = (checkout) =>
-    new ActionsGit(checkout);
+    new ActionsGit(checkout, limits.git);
   const commitGit: CommitReaderFactory = (checkout) =>
-    new HistoryGit(checkout, gitVersion);
+    new HistoryGit(checkout, gitVersion, limits.git);
   const inspection: InspectionFactory = (checkout) =>
-    new InspectionGit(checkout, limits.changes.status);
+    new InspectionGit(checkout, limits.git);
   const worktreeListing = new GitWorktreeListingReader({
     git,
     sharedReads: new SharedReads(),
@@ -84,7 +84,11 @@ export function composeShared(dependencies: SharedDependencies) {
   });
   const worktreeAccess = new GitWorktreeAccessReader(catalog);
   const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
-  const openInspection = inspectionCheckouts(worktreeAccess, inspection);
+  const openInspection = inspectionCheckouts(
+    worktreeAccess,
+    inspection,
+    limits.git,
+  );
   const changeStatusReader = new GitChangeStatusReader(openInspection);
   const fileReader = new FilesystemFileReader(worktreeAccess);
   const readTextFile = new ReadTextFileService(

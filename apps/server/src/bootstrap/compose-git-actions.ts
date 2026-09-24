@@ -65,7 +65,11 @@ export function composeGitActions(
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
       new RunGitActionService(
-        new GitGitActionRunner(shared.worktreeAccess, shared.actionGit),
+        new GitGitActionRunner(
+          shared.worktreeAccess,
+          shared.actionGit,
+          context.settings.limits.git,
+        ),
       ),
       new RecordGitActionProgressService(store, limits.progress),
       new FinishGitActionService(store, clock),
@@ -93,7 +97,11 @@ export function composeGitActions(
     listGitBranches: new ListGitBranchesUseCase(
       dependencies.checkWorktree,
       new ListGitBranchesService(
-        new GitBranchReader(shared.worktreeAccess, shared.actionGit),
+        new GitBranchReader(
+          shared.worktreeAccess,
+          shared.actionGit,
+          context.settings.limits.git,
+        ),
       ),
       lanes,
       laneKeys,
@@ -109,7 +117,11 @@ export function composeGitActions(
       shared.readChangeFingerprints,
       new ConfirmDiffObservationService(),
       new CaptureCommitDraftService(
-        new GitSelectedDiffReader(shared.worktreeAccess, shared.actionGit),
+        new GitSelectedDiffReader(
+          shared.worktreeAccess,
+          shared.actionGit,
+          context.settings.limits.git,
+        ),
         new FilesystemUntrackedFileReader(shared.fileReader),
         limits.commitDraft,
       ),

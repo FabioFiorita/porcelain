@@ -44,7 +44,10 @@ export function composeFiles(
         new FilesystemDirectoryReader(worktreeAccess, {
           gitDirectory: gitDirectoryName(),
         }),
-        new GitIgnoredEntriesReader(worktreeAccess),
+        new GitIgnoredEntriesReader(
+          worktreeAccess,
+          context.settings.limits.git,
+        ),
         limits.listDirectory,
       ),
       lanes,
@@ -88,7 +91,9 @@ export function composeFiles(
     ),
     listWorktreePaths: new ListWorktreePathsUseCase(
       checkWorktree,
-      new ListWorktreePathsService(new GitWorktreePathsReader(worktreeAccess)),
+      new ListWorktreePathsService(
+        new GitWorktreePathsReader(worktreeAccess, context.settings.limits.git),
+      ),
       lanes,
       laneKeys,
     ),

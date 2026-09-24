@@ -1,6 +1,7 @@
 import type { IgnoredEntriesReadInput } from '@porcelain/files/models';
 import type { IgnoredEntriesReader } from '@porcelain/files/ports';
 import { checkIgnored } from '@porcelain/git/inspection';
+import type { Limits } from '../../config/limits.ts';
 import {
   listedWorktree,
   type ListedWorktrees,
@@ -8,9 +9,11 @@ import {
 
 export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
   private readonly worktrees: ListedWorktrees;
+  private readonly limits: Limits['git'];
 
-  constructor(worktrees: ListedWorktrees) {
+  constructor(worktrees: ListedWorktrees, limits: Limits['git']) {
     this.worktrees = worktrees;
+    this.limits = limits;
   }
 
   async read(
@@ -22,6 +25,6 @@ export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
       input.worktreeId,
       signal,
     );
-    return checkIgnored(checkout.path, input.paths, signal);
+    return checkIgnored(checkout.path, input.paths, this.limits, signal);
   }
 }

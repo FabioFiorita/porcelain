@@ -1,4 +1,5 @@
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 
 const NOTHING_IGNORED = 1;
@@ -6,6 +7,7 @@ const NOTHING_IGNORED = 1;
 export async function checkIgnored(
   checkout: string,
   paths: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Set<string>> {
   const wanted = [...new Set(paths)];
@@ -15,9 +17,10 @@ export async function checkIgnored(
     output = await runInspection(
       checkout,
       ['check-ignore', '-z', '--stdin'],
+      limits,
       signal,
       {
-        maxBytes: 1024 * 1024,
+        maxBytes: limits.inspection.checkIgnoredBytes,
         input: Buffer.from(`${wanted.join('\0')}\0`),
       },
     );

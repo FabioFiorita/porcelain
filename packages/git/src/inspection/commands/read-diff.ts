@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import type { GitOrdinaryChange } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
@@ -5,8 +6,6 @@ import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { diffKey, parseDiff } from '../parsers/parse-diff.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';
 import { runInspection } from './run-inspection.ts';
-
-const MAX_BATCH_BYTES = 32 * 1024 * 1024;
 
 type DiffComparison =
   | { kind: 'staged' }
@@ -18,17 +17,19 @@ type Sections = Map<string, GitDiffResult> | null;
 export async function readDiff(
   session: CheckoutSession,
   change: GitOrdinaryChange,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<GitDiffResult> {
-  return diffFor(change, await readScopes(session, [change], signal));
+  return diffFor(change, await readScopes(session, [change], limits, signal));
 }
 
 export async function readDiffs(
   session: CheckoutSession,
   changes: readonly GitOrdinaryChange[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<GitDiffResult[]> {
-  const scopes = await readScopes(session, changes, signal);
+  const scopes = await readScopes(session, changes, limits, signal);
   return changes.map((change) => diffFor(change, scopes));
 }
 
@@ -37,6 +38,7 @@ export function readCommitDiffs(
   oid: string,
   parent: number,
   paths: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Sections> {
   return readSections(
@@ -44,6 +46,7 @@ export function readCommitDiffs(
     { kind: 'commit', oid, parent },
     paths,
     [],
+    limits,
     signal,
   );
 }
@@ -51,6 +54,7 @@ export function readCommitDiffs(
 async function readScopes(
   session: CheckoutSession,
   changes: readonly GitOrdinaryChange[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Record<GitOrdinaryChange['scope'], Sections>> {
   const wanted = (scope: GitOrdinaryChange['scope']) =>
@@ -58,7 +62,9 @@ async function readScopes(
   const staged = wanted('staged');
   const unstaged = wanted('unstaged');
   const filters =
-    unstaged.length > 0 ? await sessionConversionFilters(session, signal) : [];
+    unstaged.length > 0
+      ? await sessionConversionFilters(session, limits, signal)
+      : [];
   return {
     staged:
       staged.length > 0
@@ -67,6 +73,7 @@ async function readScopes(
             { kind: 'staged' },
             staged.flatMap(changePaths),
             [],
+            limits,
             signal,
           )
         : new Map(),
@@ -77,6 +84,7 @@ async function readScopes(
             { kind: 'unstaged' },
             unstaged.flatMap(changePaths),
             filters,
+            limits,
             signal,
           )
         : new Map(),
@@ -110,6 +118,7 @@ async function readSections(
   comparison: DiffComparison,
   paths: readonly string[],
   config: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Sections> {
   const pathspecs = [...new Set(paths)].map((path) => `:(top,literal)${path}`);
@@ -118,14 +127,15 @@ async function readSections(
     output = await runInspection(
       checkout,
       diffArguments(comparison, pathspecs),
+      limits,
       signal,
-      { maxBytes: MAX_BATCH_BYTES, config },
+      { maxBytes: limits.inspection.diffBatchBytes, config },
     );
   } catch (error) {
     if (error instanceof InspectionLimitError) return null;
     throw error;
   }
-  return parseDiff(output);
+  return parseDiff(output, limits);
 }
 
 function diffArguments(

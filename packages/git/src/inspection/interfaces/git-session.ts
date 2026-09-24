@@ -1,10 +1,3 @@
-export type CheckoutVerifier = (
-  checkout: string,
-  metadataIdentity: string,
-  repositoryIdentity: string,
-  signal?: AbortSignal,
-) => Promise<void>;
-
 export type CheckoutSession = {
   readonly path: string;
   verify(signal?: AbortSignal): Promise<void>;

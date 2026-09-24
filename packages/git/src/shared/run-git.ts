@@ -3,6 +3,7 @@ import { runCommand } from '@porcelain/process';
 import { GitCommandError } from './errors/git-command-error.ts';
 import { GitOutputLimitError } from './errors/git-output-limit-error.ts';
 import { GitTimeoutError } from './errors/git-timeout-error.ts';
+import type { GitLimits } from './dtos/git-limits.ts';
 
 type GitMode = 'read' | 'write';
 
@@ -31,9 +32,6 @@ export type GitProcessResult = {
   failure?: 'output-limit';
 };
 
-const OUTPUT_LIMIT_BYTES = 4 * 1024 * 1024;
-const READ_DEADLINE_MS = 10_000;
-
 const MODE_CONFIG: Record<GitMode, readonly string[]> = {
   read: [
     'core.fsmonitor=false',
@@ -52,6 +50,7 @@ const MODE_CONFIG: Record<GitMode, readonly string[]> = {
 export async function runGitRead(
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
   options: GitReadOptions = {},
 ): Promise<Buffer> {
@@ -62,8 +61,8 @@ export async function runGitRead(
       args: gitArguments('read', checkout, args, options),
       env: gitEnvironment('read'),
       stdin: options.input,
-      timeoutMs: options.timeoutMs ?? READ_DEADLINE_MS,
-      maxBytes: options.maxBytes ?? OUTPUT_LIMIT_BYTES,
+      timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
+      maxBytes: options.maxBytes ?? limits.outputBytes,
     },
     signal,
   ).catch((cause: unknown) => {
@@ -90,6 +89,7 @@ export async function runGitRead(
 export async function runGitWrite(
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   signal: AbortSignal,
   options: GitWriteOptions = {},
 ): Promise<GitProcessResult> {
@@ -103,7 +103,7 @@ export async function runGitWrite(
       args: gitArguments('write', checkout, args, {}),
       env: gitEnvironment('write', options.indexFile),
       stdin: options.input,
-      maxBytes: options.maxBytes ?? OUTPUT_LIMIT_BYTES,
+      maxBytes: options.maxBytes ?? limits.outputBytes,
       onStderr: progress?.read,
     },
     signal,

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isAncestorOfHead } from './is-ancestor.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 let checkout: string;
 let first: string;
@@ -34,20 +35,22 @@ afterAll(() => {
 
 describe('isAncestorOfHead', () => {
   it('answers yes for a commit HEAD descends from', async () => {
-    expect(await isAncestorOfHead(checkout, first)).toBe(true);
+    expect(await isAncestorOfHead(checkout, first, gitLimits)).toBe(true);
   });
 
   it('answers no for a commit on another line of history', async () => {
-    expect(await isAncestorOfHead(checkout, side)).toBe(false);
+    expect(await isAncestorOfHead(checkout, side, gitLimits)).toBe(false);
   });
 
   it('answers no for a commit the repository does not have', async () => {
-    expect(await isAncestorOfHead(checkout, '1'.repeat(40))).toBe(false);
+    expect(await isAncestorOfHead(checkout, '1'.repeat(40), gitLimits)).toBe(
+      false,
+    );
   });
 
   it('reports a repository it cannot read as an unavailable snapshot', async () => {
     await expect(
-      isAncestorOfHead(join(checkout, 'missing'), first),
+      isAncestorOfHead(join(checkout, 'missing'), first, gitLimits),
     ).rejects.toMatchObject({ name: 'HistorySnapshotUnavailableError' });
   });
 });

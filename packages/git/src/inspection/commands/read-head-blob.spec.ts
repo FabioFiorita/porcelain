@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readHeadBlob } from './read-head-blob.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 let base: string;
 let checkout: string;
@@ -40,6 +41,7 @@ describe('readHeadBlob', () => {
     const blob = await readHeadBlob(
       { path: checkout },
       { path: 'README.md', maxBytes: 100 },
+      gitLimits,
     );
     expect(blob).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
   });
@@ -49,6 +51,7 @@ describe('readHeadBlob', () => {
       await readHeadBlob(
         { path: checkout },
         { path: 'README.md', maxBytes: 'committed\n'.length },
+        gitLimits,
       ),
     ).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
   });
@@ -58,6 +61,7 @@ describe('readHeadBlob', () => {
       await readHeadBlob(
         { path: checkout },
         { path: 'README.md', maxBytes: 'committed\n'.length - 1 },
+        gitLimits,
       ),
     ).toEqual({ kind: 'too-large' });
   });

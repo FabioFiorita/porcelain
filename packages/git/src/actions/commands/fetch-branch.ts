@@ -49,7 +49,7 @@ export async function fetchBranch(
   const cleanup = await process
     .execute(
       ['update-ref', '-d', temporaryRef, candidate],
-      AbortSignal.timeout(5000),
+      AbortSignal.timeout(process.limits.followUpTimeoutMs),
     )
     .then(processFailure)
     .catch(uncertainFetch);

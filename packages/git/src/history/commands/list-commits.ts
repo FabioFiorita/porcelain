@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type {
   CommitPage,
   CommitPageRequest,
@@ -18,14 +19,11 @@ import {
 import { isAncestorOfHead } from './is-ancestor.ts';
 import { runHistory } from './run-history.ts';
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
-const MAX_FRONTIER = 100;
-
 export async function listCommits(
   checkout: HistoryCheckout,
   gitVersion: Buffer,
   request: CommitPageRequest,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
   const { shallow } = await inspectHistoryCheckout(
@@ -33,23 +31,25 @@ export async function listCommits(
     gitVersion,
     signal,
   );
-  const limit = request.limit ?? DEFAULT_LIMIT;
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT)
+  const { history } = limits;
+  const limit = request.limit ?? history.defaultCommits;
+  if (!Number.isInteger(limit) || limit < 1 || limit > history.maxCommits)
     throw new InvalidHistoryRequestError();
   const after = request.after ?? [];
-  if (after.some((oid) => !isOid(oid)) || after.length > MAX_FRONTIER)
+  if (after.some((oid) => !isOid(oid)) || after.length > history.maxFrontier)
     throw new InvalidHistoryRequestError();
   if (request.tip !== undefined && !isOid(request.tip))
     throw new InvalidHistoryRequestError();
   const page =
     after.length === 0 || request.tip === undefined
-      ? await readTop(checkout, limit, shallow, signal)
+      ? await readTop(checkout, limit, shallow, limits, signal)
       : await continueFrom(
           checkout,
           request.tip,
           after,
           limit,
           shallow,
+          limits,
           signal,
         );
   await confirmHistoryCheckout(checkout, signal);
@@ -62,17 +62,18 @@ async function continueFrom(
   frontier: string[],
   limit: number,
   shallow: boolean,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
-  if (!(await isAncestorOfHead(checkout.path, tip, signal)))
+  if (!(await isAncestorOfHead(checkout.path, tip, limits, signal)))
     return {
-      ...(await readTop(checkout, limit, shallow, signal)),
+      ...(await readTop(checkout, limit, shallow, limits, signal)),
       restarted: true,
     };
-  const parsed = await readLog(checkout, frontier, limit, signal);
+  const parsed = await readLog(checkout, frontier, limit, limits, signal);
   return {
     snapshot: null,
-    ...trim(parsed, limit, shallow),
+    ...trim(parsed, limit, shallow, limits),
     tip,
     restarted: false,
   };
@@ -82,13 +83,14 @@ async function readTop(
   checkout: HistoryCheckout,
   limit: number,
   shallow: boolean,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
   const head = await readHeadFile(checkout.administrativeDirectory);
   if (head === undefined) throw new UnsupportedHistoryDataError();
-  const parsed = await readLog(checkout, ['HEAD'], limit, signal).catch(
+  const parsed = await readLog(checkout, ['HEAD'], limit, limits, signal).catch(
     async (error: unknown) => {
-      if (await hasHead(checkout.path, signal)) throw error;
+      if (await hasHead(checkout.path, limits, signal)) throw error;
       return undefined;
     },
   );
@@ -108,7 +110,7 @@ async function readTop(
   if (!first) throw new UnsupportedHistoryDataError();
   return {
     snapshot: { tipOid: first.oid, head },
-    ...trim(parsed, limit, shallow),
+    ...trim(parsed, limit, shallow, limits),
     restarted: false,
   };
 }
@@ -117,6 +119,7 @@ function trim(
   parsed: readonly CommitSummary[],
   limit: number,
   shallow: boolean,
+  limits: GitLimits,
 ): Pick<CommitPage, 'commits' | 'nextAfter' | 'boundary'> & {
   tip: string | null;
 } {
@@ -128,7 +131,7 @@ function trim(
     for (const parent of commit.parentOids)
       if (!seen.has(parent) && !frontier.includes(parent))
         frontier.push(parent);
-  const tooWide = more && frontier.length > MAX_FRONTIER;
+  const tooWide = more && frontier.length > limits.history.maxFrontier;
   const continues = more && frontier.length > 0 && !tooWide;
   return {
     commits: shown,
@@ -142,6 +145,7 @@ async function readLog(
   checkout: HistoryCheckout,
   range: readonly string[],
   limit: number,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<CommitSummary[]> {
   const output = await runHistory(
@@ -156,7 +160,8 @@ async function readLog(
       ...range,
       '--',
     ],
+    limits,
     signal,
   );
-  return parseCommitRecords(decodeHistory(output));
+  return parseCommitRecords(decodeHistory(output), limits);
 }

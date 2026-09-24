@@ -87,6 +87,43 @@ export type Limits = {
     };
     commitGroups: { maxGroups: number; maxMessageBytes: number };
   };
+  git: {
+    readTimeoutMs: number;
+    outputBytes: number;
+    followUpTimeoutMs: number;
+    inspection: {
+      statusBytes: number;
+      maxChanges: number;
+      maxPathLength: number;
+      diffBatchBytes: number;
+      patchBytes: number;
+      selectedDiffBytes: number;
+      upstreamOidBytes: number;
+      ignoredPathsBytes: number;
+      checkIgnoredBytes: number;
+      checkoutDirectoryBytes: number;
+      stashListBytes: number;
+      submoduleStatusBytes: number;
+      filterConfigBytes: number;
+      filterPathsBytes: number;
+      filterAttributesBytes: number;
+      trackedPathsBytes: number;
+      maxTrackedPaths: number;
+      headCommitBytes: number;
+      branchTrackingBytes: number;
+      discardedRefsBytes: number;
+      discardedBlobsBytes: number;
+    };
+    history: {
+      defaultCommits: number;
+      maxCommits: number;
+      maxFrontier: number;
+      maxCommitFiles: number;
+      subjectBytes: number;
+      bodyBytes: number;
+    };
+    actions: { maxCommitPaths: number; hookBytes: number; maxNewFiles: number };
+  };
   inventory: {
     listingLaunches: number;
     listingTimeoutMs: number;
@@ -218,6 +255,47 @@ export const LIMITS: Limits = {
     commitGroups: {
       maxGroups: COMMIT_GROUPS,
       maxMessageBytes: COMMIT_MESSAGE_BYTES,
+    },
+  },
+  git: {
+    readTimeoutMs: 10 * SECOND_MS,
+    outputBytes: 4 * MEBIBYTE,
+    followUpTimeoutMs: 5 * SECOND_MS,
+    inspection: {
+      statusBytes: 8 * MEBIBYTE,
+      maxChanges: CHANGED_PATHS,
+      maxPathLength: PATH_LENGTH,
+      diffBatchBytes: 32 * MEBIBYTE,
+      patchBytes: MEBIBYTE,
+      selectedDiffBytes: MEBIBYTE,
+      upstreamOidBytes: KIBIBYTE,
+      ignoredPathsBytes: 4 * MEBIBYTE,
+      checkIgnoredBytes: MEBIBYTE,
+      checkoutDirectoryBytes: 16 * KIBIBYTE,
+      stashListBytes: MEBIBYTE,
+      submoduleStatusBytes: MEBIBYTE,
+      filterConfigBytes: MEBIBYTE,
+      filterPathsBytes: 8 * MEBIBYTE,
+      filterAttributesBytes: 16 * MEBIBYTE,
+      trackedPathsBytes: 4 * MEBIBYTE,
+      maxTrackedPaths: 50_000,
+      headCommitBytes: 64 * KIBIBYTE,
+      branchTrackingBytes: MEBIBYTE,
+      discardedRefsBytes: 64 * KIBIBYTE,
+      discardedBlobsBytes: 4 * MEBIBYTE,
+    },
+    history: {
+      defaultCommits: 50,
+      maxCommits: 100,
+      maxFrontier: 100,
+      maxCommitFiles: 10_000,
+      subjectBytes: 512,
+      bodyBytes: 4096,
+    },
+    actions: {
+      maxCommitPaths: CHANGED_PATHS,
+      hookBytes: MEBIBYTE,
+      maxNewFiles: 10_000,
     },
   },
   inventory: {

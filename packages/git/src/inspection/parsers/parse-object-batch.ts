@@ -7,7 +7,7 @@ export function parseObjectBatch(
   const bodies = new Map<string, string>();
   let offset = 0;
   for (const oid of oids) {
-    const headerEnd = output.indexOf(0x0a, offset);
+    const headerEnd = output.indexOf('\n', offset);
     if (headerEnd < 0) break;
     const header = output.subarray(offset, headerEnd).toString('utf8');
     offset = headerEnd + 1;

@@ -1,15 +1,18 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 
 export async function readHeadCommit(
   checkout: string,
   headOid: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<{ subject: string; body?: string }> {
   const output = await runInspection(
     checkout,
     ['show', '-s', '--format=%s%x00%b', headOid],
+    limits,
     signal,
-    { maxBytes: 64 * 1024 },
+    { maxBytes: limits.inspection.headCommitBytes },
   );
   const [subject = '', body = ''] = output
     .toString('utf8')

@@ -1,4 +1,5 @@
 import { RepositoryIdentityMismatchError } from '../../discovery/index.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { identity } from '../../shared/identity.ts';
 import { runInspection } from './run-inspection.ts';
 
@@ -6,11 +7,13 @@ export async function verifyCheckout(
   checkout: string,
   expectedIdentity: string,
   expectedRepositoryIdentity: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<void> {
   const directory = await readDirectory(
     checkout,
     ['rev-parse', '--absolute-git-dir'],
+    limits,
     signal,
   );
   if ((await identity(directory)) !== expectedIdentity)
@@ -19,6 +22,7 @@ export async function verifyCheckout(
   const commonDirectory = await readDirectory(
     checkout,
     ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+    limits,
     signal,
   );
   if ((await identity(commonDirectory)) !== expectedRepositoryIdentity)
@@ -29,10 +33,11 @@ export async function verifyCheckout(
 async function readDirectory(
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<string> {
-  const output = await runInspection(checkout, args, signal, {
-    maxBytes: 16384,
+  const output = await runInspection(checkout, args, limits, signal, {
+    maxBytes: limits.inspection.checkoutDirectoryBytes,
   });
   return new TextDecoder('utf-8', { fatal: true }).decode(output).slice(0, -1);
 }

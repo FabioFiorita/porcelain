@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { UnsupportedGitFiltersError } from '../errors/unsupported-git-filters-error.ts';
 import {
@@ -11,32 +12,40 @@ const UNFILTERED = new Set(['unspecified', 'unset', 'set']);
 
 export function sessionConversionFilters(
   session: CheckoutSession,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<string[]> {
   return session.conversionFilters(() =>
-    checkConversionFilters(session.path, signal),
+    checkConversionFilters(session.path, limits, signal),
   );
 }
 
 async function checkConversionFilters(
   checkout: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<string[]> {
   const config = await runInspection(
     checkout,
     ['config', '--null', '--list'],
+    limits,
     signal,
-    { maxBytes: 1024 * 1024 },
+    { maxBytes: limits.inspection.filterConfigBytes },
   );
   const drivers = filterDrivers(config.toString('utf8'));
-  const paths = await runInspection(checkout, ['ls-files', '-z'], signal, {
-    maxBytes: 8 * 1024 * 1024,
-  });
+  const paths = await runInspection(
+    checkout,
+    ['ls-files', '-z'],
+    limits,
+    signal,
+    { maxBytes: limits.inspection.filterPathsBytes },
+  );
   const attributes = await runInspection(
     checkout,
     ['check-attr', '-z', '--stdin', 'filter'],
+    limits,
     signal,
-    { maxBytes: 16 * 1024 * 1024, input: paths },
+    { maxBytes: limits.inspection.filterAttributesBytes, input: paths },
   );
   const assigned = parseFilterAttributes(attributes.toString('utf8')).map(
     (record) => record.filter,

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseCommitRecord, parseCommitRecords } from './parse-commit.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 const page = fixture('log/page.txt').toString('utf8');
 
 describe('parseCommitRecords', () => {
   it('reads every commit of a log page in order', () => {
-    expect(parseCommitRecords(page)).toEqual([
+    expect(parseCommitRecords(page, gitLimits)).toEqual([
       {
         oid: '1020846388014a1baa79eb360c9f66b704e7398b',
         parentOids: [
@@ -64,12 +65,15 @@ describe('parseCommitRecords', () => {
   });
 
   it('reads an empty log as no commits', () => {
-    expect(parseCommitRecords('')).toEqual([]);
+    expect(parseCommitRecords('', gitLimits)).toEqual([]);
   });
 
   it('rejects a log cut off in the middle of a commit', () => {
     expect(() =>
-      parseCommitRecords(fixture('log/page-truncated.txt').toString('utf8')),
+      parseCommitRecords(
+        fixture('log/page-truncated.txt').toString('utf8'),
+        gitLimits,
+      ),
     ).toThrow('History contains unsupported data');
   });
 });
@@ -87,11 +91,14 @@ describe('parseCommitRecord', () => {
     ].map((value, index) => overrides[index] ?? value);
 
   it('drops HEAD from the refs and keeps the branch it points at', () => {
-    expect(parseCommitRecord(fields({})).refs).toEqual(['main']);
+    expect(parseCommitRecord(fields({}), gitLimits).refs).toEqual(['main']);
   });
 
   it('truncates a long subject on a character boundary', () => {
-    const commit = parseCommitRecord(fields({ 5: `${'a'.repeat(511)}é tail` }));
+    const commit = parseCommitRecord(
+      fields({ 5: `${'a'.repeat(511)}é tail` }),
+      gitLimits,
+    );
     expect([commit.subject, commit.subjectTruncated]).toEqual([
       'a'.repeat(511),
       true,
@@ -99,21 +106,24 @@ describe('parseCommitRecord', () => {
   });
 
   it('truncates a long body and says so', () => {
-    const commit = parseCommitRecord(fields({ 6: 'b'.repeat(5000) }));
+    const commit = parseCommitRecord(
+      fields({ 6: 'b'.repeat(5000) }),
+      gitLimits,
+    );
     expect([commit.body?.length, commit.bodyTruncated]).toEqual([4096, true]);
   });
 
   it('rejects an abbreviated object name and an unreadable date', () => {
-    expect(() => parseCommitRecord(fields({ 0: 'ccdc14e' }))).toThrow(
-      'History contains unsupported data',
-    );
-    expect(() => parseCommitRecord(fields({ 3: 'yesterday' }))).toThrow(
-      'History contains unsupported data',
-    );
+    expect(() =>
+      parseCommitRecord(fields({ 0: 'ccdc14e' }), gitLimits),
+    ).toThrow('History contains unsupported data');
+    expect(() =>
+      parseCommitRecord(fields({ 3: 'yesterday' }), gitLimits),
+    ).toThrow('History contains unsupported data');
   });
 
   it('rejects a record with missing fields', () => {
-    expect(() => parseCommitRecord(fields({}).slice(0, 6))).toThrow(
+    expect(() => parseCommitRecord(fields({}).slice(0, 6), gitLimits)).toThrow(
       'History contains unsupported data',
     );
   });

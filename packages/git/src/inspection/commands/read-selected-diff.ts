@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { runInspection } from './run-inspection.ts';
 
@@ -5,6 +6,7 @@ export async function readSelectedDiff(
   session: CheckoutSession,
   headOid: string | null,
   paths: readonly string[],
+  limits: GitLimits,
   signal: AbortSignal,
 ): Promise<string> {
   await session.verify(signal);
@@ -19,8 +21,12 @@ export async function readSelectedDiff(
       '--',
       ...paths,
     ],
+    limits,
     signal,
-    { maxBytes: 1024 * 1024, leading: ['--literal-pathspecs'] },
+    {
+      maxBytes: limits.inspection.selectedDiffBytes,
+      leading: ['--literal-pathspecs'],
+    },
   );
   await session.confirm(signal);
   return output.toString('utf8');

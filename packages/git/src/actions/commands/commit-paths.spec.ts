@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { commitPaths } from './commit-paths.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 type Runner = Parameters<typeof commitPaths>[0];
 type Preview = Parameters<typeof commitPaths>[1]['preview'];
@@ -30,6 +31,7 @@ const message = () =>
   git('cat-file', 'commit', 'HEAD').split('\n\n').slice(1).join('\n\n');
 
 const runner: Runner = {
+  limits: gitLimits,
   execute: (args, signal, input, options) => {
     signal.throwIfAborted();
     const done = spawnSync('git', ['-C', checkout, ...args], {

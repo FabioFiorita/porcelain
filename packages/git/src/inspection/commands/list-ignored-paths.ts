@@ -1,7 +1,9 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 
 export async function listIgnoredPaths(
   checkout: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<string[]> {
   const output = await runInspection(
@@ -14,8 +16,9 @@ export async function listIgnoredPaths(
       '--exclude-standard',
       '--directory',
     ],
+    limits,
     signal,
-    { maxBytes: 4 * 1024 * 1024 },
+    { maxBytes: limits.inspection.ignoredPathsBytes },
   );
   return output
     .toString('utf8')

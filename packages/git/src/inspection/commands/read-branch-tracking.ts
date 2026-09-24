@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 
 export type BranchTracking = {
@@ -9,6 +10,7 @@ export type BranchTracking = {
 export async function readBranchTracking(
   checkout: string,
   branch: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<BranchTracking | undefined> {
   const output = await runInspection(
@@ -18,8 +20,9 @@ export async function readBranchTracking(
       '--format=%(refname)%00%(upstream:remotename)%00%(upstream:remoteref)%00%(upstream)',
       'refs/heads/',
     ],
+    limits,
     signal,
-    { maxBytes: 1024 * 1024 },
+    { maxBytes: limits.inspection.branchTrackingBytes },
   );
   const fields = output
     .toString('utf8')

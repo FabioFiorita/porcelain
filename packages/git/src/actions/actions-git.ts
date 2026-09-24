@@ -1,4 +1,5 @@
 import { type CheckoutSession, readSelectedDiff } from '../inspection/index.ts';
+import type { GitLimits } from '../shared/dtos/git-limits.ts';
 import { type GitProcessResult, runGitWrite } from '../shared/run-git.ts';
 import { applyStash } from './commands/apply-stash.ts';
 import { commitIndex } from './commands/commit-index.ts';
@@ -27,13 +28,16 @@ const UNAVAILABLE: GitActionOutcome = {
 
 export class ActionsGit implements GitActionWriter {
   private readonly session: CheckoutSession;
+  private readonly limits: GitLimits;
   private readonly process: GitProcessRunner;
   private progress: ((line: string) => void) | undefined;
   private unconfirmed = false;
 
-  constructor(session: CheckoutSession) {
+  constructor(session: CheckoutSession, limits: GitLimits) {
     this.session = session;
+    this.limits = limits;
     this.process = {
+      limits,
       execute: (args, signal, input, options) =>
         this.run(args, signal, input, options?.indexFile),
     };
@@ -44,7 +48,7 @@ export class ActionsGit implements GitActionWriter {
     paths: readonly string[],
     signal: AbortSignal,
   ) {
-    return readSelectedDiff(this.session, headOid, paths, signal);
+    return readSelectedDiff(this.session, headOid, paths, this.limits, signal);
   }
 
   async listBranches(signal: AbortSignal) {
@@ -158,11 +162,17 @@ export class ActionsGit implements GitActionWriter {
   ): Promise<GitProcessResult> {
     if (this.unconfirmed)
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');
-    const result = await runGitWrite(this.session.path, args, signal, {
-      ...(input === undefined ? {} : { input }),
-      ...(indexFile === undefined ? {} : { indexFile }),
-      ...(this.progress ? { onProgress: this.progress } : {}),
-    });
+    const result = await runGitWrite(
+      this.session.path,
+      args,
+      this.limits,
+      signal,
+      {
+        ...(input === undefined ? {} : { input }),
+        ...(indexFile === undefined ? {} : { indexFile }),
+        ...(this.progress ? { onProgress: this.progress } : {}),
+      },
+    );
     if (!result.descendantsStopped) {
       this.unconfirmed = true;
       throw new GitActionRejectedError('PROCESS_GROUP_UNCONFIRMED');

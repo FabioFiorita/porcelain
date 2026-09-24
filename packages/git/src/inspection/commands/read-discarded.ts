@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiscardedChange } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import { parseDiscarded } from '../parsers/parse-discarded.ts';
@@ -8,6 +9,7 @@ import { runInspection } from './run-inspection.ts';
 
 export async function readDiscarded(
   checkout: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<GitDiscardedChange[]> {
   const oids = (
@@ -20,8 +22,9 @@ export async function readDiscarded(
         '--format=%(objectname)%00%(refname)',
         DISCARDED_REF_PREFIX,
       ],
+      limits,
       signal,
-      { maxBytes: 64 * 1024 },
+      { maxBytes: limits.inspection.discardedRefsBytes },
     )
   )
     .toString('utf8')
@@ -33,10 +36,16 @@ export async function readDiscarded(
   if (oids.length === 0) return [];
   let batch: Buffer;
   try {
-    batch = await runInspection(checkout, ['cat-file', '--batch'], signal, {
-      maxBytes: 4 * 1024 * 1024,
-      input: Buffer.from(`${oids.join('\n')}\n`),
-    });
+    batch = await runInspection(
+      checkout,
+      ['cat-file', '--batch'],
+      limits,
+      signal,
+      {
+        maxBytes: limits.inspection.discardedBlobsBytes,
+        input: Buffer.from(`${oids.join('\n')}\n`),
+      },
+    );
   } catch (cause) {
     if (!(cause instanceof InspectionLimitError)) throw cause;
     return oids.map((oid) => ({ oid, path: 'discarded change', kind: 'hunk' }));

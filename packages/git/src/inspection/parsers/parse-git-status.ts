@@ -7,6 +7,7 @@ import type {
 } from '../dtos/git-status.ts';
 import { InvalidGitStatusError } from '../errors/invalid-git-status-error.ts';
 import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { isNullOid, isOid } from '../../shared/oid.ts';
 
 const MODE = /^[0-7]{6}$/u;
@@ -20,7 +21,13 @@ const CONFLICT_CODES: readonly GitConflictCode[] = [
   'UU',
 ];
 
-export function parseGitStatus(output: Buffer): GitStatusObservation {
+type PathReader = (value: string | undefined) => string;
+
+export function parseGitStatus(
+  output: Buffer,
+  limits: GitLimits,
+): GitStatusObservation {
+  const path = pathReader(limits.inspection.maxPathLength);
   const text = decode(output);
   if (!text.endsWith('\0')) throw new InvalidGitStatusError();
   const records = text.slice(0, -1).split('\0');
@@ -29,15 +36,15 @@ export function parseGitStatus(output: Buffer): GitStatusObservation {
   const iterator = records[Symbol.iterator]();
   for (const record of iterator) {
     if (record.startsWith('# ')) continue;
-    if (record.startsWith('1 ')) changes.push(...tracked(record));
+    if (record.startsWith('1 ')) changes.push(...tracked(record, path));
     else if (record.startsWith('2 '))
-      changes.push(...tracked(record, path(iterator.next().value)));
+      changes.push(...tracked(record, path, path(iterator.next().value)));
     else if (record.startsWith('? '))
       changes.push({
         scope: 'untracked',
         path: path(record.slice(2).replace(/\/$/u, '')),
       });
-    else if (record.startsWith('u ')) changes.push(conflict(record));
+    else if (record.startsWith('u ')) changes.push(conflict(record, path));
     else throw new InvalidGitStatusError();
   }
   const branch = header(records, 'branch.head');
@@ -80,15 +87,17 @@ function headOid(value: string | undefined): string | null {
   return value;
 }
 
-function path(value: string | undefined): string {
-  if (
-    !value ||
-    value.startsWith('/') ||
-    value.length > 4096 ||
-    value.split('/').some((part) => ['', '.', '..'].includes(part))
-  )
-    throw new UnsupportedPathEncodingError();
-  return value;
+function pathReader(maxLength: number): PathReader {
+  return (value) => {
+    if (
+      !value ||
+      value.startsWith('/') ||
+      value.length > maxLength ||
+      value.split('/').some((part) => ['', '.', '..'].includes(part))
+    )
+      throw new UnsupportedPathEncodingError();
+    return value;
+  };
 }
 
 function ordinaryKind(code: string): GitOrdinaryChange['kind'] {
@@ -144,14 +153,18 @@ function presentOid(oid: string | null): string | null {
   return !oid || isNullOid(oid) ? null : oid;
 }
 
-function tracked(record: string, previous?: string): GitChange[] {
+function tracked(
+  record: string,
+  path: PathReader,
+  previous?: string,
+): GitChange[] {
   const fields = record.split(' ');
   const current = path(fields.slice(record.startsWith('2 ') ? 9 : 8).join(' '));
   const [, xy = '', sub = '', headMode = '', indexMode = '', workMode = ''] =
     fields;
   const headOid = fields[6] ?? '';
   const indexOid = fields[7] ?? '';
-  if (xy.length !== 2) throw new InvalidGitStatusError();
+  if (!/^..$/u.test(xy)) throw new InvalidGitStatusError();
   const paths = { current, previous: previous ?? current };
   const submodule = sub.startsWith('S');
   return [
@@ -174,7 +187,7 @@ function tracked(record: string, previous?: string): GitChange[] {
   ];
 }
 
-function conflict(record: string): GitChange {
+function conflict(record: string, path: PathReader): GitChange {
   const fields = record.split(' ');
   const code = CONFLICT_CODES.find((candidate) => candidate === fields[1]);
   const [, , , first, second, third, work, base, ours, theirs] = fields;

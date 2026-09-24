@@ -1,9 +1,10 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiffResult } from '../dtos/git-diff.ts';
 import { InvalidGitDiffError } from '../errors/invalid-git-diff-error.ts';
 import { parseRawDiff } from './parse-raw-diff.ts';
 
-const MAX_PATCH_BYTES = 1024 * 1024;
 const SECTION_HEADER = Buffer.from('diff --git ');
+const LINE_SECTION_HEADER = Buffer.from('\ndiff --git ');
 
 export function diffKey(paths: readonly (string | null)[]): string {
   return [...new Set(paths)]
@@ -11,39 +12,49 @@ export function diffKey(paths: readonly (string | null)[]): string {
     .join('\0');
 }
 
-export function parseDiff(output: Buffer): Map<string, GitDiffResult> {
+export function parseDiff(
+  output: Buffer,
+  limits: GitLimits,
+): Map<string, GitDiffResult> {
   const { entries, end } = parseRawDiff(output);
   const sections = splitSections(output.subarray(end));
   const results = new Map<string, GitDiffResult>();
   let at = 0;
   for (const entry of entries) {
-    const owned = entry.status === 'T' ? 2 : 1;
-    if (at + owned > sections.length) throw new InvalidGitDiffError();
+    const first = sections[at];
+    const second = entry.status === 'T' ? sections[at + 1] : undefined;
+    if (first === undefined || (entry.status === 'T' && second === undefined))
+      throw new InvalidGitDiffError();
+    const owned = second === undefined ? [first] : [first, second];
     results.set(
       diffKey([entry.oldPath, entry.newPath]),
-      classify(Buffer.concat(sections.slice(at, at + owned))),
+      classify(Buffer.concat(owned), limits),
     );
-    at += owned;
+    at += owned.length;
   }
   if (at !== sections.length) throw new InvalidGitDiffError();
   return results;
 }
 
 function splitSections(patch: Buffer): Buffer[] {
-  const starts: number[] = [];
-  for (let at = 0; at < patch.length; at += 1)
-    if (
-      (at === 0 || patch[at - 1] === 0x0a) &&
-      patch.subarray(at, at + SECTION_HEADER.length).equals(SECTION_HEADER)
-    )
-      starts.push(at);
+  const starts: number[] = patch
+    .subarray(0, SECTION_HEADER.length)
+    .equals(SECTION_HEADER)
+    ? [0]
+    : [];
+  for (
+    let at = patch.indexOf(LINE_SECTION_HEADER);
+    at !== -1;
+    at = patch.indexOf(LINE_SECTION_HEADER, at + 1)
+  )
+    starts.push(at + 1);
   return starts.map((start, index) =>
     patch.subarray(start, starts[index + 1] ?? patch.length),
   );
 }
 
-function classify(section: Buffer): GitDiffResult {
-  if (section.byteLength > MAX_PATCH_BYTES)
+function classify(section: Buffer, limits: GitLimits): GitDiffResult {
+  if (section.byteLength > limits.inspection.patchBytes)
     return { kind: 'omitted', reason: 'size-limit' };
   let patch: string;
   try {

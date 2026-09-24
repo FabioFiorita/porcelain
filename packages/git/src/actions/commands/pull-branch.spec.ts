@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pullBranch } from './pull-branch.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 type Command = Parameters<typeof pullBranch>[1];
 type Strategy = Command['intent']['strategy'];
@@ -35,6 +36,7 @@ const publish = (file: string, content: string) => {
 };
 
 const runner: Parameters<typeof pullBranch>[0] = {
+  limits: gitLimits,
   execute: (args) => {
     const result = spawnSync('git', ['-C', clone, ...args], {
       env: { ...process.env, GIT_EDITOR: ':', GIT_TERMINAL_PROMPT: '0' },

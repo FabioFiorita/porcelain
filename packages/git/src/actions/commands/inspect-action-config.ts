@@ -12,9 +12,6 @@ import { processFailure } from '../parsers/parse-process-result.ts';
 import { validateActionConfig } from '../parsers/validate-action-config.ts';
 import { readActionCommand } from './read-action-command.ts';
 
-const MAX_HOOK_BYTES = 1024 * 1024;
-const MAX_NEW_FILES = 10_000;
-
 export async function inspectActionConfig(
   process: GitProcessRunner,
   signal: AbortSignal,
@@ -52,9 +49,9 @@ async function rejectUncheckableHooks(
   for (const name of names.sort()) {
     if (name.endsWith('.sample')) continue;
     const info = await lstat(join(hooks, name));
-    if (!info.isFile() || info.size > MAX_HOOK_BYTES)
+    if (!info.isFile() || info.size > process.limits.actions.hookBytes)
       throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
-        detail: `The \`${name}\` hook is ${info.isFile() ? 'larger than 1 MB' : 'not a regular file'}, so Porcelain cannot check it before an action. Replace it with a regular file, or run this action from a terminal.`,
+        detail: `The \`${name}\` hook is ${info.isFile() ? `larger than ${process.limits.actions.hookBytes.toLocaleString('en-US')} bytes` : 'not a regular file'}, so Porcelain cannot check it before an action. Replace it with a regular file, or run this action from a terminal.`,
       });
   }
 }
@@ -95,9 +92,9 @@ async function rejectAssignedFilters(
     );
     const names = added.stdout.toString('utf8');
     const count = names.split('\0').length - 1;
-    if (processFailure(added) || count > MAX_NEW_FILES)
+    if (processFailure(added) || count > process.limits.actions.maxNewFiles)
       throw new GitActionRejectedError('UNSUPPORTED_CONFIGURATION', {
-        detail: `This checkout has more new files than Porcelain can check for the filters in \`${[...drivers.values()].join('`, `')}\` (at most 10,000). Ignore generated folders in \`.gitignore\`, or run this action from a terminal.`,
+        detail: `This checkout has more new files than Porcelain can check for the filters in \`${[...drivers.values()].join('`, `')}\` (at most ${process.limits.actions.maxNewFiles.toLocaleString('en-US')}). Ignore generated folders in \`.gitignore\`, or run this action from a terminal.`,
       });
     if (!count) return;
     const filtered = (await filterAttributes(process, names, signal)).find(

@@ -19,5 +19,5 @@ export async function readActionStatus(
     ],
     signal,
   );
-  return parseGitStatus(Buffer.from(output)).changes;
+  return parseGitStatus(Buffer.from(output), process.limits).changes;
 }

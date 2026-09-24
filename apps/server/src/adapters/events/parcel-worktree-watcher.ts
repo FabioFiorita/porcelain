@@ -2,6 +2,7 @@ import { type FSWatcher, watch as watchDirectory } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import * as parcelWatcher from '@parcel/watcher';
+import type { Limits } from '../../config/limits.ts';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type {
@@ -62,17 +63,20 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
   private readonly projects: () => readonly ListableProject[];
   private readonly gitDirectory: string;
   private readonly isTemporaryWrite: (path: string) => boolean;
+  private readonly limits: Limits['git'];
 
   constructor(options: {
     worktrees: WorktreeAccessReader<ListedWorktree>;
     projects: () => readonly ListableProject[];
     gitDirectory: string;
     isTemporaryWrite: (path: string) => boolean;
+    limits: Limits['git'];
   }) {
     this.worktrees = options.worktrees;
     this.projects = options.projects;
     this.gitDirectory = options.gitDirectory;
     this.isTemporaryWrite = options.isTemporaryWrite;
+    this.limits = options.limits;
   }
 
   async findWorktree(
@@ -102,7 +106,7 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     const { worktree, changed } = input;
     const state: FileWatchState = {
       root: worktree.root,
-      ignored: await listIgnoredPaths(worktree.root),
+      ignored: await listIgnoredPaths(worktree.root, this.limits),
       explicit: [],
       subscription: undefined,
       supplements: new Map(),
@@ -222,7 +226,7 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     state: FileWatchState,
   ): Promise<IgnoreRulesRefresh> {
     if (state.closed) return 'unchanged';
-    const ignored = await listIgnoredPaths(state.root);
+    const ignored = await listIgnoredPaths(state.root, this.limits);
     if (sameList(ignored, state.ignored)) return 'unchanged';
     await state.subscription?.unsubscribe();
     state.subscription = undefined;

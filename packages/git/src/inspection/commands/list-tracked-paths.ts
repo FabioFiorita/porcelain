@@ -1,18 +1,18 @@
 import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
-
-const MAX_QUICK_OPEN_BYTES = 4 * 1024 * 1024;
-const MAX_QUICK_OPEN_PATHS = 50_000;
 
 export async function listTrackedPaths(
   checkout: string,
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<{ paths: string[]; complete: boolean }> {
   const output = await runInspection(
     checkout,
     ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+    limits,
     signal,
-    { maxBytes: MAX_QUICK_OPEN_BYTES },
+    { maxBytes: limits.inspection.trackedPathsBytes },
   );
   let decoded: string;
   try {
@@ -23,7 +23,7 @@ export async function listTrackedPaths(
     throw new UnsupportedPathEncodingError({ cause });
   }
   const paths = decoded.split('\0').filter(Boolean);
-  return paths.length > MAX_QUICK_OPEN_PATHS
+  return paths.length > limits.inspection.maxTrackedPaths
     ? { paths: [], complete: false }
     : { paths: paths.sort(), complete: true };
 }

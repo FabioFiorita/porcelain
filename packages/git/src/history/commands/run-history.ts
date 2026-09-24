@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
 import { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
 import { runGitRead } from '../../shared/run-git.ts';
@@ -7,10 +8,11 @@ import { ReadLimitExceededError } from '../errors/read-limit-exceeded-error.ts';
 export async function runHistory(
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Buffer> {
   try {
-    return await read(checkout, args, signal);
+    return await read(checkout, args, limits, signal);
   } catch (cause) {
     throw historyFailure(cause);
   }
@@ -19,11 +21,12 @@ export async function runHistory(
 export async function askHistory(
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   signal: AbortSignal | undefined,
   answersNo: (failure: GitCommandError) => boolean,
 ): Promise<boolean> {
   try {
-    await read(checkout, args, signal);
+    await read(checkout, args, limits, signal);
     return true;
   } catch (cause) {
     if (cause instanceof GitCommandError && answersNo(cause)) return false;
@@ -34,9 +37,10 @@ export async function askHistory(
 function read(
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Buffer> {
-  return runGitRead(checkout, args, signal, {
+  return runGitRead(checkout, args, limits, signal, {
     leading: ['--literal-pathspecs'],
     config: ['log.showSignature=false'],
   });

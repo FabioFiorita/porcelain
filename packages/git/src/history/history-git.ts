@@ -1,4 +1,5 @@
 import { readCommitDiffs } from '../inspection/index.ts';
+import type { GitLimits } from '../shared/dtos/git-limits.ts';
 import { isOid } from '../shared/oid.ts';
 import { confirmHistoryCheckout } from './commands/inspect-history-checkout.ts';
 import { listCommits } from './commands/list-commits.ts';
@@ -15,18 +16,36 @@ import type { CommitReader } from './interfaces/commit-reader.ts';
 export class HistoryGit implements CommitReader {
   private readonly checkout: HistoryCheckout;
   private readonly gitVersion: Buffer;
+  private readonly limits: GitLimits;
 
-  constructor(checkout: HistoryCheckout, gitVersion: Buffer) {
+  constructor(
+    checkout: HistoryCheckout,
+    gitVersion: Buffer,
+    limits: GitLimits,
+  ) {
     this.checkout = checkout;
     this.gitVersion = gitVersion;
+    this.limits = limits;
   }
 
   listCommits(request: CommitPageRequest, signal?: AbortSignal) {
-    return listCommits(this.checkout, this.gitVersion, request, signal);
+    return listCommits(
+      this.checkout,
+      this.gitVersion,
+      request,
+      this.limits,
+      signal,
+    );
   }
 
   readCommitFiles(request: CommitFilesRequest, signal?: AbortSignal) {
-    return readCommitFiles(this.checkout, this.gitVersion, request, signal);
+    return readCommitFiles(
+      this.checkout,
+      this.gitVersion,
+      request,
+      this.limits,
+      signal,
+    );
   }
 
   async readCommitDiffs(request: CommitDiffsRequest, signal?: AbortSignal) {
@@ -44,6 +63,7 @@ export class HistoryGit implements CommitReader {
       request.oid,
       parent,
       request.paths,
+      this.limits,
       signal,
     );
     await confirmHistoryCheckout(this.checkout);

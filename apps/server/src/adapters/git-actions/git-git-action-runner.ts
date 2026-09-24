@@ -10,6 +10,7 @@ import {
   type GitActionWriterFactory,
 } from '@porcelain/git/actions';
 import { GitTimeoutError, RequestGitSession } from '@porcelain/git/inspection';
+import type { Limits } from '../../config/limits.ts';
 import {
   openCheckout,
   type ListedWorktrees,
@@ -18,10 +19,16 @@ import {
 export class GitGitActionRunner implements GitActionRunner {
   private readonly worktrees: ListedWorktrees;
   private readonly git: GitActionWriterFactory;
+  private readonly limits: Limits['git'];
 
-  constructor(worktrees: ListedWorktrees, git: GitActionWriterFactory) {
+  constructor(
+    worktrees: ListedWorktrees,
+    git: GitActionWriterFactory,
+    limits: Limits['git'],
+  ) {
     this.worktrees = worktrees;
     this.git = git;
+    this.limits = limits;
   }
 
   async run(
@@ -32,7 +39,7 @@ export class GitGitActionRunner implements GitActionRunner {
     try {
       const { checkout } = await openCheckout(
         this.worktrees,
-        new RequestGitSession(),
+        new RequestGitSession(this.limits),
         run.worktreeId,
         signal,
       );

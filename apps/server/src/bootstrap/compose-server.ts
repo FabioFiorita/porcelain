@@ -56,7 +56,7 @@ export const openServer: OpenServer = async (input) => {
       metadataIdentity,
       limits.projects.worktreeIds.length,
     );
-  const gitVersion = await readGitVersion(input.signal);
+  const gitVersion = await readGitVersion(limits.git, input.signal);
   const session = openStorageSession(settings.dataDirectory, {
     worktreeIdLength: limits.projects.worktreeIds.length,
   });
@@ -125,6 +125,7 @@ export const openServer: OpenServer = async (input) => {
       projects: () => catalog.listObservations(),
       gitDirectory: gitDirectoryName(),
       isTemporaryWrite,
+      limits: limits.git,
     }),
     logger,
     limits.liveUpdates,

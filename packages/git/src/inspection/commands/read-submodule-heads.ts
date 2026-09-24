@@ -1,3 +1,4 @@
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { parseSubmoduleStatus } from '../parsers/parse-submodule-status.ts';
 import { runInspection } from './run-inspection.ts';
@@ -5,6 +6,7 @@ import { runInspection } from './run-inspection.ts';
 export async function readSubmoduleHeads(
   session: CheckoutSession,
   paths: readonly string[],
+  limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Map<string, string>> {
   const wanted = [...new Set(paths)];
@@ -12,8 +14,9 @@ export async function readSubmoduleHeads(
   const output = await runInspection(
     session.path,
     ['submodule', 'status', '--', ...wanted],
+    limits,
     signal,
-    { maxBytes: 1024 * 1024 },
+    { maxBytes: limits.inspection.submoduleStatusBytes },
   );
   return parseSubmoduleStatus(output.toString('utf8'), wanted);
 }
