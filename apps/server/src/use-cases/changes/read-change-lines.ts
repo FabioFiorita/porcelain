@@ -1,6 +1,6 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadHeadTextService } from '@porcelain/changes/services';
-import { changeLines, lineRangeProblem } from '@porcelain/changes/rules';
+import { lineRangeProblem, sliceChangeLines } from '@porcelain/changes/rules';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type {
   ReadChangeLinesQuery,
@@ -58,7 +58,7 @@ export class ReadChangeLinesUseCase {
             : await this.readTextFile.execute({ worktreeId, path }, signal);
         const problem = lineRangeProblem({ from, to });
         if (problem) throw new InvalidLineRangeError();
-        const lines = changeLines(
+        const lines = sliceChangeLines(
           { path, from, to, at, text },
           this.options.maxLines,
         );

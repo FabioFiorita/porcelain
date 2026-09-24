@@ -38,9 +38,6 @@
     "apps/server/spec/fakes/scripted-reviewed-marks-invalidation.ts": {
       "A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.": 1
     },
-    "packages/access/spec/fakes/sequential-secret-source.ts": {
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
-    },
     "packages/agents/src/commit-planning/commit-planner.spec.ts": {
       "A fake never throws; script the outcome through what the port returns.": 1,
       "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1,
@@ -60,9 +57,6 @@
     },
     "packages/kernel/spec/fakes/scripted-worktree-access-reader.ts": {
       "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1
-    },
-    "packages/kernel/spec/fakes/sequential-id-source.ts": {
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
     },
     "packages/projects/spec/fakes/in-memory-file-preference-store.ts": {
       "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 2

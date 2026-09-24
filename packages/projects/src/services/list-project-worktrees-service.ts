@@ -2,24 +2,21 @@ import type {
   ListProjectWorktreesInput,
   ListProjectWorktreesResult,
 } from '../models/list-project-worktrees.ts';
-import type { ProjectWorktreeReader } from '../ports/project-worktree-reader.ts';
+import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
 import { unavailableWorktrees } from '../rules/unavailable-worktrees.ts';
 
 export class ListProjectWorktreesService {
-  private readonly projectWorktreeReader: ProjectWorktreeReader;
+  private readonly worktreeCatalog: WorktreeCatalogStore;
 
-  constructor(projectWorktreeReader: ProjectWorktreeReader) {
-    this.projectWorktreeReader = projectWorktreeReader;
+  constructor(worktreeCatalog: WorktreeCatalogStore) {
+    this.worktreeCatalog = worktreeCatalog;
   }
 
   async execute(
     input: ListProjectWorktreesInput,
     signal?: AbortSignal,
   ): Promise<ListProjectWorktreesResult> {
-    const listing = await this.projectWorktreeReader.list(
-      input.project,
-      signal,
-    );
+    const listing = await this.worktreeCatalog.list(input.project, signal);
     if (listing.kind === 'listed')
       return {
         projectId: listing.projectId,
@@ -32,7 +29,7 @@ export class ListProjectWorktreesService {
       available: false,
       complete: false,
       worktrees: unavailableWorktrees(
-        this.projectWorktreeReader.lastSeen({ projectId: listing.projectId }),
+        this.worktreeCatalog.lastSeen({ projectId: listing.projectId }),
       ),
     };
   }

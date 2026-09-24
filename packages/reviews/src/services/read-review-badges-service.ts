@@ -1,14 +1,14 @@
 import type {
-  ReadWorktreeStatusesInput,
-  ReadWorktreeStatusesResult,
-} from '../models/read-worktree-statuses.ts';
+  ReadReviewBadgesInput,
+  ReadReviewBadgesResult,
+} from '../models/read-review-badges.ts';
 import type { CommentSeenStore } from '../ports/comment-seen-store.ts';
 import type { CommentStore } from '../ports/comment-store.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import { worktreeStatuses } from '../rules/worktree-statuses.ts';
 
-export class ReadWorktreeStatusesService {
+export class ReadReviewBadgesService {
   private readonly reviews: ReviewStore;
   private readonly reviewedLayers: ReviewedLayerStore;
   private readonly comments: CommentStore;
@@ -26,7 +26,7 @@ export class ReadWorktreeStatusesService {
     this.commentSeen = commentSeen;
   }
 
-  execute(input: ReadWorktreeStatusesInput): ReadWorktreeStatusesResult {
+  execute(input: ReadReviewBadgesInput): ReadReviewBadgesResult {
     const { worktreeIds } = input;
     return {
       statuses: worktreeStatuses(

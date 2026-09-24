@@ -4,7 +4,7 @@ import type {
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
-import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
+import type { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import { inventoryReport } from '@porcelain/projects/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -13,7 +13,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ReadInventoryUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
+  private readonly readWorktreeStatuses: ReadReviewBadgesService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -21,7 +21,7 @@ export class ReadInventoryUseCase {
   constructor(
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
-    readWorktreeStatuses: ReadWorktreeStatusesService,
+    readWorktreeStatuses: ReadReviewBadgesService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
     laneKeys: LaneKeys,

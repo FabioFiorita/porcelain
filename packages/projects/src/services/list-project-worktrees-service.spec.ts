@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ListedWorktree } from '@porcelain/projects/models';
-import { ScriptedProjectWorktreeReader } from '../../spec/fakes/scripted-project-worktree-reader.ts';
+import { ScriptedWorktreeCatalogStore } from '../../spec/fakes/scripted-worktree-catalog-store.ts';
 import { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
 
 const project = {
@@ -24,13 +24,13 @@ function worktree(id: string, available = true): ListedWorktree {
   };
 }
 
-function service(reader: ScriptedProjectWorktreeReader) {
+function service(reader: ScriptedWorktreeCatalogStore) {
   return new ListProjectWorktreesService(reader);
 }
 
 describe('ListProjectWorktreesService', () => {
   it('reports a listed project as available and complete', async () => {
-    const reader = new ScriptedProjectWorktreeReader();
+    const reader = new ScriptedWorktreeCatalogStore();
     reader.answer({
       kind: 'listed',
       projectId: project.id,
@@ -46,7 +46,7 @@ describe('ListProjectWorktreesService', () => {
   });
 
   it('keeps a listing with unidentified worktrees available but incomplete', async () => {
-    const reader = new ScriptedProjectWorktreeReader();
+    const reader = new ScriptedWorktreeCatalogStore();
     reader.answer({
       kind: 'listed',
       projectId: project.id,
@@ -61,7 +61,7 @@ describe('ListProjectWorktreesService', () => {
   it.each(['unavailable', 'timed-out', 'moved'] as const)(
     'shows the last seen worktrees as unavailable when the listing is %s',
     async (kind) => {
-      const reader = new ScriptedProjectWorktreeReader();
+      const reader = new ScriptedWorktreeCatalogStore();
       reader.saw(project.id, [worktree('main'), worktree('feature')]);
       reader.answer({ kind, projectId: project.id });
       expect(await service(reader).execute({ project })).toEqual({
@@ -74,7 +74,7 @@ describe('ListProjectWorktreesService', () => {
   );
 
   it('reports an unlisted project with nothing seen before as empty', async () => {
-    const reader = new ScriptedProjectWorktreeReader();
+    const reader = new ScriptedWorktreeCatalogStore();
     reader.answer({ kind: 'unavailable', projectId: project.id });
     expect((await service(reader).execute({ project })).worktrees).toEqual([]);
   });

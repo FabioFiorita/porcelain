@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { EnvironmentIdentityStore } from '../../src/ports/environment-identity-store.ts';
+import type { EnvironmentIdentityReader } from '../../src/ports/environment-identity-reader.ts';
 
 export type EnvironmentIdentityStoreSubject = {
-  store: EnvironmentIdentityStore;
+  store: EnvironmentIdentityReader;
   close: () => void;
 };
 

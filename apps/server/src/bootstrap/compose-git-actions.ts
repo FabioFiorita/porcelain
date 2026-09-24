@@ -30,7 +30,7 @@ import {
 import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
 import { GitGitActionRunner } from '../adapters/git-actions/git-git-action-runner.ts';
-import { GitGitBranchReader } from '../adapters/git-actions/git-git-branch-reader.ts';
+import { GitBranchReader } from '../adapters/git-actions/git-branch-reader.ts';
 import { GitSelectedDiffReader } from '../adapters/git-actions/git-selected-diff-reader.ts';
 import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
@@ -107,7 +107,7 @@ export function composeGitActions(
       checkProject,
       adapters.checkWorktree,
       new ListGitBranchesService(
-        new GitGitBranchReader(adapters.worktreeAccess, adapters.actionGit),
+        new GitBranchReader(adapters.worktreeAccess, adapters.actionGit),
       ),
       lanes,
       laneKeys,
@@ -115,7 +115,7 @@ export function composeGitActions(
     listCommitModels: new ListCommitModelsUseCase(
       new ListCommitModelsService(adapters.commitModelReader),
       lanes,
-      { deadlineMs: limits.commitModelDeadlineMs },
+      { deadlineMs: limits.processDeadlineMs },
     ),
     generateCommitDraft: new GenerateCommitDraftUseCase(
       checkProject,
@@ -133,7 +133,7 @@ export function composeGitActions(
       ),
       lanes,
       laneKeys,
-      { deadlineMs: limits.commitModelDeadlineMs },
+      { deadlineMs: limits.processDeadlineMs },
     ),
     recoverInterruptedGitActions: new RecoverInterruptedGitActionsUseCase(
       new RecoverInterruptedGitActionsService(store, clock),

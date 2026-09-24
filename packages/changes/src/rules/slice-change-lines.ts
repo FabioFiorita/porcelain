@@ -7,7 +7,7 @@ export function lineRangeProblem(
   return range.from <= range.to ? undefined : { kind: 'reversed-range' };
 }
 
-export function changeLines(
+export function sliceChangeLines(
   input: ReadChangeLinesInput,
   maxLines: number,
 ): ChangeLines {

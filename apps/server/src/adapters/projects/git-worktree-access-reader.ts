@@ -2,14 +2,14 @@ import type { WorktreeCheck } from '@porcelain/kernel/models';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
-import type { GitProjectWorktreeReader } from './git-project-worktree-reader.ts';
+import type { GitWorktreeCatalogStore } from './git-project-worktree-reader.ts';
 
 export class GitWorktreeAccessReader implements WorktreeAccessReader<ListedWorktree> {
-  private readonly worktreeDirectory: Pick<GitProjectWorktreeReader, 'find'>;
+  private readonly worktreeDirectory: Pick<GitWorktreeCatalogStore, 'find'>;
   private readonly inventory: Pick<InventoryStore, 'read'>;
 
   constructor(
-    worktreeDirectory: Pick<GitProjectWorktreeReader, 'find'>,
+    worktreeDirectory: Pick<GitWorktreeCatalogStore, 'find'>,
     inventory: Pick<InventoryStore, 'read'>,
   ) {
     this.worktreeDirectory = worktreeDirectory;

@@ -1,14 +1,14 @@
 import type { ForgetProjectWorktreesInput } from '../models/forget-project-worktrees.ts';
-import type { ProjectWorktreeReader } from '../ports/project-worktree-reader.ts';
+import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
 
 export class ForgetProjectWorktreesService {
-  private readonly projectWorktreeReader: ProjectWorktreeReader;
+  private readonly worktreeCatalog: WorktreeCatalogStore;
 
-  constructor(projectWorktreeReader: ProjectWorktreeReader) {
-    this.projectWorktreeReader = projectWorktreeReader;
+  constructor(worktreeCatalog: WorktreeCatalogStore) {
+    this.worktreeCatalog = worktreeCatalog;
   }
 
   execute(input: ForgetProjectWorktreesInput): void {
-    this.projectWorktreeReader.forget({ projectId: input.projectId });
+    this.worktreeCatalog.remove({ projectId: input.projectId });
   }
 }

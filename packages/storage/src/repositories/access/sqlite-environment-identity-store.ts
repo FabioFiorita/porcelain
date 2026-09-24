@@ -1,8 +1,8 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { EnvironmentIdentityStore } from '@porcelain/access/ports';
+import type { EnvironmentIdentityReader } from '@porcelain/access/ports';
 import { environment } from '../../db/schema/environment.ts';
 
-export class SqliteEnvironmentIdentityStore implements EnvironmentIdentityStore {
+export class SqliteEnvironmentIdentityReader implements EnvironmentIdentityReader {
   private readonly db: BetterSQLite3Database;
 
   constructor(db: BetterSQLite3Database) {

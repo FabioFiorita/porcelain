@@ -1,9 +1,9 @@
 import type { ListedWorktree } from '../../src/models/listed-worktree.ts';
 import type { ListableProject, ProjectKey } from '../../src/models/project.ts';
 import type { WorktreeListing } from '../../src/models/worktree-listing.ts';
-import type { ProjectWorktreeReader } from '../../src/ports/project-worktree-reader.ts';
+import type { WorktreeCatalogStore } from '../../src/ports/worktree-catalog-store.ts';
 
-export class ScriptedProjectWorktreeReader implements ProjectWorktreeReader {
+export class ScriptedWorktreeCatalogStore implements WorktreeCatalogStore {
   private readonly listings = new Map<string, WorktreeListing>();
   private readonly seen = new Map<string, ListedWorktree[]>();
 
@@ -28,7 +28,7 @@ export class ScriptedProjectWorktreeReader implements ProjectWorktreeReader {
     return [...(this.seen.get(input.projectId) ?? [])];
   }
 
-  forget(input: ProjectKey): void {
+  remove(input: ProjectKey): void {
     this.seen.delete(input.projectId);
   }
 }

@@ -90,9 +90,9 @@ export type {
   ReadReviewSummaryResult,
 } from './read-review-summary.ts';
 export type {
-  ReadWorktreeStatusesInput,
-  ReadWorktreeStatusesResult,
-} from './read-worktree-statuses.ts';
+  ReadReviewBadgesInput,
+  ReadReviewBadgesResult,
+} from './read-review-badges.ts';
 export type { ReconcileReviewedFilesInput } from './reconcile-reviewed-files.ts';
 export type { ReconcileReviewedLayersInput } from './reconcile-reviewed-layers.ts';
 export type { RecordReviewActivityInput } from './record-review-activity.ts';

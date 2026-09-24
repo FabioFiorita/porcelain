@@ -1,6 +1,6 @@
-import type { EnvironmentIdentityStore } from '../../src/ports/environment-identity-store.ts';
+import type { EnvironmentIdentityReader } from '../../src/ports/environment-identity-reader.ts';
 
-export class FixedEnvironmentIdentityStore implements EnvironmentIdentityStore {
+export class FixedEnvironmentIdentityReader implements EnvironmentIdentityReader {
   private readonly identity: string | undefined;
 
   constructor(identity: string | undefined) {

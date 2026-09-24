@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
+import {
+  FixedClock,
+  SequentialIdSource,
+  SequentialSecretSource,
+} from '@porcelain/kernel/fakes';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
@@ -7,7 +11,6 @@ import {
 import { parseCredential, secretMatches } from '@porcelain/access/rules';
 import { FixedPairingReachReader } from '../../spec/fakes/fixed-pairing-reach-reader.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
-import { SequentialSecretSource } from '../../spec/fakes/sequential-secret-source.ts';
 import { IssuePairingService } from './issue-pairing-service.ts';
 
 const address = 'http://192.168.1.20:4173';

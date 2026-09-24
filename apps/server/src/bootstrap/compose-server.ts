@@ -18,7 +18,7 @@ import {
 } from '@porcelain/git/inspection';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { CheckWorktreeService } from '@porcelain/projects/services';
-import { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
+import { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import { openStorageSession } from '@porcelain/storage';
 import {
   createDeviceStore,
@@ -43,7 +43,7 @@ import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
-import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
+import { GitWorktreeCatalogStore } from '../adapters/projects/git-project-worktree-reader.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
@@ -107,7 +107,7 @@ export async function openApplication(
   const clock = new SystemClock();
   const ids = new RandomIdSource();
 
-  const worktreeDirectory = new GitProjectWorktreeReader({
+  const worktreeDirectory = new GitWorktreeCatalogStore({
     git,
     inventoryStore,
     sharedReads: new SharedReads(),
@@ -154,7 +154,7 @@ export async function openApplication(
     readEnvironment,
     git,
     inventoryStore,
-    readWorktreeStatuses: new ReadWorktreeStatusesService(
+    readWorktreeStatuses: new ReadReviewBadgesService(
       createReviewStore(session),
       createReviewedLayerStore(session),
       createCommentStore(session),

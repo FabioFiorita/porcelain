@@ -75,7 +75,7 @@ export type Limits = {
   };
   gitActions: {
     deadlineMs: number;
-    commitModelDeadlineMs: number;
+    processDeadlineMs: number;
     receipts: { retentionMs: number };
     progress: { progressLines: number };
     commitDraft: {
@@ -174,7 +174,7 @@ export const LIMITS: Limits = {
   },
   gitActions: {
     deadlineMs: 2 * MINUTE_MS,
-    commitModelDeadlineMs: 2 * MINUTE_MS,
+    processDeadlineMs: 2 * MINUTE_MS,
     receipts: { retentionMs: 30 * DAY_MS },
     progress: { progressLines: 200 },
     commitDraft: {

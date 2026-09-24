@@ -11,7 +11,7 @@ import type {
   RegisterProjectService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
-import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
+import type { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import { projectReport } from '@porcelain/projects/rules';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -26,7 +26,7 @@ export class RegisterProjectUseCase {
   private readonly registerProject: RegisterProjectService;
   private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
   private readonly recordWorktreePresence: RecordWorktreePresenceService;
-  private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
+  private readonly readWorktreeStatuses: ReadReviewBadgesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -39,7 +39,7 @@ export class RegisterProjectUseCase {
     registerProject: RegisterProjectService,
     updateProjectAvailability: UpdateProjectAvailabilityService,
     recordWorktreePresence: RecordWorktreePresenceService,
-    readWorktreeStatuses: ReadWorktreeStatusesService,
+    readWorktreeStatuses: ReadReviewBadgesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,

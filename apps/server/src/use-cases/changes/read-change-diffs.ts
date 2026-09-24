@@ -10,8 +10,8 @@ import {
 } from '@porcelain/changes/errors';
 import type { DiffSelectionProblem } from '@porcelain/changes/models';
 import {
-  diffSelection,
   diffSelectionProblem,
+  matchDiffSelections,
   observationProblem,
 } from '@porcelain/changes/rules';
 import type {
@@ -70,7 +70,7 @@ export class ReadChangeDiffsUseCase {
         const selection = { expectedFiles, selections, status: before };
         const problem = diffSelectionProblem(selection);
         if (problem) throw this.failure(problem);
-        const selected = diffSelection(selection);
+        const selected = matchDiffSelections(selection);
         const observed = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: before.changes, paths: selected.paths },
           signal,

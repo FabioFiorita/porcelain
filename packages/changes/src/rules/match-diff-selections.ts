@@ -51,7 +51,7 @@ export function diffSelectionProblem(
   return undefined;
 }
 
-export function diffSelection(input: DiffSelectionInput): DiffSelection {
+export function matchDiffSelections(input: DiffSelectionInput): DiffSelection {
   return {
     comparisons: input.selections.flatMap((selection) =>
       listed(input, selection).slice(0, 1),

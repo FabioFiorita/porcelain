@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import type { SecretSource } from '@porcelain/access/ports';
+import type { Base64UrlSecret } from '@porcelain/kernel/models';
+import type { SecretSource } from '@porcelain/kernel/ports';
 
 export type RandomSecretSourceOptions = { secretBytes: number };
 
@@ -10,7 +11,7 @@ export class RandomSecretSource implements SecretSource {
     this.options = options;
   }
 
-  next(): string {
+  next(): Base64UrlSecret {
     return randomBytes(this.options.secretBytes).toString('base64url');
   }
 }

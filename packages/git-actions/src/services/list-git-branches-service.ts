@@ -2,12 +2,12 @@ import type {
   ListGitBranchesInput,
   ListGitBranchesResult,
 } from '../models/list-git-branches.ts';
-import type { GitBranchReader } from '../ports/git-branch-reader.ts';
+import type { BranchReader } from '../ports/branch-reader.ts';
 
 export class ListGitBranchesService {
-  private readonly gitBranchReader: GitBranchReader;
+  private readonly gitBranchReader: BranchReader;
 
-  constructor(gitBranchReader: GitBranchReader) {
+  constructor(gitBranchReader: BranchReader) {
     this.gitBranchReader = gitBranchReader;
   }
 

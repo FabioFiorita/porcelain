@@ -1,4 +1,4 @@
-import type { Clock, IdSource } from '@porcelain/kernel/ports';
+import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
@@ -9,7 +9,6 @@ import type {
   RedeemPairingResult,
 } from '../models/redeem-pairing.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
-import type { SecretSource } from '../ports/secret-source.ts';
 import {
   credential,
   parseCredential,

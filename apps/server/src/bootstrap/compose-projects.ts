@@ -24,13 +24,13 @@ import {
   SetFilePreferenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
-import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
+import type { ReadReviewBadgesService } from '@porcelain/reviews/services';
 import {
   createFilePreferenceStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
-import type { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
+import type { GitWorktreeCatalogStore } from '../adapters/projects/git-project-worktree-reader.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
@@ -48,9 +48,9 @@ export type ProjectsAdapters = {
   readEnvironment: ReadEnvironmentService;
   git: GitFactory;
   inventoryStore: InventoryStore;
-  readWorktreeStatuses: ReadWorktreeStatusesService;
+  readWorktreeStatuses: ReadReviewBadgesService;
   projectFolderReader: ProjectFolderReader;
-  worktreeDirectory: GitProjectWorktreeReader;
+  worktreeDirectory: GitWorktreeCatalogStore;
 };
 
 export function composeProjects(

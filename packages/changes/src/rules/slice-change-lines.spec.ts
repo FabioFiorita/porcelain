@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { changeLines, lineRangeProblem } from './change-lines.ts';
+import { sliceChangeLines, lineRangeProblem } from './slice-change-lines.ts';
 
 const text = 'one\ntwo\nthree\n';
 
-describe('changeLines', () => {
+describe('sliceChangeLines', () => {
   it('answers the requested lines of the text with the side it came from', () => {
     expect(
-      changeLines({ text, path: 'a.md', from: 2, to: 3, at: 'worktree' }, 2),
+      sliceChangeLines(
+        { text, path: 'a.md', from: 2, to: 3, at: 'worktree' },
+        2,
+      ),
     ).toEqual({
       at: 'worktree',
       path: 'a.md',
@@ -18,7 +21,7 @@ describe('changeLines', () => {
 
   it('clamps the range to the last line and ignores the final newline', () => {
     expect(
-      changeLines(
+      sliceChangeLines(
         {
           text,
           path: 'a.md',
@@ -39,7 +42,7 @@ describe('changeLines', () => {
 
   it('counts a last line without a newline', () => {
     expect(
-      changeLines(
+      sliceChangeLines(
         {
           text: 'one\ntwo',
           path: 'a.md',
@@ -54,19 +57,20 @@ describe('changeLines', () => {
 
   it('answers an empty range ending just before its start when it begins past the end', () => {
     expect(
-      changeLines({ text, path: 'a.md', from: 5, to: 9, at: 'head' }, 2),
+      sliceChangeLines({ text, path: 'a.md', from: 5, to: 9, at: 'head' }, 2),
     ).toEqual({ at: 'head', path: 'a.md', from: 5, to: 4, lines: [] });
   });
 
   it('answers the single line of a range that starts and ends on it', () => {
     expect(
-      changeLines({ text, path: 'a.md', from: 2, to: 2, at: 'head' }, 2).lines,
+      sliceChangeLines({ text, path: 'a.md', from: 2, to: 2, at: 'head' }, 2)
+        .lines,
     ).toEqual(['two']);
   });
 
   it('stops at the line limit and reports where it stopped', () => {
     expect(
-      changeLines({ text, path: 'a.md', from: 1, to: 3, at: 'head' }, 2),
+      sliceChangeLines({ text, path: 'a.md', from: 1, to: 3, at: 'head' }, 2),
     ).toEqual({
       at: 'head',
       path: 'a.md',

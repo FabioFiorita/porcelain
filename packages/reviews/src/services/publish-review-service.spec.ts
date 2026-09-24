@@ -1,6 +1,10 @@
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
+import {
+  FixedClock,
+  SequentialIdSource,
+  SequentialSecretSource,
+} from '@porcelain/kernel/fakes';
 import {
   BoxLaneOutOfRangeError,
   DuplicateLayerIdError,
@@ -17,7 +21,6 @@ import type {
   ReviewDraft,
   ReviewEvidence,
 } from '@porcelain/reviews/models';
-import { FixedSecretSource } from '../../spec/fakes/fixed-secret-source.ts';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { PublishReviewService } from './publish-review-service.ts';
 
@@ -96,7 +99,7 @@ function setup() {
     store,
     new FixedClock('2026-01-01T00:00:00.000Z'),
     new SequentialIdSource(),
-    new FixedSecretSource(),
+    new SequentialSecretSource(),
   );
   return { store, service };
 }

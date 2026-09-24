@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
+import {
+  FixedClock,
+  SequentialIdSource,
+  SequentialSecretSource,
+} from '@porcelain/kernel/fakes';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingError,
@@ -13,7 +17,6 @@ import {
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
-import { SequentialSecretSource } from '../../spec/fakes/sequential-secret-source.ts';
 import { RedeemPairingService } from './redeem-pairing-service.ts';
 
 const issuedAt = '2026-09-23T10:00:00.000Z';

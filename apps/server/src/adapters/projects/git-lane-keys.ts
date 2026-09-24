@@ -1,6 +1,6 @@
 import type { InventoryStore } from '@porcelain/projects/ports';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { GitProjectWorktreeReader } from './git-project-worktree-reader.ts';
+import type { GitWorktreeCatalogStore } from './git-project-worktree-reader.ts';
 
 const ACCESS = 'access';
 const INVENTORY = 'inventory';
@@ -9,13 +9,13 @@ const UNRESOLVED = 'unresolved';
 
 export class GitLaneKeys implements LaneKeys {
   private readonly worktreeDirectory: Pick<
-    GitProjectWorktreeReader,
+    GitWorktreeCatalogStore,
     'repositoryOf'
   >;
   private readonly projectInventory: InventoryStore;
 
   constructor(
-    worktreeDirectory: Pick<GitProjectWorktreeReader, 'repositoryOf'>,
+    worktreeDirectory: Pick<GitWorktreeCatalogStore, 'repositoryOf'>,
     projectInventory: InventoryStore,
   ) {
     this.worktreeDirectory = worktreeDirectory;

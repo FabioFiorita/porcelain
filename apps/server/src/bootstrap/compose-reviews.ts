@@ -33,7 +33,7 @@ import {
   createReviewStore,
 } from '@porcelain/storage/reviews';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
-import { RandomSecretSource } from '../adapters/reviews/random-secret-source.ts';
+import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';

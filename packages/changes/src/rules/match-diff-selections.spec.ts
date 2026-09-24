@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
-import { diffSelection, diffSelectionProblem } from './diff-selection.ts';
+import {
+  diffSelectionProblem,
+  matchDiffSelections,
+} from './match-diff-selections.ts';
 import { modified } from '../../spec/fakes/comparisons.ts';
 
 const renamed = {
@@ -21,7 +24,7 @@ const status: ChangeStatusObservation = {
   ],
 };
 
-describe('diffSelectionProblem and diffSelection', () => {
+describe('diffSelectionProblem and matchDiffSelections', () => {
   it('returns the listed comparisons for the selections and the paths they cover', () => {
     const input = {
       status,
@@ -35,7 +38,7 @@ describe('diffSelectionProblem and diffSelection', () => {
       ],
     };
     expect(diffSelectionProblem(input)).toBeUndefined();
-    expect(diffSelection(input)).toEqual({
+    expect(matchDiffSelections(input)).toEqual({
       comparisons: [modified('unstaged', 'a.md'), renamed],
       paths: ['a.md', 'GUIDE.md'],
     });

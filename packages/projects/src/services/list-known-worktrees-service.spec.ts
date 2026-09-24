@@ -3,7 +3,7 @@ import type {
   ListedWorktree,
   RegisteredProject,
 } from '@porcelain/projects/models';
-import { ScriptedProjectWorktreeReader } from '../../spec/fakes/scripted-project-worktree-reader.ts';
+import { ScriptedWorktreeCatalogStore } from '../../spec/fakes/scripted-worktree-catalog-store.ts';
 import { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
 
 function project(id: string, available: boolean): RegisteredProject {
@@ -39,7 +39,7 @@ function worktree(
 
 describe('ListKnownWorktreesService', () => {
   it('answers the worktrees last seen for each project, in the order given', () => {
-    const reader = new ScriptedProjectWorktreeReader();
+    const reader = new ScriptedWorktreeCatalogStore();
     reader.saw('api', [worktree('api-main', 'api')]);
     reader.saw('web', [worktree('web-main', 'web', false)]);
     expect(
@@ -63,7 +63,7 @@ describe('ListKnownWorktreesService', () => {
   });
 
   it('shows every worktree of an unavailable project as unavailable', () => {
-    const reader = new ScriptedProjectWorktreeReader();
+    const reader = new ScriptedWorktreeCatalogStore();
     reader.saw('api', [worktree('api-main', 'api')]);
     expect(
       new ListKnownWorktreesService(reader).execute({
@@ -81,7 +81,7 @@ describe('ListKnownWorktreesService', () => {
   });
 
   it('answers an empty list for a project never listed', () => {
-    const reader = new ScriptedProjectWorktreeReader();
+    const reader = new ScriptedWorktreeCatalogStore();
     expect(
       new ListKnownWorktreesService(reader).execute({
         projects: [project('api', true)],

@@ -1,5 +1,5 @@
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
-import type { Clock, IdSource } from '@porcelain/kernel/ports';
+import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { BoxLaneOutOfRangeError } from '../errors/box-lane-out-of-range-error.ts';
 import { DuplicateLayerIdError } from '../errors/duplicate-layer-id-error.ts';
 import { DuplicateStepIdError } from '../errors/duplicate-step-id-error.ts';
@@ -17,7 +17,6 @@ import type {
   ReviewLayer,
 } from '../models/review.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
-import type { SecretSource } from '../ports/secret-source.ts';
 import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
 import { reviewDraftProblem } from '../rules/review-draft.ts';
 import { reviewActivity } from '../rules/review-activity.ts';

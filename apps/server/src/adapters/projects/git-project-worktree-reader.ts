@@ -14,7 +14,7 @@ import type {
 } from '@porcelain/projects/models';
 import type {
   InventoryStore,
-  ProjectWorktreeReader,
+  WorktreeCatalogStore,
 } from '@porcelain/projects/ports';
 import type { LaunchLimit } from '../../runtime/launch-limit.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
@@ -33,7 +33,7 @@ export type WorktreeDirectoryOptions = {
   worktreeId: (projectId: string, metadataIdentity: string) => string;
 };
 
-export class GitProjectWorktreeReader implements ProjectWorktreeReader {
+export class GitWorktreeCatalogStore implements WorktreeCatalogStore {
   private readonly entries = new Map<string, ListedWorktree>();
   private readonly options: WorktreeDirectoryOptions;
 
@@ -55,7 +55,7 @@ export class GitProjectWorktreeReader implements ProjectWorktreeReader {
     );
   }
 
-  forget(input: ProjectKey): void {
+  remove(input: ProjectKey): void {
     for (const entry of this.lastSeen(input)) this.entries.delete(entry.id);
   }
 
@@ -127,7 +127,7 @@ export class GitProjectWorktreeReader implements ProjectWorktreeReader {
         repositoryIdentity: repository.repositoryIdentity,
       });
     }
-    this.forget({ projectId: project.id });
+    this.remove({ projectId: project.id });
     for (const worktree of worktrees) this.entries.set(worktree.id, worktree);
     return { kind: 'listed', projectId: project.id, worktrees, unidentified };
   }

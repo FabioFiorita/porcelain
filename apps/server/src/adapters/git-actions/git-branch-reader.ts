@@ -2,7 +2,7 @@ import type {
   GitActionScope,
   GitBranches,
 } from '@porcelain/git-actions/models';
-import type { GitBranchReader } from '@porcelain/git-actions/ports';
+import type { BranchReader } from '@porcelain/git-actions/ports';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
 import { RequestGitSession } from '@porcelain/git/inspection';
 import {
@@ -10,7 +10,7 @@ import {
   type WritableWorktrees,
 } from '../projects/checkout-session.ts';
 
-export class GitGitBranchReader implements GitBranchReader {
+export class GitBranchReader implements BranchReader {
   private readonly worktrees: WritableWorktrees;
   private readonly git: GitActionWriterFactory;
 
