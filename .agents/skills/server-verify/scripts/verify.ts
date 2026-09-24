@@ -31,6 +31,7 @@ type CaseEvidence = {
   steps: Step[];
   assertions: Assertion[];
   serverStderr: string;
+  durationMs: number;
 };
 type RouteCoverage = {
   registered: readonly string[];
@@ -48,6 +49,8 @@ type FeatureResult = {
   failures: string[];
   evidence: string;
   routes: readonly string[];
+  durationMs: number;
+  durations: { case: string; durationMs: number }[];
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -222,7 +225,9 @@ async function runCases(
       steps: recorder.steps,
       assertions,
       serverStderr: '',
+      durationMs: 0,
     };
+    const startedAt = performance.now();
     const stderrFrom = server.logs().stderr.length;
     cases.push(evidence);
     try {
@@ -241,6 +246,7 @@ async function runCases(
     } finally {
       for (const cleanup of recorder.cleanups) cleanup();
       evidence.serverStderr = server.logs().stderr.slice(stderrFrom);
+      evidence.durationMs = Math.round(performance.now() - startedAt);
     }
     evidence.assertionCount = assertions.length;
     evidence.passed =
@@ -254,6 +260,7 @@ async function runFeature(
   evidenceDirectory: string,
   build: string,
 ): Promise<FeatureResult> {
+  const startedAt = performance.now();
   const recorder = new Recorder();
   let cases: CaseEvidence[] = [];
   let setupError: string | undefined;
@@ -295,6 +302,11 @@ async function runFeature(
   ].map((failure) => recorder.scrub(failure));
   let passed = failures.length === 0 && assertions.length > 0;
   const passedAssertions = assertions.filter((entry) => entry.passed).length;
+  const durations = cases.map((entry) => ({
+    case: entry.name,
+    durationMs: entry.durationMs,
+  }));
+  const durationMs = Math.round(performance.now() - startedAt);
   const weakAssertions = assertions.filter((entry) => entry.weak).length;
   const evidencePath = join(evidenceDirectory, `${feature.feature}.json`);
   const evidence = recorder.redact({
@@ -309,6 +321,8 @@ async function runFeature(
     assertionCount: assertions.length,
     passedAssertions,
     weakAssertions,
+    durationMs,
+    durations,
     session: server
       ? { address: server.address, repository: server.repository }
       : null,
@@ -339,6 +353,8 @@ async function runFeature(
     failures,
     evidence: evidencePath,
     routes: server?.routes ?? [],
+    durationMs,
+    durations,
   };
 }
 
@@ -381,11 +397,22 @@ for (const feature of selected) {
   const result = await runFeature(feature, evidenceDirectory, build);
   results.push(result);
   process.stdout.write(
-    `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases\n`,
+    `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases, ${result.durationMs} ms\n`,
   );
   for (const failure of result.failures)
     process.stdout.write(`  - ${failure}\n`);
 }
+const slowest = results
+  .flatMap((entry) =>
+    entry.durations.map((timed) => ({ feature: entry.feature, ...timed })),
+  )
+  .sort((left, right) => right.durationMs - left.durationMs)
+  .slice(0, 10);
+process.stdout.write('Slowest cases:\n');
+for (const timed of slowest)
+  process.stdout.write(
+    `  ${timed.durationMs} ms  ${timed.feature}: ${timed.case}\n`,
+  );
 const registered = results.find((entry) => entry.routes.length > 0)?.routes;
 const coverage = registered
   ? routeCoverage(registered, features)
@@ -418,8 +445,12 @@ await writeFile(
       assertions: total((entry) => entry.assertions),
       passedAssertions: total((entry) => entry.passedAssertions),
       weakAssertions: total((entry) => entry.weakAssertions),
+      durationMs: total((entry) => entry.durationMs),
+      slowest,
       routes: coverage,
-      results: results.map(({ routes: _routes, ...entry }) => entry),
+      results: results.map(
+        ({ routes: _routes, durations: _durations, ...entry }) => entry,
+      ),
     },
     null,
     2,
