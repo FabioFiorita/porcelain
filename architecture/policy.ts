@@ -396,7 +396,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'fake',
   ]),
   fixture: new Set(),
-  test: new Set([...everything, 'fake', 'fixture', 'test']),
+  test: new Set([...everything, 'fake', 'fixture', 'test', 'process']),
 };
 
 const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
@@ -470,6 +470,8 @@ export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
   'gateway-api',
   'repository',
   'repository-api',
+  'process',
+  'process-api',
 ]);
 
 const typedRoles = new Set<Role>([

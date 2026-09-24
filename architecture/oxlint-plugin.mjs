@@ -309,7 +309,7 @@ const primitiveTypes = new Set([
   'TSLiteralType',
   'TSTemplateLiteralType',
 ]);
-const portName = /(?:Store|Reader|Writer|Runner|Source)$/;
+const portName = /(?:Store|Reader|Writer|Runner|Source|^Clock)$/;
 const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential)[A-Z]/;
 const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
 const camelCase = /^[a-z][A-Za-z0-9]*$/;
@@ -432,7 +432,7 @@ function awaited(node) {
   return node?.type === 'AwaitExpression' ? node.argument : node;
 }
 
-function isUseCaseExecute(node) {
+function isUseCaseExecuteCall(node) {
   if (node?.type !== 'CallExpression') return false;
   const path = memberPath(node.callee);
   return (
@@ -485,9 +485,9 @@ function routeHandlerCall(handler) {
   const [first, second] = statements;
   if (statements.length === 1 && first.type === 'ReturnStatement') {
     const returned = awaited(first.argument);
-    if (isUseCaseExecute(returned)) return returned;
+    if (isUseCaseExecuteCall(returned)) return returned;
     const sent = awaited(replySent(returned, reply));
-    return isUseCaseExecute(sent) ? sent : undefined;
+    return isUseCaseExecuteCall(sent) ? sent : undefined;
   }
   if (
     statements.length !== 2 ||
@@ -500,7 +500,7 @@ function routeHandlerCall(handler) {
   const call = awaited(declarator.init);
   const sent = replySent(second.argument, reply);
   return declarator.id.type === 'Identifier' &&
-    isUseCaseExecute(call) &&
+    isUseCaseExecuteCall(call) &&
     sent?.type === 'Identifier' &&
     sent.name === declarator.id.name
     ? call
@@ -852,7 +852,7 @@ export default {
       create(context) {
         const path = normalizedFilename(context.filename);
         if (
-          !controllerSource.test(path) &&
+          !useCaseSource.test(path) &&
           !typedPackageSource.test(path) &&
           !useCaseFile.test(repositoryPath(context))
         )
@@ -1365,7 +1365,7 @@ export default {
               context.report({
                 node: node.id,
                 message:
-                  'Name a port for its role: it ends in Store, Reader, Writer, Runner or Source.',
+                  'Name a port for its role: it ends in Store, Reader, Writer, Runner or Source, or it is Clock.',
               });
             for (const member of node.body.body) {
               if (member.type === 'TSMethodSignature')
