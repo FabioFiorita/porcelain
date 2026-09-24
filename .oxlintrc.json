@@ -21,6 +21,30 @@
     "porcelain/spec-no-skips": "error",
     "porcelain/spec-behaviour-names": "error",
     "porcelain/spec-imports": "error",
+    "porcelain/operation-class-members": "error",
+    "porcelain/feature-route-registrations": "error",
+    "porcelain/feature-route-handler": "warn",
+    "porcelain/no-schema-parse-aliases": "error",
+    "porcelain/no-loose-equality-in-domain": "error",
+    "porcelain/no-node-globals": "warn",
+    "porcelain/no-disable-directives": "error",
+    "porcelain/no-void-statement": "warn",
+    "porcelain/adapters-never-import-services": "warn",
+    "porcelain/write-needs-write-lane": "warn",
+    "porcelain/rules-are-pure": "warn",
+    "porcelain/kernel-is-types": "warn",
+    "porcelain/models-file-shape": "warn",
+    "porcelain/no-inline-execute-types": "warn",
+    "porcelain/one-clock": "warn",
+    "porcelain/no-undefined-union-result": "warn",
+    "porcelain/signals-are-passed": "warn",
+    "porcelain/imports-by-path": "warn",
+    "porcelain/port-shape": "warn",
+    "porcelain/no-exported-constants": "warn",
+    "porcelain/naming": "warn",
+    "porcelain/implementation-name": "warn",
+    "porcelain/bootstrap-starts-nothing": "warn",
+    "porcelain/fakes-store": "warn",
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
@@ -33,5 +57,20 @@
     "typescript/no-unsafe-return": "error",
     "typescript/no-unsafe-type-assertion": "error",
     "typescript/consistent-type-imports": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "architecture/*.mjs",
+        "architecture/*.cjs"
+      ],
+      "rules": {
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off"
+      }
+    }
+  ]
 }

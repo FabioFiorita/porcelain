@@ -399,11 +399,29 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   test: new Set([...everything, 'fake', 'fixture', 'test']),
 };
 
+const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
+
+function testViolation(
+  from: Classification,
+  to: Classification,
+): string | undefined {
+  if (
+    specSupportRoles.has(to.role) &&
+    to.owner !== from.owner &&
+    to.owner !== 'kernel'
+  )
+    return 'test-imports-own-package-support-only';
+  if (from.owner !== 'server' && to.owner === 'server')
+    return 'package-cannot-import-server';
+  if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
+  return;
+}
+
 export function violation(
   from: Classification,
   to: Classification,
 ): string | undefined {
-  if (from.role === 'test') return;
+  if (from.role === 'test') return testViolation(from, to);
   if (
     from.role === 'fake' &&
     to.owner !== from.owner &&
@@ -447,6 +465,13 @@ export function violation(
   return;
 }
 
+export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
+  'gateway',
+  'gateway-api',
+  'repository',
+  'repository-api',
+]);
+
 const typedRoles = new Set<Role>([
   ...domainInternal,
   ...domainApiRoles,
@@ -463,7 +488,7 @@ const nodeModules = new Set(
   builtinModules.map((name) => name.replace(/^node:/, '')),
 );
 const infrastructureModule =
-  /^(?:zod|fastify|@fastify\/|ws|drizzle-orm|better-sqlite3)(?:\/|$)?/;
+  /^(?:(?:zod|fastify|ws|drizzle-orm|better-sqlite3)(?:\/|$)|@fastify\/)/;
 const storageEngineModule =
   /^(?:better-sqlite3|drizzle-orm|fs|child_process)(?:\/|$)/;
 
