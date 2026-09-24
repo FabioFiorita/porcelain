@@ -19,6 +19,7 @@ export type CommandStop = 'aborted' | 'deadline' | 'output-limit' | 'lingering';
 export type CommandOutput = {
   stdout: Buffer;
   stderr: Buffer;
+  stderrTruncated: boolean;
   exitCode: number | undefined;
   stopped: CommandStop | undefined;
   groupStopped: boolean;
@@ -43,19 +44,10 @@ export async function runCommand(
     stopped ??= reason;
     if (child.pid !== undefined) signalGroup(child.pid, 'SIGKILL');
   };
-  const collect = (stream: Readable, observe?: (chunk: Buffer) => void) => {
-    const chunks: Buffer[] = [];
-    let bytes = 0;
-    stream.on('data', (chunk: Buffer) => {
-      observe?.(chunk);
-      bytes += chunk.length;
-      if (bytes > input.maxBytes) stop('output-limit');
-      else chunks.push(chunk);
-    });
-    return chunks;
-  };
-  const stdout = collect(child.stdout);
-  const stderr = collect(child.stderr, input.onStderr);
+  const stdout = collectOrStop(child.stdout, input.maxBytes, () =>
+    stop('output-limit'),
+  );
+  const stderr = collectUpTo(child.stderr, input.maxBytes, input.onStderr);
   const closed = new Promise<boolean>((resolve) =>
     child.once('close', () => resolve(true)),
   );
@@ -84,7 +76,8 @@ export async function runCommand(
     child.stderr.destroy();
     return {
       stdout: Buffer.concat(stdout),
-      stderr: Buffer.concat(stderr),
+      stderr: Buffer.concat(stderr.chunks),
+      stderrTruncated: stderr.truncated,
       exitCode,
       stopped,
       groupStopped,
@@ -93,6 +86,39 @@ export async function runCommand(
     clearTimeout(deadline);
     signal?.removeEventListener('abort', abort);
   }
+}
+
+function collectOrStop(
+  stream: Readable,
+  maxBytes: number,
+  overflow: () => void,
+): Buffer[] {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  stream.on('data', (chunk: Buffer) => {
+    bytes += chunk.length;
+    if (bytes > maxBytes) overflow();
+    else chunks.push(chunk);
+  });
+  return chunks;
+}
+
+function collectUpTo(
+  stream: Readable,
+  maxBytes: number,
+  observe: ((chunk: Buffer) => void) | undefined,
+): { chunks: Buffer[]; truncated: boolean } {
+  const collected = { chunks: new Array<Buffer>(), truncated: false };
+  let bytes = 0;
+  stream.on('data', (chunk: Buffer) => {
+    observe?.(chunk);
+    const room = maxBytes - bytes;
+    if (chunk.length > room) collected.truncated = true;
+    const kept = chunk.subarray(0, Math.max(room, 0));
+    bytes += kept.length;
+    if (kept.length > 0) collected.chunks.push(kept);
+  });
+  return collected;
 }
 
 async function groupEnds(pid: number, withinMs: number): Promise<boolean> {

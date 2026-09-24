@@ -103,6 +103,30 @@ describe('runCommand', () => {
     expect(output.stdout.length).toBeLessThanOrEqual(16);
   });
 
+  it('keeps the first bytes of stderr past the byte cap, marks it truncated and lets the command finish', async () => {
+    const output = await runCommand({
+      command: node,
+      args: [
+        '-e',
+        "process.stderr.write('e'.repeat(4096)); process.stdout.write('plan'); process.exitCode = 0",
+      ],
+      maxBytes: 16,
+    });
+    expect({
+      stdout: output.stdout.toString('utf8'),
+      stderr: output.stderr.toString('utf8'),
+      stderrTruncated: output.stderrTruncated,
+      exitCode: output.exitCode,
+      stopped: output.stopped,
+    }).toEqual({
+      stdout: 'plan',
+      stderr: 'e'.repeat(16),
+      stderrTruncated: true,
+      exitCode: 0,
+      stopped: undefined,
+    });
+  });
+
   it('stops a command that outlives its deadline', async () => {
     const output = await runCommand({
       command: node,
