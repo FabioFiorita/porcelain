@@ -256,9 +256,9 @@ function laneFindings(
     if (!isCallExpression(node) || !isPropertyAccessExpression(node.expression))
       continue;
     const target = node.expression.expression;
-    const field = thisMember(target);
-    if (!field || !isIdentifier(node.expression.name)) continue;
+    if (!isIdentifier(node.expression.name)) continue;
     if (node.expression.name.text !== 'execute') continue;
+    const field = thisMember(target) ?? target.getText();
     const declaration = checker
       .getTypeAtLocation(target)
       ?.getSymbol()

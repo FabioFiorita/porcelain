@@ -1184,7 +1184,11 @@ export default {
             if (
               context.sourceCode
                 .getAncestors(node)
-                .some((ancestor) => ancestor.type === 'TSModuleDeclaration')
+                .some(
+                  (ancestor) =>
+                    ancestor.type === 'TSModuleDeclaration' &&
+                    ancestor.id?.type === 'Literal',
+                )
             )
               return;
             context.report({
@@ -1775,7 +1779,34 @@ export default {
       create(context) {
         const path = repositoryPath(context);
         if (!numberFreeFile.test(path) || isSpec(context)) return {};
+        const message =
+          'A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.';
+        const hiddenNumber = (node) => {
+          const text = staticString(node, context);
+          return text !== undefined && Number(text) > 1;
+        };
         return {
+          CallExpression(node) {
+            const callee = memberPath(node.callee)?.join('.');
+            if (
+              [
+                'Number',
+                'parseInt',
+                'parseFloat',
+                'Number.parseInt',
+                'Number.parseFloat',
+              ].includes(callee ?? '') &&
+              hiddenNumber(node.arguments[0])
+            )
+              context.report({ node, message });
+          },
+          UnaryExpression(node) {
+            if (
+              (node.operator === '+' || node.operator === '-') &&
+              hiddenNumber(node.argument)
+            )
+              context.report({ node, message });
+          },
           Literal(node) {
             if (
               typeof node.value === 'number' &&
