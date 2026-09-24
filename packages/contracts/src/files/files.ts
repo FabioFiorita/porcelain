@@ -1,26 +1,18 @@
 import { z } from 'zod';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const MAX_TEXT_BYTES = 1024 * 1024;
-
-function utf8ByteLength(text: string) {
-  let bytes = 0;
-  for (const character of text) {
-    const point = character.codePointAt(0) ?? 0;
-    bytes += point < 0x80 ? 1 : point < 0x800 ? 2 : point < 0x10000 ? 3 : 4;
-  }
-  return bytes;
-}
 
 const directoryPathSchema = z.union([z.literal(''), relativePathSchema]);
 const editableTextSchema = z
   .string()
   .max(MAX_TEXT_BYTES)
   .refine(
-    (text) => !text.includes('\0') && utf8ByteLength(text) <= MAX_TEXT_BYTES,
-    'Expected UTF-8 text without NUL within the write limit',
+    (text) => utf8ByteLength(text) <= MAX_TEXT_BYTES,
+    'Expected UTF-8 text within the write limit',
   );
 
 export const listDirectoryQuerySchema = z.strictObject({

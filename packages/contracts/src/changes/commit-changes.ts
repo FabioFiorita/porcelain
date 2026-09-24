@@ -1,7 +1,7 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { absentAsNull } from './absent-as-null.ts';
 import { commitSummarySchema } from './commit-history.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 
@@ -14,7 +14,7 @@ const commitComparisonSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('empty-tree') }),
 ]);
 
-export const commitFileSchema = z.object({
+const commitFileSchema = z.object({
   oldPath: absentAsNull(z.string()),
   newPath: absentAsNull(z.string()),
   status: z.enum(['added', 'deleted', 'modified', 'renamed', 'type-changed']),
@@ -50,7 +50,6 @@ export const readCommitDiffsResponseSchema = z.object({
   ),
 });
 
-export type CommitFile = z.output<typeof commitFileSchema>;
 export type ReadCommitFilesParams = z.output<
   typeof readCommitFilesParamsSchema
 >;

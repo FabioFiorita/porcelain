@@ -3,7 +3,7 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-export const reviewedMarkSchema = z.object({
+const reviewedMarkSchema = z.object({
   path: relativePathSchema,
   fingerprint: fingerprintSchema,
   reviewedAt: z.iso.datetime(),
@@ -50,7 +50,7 @@ export const removeReviewedFileQuerySchema = z.strictObject({
 });
 export const removeReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
-export const reviewedLayerMarkSchema = z.object({
+const reviewedLayerMarkSchema = z.object({
   layerId: z.uuid(),
   fingerprint: fingerprintSchema,
   reviewedAt: z.iso.datetime(),
@@ -75,7 +75,6 @@ export const removeReviewedLayerQuerySchema = z.strictObject({
 export const removeReviewedLayerResponseSchema =
   listReviewedLayersResponseSchema;
 
-export type ReviewedMark = z.output<typeof reviewedMarkSchema>;
 export type ListReviewedFilesResponse = z.output<
   typeof listReviewedFilesResponseSchema
 >;
@@ -97,7 +96,6 @@ export type RemoveReviewedFileQuery = z.output<
 export type RemoveReviewedFileResponse = z.output<
   typeof removeReviewedFileResponseSchema
 >;
-export type ReviewedLayerMark = z.output<typeof reviewedLayerMarkSchema>;
 export type ListReviewedLayersResponse = z.output<
   typeof listReviewedLayersResponseSchema
 >;

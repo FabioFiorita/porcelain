@@ -1,25 +1,8 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
-const absentAsNullText = z.codec(
-  z.string().nullable(),
-  z.union([z.string(), z.undefined()]),
-  {
-    decode: (value) => value ?? undefined,
-    encode: (value) => value ?? null,
-  },
-);
-
 const reviewStatusSchema = z.enum(['pending', 'reviewed', 'replied']);
-
-const absentAsNullStatus = z.codec(
-  reviewStatusSchema.nullable(),
-  z.union([reviewStatusSchema, z.undefined()]),
-  {
-    decode: (value) => value ?? undefined,
-    encode: (value) => value ?? null,
-  },
-);
 
 const absolutePathSchema = z
   .string()
@@ -28,16 +11,16 @@ const absolutePathSchema = z
   .startsWith('/')
   .refine((path) => !path.includes('\0'));
 
-export const worktreeSchema = z.object({
+const worktreeSchema = z.object({
   id: worktreeIdSchema,
   path: z.string(),
   main: z.boolean(),
-  branch: absentAsNullText,
+  branch: absentAsNull(z.string()),
   available: z.boolean(),
-  status: absentAsNullStatus,
+  status: absentAsNull(reviewStatusSchema),
 });
 
-export const projectSchema = z.object({
+const projectSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   available: z.boolean(),
@@ -75,29 +58,20 @@ export const browseProjectFoldersQuerySchema = z.strictObject({
 });
 export const browseProjectFoldersResponseSchema = z.object({
   path: z.string(),
-  parent: absentAsNullText,
+  parent: absentAsNull(z.string()),
   directories: z.array(projectLocationSchema),
   repository: z.boolean(),
   truncated: z.boolean(),
 });
 
 export const renameProjectRequestSchema = z.strictObject({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(100)
-    .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value), {
-      message: 'The name must not contain control characters',
-    }),
+  name: z.string().trim().min(1).max(100),
 });
 export const renameProjectResponseSchema = z.object({
   id: z.uuid(),
   name: z.string(),
 });
 
-export type Worktree = z.output<typeof worktreeSchema>;
-export type Project = z.output<typeof projectSchema>;
 export type RenameProjectParams = z.output<typeof renameProjectParamsSchema>;
 export type RemoveProjectParams = z.output<typeof removeProjectParamsSchema>;
 export type ListFilePreferencesParams = z.output<

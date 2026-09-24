@@ -15,14 +15,14 @@ export const redeemPairingResponseSchema = z.object({
   credential: z.string().optional(),
 });
 
-export const pairingGrantSchema = z.object({
+const pairingGrantSchema = z.object({
   id: z.string(),
   label: z.string(),
   addresses: z.array(z.string()),
   createdAt: z.string(),
   expiresAt: z.string(),
 });
-export const deviceSchema = z.object({
+const deviceSchema = z.object({
   id: z.string(),
   label: z.string(),
   platform: z.string(),
@@ -60,8 +60,6 @@ export type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
 export type RedeemPairingResponse = z.output<
   typeof redeemPairingResponseSchema
 >;
-export type PairingGrant = z.output<typeof pairingGrantSchema>;
-export type Device = z.output<typeof deviceSchema>;
 export type ListAccessResponse = z.output<typeof listAccessResponseSchema>;
 export type IssuePairingRequest = z.output<typeof issuePairingRequestSchema>;
 export type IssuePairingResponse = z.output<typeof issuePairingResponseSchema>;

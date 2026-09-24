@@ -1,33 +1,20 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { gitActionSchema } from '../shared/git-action-receipt.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { absentAsNull } from './absent-as-null.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
 
-export const gitActionSchema = z.enum([
-  'fetch',
-  'pull',
-  'push',
-  'commit',
-  'amend',
-  'stash-create',
-  'stash-apply',
-  'stash-pop',
-  'discard',
-  'switch-branch',
-  'create-branch',
-]);
-
-export const fileChangeSchema = z.object({
+const fileChangeSchema = z.object({
   path: relativePathSchema,
   fingerprint: absentAsNull(fingerprintSchema),
   comparisons: z.array(gitChangeSchema).min(1),
 });
 
-export const changeListBranchSchema = z.object({
+const changeListBranchSchema = z.object({
   name: absentAsNull(z.string()),
   upstream: absentAsNull(z.string()),
   ahead: z.number().int().nonnegative(),
@@ -78,14 +65,12 @@ export const readChangeDiffsResponseSchema = z.object({
   ),
 });
 
-export const readChangeLinesQuerySchema = z
-  .strictObject({
-    path: relativePathSchema,
-    from: z.coerce.number().int().min(1),
-    to: z.coerce.number().int().min(1),
-    at: z.enum(['head', 'worktree']),
-  })
-  .refine((range) => range.to >= range.from);
+export const readChangeLinesQuerySchema = z.strictObject({
+  path: relativePathSchema,
+  from: z.coerce.number().int().min(1),
+  to: z.coerce.number().int().min(1),
+  at: z.enum(['head', 'worktree']),
+});
 
 export const readChangeLinesResponseSchema = z.object({
   environmentId: z.uuid(),
@@ -97,9 +82,6 @@ export const readChangeLinesResponseSchema = z.object({
   lines: z.array(z.string()),
 });
 
-export type GitAction = z.output<typeof gitActionSchema>;
-export type FileChange = z.output<typeof fileChangeSchema>;
-export type ChangeListBranch = z.output<typeof changeListBranchSchema>;
 export type ReadChangesResponse = z.output<typeof readChangesResponseSchema>;
 export type ReadChangeDiffsRequest = z.output<
   typeof readChangeDiffsRequestSchema

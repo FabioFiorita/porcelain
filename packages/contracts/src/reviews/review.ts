@@ -1,29 +1,26 @@
 import { z } from 'zod';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { REVIEW_SUMMARY_BYTES } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const idSchema = z.uuid();
 const lineSchema = z.number().int().min(1).max(2_147_483_647);
-const LONE_SURROGATE =
-  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 
-export const codePointerSchema = z
-  .strictObject({
-    path: relativePathSchema,
-    startLine: lineSchema,
-    endLine: lineSchema,
-    symbol: z.string().trim().min(1).max(500).optional(),
-  })
-  .refine((pointer) => pointer.endLine >= pointer.startLine, {
-    message: 'The pointer end must not precede its start',
-  });
+const codePointerSchema = z.strictObject({
+  path: relativePathSchema,
+  startLine: lineSchema,
+  endLine: lineSchema,
+  symbol: z.string().trim().min(1).max(500).optional(),
+});
 
-export const resolvedCodePointerSchema = codePointerSchema.safeExtend({
+const resolvedCodePointerSchema = codePointerSchema.safeExtend({
   textFingerprint: fingerprintSchema,
 });
 
-export const stepLocationSchema = z.discriminatedUnion('state', [
+const stepLocationSchema = z.discriminatedUnion('state', [
   z.strictObject({ state: z.literal('changed') }),
   z.strictObject({
     state: z.literal('current'),
@@ -37,7 +34,7 @@ export const stepLocationSchema = z.discriminatedUnion('state', [
   }),
 ]);
 
-export const reviewStepSchema = z.strictObject({
+const reviewStepSchema = z.strictObject({
   id: idSchema,
   lane: z.number().int().min(0).max(99),
   title: z.string().trim().min(1).max(200),
@@ -46,7 +43,7 @@ export const reviewStepSchema = z.strictObject({
   pointer: codePointerSchema,
 });
 
-export const resolvedReviewStepSchema = reviewStepSchema.extend({
+const resolvedReviewStepSchema = reviewStepSchema.extend({
   pointer: resolvedCodePointerSchema,
   location: stepLocationSchema,
 });
@@ -57,7 +54,7 @@ const arrowSchema = z.strictObject({
   label: z.string().trim().min(1).max(200).optional(),
 });
 
-export const reviewLayerSchema = z.strictObject({
+const reviewLayerSchema = z.strictObject({
   id: idSchema,
   title: z.string().trim().min(1).max(200),
   summary: z.string().trim().min(1).max(2_000),
@@ -66,7 +63,7 @@ export const reviewLayerSchema = z.strictObject({
   arrows: z.array(arrowSchema).max(500).optional(),
 });
 
-export const resolvedReviewLayerSchema = reviewLayerSchema.safeExtend({
+const resolvedReviewLayerSchema = reviewLayerSchema.safeExtend({
   steps: z.array(resolvedReviewStepSchema).min(1).max(500),
   fingerprint: fingerprintSchema,
 });
@@ -77,7 +74,7 @@ const diagramArrowSchema = z.strictObject({
   label: z.string().trim().min(1).max(200).optional(),
   dashed: z.boolean().optional(),
 });
-export const diagramBoxSchema = z.strictObject({
+const diagramBoxSchema = z.strictObject({
   id: idSchema,
   lane: z.number().int().min(0).max(99),
   label: z.string().trim().min(1).max(200),
@@ -87,12 +84,12 @@ export const diagramBoxSchema = z.strictObject({
   problem: z.string().trim().min(1).max(2_000).optional(),
   layerId: idSchema.optional(),
 });
-export const diagramSchema = z.strictObject({
+const diagramSchema = z.strictObject({
   lanes: z.array(z.string().trim().min(1).max(100)).min(1).max(100),
   boxes: z.array(diagramBoxSchema).max(500),
   arrows: z.array(diagramArrowSchema).max(1_000),
 });
-export const reviewDiagramSchema = z.strictObject({
+const reviewDiagramSchema = z.strictObject({
   after: diagramSchema,
   before: diagramSchema.optional(),
 });
@@ -100,30 +97,21 @@ export const reviewDiagramSchema = z.strictObject({
 const summaryHtmlSchema = z
   .string()
   .min(1)
-  .max(10 * 1024 * 1024)
-  .refine((value) => !LONE_SURROGATE.test(value), 'Expected valid Unicode text')
+  .max(REVIEW_SUMMARY_BYTES)
+  .refine((value) => value.isWellFormed(), 'Expected valid Unicode text')
   .refine(
-    (value) => utf8Bytes(value) <= 10 * 1024 * 1024,
+    (value) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
     'Summary exceeds 10 MiB',
   );
 
-function utf8Bytes(value: string) {
-  let bytes = 0;
-  for (const character of value) {
-    const point = character.codePointAt(0) ?? 0;
-    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
-  }
-  return bytes;
-}
-
-export const notExplainedSchema = z.object({
+const notExplainedSchema = z.object({
   path: relativePathSchema,
   ranges: z.array(z.object({ startLine: lineSchema, endLine: lineSchema })),
   deleted: z.boolean().optional(),
   binary: z.boolean().optional(),
 });
 
-export const publishedReviewSchema = z.object({
+const publishedReviewSchema = z.object({
   environmentId: z.uuid(),
   worktreeId: worktreeIdSchema,
   revision: z.number().int().positive(),
@@ -150,31 +138,11 @@ export const publishReviewRequestSchema = z.strictObject({
   layers: z.array(reviewLayerSchema).min(1).max(100),
 });
 
-const absentReviewSchema = z.codec(
-  publishedReviewSchema.nullable(),
-  publishedReviewSchema.optional(),
-  {
-    decode: (review) => review ?? undefined,
-    encode: (review) => review ?? null,
-  },
-);
-
 export const readPublishedReviewResponseSchema = z.object({
-  review: absentReviewSchema,
+  review: absentAsNull(publishedReviewSchema),
 });
 export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
 
-export type CodePointer = z.output<typeof codePointerSchema>;
-export type ResolvedCodePointer = z.output<typeof resolvedCodePointerSchema>;
-export type StepLocation = z.output<typeof stepLocationSchema>;
-export type ReviewStep = z.output<typeof reviewStepSchema>;
-export type ResolvedReviewStep = z.output<typeof resolvedReviewStepSchema>;
-export type ReviewLayer = z.output<typeof reviewLayerSchema>;
-export type ResolvedReviewLayer = z.output<typeof resolvedReviewLayerSchema>;
-export type Diagram = z.output<typeof diagramSchema>;
-export type DiagramBox = z.output<typeof diagramBoxSchema>;
-export type ReviewDiagram = z.output<typeof reviewDiagramSchema>;
-export type NotExplained = z.output<typeof notExplainedSchema>;
 export type PublishedReview = z.output<typeof publishedReviewSchema>;
 export type PublishReviewRequest = z.output<typeof publishReviewRequestSchema>;
 export type PublishReviewResponse = z.output<
