@@ -17,7 +17,7 @@ import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
-export type GenerateCommitDraftOptions = { deadlineMs: number };
+type GenerateCommitDraftOptions = { deadlineMs: number };
 
 export class GenerateCommitDraftUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;

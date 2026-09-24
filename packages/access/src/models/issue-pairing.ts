@@ -6,7 +6,7 @@ export type IssuePairingInput = {
   environmentId: string;
 };
 
-export type PairingLink = {
+type PairingLink = {
   addresses: string[];
   code: string;
   environmentId: string;

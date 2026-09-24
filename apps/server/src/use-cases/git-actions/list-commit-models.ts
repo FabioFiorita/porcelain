@@ -3,7 +3,7 @@ import type { ListCommitModelsService } from '@porcelain/git-actions/services';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 
-export type ListCommitModelsOptions = { deadlineMs: number };
+type ListCommitModelsOptions = { deadlineMs: number };
 
 export class ListCommitModelsUseCase {
   private readonly listCommitModels: ListCommitModelsService;

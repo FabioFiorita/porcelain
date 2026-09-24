@@ -1,4 +1,4 @@
-export type HunkSelection =
+type HunkSelection =
   | { kind: 'selected'; patch: string }
   | { kind: 'partial' }
   | { kind: 'missing' };

@@ -45,5 +45,4 @@ export const liveNoticeSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
-export type LiveSubscription = z.output<typeof liveSubscriptionSchema>;
 export type LiveNotice = z.output<typeof liveNoticeSchema>;

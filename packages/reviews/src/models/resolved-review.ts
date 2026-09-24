@@ -6,7 +6,7 @@ import type {
   StepDraft,
 } from './review.ts';
 
-export type StepLocation =
+type StepLocation =
   | { state: 'changed' }
   | { state: 'current' | 'committed'; startLine: number; endLine: number };
 
@@ -26,7 +26,7 @@ export type UnexplainedChange = {
   binary?: boolean | undefined;
 };
 
-export type SummaryGrant = {
+type SummaryGrant = {
   token: string;
   expires: string;
   signature: string;

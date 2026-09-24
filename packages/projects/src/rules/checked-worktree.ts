@@ -10,7 +10,7 @@ import type {
 } from '../models/worktree-catalog.ts';
 import { worktreeIsWritable } from './worktree-is-writable.ts';
 
-export function observationStale(
+function observationStale(
   observation: Pick<CatalogObservation, 'observedAt'>,
   now: string,
   staleAfterMs: number,

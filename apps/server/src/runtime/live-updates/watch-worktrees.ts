@@ -22,7 +22,7 @@ import type {
 import type { JobWork } from '../../ports/job-work.ts';
 import type { OpenedWatch, WatchOpener } from '../../ports/watch-demand.ts';
 
-export type WatchWorktreesOptions = {
+type WatchWorktreesOptions = {
   maxConnections: number;
   maxWatchedWorktrees: number;
   burstMs: number;

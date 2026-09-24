@@ -1,6 +1,6 @@
 import type { FingerprintedFile } from './fingerprinted-file.ts';
 
-export type UpstreamExpectation = { oid?: string | undefined };
+type UpstreamExpectation = { oid?: string | undefined };
 
 export type GitActionExpectation = {
   headOid?: string | undefined;

@@ -1,4 +1,4 @@
-export type HeadSnapshot = {
+type HeadSnapshot = {
   tipOid: string | null;
   head:
     | { kind: 'attached'; ref: string }

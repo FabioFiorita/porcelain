@@ -172,11 +172,7 @@ export const readPublishedReviewResponseSchema = z.object({
 });
 export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
 
-export type PublishedReview = z.output<typeof publishedReviewSchema>;
 export type PublishReviewRequest = z.output<typeof publishReviewRequestSchema>;
-export type PublishReviewResponse = z.output<
-  typeof publishReviewResponseSchema
->;
 export type ReadPublishedReviewResponse = z.output<
   typeof readPublishedReviewResponseSchema
 >;

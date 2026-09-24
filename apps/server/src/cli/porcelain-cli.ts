@@ -11,9 +11,9 @@ import { isServiceFailure } from './service.ts';
 import { installShutdownSignals } from './signals.ts';
 import { writeStandardError, writeStandardOutput } from './standard-output.ts';
 
-export type ActionableError = abstract new (...args: never[]) => Error;
+type ActionableError = abstract new (...args: never[]) => Error;
 
-export type PorcelainCliRuntime = {
+type PorcelainCliRuntime = {
   startServer: StartServer;
   ownerProbe: OwnerProbe;
   clock: Clock;
@@ -21,7 +21,7 @@ export type PorcelainCliRuntime = {
   actionableErrors: readonly ActionableError[];
 };
 
-export type CliDependencies = {
+type CliDependencies = {
   homeDirectory?: string;
   webRoot?: string;
   startServer?: StartServer;

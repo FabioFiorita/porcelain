@@ -14,7 +14,7 @@ export type ListedWorktrees = Pick<
   'known'
 >;
 
-export type OpenedCheckout = {
+type OpenedCheckout = {
   worktree: ListedWorktree;
   checkout: CheckoutSession;
 };

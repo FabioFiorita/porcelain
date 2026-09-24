@@ -6,7 +6,7 @@ import { apiScope, type ApiUseCases } from './scopes/api.ts';
 import { pageScope, type PageUseCases } from './scopes/page.ts';
 import { createServer } from './server-factory.ts';
 
-export type NetworkServerOptions = {
+type NetworkServerOptions = {
   application: ApiUseCases & PageUseCases;
   settings: Pick<ServerSettings, 'allowedHosts' | 'limits'>;
   files: WebRootReader;

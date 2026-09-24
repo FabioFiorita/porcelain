@@ -82,9 +82,6 @@ export type ListReviewedFilesResponse = z.output<
 export type SetReviewedFileRequest = z.output<
   typeof setReviewedFileRequestSchema
 >;
-export type SetReviewedFileResponse = z.output<
-  typeof setReviewedFileResponseSchema
->;
 export type ReviewedFileConflictPolicy = { onConflict: 'report' | 'refuse' };
 export type SetReviewedFilesRequest = z.output<
   typeof setReviewedFilesRequestSchema

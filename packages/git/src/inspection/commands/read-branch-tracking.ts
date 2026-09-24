@@ -1,7 +1,7 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { runInspection } from './run-inspection.ts';
 
-export type BranchTracking = {
+type BranchTracking = {
   remoteName: string | null;
   sourceRef: string | null;
   upstream: string | null;

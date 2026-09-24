@@ -35,7 +35,7 @@ import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
 
-export type GitActionsDependencies = {
+type GitActionsDependencies = {
   stores: Stores;
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;

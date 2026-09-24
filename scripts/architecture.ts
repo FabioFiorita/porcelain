@@ -19,6 +19,7 @@ import {
   type Classification,
 } from '../architecture/policy.ts';
 import { typeRuleFindings } from '../architecture/type-rules.ts';
+import { unusedExportFindings } from '../architecture/unused-exports.ts';
 
 const dependencySchema = z.object({
   module: z.string(),
@@ -398,6 +399,7 @@ try {
     ...structureFindings(sources, classified),
     ...placementFindings(),
     ...typeRuleFindings(repositoryRoot),
+    ...unusedExportFindings(repositoryRoot),
   ];
   const byRule = new Map<string, Finding[]>();
   for (const finding of violations) {

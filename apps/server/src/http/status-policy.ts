@@ -108,7 +108,7 @@ type StatusRule = {
   withoutBody?: true;
 };
 
-export type StatusResponse = {
+type StatusResponse = {
   statusCode: number;
   body: ApiError | undefined;
 };

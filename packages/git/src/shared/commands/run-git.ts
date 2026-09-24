@@ -15,7 +15,7 @@ export type GitReadOptions = {
   input?: Buffer;
 };
 
-export type GitWriteOptions = {
+type GitWriteOptions = {
   maxBytes?: number;
   input?: string;
   indexFile?: string;

@@ -6,7 +6,7 @@ export type CommentWriter = {
 
 export type CommentThreadScope = 'all' | 'waiting';
 
-export type CommentComparison =
+type CommentComparison =
   | { kind: 'worktree'; scope: 'staged' | 'unstaged' | 'untracked' }
   | { kind: 'file' }
   | { kind: 'commit'; parent: number };

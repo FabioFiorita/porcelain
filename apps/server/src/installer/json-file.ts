@@ -3,12 +3,12 @@ import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { ZodType } from 'zod';
 
-export type JsonFile<T> =
+type JsonFile<T> =
   | { kind: 'missing' }
   | { kind: 'invalid' }
   | { kind: 'value'; value: T };
 
-export function errorCode(error: unknown): string | undefined {
+function errorCode(error: unknown): string | undefined {
   return error instanceof Error &&
     'code' in error &&
     typeof error.code === 'string'

@@ -5,7 +5,7 @@ import type {
 } from './interfaces/git-session.ts';
 import type { GitLimits } from '../shared/dtos/git-limits.ts';
 
-export class RequestCheckoutSession implements CheckoutSessionPort {
+class RequestCheckoutSession implements CheckoutSessionPort {
   readonly path: string;
   private readonly metadataIdentity: string;
   private readonly repositoryIdentity: string;

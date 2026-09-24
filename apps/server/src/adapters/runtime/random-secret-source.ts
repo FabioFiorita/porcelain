@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { Base64UrlSecret } from '@porcelain/kernel/models';
 import type { SecretSource } from '@porcelain/kernel/ports';
 
-export type RandomSecretSourceOptions = { secretBytes: number };
+type RandomSecretSourceOptions = { secretBytes: number };
 
 export class RandomSecretSource implements SecretSource {
   private readonly options: RandomSecretSourceOptions;

@@ -99,7 +99,7 @@ export function markedLayers(
   return layers.filter((layer) => marked.has(layer.id));
 }
 
-export function currentLayerFingerprints(
+function currentLayerFingerprints(
   layers: readonly ReviewLayer[],
   texts: ReviewTexts,
 ): Map<string, string> {

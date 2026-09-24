@@ -9,7 +9,7 @@ import { runMcpBridge } from './mcp-bridge.ts';
 import { runServiceCommand } from './service.ts';
 import { reportStatus } from './status.ts';
 
-export type CommandContext = {
+type CommandContext = {
   signal: AbortSignal;
   homeDirectory: string;
   searchPath: string;

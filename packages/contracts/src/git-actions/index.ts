@@ -9,7 +9,6 @@ export {
 export {
   dismissInterruptedGitActionParamsSchema,
   dismissInterruptedGitActionResponseSchema,
-  gitActionRequestParamsSchema,
   gitActionScopeSchema,
   listGitBranchesResponseSchema,
   readGitActionReceiptParamsSchema,
@@ -19,12 +18,10 @@ export {
   runGitActionResponseSchema,
   type DismissInterruptedGitActionParams,
   type DismissInterruptedGitActionResponse,
-  type GitActionRequestParams,
   type GitActionScope,
   type ListGitBranchesResponse,
   type ReadGitActionReceiptParams,
   type ReadGitActionReceiptResponse,
-  type RunGitActionRejectedResponse,
   type RunGitActionRequest,
   type RunGitActionResponse,
 } from './git-actions.ts';

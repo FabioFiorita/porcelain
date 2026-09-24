@@ -9,7 +9,7 @@ export type ProcessGroupLimits = {
   pollMs: number;
 };
 
-export type RunCommandInput = {
+type RunCommandInput = {
   command: string;
   args: readonly string[];
   cwd?: string | undefined;
@@ -21,9 +21,9 @@ export type RunCommandInput = {
   onStderr?: ((chunk: Buffer) => void) | undefined;
 };
 
-export type CommandStop = 'aborted' | 'deadline' | 'output-limit' | 'lingering';
+type CommandStop = 'aborted' | 'deadline' | 'output-limit' | 'lingering';
 
-export type CommandOutput = {
+type CommandOutput = {
   stdout: Buffer;
   stderr: Buffer;
   stderrTruncated: boolean;

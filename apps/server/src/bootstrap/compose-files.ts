@@ -22,7 +22,7 @@ import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 
-export type FilesDependencies = {
+type FilesDependencies = {
   shared: Shared;
   checkWorktree: CheckWorktreeUseCasePort;
   invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;

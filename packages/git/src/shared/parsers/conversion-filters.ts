@@ -2,7 +2,7 @@ const FILTER_OPERATIONS = ['clean', 'smudge', 'process'] as const;
 const FILTER_KEY = /^filter\.(.+)\.(?:clean|smudge|process)$/u;
 const ATTRIBUTE_RECORD = /([^\0]*)\0[^\0]*\0([^\0]*)\0/gu;
 
-export type ConfigEntry = { key: string; value: string };
+type ConfigEntry = { key: string; value: string };
 
 export function parseConfigList(output: string): ConfigEntry[] {
   return output

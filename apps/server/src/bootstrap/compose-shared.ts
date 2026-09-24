@@ -57,7 +57,7 @@ import type { Stores } from './compose-stores.ts';
 
 export type Shared = ReturnType<typeof composeShared>;
 
-export type SharedDependencies = {
+type SharedDependencies = {
   settings: ServerSettings;
   stores: Stores;
   catalog: WorktreeCatalogStore;

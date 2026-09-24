@@ -9,7 +9,7 @@ import type { WorktreeListingReader } from '@porcelain/projects/ports';
 import type { LaunchLimit } from '../../runtime/launch-limit.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
-export type WorktreeListingOptions = {
+type WorktreeListingOptions = {
   git: GitFactory;
   sharedReads: Pick<SharedReads<WorktreeListing>, 'run'>;
   launchLimit: Pick<LaunchLimit, 'run'>;

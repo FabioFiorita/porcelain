@@ -3,7 +3,7 @@ import type { JobWork } from '../ports/job-work.ts';
 import type { Job } from '../ports/job.ts';
 import type { OperationContext } from '../ports/operation-context.ts';
 
-export type JobSchedule = {
+type JobSchedule = {
   everyMs?: number | undefined;
   atStart?: boolean | undefined;
   atStop?: boolean | undefined;

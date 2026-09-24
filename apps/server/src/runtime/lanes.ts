@@ -5,7 +5,7 @@ import { ApplicationClosedError } from './errors/application-closed-error.ts';
 
 const operationChannel = channel('porcelain:operation');
 
-export type OperationEvent = {
+type OperationEvent = {
   runner: string;
   operation: number;
   phase: 'queued' | 'started' | 'settled';
@@ -14,9 +14,9 @@ export type OperationEvent = {
 
 let sequence = 0;
 
-export type LaneMode = 'read' | 'write';
+type LaneMode = 'read' | 'write';
 
-export type Admission = {
+type Admission = {
   readonly lane: string;
   readonly mode: LaneMode;
   readonly signal: AbortSignal;
@@ -109,14 +109,14 @@ class Gate {
   }
 }
 
-export type LaneOptions = {
+type LaneOptions = {
   readCapacity: number;
   deadlineMs: number | (() => number);
   consistency: WorktreeConsistencyProbe;
   closeResources?: () => void;
 };
 
-export type RunOptions = {
+type RunOptions = {
   callerSignal?: AbortSignal | undefined;
   deadlineMs?: number | undefined;
   untilSettled?: boolean | undefined;

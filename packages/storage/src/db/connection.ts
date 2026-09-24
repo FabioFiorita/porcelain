@@ -9,7 +9,7 @@ import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 import { createSession, type StorageSession } from './session.ts';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
-export type StorageOptions = { worktreeIdLength: number };
+type StorageOptions = { worktreeIdLength: number };
 
 export function openStorageSession(
   dataDirectory: string,

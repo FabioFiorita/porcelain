@@ -1,6 +1,6 @@
 import type { FollowedTargets, WatchRequest } from './followed-targets.ts';
 
-export type WatchDemand = {
+type WatchDemand = {
   replace(request: WatchRequest): Promise<FollowedTargets>;
   close(): void;
 };

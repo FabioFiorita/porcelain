@@ -4,7 +4,7 @@ import { readJsonFile } from './json-file.ts';
 import { PACKAGE_NAME } from './persistent-runtime.ts';
 import { packageManifestSchema } from './records.ts';
 
-export type PackageIdentity = { packageRoot: string; packageVersion: string };
+type PackageIdentity = { packageRoot: string; packageVersion: string };
 
 export async function readPackageIdentity(
   packageRoot: string,

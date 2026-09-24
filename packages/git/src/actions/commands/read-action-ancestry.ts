@@ -2,7 +2,7 @@ import type { GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 
-export type ActionAncestry =
+type ActionAncestry =
   | { kind: 'ancestor' }
   | { kind: 'not-ancestor' }
   | { kind: 'failed'; outcome: GitActionOutcome };

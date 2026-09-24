@@ -9,7 +9,7 @@ import {
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
-export type InspectedCheckout = {
+type InspectedCheckout = {
   worktree: ListedWorktree;
   git: InspectionReader;
 };

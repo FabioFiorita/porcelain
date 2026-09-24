@@ -20,7 +20,7 @@ import { SystemdService } from './systemd-service.ts';
 import { uninstall } from './uninstall.ts';
 import { update, type UpdateOutcome } from './update.ts';
 
-export type InstallerOptions = {
+type InstallerOptions = {
   homeDirectory: string;
   packageRoot: string;
   packageVersion: string;
@@ -33,7 +33,7 @@ export type InstallerOptions = {
   nodeExecutable?: string | undefined;
 };
 
-export class Installer {
+class Installer {
   private readonly context: InstallerContext;
 
   constructor(context: InstallerContext) {

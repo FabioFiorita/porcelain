@@ -50,9 +50,9 @@ type Destination = {
   target: CheckoutPath;
 };
 
-export type FilePermissions = { fileMode: number; directoryMode: number };
+type FilePermissions = { fileMode: number; directoryMode: number };
 
-export type FileWriterOptions = FilePermissions & {
+type FileWriterOptions = FilePermissions & {
   temporaryName: (id: string) => string;
 };
 

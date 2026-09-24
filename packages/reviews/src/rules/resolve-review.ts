@@ -38,7 +38,7 @@ function findBlock(
   return best;
 }
 
-export function resolveStep(
+function resolveStep(
   step: ReviewStep,
   files: ReviewTexts,
   changed: ReadonlyMap<string, ReadonlySet<number>> | undefined,
@@ -97,7 +97,7 @@ function resolvedFingerprint(
   );
 }
 
-export function resolveLayer(
+function resolveLayer(
   layer: ReviewLayer,
   files: ReviewTexts,
   changed: ReadonlyMap<string, ReadonlySet<number>> | undefined,

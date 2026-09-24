@@ -16,7 +16,7 @@ export type HeadState =
   | { kind: 'attached'; ref: string }
   | { kind: 'detached' };
 
-export type StashEntry = { oid: string; selector: string; message: string };
+type StashEntry = { oid: string; selector: string; message: string };
 
 export function parseSymbolicRef(result: {
   exitCode: number | null;

@@ -2,13 +2,13 @@ import type { FileChange } from '@porcelain/kernel/models';
 
 export type ReviewTexts = ReadonlyMap<string, string>;
 
-export type ReviewDiffSelection = {
+type ReviewDiffSelection = {
   scope: 'staged' | 'unstaged';
   oldPath?: string | undefined;
   newPath?: string | undefined;
 };
 
-export type ReviewDiffContent =
+type ReviewDiffContent =
   | { kind: 'text'; patch: string }
   | { kind: 'metadata-only'; patch: string }
   | { kind: 'binary' }

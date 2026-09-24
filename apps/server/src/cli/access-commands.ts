@@ -12,7 +12,7 @@ import qrcode from 'qrcode-terminal';
 import { MINUTE_MS, type Limits } from '../config/limits.ts';
 import { askOwner } from './owner-client.ts';
 
-export type Output = {
+type Output = {
   stdout: (message: string) => void;
   stderr: (message: string) => void;
 };

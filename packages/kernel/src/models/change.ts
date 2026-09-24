@@ -26,7 +26,7 @@ export type TrackedComparison = {
   supported: boolean;
 };
 
-export type UntrackedComparison = { scope: 'untracked'; path: string };
+type UntrackedComparison = { scope: 'untracked'; path: string };
 
 export type UnmergedComparison = {
   scope: 'unmerged';

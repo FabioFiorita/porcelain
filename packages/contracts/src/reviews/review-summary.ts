@@ -19,6 +19,3 @@ export type ReadReviewSummaryQuery = z.output<
 export type ReadReviewSummaryResponse = z.output<
   typeof readReviewSummaryResponseSchema
 >;
-export type ReadReviewSummaryNotFoundResponse = z.output<
-  typeof readReviewSummaryNotFoundResponseSchema
->;

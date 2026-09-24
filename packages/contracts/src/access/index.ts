@@ -3,7 +3,6 @@ export {
   liveNoticeSchema,
   liveSubscriptionSchema,
   type LiveNotice,
-  type LiveSubscription,
 } from './live-updates.ts';
 export {
   readOwnerStatusResponseSchema,
@@ -28,4 +27,4 @@ export {
   type RevokeAccessResponse,
 } from './pairing.ts';
 export type { Principal } from './principal.ts';
-export { pairingLink, type PairingLinkParts } from './pairing-link.ts';
+export { pairingLink } from './pairing-link.ts';

@@ -24,7 +24,7 @@ export type OpenServer = (input: {
   signal: AbortSignal;
 }) => Promise<OpenedServer>;
 
-export type ApplicationStarter = {
+type ApplicationStarter = {
   openServer: OpenServer;
   ownerProbe: OwnerProbe;
   clock: Clock;

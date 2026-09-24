@@ -38,7 +38,7 @@ import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
 
-export type ProjectsDependencies = {
+type ProjectsDependencies = {
   stores: Stores;
   shared: Shared;
   projectFolderReader: ProjectFolderReader;

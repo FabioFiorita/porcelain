@@ -6,7 +6,7 @@ import type { Inventory, ProjectName } from '../models/project.ts';
 import type { ProjectWorktrees } from '../models/project-worktrees.ts';
 import type { ReviewBadges } from '@porcelain/kernel/models';
 
-export function projectReport(
+function projectReport(
   project: ProjectName,
   worktrees: ProjectWorktrees,
   statuses: ReviewBadges,

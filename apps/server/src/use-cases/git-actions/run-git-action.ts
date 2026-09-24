@@ -25,7 +25,7 @@ import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
-export type RunGitActionOptions = { deadlineMs: number };
+type RunGitActionOptions = { deadlineMs: number };
 
 export class RunGitActionUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;

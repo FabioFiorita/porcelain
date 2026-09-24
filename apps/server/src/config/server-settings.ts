@@ -51,7 +51,7 @@ const serverSettingsSchema = z.object({
   allowedHosts: z.array(listenHostSchema).default([]),
 });
 
-export type ServerSettingsInput = z.input<typeof serverSettingsSchema>;
+type ServerSettingsInput = z.input<typeof serverSettingsSchema>;
 
 export type ServerSettings = z.output<typeof serverSettingsSchema> & {
   limits: Limits;

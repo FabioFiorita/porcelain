@@ -3,16 +3,16 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'C6',
   plants:
-    'files/rules/index.ts: import then `export { encodeBase64 }` (a non-export statement in an index)',
+    'kernel/rules/index.ts: import then `export { utf8ByteLength }` (a non-export statement in an index)',
   gate: 'lint',
   rule: 'porcelain(imports-by-path)',
   edits: [
     {
       kind: 'replace',
-      path: 'packages/files/src/rules/index.ts',
-      old: "export { encodeBase64 } from './encode-base64.ts';",
-      new: `import { encodeBase64 } from './encode-base64.ts';
-export { encodeBase64 };`,
+      path: 'packages/kernel/src/rules/index.ts',
+      old: "export { utf8ByteLength } from './utf8-byte-length.ts';",
+      new: `import { utf8ByteLength } from './utf8-byte-length.ts';
+export { utf8ByteLength };`,
     },
   ],
 } satisfies Probe;

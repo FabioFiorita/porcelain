@@ -14,7 +14,7 @@ export type StepDraft = {
   pointer: CodePointer;
 };
 
-export type LayerArrow = {
+type LayerArrow = {
   from: string;
   to: string;
   label?: string | undefined;
@@ -40,7 +40,7 @@ export type DiagramBox = {
   layerId?: string | undefined;
 };
 
-export type DiagramArrow = {
+type DiagramArrow = {
   from: string;
   to: string;
   label?: string | undefined;

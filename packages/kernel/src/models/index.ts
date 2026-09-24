@@ -1,13 +1,11 @@
 export type {
   ChangeComparison,
   ChangeKind,
-  ComparisonSides,
   ConflictKind,
   ExpectedFile,
   FileChange,
   TrackedComparison,
   UnmergedComparison,
-  UntrackedComparison,
 } from './change.ts';
 export type { OwnerStatus } from './owner-status.ts';
 export type { Base64UrlSecret } from './secret.ts';

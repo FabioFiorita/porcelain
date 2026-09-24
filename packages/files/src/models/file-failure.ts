@@ -9,5 +9,3 @@ export type WriteFailure =
   | 'exists'
   | 'cross-device'
   | 'trash-unavailable';
-
-export type FileFailure = TextFailure | ListFailure | WriteFailure;

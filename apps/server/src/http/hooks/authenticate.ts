@@ -11,7 +11,7 @@ export type AuthenticateOptions = {
   deviceConnections: Pick<DeviceConnectionStore, 'insert'>;
 };
 
-export type DeviceCookieOptions = { cookieMaxAgeSeconds: number };
+type DeviceCookieOptions = { cookieMaxAgeSeconds: number };
 
 function credentialOf(request: FastifyRequest): string | undefined {
   const header = request.headers.authorization;

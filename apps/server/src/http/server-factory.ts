@@ -18,7 +18,7 @@ declare module 'fastify' {
   }
 }
 
-export type ServerFactoryOptions = {
+type ServerFactoryOptions = {
   logger: Logger;
   principal: Principal | undefined;
 };

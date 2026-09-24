@@ -1,6 +1,6 @@
 import type { ReviewBadge } from '@porcelain/kernel/models';
 
-export type WorktreeReport = {
+type WorktreeReport = {
   id: string;
   path: string;
   main: boolean;

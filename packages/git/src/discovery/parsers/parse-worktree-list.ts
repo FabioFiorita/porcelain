@@ -1,7 +1,7 @@
 import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
 import { UnsupportedRepositoryError } from '../errors/unsupported-repository-error.ts';
 
-export type WorktreeRecord = { path: string; branch: string | null };
+type WorktreeRecord = { path: string; branch: string | null };
 
 export function parseWorktreeList(output: string): WorktreeRecord[] {
   const records = output

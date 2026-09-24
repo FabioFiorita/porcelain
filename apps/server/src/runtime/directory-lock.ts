@@ -5,7 +5,7 @@ import type { Clock } from '@porcelain/kernel/ports';
 import { delay } from './delay.ts';
 import type { DirectoryLock } from '../ports/directory-lock.ts';
 
-export type DirectoryLockOptions = {
+type DirectoryLockOptions = {
   path: string;
   waitMs: number;
   pollMs: number;

@@ -1,12 +1,12 @@
 import type { UpdateJournal } from './records.ts';
 
-export type RecoveryState = {
+type RecoveryState = {
   journal: UpdateJournal | undefined;
   runtimeExists: boolean;
   previousExists: boolean;
 };
 
-export type RecoveryPlan =
+type RecoveryPlan =
   | 'nothing'
   | 'discard-previous'
   | 'restore-previous'

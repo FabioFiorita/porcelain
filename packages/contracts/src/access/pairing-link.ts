@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type PairingLinkParts = {
+type PairingLinkParts = {
   addresses: string[];
   code: string;
   environmentId: string;

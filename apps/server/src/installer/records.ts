@@ -4,7 +4,7 @@ import { InvalidServiceConfigurationError } from './errors/invalid-service-confi
 import { InvalidUpdateJournalError } from './errors/invalid-update-journal-error.ts';
 import { readJsonFile } from './json-file.ts';
 
-export const serviceConfigurationSchema = z.object({
+const serviceConfigurationSchema = z.object({
   dataDirectory: z.string(),
   host: z.string(),
   port: z.number().int(),
@@ -12,10 +12,10 @@ export const serviceConfigurationSchema = z.object({
 });
 export type ServiceConfiguration = z.output<typeof serviceConfigurationSchema>;
 
-export const installedRecordSchema = z.object({ version: z.string() });
-export type InstalledRecord = z.output<typeof installedRecordSchema>;
+const installedRecordSchema = z.object({ version: z.string() });
+type InstalledRecord = z.output<typeof installedRecordSchema>;
 
-export const updateJournalSchema = z.object({
+const updateJournalSchema = z.object({
   installed: installedRecordSchema,
   backup: z.string(),
 });

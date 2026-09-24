@@ -43,7 +43,7 @@ export const gitActionScopeSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
 });
 
-export const gitActionRequestParamsSchema = z.strictObject({
+const gitActionRequestParamsSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
   requestId: z.uuid(),
 });
@@ -148,14 +148,8 @@ export const listGitBranchesResponseSchema = z.object({
 });
 
 export type GitActionScope = z.output<typeof gitActionScopeSchema>;
-export type GitActionRequestParams = z.output<
-  typeof gitActionRequestParamsSchema
->;
 export type RunGitActionRequest = z.output<typeof runGitActionRequestSchema>;
 export type RunGitActionResponse = z.output<typeof runGitActionResponseSchema>;
-export type RunGitActionRejectedResponse = z.output<
-  typeof runGitActionRejectedResponseSchema
->;
 export type ReadGitActionReceiptParams = z.output<
   typeof readGitActionReceiptParamsSchema
 >;

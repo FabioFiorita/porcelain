@@ -1,7 +1,7 @@
 import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
 import { ProviderProcessFailedError } from '../errors/provider-process-failed-error.ts';
 
-export type ProviderCommand = {
+type ProviderCommand = {
   command: string;
   args: readonly string[];
   cwd: string;

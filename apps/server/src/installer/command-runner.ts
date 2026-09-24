@@ -3,7 +3,7 @@ import {
   type ProcessGroupLimits,
 } from '@porcelain/process';
 
-export type CommandResult = { code: number; stdout: string; stderr: string };
+type CommandResult = { code: number; stdout: string; stderr: string };
 
 export type CommandRunner = (
   command: string,

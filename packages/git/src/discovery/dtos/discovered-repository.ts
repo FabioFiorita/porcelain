@@ -1,4 +1,4 @@
-export type DiscoveredWorktree = {
+type DiscoveredWorktree = {
   path: string;
   metadataIdentity: string | null;
   administrativeDirectory: string;

@@ -1,4 +1,4 @@
-export type GitChangeSelection = {
+type GitChangeSelection = {
   scope: 'staged' | 'unstaged';
   oldPath: string | null;
   newPath: string | null;
@@ -26,7 +26,7 @@ export type GitChange =
       oids: [string, string, string];
     };
 
-export type GitBranchStatus = {
+type GitBranchStatus = {
   name: string | null;
   upstream: string | null;
   ahead: number;

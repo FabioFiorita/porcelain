@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const principalSchema = z.discriminatedUnion('kind', [
+const principalSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('owner') }),
   z.object({ kind: z.literal('device'), deviceId: z.uuid() }),
 ]);

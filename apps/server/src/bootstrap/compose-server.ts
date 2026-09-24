@@ -47,7 +47,7 @@ import { composeReviews } from './compose-reviews.ts';
 import { composeShared } from './compose-shared.ts';
 import { composeStores } from './compose-stores.ts';
 
-export const openServer: OpenServer = async (input) => {
+const openServer: OpenServer = async (input) => {
   const { settings } = input;
   const { limits } = settings;
   const worktreeId = (projectId: string, metadataIdentity: string) =>

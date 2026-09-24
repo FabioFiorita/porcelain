@@ -12,7 +12,7 @@ import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { ServiceSettings } from './arguments.ts';
 
-export type ServiceCommandDependencies = {
+type ServiceCommandDependencies = {
   homeDirectory: string;
   searchPath: string;
   clock: Clock;

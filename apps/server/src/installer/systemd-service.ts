@@ -12,7 +12,7 @@ import {
 
 export type Linger = 'enabled' | 'disabled' | 'unavailable';
 
-export type ServiceProbe = {
+type ServiceProbe = {
   enabled: boolean;
   running: boolean;
   linger: Linger;

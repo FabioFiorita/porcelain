@@ -1,4 +1,4 @@
-export type GitBranch = {
+type GitBranch = {
   name: string;
   upstream: string | undefined;
   lastCommitAt: string;

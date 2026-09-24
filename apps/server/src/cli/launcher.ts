@@ -6,7 +6,7 @@ export type StartServer = (
   signal: AbortSignal,
 ) => Promise<Runtime>;
 
-export type LauncherDependencies = {
+type LauncherDependencies = {
   startServer: StartServer;
   output: (message: string) => void;
 };

@@ -70,10 +70,10 @@ export const commentThreadParamsSchema = z.strictObject({
 });
 
 export const commentThreadScopeSchema = z.enum(['waiting', 'all']);
-export const listCommentThreadsQuerySchema = z.strictObject({
+const listCommentThreadsQuerySchema = z.strictObject({
   scope: commentThreadScopeSchema.optional(),
 });
-export const commentWriterSchema = z.object({
+const commentWriterSchema = z.object({
   kind: z.enum(['owner', 'device', 'agent']),
 });
 export const listCommentThreadsResponseSchema = z.array(commentThreadSchema);
@@ -106,11 +106,10 @@ export const markCommentsSeenResponseSchema = z.object({
 });
 
 export type CommentThreadParams = z.output<typeof commentThreadParamsSchema>;
-export type CommentThreadScope = z.output<typeof commentThreadScopeSchema>;
 export type ListCommentThreadsQuery = z.output<
   typeof listCommentThreadsQuerySchema
 >;
-export type CommentWriter = z.output<typeof commentWriterSchema>;
+type CommentWriter = z.output<typeof commentWriterSchema>;
 export type CommentAuthor = { writer: CommentWriter };
 export type ListCommentThreadsResponse = z.output<
   typeof listCommentThreadsResponseSchema

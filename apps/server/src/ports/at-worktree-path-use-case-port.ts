@@ -1,7 +1,7 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
 import type { OperationContext } from './operation-context.ts';
 
-export type WorktreePathLookup = { path: string };
+type WorktreePathLookup = { path: string };
 
 export interface FindWorktreeByPathUseCasePort {
   execute(
@@ -14,15 +14,16 @@ export interface WorktreeOperationUseCasePort {
   execute(input: WorktreeKey, context: OperationContext): Promise<unknown>;
 }
 
-export type AtPathRequest<Operation extends WorktreeOperationUseCasePort> =
-  Omit<Parameters<Operation['execute']>[0], 'worktreeId'>;
+type AtPathRequest<Operation extends WorktreeOperationUseCasePort> = Omit<
+  Parameters<Operation['execute']>[0],
+  'worktreeId'
+>;
 
 export type AtPathResponse<Operation extends WorktreeOperationUseCasePort> =
   Awaited<ReturnType<Operation['execute']>>;
 
-export type AtPathOperationInput<
-  Operation extends WorktreeOperationUseCasePort,
-> = AtPathRequest<Operation> & WorktreeKey;
+type AtPathOperationInput<Operation extends WorktreeOperationUseCasePort> =
+  AtPathRequest<Operation> & WorktreeKey;
 
 export interface AtPathOperationUseCasePort<
   Operation extends WorktreeOperationUseCasePort,

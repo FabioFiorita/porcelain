@@ -23,7 +23,7 @@ import {
 
 const WILDCARD_HOSTS = new Set(['0.0.0.0', '::']);
 
-export type ServeSettings = ServerSettings & { webRoot: string };
+type ServeSettings = ServerSettings & { webRoot: string };
 
 export type StatusSettings = {
   dataDirectory: string;

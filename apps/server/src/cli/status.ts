@@ -2,7 +2,7 @@ import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { StatusSettings } from './arguments.ts';
 
-export const statusExitCodes = {
+const statusExitCodes = {
   running: 0,
   notRunning: 1,
   failed: 2,

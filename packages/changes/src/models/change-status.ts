@@ -16,15 +16,15 @@ export type ChangeStatusObservation = {
   changes: ChangeComparison[];
 };
 
-export type Stash = { oid: string; message: string };
+type Stash = { oid: string; message: string };
 
-export type DiscardedChange = {
+type DiscardedChange = {
   oid: string;
   path: string;
   kind: 'hunk' | 'rename';
 };
 
-export type HeadCommit = { subject: string; body?: string | undefined };
+type HeadCommit = { subject: string; body?: string | undefined };
 
 export type BranchDetailsRequest = {
   worktreeId: string;

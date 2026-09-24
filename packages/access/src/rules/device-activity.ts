@@ -1,6 +1,6 @@
 import type { StoredDevice } from '../models/device.ts';
 
-export function idleMilliseconds(device: StoredDevice, now: string): number {
+function idleMilliseconds(device: StoredDevice, now: string): number {
   return Date.parse(now) - Date.parse(device.lastSeenAt);
 }
 
