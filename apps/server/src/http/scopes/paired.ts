@@ -44,8 +44,7 @@ import {
   authenticate,
   type AuthenticateOptions,
 } from '../hooks/authenticate.ts';
-import { preventCaching } from '../hooks/prevent-caching.ts';
-import { getBrowserSession } from '../routes/access/get-browser-session.ts';
+import { answerWithReceiptStatus } from '../hooks/git-action-receipt-status.ts';
 import { listCommits } from '../routes/changes/list-commits.ts';
 import { readCommitFiles } from '../routes/changes/read-commit-files.ts';
 import { readCommitDiffs } from '../routes/changes/read-commit-diffs.ts';
@@ -149,13 +148,12 @@ export async function pairedScope(
   server: FastifyInstance,
   options: { application: PairedUseCases & AuthenticateOptions },
 ) {
-  server.addHook('onRequest', preventCaching);
   server.addHook('onRequest', authenticate(options.application));
-  server.register(getBrowserSession, {
-    useCase: options.application.projects.readInventory,
-  });
-  server.register(runAction, {
-    useCase: options.application.gitActions.runGitAction,
+  server.register(async (actions) => {
+    actions.addHook('preSerialization', answerWithReceiptStatus);
+    actions.register(runAction, {
+      useCase: options.application.gitActions.runGitAction,
+    });
   });
   server.register(readReceipt, {
     useCase: options.application.gitActions.readGitActionReceipt,

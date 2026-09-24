@@ -1,9 +1,5 @@
 import type { PairingReach, RuntimeStatus } from '@porcelain/access/models';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
-import type {
-  CommitDraftWriter,
-  CommitModelReader,
-} from '@porcelain/git-actions/ports';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import {
   ActionsGit,
@@ -19,7 +15,6 @@ import {
   InspectionGit,
   type InspectionFactory,
 } from '@porcelain/git/inspection';
-import type { ProjectFolderReader } from '@porcelain/projects/ports';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { openStorageSession } from '@porcelain/storage';
 import { createDeviceStore } from '@porcelain/storage/access';
@@ -32,16 +27,16 @@ import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-s
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
 import { ProcessCommitDraftWriter } from '../adapters/git-actions/process-commit-draft-writer.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
+import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
+import { GitWorktreeAccess } from '../adapters/projects/git-worktree-access.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
-import { GitWorktreeAccess } from '../adapters/projects/git-worktree-access.ts';
-import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
-import {
-  applicationSettingsSchema,
-  operationDeadlineMs,
-} from '../config/application-settings.ts';
+import { operationDeadlineMs } from '../config/operation-deadline.ts';
+import type { ServerSettings } from '../config/server-settings.ts';
 import { CollectAbsentWorktreesJob } from '../jobs/collect-absent-worktrees-job.ts';
 import { FlushDeviceActivityJob } from '../jobs/flush-device-activity-job.ts';
+import type { Job } from '../jobs/job.ts';
+import { StartupJob } from '../jobs/startup-job.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
@@ -53,67 +48,48 @@ import { composeProjects } from './compose-projects.ts';
 import {
   composeReviewInvalidation,
   composeReviews,
-  LIVE_UPDATE_LIMITS,
 } from './compose-reviews.ts';
 
-const READ_CAPACITY = 4;
-const LISTING_LAUNCHES = 4;
-const NO_REACH: PairingReach = {
-  port: 0,
-  policy: { allowedHosts: [], localAddresses: [] },
-};
-
-export type ApplicationOptions = {
-  dataDirectory: string;
-  projectHome: string;
-  git?: GitFactory;
-  actionGit?: GitActionWriterFactory;
-  commitGit?: CommitReaderFactory;
-  inspectionGit?: InspectionFactory;
-  projectFolderReader?: ProjectFolderReader;
-  pairingReach?: () => PairingReach;
-  runtimeStatus?: () => RuntimeStatus;
-  commitGenerator?: CommitDraftWriter & CommitModelReader;
-  now?: () => string;
-  signal?: AbortSignal;
-  operationTimeoutMs?: number;
-  projectListingTimeoutMs?: number;
-  gitActionDeadlineMs?: number;
-  commitModelDeadlineMs?: number;
+export type ApplicationDependencies = {
+  pairingReach: () => PairingReach;
+  runtimeStatus: () => RuntimeStatus;
+  signal: AbortSignal;
 };
 
 export type ServerApplication = Awaited<ReturnType<typeof openApplication>>;
 
-export async function openApplication(options: ApplicationOptions) {
-  const settings = applicationSettingsSchema.parse(options);
-  options.signal?.throwIfAborted();
-  const gitVersion = await readGitVersion(options.signal);
-  const session = openStorageSession(options.dataDirectory, {
+export async function openApplication(
+  settings: ServerSettings,
+  dependencies: ApplicationDependencies,
+) {
+  const { limits } = settings;
+  const gitVersion = await readGitVersion(dependencies.signal);
+  const session = openStorageSession(settings.dataDirectory, {
     worktreeId: deriveWorktreeId,
   });
   const inventoryStore = createInventoryStore(session);
   const lanes = new Lanes({
     deadlineMs: () =>
-      operationDeadlineMs(inventoryStore.read().projects.length, settings),
-    readCapacity: READ_CAPACITY,
+      operationDeadlineMs(inventoryStore.read().projects.length, limits),
+    readCapacity: limits.lanes.readCapacity,
     closeResources: () => session.close(),
   });
-  const git = options.git ?? ((checkout: string) => new DiscoveryGit(checkout));
-  const actionGit: GitActionWriterFactory =
-    options.actionGit ?? ((session) => new ActionsGit(session));
-  const commitGit: CommitReaderFactory =
-    options.commitGit ?? ((checkout) => new HistoryGit(checkout, gitVersion));
-  const inspection: InspectionFactory =
-    options.inspectionGit ?? ((session) => new InspectionGit(session));
+  const git: GitFactory = (checkout) => new DiscoveryGit(checkout);
+  const actionGit: GitActionWriterFactory = (checkout) =>
+    new ActionsGit(checkout);
+  const commitGit: CommitReaderFactory = (checkout) =>
+    new HistoryGit(checkout, gitVersion);
+  const inspection: InspectionFactory = (checkout) =>
+    new InspectionGit(checkout);
   const clock = new SystemClock();
-  const idSource = new RandomIdSource();
+  const ids = new RandomIdSource();
 
   const worktreeDirectory = new GitProjectWorktreeReader({
     git,
     inventoryStore,
     sharedReads: new SharedReads(),
-    launchLimit: new LaunchLimit(LISTING_LAUNCHES),
-    timeoutMs: settings.projectListingTimeoutMs,
+    launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
+    timeoutMs: limits.inventory.listingTimeoutMs,
     worktreeId: deriveWorktreeId,
   });
   const worktreeAccess = new GitWorktreeAccess(
@@ -130,7 +106,7 @@ export async function openApplication(options: ApplicationOptions) {
     worktrees: worktreeAccess,
     pathsChanged: reviewInvalidation.invalidateReviewedMarks,
     projects: () => inventoryStore.read().projects,
-    limits: LIVE_UPDATE_LIMITS,
+    limits: limits.liveUpdates,
   });
   const devices = new CachedDeviceStore(createDeviceStore(session));
   const readInterruptedGitAction = new ReadInterruptedGitActionService(
@@ -142,16 +118,9 @@ export async function openApplication(options: ApplicationOptions) {
     lanes,
     deviceStore: devices,
     deviceActivityStore: devices,
-    pairingReachReader: new HttpPairingReachReader(
-      options.pairingReach ?? (() => NO_REACH),
-    ),
+    pairingReachReader: new HttpPairingReachReader(dependencies.pairingReach),
     runtimeStatusReader: new ProcessRuntimeStatusReader(
-      options.runtimeStatus ??
-        (() => ({
-          address: '',
-          dataDirectory: options.dataDirectory,
-          pid: process.pid,
-        })),
+      dependencies.runtimeStatus,
     ),
   });
   const projects = composeProjects({
@@ -161,10 +130,9 @@ export async function openApplication(options: ApplicationOptions) {
     events,
     git,
     clock,
-    idSource,
+    idSource: ids,
     worktreeStatusStore: createWorktreeStatusStore(session),
-    projectFolderReader: options.projectFolderReader,
-    projectHome: options.projectHome,
+    projectHome: settings.projectHome,
     worktreeDirectory,
   });
   const { fileReader, readTextFileService, ...files } = composeFiles({
@@ -193,7 +161,6 @@ export async function openApplication(options: ApplicationOptions) {
     worktreeAccess,
     readTextFile: readTextFileService,
     changes: changeServices,
-    now: options.now,
   });
   const gitActions = composeGitActions({
     session,
@@ -205,23 +172,23 @@ export async function openApplication(options: ApplicationOptions) {
     fileReader,
     changes: changeServices,
     refreshPublishedReview: reviews.refreshReviewActivity,
-    commitGenerator:
-      options.commitGenerator ??
-      new ProcessCommitDraftWriter(createCommitPlanner()),
-    gitActionDeadlineMs: settings.gitActionDeadlineMs,
-    commitModelDeadlineMs: settings.commitModelDeadlineMs,
+    commitGenerator: new ProcessCommitDraftWriter(createCommitPlanner()),
+    gitActionDeadlineMs: limits.gitActions.deadlineMs,
+    commitModelDeadlineMs: limits.gitActions.commitModelDeadlineMs,
   });
-
-  const jobs = [
-    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees),
-    new FlushDeviceActivityJob(access.flushDeviceActivity),
+  const jobs: readonly Job[] = [
+    new StartupJob(
+      gitActions.recoverInterruptedGitActions,
+      projects.refreshInventory,
+      events,
+    ),
+    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees, events, {
+      intervalMs: limits.jobs.collectAbsentWorktreesMs,
+    }),
+    new FlushDeviceActivityJob(access.flushDeviceActivity, events, {
+      intervalMs: limits.jobs.flushDeviceActivityMs,
+    }),
   ];
-  for (const job of jobs) job.start();
-  gitActions.recoverInterruptedGitActions.execute();
-  const firstRefresh = projects.refreshInventory.execute({
-    signal: options.signal,
-  });
-  firstRefresh.catch(() => undefined);
 
   return {
     access,
@@ -232,9 +199,8 @@ export async function openApplication(options: ApplicationOptions) {
     gitActions,
     liveUpdates: events,
     devices,
-    ready: () => firstRefresh,
+    jobs,
     close: async () => {
-      for (const job of jobs) job.stop();
       devices.flush();
       await events.close();
       await lanes.close();

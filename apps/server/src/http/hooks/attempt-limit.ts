@@ -1,44 +1,46 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { MonotonicClock } from '../../ports/monotonic-clock.ts';
 
-const capacity = 10;
-const refillPerMs = capacity / 60_000;
-const globalCapacity = 60;
-const globalRefillPerMs = globalCapacity / 60_000;
-const maxPeers = 1024;
+const WINDOW_MS = 60_000;
+const CAPACITY = 10;
+const REFILL_PER_MS = CAPACITY / WINDOW_MS;
+const GLOBAL_CAPACITY = 60;
+const GLOBAL_REFILL_PER_MS = GLOBAL_CAPACITY / WINDOW_MS;
+const MAX_PEERS = 1024;
 
 type Bucket = { tokens: number; at: number };
 
 export class AttemptLimit {
   private readonly peers = new Map<string, Bucket>();
   private readonly shared: Bucket;
-  private readonly now: () => number;
+  private readonly clock: MonotonicClock;
 
-  constructor(now: () => number = Date.now) {
-    this.now = now;
-    this.shared = { tokens: globalCapacity, at: now() };
+  constructor(clock: MonotonicClock) {
+    this.clock = clock;
+    this.shared = { tokens: GLOBAL_CAPACITY, at: clock.elapsedMs() };
   }
 
   take(peer: string): boolean {
-    const at = this.now();
+    const at = this.clock.elapsedMs();
     const sharedTokens = Math.min(
-      globalCapacity,
-      this.shared.tokens + (at - this.shared.at) * globalRefillPerMs,
+      GLOBAL_CAPACITY,
+      this.shared.tokens + (at - this.shared.at) * GLOBAL_REFILL_PER_MS,
     );
     if (sharedTokens < 1) {
       this.shared.tokens = sharedTokens;
       this.shared.at = at;
       return false;
     }
-    if (this.peers.size >= maxPeers && !this.peers.has(peer)) {
+    if (this.peers.size >= MAX_PEERS && !this.peers.has(peer)) {
       for (const [key, bucket] of this.peers)
-        if (at - bucket.at > 60_000) this.peers.delete(key);
-      if (this.peers.size >= maxPeers) return false;
+        if (at - bucket.at > WINDOW_MS) this.peers.delete(key);
+      if (this.peers.size >= MAX_PEERS) return false;
     }
-    const bucket = this.peers.get(peer) ?? { tokens: capacity, at };
+    const bucket = this.peers.get(peer) ?? { tokens: CAPACITY, at };
     const refilled = Math.min(
-      capacity,
-      bucket.tokens + (at - bucket.at) * refillPerMs,
+      CAPACITY,
+      bucket.tokens + (at - bucket.at) * REFILL_PER_MS,
     );
     if (refilled < 1) {
       this.peers.set(peer, { tokens: refilled, at });
@@ -53,13 +55,13 @@ export class AttemptLimit {
   }
 
   refund(peer: string): void {
-    const at = this.now();
-    this.shared.tokens = Math.min(globalCapacity, this.shared.tokens + 1);
+    const at = this.clock.elapsedMs();
+    this.shared.tokens = Math.min(GLOBAL_CAPACITY, this.shared.tokens + 1);
     this.shared.at = at;
     const bucket = this.peers.get(peer);
     if (bucket)
       this.peers.set(peer, {
-        tokens: Math.min(capacity, bucket.tokens + 1),
+        tokens: Math.min(CAPACITY, bucket.tokens + 1),
         at: bucket.at,
       });
   }

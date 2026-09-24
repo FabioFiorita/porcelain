@@ -25,6 +25,7 @@ import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
+import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
 import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
 import { ListAccessUseCase } from '../use-cases/access/list-access.ts';
@@ -52,6 +53,7 @@ export function composeAccess(deps: {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(deps.deviceStore, clock),
     ),
+    clearBrowserSession: new ClearBrowserSessionUseCase(),
     checkRequestOrigin: new CheckRequestOriginUseCase(
       new CheckRequestOriginService(),
     ),

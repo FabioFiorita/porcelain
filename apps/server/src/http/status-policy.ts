@@ -46,6 +46,7 @@ import {
   ExpectedFilesMismatchError,
   GitActionNotFoundError,
   GitActionReceiptMismatchError,
+  GitBranchListingUnavailableError,
   MergeExpectationMismatchError,
   MissingExpectedFilesError,
   MissingUpstreamExpectationError,
@@ -66,6 +67,7 @@ import {
 import {
   GitTimeoutError,
   InspectionLimitError,
+  InvalidGitDiffError,
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
 } from '@porcelain/git/inspection';
@@ -110,9 +112,9 @@ export type StatusResponse = {
   body: ApiError | undefined;
 };
 
-const invalidRequest = 'Invalid request';
-const repositoryUnavailable = 'Repository could not be inspected';
-const operationUnavailable = 'Operation unavailable';
+const INVALID_REQUEST = 'Invalid request';
+const REPOSITORY_UNAVAILABLE = 'Repository could not be inspected';
+const OPERATION_UNAVAILABLE = 'Operation unavailable';
 
 const rules: readonly StatusRule[] = [
   {
@@ -128,7 +130,6 @@ const rules: readonly StatusRule[] = [
       errorCodes.FST_ERR_CTP_INVALID_JSON_BODY,
       errorCodes.FST_ERR_CTP_EMPTY_JSON_BODY,
       errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE,
-      errorCodes.FST_ERR_CTP_BODY_TOO_LARGE,
       SelectionMismatchError,
       InvalidMoveError,
       DuplicateExpectedFileError,
@@ -146,7 +147,7 @@ const rules: readonly StatusRule[] = [
       DuplicateLayerIdError,
     ],
     statusCode: 400,
-    message: invalidRequest,
+    message: INVALID_REQUEST,
   },
   { errors: [InvalidPairingError], statusCode: 401 },
   {
@@ -204,6 +205,7 @@ const rules: readonly StatusRule[] = [
     statusCode: 409,
     message: 'The review changed; reload before retrying',
   },
+  { errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE], statusCode: 413 },
   {
     errors: [InspectionLimitError],
     statusCode: 413,
@@ -217,7 +219,7 @@ const rules: readonly StatusRule[] = [
       ReviewsWorktreeUnavailableError,
     ],
     statusCode: 422,
-    message: repositoryUnavailable,
+    message: REPOSITORY_UNAVAILABLE,
   },
   {
     errors: [
@@ -273,11 +275,20 @@ const rules: readonly StatusRule[] = [
     statusCode: 422,
     message: 'History contains unsupported data',
   },
-  { errors: [MissingEnvironmentIdentityError], statusCode: 500 },
   {
-    errors: [ApplicationClosedError, GitTimeoutError],
+    errors: [InvalidGitDiffError],
+    statusCode: 502,
+    message: 'Git produced output that could not be read',
+  },
+  {
+    errors: [
+      ApplicationClosedError,
+      GitTimeoutError,
+      GitBranchListingUnavailableError,
+      MissingEnvironmentIdentityError,
+    ],
     statusCode: 503,
-    message: operationUnavailable,
+    message: OPERATION_UNAVAILABLE,
   },
 ];
 
@@ -316,11 +327,11 @@ export function toStatusResponse(error: unknown): StatusResponse {
     if (rule?.withoutBody)
       return { statusCode: rule.statusCode, body: undefined };
     if (rule) return response(rule.statusCode, rule.message ?? error.message);
-    if ('validation' in error) return response(400, invalidRequest);
+    if ('validation' in error) return response(400, INVALID_REQUEST);
   }
   if (isRepositoryUnavailable(error))
-    return response(422, repositoryUnavailable);
-  if (isAbandoned(error)) return response(503, operationUnavailable);
+    return response(422, REPOSITORY_UNAVAILABLE);
+  if (isAbandoned(error)) return response(503, OPERATION_UNAVAILABLE);
   return response(500, 'Operation failed');
 }
 

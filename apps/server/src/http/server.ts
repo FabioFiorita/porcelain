@@ -7,16 +7,14 @@ import {
 import websocket from '@fastify/websocket';
 import type { Principal } from '@porcelain/contracts/access';
 import Fastify from 'fastify';
+import { PerformanceMonotonicClock } from '../adapters/runtime/performance-monotonic-clock.ts';
 import { FilesystemWebRootFiles } from '../adapters/web/filesystem-web-root-files.ts';
 import type { ServerApplication } from '../bootstrap/compose-server.ts';
-import { liveUpdateMessageLimit } from '../config/request-limits.ts';
-import { absolutePathSchema } from '../config/server-settings.ts';
+import type { ServerSettings } from '../config/server-settings.ts';
 import { handleError } from './error-handler.ts';
-import { checkRequestOrigin } from './hooks/request-origin.ts';
-import { readReviewSummaryPage } from './routes/reviews/read-review-summary-page.ts';
-import { pairedScope } from './scopes/paired.ts';
-import { publicScope } from './scopes/public.ts';
-import { staticFiles } from './static-files.ts';
+import { AttemptLimit } from './hooks/attempt-limit.ts';
+import { apiScope } from './scopes/api.ts';
+import { pageScope } from './scopes/page.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -27,23 +25,19 @@ declare module 'fastify' {
 
 export type NetworkServerOptions = {
   application: ServerApplication;
-  webRoot?: string | undefined;
-  allowedHosts?: readonly string[] | undefined;
+  settings: Pick<ServerSettings, 'webRoot' | 'allowedHosts' | 'limits'>;
 };
 
 export function createNetworkServer(options: NetworkServerOptions) {
-  const { application, allowedHosts = [] } = options;
-  const webRoot =
-    options.webRoot === undefined
-      ? undefined
-      : absolutePathSchema.parse(options.webRoot);
+  const { application, settings } = options;
+  const { allowedHosts, webRoot } = settings;
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
   server.setErrorHandler(handleError);
   server.register(sensible);
   server.register(websocket, {
-    options: { maxPayload: liveUpdateMessageLimit },
+    options: { maxPayload: settings.limits.liveUpdates.messageBytes },
   });
   server.decorateRequest('disconnected');
   server.decorateRequest('principal');
@@ -59,26 +53,18 @@ export function createNetworkServer(options: NetworkServerOptions) {
     });
     done();
   });
-  server.addHook(
-    'onRequest',
-    checkRequestOrigin({
-      access: application.access,
-      allowedHosts,
-    }),
-  );
-  server.register(
-    async (api) => {
-      api.register(publicScope, { application, allowedHosts });
-      api.register(pairedScope, { application });
-    },
-    { prefix: '/api' },
-  );
-  server.register(readReviewSummaryPage, {
-    useCase: application.reviews.readReviewSummary,
+  server.register(apiScope, {
+    prefix: '/api',
+    application,
+    allowedHosts,
+    attemptLimit: new AttemptLimit(new PerformanceMonotonicClock()),
+    pingMs: settings.limits.liveUpdates.pingMs,
   });
-  if (webRoot !== undefined)
-    server.register(staticFiles, {
-      files: new FilesystemWebRootFiles(webRoot),
-    });
+  server.register(pageScope, {
+    application,
+    allowedHosts,
+    files:
+      webRoot === undefined ? undefined : new FilesystemWebRootFiles(webRoot),
+  });
   return server;
 }

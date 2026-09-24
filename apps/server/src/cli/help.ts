@@ -1,8 +1,8 @@
 import {
-  defaultDataDirectoryName,
-  defaultListenHost,
-  defaultListenPort,
-} from '../config/startup-settings.ts';
+  DEFAULT_DATA_DIRECTORY_NAME,
+  DEFAULT_LISTEN_HOST,
+  DEFAULT_LISTEN_PORT,
+} from '../config/server-settings.ts';
 
 export const serveHelp = `Usage: porcelain <command> [options]
 
@@ -18,11 +18,11 @@ Commands:
 
 Options:
   --lan                    Listen on 0.0.0.0 for LAN access
-  --host <host>            Listen host (default: ${defaultListenHost})
+  --host <host>            Listen host (default: ${DEFAULT_LISTEN_HOST})
   --allow-host <host>      Answer to this host name as well (repeatable)
   --address <origin>       Origin a pairing link points at (repeatable)
-  --port <port>            Listen port (default: ${defaultListenPort})
-  --data-directory <path>  Persistent state directory (default: ~/${defaultDataDirectoryName})
+  --port <port>            Listen port (default: ${DEFAULT_LISTEN_PORT})
+  --data-directory <path>  Persistent state directory (default: ~/${DEFAULT_DATA_DIRECTORY_NAME})
   --allow-downgrade        Permit service update to an older invoked CLI version
   -h, --help               Show this help
 `;

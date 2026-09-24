@@ -10,7 +10,7 @@ import type {
   ListedWorktree,
 } from '@porcelain/projects/models';
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type { EventPublisher, JobName } from '../../ports/event-publisher.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 type ParcelWatcher = Pick<typeof parcelWatcher, 'subscribe'>;
@@ -209,6 +209,11 @@ export class WebSocketEventPublisher implements EventPublisher {
     if (worktree?.projectId === receipt.projectId)
       for (const client of worktree.clients.keys()) recipients.add(client);
     for (const client of recipients) client.send(notice);
+  }
+
+  jobFailed(job: JobName, error: unknown): void {
+    const detail = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`Porcelain job ${job} failed: ${detail}\n`);
   }
 
   async close(): Promise<void> {

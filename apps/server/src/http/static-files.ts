@@ -8,10 +8,10 @@ import {
 } from 'node:path';
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyInstance } from 'fastify';
-import type { Readable } from 'node:stream';
+import type { WebRootFiles } from '../ports/web-root-files.ts';
 
-const noCache = 'no-cache';
-const immutableCache = 'public, max-age=31536000, immutable';
+const NO_CACHE = 'no-cache';
+const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable';
 
 const contentTypes: Record<string, string> = {
   avif: 'image/avif',
@@ -45,13 +45,6 @@ type StaticFile = {
   path: string;
   size: number;
   fallback: boolean;
-};
-
-export type WebRootFiles = {
-  root: string;
-  file(candidate: string): Promise<{ path: string; size: number } | undefined>;
-  exists(candidate: string): Promise<boolean>;
-  stream(path: string): Readable;
 };
 
 function pathOnly(urlPath: string): string {
@@ -166,8 +159,8 @@ export function staticFiles(
         .header(
           'Cache-Control',
           !file.fallback && isViteHashedAsset(urlPath)
-            ? immutableCache
-            : noCache,
+            ? IMMUTABLE_CACHE
+            : NO_CACHE,
         )
         .header('Content-Length', String(file.size))
         .type(contentTypeForPath(file.path));

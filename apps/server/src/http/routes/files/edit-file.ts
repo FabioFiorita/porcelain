@@ -6,7 +6,7 @@ import {
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-import { editFileBodyLimit } from '../../../config/request-limits.ts';
+import { EDIT_FILE_BODY_LIMIT } from '../../../config/request-limits.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function editFile(
@@ -22,7 +22,7 @@ export function editFile(
         body: editFileRequestSchema,
         response: { ...errorResponses, 200: editFileResponseSchema },
       },
-      bodyLimit: editFileBodyLimit,
+      bodyLimit: EDIT_FILE_BODY_LIMIT,
     },
     async (request) =>
       options.useCase.execute(

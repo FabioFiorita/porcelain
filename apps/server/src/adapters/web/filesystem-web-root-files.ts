@@ -1,8 +1,7 @@
 import { createReadStream, type ReadStream } from 'node:fs';
 import { lstat, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, relative, sep } from 'node:path';
-
-export type WebRootFile = { path: string; size: number };
+import type { WebRootFile, WebRootFiles } from '../../ports/web-root-files.ts';
 
 function pathIsWithin(root: string, candidate: string): boolean {
   const child = relative(root, candidate);
@@ -12,7 +11,7 @@ function pathIsWithin(root: string, candidate: string): boolean {
   );
 }
 
-export class FilesystemWebRootFiles {
+export class FilesystemWebRootFiles implements WebRootFiles {
   readonly root: string;
 
   constructor(root: string) {

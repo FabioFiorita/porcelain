@@ -1,6 +1,8 @@
-const mebibyte = 1024 * 1024;
+const MEBIBYTE = 1024 * 1024;
+const JSON_ESCAPE_FACTOR = 6;
+const ENVELOPE_BYTES = MEBIBYTE;
 
-export const editFileBodyLimit = 8 * mebibyte;
-export const publishReviewBodyLimit = 6 * 10 * mebibyte + mebibyte;
-export const reviewMcpBodyLimit = 6 * mebibyte + 4096;
-export const liveUpdateMessageLimit = 64 * 1024;
+const REVIEW_SUMMARY_BYTES = 10 * MEBIBYTE;
+export const REVIEW_BODY_LIMIT =
+  JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + ENVELOPE_BYTES;
+export const EDIT_FILE_BODY_LIMIT = 8 * MEBIBYTE;

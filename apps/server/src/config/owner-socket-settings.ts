@@ -1,12 +1,12 @@
 import { join } from 'node:path';
 import { SocketPathTooLongError } from './errors/socket-path-too-long-error.ts';
 
-const pathLimit = 103;
-const socketFileName = 'server.sock';
+const PATH_LIMIT = 103;
+const SOCKET_FILE_NAME = 'server.sock';
 
 export function ownerSocketPath(directory: string): string {
-  const path = join(directory, socketFileName);
-  if (Buffer.byteLength(path) > pathLimit)
-    throw new SocketPathTooLongError(path, pathLimit);
+  const path = join(directory, SOCKET_FILE_NAME);
+  if (Buffer.byteLength(path) > PATH_LIMIT)
+    throw new SocketPathTooLongError(path, PATH_LIMIT);
   return path;
 }

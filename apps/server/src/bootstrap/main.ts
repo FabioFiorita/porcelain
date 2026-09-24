@@ -5,9 +5,13 @@ import type { StartServer } from '../cli/launcher.ts';
 import { OwnerRequestError } from '../cli/owner-client.ts';
 import { ServiceCommandError } from '../cli/service.ts';
 import { installShutdownSignals } from '../cli/signals.ts';
+import {
+  writeStandardError,
+  writeStandardOutput,
+} from '../cli/standard-output.ts';
 import { ServeConfigurationError } from '../config/errors/serve-configuration-error.ts';
 import { SocketPathTooLongError } from '../config/errors/socket-path-too-long-error.ts';
-import type { PorcelainEnvironment } from '../config/startup-settings.ts';
+import type { PorcelainEnvironment } from '../config/environment-settings.ts';
 import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
@@ -44,10 +48,8 @@ export async function runCli(
   dependencies: CliDependencies = {},
 ): Promise<void> {
   const shutdown = new AbortController();
-  const stdout =
-    dependencies.stdout ?? ((message: string) => process.stdout.write(message));
-  const stderr =
-    dependencies.stderr ?? ((message: string) => process.stderr.write(message));
+  const stdout = dependencies.stdout ?? writeStandardOutput;
+  const stderr = dependencies.stderr ?? writeStandardError;
   const removeShutdownSignals = installShutdownSignals(shutdown);
   try {
     const homeDirectory = dependencies.homeDirectory ?? homedir();

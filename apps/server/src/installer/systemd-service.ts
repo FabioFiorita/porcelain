@@ -6,7 +6,7 @@ import { ServiceStillActiveError } from './errors/service-still-active-error.ts'
 import { exists } from './json-file.ts';
 import {
   renderSystemdUnit,
-  serviceUnitName,
+  SERVICE_UNIT_NAME,
   type ServicePlan,
 } from './systemd-unit.ts';
 
@@ -27,7 +27,7 @@ export class SystemdService {
     this.unitPath = join(
       homeDirectory,
       '.config/systemd/user',
-      serviceUnitName,
+      SERVICE_UNIT_NAME,
     );
     this.uid = uid;
     this.runner = runner;
@@ -48,16 +48,20 @@ export class SystemdService {
       '--user',
       'enable',
       '--now',
-      serviceUnitName,
+      SERVICE_UNIT_NAME,
     ]);
   }
 
   async start(): Promise<void> {
-    await this.required('service start', ['--user', 'start', serviceUnitName]);
+    await this.required('service start', [
+      '--user',
+      'start',
+      SERVICE_UNIT_NAME,
+    ]);
   }
 
   async stop(): Promise<void> {
-    await this.required('service stop', ['--user', 'stop', serviceUnitName]);
+    await this.required('service stop', ['--user', 'stop', SERVICE_UNIT_NAME]);
     if (await this.isActive()) throw new ServiceStillActiveError('stop');
   }
 
@@ -66,7 +70,7 @@ export class SystemdService {
       '--user',
       'disable',
       '--now',
-      serviceUnitName,
+      SERVICE_UNIT_NAME,
     ]);
     if (await this.isActive()) throw new ServiceStillActiveError('disable');
     await rm(this.unitPath, { force: true });
@@ -75,8 +79,8 @@ export class SystemdService {
 
   async probe(): Promise<ServiceProbe> {
     const [enabled, active, linger] = await Promise.all([
-      this.runner('systemctl', ['--user', 'is-enabled', serviceUnitName]),
-      this.runner('systemctl', ['--user', 'is-active', serviceUnitName]),
+      this.runner('systemctl', ['--user', 'is-enabled', SERVICE_UNIT_NAME]),
+      this.runner('systemctl', ['--user', 'is-active', SERVICE_UNIT_NAME]),
       this.runner('loginctl', [
         'show-user',
         String(this.uid),
@@ -100,7 +104,7 @@ export class SystemdService {
     const result = await this.runner('systemctl', [
       '--user',
       'show',
-      serviceUnitName,
+      SERVICE_UNIT_NAME,
       '--property=MainPID',
       '--value',
     ]);
@@ -123,7 +127,7 @@ export class SystemdService {
     const result = await this.runner('systemctl', [
       '--user',
       'is-active',
-      serviceUnitName,
+      SERVICE_UNIT_NAME,
     ]);
     return result.code === 0;
   }

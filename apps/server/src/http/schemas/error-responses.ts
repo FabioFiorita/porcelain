@@ -9,6 +9,7 @@ export const errorResponses = {
   413: apiErrorSchema,
   422: apiErrorSchema,
   429: apiErrorSchema,
-  503: apiErrorSchema,
   500: apiErrorSchema,
+  502: apiErrorSchema,
+  503: apiErrorSchema,
 };
