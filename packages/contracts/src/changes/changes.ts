@@ -65,14 +65,12 @@ export const readChangeDiffsResponseSchema = z.object({
   ),
 });
 
-export const readChangeLinesQuerySchema = z
-  .strictObject({
-    path: relativePathSchema,
-    from: z.coerce.number().int().min(1),
-    to: z.coerce.number().int().min(1),
-    at: z.enum(['head', 'worktree']),
-  })
-  .refine((range) => range.to >= range.from);
+export const readChangeLinesQuerySchema = z.strictObject({
+  path: relativePathSchema,
+  from: z.coerce.number().int().min(1),
+  to: z.coerce.number().int().min(1),
+  at: z.enum(['head', 'worktree']),
+});
 
 export const readChangeLinesResponseSchema = z.object({
   environmentId: z.uuid(),

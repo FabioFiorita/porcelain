@@ -8,19 +8,13 @@ import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const idSchema = z.uuid();
 const lineSchema = z.number().int().min(1).max(2_147_483_647);
-const LONE_SURROGATE =
-  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 
-export const codePointerSchema = z
-  .strictObject({
-    path: relativePathSchema,
-    startLine: lineSchema,
-    endLine: lineSchema,
-    symbol: z.string().trim().min(1).max(500).optional(),
-  })
-  .refine((pointer) => pointer.endLine >= pointer.startLine, {
-    message: 'The pointer end must not precede its start',
-  });
+export const codePointerSchema = z.strictObject({
+  path: relativePathSchema,
+  startLine: lineSchema,
+  endLine: lineSchema,
+  symbol: z.string().trim().min(1).max(500).optional(),
+});
 
 export const resolvedCodePointerSchema = codePointerSchema.safeExtend({
   textFingerprint: fingerprintSchema,
@@ -104,7 +98,7 @@ const summaryHtmlSchema = z
   .string()
   .min(1)
   .max(REVIEW_SUMMARY_BYTES)
-  .refine((value) => !LONE_SURROGATE.test(value), 'Expected valid Unicode text')
+  .refine((value) => value.isWellFormed(), 'Expected valid Unicode text')
   .refine(
     (value) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
     'Summary exceeds 10 MiB',

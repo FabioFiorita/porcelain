@@ -42,15 +42,11 @@ export const conflictSchema = z.codec(
   },
 );
 
-export const gitChangeSelectionSchema = z
-  .strictObject({
-    scope: z.enum(['staged', 'unstaged']),
-    oldPath: absentAsNull(relativePathSchema),
-    newPath: absentAsNull(relativePathSchema),
-  })
-  .refine(
-    (change) => change.oldPath !== undefined || change.newPath !== undefined,
-  );
+export const gitChangeSelectionSchema = z.strictObject({
+  scope: z.enum(['staged', 'unstaged']),
+  oldPath: absentAsNull(relativePathSchema),
+  newPath: absentAsNull(relativePathSchema),
+});
 
 export const ordinaryChangeSchema = z.object({
   scope: z.enum(['staged', 'unstaged']),
