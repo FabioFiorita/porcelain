@@ -261,6 +261,7 @@ function classifyServer(inside: string) {
       [
         'schemas/error-responses.ts',
         'error-handler.ts',
+        'server-factory.ts',
         'static-files.ts',
         'principal.ts',
       ].includes(http)
