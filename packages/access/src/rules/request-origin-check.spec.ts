@@ -20,20 +20,19 @@ describe('requestOriginCheck', () => {
     expect(check({})).toEqual({ kind: 'allowed' });
   });
 
-  it('refuses a request whose Host header is missing, empty or malformed', () => {
-    for (const host of [
-      undefined,
-      '',
-      'a:b:c',
-      '[::1',
-      '[::1]x',
-      'localhost:port',
-      'local\0host',
-    ])
-      expect(check({ host })).toEqual({
-        kind: 'refused',
-        reason: 'The Host header is missing or malformed',
-      });
+  it.each([
+    ['absent', undefined],
+    ['empty', ''],
+    ['two colons', 'a:b:c'],
+    ['an unclosed bracket', '[::1'],
+    ['text after the bracket', '[::1]x'],
+    ['a port that is not a number', 'localhost:port'],
+    ['a NUL byte', 'local\0host'],
+  ])('refuses a request whose Host header is %s', (_, host) => {
+    expect(check({ host })).toEqual({
+      kind: 'refused',
+      reason: 'The Host header is missing or malformed',
+    });
   });
 
   it('refuses a host the server was not told to answer to', () => {
@@ -77,16 +76,15 @@ describe('requestOriginCheck', () => {
     });
   });
 
-  it('refuses a write from another scheme, host or port', () => {
-    for (const origin of [
-      'https://127.0.0.1:4173',
-      'http://elsewhere.example',
-      'http://127.0.0.1:4174',
-    ])
-      expect(check({ method: 'PATCH', origin })).toEqual({
-        kind: 'refused',
-        reason: `The origin ${origin} cannot write here`,
-      });
+  it.each([
+    ['another scheme', 'https://127.0.0.1:4173'],
+    ['another host', 'http://elsewhere.example'],
+    ['another port', 'http://127.0.0.1:4174'],
+  ])('refuses a write from %s', (_, origin) => {
+    expect(check({ method: 'PATCH', origin })).toEqual({
+      kind: 'refused',
+      reason: `The origin ${origin} cannot write here`,
+    });
   });
 
   it('accepts a write from the same origin, written with or without its default port', () => {

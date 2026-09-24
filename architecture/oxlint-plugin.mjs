@@ -371,7 +371,7 @@ const openTypes = new Set([
   'TSUnknownKeyword',
   'TSAnyKeyword',
 ]);
-const kernelFile = /^packages\/kernel\/src\//;
+const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile =
   /^(?:packages\/[^/]+\/src\/(?:rules|services)\/|apps\/server\/src\/(?:adapters|use-cases|jobs)\/)/;
 const useCaseFile = /^apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
@@ -1388,13 +1388,13 @@ export default {
     },
     'kernel-is-types': {
       create(context) {
-        if (!kernelFile.test(repositoryPath(context)) || isSpec(context))
+        if (!kernelTypesFile.test(repositoryPath(context)) || isSpec(context))
           return {};
         const report = (node) =>
           context.report({
             node,
             message:
-              'The kernel holds types and ports only; a function, class, value or enum belongs in a domain.',
+              'Kernel models and ports hold types only; a pure function belongs in kernel rules/, an error class in kernel errors/, anything else in a domain.',
           });
         return {
           FunctionDeclaration: report,
