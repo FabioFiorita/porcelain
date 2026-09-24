@@ -367,7 +367,8 @@ const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
 const disableDirective = /^\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
 const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
-const packageSource = /^packages\/[^/]+\/src\//;
+const nodeGlobalScope =
+  /^(?:packages\/[^/]+\/src|apps\/server\/src\/(?:use-cases|ports))\//;
 const serverSource = /^(?:packages\/[^/]+|apps\/server)\/src\//;
 const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
@@ -1136,7 +1137,7 @@ export default {
     'no-node-globals': {
       create(context) {
         const path = repositoryPath(context);
-        if (!packageSource.test(path)) return {};
+        if (!nodeGlobalScope.test(path)) return {};
         const role = classify(path)?.role;
         if (role === 'test' || (role && nodeGlobalRoles.has(role))) return {};
         return {

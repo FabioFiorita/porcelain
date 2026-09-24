@@ -10,6 +10,7 @@ import {
   gitCapabilityViolation,
   helpersFolderViolation,
   requiredServerFiles,
+  runtimeNodeViolation,
   targetPackageExports,
   violation,
   type Classification,
@@ -346,6 +347,12 @@ function dependencyFindings(
           rule: `${from.role}-cannot-import-external`,
           from: module.source,
           to: dependency.module,
+        });
+      } else if (runtimeNodeViolation(module.source, dependency.module)) {
+        result.push({
+          rule: 'runtime-node-allow-list',
+          from: module.source,
+          to: `${dependency.module}: runtime reaches Node only through the files architecture/policy.ts names for it; a new capability is a port with an adapter`,
         });
       }
     }

@@ -646,6 +646,31 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
   return false;
 }
 
+const runtimeNodeModules: Readonly<Record<string, readonly string[]>> = {
+  'apps/server/src/runtime/data-directory.ts': ['fs'],
+  'apps/server/src/runtime/directory-lock.ts': [
+    'crypto',
+    'fs/promises',
+    'path',
+  ],
+  'apps/server/src/runtime/owner-socket.ts': ['fs'],
+  'apps/server/src/runtime/lanes.ts': ['diagnostics_channel'],
+  'apps/server/src/runtime/delay.ts': ['timers/promises'],
+  'apps/server/src/runtime/start-application.ts': ['fs', 'path', 'os'],
+};
+
+export function runtimeNodeViolation(
+  path: string,
+  module: string,
+): string | undefined {
+  if (!module.startsWith('node:') && !isNodeModule(module)) return;
+  if (classify(path)?.role !== 'runtime') return;
+  const name = module.replace(/^node:/, '');
+  return runtimeNodeModules[path]?.includes(name)
+    ? undefined
+    : 'runtime-node-allow-list';
+}
+
 export function forbiddenExternal(role: Role, module: string): boolean {
   if (module.startsWith('node:') || isNodeModule(module))
     return forbiddenNodeModule(role, module.replace(/^node:/, ''));
