@@ -1,6 +1,10 @@
 {
-  "plugins": ["typescript"],
-  "jsPlugins": ["./architecture/oxlint-plugin.mjs"],
+  "plugins": [
+    "typescript"
+  ],
+  "jsPlugins": [
+    "./architecture/oxlint-plugin.mjs"
+  ],
   "options": {
     "typeAware": true
   },
@@ -71,7 +75,10 @@
   },
   "overrides": [
     {
-      "files": ["architecture/*.mjs", "architecture/*.cjs"],
+      "files": [
+        "architecture/*.mjs",
+        "architecture/*.cjs"
+      ],
       "rules": {
         "typescript/no-unsafe-argument": "off",
         "typescript/no-unsafe-assignment": "off",
