@@ -1,9 +1,7 @@
-import { eq, max, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { commentReads } from '../../db/schema/comment-reads.ts';
-import { commentThreads } from '../../db/schema/comment-threads.ts';
-import type { WorktreeStatus } from '@porcelain/changes/models';
-import type { WorktreeStatusStore } from '@porcelain/changes/ports';
+import type { WorktreeStatus } from '@porcelain/projects/models';
+import type { WorktreeStatusStore } from '@porcelain/projects/ports';
 
 export class SqliteWorktreeStatusStore implements WorktreeStatusStore {
   private readonly db: BetterSQLite3Database;
@@ -63,37 +61,5 @@ export class SqliteWorktreeStatusStore implements WorktreeStatusStore {
       if (row.status === 'replied' || !statuses.has(row.worktree_id))
         statuses.set(row.worktree_id, row.status);
     return statuses;
-  }
-
-  markSeen(worktreeId: string, throughRevision: number): number {
-    return this.db.transaction(
-      (tx) => {
-        const current =
-          tx
-            .select({ seenThrough: commentReads.seenThrough })
-            .from(commentReads)
-            .where(eq(commentReads.worktreeId, worktreeId))
-            .get()?.seenThrough ?? 0;
-        const highest =
-          tx
-            .select({ revision: max(commentThreads.revision) })
-            .from(commentThreads)
-            .where(eq(commentThreads.worktreeId, worktreeId))
-            .get()?.revision ?? 0;
-        const seenThrough = Math.max(
-          current,
-          Math.min(throughRevision, highest),
-        );
-        tx.insert(commentReads)
-          .values({ worktreeId, seenThrough })
-          .onConflictDoUpdate({
-            target: commentReads.worktreeId,
-            set: { seenThrough },
-          })
-          .run();
-        return seenThrough;
-      },
-      { behavior: 'immediate' },
-    );
   }
 }
