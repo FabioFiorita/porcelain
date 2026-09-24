@@ -10,7 +10,6 @@ import type {
 } from '../../ports/followed-targets.ts';
 import type { Logger } from '../../ports/logger.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
-import { callerOf } from '../principal.ts';
 
 export type LiveUpdatesOptions = {
   logger: Logger;
@@ -43,7 +42,7 @@ export function liveUpdates(
   options: Pick<AuthenticateOptions, 'deviceConnections'> & LiveUpdatesOptions,
 ) {
   server.get('/live', { websocket: true }, (socket, request) => {
-    const principal = callerOf(request);
+    const principal = request.caller;
     if (principal.kind !== 'device') {
       socket.close(1008, 'Viewer connection required');
       return;

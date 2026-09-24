@@ -1,3 +1,4 @@
+import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,13 +20,6 @@ export type ServiceCommandDependencies = {
   limits: Limits;
   stdout: (message: string) => void;
 };
-
-export class ServiceCommandError extends Error {
-  override readonly name = 'ServiceCommandError';
-  constructor(detail: string) {
-    super(`Service management failed: ${detail}`);
-  }
-}
 
 export function isServiceFailure(error: unknown): boolean {
   return (

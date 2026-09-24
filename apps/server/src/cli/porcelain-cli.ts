@@ -6,7 +6,7 @@ import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { parseCliArguments } from './arguments.ts';
 import { runCommand } from './commands.ts';
 import type { StartServer } from './launcher.ts';
-import { OwnerRequestError } from './owner-client.ts';
+import { OwnerRequestError } from './errors/owner-request-error.ts';
 import { isServiceFailure } from './service.ts';
 import { installShutdownSignals } from './signals.ts';
 import { writeStandardError, writeStandardOutput } from './standard-output.ts';

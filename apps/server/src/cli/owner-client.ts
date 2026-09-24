@@ -1,10 +1,7 @@
 import { request as httpRequest } from 'node:http';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
+import { OwnerRequestError } from './errors/owner-request-error.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
-
-export class OwnerRequestError extends Error {
-  override readonly name = 'OwnerRequestError';
-}
 
 type OwnerExchange = {
   method: 'GET' | 'POST';
