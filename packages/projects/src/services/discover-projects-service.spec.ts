@@ -43,7 +43,7 @@ function setup(candidates: string[], limited = false) {
 describe('DiscoverProjectsService', () => {
   it('searches the project home and the folders holding registered projects', async () => {
     const { folders, service } = setup([]);
-    await service.execute({});
+    await service.execute();
     expect(folders.searches.map((search) => search.roots)).toEqual([
       [home, '/srv/work'],
     ]);
@@ -58,7 +58,7 @@ describe('DiscoverProjectsService', () => {
     repositories.repository(`${home}/zeta`, repository('z'));
     repositories.repository(`${home}/alpha`, repository('a'));
     repositories.repository(`${home}/alpha-copy`, repository('a'));
-    expect(await service.execute({})).toEqual({
+    expect(await service.execute()).toEqual({
       repositories: [
         { name: 'alpha', path: `${home}/alpha` },
         { name: 'zeta', path: `${home}/zeta` },
@@ -76,14 +76,14 @@ describe('DiscoverProjectsService', () => {
         { path: `${home}/app`, main: true, available: true },
       ]),
     );
-    expect((await service.execute({})).repositories).toEqual([
+    expect((await service.execute()).repositories).toEqual([
       { name: 'app', path: `${home}/app` },
     ]);
   });
 
   it('skips a folder with a Git marker that is not a usable repository', async () => {
     const { service } = setup([`${home}/broken`]);
-    expect(await service.execute({})).toEqual({
+    expect(await service.execute()).toEqual({
       repositories: [],
       limited: false,
     });
@@ -91,7 +91,7 @@ describe('DiscoverProjectsService', () => {
 
   it('says the search was cut short when the folder search was', async () => {
     const { service } = setup([], true);
-    expect((await service.execute({})).limited).toBe(true);
+    expect((await service.execute()).limited).toBe(true);
   });
 
   it('stops at fifty repositories and says so', async () => {
@@ -102,7 +102,7 @@ describe('DiscoverProjectsService', () => {
     const { repositories, service } = setup(candidates);
     for (const [index, path] of candidates.entries())
       repositories.repository(path, repository(`identity-${index}`));
-    const discovery = await service.execute({});
+    const discovery = await service.execute();
     expect(discovery.repositories).toHaveLength(50);
     expect(discovery.limited).toBe(true);
   });
@@ -115,7 +115,7 @@ describe('DiscoverProjectsService', () => {
     const { repositories, service } = setup(candidates);
     for (const [index, path] of candidates.entries())
       repositories.repository(path, repository(`identity-${index}`));
-    const discovery = await service.execute({});
+    const discovery = await service.execute();
     expect(discovery.repositories).toHaveLength(50);
     expect(discovery.limited).toBe(false);
   });

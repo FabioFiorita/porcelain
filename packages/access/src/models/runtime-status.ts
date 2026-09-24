@@ -3,5 +3,3 @@ export type RuntimeStatus = {
   dataDirectory: string;
   pid: number;
 };
-
-export type ReadOwnerStatusInput = Record<never, never>;

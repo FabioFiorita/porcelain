@@ -83,7 +83,7 @@ export class RunGitActionController {
       (signal) => this.checkWorktree.execute(scope, signal),
       { callerSignal: context.signal },
     );
-    this.expireGitActionReceipts.execute({});
+    this.expireGitActionReceipts.execute();
     const accepted = this.acceptGitAction.execute({
       projectId: input.projectId,
       worktreeId: input.worktreeId,

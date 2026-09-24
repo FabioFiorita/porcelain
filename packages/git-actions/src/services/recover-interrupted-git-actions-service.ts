@@ -1,5 +1,4 @@
 import type { Clock } from '@porcelain/kernel/ports';
-import type { RecoverInterruptedGitActionsInput } from '../models/git-action-operations.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import type { RunningGitActionStore } from '../ports/running-git-action-store.ts';
 
@@ -18,8 +17,7 @@ export class RecoverInterruptedGitActionsService {
     this.clock = clock;
   }
 
-  execute(input: RecoverInterruptedGitActionsInput): void {
-    void input;
+  execute(): void {
     const finishedAt = Date.parse(this.clock.now());
     for (const receipt of this.runningGitActionStore.running())
       this.gitActionReceiptStore.save({

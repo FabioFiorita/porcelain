@@ -1,8 +1,5 @@
 import type { Clock } from '@porcelain/kernel/ports';
-import type {
-  ListAccessInput,
-  ListAccessResult,
-} from '../models/list-access.ts';
+import type { ListAccessResult } from '../models/list-access.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import { pairingGrantPending } from '../rules/pairing-grant.ts';
@@ -22,8 +19,7 @@ export class ListAccessService {
     this.clock = clock;
   }
 
-  execute(input: ListAccessInput): ListAccessResult {
-    void input;
+  execute(): ListAccessResult {
     const now = this.clock.now();
     return {
       grants: this.pairingGrantStore

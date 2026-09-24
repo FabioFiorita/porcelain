@@ -2,7 +2,6 @@ import type {
   ExpireGitActionReceiptsService,
   RecoverInterruptedGitActionsService,
 } from '@porcelain/git-actions/services';
-import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class RecoverInterruptedGitActionsController {
   private readonly recoverInterruptedGitActions: RecoverInterruptedGitActionsService;
@@ -16,9 +15,8 @@ export class RecoverInterruptedGitActionsController {
     this.expireGitActionReceipts = expireGitActionReceipts;
   }
 
-  execute(input: Record<never, never>, context: OperationContext): void {
-    context.signal?.throwIfAborted();
-    this.recoverInterruptedGitActions.execute(input);
-    this.expireGitActionReceipts.execute(input);
+  execute(): void {
+    this.recoverInterruptedGitActions.execute();
+    this.expireGitActionReceipts.execute();
   }
 }

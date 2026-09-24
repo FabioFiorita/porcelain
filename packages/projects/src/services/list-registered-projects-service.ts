@@ -8,8 +8,7 @@ export class ListRegisteredProjectsService {
     this.inventoryStore = inventoryStore;
   }
 
-  execute(input: Record<never, never>): Inventory {
-    void input;
+  execute(): Inventory {
     return this.inventoryStore.read();
   }
 }

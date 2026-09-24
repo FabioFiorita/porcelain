@@ -19,7 +19,7 @@ describe('RecoverInterruptedGitActionsService', () => {
       store,
       store,
       new FixedClock(restartedAt),
-    ).execute({});
+    ).execute();
     expect(store.read(running.requestId)).toMatchObject({
       state: 'interrupted',
       reason: 'OUTCOME_UNKNOWN',

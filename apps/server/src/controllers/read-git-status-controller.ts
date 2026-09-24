@@ -62,7 +62,7 @@ export class ReadGitStatusController {
             );
             await this.checkWorktree.execute({ worktreeId }, signal);
             return {
-              environmentId: this.readEnvironment.execute({}).environmentId,
+              environmentId: this.readEnvironment.execute().environmentId,
               worktreeId,
               statusToken: status.statusToken,
               branch: status.branch && {

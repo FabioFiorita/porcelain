@@ -25,9 +25,6 @@ export function dismissInterrupted(
         },
       },
     },
-    async (request) =>
-      options.controller.execute(request.params, {
-        signal: request.disconnected,
-      }),
+    async (request) => options.controller.execute(request.params),
   );
 }

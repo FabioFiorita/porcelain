@@ -15,7 +15,7 @@ describe('CollectAbsentWorktreesService', () => {
     const presence = absentSince('2026-08-01T00:00:00.000Z');
     const clock = new FixedClock('2026-08-31T00:00:00.001Z');
     expect(
-      new CollectAbsentWorktreesService(presence, clock).execute({}),
+      new CollectAbsentWorktreesService(presence, clock).execute(),
     ).toEqual({ collected: ['gone'] });
     expect(presence.expired('2100-01-01T00:00:00.000Z')).toEqual([]);
   });
@@ -24,7 +24,7 @@ describe('CollectAbsentWorktreesService', () => {
     const presence = absentSince('2026-08-01T00:00:00.000Z');
     const clock = new FixedClock('2026-08-31T00:00:00.000Z');
     expect(
-      new CollectAbsentWorktreesService(presence, clock).execute({}),
+      new CollectAbsentWorktreesService(presence, clock).execute(),
     ).toEqual({ collected: [] });
     expect(presence.expired('2100-01-01T00:00:00.000Z')).toEqual(['gone']);
   });

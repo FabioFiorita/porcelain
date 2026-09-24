@@ -118,19 +118,17 @@ function parameterName(parameter) {
 
 function executeSignatureProblem(role, execute) {
   const parameters = execute.value.params;
+  const rest =
+    parameterName(parameters[0]) === 'input' ? parameters.slice(1) : parameters;
+  const last = rest[0];
   if (role === 'Controller')
-    return parameters.length === 2 &&
-      parameterName(parameters[0]) === 'input' &&
-      parameterName(parameters[1]) === 'context'
+    return rest.length <= 1 && (!last || parameterName(last) === 'context')
       ? undefined
-      : 'Controller execute takes (input, context).';
-  const second = parameters[1];
-  return parameters.length >= 1 &&
-    parameters.length <= 2 &&
-    parameterName(parameters[0]) === 'input' &&
-    (!second || (parameterName(second) === 'signal' && second.optional))
+      : 'Controller execute takes (), (input), (context) or (input, context).';
+  return rest.length <= 1 &&
+    (!last || (parameterName(last) === 'signal' && last.optional))
     ? undefined
-    : 'Service execute takes (input, signal?).';
+    : 'Service execute takes (), (input), (signal?) or (input, signal?).';
 }
 
 function objectProperty(object, name) {

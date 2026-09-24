@@ -19,14 +19,11 @@ export class DiscoverProjectsController {
     this.laneKeys = laneKeys;
   }
 
-  execute(
-    input: Record<never, never>,
-    context: OperationContext,
-  ): Promise<DiscoverProjectsResponse> {
+  execute(context: OperationContext): Promise<DiscoverProjectsResponse> {
     return this.lanes.run(
       this.laneKeys.filesystem(),
       'read',
-      ({ signal }) => this.discoverProjects.execute(input, signal),
+      ({ signal }) => this.discoverProjects.execute(signal),
       { callerSignal: context.signal },
     );
   }

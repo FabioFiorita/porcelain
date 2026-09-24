@@ -20,12 +20,9 @@ export class ListCommitModelsController {
     this.options = options;
   }
 
-  execute(
-    input: Record<never, never>,
-    context: OperationContext,
-  ): Promise<ListCommitModelsResponse> {
+  execute(context: OperationContext): Promise<ListCommitModelsResponse> {
     return this.lanes.unqueued(
-      (signal) => this.listCommitModels.execute(input, signal),
+      (signal) => this.listCommitModels.execute(signal),
       { callerSignal: context.signal, deadlineMs: this.options.deadlineMs },
     );
   }

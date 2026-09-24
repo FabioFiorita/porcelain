@@ -54,7 +54,7 @@ describe('ListAccessService', () => {
       new FixedClock('2026-09-23T10:05:00.000Z'),
     );
 
-    const listing = service.execute({});
+    const listing = service.execute();
 
     expect(listing.grants).toEqual([
       {

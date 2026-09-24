@@ -41,15 +41,12 @@ export class ReadInventoryController {
     this.laneKeys = laneKeys;
   }
 
-  execute(
-    input: Record<never, never>,
-    context: OperationContext,
-  ): Promise<ReadInventoryResponse> {
+  execute(context: OperationContext): Promise<ReadInventoryResponse> {
     return this.lanes.run(
       this.laneKeys.inventory(),
       'read',
       async ({ signal }) => {
-        const { projects } = this.listRegisteredProjects.execute(input);
+        const { projects } = this.listRegisteredProjects.execute();
         const listings = await Promise.all(
           projects.map((project) =>
             this.listProjectWorktrees.execute({ project }, signal),

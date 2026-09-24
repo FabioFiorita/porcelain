@@ -24,6 +24,6 @@ export class FlushDeviceActivityJob {
   }
 
   private flush(): void {
-    this.controller.execute({}, {}).catch(() => undefined);
+    this.controller.execute({}).catch(() => undefined);
   }
 }

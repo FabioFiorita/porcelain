@@ -17,6 +17,6 @@ export function discoverProjects(
       },
     },
     async (request) =>
-      options.controller.execute({}, { signal: request.disconnected }),
+      options.controller.execute({ signal: request.disconnected }),
   );
 }

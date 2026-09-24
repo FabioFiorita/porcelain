@@ -17,6 +17,6 @@ export function readInventory(
       },
     },
     async (request) =>
-      options.controller.execute({}, { signal: request.disconnected }),
+      options.controller.execute({ signal: request.disconnected }),
   );
 }

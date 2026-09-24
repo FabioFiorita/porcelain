@@ -1,7 +1,3 @@
-import type {
-  FlushDeviceActivityInput,
-  FlushDeviceActivityResult,
-} from '../models/flush-device-activity.ts';
 import type { DeviceActivityStore } from '../ports/device-activity-store.ts';
 
 export class FlushDeviceActivityService {
@@ -11,9 +7,7 @@ export class FlushDeviceActivityService {
     this.deviceActivityStore = deviceActivityStore;
   }
 
-  execute(input: FlushDeviceActivityInput): FlushDeviceActivityResult {
-    void input;
+  execute(): void {
     this.deviceActivityStore.flush();
-    return {};
   }
 }

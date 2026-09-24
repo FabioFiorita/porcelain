@@ -7,8 +7,7 @@ export class MarkProjectsUnavailableService {
     this.inventoryStore = inventoryStore;
   }
 
-  execute(input: Record<never, never>): void {
-    void input;
+  execute(): void {
     this.inventoryStore.markAllUnavailable();
   }
 }

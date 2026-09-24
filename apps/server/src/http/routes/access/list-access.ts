@@ -16,6 +16,6 @@ export function listAccess(
         response: { ...errorResponses, 200: listAccessResponseSchema },
       },
     },
-    () => options.controller.execute({}, {}),
+    () => options.controller.execute({}),
   );
 }

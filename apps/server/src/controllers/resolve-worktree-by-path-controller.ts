@@ -40,7 +40,7 @@ export class ResolveWorktreeByPathController {
       this.laneKeys.inventory(),
       'read',
       async ({ signal }) => {
-        const { projects } = this.listRegisteredProjects.execute({});
+        const { projects } = this.listRegisteredProjects.execute();
         const listings = await Promise.all(
           projects.map((project) =>
             this.listProjectWorktrees.execute({ project }, signal),

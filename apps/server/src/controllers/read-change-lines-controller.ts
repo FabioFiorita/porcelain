@@ -46,7 +46,7 @@ export class ReadChangeLinesController {
         const lines = await this.readChangeLines.execute(input, signal);
         await this.checkWorktree.execute({ worktreeId }, signal);
         return {
-          environmentId: this.readEnvironment.execute({}).environmentId,
+          environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,
           ...lines,
         };

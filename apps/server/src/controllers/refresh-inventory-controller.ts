@@ -36,16 +36,13 @@ export class RefreshInventoryController {
     this.laneKeys = laneKeys;
   }
 
-  execute(
-    input: Record<never, never>,
-    context: OperationContext,
-  ): Promise<void> {
+  execute(context: OperationContext): Promise<void> {
     return this.lanes.run(
       this.laneKeys.inventory(),
       'write',
       async ({ signal }) => {
-        this.markProjectsUnavailable.execute(input);
-        const { projects } = this.listRegisteredProjects.execute(input);
+        this.markProjectsUnavailable.execute();
+        const { projects } = this.listRegisteredProjects.execute();
         const listings = await Promise.all(
           projects.map((project) =>
             this.listProjectWorktrees.execute({ project }, signal),

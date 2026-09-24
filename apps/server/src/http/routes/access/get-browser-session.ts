@@ -16,7 +16,6 @@ export function getBrowserSession(
         response: { ...errorResponses, 200: readInventoryResponseSchema },
       },
     },
-    (request) =>
-      options.controller.execute({}, { signal: request.disconnected }),
+    (request) => options.controller.execute({ signal: request.disconnected }),
   );
 }

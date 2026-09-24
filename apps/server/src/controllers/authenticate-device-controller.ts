@@ -3,7 +3,6 @@ import type {
   AuthenticateDeviceResult,
 } from '@porcelain/access/models';
 import type { AuthenticateDeviceService } from '@porcelain/access/services';
-import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class AuthenticateDeviceController {
   private readonly authenticateDeviceService: AuthenticateDeviceService;
@@ -12,11 +11,7 @@ export class AuthenticateDeviceController {
     this.authenticateDeviceService = authenticateDeviceService;
   }
 
-  execute(
-    input: AuthenticateDeviceInput,
-    context: OperationContext,
-  ): AuthenticateDeviceResult {
-    context.signal?.throwIfAborted();
+  execute(input: AuthenticateDeviceInput): AuthenticateDeviceResult {
     return this.authenticateDeviceService.execute(input);
   }
 }

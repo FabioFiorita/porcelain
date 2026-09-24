@@ -101,7 +101,7 @@ export class ReadChangeDiffsController {
         });
         await this.checkWorktree.execute({ worktreeId }, signal);
         return {
-          environmentId: this.readEnvironment.execute({}).environmentId,
+          environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,
           statusToken: before.statusToken,
           diffs,

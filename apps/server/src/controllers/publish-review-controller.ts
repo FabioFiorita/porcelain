@@ -90,7 +90,7 @@ export class PublishReviewController {
           signal,
         );
         const resolved = this.resolvePublishedReview.execute({
-          environmentId: this.readEnvironment.execute({}).environmentId,
+          environmentId: this.readEnvironment.execute().environmentId,
           review,
           files,
           changes,

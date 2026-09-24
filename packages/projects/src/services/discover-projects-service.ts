@@ -29,11 +29,7 @@ export class DiscoverProjectsService {
     this.options = options;
   }
 
-  async execute(
-    input: Record<never, never>,
-    signal?: AbortSignal,
-  ): Promise<ProjectDiscovery> {
-    void input;
+  async execute(signal?: AbortSignal): Promise<ProjectDiscovery> {
     const search = await this.projectFolderReader.search(
       {
         roots: discoveryRoots(

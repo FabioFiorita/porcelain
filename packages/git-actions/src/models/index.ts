@@ -14,7 +14,6 @@ export type {
 export type {
   CaptureCommitDraftInput,
   GenerateCommitDraftInput,
-  ListCommitModelsInput,
 } from './commit-draft-operations.ts';
 export type { FingerprintedFile } from './fingerprinted-file.ts';
 export type {
@@ -27,12 +26,10 @@ export type {
   AcceptGitActionResult,
   CheckWorktreeInput,
   DismissInterruptedGitActionInput,
-  ExpireGitActionReceiptsInput,
   FinishGitActionInput,
   ReadGitActionReceiptInput,
   ReadInterruptedGitActionInput,
   RecordGitActionProgressInput,
-  RecoverInterruptedGitActionsInput,
   RunGitActionInput,
   RunGitActionResult,
 } from './git-action-operations.ts';

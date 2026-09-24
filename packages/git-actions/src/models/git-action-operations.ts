@@ -10,8 +10,6 @@ import type { GitActionScope } from './git-action-scope.ts';
 
 export type CheckWorktreeInput = GitActionScope;
 
-export type ExpireGitActionReceiptsInput = Record<never, never>;
-
 export type AcceptGitActionInput = GitActionScope & {
   requestId: string;
   intent: GitActionIntent;
@@ -47,5 +45,3 @@ export type ReadInterruptedGitActionInput = { worktreeId: string };
 export type DismissInterruptedGitActionInput = GitActionScope & {
   requestId: string;
 };
-
-export type RecoverInterruptedGitActionsInput = Record<never, never>;

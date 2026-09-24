@@ -1,7 +1,4 @@
-import type {
-  ReadOwnerStatusInput,
-  RuntimeStatus,
-} from '../models/runtime-status.ts';
+import type { RuntimeStatus } from '../models/runtime-status.ts';
 import type { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
 
 export class ReadOwnerStatusService {
@@ -11,8 +8,7 @@ export class ReadOwnerStatusService {
     this.runtimeStatusReader = runtimeStatusReader;
   }
 
-  execute(input: ReadOwnerStatusInput): RuntimeStatus {
-    void input;
+  execute(): RuntimeStatus {
     return this.runtimeStatusReader.current();
   }
 }

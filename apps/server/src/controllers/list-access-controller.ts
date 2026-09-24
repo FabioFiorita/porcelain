@@ -12,13 +12,9 @@ export class ListAccessController {
     this.lanes = lanes;
   }
 
-  execute(
-    input: Record<never, never>,
-    context: OperationContext,
-  ): Promise<ListAccessResponse> {
-    return this.lanes.unqueued(
-      async () => this.listAccessService.execute(input),
-      { callerSignal: context.signal },
-    );
+  execute(context: OperationContext): Promise<ListAccessResponse> {
+    return this.lanes.unqueued(async () => this.listAccessService.execute(), {
+      callerSignal: context.signal,
+    });
   }
 }

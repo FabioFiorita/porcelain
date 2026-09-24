@@ -30,7 +30,7 @@ export class IssuePairingController {
   ): Promise<IssuePairingResponse> {
     return this.lanes.unqueued(
       async () => {
-        const { environmentId } = this.readEnvironmentService.execute({});
+        const { environmentId } = this.readEnvironmentService.execute();
         const { grants } = this.issuePairingService.execute(input);
         return {
           grants: grants.map(({ grant, code }) => {

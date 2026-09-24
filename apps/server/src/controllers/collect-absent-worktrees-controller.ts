@@ -19,14 +19,11 @@ export class CollectAbsentWorktreesController {
     this.laneKeys = laneKeys;
   }
 
-  execute(
-    input: Record<never, never>,
-    context: OperationContext,
-  ): Promise<CollectAbsentWorktreesResult> {
+  execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> {
     return this.lanes.run(
       this.laneKeys.inventory(),
       'write',
-      async () => this.collectAbsentWorktrees.execute(input),
+      async () => this.collectAbsentWorktrees.execute(),
       { callerSignal: context.signal },
     );
   }

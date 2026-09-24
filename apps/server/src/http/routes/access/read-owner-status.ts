@@ -16,6 +16,6 @@ export function readOwnerStatus(
         response: { ...errorResponses, 200: readOwnerStatusResponseSchema },
       },
     },
-    () => options.controller.execute({}, {}),
+    () => options.controller.execute(),
   );
 }

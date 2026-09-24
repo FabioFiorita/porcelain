@@ -205,11 +205,10 @@ export async function openApplication(options: ApplicationOptions) {
     new FlushDeviceActivityJob(access.flushDeviceActivityController),
   ];
   for (const job of jobs) job.start();
-  gitActions.recoverInterruptedGitActionsController.execute({}, {});
-  const firstRefresh = projects.refreshInventoryController.execute(
-    {},
-    { signal: options.signal },
-  );
+  gitActions.recoverInterruptedGitActionsController.execute();
+  const firstRefresh = projects.refreshInventoryController.execute({
+    signal: options.signal,
+  });
   firstRefresh.catch(() => undefined);
 
   return {

@@ -4,7 +4,6 @@ import type {
 } from '@porcelain/contracts/git-actions';
 import type { DismissInterruptedGitActionService } from '@porcelain/git-actions/services';
 import type { Lanes } from '../runtime/lanes.ts';
-import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class DismissInterruptedGitActionController {
   private readonly dismissInterruptedGitAction: DismissInterruptedGitActionService;
@@ -20,9 +19,7 @@ export class DismissInterruptedGitActionController {
 
   execute(
     input: DismissInterruptedGitActionParams,
-    context: OperationContext,
   ): DismissInterruptedGitActionResponse {
-    context.signal?.throwIfAborted();
     this.lanes.assertOpen();
     this.dismissInterruptedGitAction.execute(input);
     return { dismissed: true };

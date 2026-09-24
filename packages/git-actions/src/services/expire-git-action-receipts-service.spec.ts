@@ -27,7 +27,7 @@ describe('ExpireGitActionReceiptsService', () => {
     new ExpireGitActionReceiptsService(
       store,
       new FixedClock(new Date(now).toISOString()),
-    ).execute({});
+    ).execute();
     expect(store.all().map((receipt) => receipt.requestId)).toEqual([
       atLimit.requestId,
       running.requestId,

@@ -36,10 +36,7 @@ export function readReviewSummaryPage(
         .type('text/html; charset=utf-8')
         .send(
           injectBridge(
-            options.controller.execute(
-              { ...request.params, ...request.query },
-              { signal: request.disconnected },
-            ),
+            options.controller.execute({ ...request.params, ...request.query }),
           ),
         ),
   );

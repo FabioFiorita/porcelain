@@ -3,7 +3,6 @@ import type {
   CheckRequestOriginResult,
 } from '@porcelain/access/models';
 import type { CheckRequestOriginService } from '@porcelain/access/services';
-import type { OperationContext } from '../runtime/operation-context.ts';
 
 export class CheckRequestOriginController {
   private readonly checkRequestOriginService: CheckRequestOriginService;
@@ -12,11 +11,7 @@ export class CheckRequestOriginController {
     this.checkRequestOriginService = checkRequestOriginService;
   }
 
-  execute(
-    input: CheckRequestOriginInput,
-    context: OperationContext,
-  ): CheckRequestOriginResult {
-    context.signal?.throwIfAborted();
+  execute(input: CheckRequestOriginInput): CheckRequestOriginResult {
     return this.checkRequestOriginService.execute(input);
   }
 }

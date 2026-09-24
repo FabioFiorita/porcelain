@@ -22,10 +22,10 @@ export function authenticate(options: AuthenticateOptions) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const credential = credentialOf(request);
     if (!credential) throw httpErrors.unauthorized(authenticationRequired);
-    const device = options.authenticateDeviceController.execute(
-      { credential, address: request.ip },
-      { signal: request.disconnected },
-    );
+    const device = options.authenticateDeviceController.execute({
+      credential,
+      address: request.ip,
+    });
     if (!device) throw httpErrors.unauthorized(authenticationRequired);
     request.principal = { kind: 'viewer', deviceId: device.deviceId };
     if (!request.ws) holdUntilRevoked(reply, options.devices, device.deviceId);

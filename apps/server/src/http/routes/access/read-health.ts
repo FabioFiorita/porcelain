@@ -15,7 +15,6 @@ export function readHealth(
         response: { 200: readHealthResponseSchema },
       },
     },
-    (request) =>
-      options.controller.execute({}, { signal: request.disconnected }),
+    () => options.controller.execute(),
   );
 }

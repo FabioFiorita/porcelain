@@ -1,7 +1,3 @@
-import type {
-  FlushDeviceActivityInput,
-  FlushDeviceActivityResult,
-} from '@porcelain/access/models';
 import type { FlushDeviceActivityService } from '@porcelain/access/services';
 import type { Lanes } from '../runtime/lanes.ts';
 import type { OperationContext } from '../runtime/operation-context.ts';
@@ -15,13 +11,9 @@ export class FlushDeviceActivityController {
     this.lanes = lanes;
   }
 
-  execute(
-    input: FlushDeviceActivityInput,
-    context: OperationContext,
-  ): Promise<FlushDeviceActivityResult> {
-    return this.lanes.unqueued(
-      async () => this.flushDeviceActivity.execute(input),
-      { callerSignal: context.signal },
-    );
+  execute(context: OperationContext): Promise<void> {
+    return this.lanes.unqueued(async () => this.flushDeviceActivity.execute(), {
+      callerSignal: context.signal,
+    });
   }
 }

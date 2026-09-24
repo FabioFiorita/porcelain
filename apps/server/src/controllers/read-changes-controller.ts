@@ -75,7 +75,7 @@ export class ReadChangesController {
           worktreeId,
         });
         return {
-          environmentId: this.readEnvironment.execute({}).environmentId,
+          environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,
           statusToken: status.statusToken,
           headOid: status.headOid,

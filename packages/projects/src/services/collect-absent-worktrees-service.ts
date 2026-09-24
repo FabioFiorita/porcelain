@@ -12,8 +12,7 @@ export class CollectAbsentWorktreesService {
     this.clock = clock;
   }
 
-  execute(input: Record<never, never>): CollectAbsentWorktreesResult {
-    void input;
+  execute(): CollectAbsentWorktreesResult {
     const expired = this.worktreePresenceStore.expired(
       presenceCutoff(this.clock.now()),
     );

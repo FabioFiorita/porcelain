@@ -16,7 +16,7 @@ export class CollectAbsentWorktreesJob {
   start(): void {
     this.stop();
     this.timer = setInterval(() => {
-      this.controller.execute({}, {}).catch(() => undefined);
+      this.controller.execute({}).catch(() => undefined);
     }, COLLECTION_INTERVAL_MS);
     this.timer.unref();
   }
