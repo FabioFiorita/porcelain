@@ -396,6 +396,9 @@ const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
 const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
 const runtimeFile = /^apps\/server\/src\/runtime\//;
+const portShapedScope = new RegExp(
+  `^(?:apps/server/src/|packages/(?:${domainPackage}|kernel)/src/)`,
+);
 const serverAppFile = /^apps\/server\/src\//;
 const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
 const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
@@ -1647,6 +1650,27 @@ export default {
                 'A root script imports node, libraries, other scripts, architecture/ and the server app only; it never imports a package, by name or by a path into packages/: take what it needs from the server app or declare it in the script.',
             });
         });
+      },
+    },
+    'no-port-shaped-alias': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !portShapedScope.test(path) ||
+          anyPortFile.test(path) ||
+          isSpec(context)
+        )
+          return {};
+        return {
+          TSMethodSignature(node) {
+            if (node.parent?.type !== 'TSTypeLiteral') return;
+            context.report({
+              node,
+              message:
+                'An object type with a method is a port in all but name: declare it in ports/, where the port rules see it.',
+            });
+          },
+        };
       },
     },
     'no-interface-in-runtime': {

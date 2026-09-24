@@ -51,6 +51,7 @@
     "porcelain/fixture-imports": "error",
     "porcelain/events-after-lane": "error",
     "porcelain/limits-from-settings": "error",
+    "porcelain/no-port-shaped-alias": "error",
     "porcelain/use-case-input-is-contract": "error",
     "porcelain/failure-in-service": "error",
     "porcelain/cross-domain-through-use-cases": "error",

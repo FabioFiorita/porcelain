@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { startServer } from '../apps/server/src/bootstrap/compose-server.ts';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
 import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
-import type { Runtime } from '../apps/server/src/runtime/start-application.ts';
+import type { Runtime } from '../apps/server/src/ports/runtime.ts';
 
 const issuedPairingSchema = z.object({
   grants: z.array(z.object({ code: z.string() })),

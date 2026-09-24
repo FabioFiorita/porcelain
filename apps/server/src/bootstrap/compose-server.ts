@@ -22,7 +22,7 @@ import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { IntervalJob, JobSequence } from '../runtime/interval-job.ts';
-import type { Job } from '../runtime/job.ts';
+import type { Job } from '../ports/job.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import {

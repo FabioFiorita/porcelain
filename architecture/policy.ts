@@ -567,6 +567,24 @@ export function violation(
   return;
 }
 
+export const serverPortContractTypes: Readonly<Record<string, string>> = {
+  'apps/server/src/ports/live-channel.ts':
+    'a live channel sends the notice the contract schema defines to the socket; a kernel or server copy of that union would drift from the schema the client parses',
+};
+
+export function allowedContractType(
+  path: string,
+  to: Classification,
+  typeOnly: boolean,
+): boolean {
+  return (
+    typeOnly &&
+    to.role === 'contract' &&
+    classify(path)?.role === 'server-port' &&
+    serverPortContractTypes[path] !== undefined
+  );
+}
+
 export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
   'gateway',
   'gateway-api',

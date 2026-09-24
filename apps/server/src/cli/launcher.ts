@@ -1,9 +1,10 @@
 import type { ServerSettings } from '../config/server-settings.ts';
+import type { Runtime } from '../ports/runtime.ts';
 
 export type StartServer = (
   settings: ServerSettings,
   signal: AbortSignal,
-) => Promise<{ address: string; socketPath: string; close(): Promise<void> }>;
+) => Promise<Runtime>;
 
 export type LauncherDependencies = {
   startServer: StartServer;

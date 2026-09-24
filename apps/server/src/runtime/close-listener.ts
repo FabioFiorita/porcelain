@@ -1,7 +1,4 @@
-export type ClosableListener = {
-  close(): PromiseLike<unknown>;
-  server: { closeAllConnections(): void };
-};
+import type { ClosableListener } from '../ports/closable-listener.ts';
 
 export async function closeListener(
   listener: ClosableListener,

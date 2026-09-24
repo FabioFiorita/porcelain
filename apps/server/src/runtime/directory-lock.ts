@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Clock } from '@porcelain/kernel/ports';
 import { delay } from './delay.ts';
+import type { DirectoryLock } from '../ports/directory-lock.ts';
 
 export type DirectoryLockOptions = {
   path: string;
@@ -12,8 +13,6 @@ export type DirectoryLockOptions = {
   clock: Clock;
   held: () => Error;
 };
-
-export type DirectoryLock = { release(): Promise<void> };
 
 type LockOwner = { pid: number; token: string };
 

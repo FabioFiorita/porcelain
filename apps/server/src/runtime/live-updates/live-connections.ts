@@ -1,17 +1,7 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
-import type { FollowedTargets } from '../../ports/followed-targets.ts';
-
-export type LiveChannel = {
-  send(notice: LiveNotice): void;
-  ping(): void;
-  terminate(): void;
-};
-
-export type LiveClient = {
-  follow(targets: FollowedTargets): void;
-  answered(): void;
-  close(): void;
-};
+import type { LiveChannel } from '../../ports/live-channel.ts';
+import type { LiveClient } from '../../ports/live-client.ts';
+import type { LiveConnector } from '../../ports/live-connector.ts';
 
 type Connection = {
   channel: LiveChannel;
@@ -20,7 +10,7 @@ type Connection = {
   answered: boolean;
 };
 
-export class LiveConnections {
+export class LiveConnections implements LiveConnector {
   private readonly connections = new Set<Connection>();
 
   connect(channel: LiveChannel): LiveClient {

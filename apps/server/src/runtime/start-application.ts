@@ -9,29 +9,16 @@ import type {
 import type { Clock } from '@porcelain/kernel/ports';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
+import type { Job } from '../ports/job.ts';
+import type { OpenedServer } from '../ports/opened-server.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
-import { closeListener, type ClosableListener } from './close-listener.ts';
+import type { Runtime } from '../ports/runtime.ts';
+import { closeListener } from './close-listener.ts';
 import { prepareDataDirectory } from './data-directory.ts';
 import { acquireDirectoryLock } from './directory-lock.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
-import type { Job } from './job.ts';
 import { restrictOwnerSocket } from './owner-socket.ts';
-
-export type NetworkListener = ClosableListener & {
-  listen(options: { host: string; port: number }): Promise<string>;
-};
-
-export type SocketListener = ClosableListener & {
-  listen(options: { path: string }): Promise<string>;
-};
-
-export type OpenedServer = {
-  jobs: readonly Job[];
-  network: NetworkListener;
-  owner: SocketListener;
-  close(): Promise<void>;
-};
 
 export type OpenServer = (input: {
   settings: ServerSettings;
@@ -44,12 +31,6 @@ export type ApplicationStarter = {
   openServer: OpenServer;
   ownerProbe: OwnerProbe;
   clock: Clock;
-};
-
-export type Runtime = {
-  address: string;
-  socketPath: string;
-  close(): Promise<void>;
 };
 
 type RuntimeParts = {

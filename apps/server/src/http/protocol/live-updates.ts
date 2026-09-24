@@ -1,40 +1,15 @@
-import {
-  liveSubscriptionSchema,
-  type LiveNotice,
-} from '@porcelain/contracts/access';
+import { liveSubscriptionSchema } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
-import type {
-  FollowedTargets,
-  WatchRequest,
-} from '../../ports/followed-targets.ts';
+import type { LiveConnector } from '../../ports/live-connector.ts';
 import type { Logger } from '../../ports/logger.ts';
+import type { WatchOpener } from '../../ports/watch-demand.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
 
 export type LiveUpdatesOptions = {
   logger: Logger;
-  liveUpdates: {
-    connect(channel: {
-      send(notice: LiveNotice): void;
-      ping(): void;
-      terminate(): void;
-    }): {
-      follow(targets: FollowedTargets): void;
-      answered(): void;
-      close(): void;
-    };
-  };
-  worktreeWatches: {
-    open():
-      | {
-          kind: 'opened';
-          demand: {
-            replace(request: WatchRequest): Promise<FollowedTargets>;
-            close(): void;
-          };
-        }
-      | { kind: 'at-capacity' };
-  };
+  liveUpdates: LiveConnector;
+  worktreeWatches: WatchOpener;
 };
 
 export function liveUpdates(

@@ -20,6 +20,7 @@ import type {
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
 import type { JobWork } from '../../ports/job-work.ts';
+import type { OpenedWatch, WatchOpener } from '../../ports/watch-demand.ts';
 
 export type WatchWorktreesOptions = {
   maxConnections: number;
@@ -27,15 +28,6 @@ export type WatchWorktreesOptions = {
   burstMs: number;
   announcedEditMs: number;
 };
-
-export type WatchDemand = {
-  replace(request: WatchRequest): Promise<FollowedTargets>;
-  close(): void;
-};
-
-export type OpenedWatch =
-  | { kind: 'opened'; demand: WatchDemand }
-  | { kind: 'at-capacity' };
 
 type Demand = {
   projects: Set<string>;
@@ -66,7 +58,7 @@ function changesIgnoreRules(path: string): boolean {
   return path === '.gitignore' || path.endsWith('/.gitignore');
 }
 
-export class WatchWorktrees implements AnnouncedEditStore {
+export class WatchWorktrees implements AnnouncedEditStore, WatchOpener {
   private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
   private readonly refreshInventory: JobWork;
   private readonly watcher: WorktreeWatcher;

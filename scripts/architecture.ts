@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
+  allowedContractType,
   classify,
   domainPackages,
   forbiddenExternal,
@@ -22,6 +23,7 @@ const dependencySchema = z.object({
   module: z.string(),
   resolved: z.string(),
   couldNotResolve: z.boolean(),
+  dependencyTypes: z.array(z.string()),
 });
 
 const cruiseReportSchema = z.object({
@@ -332,7 +334,13 @@ function dependencyFindings(
             from: module.source,
             to: dependency.resolved,
           });
-        const rule = violation(from, to);
+        const rule = allowedContractType(
+          module.source,
+          to,
+          dependency.dependencyTypes.includes('type-only'),
+        )
+          ? undefined
+          : violation(from, to);
         if (rule)
           result.push({ rule, from: module.source, to: dependency.resolved });
       } else if (
