@@ -340,9 +340,15 @@ importers:
 
   packages/files: {}
 
-  packages/git: {}
+  packages/git:
+    dependencies:
+      '@porcelain/process':
+        specifier: workspace:*
+        version: link:../process
 
   packages/git-actions: {}
+
+  packages/process: {}
 
   packages/projects: {}
 
