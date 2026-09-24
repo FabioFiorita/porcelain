@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import {
   isRecord,
   type HttpRequest,
@@ -19,6 +20,7 @@ type Contents = { leaves: Set<unknown>; texts: string[] };
 
 type Observation = {
   label: string;
+  order: number;
   exchange: Exchange | undefined;
   parts: Map<Part, Contents>;
 };
@@ -36,7 +38,25 @@ export type Judgement = {
   count(): void;
 };
 
+export type Claim =
+  | { kind: 'exact' | 'partial'; expected: unknown }
+  | { kind: 'differs'; baseline: unknown }
+  | { kind: 'contract'; exported: boolean }
+  | { kind: 'match' };
+
 type Credit = 'credited' | 'neutral' | 'unknown';
+
+export const weakness = {
+  contract: 'its schema is not one exported from @porcelain/contracts',
+  copied: 'its expected value was taken from the response it checks',
+  baseline:
+    'the value it must differ from was not observed in an earlier exchange',
+  computed: 'a boolean inside its actual value was computed by the case',
+  fragment:
+    'its actual value is only part of an observed text; assert the whole value or use checkMatch',
+  unobserved:
+    'its actual value was not taken from a response, a notice, Git or a file',
+};
 
 const phaseLabels: Record<Phase, string> = {
   setup: 'setup request',
@@ -48,13 +68,16 @@ function contents(): Contents {
   return { leaves: new Set(), texts: [] };
 }
 
-function holds(part: Contents, value: unknown): boolean {
-  if (part.leaves.has(value)) return true;
+function fragmentOf(part: Contents, value: unknown): boolean {
   return (
     typeof value === 'string' &&
     value !== '' &&
     part.texts.some((entry) => entry.includes(value))
   );
+}
+
+function textLeaves(value: string): string[] {
+  return [value.trim(), ...value.split('\n')];
 }
 
 function emptyPartial(value: unknown): boolean {
@@ -143,14 +166,21 @@ export class Provenance {
   }
 
   observe(label: string, value: unknown) {
-    this.index(value, this.observation(label, undefined), 'value');
+    const observation = this.observation(label, undefined);
+    this.index(value, observation, 'value');
+    if (typeof value === 'string')
+      for (const line of textLeaves(value))
+        observation.parts.get('value')?.leaves.add(line);
   }
 
-  judge(actual: unknown): Judgement {
+  judge(actual: unknown, claim: Claim): Judgement {
     const touched = this.touched;
     this.touched = [];
     const sources = new Set<string>();
+    const credited = new Set<Observation>();
     const evidence: (() => void)[] = [];
+    const booleans: boolean[] = [];
+    let fragment = false;
     const credit = (observation: Observation, part: Part) => {
       const exchange = observation.exchange;
       if (exchange && part === 'status')
@@ -161,41 +191,51 @@ export class Provenance {
         evidence.push(() => {
           exchange.evidence.body = true;
         });
+      credited.add(observation);
       sources.add(
         part === 'value' ? observation.label : `${observation.label} ${part}`,
       );
       return true;
     };
-    const primitive = (value: unknown): boolean => {
+    const consume = (value: unknown) => {
       const exact = touched.findLast(
         (entry) => !entry.consumed && Object.is(entry.value, value),
       );
-      if (exact) {
-        exact.consumed = true;
-        return credit(exact.observation, exact.part);
-      }
+      if (exact) exact.consumed = true;
+      return exact;
+    };
+    const primitive = (value: unknown): boolean => {
+      const exact = consume(value);
+      if (exact) return credit(exact.observation, exact.part);
       if (value === undefined || typeof value === 'boolean') return false;
       for (const entry of [...touched].reverse()) {
         const part = entry.observation.parts.get(entry.part);
-        if (part && holds(part, value))
+        if (part?.leaves.has(value))
           return credit(entry.observation, entry.part);
       }
       for (const observation of [...this.observations].reverse())
         for (const [name, part] of observation.parts)
-          if (name !== 'status' && holds(part, value))
+          if (name !== 'status' && part.leaves.has(value))
             return credit(observation, name);
+      fragment ||= this.observations.some((observation) =>
+        [...observation.parts.values()].some((part) => fragmentOf(part, value)),
+      );
       return false;
     };
     const visit = (value: unknown, top: boolean): Credit => {
       if (typeof value !== 'object' || value === null) {
         if (primitive(value)) return 'credited';
-        return !top && (value === undefined || typeof value === 'boolean')
+        if (top) return 'unknown';
+        if (typeof value === 'boolean') booleans.push(value);
+        return value === undefined || typeof value === 'boolean'
           ? 'neutral'
           : 'unknown';
       }
       const node = this.nodes.get(value);
-      if (node)
+      if (node) {
+        consume(value);
         return credit(node.observation, node.part) ? 'credited' : 'unknown';
+      }
       const children = (
         Array.isArray(value) ? value : Object.values(value)
       ).map((child) => visit(child, false));
@@ -203,16 +243,88 @@ export class Provenance {
       if (children.includes('credited')) return 'credited';
       return top ? 'unknown' : 'neutral';
     };
-    const count = () => {
-      for (const apply of evidence) apply();
-    };
-    if (visit(actual, true) === 'credited')
-      return { sources: [...sources], count };
-    return {
-      sources: [...sources],
-      weak: 'its actual value was not taken from a response, a notice, Git or a file',
-      count: () => undefined,
-    };
+    const observed = visit(actual, true) === 'credited';
+    const weak =
+      this.claimWeakness(claim, credited, touched) ??
+      (observed
+        ? booleans.some((value) => !this.heldBy(credited, value))
+          ? weakness.computed
+          : undefined
+        : fragment
+          ? weakness.fragment
+          : weakness.unobserved);
+    if (weak === undefined)
+      return {
+        sources: [...sources],
+        count: () => {
+          for (const apply of evidence) apply();
+        },
+      };
+    return { sources: [...sources], weak, count: () => undefined };
+  }
+
+  private claimWeakness(
+    claim: Claim,
+    credited: ReadonlySet<Observation>,
+    touched: readonly Touch[],
+  ): string | undefined {
+    if (claim.kind === 'exact' || claim.kind === 'partial')
+      return this.copiedFrom(claim.expected, credited) ||
+        touched.some(
+          (entry) =>
+            !entry.consumed &&
+            credited.has(entry.observation) &&
+            (Object.is(entry.value, claim.expected) ||
+              (typeof claim.expected === 'object' &&
+                claim.expected !== null &&
+                isDeepStrictEqual(entry.value, claim.expected))),
+        )
+        ? weakness.copied
+        : undefined;
+    if (claim.kind === 'contract')
+      return claim.exported ? undefined : weakness.contract;
+    if (claim.kind !== 'differs') return undefined;
+    const earliest = Math.min(
+      ...[...credited].map((observation) => observation.order),
+    );
+    const node =
+      typeof claim.baseline === 'object' && claim.baseline !== null
+        ? this.nodes.get(claim.baseline)
+        : undefined;
+    const origins = node
+      ? [node.observation]
+      : this.observations.filter((observation) =>
+          this.heldBy(new Set([observation]), claim.baseline),
+        );
+    return origins.some(
+      (observation) =>
+        observation.exchange !== undefined && observation.order < earliest,
+    )
+      ? undefined
+      : weakness.baseline;
+  }
+
+  private copiedFrom(
+    value: unknown,
+    credited: ReadonlySet<Observation>,
+  ): boolean {
+    if (typeof value !== 'object' || value === null) return false;
+    const node = this.nodes.get(value);
+    if (node && credited.has(node.observation)) return true;
+    return (Array.isArray(value) ? value : Object.values(value)).some((child) =>
+      this.copiedFrom(child, credited),
+    );
+  }
+
+  private heldBy(
+    observations: ReadonlySet<Observation>,
+    value: unknown,
+  ): boolean {
+    return [...observations].some((observation) =>
+      [...observation.parts].some(
+        ([name, part]) => name !== 'status' && part.leaves.has(value),
+      ),
+    );
   }
 
   problems(): string[] {
@@ -243,7 +355,12 @@ export class Provenance {
     label: string,
     exchange: Exchange | undefined,
   ): Observation {
-    const observation: Observation = { label, exchange, parts: new Map() };
+    const observation: Observation = {
+      label,
+      order: this.observations.length,
+      exchange,
+      parts: new Map(),
+    };
     this.observations.push(observation);
     return observation;
   }

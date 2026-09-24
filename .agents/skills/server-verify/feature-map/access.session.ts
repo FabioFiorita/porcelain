@@ -8,8 +8,7 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
-  deviceCookie,
-  deviceCookieAttributes,
+  deviceCookieForm,
   inventory,
   issuePairing,
   read,
@@ -59,14 +58,14 @@ export default defineFeature({
         path: '/api/inventory',
         auth: { cookie: state.cookie },
       }),
-      expect({ response, state, check, checkContract }) {
+      expect({ response, state, check, checkContract, checkMatch }) {
         check('status', 200, response.status);
         check('same body as the bearer read', state.inventory, response.body);
         checkContract('contract', readInventoryResponseSchema, response.body);
-        check(
+        checkMatch(
           'cookie is refreshed',
-          { name: 'porcelain_device', attributes: deviceCookieAttributes },
-          deviceCookie(response.headers['set-cookie']),
+          deviceCookieForm,
+          response.headers['set-cookie'],
         );
       },
     }),

@@ -4,7 +4,6 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  record,
   unknownWorktreeId,
   type Session,
 } from '../scripts/feature.ts';
@@ -32,11 +31,20 @@ export default defineFeature({
   cases: [
     defineCase({
       name: 'the changed README',
+      setup: (session) =>
+        read(session, text(session, session.fixture.readme.path)),
       request: (session) => [
         text(session, session.fixture.readme.path),
         text(session, session.fixture.readme.path),
       ],
-      async expect({ responses, session, check, checkContract, checkDiffers }) {
+      async expect({
+        responses,
+        state,
+        session,
+        check,
+        checkContract,
+        checkDiffers,
+      }) {
         const [first, second] = responses;
         check(
           'statuses',
@@ -44,7 +52,6 @@ export default defineFeature({
           responses.map((entry) => entry.status),
         );
         checkContract('contract', readTextFileResponseSchema, first?.body);
-        const fingerprint = record(first?.body).contentFingerprint;
         check(
           'body',
           {
@@ -53,7 +60,7 @@ export default defineFeature({
             encoding: 'utf-8',
             byteLength: Buffer.byteLength(session.fixture.readme.changed),
             text: session.fixture.readme.changed,
-            contentFingerprint: fingerprint,
+            contentFingerprint: state.contentFingerprint,
           },
           first?.body,
         );
@@ -65,7 +72,7 @@ export default defineFeature({
         );
         checkDiffers(
           'the fingerprint moves with the content',
-          fingerprint,
+          state.contentFingerprint,
           edited.contentFingerprint,
         );
         await session.writeFile(

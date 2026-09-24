@@ -9,6 +9,7 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
+  literally,
   read,
   sampleReview,
   sampleSummaryHtml,
@@ -50,7 +51,7 @@ export default defineFeature({
         path: `${url.pathname}${url.search}`,
         auth: 'none',
       }),
-      expect({ response, check }) {
+      expect({ response, check, checkMatch }) {
         check('status', 200, response.status);
         check(
           'content type',
@@ -77,15 +78,15 @@ export default defineFeature({
           sampleSummaryHtml.split('</body>');
         const opening = `${published}<style id="porcelain-theme">`;
         const ending = `</script></body>${closing}`;
-        check(
+        checkMatch(
           'the published page opens, then the bridge begins',
-          opening,
-          html.slice(0, opening.length),
+          new RegExp(`^${literally(opening)}`),
+          html,
         );
-        check(
+        checkMatch(
           'the bridge ends before </body>',
-          ending,
-          html.slice(html.length - ending.length),
+          new RegExp(`${literally(ending)}$`),
+          html,
         );
       },
     }),

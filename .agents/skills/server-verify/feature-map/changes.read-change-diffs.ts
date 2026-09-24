@@ -4,7 +4,6 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  record,
   unknownFingerprint,
   unknownWorktreeId,
   type Session,
@@ -12,6 +11,7 @@ import {
 import {
   changes,
   fingerprintOf,
+  inventory,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
@@ -60,6 +60,7 @@ export default defineFeature({
       async setup(session) {
         return {
           ...(await seen(session)),
+          environmentId: (await inventory(session)).environmentId,
           patch: await session.git('diff', '--', session.fixture.readme.path),
         };
       },
@@ -74,7 +75,7 @@ export default defineFeature({
         check(
           'body',
           {
-            environmentId: record(response.body).environmentId,
+            environmentId: state.environmentId,
             worktreeId: session.worktreeId,
             statusToken: state.statusToken,
             diffs: [

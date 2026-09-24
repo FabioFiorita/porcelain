@@ -241,12 +241,24 @@ export async function eventually(
   throw new Error(`${request.method} ${request.path} never reached the state`);
 }
 
-export const deviceCookieAttributes =
-  'Path=/api; HttpOnly; SameSite=Strict; Max-Age=7776000';
+export function literally(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
 
-export function deviceCookie(header: string | undefined) {
-  const match = /^([^=;]+)=[^;]+; (.+)$/.exec(header ?? '');
-  return match ? { name: match[1], attributes: match[2] } : { header };
+function issued(form: string) {
+  return `${form}_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_[A-Za-z0-9_-]{43}`;
+}
+
+export const credentialForm = new RegExp(`^${issued('pcd')}$`);
+
+export const deviceCookieForm = new RegExp(
+  `^porcelain_device=[^;]+; ${literally('Path=/api; HttpOnly; SameSite=Strict; Max-Age=7776000')}$`,
+);
+
+export function pairingLinkForm(address: string, environmentId: string) {
+  return new RegExp(
+    `^${literally(address)}/pair#c=${issued('pcp')}&e=${literally(environmentId)}$`,
+  );
 }
 
 export const unreadablePath = apiError(

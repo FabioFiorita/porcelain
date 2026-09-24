@@ -11,7 +11,8 @@ import {
   type Checks,
   type Feature,
 } from './feature.ts';
-import { expectedWeakness, Provenance } from './provenance.ts';
+import { contractSchemas } from './contracts.ts';
+import { expectedWeakness, Provenance, type Claim } from './provenance.ts';
 import { IsolatedServer, Recorder, type Step } from './session.ts';
 import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
 
@@ -111,20 +112,26 @@ function partial(expected: unknown, actual: unknown): boolean {
   );
 }
 
-function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
+function checks(
+  assertions: Assertion[],
+  provenance: () => Provenance,
+  contracts: ReadonlySet<unknown>,
+): Checks {
   const assert = (
     name: string,
     expected: unknown,
     actual: unknown,
-    kind: 'exact' | 'partial' | 'contract' | 'match' | 'differs',
+    claim: Claim,
     matches: boolean,
     recorded: unknown = actual,
   ) => {
-    const judged = provenance().judge(actual);
+    const judged = provenance().judge(actual, claim);
     const weak =
-      (kind === 'contract' || kind === 'match'
-        ? undefined
-        : expectedWeakness(expected, kind)) ?? judged.weak;
+      (claim.kind === 'exact' || claim.kind === 'partial'
+        ? expectedWeakness(claim.expected, claim.kind)
+        : claim.kind === 'differs'
+          ? expectedWeakness(expected, claim.kind)
+          : undefined) ?? judged.weak;
     if (weak === undefined) judged.count();
     assertions.push({
       name,
@@ -141,19 +148,25 @@ function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
         name,
         expected,
         actual,
-        'exact',
+        { kind: 'exact', expected },
         isDeepStrictEqual(actual, expected),
       );
     },
     checkPartial(name, expected, actual) {
-      assert(name, expected, actual, 'partial', partial(expected, actual));
+      assert(
+        name,
+        expected,
+        actual,
+        { kind: 'partial', expected },
+        partial(expected, actual),
+      );
     },
     checkMatch(name, pattern, actual) {
       assert(
         name,
         String(pattern),
         actual,
-        'match',
+        { kind: 'match' },
         typeof actual === 'string' && pattern.test(actual),
       );
     },
@@ -162,7 +175,7 @@ function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
         name,
         { differsFrom: previous },
         actual,
-        'differs',
+        { kind: 'differs', baseline: previous },
         !isDeepStrictEqual(actual, previous),
       );
     },
@@ -172,7 +185,7 @@ function checks(assertions: Assertion[], provenance: () => Provenance): Checks {
         name,
         'satisfies the wire contract',
         actual,
-        'contract',
+        { kind: 'contract', exported: contracts.has(schema) },
         parsed.success,
         parsed.success
           ? actual
@@ -210,6 +223,7 @@ async function runCases(
   feature: Feature,
   server: IsolatedServer,
   recorder: Recorder,
+  contracts: ReadonlySet<unknown>,
 ): Promise<CaseEvidence[]> {
   const ids = await fixtureIds(server, recorder);
   const cases: CaseEvidence[] = [];
@@ -236,7 +250,7 @@ async function runCases(
           recorder.phase = phase;
           recorder.provenance.enter();
         },
-        checks: checks(assertions, () => recorder.provenance),
+        checks: checks(assertions, () => recorder.provenance, contracts),
         problems: () => recorder.provenance.problems(),
       });
       if (assertions.length === 0)
@@ -259,6 +273,7 @@ async function runFeature(
   feature: Feature,
   evidenceDirectory: string,
   build: string,
+  contracts: ReadonlySet<unknown>,
 ): Promise<FeatureResult> {
   const startedAt = performance.now();
   const recorder = new Recorder();
@@ -268,7 +283,7 @@ async function runFeature(
   try {
     server = await IsolatedServer.start(repositoryRoot, build);
     recorder.secret(server.credential);
-    cases = await runCases(feature, server, recorder);
+    cases = await runCases(feature, server, recorder, contracts);
   } catch (error) {
     setupError = message(error);
   } finally {
@@ -387,6 +402,7 @@ const evidenceDirectory = await mkdtemp(
 );
 const build = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
 await buildIsolatedServer(build);
+const contracts = await contractSchemas();
 let interrupted = false;
 process.once('SIGINT', () => {
   interrupted = true;
@@ -394,7 +410,7 @@ process.once('SIGINT', () => {
 const results: FeatureResult[] = [];
 for (const feature of selected) {
   if (interrupted) break;
-  const result = await runFeature(feature, evidenceDirectory, build);
+  const result = await runFeature(feature, evidenceDirectory, build, contracts);
   results.push(result);
   process.stdout.write(
     `${result.passed ? 'PASS' : 'FAIL'} ${result.feature}: ${result.passedAssertions}/${result.assertions} assertions in ${result.cases} cases, ${result.durationMs} ms\n`,
