@@ -183,6 +183,9 @@ importers:
       '@porcelain/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
+      '@porcelain/process':
+        specifier: workspace:*
+        version: link:../../packages/process
       '@porcelain/projects':
         specifier: workspace:*
         version: link:../../packages/projects
@@ -329,6 +332,9 @@ importers:
 
   packages/agents:
     dependencies:
+      '@porcelain/process':
+        specifier: workspace:*
+        version: link:../process
       zod:
         specifier: 4.5.4
         version: 4.5.4
@@ -355,7 +361,11 @@ importers:
         specifier: workspace:*
         version: link:../kernel
 
-  packages/git: {}
+  packages/git:
+    dependencies:
+      '@porcelain/process':
+        specifier: workspace:*
+        version: link:../process
 
   packages/git-actions:
     dependencies:
@@ -364,6 +374,8 @@ importers:
         version: link:../kernel
 
   packages/kernel: {}
+
+  packages/process: {}
 
   packages/projects:
     dependencies:

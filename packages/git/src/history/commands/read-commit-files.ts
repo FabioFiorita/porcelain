@@ -36,10 +36,11 @@ const DIFF_FLAGS = [
 
 export async function readCommitFiles(
   checkout: HistoryCheckout,
+  gitVersion: Buffer,
   request: CommitFilesRequest,
   signal?: AbortSignal,
 ): Promise<CommitFiles> {
-  await inspectHistoryCheckout(checkout, signal);
+  await inspectHistoryCheckout(checkout, gitVersion, signal);
   const parent = request.parent ?? 1;
   if (!Number.isInteger(parent) || parent < 1 || !isOid(request.oid))
     throw new InvalidHistoryRequestError();

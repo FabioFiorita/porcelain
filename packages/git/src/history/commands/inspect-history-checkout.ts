@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { readGitVersion } from '../../discovery/index.ts';
+import { isMissing } from '../../shared/errno.ts';
 import { readCommonDirectory, readGitDirectory } from '../../shared/gitdir.ts';
 import { identity } from '../../shared/identity.ts';
 import type {
@@ -33,14 +33,17 @@ export async function confirmHistoryCheckout(
 
 export async function inspectHistoryCheckout(
   checkout: HistoryCheckout,
+  gitVersion: Buffer,
   signal?: AbortSignal,
 ): Promise<HistorySnapshot> {
   const { common } = await confirmHistoryCheckout(checkout, signal);
   try {
     const shallow = await readShallowBoundary(join(common, 'shallow'));
-    const version = await readGitVersion();
     return {
-      graph: createHash('sha256').update(version).update(shallow).digest('hex'),
+      graph: createHash('sha256')
+        .update(gitVersion)
+        .update(shallow)
+        .digest('hex'),
       shallow: shallow.length > 0,
     };
   } catch (cause) {
@@ -52,12 +55,7 @@ async function readShallowBoundary(path: string): Promise<Buffer> {
   try {
     return await readFile(path);
   } catch (error) {
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-    )
-      return Buffer.alloc(0);
+    if (isMissing(error)) return Buffer.alloc(0);
     throw error;
   }
 }

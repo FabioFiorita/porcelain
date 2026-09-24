@@ -1,4 +1,4 @@
-import type { AgentModel } from '../models/agent-model.ts';
+import type { AgentModel } from '../dtos/agent-model.ts';
 
 export interface Provider {
   readonly name: string;

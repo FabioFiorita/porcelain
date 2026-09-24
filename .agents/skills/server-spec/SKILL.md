@@ -38,13 +38,10 @@ For a behaviour change, write the failing case first when a focused spec can exp
 
 - One `describe` per subject, named after the unit.
 - One `it` per observable behaviour, named as a sentence a reader can check: `keeps the owner's name when discovery runs again`.
-- Assert on the returned result, on state read back through a port, or on the thrown error class (`toThrow(ProjectNotFoundError)`).
-- Assert on calls only when being called exactly once is the promise, and then by reading the calls the fake recorded.
 
 ## 4. Doubles
 
 - Hand-write an in-memory fake that implements the port interface and is typed by it. Keep it honest: it stores, returns and fails the way the real adapter would.
-- Time and ids come through `Clock` and `IdSource` ports; the spec passes fakes that return fixed values.
 
 ## 5. Real things where the unit is about real things
 
@@ -55,9 +52,9 @@ For a behaviour change, write the failing case first when a focused spec can exp
 ## 6. Placement
 
 - `<name>.spec.ts` sits beside the file it describes.
-- Fakes live in `packages/<domain>/spec/fakes/` or `apps/server/spec/fakes/`, outside `src`, so production code cannot import them.
+- Fakes live in `packages/<domain>/spec/fakes/`; captured output lives in `packages/<domain>/spec/fixtures/` and is read through that folder's `fixture.ts` helper. Both sit outside `src`, so production code cannot import them.
 
-The `spec-*` rules in `architecture/oxlint-plugin.mjs` and the `fake` role in `architecture/policy.ts` enforce the forbidden APIs, names and imports; read them rather than a list here.
+The `spec-*` rules in `architecture/oxlint-plugin.mjs` and the `fake` and `fixture` roles in `architecture/policy.ts` enforce the forbidden APIs, names and imports; read them rather than a list here.
 
 ## 7. Checklist
 
@@ -66,4 +63,5 @@ The `spec-*` rules in `architecture/oxlint-plugin.mjs` and the `fake` role in `a
 3. `pnpm test` passes.
 4. `pnpm lint:server` passes.
 5. `pnpm arch:check` and `pnpm typecheck:server` pass.
-6. After a server behaviour change, run the mapped `server-verify` feature and report its HTTP evidence separately from the spec result. State plainly any promise left without a spec and why.
+6. `pnpm format:server:check` passes.
+7. After a server behaviour change, run the mapped `server-verify` feature and report its HTTP evidence separately from the spec result. State plainly any promise left without a spec and why.

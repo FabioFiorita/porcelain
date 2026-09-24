@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseRawDiff } from './parse-raw-diff.ts';
 
-const modified = ':100644 100644 b89df23 0000000 M\0b.txt\0';
-const renamed = ':100644 100644 7898192 7898192 R100\0a.txt\0c.txt\0';
-const patch =
-  'diff --git a/b.txt b/b.txt\nindex b89df23..fc041de 100644\n--- a/b.txt\n+++ b/b.txt\n@@ -1,2 +1,3 @@\n b\n b2\n+b3\n';
+const worktree = fixture('diff/worktree.txt');
 
 describe('parseRawDiff', () => {
-  it('reads modified and renamed entries and stops where the patch starts', () => {
-    const output = Buffer.from(`${modified}${renamed}\0${patch}`);
-    const { entries, end } = parseRawDiff(output);
+  it('reads every entry and stops where the patch starts', () => {
+    const { entries, end } = parseRawDiff(worktree);
     expect(entries).toEqual([
       {
         status: 'M',
@@ -19,24 +16,52 @@ describe('parseRawDiff', () => {
         newPath: 'b.txt',
       },
       {
+        status: 'M',
+        oldMode: '100644',
+        newMode: '100755',
+        oldPath: 'c.txt',
+        newPath: 'c.txt',
+      },
+      {
+        status: 'T',
+        oldMode: '120000',
+        newMode: '100644',
+        oldPath: 'link',
+        newPath: 'link',
+      },
+      {
+        status: 'M',
+        oldMode: '100644',
+        newMode: '100644',
+        oldPath: 'logo.png',
+        newPath: 'logo.png',
+      },
+    ]);
+    expect(worktree.subarray(end).toString('utf8')).toMatch(
+      /^diff --git a\/b\.txt b\/b\.txt\n/u,
+    );
+  });
+
+  it('reads a rename with its old and new path', () => {
+    expect(parseRawDiff(fixture('diff/staged-rename.txt')).entries).toEqual([
+      {
         status: 'R',
         oldMode: '100644',
         newMode: '100644',
-        oldPath: 'a.txt',
-        newPath: 'c.txt',
+        oldPath: 'b.txt',
+        newPath: 'renamed.txt',
       },
     ]);
-    expect(output.subarray(end).toString('utf8')).toBe(patch);
   });
 
   it('reads the entries git show prints after a commit header', () => {
-    const header = 'subject\0body\n\0';
-    const output = Buffer.from(`${header}\n${modified}`);
+    const output = fixture('history/show-commit.txt');
+    let header = 0;
+    for (let field = 0; field < 7; field += 1)
+      header = output.indexOf(0, header) + 1;
     expect(
-      parseRawDiff(output, Buffer.byteLength(header)).entries.map(
-        (entry) => entry.newPath,
-      ),
-    ).toEqual(['b.txt']);
+      parseRawDiff(output, header).entries.map((entry) => entry.newPath),
+    ).toEqual(['c.txt']);
   });
 
   it('reads full-length object names and paths with spaces', () => {
@@ -53,15 +78,15 @@ describe('parseRawDiff', () => {
   });
 
   it('rejects an entry cut off before its path ends', () => {
-    expect(() =>
-      parseRawDiff(Buffer.from(':100644 100644 b89df23 0000000 M\0b.t')),
-    ).toThrow('Invalid Git diff output');
+    expect(() => parseRawDiff(fixture('diff/raw-truncated.txt'))).toThrow(
+      'Invalid Git diff output',
+    );
   });
 
   it('rejects a rename missing its destination', () => {
-    expect(() =>
-      parseRawDiff(Buffer.from(':100644 100644 7898192 7898192 R100\0a.txt')),
-    ).toThrow('Invalid Git diff output');
+    expect(() => parseRawDiff(fixture('diff/rename-truncated.txt'))).toThrow(
+      'Invalid Git diff output',
+    );
   });
 
   it('rejects a malformed entry header', () => {

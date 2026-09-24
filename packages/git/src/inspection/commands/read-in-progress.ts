@@ -1,5 +1,6 @@
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
+import { isMissing } from '../../shared/errno.ts';
 import { readGitDirectory } from '../../shared/gitdir.ts';
 import { isOid } from '../../shared/oid.ts';
 
@@ -21,7 +22,7 @@ export async function readInProgress(checkout: string): Promise<InProgress> {
     join(gitDirectory, 'MERGE_HEAD'),
     'utf8',
   ).catch((error: unknown) => {
-    if (missing(error)) return undefined;
+    if (isMissing(error)) return undefined;
     throw error;
   });
   if (mergeHead === undefined) return { inProgress: null, mergeHeadOid: null };
@@ -38,12 +39,8 @@ async function exists(path: string): Promise<boolean> {
   return lstat(path).then(
     () => true,
     (error: unknown) => {
-      if (missing(error)) return false;
+      if (isMissing(error)) return false;
       throw error;
     },
   );
-}
-
-function missing(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
 }

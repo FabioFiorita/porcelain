@@ -5,9 +5,16 @@ import type {
   CommitModelReader,
 } from '@porcelain/git-actions/ports';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
-import { ActionGit, type GitActionWriterFactory } from '@porcelain/git/actions';
-import { Git, type GitFactory } from '@porcelain/git/discovery';
-import { CommitGit, type CommitReaderFactory } from '@porcelain/git/history';
+import {
+  ActionsGit,
+  type GitActionWriterFactory,
+} from '@porcelain/git/actions';
+import {
+  DiscoveryGit,
+  readGitVersion,
+  type GitFactory,
+} from '@porcelain/git/discovery';
+import { HistoryGit, type CommitReaderFactory } from '@porcelain/git/history';
 import {
   InspectionGit,
   type InspectionFactory,
@@ -80,6 +87,7 @@ export type ServerApplication = Awaited<ReturnType<typeof openApplication>>;
 export async function openApplication(options: ApplicationOptions) {
   const settings = applicationSettingsSchema.parse(options);
   options.signal?.throwIfAborted();
+  const gitVersion = await readGitVersion(options.signal);
   const session = openStorageSession(options.dataDirectory, {
     worktreeId: deriveWorktreeId,
   });
@@ -90,11 +98,11 @@ export async function openApplication(options: ApplicationOptions) {
     readCapacity: READ_CAPACITY,
     closeResources: () => session.close(),
   });
-  const git = options.git ?? ((checkout: string) => new Git(checkout));
+  const git = options.git ?? ((checkout: string) => new DiscoveryGit(checkout));
   const actionGit: GitActionWriterFactory =
-    options.actionGit ?? ((session) => new ActionGit(session));
+    options.actionGit ?? ((session) => new ActionsGit(session));
   const commitGit: CommitReaderFactory =
-    options.commitGit ?? ((checkout) => new CommitGit(checkout));
+    options.commitGit ?? ((checkout) => new HistoryGit(checkout, gitVersion));
   const inspection: InspectionFactory =
     options.inspectionGit ?? ((session) => new InspectionGit(session));
   const clock = new SystemClock();

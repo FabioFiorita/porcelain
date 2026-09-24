@@ -12,19 +12,21 @@ import type {
 import { InvalidHistoryRequestError } from './errors/invalid-history-request-error.ts';
 import type { CommitReader } from './interfaces/commit-reader.ts';
 
-export class CommitGit implements CommitReader {
+export class HistoryGit implements CommitReader {
   private readonly checkout: HistoryCheckout;
+  private readonly gitVersion: Buffer;
 
-  constructor(checkout: HistoryCheckout) {
+  constructor(checkout: HistoryCheckout, gitVersion: Buffer) {
     this.checkout = checkout;
+    this.gitVersion = gitVersion;
   }
 
   listCommits(request: CommitPageRequest, signal?: AbortSignal) {
-    return listCommits(this.checkout, request, signal);
+    return listCommits(this.checkout, this.gitVersion, request, signal);
   }
 
   readCommitFiles(request: CommitFilesRequest, signal?: AbortSignal) {
-    return readCommitFiles(this.checkout, request, signal);
+    return readCommitFiles(this.checkout, this.gitVersion, request, signal);
   }
 
   async readCommitDiffs(request: CommitDiffsRequest, signal?: AbortSignal) {

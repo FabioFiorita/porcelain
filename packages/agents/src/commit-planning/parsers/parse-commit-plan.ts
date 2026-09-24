@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { CommitProposalGroup } from '../models/commit-proposal-group.ts';
-import { CommitPlanFailedError } from './commit-plan-failed-error.ts';
+import type { CommitProposalGroup } from '../dtos/commit-proposal-group.ts';
+import { CommitPlanFailedError } from '../errors/commit-plan-failed-error.ts';
 
 const commitPlanSchema = z.strictObject({
   groups: z

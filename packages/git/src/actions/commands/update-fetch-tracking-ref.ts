@@ -2,6 +2,7 @@ import { nullOidFor } from '../../shared/oid.ts';
 import type { GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
+import { readActionAncestry } from './read-action-ancestry.ts';
 
 export async function updateFetchTrackingRef(
   process: GitProcessRunner,
@@ -11,19 +12,19 @@ export async function updateFetchTrackingRef(
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
   if (expected) {
-    const ancestry = await process.execute(
-      ['merge-base', '--is-ancestor', expected, candidate],
+    const ancestry = await readActionAncestry(
+      process,
+      expected,
+      candidate,
       signal,
     );
-    const failure = processFailure(ancestry);
-    if (failure?.state === 'indeterminate') return failure;
-    if (ancestry.exitCode === 1)
+    if (ancestry.kind === 'failed') return ancestry.outcome;
+    if (ancestry.kind === 'not-ancestor')
       return {
         state: 'rejected',
         reason: 'NON_FAST_FORWARD',
         refreshRequired: true,
       };
-    if (failure) return failure;
   }
   const update = await process.execute(
     ['update-ref', trackingRef, candidate, expected ?? nullOidFor(candidate)],

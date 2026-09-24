@@ -57,13 +57,13 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   },
   agents: {
     './commit-planning': './src/commit-planning/index.ts',
-    './models': './src/models/index.ts',
   },
   kernel: {
     './models': './src/models/index.ts',
     './ports': './src/ports/index.ts',
     './fakes': './spec/fakes/index.ts',
   },
+  process: { '.': './src/index.ts' },
 };
 
 export const requiredServerFiles: readonly string[] = [
@@ -104,6 +104,8 @@ export type Role =
   | 'repository'
   | 'gateway-api'
   | 'gateway'
+  | 'process-api'
+  | 'process'
   | 'runtime'
   | 'server-port'
   | 'bootstrap'
@@ -111,6 +113,7 @@ export type Role =
   | 'config'
   | 'kernel'
   | 'fake'
+  | 'fixture'
   | 'test';
 
 export type Classification = { role: Role; owner: string };
@@ -192,13 +195,15 @@ function classifyPackage(name: string, inside: string) {
     return;
   }
   if (name === 'agents') {
-    if (['commit-planning', 'models', 'providers'].includes(section))
+    if (section === 'commit-planning')
       return classified(
         inside === `${section}/index.ts` ? 'gateway-api' : 'gateway',
         name,
       );
     return;
   }
+  if (name === 'process')
+    return classified(inside === 'index.ts' ? 'process-api' : 'process', name);
   if (name === 'storage') {
     if (
       inside === 'index.ts' ||
@@ -262,6 +267,8 @@ function classifyServer(inside: string) {
 export function classify(path: string): Classification | undefined {
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
+  const packageFixture = /^packages\/([^/]+)\/spec\/fixtures\/.+$/.exec(path);
+  if (packageFixture) return classified('fixture', packageFixture[1] ?? '');
   if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
     return classified('fake', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
@@ -322,7 +329,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'runtime',
     'server-port',
   ]),
-  installer: new Set(['installer', 'server-port', 'config']),
+  installer: new Set(['installer', 'server-port', 'config', 'process-api']),
   'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),
   'rule-api': new Set(['rule']),
@@ -367,8 +374,11 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'runtime',
     'server-port',
     'config',
+    'process-api',
   ]),
   'gateway-api': new Set(['gateway']),
+  'process-api': new Set(['process']),
+  process: new Set(['process']),
   runtime: new Set(['kernel', 'runtime', 'model-api', 'config']),
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set(everything),
@@ -385,7 +395,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'server-port',
     'fake',
   ]),
-  test: new Set([...everything, 'fake', 'test']),
+  fixture: new Set(),
+  test: new Set([...everything, 'fake', 'fixture', 'test']),
 };
 
 export function violation(
@@ -421,6 +432,15 @@ export function violation(
       return 'storage-public-api-only';
     if (to.owner === 'agents' && to.role !== 'gateway-api')
       return 'agents-public-api-only';
+    if (to.owner === 'process' && to.role !== 'process-api')
+      return 'process-public-api-only';
+    if (
+      to.owner === 'process' &&
+      from.owner !== 'git' &&
+      from.owner !== 'agents' &&
+      from.role !== 'installer'
+    )
+      return 'process-importable-by-git-agents-installer';
   }
   if (!allowedTargets[from.role].has(to.role))
     return `${from.role}-cannot-import-${to.role}`;

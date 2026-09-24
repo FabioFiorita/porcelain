@@ -1,5 +1,6 @@
 import { lstat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { isMissing } from '../../shared/errno.ts';
 import {
   filterDrivers,
   parseFilterAttributes,
@@ -45,8 +46,7 @@ async function rejectUncheckableHooks(
   try {
     names = await readdir(hooks);
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return;
+    if (isMissing(error)) return;
     throw error;
   }
   for (const name of names.sort()) {

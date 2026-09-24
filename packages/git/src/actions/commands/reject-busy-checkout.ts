@@ -1,4 +1,5 @@
 import { lstat } from 'node:fs/promises';
+import { isMissing } from '../../shared/errno.ts';
 import { readActionCommand } from './read-action-command.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
@@ -29,8 +30,7 @@ export async function rejectBusyCheckout(
     try {
       await lstat(path);
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        continue;
+      if (isMissing(error)) continue;
       throw error;
     }
     if (name === 'MERGE_HEAD' && allowMerge) {

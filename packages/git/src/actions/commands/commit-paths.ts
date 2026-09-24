@@ -7,6 +7,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { isMissing } from '../../shared/errno.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import { readOptionalActionOid } from './read-optional-action-oid.ts';
@@ -15,6 +16,7 @@ import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 import { readActionBranch } from './read-action-branch.ts';
 import { readActionCommand } from './read-action-command.ts';
+import { readActionHead } from './read-action-head.ts';
 
 export async function commitPaths(
   process: GitProcessRunner,
@@ -76,8 +78,7 @@ export async function commitPaths(
     temporary = await mkdtemp(join(dirname(indexPath), 'porcelain-index-'));
     const indexFile = join(temporary, 'index');
     const original = await readFile(indexPath).catch((error: unknown) => {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-        return null;
+      if (isMissing(error)) return null;
       throw error;
     });
     if (original) await writeFile(indexFile, original);
@@ -144,13 +145,7 @@ export async function commitPaths(
     );
     const failure = processFailure(committed);
     if (failure?.state === 'rejected') return failure;
-    const head = (
-      await readActionCommand(
-        process,
-        ['rev-parse', '--verify', 'HEAD'],
-        AbortSignal.timeout(5000),
-      )
-    ).trimEnd();
+    const head = await readActionHead(process, AbortSignal.timeout(5000));
     if (head !== preparation.preview.headOid && !messageOnly) {
       await lock.writeFile(await readFile(indexFile));
       await lock.sync();

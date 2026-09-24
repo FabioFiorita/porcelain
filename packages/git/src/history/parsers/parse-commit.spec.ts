@@ -1,39 +1,57 @@
 import { describe, expect, it } from 'vitest';
+import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseCommitRecord, parseCommitRecords } from './parse-commit.ts';
 
-const log =
-  '2a3a1e5faca6d0d4d95b3b74458f7959633c9abe\x006c1b860d27b09e27478a7e1cd13377dc66dc1dec\0T\x002026-09-23T19:00:17-03:00\0main, tag: v1.0\0ahead\0\0' +
-  '6c1b860d27b09e27478a7e1cd13377dc66dc1dec\0ccdc14ed14529c0ed2856043769bdf9297be052f 1111111111111111111111111111111111111111\0T\x002026-09-23T19:00:17-03:00\0origin/main, origin/HEAD\0merge\0Body line\n\n\0' +
-  'ccdc14ed14529c0ed2856043769bdf9297be052f\0\0T\x002026-09-23T19:00:17-03:00\0\0base\0\0';
+const page = fixture('log/page.txt').toString('utf8');
 
 describe('parseCommitRecords', () => {
   it('reads every commit of a log page in order', () => {
-    expect(parseCommitRecords(log)).toEqual([
+    expect(parseCommitRecords(page)).toEqual([
       {
-        oid: '2a3a1e5faca6d0d4d95b3b74458f7959633c9abe',
-        parentOids: ['6c1b860d27b09e27478a7e1cd13377dc66dc1dec'],
-        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
-        subject: 'ahead',
-        subjectTruncated: false,
-        body: null,
-        bodyTruncated: false,
-        refs: ['main', 'v1.0'],
-      },
-      {
-        oid: '6c1b860d27b09e27478a7e1cd13377dc66dc1dec',
+        oid: 'eb7312add608affdf32a090cfc5991b6b0673e1e',
         parentOids: [
-          'ccdc14ed14529c0ed2856043769bdf9297be052f',
-          '1111111111111111111111111111111111111111',
+          '847c4a56aa33b6452cc83525965eb3a8463d2658',
+          '51461c37b4684d691ef47cc707936a782af61d13',
         ],
         author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
         subject: 'merge',
+        subjectTruncated: false,
+        body: null,
+        bodyTruncated: false,
+        refs: ['main'],
+      },
+      {
+        oid: '51461c37b4684d691ef47cc707936a782af61d13',
+        parentOids: ['55a7889b7826882e28bdf4641cc6f09db55b3a2c'],
+        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        subject: 'upstream two',
         subjectTruncated: false,
         body: 'Body line',
         bodyTruncated: false,
         refs: ['origin/main', 'origin/HEAD'],
       },
       {
-        oid: 'ccdc14ed14529c0ed2856043769bdf9297be052f',
+        oid: '55a7889b7826882e28bdf4641cc6f09db55b3a2c',
+        parentOids: ['aa1c1b46ec8e9f679d429c3f9c8f647d341654f8'],
+        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        subject: 'upstream one',
+        subjectTruncated: false,
+        body: null,
+        bodyTruncated: false,
+        refs: [],
+      },
+      {
+        oid: '847c4a56aa33b6452cc83525965eb3a8463d2658',
+        parentOids: ['aa1c1b46ec8e9f679d429c3f9c8f647d341654f8'],
+        author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
+        subject: 'ahead',
+        subjectTruncated: false,
+        body: null,
+        bodyTruncated: false,
+        refs: ['v1.0'],
+      },
+      {
+        oid: 'aa1c1b46ec8e9f679d429c3f9c8f647d341654f8',
         parentOids: [],
         author: { name: 'T', timestamp: '2026-09-23T22:00:17.000Z' },
         subject: 'base',
@@ -50,9 +68,9 @@ describe('parseCommitRecords', () => {
   });
 
   it('rejects a log cut off in the middle of a commit', () => {
-    expect(() => parseCommitRecords(log.slice(0, 60))).toThrow(
-      'History contains unsupported data',
-    );
+    expect(() =>
+      parseCommitRecords(fixture('log/page-truncated.txt').toString('utf8')),
+    ).toThrow('History contains unsupported data');
   });
 });
 

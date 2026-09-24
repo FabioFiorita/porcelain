@@ -24,10 +24,15 @@ const MAX_FRONTIER = 100;
 
 export async function listCommits(
   checkout: HistoryCheckout,
+  gitVersion: Buffer,
   request: CommitPageRequest,
   signal?: AbortSignal,
 ): Promise<CommitPage> {
-  const { shallow } = await inspectHistoryCheckout(checkout, signal);
+  const { shallow } = await inspectHistoryCheckout(
+    checkout,
+    gitVersion,
+    signal,
+  );
   const limit = request.limit ?? DEFAULT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT)
     throw new InvalidHistoryRequestError();

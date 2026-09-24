@@ -1,3 +1,4 @@
+import { isMissing } from '../../shared/errno.ts';
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
 import { UnsupportedFilesystemIdentityError } from '../../shared/errors/unsupported-filesystem-identity-error.ts';
 import { RepositoryIdentityMismatchError } from './repository-identity-mismatch-error.ts';
@@ -12,8 +13,9 @@ export function isRepositoryUnavailable(error: unknown): boolean {
     return true;
   if (error instanceof GitCommandError) return error.exitCode !== undefined;
   return (
-    error instanceof Error &&
-    'code' in error &&
-    ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(String(error.code))
+    isMissing(error) ||
+    (error instanceof Error &&
+      'code' in error &&
+      (error.code === 'EACCES' || error.code === 'EPERM'))
   );
 }

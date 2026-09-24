@@ -1,5 +1,6 @@
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
+import { isMissing } from './errno.ts';
 
 export function parseGitdirFile(text: string): string | undefined {
   const pointer = text.trim();
@@ -26,7 +27,7 @@ export async function readCommonDirectory(
     ).trim();
     return resolve(gitDirectory, target);
   } catch (error) {
-    if (missing(error)) return gitDirectory;
+    if (isMissing(error)) return gitDirectory;
     throw error;
   }
 }
@@ -54,7 +55,7 @@ export async function readWorktreeRegistry(
   try {
     names = await readdir(root);
   } catch (error) {
-    if (!missing(error)) throw error;
+    if (!isMissing(error)) throw error;
     return new Map();
   }
   const registry = new Map<string, string>();
@@ -103,12 +104,4 @@ export async function corroborates(
   } catch {
     return false;
   }
-}
-
-function missing(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    'code' in error &&
-    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-  );
 }
