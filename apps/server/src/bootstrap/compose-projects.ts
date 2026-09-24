@@ -1,8 +1,11 @@
 import type { ProjectFolderReader } from '@porcelain/projects/ports';
 import {
   BrowseProjectFoldersService,
+  CheckProjectService,
   CollectAbsentWorktreesService,
   DiscoverProjectsService,
+  FindProjectService,
+  ForgetProjectRecordsService,
   InspectProjectRepositoryService,
   ListExpiredWorktreesService,
   ListFilePreferencesService,
@@ -61,6 +64,7 @@ export function composeProjects(
   const updateProjectAvailability = new UpdateProjectAvailabilityService(
     inventory,
   );
+  const checkProject = new CheckProjectService(inventory);
   const recordWorktreePresence = new RecordWorktreePresenceService(
     inventory,
     worktreePresence,
@@ -121,6 +125,8 @@ export function composeProjects(
       events,
     ),
     removeProject: new RemoveProjectUseCase(
+      new FindProjectService(inventory),
+      new ForgetProjectRecordsService(worktreePresence, filePreference),
       new RemoveProjectService(inventory),
       refreshInventory,
       lanes,
@@ -147,11 +153,13 @@ export function composeProjects(
       laneKeys,
     ),
     listFilePreferences: new ListFilePreferencesUseCase(
+      checkProject,
       new ListFilePreferencesService(inventory, filePreference),
       lanes,
       laneKeys,
     ),
     setFilePreference: new SetFilePreferenceUseCase(
+      checkProject,
       new SetFilePreferenceService(
         inventory,
         filePreference,

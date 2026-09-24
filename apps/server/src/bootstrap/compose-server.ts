@@ -12,7 +12,6 @@ import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-pub
 import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
-import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
 import { InMemoryWorktreeCatalogStore } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
@@ -23,6 +22,7 @@ import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { IntervalJob, JobSequence } from '../runtime/interval-job.ts';
 import type { Job } from '../runtime/job.ts';
+import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import {
   LiveConnections,
@@ -79,7 +79,7 @@ export const openServer: OpenServer = async (input) => {
   });
   const context: ComposeContext = {
     lanes,
-    laneKeys: new GitLaneKeys(catalog),
+    laneKeys: new LaneKeys(),
     events,
     settings,
     clock,

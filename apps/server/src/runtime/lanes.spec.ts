@@ -178,6 +178,16 @@ describe('Lanes', () => {
     expect(order).toEqual(['write', 'read']);
   });
 
+  it('refuses unqueued work past its deadline even when the work ignores its signal', async () => {
+    const subject = lanes();
+    const release = Promise.withResolvers<string>();
+    await expect(
+      subject.unqueued(() => release.promise, { deadlineMs: 5 }),
+    ).rejects.toBeInstanceOf(DOMException);
+    release.resolve('late');
+    await subject.close();
+  });
+
   it('hands background work past its deadline to the failure handler', async () => {
     const subject = lanes();
     const failed = Promise.withResolvers<unknown>();

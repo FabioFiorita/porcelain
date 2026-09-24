@@ -21,6 +21,12 @@ export type {
   DiscoverProjectsResult,
 } from './discover-projects.ts';
 export type {
+  CheckProjectResult,
+  FindProjectInput,
+  FindProjectResult,
+  ForgetProjectRecordsInput,
+} from './find-project.ts';
+export type {
   FilePreference,
   FilePreferenceKey,
   ProjectFilePreference,

@@ -259,7 +259,7 @@ export class Lanes {
     ]);
     const task = work(signal);
     this.track(task);
-    return task;
+    return this.until(task, signal);
   }
 
   finish(

@@ -44,7 +44,7 @@ export function checkRequestOrigin(
         allowedHosts: options.allowedHosts,
         requireSameOrigin,
       },
-      {},
+      { signal: request.disconnected },
     );
     if (!result.allowed)
       throw httpErrors.forbidden(refusalMessage(result.refusal));

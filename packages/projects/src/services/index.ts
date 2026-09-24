@@ -1,9 +1,12 @@
 export { BrowseProjectFoldersService } from './browse-project-folders-service.ts';
+export { CheckProjectService } from './check-project-service.ts';
 export { CheckRefreshedWorktreeService } from './check-refreshed-worktree-service.ts';
 export { CheckWorktreeService } from './check-worktree-service.ts';
 export { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
 export { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 export { DiscoverProjectsService } from './discover-projects-service.ts';
+export { FindProjectService } from './find-project-service.ts';
+export { ForgetProjectRecordsService } from './forget-project-records-service.ts';
 export { InspectProjectRepositoryService } from './inspect-project-repository-service.ts';
 export { ListExpiredWorktreesService } from './list-expired-worktrees-service.ts';
 export { ListFilePreferencesService } from './list-file-preferences-service.ts';

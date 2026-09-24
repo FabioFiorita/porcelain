@@ -63,8 +63,8 @@ export function composeAccess(
       lanes,
       laneKeys,
     ),
-    clearBrowserSession: new ClearBrowserSessionUseCase(lanes, laneKeys),
-    checkRequestOrigin: new CheckRequestOriginUseCase(lanes, laneKeys),
+    clearBrowserSession: new ClearBrowserSessionUseCase(lanes),
+    checkRequestOrigin: new CheckRequestOriginUseCase(lanes),
     flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deviceSightingStore, deviceStore),
       lanes,
