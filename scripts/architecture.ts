@@ -378,6 +378,7 @@ try {
     found.map((finding) => ({
       ...finding,
       file: finding.from.replace(/:\d+$/, ''),
+      message: finding.to,
     })),
   );
   const violations = [

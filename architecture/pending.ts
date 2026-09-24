@@ -3,11 +3,11 @@ import { z } from 'zod';
 
 const pendingSchema = z.record(
   z.string(),
-  z.record(z.string(), z.number().int().positive()),
+  z.record(z.string(), z.record(z.string(), z.number().int().positive())),
 );
 
 export type Pending = z.output<typeof pendingSchema>;
-export type Located = { rule: string; file: string };
+export type Located = { rule: string; file: string; message: string };
 export type Settled<T extends Located> = {
   reported: T[];
   held: number;
@@ -18,6 +18,8 @@ export function readPending(path: string): Pending {
   return pendingSchema.parse(JSON.parse(readFileSync(path, 'utf8')));
 }
 
+const separator = '\u0000';
+
 export function settlePending<T extends Located>(
   pending: Pending,
   owns: (rule: string) => boolean,
@@ -25,33 +27,34 @@ export function settlePending<T extends Located>(
 ): Settled<T> {
   const groups = new Map<string, T[]>();
   for (const finding of findings) {
-    const key = `${finding.rule}\u0000${finding.file}`;
+    const key = [finding.rule, finding.file, finding.message].join(separator);
     groups.set(key, [...(groups.get(key) ?? []), finding]);
   }
   const reported: T[] = [];
   const problems: string[] = [];
   let held = 0;
   for (const [key, group] of groups) {
-    const [rule = '', file = ''] = key.split('\u0000');
-    const allowed = pending[rule]?.[file] ?? 0;
+    const [rule = '', file = '', message = ''] = key.split(separator);
+    const allowed = pending[rule]?.[file]?.[message] ?? 0;
     if (group.length > allowed) {
       reported.push(...group);
       if (allowed > 0)
         problems.push(
-          `${file}: ${group.length} ${rule} findings where architecture/pending.json holds ${allowed}; fix the new ones.`,
+          `${file}: ${group.length} ${rule} findings "${message}" where architecture/pending.json holds ${allowed}; fix the new ones.`,
         );
     } else held += group.length;
     if (group.length < allowed)
       problems.push(
-        `${file}: ${rule} is down to ${group.length}; lower architecture/pending.json to ${group.length}.`,
+        `${file}: ${rule} "${message}" is down to ${group.length}; lower architecture/pending.json to ${group.length}.`,
       );
   }
   for (const [rule, files] of Object.entries(pending))
     if (owns(rule))
-      for (const file of Object.keys(files))
-        if (!groups.has(`${rule}\u0000${file}`))
-          problems.push(
-            `${file}: ${rule} is fixed; remove it from architecture/pending.json.`,
-          );
+      for (const [file, messages] of Object.entries(files))
+        for (const message of Object.keys(messages))
+          if (!groups.has([rule, file, message].join(separator)))
+            problems.push(
+              `${file}: ${rule} "${message}" is fixed; remove it from architecture/pending.json.`,
+            );
   return { reported, held, problems };
 }
