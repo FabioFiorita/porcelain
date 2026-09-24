@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COMMITS_PER_PAGE, HISTORY_FRONTIER } from '../shared/limits.ts';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { oidListSchema, oidSchema } from '../shared/oid.ts';
 
@@ -8,7 +9,7 @@ const oidCursorSchema = z.codec(oidListSchema, z.array(oidSchema), {
 });
 
 export const listCommitsQuerySchema = z.strictObject({
-  limit: z.coerce.number().int().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(COMMITS_PER_PAGE).optional(),
   after: oidCursorSchema.optional(),
   tip: oidSchema.optional(),
 });
@@ -34,8 +35,8 @@ export const listCommitsResponseSchema = z.object({
   snapshot: absentAsNull(
     z.object({ tipOid: absentAsNull(oidSchema), head: commitHeadSchema }),
   ),
-  commits: z.array(commitSummarySchema).max(100),
-  nextAfter: absentAsNull(z.array(oidSchema).max(100)),
+  commits: z.array(commitSummarySchema).max(COMMITS_PER_PAGE),
+  nextAfter: absentAsNull(z.array(oidSchema).max(HISTORY_FRONTIER)),
   tip: absentAsNull(oidSchema),
   boundary: absentAsNull(z.enum(['shallow', 'wide'])),
   restarted: z.boolean(),

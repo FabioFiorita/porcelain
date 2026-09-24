@@ -1,20 +1,25 @@
 import { z } from 'zod';
+import {
+  LIVE_PATHS_PER_WORKTREE,
+  LIVE_PROJECTS,
+  LIVE_WORKTREES,
+} from '../shared/limits.ts';
 import { gitActionReceiptSchema } from '../shared/git-action-receipt.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 export const liveSubscriptionSchema = z.strictObject({
   type: z.literal('subscribe'),
-  projects: z.array(z.uuid()).max(128),
+  projects: z.array(z.uuid()).max(LIVE_PROJECTS),
   worktrees: z
     .array(
       z.strictObject({
         projectId: z.uuid(),
         worktreeId: worktreeIdSchema,
-        paths: z.array(relativePathSchema).max(64),
+        paths: z.array(relativePathSchema).max(LIVE_PATHS_PER_WORKTREE),
       }),
     )
-    .max(32),
+    .max(LIVE_WORKTREES),
 });
 
 export const liveNoticeSchema = z.discriminatedUnion('type', [

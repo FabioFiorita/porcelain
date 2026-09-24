@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { REVIEWED_FILE_MARKS } from '../shared/limits.ts';
+import { REVIEWED_FILE_MARKS, REVIEWED_LAYER_MARKS } from '../shared/limits.ts';
 
 const reviewedMarkSchema = z.object({
   path: relativePathSchema,
@@ -60,7 +60,7 @@ const reviewedLayerMarkSchema = z.object({
 
 export const listReviewedLayersResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
-  marks: z.array(reviewedLayerMarkSchema).max(100),
+  marks: z.array(reviewedLayerMarkSchema).max(REVIEWED_LAYER_MARKS),
 });
 
 export const setReviewedLayerRequestSchema = z.strictObject({

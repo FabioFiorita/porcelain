@@ -18,7 +18,7 @@ export async function readDiscarded(
       [
         'for-each-ref',
         '--sort=-creatordate',
-        '--count=50',
+        `--count=${limits.inspection.maxDiscarded}`,
         '--format=%(objectname)%00%(refname)',
         DISCARDED_REF_PREFIX,
       ],

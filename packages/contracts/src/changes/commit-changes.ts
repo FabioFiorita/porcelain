@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  COMMIT_FILES,
+  COMMIT_PARENTS,
+  DIFFS_PER_REQUEST,
+  PATHS_PER_CHANGE,
+} from '../shared/limits.ts';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
@@ -27,12 +33,12 @@ export const readCommitFilesParamsSchema = z.strictObject({
   oid: oidSchema,
 });
 export const readCommitFilesQuerySchema = z.strictObject({
-  parent: z.coerce.number().int().min(1).max(1000).optional(),
+  parent: z.coerce.number().int().min(1).max(COMMIT_PARENTS).optional(),
 });
 export const readCommitFilesResponseSchema = z.object({
   commit: commitSummarySchema,
   comparison: commitComparisonSchema,
-  files: z.array(commitFileSchema).max(10_000),
+  files: z.array(commitFileSchema).max(COMMIT_FILES),
 });
 
 export const readCommitDiffsParamsSchema = z.strictObject({
@@ -40,8 +46,11 @@ export const readCommitDiffsParamsSchema = z.strictObject({
   oid: oidSchema,
 });
 export const readCommitDiffsRequestSchema = z.strictObject({
-  parent: z.number().int().min(1).max(1000).optional(),
-  paths: z.array(z.array(z.string()).min(1).max(2)).min(1).max(200),
+  parent: z.number().int().min(1).max(COMMIT_PARENTS).optional(),
+  paths: z
+    .array(z.array(z.string()).min(1).max(PATHS_PER_CHANGE))
+    .min(1)
+    .max(DIFFS_PER_REQUEST),
 });
 export const readCommitDiffsResponseSchema = z.object({
   commitOid: oidSchema,

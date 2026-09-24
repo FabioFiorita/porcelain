@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { PATH_LENGTH } from '../shared/limits.ts';
+import { PATH_LENGTH, PROJECT_NAME_LENGTH } from '../shared/limits.ts';
 
 const reviewStatusSchema = z.enum(['pending', 'reviewed', 'replied']);
 
@@ -70,7 +70,7 @@ export const renameProjectRequestSchema = z.strictObject({
     .string()
     .trim()
     .min(1)
-    .max(100)
+    .max(PROJECT_NAME_LENGTH)
     .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value), {
       message: 'The name must not contain control characters',
     }),

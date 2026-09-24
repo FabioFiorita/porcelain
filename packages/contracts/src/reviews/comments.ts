@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  COMMENT_BODY_LENGTH,
+  COMMIT_PARENTS,
+  EVIDENCE_TOKEN_LENGTH,
+  LINE_NUMBER_MAX,
+} from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
@@ -10,18 +16,18 @@ const comparisonSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('file') }),
   z.strictObject({
     kind: z.literal('commit'),
-    parent: z.number().int().min(1).max(1000),
+    parent: z.number().int().min(1).max(COMMIT_PARENTS),
   }),
 ]);
 const evidence = {
   comparison: comparisonSchema.optional(),
-  revision: z.string().min(1).max(256).optional(),
-  contentFingerprint: z.string().min(1).max(256).optional(),
+  revision: z.string().min(1).max(EVIDENCE_TOKEN_LENGTH).optional(),
+  contentFingerprint: z.string().min(1).max(EVIDENCE_TOKEN_LENGTH).optional(),
 };
 const bodySchema = z
   .string()
   .min(1)
-  .max(16000)
+  .max(COMMENT_BODY_LENGTH)
   .refine((value) => value.trim().length > 0 && !value.includes('\0'));
 
 const commentAuthorSchema = z.enum(['reviewer', 'agent']);
@@ -35,8 +41,8 @@ const commentAnchorSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('codeRange'),
     filePath: relativePathSchema,
-    startLine: z.number().int().min(1).max(2147483647),
-    endLine: z.number().int().min(1).max(2147483647),
+    startLine: z.number().int().min(1).max(LINE_NUMBER_MAX),
+    endLine: z.number().int().min(1).max(LINE_NUMBER_MAX),
     side: z.enum(['additions', 'deletions']).optional(),
     ...evidence,
   }),

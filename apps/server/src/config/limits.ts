@@ -1,6 +1,10 @@
 import {
   CHANGED_PATHS,
+  COMMIT_FILES,
   COMMIT_GROUPS,
+  COMMITS_PER_PAGE,
+  DISCARDED_CHANGES,
+  HISTORY_FRONTIER,
   COMMIT_MESSAGE_BYTES,
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
@@ -10,6 +14,7 @@ import {
   REVIEWED_FILE_MARKS,
   TEXT_BYTES,
   WORKTREE_ID_LENGTH,
+  WORKTREE_PATHS,
 } from '@porcelain/contracts/shared';
 
 const SECOND_MS = 1000;
@@ -117,6 +122,7 @@ export type Limits = {
       branchTrackingBytes: number;
       discardedRefsBytes: number;
       discardedBlobsBytes: number;
+      maxDiscarded: number;
     };
     history: {
       defaultCommits: number;
@@ -288,17 +294,18 @@ export const LIMITS: Limits = {
       filterPathsBytes: 8 * MEBIBYTE,
       filterAttributesBytes: 16 * MEBIBYTE,
       trackedPathsBytes: 4 * MEBIBYTE,
-      maxTrackedPaths: 50_000,
+      maxTrackedPaths: WORKTREE_PATHS,
       headCommitBytes: 64 * KIBIBYTE,
       branchTrackingBytes: MEBIBYTE,
       discardedRefsBytes: 64 * KIBIBYTE,
       discardedBlobsBytes: 4 * MEBIBYTE,
+      maxDiscarded: DISCARDED_CHANGES,
     },
     history: {
       defaultCommits: 50,
-      maxCommits: 100,
-      maxFrontier: 100,
-      maxCommitFiles: 10_000,
+      maxCommits: COMMITS_PER_PAGE,
+      maxFrontier: HISTORY_FRONTIER,
+      maxCommitFiles: COMMIT_FILES,
       subjectBytes: 512,
       bodyBytes: 4096,
     },

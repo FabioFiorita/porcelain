@@ -3,21 +3,35 @@ import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import {
+  CHANGED_PATHS,
+  DIAGRAM_ARROWS,
+  DIAGRAM_BOXES,
+  LINE_NUMBER_MAX,
+  REVIEW_LABEL_LENGTH,
+  REVIEW_LANES,
+  REVIEW_LANE_NAME_LENGTH,
+  REVIEW_LAYERS,
+  REVIEW_PROSE_LENGTH,
+  REVIEW_STEPS,
+  REVIEW_STEP_ARROWS,
+  REVIEW_STEP_TEXT_LENGTH,
   REVIEW_SUMMARY_BYTES,
   REVIEW_SUMMARY_MEBIBYTES,
+  REVIEW_SYMBOL_LENGTH,
+  REVIEW_TITLE_LENGTH,
 } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { reviewSummaryLinkSchema } from './review-summary-link.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
 const idSchema = z.uuid();
-const lineSchema = z.number().int().min(1).max(2_147_483_647);
+const lineSchema = z.number().int().min(1).max(LINE_NUMBER_MAX);
 
 const codePointerSchema = z.strictObject({
   path: relativePathSchema,
   startLine: lineSchema,
   endLine: lineSchema,
-  symbol: z.string().trim().min(1).max(500).optional(),
+  symbol: z.string().trim().min(1).max(REVIEW_SYMBOL_LENGTH).optional(),
 });
 
 const resolvedCodePointerSchema = codePointerSchema.safeExtend({
@@ -40,9 +54,13 @@ const stepLocationSchema = z.discriminatedUnion('state', [
 
 const reviewStepSchema = z.strictObject({
   id: idSchema,
-  lane: z.number().int().min(0).max(99),
-  title: z.string().trim().min(1).max(200),
-  text: z.string().trim().min(1).max(4_000),
+  lane: z
+    .number()
+    .int()
+    .min(0)
+    .max(REVIEW_LANES - 1),
+  title: z.string().trim().min(1).max(REVIEW_TITLE_LENGTH),
+  text: z.string().trim().min(1).max(REVIEW_STEP_TEXT_LENGTH),
   kind: z.enum(['changed', 'context']),
   pointer: codePointerSchema,
 });
@@ -55,43 +73,53 @@ const resolvedReviewStepSchema = reviewStepSchema.extend({
 const arrowSchema = z.strictObject({
   from: idSchema,
   to: idSchema,
-  label: z.string().trim().min(1).max(200).optional(),
+  label: z.string().trim().min(1).max(REVIEW_LABEL_LENGTH).optional(),
 });
 
 const reviewLayerSchema = z.strictObject({
   id: idSchema,
-  title: z.string().trim().min(1).max(200),
-  summary: z.string().trim().min(1).max(2_000),
-  lanes: z.array(z.string().trim().min(1).max(100)).min(1).max(100),
-  steps: z.array(reviewStepSchema).min(1).max(500),
-  arrows: z.array(arrowSchema).max(500).optional(),
+  title: z.string().trim().min(1).max(REVIEW_TITLE_LENGTH),
+  summary: z.string().trim().min(1).max(REVIEW_PROSE_LENGTH),
+  lanes: z
+    .array(z.string().trim().min(1).max(REVIEW_LANE_NAME_LENGTH))
+    .min(1)
+    .max(REVIEW_LANES),
+  steps: z.array(reviewStepSchema).min(1).max(REVIEW_STEPS),
+  arrows: z.array(arrowSchema).max(REVIEW_STEP_ARROWS).optional(),
 });
 
 const resolvedReviewLayerSchema = reviewLayerSchema.safeExtend({
-  steps: z.array(resolvedReviewStepSchema).min(1).max(500),
+  steps: z.array(resolvedReviewStepSchema).min(1).max(REVIEW_STEPS),
   fingerprint: fingerprintSchema,
 });
 
 const diagramArrowSchema = z.strictObject({
   from: idSchema,
   to: idSchema,
-  label: z.string().trim().min(1).max(200).optional(),
+  label: z.string().trim().min(1).max(REVIEW_LABEL_LENGTH).optional(),
   dashed: z.boolean().optional(),
 });
 const diagramBoxSchema = z.strictObject({
   id: idSchema,
-  lane: z.number().int().min(0).max(99),
-  label: z.string().trim().min(1).max(200),
-  detail: z.string().trim().min(1).max(2_000).optional(),
+  lane: z
+    .number()
+    .int()
+    .min(0)
+    .max(REVIEW_LANES - 1),
+  label: z.string().trim().min(1).max(REVIEW_LABEL_LENGTH),
+  detail: z.string().trim().min(1).max(REVIEW_PROSE_LENGTH).optional(),
   kind: z.enum(['actor', 'component', 'storage', 'transport', 'credential']),
   change: z.enum(['new', 'changed', 'removed']).optional(),
-  problem: z.string().trim().min(1).max(2_000).optional(),
+  problem: z.string().trim().min(1).max(REVIEW_PROSE_LENGTH).optional(),
   layerId: idSchema.optional(),
 });
 const diagramSchema = z.strictObject({
-  lanes: z.array(z.string().trim().min(1).max(100)).min(1).max(100),
-  boxes: z.array(diagramBoxSchema).max(500),
-  arrows: z.array(diagramArrowSchema).max(1_000),
+  lanes: z
+    .array(z.string().trim().min(1).max(REVIEW_LANE_NAME_LENGTH))
+    .min(1)
+    .max(REVIEW_LANES),
+  boxes: z.array(diagramBoxSchema).max(DIAGRAM_BOXES),
+  arrows: z.array(diagramArrowSchema).max(DIAGRAM_ARROWS),
 });
 const reviewDiagramSchema = z.strictObject({
   after: diagramSchema,
@@ -124,8 +152,8 @@ const publishedReviewSchema = z.object({
   diagnostics: z.enum(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
   diagram: reviewDiagramSchema.optional(),
-  layers: z.array(resolvedReviewLayerSchema).max(100),
-  notExplained: z.array(notExplainedSchema).max(2_000),
+  layers: z.array(resolvedReviewLayerSchema).max(REVIEW_LAYERS),
+  notExplained: z.array(notExplainedSchema).max(CHANGED_PATHS),
 });
 
 export const publishReviewRequestSchema = z.strictObject({
@@ -136,7 +164,7 @@ export const publishReviewRequestSchema = z.strictObject({
     .max(Number.MAX_SAFE_INTEGER - 1),
   summaryHtml: summaryHtmlSchema,
   diagram: reviewDiagramSchema.optional(),
-  layers: z.array(reviewLayerSchema).min(1).max(100),
+  layers: z.array(reviewLayerSchema).min(1).max(REVIEW_LAYERS),
 });
 
 export const readPublishedReviewResponseSchema = z.object({

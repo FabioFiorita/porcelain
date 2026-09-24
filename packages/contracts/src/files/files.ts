@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { PATH_LENGTH, TEXT_BYTES } from '../shared/limits.ts';
+import {
+  PATH_LENGTH,
+  PREVIEW_ASSETS,
+  TEXT_BYTES,
+  WORKTREE_PATHS,
+} from '../shared/limits.ts';
 
 const directoryPathSchema = z.union([z.literal(''), relativePathSchema]);
 const editableTextSchema = z
@@ -32,7 +37,7 @@ export const listDirectoryResponseSchema = z.object({
 
 export const listWorktreePathsResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
-  paths: z.array(z.string()).max(50_000),
+  paths: z.array(z.string()).max(WORKTREE_PATHS),
 });
 
 export const readTextFileQuerySchema = z.strictObject({
@@ -82,7 +87,7 @@ export const readFileAssetResponseSchema = z.object({
 
 export const readPreviewAssetsRequestSchema = z.strictObject({
   document: relativePathSchema,
-  paths: z.array(z.string().max(PATH_LENGTH)).min(1).max(64),
+  paths: z.array(z.string().max(PATH_LENGTH)).min(1).max(PREVIEW_ASSETS),
 });
 export const readPreviewAssetsResponseSchema = z.object({
   assets: z.array(

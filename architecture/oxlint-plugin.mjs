@@ -418,9 +418,7 @@ const openTypes = new Set([
   'TSAnyKeyword',
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
-const numberFreeFile = new RegExp(
-  `^(?:packages/(?:${domainPackage}|kernel|agents|storage|git|process)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/)`,
-);
+const numberFreeFile = new RegExp(`^(?:packages/[^/]+/src/|apps/server/src/)`);
 const limitsFile =
   /^(?:packages\/contracts\/src\/shared\/limits|apps\/server\/src\/config\/limits)\.ts$/;
 const statusName = /(?:^|\.)status(?:Code)?$/i;

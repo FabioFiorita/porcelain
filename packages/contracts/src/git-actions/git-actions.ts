@@ -7,7 +7,11 @@ import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { utf8ByteLength } from '@porcelain/kernel/rules';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { CHANGED_PATHS, COMMIT_MESSAGE_BYTES } from '../shared/limits.ts';
+import {
+  CHANGED_PATHS,
+  COMMIT_MESSAGE_BYTES,
+  GIT_REF_LENGTH,
+} from '../shared/limits.ts';
 
 const messageSchema = z
   .string()
@@ -21,14 +25,13 @@ const messageSchema = z
   );
 const refSchema = z
   .string()
-  .min(12)
-  .max(1024)
-  .startsWith('refs/heads/')
+  .max(GIT_REF_LENGTH)
+  .regex(/^refs\/heads\/[\s\S]/u)
   .refine((value) => !value.includes('\0'));
 const branchSchema = z
   .string()
   .min(1)
-  .max(1024)
+  .max(GIT_REF_LENGTH)
   .refine((value) => !value.includes('\0'));
 const remoteSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/);
 const expectedFileSchema = z.strictObject({

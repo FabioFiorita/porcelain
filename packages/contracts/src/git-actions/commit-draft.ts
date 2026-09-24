@@ -5,6 +5,7 @@ import {
   CHANGED_PATHS,
   COMMIT_GROUPS,
   COMMIT_MESSAGE_BYTES,
+  COMMIT_MODEL_LENGTH,
 } from '../shared/limits.ts';
 
 export const listCommitModelsResponseSchema = z.array(
@@ -13,7 +14,7 @@ export const listCommitModelsResponseSchema = z.array(
 
 export const generateCommitDraftRequestSchema = z.strictObject({
   mode: z.enum(['message', 'groups']),
-  model: z.string().min(1).max(160),
+  model: z.string().min(1).max(COMMIT_MODEL_LENGTH),
   expectedStatusToken: fingerprintSchema,
   paths: z.array(relativePathSchema).min(1).max(CHANGED_PATHS),
 });

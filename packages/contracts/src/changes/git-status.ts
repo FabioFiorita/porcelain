@@ -4,7 +4,7 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { CHANGED_PATHS } from '../shared/limits.ts';
+import { CHANGED_PATHS, DISCARDED_CHANGES } from '../shared/limits.ts';
 
 const conflictKinds = {
   DD: 'both-deleted',
@@ -100,7 +100,7 @@ export const readGitStatusResponseSchema = z.object({
             kind: z.enum(['hunk', 'rename']),
           }),
         )
-        .max(50),
+        .max(DISCARDED_CHANGES),
     })
     .optional(),
   consistency: z.literal('best-effort'),

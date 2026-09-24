@@ -28,6 +28,7 @@ export const gitLimits = {
     branchTrackingBytes: MEBIBYTE,
     discardedRefsBytes: 64 * KIBIBYTE,
     discardedBlobsBytes: 4 * MEBIBYTE,
+    maxDiscarded: 50,
   },
   history: {
     defaultCommits: 50,

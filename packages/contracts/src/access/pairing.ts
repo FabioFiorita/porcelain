@@ -3,10 +3,13 @@ import { pairingLinkSchema } from './pairing-link.ts';
 import {
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
+  PAIRING_ADDRESSES,
+  PAIRING_CODE_LENGTH,
+  PAIRING_LABELS,
 } from '../shared/limits.ts';
 
 export const redeemPairingRequestSchema = z.strictObject({
-  code: z.string().min(1).max(200),
+  code: z.string().min(1).max(PAIRING_CODE_LENGTH),
   platform: z.string().min(1).max(DEVICE_PLATFORM_LENGTH),
   label: z.string().min(1).max(DEVICE_LABEL_LENGTH).optional(),
 });
@@ -42,8 +45,11 @@ export const listAccessResponseSchema = z.object({
 });
 
 export const issuePairingRequestSchema = z.strictObject({
-  labels: z.array(z.string().min(1).max(DEVICE_LABEL_LENGTH)).min(1).max(20),
-  addresses: z.array(z.url()).min(1).max(10),
+  labels: z
+    .array(z.string().min(1).max(DEVICE_LABEL_LENGTH))
+    .min(1)
+    .max(PAIRING_LABELS),
+  addresses: z.array(z.url()).min(1).max(PAIRING_ADDRESSES),
 });
 export const issuePairingResponseSchema = z.object({
   grants: z.array(

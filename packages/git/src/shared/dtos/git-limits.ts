@@ -27,6 +27,7 @@ export type GitLimits = {
     branchTrackingBytes: number;
     discardedRefsBytes: number;
     discardedBlobsBytes: number;
+    maxDiscarded: number;
   };
   history: {
     defaultCommits: number;
