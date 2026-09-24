@@ -33,11 +33,11 @@ export type TypeFinding = { rule: string; from: string; to: string };
 const absence = TypeFlags.Undefined | TypeFlags.Null | TypeFlags.Void;
 const writingCall =
   /^(?:save|insert|update|remove|append|set|mark|record|take|redeem|forget|write|move|trash|create|delete|add)(?:[A-Z]|$)/;
-const serviceFile = /\/packages\/[^/]+\/src\/services\/[^/]+-service\.ts$/;
-const useCaseFile = /\/apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
-const modelFile = /\/packages\/[^/]+\/src\/models\/[^/]+\.ts$/;
+const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
+const useCaseFile = /\/apps\/server\/src\/use-cases\/.+\.ts$/;
+const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
 const domainShapeFile = new RegExp(
-  `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$)[^/]+\\.ts$`,
+  `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
 );
 
 type Lane =

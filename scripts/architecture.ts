@@ -9,6 +9,7 @@ import {
   forbiddenExternal,
   gitCapabilityViolation,
   helpersFolderViolation,
+  nestedInRoleFolder,
   requiredServerFiles,
   runtimeNodeViolation,
   targetPackageExports,
@@ -280,6 +281,12 @@ function classifyAll(sources: readonly string[]): {
   for (const file of sources) {
     const result = classify(file);
     if (result) classified.set(file, result);
+    else if (nestedInRoleFolder(file))
+      findings.push({
+        rule: 'role-folder-is-flat',
+        from: file,
+        to: 'services/, models/, rules/, ports/, errors/ and use-cases/<area>/ hold files, never subfolders',
+      });
     else
       findings.push({
         rule: 'unclassified-source',

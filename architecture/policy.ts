@@ -276,7 +276,15 @@ function classifyServer(inside: string) {
   return;
 }
 
+const nestedRoleFolder =
+  /^(?:packages\/[^/]+\/src\/(?:services|models|rules|ports|errors)\/[^/]+\/|apps\/server\/src\/(?:ports\/[^/]+\/|use-cases\/[^/]+\/[^/]+\/))/;
+
+export function nestedInRoleFolder(path: string): boolean {
+  return nestedRoleFolder.test(path);
+}
+
 export function classify(path: string): Classification | undefined {
+  if (nestedInRoleFolder(path)) return;
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
   const packageFixture = /^packages\/([^/]+)\/spec\/fixtures\/.+$/.exec(path);

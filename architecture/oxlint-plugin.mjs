@@ -15,13 +15,14 @@ const useCaseValueModule = new RegExp(
   `^@porcelain/(?:${domainPackage}|kernel)/(?:rules|errors)$`,
 );
 const modelsSource =
-  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/[^/]+)\.ts$/;
-const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
+  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/.+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/.+)\.ts$/;
+const composeSource =
+  /\/apps\/server\/src\/bootstrap\/(?:.+\/)?compose-[^/]+\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
 const routeSource = /\/apps\/server\/src\/http\/routes\/.+\.ts$/;
 const pageSource = /-page\.ts$/;
-const mcpSource = /\/apps\/server\/src\/http\/mcp\/[^/]+\.ts$/;
+const mcpSource = /\/apps\/server\/src\/http\/mcp\/.+\.ts$/;
 const pageReplyMethods = new Set(['header', 'type']);
 const parseMethods = new Set([
   'parse',
@@ -56,7 +57,7 @@ function normalizedFilename(filename) {
 function operationRole(filename) {
   const path = normalizedFilename(filename);
   if (
-    new RegExp(`/apps/server/src/use-cases/${domainPackage}/[^/]+\\.ts$`).test(
+    new RegExp(`/apps/server/src/use-cases/${domainPackage}/.+\\.ts$`).test(
       path,
     )
   )
@@ -265,7 +266,7 @@ function isPageBody(sent, renderers) {
 }
 
 const specSource = /\.spec\.ts$/;
-const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/[^/]+\.ts$/;
+const storeContractSource = /\/packages\/[^/]+\/spec\/contracts\/.+\.ts$/;
 const storageSpec = /\/packages\/storage\/src\/.+\.spec\.ts$/;
 const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
@@ -379,7 +380,7 @@ const runtimeFile = /^apps\/server\/src\/runtime\//;
 const serverAppFile = /^apps\/server\/src\//;
 const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
 const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
-const scopeFile = /^apps\/server\/src\/http\/scopes\/[^/]+\.ts$/;
+const scopeFile = /^apps\/server\/src\/http\/scopes\/.+\.ts$/;
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
 const fixtureModelSource = /^\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts$/;
@@ -392,7 +393,7 @@ const openTypes = new Set([
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile =
   /^(?:packages\/[^/]+\/src\/(?:rules|services)\/|apps\/server\/src\/(?:adapters|use-cases|jobs)\/)/;
-const useCaseFile = /^apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
+const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
 const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
 const fakeFile = /^(?:packages\/[^/]+|apps\/server)\/spec\/fakes\//;
@@ -400,7 +401,7 @@ const clockFile =
   /^(?:packages\/[^/]+\/src\/rules|apps\/server\/src\/adapters)\//;
 const indexFile = /^packages\/[^/]+\/src\/(?:.+\/)?index\.ts$/;
 const operationFile =
-  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
+  /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/use-cases\/.+)\.ts$/;
 const domainCode = new RegExp(
   `^(?:packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/|packages/kernel/src/|apps/server/src/use-cases/)`,
 );
