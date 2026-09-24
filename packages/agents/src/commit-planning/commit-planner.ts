@@ -1,16 +1,15 @@
-import type { AgentModel } from '../models/agent-model.ts';
-import type { CommitPlanRequest } from '../models/commit-plan-request.ts';
-import type { CommitProposalGroup } from '../models/commit-proposal-group.ts';
-import type { Provider } from '../providers/provider.ts';
-import { ProviderNotInstalledError } from '../providers/provider-not-installed-error.ts';
-import { ProviderProcessFailedError } from '../providers/provider-process-failed-error.ts';
-import { CommitPlanFailedError } from './commit-plan-failed-error.ts';
-import {
-  commitPlanOutputSchema,
-  parseCommitPlan,
-} from './commit-plan-output.ts';
-import { commitPlanPrompt } from './commit-plan-prompt.ts';
-import { UnsupportedCommitModelError } from './unsupported-commit-model-error.ts';
+import { planCommit } from './commands/plan-commit.ts';
+import type { AgentModel } from './dtos/agent-model.ts';
+import type { CommitPlanRequest } from './dtos/commit-plan-request.ts';
+import type { CommitProposalGroup } from './dtos/commit-proposal-group.ts';
+import { CommitPlanFailedError } from './errors/commit-plan-failed-error.ts';
+import { ProviderNotInstalledError } from './errors/provider-not-installed-error.ts';
+import { ProviderProcessFailedError } from './errors/provider-process-failed-error.ts';
+import { UnsupportedCommitModelError } from './errors/unsupported-commit-model-error.ts';
+import type { Provider } from './interfaces/provider.ts';
+import { parseCommitPlan } from './parsers/parse-commit-plan.ts';
+import { ClaudeProvider } from './providers/claude.ts';
+import { CodexProvider } from './providers/codex.ts';
 
 const modelName = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 
@@ -46,12 +45,7 @@ export class CommitPlanner {
       throw new UnsupportedCommitModelError();
     try {
       return parseCommitPlan(
-        await provider.answer(
-          model,
-          commitPlanPrompt(request),
-          commitPlanOutputSchema,
-          signal,
-        ),
+        await planCommit(provider, model, request, signal),
       );
     } catch (cause) {
       signal?.throwIfAborted();
@@ -64,4 +58,8 @@ export class CommitPlanner {
       throw new CommitPlanFailedError({ cause });
     }
   }
+}
+
+export function createCommitPlanner(): CommitPlanner {
+  return new CommitPlanner([new CodexProvider(), new ClaudeProvider()]);
 }

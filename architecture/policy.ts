@@ -57,7 +57,6 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   },
   agents: {
     './commit-planning': './src/commit-planning/index.ts',
-    './models': './src/models/index.ts',
   },
   process: { '.': './src/index.ts' },
 };
@@ -188,7 +187,7 @@ function classifyPackage(name: string, inside: string) {
     return;
   }
   if (name === 'agents') {
-    if (['commit-planning', 'models', 'providers'].includes(section))
+    if (section === 'commit-planning')
       return classified(
         inside === `${section}/index.ts` ? 'gateway-api' : 'gateway',
         name,

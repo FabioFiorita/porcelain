@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCommitPlan } from './commit-plan-output.ts';
+import { parseCommitPlan } from './parse-commit-plan.ts';
 
 describe('parseCommitPlan', () => {
   it('reads the groups a model returned', () => {

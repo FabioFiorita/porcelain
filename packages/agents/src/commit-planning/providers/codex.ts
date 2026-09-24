@@ -2,12 +2,14 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
-import type { AgentModel } from '../models/agent-model.ts';
-import { findExecutable, runCommandLine } from './command-line.ts';
-import type { Provider } from './provider.ts';
-import { ProviderNotInstalledError } from './provider-not-installed-error.ts';
+import { findExecutable } from '../commands/find-executable.ts';
+import { runProvider } from '../commands/run-provider.ts';
+import type { AgentModel } from '../dtos/agent-model.ts';
+import { ProviderNotInstalledError } from '../errors/provider-not-installed-error.ts';
+import type { Provider } from '../interfaces/provider.ts';
 
 const MAX_CACHE_BYTES = 1024 * 1024;
+const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const modelSlug = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const modelCacheSchema = z.object({
   models: z.array(
@@ -60,38 +62,41 @@ export class CodexProvider implements Provider {
       const schemaPath = join(root, 'schema.json');
       const outputPath = join(root, 'result.json');
       await writeFile(schemaPath, outputSchema);
-      await runCommandLine(
-        command,
-        [
-          'exec',
-          '--ignore-user-config',
-          '--ignore-rules',
-          '--ephemeral',
-          '--skip-git-repo-check',
-          '--sandbox',
-          'read-only',
-          '--disable',
-          'shell_tool',
-          '--disable',
-          'multi_agent',
-          '--disable',
-          'apps',
-          '--disable',
-          'plugins',
-          '-c',
-          'project_doc_max_bytes=0',
-          '-c',
-          'web_search="disabled"',
-          '--output-schema',
-          schemaPath,
-          '--output-last-message',
-          outputPath,
-          '--model',
-          model,
-          '-',
-        ],
-        root,
-        prompt,
+      await runProvider(
+        {
+          command,
+          args: [
+            'exec',
+            '--ignore-user-config',
+            '--ignore-rules',
+            '--ephemeral',
+            '--skip-git-repo-check',
+            '--sandbox',
+            'read-only',
+            '--disable',
+            'shell_tool',
+            '--disable',
+            'multi_agent',
+            '--disable',
+            'apps',
+            '--disable',
+            'plugins',
+            '-c',
+            'project_doc_max_bytes=0',
+            '-c',
+            'web_search="disabled"',
+            '--output-schema',
+            schemaPath,
+            '--output-last-message',
+            outputPath,
+            '--model',
+            model,
+            '-',
+          ],
+          cwd: root,
+          prompt,
+          maxBytes: MAX_OUTPUT_BYTES,
+        },
         signal,
       );
       return JSON.parse(await readFile(outputPath, 'utf8'));

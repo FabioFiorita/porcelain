@@ -2,11 +2,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
-import type { AgentModel } from '../models/agent-model.ts';
-import { findExecutable, runCommandLine } from './command-line.ts';
-import type { Provider } from './provider.ts';
-import { ProviderNotInstalledError } from './provider-not-installed-error.ts';
+import { findExecutable } from '../commands/find-executable.ts';
+import { runProvider } from '../commands/run-provider.ts';
+import type { AgentModel } from '../dtos/agent-model.ts';
+import { ProviderNotInstalledError } from '../errors/provider-not-installed-error.ts';
+import type { Provider } from '../interfaces/provider.ts';
 
+const MAX_OUTPUT_BYTES = 1024 * 1024;
 const envelopeSchema = z.object({ structured_output: z.unknown() });
 
 export class ClaudeProvider implements Provider {
@@ -31,25 +33,28 @@ export class ClaudeProvider implements Provider {
     if (!command) throw new ProviderNotInstalledError();
     const root = await mkdtemp(join(tmpdir(), 'porcelain-commit-draft-'));
     try {
-      const output = await runCommandLine(
-        command,
-        [
-          '--print',
-          '--safe-mode',
-          '--restricted',
-          '--tools',
-          '',
-          '--strict-mcp-config',
-          '--no-session-persistence',
-          '--output-format',
-          'json',
-          '--json-schema',
-          outputSchema,
-          '--model',
-          model,
-        ],
-        root,
-        prompt,
+      const output = await runProvider(
+        {
+          command,
+          args: [
+            '--print',
+            '--safe-mode',
+            '--restricted',
+            '--tools',
+            '',
+            '--strict-mcp-config',
+            '--no-session-persistence',
+            '--output-format',
+            'json',
+            '--json-schema',
+            outputSchema,
+            '--model',
+            model,
+          ],
+          cwd: root,
+          prompt,
+          maxBytes: MAX_OUTPUT_BYTES,
+        },
         signal,
       );
       return envelopeSchema.parse(JSON.parse(output)).structured_output;

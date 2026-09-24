@@ -322,6 +322,9 @@ importers:
 
   packages/agents:
     dependencies:
+      '@porcelain/process':
+        specifier: workspace:*
+        version: link:../process
       zod:
         specifier: 4.5.4
         version: 4.5.4
