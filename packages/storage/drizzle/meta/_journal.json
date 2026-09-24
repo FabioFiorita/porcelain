@@ -85,6 +85,13 @@
       "when": 1790222601073,
       "tag": "0011_receipts_per_worktree",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790260447207,
+      "tag": "0012_receipts_as_columns",
+      "breakpoints": true
     }
   ]
 }
