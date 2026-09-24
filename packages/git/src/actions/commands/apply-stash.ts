@@ -22,8 +22,7 @@ export async function applyStash(
       signal,
     )
   ).trimEnd();
-  if (objectType === 'blob')
-    return applyRecoveryBlob(process, intent.stashOid, signal);
+  if (objectType === 'blob') return applyRecoveryBlob(process, intent, signal);
   const result = { stashOid: intent.stashOid, stashRetained: true };
   const applied = await process.execute(
     [
@@ -51,9 +50,10 @@ export async function applyStash(
 
 async function applyRecoveryBlob(
   process: GitProcessRunner,
-  oid: string,
+  intent: GitActionCommand<'stash-apply' | 'stash-pop'>['intent'],
   signal: AbortSignal,
 ): Promise<GitActionOutcome> {
+  const oid = intent.stashOid;
   const refs = (
     await readActionCommand(
       process,
@@ -86,7 +86,7 @@ async function applyRecoveryBlob(
   const blob = parseRecoveryBlob(content);
   const patches = blob
     ? [
-        { patch: blob.cached, index: true, zero: blob.zero },
+        { patch: blob.cached, index: intent.restoreIndex, zero: blob.zero },
         { patch: blob.unstaged, index: false, zero: blob.zero },
       ]
     : [{ patch: content, index: false, zero: true }];
@@ -107,6 +107,8 @@ async function applyRecoveryBlob(
     const failure = processFailure(applied);
     if (failure) return { ...failure, result: retained };
   }
+  if (intent.action === 'stash-apply')
+    return { state: 'succeeded', result: retained, refreshRequired: true };
   const removed = await process.execute(['update-ref', '-d', ref], signal);
   const failure = processFailure(removed);
   if (failure) return { ...failure, result: retained };

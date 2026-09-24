@@ -249,10 +249,27 @@ describe('applyStash', () => {
     });
   });
 
-  it('restores a discarded hunk from its recovery record and removes the record', async () => {
+  it('restores a discarded hunk and keeps its recovery record when applying', async () => {
     const oid = discardHunk();
     expect({
-      outcome: await apply(oid),
+      outcome: await apply(oid, { action: 'stash-apply' }),
+      content: read('notes.txt'),
+      recorded: refExists('refs/porcelain/discarded/req-1'),
+    }).toEqual({
+      outcome: {
+        state: 'succeeded',
+        result: { stashOid: oid, stashRetained: true },
+        refreshRequired: true,
+      },
+      content: LINES.replace('two', 'TWO'),
+      recorded: true,
+    });
+  });
+
+  it('restores a discarded hunk and removes its recovery record when popping', async () => {
+    const oid = discardHunk();
+    expect({
+      outcome: await apply(oid, { action: 'stash-pop' }),
       content: read('notes.txt'),
       recorded: refExists('refs/porcelain/discarded/req-1'),
     }).toEqual({
@@ -279,8 +296,25 @@ describe('applyStash', () => {
     );
     git('mv', 'renamed.txt', 'notes.txt');
     const oid = recordDiscard({ kind: 'rename', cached, unstaged: '' });
-    await apply(oid);
+    await apply(oid, { restoreIndex: true });
     expect(git('status', '--porcelain')).toBe('R  notes.txt -> renamed.txt\n');
+  });
+
+  it('restores a discarded rename only to the worktree when not restoring the index', async () => {
+    git('mv', 'notes.txt', 'renamed.txt');
+    const cached = git(
+      'diff',
+      '--cached',
+      '--binary',
+      '--full-index',
+      '--',
+      'notes.txt',
+      'renamed.txt',
+    );
+    git('mv', 'renamed.txt', 'notes.txt');
+    const oid = recordDiscard({ kind: 'rename', cached, unstaged: '' });
+    await apply(oid, { restoreIndex: false });
+    expect(git('status', '--porcelain')).toBe(' D notes.txt\n?? renamed.txt\n');
   });
 
   it('keeps the recovery record when its change no longer applies', async () => {
