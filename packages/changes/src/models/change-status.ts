@@ -26,6 +26,12 @@ export type DiscardedChange = {
 
 export type HeadCommit = { subject: string; body?: string | undefined };
 
+export type BranchDetailsRequest = {
+  worktreeId: string;
+  branchName: string | undefined;
+  headOid: string | undefined;
+};
+
 export type BranchDetails = {
   remoteName: string | undefined;
   sourceRef: string | undefined;

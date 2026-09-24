@@ -22,12 +22,6 @@ export type CommitSummary = {
   refs: string[];
 };
 
-export type CommitPageRequest = {
-  limit: number | undefined;
-  after: string[] | undefined;
-  tip: string | undefined;
-};
-
 export type CommitPage = {
   snapshot: HistorySnapshot | undefined;
   commits: CommitSummary[];
@@ -55,12 +49,16 @@ export type CommitFiles = {
   files: CommitFile[];
 };
 
-export type CommitFilesRequest = {
+export type CommitFilesLookup =
+  | { kind: 'found'; files: CommitFiles }
+  | { kind: 'missing' };
+
+export type CommitPatchesRequest = {
+  worktreeId: string;
   oid: string;
   parent: number | undefined;
+  paths: string[];
 };
-
-export type CommitPatchesRequest = CommitFilesRequest & { paths: string[] };
 
 export type CommitPatch = { paths: string[]; content: ChangeDiffContent };
 

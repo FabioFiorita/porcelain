@@ -1,10 +1,9 @@
-import type { TrackedComparison } from '@porcelain/kernel/models';
 import type { ChangeDiffContent } from '../models/change-diff.ts';
+import type { ReadChangeDiffsInput } from '../models/read-change-diffs.ts';
 
 export interface ChangeDiffReader {
   readDiffs(
-    worktreeId: string,
-    comparisons: readonly TrackedComparison[],
+    input: ReadChangeDiffsInput,
     signal?: AbortSignal,
   ): Promise<ChangeDiffContent[]>;
 }

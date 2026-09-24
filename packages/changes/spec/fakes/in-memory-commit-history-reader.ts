@@ -1,16 +1,16 @@
 import type {
   CommitFiles,
-  CommitFilesRequest,
+  CommitFilesLookup,
   CommitPage,
-  CommitPatch,
   CommitPatches,
-} from '@porcelain/changes/models';
-import type { CommitHistoryReader } from '@porcelain/changes/ports';
+  CommitPatchesRequest,
+} from '../../src/models/commit-history.ts';
+import type { ReadCommitFilesInput } from '../../src/models/read-commit-files.ts';
+import type { CommitHistoryReader } from '../../src/ports/commit-history-reader.ts';
 
 export class InMemoryCommitHistoryReader implements CommitHistoryReader {
   readonly commits = new Map<string, CommitFiles>();
-  readonly patches = new Map<string, CommitPatch[]>();
-  readonly overLimit = new Set<string>();
+  readonly patches = new Map<string, CommitPatches>();
 
   listCommits(): Promise<CommitPage> {
     return Promise.resolve({
@@ -23,22 +23,16 @@ export class InMemoryCommitHistoryReader implements CommitHistoryReader {
     });
   }
 
-  readCommitFiles(
-    _worktreeId: string,
-    request: CommitFilesRequest,
-  ): Promise<CommitFiles | undefined> {
-    return Promise.resolve(this.commits.get(request.oid));
+  readCommitFiles(input: ReadCommitFilesInput): Promise<CommitFilesLookup> {
+    const files = this.commits.get(input.oid);
+    return Promise.resolve(
+      files === undefined ? { kind: 'missing' } : { kind: 'found', files },
+    );
   }
 
-  readCommitPatches(
-    _worktreeId: string,
-    request: CommitFilesRequest,
-  ): Promise<CommitPatches> {
-    if (this.overLimit.has(request.oid))
-      return Promise.resolve({ kind: 'over-limit' });
-    return Promise.resolve({
-      kind: 'within-limit',
-      patches: this.patches.get(request.oid) ?? [],
-    });
+  readCommitPatches(input: CommitPatchesRequest): Promise<CommitPatches> {
+    return Promise.resolve(
+      this.patches.get(input.oid) ?? { kind: 'within-limit', patches: [] },
+    );
   }
 }

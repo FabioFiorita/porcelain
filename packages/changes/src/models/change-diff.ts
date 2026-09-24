@@ -24,10 +24,3 @@ export type DiffSelection = {
   comparisons: TrackedComparison[];
   paths: string[];
 };
-
-export type ChangeDiffs = {
-  environmentId: string;
-  worktreeId: string;
-  statusToken: string;
-  diffs: ChangeDiff[];
-};

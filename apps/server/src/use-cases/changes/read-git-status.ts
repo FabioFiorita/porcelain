@@ -47,7 +47,7 @@ export class ReadGitStatusUseCase {
     return this.sharedReads.run(
       `status\0${lane}\0${worktreeId}`,
       (shared) =>
-        this.lanes.run(
+        this.lanes.run<ReadGitStatusResponse>(
           lane,
           'read',
           async ({ signal }) => {
@@ -73,7 +73,7 @@ export class ReadGitStatusUseCase {
                 stashes: details.stashes,
                 discarded: details.discarded,
               },
-              consistency: 'best-effort' as const,
+              consistency: 'best-effort',
               headOid: status.headOid,
               inProgress: status.inProgress,
               mergeHeadOid: status.mergeHeadOid,

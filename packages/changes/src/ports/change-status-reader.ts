@@ -1,17 +1,17 @@
 import type {
   BranchDetails,
+  BranchDetailsRequest,
   ChangeStatusObservation,
 } from '../models/change-status.ts';
+import type { ReadWorktreeStatusInput } from '../models/read-worktree-status.ts';
 
 export interface ChangeStatusReader {
   readStatus(
-    worktreeId: string,
+    input: ReadWorktreeStatusInput,
     signal?: AbortSignal,
   ): Promise<ChangeStatusObservation>;
   readBranchDetails(
-    worktreeId: string,
-    branch: string | undefined,
-    headOid: string | undefined,
+    input: BranchDetailsRequest,
     signal?: AbortSignal,
   ): Promise<BranchDetails>;
 }

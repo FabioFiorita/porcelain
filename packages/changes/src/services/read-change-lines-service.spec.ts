@@ -1,53 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { ReadChangeLinesService } from './read-change-lines-service.ts';
-import { InMemoryChangeLinesReader } from '../../spec/fakes/in-memory-change-lines-reader.ts';
 
-function service() {
-  const files = new InMemoryChangeLinesReader();
-  files.head.set('a.md', 'one\ntwo\nthree\n');
-  files.worktree.set('a.md', 'one\nTWO\nthree\nfour');
-  files.worktree.set(
-    'long.md',
-    Array.from({ length: 2500 }, (_, index) => `line ${index + 1}`).join('\n'),
-  );
-  return new ReadChangeLinesService(files);
-}
+const text = 'one\ntwo\nthree\n';
+const read = new ReadChangeLinesService({ maxLines: 2 });
 
 describe('ReadChangeLinesService', () => {
-  it('reads the requested lines from the chosen side', async () => {
-    const read = service();
+  it('answers the requested lines of the text with the side it came from', () => {
     expect(
-      await read.execute({
-        worktreeId: 'w',
-        path: 'a.md',
-        from: 2,
-        to: 3,
-        at: 'worktree',
-      }),
+      read.execute({ text, path: 'a.md', from: 2, to: 3, at: 'worktree' }),
     ).toEqual({
       at: 'worktree',
       path: 'a.md',
       from: 2,
       to: 3,
-      lines: ['TWO', 'three'],
+      lines: ['two', 'three'],
     });
-    expect(
-      (
-        await read.execute({
-          worktreeId: 'w',
-          path: 'a.md',
-          from: 2,
-          to: 3,
-          at: 'head',
-        })
-      ).lines,
-    ).toEqual(['two', 'three']);
   });
 
-  it('clamps the range to the last line and ignores the final newline', async () => {
+  it('clamps the range to the last line and ignores the final newline', () => {
     expect(
-      await service().execute({
-        worktreeId: 'w',
+      new ReadChangeLinesService({ maxLines: 10 }).execute({
+        text,
         path: 'a.md',
         from: 2,
         to: 9,
@@ -62,30 +35,33 @@ describe('ReadChangeLinesService', () => {
     });
   });
 
-  it('answers an empty range ending just before its start when it begins past the end', async () => {
+  it('counts a last line without a newline', () => {
     expect(
-      await service().execute({
-        worktreeId: 'w',
+      read.execute({
+        text: 'one\ntwo',
         path: 'a.md',
-        from: 5,
-        to: 9,
+        from: 2,
+        to: 2,
         at: 'head',
-      }),
+      }).lines,
+    ).toEqual(['two']);
+  });
+
+  it('answers an empty range ending just before its start when it begins past the end', () => {
+    expect(
+      read.execute({ text, path: 'a.md', from: 5, to: 9, at: 'head' }),
     ).toEqual({ at: 'head', path: 'a.md', from: 5, to: 4, lines: [] });
   });
 
-  it('returns at most 2000 lines', async () => {
-    const lines = await service().execute({
-      worktreeId: 'w',
-      path: 'long.md',
+  it('stops at the line limit and reports where it stopped', () => {
+    expect(
+      read.execute({ text, path: 'a.md', from: 1, to: 3, at: 'head' }),
+    ).toEqual({
+      at: 'head',
+      path: 'a.md',
       from: 1,
-      to: 2500,
-      at: 'worktree',
+      to: 2,
+      lines: ['one', 'two'],
     });
-    expect([lines.to, lines.lines.length, lines.lines.at(-1)]).toEqual([
-      2000,
-      2000,
-      'line 2000',
-    ]);
   });
 });

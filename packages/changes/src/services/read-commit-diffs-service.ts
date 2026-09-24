@@ -1,6 +1,8 @@
 import type { ChangeDiffContent } from '../models/change-diff.ts';
-import type { CommitDiffs } from '../models/commit-history.ts';
-import type { ReadCommitDiffsInput } from '../models/operation-inputs.ts';
+import type {
+  ReadCommitDiffsInput,
+  ReadCommitDiffsResult,
+} from '../models/read-commit-diffs.ts';
 import type { CommitHistoryReader } from '../ports/commit-history-reader.ts';
 
 const UNTOUCHED: ChangeDiffContent = { kind: 'metadata-only', patch: '' };
@@ -16,10 +18,14 @@ export class ReadCommitDiffsService {
   async execute(
     input: ReadCommitDiffsInput,
     signal?: AbortSignal,
-  ): Promise<CommitDiffs> {
+  ): Promise<ReadCommitDiffsResult> {
     const read = await this.commitHistoryReader.readCommitPatches(
-      input.worktreeId,
-      { oid: input.oid, parent: input.parent, paths: input.paths.flat() },
+      {
+        worktreeId: input.worktreeId,
+        oid: input.oid,
+        parent: input.parent,
+        paths: input.paths.flat(),
+      },
       signal,
     );
     const patches = new Map(

@@ -1,5 +1,5 @@
 import type {
-  ConfirmCommitService,
+  CheckCommitService,
   CheckWorktreeService,
   ReadCommitDiffsService,
 } from '@porcelain/changes/services';
@@ -14,20 +14,20 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class ReadCommitDiffsUseCase {
   private readonly checkWorktree: CheckWorktreeService;
-  private readonly confirmCommit: ConfirmCommitService;
+  private readonly checkCommit: CheckCommitService;
   private readonly readCommitDiffs: ReadCommitDiffsService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
     checkWorktree: CheckWorktreeService,
-    confirmCommit: ConfirmCommitService,
+    checkCommit: CheckCommitService,
     readCommitDiffs: ReadCommitDiffsService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
     this.checkWorktree = checkWorktree;
-    this.confirmCommit = confirmCommit;
+    this.checkCommit = checkCommit;
     this.readCommitDiffs = readCommitDiffs;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -43,7 +43,7 @@ export class ReadCommitDiffsUseCase {
       'read',
       async ({ signal }) => {
         await this.checkWorktree.execute({ worktreeId }, signal);
-        await this.confirmCommit.execute({ worktreeId, oid, parent }, signal);
+        await this.checkCommit.execute({ worktreeId, oid, parent }, signal);
         const diffs = await this.readCommitDiffs.execute(
           { worktreeId, oid, parent, paths },
           signal,

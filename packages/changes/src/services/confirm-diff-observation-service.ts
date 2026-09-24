@@ -1,5 +1,5 @@
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
-import type { ConfirmDiffObservationInput } from '../models/operation-inputs.ts';
+import type { ConfirmDiffObservationInput } from '../models/confirm-diff-observation.ts';
 
 export class ConfirmDiffObservationService {
   execute(input: ConfirmDiffObservationInput): void {

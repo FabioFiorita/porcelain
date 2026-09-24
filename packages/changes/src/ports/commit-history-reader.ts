@@ -1,26 +1,23 @@
 import type {
-  CommitFiles,
-  CommitFilesRequest,
+  CommitFilesLookup,
   CommitPage,
-  CommitPageRequest,
   CommitPatches,
   CommitPatchesRequest,
 } from '../models/commit-history.ts';
+import type { ListCommitsInput } from '../models/list-commits.ts';
+import type { ReadCommitFilesInput } from '../models/read-commit-files.ts';
 
 export interface CommitHistoryReader {
   listCommits(
-    worktreeId: string,
-    request: CommitPageRequest,
+    input: ListCommitsInput,
     signal?: AbortSignal,
   ): Promise<CommitPage>;
   readCommitFiles(
-    worktreeId: string,
-    request: CommitFilesRequest,
+    input: ReadCommitFilesInput,
     signal?: AbortSignal,
-  ): Promise<CommitFiles | undefined>;
+  ): Promise<CommitFilesLookup>;
   readCommitPatches(
-    worktreeId: string,
-    request: CommitPatchesRequest,
+    input: CommitPatchesRequest,
     signal?: AbortSignal,
   ): Promise<CommitPatches>;
 }

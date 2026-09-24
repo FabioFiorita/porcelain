@@ -1,23 +1,25 @@
 import type {
   BranchDetails,
+  BranchDetailsRequest,
   ChangeStatusObservation,
+  ReadWorktreeStatusInput,
 } from '@porcelain/changes/models';
 import type { ChangeStatusReader } from '@porcelain/changes/ports';
 import { fromGitChange } from './git-comparisons.ts';
-import type { InspectionCheckouts } from './inspection-checkouts.ts';
+import type { OpenInspection } from './inspection-checkouts.ts';
 
 export class GitChangeStatusReader implements ChangeStatusReader {
-  private readonly checkouts: InspectionCheckouts;
+  private readonly open: OpenInspection;
 
-  constructor(checkouts: InspectionCheckouts) {
-    this.checkouts = checkouts;
+  constructor(open: OpenInspection) {
+    this.open = open;
   }
 
   async readStatus(
-    worktreeId: string,
+    input: ReadWorktreeStatusInput,
     signal?: AbortSignal,
   ): Promise<ChangeStatusObservation> {
-    const { git } = await this.checkouts.open(worktreeId, signal);
+    const { git } = await this.open(input.worktreeId, signal);
     const status = await git.readStatus(signal);
     return {
       statusToken: status.statusToken,
@@ -35,15 +37,13 @@ export class GitChangeStatusReader implements ChangeStatusReader {
   }
 
   async readBranchDetails(
-    worktreeId: string,
-    branch: string | undefined,
-    headOid: string | undefined,
+    input: BranchDetailsRequest,
     signal?: AbortSignal,
   ): Promise<BranchDetails> {
-    const { git } = await this.checkouts.open(worktreeId, signal);
+    const { git } = await this.open(input.worktreeId, signal);
     const details = await git.readBranchDetails(
-      branch ?? null,
-      headOid ?? null,
+      input.branchName ?? null,
+      input.headOid ?? null,
       signal,
     );
     return {

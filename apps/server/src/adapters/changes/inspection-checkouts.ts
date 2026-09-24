@@ -1,44 +1,45 @@
-import type {
-  InspectionFactory,
-  InspectionReader,
+import {
+  RequestGitSession,
+  type GitSession,
+  type InspectionFactory,
+  type InspectionReader,
 } from '@porcelain/git/inspection';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import {
   openCheckout,
   type WritableWorktrees,
 } from '../projects/checkout-session.ts';
-import type { OperationGitSessions } from './operation-git-sessions.ts';
 
 export type InspectedCheckout = {
   worktree: ListedWorktree;
   git: InspectionReader;
 };
 
-export class InspectionCheckouts {
-  private readonly worktrees: WritableWorktrees;
-  private readonly sessions: OperationGitSessions;
-  private readonly inspection: InspectionFactory;
+export type OpenInspection = (
+  worktreeId: string,
+  signal?: AbortSignal,
+) => Promise<InspectedCheckout>;
 
-  constructor(
-    worktrees: WritableWorktrees,
-    sessions: OperationGitSessions,
-    inspection: InspectionFactory,
-  ) {
-    this.worktrees = worktrees;
-    this.sessions = sessions;
-    this.inspection = inspection;
-  }
-
-  async open(
-    worktreeId: string,
-    signal?: AbortSignal,
-  ): Promise<InspectedCheckout> {
+export function inspectionCheckouts(
+  worktrees: WritableWorktrees,
+  inspection: InspectionFactory,
+): OpenInspection {
+  const sessions = new WeakMap<AbortSignal, GitSession>();
+  const sessionFor = (signal?: AbortSignal): GitSession => {
+    if (signal === undefined) return new RequestGitSession();
+    const existing = sessions.get(signal);
+    if (existing) return existing;
+    const created = new RequestGitSession();
+    sessions.set(signal, created);
+    return created;
+  };
+  return async (worktreeId, signal) => {
     const { worktree, checkout } = await openCheckout(
-      this.worktrees,
-      this.sessions.for(signal),
+      worktrees,
+      sessionFor(signal),
       worktreeId,
       signal,
     );
-    return { worktree, git: this.inspection(checkout) };
-  }
+    return { worktree, git: inspection(checkout) };
+  };
 }
