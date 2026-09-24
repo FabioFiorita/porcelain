@@ -3,10 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isRecord, type Feature } from './feature.ts';
 
-const mapDirectory = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '../feature-map',
-);
+const skillDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function isFeature(value: unknown): value is Feature {
   return (
@@ -20,13 +17,24 @@ function isFeature(value: unknown): value is Feature {
   );
 }
 
-export async function loadFeatures(except?: string): Promise<Feature[]> {
-  const files = (await readdir(mapDirectory))
+export function loadFeatures(except?: string): Promise<Feature[]> {
+  return loadFrom(join(skillDirectory, 'feature-map'), except);
+}
+
+export function loadNegatives(): Promise<Feature[]> {
+  return loadFrom(join(skillDirectory, 'negative'));
+}
+
+async function loadFrom(
+  directory: string,
+  except?: string,
+): Promise<Feature[]> {
+  const files = (await readdir(directory))
     .filter((name) => name.endsWith('.ts'))
     .sort();
   const features: Feature[] = [];
   for (const file of files) {
-    const location = pathToFileURL(join(mapDirectory, file)).href;
+    const location = pathToFileURL(join(directory, file)).href;
     if (location === except) continue;
     const loaded: unknown = await import(location);
     const feature = isRecord(loaded) ? loaded.default : undefined;

@@ -97,6 +97,8 @@ export type Case<State = undefined> = CaseBody<State> & {
 
 export type Phase = 'setup' | 'request' | 'follow-up';
 
+export class UnassertedExchanges extends Error {}
+
 export type CaseRunner = {
   enter(phase: Phase): void;
   checks: Checks;
@@ -140,7 +142,7 @@ async function execute<State>(
     session,
   });
   const problems = runner.problems();
-  if (problems.length > 0) throw new Error(problems.join('; '));
+  if (problems.length > 0) throw new UnassertedExchanges(problems.join('; '));
 }
 
 export function defineCase(
