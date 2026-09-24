@@ -406,8 +406,20 @@ const openTypes = new Set([
   'TSAnyKeyword',
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
-const numberFreeFile =
-  /^(?:packages\/[^/]+\/src\/(?:rules|services)\/|apps\/server\/src\/(?:adapters|use-cases|jobs)\/)/;
+const numberFreeFile = new RegExp(
+  `^(?:packages/(?:${domainPackage}|kernel)/src/|packages/[^/]+/src/(?:rules|services)/|apps/server/src/(?:adapters|use-cases|jobs|ports)/)`,
+);
+const rootScriptFile = /^scripts\/[^/]+\.ts$/;
+const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
+const membershipMethods = new Set([
+  'includes',
+  'has',
+  'indexOf',
+  'lastIndexOf',
+  'startsWith',
+  'endsWith',
+  'localeCompare',
+]);
 const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
 const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
@@ -438,6 +450,13 @@ function findVariable(scope, name) {
 
 function staticString(node, context, depth = 0) {
   if (!node || depth > 8) return undefined;
+  if (
+    node.type === 'TSAsExpression' ||
+    node.type === 'TSSatisfiesExpression' ||
+    node.type === 'TSNonNullExpression' ||
+    node.type === 'ParenthesizedExpression'
+  )
+    return staticString(node.expression, context, depth + 1);
   if (node.type === 'Literal')
     return typeof node.value === 'string' ? node.value : undefined;
   if (node.type === 'TemplateLiteral')
@@ -456,6 +475,57 @@ function staticString(node, context, depth = 0) {
     definition.parent?.kind === 'const'
     ? staticString(definition.node.init, context, depth + 1)
     : undefined;
+}
+
+function literalNumber(node, depth = 0) {
+  if (!node || depth > 16) return undefined;
+  if (
+    node.type === 'TSAsExpression' ||
+    node.type === 'TSSatisfiesExpression' ||
+    node.type === 'ParenthesizedExpression'
+  )
+    return literalNumber(node.expression, depth + 1);
+  if (node.type === 'Literal')
+    return typeof node.value === 'number' ? node.value : undefined;
+  if (
+    node.type === 'UnaryExpression' &&
+    (node.operator === '-' || node.operator === '+')
+  ) {
+    const value = literalNumber(node.argument, depth + 1);
+    return value === undefined
+      ? undefined
+      : node.operator === '-'
+        ? -value
+        : value;
+  }
+  if (
+    node.type === 'MemberExpression' &&
+    !node.computed &&
+    node.property.type === 'Identifier' &&
+    node.property.name === 'length'
+  ) {
+    if (node.object.type === 'ArrayExpression')
+      return node.object.elements.length;
+    if (node.object.type === 'Literal' && typeof node.object.value === 'string')
+      return node.object.value.length;
+    return undefined;
+  }
+  if (
+    node.type !== 'BinaryExpression' ||
+    !arithmeticOperators.has(node.operator)
+  )
+    return undefined;
+  const left = literalNumber(node.left, depth + 1);
+  const right = literalNumber(node.right, depth + 1);
+  if (left === undefined || right === undefined) return undefined;
+  if (node.operator === '+') return left + right;
+  if (node.operator === '-') return left - right;
+  if (node.operator === '*') return left * right;
+  if (node.operator === '/') return left / right;
+  if (node.operator === '%') return left % right;
+  if (node.operator === '**') return left ** right;
+  if (node.operator === '<<') return left << right;
+  return left | right;
 }
 
 function propertyName(node, context) {
@@ -1361,19 +1431,55 @@ export default {
           return {};
         const gitDirectory = (node) =>
           staticString(node, context)?.toLowerCase() === '.git';
+        const message =
+          'An adapter reports every entry; whether .git is shown is a domain rule the service applies.';
         return {
           BinaryExpression(node) {
             if (
               ['===', '!==', '==', '!='].includes(node.operator) &&
               (gitDirectory(node.left) || gitDirectory(node.right))
             )
-              context.report({
-                node,
-                message:
-                  'An adapter reports every entry; whether .git is shown is a domain rule the service applies.',
-              });
+              context.report({ node, message });
+          },
+          ArrayExpression(node) {
+            if (node.elements.some(gitDirectory))
+              context.report({ node, message });
+          },
+          SwitchCase(node) {
+            if (gitDirectory(node.test)) context.report({ node, message });
+          },
+          VariableDeclarator(node) {
+            if (gitDirectory(node.init)) context.report({ node, message });
+          },
+          CallExpression(node) {
+            if (
+              node.callee.type === 'MemberExpression' &&
+              membershipMethods.has(propertyName(node.callee, context) ?? '') &&
+              (gitDirectory(node.callee.object) ||
+                node.arguments.some(gitDirectory))
+            )
+              context.report({ node, message });
           },
         };
+      },
+    },
+    'root-scripts-import-no-package': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!rootScriptFile.test(path)) return {};
+        return moduleVisitors((node) => {
+          const source = moduleSource(node);
+          if (source === undefined) return;
+          const target = source.startsWith('.')
+            ? posix.join(posix.dirname(path), source)
+            : source;
+          if (target.startsWith('packages/'))
+            context.report({
+              node: node.source ?? node,
+              message:
+                'A root script imports node, libraries, other scripts, architecture/ and the server app only; a package is reached through the server or its package name, never by a path into packages/.',
+            });
+        });
       },
     },
     'no-interface-in-runtime': {
@@ -2017,7 +2123,23 @@ export default {
           const text = staticString(node, context);
           return text !== undefined && Number(text) > 1;
         };
+        const computed = (node) => {
+          const parent = node.parent;
+          if (
+            parent &&
+            (parent.type === 'BinaryExpression' ||
+              parent.type === 'ParenthesizedExpression' ||
+              parent.type === 'UnaryExpression') &&
+            literalNumber(parent) !== undefined
+          )
+            return;
+          const value = literalNumber(node);
+          if (value !== undefined && value > 1)
+            context.report({ node, message });
+        };
         return {
+          BinaryExpression: computed,
+          'MemberExpression[property.name="length"]': computed,
           CallExpression(node) {
             const callee = memberPath(node.callee)?.join('.');
             if (

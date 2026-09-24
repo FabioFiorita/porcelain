@@ -1,4 +1,5 @@
 import {
+  CHANGED_PATHS,
   COMMIT_GROUPS,
   COMMIT_MESSAGE_BYTES,
   DEVICE_LABEL_LENGTH,
@@ -60,6 +61,7 @@ export type Limits = {
     permissions: { fileMode: number; directoryMode: number };
   };
   changes: {
+    status: { maxChanges: number };
     changeLines: { maxLines: number };
     fingerprints: { maxDigestBytes: number };
     worktreeReads: { chunkBytes: number; concurrency: number };
@@ -162,6 +164,7 @@ export const LIMITS: Limits = {
     permissions: { fileMode: 0o644, directoryMode: 0o700 },
   },
   changes: {
+    status: { maxChanges: CHANGED_PATHS },
     changeLines: { maxLines: 2000 },
     fingerprints: { maxDigestBytes: 64 * MEBIBYTE },
     worktreeReads: { chunkBytes: MEBIBYTE, concurrency: 8 },

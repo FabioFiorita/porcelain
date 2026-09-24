@@ -64,7 +64,7 @@ export function composeShared(dependencies: SharedDependencies) {
   const commitGit: CommitReaderFactory = (checkout) =>
     new HistoryGit(checkout, gitVersion);
   const inspection: InspectionFactory = (checkout) =>
-    new InspectionGit(checkout);
+    new InspectionGit(checkout, limits.changes.status);
   const worktreeDirectory = new GitWorktreeCatalogStore({
     git,
     inventoryStore: stores.inventory,
