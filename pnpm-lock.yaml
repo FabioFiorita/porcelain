@@ -180,6 +180,9 @@ importers:
       '@porcelain/git-actions':
         specifier: workspace:*
         version: link:../../packages/git-actions
+      '@porcelain/process':
+        specifier: workspace:*
+        version: link:../../packages/process
       '@porcelain/projects':
         specifier: workspace:*
         version: link:../../packages/projects
