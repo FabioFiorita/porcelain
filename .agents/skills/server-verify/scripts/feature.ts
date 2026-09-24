@@ -36,6 +36,7 @@ export type Fixture = {
   initialCommit: string;
   web: { shell: string; asset: { path: string; text: string }; escape: string };
   summaryLinkLifetimeMs: number;
+  gitActionDeadlineMs: number;
 };
 
 export type Session = {
@@ -52,6 +53,8 @@ export type Session = {
   writeFile(path: string, content: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<string>;
   symlink(target: string, path: string): Promise<void>;
+  fifo(path: string): Promise<void>;
+  remove(path: string): Promise<void>;
   entries(path: string): Promise<string[]>;
   secret(value: string): void;
 };

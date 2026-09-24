@@ -5,7 +5,7 @@ import type {
 } from '@porcelain/access/ports';
 import { databaseOf, type StorageSession } from '../../db/session.ts';
 import { SqliteDeviceStore } from './sqlite-device-store.ts';
-import { SqliteEnvironmentIdentityReader } from './sqlite-environment-identity-store.ts';
+import { SqliteEnvironmentIdentityReader } from './sqlite-environment-identity-reader.ts';
 import { SqlitePairingGrantStore } from './sqlite-pairing-grant-store.ts';
 
 export function createPairingGrantStore(
@@ -18,7 +18,7 @@ export function createDeviceStore(session: StorageSession): DeviceStore {
   return new SqliteDeviceStore(databaseOf(session));
 }
 
-export function createEnvironmentIdentityStore(
+export function createEnvironmentIdentityReader(
   session: StorageSession,
 ): EnvironmentIdentityReader {
   return new SqliteEnvironmentIdentityReader(databaseOf(session));

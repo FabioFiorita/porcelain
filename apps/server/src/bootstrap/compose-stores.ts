@@ -1,7 +1,7 @@
 import type { StorageSession } from '@porcelain/storage';
 import {
   createDeviceStore,
-  createEnvironmentIdentityStore,
+  createEnvironmentIdentityReader,
   createPairingGrantStore,
 } from '@porcelain/storage/access';
 import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
@@ -28,7 +28,7 @@ export function composeStores(session: StorageSession) {
     inventory: createInventoryStore(session),
     worktreePresence: createWorktreePresenceStore(session),
     filePreferences: createFilePreferenceStore(session),
-    environmentIdentity: createEnvironmentIdentityStore(session),
+    environmentIdentity: createEnvironmentIdentityReader(session),
     devices: new CachedDeviceStore(createDeviceStore(session)),
     deviceSightings: new InMemoryDeviceSightingStore(),
     pairingGrants: createPairingGrantStore(session),

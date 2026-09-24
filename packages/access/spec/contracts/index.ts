@@ -3,9 +3,9 @@ export {
   type DeviceStoreSubject,
 } from './device-store-contract.ts';
 export {
-  environmentIdentityStoreContract,
-  type EnvironmentIdentityStoreSubject,
-} from './environment-identity-store-contract.ts';
+  environmentIdentityReaderContract,
+  type EnvironmentIdentityReaderSubject,
+} from './environment-identity-reader-contract.ts';
 export {
   pairingGrantStoreContract,
   type PairingGrantStoreSubject,

@@ -97,6 +97,7 @@ const fixture = {
     escape: 'leak.txt',
   },
   summaryLinkLifetimeMs: 2000,
+  gitActionDeadlineMs: 1500,
 };
 
 try {
@@ -150,6 +151,10 @@ try {
       limits: {
         ...settings.limits,
         jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+        gitActions: {
+          ...settings.limits.gitActions,
+          deadlineMs: fixture.gitActionDeadlineMs,
+        },
         reviews: {
           ...settings.limits.reviews,
           summaryLink: {

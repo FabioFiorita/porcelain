@@ -1,5 +1,5 @@
 export {
   createDeviceStore,
-  createEnvironmentIdentityStore,
+  createEnvironmentIdentityReader,
   createPairingGrantStore,
 } from './access-stores.ts';

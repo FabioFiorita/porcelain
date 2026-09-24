@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { EnvironmentIdentityReader } from '../../src/ports/environment-identity-reader.ts';
 
-export type EnvironmentIdentityStoreSubject = {
+export type EnvironmentIdentityReaderSubject = {
   store: EnvironmentIdentityReader;
   close: () => void;
 };
 
-export function environmentIdentityStoreContract(
+export function environmentIdentityReaderContract(
   subject: string,
-  openSubject: () => EnvironmentIdentityStoreSubject,
+  openSubject: () => EnvironmentIdentityReaderSubject,
 ): void {
   describe(subject, () => {
-    let opened: EnvironmentIdentityStoreSubject;
+    let opened: EnvironmentIdentityReaderSubject;
 
     beforeEach(() => {
       opened = openSubject();

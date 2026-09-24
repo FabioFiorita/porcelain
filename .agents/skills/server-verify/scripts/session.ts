@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { readFile, readdir, symlink, writeFile } from 'node:fs/promises';
+import { readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
@@ -40,6 +40,7 @@ type GitStep = {
 };
 type FileStep = { phase: Phase; kind: 'file'; path: string; bytes: number };
 type LinkStep = { phase: Phase; kind: 'link'; path: string; target: string };
+type FifoStep = { phase: Phase; kind: 'fifo' | 'remove'; path: string };
 type LiveStep = {
   phase: Phase;
   kind: 'live';
@@ -49,7 +50,13 @@ type LiveStep = {
   closed?: { code: number; reason: string };
   error?: string;
 };
-export type Step = HttpStep | GitStep | FileStep | LinkStep | LiveStep;
+export type Step =
+  | HttpStep
+  | GitStep
+  | FileStep
+  | LinkStep
+  | FifoStep
+  | LiveStep;
 
 type Manifest = {
   address: string;
@@ -244,6 +251,7 @@ function fixtureOf(value: unknown): Fixture {
       escape: text(web.escape),
     },
     summaryLinkLifetimeMs: Number(fixture.summaryLinkLifetimeMs),
+    gitActionDeadlineMs: Number(fixture.gitActionDeadlineMs),
   };
 }
 
@@ -491,6 +499,14 @@ export class IsolatedServer {
           path,
           target,
         });
+      },
+      fifo: async (path) => {
+        await execute('mkfifo', [inside(path)]);
+        recorder.steps.push({ phase: recorder.phase, kind: 'fifo', path });
+      },
+      remove: async (path) => {
+        await rm(inside(path), { force: true });
+        recorder.steps.push({ phase: recorder.phase, kind: 'remove', path });
       },
       entries: async (path) => {
         const names = (await readdir(inside(path, this.projectHome))).sort();

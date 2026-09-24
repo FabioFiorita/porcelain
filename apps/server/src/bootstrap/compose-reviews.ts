@@ -18,7 +18,7 @@ import {
   UpdateCommentThreadService,
 } from '@porcelain/reviews/services';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
-import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
+import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import {
   AtWorktreePathUseCase,
   type WorktreeFinder,

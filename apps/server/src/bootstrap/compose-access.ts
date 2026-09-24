@@ -14,7 +14,7 @@ import {
   RevokePairingGrantService,
   TakePairingAttemptService,
 } from '@porcelain/access/services';
-import { RandomSecretSource } from '../adapters/access/random-secret-source.ts';
+import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import type { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';

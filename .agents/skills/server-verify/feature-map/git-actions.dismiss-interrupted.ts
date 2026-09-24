@@ -17,6 +17,8 @@ import {
   worktreePath,
 } from '../scripts/fixture.ts';
 
+const alternates = '.git/objects/info/alternates';
+
 const mismatch = apiError(
   409,
   'Conflict',
@@ -29,7 +31,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "After an action ended interrupted, the worktree's changes carry an interrupted marker naming it until the owner dismisses it by request ID; dismissing clears the marker, keeps the receipt, and dismissing again answers the same. The isolated session cannot stop the server mid-action, so the interrupted action here is a fetch from a remote that does not exist, which the server settles as interrupted (see SURPRISES.md). An unknown request is not found, and dismissing a request that did not end interrupted is a mismatch conflict.",
+    "After an action ended interrupted, the worktree's changes carry an interrupted marker naming it until the owner dismisses it by request ID; dismissing clears the marker, keeps the receipt, and dismissing again answers the same. The isolated session cannot stop the server mid-action, so the interrupted action here is a branch creation whose object store never finishes opening, which outlives the session's short Git action deadline and settles as interrupted. An unknown request is not found, and dismissing a request that did not end interrupted is a mismatch conflict.",
   cases: [
     defineCase({
       name: 'unknown request',
@@ -81,12 +83,8 @@ export default defineFeature({
     defineCase({
       name: 'an interrupted action is marked until it is dismissed',
       async setup(session) {
-        await session.git(
-          'remote',
-          'add',
-          'gone',
-          `${session.projectHome}/gone.git`,
-        );
+        const expected = await expectation(session);
+        await session.fifo(alternates);
         const requestId = randomUUID();
         await session.read(
           {
@@ -95,16 +93,17 @@ export default defineFeature({
             body: {
               requestId,
               input: {
-                action: 'fetch',
-                remoteName: 'gone',
-                sourceRef: `refs/heads/${session.fixture.branch}`,
+                action: 'create-branch',
+                branch: 'stuck',
+                switchTo: false,
               },
-              expected: { ...(await expectation(session)), upstreamOid: null },
+              expected,
             },
           },
           202,
         );
         const settled = await settledReceipt(session, requestId);
+        await session.remove(alternates);
         const marked = await read(session, {
           method: 'GET',
           path: worktreePath(session, '/changes'),
@@ -137,7 +136,7 @@ export default defineFeature({
         check('the fetch ended interrupted', 'interrupted', state.state);
         checkPartial(
           'the changes carried the marker',
-          { requestId: state.requestId, action: 'fetch' },
+          { requestId: state.requestId, action: 'create-branch' },
           state.marker,
         );
         check('dismissed status', 200, responses[0]?.status);

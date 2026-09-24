@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { environmentIdentityStoreContract } from '@porcelain/access/store-contracts';
+import { environmentIdentityReaderContract } from '@porcelain/access/store-contracts';
 import { openStorageSession } from '../../index.ts';
-import { createEnvironmentIdentityStore } from './index.ts';
+import { createEnvironmentIdentityReader } from './index.ts';
 
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -13,11 +13,11 @@ function open(dataDirectory: string) {
   return openStorageSession(dataDirectory);
 }
 
-environmentIdentityStoreContract('SqliteEnvironmentIdentityStore', () => {
+environmentIdentityReaderContract('SqliteEnvironmentIdentityReader', () => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
   const session = open(dataDirectory);
   return {
-    store: createEnvironmentIdentityStore(session),
+    store: createEnvironmentIdentityReader(session),
     close: () => {
       session.close();
       rmSync(dataDirectory, { recursive: true, force: true });
@@ -25,7 +25,7 @@ environmentIdentityStoreContract('SqliteEnvironmentIdentityStore', () => {
   };
 });
 
-describe('SqliteEnvironmentIdentityStore persistence', () => {
+describe('SqliteEnvironmentIdentityReader persistence', () => {
   let dataDirectory: string;
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('SqliteEnvironmentIdentityStore persistence', () => {
   it('has a random identity as soon as a new data directory is opened', () => {
     const session = open(dataDirectory);
     const environmentId =
-      createEnvironmentIdentityStore(session).environmentId();
+      createEnvironmentIdentityReader(session).environmentId();
     session.close();
 
     expect(environmentId).toMatch(uuid);
@@ -47,11 +47,11 @@ describe('SqliteEnvironmentIdentityStore persistence', () => {
 
   it('keeps the identity when the data directory is opened again', () => {
     const first = open(dataDirectory);
-    const created = createEnvironmentIdentityStore(first).environmentId();
+    const created = createEnvironmentIdentityReader(first).environmentId();
     first.close();
 
     const second = open(dataDirectory);
-    const reopened = createEnvironmentIdentityStore(second).environmentId();
+    const reopened = createEnvironmentIdentityReader(second).environmentId();
     second.close();
 
     expect(reopened).toBe(created);
@@ -62,8 +62,8 @@ describe('SqliteEnvironmentIdentityStore persistence', () => {
     const first = open(dataDirectory);
     const other = open(otherDirectory);
     const identities = [
-      createEnvironmentIdentityStore(first).environmentId(),
-      createEnvironmentIdentityStore(other).environmentId(),
+      createEnvironmentIdentityReader(first).environmentId(),
+      createEnvironmentIdentityReader(other).environmentId(),
     ];
     first.close();
     other.close();
