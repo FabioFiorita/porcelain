@@ -22,6 +22,8 @@ pnpm db:check
 node .agents/skills/server-verify/scripts/verify.ts --all
 ```
 
+`.githooks/pre-push`, active after `pnpm install`, runs typecheck, lint, format check, test and arch before every push; `db:check`, the net and `pnpm probes` stay yours to run.
+
 A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until the probes under `architecture/probes/` still all fail the gates.
 
 ## Skills

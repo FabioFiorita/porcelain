@@ -16,7 +16,8 @@
     "dev:server": "node scripts/dev-server.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",
-    "build:package": "node scripts/build-package.ts"
+    "build:package": "node scripts/build-package.ts",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@porcelain/contracts": "workspace:*",
