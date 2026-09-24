@@ -13,10 +13,11 @@ export {
   currentLayerFingerprint,
   publishedLayerFingerprint,
   resolveLayer,
+  resolveReview,
   resolveStep,
-  reviewIsActive,
   unexplainedChanges,
 } from './resolve-review.ts';
+export { reviewActivity } from './review-activity.ts';
 export { reviewDiagnostics } from './review-diagnostics.ts';
 export {
   summaryExpired,

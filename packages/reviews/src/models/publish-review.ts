@@ -1,4 +1,4 @@
-import type { ReviewTextRead } from './review-evidence.ts';
+import type { ReviewEvidence } from './review-evidence.ts';
 import type { Review, ReviewDraft } from './review.ts';
 
 export type ReviewPublication = {
@@ -9,7 +9,7 @@ export type ReviewPublication = {
 export type PublishReviewInput = {
   worktreeId: string;
   draft: ReviewDraft;
-  texts: readonly ReviewTextRead[];
+  evidence: ReviewEvidence;
 };
 
 export type PublishReviewResult = {

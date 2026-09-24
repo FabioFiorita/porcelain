@@ -1,3 +1,4 @@
+import type { ReviewChange, ReviewDiagnostics } from './review-evidence.ts';
 import type {
   CodePointer,
   ReviewDiagram,
@@ -45,4 +46,10 @@ export type ResolvedReview = {
   diagram?: ReviewDiagram | undefined;
   layers: ResolvedLayer[];
   notExplained: UnexplainedChange[];
+};
+
+export type ReviewResolution = {
+  changes: ReviewChange[];
+  diagnostics: ReviewDiagnostics;
+  layers: ResolvedLayer[];
 };

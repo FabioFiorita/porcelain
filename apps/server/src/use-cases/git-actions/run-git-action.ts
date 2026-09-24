@@ -1,5 +1,4 @@
 import type {
-  ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -8,7 +7,6 @@ import type {
   RunGitActionRequest,
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
-import type { ReadTextFileService } from '@porcelain/files/services';
 import type { GitActionRun } from '@porcelain/git-actions/models';
 import type {
   AcceptGitActionService,
@@ -25,10 +23,10 @@ import type {
 } from '@porcelain/projects/services';
 import type {
   ReadPublishedReviewService,
-  RefreshReviewActivityService,
+  ReadReviewEvidenceService,
+  RecordReviewActivityService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -46,9 +44,8 @@ export class RunGitActionUseCase {
   private readonly recordGitActionProgress: RecordGitActionProgressService;
   private readonly finishGitAction: FinishGitActionService;
   private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readTextFile: ReadTextFileService;
-  private readonly readChangeDiffs: ReadChangeDiffsService;
-  private readonly refreshReviewActivity: RefreshReviewActivityService;
+  private readonly readReviewEvidence: ReadReviewEvidenceService;
+  private readonly recordReviewActivity: RecordReviewActivityService;
   private readonly interruptGitAction: InterruptGitActionService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -66,9 +63,8 @@ export class RunGitActionUseCase {
     recordGitActionProgress: RecordGitActionProgressService,
     finishGitAction: FinishGitActionService,
     readPublishedReview: ReadPublishedReviewService,
-    readTextFile: ReadTextFileService,
-    readChangeDiffs: ReadChangeDiffsService,
-    refreshReviewActivity: RefreshReviewActivityService,
+    readReviewEvidence: ReadReviewEvidenceService,
+    recordReviewActivity: RecordReviewActivityService,
     interruptGitAction: InterruptGitActionService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -85,9 +81,8 @@ export class RunGitActionUseCase {
     this.recordGitActionProgress = recordGitActionProgress;
     this.finishGitAction = finishGitAction;
     this.readPublishedReview = readPublishedReview;
-    this.readTextFile = readTextFile;
-    this.readChangeDiffs = readChangeDiffs;
-    this.refreshReviewActivity = refreshReviewActivity;
+    this.readReviewEvidence = readReviewEvidence;
+    this.recordReviewActivity = recordReviewActivity;
     this.interruptGitAction = interruptGitAction;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -170,29 +165,11 @@ export class RunGitActionUseCase {
   ): Promise<void> {
     const published = this.readPublishedReview.execute({ worktreeId });
     if (published.kind === 'none') return;
-    const status = await this.readWorktreeStatus.execute(
-      { worktreeId },
+    const evidence = await this.readReviewEvidence.execute(
+      { worktreeId, layers: published.review.layers },
       signal,
     );
-    const { changes } = await this.readChangeFingerprints.execute(
-      { worktreeId, comparisons: status.changes, paths: undefined },
-      signal,
-    );
-    const texts = await Promise.allSettled(
-      reviewPaths(published.review.layers, changes).map((path) =>
-        this.readTextFile.execute({ worktreeId, path }, signal),
-      ),
-    );
-    const diffs = await this.readChangeDiffs.execute(
-      { worktreeId, comparisons: trackedComparisons(changes) },
-      signal,
-    );
-    this.refreshReviewActivity.execute({
-      review: published.review,
-      changes,
-      texts,
-      diffs,
-    });
+    this.recordReviewActivity.execute({ review: published.review, evidence });
   }
 
   private async targetChanges(

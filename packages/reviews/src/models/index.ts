@@ -54,6 +54,7 @@ export type {
   ResolvedLayer,
   ResolvedReview,
   ResolvedStep,
+  ReviewResolution,
   StepLocation,
   SummaryLink,
   SummaryLinkLimits,
@@ -63,6 +64,16 @@ export type {
   ReadPublishedReviewInput,
   ReadPublishedReviewResult,
 } from './read-published-review.ts';
+export type {
+  ReadReviewDiffsInput,
+  ReadReviewEvidenceInput,
+  ReadReviewEvidenceResult,
+  ReadReviewFingerprintsInput,
+  ReadReviewStatusInput,
+  ReadReviewTextInput,
+  ReviewFingerprints,
+  ReviewStatus,
+} from './read-review-evidence.ts';
 export type {
   ReadReviewLayerInput,
   ReadReviewLayerResult,
@@ -78,7 +89,6 @@ export type {
 export type { ReconcileReviewedFilesInput } from './reconcile-reviewed-files.ts';
 export type { ReconcileReviewedLayersInput } from './reconcile-reviewed-layers.ts';
 export type { RecordReviewActivityInput } from './record-review-activity.ts';
-export type { RefreshReviewActivityInput } from './refresh-review-activity.ts';
 export type {
   RemoveReviewedFileInput,
   RemoveReviewedFileResult,
@@ -97,7 +107,8 @@ export type {
   ReviewDiff,
   ReviewDiffContent,
   ReviewDiffSelection,
-  ReviewFiles,
+  ReviewEvidence,
+  ReviewTexts,
   ReviewPatch,
   ReviewText,
   ReviewTextRead,

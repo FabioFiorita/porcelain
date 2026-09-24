@@ -7,17 +7,11 @@ import type {
 import type { SummaryLinkLimits } from '../models/resolved-review.ts';
 import type { SignatureSource } from '../ports/signature-source.ts';
 import {
-  resolveLayer,
+  resolveReview,
   reviewIsActive,
   unexplainedChanges,
 } from '../rules/resolve-review.ts';
-import { reviewDiagnostics } from '../rules/review-diagnostics.ts';
 import { summaryMessage, summaryUrl } from '../rules/review-digests.ts';
-import {
-  reviewChanges,
-  reviewFiles,
-  reviewPatches,
-} from '../rules/review-evidence.ts';
 
 export class GeneratePublishedReviewService {
   private readonly clock: Clock;
@@ -35,17 +29,8 @@ export class GeneratePublishedReviewService {
   }
 
   execute(input: GeneratePublishedReviewInput): GeneratePublishedReviewResult {
-    const { review } = input;
-    const files = reviewFiles(input.texts);
-    const changes = reviewChanges(input.changes);
-    const diagnostics = reviewDiagnostics(
-      changes,
-      files,
-      reviewPatches(input.diffs),
-    );
-    const layers = review.layers.map((layer) =>
-      resolveLayer(layer, files, diagnostics.changed),
-    );
+    const { review, evidence } = input;
+    const { changes, diagnostics, layers } = resolveReview(review, evidence);
     const expires = instantAfter(this.clock.now(), this.limits.lifetimeMs);
     const signature = this.signatureSource.sign({
       secret: review.summarySecret,
@@ -66,7 +51,12 @@ export class GeneratePublishedReviewService {
         ? {}
         : { diagram: structuredClone(review.diagram) }),
       layers,
-      notExplained: unexplainedChanges(changes, files, diagnostics, layers),
+      notExplained: unexplainedChanges(
+        changes,
+        evidence.texts,
+        diagnostics,
+        layers,
+      ),
     };
   }
 }

@@ -1,6 +1,7 @@
+import type { ReviewEvidence } from './review-evidence.ts';
 import type { Review } from './review.ts';
 
 export type RecordReviewActivityInput = {
   review: Review;
-  active: boolean;
+  evidence: ReviewEvidence;
 };

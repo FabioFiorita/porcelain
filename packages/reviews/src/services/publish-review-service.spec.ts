@@ -10,11 +10,12 @@ import {
   UnknownArrowBoxError,
   UnknownArrowStepError,
 } from '@porcelain/reviews/errors';
+import type { FileChange } from '@porcelain/kernel/models';
 import type {
   DiagramBox,
   LayerDraft,
   ReviewDraft,
-  ReviewTextRead,
+  ReviewEvidence,
 } from '@porcelain/reviews/models';
 import { FixedSecretSource } from '../../spec/fakes/fixed-secret-source.ts';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
@@ -22,9 +23,42 @@ import { PublishReviewService } from './publish-review-service.ts';
 
 const worktreeId = 'a'.repeat(64);
 const styled = '<style>h1{color:red}</style><h1>Summary</h1>';
-const readme: ReviewTextRead = {
-  status: 'fulfilled',
-  value: { path: 'README.md', text: 'first\nsecond\nadded\n' },
+const readme = 'first\nsecond\nadded\n';
+const modified: FileChange = {
+  path: 'README.md',
+  fingerprint: 'f',
+  comparisons: [
+    {
+      scope: 'unstaged',
+      kind: 'modified',
+      oldPath: 'README.md',
+      newPath: 'README.md',
+      oldMode: '100644',
+      newMode: '100644',
+      oldOid: undefined,
+      newOid: undefined,
+      supported: true,
+    },
+  ],
+};
+
+function evidence(texts: [string, string][] = []): ReviewEvidence {
+  return { changes: [], texts: new Map(texts), diffs: [] };
+}
+
+const stillChanged: ReviewEvidence = {
+  changes: [modified],
+  texts: new Map([['README.md', readme]]),
+  diffs: [
+    {
+      selection: {
+        scope: 'unstaged',
+        oldPath: 'README.md',
+        newPath: 'README.md',
+      },
+      content: { kind: 'text', patch: '@@ -1,0 +2,2 @@\n+second\n+added\n' },
+    },
+  ],
 };
 
 function layer(overrides: Partial<LayerDraft> = {}): LayerDraft {
@@ -73,7 +107,7 @@ describe('PublishReviewService', () => {
     const { review, warnings } = service.execute({
       worktreeId,
       draft: draft(),
-      texts: [readme],
+      evidence: stillChanged,
     });
     expect(review).toMatchObject({
       worktreeId,
@@ -85,6 +119,17 @@ describe('PublishReviewService', () => {
     expect(review.layers[0]?.steps[0]?.published).toEqual(['second', 'added']);
     expect(warnings).toEqual([]);
     expect(store.read({ worktreeId })).toEqual(review);
+  });
+
+  it('stores the first review inactive when every line it explains is already committed', () => {
+    const { service, store } = setup();
+    const { review } = service.execute({
+      worktreeId,
+      draft: draft(),
+      evidence: evidence([['README.md', readme]]),
+    });
+    expect(review.active).toBe(false);
+    expect(store.read({ worktreeId })?.active).toBe(false);
   });
 
   it('keeps no lines for a step whose file could not be read or whose range runs past the file', () => {
@@ -102,14 +147,10 @@ describe('PublishReviewService', () => {
         },
       ],
     });
-    const unreadable: ReviewTextRead = {
-      status: 'rejected',
-      reason: new Error('missing'),
-    };
     const { review } = service.execute({
       worktreeId,
       draft: draft({ layers: [layer(), past] }),
-      texts: [unreadable],
+      evidence: evidence(),
     });
     expect(review.layers.map((entry) => entry.steps[0]?.published)).toEqual([
       [],
@@ -119,18 +160,22 @@ describe('PublishReviewService', () => {
       setup().service.execute({
         worktreeId,
         draft: draft({ layers: [past] }),
-        texts: [readme],
+        evidence: evidence([['README.md', readme]]),
       }).review.layers[0]?.steps[0]?.published,
     ).toEqual([]);
   });
 
   it('replaces the review when the publisher states the current revision, with a fresh summary link', () => {
     const { service } = setup();
-    const first = service.execute({ worktreeId, draft: draft(), texts: [] });
+    const first = service.execute({
+      worktreeId,
+      draft: draft(),
+      evidence: evidence(),
+    });
     const second = service.execute({
       worktreeId,
       draft: draft({ expectedRevision: 1 }),
-      texts: [],
+      evidence: evidence(),
     });
     expect(second.review.revision).toBe(2);
     expect(second.review.summaryToken).not.toBe(first.review.summaryToken);
@@ -143,12 +188,12 @@ describe('PublishReviewService', () => {
     'refuses a publish that states $name and keeps the stored review',
     ({ expectedRevision }) => {
       const { service, store } = setup();
-      service.execute({ worktreeId, draft: draft(), texts: [] });
+      service.execute({ worktreeId, draft: draft(), evidence: evidence() });
       expect(() =>
         service.execute({
           worktreeId,
           draft: draft({ expectedRevision, summaryHtml: '<p>Other</p>' }),
-          texts: [],
+          evidence: evidence(),
         }),
       ).toThrow(ReviewConflictError);
       expect(store.read({ worktreeId })?.summaryHtml).toBe(styled);
@@ -231,7 +276,7 @@ describe('PublishReviewService', () => {
   ])('refuses a draft with $name and stores nothing', ({ refused, error }) => {
     const { service, store } = setup();
     expect(() =>
-      service.execute({ worktreeId, draft: refused, texts: [] }),
+      service.execute({ worktreeId, draft: refused, evidence: evidence() }),
     ).toThrow(error);
     expect(store.read({ worktreeId })).toBeUndefined();
   });
@@ -241,7 +286,7 @@ describe('PublishReviewService', () => {
     const { warnings } = service.execute({
       worktreeId,
       draft: draft({ summaryHtml: '<h1>Summary</h1>' }),
-      texts: [],
+      evidence: evidence(),
     });
     expect(warnings).toHaveLength(1);
     expect(store.read({ worktreeId })?.revision).toBe(1);

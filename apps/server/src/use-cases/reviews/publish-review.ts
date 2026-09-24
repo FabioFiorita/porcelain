@@ -1,29 +1,20 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type {
-  ReadChangeDiffsService,
-  ReadChangeFingerprintsService,
-  ReadWorktreeStatusService,
-} from '@porcelain/changes/services';
 import type { PublishReviewToolResponse } from '@porcelain/contracts/reviews';
-import type { ReadTextFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ReviewPublication } from '@porcelain/reviews/models';
 import type {
   GeneratePublishedReviewService,
   PublishReviewService,
+  ReadReviewEvidenceService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class PublishReviewUseCase {
   private readonly checkWorktree: CheckWorktreeService;
-  private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
-  private readonly readTextFile: ReadTextFileService;
-  private readonly readChangeDiffs: ReadChangeDiffsService;
+  private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly publishReview: PublishReviewService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly generatePublishedReview: GeneratePublishedReviewService;
@@ -33,10 +24,7 @@ export class PublishReviewUseCase {
 
   constructor(
     checkWorktree: CheckWorktreeService,
-    readWorktreeStatus: ReadWorktreeStatusService,
-    readChangeFingerprints: ReadChangeFingerprintsService,
-    readTextFile: ReadTextFileService,
-    readChangeDiffs: ReadChangeDiffsService,
+    readReviewEvidence: ReadReviewEvidenceService,
     publishReview: PublishReviewService,
     readEnvironment: ReadEnvironmentService,
     generatePublishedReview: GeneratePublishedReviewService,
@@ -45,10 +33,7 @@ export class PublishReviewUseCase {
     events: EventPublisher,
   ) {
     this.checkWorktree = checkWorktree;
-    this.readWorktreeStatus = readWorktreeStatus;
-    this.readChangeFingerprints = readChangeFingerprints;
-    this.readTextFile = readTextFile;
-    this.readChangeDiffs = readChangeDiffs;
+    this.readReviewEvidence = readReviewEvidence;
     this.publishReview = publishReview;
     this.readEnvironment = readEnvironment;
     this.generatePublishedReview = generatePublishedReview;
@@ -70,35 +55,20 @@ export class PublishReviewUseCase {
           { worktreeId, purpose: 'writing' },
           signal,
         );
-        const status = await this.readWorktreeStatus.execute(
-          { worktreeId },
-          signal,
-        );
-        const { changes } = await this.readChangeFingerprints.execute(
-          { worktreeId, comparisons: status.changes, paths: undefined },
-          signal,
-        );
-        const texts = await Promise.allSettled(
-          reviewPaths(draft.layers, changes).map((path) =>
-            this.readTextFile.execute({ worktreeId, path }, signal),
-          ),
-        );
-        const diffs = await this.readChangeDiffs.execute(
-          { worktreeId, comparisons: trackedComparisons(changes) },
+        const evidence = await this.readReviewEvidence.execute(
+          { worktreeId, layers: draft.layers },
           signal,
         );
         const { review, warnings } = this.publishReview.execute({
           worktreeId,
           draft,
-          texts,
+          evidence,
         });
         return {
           review: this.generatePublishedReview.execute({
             environmentId: this.readEnvironment.execute().environmentId,
             review,
-            changes,
-            texts,
-            diffs,
+            evidence,
           }),
           warnings,
         };

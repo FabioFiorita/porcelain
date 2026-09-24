@@ -1,7 +1,7 @@
 import type {
   ReviewChange,
   ReviewDiagnostics,
-  ReviewFiles,
+  ReviewTexts,
   ReviewPatch,
 } from '../models/review-evidence.ts';
 import { textLines } from './review-evidence.ts';
@@ -84,7 +84,7 @@ function throughUnstaged(
 
 export function reviewDiagnostics(
   changes: readonly ReviewChange[],
-  files: ReviewFiles,
+  files: ReviewTexts,
   patches: readonly ReviewPatch[],
 ): ReviewDiagnostics {
   const changed = new Map<string, Set<number>>();

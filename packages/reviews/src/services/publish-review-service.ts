@@ -20,7 +20,8 @@ import type { ReviewStore } from '../ports/review-store.ts';
 import type { SecretSource } from '../ports/secret-source.ts';
 import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
 import { reviewDraftProblem } from '../rules/review-draft.ts';
-import { publishedLines, reviewFiles } from '../rules/review-evidence.ts';
+import { reviewActivity } from '../rules/review-activity.ts';
+import { publishedLines } from '../rules/review-evidence.ts';
 import { summaryStyleWarnings } from '../rules/summary-style.ts';
 
 export class PublishReviewService {
@@ -48,7 +49,7 @@ export class PublishReviewService {
     const current = this.reviews.read({ worktreeId: input.worktreeId });
     if ((current?.revision ?? 0) !== draft.expectedRevision)
       throw new ReviewConflictError();
-    const files = reviewFiles(input.texts);
+    const files = input.evidence.texts;
     const layers = draft.layers.map((layer): ReviewLayer => {
       const steps = layer.steps.map((step) => ({
         ...structuredClone(step),
@@ -64,7 +65,7 @@ export class PublishReviewService {
       worktreeId: input.worktreeId,
       revision: draft.expectedRevision + 1,
       publishedAt: this.clock.now(),
-      active: true,
+      active: reviewActivity({ layers }, input.evidence),
       summaryHtml: draft.summaryHtml,
       summaryToken: this.idSource.next(),
       summarySecret: this.secretSource.next(),

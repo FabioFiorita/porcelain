@@ -2,15 +2,18 @@ import { sha256Hex } from '@porcelain/kernel/rules';
 import type {
   ResolvedLayer,
   ResolvedStep,
+  ReviewResolution,
   UnexplainedChange,
 } from '../models/resolved-review.ts';
 import type {
   ReviewChange,
   ReviewDiagnostics,
-  ReviewFiles,
+  ReviewEvidence,
+  ReviewTexts,
 } from '../models/review-evidence.ts';
-import type { ReviewLayer, ReviewStep } from '../models/review.ts';
-import { textLines } from './review-evidence.ts';
+import type { Review, ReviewLayer, ReviewStep } from '../models/review.ts';
+import { reviewDiagnostics } from './review-diagnostics.ts';
+import { reviewChanges, reviewPatches, textLines } from './review-evidence.ts';
 
 const IGNORABLE =
   /^\s*(?:$|import\b|export \* from|export \{[^}]*\} from|\/\/|\/\*|\*|\*\/|[)\]}]+[;,]?$)/;
@@ -37,7 +40,7 @@ function findBlock(
 
 export function resolveStep(
   step: ReviewStep,
-  files: ReviewFiles,
+  files: ReviewTexts,
   changed: ReadonlyMap<string, ReadonlySet<number>> | undefined,
 ): ResolvedStep {
   const { published, ...draft } = step;
@@ -77,7 +80,7 @@ export function resolveStep(
 function resolvedFingerprint(
   layer: ReviewLayer,
   steps: readonly ResolvedStep[],
-  files: ReviewFiles,
+  files: ReviewTexts,
 ): string {
   const resolvedById = new Map(steps.map((step) => [step.id, step]));
   return sha256Hex(
@@ -96,7 +99,7 @@ function resolvedFingerprint(
 
 export function resolveLayer(
   layer: ReviewLayer,
-  files: ReviewFiles,
+  files: ReviewTexts,
   changed: ReadonlyMap<string, ReadonlySet<number>> | undefined,
 ): ResolvedLayer {
   const steps = layer.steps.map((step) => resolveStep(step, files, changed));
@@ -110,7 +113,7 @@ export function resolveLayer(
 
 export function currentLayerFingerprint(
   layer: ReviewLayer,
-  files: ReviewFiles,
+  files: ReviewTexts,
 ): string {
   return resolveLayer(layer, files, undefined).fingerprint;
 }
@@ -124,6 +127,25 @@ export function publishedLayerFingerprint(
       .map((step) => `${step.id}:${step.published.join('\n')}`)
       .join('\0'),
   );
+}
+
+export function resolveReview(
+  review: Pick<Review, 'layers'>,
+  evidence: ReviewEvidence,
+): ReviewResolution {
+  const changes = reviewChanges(evidence.changes);
+  const diagnostics = reviewDiagnostics(
+    changes,
+    evidence.texts,
+    reviewPatches(evidence.diffs),
+  );
+  return {
+    changes,
+    diagnostics,
+    layers: review.layers.map((layer) =>
+      resolveLayer(layer, evidence.texts, diagnostics.changed),
+    ),
+  };
 }
 
 export function reviewIsActive(layers: readonly ResolvedLayer[]): boolean {
@@ -177,7 +199,7 @@ function coveredLines(
 
 export function unexplainedChanges(
   changes: readonly ReviewChange[],
-  files: ReviewFiles,
+  files: ReviewTexts,
   diagnostics: ReviewDiagnostics,
   layers: readonly ResolvedLayer[],
 ): UnexplainedChange[] {

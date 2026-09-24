@@ -3,7 +3,7 @@ import { isTracked, trackedPath } from '@porcelain/kernel/rules';
 import type {
   ReviewChange,
   ReviewDiff,
-  ReviewFiles,
+  ReviewTexts,
   ReviewPatch,
   ReviewTextRead,
 } from '../models/review-evidence.ts';
@@ -56,7 +56,7 @@ export function reviewChanges(changes: readonly FileChange[]): ReviewChange[] {
   }));
 }
 
-export function reviewFiles(texts: readonly ReviewTextRead[]): ReviewFiles {
+export function reviewFiles(texts: readonly ReviewTextRead[]): ReviewTexts {
   return new Map(
     texts.flatMap((read): [string, string][] =>
       read.status === 'fulfilled' ? [[read.value.path, read.value.text]] : [],

@@ -1,5 +1,6 @@
 import type { RecordReviewActivityInput } from '../models/record-review-activity.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
+import { reviewActivity } from '../rules/review-activity.ts';
 
 export class RecordReviewActivityService {
   private readonly reviews: ReviewStore;
@@ -9,7 +10,8 @@ export class RecordReviewActivityService {
   }
 
   execute(input: RecordReviewActivityInput): void {
-    const { review, active } = input;
+    const { review } = input;
+    const active = reviewActivity(review, input.evidence);
     if (active === review.active) return;
     this.reviews.setActive({
       worktreeId: review.worktreeId,

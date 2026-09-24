@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
 import { FixedClock } from '@porcelain/kernel/fakes';
-import type {
-  Review,
-  ReviewDiff,
-  ReviewStep,
-  ReviewTextRead,
-} from '@porcelain/reviews/models';
+import type { Review, ReviewDiff, ReviewStep } from '@porcelain/reviews/models';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
 import { GeneratePublishedReviewService } from './generate-published-review-service.ts';
 
@@ -74,8 +69,8 @@ function patch(path: string, text: string): ReviewDiff {
   };
 }
 
-function text(path: string, content: string): ReviewTextRead {
-  return { status: 'fulfilled', value: { path, text: content } };
+function text(path: string, content: string): [string, string] {
+  return [path, content];
 }
 
 const service = new GeneratePublishedReviewService(
@@ -87,15 +82,17 @@ const service = new GeneratePublishedReviewService(
 function generate(evidence: {
   steps?: ReviewStep[];
   changes?: FileChange[];
-  texts?: ReviewTextRead[];
+  texts?: [string, string][];
   diffs?: ReviewDiff[];
 }) {
   return service.execute({
     environmentId,
     review: review(evidence.steps),
-    changes: evidence.changes ?? [],
-    texts: evidence.texts ?? [],
-    diffs: evidence.diffs ?? [],
+    evidence: {
+      changes: evidence.changes ?? [],
+      texts: new Map(evidence.texts ?? []),
+      diffs: evidence.diffs ?? [],
+    },
   });
 }
 
@@ -150,14 +147,14 @@ describe('GeneratePublishedReviewService', () => {
     ).toEqual({ state: 'committed', startLine: 4, endLine: 4 });
   });
 
-  it.each<{ name: string; texts: ReviewTextRead[] }>([
+  it.each<{ name: string; texts: [string, string][] }>([
     {
       name: 'its lines are gone',
       texts: [text('README.md', 'first\nsecond\n')],
     },
     {
       name: 'its file cannot be read',
-      texts: [{ status: 'rejected', reason: new Error('missing') }],
+      texts: [],
     },
   ])('locates a step as changed when $name', ({ texts }) => {
     expect(generate({ texts }).layers[0]?.steps[0]?.location).toEqual({

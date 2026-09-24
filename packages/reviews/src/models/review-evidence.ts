@@ -1,4 +1,6 @@
-export type ReviewFiles = ReadonlyMap<string, string>;
+import type { FileChange } from '@porcelain/kernel/models';
+
+export type ReviewTexts = ReadonlyMap<string, string>;
 
 export type ReviewText = {
   path: string;
@@ -38,4 +40,10 @@ export type ReviewDiagnostics = {
   changed: ReadonlyMap<string, ReadonlySet<number>>;
   deleted: ReadonlyMap<string, ReadonlySet<number>>;
   binary: ReadonlySet<string>;
+};
+
+export type ReviewEvidence = {
+  changes: FileChange[];
+  texts: ReviewTexts;
+  diffs: ReviewDiff[];
 };

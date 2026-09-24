@@ -12,12 +12,12 @@ import {
   MarkCommentsSeenService,
   PublishReviewService,
   ReadPublishedReviewService,
+  ReadReviewEvidenceService,
   ReadReviewLayerService,
   ReadReviewSummaryService,
   ReconcileReviewedFilesService,
   ReconcileReviewedLayersService,
   RecordReviewActivityService,
-  RefreshReviewActivityService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
   ReplyToCommentService,
@@ -103,6 +103,12 @@ export function composeReviews(
     limits.summaryLink,
   );
   const recordReviewActivity = new RecordReviewActivityService(reviewStore);
+  const readReviewEvidence = new ReadReviewEvidenceService(
+    changes.readWorktreeStatus,
+    changes.readChangeFingerprints,
+    readTextFile,
+    changes.readChangeDiffs,
+  );
   const setReviewedFiles = new SetReviewedFilesService(
     reviewedFileStore,
     clock,
@@ -149,10 +155,7 @@ export function composeReviews(
     ),
     publishReview: new PublishReviewUseCase(
       checkWorktree,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
-      readTextFile,
-      changes.readChangeDiffs,
+      readReviewEvidence,
       new PublishReviewService(
         reviewStore,
         clock,
@@ -168,10 +171,7 @@ export function composeReviews(
     readPublishedReview: new ReadPublishedReviewUseCase(
       checkWorktree,
       readPublishedReview,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
-      readTextFile,
-      changes.readChangeDiffs,
+      readReviewEvidence,
       readEnvironment,
       generatePublishedReview,
       recordReviewActivity,
@@ -243,7 +243,8 @@ export function composeReviews(
     ),
     services: {
       readPublishedReview,
-      refreshReviewActivity: new RefreshReviewActivityService(reviewStore),
+      readReviewEvidence,
+      recordReviewActivity,
     },
   };
 }

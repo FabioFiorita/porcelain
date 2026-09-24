@@ -1,19 +1,13 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type {
-  ReadChangeDiffsService,
-  ReadChangeFingerprintsService,
-  ReadWorktreeStatusService,
-} from '@porcelain/changes/services';
 import type { ReadPublishedReviewResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadTextFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
   GeneratePublishedReviewService,
   ReadPublishedReviewService,
+  ReadReviewEvidenceService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
-import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -21,10 +15,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ReadPublishedReviewUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
-  private readonly readTextFile: ReadTextFileService;
-  private readonly readChangeDiffs: ReadChangeDiffsService;
+  private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly generatePublishedReview: GeneratePublishedReviewService;
   private readonly recordReviewActivity: RecordReviewActivityService;
@@ -34,10 +25,7 @@ export class ReadPublishedReviewUseCase {
   constructor(
     checkWorktree: CheckWorktreeService,
     readPublishedReview: ReadPublishedReviewService,
-    readWorktreeStatus: ReadWorktreeStatusService,
-    readChangeFingerprints: ReadChangeFingerprintsService,
-    readTextFile: ReadTextFileService,
-    readChangeDiffs: ReadChangeDiffsService,
+    readReviewEvidence: ReadReviewEvidenceService,
     readEnvironment: ReadEnvironmentService,
     generatePublishedReview: GeneratePublishedReviewService,
     recordReviewActivity: RecordReviewActivityService,
@@ -46,10 +34,7 @@ export class ReadPublishedReviewUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.readPublishedReview = readPublishedReview;
-    this.readWorktreeStatus = readWorktreeStatus;
-    this.readChangeFingerprints = readChangeFingerprints;
-    this.readTextFile = readTextFile;
-    this.readChangeDiffs = readChangeDiffs;
+    this.readReviewEvidence = readReviewEvidence;
     this.readEnvironment = readEnvironment;
     this.generatePublishedReview = generatePublishedReview;
     this.recordReviewActivity = recordReviewActivity;
@@ -73,31 +58,16 @@ export class ReadPublishedReviewUseCase {
         );
         const published = this.readPublishedReview.execute({ worktreeId });
         if (published.kind === 'none') return published;
-        const status = await this.readWorktreeStatus.execute(
-          { worktreeId },
-          signal,
-        );
-        const { changes } = await this.readChangeFingerprints.execute(
-          { worktreeId, comparisons: status.changes, paths: undefined },
-          signal,
-        );
-        const texts = await Promise.allSettled(
-          reviewPaths(published.review.layers, changes).map((path) =>
-            this.readTextFile.execute({ worktreeId, path }, signal),
-          ),
-        );
-        const diffs = await this.readChangeDiffs.execute(
-          { worktreeId, comparisons: trackedComparisons(changes) },
+        const evidence = await this.readReviewEvidence.execute(
+          { worktreeId, layers: published.review.layers },
           signal,
         );
         const resolved = this.generatePublishedReview.execute({
           environmentId: this.readEnvironment.execute().environmentId,
           review: published.review,
-          changes,
-          texts,
-          diffs,
+          evidence,
         });
-        return { ...published, resolved };
+        return { ...published, evidence, resolved };
       },
       { callerSignal: context.signal },
     );
@@ -108,7 +78,7 @@ export class ReadPublishedReviewUseCase {
       async () =>
         this.recordReviewActivity.execute({
           review: read.review,
-          active: read.resolved.active,
+          evidence: read.evidence,
         }),
       { callerSignal: context.signal },
     );

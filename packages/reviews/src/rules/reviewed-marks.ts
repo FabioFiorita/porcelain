@@ -1,6 +1,6 @@
 import type { FileChange } from '@porcelain/kernel/models';
 import { expectationHolds } from '@porcelain/kernel/rules';
-import type { ReviewFiles } from '../models/review-evidence.ts';
+import type { ReviewTexts } from '../models/review-evidence.ts';
 import type { ReviewLayer } from '../models/review.ts';
 import type {
   ReviewedFile,
@@ -95,7 +95,7 @@ export function markedLayers(
 export function layerStaleness(
   marks: readonly ReviewedLayerMark[],
   layers: readonly ReviewLayer[],
-  files: ReviewFiles,
+  files: ReviewTexts,
 ): { stale: string[]; fresh: string[] } {
   const current = new Map(
     layers.map((layer) => [layer.id, currentLayerFingerprint(layer, files)]),
