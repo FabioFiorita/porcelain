@@ -1,26 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { parseGitStatus } from './parse-git-status.ts';
 
-const HEAD = 'a009a75e6294ff85720885cbc63f5ef03b85b3dd';
-const A = '78981922613b2afb6025042ff6bd878ac1994e85';
-const B = '61780798228d17af2d34fce4cfbdf35556832472';
+const HEAD = '847c4a56aa33b6452cc83525965eb3a8463d2658';
+const A = '9ad2ebbaff6f3397bb65002dcf4294d8d6243982';
+const B = 'b89df23defe5ae95cfb2ff7408d90afd689b8c43';
 const N = '8ba3a16384aacc37d01564b28401755ce8053f51';
-const ZERO = '0'.repeat(40);
 
 const records = (...lines: string[]) =>
   Buffer.from(`${lines.join('\0')}\0`, 'utf8');
 
-const working = records(
-  `# branch.oid ${HEAD}`,
-  '# branch.head main',
-  '# branch.upstream origin/main',
-  '# branch.ab +1 -2',
-  `1 .M N... 100644 100644 100644 ${A} ${A} a.txt`,
-  `1 A. N... 000000 100644 100644 ${ZERO} ${N} new file.txt`,
-  `2 R. N... 100644 100644 100644 ${B} ${B} R100 renamed.txt`,
-  'b.txt',
-  '? dir/inner.txt',
-);
+const working = fixture('status/working.txt');
 
 describe('parseGitStatus', () => {
   it('reads the branch, its upstream and how far it has diverged', () => {
@@ -72,56 +62,50 @@ describe('parseGitStatus', () => {
   });
 
   it('reads a conflicted path with its three stages', () => {
-    const status = parseGitStatus(
-      records(
-        `# branch.oid ${HEAD}`,
-        '# branch.head main',
-        `u UU N... 100644 100644 100644 100644 ${A} ${B} ${N} my file.txt`,
-      ),
-    );
-    expect(status.changes).toEqual([
+    expect(parseGitStatus(fixture('status/conflicted.txt')).changes).toEqual([
       {
         scope: 'unmerged',
         path: 'my file.txt',
         conflict: 'UU',
         modes: ['100644', '100644', '100644', '100644'],
-        oids: [A, B, N],
+        oids: [
+          'df967b96a579e45a18b8251732d16804b2e56a55',
+          'ba2906d0666cf726c7eaadd2cd3db615dedfdf3a',
+          '2299c37978265a95cbe835a4b0f0bbf15aad5549',
+        ],
       },
     ]);
   });
 
   it('reads a repository without commits and a detached HEAD', () => {
-    const initial = parseGitStatus(
-      records('# branch.oid (initial)', '# branch.head main'),
-    );
-    const detached = parseGitStatus(
-      records(`# branch.oid ${HEAD}`, '# branch.head (detached)'),
-    );
+    const initial = parseGitStatus(fixture('status/initial.txt'));
+    const detached = parseGitStatus(fixture('status/detached.txt'));
     expect([initial.headOid, detached.branch?.name]).toEqual([null, null]);
   });
 
   it('marks a submodule change as unsupported', () => {
-    const status = parseGitStatus(
-      records(
-        `# branch.oid ${HEAD}`,
-        `1 .M SC.. 160000 160000 160000 ${A} ${A} vendor/lib`,
-      ),
-    );
-    expect(status.changes).toMatchObject([{ supported: false }]);
+    expect(
+      parseGitStatus(fixture('status/submodule.txt')).changes,
+    ).toMatchObject([{ supported: false }]);
   });
 
   it('gives the same output the same token and different output another', () => {
     const token = parseGitStatus(working).statusToken;
     expect(parseGitStatus(Buffer.from(working)).statusToken).toBe(token);
-    expect(
-      parseGitStatus(records(`# branch.oid ${HEAD}`, '# branch.head main'))
-        .statusToken,
-    ).not.toBe(token);
+    expect(parseGitStatus(fixture('status/detached.txt')).statusToken).not.toBe(
+      token,
+    );
   });
 
   it('rejects output cut off before its final terminator', () => {
     expect(() =>
-      parseGitStatus(working.subarray(0, working.length - 1)),
+      parseGitStatus(fixture('status/working-truncated.txt')),
+    ).toThrow('Invalid Git status output');
+  });
+
+  it('rejects a record with a malformed mode', () => {
+    expect(() =>
+      parseGitStatus(fixture('status/working-malformed.txt')),
     ).toThrow('Invalid Git status output');
   });
 
@@ -131,12 +115,11 @@ describe('parseGitStatus', () => {
     );
   });
 
-  it('rejects unknown records, codes and malformed modes', () => {
+  it('rejects unknown records, codes and malformed fields', () => {
     for (const record of [
       `! ignored.txt`,
       `1 .X N... 100644 100644 100644 ${A} ${A} a.txt`,
       `1 M N... 100644 100644 100644 ${A} ${A} a.txt`,
-      `1 .M N... 100644 10064 100644 ${A} ${A} a.txt`,
       `u ZZ N... 100644 100644 100644 100644 ${A} ${B} ${N} a.txt`,
       `u UU N... 100644 100644 100644 100644 ${A} ${B} a.txt`,
     ])

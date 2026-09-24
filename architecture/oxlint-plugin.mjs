@@ -298,7 +298,7 @@ function allowedSpecImport(filename, source) {
     `file://${path.startsWith('/') ? '' : '/'}${path}`,
   ).pathname;
   if (storageSpec.test(path)) return storagePublicApi.test(target);
-  return /\/spec\/fakes\/.+\.ts$/.test(target);
+  return /\/spec\/(?:fakes|fixtures)\/.+\.ts$/.test(target);
 }
 
 export default {
@@ -416,7 +416,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, node:{fs,path,os,child_process} and spec/fakes; a storage spec imports the storage public API instead of fakes.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec imports the storage public API instead of fakes.',
             });
         };
         return {

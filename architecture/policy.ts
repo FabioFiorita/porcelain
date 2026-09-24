@@ -106,6 +106,7 @@ export type Role =
   | 'contract'
   | 'config'
   | 'fake'
+  | 'fixture'
   | 'test';
 
 export type Classification = { role: Role; owner: string };
@@ -253,6 +254,8 @@ function classifyServer(inside: string) {
 export function classify(path: string): Classification | undefined {
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
+  const packageFixture = /^packages\/([^/]+)\/spec\/fixtures\/.+$/.exec(path);
+  if (packageFixture) return classified('fixture', packageFixture[1] ?? '');
   if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
     return classified('fake', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
@@ -343,7 +346,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   contract: new Set(['contract']),
   config: new Set(['config']),
   fake: new Set(['port', 'port-api', 'model', 'model-api', 'runtime', 'fake']),
-  test: new Set([...everything, 'fake', 'test']),
+  fixture: new Set(),
+  test: new Set([...everything, 'fake', 'fixture', 'test']),
 };
 
 export function violation(
