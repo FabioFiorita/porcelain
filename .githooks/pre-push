@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+unset $(git rev-parse --local-env-vars)
 cd "$(git rev-parse --show-toplevel)"
 pnpm typecheck:server
 pnpm lint:server

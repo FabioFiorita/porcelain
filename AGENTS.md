@@ -4,7 +4,7 @@ This codebase is written and maintained by agents. No person reads the code; tru
 
 ## The rulebook is the tooling
 
-TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule, a config, a spec or a verifier case. If you believe a rule is wrong, finish what you can, say so in your report with the rule name and the case, and stop there. Never add a disable directive, an override, a cast, `any`, a comment, or a file outside `src/` and `spec/`.
+TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule, a config, a spec or a verifier case. If you believe a rule is wrong, finish what you can, say so in your report with the rule name and the case, and stop there. Never add a disable directive, an override, a cast, `any`, a comment, or a code file outside `src/` and `spec/` (feature-map cases, probes and tooling have their own homes and their own checks).
 
 Copy the nearest feature's shape. Every lint message says why its rule exists; read the message before working around it.
 
@@ -24,12 +24,13 @@ node .agents/skills/server-verify/scripts/verify.ts --all
 
 `.githooks/pre-push`, active after `pnpm install`, runs typecheck, lint, format check, test and arch before every push; `db:check`, the net and `pnpm probes` stay yours to run.
 
-A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until the probes under `architecture/probes/` still all fail the gates.
+A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until `pnpm probes` reports every probe under `architecture/probes/` rejected.
 
 ## Skills
 
 - `server-spec`: whether a unit gets a spec, how to derive its cases from the promise, fakes and fixtures.
 - `server-verify`: run the HTTP regression net, add a feature case, read the evidence.
+- `server-feature`: add, change or remove an endpoint end to end: contract, use case, route, scope, wiring, spec, net case, gates.
 
 ## Working rules the tooling cannot see
 
