@@ -1,5 +1,5 @@
 import type { GitDiscardedChange } from '../dtos/git-status.ts';
-import { parseRecoveryBlob } from '../../shared/recovery-blob.ts';
+import { parseRecoveryBlob } from '../../shared/parsers/recovery-blob.ts';
 
 export function parseDiscarded(
   content: string,

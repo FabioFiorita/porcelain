@@ -1,4 +1,4 @@
-import { parseStashList } from '../../shared/refs.ts';
+import { parseStashList } from '../../shared/parsers/refs.ts';
 import type { GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';

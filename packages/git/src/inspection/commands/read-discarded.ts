@@ -3,8 +3,8 @@ import type { GitDiscardedChange } from '../dtos/git-status.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 import { parseDiscarded } from '../parsers/parse-discarded.ts';
 import { parseObjectBatch } from '../parsers/parse-object-batch.ts';
-import { isOid } from '../../shared/oid.ts';
-import { DISCARDED_REF_PREFIX } from '../../shared/recovery-blob.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
+import { DISCARDED_REF_PREFIX } from '../../shared/parsers/recovery-blob.ts';
 import { runInspection } from './run-inspection.ts';
 
 export async function readDiscarded(

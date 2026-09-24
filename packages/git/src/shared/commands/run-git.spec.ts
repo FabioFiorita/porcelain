@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runGitRead, runGitWrite } from './run-git.ts';
-import { gitLimits } from '../../spec/fixtures/git-limits.ts';
+import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 let repository: string;
 

@@ -1,7 +1,7 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import type { GitProcessResult } from '../../shared/run-git.ts';
+import type { GitProcessResult } from '../../shared/commands/run-git.ts';
 
-export type GitProcessRunner = {
+export interface GitProcessRunner {
   readonly limits: GitLimits;
   execute(
     args: readonly string[],
@@ -9,4 +9,4 @@ export type GitProcessRunner = {
     input?: string,
     options?: { indexFile?: string },
   ): Promise<GitProcessResult>;
-};
+}

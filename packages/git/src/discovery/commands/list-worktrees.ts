@@ -11,10 +11,10 @@ import {
   corroborates,
   readWorktreeRegistry,
   realpathOrSelf,
-} from '../../shared/gitdir.ts';
-import { identity } from '../../shared/identity.ts';
+} from '../../shared/commands/gitdir.ts';
+import { identity } from '../../shared/commands/identity.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { runGitRead } from '../../shared/run-git.ts';
+import { runGitRead } from '../../shared/commands/run-git.ts';
 
 export async function listWorktrees(
   checkout: string,

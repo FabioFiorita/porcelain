@@ -12,8 +12,8 @@ import {
   commitPlanParser,
   type CommitPlanParser,
 } from './parsers/parse-commit-plan.ts';
-import { ClaudeProvider } from './providers/claude.ts';
-import { CodexProvider } from './providers/codex.ts';
+import { ClaudeProvider } from './claude-provider.ts';
+import { CodexProvider } from './codex-provider.ts';
 
 const modelName = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 

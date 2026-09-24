@@ -8,7 +8,7 @@ import {
 } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { isRelativePath } from '@porcelain/kernel/rules';
-import { isMissing } from '../../shared/errno.ts';
+import { isMissing } from '../../shared/errors/is-missing.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import { readOptionalActionOid } from './read-optional-action-oid.ts';

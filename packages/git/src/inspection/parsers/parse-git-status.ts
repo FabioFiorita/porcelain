@@ -8,7 +8,7 @@ import type {
 import { InvalidGitStatusError } from '../errors/invalid-git-status-error.ts';
 import { UnsupportedPathEncodingError } from '../errors/unsupported-path-encoding-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { isNullOid, isOid } from '../../shared/oid.ts';
+import { isNullOid, isOid } from '../../shared/parsers/oid.ts';
 
 const MODE = /^[0-7]{6}$/u;
 const CONFLICT_CODES: readonly GitConflictCode[] = [

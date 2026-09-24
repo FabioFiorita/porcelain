@@ -2,13 +2,13 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { findExecutable } from '../commands/find-executable.ts';
-import { runProvider } from '../commands/run-provider.ts';
-import type { AgentLimits } from '../dtos/agent-limits.ts';
-import type { AgentModel } from '../dtos/agent-model.ts';
-import { ProviderNotInstalledError } from '../errors/provider-not-installed-error.ts';
-import type { Provider } from '../interfaces/provider.ts';
-import { codexAnswer } from '../parsers/parse-provider-answer.ts';
+import { findExecutable } from './commands/find-executable.ts';
+import { runProvider } from './commands/run-provider.ts';
+import type { AgentLimits } from './dtos/agent-limits.ts';
+import type { AgentModel } from './dtos/agent-model.ts';
+import { ProviderNotInstalledError } from './errors/provider-not-installed-error.ts';
+import type { Provider } from './interfaces/provider.ts';
+import { codexAnswer } from './parsers/parse-provider-answer.ts';
 
 const modelSlug = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const modelCacheSchema = z.object({

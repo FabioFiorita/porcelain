@@ -4,7 +4,7 @@ import {
   parseRawDiff,
   type RawDiffEntry,
 } from '../../inspection/index.ts';
-import { isOid } from '../../shared/oid.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
 import type {
   CommitFile,
   CommitFiles,

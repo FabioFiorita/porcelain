@@ -163,11 +163,33 @@ export function gitCapabilityViolation(
 }
 
 export function helpersFolderViolation(path: string): string | undefined {
-  return /^(?:packages\/git\/src|apps\/server\/src)\/(?:.*\/)?helpers\//.test(
+  return /^(?:packages\/(?:git|agents|process)\/src|apps\/server\/src)\/(?:.*\/)?helpers\//.test(
     path,
   )
     ? 'no-helpers-folder'
     : undefined;
+}
+
+const infrastructureParts: ReadonlySet<string> = new Set([
+  'commands',
+  'parsers',
+  'dtos',
+  'errors',
+  'interfaces',
+]);
+
+export function infrastructureLayoutViolation(
+  path: string,
+): string | undefined {
+  const match = /^packages\/(git|agents|process)\/src\/(.+)$/.exec(path);
+  if (!match) return undefined;
+  const parts = (match[2] ?? '').split('/');
+  const inside = match[1] === 'process' ? parts : parts.slice(1);
+  const support = match[1] === 'git' && parts[0] === 'shared';
+  if (inside.length === 1) return support ? 'infrastructure-layout' : undefined;
+  if (inside.length === 2 && infrastructureParts.has(inside[0] ?? ''))
+    return undefined;
+  return 'infrastructure-layout';
 }
 
 function classified(role: Role, owner: string): Classification {

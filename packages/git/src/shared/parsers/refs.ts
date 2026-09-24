@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { isOid } from './oid.ts';
 
 export const HEAD_BRANCH_ARGS: readonly string[] = [
@@ -38,12 +36,6 @@ export function parseHeadFile(text: string): HeadState | undefined {
   const ref = /^ref: (refs\/\S+)$/u.exec(head)?.[1];
   if (ref !== undefined) return { kind: 'attached', ref };
   return isOid(head) ? { kind: 'detached' } : undefined;
-}
-
-export async function readHeadFile(
-  gitDirectory: string,
-): Promise<HeadState | undefined> {
-  return parseHeadFile(await readFile(join(gitDirectory, 'HEAD'), 'utf8'));
 }
 
 export function parseStashList(output: string): StashEntry[] {

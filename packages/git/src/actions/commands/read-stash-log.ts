@@ -1,4 +1,4 @@
-import { STASH_LIST_ARGS } from '../../shared/refs.ts';
+import { STASH_LIST_ARGS } from '../../shared/parsers/refs.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { readActionCommand } from './read-action-command.ts';
 

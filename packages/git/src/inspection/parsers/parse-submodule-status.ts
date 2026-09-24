@@ -1,4 +1,4 @@
-import { isOid } from '../../shared/oid.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
 
 export function parseSubmoduleStatus(
   output: string,

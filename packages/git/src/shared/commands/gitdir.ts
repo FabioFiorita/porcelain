@@ -1,6 +1,6 @@
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
-import { isMissing } from './errno.ts';
+import { isMissing } from '../errors/is-missing.ts';
 
 export function parseGitdirFile(text: string): string | undefined {
   const pointer = text.trim();

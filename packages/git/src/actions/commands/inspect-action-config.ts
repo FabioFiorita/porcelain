@@ -1,10 +1,10 @@
 import { lstat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isMissing } from '../../shared/errno.ts';
+import { isMissing } from '../../shared/errors/is-missing.ts';
 import {
   filterDrivers,
   parseFilterAttributes,
-} from '../../shared/conversion-filters.ts';
+} from '../../shared/parsers/conversion-filters.ts';
 import type { GitActionIntent } from '../dtos/git-action.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';

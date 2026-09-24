@@ -5,7 +5,7 @@ import {
   disabledFilterConfig,
   filterDrivers,
   parseFilterAttributes,
-} from '../../shared/conversion-filters.ts';
+} from '../../shared/parsers/conversion-filters.ts';
 import { runInspection } from './run-inspection.ts';
 
 const UNFILTERED = new Set(['unspecified', 'unset', 'set']);

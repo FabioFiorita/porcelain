@@ -396,8 +396,10 @@ const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
 const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
 const runtimeFile = /^apps\/server\/src\/runtime\//;
+const infrastructureInterfaceFile =
+  /^packages\/(?:git|agents|process)\/src\/(?:.+\/)?interfaces\/[^/]+\.ts$/;
 const portShapedScope = new RegExp(
-  `^(?:apps/server/src/|packages/(?:${domainPackage}|kernel)/src/)`,
+  `^(?:apps/server/src/|packages/(?:${domainPackage}|kernel|git|agents|process)/src/)`,
 );
 const serverAppFile = /^apps\/server\/src\//;
 const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
@@ -1586,7 +1588,12 @@ export default {
     'interfaces-only-in-ports': {
       create(context) {
         const path = repositoryPath(context);
-        if (!serverCode.test(path) || anyPortFile.test(path)) return {};
+        if (
+          !serverCode.test(path) ||
+          anyPortFile.test(path) ||
+          infrastructureInterfaceFile.test(path)
+        )
+          return {};
         return {
           TSInterfaceDeclaration(node) {
             if (
@@ -1653,12 +1660,36 @@ export default {
         });
       },
     },
+    'interfaces-hold-interfaces': {
+      create(context) {
+        if (!infrastructureInterfaceFile.test(repositoryPath(context)))
+          return {};
+        return {
+          Program(program) {
+            for (const statement of program.body) {
+              if (statement.type === 'ImportDeclaration') continue;
+              if (
+                statement.type === 'ExportNamedDeclaration' &&
+                statement.declaration?.type === 'TSInterfaceDeclaration'
+              )
+                continue;
+              context.report({
+                node: statement,
+                message:
+                  'An interfaces/ file of git, agents or process declares exported interfaces only; a type, a function or a value belongs in dtos/, commands/ or parsers/.',
+              });
+            }
+          },
+        };
+      },
+    },
     'no-port-shaped-alias': {
       create(context) {
         const path = repositoryPath(context);
         if (
           !portShapedScope.test(path) ||
           anyPortFile.test(path) ||
+          infrastructureInterfaceFile.test(path) ||
           isSpec(context)
         )
           return {};
@@ -1668,7 +1699,7 @@ export default {
             context.report({
               node,
               message:
-                'An object type with a method is a port in all but name: declare it in ports/, where the port rules see it.',
+                'An object type with a method is a port in all but name: declare it in ports/ (interfaces/ in git, agents and process), where the port rules see it.',
             });
           },
         };

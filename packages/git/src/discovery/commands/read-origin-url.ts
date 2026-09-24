@@ -1,6 +1,6 @@
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { runGitRead } from '../../shared/run-git.ts';
+import { runGitRead } from '../../shared/commands/run-git.ts';
 
 const remoteExitCodes = { noSuchRemote: 2 };
 

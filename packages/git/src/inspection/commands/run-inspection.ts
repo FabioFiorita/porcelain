@@ -1,6 +1,9 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
-import { type GitReadOptions, runGitRead } from '../../shared/run-git.ts';
+import {
+  type GitReadOptions,
+  runGitRead,
+} from '../../shared/commands/run-git.ts';
 import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
 
 export async function runInspection(

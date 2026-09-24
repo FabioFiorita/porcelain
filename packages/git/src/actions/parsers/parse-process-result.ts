@@ -1,4 +1,4 @@
-import type { GitProcessResult } from '../../shared/run-git.ts';
+import type { GitProcessResult } from '../../shared/commands/run-git.ts';
 import type { GitActionOutcome } from '../dtos/git-action.ts';
 
 export function processFailure(

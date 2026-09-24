@@ -1,9 +1,9 @@
 import { devNull } from 'node:os';
 import { runCommand } from '@porcelain/process';
-import { GitCommandError } from './errors/git-command-error.ts';
-import { GitOutputLimitError } from './errors/git-output-limit-error.ts';
-import { GitTimeoutError } from './errors/git-timeout-error.ts';
-import type { GitLimits } from './dtos/git-limits.ts';
+import { GitCommandError } from '../errors/git-command-error.ts';
+import { GitOutputLimitError } from '../errors/git-output-limit-error.ts';
+import { GitTimeoutError } from '../errors/git-timeout-error.ts';
+import type { GitLimits } from '../dtos/git-limits.ts';
 
 type GitMode = 'read' | 'write';
 

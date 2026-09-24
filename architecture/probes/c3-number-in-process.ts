@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'packages/process/src/run-command.ts',
+      path: 'packages/process/src/commands/run-command.ts',
       old: 'await delay(group.pollMs);',
       new: 'await delay(10);',
     },

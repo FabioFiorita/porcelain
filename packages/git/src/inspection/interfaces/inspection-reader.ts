@@ -3,6 +3,9 @@ import type { DiffReader } from './diff-reader.ts';
 import type { CheckoutSession } from './git-session.ts';
 import type { StatusReader } from './status-reader.ts';
 
-export type InspectionReader = StatusReader & DiffReader & ChangeReader;
+export interface InspectionReader
+  extends StatusReader, DiffReader, ChangeReader {}
 
-export type InspectionFactory = (session: CheckoutSession) => InspectionReader;
+export interface InspectionFactory {
+  (session: CheckoutSession): InspectionReader;
+}

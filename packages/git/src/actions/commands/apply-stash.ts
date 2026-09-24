@@ -1,7 +1,7 @@
 import {
   DISCARDED_REF_PREFIX,
   parseRecoveryBlob,
-} from '../../shared/recovery-blob.ts';
+} from '../../shared/parsers/recovery-blob.ts';
 import type { GitActionCommand, GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';

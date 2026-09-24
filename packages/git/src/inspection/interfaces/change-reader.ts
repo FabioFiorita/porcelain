@@ -1,7 +1,7 @@
 import type { GitBranchDetails } from '../dtos/git-status.ts';
 import type { HeadBlob, HeadBlobRequest } from '../dtos/head-blob.ts';
 
-export type ChangeReader = {
+export interface ChangeReader {
   readSubmoduleHeads(
     paths: readonly string[],
     signal?: AbortSignal,
@@ -15,4 +15,4 @@ export type ChangeReader = {
     request: HeadBlobRequest,
     signal?: AbortSignal,
   ): Promise<HeadBlob>;
-};
+}

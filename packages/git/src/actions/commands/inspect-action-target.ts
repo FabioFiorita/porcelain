@@ -1,4 +1,4 @@
-import { shortBranchName } from '../../shared/refs.ts';
+import { shortBranchName } from '../../shared/parsers/refs.ts';
 import type {
   GitActionExpectation,
   GitActionIntent,

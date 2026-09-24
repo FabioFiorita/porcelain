@@ -1,4 +1,4 @@
-import { shortBranchName } from '../../shared/refs.ts';
+import { shortBranchName } from '../../shared/parsers/refs.ts';
 import type { GitBranchList } from '../dtos/git-branch-list.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { readActionBranch } from './read-action-branch.ts';

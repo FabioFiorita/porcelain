@@ -1,4 +1,4 @@
-import { readHeadFile } from '../../shared/refs.ts';
+import { readHeadFile } from '../../shared/commands/read-head-file.ts';
 
 export async function readHead(
   administrativeDirectory: string,

@@ -1,4 +1,4 @@
-import { isMissing } from '../../shared/errno.ts';
+import { isMissing } from '../../shared/errors/is-missing.ts';
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
 import { UnsupportedFilesystemIdentityError } from '../../shared/errors/unsupported-filesystem-identity-error.ts';
 import { RepositoryIdentityMismatchError } from './repository-identity-mismatch-error.ts';

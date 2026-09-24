@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fixture } from '../../spec/fixtures/fixture.ts';
+import { fixture } from '../../../spec/fixtures/fixture.ts';
 import {
   disabledFilterConfig,
   filterDrivers,

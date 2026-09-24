@@ -1,6 +1,6 @@
 import type { AgentModel } from '../dtos/agent-model.ts';
 
-export type Provider = {
+export interface Provider {
   readonly name: string;
   models(signal?: AbortSignal): Promise<AgentModel[]>;
   answer(
@@ -9,4 +9,4 @@ export type Provider = {
     outputSchema: string,
     signal?: AbortSignal,
   ): Promise<unknown>;
-};
+}

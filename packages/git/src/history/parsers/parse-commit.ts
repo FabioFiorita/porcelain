@@ -1,7 +1,7 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CommitSummary } from '../dtos/commit-history.ts';
 import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
-import { isOid } from '../../shared/oid.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
 
 export const COMMIT_FORMAT = '%H%x00%P%x00%an%x00%aI%x00%D%x00%s%x00%b';
 export const COMMIT_FIELDS = COMMIT_FORMAT.split('%x00').length;

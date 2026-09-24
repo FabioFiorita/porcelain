@@ -1,5 +1,5 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { parseStashList, STASH_LIST_ARGS } from '../../shared/refs.ts';
+import { parseStashList, STASH_LIST_ARGS } from '../../shared/parsers/refs.ts';
 import { runInspection } from './run-inspection.ts';
 
 export async function readStashes(

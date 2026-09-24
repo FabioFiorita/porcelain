@@ -3,7 +3,7 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'G3',
   plants:
-    'git/spec/fixtures/fixture.ts imports isMissing from ../../src/shared/errno.ts',
+    'git/spec/fixtures/fixture.ts imports isMissing from ../../src/shared/errors/is-missing.ts',
   gate: 'lint',
   rule: 'porcelain(fixture-imports)',
   edits: [
@@ -12,7 +12,7 @@ export default {
       path: 'packages/git/spec/fixtures/fixture.ts',
       old: "import { readFileSync } from 'node:fs';",
       new: `import { readFileSync } from 'node:fs';
-import { isMissing } from '../../src/shared/errno.ts';
+import { isMissing } from '../../src/shared/errors/is-missing.ts';
 
 export function fixtureMissing(error: unknown): boolean {
   return isMissing(error);

@@ -1,6 +1,6 @@
 import { RepositoryIdentityMismatchError } from '../../discovery/index.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import { identity } from '../../shared/identity.ts';
+import { identity } from '../../shared/commands/identity.ts';
 import { runInspection } from './run-inspection.ts';
 
 export async function verifyCheckout(

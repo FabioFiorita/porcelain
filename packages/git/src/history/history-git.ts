@@ -1,6 +1,6 @@
 import { readCommitDiffs } from '../inspection/index.ts';
 import type { GitLimits } from '../shared/dtos/git-limits.ts';
-import { isOid } from '../shared/oid.ts';
+import { isOid } from '../shared/parsers/oid.ts';
 import { confirmHistoryCheckout } from './commands/inspect-history-checkout.ts';
 import { listCommits } from './commands/list-commits.ts';
 import { readCommitFiles } from './commands/read-commit-files.ts';

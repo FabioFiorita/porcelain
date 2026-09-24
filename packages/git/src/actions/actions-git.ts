@@ -1,6 +1,9 @@
 import { type CheckoutSession, readSelectedDiff } from '../inspection/index.ts';
 import type { GitLimits } from '../shared/dtos/git-limits.ts';
-import { type GitProcessResult, runGitWrite } from '../shared/run-git.ts';
+import {
+  type GitProcessResult,
+  runGitWrite,
+} from '../shared/commands/run-git.ts';
 import { applyStash } from './commands/apply-stash.ts';
 import { commitIndex } from './commands/commit-index.ts';
 import { createStash } from './commands/create-stash.ts';

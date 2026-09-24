@@ -10,6 +10,7 @@ import {
   forbiddenExternal,
   gitCapabilityViolation,
   helpersFolderViolation,
+  infrastructureLayoutViolation,
   nestedInRoleFolder,
   requiredServerFiles,
   runtimeNodeViolation,
@@ -242,6 +243,15 @@ function structureFindings(
       helpersFolders.add(
         path.slice(0, path.lastIndexOf('/helpers/') + '/helpers'.length),
       );
+  for (const path of sources) {
+    const layout = infrastructureLayoutViolation(path);
+    if (layout)
+      result.push({
+        rule: layout,
+        from: path,
+        to: 'a git, agents or process capability holds its classes and index.ts, then commands/, parsers/, dtos/, errors/ and interfaces/ one level deep; git shared/ holds those folders only',
+      });
+  }
   for (const folder of helpersFolders)
     result.push({
       rule: 'no-helpers-folder',

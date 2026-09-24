@@ -9,8 +9,8 @@ import { InvalidHistoryRequestError } from '../errors/invalid-history-request-er
 import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
 import { decodeHistory } from '../parsers/decode-history.ts';
 import { COMMIT_FORMAT, parseCommitRecords } from '../parsers/parse-commit.ts';
-import { isOid } from '../../shared/oid.ts';
-import { readHeadFile } from '../../shared/refs.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
+import { readHeadFile } from '../../shared/commands/read-head-file.ts';
 import { hasHead } from './has-head.ts';
 import {
   confirmHistoryCheckout,

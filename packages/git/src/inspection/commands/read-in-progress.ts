@@ -1,8 +1,8 @@
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isMissing } from '../../shared/errno.ts';
-import { readGitDirectory } from '../../shared/gitdir.ts';
-import { isOid } from '../../shared/oid.ts';
+import { isMissing } from '../../shared/errors/is-missing.ts';
+import { readGitDirectory } from '../../shared/commands/gitdir.ts';
+import { isOid } from '../../shared/parsers/oid.ts';
 
 type InProgress = {
   inProgress: 'merge' | 'rebase' | null;

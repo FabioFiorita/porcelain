@@ -1,9 +1,9 @@
-import { nullOidFor } from '../../shared/oid.ts';
+import { nullOidFor } from '../../shared/parsers/oid.ts';
 import {
   discardedRef,
   type RecoveryBlob,
   writeRecoveryBlob,
-} from '../../shared/recovery-blob.ts';
+} from '../../shared/parsers/recovery-blob.ts';
 import type { GitActionOutcome } from '../dtos/git-action.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';

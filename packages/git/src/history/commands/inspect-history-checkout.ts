@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isMissing } from '../../shared/errno.ts';
-import { readCommonDirectory, readGitDirectory } from '../../shared/gitdir.ts';
-import { identity } from '../../shared/identity.ts';
+import { isMissing } from '../../shared/errors/is-missing.ts';
+import {
+  readCommonDirectory,
+  readGitDirectory,
+} from '../../shared/commands/gitdir.ts';
+import { identity } from '../../shared/commands/identity.ts';
 import type {
   HistoryCheckout,
   HistorySnapshot,

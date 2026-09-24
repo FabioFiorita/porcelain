@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'packages/agents/src/commit-planning/providers/claude.ts',
+      path: 'packages/agents/src/commit-planning/claude-provider.ts',
       old: 'maxBytes: this.limits.claudeOutputBytes,',
       new: 'maxBytes: 1024 * 1024,',
     },

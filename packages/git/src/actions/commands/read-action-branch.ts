@@ -1,4 +1,7 @@
-import { HEAD_BRANCH_ARGS, parseSymbolicRef } from '../../shared/refs.ts';
+import {
+  HEAD_BRANCH_ARGS,
+  parseSymbolicRef,
+} from '../../shared/parsers/refs.ts';
 import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
