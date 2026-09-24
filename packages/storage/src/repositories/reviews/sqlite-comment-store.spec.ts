@@ -34,7 +34,7 @@ function present(session: StorageSession, worktreeIds: readonly string[]) {
 
 commentStoreContract('SqliteCommentStore', (worktreeIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   createInventoryStore(session).save(project);
   present(session, worktreeIds);
   return {
@@ -54,7 +54,7 @@ describe('SqliteCommentStore revisions across collection', () => {
 
   beforeEach(() => {
     dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-    session = openStorageSession(dataDirectory);
+    session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
     createInventoryStore(session).save(project);
     present(session, [kept, collected]);
   });

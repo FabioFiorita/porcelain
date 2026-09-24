@@ -425,6 +425,7 @@ const limitsFile =
   /^(?:packages\/contracts\/src\/shared\/limits|apps\/server\/src\/config\/limits)\.ts$/;
 const statusName = /(?:^|\.)status(?:Code)?$/i;
 const positionMethods = new Set(['slice', 'at', 'substring', 'padStart']);
+const FIELD_POSITION_MAX = 16;
 
 function enclosingFunctionName(node) {
   for (let current = node.parent; current; current = current.parent) {
@@ -502,7 +503,9 @@ function allowedNumberContext(node, value) {
     calledMethod(parent.callee) === 'close'
   )
     return true;
+  const position = value <= FIELD_POSITION_MAX;
   if (
+    position &&
     parent?.type === 'MemberExpression' &&
     parent.computed &&
     parent.property === current
@@ -547,13 +550,15 @@ function allowedNumberContext(node, value) {
   )
     return true;
   if (
-    (parent?.type === 'AssignmentExpression' &&
+    position &&
+    ((parent?.type === 'AssignmentExpression' &&
       /index$/i.test(parent.left.name ?? '')) ||
-    (parent?.type === 'VariableDeclarator' &&
-      /index$/i.test(parent.id.name ?? ''))
+      (parent?.type === 'VariableDeclarator' &&
+        /index$/i.test(parent.id.name ?? '')))
   )
     return true;
   return (
+    position &&
     parent?.type === 'CallExpression' &&
     parent.arguments.includes(current) &&
     positionMethods.has(calledMethod(parent.callee) ?? '')

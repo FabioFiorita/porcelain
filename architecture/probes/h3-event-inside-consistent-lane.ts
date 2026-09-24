@@ -11,10 +11,10 @@ export default {
       kind: 'replace',
       path: 'apps/server/src/use-cases/reviews/list-reviewed-layers.ts',
       old: `      async ({ signal }) => {
-        const { paths }`,
+        const { paths: marked }`,
       new: `      async ({ signal }) => {
         this.events.inventoryChanged();
-        const { paths }`,
+        const { paths: marked }`,
     },
   ],
 } satisfies Probe;

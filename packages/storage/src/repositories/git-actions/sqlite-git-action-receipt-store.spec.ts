@@ -13,7 +13,7 @@ import { createGitActionReceiptStore } from './index.ts';
 
 function openScoped(projectId: string, worktreeIds: readonly string[]) {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   createInventoryStore(session).save({
     id: projectId,
     name: projectId,

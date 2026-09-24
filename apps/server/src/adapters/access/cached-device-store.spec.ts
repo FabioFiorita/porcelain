@@ -11,7 +11,7 @@ import { CachedDeviceStore } from './cached-device-store.ts';
 
 deviceStoreContract('CachedDeviceStore over SQLite', (devices) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-cached-device-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   devices.forEach((device) =>
     createPairingGrantStore(session).redeem({
       grant: {

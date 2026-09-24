@@ -9,7 +9,12 @@ import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 import { createSession, type StorageSession } from './session.ts';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
-export function openStorageSession(dataDirectory: string): StorageSession {
+export type StorageOptions = { worktreeIdLength: number };
+
+export function openStorageSession(
+  dataDirectory: string,
+  options: StorageOptions,
+): StorageSession {
   if (!isAbsolute(dataDirectory)) throw new InvalidDataDirectoryError();
   mkdirSync(dataDirectory, { recursive: true, mode: 0o700 });
   const database = new Database(join(dataDirectory, DATABASE_FILE));
@@ -22,7 +27,7 @@ export function openStorageSession(dataDirectory: string): StorageSession {
       { deterministic: true },
       (projectId: unknown, metadataIdentity: unknown) =>
         typeof projectId === 'string' && typeof metadataIdentity === 'string'
-          ? worktreeIdV1(projectId, metadataIdentity)
+          ? worktreeIdV1(projectId, metadataIdentity, options.worktreeIdLength)
           : null,
     );
     database.pragma('foreign_keys = OFF');

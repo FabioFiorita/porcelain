@@ -57,7 +57,9 @@ export const openServer: OpenServer = async (input) => {
       limits.projects.worktreeIds.length,
     );
   const gitVersion = await readGitVersion(input.signal);
-  const session = openStorageSession(settings.dataDirectory);
+  const session = openStorageSession(settings.dataDirectory, {
+    worktreeIdLength: limits.projects.worktreeIds.length,
+  });
   const stores = composeStores(session);
   const catalog = new InMemoryWorktreeCatalogStore();
   const clock = new SystemClock();

@@ -7,7 +7,7 @@ import { createWorktreePresenceStore, createInventoryStore } from './index.ts';
 
 worktreePresenceStoreContract('SqliteWorktreePresenceStore', (projectIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   projectIds.forEach((projectId, position) =>
     createInventoryStore(session).save({
       id: projectId,

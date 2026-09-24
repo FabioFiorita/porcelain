@@ -7,7 +7,7 @@ import { createDeviceStore, createPairingGrantStore } from './index.ts';
 
 pairingGrantStoreContract('SqlitePairingGrantStore', () => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   return {
     grants: createPairingGrantStore(session),
     devices: createDeviceStore(session),

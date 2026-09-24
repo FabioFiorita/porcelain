@@ -7,7 +7,7 @@ import { createFilePreferenceStore, createInventoryStore } from './index.ts';
 
 filePreferenceStoreContract('SqliteFilePreferenceStore', (projectIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   projectIds.forEach((projectId, position) =>
     createInventoryStore(session).save({
       id: projectId,

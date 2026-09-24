@@ -11,7 +11,7 @@ import { createReviewedLayerStore } from './index.ts';
 
 reviewedLayerStoreContract('SqliteReviewedLayerStore', (worktreeIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory);
+  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
   createInventoryStore(session).save({
     id: 'project',
     name: 'project',

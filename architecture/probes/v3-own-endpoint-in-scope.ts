@@ -10,9 +10,13 @@ export default {
     {
       kind: 'replace',
       path: 'apps/server/src/http/scopes/paired.ts',
-      old: `  server.addHook('onRequest', authenticate(options.application));
+      old: `      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
+    }),
+  );
 `,
-      new: `  server.addHook('onRequest', authenticate(options.application));
+      new: `      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
+    }),
+  );
   server.get('/debug/lanes', async () => ({ ok: true }));
 `,
     },
