@@ -63,7 +63,10 @@ export class ReadGitStatusUseCase {
               { worktreeId, branch: status.branch, headOid: status.headOid },
               signal,
             );
-            await this.checkWorktree.execute({ worktreeId }, signal);
+            await this.checkWorktree.execute(
+              { worktreeId, purpose: 'reading' },
+              signal,
+            );
             return {
               environmentId: this.readEnvironment.execute().environmentId,
               worktreeId,

@@ -33,7 +33,7 @@ export class ReadCommitFilesUseCase {
   ): Promise<ReadCommitFilesResponse> {
     const { worktreeId, oid, parent } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId },
+      { worktreeId, purpose: 'reading' },
       context.signal,
     );
     return this.lanes.run(
@@ -44,7 +44,10 @@ export class ReadCommitFilesUseCase {
           { worktreeId, oid, parent },
           signal,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         return files;
       },
       { callerSignal: context.signal },

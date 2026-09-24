@@ -10,16 +10,16 @@ import type {
 import type { DirectoryReader } from '@porcelain/files/ports';
 import { inspectPath, readFailure, verifyPath } from './inspect-path.ts';
 import {
-  knownWorktree,
-  type KnownWorktrees,
+  listedWorktree,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 const nameDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 export class FilesystemDirectoryReader implements DirectoryReader {
-  private readonly worktrees: KnownWorktrees;
+  private readonly worktrees: ListedWorktrees;
 
-  constructor(worktrees: KnownWorktrees) {
+  constructor(worktrees: ListedWorktrees) {
     this.worktrees = worktrees;
   }
 
@@ -27,7 +27,7 @@ export class FilesystemDirectoryReader implements DirectoryReader {
     input: DirectoryReadInput,
     signal?: AbortSignal,
   ): Promise<DirectoryRead> {
-    const checkout = await knownWorktree(
+    const checkout = await listedWorktree(
       this.worktrees,
       input.worktreeId,
       signal,

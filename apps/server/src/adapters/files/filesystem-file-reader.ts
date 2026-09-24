@@ -15,16 +15,16 @@ import {
   verifyPath,
 } from './inspect-path.ts';
 import {
-  knownWorktree,
-  type KnownWorktrees,
+  listedWorktree,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 export class FilesystemFileReader implements FileReader {
-  private readonly worktrees: KnownWorktrees;
+  private readonly worktrees: ListedWorktrees;
 
-  constructor(worktrees: KnownWorktrees) {
+  constructor(worktrees: ListedWorktrees) {
     this.worktrees = worktrees;
   }
 
@@ -47,7 +47,7 @@ export class FilesystemFileReader implements FileReader {
 
   async read(input: FileReadInput, signal?: AbortSignal): Promise<FileRead> {
     const { maxBytes } = input;
-    const checkout = await knownWorktree(
+    const checkout = await listedWorktree(
       this.worktrees,
       input.worktreeId,
       signal,

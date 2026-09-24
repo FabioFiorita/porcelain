@@ -34,8 +34,8 @@ import {
   verifyPath,
 } from './inspect-path.ts';
 import {
-  knownWorktree,
-  type KnownWorktrees,
+  listedWorktree,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 type Source = {
@@ -53,10 +53,10 @@ type Destination = {
 export type FilePermissions = { fileMode: number; directoryMode: number };
 
 export class FilesystemFileWriter implements FileWriter {
-  private readonly worktrees: KnownWorktrees;
+  private readonly worktrees: ListedWorktrees;
   private readonly permissions: FilePermissions;
 
-  constructor(worktrees: KnownWorktrees, permissions: FilePermissions) {
+  constructor(worktrees: ListedWorktrees, permissions: FilePermissions) {
     this.worktrees = worktrees;
     this.permissions = permissions;
   }
@@ -170,7 +170,7 @@ export class FilesystemFileWriter implements FileWriter {
     location: FileLocation,
     signal?: AbortSignal,
   ): Promise<CheckoutPath> {
-    const checkout = await knownWorktree(
+    const checkout = await listedWorktree(
       this.worktrees,
       location.worktreeId,
       signal,

@@ -103,7 +103,7 @@ export class RunGitActionUseCase {
     const { upstreamOid, ...expected } = input.expected;
     this.checkProject.execute({ projectId });
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, projectId },
+      { worktreeId, projectId, purpose: 'writing' },
       context.signal,
     );
     const accepted = await this.lanes.run(

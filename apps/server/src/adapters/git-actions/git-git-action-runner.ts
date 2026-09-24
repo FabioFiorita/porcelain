@@ -12,14 +12,14 @@ import {
 import { GitTimeoutError, RequestGitSession } from '@porcelain/git/inspection';
 import {
   openCheckout,
-  type WritableWorktrees,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 export class GitGitActionRunner implements GitActionRunner {
-  private readonly worktrees: WritableWorktrees;
+  private readonly worktrees: ListedWorktrees;
   private readonly git: GitActionWriterFactory;
 
-  constructor(worktrees: WritableWorktrees, git: GitActionWriterFactory) {
+  constructor(worktrees: ListedWorktrees, git: GitActionWriterFactory) {
     this.worktrees = worktrees;
     this.git = git;
   }

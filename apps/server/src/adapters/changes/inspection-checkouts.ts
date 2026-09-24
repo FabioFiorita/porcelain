@@ -7,7 +7,7 @@ import {
 import type { ListedWorktree } from '@porcelain/projects/models';
 import {
   openCheckout,
-  type WritableWorktrees,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 export type InspectedCheckout = {
@@ -21,7 +21,7 @@ export type OpenInspection = (
 ) => Promise<InspectedCheckout>;
 
 export function inspectionCheckouts(
-  worktrees: WritableWorktrees,
+  worktrees: ListedWorktrees,
   inspection: InspectionFactory,
 ): OpenInspection {
   const sessions = new WeakMap<AbortSignal, GitSession>();

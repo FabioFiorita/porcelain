@@ -54,7 +54,7 @@ export class ReadChangeDiffsUseCase {
     const { worktreeId, expectedStatusToken, expectedFiles, selections } =
       input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId },
+      { worktreeId, purpose: 'reading' },
       context.signal,
     );
     return this.lanes.run(
@@ -112,7 +112,10 @@ export class ReadChangeDiffsUseCase {
           })
         )
           throw new WorktreeChangedError();
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         return {
           environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,

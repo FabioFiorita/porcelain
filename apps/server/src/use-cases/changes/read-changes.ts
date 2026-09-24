@@ -59,7 +59,10 @@ export class ReadChangesUseCase {
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         const interrupted = this.readInterruptedGitAction.execute({
           worktreeId,
         });

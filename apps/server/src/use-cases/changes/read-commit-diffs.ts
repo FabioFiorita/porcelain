@@ -39,7 +39,7 @@ export class ReadCommitDiffsUseCase {
   ): Promise<ReadCommitDiffsResponse> {
     const { worktreeId, oid, parent, paths } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId },
+      { worktreeId, purpose: 'reading' },
       context.signal,
     );
     return this.lanes.run(
@@ -51,7 +51,10 @@ export class ReadCommitDiffsUseCase {
           { worktreeId, oid, parent, paths },
           signal,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         return diffs;
       },
       { callerSignal: context.signal },

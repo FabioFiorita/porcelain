@@ -63,7 +63,7 @@ export class GenerateCommitDraftUseCase {
     const { projectId, worktreeId } = input;
     this.checkProject.execute({ projectId });
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, projectId },
+      { worktreeId, projectId, purpose: 'writing' },
       context.signal,
     );
     const capture = await this.lanes.run(

@@ -48,7 +48,7 @@ export class ReadChangeLinesUseCase {
   ): Promise<ReadChangeLinesResponse> {
     const { worktreeId, path, from, to, at } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId },
+      { worktreeId, purpose: 'reading' },
       context.signal,
     );
     return this.lanes.run(
@@ -64,7 +64,10 @@ export class ReadChangeLinesUseCase {
           { path, from, to, at, text },
           this.options.maxLines,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         return {
           environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,

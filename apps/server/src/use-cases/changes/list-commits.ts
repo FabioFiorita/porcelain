@@ -33,7 +33,7 @@ export class ListCommitsUseCase {
   ): Promise<ListCommitsResponse> {
     const { worktreeId, limit, after, tip } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId },
+      { worktreeId, purpose: 'reading' },
       context.signal,
     );
     return this.lanes.run(
@@ -44,7 +44,10 @@ export class ListCommitsUseCase {
           { worktreeId, limit, after, tip },
           signal,
         );
-        await this.checkWorktree.execute({ worktreeId }, signal);
+        await this.checkWorktree.execute(
+          { worktreeId, purpose: 'reading' },
+          signal,
+        );
         return page;
       },
       { callerSignal: context.signal },

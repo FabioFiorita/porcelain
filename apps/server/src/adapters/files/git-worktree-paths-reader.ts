@@ -8,14 +8,14 @@ import {
   listTrackedPaths,
 } from '@porcelain/git/inspection';
 import {
-  knownWorktree,
-  type KnownWorktrees,
+  listedWorktree,
+  type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
 export class GitWorktreePathsReader implements WorktreePathsReader {
-  private readonly worktrees: KnownWorktrees;
+  private readonly worktrees: ListedWorktrees;
 
-  constructor(worktrees: KnownWorktrees) {
+  constructor(worktrees: ListedWorktrees) {
     this.worktrees = worktrees;
   }
 
@@ -23,7 +23,7 @@ export class GitWorktreePathsReader implements WorktreePathsReader {
     input: WorktreePathsReadInput,
     signal?: AbortSignal,
   ): Promise<WorktreePathsRead> {
-    const checkout = await knownWorktree(
+    const checkout = await listedWorktree(
       this.worktrees,
       input.worktreeId,
       signal,
