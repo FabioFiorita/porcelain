@@ -1,3 +1,38 @@
-Before changing code that uses a library, check its current official documentation (including llms.txt when available) for a built-in pattern, and prefer that over custom helpers or dependencies.
+# Working in Porcelain
 
-The architecture check, TypeScript, Oxlint and Oxfmt are the rulebook and the codebase is the example: copy the nearest feature's shape and never suppress a rule. Before finishing a server change run `pnpm typecheck:server`, `pnpm arch:check`, `pnpm lint:server`, `pnpm format:server:check`, `pnpm test` and `node .agents/skills/server-verify/scripts/verify.ts --all`. Use `server-spec` for behaviour specs and `server-verify` for HTTP evidence.
+This codebase is written and maintained by agents. No person reads the code; trust comes from the guardrails and the proof, not from review. Everything below exists so that an agent copies the right shape and cannot drift from it unnoticed.
+
+## The rulebook is the tooling
+
+TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule, a config, a spec or a verifier case. If you believe a rule is wrong, finish what you can, say so in your report with the rule name and the case, and stop there. Never add a disable directive, an override, a cast, `any`, a comment, or a file outside `src/` and `spec/`.
+
+Copy the nearest feature's shape. Every lint message says why its rule exists; read the message before working around it.
+
+## Before you finish a server change
+
+Run from the repository root, all of them, and report every result honestly:
+
+```
+pnpm typecheck:server
+pnpm lint:server
+pnpm format:server:check
+pnpm test
+pnpm arch:check
+pnpm db:check
+node .agents/skills/server-verify/scripts/verify.ts --all
+```
+
+A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until the probes under `architecture/probes/` still all fail the gates.
+
+## Skills
+
+- `server-spec`: whether a unit gets a spec, how to derive its cases from the promise, fakes and fixtures.
+- `server-verify`: run the HTTP regression net, add a feature case, read the evidence.
+
+## Working rules the tooling cannot see
+
+- Commit only the paths you changed; never `git add -A`; never stash or reset hard; never commit anything under `.claude/`.
+- One short imperative sentence per commit; no attribution lines of any kind.
+- Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
+- `apps/web` is frozen until its own rebuild; do not edit it and do not make the server bend to it.
+- Limits live in `packages/contracts/src/shared/limits.ts` and `apps/server/src/config/limits.ts`, nowhere else.
