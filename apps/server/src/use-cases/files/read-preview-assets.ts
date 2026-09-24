@@ -32,18 +32,14 @@ export class ReadPreviewAssetsUseCase {
     context: OperationContext,
   ): Promise<ReadPreviewAssetsResponse> {
     const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, purpose: 'reading' },
+      { worktreeId: input.worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const result = await this.readPreviewAssets.execute(input, signal);
-        await this.checkWorktree.execute(
-          { worktreeId: input.worktreeId, purpose: 'reading' },
-          { signal },
-        );
         return result;
       },
       { callerSignal: context.signal },

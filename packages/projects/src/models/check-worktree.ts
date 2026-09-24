@@ -3,7 +3,7 @@ import type { ListedWorktree } from './listed-worktree.ts';
 export type CheckWorktreeInput = {
   worktreeId: string;
   projectId?: string | undefined;
-  purpose: 'reading' | 'writing';
+  requireAvailableProject: boolean;
 };
 
 export type CheckWorktreeOptions = { staleAfterMs: number };
@@ -18,3 +18,5 @@ export type WorktreeCheckAnswer =
   | CheckWorktreeResult
   | { kind: 'missing' }
   | { kind: 'unavailable' };
+
+export type ConfirmWorktreeInput = { worktree: ListedWorktree };

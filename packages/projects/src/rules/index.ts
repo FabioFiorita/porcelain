@@ -11,6 +11,7 @@ export {
   projectReport,
   registeredProjectReport,
 } from './project-report.ts';
+export { sameWorktree } from './same-worktree.ts';
 export { unavailableWorktrees } from './unavailable-worktrees.ts';
 export { catalogSnapshot } from './worktree-catalog.ts';
 export { worktreeAtPath } from './worktree-at-path.ts';

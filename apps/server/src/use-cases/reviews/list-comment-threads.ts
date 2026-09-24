@@ -30,7 +30,7 @@ export class ListCommentThreadsUseCase {
   ): Promise<ListCommentThreadsResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     return this.lanes.run(

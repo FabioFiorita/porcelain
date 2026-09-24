@@ -32,12 +32,12 @@ export class ListGitBranchesUseCase {
   ): Promise<ListGitBranchesResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         return this.listGitBranches.execute(
           { projectId: worktree.projectId, worktreeId },

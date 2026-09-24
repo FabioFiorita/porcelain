@@ -70,7 +70,7 @@ export class RefreshReviewActivityUseCase {
     context: OperationContext,
   ): Promise<void> {
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     await this.lanes.run(

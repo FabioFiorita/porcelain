@@ -29,18 +29,14 @@ export class ListWorktreePathsUseCase {
     context: OperationContext,
   ): Promise<ListWorktreePathsResponse> {
     const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, purpose: 'reading' },
+      { worktreeId: input.worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const result = await this.listWorktreePaths.execute(input, signal);
-        await this.checkWorktree.execute(
-          { worktreeId: input.worktreeId, purpose: 'reading' },
-          { signal },
-        );
         return result;
       },
       { callerSignal: context.signal },

@@ -8,6 +8,7 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { SetReviewedFilesService } from '@porcelain/reviews/services';
+import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -16,6 +17,7 @@ import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class SetReviewedFilesUseCase {
   private readonly checkWorktree: WorktreeCheck;
+  private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly setReviewedFiles: SetReviewedFilesService;
@@ -25,6 +27,7 @@ export class SetReviewedFilesUseCase {
 
   constructor(
     checkWorktree: WorktreeCheck,
+    confirmWorktree: ConfirmWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     setReviewedFiles: SetReviewedFilesService,
@@ -33,6 +36,7 @@ export class SetReviewedFilesUseCase {
     events: EventPublisher,
   ) {
     this.checkWorktree = checkWorktree;
+    this.confirmWorktree = confirmWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
     this.setReviewedFiles = setReviewedFiles;
@@ -47,7 +51,7 @@ export class SetReviewedFilesUseCase {
   ): Promise<SetReviewedFilesResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'writing' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     const result = await this.lanes.run(
@@ -62,6 +66,7 @@ export class SetReviewedFilesUseCase {
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
+        this.confirmWorktree.execute({ worktree });
         return this.setReviewedFiles.execute({
           worktreeId,
           files: input.files,

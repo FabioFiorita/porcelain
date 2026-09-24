@@ -1,8 +1,50 @@
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
+import type {
+  CatalogProject,
+  ListedWorktree,
+} from '@porcelain/projects/models';
+import { ConfirmWorktreeService } from '@porcelain/projects/services';
 import { describe, expect, it } from 'vitest';
+import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { Lanes } from './lanes.ts';
 
-function lanes() {
-  return new Lanes({ deadlineMs: 1000, readCapacity: 4 });
+const worktree: ListedWorktree = {
+  id: 'worktree-1',
+  projectId: 'project-1',
+  path: '/srv/api',
+  branch: 'refs/heads/main',
+  main: true,
+  available: true,
+  metadataIdentity: 'metadata-1',
+  administrativeDirectory: '/srv/api/.git',
+  commonDirectory: '/srv/api/.git',
+  repositoryIdentity: 'repository-1',
+  repositoryId: 'repository-1',
+};
+
+function listed(worktrees: ListedWorktree[]): { projects: CatalogProject[] } {
+  return {
+    projects: [
+      {
+        observation: {
+          id: 'project-1',
+          commonDirectory: '/srv/api/.git',
+          repositoryIdentity: 'repository-1',
+          observedAt: '2026-09-24T12:00:00.000Z',
+          listed: true,
+        },
+        worktrees,
+      },
+    ],
+  };
+}
+
+function lanes(catalog = new InMemoryWorktreeCatalogStore()) {
+  return new Lanes({
+    deadlineMs: 1000,
+    readCapacity: 4,
+    consistency: new ConfirmWorktreeService(catalog),
+  });
 }
 
 describe('Lanes', () => {
@@ -79,6 +121,61 @@ describe('Lanes', () => {
     await finished;
     await closing;
     expect(order).toEqual(['write', 'finish']);
+  });
+
+  it('answers a consistent read when the worktree is still the one checked after the work', async () => {
+    const catalog = new InMemoryWorktreeCatalogStore();
+    catalog.save(listed([worktree]));
+    const subject = lanes(catalog);
+    await expect(
+      subject.runConsistent('repository', worktree, async () => 'status'),
+    ).resolves.toBe('status');
+    await subject.close();
+  });
+
+  it('refuses a consistent read whose worktree moved while the work ran', async () => {
+    const catalog = new InMemoryWorktreeCatalogStore();
+    catalog.save(listed([worktree]));
+    const subject = lanes(catalog);
+    await expect(
+      subject.runConsistent('repository', worktree, async () => {
+        catalog.save(listed([{ ...worktree, path: '/srv/api-moved' }]));
+        return 'status';
+      }),
+    ).rejects.toThrow(WorktreeChangedError);
+    await subject.close();
+  });
+
+  it('refuses a consistent read whose worktree disappeared while the work ran', async () => {
+    const catalog = new InMemoryWorktreeCatalogStore();
+    catalog.save(listed([worktree]));
+    const subject = lanes(catalog);
+    await expect(
+      subject.runConsistent('repository', worktree, async () => {
+        catalog.save(listed([]));
+        return 'status';
+      }),
+    ).rejects.toThrow(WorktreeChangedError);
+    await subject.close();
+  });
+
+  it('starts a consistent read only after the write that holds its lane', async () => {
+    const catalog = new InMemoryWorktreeCatalogStore();
+    catalog.save(listed([worktree]));
+    const subject = lanes(catalog);
+    const order: string[] = [];
+    const holding = Promise.withResolvers<void>();
+    const write = subject.run('repository', 'write', async () => {
+      await holding.promise;
+      order.push('write');
+    });
+    const read = subject.runConsistent('repository', worktree, async () => {
+      order.push('read');
+    });
+    holding.resolve();
+    await Promise.all([write, read]);
+    await subject.close();
+    expect(order).toEqual(['write', 'read']);
   });
 
   it('hands background work past its deadline to the failure handler', async () => {

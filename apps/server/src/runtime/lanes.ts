@@ -1,4 +1,6 @@
 import { channel } from 'node:diagnostics_channel';
+import type { ListedWorktree } from '@porcelain/projects/models';
+import type { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import { ApplicationClosedError } from './errors/application-closed-error.ts';
 
 const operationChannel = channel('porcelain:operation');
@@ -110,7 +112,14 @@ class Gate {
 export type LaneOptions = {
   readCapacity: number;
   deadlineMs: number | (() => number);
+  consistency: WorktreeConsistencyProbe;
   closeResources?: () => void;
+};
+
+export type RunOptions = {
+  callerSignal?: AbortSignal | undefined;
+  deadlineMs?: number | undefined;
+  untilSettled?: boolean | undefined;
 };
 
 export class Lanes {
@@ -118,6 +127,7 @@ export class Lanes {
   private readonly capacity: number;
   private readonly deadlineMs: () => number;
   private readonly closeResources: () => void;
+  private readonly consistency: WorktreeConsistencyProbe;
   private readonly shutdown = new AbortController();
   private active = new Set<Promise<unknown>>();
   private closing: Promise<void> | undefined;
@@ -128,6 +138,7 @@ export class Lanes {
     this.deadlineMs =
       typeof deadlineMs === 'function' ? deadlineMs : () => deadlineMs;
     this.closeResources = options.closeResources ?? (() => undefined);
+    this.consistency = options.consistency;
   }
 
   assertOpen(): void {
@@ -146,11 +157,7 @@ export class Lanes {
     lane: string,
     mode: LaneMode,
     work: (admission: Admission) => Promise<T>,
-    options: {
-      callerSignal?: AbortSignal | undefined;
-      deadlineMs?: number | undefined;
-      untilSettled?: boolean | undefined;
-    } = {},
+    options: RunOptions = {},
   ): Promise<T> {
     this.assertOpen();
     const { callerSignal } = options;
@@ -190,6 +197,24 @@ export class Lanes {
       },
     );
     return options.untilSettled ? task : this.until(task, signal);
+  }
+
+  runConsistent<T>(
+    lane: string,
+    worktree: ListedWorktree,
+    work: (admission: Admission) => Promise<T>,
+    options: RunOptions = {},
+  ): Promise<T> {
+    return this.run(
+      lane,
+      'read',
+      async (admission) => {
+        const result = await work(admission);
+        this.consistency.execute({ worktree });
+        return result;
+      },
+      options,
+    );
   }
 
   background(

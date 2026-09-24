@@ -45,12 +45,12 @@ export class ListReviewedLayersUseCase {
   ): Promise<ListReviewedLayersResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.reviews(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const { paths } = this.listReviewedLayerPaths.execute({ worktreeId });
         const texts = await this.readReviewTexts.execute(

@@ -30,7 +30,7 @@ export class ListReviewedFilesUseCase {
   ): Promise<ListReviewedFilesResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     return this.lanes.run(

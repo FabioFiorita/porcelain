@@ -33,20 +33,16 @@ export class ListCommitsUseCase {
   ): Promise<ListCommitsResponse> {
     const { worktreeId, limit, after, tip } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const page = await this.listCommits.execute(
           { worktreeId, limit, after, tip },
           signal,
-        );
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          { signal },
         );
         return page;
       },

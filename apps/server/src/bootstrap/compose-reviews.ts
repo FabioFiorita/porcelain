@@ -108,6 +108,7 @@ export function composeReviews(
   );
   const publishReview = new PublishReviewUseCase(
     checkWorktree,
+    shared.confirmWorktree,
     shared.readReviewEvidence,
     new PublishReviewService(
       reviewStore,
@@ -195,6 +196,7 @@ export function composeReviews(
     ),
     setReviewedFile: new SetReviewedFileUseCase(
       checkWorktree,
+      shared.confirmWorktree,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
       setReviewedFiles,
@@ -204,6 +206,7 @@ export function composeReviews(
     ),
     setReviewedFiles: new SetReviewedFilesUseCase(
       checkWorktree,
+      shared.confirmWorktree,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
       setReviewedFiles,
@@ -229,6 +232,7 @@ export function composeReviews(
     ),
     setReviewedLayer: new SetReviewedLayerUseCase(
       checkWorktree,
+      shared.confirmWorktree,
       new ReadReviewLayerService(reviewStore),
       readReviewTexts,
       new SetReviewedLayerService(reviewedLayerStore, clock),

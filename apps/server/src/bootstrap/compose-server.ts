@@ -1,5 +1,6 @@
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
+import { ConfirmWorktreeService } from '@porcelain/projects/services';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { openStorageSession } from '@porcelain/storage';
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
@@ -62,6 +63,7 @@ export const openServer: OpenServer = async (input) => {
     deadlineMs: () =>
       operationDeadlineMs(catalog.observations().length, limits),
     readCapacity: limits.lanes.readCapacity,
+    consistency: new ConfirmWorktreeService(catalog),
     closeResources: () => session.close(),
   });
   const logger = new StderrLogger(clock);

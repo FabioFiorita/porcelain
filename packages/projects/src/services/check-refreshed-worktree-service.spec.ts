@@ -61,7 +61,7 @@ describe('CheckRefreshedWorktreeService', () => {
     expect(
       service('2026-09-24T12:00:00.000Z').execute({
         worktreeId: worktree.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toEqual(worktree);
   });
@@ -70,7 +70,7 @@ describe('CheckRefreshedWorktreeService', () => {
     expect(() =>
       service('2026-09-24T11:00:00.000Z').execute({
         worktreeId: worktree.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toThrow(WorktreeUnavailableError);
   });
@@ -79,7 +79,7 @@ describe('CheckRefreshedWorktreeService', () => {
     expect(() =>
       service('2026-09-24T12:00:00.000Z', []).execute({
         worktreeId: worktree.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toThrow(WorktreeNotFoundError);
   });

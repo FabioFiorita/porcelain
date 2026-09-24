@@ -8,6 +8,7 @@ export type {
   CheckWorktreeInput,
   CheckWorktreeOptions,
   CheckWorktreeResult,
+  ConfirmWorktreeInput,
   WorktreeCheckAnswer,
 } from './check-worktree.ts';
 export type {

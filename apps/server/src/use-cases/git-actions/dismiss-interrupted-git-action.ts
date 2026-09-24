@@ -35,7 +35,7 @@ export class DismissInterruptedGitActionUseCase {
     context: OperationContext,
   ): Promise<DismissInterruptedGitActionResponse> {
     const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, purpose: 'reading' },
+      { worktreeId: input.worktreeId, requireAvailableProject: false },
       context,
     );
     const result = await this.lanes.run(

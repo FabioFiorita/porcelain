@@ -6,6 +6,7 @@ import type {
   PublishReviewService,
   ReadReviewEvidenceService,
 } from '@porcelain/reviews/services';
+import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -14,6 +15,7 @@ import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class PublishReviewUseCase {
   private readonly checkWorktree: WorktreeCheck;
+  private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly publishReview: PublishReviewService;
   private readonly readEnvironment: ReadEnvironmentService;
@@ -24,6 +26,7 @@ export class PublishReviewUseCase {
 
   constructor(
     checkWorktree: WorktreeCheck,
+    confirmWorktree: ConfirmWorktreeService,
     readReviewEvidence: ReadReviewEvidenceService,
     publishReview: PublishReviewService,
     readEnvironment: ReadEnvironmentService,
@@ -33,6 +36,7 @@ export class PublishReviewUseCase {
     events: EventPublisher,
   ) {
     this.checkWorktree = checkWorktree;
+    this.confirmWorktree = confirmWorktree;
     this.readReviewEvidence = readReviewEvidence;
     this.publishReview = publishReview;
     this.readEnvironment = readEnvironment;
@@ -48,7 +52,7 @@ export class PublishReviewUseCase {
   ): Promise<PublishReviewToolResponse> {
     const { worktreeId, review: draft } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'writing' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     const published = await this.lanes.run(
@@ -59,6 +63,7 @@ export class PublishReviewUseCase {
           { worktreeId, layers: draft.layers },
           signal,
         );
+        this.confirmWorktree.execute({ worktree });
         const { review, warnings } = this.publishReview.execute({
           worktreeId,
           draft,

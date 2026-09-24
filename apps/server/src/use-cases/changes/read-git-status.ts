@@ -44,16 +44,16 @@ export class ReadGitStatusUseCase {
   ): Promise<ReadGitStatusResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     const lane = this.laneKeys.repository(worktree);
     return this.sharedReads.run(
       `status\0${lane}\0${worktreeId}`,
       (shared) =>
-        this.lanes.run<ReadGitStatusResponse>(
+        this.lanes.runConsistent<ReadGitStatusResponse>(
           lane,
-          'read',
+          worktree,
           async ({ signal }) => {
             const status = await this.readWorktreeStatus.execute(
               { worktreeId },
@@ -62,10 +62,6 @@ export class ReadGitStatusUseCase {
             const details = await this.readBranchDetails.execute(
               { worktreeId, branch: status.branch, headOid: status.headOid },
               signal,
-            );
-            await this.checkWorktree.execute(
-              { worktreeId, purpose: 'reading' },
-              { signal },
             );
             return {
               environmentId: this.readEnvironment.execute().environmentId,

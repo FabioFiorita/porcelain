@@ -31,7 +31,7 @@ export class ReadGitActionReceiptUseCase {
     context: OperationContext,
   ): Promise<ReadGitActionReceiptResponse> {
     const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, purpose: 'reading' },
+      { worktreeId: input.worktreeId, requireAvailableProject: false },
       context,
     );
     return this.lanes.run(

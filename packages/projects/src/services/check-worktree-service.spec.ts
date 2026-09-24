@@ -77,13 +77,19 @@ const found = { kind: 'found', worktree };
 describe('CheckWorktreeService', () => {
   it('answers a worktree the last refresh found, for reading', () => {
     expect(
-      service().execute({ worktreeId: worktree.id, purpose: 'reading' }),
+      service().execute({
+        worktreeId: worktree.id,
+        requireAvailableProject: false,
+      }),
     ).toEqual(found);
   });
 
   it('answers an available worktree of an available project for writing', () => {
     expect(
-      service().execute({ worktreeId: worktree.id, purpose: 'writing' }),
+      service().execute({
+        worktreeId: worktree.id,
+        requireAvailableProject: true,
+      }),
     ).toEqual(found);
   });
 
@@ -91,7 +97,7 @@ describe('CheckWorktreeService', () => {
     expect(
       service({ projects: [{ ...project, available: false }] }).execute({
         worktreeId: worktree.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toEqual(found);
   });
@@ -100,7 +106,7 @@ describe('CheckWorktreeService', () => {
     expect(() =>
       service({ projects: [{ ...project, available: false }] }).execute({
         worktreeId: worktree.id,
-        purpose: 'writing',
+        requireAvailableProject: true,
       }),
     ).toThrow(WorktreeUnavailableError);
   });
@@ -109,7 +115,7 @@ describe('CheckWorktreeService', () => {
     expect(() =>
       service({
         catalog: [observed({}, [{ ...worktree, available: false }])],
-      }).execute({ worktreeId: worktree.id, purpose: 'writing' }),
+      }).execute({ worktreeId: worktree.id, requireAvailableProject: true }),
     ).toThrow(WorktreeUnavailableError);
   });
 
@@ -117,14 +123,17 @@ describe('CheckWorktreeService', () => {
     expect(() =>
       service({ projects: [] }).execute({
         worktreeId: worktree.id,
-        purpose: 'writing',
+        requireAvailableProject: true,
       }),
     ).toThrow(WorktreeUnavailableError);
   });
 
   it('refuses a worktree no fresh refresh has seen', () => {
     expect(() =>
-      service().execute({ worktreeId: 'unknown', purpose: 'reading' }),
+      service().execute({
+        worktreeId: 'unknown',
+        requireAvailableProject: false,
+      }),
     ).toThrow(WorktreeNotFoundError);
   });
 
@@ -132,7 +141,7 @@ describe('CheckWorktreeService', () => {
     expect(() =>
       service({ catalog: [observed({ listed: false }, [])] }).execute({
         worktreeId: 'unknown',
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toThrow(WorktreeUnavailableError);
   });
@@ -141,7 +150,7 @@ describe('CheckWorktreeService', () => {
     expect(() =>
       service({ catalog: [observed({ listed: false })] }).execute({
         worktreeId: worktree.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toThrow(WorktreeUnavailableError);
   });
@@ -151,7 +160,7 @@ describe('CheckWorktreeService', () => {
       service().execute({
         worktreeId: worktree.id,
         projectId: project.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toEqual(found);
   });
@@ -161,7 +170,7 @@ describe('CheckWorktreeService', () => {
       service().execute({
         worktreeId: worktree.id,
         projectId: 'project-2',
-        purpose: 'writing',
+        requireAvailableProject: true,
       }),
     ).toThrow(WorktreeNotFoundError);
   });
@@ -170,7 +179,7 @@ describe('CheckWorktreeService', () => {
     expect(
       service({
         catalog: [observed({ observedAt: '2026-09-24T11:58:59.999Z' })],
-      }).execute({ worktreeId: worktree.id, purpose: 'reading' }),
+      }).execute({ worktreeId: worktree.id, requireAvailableProject: false }),
     ).toEqual({ kind: 'stale' });
   });
 
@@ -178,7 +187,7 @@ describe('CheckWorktreeService', () => {
     expect(
       service({
         catalog: [observed({ observedAt: '2026-09-24T11:59:00.000Z' })],
-      }).execute({ worktreeId: worktree.id, purpose: 'reading' }),
+      }).execute({ worktreeId: worktree.id, requireAvailableProject: false }),
     ).toEqual(found);
   });
 
@@ -186,7 +195,7 @@ describe('CheckWorktreeService', () => {
     expect(
       service({ catalog: [] }).execute({
         worktreeId: worktree.id,
-        purpose: 'reading',
+        requireAvailableProject: false,
       }),
     ).toEqual({ kind: 'stale' });
   });
@@ -195,7 +204,7 @@ describe('CheckWorktreeService', () => {
     expect(
       service({
         catalog: [observed({ observedAt: '2026-09-24T11:00:00.000Z' }, [])],
-      }).execute({ worktreeId: 'unknown', purpose: 'reading' }),
+      }).execute({ worktreeId: 'unknown', requireAvailableProject: false }),
     ).toEqual({ kind: 'stale' });
   });
 });

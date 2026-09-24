@@ -25,6 +25,7 @@ import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import {
   CheckRefreshedWorktreeService,
   CheckWorktreeService,
+  ConfirmWorktreeService,
   ListKnownWorktreesService,
   ListRecordedWorktreesService,
   ListRegisteredProjectsService,
@@ -112,6 +113,7 @@ export function composeShared(dependencies: SharedDependencies) {
       dependencies.clock,
       staleness,
     ),
+    confirmWorktree: new ConfirmWorktreeService(catalog),
     checkRefreshedWorktree: new CheckRefreshedWorktreeService(
       catalog,
       stores.inventory,

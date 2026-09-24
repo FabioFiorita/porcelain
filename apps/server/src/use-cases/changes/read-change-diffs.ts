@@ -59,12 +59,12 @@ export class ReadChangeDiffsUseCase {
     const { worktreeId, expectedStatusToken, expectedFiles, selections } =
       input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const before = await this.readWorktreeStatus.execute(
           { worktreeId },
@@ -106,10 +106,6 @@ export class ReadChangeDiffsUseCase {
           previousStamp: observed.stamp,
         });
         if (moved) throw this.failure(moved);
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          { signal },
-        );
         return {
           environmentId: this.readEnvironment.execute().environmentId,
           worktreeId,

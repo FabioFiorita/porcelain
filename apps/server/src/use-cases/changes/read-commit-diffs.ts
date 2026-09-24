@@ -39,21 +39,17 @@ export class ReadCommitDiffsUseCase {
   ): Promise<ReadCommitDiffsResponse> {
     const { worktreeId, oid, parent, paths } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         await this.checkCommit.execute({ worktreeId, oid, parent }, signal);
         const diffs = await this.readCommitDiffs.execute(
           { worktreeId, oid, parent, paths },
           signal,
-        );
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          { signal },
         );
         return diffs;
       },

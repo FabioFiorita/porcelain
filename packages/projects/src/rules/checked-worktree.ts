@@ -42,7 +42,7 @@ export function checkedWorktree(
   if (stale(entry.observation)) return { kind: 'stale' };
   if (!entry.observation.listed) return { kind: 'unavailable' };
   if (
-    input.purpose === 'writing' &&
+    input.requireAvailableProject &&
     !worktreeIsWritable(entry.worktree, project)
   )
     return { kind: 'unavailable' };

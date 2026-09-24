@@ -44,12 +44,12 @@ export class ReadChangesUseCase {
   ): Promise<ReadChangesResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run<ReadChangesResponse>(
+    return this.lanes.runConsistent<ReadChangesResponse>(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
@@ -58,10 +58,6 @@ export class ReadChangesUseCase {
         const { changes } = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
-        );
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          { signal },
         );
         const interrupted = this.readInterruptedGitAction.execute({
           worktreeId,

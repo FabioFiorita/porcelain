@@ -34,7 +34,7 @@ export class CheckWorktreeService {
       input,
       entry,
       this.catalog.observations(),
-      entry && input.purpose === 'writing'
+      entry && input.requireAvailableProject
         ? this.inventory.find({ projectId: entry.worktree.projectId })
         : undefined,
       { now: this.clock.now(), staleAfterMs: this.options.staleAfterMs },

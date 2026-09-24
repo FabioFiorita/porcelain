@@ -33,20 +33,16 @@ export class ReadCommitFilesUseCase {
   ): Promise<ReadCommitFilesResponse> {
     const { worktreeId, oid, parent } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.repository(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const files = await this.readCommitFiles.execute(
           { worktreeId, oid, parent },
           signal,
-        );
-        await this.checkWorktree.execute(
-          { worktreeId, purpose: 'reading' },
-          { signal },
         );
         return files;
       },

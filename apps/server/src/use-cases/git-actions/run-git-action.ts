@@ -95,7 +95,7 @@ export class RunGitActionUseCase {
     const { worktreeId } = input;
     const { upstreamOid, ...expected } = input.expected;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'writing' },
+      { worktreeId, requireAvailableProject: true },
       context,
     );
     const { projectId } = worktree;

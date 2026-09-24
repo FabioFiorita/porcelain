@@ -44,12 +44,12 @@ export class ReadPublishedReviewUseCase {
   ): Promise<ReadPublishedReviewResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'reading' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
-    return this.lanes.run(
+    return this.lanes.runConsistent(
       this.laneKeys.reviews(worktree),
-      'read',
+      worktree,
       async ({ signal }) => {
         const published = this.readPublishedReview.execute({ worktreeId });
         if (published.kind === 'none') return { review: undefined };

@@ -37,7 +37,7 @@ export class UpdateCommentThreadUseCase {
   ): Promise<UpdateCommentThreadResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'writing' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     const thread = await this.lanes.run(

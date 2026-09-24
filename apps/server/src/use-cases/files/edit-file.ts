@@ -41,7 +41,7 @@ export class EditFileUseCase {
     context: OperationContext,
   ): Promise<EditFileResponse> {
     const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, purpose: 'writing' },
+      { worktreeId: input.worktreeId, requireAvailableProject: true },
       context,
     );
     const paths =
@@ -54,7 +54,7 @@ export class EditFileUseCase {
       async ({ signal }) => {
         const edited = await this.editFile.execute(input, signal);
         await this.checkWorktree.execute(
-          { worktreeId: input.worktreeId, purpose: 'writing' },
+          { worktreeId: input.worktreeId, requireAvailableProject: true },
           { signal },
         );
         this.invalidateReviewedMarks.execute({

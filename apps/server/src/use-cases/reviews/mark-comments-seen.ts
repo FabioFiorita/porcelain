@@ -37,7 +37,7 @@ export class MarkCommentsSeenUseCase {
   ): Promise<MarkCommentsSeenResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
-      { worktreeId, purpose: 'writing' },
+      { worktreeId, requireAvailableProject: false },
       context,
     );
     const result = await this.lanes.run(
