@@ -8,3 +8,8 @@ export type ReadFileAssetResult = {
   mediaType: string;
   base64: string;
 };
+
+export type ReadFileAssetOptions = {
+  maxBytes: number;
+  base64ChunkBytes: number;
+};

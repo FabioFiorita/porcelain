@@ -1,4 +1,4 @@
-import type { Device } from './device.ts';
+import type { Device, DeviceDetailLimits } from './device.ts';
 
 export type RedeemPairingInput = {
   code: string;
@@ -7,3 +7,5 @@ export type RedeemPairingInput = {
 };
 
 export type RedeemPairingResult = { device: Device; credential: string };
+
+export type RedeemPairingOptions = DeviceDetailLimits;

@@ -1,3 +1,5 @@
+import type { SignatureRequest } from '../models/review.ts';
+
 export interface SignatureSource {
-  sign(input: { secret: string; message: string }): string;
+  sign(input: SignatureRequest): string;
 }

@@ -1,8 +1,13 @@
-import type { StoredDevice } from '../models/device.ts';
+import type {
+  DeviceKey,
+  DeviceRevocation,
+  DeviceSighting,
+  StoredDevice,
+} from '../models/device.ts';
 
 export interface DeviceStore {
-  find(input: { deviceId: string }): StoredDevice | undefined;
+  find(input: DeviceKey): StoredDevice | undefined;
   list(): StoredDevice[];
-  markRevoked(input: { device: StoredDevice; revokedAt: string }): void;
-  recordSighting(input: { device: StoredDevice }): void;
+  markRevoked(input: DeviceRevocation): void;
+  recordSighting(input: DeviceSighting): void;
 }

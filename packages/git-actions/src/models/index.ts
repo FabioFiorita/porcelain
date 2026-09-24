@@ -4,6 +4,7 @@ export type {
 } from './accept-git-action.ts';
 export type {
   CaptureCommitDraftInput,
+  CaptureCommitDraftOptions,
   CaptureCommitDraftResult,
 } from './capture-commit-draft.ts';
 export type {
@@ -32,6 +33,7 @@ export type {
 export type { FingerprintedFile } from './fingerprinted-file.ts';
 export type {
   GenerateCommitDraftInput,
+  GenerateCommitDraftOptions,
   GenerateCommitDraftResult,
 } from './generate-commit-draft.ts';
 export type {
@@ -47,6 +49,8 @@ export type { GitActionReason } from './git-action-reason.ts';
 export type {
   FinishedGitAction,
   GitActionReceipt,
+  GitActionReceiptKey,
+  GitActionReceiptRemoval,
   GitActionReceiptState,
 } from './git-action-receipt.ts';
 export type { GitActionReceiptView } from './git-action-receipt-view.ts';
@@ -78,9 +82,11 @@ export type {
 } from './read-interrupted-git-action.ts';
 export type {
   RecordGitActionProgressInput,
+  RecordGitActionProgressOptions,
   RecordGitActionProgressResult,
 } from './record-git-action-progress.ts';
 export type {
   RunGitActionInput,
   RunGitActionResult,
 } from './run-git-action.ts';
+export type { ExpireGitActionReceiptsOptions } from './expire-git-action-receipts.ts';

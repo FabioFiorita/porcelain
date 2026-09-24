@@ -9,5 +9,10 @@ export type {
   UnmergedComparison,
   UntrackedComparison,
 } from './change.ts';
-export type { Worktree, WorktreeCheck } from './worktree.ts';
+export type {
+  Worktree,
+  WorktreeCheck,
+  WorktreeKey,
+  WorktreeKeys,
+} from './worktree.ts';
 export type { WorktreeStatus, WorktreeStatuses } from './worktree-status.ts';

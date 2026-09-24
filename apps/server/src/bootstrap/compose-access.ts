@@ -80,8 +80,10 @@ export function composeAccess(
         clock,
         ids,
         secretSource,
-        limits.pairingGrant,
-        limits.deviceDetails,
+        {
+          lifetimeMs: limits.pairingGrant.lifetimeMs,
+          labelLength: limits.deviceDetails.labelLength,
+        },
       ),
       lanes,
       laneKeys,

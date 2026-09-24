@@ -20,4 +20,4 @@ export type IssuedPairingGrant = {
 
 export type IssuePairingResult = { grants: IssuedPairingGrant[] };
 
-export type IssuePairingOptions = { lifetimeMs: number };
+export type IssuePairingOptions = { lifetimeMs: number; labelLength: number };

@@ -1,11 +1,10 @@
 import type {
   RecordGitActionProgressInput,
+  RecordGitActionProgressOptions,
   RecordGitActionProgressResult,
 } from '../models/record-git-action-progress.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
-
-export type RecordGitActionProgressOptions = { progressLines: number };
 
 export class RecordGitActionProgressService {
   private readonly gitActionReceipts: GitActionReceiptStore;

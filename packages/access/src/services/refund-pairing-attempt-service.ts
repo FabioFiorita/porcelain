@@ -1,22 +1,25 @@
 import type { Clock } from '@porcelain/kernel/ports';
-import type { PairingAttemptLimits } from '../models/pairing-attempts.ts';
-import type { RefundPairingAttemptInput } from '../models/refund-pairing-attempt.ts';
+
+import type {
+  RefundPairingAttemptInput,
+  RefundPairingAttemptOptions,
+} from '../models/refund-pairing-attempt.ts';
 import type { PairingAttemptStore } from '../ports/pairing-attempt-store.ts';
 import { refundPairingAttempt } from '../rules/pairing-attempts.ts';
 
 export class RefundPairingAttemptService {
   private readonly pairingAttempts: PairingAttemptStore;
   private readonly clock: Clock;
-  private readonly limits: PairingAttemptLimits;
+  private readonly options: RefundPairingAttemptOptions;
 
   constructor(
     pairingAttempts: PairingAttemptStore,
     clock: Clock,
-    limits: PairingAttemptLimits,
+    options: RefundPairingAttemptOptions,
   ) {
     this.pairingAttempts = pairingAttempts;
     this.clock = clock;
-    this.limits = limits;
+    this.options = options;
   }
 
   execute(input: RefundPairingAttemptInput): void {
@@ -25,7 +28,7 @@ export class RefundPairingAttemptService {
         this.pairingAttempts.read(),
         input.peer,
         this.clock.now(),
-        this.limits,
+        this.options,
       ),
     );
   }

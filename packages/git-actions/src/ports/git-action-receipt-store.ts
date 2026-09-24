@@ -1,16 +1,17 @@
+import type { WorktreeKey } from '@porcelain/kernel/models';
 import type {
   FinishedGitAction,
   GitActionReceipt,
+  GitActionReceiptKey,
+  GitActionReceiptRemoval,
 } from '../models/git-action-receipt.ts';
 
 export interface GitActionReceiptStore {
-  read(input: { requestId: string }): GitActionReceipt | undefined;
+  read(input: GitActionReceiptKey): GitActionReceipt | undefined;
   insert(input: GitActionReceipt): void;
   save(input: GitActionReceipt): void;
   running(): GitActionReceipt[];
-  latestInterrupted(input: {
-    worktreeId: string;
-  }): GitActionReceipt | undefined;
+  latestInterrupted(input: WorktreeKey): GitActionReceipt | undefined;
   finished(): FinishedGitAction[];
-  remove(input: { requestIds: string[] }): void;
+  remove(input: GitActionReceiptRemoval): void;
 }

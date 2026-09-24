@@ -5,3 +5,5 @@ export type RecordGitActionProgressInput = { requestId: string; line: string };
 export type RecordGitActionProgressResult =
   | { kind: 'recorded'; receipt: GitActionReceiptView }
   | { kind: 'not-running' };
+
+export type RecordGitActionProgressOptions = { progressLines: number };

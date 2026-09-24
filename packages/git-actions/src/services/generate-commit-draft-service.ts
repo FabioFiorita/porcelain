@@ -6,10 +6,10 @@ import { UnsupportedCommitModelError } from '../errors/unsupported-commit-model-
 import type {
   CommitDraftGeneration,
   CommitGroup,
-  CommitGroupLimits,
 } from '../models/commit-draft.ts';
 import type {
   GenerateCommitDraftInput,
+  GenerateCommitDraftOptions,
   GenerateCommitDraftResult,
 } from '../models/generate-commit-draft.ts';
 import type { CommitDraftSource } from '../ports/commit-draft-source.ts';
@@ -17,11 +17,11 @@ import { commitGroupsCoverSelection } from '../rules/commit-groups-cover-selecti
 
 export class GenerateCommitDraftService {
   private readonly commitDraftSource: CommitDraftSource;
-  private readonly options: CommitGroupLimits;
+  private readonly options: GenerateCommitDraftOptions;
 
   constructor(
     commitDraftSource: CommitDraftSource,
-    options: CommitGroupLimits,
+    options: GenerateCommitDraftOptions,
   ) {
     this.commitDraftSource = commitDraftSource;
     this.options = options;

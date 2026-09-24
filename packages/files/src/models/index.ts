@@ -1,6 +1,10 @@
 export type { DirectoryEntry, EntryKind } from './directory-entry.ts';
 export type { DirectoryRead, DirectoryReadInput } from './directory-read.ts';
-export type { EditFileInput, EditFileResult } from './edit-file.ts';
+export type {
+  EditFileInput,
+  EditFileOptions,
+  EditFileResult,
+} from './edit-file.ts';
 export type { FileEdit } from './file-edit.ts';
 export type {
   FileFailure,
@@ -20,6 +24,7 @@ export type {
 export type { IgnoredEntriesReadInput } from './ignored-entries-read.ts';
 export type {
   ListDirectoryInput,
+  ListDirectoryOptions,
   ListDirectoryResult,
 } from './list-directory.ts';
 export type {
@@ -29,14 +34,17 @@ export type {
 export type { PreviewAsset } from './preview-asset.ts';
 export type {
   ReadFileAssetInput,
+  ReadFileAssetOptions,
   ReadFileAssetResult,
 } from './read-file-asset.ts';
 export type {
   ReadPreviewAssetsInput,
+  ReadPreviewAssetsOptions,
   ReadPreviewAssetsResult,
 } from './read-preview-assets.ts';
 export type {
   ReadTextFileInput,
+  ReadTextFileOptions,
   ReadTextFileResult,
 } from './read-text-file.ts';
 export type {

@@ -4,6 +4,7 @@ import { CommitDraftSelectionError } from '../errors/commit-draft-selection-erro
 import { CommitDraftTooLargeError } from '../errors/commit-draft-too-large-error.ts';
 import type {
   CaptureCommitDraftInput,
+  CaptureCommitDraftOptions,
   CaptureCommitDraftResult,
 } from '../models/capture-commit-draft.ts';
 import type { CommitDraftUntrackedContent } from '../models/commit-draft-evidence.ts';
@@ -12,12 +13,6 @@ import type { SelectedDiffReader } from '../ports/selected-diff-reader.ts';
 import type { UntrackedFileReader } from '../ports/untracked-file-reader.ts';
 import { changedPaths } from '../rules/changed-paths.ts';
 import { untrackedEvidence } from '../rules/untracked-evidence.ts';
-
-export type CaptureCommitDraftOptions = {
-  maxComparisons: number;
-  maxEvidenceBytes: number;
-  maxUntrackedBytes: number;
-};
 
 export class CaptureCommitDraftService {
   private readonly selectedDiffReader: SelectedDiffReader;

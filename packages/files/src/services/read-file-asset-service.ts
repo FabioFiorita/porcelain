@@ -6,16 +6,12 @@ import { UnsupportedAssetTypeError } from '../errors/unsupported-asset-type-erro
 import type { ReadFailure } from '../models/file-failure.ts';
 import type {
   ReadFileAssetInput,
+  ReadFileAssetOptions,
   ReadFileAssetResult,
 } from '../models/read-file-asset.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
 import { encodeBase64 } from '../rules/encode-base64.ts';
-
-export type ReadFileAssetOptions = {
-  maxBytes: number;
-  base64ChunkBytes: number;
-};
 
 export class ReadFileAssetService {
   private readonly fileReader: FileReader;

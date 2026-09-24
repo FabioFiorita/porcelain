@@ -30,3 +30,7 @@ export type GitActionReceipt = {
 };
 
 export type FinishedGitAction = { requestId: string; finishedAt: string };
+
+export type GitActionReceiptKey = { requestId: string };
+
+export type GitActionReceiptRemoval = { requestIds: string[] };

@@ -6,10 +6,10 @@ import { CommentRevisionMismatchError } from '../errors/comment-revision-mismatc
 import type {
   CommentAnchorProblem,
   CommentContent,
-  CommentLimits,
 } from '../models/comment-thread.ts';
 import type {
   CreateCommentThreadInput,
+  CreateCommentThreadOptions,
   CreateCommentThreadResult,
 } from '../models/create-comment-thread.ts';
 import type { CommentStore } from '../ports/comment-store.ts';
@@ -25,18 +25,18 @@ export class CreateCommentThreadService {
   private readonly comments: CommentStore;
   private readonly idSource: IdSource;
   private readonly clock: Clock;
-  private readonly limits: CommentLimits;
+  private readonly options: CreateCommentThreadOptions;
 
   constructor(
     comments: CommentStore,
     idSource: IdSource,
     clock: Clock,
-    limits: CommentLimits,
+    options: CreateCommentThreadOptions,
   ) {
     this.comments = comments;
     this.idSource = idSource;
     this.clock = clock;
-    this.limits = limits;
+    this.options = options;
   }
 
   execute(input: CreateCommentThreadInput): CreateCommentThreadResult {
@@ -76,7 +76,7 @@ export class CreateCommentThreadService {
     };
     const sizeBytes = commentStorageSize(content);
     const usage = this.comments.usage({ worktreeId: input.worktreeId });
-    if (!threadFits(usage, sizeBytes, this.limits))
+    if (!threadFits(usage, sizeBytes, this.options))
       throw new CommentLimitExceededError();
     return this.comments.insert({
       content,

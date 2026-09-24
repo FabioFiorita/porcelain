@@ -99,3 +99,13 @@ export type ReviewSummary = Pick<
   Review,
   'summaryHtml' | 'summaryToken' | 'summarySecret'
 >;
+
+export type ReviewSummaryKey = { token: string };
+
+export type ReviewActivity = {
+  worktreeId: string;
+  revision: number;
+  active: boolean;
+};
+
+export type SignatureRequest = { secret: string; message: string };

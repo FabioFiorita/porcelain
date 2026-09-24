@@ -11,3 +11,5 @@ export type ReadTextFileResult = {
   text: string;
   contentFingerprint: string;
 };
+
+export type ReadTextFileOptions = { maxBytes: number };

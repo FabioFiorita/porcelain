@@ -8,7 +8,6 @@ import type {
   IssuePairingOptions,
   IssuePairingResult,
 } from '../models/issue-pairing.ts';
-import type { DeviceDetailLimits } from '../models/device.ts';
 import type { PairingGrant } from '../models/pairing-grant.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import type { PairingReachReader } from '../ports/pairing-reach-reader.ts';
@@ -24,7 +23,6 @@ export class IssuePairingService {
   private readonly idSource: IdSource;
   private readonly secretSource: SecretSource;
   private readonly options: IssuePairingOptions;
-  private readonly deviceDetails: DeviceDetailLimits;
 
   constructor(
     pairingGrants: PairingGrantStore,
@@ -33,7 +31,6 @@ export class IssuePairingService {
     idSource: IdSource,
     secretSource: SecretSource,
     options: IssuePairingOptions,
-    deviceDetails: DeviceDetailLimits,
   ) {
     this.pairingGrants = pairingGrants;
     this.pairingReachReader = pairingReachReader;
@@ -41,7 +38,6 @@ export class IssuePairingService {
     this.idSource = idSource;
     this.secretSource = secretSource;
     this.options = options;
-    this.deviceDetails = deviceDetails;
   }
 
   execute(input: IssuePairingInput): IssuePairingResult {
@@ -53,7 +49,7 @@ export class IssuePairingService {
     )
       throw new InvalidPairingAddressError();
     const labels = input.labels.map((label) =>
-      this.detail(validLabel(label, this.deviceDetails.labelLength)),
+      this.detail(validLabel(label, this.options.labelLength)),
     );
     const createdAt = this.clock.now();
     const expiresAt = instantAfter(createdAt, this.options.lifetimeMs);

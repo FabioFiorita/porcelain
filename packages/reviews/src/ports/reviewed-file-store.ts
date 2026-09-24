@@ -1,12 +1,14 @@
-import type { ReviewedFileMark } from '../models/reviewed-mark.ts';
+import type { WorktreeKey } from '@porcelain/kernel/models';
+import type {
+  ReviewedFileMark,
+  ReviewedFileRemoval,
+  ReviewedFileSave,
+  ReviewedFileStaleness,
+} from '../models/reviewed-mark.ts';
 
 export interface ReviewedFileStore {
-  list(input: { worktreeId: string }): ReviewedFileMark[];
-  save(input: { worktreeId: string; marks: readonly ReviewedFileMark[] }): void;
-  remove(input: { worktreeId: string; paths: readonly string[] }): void;
-  setStale(input: {
-    worktreeId: string;
-    paths: readonly string[];
-    stale: boolean;
-  }): void;
+  list(input: WorktreeKey): ReviewedFileMark[];
+  save(input: ReviewedFileSave): void;
+  remove(input: ReviewedFileRemoval): void;
+  setStale(input: ReviewedFileStaleness): void;
 }

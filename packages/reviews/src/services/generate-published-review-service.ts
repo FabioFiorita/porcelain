@@ -2,9 +2,10 @@ import type { Clock } from '@porcelain/kernel/ports';
 import { instantAfter, utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
   GeneratePublishedReviewInput,
+  GeneratePublishedReviewOptions,
   GeneratePublishedReviewResult,
 } from '../models/generate-published-review.ts';
-import type { SummaryLinkLimits } from '../models/resolved-review.ts';
+
 import type { SignatureSource } from '../ports/signature-source.ts';
 import {
   resolveReview,
@@ -16,22 +17,22 @@ import { summaryMessage } from '../rules/review-digests.ts';
 export class GeneratePublishedReviewService {
   private readonly clock: Clock;
   private readonly signatureSource: SignatureSource;
-  private readonly limits: SummaryLinkLimits;
+  private readonly options: GeneratePublishedReviewOptions;
 
   constructor(
     clock: Clock,
     signatureSource: SignatureSource,
-    limits: SummaryLinkLimits,
+    options: GeneratePublishedReviewOptions,
   ) {
     this.clock = clock;
     this.signatureSource = signatureSource;
-    this.limits = limits;
+    this.options = options;
   }
 
   execute(input: GeneratePublishedReviewInput): GeneratePublishedReviewResult {
     const { review, evidence } = input;
     const { changes, diagnostics, layers } = resolveReview(review, evidence);
-    const expires = instantAfter(this.clock.now(), this.limits.lifetimeMs);
+    const expires = instantAfter(this.clock.now(), this.options.lifetimeMs);
     const signature = this.signatureSource.sign({
       secret: review.summarySecret,
       message: summaryMessage(review.summaryToken, expires),

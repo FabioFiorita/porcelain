@@ -2,6 +2,7 @@ import type {
   CommitDraft,
   CommitDraftCapture,
   CommitDraftMode,
+  CommitGroupLimits,
 } from './commit-draft.ts';
 
 export type GenerateCommitDraftInput = {
@@ -11,3 +12,5 @@ export type GenerateCommitDraftInput = {
 };
 
 export type GenerateCommitDraftResult = CommitDraft;
+
+export type GenerateCommitDraftOptions = CommitGroupLimits;

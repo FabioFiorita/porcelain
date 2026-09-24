@@ -1,8 +1,9 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
-import type { ReviewedFileLimits } from '../models/reviewed-mark.ts';
+
 import type {
   SetReviewedFilesInput,
+  SetReviewedFilesOptions,
   SetReviewedFilesResult,
 } from '../models/set-reviewed-files.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
@@ -15,16 +16,16 @@ import {
 export class SetReviewedFilesService {
   private readonly reviewedFiles: ReviewedFileStore;
   private readonly clock: Clock;
-  private readonly limits: ReviewedFileLimits;
+  private readonly options: SetReviewedFilesOptions;
 
   constructor(
     reviewedFiles: ReviewedFileStore,
     clock: Clock,
-    limits: ReviewedFileLimits,
+    options: SetReviewedFilesOptions,
   ) {
     this.reviewedFiles = reviewedFiles;
     this.clock = clock;
-    this.limits = limits;
+    this.options = options;
   }
 
   execute(input: SetReviewedFilesInput): SetReviewedFilesResult {
@@ -40,7 +41,7 @@ export class SetReviewedFilesService {
       paths: evictedPaths(
         this.reviewedFiles.list({ worktreeId }),
         marked,
-        this.limits.marksPerWorktree,
+        this.options.marksPerWorktree,
       ),
     });
     const reviewedAt = this.clock.now();

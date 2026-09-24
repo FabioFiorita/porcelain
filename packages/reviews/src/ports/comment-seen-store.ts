@@ -1,7 +1,11 @@
-import type { CommentSeenMark } from '../models/comment-thread.ts';
+import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
+import type {
+  CommentSeenMark,
+  CommentSeenUpdate,
+} from '../models/comment-thread.ts';
 
 export interface CommentSeenStore {
-  seenThrough(input: { worktreeId: string }): number;
-  seenByWorktrees(input: { worktreeIds: readonly string[] }): CommentSeenMark[];
-  save(input: { worktreeId: string; seenThrough: number }): void;
+  seenThrough(input: WorktreeKey): number;
+  seenByWorktrees(input: WorktreeKeys): CommentSeenMark[];
+  save(input: CommentSeenUpdate): void;
 }

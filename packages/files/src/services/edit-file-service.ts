@@ -8,14 +8,16 @@ import { PathNotFoundError } from '../errors/path-not-found-error.ts';
 import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
 import { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
 import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
-import type { EditFileInput, EditFileResult } from '../models/edit-file.ts';
+import type {
+  EditFileInput,
+  EditFileOptions,
+  EditFileResult,
+} from '../models/edit-file.ts';
 import type { TextFailure, WriteFailure } from '../models/file-failure.ts';
 import type { FileLocation } from '../models/file-location.ts';
 import type { FileWrite } from '../models/file-write.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import type { FileWriter } from '../ports/file-writer.ts';
-
-export type EditFileOptions = { maxCurrentBytes: number };
 
 export class EditFileService {
   private readonly fileReader: FileReader;

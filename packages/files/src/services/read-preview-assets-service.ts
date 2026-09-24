@@ -2,19 +2,13 @@ import type { FileReadInput } from '../models/file-read.ts';
 import type { PreviewAsset } from '../models/preview-asset.ts';
 import type {
   ReadPreviewAssetsInput,
+  ReadPreviewAssetsOptions,
   ReadPreviewAssetsResult,
 } from '../models/read-preview-assets.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
 import { encodeBase64 } from '../rules/encode-base64.ts';
 import { isWorktreeRelativePath } from '../rules/worktree-relative-path.ts';
-
-export type ReadPreviewAssetsOptions = {
-  maxAssetBytes: number;
-  maxTotalBytes: number;
-  maxPathLength: number;
-  base64ChunkBytes: number;
-};
 
 export class ReadPreviewAssetsService {
   private readonly fileReader: FileReader;

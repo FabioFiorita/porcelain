@@ -16,3 +16,9 @@ export type DeviceDetailLimits = {
   labelLength: number;
   platformLength: number;
 };
+
+export type DeviceKey = { deviceId: string };
+
+export type DeviceSighting = { device: StoredDevice };
+
+export type DeviceRevocation = { device: StoredDevice; revokedAt: string };

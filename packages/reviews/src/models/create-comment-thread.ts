@@ -1,5 +1,6 @@
 import type {
   CommentAnchor,
+  CommentLimits,
   CommentThread,
   CommentWriter,
 } from './comment-thread.ts';
@@ -14,3 +15,5 @@ export type CreateCommentThreadInput = {
 };
 
 export type CreateCommentThreadResult = CommentThread;
+
+export type CreateCommentThreadOptions = CommentLimits;

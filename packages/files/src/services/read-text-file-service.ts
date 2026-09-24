@@ -7,11 +7,10 @@ import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
 import type { TextFailure } from '../models/file-failure.ts';
 import type {
   ReadTextFileInput,
+  ReadTextFileOptions,
   ReadTextFileResult,
 } from '../models/read-text-file.ts';
 import type { FileReader } from '../ports/file-reader.ts';
-
-export type ReadTextFileOptions = { maxBytes: number };
 
 export class ReadTextFileService {
   private readonly fileReader: FileReader;

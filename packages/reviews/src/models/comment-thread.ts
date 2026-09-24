@@ -95,3 +95,9 @@ export type CommentSeenMark = {
 export type CommentAnchorProblem =
   | { kind: 'reversed-range' }
   | { kind: 'revision-mismatch' };
+
+export type CommentThreadKey = { threadId: string };
+
+export type CommentMessageKey = { messageId: string };
+
+export type CommentSeenUpdate = { worktreeId: string; seenThrough: number };

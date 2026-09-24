@@ -10,3 +10,8 @@ export type ListDirectoryResult = {
   path: string;
   entries: DirectoryEntry[];
 };
+
+export type ListDirectoryOptions = {
+  maxEntries: number;
+  maxResponseBytes: number;
+};

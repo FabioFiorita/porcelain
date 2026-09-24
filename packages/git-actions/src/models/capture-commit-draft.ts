@@ -8,3 +8,9 @@ export type CaptureCommitDraftInput = {
 };
 
 export type CaptureCommitDraftResult = CommitDraftCapture;
+
+export type CaptureCommitDraftOptions = {
+  maxComparisons: number;
+  maxEvidenceBytes: number;
+  maxUntrackedBytes: number;
+};

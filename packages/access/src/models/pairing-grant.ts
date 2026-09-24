@@ -19,3 +19,12 @@ export type PairingRedemption = {
   redeemedAt: string;
   device: StoredDevice;
 };
+
+export type PairingGrantKey = { grantId: string };
+
+export type NewPairingGrants = { grants: readonly StoredPairingGrant[] };
+
+export type PairingGrantRevocation = {
+  grant: StoredPairingGrant;
+  revokedAt: string;
+};

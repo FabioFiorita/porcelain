@@ -27,8 +27,7 @@ function setup() {
     new FixedClock('2026-09-23T10:00:00.000Z'),
     new SequentialIdSource(),
     new SequentialSecretSource(),
-    { lifetimeMs: 15 * 60 * 1000 },
-    { labelLength: 80, platformLength: 120 },
+    { lifetimeMs: 15 * 60 * 1000, labelLength: 80 },
   );
   return { grants, service };
 }

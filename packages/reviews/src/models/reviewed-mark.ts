@@ -47,3 +47,29 @@ export type ReviewedLayers = {
 export type WorktreeReviewedLayerMark = ReviewedLayerMark & {
   worktreeId: string;
 };
+
+export type ReviewedFileSave = {
+  worktreeId: string;
+  marks: readonly ReviewedFileMark[];
+};
+
+export type ReviewedFileRemoval = {
+  worktreeId: string;
+  paths: readonly string[];
+};
+
+export type ReviewedFileStaleness = {
+  worktreeId: string;
+  paths: readonly string[];
+  stale: boolean;
+};
+
+export type ReviewedLayerSave = { worktreeId: string; mark: ReviewedLayerMark };
+
+export type ReviewedLayerRemoval = { worktreeId: string; layerId: string };
+
+export type ReviewedLayerStaleness = {
+  worktreeId: string;
+  layerIds: readonly string[];
+  stale: boolean;
+};

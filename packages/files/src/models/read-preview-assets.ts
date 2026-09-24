@@ -9,3 +9,10 @@ export type ReadPreviewAssetsInput = {
 export type ReadPreviewAssetsResult = {
   assets: PreviewAsset[];
 };
+
+export type ReadPreviewAssetsOptions = {
+  maxAssetBytes: number;
+  maxTotalBytes: number;
+  maxPathLength: number;
+  base64ChunkBytes: number;
+};

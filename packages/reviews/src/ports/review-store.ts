@@ -1,13 +1,15 @@
-import type { Review, ReviewSummary } from '../models/review.ts';
+import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
+import type {
+  Review,
+  ReviewActivity,
+  ReviewSummary,
+  ReviewSummaryKey,
+} from '../models/review.ts';
 
 export interface ReviewStore {
-  read(input: { worktreeId: string }): Review | undefined;
-  byWorktrees(input: { worktreeIds: readonly string[] }): Review[];
-  findSummary(input: { token: string }): ReviewSummary | undefined;
+  read(input: WorktreeKey): Review | undefined;
+  byWorktrees(input: WorktreeKeys): Review[];
+  findSummary(input: ReviewSummaryKey): ReviewSummary | undefined;
   save(input: Review): void;
-  setActive(input: {
-    worktreeId: string;
-    revision: number;
-    active: boolean;
-  }): void;
+  setActive(input: ReviewActivity): void;
 }

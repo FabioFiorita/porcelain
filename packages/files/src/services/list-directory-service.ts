@@ -8,15 +8,11 @@ import type { DirectoryEntry } from '../models/directory-entry.ts';
 import type { ListFailure } from '../models/file-failure.ts';
 import type {
   ListDirectoryInput,
+  ListDirectoryOptions,
   ListDirectoryResult,
 } from '../models/list-directory.ts';
 import type { DirectoryReader } from '../ports/directory-reader.ts';
 import type { IgnoredEntriesReader } from '../ports/ignored-entries-reader.ts';
-
-export type ListDirectoryOptions = {
-  maxEntries: number;
-  maxResponseBytes: number;
-};
 
 export class ListDirectoryService {
   private readonly directoryReader: DirectoryReader;

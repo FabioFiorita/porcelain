@@ -7,10 +7,13 @@ export type {
   CommentContent,
   CommentLimits,
   CommentMessage,
+  CommentMessageKey,
   CommentReply,
   CommentResolution,
   CommentSeenMark,
+  CommentSeenUpdate,
   CommentThread,
+  CommentThreadKey,
   CommentThreadScope,
   CommentUsage,
   CommentWriter,
@@ -19,10 +22,12 @@ export type {
 } from './comment-thread.ts';
 export type {
   CreateCommentThreadInput,
+  CreateCommentThreadOptions,
   CreateCommentThreadResult,
 } from './create-comment-thread.ts';
 export type {
   GeneratePublishedReviewInput,
+  GeneratePublishedReviewOptions,
   GeneratePublishedReviewResult,
 } from './generate-published-review.ts';
 export type { InvalidateReviewedMarksInput } from './invalidate-reviewed-marks.ts';
@@ -101,6 +106,7 @@ export type {
 } from './remove-reviewed-layer.ts';
 export type {
   ReplyToCommentInput,
+  ReplyToCommentOptions,
   ReplyToCommentResult,
 } from './reply-to-comment.ts';
 export type {
@@ -123,12 +129,15 @@ export type {
   LayerArrow,
   LayerDraft,
   Review,
+  ReviewActivity,
   ReviewDiagram,
   ReviewDraft,
   ReviewDraftProblem,
   ReviewLayer,
   ReviewStep,
   ReviewSummary,
+  ReviewSummaryKey,
+  SignatureRequest,
   StepDraft,
 } from './review.ts';
 export type {
@@ -136,15 +145,22 @@ export type {
   ReviewedFileConflict,
   ReviewedFileLimits,
   ReviewedFileMark,
-  ReviewedFiles,
+  ReviewedFileRemoval,
+  ReviewedFileSave,
   ReviewedFileSelection,
+  ReviewedFileStaleness,
+  ReviewedFiles,
   ReviewedLayerMark,
+  ReviewedLayerRemoval,
+  ReviewedLayerSave,
+  ReviewedLayerStaleness,
   ReviewedLayers,
   ReviewedMark,
   WorktreeReviewedLayerMark,
 } from './reviewed-mark.ts';
 export type {
   SetReviewedFilesInput,
+  SetReviewedFilesOptions,
   SetReviewedFilesResult,
 } from './set-reviewed-files.ts';
 export type {

@@ -1,18 +1,16 @@
+import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
 import type {
   ReviewedLayerMark,
+  ReviewedLayerRemoval,
+  ReviewedLayerSave,
+  ReviewedLayerStaleness,
   WorktreeReviewedLayerMark,
 } from '../models/reviewed-mark.ts';
 
 export interface ReviewedLayerStore {
-  list(input: { worktreeId: string }): ReviewedLayerMark[];
-  byWorktrees(input: {
-    worktreeIds: readonly string[];
-  }): WorktreeReviewedLayerMark[];
-  save(input: { worktreeId: string; mark: ReviewedLayerMark }): void;
-  remove(input: { worktreeId: string; layerId: string }): void;
-  setStale(input: {
-    worktreeId: string;
-    layerIds: readonly string[];
-    stale: boolean;
-  }): void;
+  list(input: WorktreeKey): ReviewedLayerMark[];
+  byWorktrees(input: WorktreeKeys): WorktreeReviewedLayerMark[];
+  save(input: ReviewedLayerSave): void;
+  remove(input: ReviewedLayerRemoval): void;
+  setStale(input: ReviewedLayerStaleness): void;
 }

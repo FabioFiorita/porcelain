@@ -1,8 +1,7 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { receiptExpired } from '../rules/receipt-expired.ts';
-
-export type ExpireGitActionReceiptsOptions = { retentionMs: number };
+import type { ExpireGitActionReceiptsOptions } from '../models/expire-git-action-receipts.ts';
 
 export class ExpireGitActionReceiptsService {
   private readonly gitActionReceipts: GitActionReceiptStore;
