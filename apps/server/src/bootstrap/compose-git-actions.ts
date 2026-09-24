@@ -20,7 +20,8 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
-import type { WorktreeAccess } from '@porcelain/projects/ports';
+import type { ListedWorktree } from '@porcelain/projects/models';
+import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import { CheckProjectService } from '@porcelain/projects/services';
 import type { StorageSession } from '@porcelain/storage';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
@@ -55,7 +56,7 @@ export type GitActionsDependencies = {
   lanes: Lanes;
   laneKeys: LaneKeys;
   events: EventPublisher;
-  worktreeAccess: WorktreeAccess;
+  worktreeAccess: WorktreeAccess<ListedWorktree>;
   actionGit: GitActionWriterFactory;
   fileReader: Pick<FileReader, 'readText'>;
   changes: ChangesServices;

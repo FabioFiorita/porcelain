@@ -1,7 +1,7 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import { GitActionReceiptMismatchError } from '../errors/git-action-receipt-mismatch-error.ts';
 import type { DismissInterruptedGitActionInput } from '../models/git-action-operations.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 
 export class DismissInterruptedGitActionService {

@@ -1,7 +1,7 @@
+import type { ExpectedFile } from '@porcelain/kernel/models';
 import type {
   ChangeDiffs,
   ChangeSelection,
-  ExpectedFile,
 } from '../models/review-evidence.ts';
 
 export interface ChangeDiffReader {

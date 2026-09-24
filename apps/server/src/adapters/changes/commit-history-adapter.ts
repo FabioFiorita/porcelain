@@ -125,7 +125,7 @@ export class CommitHistoryAdapter implements CommitHistoryReader {
   ): Promise<CommitReader> {
     signal?.throwIfAborted();
     const check = await this.worktrees.forWriting(worktreeId, signal);
-    if (check.outcome !== 'found') throw new HistoryWorktreeUnavailableError();
+    if (check.kind !== 'found') throw new HistoryWorktreeUnavailableError();
     const { worktree } = check;
     return this.git({
       path: worktree.path,

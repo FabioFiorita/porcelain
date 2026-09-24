@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentTargetNotFoundError,
 } from '@porcelain/reviews/errors';
 import type { ReplyToCommentInput } from '@porcelain/reviews/models';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
-import { SequentialIdSource } from '../../spec/fakes/sequential-id-source.ts';
 import { ReplyToCommentService } from './reply-to-comment-service.ts';
 
 const worktreeId = 'a'.repeat(64);

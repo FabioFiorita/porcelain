@@ -1,5 +1,10 @@
-export type { Inventory, ProjectName, RegisteredProject } from './project.ts';
-export type { ListableProject, Worktree, WorktreeCheck } from './worktree.ts';
+export type { ListedWorktree } from './listed-worktree.ts';
+export type {
+  Inventory,
+  ListableProject,
+  ProjectName,
+  RegisteredProject,
+} from './project.ts';
 export type { ProjectWorktrees, WorktreeListing } from './worktree-listing.ts';
 export type { WorktreeStatus, WorktreeStatuses } from './worktree-status.ts';
 export type {

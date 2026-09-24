@@ -1,4 +1,3 @@
-export type { Clock } from './clock.ts';
 export type { CommitDraftReader } from './commit-draft-reader.ts';
 export type { CommitDraftSnapshotReader } from './commit-draft-snapshot-reader.ts';
 export type { CommitDraftWriter } from './commit-draft-writer.ts';
@@ -9,5 +8,4 @@ export type { GitActionWriter } from './git-action-writer.ts';
 export type { GitBranchReader } from './git-branch-reader.ts';
 export type { InterruptedGitActionStore } from './interrupted-git-action-store.ts';
 export type { RunningGitActionStore } from './running-git-action-store.ts';
-export type { WorktreeAccess } from './worktree-access.ts';
 export type { WorktreeFingerprintReader } from './worktree-fingerprint-reader.ts';

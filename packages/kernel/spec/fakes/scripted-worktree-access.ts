@@ -1,5 +1,5 @@
-import type { Worktree, WorktreeCheck } from '@porcelain/reviews/models';
-import type { WorktreeAccess } from '@porcelain/reviews/ports';
+import type { Worktree, WorktreeCheck } from '../../src/models/worktree.ts';
+import type { WorktreeAccess } from '../../src/ports/worktree-access.ts';
 
 export class ScriptedWorktreeAccess implements WorktreeAccess {
   private readonly worktrees = new Map<
@@ -17,18 +17,18 @@ export class ScriptedWorktreeAccess implements WorktreeAccess {
   }
 
   async known(worktreeId: string): Promise<WorktreeCheck> {
-    if (this.unlisted.has(worktreeId)) return { outcome: 'unavailable' };
+    if (this.unlisted.has(worktreeId)) return { kind: 'unavailable' };
     const entry = this.worktrees.get(worktreeId);
     return entry
-      ? { outcome: 'found', worktree: { ...entry.worktree } }
-      : { outcome: 'missing' };
+      ? { kind: 'found', worktree: { ...entry.worktree } }
+      : { kind: 'missing' };
   }
 
   async forWriting(worktreeId: string): Promise<WorktreeCheck> {
     const check = await this.known(worktreeId);
-    if (check.outcome !== 'found') return check;
+    if (check.kind !== 'found') return check;
     return this.worktrees.get(worktreeId)?.writable
       ? check
-      : { outcome: 'unavailable' };
+      : { kind: 'unavailable' };
   }
 }

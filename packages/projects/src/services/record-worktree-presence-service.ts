@@ -1,5 +1,5 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type { RecordWorktreePresenceInput } from '../models/inventory-operations.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 

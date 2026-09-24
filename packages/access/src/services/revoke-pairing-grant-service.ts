@@ -1,8 +1,8 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type {
   RevokeAccessInput,
   RevokeAccessResult,
 } from '../models/revoke-access.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import { pairingGrantRevocable } from '../rules/pairing-grant.ts';
 

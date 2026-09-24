@@ -1,10 +1,9 @@
+import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { InvalidPairingAddressError } from '../errors/invalid-pairing-address-error.ts';
 import type {
   IssuePairingInput,
   IssuePairingResult,
 } from '../models/issue-pairing.ts';
-import type { Clock } from '../ports/clock.ts';
-import type { IdSource } from '../ports/id-source.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import type { PairingReachReader } from '../ports/pairing-reach-reader.ts';
 import { hashSecret, mintCredential } from '../rules/credential.ts';

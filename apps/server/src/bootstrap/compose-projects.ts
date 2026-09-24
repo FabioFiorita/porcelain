@@ -1,7 +1,6 @@
 import type { GitFactory } from '@porcelain/git/discovery';
+import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import type {
-  Clock,
-  IdSource,
   ProjectFolderReader,
   WorktreeStatusStore,
 } from '@porcelain/projects/ports';

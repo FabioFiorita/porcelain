@@ -2,7 +2,7 @@ import type {
   InspectionFactory,
   InspectionReader,
 } from '@porcelain/git/inspection';
-import type { Worktree } from '@porcelain/projects/models';
+import type { ListedWorktree } from '@porcelain/projects/models';
 import {
   openCheckout,
   type WritableWorktrees,
@@ -10,7 +10,7 @@ import {
 import type { OperationGitSessions } from './operation-git-sessions.ts';
 
 export type InspectedCheckout = {
-  worktree: Worktree;
+  worktree: ListedWorktree;
   git: InspectionReader;
 };
 

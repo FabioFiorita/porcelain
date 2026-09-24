@@ -1,4 +1,4 @@
-import type { ChangeComparison } from '../models/change.ts';
+import type { ChangeComparison } from '@porcelain/kernel/models';
 
 export function logicalPath(change: ChangeComparison): string {
   if (change.scope === 'untracked' || change.scope === 'unmerged')

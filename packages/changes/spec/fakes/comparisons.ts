@@ -2,7 +2,7 @@ import type {
   FileChange,
   TrackedComparison,
   UnmergedComparison,
-} from '@porcelain/changes/models';
+} from '@porcelain/kernel/models';
 
 export function modified(
   scope: 'staged' | 'unstaged',

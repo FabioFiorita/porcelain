@@ -1,3 +1,4 @@
+export type { CheckWorktreeAccessInput } from './check-worktree-access.ts';
 export type {
   CommentAnchor,
   CommentAppend,
@@ -41,14 +42,11 @@ export type {
   StepDraft,
 } from './review.ts';
 export type {
-  ChangeComparison,
   ChangeDiff,
   ChangeDiffContent,
   ChangeDiffs,
   ChangeSelection,
   DiffBatch,
-  ExpectedFile,
-  FileChange,
   ReadChangesResult,
   ReviewChange,
   ReviewDiagnostics,
@@ -108,8 +106,3 @@ export type {
   SetReviewedLayerInput,
   SetReviewedLayerResult,
 } from './reviewed-mark.ts';
-export type {
-  CheckWorktreeAccessInput,
-  Worktree,
-  WorktreeCheck,
-} from './worktree.ts';

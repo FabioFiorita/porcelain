@@ -1,11 +1,14 @@
+import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import { type FSWatcher, watch as watchDirectory } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import * as parcelWatcher from '@parcel/watcher';
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
 import { listIgnoredPaths } from '@porcelain/git/inspection';
-import type { ListableProject } from '@porcelain/projects/models';
-import type { WorktreeAccess } from '@porcelain/projects/ports';
+import type {
+  ListableProject,
+  ListedWorktree,
+} from '@porcelain/projects/models';
 import type { InvalidateReviewedMarksInput } from '@porcelain/reviews/models';
 import type { EventPublisher } from '../../runtime/event-publisher.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -108,7 +111,10 @@ function watchIfPossible(
 }
 
 export class LiveUpdatesAdapter implements EventPublisher {
-  private readonly worktrees: Pick<WorktreeAccess, 'forWriting'>;
+  private readonly worktrees: Pick<
+    WorktreeAccess<ListedWorktree>,
+    'forWriting'
+  >;
   private readonly pathsChanged: ChangedPathsListener;
   private readonly watcher: ParcelWatcher;
   private readonly ignoredPaths: typeof listIgnoredPaths;
@@ -123,7 +129,7 @@ export class LiveUpdatesAdapter implements EventPublisher {
   private closed = false;
 
   constructor(options: {
-    worktrees: Pick<WorktreeAccess, 'forWriting'>;
+    worktrees: Pick<WorktreeAccess<ListedWorktree>, 'forWriting'>;
     pathsChanged: ChangedPathsListener;
     projects: () => readonly ListableProject[];
     limits: LiveUpdatesLimits;
@@ -317,7 +323,7 @@ export class LiveUpdatesAdapter implements EventPublisher {
     worktreeId: string,
   ): Promise<WorktreeWatch | undefined> {
     const check = await this.worktrees.forWriting(worktreeId);
-    if (check.outcome !== 'found' || check.worktree.projectId !== projectId)
+    if (check.kind !== 'found' || check.worktree.projectId !== projectId)
       return undefined;
     const resolved = check.worktree;
     const entry: WorktreeWatch = {

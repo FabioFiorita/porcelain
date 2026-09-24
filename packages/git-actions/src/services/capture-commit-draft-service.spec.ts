@@ -1,14 +1,12 @@
+import { describe, expect, it } from 'vitest';
 import {
   CommitDraftSelectionError,
   CommitDraftTooLargeError,
   CommitDraftUnavailableError,
   WorktreeChangedError,
 } from '@porcelain/git-actions/errors';
-import type {
-  CommitDraftChange,
-  CommitDraftObservation,
-} from '@porcelain/git-actions/models';
-import { describe, expect, it } from 'vitest';
+import type { CommitDraftObservation } from '@porcelain/git-actions/models';
+import type { FileChange } from '@porcelain/kernel/models';
 import {
   guideFingerprint,
   headOid,
@@ -20,7 +18,7 @@ import { InMemoryCommitDraftReader } from '../../spec/fakes/in-memory-commit-dra
 import { CaptureCommitDraftService } from './capture-commit-draft-service.ts';
 
 const statusToken = '1'.repeat(64);
-const modified = (path: string, fingerprint: string): CommitDraftChange => ({
+const modified = (path: string, fingerprint: string): FileChange => ({
   path,
   fingerprint,
   comparisons: [
@@ -37,7 +35,7 @@ const modified = (path: string, fingerprint: string): CommitDraftChange => ({
     },
   ],
 });
-const renamed: CommitDraftChange = {
+const renamed: FileChange = {
   path: 'GUIDE.md',
   fingerprint: guideFingerprint,
   comparisons: [
@@ -54,12 +52,12 @@ const renamed: CommitDraftChange = {
     },
   ],
 };
-const untracked: CommitDraftChange = {
+const untracked: FileChange = {
   path: 'notes.md',
   fingerprint: '4'.repeat(64),
   comparisons: [{ scope: 'untracked', path: 'notes.md' }],
 };
-const observed = (...changes: CommitDraftChange[]): CommitDraftObservation => ({
+const observed = (...changes: FileChange[]): CommitDraftObservation => ({
   statusToken,
   headOid,
   changes,

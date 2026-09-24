@@ -1,8 +1,10 @@
-import type { WorktreeCheck } from '@porcelain/projects/models';
-import type { InventoryStore, WorktreeAccess } from '@porcelain/projects/ports';
+import type { WorktreeCheck } from '@porcelain/kernel/models';
+import type { WorktreeAccess } from '@porcelain/kernel/ports';
+import type { ListedWorktree } from '@porcelain/projects/models';
+import type { InventoryStore } from '@porcelain/projects/ports';
 import type { WorktreeDirectoryAdapter } from './worktree-directory-adapter.ts';
 
-export class WorktreeAccessAdapter implements WorktreeAccess {
+export class WorktreeAccessAdapter implements WorktreeAccess<ListedWorktree> {
   private readonly worktreeDirectory: Pick<WorktreeDirectoryAdapter, 'find'>;
   private readonly inventoryStore: Pick<InventoryStore, 'read'>;
 
@@ -17,26 +19,26 @@ export class WorktreeAccessAdapter implements WorktreeAccess {
   async known(
     worktreeId: string,
     signal?: AbortSignal,
-  ): Promise<WorktreeCheck> {
+  ): Promise<WorktreeCheck<ListedWorktree>> {
     const { worktree, unlisted } = await this.worktreeDirectory.find(
       worktreeId,
       signal,
     );
-    if (worktree) return { outcome: 'found', worktree };
-    return { outcome: unlisted ? 'unavailable' : 'missing' };
+    if (worktree) return { kind: 'found', worktree };
+    return { kind: unlisted ? 'unavailable' : 'missing' };
   }
 
   async forWriting(
     worktreeId: string,
     signal?: AbortSignal,
-  ): Promise<WorktreeCheck> {
+  ): Promise<WorktreeCheck<ListedWorktree>> {
     const check = await this.known(worktreeId, signal);
-    if (check.outcome !== 'found') return check;
+    if (check.kind !== 'found') return check;
     const project = this.inventoryStore
       .read()
       .projects.find((entry) => entry.id === check.worktree.projectId);
     return project?.available && check.worktree.available
       ? check
-      : { outcome: 'unavailable' };
+      : { kind: 'unavailable' };
   }
 }

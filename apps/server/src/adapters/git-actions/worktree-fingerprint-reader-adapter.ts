@@ -1,11 +1,11 @@
 import type {
   ChangeFingerprints,
   ChangeStatusObservation,
-  FileChange,
   ReadChangeFingerprintsInput,
   WorktreeInput,
 } from '@porcelain/changes/models';
 import type { WorktreeFingerprintReader } from '@porcelain/git-actions/ports';
+import type { FileChange } from '@porcelain/kernel/models';
 
 export type WorktreeChangeReading = {
   readWorktreeStatus: {

@@ -8,7 +8,7 @@ import {
 } from '@porcelain/git/discovery';
 import type {
   ListableProject,
-  Worktree,
+  ListedWorktree,
   WorktreeListing,
 } from '@porcelain/projects/models';
 import type {
@@ -19,7 +19,7 @@ import type { LaunchLimit } from '../../runtime/launch-limit.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
 export type WorktreeLookup = {
-  worktree: Worktree | undefined;
+  worktree: ListedWorktree | undefined;
   unlisted: boolean;
 };
 
@@ -33,7 +33,7 @@ export type WorktreeDirectoryOptions = {
 };
 
 export class WorktreeDirectoryAdapter implements ProjectWorktreeReader {
-  private readonly entries = new Map<string, Worktree>();
+  private readonly entries = new Map<string, ListedWorktree>();
   private readonly options: WorktreeDirectoryOptions;
 
   constructor(options: WorktreeDirectoryOptions) {
@@ -104,7 +104,7 @@ export class WorktreeDirectoryAdapter implements ProjectWorktreeReader {
     const { repository } = discovered;
     if (repository.repositoryIdentity !== project.repositoryIdentity)
       return this.unlisted(project.id, 'moved');
-    const worktrees: Worktree[] = [];
+    const worktrees: ListedWorktree[] = [];
     let unidentified = 0;
     for (const worktree of repository.worktrees) {
       if (!worktree.metadataIdentity) {
@@ -147,7 +147,9 @@ export class WorktreeDirectoryAdapter implements ProjectWorktreeReader {
     };
   }
 
-  private async reread(entry: Worktree): Promise<Worktree | undefined> {
+  private async reread(
+    entry: ListedWorktree,
+  ): Promise<ListedWorktree | undefined> {
     let current: string;
     try {
       current = await identity(entry.administrativeDirectory);
@@ -160,7 +162,7 @@ export class WorktreeDirectoryAdapter implements ProjectWorktreeReader {
       : await readGitdirPointer(entry.administrativeDirectory);
     if (!path) return undefined;
     const branch = await readHead(entry.administrativeDirectory);
-    const refreshed: Worktree = {
+    const refreshed: ListedWorktree = {
       ...entry,
       path,
       branch: branch ?? undefined,

@@ -1,5 +1,4 @@
-import type { RegisteredProject } from './project.ts';
-import type { ListableProject } from './worktree.ts';
+import type { ListableProject, RegisteredProject } from './project.ts';
 import type { ProjectWorktrees } from './worktree-listing.ts';
 import type { WorktreeStatuses } from './worktree-status.ts';
 

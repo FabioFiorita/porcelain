@@ -1,6 +1,6 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type { CollectAbsentWorktreesResult } from '../models/inventory-operations.ts';
 import { presenceCutoff } from '../rules/presence-cutoff.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 
 export class CollectAbsentWorktreesService {

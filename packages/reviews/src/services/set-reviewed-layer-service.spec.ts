@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
 import { fingerprint } from '@porcelain/reviews/rules';
 import type { Review } from '@porcelain/reviews/models';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
 import { SetReviewedLayerService } from './set-reviewed-layer-service.ts';
 

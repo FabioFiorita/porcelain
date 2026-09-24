@@ -1,8 +1,8 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type {
   RevokeAccessInput,
   RevokeAccessResult,
 } from '../models/revoke-access.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 
 export class RevokeDeviceService {

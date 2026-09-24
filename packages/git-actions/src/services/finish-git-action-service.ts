@@ -1,8 +1,8 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import type { FinishGitActionInput } from '../models/git-action-operations.ts';
 import type { GitActionReceipt } from '../models/git-action-receipt.ts';
 import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 

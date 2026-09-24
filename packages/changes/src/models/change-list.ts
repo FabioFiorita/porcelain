@@ -1,4 +1,4 @@
-import type { FileChange } from './change.ts';
+import type { FileChange } from '@porcelain/kernel/models';
 import type { BranchStatus } from './change-status.ts';
 
 export type ReadChangesResult = {

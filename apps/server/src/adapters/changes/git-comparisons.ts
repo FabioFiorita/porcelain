@@ -1,9 +1,9 @@
+import type { GitChange, GitOrdinaryChange } from '@porcelain/git/inspection';
 import type {
   ChangeComparison,
   ConflictKind,
   TrackedComparison,
-} from '@porcelain/changes/models';
-import type { GitChange, GitOrdinaryChange } from '@porcelain/git/inspection';
+} from '@porcelain/kernel/models';
 
 const conflicts = {
   DD: 'both-deleted',

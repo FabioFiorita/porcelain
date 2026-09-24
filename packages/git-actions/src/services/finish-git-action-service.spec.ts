@@ -1,6 +1,6 @@
-import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
+import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { sampleReceipt } from '../../spec/fakes/git-action-samples.ts';
 import { InMemoryGitActionStore } from '../../spec/fakes/in-memory-git-action-store.ts';
 import { FinishGitActionService } from './finish-git-action-service.ts';

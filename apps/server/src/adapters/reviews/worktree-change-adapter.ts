@@ -1,15 +1,11 @@
 import type {
-  ChangeComparison as InspectedComparison,
   ChangeFingerprints,
   ChangeStatusObservation,
   ReadChangeFingerprintsInput,
-  Worktree,
   WorktreeInput,
 } from '@porcelain/changes/models';
-import type {
-  ChangeComparison,
-  ReadChangesResult,
-} from '@porcelain/reviews/models';
+import type { Worktree } from '@porcelain/kernel/models';
+import type { ReadChangesResult } from '@porcelain/reviews/models';
 import type { WorktreeChangeReader } from '@porcelain/reviews/ports';
 
 type ChangeReading = {
@@ -29,12 +25,6 @@ type ChangeReading = {
     ): Promise<ChangeFingerprints>;
   };
 };
-
-function comparison(entry: InspectedComparison): ChangeComparison {
-  if (entry.scope === 'untracked' || entry.scope === 'unmerged')
-    return { scope: entry.scope };
-  return { scope: entry.scope, oldPath: entry.oldPath, newPath: entry.newPath };
-}
 
 export class WorktreeChangeAdapter implements WorktreeChangeReader {
   private readonly changes: ChangeReading;
@@ -60,11 +50,7 @@ export class WorktreeChangeAdapter implements WorktreeChangeReader {
     return {
       worktreeId,
       statusToken: status.statusToken,
-      changes: changes.map((change) => ({
-        path: change.path,
-        fingerprint: change.fingerprint,
-        comparisons: change.comparisons.map(comparison),
-      })),
+      changes,
     };
   }
 }

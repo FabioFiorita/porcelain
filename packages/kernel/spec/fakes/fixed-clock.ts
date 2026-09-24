@@ -14,4 +14,10 @@ export class FixedClock implements Clock {
   set(instant: string): void {
     this.instant = instant;
   }
+
+  advance(milliseconds: number): void {
+    this.instant = new Date(
+      Date.parse(this.instant) + milliseconds,
+    ).toISOString();
+  }
 }

@@ -1,5 +1,5 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type { ExpireGitActionReceiptsInput } from '../models/git-action-operations.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { GitActionRetentionStore } from '../ports/git-action-retention-store.ts';
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;

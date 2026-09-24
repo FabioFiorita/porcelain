@@ -59,6 +59,11 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './commit-planning': './src/commit-planning/index.ts',
     './models': './src/models/index.ts',
   },
+  kernel: {
+    './models': './src/models/index.ts',
+    './ports': './src/ports/index.ts',
+    './fakes': './spec/fakes/index.ts',
+  },
 };
 
 export const requiredServerFiles: readonly string[] = [
@@ -103,6 +108,7 @@ export type Role =
   | 'bootstrap'
   | 'contract'
   | 'config'
+  | 'kernel'
   | 'fake'
   | 'test';
 
@@ -203,6 +209,11 @@ function classifyPackage(name: string, inside: string) {
     if (inside.startsWith('models/')) return classified('error', name);
     return;
   }
+  if (name === 'kernel') {
+    if (section === 'models' || section === 'ports')
+      return classified('kernel', name);
+    return;
+  }
   if (name === 'contracts') {
     if (domainSet.has(section) || section === 'shared')
       return classified('contract', name);
@@ -286,6 +297,7 @@ const everything: readonly Role[] = [
   'bootstrap',
   'contract',
   'config',
+  'kernel',
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
@@ -298,7 +310,13 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'config',
   ]),
   'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
-  controller: new Set(['domain-api', 'model-api', 'contract', 'runtime']),
+  controller: new Set([
+    'domain-api',
+    'model-api',
+    'kernel',
+    'contract',
+    'runtime',
+  ]),
   installer: new Set(['installer', 'config']),
   'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),
@@ -307,6 +325,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'port-api': new Set(['port']),
   'error-api': new Set(['error']),
   service: new Set([
+    'kernel',
     'port',
     'port-api',
     'model',
@@ -316,13 +335,26 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'error',
     'error-api',
   ]),
-  rule: new Set(['rule', 'model', 'model-api', 'error', 'error-api']),
-  model: new Set(['model', 'model-api']),
-  port: new Set(['port', 'model', 'model-api']),
+  rule: new Set(['kernel', 'rule', 'model', 'model-api', 'error', 'error-api']),
+  model: new Set(['kernel', 'model', 'model-api']),
+  port: new Set(['kernel', 'port', 'model', 'model-api']),
   error: new Set(['error']),
-  repository: new Set(['repository', 'port-api', 'model-api', 'error']),
-  'repository-api': new Set(['repository', 'port-api', 'model-api', 'error']),
+  repository: new Set([
+    'kernel',
+    'repository',
+    'port-api',
+    'model-api',
+    'error',
+  ]),
+  'repository-api': new Set([
+    'kernel',
+    'repository',
+    'port-api',
+    'model-api',
+    'error',
+  ]),
   gateway: new Set([
+    'kernel',
     'gateway',
     'gateway-api',
     'port-api',
@@ -331,11 +363,20 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'config',
   ]),
   'gateway-api': new Set(['gateway']),
-  runtime: new Set(['runtime', 'model-api', 'config']),
+  runtime: new Set(['kernel', 'runtime', 'model-api', 'config']),
   bootstrap: new Set(everything),
   contract: new Set(['contract']),
   config: new Set(['config']),
-  fake: new Set(['port', 'port-api', 'model', 'model-api', 'runtime', 'fake']),
+  kernel: new Set(['kernel']),
+  fake: new Set([
+    'kernel',
+    'port',
+    'port-api',
+    'model',
+    'model-api',
+    'runtime',
+    'fake',
+  ]),
   test: new Set([...everything, 'fake', 'test']),
 };
 
@@ -347,6 +388,7 @@ export function violation(
   if (
     from.role === 'fake' &&
     to.owner !== from.owner &&
+    (to.owner !== 'kernel' || to.role === 'fake') &&
     (from.owner !== 'server' || to.role === 'fake')
   )
     return 'fake-imports-own-package-only';
@@ -401,6 +443,7 @@ function isNodeModule(name: string): boolean {
 }
 
 export function forbiddenExternal(role: Role, module: string): boolean {
+  if (role === 'kernel') return true;
   const name = module.replace(/^node:/, '');
   if (typedRoles.has(role)) {
     if ((role === 'rule' || role === 'rule-api') && name === 'crypto')

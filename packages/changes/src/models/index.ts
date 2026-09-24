@@ -1,20 +1,10 @@
-export type {
-  ChangeComparison,
-  ChangeFingerprints,
-  ChangeKind,
-  ConflictKind,
-  FileChange,
-  TrackedComparison,
-  UnmergedComparison,
-  UntrackedComparison,
-} from './change.ts';
+export type { ChangeFingerprints } from './change.ts';
 export type {
   ChangeDiff,
   ChangeDiffContent,
   ChangeDiffs,
   ChangeSelection,
   DiffSelection,
-  ExpectedFile,
 } from './change-diff.ts';
 export type { ChangeLineRange, ChangeLines } from './change-lines.ts';
 export type { ReadChangesResult } from './change-list.ts';
@@ -55,7 +45,6 @@ export type {
   SelectDiffComparisonsInput,
   WorktreeInput,
 } from './operation-inputs.ts';
-export type { Worktree, WorktreeCheck } from './worktree.ts';
 export type {
   ObservedSides,
   SidePaths,

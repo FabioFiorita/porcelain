@@ -1,4 +1,4 @@
-import type { FileChange } from '../models/change.ts';
+import type { FileChange } from '@porcelain/kernel/models';
 import type { BranchStatus } from '../models/change-status.ts';
 
 export function describeWorktreeState(

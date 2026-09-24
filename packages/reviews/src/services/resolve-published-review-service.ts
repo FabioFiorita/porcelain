@@ -1,8 +1,8 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type {
   ResolvePublishedReviewInput,
   ResolvePublishedReviewResult,
 } from '../models/review-operations.ts';
-import type { Clock } from '../ports/clock.ts';
 import {
   resolveLayer,
   reviewIsActive,

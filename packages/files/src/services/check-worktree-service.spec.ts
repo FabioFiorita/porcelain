@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { ScriptedWorktreeAccess } from '@porcelain/kernel/fakes';
 import {
   WorktreeNotFoundError,
   WorktreeUnavailableError,
 } from '@porcelain/files/errors';
-import { ScriptedWorktreeAccess } from '../../spec/fakes/scripted-worktree-access.ts';
 import { CheckWorktreeService } from './check-worktree-service.ts';
 
-const worktree = { id: 'worktree-1' };
+const worktree = { id: 'worktree-1', projectId: 'project-1' };
 
 function setup() {
   const access = new ScriptedWorktreeAccess();

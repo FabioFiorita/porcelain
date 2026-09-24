@@ -1,11 +1,10 @@
+import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
 import type { Device } from '../models/device.ts';
 import type {
   RedeemPairingInput,
   RedeemPairingResult,
 } from '../models/redeem-pairing.ts';
-import type { Clock } from '../ports/clock.ts';
-import type { IdSource } from '../ports/id-source.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import {
   hashSecret,

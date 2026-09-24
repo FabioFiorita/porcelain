@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
 import type { ReadChangesResult } from '@porcelain/reviews/models';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
 import { SetReviewedFilesService } from './set-reviewed-files-service.ts';
 
@@ -13,7 +13,11 @@ function changes(
   return {
     worktreeId,
     statusToken: 'status',
-    changes: entries.map((entry) => ({ ...entry, comparisons: [] })),
+    changes: entries.map((entry) => ({
+      path: entry.path,
+      fingerprint: entry.fingerprint,
+      comparisons: [],
+    })),
   };
 }
 

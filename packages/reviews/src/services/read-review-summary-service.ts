@@ -1,9 +1,9 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import { ReviewSummaryNotFoundError } from '../errors/review-summary-not-found-error.ts';
 import type {
   ReadReviewSummaryInput,
   ReadReviewSummaryResult,
 } from '../models/review-operations.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import {
   summaryExpired,

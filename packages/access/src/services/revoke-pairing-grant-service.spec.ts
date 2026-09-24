@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { RevokePairingGrantService } from './revoke-pairing-grant-service.ts';
 

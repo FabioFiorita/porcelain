@@ -1,4 +1,4 @@
-import type { ExpectedFile } from './expected-file.ts';
+import type { FingerprintedFile } from './fingerprinted-file.ts';
 
 export type CommitModel = { id: string; label: string };
 
@@ -8,14 +8,14 @@ export type CommitDraftMode = 'message' | 'groups';
 
 export type CommitDraft = {
   groups: CommitGroup[];
-  expectedFiles: ExpectedFile[];
+  expectedFiles: FingerprintedFile[];
 };
 
 export type CommitDraftCapture = {
   paths: string[];
   bundles: string[][];
   evidence: string;
-  expectedFiles: ExpectedFile[];
+  expectedFiles: FingerprintedFile[];
 };
 
 export type CommitDraftRequest = {

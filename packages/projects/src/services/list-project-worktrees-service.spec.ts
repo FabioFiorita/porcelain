@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Worktree } from '@porcelain/projects/models';
+import type { ListedWorktree } from '@porcelain/projects/models';
 import { ScriptedProjectWorktreeReader } from '../../spec/fakes/scripted-project-worktree-reader.ts';
 import { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
 
@@ -9,7 +9,7 @@ const project = {
   repositoryIdentity: 'identity-1',
 };
 
-function worktree(id: string, available = true): Worktree {
+function worktree(id: string, available = true): ListedWorktree {
   return {
     id,
     projectId: project.id,

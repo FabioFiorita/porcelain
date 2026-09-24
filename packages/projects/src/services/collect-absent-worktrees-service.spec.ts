@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
 

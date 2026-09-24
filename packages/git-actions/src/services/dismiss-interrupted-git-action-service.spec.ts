@@ -1,9 +1,9 @@
+import { describe, expect, it } from 'vitest';
 import {
   GitActionNotFoundError,
   GitActionReceiptMismatchError,
 } from '@porcelain/git-actions/errors';
-import { describe, expect, it } from 'vitest';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import {
   projectId,
   sampleReceipt,

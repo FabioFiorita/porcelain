@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingError,
@@ -9,9 +10,7 @@ import {
   parseCredential,
   secretMatches,
 } from '@porcelain/access/rules';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
-import { SequentialIds } from '../../spec/fakes/sequential-ids.ts';
 import { RedeemPairingService } from './redeem-pairing-service.ts';
 
 const issuedAt = '2026-09-23T10:00:00.000Z';
@@ -32,7 +31,11 @@ function setup(grant: { redeemedAt?: string; revokedAt?: string } = {}) {
     },
   ]);
   const clock = new FixedClock('2026-09-23T10:05:00.000Z');
-  const service = new RedeemPairingService(grants, clock, new SequentialIds());
+  const service = new RedeemPairingService(
+    grants,
+    clock,
+    new SequentialIdSource(),
+  );
   return { grants, clock, service, code: code.token };
 }
 
@@ -95,12 +98,12 @@ describe('RedeemPairingService', () => {
 
   it('accepts a code until the moment it expires', () => {
     const early = setup();
-    early.clock.at = '2026-09-23T10:14:59.999Z';
+    early.clock.set('2026-09-23T10:14:59.999Z');
     expect(
       early.service.execute({ code: early.code, platform: 'iOS' }).device.label,
     ).toBe('Phone');
     const late = setup();
-    late.clock.at = '2026-09-23T10:15:00.000Z';
+    late.clock.set('2026-09-23T10:15:00.000Z');
     expect(() =>
       late.service.execute({ code: late.code, platform: 'iOS' }),
     ).toThrow(InvalidPairingError);
@@ -108,7 +111,7 @@ describe('RedeemPairingService', () => {
 
   it('refuses a code issued later than the current time', () => {
     const { clock, service, code } = setup();
-    clock.at = '2026-09-23T09:59:59.999Z';
+    clock.set('2026-09-23T09:59:59.999Z');
     expect(() => service.execute({ code, platform: 'iOS' })).toThrow(
       InvalidPairingError,
     );

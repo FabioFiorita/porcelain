@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { RegisteredProject, Worktree } from '@porcelain/projects/models';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
+import { FixedClock } from '@porcelain/kernel/fakes';
+import type {
+  RegisteredProject,
+  ListedWorktree,
+} from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { RecordWorktreePresenceService } from './record-worktree-presence-service.ts';
@@ -16,7 +19,7 @@ const project: RegisteredProject = {
 
 const later = '2026-09-02T00:00:00.000Z';
 
-function worktree(id: string): Worktree {
+function worktree(id: string): ListedWorktree {
   return {
     id,
     projectId: project.id,

@@ -1,6 +1,6 @@
+import type { TrackedComparison } from '@porcelain/kernel/models';
 import { SelectionMismatchError } from '../errors/selection-mismatch-error.ts';
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
-import type { TrackedComparison } from '../models/change.ts';
 import type { DiffSelection } from '../models/change-diff.ts';
 import type { SelectDiffComparisonsInput } from '../models/operation-inputs.ts';
 

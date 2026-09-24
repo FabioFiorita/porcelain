@@ -3,11 +3,11 @@ const domainSource = new RegExp(
   `/packages/${domainPackage}/src/(?:services|rules|models|ports|errors)/`,
 );
 const domainModule = new RegExp(
-  `^@porcelain/${domainPackage}/(?:services|models)$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|models)|kernel/models)$`,
 );
 const controllerSource = /\/apps\/server\/src\/controllers\//;
 const modelsSource =
-  /\/packages\/(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+\.ts$/;
+  /\/packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/[^/]+|kernel\/src\/.+)\.ts$/;
 const composeSource = /\/apps\/server\/src\/bootstrap\/compose-[^/]+\.ts$/;
 const typedPackageSource =
   /\/packages\/[^/]+\/src\/(?:services|rules|models|ports)\//;
@@ -241,7 +241,7 @@ const storagePublicApi =
   /\/packages\/storage\/src\/(?:index|repositories\/[^/]+\/index)\.ts$/;
 const specNodeModule = /^node:(?:fs|path|os|child_process)(?:\/[a-z]+)?$/;
 const specPackageEntry = new RegExp(
-  `^@porcelain/${domainPackage}/(?:services|rules|models|errors)$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors)|kernel/(?:models|fakes))$`,
 );
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
@@ -416,7 +416,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, node:{fs,path,os,child_process} and spec/fakes; a storage spec imports the storage public API instead of fakes.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors}, @porcelain/kernel/{models,fakes}, node:{fs,path,os,child_process} and spec/fakes; a storage spec imports the storage public API instead of fakes.',
             });
         };
         return {
@@ -542,7 +542,7 @@ export default {
             context.report({
               node,
               message:
-                'Controllers import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/contracts/<domain> and ../runtime/<file>.',
+                'Controllers import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> and ../runtime/<file>.',
             });
           },
           ExportNamedDeclaration(node) {

@@ -8,14 +8,13 @@ import type {
   ReadChangeDiffsInput,
   ReadChangeFingerprintsInput,
   SelectDiffComparisonsInput,
-  Worktree,
   WorktreeInput,
 } from '@porcelain/changes/models';
+import type { ExpectedFile, Worktree } from '@porcelain/kernel/models';
 import type {
   ChangeDiffContent,
   ChangeDiffs,
   ChangeSelection,
-  ExpectedFile,
 } from '@porcelain/reviews/models';
 import type { ChangeDiffReader } from '@porcelain/reviews/ports';
 

@@ -1,3 +1,4 @@
+import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
@@ -6,9 +7,7 @@ import type {
   ReplyToCommentResult,
 } from '../models/comment-operations.ts';
 import type { CommentMessage } from '../models/comment-thread.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { CommentStore } from '../ports/comment-store.ts';
-import type { IdSource } from '../ports/id-source.ts';
 import {
   commentAuthor,
   commentStorageSize,

@@ -1,4 +1,4 @@
-import type { ChangeComparison } from '../models/change.ts';
+import type { ChangeComparison } from '@porcelain/kernel/models';
 import type { SidePaths } from '../models/worktree-side.ts';
 
 const SUBMODULE_MODE = '160000';

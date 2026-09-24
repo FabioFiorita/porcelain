@@ -1,4 +1,4 @@
-import type { ChangeComparison } from './change.ts';
+import type { ChangeComparison } from '@porcelain/kernel/models';
 
 export type BranchStatus = {
   name: string | undefined;

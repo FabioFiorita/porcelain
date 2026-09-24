@@ -20,6 +20,7 @@
     "@porcelain/files": "workspace:*",
     "@porcelain/git": "workspace:*",
     "@porcelain/git-actions": "workspace:*",
+    "@porcelain/kernel": "workspace:*",
     "@porcelain/projects": "workspace:*",
     "@porcelain/reviews": "workspace:*",
     "@porcelain/storage": "workspace:*",

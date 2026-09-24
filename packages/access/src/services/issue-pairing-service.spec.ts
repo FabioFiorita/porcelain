@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
 } from '@porcelain/access/errors';
 import { parseCredential, secretMatches } from '@porcelain/access/rules';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
 import { FixedPairingReachReader } from '../../spec/fakes/fixed-pairing-reach-reader.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
-import { SequentialIds } from '../../spec/fakes/sequential-ids.ts';
 import { IssuePairingService } from './issue-pairing-service.ts';
 
 const address = 'http://192.168.1.20:4173';
@@ -24,7 +23,7 @@ function setup() {
       },
     }),
     new FixedClock('2026-09-23T10:00:00.000Z'),
-    new SequentialIds(),
+    new SequentialIdSource(),
   );
   return { grants, service };
 }

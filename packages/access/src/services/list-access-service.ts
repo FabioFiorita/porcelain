@@ -1,8 +1,8 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type {
   ListAccessInput,
   ListAccessResult,
 } from '../models/list-access.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import { pairingGrantPending } from '../rules/pairing-grant.ts';

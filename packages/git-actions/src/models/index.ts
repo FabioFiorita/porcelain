@@ -8,9 +8,6 @@ export type {
   CommitModel,
 } from './commit-draft.ts';
 export type {
-  CommitDraftChange,
-  ConflictKind,
-  CommitDraftComparison,
   CommitDraftObservation,
   CommitDraftUntrackedContent,
 } from './commit-draft-change.ts';
@@ -19,7 +16,7 @@ export type {
   GenerateCommitDraftInput,
   ListCommitModelsInput,
 } from './commit-draft-operations.ts';
-export type { ExpectedFile } from './expected-file.ts';
+export type { FingerprintedFile } from './fingerprinted-file.ts';
 export type {
   GitActionExpectation,
   UpstreamExpectation,
@@ -57,4 +54,3 @@ export type {
 export type { GitActionScope } from './git-action-scope.ts';
 export type { GitBranch, GitBranches } from './git-branches.ts';
 export type { ListGitBranchesInput } from './list-git-branches.ts';
-export type { Worktree, WorktreeCheck } from './worktree.ts';

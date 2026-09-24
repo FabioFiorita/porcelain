@@ -1,4 +1,4 @@
-import type { TrackedComparison } from '../models/change.ts';
+import type { TrackedComparison } from '@porcelain/kernel/models';
 import type { ChangeDiffContent } from '../models/change-diff.ts';
 
 export interface ChangeDiffReader {

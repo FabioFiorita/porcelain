@@ -1,9 +1,9 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
 import type {
   SetReviewedFilesInput,
   SetReviewedFilesResult,
 } from '../models/reviewed-mark.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import {
   evictionCount,

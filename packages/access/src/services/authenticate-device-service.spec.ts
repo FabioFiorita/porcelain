@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { hashSecret, mintCredential } from '@porcelain/access/rules';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { AuthenticateDeviceService } from './authenticate-device-service.ts';
 
@@ -49,7 +49,7 @@ describe('AuthenticateDeviceService', () => {
 
   it('leaves the last sighting alone when no time has passed', () => {
     const { devices, clock, service, credential } = setup();
-    clock.at = lastSeenAt;
+    clock.set(lastSeenAt);
     expect(service.execute({ credential, address: '10.0.0.1' })?.idleMs).toBe(
       0,
     );
@@ -77,14 +77,14 @@ describe('AuthenticateDeviceService', () => {
 
   it('refuses a device left unused for ninety days', () => {
     const fresh = setup();
-    fresh.clock.at = new Date(
-      Date.parse(lastSeenAt) + 90 * day - 1,
-    ).toISOString();
+    fresh.clock.set(
+      new Date(Date.parse(lastSeenAt) + 90 * day - 1).toISOString(),
+    );
     expect(
       fresh.service.execute({ credential: fresh.credential })?.deviceId,
     ).toBe(deviceId);
     const stale = setup();
-    stale.clock.at = new Date(Date.parse(lastSeenAt) + 90 * day).toISOString();
+    stale.clock.set(new Date(Date.parse(lastSeenAt) + 90 * day).toISOString());
     expect(
       stale.service.execute({ credential: stale.credential }),
     ).toBeUndefined();
@@ -92,7 +92,7 @@ describe('AuthenticateDeviceService', () => {
 
   it('refuses a device whose records lie in the future of the clock', () => {
     const seenLater = setup();
-    seenLater.clock.at = '2026-09-23T09:59:59.999Z';
+    seenLater.clock.set('2026-09-23T09:59:59.999Z');
     expect(
       seenLater.service.execute({ credential: seenLater.credential }),
     ).toBeUndefined();

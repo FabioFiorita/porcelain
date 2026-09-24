@@ -1,11 +1,10 @@
+import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { ReviewConflictError } from '../errors/review-conflict-error.ts';
 import type {
   PublishReviewInput,
   PublishReviewResult,
 } from '../models/review-operations.ts';
 import type { Review, ReviewLayer } from '../models/review.ts';
-import type { Clock } from '../ports/clock.ts';
-import type { IdSource } from '../ports/id-source.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import type { SecretSource } from '../ports/secret-source.ts';
 import { publishedLayerFingerprint } from '../rules/resolve-review.ts';

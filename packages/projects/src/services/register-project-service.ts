@@ -1,8 +1,8 @@
+import type { IdSource } from '@porcelain/kernel/ports';
 import type { RegisteredProject } from '../models/project.ts';
 import type { RegisterProjectInput } from '../models/project-operations.ts';
 import { deriveProjectName } from '../rules/derive-project-name.ts';
 import { parentFolder } from '../rules/parent-folder.ts';
-import type { IdSource } from '../ports/id-source.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class RegisterProjectService {

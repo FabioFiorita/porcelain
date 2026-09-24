@@ -1,4 +1,4 @@
-import type { ChangeComparison } from '../models/change.ts';
+import type { ChangeComparison } from '@porcelain/kernel/models';
 import { logicalPath } from './logical-path.ts';
 
 const scopeOrder = {

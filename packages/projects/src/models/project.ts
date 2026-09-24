@@ -13,3 +13,9 @@ export type Inventory = {
   environmentId: string;
   projects: RegisteredProject[];
 };
+
+export interface ListableProject {
+  id: string;
+  commonDirectory: string;
+  repositoryIdentity: string;
+}

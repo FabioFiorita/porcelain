@@ -1,7 +1,8 @@
+import type { Worktree } from '@porcelain/kernel/models';
+import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import { WorktreeNotFoundError } from '../errors/worktree-not-found-error.ts';
 import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
-import type { CheckWorktreeAccessInput, Worktree } from '../models/worktree.ts';
-import type { WorktreeAccess } from '../ports/worktree-access.ts';
+import type { CheckWorktreeAccessInput } from '../models/check-worktree-access.ts';
 
 export class CheckWorktreeAccessService {
   private readonly worktreeAccess: WorktreeAccess;
@@ -18,8 +19,8 @@ export class CheckWorktreeAccessService {
       input.intent === 'write'
         ? await this.worktreeAccess.forWriting(input.worktreeId, signal)
         : await this.worktreeAccess.known(input.worktreeId, signal);
-    if (check.outcome === 'missing') throw new WorktreeNotFoundError();
-    if (check.outcome === 'unavailable') throw new WorktreeUnavailableError();
+    if (check.kind === 'missing') throw new WorktreeNotFoundError();
+    if (check.kind === 'unavailable') throw new WorktreeUnavailableError();
     return check.worktree;
   }
 }

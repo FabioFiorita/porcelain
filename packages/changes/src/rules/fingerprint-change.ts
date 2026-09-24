@@ -1,5 +1,5 @@
+import type { ChangeComparison } from '@porcelain/kernel/models';
 import { createHash } from 'node:crypto';
-import type { ChangeComparison } from '../models/change.ts';
 import type { WorktreeSide } from '../models/worktree-side.ts';
 
 type Encodable =

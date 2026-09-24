@@ -1,4 +1,4 @@
-import type { ChangeKind } from './change.ts';
+import type { ChangeKind } from '@porcelain/kernel/models';
 import type { ChangeDiffContent } from './change-diff.ts';
 
 export type CommitHead =

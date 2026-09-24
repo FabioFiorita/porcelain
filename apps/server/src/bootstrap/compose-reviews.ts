@@ -1,6 +1,6 @@
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadTextFileService } from '@porcelain/files/services';
-import type { WorktreeAccess } from '@porcelain/projects/ports';
+import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import {
   CheckWorktreeAccessService,
   CreateCommentThreadService,

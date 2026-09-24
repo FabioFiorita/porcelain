@@ -1,21 +1,21 @@
-import type { Worktree } from './worktree.ts';
+import type { ListedWorktree } from './listed-worktree.ts';
 
 export type WorktreeListing =
   | {
       projectId: string;
       outcome: 'listed';
-      worktrees: Worktree[];
+      worktrees: ListedWorktree[];
       unidentified: number;
     }
   | {
       projectId: string;
       outcome: 'unavailable' | 'timed-out' | 'moved';
-      lastSeen: Worktree[];
+      lastSeen: ListedWorktree[];
     };
 
 export type ProjectWorktrees = {
   projectId: string;
   available: boolean;
   complete: boolean;
-  worktrees: Worktree[];
+  worktrees: ListedWorktree[];
 };

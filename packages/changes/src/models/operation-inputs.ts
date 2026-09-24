@@ -1,10 +1,11 @@
 import type {
   ChangeComparison,
-  ChangeFingerprints,
+  ExpectedFile,
   FileChange,
   TrackedComparison,
-} from './change.ts';
-import type { ChangeSelection, ExpectedFile } from './change-diff.ts';
+} from '@porcelain/kernel/models';
+import type { ChangeFingerprints } from './change.ts';
+import type { ChangeSelection } from './change-diff.ts';
 import type { ChangeLineRange } from './change-lines.ts';
 import type { BranchStatus, ChangeStatusObservation } from './change-status.ts';
 import type {

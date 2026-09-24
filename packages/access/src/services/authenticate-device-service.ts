@@ -1,8 +1,8 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type {
   AuthenticateDeviceInput,
   AuthenticateDeviceResult,
 } from '../models/authenticate-device.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { DeviceStore } from '../ports/device-store.ts';
 import { parseCredential, secretMatches } from '../rules/credential.ts';
 import { deviceUsable, idleMilliseconds } from '../rules/device-activity.ts';

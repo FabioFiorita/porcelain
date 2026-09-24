@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '../../spec/fakes/fixed-clock.ts';
+import { FixedClock } from '@porcelain/kernel/fakes';
 import { sampleReceipt } from '../../spec/fakes/git-action-samples.ts';
 import { InMemoryGitActionStore } from '../../spec/fakes/in-memory-git-action-store.ts';
 import { ExpireGitActionReceiptsService } from './expire-git-action-receipts-service.ts';

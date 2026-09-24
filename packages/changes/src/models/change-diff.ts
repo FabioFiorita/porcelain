@@ -1,4 +1,4 @@
-import type { TrackedComparison } from './change.ts';
+import type { TrackedComparison } from '@porcelain/kernel/models';
 
 export type ChangeSelection = {
   scope: 'staged' | 'unstaged';
@@ -19,8 +19,6 @@ export type ChangeDiff = {
   selection: ChangeSelection;
   content: ChangeDiffContent;
 };
-
-export type ExpectedFile = { path: string; fingerprint: string | undefined };
 
 export type DiffSelection = {
   comparisons: TrackedComparison[];

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { RegisteredProject, Worktree } from '@porcelain/projects/models';
+import type {
+  RegisteredProject,
+  ListedWorktree,
+} from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { ComposeInventoryService } from './compose-inventory-service.ts';
 
@@ -14,7 +17,7 @@ function project(id: string): RegisteredProject {
   };
 }
 
-function worktree(id: string, projectId: string): Worktree {
+function worktree(id: string, projectId: string): ListedWorktree {
   return {
     id,
     projectId,

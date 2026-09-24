@@ -1,5 +1,5 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import type { RecoverInterruptedGitActionsInput } from '../models/git-action-operations.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import type { RunningGitActionStore } from '../ports/running-git-action-store.ts';
 

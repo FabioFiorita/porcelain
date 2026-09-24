@@ -1,11 +1,11 @@
+import type { FileChange } from '@porcelain/kernel/models';
 import { CommitDraftSelectionError } from '../errors/commit-draft-selection-error.ts';
 import { CommitDraftTooLargeError } from '../errors/commit-draft-too-large-error.ts';
 import { CommitDraftUnavailableError } from '../errors/commit-draft-unavailable-error.ts';
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
 import type { CommitDraftCapture } from '../models/commit-draft.ts';
-import type { CommitDraftChange } from '../models/commit-draft-change.ts';
+import type { FingerprintedFile } from '../models/fingerprinted-file.ts';
 import type { CaptureCommitDraftInput } from '../models/commit-draft-operations.ts';
-import type { ExpectedFile } from '../models/expected-file.ts';
 import type { CommitDraftReader } from '../ports/commit-draft-reader.ts';
 import type { CommitDraftSnapshotReader } from '../ports/commit-draft-snapshot-reader.ts';
 
@@ -32,7 +32,7 @@ export class CaptureCommitDraftService {
       paths.includes(change.path),
     );
     const allowed = new Set(selected.flatMap(changedPaths));
-    const expectedFiles = selected.flatMap((change): ExpectedFile[] =>
+    const expectedFiles = selected.flatMap((change): FingerprintedFile[] =>
       change.fingerprint === undefined
         ? []
         : [{ path: change.path, fingerprint: change.fingerprint }],
@@ -62,7 +62,7 @@ export class CaptureCommitDraftService {
 
   private async evidence(
     headOid: string | undefined,
-    selected: readonly CommitDraftChange[],
+    selected: readonly FileChange[],
     snapshot: CommitDraftSnapshotReader,
     signal: AbortSignal | undefined,
   ) {
@@ -107,7 +107,7 @@ export class CaptureCommitDraftService {
   }
 }
 
-function changedPaths(change: CommitDraftChange): string[] {
+function changedPaths(change: FileChange): string[] {
   return [
     change.path,
     ...change.comparisons.flatMap((comparison) =>

@@ -1,10 +1,10 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import { GitActionReceiptMismatchError } from '../errors/git-action-receipt-mismatch-error.ts';
 import type {
   AcceptGitActionInput,
   AcceptGitActionResult,
 } from '../models/git-action-operations.ts';
 import type { GitActionReceipt } from '../models/git-action-receipt.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { commitExpectsSelectedFiles } from '../rules/commit-expects-selected-files.ts';
 import { commitSelectsPaths } from '../rules/commit-selects-paths.ts';

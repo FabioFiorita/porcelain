@@ -1,17 +1,4 @@
-export type ChangeComparison =
-  | {
-      scope: 'staged' | 'unstaged';
-      oldPath?: string | undefined;
-      newPath?: string | undefined;
-    }
-  | { scope: 'untracked' }
-  | { scope: 'unmerged' };
-
-export type FileChange = {
-  path: string;
-  fingerprint?: string | undefined;
-  comparisons: ChangeComparison[];
-};
+import type { ExpectedFile, FileChange } from '@porcelain/kernel/models';
 
 export type ReadChangesResult = {
   worktreeId: string;
@@ -23,11 +10,6 @@ export type ChangeSelection = {
   scope: 'staged' | 'unstaged';
   oldPath?: string | undefined;
   newPath?: string | undefined;
-};
-
-export type ExpectedFile = {
-  path: string;
-  fingerprint?: string | undefined;
 };
 
 export type ChangeDiffContent =

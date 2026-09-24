@@ -1,4 +1,4 @@
-import type { ExpectedFile } from '../models/expected-file.ts';
+import type { ExpectedFile } from '@porcelain/kernel/models';
 
 export function targetMatchesExpectation(
   expected: readonly ExpectedFile[],

@@ -16,10 +16,11 @@ import {
 } from '@porcelain/changes/services';
 import type { ReadTextFileService } from '@porcelain/files/services';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
+import type { ListedWorktree } from '@porcelain/projects/models';
+import type { WorktreeAccess } from '@porcelain/kernel/ports';
 import type { ReconcileReviewedFilesService } from '@porcelain/reviews/services';
 import type { CommitReaderFactory } from '@porcelain/git/history';
 import type { InspectionFactory } from '@porcelain/git/inspection';
-import type { WorktreeAccess } from '@porcelain/projects/ports';
 import type { StorageSession } from '@porcelain/storage';
 import { createEnvironmentIdentityStore } from '@porcelain/storage/access';
 import { ChangeDiffAdapter } from '../adapters/changes/change-diff-adapter.ts';
@@ -44,7 +45,7 @@ export function composeChanges(deps: {
   session: StorageSession;
   lanes: Lanes;
   laneKeys: LaneKeys;
-  worktreeAccess: WorktreeAccess;
+  worktreeAccess: WorktreeAccess<ListedWorktree>;
   inventory: { read(): { environmentId: string } };
   inspection: InspectionFactory;
   commitGit: CommitReaderFactory;

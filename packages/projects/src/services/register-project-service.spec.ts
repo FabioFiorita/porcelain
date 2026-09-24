@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { SequentialIdSource } from '@porcelain/kernel/fakes';
 import type {
   DiscoveredProjectRepository,
   RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
-import { SequentialIdSource } from '../../spec/fakes/sequential-id-source.ts';
 import { RegisterProjectService } from './register-project-service.ts';
 
 const repository: DiscoveredProjectRepository = {
@@ -32,7 +32,7 @@ function setup(projects: RegisteredProject[] = []) {
   const inventory = new InMemoryInventoryStore('environment', projects);
   const service = new RegisterProjectService(
     inventory,
-    new SequentialIdSource('project'),
+    new SequentialIdSource(),
   );
   return { inventory, service };
 }
@@ -45,7 +45,7 @@ describe('RegisterProjectService', () => {
       originUrl: 'git@example.com:team/backend.git',
     });
     expect(project).toEqual({
-      id: 'project-1',
+      id: '00000000-0000-4000-8000-000000000001',
       name: 'backend',
       namedByOwner: false,
       commonDirectory: '/srv/api/.git',

@@ -1,4 +1,4 @@
-import type { ChangeComparison, FileChange } from '../models/change.ts';
+import type { ChangeComparison, FileChange } from '@porcelain/kernel/models';
 import type { WorktreeSide } from '../models/worktree-side.ts';
 import { fingerprintChange } from './fingerprint-change.ts';
 import { logicalPath } from './logical-path.ts';

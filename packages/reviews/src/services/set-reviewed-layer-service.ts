@@ -1,9 +1,9 @@
+import type { Clock } from '@porcelain/kernel/ports';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
 import type {
   SetReviewedLayerInput,
   SetReviewedLayerResult,
 } from '../models/reviewed-mark.ts';
-import type { Clock } from '../ports/clock.ts';
 import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import { currentLayerFingerprint } from '../rules/resolve-review.ts';
 
