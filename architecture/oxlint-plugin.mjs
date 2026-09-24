@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles } from './policy.ts';
 
@@ -267,6 +268,9 @@ const httpStatus =
 const repositoryRoot = normalizedFilename(
   fileURLToPath(new URL('..', import.meta.url)),
 );
+const nodeBuiltins = new Set(
+  builtinModules.map((name) => name.replace(/^node:/, '')),
+);
 const aliasedParseMethods = new Set([
   ...parseMethods,
   'decodeAsync',
@@ -290,9 +294,43 @@ const nodeGlobals = new Set([
 ]);
 const featureMethods = new Set(['get', 'post', 'put', 'patch', 'delete']);
 const routeHook = /^(?:on|pre)[A-Z]|^(?:handler|errorHandler)$/;
+const writingField = /^(?:set|record|reconcile|update|remove|collect)[A-Z]/;
+const pureConstructors = new Set(['Map', 'Set', 'RegExp']);
+const pureCrypto = new Set(['createHash', 'timingSafeEqual']);
+const primitiveTypes = new Set([
+  'TSVoidKeyword',
+  'TSUndefinedKeyword',
+  'TSNullKeyword',
+  'TSStringKeyword',
+  'TSNumberKeyword',
+  'TSBooleanKeyword',
+  'TSBigIntKeyword',
+  'TSSymbolKeyword',
+  'TSNeverKeyword',
+  'TSLiteralType',
+  'TSTemplateLiteralType',
+]);
+const portName = /(?:Store|Reader|Writer|Runner|Source)$/;
+const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential)[A-Z]/;
+const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
+const camelCase = /^[a-z][A-Za-z0-9]*$/;
+const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
 const disableDirective = /^\s*(?:eslint|oxlint)-(?:disable|enable)/;
+const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
+const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
 const packageSource = /^packages\/[^/]+\/src\//;
+const serviceFile = /^packages\/[^/]+\/src\/services\//;
+const ruleFile = /^packages\/[^/]+\/src\/rules\//;
+const modelFile = /^packages\/[^/]+\/src\/models\//;
+const portFile = /^packages\/([^/]+)\/src\/ports\//;
+const kernelFile = /^packages\/kernel\/src\//;
 const useCaseFile = /^apps\/server\/src\/use-cases\/[^/]+\/[^/]+\.ts$/;
+const adapterFile = /^apps\/server\/src\/adapters\//;
+const storageRepositoryFile = /^packages\/storage\/src\/repositories\//;
+const fakeFile = /^(?:packages\/[^/]+|apps\/server)\/spec\/fakes\//;
+const clockFile =
+  /^(?:packages\/[^/]+\/src\/rules|apps\/server\/src\/adapters)\//;
+const indexFile = /^packages\/[^/]+\/src\/(?:.+\/)?index\.ts$/;
 const operationFile =
   /^(?:packages\/[^/]+\/src\/services\/(?:[^/]+\/)*[^/]+-service|apps\/server\/src\/controllers\/(?:[^/]+\/)*[^/]+-controller|apps\/server\/src\/use-cases\/[^/]+\/[^/]+)\.ts$/;
 const domainCode = new RegExp(
@@ -365,6 +403,23 @@ function globalReferences(context, program, names) {
   return [...scope.through, ...builtin]
     .filter((reference) => names.has(reference.identifier.name))
     .map((reference) => reference.identifier);
+}
+
+function within(node, container) {
+  return (
+    node.range[0] >= container.range[0] && node.range[1] <= container.range[1]
+  );
+}
+
+function containsType(node, type, visitorKeys) {
+  if (!node) return false;
+  if (node.type === type) return true;
+  return (visitorKeys[node.type] ?? []).some((key) => {
+    const child = node[key];
+    return Array.isArray(child)
+      ? child.some((entry) => containsType(entry, type, visitorKeys))
+      : containsType(child, type, visitorKeys);
+  });
 }
 
 function isFunction(node) {
@@ -535,11 +590,68 @@ function isTypeProviderInit(identifier) {
   );
 }
 
+function discriminants(member) {
+  return new Set(
+    member.members
+      .filter(
+        (property) =>
+          property.type === 'TSPropertySignature' &&
+          !property.optional &&
+          property.key.type === 'Identifier' &&
+          property.typeAnnotation?.typeAnnotation.type === 'TSLiteralType',
+      )
+      .map((property) => property.key.name),
+  );
+}
+
+function primitiveValue(node) {
+  if (!node) return false;
+  if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')
+    return primitiveValue(node.expression);
+  if (node.type === 'Literal') return !node.regex && node.value !== null;
+  if (node.type === 'TemplateLiteral')
+    return node.expressions.every(primitiveValue);
+  if (node.type === 'UnaryExpression') return primitiveValue(node.argument);
+  if (node.type === 'BinaryExpression')
+    return primitiveValue(node.left) && primitiveValue(node.right);
+  return false;
+}
+
+function unwrapPromise(node) {
+  const argument = (node?.typeArguments ?? node?.typeParameters)?.params[0];
+  return node?.type === 'TSTypeReference' &&
+    node.typeName.type === 'Identifier' &&
+    node.typeName.name === 'Promise' &&
+    argument
+    ? argument
+    : node;
+}
+
+function isExecuteMethod(node) {
+  return (
+    node.kind === 'method' &&
+    !node.computed &&
+    node.key.type === 'Identifier' &&
+    node.key.name === 'execute'
+  );
+}
+
 function moduleSource(node) {
   const source = node.source;
   if (source?.type === 'Literal' && typeof source.value === 'string')
     return source.value;
   return undefined;
+}
+
+function moduleVisitors(check) {
+  return {
+    ImportDeclaration: check,
+    ImportExpression: check,
+    ExportAllDeclaration: check,
+    ExportNamedDeclaration(node) {
+      if (node.source) check(node);
+    },
+  };
 }
 
 function isSpec(context) {
@@ -845,6 +957,651 @@ export default {
                   message:
                     'Fix the code instead of disabling a rule; disable directives are not allowed.',
                 });
+          },
+        };
+      },
+    },
+    'no-void-statement': {
+      create(context) {
+        return {
+          ExpressionStatement(node) {
+            const expression = node.expression;
+            if (
+              expression.type === 'UnaryExpression' &&
+              expression.operator === 'void' &&
+              expression.argument.type === 'Identifier'
+            )
+              context.report({
+                node,
+                message:
+                  'Remove the parameter instead of voiding it; execute takes no input when there is none.',
+              });
+          },
+        };
+      },
+    },
+    'adapters-never-import-services': {
+      create(context) {
+        const path = repositoryPath(context);
+        const adapter = adapterFile.test(path);
+        const port = portFile.exec(path);
+        if ((!adapter && !port) || isSpec(context)) return {};
+        return moduleVisitors((node) => {
+          const source = moduleSource(node);
+          if (source === undefined) return;
+          if (adapter && /^@porcelain\/[^/]+\/services(?:\/|$)/.test(source))
+            context.report({
+              node: node.source,
+              message:
+                'An adapter wraps Git, files, storage or a model provider; it never calls a domain service. The use case sequences domains.',
+            });
+          const target = /^@porcelain\/([^/]+)/.exec(source)?.[1];
+          if (port && target && target !== port[1] && target !== 'kernel')
+            context.report({
+              node: node.source,
+              message:
+                'A port names only its own domain and @porcelain/kernel; another domain is read through its services in the use case.',
+            });
+        });
+      },
+    },
+    'write-needs-write-lane': {
+      create(context) {
+        const readLanes = [];
+        const isReadLane = (node) =>
+          node.callee.type === 'MemberExpression' &&
+          propertyName(node.callee, context) === 'run' &&
+          memberPath(node.callee.object)?.at(-1) === 'lanes' &&
+          staticString(node.arguments[1], context) === 'read' &&
+          isFunction(node.arguments[2]);
+        return {
+          CallExpression(node) {
+            if (isReadLane(node)) {
+              readLanes.push(node.arguments[2]);
+              return;
+            }
+            if (!readLanes.some((callback) => within(node, callback))) return;
+            const path = memberPath(node.callee);
+            if (
+              path?.[0] === 'this' &&
+              path.length >= 2 &&
+              writingField.test(path[1])
+            )
+              context.report({
+                node,
+                message: `A read lane never writes; run ${path[1]} in its own write lane after the read returns.`,
+              });
+          },
+          'CallExpression:exit'(node) {
+            if (isReadLane(node)) readLanes.pop();
+          },
+        };
+      },
+    },
+    'rules-are-pure': {
+      create(context) {
+        if (!ruleFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const checkModule = (node) => {
+          const source = moduleSource(node);
+          if (source === undefined) return;
+          const name = source.replace(/^node:/, '');
+          if (
+            !source.startsWith('node:') &&
+            !nodeBuiltins.has(name.split('/')[0] ?? '')
+          )
+            return;
+          const pure =
+            name === 'crypto' &&
+            node.type === 'ImportDeclaration' &&
+            node.specifiers.every(
+              (specifier) =>
+                specifier.type === 'ImportSpecifier' &&
+                pureCrypto.has(
+                  specifier.imported.name ?? specifier.imported.value,
+                ),
+            );
+          if (!pure)
+            context.report({
+              node: node.source,
+              message:
+                'A rule is pure: from node it imports only createHash and timingSafeEqual from node:crypto.',
+            });
+        };
+        return {
+          ...moduleVisitors(checkModule),
+          ThrowStatement(node) {
+            context.report({
+              node,
+              message:
+                'A rule returns a value or an outcome; the service decides to throw.',
+            });
+          },
+          NewExpression(node) {
+            if (
+              node.callee.type !== 'Identifier' ||
+              !pureConstructors.has(node.callee.name)
+            )
+              context.report({
+                node,
+                message:
+                  'A rule constructs only Map, Set and RegExp; errors, dates and buffers belong in services and adapters.',
+              });
+          },
+        };
+      },
+    },
+    'kernel-is-types': {
+      create(context) {
+        if (!kernelFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const report = (node) =>
+          context.report({
+            node,
+            message:
+              'The kernel holds types and ports only; a function, class, value or enum belongs in a domain.',
+          });
+        return {
+          FunctionDeclaration: report,
+          FunctionExpression: report,
+          ArrowFunctionExpression: report,
+          ClassDeclaration: report,
+          ClassExpression: report,
+          VariableDeclaration: report,
+          TSEnumDeclaration: report,
+        };
+      },
+    },
+    'models-file-shape': {
+      create(context) {
+        if (!modelFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const aliases = new Map();
+        const resolved = (node) =>
+          node.type === 'TSTypeReference' &&
+          node.typeName.type === 'Identifier' &&
+          aliases.has(node.typeName.name)
+            ? aliases.get(node.typeName.name)
+            : node;
+        return {
+          Program(program) {
+            for (const statement of program.body) {
+              const declaration =
+                statement.type === 'ExportNamedDeclaration'
+                  ? statement.declaration
+                  : statement;
+              if (declaration?.type === 'TSTypeAliasDeclaration')
+                aliases.set(declaration.id.name, declaration.typeAnnotation);
+            }
+          },
+          TSInterfaceDeclaration(node) {
+            context.report({
+              node,
+              message: 'Write a model as a type alias, never an interface.',
+            });
+          },
+          TSPropertySignature(node) {
+            if (!node.optional) return;
+            const annotation = node.typeAnnotation?.typeAnnotation;
+            if (
+              annotation?.type !== 'TSUnionType' ||
+              !annotation.types.some(
+                (member) => member.type === 'TSUndefinedKeyword',
+              )
+            )
+              context.report({
+                node,
+                message: 'Write an optional property as ?: T | undefined.',
+              });
+          },
+          TSTypeAliasDeclaration(node) {
+            if (!/Result$/.test(node.id.name)) return;
+            const annotation = node.typeAnnotation;
+            const members =
+              annotation.type === 'TSUnionType'
+                ? annotation.types
+                : [annotation];
+            if (members.every((member) => primitiveTypes.has(member.type)))
+              context.report({
+                node,
+                message: `${node.id.name} is an object or a domain type; a service with nothing to return returns void and names no Result.`,
+              });
+          },
+          TSUnionType(node) {
+            const members = node.types.map(resolved);
+            if (
+              members.length < 2 ||
+              !members.every((member) => member.type === 'TSTypeLiteral')
+            )
+              return;
+            const [first, ...rest] = members.map(discriminants);
+            const shared = [...first].filter((key) =>
+              rest.every((keys) => keys.has(key)),
+            );
+            if (shared.length > 0 && !shared.includes('kind'))
+              context.report({
+                node,
+                message: `Discriminate the union on kind, not ${shared.join(' or ')}.`,
+              });
+          },
+        };
+      },
+    },
+    'no-inline-execute-types': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          (!serviceFile.test(path) && !useCaseFile.test(path)) ||
+          isSpec(context)
+        )
+          return {};
+        return {
+          MethodDefinition(node) {
+            if (!isExecuteMethod(node)) return;
+            const annotations = [
+              ...node.value.params.map((parameter) =>
+                parameter.type === 'TSParameterProperty'
+                  ? parameter.parameter.typeAnnotation
+                  : parameter.typeAnnotation,
+              ),
+              node.value.returnType,
+            ];
+            for (const annotation of annotations)
+              if (
+                containsType(
+                  annotation,
+                  'TSTypeLiteral',
+                  context.sourceCode.visitorKeys,
+                )
+              )
+                context.report({
+                  node: annotation,
+                  message:
+                    'Name the execute input and result in models/<operation>.ts instead of an inline object type.',
+                });
+          },
+        };
+      },
+    },
+    'one-clock': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!serverCode.test(path) || clockFile.test(path) || isSpec(context))
+          return {};
+        return {
+          'Program:exit'(program) {
+            for (const identifier of globalReferences(
+              context,
+              program,
+              new Set(['Date']),
+            ))
+              context.report({
+                node: identifier,
+                message:
+                  'Time comes from the Clock port as an ISO string; Date arithmetic lives in rules/ and adapters/ only.',
+              });
+          },
+        };
+      },
+    },
+    'no-undefined-union-result': {
+      create(context) {
+        if (!serviceFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        return {
+          MethodDefinition(node) {
+            if (!isExecuteMethod(node)) return;
+            const result = unwrapPromise(node.value.returnType?.typeAnnotation);
+            if (
+              result?.type === 'TSUnionType' &&
+              result.types.some(
+                (member) =>
+                  member.type === 'TSUndefinedKeyword' ||
+                  member.type === 'TSVoidKeyword',
+              )
+            )
+              context.report({
+                node: result,
+                message:
+                  'Return a named outcome or throw the named error; execute never answers T | undefined.',
+              });
+          },
+        };
+      },
+    },
+    'signals-are-passed': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          (!serviceFile.test(path) && !useCaseFile.test(path)) ||
+          isSpec(context)
+        )
+          return {};
+        const message =
+          'Pass the signal to the port and never inspect it; an abort propagates as an error.';
+        return {
+          MemberExpression(node) {
+            if (
+              ['throwIfAborted', 'aborted', 'onabort'].includes(
+                propertyName(node, context) ?? '',
+              )
+            )
+              context.report({ node, message });
+          },
+          CallExpression(node) {
+            if (
+              node.callee.type === 'MemberExpression' &&
+              propertyName(node.callee, context) === 'addEventListener' &&
+              staticString(node.arguments[0], context) === 'abort'
+            )
+              context.report({ node, message });
+          },
+        };
+      },
+    },
+    'imports-by-path': {
+      create(context) {
+        const path = repositoryPath(context);
+        const owner = packageCode.exec(path)?.[1];
+        if (owner === undefined) return {};
+        const spec = isSpec(context);
+        return {
+          ...moduleVisitors((node) => {
+            const source = moduleSource(node);
+            if (source === undefined) return;
+            if (
+              !spec &&
+              (source === `@porcelain/${owner}` ||
+                source.startsWith(`@porcelain/${owner}/`))
+            )
+              context.report({
+                node: node.source,
+                message:
+                  'Inside a package, import a file by its relative path, never the package by name.',
+              });
+            if (source.startsWith('.') && /(?:^|\/)index\.ts$/.test(source))
+              context.report({
+                node: node.source,
+                message:
+                  'Import the file itself; an index.ts exists for package.json exports only.',
+              });
+          }),
+          Program(program) {
+            if (!indexFile.test(path)) return;
+            for (const statement of program.body)
+              if (
+                statement.type !== 'ExportAllDeclaration' &&
+                (statement.type !== 'ExportNamedDeclaration' ||
+                  !statement.source)
+              )
+                context.report({
+                  node: statement,
+                  message: 'An index.ts holds export ... from statements only.',
+                });
+          },
+        };
+      },
+    },
+    'port-shape': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!portFile.test(path) || indexFile.test(path) || isSpec(context))
+          return {};
+        const checkParameters = (node, parameters) => {
+          const names = parameters.map(parameterName);
+          if (
+            parameters.length > 2 ||
+            (parameters.length >= 1 && names[0] !== 'input') ||
+            (parameters.length === 2 && names[1] !== 'signal')
+          )
+            context.report({
+              node,
+              message:
+                'A port method takes (), (input) or (input, signal): one input object, then the signal.',
+            });
+        };
+        return {
+          TSInterfaceDeclaration(node) {
+            if (!portName.test(node.id.name))
+              context.report({
+                node: node.id,
+                message:
+                  'Name a port for its role: it ends in Store, Reader, Writer, Runner or Source.',
+              });
+            for (const member of node.body.body) {
+              if (member.type === 'TSMethodSignature')
+                checkParameters(member, member.params);
+              const annotation = member.typeAnnotation?.typeAnnotation;
+              if (
+                member.type === 'TSPropertySignature' &&
+                annotation?.type === 'TSFunctionType'
+              )
+                checkParameters(member, annotation.params);
+            }
+          },
+        };
+      },
+    },
+    'no-exported-constants': {
+      create(context) {
+        const path = repositoryPath(context);
+        const service = serviceFile.test(path);
+        if ((!service && !ruleFile.test(path)) || isSpec(context)) return {};
+        const message =
+          'A limit arrives as a typed option from config through compose; rules and services export no constants.';
+        const constants = new Set();
+        return {
+          Program(program) {
+            for (const statement of program.body) {
+              const declaration =
+                statement.type === 'ExportNamedDeclaration'
+                  ? statement.declaration
+                  : statement;
+              if (declaration?.type === 'VariableDeclaration')
+                for (const declarator of declaration.declarations)
+                  if (declarator.id.type === 'Identifier')
+                    constants.add(declarator.id.name);
+            }
+          },
+          ExportNamedDeclaration(node) {
+            if (node.declaration?.type === 'VariableDeclaration')
+              context.report({ node, message });
+            if (node.source) return;
+            for (const specifier of node.specifiers)
+              if (
+                specifier.local.type === 'Identifier' &&
+                constants.has(specifier.local.name)
+              )
+                context.report({ node: specifier, message });
+          },
+          Literal(node) {
+            if (
+              service &&
+              typeof node.value === 'number' &&
+              node.value > 1 &&
+              node.parent?.type !== 'TSLiteralType'
+            )
+              context.report({
+                node,
+                message:
+                  'A service takes its numbers as options from config; no numeric literal above 1.',
+              });
+          },
+        };
+      },
+    },
+    naming: {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!serverCode.test(path) || isSpec(context)) return {};
+        const fake = fakeFile.test(path);
+        const checkClass = (node) => {
+          const name = node.id?.name;
+          if (name === undefined) return;
+          if (!pascalCase.test(name))
+            context.report({
+              node: node.id,
+              message: 'Name a class in PascalCase.',
+            });
+          if (fake && !fakeName.test(name))
+            context.report({
+              node: node.id,
+              message:
+                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>.',
+            });
+        };
+        const checkField = (node, name) => {
+          if (
+            name !== undefined &&
+            (!camelCase.test(name) || /(?:Service|Store)$/.test(name))
+          )
+            context.report({
+              node,
+              message:
+                'Name a readonly field in camelCase after its type, without the Service or Store suffix.',
+            });
+        };
+        return {
+          ClassDeclaration: checkClass,
+          ClassExpression: checkClass,
+          PropertyDefinition(node) {
+            if (node.readonly && !node.static)
+              checkField(node.key, node.key.name);
+          },
+          TSParameterProperty(node) {
+            const parameter =
+              node.parameter.type === 'AssignmentPattern'
+                ? node.parameter.left
+                : node.parameter;
+            if (node.readonly) checkField(parameter, parameter.name);
+          },
+          Program(program) {
+            for (const statement of program.body) {
+              const declaration =
+                statement.type === 'ExportNamedDeclaration'
+                  ? statement.declaration
+                  : statement;
+              if (
+                declaration?.type !== 'VariableDeclaration' ||
+                declaration.kind !== 'const'
+              )
+                continue;
+              for (const declarator of declaration.declarations)
+                if (
+                  declarator.id.type === 'Identifier' &&
+                  primitiveValue(declarator.init) &&
+                  !screamingCase.test(declarator.id.name)
+                )
+                  context.report({
+                    node: declarator.id,
+                    message:
+                      'Name a top-level constant of a primitive in SCREAMING_CASE.',
+                  });
+            }
+          },
+        };
+      },
+    },
+    'implementation-name': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          (!adapterFile.test(path) && !storageRepositoryFile.test(path)) ||
+          isSpec(context)
+        )
+          return {};
+        return {
+          ClassDeclaration(node) {
+            const implemented = node.implements ?? [];
+            if (implemented.length !== 1) {
+              context.report({
+                node: node.id ?? node,
+                message:
+                  'An implementation class implements exactly one port interface.',
+              });
+              return;
+            }
+            const expression = implemented[0].expression;
+            const port =
+              expression.type === 'Identifier'
+                ? expression.name
+                : expression.right?.name;
+            if (port && !node.id?.name.endsWith(port))
+              context.report({
+                node: node.id ?? node,
+                message: `Name the class for its technology followed by the port: <Technology>${port}.`,
+              });
+          },
+        };
+      },
+    },
+    'bootstrap-starts-nothing': {
+      create(context) {
+        if (!composeSource.test(normalizedFilename(context.filename)))
+          return {};
+        const message =
+          'Composition builds objects only; defaults belong in config, starting and running in runtime and jobs.';
+        return {
+          LogicalExpression(node) {
+            if (node.operator === '??') context.report({ node, message });
+          },
+          AssignmentExpression(node) {
+            if (node.operator === '??=') context.report({ node, message });
+          },
+          MemberExpression(node) {
+            if (
+              node.object.type === 'Identifier' &&
+              node.object.name === 'process'
+            )
+              context.report({ node, message });
+          },
+          CallExpression(node) {
+            if (
+              node.callee.type === 'MemberExpression' &&
+              ['catch', 'then', 'execute', 'start'].includes(
+                propertyName(node.callee, context) ?? '',
+              )
+            )
+              context.report({ node, message });
+          },
+        };
+      },
+    },
+    'fakes-store': {
+      create(context) {
+        if (!fakeFile.test(repositoryPath(context))) return {};
+        const decides = (node) =>
+          context.report({
+            node,
+            message:
+              'A fake stores and returns; a decision belongs in rules/ and the port gets simpler.',
+          });
+        return {
+          IfStatement: decides,
+          SwitchStatement: decides,
+          ForStatement: decides,
+          ForInStatement: decides,
+          ForOfStatement: decides,
+          WhileStatement: decides,
+          DoWhileStatement: decides,
+          ThrowStatement(node) {
+            context.report({
+              node,
+              message:
+                'A fake never throws; script the outcome through what the port returns.',
+            });
+          },
+          CallExpression(node) {
+            if (
+              node.callee.type === 'MemberExpression' &&
+              propertyName(node.callee, context) === 'push' &&
+              node.callee.object.type === 'MemberExpression'
+            )
+              context.report({
+                node,
+                message:
+                  'A fake stores state, it never records calls; assert through what the port reads back.',
+              });
           },
         };
       },
