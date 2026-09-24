@@ -15,6 +15,7 @@ export function readHealth(
         response: { 200: readHealthResponseSchema },
       },
     },
-    () => options.useCase.execute(),
+    async (request) =>
+      options.useCase.execute({ signal: request.disconnected }),
   );
 }

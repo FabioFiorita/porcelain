@@ -23,6 +23,9 @@ export function readReceipt(
         },
       },
     },
-    async (request) => options.useCase.execute(request.params),
+    async (request) =>
+      options.useCase.execute(request.params, {
+        signal: request.disconnected,
+      }),
   );
 }

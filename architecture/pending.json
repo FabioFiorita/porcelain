@@ -115,24 +115,6 @@
     }
   },
   "porcelain/operation-class-shape": {
-    "apps/server/src/use-cases/access/check-request-origin.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/access/clear-browser-session.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/access/read-health.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/access/read-owner-status.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/git-actions/read-git-action-receipt.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
-    "apps/server/src/use-cases/git-actions/recover-interrupted-git-actions.ts": {
-      "Use case execute takes (context) or (input, context); the context always comes last.": 1
-    },
     "apps/server/src/use-cases/reviews/read-review-summary.ts": {
       "Use case execute takes (context) or (input, context); the context always comes last.": 1
     }

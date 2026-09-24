@@ -65,8 +65,8 @@ export function composeAccess(
       lanes,
       laneKeys,
     ),
-    clearBrowserSession: new ClearBrowserSessionUseCase(),
-    checkRequestOrigin: new CheckRequestOriginUseCase(),
+    clearBrowserSession: new ClearBrowserSessionUseCase(lanes, laneKeys),
+    checkRequestOrigin: new CheckRequestOriginUseCase(lanes, laneKeys),
     flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deviceSightingStore, deviceStore),
       lanes,
@@ -91,9 +91,11 @@ export function composeAccess(
       lanes,
       laneKeys,
     ),
-    readHealth: new ReadHealthUseCase(readEnvironment),
+    readHealth: new ReadHealthUseCase(readEnvironment, lanes, laneKeys),
     readOwnerStatus: new ReadOwnerStatusUseCase(
       new ReadOwnerStatusService(adapters.runtimeStatusReader),
+      lanes,
+      laneKeys,
     ),
     redeemPairing: new RedeemPairingUseCase(
       new RedeemPairingService(

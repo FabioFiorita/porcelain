@@ -98,6 +98,7 @@ export function composeGitActions(
     readGitActionReceipt: new ReadGitActionReceiptUseCase(
       new ReadGitActionReceiptService(store),
       lanes,
+      laneKeys,
     ),
     dismissInterruptedGitAction: new DismissInterruptedGitActionUseCase(
       new DismissInterruptedGitActionService(store, clock),
