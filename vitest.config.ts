@@ -20,13 +20,6 @@ export default defineConfig({
     projects: [
       {
         test: {
-          name: 'architecture',
-          root,
-          include: ['architecture/**/*.spec.ts'],
-        },
-      },
-      {
-        test: {
           name: '@porcelain/server',
           root,
           include: ['apps/server/src/**/*.spec.ts'],
