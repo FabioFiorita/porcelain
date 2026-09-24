@@ -111,6 +111,13 @@ export class WebSocketEventPublisher implements EventPublisher {
         client.send(notice);
   }
 
+  gitActionFailed(receipt: GitActionReceiptView, error: unknown): void {
+    const detail = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `Porcelain git action ${receipt.requestId} (${receipt.action}) failed in the background: ${detail}\n`,
+    );
+  }
+
   jobFailed(job: JobName, error: unknown): void {
     const detail = error instanceof Error ? error.message : String(error);
     process.stderr.write(`Porcelain job ${job} failed: ${detail}\n`);

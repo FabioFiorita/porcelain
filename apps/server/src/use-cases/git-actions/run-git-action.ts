@@ -1,4 +1,5 @@
 import type {
+  ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -7,6 +8,7 @@ import type {
   RunGitActionRequest,
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
+import type { ReadTextFileService } from '@porcelain/files/services';
 import type { GitActionRun } from '@porcelain/git-actions/models';
 import type {
   AcceptGitActionService,
@@ -22,17 +24,15 @@ import type {
   CheckProjectService,
   CheckWorktreeService,
 } from '@porcelain/projects/services';
+import type {
+  ListReviewEvidenceService,
+  ReadPublishedReviewService,
+  RefreshReviewActivityService,
+} from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
-
-export type PublishedReviewRefresh = {
-  execute(
-    input: { worktreeId: string },
-    context: OperationContext,
-  ): Promise<unknown>;
-};
 
 export type RunGitActionOptions = { deadlineMs: number };
 
@@ -46,8 +46,12 @@ export class RunGitActionUseCase {
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly runGitAction: RunGitActionService;
   private readonly recordGitActionProgress: RecordGitActionProgressService;
-  private readonly refreshPublishedReview: PublishedReviewRefresh;
   private readonly finishGitAction: FinishGitActionService;
+  private readonly readPublishedReview: ReadPublishedReviewService;
+  private readonly listReviewEvidence: ListReviewEvidenceService;
+  private readonly readTextFile: ReadTextFileService;
+  private readonly readChangeDiffs: ReadChangeDiffsService;
+  private readonly refreshReviewActivity: RefreshReviewActivityService;
   private readonly interruptGitAction: InterruptGitActionService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -64,8 +68,12 @@ export class RunGitActionUseCase {
     readChangeFingerprints: ReadChangeFingerprintsService,
     runGitAction: RunGitActionService,
     recordGitActionProgress: RecordGitActionProgressService,
-    refreshPublishedReview: PublishedReviewRefresh,
     finishGitAction: FinishGitActionService,
+    readPublishedReview: ReadPublishedReviewService,
+    listReviewEvidence: ListReviewEvidenceService,
+    readTextFile: ReadTextFileService,
+    readChangeDiffs: ReadChangeDiffsService,
+    refreshReviewActivity: RefreshReviewActivityService,
     interruptGitAction: InterruptGitActionService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -81,8 +89,12 @@ export class RunGitActionUseCase {
     this.readChangeFingerprints = readChangeFingerprints;
     this.runGitAction = runGitAction;
     this.recordGitActionProgress = recordGitActionProgress;
-    this.refreshPublishedReview = refreshPublishedReview;
     this.finishGitAction = finishGitAction;
+    this.readPublishedReview = readPublishedReview;
+    this.listReviewEvidence = listReviewEvidence;
+    this.readTextFile = readTextFile;
+    this.readChangeDiffs = readChangeDiffs;
+    this.refreshReviewActivity = refreshReviewActivity;
     this.interruptGitAction = interruptGitAction;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -128,14 +140,14 @@ export class RunGitActionUseCase {
   }
 
   private runInBackground(run: GitActionRun): void {
-    void this.lanes
-      .run(
-        this.laneKeys.project(run.projectId),
-        'write',
-        ({ signal }) => this.settle(run, signal),
-        { deadlineMs: this.options.deadlineMs, untilSettled: true },
-      )
-      .catch(() => this.lanes.finish(async () => this.abandon(run)));
+    this.lanes.background(
+      this.laneKeys.project(run.projectId),
+      ({ signal }) => this.settle(run, signal),
+      {
+        deadlineMs: this.options.deadlineMs,
+        onFailure: (error) => this.abandon(run, error),
+      },
+    );
   }
 
   private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
@@ -147,16 +159,52 @@ export class RunGitActionUseCase {
       },
       signal,
     );
+    const receipt = this.finishGitAction.execute({
+      requestId: run.requestId,
+      outcome: ran.outcome,
+    });
+    this.events.gitActionChanged(receipt);
     if (ran.reviewStale)
-      await this.refreshPublishedReview
-        .execute({ worktreeId: run.worktreeId }, { signal })
-        .catch(() => undefined);
-    this.events.gitActionChanged(
-      this.finishGitAction.execute({
-        requestId: run.requestId,
-        outcome: ran.outcome,
-      }),
+      this.lanes.background(
+        this.laneKeys.worktree(run.worktreeId),
+        (admission) => this.refreshReview(run.worktreeId, admission.signal),
+        { onFailure: (error) => this.events.gitActionFailed(receipt, error) },
+      );
+  }
+
+  private async refreshReview(
+    worktreeId: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const published = this.readPublishedReview.execute({ worktreeId });
+    if (published.kind === 'none') return;
+    const status = await this.readWorktreeStatus.execute(
+      { worktreeId },
+      signal,
     );
+    const { changes } = await this.readChangeFingerprints.execute(
+      { worktreeId, comparisons: status.changes, paths: undefined },
+      signal,
+    );
+    const evidence = this.listReviewEvidence.execute({
+      layers: published.review.layers,
+      changes,
+    });
+    const texts = await Promise.allSettled(
+      evidence.paths.map((path) =>
+        this.readTextFile.execute({ worktreeId, path }, signal),
+      ),
+    );
+    const diffs = await this.readChangeDiffs.execute(
+      { worktreeId, comparisons: evidence.comparisons },
+      signal,
+    );
+    this.refreshReviewActivity.execute({
+      review: published.review,
+      changes,
+      texts,
+      diffs,
+    });
   }
 
   private async targetChanges(
@@ -188,9 +236,11 @@ export class RunGitActionUseCase {
       this.events.gitActionChanged(recorded.receipt);
   }
 
-  private abandon(run: GitActionRun): void {
-    this.events.gitActionChanged(
-      this.interruptGitAction.execute({ requestId: run.requestId }),
-    );
+  private abandon(run: GitActionRun, error: unknown): void {
+    const receipt = this.interruptGitAction.execute({
+      requestId: run.requestId,
+    });
+    this.events.gitActionChanged(receipt);
+    this.events.gitActionFailed(receipt, error);
   }
 }

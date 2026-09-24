@@ -16,5 +16,6 @@ export interface EventPublisher {
   ): void;
   filesChanged(worktreeId: string, paths: readonly string[]): void;
   gitActionChanged(receipt: GitActionReceiptView): void;
+  gitActionFailed(receipt: GitActionReceiptView, error: unknown): void;
   jobFailed(job: JobName, error: unknown): void;
 }

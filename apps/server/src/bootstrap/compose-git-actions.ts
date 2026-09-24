@@ -1,4 +1,5 @@
 import type { FileReader } from '@porcelain/files/ports';
+import type { ReadTextFileService } from '@porcelain/files/services';
 import type {
   CommitDraftSource,
   CommitModelReader,
@@ -38,14 +39,13 @@ import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-mo
 import { ListGitBranchesUseCase } from '../use-cases/git-actions/list-git-branches.ts';
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
-import {
-  RunGitActionUseCase,
-  type PublishedReviewRefresh,
-} from '../use-cases/git-actions/run-git-action.ts';
+import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
 import type { composeChanges } from './compose-changes.ts';
+import type { composeReviews } from './compose-reviews.ts';
 import type { ComposeContext } from './compose-context.ts';
 
 type ChangesServices = ReturnType<typeof composeChanges>['services'];
+type ReviewsServices = ReturnType<typeof composeReviews>['services'];
 
 export type GitActionsAdapters = {
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
@@ -54,7 +54,8 @@ export type GitActionsAdapters = {
   actionGit: GitActionWriterFactory;
   fileReader: Pick<FileReader, 'readText'>;
   changes: ChangesServices;
-  refreshPublishedReview: PublishedReviewRefresh;
+  readTextFile: ReadTextFileService;
+  reviews: ReviewsServices;
   commitDraftSource: CommitDraftSource;
   commitModelReader: CommitModelReader;
 };
@@ -86,8 +87,12 @@ export function composeGitActions(
         new GitGitActionRunner(adapters.worktreeAccess, adapters.actionGit),
       ),
       new RecordGitActionProgressService(store, limits.progress),
-      adapters.refreshPublishedReview,
       new FinishGitActionService(store, clock),
+      adapters.reviews.readPublishedReview,
+      adapters.reviews.listReviewEvidence,
+      adapters.readTextFile,
+      adapters.changes.readChangeDiffs,
+      adapters.reviews.refreshReviewActivity,
       new InterruptGitActionService(store, clock),
       lanes,
       laneKeys,

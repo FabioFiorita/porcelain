@@ -76,6 +76,7 @@ export type {
 export type { ReconcileReviewedFilesInput } from './reconcile-reviewed-files.ts';
 export type { ReconcileReviewedLayersInput } from './reconcile-reviewed-layers.ts';
 export type { RecordReviewActivityInput } from './record-review-activity.ts';
+export type { RefreshReviewActivityInput } from './refresh-review-activity.ts';
 export type {
   RemoveReviewedFileInput,
   RemoveReviewedFileResult,

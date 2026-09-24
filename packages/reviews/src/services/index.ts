@@ -14,6 +14,7 @@ export { ReadReviewSummaryService } from './read-review-summary-service.ts';
 export { ReconcileReviewedFilesService } from './reconcile-reviewed-files-service.ts';
 export { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';
 export { RecordReviewActivityService } from './record-review-activity-service.ts';
+export { RefreshReviewActivityService } from './refresh-review-activity-service.ts';
 export { RemoveReviewedFileService } from './remove-reviewed-file-service.ts';
 export { RemoveReviewedLayerService } from './remove-reviewed-layer-service.ts';
 export { ReplyToCommentService } from './reply-to-comment-service.ts';

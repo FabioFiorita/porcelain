@@ -32,6 +32,8 @@ export class InMemoryEventPublisher implements EventPublisher {
 
   gitActionChanged(_receipt: GitActionReceiptView): void {}
 
+  gitActionFailed(_receipt: GitActionReceiptView, _error: unknown): void {}
+
   jobFailed(job: JobName, error: unknown): void {
     this.failures.set(job, error);
   }

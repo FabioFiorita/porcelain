@@ -18,6 +18,7 @@ import {
   ReconcileReviewedFilesService,
   ReconcileReviewedLayersService,
   RecordReviewActivityService,
+  RefreshReviewActivityService,
   RemoveReviewedFileService,
   RemoveReviewedLayerService,
   ReplyToCommentService,
@@ -43,7 +44,6 @@ import { MarkCommentsSeenUseCase } from '../use-cases/reviews/mark-comments-seen
 import { PublishReviewUseCase } from '../use-cases/reviews/publish-review.ts';
 import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-review.ts';
 import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
-import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
 import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
 import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
 import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts';
@@ -182,18 +182,6 @@ export function composeReviews(
       lanes,
       laneKeys,
     ),
-    refreshReviewActivity: new RefreshReviewActivityUseCase(
-      readPublishedReview,
-      changes.readWorktreeStatus,
-      changes.readChangeFingerprints,
-      listReviewEvidence,
-      readTextFile,
-      changes.readChangeDiffs,
-      readEnvironment,
-      generatePublishedReview,
-      recordReviewActivity,
-      lanes,
-    ),
     readReviewSummary: new ReadReviewSummaryUseCase(
       new ReadReviewSummaryService(reviewStore, clock, signatureSource),
       lanes,
@@ -257,5 +245,10 @@ export function composeReviews(
       laneKeys,
       events,
     ),
+    services: {
+      readPublishedReview,
+      listReviewEvidence,
+      refreshReviewActivity: new RefreshReviewActivityService(reviewStore),
+    },
   };
 }

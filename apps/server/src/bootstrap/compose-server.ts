@@ -166,7 +166,7 @@ export async function openApplication(
     reconcileReviewedFiles: reviewInvalidation.services.reconcileReviewedFiles,
     readInterruptedGitAction,
   });
-  const reviews = composeReviews(context, {
+  const { services: reviewServices, ...reviews } = composeReviews(context, {
     checkWorktree,
     readEnvironment,
     readTextFile: readTextFileService,
@@ -180,7 +180,8 @@ export async function openApplication(
     actionGit,
     fileReader,
     changes: changeServices,
-    refreshPublishedReview: reviews.refreshReviewActivity,
+    readTextFile: readTextFileService,
+    reviews: reviewServices,
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
   });

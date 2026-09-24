@@ -192,6 +192,24 @@ export class Lanes {
     return options.untilSettled ? task : this.until(task, signal);
   }
 
+  background(
+    lane: string,
+    work: (admission: Admission) => Promise<void>,
+    options: {
+      deadlineMs?: number | undefined;
+      onFailure: (error: unknown) => void;
+    },
+  ): void {
+    this.track(
+      this.run(lane, 'write', work, {
+        deadlineMs: options.deadlineMs,
+        untilSettled: true,
+      }).catch((error: unknown) =>
+        this.finish(async () => options.onFailure(error)),
+      ),
+    );
+  }
+
   private until<T>(task: Promise<T>, signal: AbortSignal): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const leave = () => reject(signal.reason);
