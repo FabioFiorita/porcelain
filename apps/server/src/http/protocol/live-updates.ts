@@ -8,10 +8,12 @@ import type {
   FollowedTargets,
   WatchRequest,
 } from '../../ports/followed-targets.ts';
+import type { Logger } from '../../ports/logger.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
 import { callerOf } from '../principal.ts';
 
 export type LiveUpdatesOptions = {
+  logger: Logger;
   liveUpdates: {
     connect(send: (notice: LiveNotice) => void): {
       follow(targets: FollowedTargets): void;
@@ -79,7 +81,10 @@ export function liveUpdates(
       if (!parsed.success) return socket.close(1008, 'Invalid subscription');
       watches.replace(parsed.data).then(
         (targets) => connection.follow(targets),
-        () => socket.close(1008, 'Subscription refused'),
+        (error: unknown) => {
+          options.logger.failure({ kind: 'live-updates', error });
+          socket.close(1011, 'Subscription could not be followed');
+        },
       );
     });
     socket.once('close', close);

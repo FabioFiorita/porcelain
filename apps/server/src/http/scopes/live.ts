@@ -34,6 +34,7 @@ export async function liveScope(
     deviceConnections: application.deviceConnections,
     liveUpdates: application.liveUpdates,
     worktreeWatches: application.worktreeWatches,
+    logger: application.logger,
     pingMs: options.pingMs,
   });
 }

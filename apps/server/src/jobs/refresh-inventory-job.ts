@@ -1,10 +1,10 @@
-import type { EventPublisher } from '../ports/event-publisher.ts';
+import type { Logger } from '../ports/logger.ts';
 import type { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
 import type { Job, JobOptions } from './job.ts';
 
 export class RefreshInventoryJob implements Job {
   private readonly refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>;
-  private readonly events: EventPublisher;
+  private readonly logger: Logger;
   private readonly options: JobOptions;
   private timer: ReturnType<typeof setInterval> | undefined;
   private running: Promise<void> | undefined;
@@ -12,11 +12,11 @@ export class RefreshInventoryJob implements Job {
 
   constructor(
     refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>,
-    events: EventPublisher,
+    logger: Logger,
     options: JobOptions,
   ) {
     this.refreshInventory = refreshInventory;
-    this.events = events;
+    this.logger = logger;
     this.options = options;
   }
 
@@ -46,6 +46,6 @@ export class RefreshInventoryJob implements Job {
 
   private reportFailure(error: unknown): void {
     if (!this.stopped.signal.aborted)
-      this.events.jobFailed('refresh-inventory', error);
+      this.logger.failure({ kind: 'job', job: 'refresh-inventory', error });
   }
 }

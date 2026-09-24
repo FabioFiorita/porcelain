@@ -46,6 +46,7 @@ import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
 import { GitProjectWorktreeReader } from '../adapters/projects/git-project-worktree-reader.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
+import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
@@ -108,6 +109,7 @@ export async function openApplication(
     new InspectionGit(checkout);
   const clock = new SystemClock();
   const ids = new RandomIdSource();
+  const logger = new StderrLogger(clock);
 
   const worktreeDirectory = new GitProjectWorktreeReader({
     git,
@@ -189,6 +191,7 @@ export async function openApplication(
   });
   const commitPlanner = createCommitPlanner();
   const gitActions = composeGitActions(context, {
+    logger,
     worktreeAccess,
     checkWorktree,
     inventoryStore,
@@ -208,6 +211,7 @@ export async function openApplication(
       worktrees: worktreeAccess,
       projects: () => inventoryStore.read().projects,
     }),
+    logger,
     limits.liveUpdates,
   );
   const jobs: readonly Job[] = [
@@ -215,15 +219,15 @@ export async function openApplication(
     new StartupJob(
       gitActions.recoverInterruptedGitActions,
       projects.refreshInventory,
-      events,
+      logger,
     ),
-    new RefreshInventoryJob(projects.refreshInventory, events, {
+    new RefreshInventoryJob(projects.refreshInventory, logger, {
       intervalMs: limits.jobs.refreshInventoryMs,
     }),
-    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees, events, {
+    new CollectAbsentWorktreesJob(projects.collectAbsentWorktrees, logger, {
       intervalMs: limits.jobs.collectAbsentWorktreesMs,
     }),
-    new FlushDeviceActivityJob(access.flushDeviceActivity, events, {
+    new FlushDeviceActivityJob(access.flushDeviceActivity, logger, {
       intervalMs: limits.jobs.flushDeviceActivityMs,
     }),
   ];
@@ -236,6 +240,7 @@ export async function openApplication(
     reviews,
     gitActions,
     liveUpdates: events,
+    logger,
     worktreeWatches,
     deviceConnections,
     jobs,

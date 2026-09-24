@@ -27,10 +27,14 @@ function subject(limits = { maxConnections: 4, maxWatchedWorktrees: 4 }) {
     projectId: PROJECT,
     commonDirectory: '/repositories/one/.git',
   });
-  const job = new WatchWorktreesJob(invalidation, refresh, events, watcher, {
-    ...limits,
-    burstMs: 1,
-  });
+  const job = new WatchWorktreesJob(
+    invalidation,
+    refresh,
+    events,
+    watcher,
+    { failure: () => undefined },
+    { ...limits, burstMs: 1 },
+  );
   job.start();
   return { job, watcher, events, invalidation, refresh };
 }

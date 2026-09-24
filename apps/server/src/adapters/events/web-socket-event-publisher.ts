@@ -1,6 +1,6 @@
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
 import type { Limits } from '../../config/limits.ts';
-import type { EventPublisher, JobName } from '../../ports/event-publisher.ts';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { FollowedTargets } from '../../ports/followed-targets.ts';
 
 type WorktreeChange = 'files' | 'git' | 'reviewed' | 'comments' | 'review';
@@ -109,18 +109,6 @@ export class WebSocketEventPublisher implements EventPublisher {
         client.worktrees.get(receipt.worktreeId) === receipt.projectId
       )
         client.send(notice);
-  }
-
-  gitActionFailed(receipt: GitActionReceiptView, error: unknown): void {
-    const detail = error instanceof Error ? error.message : String(error);
-    process.stderr.write(
-      `Porcelain git action ${receipt.requestId} (${receipt.action}) failed in the background: ${detail}\n`,
-    );
-  }
-
-  jobFailed(job: JobName, error: unknown): void {
-    const detail = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`Porcelain job ${job} failed: ${detail}\n`);
   }
 
   async close(): Promise<void> {

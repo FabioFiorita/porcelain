@@ -1,4 +1,4 @@
-import type { EventPublisher } from '../ports/event-publisher.ts';
+import type { Logger } from '../ports/logger.ts';
 import type { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 import type { Job, JobOptions } from './job.ts';
 
@@ -7,17 +7,17 @@ export class FlushDeviceActivityJob implements Job {
     FlushDeviceActivityUseCase,
     'execute'
   >;
-  private readonly events: EventPublisher;
+  private readonly logger: Logger;
   private readonly options: JobOptions;
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
     flushDeviceActivity: Pick<FlushDeviceActivityUseCase, 'execute'>,
-    events: EventPublisher,
+    logger: Logger,
     options: JobOptions,
   ) {
     this.flushDeviceActivity = flushDeviceActivity;
-    this.events = events;
+    this.logger = logger;
     this.options = options;
   }
 
@@ -42,10 +42,12 @@ export class FlushDeviceActivityJob implements Job {
   }
 
   private flush(): Promise<void> {
-    return this.flushDeviceActivity
-      .execute({})
-      .catch((error: unknown) =>
-        this.events.jobFailed('flush-device-activity', error),
-      );
+    return this.flushDeviceActivity.execute({}).catch((error: unknown) =>
+      this.logger.failure({
+        kind: 'job',
+        job: 'flush-device-activity',
+        error,
+      }),
+    );
   }
 }

@@ -6,7 +6,7 @@
     },
     "apps/server/src/ports/event-publisher.ts": {
       "A port input is a named model from models/ or the kernel, never an inline or primitive type.": 3,
-      "A port method takes (), (input) or (input, signal): one input object, then the signal.": 6
+      "A port method takes (), (input) or (input, signal): one input object, then the signal.": 4
     },
     "apps/server/src/ports/web-root-files.ts": {
       "A port input is a named model from models/ or the kernel, never an inline or primitive type.": 3,

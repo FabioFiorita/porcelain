@@ -1,4 +1,5 @@
 import type { EventPublisher } from '../ports/event-publisher.ts';
+import type { Logger } from '../ports/logger.ts';
 import type {
   FollowedTargets,
   WatchRequest,
@@ -63,6 +64,7 @@ export class WatchWorktreesJob implements Job {
   private readonly refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>;
   private readonly events: EventPublisher;
   private readonly watcher: WorktreeWatcher;
+  private readonly logger: Logger;
   private readonly options: WatchWorktreesOptions;
   private readonly demands = new Set<Demand>();
   private readonly worktrees = new Map<string, WorktreeEntry>();
@@ -76,12 +78,14 @@ export class WatchWorktreesJob implements Job {
     refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>,
     events: EventPublisher,
     watcher: WorktreeWatcher,
+    logger: Logger,
     options: WatchWorktreesOptions,
   ) {
     this.invalidateReviewedMarks = invalidateReviewedMarks;
     this.refreshInventory = refreshInventory;
     this.events = events;
     this.watcher = watcher;
+    this.logger = logger;
     this.options = options;
   }
 
@@ -381,7 +385,7 @@ export class WatchWorktreesJob implements Job {
   }
 
   private reportFailure(error: unknown): undefined {
-    this.events.jobFailed('watch-worktrees', error);
+    this.logger.failure({ kind: 'job', job: 'watch-worktrees', error });
     return undefined;
   }
 }

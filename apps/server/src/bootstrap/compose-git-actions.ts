@@ -39,6 +39,7 @@ import { ListGitBranchesUseCase } from '../use-cases/git-actions/list-git-branch
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
+import type { Logger } from '../ports/logger.ts';
 import type { composeChanges } from './compose-changes.ts';
 import type { composeReviews } from './compose-reviews.ts';
 import type { ComposeContext } from './compose-context.ts';
@@ -47,6 +48,7 @@ type ChangesServices = ReturnType<typeof composeChanges>['services'];
 type ReviewsServices = ReturnType<typeof composeReviews>['services'];
 
 export type GitActionsAdapters = {
+  logger: Logger;
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
   inventoryStore: InventoryStore;
@@ -93,6 +95,7 @@ export function composeGitActions(
       lanes,
       laneKeys,
       events,
+      adapters.logger,
       { deadlineMs: limits.deadlineMs },
     ),
     readGitActionReceipt: new ReadGitActionReceiptUseCase(

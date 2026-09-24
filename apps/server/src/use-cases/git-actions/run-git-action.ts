@@ -28,6 +28,7 @@ import type {
   RefreshReviewActivityService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type { Logger } from '../../ports/logger.ts';
 import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -53,6 +54,7 @@ export class RunGitActionUseCase {
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
+  private readonly logger: Logger;
   private readonly options: RunGitActionOptions;
 
   constructor(
@@ -73,6 +75,7 @@ export class RunGitActionUseCase {
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
+    logger: Logger,
     options: RunGitActionOptions,
   ) {
     this.checkProject = checkProject;
@@ -92,6 +95,7 @@ export class RunGitActionUseCase {
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
+    this.logger = logger;
     this.options = options;
   }
 
@@ -160,7 +164,14 @@ export class RunGitActionUseCase {
       this.lanes.background(
         this.laneKeys.worktree(run.worktreeId),
         (admission) => this.refreshReview(run.worktreeId, admission.signal),
-        { onFailure: (error) => this.events.gitActionFailed(receipt, error) },
+        {
+          onFailure: (error) =>
+            this.logger.failure({
+              kind: 'review-refresh',
+              worktreeId: run.worktreeId,
+              error,
+            }),
+        },
       );
   }
 
@@ -225,10 +236,18 @@ export class RunGitActionUseCase {
   }
 
   private abandon(run: GitActionRun, error: unknown): void {
-    const receipt = this.interruptGitAction.execute({
-      requestId: run.requestId,
-    });
-    this.events.gitActionChanged(receipt);
-    this.events.gitActionFailed(receipt, error);
+    const { requestId } = run;
+    this.logger.failure({ kind: 'git-action', requestId, error });
+    try {
+      this.events.gitActionChanged(
+        this.interruptGitAction.execute({ requestId }),
+      );
+    } catch (interruption) {
+      this.logger.failure({
+        kind: 'git-action',
+        requestId,
+        error: interruption,
+      });
+    }
   }
 }

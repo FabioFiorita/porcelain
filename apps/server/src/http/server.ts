@@ -10,7 +10,8 @@ import Fastify from 'fastify';
 import { FilesystemWebRootFiles } from '../adapters/web/filesystem-web-root-files.ts';
 import type { ServerApplication } from '../bootstrap/compose-server.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
-import { handleError } from './error-handler.ts';
+import type { Logger } from '../ports/logger.ts';
+import { errorHandler } from './error-handler.ts';
 import { callerOf } from './principal.ts';
 import { apiScope } from './scopes/api.ts';
 import { pageScope } from './scopes/page.ts';
@@ -26,6 +27,7 @@ declare module 'fastify' {
 export type NetworkServerOptions = {
   application: ServerApplication;
   settings: Pick<ServerSettings, 'webRoot' | 'allowedHosts' | 'limits'>;
+  logger: Logger;
 };
 
 export function createNetworkServer(options: NetworkServerOptions) {
@@ -34,7 +36,7 @@ export function createNetworkServer(options: NetworkServerOptions) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
-  server.setErrorHandler(handleError);
+  server.setErrorHandler(errorHandler(options.logger));
   server.register(sensible);
   server.register(websocket, {
     options: { maxPayload: settings.limits.liveUpdates.messageBytes },

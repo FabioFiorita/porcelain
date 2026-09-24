@@ -1,13 +1,9 @@
 import type { GitActionReceiptView } from '@porcelain/git-actions/models';
-import type {
-  EventPublisher,
-  JobName,
-} from '../../src/ports/event-publisher.ts';
+import type { EventPublisher } from '../../src/ports/event-publisher.ts';
 
 export class InMemoryEventPublisher implements EventPublisher {
   readonly announcedFiles = new Map<string, number>();
   readonly worktreeChanges = new Map<string, string>();
-  readonly failures = new Map<JobName, unknown>();
   inventoryAnnouncements = 0;
 
   inventoryChanged(): void {
@@ -31,10 +27,4 @@ export class InMemoryEventPublisher implements EventPublisher {
   }
 
   gitActionChanged(_receipt: GitActionReceiptView): void {}
-
-  gitActionFailed(_receipt: GitActionReceiptView, _error: unknown): void {}
-
-  jobFailed(job: JobName, error: unknown): void {
-    this.failures.set(job, error);
-  }
 }

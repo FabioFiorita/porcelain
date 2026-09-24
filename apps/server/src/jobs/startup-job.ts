@@ -1,4 +1,4 @@
-import type { EventPublisher } from '../ports/event-publisher.ts';
+import type { Logger } from '../ports/logger.ts';
 import type { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import type { RefreshInventoryUseCase } from '../use-cases/projects/refresh-inventory.ts';
 import type { Job } from './job.ts';
@@ -9,7 +9,7 @@ export class StartupJob implements Job {
     'execute'
   >;
   private readonly refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>;
-  private readonly events: EventPublisher;
+  private readonly logger: Logger;
   private readonly stopped = new AbortController();
 
   constructor(
@@ -18,11 +18,11 @@ export class StartupJob implements Job {
       'execute'
     >,
     refreshInventory: Pick<RefreshInventoryUseCase, 'execute'>,
-    events: EventPublisher,
+    logger: Logger,
   ) {
     this.recoverInterruptedGitActions = recoverInterruptedGitActions;
     this.refreshInventory = refreshInventory;
-    this.events = events;
+    this.logger = logger;
   }
 
   start(): void {
@@ -39,6 +39,7 @@ export class StartupJob implements Job {
   }
 
   private reportFailure(error: unknown): void {
-    if (!this.stopped.signal.aborted) this.events.jobFailed('startup', error);
+    if (!this.stopped.signal.aborted)
+      this.logger.failure({ kind: 'job', job: 'startup', error });
   }
 }

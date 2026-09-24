@@ -130,12 +130,19 @@ export async function startRuntime(
     const application = parts.application;
     signal.throwIfAborted();
     parts.jobs = await startJobs(application.jobs);
-    parts.network = createNetworkServer({ application, settings });
+    parts.network = createNetworkServer({
+      application,
+      settings,
+      logger: application.logger,
+    });
     const address = await parts.network.listen({ host, port });
     status.address = address;
     reach.port = Number(new URL(address).port);
     reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
-    parts.owner = createOwnerServer({ application });
+    parts.owner = createOwnerServer({
+      application,
+      logger: application.logger,
+    });
     await parts.owner.listen({ path: socketPath });
     restrictOwnerSocket(socketPath);
     const closing: { started?: Promise<void> } = {};

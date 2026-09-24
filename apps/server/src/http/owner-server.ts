@@ -5,15 +5,19 @@ import {
   type ZodTypeProvider,
 } from '@fastify/type-provider-zod';
 import Fastify from 'fastify';
-import { handleError } from './error-handler.ts';
+import type { Logger } from '../ports/logger.ts';
+import { errorHandler } from './error-handler.ts';
 import { callerOf } from './principal.ts';
 import { ownerScope, type OwnerUseCases } from './scopes/owner.ts';
 
-export function createOwnerServer(options: { application: OwnerUseCases }) {
+export function createOwnerServer(options: {
+  application: OwnerUseCases;
+  logger: Logger;
+}) {
   const server = Fastify().withTypeProvider<ZodTypeProvider>();
   server.setValidatorCompiler(validatorCompiler);
   server.setSerializerCompiler(serializerCompiler);
-  server.setErrorHandler(handleError);
+  server.setErrorHandler(errorHandler(options.logger));
   server.register(sensible);
   server.decorateRequest('principal');
   server.decorateRequest('caller', {
