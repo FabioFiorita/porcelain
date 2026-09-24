@@ -2,7 +2,7 @@
   "version": "6",
   "dialect": "sqlite",
   "id": "2b0f7ef3-69d4-41ef-8e39-ffa4a1810b57",
-  "prevId": "36d4cb7d-5c2c-412f-a62a-b92ca5873b35",
+  "prevId": "26097a73-50a0-416c-9e0b-b7198b10f7a4",
   "tables": {
     "comment_reads": {
       "name": "comment_reads",

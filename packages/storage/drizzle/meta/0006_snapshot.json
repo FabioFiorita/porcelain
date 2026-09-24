@@ -1,55 +1,56 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "36d4cb7d-5c2c-412f-a62a-b92ca5873b35",
-  "prevId": "4467c4b4-ca4f-4691-be97-09901e38a298",
+  "id": "1fc48f87-a64b-4222-a163-4a990760fc6c",
+  "prevId": "2cf1863b-54cd-46c0-9539-23528d080b59",
   "tables": {
     "artifacts": {
       "name": "artifacts",
       "columns": {
         "id": {
+          "autoincrement": false,
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "worktree_id": {
+          "autoincrement": false,
           "name": "worktree_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "name": {
+          "autoincrement": false,
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "content": {
+          "autoincrement": false,
           "name": "content",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "size_bytes": {
+          "autoincrement": false,
           "name": "size_bytes",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
+          "autoincrement": false,
           "name": "created_at",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {
         "artifacts_worktree": {
           "name": "artifacts_worktree",
@@ -58,7 +59,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -66,34 +66,50 @@
       "name": "comment_threads",
       "columns": {
         "sequence": {
+          "autoincrement": true,
           "name": "sequence",
           "type": "integer",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
+          "notNull": true
         },
         "id": {
+          "autoincrement": false,
           "name": "id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "worktree_id": {
+          "autoincrement": false,
           "name": "worktree_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "data": {
+          "autoincrement": false,
           "name": "data",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
+        },
+        "revision": {
+          "default": 0,
+          "autoincrement": false,
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_agent_revision": {
+          "autoincrement": false,
+          "name": "last_agent_revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {
         "comment_threads_id_unique": {
           "name": "comment_threads_id_unique",
@@ -102,7 +118,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -110,25 +125,31 @@
       "name": "commit_review_layer_sets",
       "columns": {
         "project_id": {
+          "autoincrement": false,
           "name": "project_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "commit_oid": {
+          "autoincrement": false,
           "name": "commit_oid",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "data": {
+          "autoincrement": false,
           "name": "data",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {
+        "commit_review_layer_sets_project_id_commit_oid_pk": {
+          "columns": ["project_id", "commit_oid"],
+          "name": "commit_review_layer_sets_project_id_commit_oid_pk"
         }
       },
       "indexes": {},
@@ -143,78 +164,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "commit_review_layer_sets_project_id_commit_oid_pk": {
-          "columns": ["project_id", "commit_oid"],
-          "name": "commit_review_layer_sets_project_id_commit_oid_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "devices": {
-      "name": "devices",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "platform": {
-          "name": "platform",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "secret_hash": {
-          "name": "secret_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "last_seen_address": {
-          "name": "last_seen_address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -222,23 +171,23 @@
       "name": "environment",
       "columns": {
         "singleton": {
+          "autoincrement": false,
           "name": "singleton",
           "type": "integer",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "id": {
+          "autoincrement": false,
           "name": "id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
         "environment_singleton": {
@@ -251,42 +200,42 @@
       "name": "project_file_preferences",
       "columns": {
         "project_id": {
+          "autoincrement": false,
           "name": "project_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "path": {
+          "autoincrement": false,
           "name": "path",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "pinned": {
+          "autoincrement": false,
           "name": "pinned",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "hidden": {
+          "autoincrement": false,
           "name": "hidden",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {
         "project_file_preferences_project_id_path_pk": {
           "columns": ["project_id", "path"],
           "name": "project_file_preferences_project_id_path_pk"
         }
       },
+      "indexes": {},
+      "foreignKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
         "project_preference_pinned": {
@@ -303,16 +252,16 @@
       "name": "git_action_blocks",
       "columns": {
         "project_id": {
+          "autoincrement": false,
           "name": "project_id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -320,31 +269,31 @@
       "name": "git_action_preparations",
       "columns": {
         "id": {
+          "autoincrement": false,
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "value": {
+          "autoincrement": false,
           "name": "value",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "consumed": {
+          "default": false,
+          "autoincrement": false,
           "name": "consumed",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -352,136 +301,23 @@
       "name": "git_action_receipts",
       "columns": {
         "request_id": {
+          "autoincrement": false,
           "name": "request_id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "value": {
+          "autoincrement": false,
           "name": "value",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "pairing_grants": {
-      "name": "pairing_grants",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "secret_hash": {
-          "name": "secret_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "addresses": {
-          "name": "addresses",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "redeemed_at": {
-          "name": "redeemed_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "pairing_grants_expires": {
-          "name": "pairing_grants_expires",
-          "columns": ["expires_at"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "project_worktrees": {
-      "name": "project_worktrees",
-      "columns": {
-        "worktree_id": {
-          "name": "worktree_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "project_worktrees_project": {
-          "name": "project_worktrees_project",
-          "columns": ["project_id"],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "project_worktrees_project_id_inventory_projects_id_fk": {
-          "name": "project_worktrees_project_id_inventory_projects_id_fk",
-          "tableFrom": "project_worktrees",
-          "tableTo": "inventory_projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -489,48 +325,57 @@
       "name": "inventory_projects",
       "columns": {
         "id": {
+          "autoincrement": false,
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "name": {
+          "autoincrement": false,
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "common_directory": {
+          "autoincrement": false,
           "name": "common_directory",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "repository_identity": {
+          "autoincrement": false,
           "name": "repository_identity",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "available": {
+          "autoincrement": false,
           "name": "available",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "position": {
+          "autoincrement": false,
           "name": "position",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
+        },
+        "named_by_owner": {
+          "default": 0,
+          "autoincrement": false,
+          "name": "named_by_owner",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {
         "inventory_projects_repository_identity_unique": {
           "name": "inventory_projects_repository_identity_unique",
@@ -539,7 +384,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
         "project_id_present": {
@@ -556,30 +400,30 @@
       "name": "review_layer_sets",
       "columns": {
         "worktree_id": {
+          "autoincrement": false,
           "name": "worktree_id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "revision": {
+          "autoincrement": false,
           "name": "revision",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "layers": {
+          "autoincrement": false,
           "name": "layers",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {},
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -587,32 +431,46 @@
       "name": "reviewed_files",
       "columns": {
         "worktree_id": {
+          "autoincrement": false,
           "name": "worktree_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "path": {
+          "autoincrement": false,
           "name": "path",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "fingerprint": {
+          "autoincrement": false,
           "name": "fingerprint",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "reviewed_at": {
+          "autoincrement": false,
           "name": "reviewed_at",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
+        },
+        "stale": {
+          "default": 0,
+          "autoincrement": false,
+          "name": "stale",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {
+        "reviewed_files_worktree_id_path_pk": {
+          "columns": ["worktree_id", "path"],
+          "name": "reviewed_files_worktree_id_path_pk"
         }
       },
       "indexes": {
@@ -623,86 +481,185 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "reviewed_files_worktree_id_path_pk": {
-          "columns": ["worktree_id", "path"],
-          "name": "reviewed_files_worktree_id_path_pk"
-        }
-      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "worktrees": {
-      "name": "worktrees",
+    "devices": {
+      "name": "devices",
       "columns": {
         "id": {
+          "autoincrement": false,
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
+        },
+        "label": {
+          "autoincrement": false,
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform": {
+          "autoincrement": false,
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "secret_hash": {
+          "autoincrement": false,
+          "name": "secret_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "autoincrement": false,
+          "name": "last_seen_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_address": {
+          "autoincrement": false,
+          "name": "last_seen_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "autoincrement": false,
+          "name": "revoked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "pairing_grants": {
+      "name": "pairing_grants",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "label": {
+          "autoincrement": false,
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "secret_hash": {
+          "autoincrement": false,
+          "name": "secret_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "addresses": {
+          "default": "'[]'",
+          "autoincrement": false,
+          "name": "addresses",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "autoincrement": false,
+          "name": "expires_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "autoincrement": false,
+          "name": "redeemed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "autoincrement": false,
+          "name": "revoked_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "pairing_grants_expires": {
+          "name": "pairing_grants_expires",
+          "columns": ["expires_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "worktree_presence": {
+      "name": "worktree_presence",
+      "columns": {
+        "worktree_id": {
+          "autoincrement": false,
+          "name": "worktree_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
         },
         "project_id": {
+          "autoincrement": false,
           "name": "project_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
-        "path": {
-          "name": "path",
+        "missing_since": {
+          "autoincrement": false,
+          "name": "missing_since",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "metadata_identity": {
-          "name": "metadata_identity",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "main": {
-          "name": "main",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "branch": {
-          "name": "branch",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "available": {
-          "name": "available",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": false
         }
       },
+      "compositePrimaryKeys": {},
       "indexes": {
-        "worktree_order": {
-          "name": "worktree_order",
-          "columns": ["project_id", "position"],
-          "isUnique": true
+        "worktree_presence_project": {
+          "name": "worktree_presence_project",
+          "columns": ["project_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
-        "worktrees_project_id_inventory_projects_id_fk": {
-          "name": "worktrees_project_id_inventory_projects_id_fk",
-          "tableFrom": "worktrees",
+        "worktree_presence_project_id_inventory_projects_id_fk": {
+          "name": "worktree_presence_project_id_inventory_projects_id_fk",
+          "tableFrom": "worktree_presence",
           "tableTo": "inventory_projects",
           "columnsFrom": ["project_id"],
           "columnsTo": ["id"],
@@ -710,22 +667,32 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {
-        "worktree_id_present": {
-          "name": "worktree_id_present",
-          "value": "\"worktrees\".\"id\" IS NOT NULL"
+      "checkConstraints": {}
+    },
+    "comment_reads": {
+      "name": "comment_reads",
+      "columns": {
+        "worktree_id": {
+          "autoincrement": false,
+          "name": "worktree_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
         },
-        "worktree_main": {
-          "name": "worktree_main",
-          "value": "\"worktrees\".\"main\" IN (0, 1)"
-        },
-        "worktree_available": {
-          "name": "worktree_available",
-          "value": "\"worktrees\".\"available\" IN (0, 1)"
+        "seen_through": {
+          "autoincrement": false,
+          "name": "seen_through",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         }
-      }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
     }
   },
   "views": {},
