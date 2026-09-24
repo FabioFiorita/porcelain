@@ -31,3 +31,5 @@ export type CommitDraftGeneration =
   | { kind: 'tool-missing' }
   | { kind: 'tool-failed' }
   | { kind: 'failed' };
+
+export type CommitGroupLimits = { maxGroups: number; maxMessageBytes: number };

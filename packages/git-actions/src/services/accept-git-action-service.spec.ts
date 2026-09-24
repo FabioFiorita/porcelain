@@ -1,28 +1,37 @@
-import { describe, expect, it } from 'vitest';
 import {
+  DiscardExpectationMismatchError,
+  DuplicateExpectedFileError,
+  EmptyCommitSelectionError,
+  ExpectedFilesMismatchError,
   GitActionReceiptMismatchError,
+  MergeExpectationMismatchError,
   MissingExpectedFilesError,
+  MissingUpstreamExpectationError,
 } from '@porcelain/git-actions/errors';
 import type { AcceptGitActionInput } from '@porcelain/git-actions/models';
 import { FixedClock } from '@porcelain/kernel/fakes';
+import { describe, expect, it } from 'vitest';
 import {
-  cleanExpectation,
-  projectId,
-  worktreeId,
+  CLEAN_EXPECTATION,
+  PROJECT_ID,
+  README_FINGERPRINT,
+  REQUEST_ID,
+  WORKTREE_ID,
 } from '../../spec/fakes/git-action-samples.ts';
-import { InMemoryGitActionStore } from '../../spec/fakes/in-memory-git-action-store.ts';
+import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { AcceptGitActionService } from './accept-git-action-service.ts';
 
 const acceptedAt = '2026-09-23T12:00:00.000Z';
 const request: AcceptGitActionInput = {
-  projectId,
-  worktreeId,
-  requestId: '68044b95-e9a8-44d1-bdbf-e7b806c901a6',
+  projectId: PROJECT_ID,
+  worktreeId: WORKTREE_ID,
+  requestId: REQUEST_ID,
   intent: { action: 'create-branch', branch: 'feature', switchTo: false },
-  expected: cleanExpectation,
+  expected: CLEAN_EXPECTATION,
 };
+const readme = { path: 'README.md', fingerprint: README_FINGERPRINT };
 
-function subject(store = new InMemoryGitActionStore()) {
+function subject(store = new InMemoryGitActionReceiptStore()) {
   return {
     store,
     service: new AcceptGitActionService(store, new FixedClock(acceptedAt)),
@@ -33,33 +42,54 @@ describe('AcceptGitActionService', () => {
   it('keeps a running receipt for a new request and hands back the run', () => {
     const { store, service } = subject();
     const accepted = service.execute(request);
-    expect(accepted.receipt).toEqual({
-      requestId: request.requestId,
-      projectId,
-      worktreeId,
-      action: 'create-branch',
-      state: 'running',
-      progress: [],
-      acceptedAt: Date.parse(acceptedAt),
+    expect(accepted).toEqual({
+      kind: 'accepted',
+      receipt: {
+        requestId: REQUEST_ID,
+        projectId: PROJECT_ID,
+        worktreeId: WORKTREE_ID,
+        action: 'create-branch',
+        state: 'running',
+        progress: [],
+        acceptedAt,
+      },
+      run: {
+        requestId: REQUEST_ID,
+        projectId: PROJECT_ID,
+        worktreeId: WORKTREE_ID,
+        intent: request.intent,
+        expected: request.expected,
+        target: { kind: 'unchecked' },
+      },
     });
-    expect(accepted.run).toEqual({
-      requestId: request.requestId,
-      projectId,
-      worktreeId,
-      intent: request.intent,
-      expected: request.expected,
+    expect(store.read({ requestId: REQUEST_ID })?.state).toBe('running');
+  });
+
+  it('hands back a run that checks the files a commit expects', () => {
+    const { service } = subject();
+    const accepted = service.execute({
+      ...request,
+      intent: { action: 'commit', message: 'Fix', paths: ['README.md'] },
+      expected: { ...CLEAN_EXPECTATION, files: [readme] },
     });
-    expect(store.read(request.requestId)?.state).toBe('running');
+    expect(accepted.kind === 'accepted' && accepted.run.target).toEqual({
+      kind: 'checked',
+      paths: ['README.md'],
+    });
   });
 
   it('answers a repeated request with its receipt and runs nothing again', () => {
     const { store, service } = subject();
     service.execute(request);
-    const settled = store.read(request.requestId);
+    const settled = store.read({ requestId: REQUEST_ID });
     if (!settled) throw new Error('receipt missing');
-    store.save({ ...settled, state: 'succeeded', finishedAt: 1 });
+    store.save({
+      ...settled,
+      state: 'succeeded',
+      finishedAt: '2026-09-23T12:00:05.000Z',
+    });
     const replay = service.execute(structuredClone(request));
-    expect(replay.run).toBeUndefined();
+    expect(replay.kind).toBe('repeated');
     expect(replay.receipt.state).toBe('succeeded');
     expect(store.all()).toHaveLength(1);
   });
@@ -83,14 +113,58 @@ describe('AcceptGitActionService', () => {
     ).toThrow(GitActionReceiptMismatchError);
   });
 
-  it('refuses a request that breaks a rule before keeping anything', () => {
-    const { store, service } = subject();
-    expect(() =>
-      service.execute({
-        ...request,
-        intent: { action: 'commit', message: 'Fix', paths: ['README.md'] },
-      }),
-    ).toThrow(MissingExpectedFilesError);
-    expect(store.all()).toEqual([]);
+  it('names each malformed request by its error and keeps nothing', () => {
+    const upstream = { remoteName: 'origin', sourceRef: 'refs/heads/main' };
+    const cases: [Partial<AcceptGitActionInput>, new () => Error][] = [
+      [
+        { expected: { ...CLEAN_EXPECTATION, files: [readme, readme] } },
+        DuplicateExpectedFileError,
+      ],
+      [
+        { expected: { ...CLEAN_EXPECTATION, inProgress: 'merge' } },
+        MergeExpectationMismatchError,
+      ],
+      [
+        {
+          intent: { action: 'commit', message: 'Fix', paths: [] },
+          expected: { ...CLEAN_EXPECTATION, files: [] },
+        },
+        EmptyCommitSelectionError,
+      ],
+      [
+        { intent: { action: 'commit', message: 'Fix', paths: ['README.md'] } },
+        MissingExpectedFilesError,
+      ],
+      [
+        {
+          intent: { action: 'commit', message: 'Fix', paths: ['GUIDE.md'] },
+          expected: { ...CLEAN_EXPECTATION, files: [readme] },
+        },
+        ExpectedFilesMismatchError,
+      ],
+      [
+        { intent: { action: 'discard', path: 'README.md' } },
+        DiscardExpectationMismatchError,
+      ],
+      [
+        {
+          intent: {
+            action: 'stash-create',
+            message: 'Park',
+            includeUntracked: true,
+          },
+        },
+        MissingExpectedFilesError,
+      ],
+      [
+        { intent: { action: 'fetch', ...upstream } },
+        MissingUpstreamExpectationError,
+      ],
+    ];
+    for (const [change, error] of cases) {
+      const { store, service } = subject();
+      expect(() => service.execute({ ...request, ...change })).toThrow(error);
+      expect(store.all()).toEqual([]);
+    }
   });
 });

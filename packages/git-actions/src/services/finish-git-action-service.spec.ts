@@ -1,15 +1,18 @@
-import { describe, expect, it } from 'vitest';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { FixedClock } from '@porcelain/kernel/fakes';
-import { sampleReceipt } from '../../spec/fakes/git-action-samples.ts';
-import { InMemoryGitActionStore } from '../../spec/fakes/in-memory-git-action-store.ts';
+import { describe, expect, it } from 'vitest';
+import {
+  REQUEST_ID,
+  sampleReceipt,
+} from '../../spec/fakes/git-action-samples.ts';
+import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { FinishGitActionService } from './finish-git-action-service.ts';
 
 const finishedAt = '2026-09-23T12:00:05.000Z';
 const running = sampleReceipt();
 
 function subject() {
-  const store = new InMemoryGitActionStore([running]);
+  const store = new InMemoryGitActionReceiptStore([running]);
   return {
     store,
     service: new FinishGitActionService(store, new FixedClock(finishedAt)),
@@ -20,7 +23,7 @@ describe('FinishGitActionService', () => {
   it('settles the receipt with the outcome and the time it finished', () => {
     const { store, service } = subject();
     const view = service.execute({
-      requestId: running.requestId,
+      requestId: REQUEST_ID,
       outcome: {
         state: 'succeeded',
         result: { branch: 'feature' },
@@ -28,7 +31,7 @@ describe('FinishGitActionService', () => {
       },
     });
     expect(view).toEqual({
-      requestId: running.requestId,
+      requestId: REQUEST_ID,
       projectId: running.projectId,
       worktreeId: running.worktreeId,
       action: 'create-branch',
@@ -36,19 +39,19 @@ describe('FinishGitActionService', () => {
       progress: [],
       result: { branch: 'feature' },
       acceptedAt: running.acceptedAt,
-      finishedAt: Date.parse(finishedAt),
+      finishedAt,
     });
-    expect(store.read(running.requestId)).toMatchObject({
+    expect(store.read({ requestId: REQUEST_ID })).toMatchObject({
       state: 'succeeded',
       refreshRequired: true,
-      finishedAt: Date.parse(finishedAt),
+      finishedAt,
     });
   });
 
   it('records an outcome Git could not determine as interrupted', () => {
     const { service } = subject();
     const view = service.execute({
-      requestId: running.requestId,
+      requestId: REQUEST_ID,
       outcome: {
         state: 'indeterminate',
         reason: 'OUTCOME_UNKNOWN',
@@ -59,7 +62,7 @@ describe('FinishGitActionService', () => {
     expect(view.reason).toBe('OUTCOME_UNKNOWN');
   });
 
-  it('refuses a request it never accepted', () => {
+  it('does not find a request it never accepted', () => {
     const { service } = subject();
     expect(() =>
       service.execute({

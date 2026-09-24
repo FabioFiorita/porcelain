@@ -1,21 +1,25 @@
-import type { ReadInterruptedGitActionInput } from '../models/git-action-operations.ts';
-import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
-import type { InterruptedGitActionStore } from '../ports/interrupted-git-action-store.ts';
+import type {
+  ReadInterruptedGitActionInput,
+  ReadInterruptedGitActionResult,
+} from '../models/read-interrupted-git-action.ts';
+import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
 export class ReadInterruptedGitActionService {
-  private readonly interruptedGitActionStore: InterruptedGitActionStore;
+  private readonly gitActionReceipts: GitActionReceiptStore;
 
-  constructor(interruptedGitActionStore: InterruptedGitActionStore) {
-    this.interruptedGitActionStore = interruptedGitActionStore;
+  constructor(gitActionReceipts: GitActionReceiptStore) {
+    this.gitActionReceipts = gitActionReceipts;
   }
 
   execute(
     input: ReadInterruptedGitActionInput,
-  ): GitActionReceiptView | undefined {
-    const receipt = this.interruptedGitActionStore.latestUndismissed(
-      input.worktreeId,
-    );
-    return receipt && gitActionReceiptView(receipt);
+  ): ReadInterruptedGitActionResult {
+    const receipt = this.gitActionReceipts.latestInterrupted({
+      worktreeId: input.worktreeId,
+    });
+    return receipt
+      ? { kind: 'interrupted', receipt: gitActionReceiptView(receipt) }
+      : { kind: 'none' };
   }
 }

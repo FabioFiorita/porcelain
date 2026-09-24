@@ -1,6 +1,5 @@
 export { CommitDraftSelectionError } from './commit-draft-selection-error.ts';
 export { CommitDraftTooLargeError } from './commit-draft-too-large-error.ts';
-export { CommitDraftUnavailableError } from './commit-draft-unavailable-error.ts';
 export { CommitGenerationFailedError } from './commit-generation-failed-error.ts';
 export { CommitGroupsMismatchError } from './commit-groups-mismatch-error.ts';
 export { CommitToolFailedError } from './commit-tool-failed-error.ts';
@@ -11,11 +10,9 @@ export { EmptyCommitSelectionError } from './empty-commit-selection-error.ts';
 export { ExpectedFilesMismatchError } from './expected-files-mismatch-error.ts';
 export { GitActionNotFoundError } from './git-action-not-found-error.ts';
 export { GitActionReceiptMismatchError } from './git-action-receipt-mismatch-error.ts';
-export { GitBranchListingUnavailableError } from './git-branch-listing-unavailable-error.ts';
 export { MergeExpectationMismatchError } from './merge-expectation-mismatch-error.ts';
 export { MissingExpectedFilesError } from './missing-expected-files-error.ts';
 export { MissingUpstreamExpectationError } from './missing-upstream-expectation-error.ts';
 export { UnsupportedCommitModelError } from './unsupported-commit-model-error.ts';
 export { WorktreeChangedError } from './worktree-changed-error.ts';
 export { WorktreeNotFoundError } from './worktree-not-found-error.ts';
-export { WorktreeUnavailableError } from './worktree-unavailable-error.ts';

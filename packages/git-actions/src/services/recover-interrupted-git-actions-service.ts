@@ -1,31 +1,19 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import type { RunningGitActionStore } from '../ports/running-git-action-store.ts';
+import { interruptedReceipt } from '../rules/interrupted-receipt.ts';
 
 export class RecoverInterruptedGitActionsService {
-  private readonly runningGitActionStore: RunningGitActionStore;
-  private readonly gitActionReceiptStore: GitActionReceiptStore;
+  private readonly gitActionReceipts: GitActionReceiptStore;
   private readonly clock: Clock;
 
-  constructor(
-    runningGitActionStore: RunningGitActionStore,
-    gitActionReceiptStore: GitActionReceiptStore,
-    clock: Clock,
-  ) {
-    this.runningGitActionStore = runningGitActionStore;
-    this.gitActionReceiptStore = gitActionReceiptStore;
+  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
+    this.gitActionReceipts = gitActionReceipts;
     this.clock = clock;
   }
 
   execute(): void {
-    const finishedAt = Date.parse(this.clock.now());
-    for (const receipt of this.runningGitActionStore.running())
-      this.gitActionReceiptStore.save({
-        ...receipt,
-        state: 'interrupted',
-        reason: 'OUTCOME_UNKNOWN',
-        refreshRequired: true,
-        finishedAt,
-      });
+    const finishedAt = this.clock.now();
+    for (const receipt of this.gitActionReceipts.running())
+      this.gitActionReceipts.save(interruptedReceipt(receipt, finishedAt));
   }
 }

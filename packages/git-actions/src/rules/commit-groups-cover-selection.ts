@@ -1,28 +1,27 @@
-import { CommitGroupsMismatchError } from '../errors/commit-groups-mismatch-error.ts';
 import type {
   CommitDraftCapture,
   CommitDraftMode,
   CommitGroup,
+  CommitGroupLimits,
 } from '../models/commit-draft.ts';
-
-const MAX_GROUPS = 20;
-const MAX_MESSAGE_BYTES = 16_384;
+import { utf8ByteLength } from './utf8-byte-length.ts';
 
 export function commitGroupsCoverSelection(
   groups: readonly CommitGroup[],
   capture: CommitDraftCapture,
   mode: CommitDraftMode,
-): void {
+  limits: CommitGroupLimits,
+): boolean {
   const returned = groups.flatMap((group) => group.paths);
   const selected = new Set(capture.paths);
-  const covers =
+  return (
     groups.length > 0 &&
-    groups.length <= MAX_GROUPS &&
+    groups.length <= limits.maxGroups &&
     (mode === 'groups' || groups.length === 1) &&
     groups.every(
       (group) =>
         group.message.trim().length > 0 &&
-        new TextEncoder().encode(group.message).length <= MAX_MESSAGE_BYTES &&
+        utf8ByteLength(group.message) <= limits.maxMessageBytes &&
         !group.message.includes('\0') &&
         group.paths.length > 0,
     ) &&
@@ -33,6 +32,6 @@ export function commitGroupsCoverSelection(
       groups.some((group) =>
         bundle.every((path) => group.paths.includes(path)),
       ),
-    );
-  if (!covers) throw new CommitGroupsMismatchError();
+    )
+  );
 }

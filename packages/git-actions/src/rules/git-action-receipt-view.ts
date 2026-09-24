@@ -10,13 +10,11 @@ export function gitActionReceiptView(
     worktreeId: receipt.worktreeId,
     action: receipt.action,
     state: receipt.state,
-    ...(receipt.reason === undefined ? {} : { reason: receipt.reason }),
-    ...(receipt.message === undefined ? {} : { message: receipt.message }),
+    reason: receipt.reason,
+    message: receipt.message,
     progress: receipt.progress,
-    ...(receipt.result === undefined ? {} : { result: receipt.result }),
+    result: receipt.result,
     acceptedAt: receipt.acceptedAt,
-    ...(receipt.finishedAt === undefined
-      ? {}
-      : { finishedAt: receipt.finishedAt }),
+    finishedAt: receipt.finishedAt,
   };
 }

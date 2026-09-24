@@ -1,11 +1,16 @@
 import type {
+  CheckWorktreeService,
+  ReadChangeFingerprintsService,
+  ReadWorktreeStatusService,
+} from '@porcelain/changes/services';
+import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
   GitActionScope,
 } from '@porcelain/contracts/git-actions';
 import type {
   CaptureCommitDraftService,
-  CheckWorktreeService,
+  CheckGitActionScopeService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
 import type { CheckProjectService } from '@porcelain/projects/services';
@@ -18,6 +23,9 @@ export type GenerateCommitDraftOptions = { deadlineMs: number };
 export class GenerateCommitDraftUseCase {
   private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkGitActionScope: CheckGitActionScopeService;
+  private readonly readWorktreeStatus: ReadWorktreeStatusService;
+  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
   private readonly generateCommitDraft: GenerateCommitDraftService;
   private readonly lanes: Lanes;
@@ -27,6 +35,9 @@ export class GenerateCommitDraftUseCase {
   constructor(
     checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
+    checkGitActionScope: CheckGitActionScopeService,
+    readWorktreeStatus: ReadWorktreeStatusService,
+    readChangeFingerprints: ReadChangeFingerprintsService,
     captureCommitDraft: CaptureCommitDraftService,
     generateCommitDraft: GenerateCommitDraftService,
     lanes: Lanes,
@@ -35,6 +46,9 @@ export class GenerateCommitDraftUseCase {
   ) {
     this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
+    this.checkGitActionScope = checkGitActionScope;
+    this.readWorktreeStatus = readWorktreeStatus;
+    this.readChangeFingerprints = readChangeFingerprints;
     this.captureCommitDraft = captureCommitDraft;
     this.generateCommitDraft = generateCommitDraft;
     this.lanes = lanes;
@@ -46,16 +60,33 @@ export class GenerateCommitDraftUseCase {
     input: GitActionScope & GenerateCommitDraftRequest,
     context: OperationContext,
   ): Promise<GenerateCommitDraftResponse> {
-    const scope = { projectId: input.projectId, worktreeId: input.worktreeId };
-    this.checkProject.execute(scope);
+    const { projectId, worktreeId } = input;
+    this.checkProject.execute({ projectId });
     const capture = await this.lanes.run(
-      this.laneKeys.project(input.projectId),
+      this.laneKeys.project(projectId),
       'read',
       async ({ signal }) => {
-        await this.checkWorktree.execute(scope, signal);
+        const worktree = await this.checkWorktree.execute(
+          { worktreeId },
+          signal,
+        );
+        this.checkGitActionScope.execute({ projectId, worktree });
+        const status = await this.readWorktreeStatus.execute(
+          { worktreeId },
+          signal,
+        );
+        const { changes } = await this.readChangeFingerprints.execute(
+          { worktreeId, comparisons: status.changes, paths: undefined },
+          signal,
+        );
         return this.captureCommitDraft.execute(
           {
-            ...scope,
+            worktreeId,
+            observation: {
+              statusToken: status.statusToken,
+              headOid: status.headOid,
+              changes,
+            },
             expectedStatusToken: input.expectedStatusToken,
             paths: input.paths,
           },

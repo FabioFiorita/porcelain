@@ -1,34 +1,49 @@
 import type { FileChange } from '@porcelain/kernel/models';
 import { CommitDraftSelectionError } from '../errors/commit-draft-selection-error.ts';
 import { CommitDraftTooLargeError } from '../errors/commit-draft-too-large-error.ts';
-import { CommitDraftUnavailableError } from '../errors/commit-draft-unavailable-error.ts';
 import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
-import type { CommitDraftCapture } from '../models/commit-draft.ts';
+import type {
+  CaptureCommitDraftInput,
+  CaptureCommitDraftResult,
+} from '../models/capture-commit-draft.ts';
+import type { CommitDraftUntrackedContent } from '../models/commit-draft-evidence.ts';
 import type { FingerprintedFile } from '../models/fingerprinted-file.ts';
-import type { CaptureCommitDraftInput } from '../models/commit-draft-operations.ts';
-import type { CommitDraftReader } from '../ports/commit-draft-reader.ts';
-import type { CommitDraftSnapshotReader } from '../ports/commit-draft-snapshot-reader.ts';
+import type { SelectedDiffReader } from '../ports/selected-diff-reader.ts';
+import type { UntrackedFileReader } from '../ports/untracked-file-reader.ts';
+import { changedPaths } from '../rules/changed-paths.ts';
+import { untrackedEvidence } from '../rules/untracked-evidence.ts';
+import { utf8ByteLength } from '../rules/utf8-byte-length.ts';
 
-const MAX_COMPARISONS = 200;
-const MAX_EVIDENCE_BYTES = 1024 * 1024;
+export type CaptureCommitDraftOptions = {
+  maxComparisons: number;
+  maxEvidenceBytes: number;
+  maxUntrackedBytes: number;
+};
 
 export class CaptureCommitDraftService {
-  private readonly commitDraftReader: CommitDraftReader;
+  private readonly selectedDiffReader: SelectedDiffReader;
+  private readonly untrackedFileReader: UntrackedFileReader;
+  private readonly options: CaptureCommitDraftOptions;
 
-  constructor(commitDraftReader: CommitDraftReader) {
-    this.commitDraftReader = commitDraftReader;
+  constructor(
+    selectedDiffReader: SelectedDiffReader,
+    untrackedFileReader: UntrackedFileReader,
+    options: CaptureCommitDraftOptions,
+  ) {
+    this.selectedDiffReader = selectedDiffReader;
+    this.untrackedFileReader = untrackedFileReader;
+    this.options = options;
   }
 
   async execute(
     input: CaptureCommitDraftInput,
     signal?: AbortSignal,
-  ): Promise<CommitDraftCapture> {
-    const snapshot = this.commitDraftReader.open(input, signal);
-    const observed = await snapshot.changes();
-    if (observed.statusToken !== input.expectedStatusToken)
+  ): Promise<CaptureCommitDraftResult> {
+    const { observation } = input;
+    if (observation.statusToken !== input.expectedStatusToken)
       throw new WorktreeChangedError();
     const paths = [...new Set(input.paths)];
-    const selected = observed.changes.filter((change) =>
+    const selected = observation.changes.filter((change) =>
       paths.includes(change.path),
     );
     const allowed = new Set(selected.flatMap(changedPaths));
@@ -43,11 +58,15 @@ export class CaptureCommitDraftService {
     )
       throw new CommitDraftSelectionError();
     const evidence = JSON.stringify(
-      await this.evidence(observed.headOid, selected, snapshot, signal),
+      await this.evidence(
+        input.worktreeId,
+        observation.headOid,
+        selected,
+        signal,
+      ),
     );
-    if (new TextEncoder().encode(evidence).length > MAX_EVIDENCE_BYTES)
+    if (utf8ByteLength(evidence) > this.options.maxEvidenceBytes)
       throw new CommitDraftTooLargeError();
-    await snapshot.confirm();
     return {
       paths,
       bundles: selected.map((change) =>
@@ -61,9 +80,9 @@ export class CaptureCommitDraftService {
   }
 
   private async evidence(
+    worktreeId: string,
     headOid: string | undefined,
     selected: readonly FileChange[],
-    snapshot: CommitDraftSnapshotReader,
     signal: AbortSignal | undefined,
   ) {
     const compared = selected.flatMap((change) =>
@@ -72,7 +91,8 @@ export class CaptureCommitDraftService {
           comparison.scope === 'staged' || comparison.scope === 'unstaged',
       ),
     );
-    if (compared.length > MAX_COMPARISONS) throw new CommitDraftTooLargeError();
+    if (compared.length > this.options.maxComparisons)
+      throw new CommitDraftTooLargeError();
     const diffable = selected.filter((change) =>
       change.comparisons.some(
         (comparison) =>
@@ -82,19 +102,30 @@ export class CaptureCommitDraftService {
     const patch =
       diffable.length === 0
         ? ''
-        : await snapshot.selectedDiff(headOid, [
-            ...new Set(diffable.flatMap(changedPaths)),
-          ]);
-    if (patch === undefined) throw new CommitDraftUnavailableError();
-    const untracked: Record<string, unknown> = {};
+        : await this.selectedDiffReader.read(
+            {
+              worktreeId,
+              headOid,
+              paths: [...new Set(diffable.flatMap(changedPaths))],
+            },
+            signal,
+          );
+    const untracked: Record<string, CommitDraftUntrackedContent> = {};
     for (const change of selected)
       for (const comparison of change.comparisons)
-        if (comparison.scope === 'untracked') {
-          signal?.throwIfAborted();
-          untracked[comparison.path] = await snapshot.untracked(
+        if (comparison.scope === 'untracked')
+          untracked[comparison.path] = untrackedEvidence(
+            worktreeId,
             comparison.path,
+            await this.untrackedFileReader.read(
+              {
+                worktreeId,
+                path: comparison.path,
+                maxBytes: this.options.maxUntrackedBytes,
+              },
+              signal,
+            ),
           );
-        }
     return {
       files: selected.map((change) => ({
         path: change.path,
@@ -105,17 +136,4 @@ export class CaptureCommitDraftService {
       untracked,
     };
   }
-}
-
-function changedPaths(change: FileChange): string[] {
-  return [
-    change.path,
-    ...change.comparisons.flatMap((comparison) =>
-      'path' in comparison
-        ? [comparison.path]
-        : [comparison.oldPath, comparison.newPath].filter(
-            (path): path is string => path !== undefined,
-          ),
-    ),
-  ];
 }

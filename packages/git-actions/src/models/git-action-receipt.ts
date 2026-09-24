@@ -19,12 +19,14 @@ export type GitActionReceipt = {
   intent: GitActionIntent;
   expected: GitActionExpectation;
   state: GitActionReceiptState;
-  reason?: GitActionReason;
-  message?: string;
-  result?: GitActionResult;
+  reason?: GitActionReason | undefined;
+  message?: string | undefined;
+  result?: GitActionResult | undefined;
   progress: string[];
   refreshRequired: boolean;
-  acceptedAt: number;
-  finishedAt?: number;
-  dismissedAt?: number;
+  acceptedAt: string;
+  finishedAt?: string | undefined;
+  dismissedAt?: string | undefined;
 };
+
+export type FinishedGitAction = { requestId: string; finishedAt: string };

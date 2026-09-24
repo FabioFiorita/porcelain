@@ -1,20 +1,33 @@
 import type { Clock } from '@porcelain/kernel/ports';
-import type { GitActionRetentionStore } from '../ports/git-action-retention-store.ts';
+import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { receiptExpired } from '../rules/receipt-expired.ts';
 
-const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+export type ExpireGitActionReceiptsOptions = { retentionMs: number };
 
 export class ExpireGitActionReceiptsService {
-  private readonly gitActionRetentionStore: GitActionRetentionStore;
+  private readonly gitActionReceipts: GitActionReceiptStore;
   private readonly clock: Clock;
+  private readonly options: ExpireGitActionReceiptsOptions;
 
-  constructor(gitActionRetentionStore: GitActionRetentionStore, clock: Clock) {
-    this.gitActionRetentionStore = gitActionRetentionStore;
+  constructor(
+    gitActionReceipts: GitActionReceiptStore,
+    clock: Clock,
+    options: ExpireGitActionReceiptsOptions,
+  ) {
+    this.gitActionReceipts = gitActionReceipts;
     this.clock = clock;
+    this.options = options;
   }
 
   execute(): void {
-    this.gitActionRetentionStore.deleteFinishedBefore(
-      Date.parse(this.clock.now()) - RETENTION_MS,
-    );
+    const now = this.clock.now();
+    this.gitActionReceipts.remove({
+      requestIds: this.gitActionReceipts
+        .finished()
+        .filter((receipt) =>
+          receiptExpired(receipt.finishedAt, now, this.options.retentionMs),
+        )
+        .map((receipt) => receipt.requestId),
+    });
   }
 }

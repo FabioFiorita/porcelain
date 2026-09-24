@@ -1,27 +1,36 @@
-import type { RecordGitActionProgressInput } from '../models/git-action-operations.ts';
-import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
+import type {
+  RecordGitActionProgressInput,
+  RecordGitActionProgressResult,
+} from '../models/record-git-action-progress.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
-const PROGRESS_LINES = 200;
+export type RecordGitActionProgressOptions = { progressLines: number };
 
 export class RecordGitActionProgressService {
-  private readonly gitActionReceiptStore: GitActionReceiptStore;
+  private readonly gitActionReceipts: GitActionReceiptStore;
+  private readonly options: RecordGitActionProgressOptions;
 
-  constructor(gitActionReceiptStore: GitActionReceiptStore) {
-    this.gitActionReceiptStore = gitActionReceiptStore;
+  constructor(
+    gitActionReceipts: GitActionReceiptStore,
+    options: RecordGitActionProgressOptions,
+  ) {
+    this.gitActionReceipts = gitActionReceipts;
+    this.options = options;
   }
 
-  execute(
-    input: RecordGitActionProgressInput,
-  ): GitActionReceiptView | undefined {
-    const current = this.gitActionReceiptStore.read(input.requestId);
-    if (current?.state !== 'running') return undefined;
+  execute(input: RecordGitActionProgressInput): RecordGitActionProgressResult {
+    const current = this.gitActionReceipts.read({
+      requestId: input.requestId,
+    });
+    if (current?.state !== 'running') return { kind: 'not-running' };
     const updated = {
       ...current,
-      progress: [...current.progress, input.line].slice(-PROGRESS_LINES),
+      progress: [...current.progress, input.line].slice(
+        -this.options.progressLines,
+      ),
     };
-    this.gitActionReceiptStore.save(updated);
-    return gitActionReceiptView(updated);
+    this.gitActionReceipts.save(updated);
+    return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
   }
 }

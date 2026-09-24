@@ -1,0 +1,63 @@
+import type {
+  FinishedGitAction,
+  GitActionReceipt,
+} from '../../src/models/git-action-receipt.ts';
+import type { GitActionReceiptStore } from '../../src/ports/git-action-receipt-store.ts';
+
+export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
+  private readonly rows: Map<string, GitActionReceipt>;
+
+  constructor(receipts: readonly GitActionReceipt[] = []) {
+    this.rows = new Map(
+      receipts.map((receipt) => [receipt.requestId, structuredClone(receipt)]),
+    );
+  }
+
+  read(input: { requestId: string }): GitActionReceipt | undefined {
+    return structuredClone(this.rows.get(input.requestId));
+  }
+
+  insert(input: GitActionReceipt): void {
+    this.rows.set(input.requestId, structuredClone(input));
+  }
+
+  save(input: GitActionReceipt): void {
+    this.rows.set(input.requestId, structuredClone(input));
+  }
+
+  running(): GitActionReceipt[] {
+    return this.all().filter((receipt) => receipt.state === 'running');
+  }
+
+  latestInterrupted(input: {
+    worktreeId: string;
+  }): GitActionReceipt | undefined {
+    return this.all()
+      .filter(
+        (receipt) =>
+          receipt.worktreeId === input.worktreeId &&
+          receipt.state === 'interrupted' &&
+          receipt.dismissedAt === undefined,
+      )
+      .sort((left, right) =>
+        (right.finishedAt ?? '').localeCompare(left.finishedAt ?? ''),
+      )
+      .at(0);
+  }
+
+  finished(): FinishedGitAction[] {
+    return this.all().flatMap((receipt) =>
+      receipt.finishedAt === undefined
+        ? []
+        : [{ requestId: receipt.requestId, finishedAt: receipt.finishedAt }],
+    );
+  }
+
+  remove(input: { requestIds: string[] }): void {
+    input.requestIds.forEach((requestId) => this.rows.delete(requestId));
+  }
+
+  all(): GitActionReceipt[] {
+    return [...this.rows.values()].map((receipt) => structuredClone(receipt));
+  }
+}

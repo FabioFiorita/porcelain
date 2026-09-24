@@ -1,137 +1,152 @@
-import type { GitActionOutcome } from '@porcelain/git-actions/models';
+import type {
+  GitActionOutcome,
+  GitActionRunnerOutcome,
+} from '@porcelain/git-actions/models';
+import type { FileChange } from '@porcelain/kernel/models';
 import { describe, expect, it } from 'vitest';
 import {
-  cleanExpectation,
-  guideFingerprint,
-  readmeFingerprint,
+  CLEAN_EXPECTATION,
+  GUIDE_FINGERPRINT,
+  HEAD_OID,
+  README_FINGERPRINT,
   sampleRun,
 } from '../../spec/fakes/git-action-samples.ts';
-import { InMemoryWorktreeFingerprints } from '../../spec/fakes/in-memory-worktree-fingerprints.ts';
-import { ScriptedGitActionWriter } from '../../spec/fakes/scripted-git-action-writer.ts';
+import { ScriptedGitActionRunner } from '../../spec/fakes/scripted-git-action-runner.ts';
 import { RunGitActionService } from './run-git-action-service.ts';
 
+const movedHead = 'f'.repeat(40);
 const succeeded: GitActionOutcome = {
   state: 'succeeded',
-  result: { headOid: 'f'.repeat(40) },
+  result: { headOid: movedHead },
   refreshRequired: true,
 };
+const readme = { path: 'README.md', fingerprint: README_FINGERPRINT };
 const commit = sampleRun(
   { action: 'commit', message: 'Fix', paths: ['README.md'] },
-  {
-    ...cleanExpectation,
-    files: [{ path: 'README.md', fingerprint: readmeFingerprint }],
-  },
+  { ...CLEAN_EXPECTATION, files: [readme] },
 );
+const change = (path: string, fingerprint: string | undefined): FileChange => ({
+  path,
+  fingerprint,
+  comparisons: [{ scope: 'untracked', path }],
+});
 
 function subject(
-  changes: Record<string, string | undefined>,
-  answer: () => Promise<GitActionOutcome> = async () => succeeded,
+  answer: GitActionRunnerOutcome = { kind: 'finished', outcome: succeeded },
+  progress: string[] = [],
 ) {
-  const writer = new ScriptedGitActionWriter(answer);
-  return {
-    writer,
-    service: new RunGitActionService(
-      new InMemoryWorktreeFingerprints(changes),
-      writer,
-    ),
-  };
+  const runner = new ScriptedGitActionRunner({
+    answer,
+    headOid: HEAD_OID,
+    headAfterRun: movedHead,
+    progress,
+  });
+  return { runner, service: new RunGitActionService(runner) };
 }
 
 describe('RunGitActionService', () => {
   it('runs the action when the expected files are unchanged', async () => {
-    const { writer, service } = subject({
-      'README.md': readmeFingerprint,
-      'GUIDE.md': guideFingerprint,
+    const { runner, service } = subject();
+    const ran = await service.execute({
+      run: commit,
+      changes: [
+        change('README.md', README_FINGERPRINT),
+        change('GUIDE.md', GUIDE_FINGERPRINT),
+      ],
     });
-    const ran = await service.execute({ run: commit });
     expect(ran.outcome).toEqual(succeeded);
-    expect(writer.runs).toEqual([commit]);
+    expect(runner.headOid).toBe(movedHead);
   });
 
   it('rejects without touching the worktree when an expected file changed', async () => {
-    const { writer, service } = subject({ 'README.md': guideFingerprint });
-    const ran = await service.execute({ run: commit });
+    const { runner, service } = subject();
+    const ran = await service.execute({
+      run: commit,
+      changes: [change('README.md', GUIDE_FINGERPRINT)],
+    });
     expect(ran.outcome).toEqual({
       state: 'rejected',
       reason: 'CHANGED_SINCE_LOOKED',
       refreshRequired: false,
     });
-    expect(writer.runs).toEqual([]);
+    expect(runner.headOid).toBe(HEAD_OID);
   });
 
   it('rejects a stash when the worktree gained a change it did not expect', async () => {
-    const { writer, service } = subject({
-      'README.md': readmeFingerprint,
-      'GUIDE.md': undefined,
-    });
+    const { runner, service } = subject();
     const ran = await service.execute({
       run: sampleRun(
         { action: 'stash-create', message: 'Park', includeUntracked: true },
-        {
-          ...cleanExpectation,
-          files: [{ path: 'README.md', fingerprint: readmeFingerprint }],
-        },
+        { ...CLEAN_EXPECTATION, files: [readme] },
       ),
+      changes: [
+        change('README.md', README_FINGERPRINT),
+        change('GUIDE.md', undefined),
+      ],
     });
     expect(ran.outcome.reason).toBe('CHANGED_SINCE_LOOKED');
-    expect(writer.runs).toEqual([]);
+    expect(runner.headOid).toBe(HEAD_OID);
   });
 
   it('checks a merge commit against the whole change list', async () => {
-    const { service } = subject({
-      'README.md': readmeFingerprint,
-      'GUIDE.md': guideFingerprint,
-    });
+    const { runner, service } = subject();
     const ran = await service.execute({
       run: sampleRun(
         { action: 'commit', message: 'Merge', paths: [] },
         {
-          ...cleanExpectation,
+          ...CLEAN_EXPECTATION,
           inProgress: 'merge',
           mergeHeadOid: 'b'.repeat(40),
-          files: [{ path: 'README.md', fingerprint: readmeFingerprint }],
+          files: [readme],
         },
       ),
+      changes: [
+        change('README.md', README_FINGERPRINT),
+        change('GUIDE.md', GUIDE_FINGERPRINT),
+      ],
     });
     expect(ran.outcome.reason).toBe('CHANGED_SINCE_LOOKED');
+    expect(runner.headOid).toBe(HEAD_OID);
   });
 
-  it('runs an action that expects no files without reading fingerprints', async () => {
-    const { writer, service } = subject({ 'README.md': guideFingerprint });
-    const run = sampleRun({
-      action: 'create-branch',
-      branch: 'feature',
-      switchTo: false,
+  it('runs an action that expects no files whatever the worktree holds', async () => {
+    const { runner, service } = subject();
+    const ran = await service.execute({
+      run: sampleRun({
+        action: 'create-branch',
+        branch: 'feature',
+        switchTo: false,
+      }),
+      changes: [change('README.md', GUIDE_FINGERPRINT)],
     });
-    const ran = await service.execute({ run });
     expect(ran.outcome.state).toBe('succeeded');
-    expect(writer.runs).toEqual([run]);
+    expect(runner.headOid).toBe(movedHead);
   });
 
-  it('reports a Git failure as a rejection', async () => {
-    const { service } = subject({}, async () => {
-      throw new Error('spawn git ENOENT');
+  it('reports an action Git refused as rejected with its reason and detail', async () => {
+    const { service } = subject({
+      kind: 'refused',
+      reason: 'NON_FAST_FORWARD',
+      detail: 'Updates were rejected',
     });
     const ran = await service.execute({
       run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+      changes: [],
     });
     expect(ran.outcome).toEqual({
       state: 'rejected',
-      reason: 'GIT_REJECTED',
+      reason: 'NON_FAST_FORWARD',
+      message: 'Updates were rejected',
       refreshRequired: false,
     });
   });
 
-  it('reports an action stopped by its deadline as interrupted', async () => {
-    const controller = new AbortController();
-    const { service } = subject({}, async () => {
-      controller.abort();
-      throw new Error('aborted');
+  it('reports an action Git stopped at its deadline as interrupted', async () => {
+    const { service } = subject({ kind: 'timed-out' });
+    const ran = await service.execute({
+      run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+      changes: [],
     });
-    const ran = await service.execute(
-      { run: sampleRun({ action: 'switch-branch', branch: 'main' }) },
-      controller.signal,
-    );
     expect(ran.outcome).toEqual({
       state: 'interrupted',
       reason: 'DEADLINE_EXCEEDED',
@@ -140,39 +155,37 @@ describe('RunGitActionService', () => {
   });
 
   it('marks the review stale only after a commit or amend succeeded', async () => {
-    const passing = subject({ 'README.md': readmeFingerprint });
-    expect((await passing.service.execute({ run: commit })).reviewStale).toBe(
-      true,
-    );
-    const rejected = subject({ 'README.md': guideFingerprint });
-    expect((await rejected.service.execute({ run: commit })).reviewStale).toBe(
-      false,
-    );
-    const branch = subject({});
-    const ran = await branch.service.execute({
-      run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+    const passing = await subject().service.execute({
+      run: commit,
+      changes: [change('README.md', README_FINGERPRINT)],
     });
-    expect(ran.reviewStale).toBe(false);
+    const rejected = await subject().service.execute({
+      run: commit,
+      changes: [change('README.md', GUIDE_FINGERPRINT)],
+    });
+    const branch = await subject().service.execute({
+      run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+      changes: [],
+    });
+    expect(passing.reviewStale).toBe(true);
+    expect(rejected.reviewStale).toBe(false);
+    expect(branch.reviewStale).toBe(false);
   });
 
   it('passes the progress lines Git reports to the listener', async () => {
     const lines: string[] = [];
-    const service = new RunGitActionService(
-      new InMemoryWorktreeFingerprints({}),
-      new ScriptedGitActionWriter(async (_run, onProgress) => {
-        onProgress?.('Receiving objects: 100%');
-        return succeeded;
-      }),
-    );
-    await service.execute({
+    await subject({ kind: 'finished', outcome: succeeded }, [
+      'Receiving objects: 100%',
+    ]).service.execute({
       run: sampleRun(
         {
           action: 'fetch',
           remoteName: 'origin',
           sourceRef: 'refs/heads/main',
         },
-        { ...cleanExpectation, upstream: {} },
+        { ...CLEAN_EXPECTATION, upstream: {} },
       ),
+      changes: [],
       onProgress: (line) => lines.push(line),
     });
     expect(lines).toEqual(['Receiving objects: 100%']);

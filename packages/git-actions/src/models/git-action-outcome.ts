@@ -1,15 +1,15 @@
 import type { GitActionReason } from './git-action-reason.ts';
 
 export type GitActionResult = {
-  headOid?: string;
-  trackingOid?: string;
-  sourceOid?: string;
-  destinationRef?: string;
-  stashOid?: string;
-  stashRetained?: boolean;
-  restoreStashOid?: string;
-  restoreIndex?: boolean;
-  branch?: string;
+  headOid?: string | undefined;
+  trackingOid?: string | undefined;
+  sourceOid?: string | undefined;
+  destinationRef?: string | undefined;
+  stashOid?: string | undefined;
+  stashRetained?: boolean | undefined;
+  restoreStashOid?: string | undefined;
+  restoreIndex?: boolean | undefined;
+  branch?: string | undefined;
 };
 
 export type GitActionOutcome = {
@@ -20,8 +20,8 @@ export type GitActionOutcome = {
     | 'conflicted'
     | 'indeterminate'
     | 'interrupted';
-  reason?: GitActionReason;
-  message?: string;
-  result?: GitActionResult;
+  reason?: GitActionReason | undefined;
+  message?: string | undefined;
+  result?: GitActionResult | undefined;
   refreshRequired: boolean;
 };

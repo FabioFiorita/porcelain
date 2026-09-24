@@ -1,43 +1,35 @@
-import type { GitActionReceipt } from '@porcelain/git-actions/models';
 import type {
-  GitActionReceiptStore,
-  GitActionRetentionStore,
-  InterruptedGitActionStore,
-  RunningGitActionStore,
-} from '@porcelain/git-actions/ports';
-import { eq, sql } from 'drizzle-orm';
+  FinishedGitAction,
+  GitActionReceipt,
+} from '@porcelain/git-actions/models';
+import type { GitActionReceiptStore } from '@porcelain/git-actions/ports';
+import { eq, inArray, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { gitActionReceipts } from '../../db/schema/git-action-receipts.ts';
 
-export class SqliteGitActionReceiptStore
-  implements
-    GitActionReceiptStore,
-    RunningGitActionStore,
-    InterruptedGitActionStore,
-    GitActionRetentionStore
-{
+export class SqliteGitActionReceiptStore implements GitActionReceiptStore {
   private readonly db: BetterSQLite3Database;
 
   constructor(db: BetterSQLite3Database) {
     this.db = db;
   }
 
-  read(requestId: string): GitActionReceipt | undefined {
+  read(input: { requestId: string }): GitActionReceipt | undefined {
     return this.db
       .select()
       .from(gitActionReceipts)
-      .where(eq(gitActionReceipts.requestId, requestId))
+      .where(eq(gitActionReceipts.requestId, input.requestId))
       .get()?.value;
   }
 
-  insert(receipt: GitActionReceipt): void {
+  insert(input: GitActionReceipt): void {
     this.db.transaction(
       (tx) => {
         tx.insert(gitActionReceipts)
           .values({
-            requestId: receipt.requestId,
-            projectId: receipt.projectId,
-            value: receipt,
+            requestId: input.requestId,
+            projectId: input.projectId,
+            value: input,
           })
           .run();
       },
@@ -45,12 +37,12 @@ export class SqliteGitActionReceiptStore
     );
   }
 
-  save(receipt: GitActionReceipt): void {
+  save(input: GitActionReceipt): void {
     this.db.transaction(
       (tx) => {
         tx.update(gitActionReceipts)
-          .set({ value: receipt })
-          .where(eq(gitActionReceipts.requestId, receipt.requestId))
+          .set({ value: input })
+          .where(eq(gitActionReceipts.requestId, input.requestId))
           .run();
       },
       { behavior: 'immediate' },
@@ -68,28 +60,41 @@ export class SqliteGitActionReceiptStore
       .map((row) => row.value);
   }
 
-  latestUndismissed(worktreeId: string): GitActionReceipt | undefined {
+  latestInterrupted(input: {
+    worktreeId: string;
+  }): GitActionReceipt | undefined {
     return this.db
       .select({ value: gitActionReceipts.value })
       .from(gitActionReceipts)
       .where(
-        sql`json_extract(${gitActionReceipts.value}, '$.worktreeId') = ${worktreeId}
+        sql`json_extract(${gitActionReceipts.value}, '$.worktreeId') = ${input.worktreeId}
           AND json_extract(${gitActionReceipts.value}, '$.state') = 'interrupted'
           AND json_extract(${gitActionReceipts.value}, '$.dismissedAt') IS NULL`,
       )
       .orderBy(
-        sql`CAST(json_extract(${gitActionReceipts.value}, '$.finishedAt') AS INTEGER) DESC`,
+        sql`json_extract(${gitActionReceipts.value}, '$.finishedAt') DESC`,
       )
       .get()?.value;
   }
 
-  deleteFinishedBefore(cutoff: number): void {
+  finished(): FinishedGitAction[] {
+    return this.db
+      .select({
+        requestId: gitActionReceipts.requestId,
+        finishedAt: sql<string>`json_extract(${gitActionReceipts.value}, '$.finishedAt')`,
+      })
+      .from(gitActionReceipts)
+      .where(
+        sql`json_extract(${gitActionReceipts.value}, '$.finishedAt') IS NOT NULL`,
+      )
+      .all();
+  }
+
+  remove(input: { requestIds: string[] }): void {
     this.db.transaction(
       (tx) => {
         tx.delete(gitActionReceipts)
-          .where(
-            sql`CAST(json_extract(${gitActionReceipts.value}, '$.finishedAt') AS INTEGER) < ${cutoff}`,
-          )
+          .where(inArray(gitActionReceipts.requestId, input.requestIds))
           .run();
       },
       { behavior: 'immediate' },
