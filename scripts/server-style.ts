@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { z } from 'zod';
 import { domainPackages } from '../architecture/policy.ts';
 
@@ -35,6 +35,10 @@ const roots = [
 ].filter((root) => existsSync(root));
 
 const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
+const lintConfig = '.oxlintrc.json';
+const lintedFile = /\.[cm]?[jt]sx?$/;
+const strayLintConfig =
+  /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
 const skippedDirectories = new Set([
   'node_modules',
   '.git',
@@ -62,6 +66,17 @@ function disableDirectives(): string[] {
         disableDirective.test(line) ? [`${file}:${index + 1}`] : [],
       ),
   );
+}
+
+function strayLintConfigs(): string[] {
+  return filesUnder('.')
+    .filter(
+      (path) => path !== lintConfig && strayLintConfig.test(basename(path)),
+    )
+    .map(
+      (path) =>
+        `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file.`,
+    );
 }
 
 const lintConfigSchema = z
@@ -182,6 +197,7 @@ async function configProblems(): Promise<string[]> {
 }
 
 const diagnosticsSchema = z.object({
+  number_of_files: z.number(),
   diagnostics: z.array(
     z.object({
       message: z.string(),
@@ -200,14 +216,20 @@ const diagnosticsSchema = z.object({
 });
 
 function lint(): number {
+  const files = roots
+    .flatMap(filesUnder)
+    .filter((path) => lintedFile.test(path));
   const result = spawnSync(
     join('node_modules', '.bin', 'oxlint'),
     [
+      '--config',
+      lintConfig,
+      '--no-ignore',
       '--type-aware',
       '--report-unused-disable-directives',
       '--format',
       'json',
-      ...roots,
+      ...files,
     ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
@@ -232,6 +254,12 @@ function lint(): number {
     );
   }
   process.stdout.write(`${findings.length} findings.\n`);
+  if (parsed.data.number_of_files !== files.length) {
+    process.stdout.write(
+      `lint skipped files: oxlint read ${parsed.data.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
+    );
+    return 1;
+  }
   return findings.length > 0 ? 1 : 0;
 }
 
@@ -250,9 +278,12 @@ if (mode === 'format') {
     process.stderr.write(
       `${location}: fix the code instead of disabling a rule; disable directives are not allowed.\n`,
     );
-  const problems = await configProblems().catch((error: unknown) => [
-    error instanceof Error ? error.message : String(error),
-  ]);
+  const problems = [
+    ...strayLintConfigs(),
+    ...(await configProblems().catch((error: unknown) => [
+      error instanceof Error ? error.message : String(error),
+    ])),
+  ];
   for (const problem of problems) process.stderr.write(`${problem}\n`);
   if (directives.length > 0 || problems.length > 0) process.exitCode = 1;
 }

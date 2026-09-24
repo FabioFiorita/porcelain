@@ -91,17 +91,13 @@ const permittedOutsideRoots: readonly RegExp[] = [
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
   /^packages\/storage\/scripts\/[^/]+\.ts$/,
+  /^apps\/web\//,
 ];
 const insideRoot = /^(?:packages\/[^/]+|apps\/server)\/(?:src|spec)\//;
 const fixtureData = /^packages\/[^/]+\/spec\/fixtures\//;
 
 function placementFindings(): Finding[] {
-  const files = [
-    ...readdirSync(join(repositoryRoot, 'packages'), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .flatMap((entry) => filesUnder(join('packages', entry.name))),
-    ...filesUnder('apps/server'),
-  ];
+  const files = [...filesUnder('packages'), ...filesUnder('apps')];
   return files.flatMap((path) => {
     if (insideRoot.test(path)) {
       if (/\.ts$/.test(path) && !/\.[cm]ts$/.test(path)) return [];
@@ -119,7 +115,7 @@ function placementFindings(): Finding[] {
       {
         rule: 'code-outside-roots',
         from: path,
-        to: 'package.json, tsconfig.json, and for storage drizzle/, drizzle.config.ts and scripts/*.ts',
+        to: 'packages/ and apps/ hold package folders only; a package holds package.json, tsconfig.json, src/ and spec/, and storage also drizzle/, drizzle.config.ts and scripts/*.ts',
       },
     ];
   });
