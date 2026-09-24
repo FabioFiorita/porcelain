@@ -14,6 +14,7 @@ import {
   ReadPublishedReviewService,
   ReadReviewEvidenceService,
   ReadReviewLayerService,
+  ReadReviewTextsService,
   ReadReviewSummaryService,
   ReconcileReviewedFilesService,
   ReconcileReviewedLayersService,
@@ -103,6 +104,7 @@ export function composeReviews(
     limits.summaryLink,
   );
   const recordReviewActivity = new RecordReviewActivityService(reviewStore);
+  const readReviewTexts = new ReadReviewTextsService(readTextFile);
   const readReviewEvidence = new ReadReviewEvidenceService(
     changes.readWorktreeStatus,
     changes.readChangeFingerprints,
@@ -219,7 +221,7 @@ export function composeReviews(
     listReviewedLayers: new ListReviewedLayersUseCase(
       checkWorktree,
       new ListReviewedLayerPathsService(reviewStore, reviewedLayerStore),
-      readTextFile,
+      readReviewTexts,
       new ReconcileReviewedLayersService(reviewStore, reviewedLayerStore),
       new ListReviewedLayersService(reviewedLayerStore),
       lanes,
@@ -228,7 +230,7 @@ export function composeReviews(
     setReviewedLayer: new SetReviewedLayerUseCase(
       checkWorktree,
       new ReadReviewLayerService(reviewStore),
-      readTextFile,
+      readReviewTexts,
       new SetReviewedLayerService(reviewedLayerStore, clock),
       lanes,
       laneKeys,

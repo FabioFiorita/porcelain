@@ -24,7 +24,6 @@ export { reviewDraftProblem } from './review-draft.ts';
 export {
   publishedLines,
   reviewChanges,
-  reviewFiles,
   reviewPatches,
   reviewPaths,
   textLines,
@@ -32,11 +31,11 @@ export {
 } from './review-evidence.ts';
 export {
   evictedPaths,
-  layerStaleness,
+  currentLayerFingerprints,
   markedLayers,
   reviewedMarks,
   selectReviewedFiles,
-  staleness,
+  markStaleness,
   touchedMarks,
 } from './reviewed-marks.ts';
 export { summaryStyleWarnings } from './summary-style.ts';

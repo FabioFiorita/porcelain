@@ -6,7 +6,6 @@ import type {
 } from '../models/set-reviewed-layer.ts';
 import type { ReviewedLayerStore } from '../ports/reviewed-layer-store.ts';
 import { currentLayerFingerprint } from '../rules/resolve-review.ts';
-import { reviewFiles } from '../rules/review-evidence.ts';
 
 export class SetReviewedLayerService {
   private readonly reviewedLayers: ReviewedLayerStore;
@@ -19,18 +18,18 @@ export class SetReviewedLayerService {
 
   execute(input: SetReviewedLayerInput): SetReviewedLayerResult {
     const { worktreeId, layer, fingerprint } = input;
-    if (
-      currentLayerFingerprint(layer, reviewFiles(input.texts)) !== fingerprint
-    )
+    if (currentLayerFingerprint(layer, input.texts) !== fingerprint)
       throw new ReviewedMarkConflictError();
     this.reviewedLayers.save({
       worktreeId,
-      mark: {
-        layerId: layer.id,
-        fingerprint,
-        reviewedAt: this.clock.now(),
-        stale: false,
-      },
+      marks: [
+        {
+          layerId: layer.id,
+          fingerprint,
+          reviewedAt: this.clock.now(),
+          stale: false,
+        },
+      ],
     });
     return { worktreeId, marks: this.reviewedLayers.list({ worktreeId }) };
   }

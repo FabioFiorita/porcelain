@@ -94,12 +94,14 @@ function seed(session: StorageSession, projectId: string, worktreeId: string) {
   });
   createReviewedLayerStore(session).save({
     worktreeId,
-    mark: {
-      layerId: 'layer',
-      fingerprint: 'fingerprint',
-      reviewedAt: at,
-      stale: false,
-    },
+    marks: [
+      {
+        layerId: 'layer',
+        fingerprint: 'fingerprint',
+        reviewedAt: at,
+        stale: false,
+      },
+    ],
   });
   createCommentStore(session).insert({
     content: {

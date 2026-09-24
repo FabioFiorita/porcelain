@@ -8,12 +8,18 @@ export function pairingGrantPending(
   grant: StoredPairingGrant,
   now: string,
 ): boolean {
-  return pairingGrantRevocable(grant) && grant.expiresAt > now;
+  return (
+    pairingGrantRevocable(grant) &&
+    Date.parse(grant.expiresAt) > Date.parse(now)
+  );
 }
 
 export function pairingGrantRedeemable(
   grant: StoredPairingGrant,
   now: string,
 ): boolean {
-  return pairingGrantPending(grant, now) && grant.createdAt <= now;
+  return (
+    pairingGrantPending(grant, now) &&
+    Date.parse(grant.createdAt) <= Date.parse(now)
+  );
 }

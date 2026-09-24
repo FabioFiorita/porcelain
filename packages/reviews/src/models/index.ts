@@ -82,6 +82,10 @@ export type {
   ReviewStatus,
 } from './read-review-evidence.ts';
 export type {
+  ReadReviewTextsInput,
+  ReadReviewTextsResult,
+} from './read-review-texts.ts';
+export type {
   ReadReviewLayerInput,
   ReadReviewLayerResult,
 } from './read-review-layer.ts';
@@ -119,7 +123,6 @@ export type {
   ReviewTexts,
   ReviewPatch,
   ReviewText,
-  ReviewTextRead,
 } from './review-evidence.ts';
 export type {
   CodePointer,
@@ -141,6 +144,7 @@ export type {
   StepDraft,
 } from './review.ts';
 export type {
+  MarkStaleness,
   ReviewedFile,
   ReviewedFileConflict,
   ReviewedFileLimits,

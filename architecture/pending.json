@@ -69,10 +69,6 @@
     },
     "packages/reviews/spec/fakes/in-memory-reviewed-file-store.ts": {
       "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 2
-    },
-    "packages/reviews/spec/fakes/in-memory-reviewed-layer-store.ts": {
-      "A fake stores and returns; a decision belongs in rules/ and the port gets simpler.": 1,
-      "A fake stores state, it never records calls; assert through what the port reads back.": 1
     }
   },
   "porcelain/operation-class-shape": {

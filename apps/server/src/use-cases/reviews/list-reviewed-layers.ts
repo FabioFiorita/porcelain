@@ -1,10 +1,10 @@
 import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadTextFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
   ListReviewedLayerPathsService,
   ListReviewedLayersService,
+  ReadReviewTextsService,
   ReconcileReviewedLayersService,
 } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -14,7 +14,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ListReviewedLayersUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
-  private readonly readTextFile: ReadTextFileService;
+  private readonly readReviewTexts: ReadReviewTextsService;
   private readonly reconcileReviewedLayers: ReconcileReviewedLayersService;
   private readonly listReviewedLayers: ListReviewedLayersService;
   private readonly lanes: Lanes;
@@ -23,7 +23,7 @@ export class ListReviewedLayersUseCase {
   constructor(
     checkWorktree: CheckWorktreeService,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
-    readTextFile: ReadTextFileService,
+    readReviewTexts: ReadReviewTextsService,
     reconcileReviewedLayers: ReconcileReviewedLayersService,
     listReviewedLayers: ListReviewedLayersService,
     lanes: Lanes,
@@ -31,7 +31,7 @@ export class ListReviewedLayersUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.listReviewedLayerPaths = listReviewedLayerPaths;
-    this.readTextFile = readTextFile;
+    this.readReviewTexts = readReviewTexts;
     this.reconcileReviewedLayers = reconcileReviewedLayers;
     this.listReviewedLayers = listReviewedLayers;
     this.lanes = lanes;
@@ -53,11 +53,7 @@ export class ListReviewedLayersUseCase {
           signal,
         );
         const { paths } = this.listReviewedLayerPaths.execute({ worktreeId });
-        return Promise.allSettled(
-          paths.map((path) =>
-            this.readTextFile.execute({ worktreeId, path }, signal),
-          ),
-        );
+        return this.readReviewTexts.execute({ worktreeId, paths }, signal);
       },
       { callerSignal: context.signal },
     );

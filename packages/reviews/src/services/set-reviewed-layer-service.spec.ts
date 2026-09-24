@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
-import type { ReviewLayer, ReviewTextRead } from '@porcelain/reviews/models';
+import type { ReviewLayer, ReviewTexts } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
 import { SetReviewedLayerService } from './set-reviewed-layer-service.ts';
@@ -27,8 +27,8 @@ const layer: ReviewLayer = {
   ],
 };
 
-function readme(text: string): ReviewTextRead[] {
-  return [{ status: 'fulfilled', value: { path: 'README.md', text } }];
+function readme(text: string): ReviewTexts {
+  return new Map([['README.md', text]]);
 }
 
 const seen = currentLayerFingerprint(
@@ -80,7 +80,7 @@ describe('SetReviewedLayerService', () => {
 
   it.each([
     { name: 'its text changed', texts: readme('first\nchanged\n') },
-    { name: 'its file is gone', texts: [] },
+    { name: 'its file is gone', texts: new Map<string, string>() },
   ])(
     'refuses a fingerprint the layer no longer has because $name, and stores nothing',
     ({ texts }) => {

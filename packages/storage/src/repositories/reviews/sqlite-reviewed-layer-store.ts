@@ -3,6 +3,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { reviewedLayers } from '../../db/schema/reviewed-layers.ts';
 import type {
   ReviewedLayerMark,
+  ReviewedLayerSave,
   WorktreeReviewedLayerMark,
 } from '@porcelain/reviews/models';
 import type { ReviewedLayerStore } from '@porcelain/reviews/ports';
@@ -44,21 +45,22 @@ export class SqliteReviewedLayerStore implements ReviewedLayerStore {
       .all();
   }
 
-  save(input: { worktreeId: string; mark: ReviewedLayerMark }): void {
-    const { worktreeId, mark } = input;
+  save(input: ReviewedLayerSave): void {
+    const { worktreeId } = input;
     this.db.transaction(
       (tx) => {
-        tx.insert(reviewedLayers)
-          .values({ worktreeId, ...mark })
-          .onConflictDoUpdate({
-            target: [reviewedLayers.worktreeId, reviewedLayers.layerId],
-            set: {
-              fingerprint: mark.fingerprint,
-              reviewedAt: mark.reviewedAt,
-              stale: mark.stale,
-            },
-          })
-          .run();
+        for (const mark of input.marks)
+          tx.insert(reviewedLayers)
+            .values({ worktreeId, ...mark })
+            .onConflictDoUpdate({
+              target: [reviewedLayers.worktreeId, reviewedLayers.layerId],
+              set: {
+                fingerprint: mark.fingerprint,
+                reviewedAt: mark.reviewedAt,
+                stale: mark.stale,
+              },
+            })
+            .run();
       },
       { behavior: 'immediate' },
     );

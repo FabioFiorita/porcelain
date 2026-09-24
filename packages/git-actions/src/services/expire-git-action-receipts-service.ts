@@ -1,6 +1,6 @@
 import type { Clock } from '@porcelain/kernel/ports';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import { receiptExpired } from '../rules/receipt-expired.ts';
+import { expiredReceipts } from '../rules/expired-receipts.ts';
 import type { ExpireGitActionReceiptsOptions } from '../models/expire-git-action-receipts.ts';
 
 export class ExpireGitActionReceiptsService {
@@ -19,14 +19,12 @@ export class ExpireGitActionReceiptsService {
   }
 
   execute(): void {
-    const now = this.clock.now();
     this.gitActionReceipts.remove({
-      requestIds: this.gitActionReceipts
-        .finished()
-        .filter((receipt) =>
-          receiptExpired(receipt.finishedAt, now, this.options.retentionMs),
-        )
-        .map((receipt) => receipt.requestId),
+      requestIds: expiredReceipts(
+        this.gitActionReceipts.finished(),
+        this.clock.now(),
+        this.options.retentionMs,
+      ),
     });
   }
 }

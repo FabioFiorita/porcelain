@@ -1,18 +1,35 @@
+import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
 import type {
   ReviewedLayerMark,
+  ReviewedLayerRemoval,
+  ReviewedLayerSave,
+  ReviewedLayerStaleness,
   WorktreeReviewedLayerMark,
 } from '../../src/models/reviewed-mark.ts';
 import type { ReviewedLayerStore } from '../../src/ports/reviewed-layer-store.ts';
 
-type Row = { worktreeId: string; mark: ReviewedLayerMark };
+function rowKey(worktreeId: string, layerId: string): string {
+  return `${worktreeId}\0${layerId}`;
+}
 
 export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
-  private rows: Row[] = [];
+  private readonly rows: Map<string, WorktreeReviewedLayerMark>;
 
-  list(input: { worktreeId: string }): ReviewedLayerMark[] {
-    return this.rows
+  constructor(rows: readonly WorktreeReviewedLayerMark[] = []) {
+    this.rows = new Map(
+      rows.map((row) => [rowKey(row.worktreeId, row.layerId), { ...row }]),
+    );
+  }
+
+  list(input: WorktreeKey): ReviewedLayerMark[] {
+    return [...this.rows.values()]
       .filter((row) => row.worktreeId === input.worktreeId)
-      .map((row) => ({ ...row.mark }))
+      .map((row) => ({
+        layerId: row.layerId,
+        fingerprint: row.fingerprint,
+        reviewedAt: row.reviewedAt,
+        stale: row.stale,
+      }))
       .sort(
         (left, right) =>
           left.reviewedAt.localeCompare(right.reviewedAt) ||
@@ -20,40 +37,34 @@ export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
       );
   }
 
-  byWorktrees(input: {
-    worktreeIds: readonly string[];
-  }): WorktreeReviewedLayerMark[] {
-    return this.rows
+  byWorktrees(input: WorktreeKeys): WorktreeReviewedLayerMark[] {
+    return [...this.rows.values()]
       .filter((row) => input.worktreeIds.includes(row.worktreeId))
-      .map((row) => ({ worktreeId: row.worktreeId, ...row.mark }));
+      .map((row) => ({ ...row }));
   }
 
-  save(input: { worktreeId: string; mark: ReviewedLayerMark }): void {
-    this.remove({ worktreeId: input.worktreeId, layerId: input.mark.layerId });
-    this.rows = [
-      ...this.rows,
-      { worktreeId: input.worktreeId, mark: { ...input.mark } },
-    ];
-  }
-
-  remove(input: { worktreeId: string; layerId: string }): void {
-    this.rows = this.rows.filter(
-      (row) =>
-        row.worktreeId !== input.worktreeId ||
-        row.mark.layerId !== input.layerId,
+  save(input: ReviewedLayerSave): void {
+    input.marks.forEach((mark) =>
+      this.rows.set(rowKey(input.worktreeId, mark.layerId), {
+        worktreeId: input.worktreeId,
+        ...mark,
+      }),
     );
   }
 
-  setStale(input: {
-    worktreeId: string;
-    layerIds: readonly string[];
-    stale: boolean;
-  }): void {
-    this.rows = this.rows.map((row) =>
-      row.worktreeId === input.worktreeId &&
-      input.layerIds.includes(row.mark.layerId)
-        ? { ...row, mark: { ...row.mark, stale: input.stale } }
-        : row,
-    );
+  remove(input: ReviewedLayerRemoval): void {
+    this.rows.delete(rowKey(input.worktreeId, input.layerId));
+  }
+
+  setStale(input: ReviewedLayerStaleness): void {
+    input.layerIds
+      .map((layerId) => this.rows.get(rowKey(input.worktreeId, layerId)))
+      .filter((row) => row !== undefined)
+      .forEach((row) =>
+        this.rows.set(rowKey(row.worktreeId, row.layerId), {
+          ...row,
+          stale: input.stale,
+        }),
+      );
   }
 }

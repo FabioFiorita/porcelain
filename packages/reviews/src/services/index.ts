@@ -11,6 +11,7 @@ export { ReadPublishedReviewService } from './read-published-review-service.ts';
 export { ReadReviewEvidenceService } from './read-review-evidence-service.ts';
 export { ReadReviewBadgesService } from './read-review-badges-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
+export { ReadReviewTextsService } from './read-review-texts-service.ts';
 export { ReadReviewSummaryService } from './read-review-summary-service.ts';
 export { ReconcileReviewedFilesService } from './reconcile-reviewed-files-service.ts';
 export { ReconcileReviewedLayersService } from './reconcile-reviewed-layers-service.ts';

@@ -3,10 +3,10 @@ import type {
   SetReviewedLayerResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadTextFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
   ReadReviewLayerService,
+  ReadReviewTextsService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
@@ -17,7 +17,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class SetReviewedLayerUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly readReviewLayer: ReadReviewLayerService;
-  private readonly readTextFile: ReadTextFileService;
+  private readonly readReviewTexts: ReadReviewTextsService;
   private readonly setReviewedLayer: SetReviewedLayerService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -26,7 +26,7 @@ export class SetReviewedLayerUseCase {
   constructor(
     checkWorktree: CheckWorktreeService,
     readReviewLayer: ReadReviewLayerService,
-    readTextFile: ReadTextFileService,
+    readReviewTexts: ReadReviewTextsService,
     setReviewedLayer: SetReviewedLayerService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -34,7 +34,7 @@ export class SetReviewedLayerUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.readReviewLayer = readReviewLayer;
-    this.readTextFile = readTextFile;
+    this.readReviewTexts = readReviewTexts;
     this.setReviewedLayer = setReviewedLayer;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -58,10 +58,9 @@ export class SetReviewedLayerUseCase {
           worktreeId,
           layerId: input.layerId,
         });
-        const texts = await Promise.allSettled(
-          paths.map((path) =>
-            this.readTextFile.execute({ worktreeId, path }, signal),
-          ),
+        const texts = await this.readReviewTexts.execute(
+          { worktreeId, paths },
+          signal,
         );
         return this.setReviewedLayer.execute({
           worktreeId,

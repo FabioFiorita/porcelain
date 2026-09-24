@@ -9,6 +9,7 @@ import type {
   ReviewedFileSelection,
   ReviewedLayerMark,
   ReviewedMark,
+  MarkStaleness,
 } from '../models/reviewed-mark.ts';
 import { currentLayerFingerprint } from './resolve-review.ts';
 
@@ -43,7 +44,7 @@ export function evictedPaths(
   return [...kept]
     .sort(
       (left, right) =>
-        left.reviewedAt.localeCompare(right.reviewedAt) ||
+        Date.parse(left.reviewedAt) - Date.parse(right.reviewedAt) ||
         (left.path < right.path ? -1 : 1),
     )
     .slice(0, excess)
@@ -60,16 +61,19 @@ export function touchedMarks(
   );
 }
 
-export function staleness(
-  marks: readonly ReviewedFileMark[],
-  fingerprints: ReadonlyMap<string, string | undefined>,
-): { stale: string[]; fresh: string[] } {
+export function markStaleness<
+  Mark extends { fingerprint: string; stale: boolean },
+>(
+  marks: readonly Mark[],
+  key: (mark: Mark) => string,
+  current: ReadonlyMap<string, string | undefined>,
+): MarkStaleness {
   const stale: string[] = [];
   const fresh: string[] = [];
   for (const mark of marks) {
-    const isStale = fingerprints.get(mark.path) !== mark.fingerprint;
+    const isStale = current.get(key(mark)) !== mark.fingerprint;
     if (isStale === mark.stale) continue;
-    (isStale ? stale : fresh).push(mark.path);
+    (isStale ? stale : fresh).push(key(mark));
   }
   return { stale, fresh };
 }
@@ -92,20 +96,11 @@ export function markedLayers(
   return layers.filter((layer) => marked.has(layer.id));
 }
 
-export function layerStaleness(
-  marks: readonly ReviewedLayerMark[],
+export function currentLayerFingerprints(
   layers: readonly ReviewLayer[],
-  files: ReviewTexts,
-): { stale: string[]; fresh: string[] } {
-  const current = new Map(
-    layers.map((layer) => [layer.id, currentLayerFingerprint(layer, files)]),
+  texts: ReviewTexts,
+): Map<string, string> {
+  return new Map(
+    layers.map((layer) => [layer.id, currentLayerFingerprint(layer, texts)]),
   );
-  const stale: string[] = [];
-  const fresh: string[] = [];
-  for (const mark of marks) {
-    const isStale = current.get(mark.layerId) !== mark.fingerprint;
-    if (isStale === mark.stale) continue;
-    (isStale ? stale : fresh).push(mark.layerId);
-  }
-  return { stale, fresh };
 }

@@ -64,7 +64,10 @@ export type ReviewedFileStaleness = {
   stale: boolean;
 };
 
-export type ReviewedLayerSave = { worktreeId: string; mark: ReviewedLayerMark };
+export type ReviewedLayerSave = {
+  worktreeId: string;
+  marks: readonly ReviewedLayerMark[];
+};
 
 export type ReviewedLayerRemoval = { worktreeId: string; layerId: string };
 
@@ -73,3 +76,5 @@ export type ReviewedLayerStaleness = {
   layerIds: readonly string[];
   stale: boolean;
 };
+
+export type MarkStaleness = { stale: string[]; fresh: string[] };

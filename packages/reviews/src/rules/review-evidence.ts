@@ -3,9 +3,7 @@ import { isTracked, trackedPath } from '@porcelain/kernel/rules';
 import type {
   ReviewChange,
   ReviewDiff,
-  ReviewTexts,
   ReviewPatch,
-  ReviewTextRead,
 } from '../models/review-evidence.ts';
 import type { CodePointer, LayerDraft } from '../models/review.ts';
 
@@ -54,14 +52,6 @@ export function reviewChanges(changes: readonly FileChange[]): ReviewChange[] {
       (entry) => isTracked(entry) && entry.newPath === undefined,
     ),
   }));
-}
-
-export function reviewFiles(texts: readonly ReviewTextRead[]): ReviewTexts {
-  return new Map(
-    texts.flatMap((read): [string, string][] =>
-      read.status === 'fulfilled' ? [[read.value.path, read.value.text]] : [],
-    ),
-  );
 }
 
 export function reviewPatches(diffs: readonly ReviewDiff[]): ReviewPatch[] {

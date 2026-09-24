@@ -7,8 +7,6 @@ export type ReviewText = {
   text: string;
 };
 
-export type ReviewTextRead = PromiseSettledResult<ReviewText>;
-
 export type ReviewDiffSelection = {
   scope: 'staged' | 'unstaged';
   oldPath?: string | undefined;

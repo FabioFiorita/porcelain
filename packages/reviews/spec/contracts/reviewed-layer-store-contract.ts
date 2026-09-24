@@ -41,22 +41,22 @@ export function reviewedLayerStoreContract(
     });
 
     it('lists no marks for a worktree without reviewed layers', () => {
-      store.save({ worktreeId: second, mark: mark('layer') });
+      store.save({ worktreeId: second, marks: [mark('layer')] });
       expect(store.list({ worktreeId: first })).toEqual([]);
     });
 
     it('lists the marks of the worktree in the order they were reviewed, then by layer', () => {
       store.save({
         worktreeId: first,
-        mark: mark('late', '2026-09-24T12:00:00.000Z'),
+        marks: [mark('late', '2026-09-24T12:00:00.000Z')],
       });
       store.save({
         worktreeId: first,
-        mark: mark('b-early', '2026-09-24T09:00:00.000Z'),
+        marks: [mark('b-early', '2026-09-24T09:00:00.000Z')],
       });
       store.save({
         worktreeId: first,
-        mark: mark('a-early', '2026-09-24T09:00:00.000Z'),
+        marks: [mark('a-early', '2026-09-24T09:00:00.000Z')],
       });
       expect(
         store.list({ worktreeId: first }).map((entry) => entry.layerId),
@@ -64,19 +64,19 @@ export function reviewedLayerStoreContract(
     });
 
     it('replaces the mark of a layer saved again', () => {
-      store.save({ worktreeId: first, mark: mark('layer') });
+      store.save({ worktreeId: first, marks: [mark('layer')] });
       const again = {
         ...mark('layer', '2026-09-24T11:00:00.000Z'),
         fingerprint: 'newer',
       };
-      store.save({ worktreeId: first, mark: again });
+      store.save({ worktreeId: first, marks: [again] });
       expect(store.list({ worktreeId: first })).toEqual([again]);
     });
 
     it('reads the marks of the asked worktrees only, each with its worktree', () => {
-      store.save({ worktreeId: first, mark: mark('one') });
-      store.save({ worktreeId: second, mark: mark('two') });
-      store.save({ worktreeId: third, mark: mark('three') });
+      store.save({ worktreeId: first, marks: [mark('one')] });
+      store.save({ worktreeId: second, marks: [mark('two')] });
+      store.save({ worktreeId: third, marks: [mark('three')] });
       expect(
         store
           .byWorktrees({ worktreeIds: [first, third] })
@@ -90,23 +90,23 @@ export function reviewedLayerStoreContract(
     });
 
     it('reads no marks when no worktree is asked', () => {
-      store.save({ worktreeId: first, mark: mark('one') });
+      store.save({ worktreeId: first, marks: [mark('one')] });
       expect(store.byWorktrees({ worktreeIds: [] })).toEqual([]);
     });
 
     it('removes the mark of the asked layer in the asked worktree only', () => {
-      store.save({ worktreeId: first, mark: mark('kept') });
-      store.save({ worktreeId: first, mark: mark('removed') });
-      store.save({ worktreeId: second, mark: mark('removed') });
+      store.save({ worktreeId: first, marks: [mark('kept')] });
+      store.save({ worktreeId: first, marks: [mark('removed')] });
+      store.save({ worktreeId: second, marks: [mark('removed')] });
       store.remove({ worktreeId: first, layerId: 'removed' });
       expect(store.list({ worktreeId: first })).toEqual([mark('kept')]);
       expect(store.list({ worktreeId: second })).toEqual([mark('removed')]);
     });
 
     it('marks the asked layers stale and fresh again, leaving the others', () => {
-      store.save({ worktreeId: first, mark: mark('a') });
-      store.save({ worktreeId: first, mark: mark('b') });
-      store.save({ worktreeId: second, mark: mark('a') });
+      store.save({ worktreeId: first, marks: [mark('a')] });
+      store.save({ worktreeId: first, marks: [mark('b')] });
+      store.save({ worktreeId: second, marks: [mark('a')] });
       store.setStale({ worktreeId: first, layerIds: ['a'], stale: true });
       expect(store.list({ worktreeId: first })).toEqual([
         { ...mark('a'), stale: true },
@@ -119,7 +119,7 @@ export function reviewedLayerStoreContract(
 
     it('hands out copies, so changing a returned mark leaves the stored one unchanged', () => {
       const saved = mark('layer');
-      store.save({ worktreeId: first, mark: saved });
+      store.save({ worktreeId: first, marks: [saved] });
       saved.fingerprint = 'changed after saving';
       Object.assign(store.list({ worktreeId: first }).at(0) ?? {}, {
         fingerprint: 'changed after listing',

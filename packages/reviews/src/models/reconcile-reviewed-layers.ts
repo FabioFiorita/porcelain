@@ -1,6 +1,6 @@
-import type { ReviewTextRead } from './review-evidence.ts';
+import type { ReviewTexts } from './review-evidence.ts';
 
 export type ReconcileReviewedLayersInput = {
   worktreeId: string;
-  texts: readonly ReviewTextRead[];
+  texts: ReviewTexts;
 };

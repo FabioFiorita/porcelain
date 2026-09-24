@@ -24,12 +24,14 @@ function setup() {
       });
     layers.save({
       worktreeId: id,
-      mark: {
-        layerId: 'layer-1',
-        fingerprint: 'l',
-        reviewedAt: '2026-01-01T00:00:00.000Z',
-        stale: false,
-      },
+      marks: [
+        {
+          layerId: 'layer-1',
+          fingerprint: 'l',
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+          stale: false,
+        },
+      ],
     });
   }
   return {
