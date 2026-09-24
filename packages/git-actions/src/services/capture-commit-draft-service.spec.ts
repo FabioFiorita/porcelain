@@ -13,7 +13,7 @@ import {
   HEAD_OID,
   README_FINGERPRINT,
   WORKTREE_ID,
-} from '../../spec/fakes/git-action-samples.ts';
+} from '../../spec/fixtures/git-action-samples.ts';
 import { InMemorySelectedDiffReader } from '../../spec/fakes/in-memory-selected-diff-reader.ts';
 import { InMemoryUntrackedFileReader } from '../../spec/fakes/in-memory-untracked-file-reader.ts';
 import { CaptureCommitDraftService } from './capture-commit-draft-service.ts';

@@ -452,7 +452,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'server-port',
     'fake',
   ]),
-  fixture: new Set(),
+  fixture: new Set(['model']),
   'store-contract': new Set([
     'kernel',
     'port',
@@ -509,6 +509,8 @@ export function violation(
     (from.owner !== 'server' || to.role === 'fake')
   )
     return 'fake-imports-own-package-only';
+  if (from.role === 'fixture' && to.owner !== from.owner)
+    return 'fixture-imports-own-package-models-only';
   if (from.owner !== 'server' && to.owner === 'server')
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))

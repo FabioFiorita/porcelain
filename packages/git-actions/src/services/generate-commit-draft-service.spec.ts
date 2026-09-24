@@ -10,7 +10,7 @@ import type {
   CommitDraftGeneration,
 } from '@porcelain/git-actions/models';
 import { describe, expect, it } from 'vitest';
-import { README_FINGERPRINT } from '../../spec/fakes/git-action-samples.ts';
+import { README_FINGERPRINT } from '../../spec/fixtures/git-action-samples.ts';
 import { ScriptedCommitDraftSource } from '../../spec/fakes/scripted-commit-draft-source.ts';
 import { GenerateCommitDraftService } from './generate-commit-draft-service.ts';
 

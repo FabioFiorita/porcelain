@@ -18,7 +18,7 @@ import {
   README_FINGERPRINT,
   REQUEST_ID,
   WORKTREE_ID,
-} from '../../spec/fakes/git-action-samples.ts';
+} from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { AcceptGitActionService } from './accept-git-action-service.ts';
 

@@ -377,6 +377,7 @@ const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
 const scopeFile = /^apps\/server\/src\/http\/scopes\/[^/]+\.ts$/;
 const fixtureFile = /^packages\/[^/]+\/spec\/fixtures\//;
 const fixtureModules = new Set(['node:fs', 'node:path', 'node:url']);
+const fixtureModelSource = /^\.\.\/\.\.\/src\/models\/[a-z0-9-]+\.ts$/;
 const signalMembers = new Set(['throwIfAborted', 'aborted', 'onabort']);
 const openTypes = new Set([
   'TSObjectKeyword',
@@ -1337,10 +1338,17 @@ export default {
         return moduleVisitors((node) => {
           const source = moduleSource(node);
           if (source !== undefined && fixtureModules.has(source)) return;
+          if (
+            node.type === 'ImportDeclaration' &&
+            node.importKind === 'type' &&
+            source !== undefined &&
+            fixtureModelSource.test(source)
+          )
+            return;
           context.report({
             node: node.source ?? node,
             message:
-              'A fixture helper reads captured output with node:fs, node:path and node:url only.',
+              'A fixture reads captured output with node:fs, node:path and node:url, and imports only types from its own package models.',
           });
         });
       },

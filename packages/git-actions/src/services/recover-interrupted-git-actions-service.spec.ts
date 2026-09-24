@@ -1,6 +1,6 @@
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
-import { sampleReceipt } from '../../spec/fakes/git-action-samples.ts';
+import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { RecoverInterruptedGitActionsService } from './recover-interrupted-git-actions-service.ts';
 

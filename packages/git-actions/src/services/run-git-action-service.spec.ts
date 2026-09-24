@@ -10,7 +10,7 @@ import {
   GUIDE_FINGERPRINT,
   README_FINGERPRINT,
   sampleRun,
-} from '../../spec/fakes/git-action-samples.ts';
+} from '../../spec/fixtures/git-action-samples.ts';
 import { ScriptedGitActionRunner } from '../../spec/fakes/scripted-git-action-runner.ts';
 import { RunGitActionService } from './run-git-action-service.ts';
 

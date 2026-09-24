@@ -9,7 +9,7 @@ import {
   REQUEST_ID,
   WORKTREE_ID,
   sampleReceipt,
-} from '../../spec/fakes/git-action-samples.ts';
+} from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { DismissInterruptedGitActionService } from './dismiss-interrupted-git-action-service.ts';
 

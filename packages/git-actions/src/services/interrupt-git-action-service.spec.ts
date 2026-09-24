@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REQUEST_ID,
   sampleReceipt,
-} from '../../spec/fakes/git-action-samples.ts';
+} from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { InterruptGitActionService } from './interrupt-git-action-service.ts';
 

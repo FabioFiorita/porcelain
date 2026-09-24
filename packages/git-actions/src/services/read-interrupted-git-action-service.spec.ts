@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   WORKTREE_ID,
   sampleReceipt,
-} from '../../spec/fakes/git-action-samples.ts';
+} from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { ReadInterruptedGitActionService } from './read-interrupted-git-action-service.ts';
 
