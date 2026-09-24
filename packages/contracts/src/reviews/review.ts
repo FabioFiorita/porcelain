@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
-import { REVIEW_SUMMARY_BYTES } from '../shared/limits.ts';
+import {
+  REVIEW_SUMMARY_BYTES,
+  REVIEW_SUMMARY_MEBIBYTES,
+} from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
@@ -101,7 +104,7 @@ const summaryHtmlSchema = z
   .refine((value) => value.isWellFormed(), 'Expected valid Unicode text')
   .refine(
     (value) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
-    'Summary exceeds 10 MiB',
+    `Summary exceeds ${REVIEW_SUMMARY_MEBIBYTES} MiB`,
   );
 
 const notExplainedSchema = z.object({

@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { PATH_LENGTH } from '../shared/limits.ts';
 
 const reviewStatusSchema = z.enum(['pending', 'reviewed', 'replied']);
 
 const absolutePathSchema = z
   .string()
   .min(1)
-  .max(4096)
+  .max(PATH_LENGTH)
   .startsWith('/')
   .refine((path) => !path.includes('\0'));
 

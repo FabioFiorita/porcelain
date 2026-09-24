@@ -1,8 +1,6 @@
 import { rename, rm } from 'node:fs/promises';
-import {
-  OWNER_QUICK_PROBE_TIMEOUT_MS,
-  ownerSocketPath,
-} from '../config/owner-socket-settings.ts';
+import { LIMITS } from '../config/limits.ts';
+import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import {
   serviceIsHealthy,
   servicePlan,
@@ -66,7 +64,7 @@ export async function update(
     stopped = true;
     const socket = await context.probe(
       ownerSocketPath(configuration.dataDirectory),
-      OWNER_QUICK_PROBE_TIMEOUT_MS,
+      LIMITS.owner.quickProbeTimeoutMs,
     );
     if (socket.kind !== 'absent')
       throw new DataDirectoryBusyError(socket.kind, 'update');

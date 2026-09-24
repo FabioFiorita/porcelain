@@ -2,7 +2,7 @@ import { httpErrors } from '@fastify/sensible';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { FastifyInstance, FastifyReply } from 'fastify';
-import { REVIEW_BODY_LIMIT } from '../../config/request-limits.ts';
+import { LIMITS } from '../../config/limits.ts';
 import {
   createReviewMcpServer,
   type ReviewMcpUseCases,
@@ -32,7 +32,7 @@ export function reviewMcp(
 ) {
   server.all(
     '/mcp',
-    { bodyLimit: REVIEW_BODY_LIMIT },
+    { bodyLimit: LIMITS.http.reviewBodyBytes },
     async (request, reply) => {
       if (request.method !== 'POST') {
         reply.header('Allow', 'POST');

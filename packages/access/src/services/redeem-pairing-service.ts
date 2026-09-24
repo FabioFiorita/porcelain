@@ -2,7 +2,7 @@ import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
-import type { Device } from '../models/device.ts';
+import type { Device, DeviceDetailLimits } from '../models/device.ts';
 import type {
   RedeemPairingInput,
   RedeemPairingResult,
@@ -22,17 +22,20 @@ export class RedeemPairingService {
   private readonly clock: Clock;
   private readonly idSource: IdSource;
   private readonly secretSource: SecretSource;
+  private readonly deviceDetails: DeviceDetailLimits;
 
   constructor(
     pairingGrants: PairingGrantStore,
     clock: Clock,
     idSource: IdSource,
     secretSource: SecretSource,
+    deviceDetails: DeviceDetailLimits,
   ) {
     this.pairingGrants = pairingGrants;
     this.clock = clock;
     this.idSource = idSource;
     this.secretSource = secretSource;
+    this.deviceDetails = deviceDetails;
   }
 
   execute(input: RedeemPairingInput): RedeemPairingResult {
@@ -41,8 +44,10 @@ export class RedeemPairingService {
     const label =
       input.label === undefined
         ? undefined
-        : this.detail(validLabel(input.label));
-    const platform = this.detail(validPlatform(input.platform));
+        : this.detail(validLabel(input.label, this.deviceDetails.labelLength));
+    const platform = this.detail(
+      validPlatform(input.platform, this.deviceDetails.platformLength),
+    );
     const now = this.clock.now();
     const grant = this.pairingGrants.find({ grantId: code.id });
     if (

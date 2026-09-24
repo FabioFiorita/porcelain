@@ -3,15 +3,22 @@ import {
   listAccessResponseSchema,
   revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
+import {
+  DEVICE_LABEL_LENGTH,
+  DEVICE_PLATFORM_LENGTH,
+} from '@porcelain/contracts/shared';
 import qrcode from 'qrcode-terminal';
+import { LIMITS, MINUTE_MS } from '../config/limits.ts';
 import { askOwner } from './owner-client.ts';
+
+const PAIRING_MINUTES = LIMITS.access.pairingGrant.lifetimeMs / MINUTE_MS;
 
 export type Output = {
   stdout: (message: string) => void;
   stderr: (message: string) => void;
 };
 
-function printable(value: string, limit = 120): string {
+function printable(value: string, limit = DEVICE_PLATFORM_LENGTH): string {
   return Array.from(
     new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(value),
     ({ segment }) => {
@@ -39,15 +46,15 @@ export async function issuePairings(
     await askOwner(dataDirectory, 'POST', '/pairings', { labels, addresses }),
   );
   for (const grant of answer.grants) {
-    output.stdout(`${printable(grant.grant.label, 80)}\n`);
+    output.stdout(`${printable(grant.grant.label, DEVICE_LABEL_LENGTH)}\n`);
     output.stdout(`${grant.link}\n`);
     if (withQr) output.stdout(`${await qr(grant.link)}\n`);
     output.stdout(`Expires ${grant.grant.expiresAt}\n\n`);
   }
   output.stdout(
     answer.grants.length === 1
-      ? 'This link works once, for fifteen minutes.\n'
-      : `${answer.grants.length} links, each good once for fifteen minutes.\n`,
+      ? `This link works once, for ${PAIRING_MINUTES} minutes.\n`
+      : `${answer.grants.length} links, each good once for ${PAIRING_MINUTES} minutes.\n`,
   );
 }
 
@@ -62,7 +69,7 @@ export async function listAccess(
     output.stdout('Pending links\n');
     for (const grant of listing.grants)
       output.stdout(
-        `  ${grant.id}  ${printable(grant.label, 80)}  expires ${grant.expiresAt}\n`,
+        `  ${grant.id}  ${printable(grant.label, DEVICE_LABEL_LENGTH)}  expires ${grant.expiresAt}\n`,
       );
     output.stdout('\n');
   }
@@ -73,7 +80,7 @@ export async function listAccess(
   output.stdout('Devices\n');
   for (const device of listing.devices)
     output.stdout(
-      `  ${device.id}  ${printable(device.label, 80)}  ${printable(device.platform)}  ` +
+      `  ${device.id}  ${printable(device.label, DEVICE_LABEL_LENGTH)}  ${printable(device.platform)}  ` +
         `last seen ${device.lastSeenAt}${device.lastSeenAddress ? ` from ${printable(device.lastSeenAddress, 60)}` : ''}\n`,
     );
 }

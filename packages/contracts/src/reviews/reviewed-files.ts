@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { REVIEWED_FILE_MARKS } from '../shared/limits.ts';
 
 const reviewedMarkSchema = z.object({
   path: relativePathSchema,
@@ -11,7 +12,7 @@ const reviewedMarkSchema = z.object({
 
 export const listReviewedFilesResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
-  marks: z.array(reviewedMarkSchema).max(2000),
+  marks: z.array(reviewedMarkSchema).max(REVIEWED_FILE_MARKS),
 });
 
 export const setReviewedFileRequestSchema = z.strictObject({
@@ -30,11 +31,11 @@ export const setReviewedFilesRequestSchema = z.strictObject({
       }),
     )
     .min(1)
-    .max(2000),
+    .max(REVIEWED_FILE_MARKS),
 });
 export const setReviewedFilesResponseSchema =
   listReviewedFilesResponseSchema.extend({
-    marked: z.array(relativePathSchema).max(2000),
+    marked: z.array(relativePathSchema).max(REVIEWED_FILE_MARKS),
     conflicts: z
       .array(
         z.object({
@@ -42,7 +43,7 @@ export const setReviewedFilesResponseSchema =
           reason: z.enum(['stale', 'missing']),
         }),
       )
-      .max(2000),
+      .max(REVIEWED_FILE_MARKS),
   });
 
 export const removeReviewedFileQuerySchema = z.strictObject({

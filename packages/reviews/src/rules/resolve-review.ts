@@ -150,11 +150,11 @@ function contiguous(values: readonly number[]): {
 }
 
 function paragraph(lines: readonly string[], line: number): [number, number] {
-  let start = line;
+  let before = line - 1;
   let end = line;
-  while (start > 1 && (lines[start - 2] ?? '').trim() !== '') start -= 1;
+  while (before > 0 && (lines[before - 1] ?? '').trim() !== '') before -= 1;
   while (end < lines.length && (lines[end] ?? '').trim() !== '') end += 1;
-  return [start, end];
+  return [before + 1, end];
 }
 
 function coveredLines(

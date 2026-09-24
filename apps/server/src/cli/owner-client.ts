@@ -3,11 +3,8 @@ import {
   readOwnerStatusResponseSchema,
   type ReadOwnerStatusResponse,
 } from '@porcelain/contracts/access';
-import {
-  OWNER_PROBE_TIMEOUT_MS,
-  OWNER_REQUEST_TIMEOUT_MS,
-  ownerSocketPath,
-} from '../config/owner-socket-settings.ts';
+import { LIMITS } from '../config/limits.ts';
+import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
 
 export class OwnerRequestError extends Error {
@@ -107,7 +104,7 @@ export async function askOwner(
   method: 'GET' | 'POST',
   path: string,
   body?: unknown,
-  timeoutMs = OWNER_REQUEST_TIMEOUT_MS,
+  timeoutMs = LIMITS.owner.requestTimeoutMs,
 ): Promise<unknown> {
   const socketPath = ownerSocketPath(dataDirectory);
   let answer: OwnerAnswer;
@@ -135,7 +132,7 @@ export async function askOwner(
 
 export async function probeOwnerSocket(
   socketPath: string,
-  timeoutMs = OWNER_PROBE_TIMEOUT_MS,
+  timeoutMs = LIMITS.owner.probeTimeoutMs,
 ): Promise<OwnerSocketProbe> {
   let answer: OwnerAnswer;
   try {

@@ -13,6 +13,7 @@ export type ReadPreviewAssetsOptions = {
   maxAssetBytes: number;
   maxTotalBytes: number;
   maxPathLength: number;
+  base64ChunkBytes: number;
 };
 
 export class ReadPreviewAssetsService {
@@ -57,7 +58,7 @@ export class ReadPreviewAssetsService {
         kind: 'asset',
         path,
         mediaType,
-        base64: encodeBase64(bytes),
+        base64: encodeBase64(bytes, this.options.base64ChunkBytes),
       });
     }
     return { assets };

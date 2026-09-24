@@ -19,6 +19,7 @@ function file(bytes: Uint8Array): FileRead {
 function serviceWith(files: Record<string, FileRead>, maxBytes = 1024) {
   return new ReadFileAssetService(new InMemoryFileReader({ files }), {
     maxBytes,
+    base64ChunkBytes: 0x8000,
   });
 }
 

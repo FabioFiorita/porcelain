@@ -405,7 +405,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set(everything),
   contract: new Set(['contract']),
-  config: new Set(['config']),
+  config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),
   fake: new Set([
     'kernel',

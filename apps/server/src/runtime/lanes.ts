@@ -108,7 +108,7 @@ class Gate {
 }
 
 export type LaneOptions = {
-  readCapacity?: number;
+  readCapacity: number;
   deadlineMs: number | (() => number);
   closeResources?: () => void;
 };
@@ -123,7 +123,7 @@ export class Lanes {
   private closing: Promise<void> | undefined;
 
   constructor(options: LaneOptions) {
-    this.capacity = options.readCapacity ?? 4;
+    this.capacity = options.readCapacity;
     const { deadlineMs } = options;
     this.deadlineMs =
       typeof deadlineMs === 'function' ? deadlineMs : () => deadlineMs;

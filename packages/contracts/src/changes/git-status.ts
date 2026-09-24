@@ -4,6 +4,7 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { CHANGED_PATHS } from '../shared/limits.ts';
 
 const conflictKinds = {
   DD: 'both-deleted',
@@ -109,7 +110,7 @@ export const readGitStatusResponseSchema = z.object({
   headCommit: absentAsNull(
     z.object({ subject: z.string(), body: z.string().optional() }),
   ),
-  changes: z.array(gitChangeSchema).max(2000),
+  changes: z.array(gitChangeSchema).max(CHANGED_PATHS),
 });
 
 export type ReadGitStatusResponse = z.output<

@@ -42,6 +42,7 @@ function setup(grant: Partial<StoredPairingGrant> = {}) {
     clock,
     new SequentialIdSource(),
     new SequentialSecretSource(),
+    { labelLength: 80, platformLength: 120 },
   );
   return {
     devices,

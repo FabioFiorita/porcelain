@@ -7,13 +7,19 @@ import type {
 } from '@porcelain/changes/models';
 import type { WorktreeSideReader } from '@porcelain/changes/ports';
 import type { OpenInspection } from './inspection-checkouts.ts';
-import { readWorktreeFiles, stampPath } from './worktree-files.ts';
+import {
+  readWorktreeFiles,
+  stampPath,
+  type WorktreeReadOptions,
+} from './worktree-files.ts';
 
 export class GitWorktreeSideReader implements WorktreeSideReader {
   private readonly open: OpenInspection;
+  private readonly options: WorktreeReadOptions;
 
-  constructor(open: OpenInspection) {
+  constructor(open: OpenInspection, options: WorktreeReadOptions) {
     this.open = open;
+    this.options = options;
   }
 
   async readEntries(
@@ -21,7 +27,12 @@ export class GitWorktreeSideReader implements WorktreeSideReader {
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, WorktreeEntry>> {
     const { worktree } = await this.open(input.worktreeId, signal);
-    return readWorktreeFiles(worktree.path, input.paths, input.maxDigestBytes);
+    return readWorktreeFiles(
+      worktree.path,
+      input.paths,
+      input.maxDigestBytes,
+      this.options,
+    );
   }
 
   async readSubmoduleHeads(

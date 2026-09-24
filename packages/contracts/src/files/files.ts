@@ -3,15 +3,14 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-
-const MAX_TEXT_BYTES = 1024 * 1024;
+import { PATH_LENGTH, TEXT_BYTES } from '../shared/limits.ts';
 
 const directoryPathSchema = z.union([z.literal(''), relativePathSchema]);
 const editableTextSchema = z
   .string()
-  .max(MAX_TEXT_BYTES)
+  .max(TEXT_BYTES)
   .refine(
-    (text) => !text.includes('\0') && utf8ByteLength(text) <= MAX_TEXT_BYTES,
+    (text) => !text.includes('\0') && utf8ByteLength(text) <= TEXT_BYTES,
     'Expected UTF-8 text without NUL within the write limit',
   );
 
@@ -83,7 +82,7 @@ export const readFileAssetResponseSchema = z.object({
 
 export const readPreviewAssetsRequestSchema = z.strictObject({
   document: relativePathSchema,
-  paths: z.array(z.string().max(4096)).min(1).max(64),
+  paths: z.array(z.string().max(PATH_LENGTH)).min(1).max(64),
 });
 export const readPreviewAssetsResponseSchema = z.object({
   assets: z.array(

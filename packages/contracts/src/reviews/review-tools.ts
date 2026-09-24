@@ -9,9 +9,10 @@ import {
   publishReviewRequestSchema,
   readPublishedReviewResponseSchema,
 } from './review.ts';
+import { PATH_LENGTH } from '../shared/limits.ts';
 
 const reviewToolScopeSchema = z.strictObject({
-  cwd: z.string().min(1).max(4096).optional(),
+  cwd: z.string().min(1).max(PATH_LENGTH).optional(),
 });
 
 export const publishReviewToolRequestSchema = reviewToolScopeSchema.extend(

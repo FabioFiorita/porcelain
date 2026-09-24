@@ -56,7 +56,10 @@ export function composeChanges(
     adapters.inspection,
   );
   const changeStatusReader = new GitChangeStatusReader(openInspection);
-  const worktreeSideReader = new GitWorktreeSideReader(openInspection);
+  const worktreeSideReader = new GitWorktreeSideReader(
+    openInspection,
+    limits.worktreeReads,
+  );
   const changeDiffReader = new GitChangeDiffReader(openInspection);
   const headTextReader = new GitHeadTextReader(openInspection);
   const commitHistoryReader = new GitCommitHistoryReader(

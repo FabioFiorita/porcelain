@@ -157,7 +157,7 @@ export function composeReviews(
         reviewStore,
         clock,
         ids,
-        new RandomSecretSource(),
+        new RandomSecretSource(limits.summaryLink),
       ),
       readEnvironment,
       generatePublishedReview,
