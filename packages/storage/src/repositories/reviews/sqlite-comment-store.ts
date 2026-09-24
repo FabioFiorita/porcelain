@@ -151,12 +151,13 @@ export class SqliteCommentStore implements CommentStore {
         worktreeId: commentThreads.worktreeId,
         threadId: commentThreads.id,
         revision: commentThreads.lastAgentRevision,
+        resolved: commentThreads.resolved,
       })
       .from(commentThreads)
       .where(inArray(commentThreads.worktreeId, [...input.worktreeIds]))
       .all()
-      .flatMap(({ worktreeId, threadId, revision }) =>
-        revision === null ? [] : [{ worktreeId, threadId, revision }],
+      .flatMap(({ worktreeId, threadId, revision, resolved }) =>
+        revision === null ? [] : [{ worktreeId, threadId, revision, resolved }],
       );
   }
 

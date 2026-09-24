@@ -288,8 +288,18 @@ export function commentStoreContract(
       expect(
         byThread(store.agentRepliesByWorktrees({ worktreeIds: [first] })),
       ).toEqual([
-        { worktreeId: first, threadId: 'agent-answered', revision: 4 },
-        { worktreeId: first, threadId: 'agent-opened', revision: 1 },
+        {
+          worktreeId: first,
+          threadId: 'agent-answered',
+          revision: 4,
+          resolved: false,
+        },
+        {
+          worktreeId: first,
+          threadId: 'agent-opened',
+          revision: 1,
+          resolved: false,
+        },
       ]);
       expect(
         byThread(
@@ -306,12 +316,12 @@ export function commentStoreContract(
       );
     });
 
-    it('keeps reporting an agent reply at its own revision after the thread is resolved', () => {
+    it('keeps reporting an agent reply at its own revision after the thread is resolved, marked resolved', () => {
       const thread = open(store, 'thread');
       const answered = reply(store, thread, 'answer', { author: 'agent' });
       store.resolve({ thread: answered, resolved: true });
       expect(store.agentRepliesByWorktrees({ worktreeIds: [first] })).toEqual([
-        { worktreeId: first, threadId: 'thread', revision: 2 },
+        { worktreeId: first, threadId: 'thread', revision: 2, resolved: true },
       ]);
     });
 

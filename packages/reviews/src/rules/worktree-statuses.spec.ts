@@ -50,8 +50,17 @@ function mark(
   };
 }
 
-function reply(revision: number, owner = worktreeId): AgentReply {
-  return { worktreeId: owner, threadId: `thread-${revision}`, revision };
+function reply(
+  revision: number,
+  owner = worktreeId,
+  resolved = false,
+): AgentReply {
+  return {
+    worktreeId: owner,
+    threadId: `thread-${revision}`,
+    revision,
+    resolved,
+  };
 }
 
 function seen(seenThrough: number, owner = worktreeId): CommentSeenMark {
@@ -128,6 +137,17 @@ describe('worktreeStatuses', () => {
     expect(
       worktreeStatuses([review()], bothMarked, [reply(3)], []).get(worktreeId),
     ).toBe('replied');
+  });
+
+  it('does not report an agent reply on a thread resolved since', () => {
+    expect(
+      worktreeStatuses(
+        [review()],
+        bothMarked,
+        [reply(3, worktreeId, true)],
+        [],
+      ).get(worktreeId),
+    ).toBe('reviewed');
   });
 
   it('reports a reply in a worktree that has no review', () => {

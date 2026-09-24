@@ -38,7 +38,10 @@ export function worktreeStatuses(
     seen.map((mark) => [mark.worktreeId, mark.seenThrough]),
   );
   for (const reply of replies)
-    if (reply.revision > (seenThrough.get(reply.worktreeId) ?? 0))
+    if (
+      !reply.resolved &&
+      reply.revision > (seenThrough.get(reply.worktreeId) ?? 0)
+    )
       statuses.set(reply.worktreeId, 'replied');
   return statuses;
 }

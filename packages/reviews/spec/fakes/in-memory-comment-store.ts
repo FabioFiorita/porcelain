@@ -70,6 +70,7 @@ export class InMemoryCommentStore implements CommentStore {
         worktreeId: thread.worktreeId,
         threadId: thread.id,
         revision: agentRevision,
+        resolved: thread.resolved,
       }));
   }
 

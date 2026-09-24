@@ -85,6 +85,7 @@ export type AgentReply = {
   worktreeId: string;
   threadId: string;
   revision: number;
+  resolved: boolean;
 };
 
 export type CommentSeenMark = {
