@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type { RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { UpdateProjectAvailabilityService } from './update-project-availability-service.ts';
@@ -10,6 +11,7 @@ const project: RegisteredProject = {
   commonDirectory: '/srv/api/.git',
   repositoryIdentity: 'identity-1',
   available: false,
+  position: 1,
 };
 
 function listing(available: boolean) {
@@ -17,7 +19,6 @@ function listing(available: boolean) {
     worktrees: {
       projectId: project.id,
       available,
-      complete: available,
       worktrees: [],
     },
   };
@@ -37,10 +38,20 @@ describe('UpdateProjectAvailabilityService', () => {
     expect(store.read().projects[0]?.name).toBe('Renamed meanwhile');
   });
 
-  it('does not bring back a project removed while it was being listed', () => {
+  it('refuses a project that is no longer registered, without bringing it back', () => {
     const store = new InMemoryInventoryStore('environment', [project]);
     store.remove(project.id);
-    new UpdateProjectAvailabilityService(store).execute(listing(true));
+    expect(() =>
+      new UpdateProjectAvailabilityService(store).execute(listing(true)),
+    ).toThrow(ProjectNotFoundError);
     expect(store.read().projects).toEqual([]);
+  });
+
+  it('marks a listed project unavailable when the listing could not reach it', () => {
+    const store = new InMemoryInventoryStore('environment', [
+      { ...project, available: true },
+    ]);
+    new UpdateProjectAvailabilityService(store).execute(listing(false));
+    expect(store.read().projects[0]?.available).toBe(false);
   });
 });

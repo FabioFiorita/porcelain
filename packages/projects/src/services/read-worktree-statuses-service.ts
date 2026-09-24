@@ -1,16 +1,18 @@
-import type { ReadWorktreeStatusesInput } from '../models/inventory-operations.ts';
-import type { WorktreeStatuses } from '../models/worktree-status.ts';
+import type {
+  ReadWorktreeStatusesInput,
+  ReadWorktreeStatusesResult,
+} from '../models/read-worktree-statuses.ts';
 import type { WorktreeStatusStore } from '../ports/worktree-status-store.ts';
 
 export class ReadWorktreeStatusesService {
-  private readonly worktreeStatusStore: WorktreeStatusStore;
+  private readonly worktreeStatus: WorktreeStatusStore;
 
-  constructor(worktreeStatusStore: WorktreeStatusStore) {
-    this.worktreeStatusStore = worktreeStatusStore;
+  constructor(worktreeStatus: WorktreeStatusStore) {
+    this.worktreeStatus = worktreeStatus;
   }
 
-  execute(input: ReadWorktreeStatusesInput): WorktreeStatuses {
-    return this.worktreeStatusStore.status(
+  execute(input: ReadWorktreeStatusesInput): ReadWorktreeStatusesResult {
+    return this.worktreeStatus.status(
       input.listings.flatMap((listing) =>
         listing.worktrees.map((worktree) => worktree.id),
       ),

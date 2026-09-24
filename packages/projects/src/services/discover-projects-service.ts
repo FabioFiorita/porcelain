@@ -1,61 +1,58 @@
-import type { DiscoverProjectsOptions } from '../models/folder-operations.ts';
-import type { ProjectDiscovery } from '../models/project-folder.ts';
-import { discoveryRoots } from '../rules/discovery-roots.ts';
-import { folderName } from '../rules/folder-name.ts';
+import type {
+  DiscoverProjectsOptions,
+  DiscoverProjectsResult,
+} from '../models/discover-projects.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 import type { ProjectFolderReader } from '../ports/project-folder-reader.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
-
-const REPOSITORY_LIMIT = 50;
-const FOLDER_LIMIT = 500;
-const DEPTH_LIMIT = 3;
-const SKIPPED_FOLDERS = ['node_modules', 'vendor', 'dist', 'build', 'target'];
+import { discoveryRoots } from '../rules/discovery-roots.ts';
+import { folderName } from '../rules/folder-name.ts';
 
 export class DiscoverProjectsService {
-  private readonly inventoryStore: InventoryStore;
+  private readonly inventory: InventoryStore;
   private readonly projectFolderReader: ProjectFolderReader;
   private readonly projectRepositoryReader: ProjectRepositoryReader;
   private readonly options: DiscoverProjectsOptions;
 
   constructor(
-    inventoryStore: InventoryStore,
+    inventory: InventoryStore,
     projectFolderReader: ProjectFolderReader,
     projectRepositoryReader: ProjectRepositoryReader,
     options: DiscoverProjectsOptions,
   ) {
-    this.inventoryStore = inventoryStore;
+    this.inventory = inventory;
     this.projectFolderReader = projectFolderReader;
     this.projectRepositoryReader = projectRepositoryReader;
     this.options = options;
   }
 
-  async execute(signal?: AbortSignal): Promise<ProjectDiscovery> {
+  async execute(signal?: AbortSignal): Promise<DiscoverProjectsResult> {
     const search = await this.projectFolderReader.search(
       {
         roots: discoveryRoots(
           this.options.home,
-          this.inventoryStore.read().projects,
+          this.inventory.read().projects,
         ),
-        maxDepth: DEPTH_LIMIT,
-        maxFolders: FOLDER_LIMIT,
+        maxDepth: this.options.maxDepth,
+        maxFolders: this.options.maxFolders,
+        maxEntries: this.options.maxEntries,
         skipHidden: true,
-        skippedNames: SKIPPED_FOLDERS,
+        skippedNames: this.options.skippedNames,
       },
       signal,
     );
-    const discovery: ProjectDiscovery = {
+    const discovery: DiscoverProjectsResult = {
       repositories: [],
       limited: search.limited,
     };
     const identities = new Set<string>();
     for (const candidate of search.candidates) {
-      signal?.throwIfAborted();
-      if (discovery.repositories.length >= REPOSITORY_LIMIT) {
+      if (discovery.repositories.length >= this.options.maxRepositories) {
         discovery.limited = true;
         break;
       }
       const repository = await this.projectRepositoryReader.find(
-        candidate,
+        { path: candidate },
         signal,
       );
       if (!repository || identities.has(repository.repositoryIdentity))

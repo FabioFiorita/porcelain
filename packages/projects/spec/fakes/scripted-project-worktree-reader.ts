@@ -1,23 +1,34 @@
-import type {
-  ListableProject,
-  WorktreeListing,
-} from '@porcelain/projects/models';
-import type { ProjectWorktreeReader } from '@porcelain/projects/ports';
+import type { ListedWorktree } from '../../src/models/listed-worktree.ts';
+import type { ListableProject, ProjectKey } from '../../src/models/project.ts';
+import type { WorktreeListing } from '../../src/models/worktree-listing.ts';
+import type { ProjectWorktreeReader } from '../../src/ports/project-worktree-reader.ts';
 
 export class ScriptedProjectWorktreeReader implements ProjectWorktreeReader {
   private readonly listings = new Map<string, WorktreeListing>();
+  private readonly seen = new Map<string, ListedWorktree[]>();
 
   answer(listing: WorktreeListing): void {
     this.listings.set(listing.projectId, listing);
   }
 
-  async list(project: ListableProject): Promise<WorktreeListing> {
-    const listing = this.listings.get(project.id);
-    if (!listing) throw new Error(`No listing scripted for ${project.id}`);
-    return listing;
+  saw(projectId: string, worktrees: ListedWorktree[]): void {
+    this.seen.set(projectId, worktrees);
   }
 
-  forget(projectId: string): void {
-    this.listings.delete(projectId);
+  async list(input: ListableProject): Promise<WorktreeListing> {
+    return (
+      this.listings.get(input.id) ?? {
+        kind: 'unavailable',
+        projectId: input.id,
+      }
+    );
+  }
+
+  lastSeen(input: ProjectKey): ListedWorktree[] {
+    return [...(this.seen.get(input.projectId) ?? [])];
+  }
+
+  forget(input: ProjectKey): void {
+    this.seen.delete(input.projectId);
   }
 }

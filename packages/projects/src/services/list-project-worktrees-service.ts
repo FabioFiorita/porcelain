@@ -1,6 +1,9 @@
-import type { ListProjectWorktreesInput } from '../models/inventory-operations.ts';
-import type { ProjectWorktrees } from '../models/worktree-listing.ts';
+import type {
+  ListProjectWorktreesInput,
+  ListProjectWorktreesResult,
+} from '../models/list-project-worktrees.ts';
 import type { ProjectWorktreeReader } from '../ports/project-worktree-reader.ts';
+import { unavailableWorktrees } from '../rules/unavailable-worktrees.ts';
 
 export class ListProjectWorktreesService {
   private readonly projectWorktreeReader: ProjectWorktreeReader;
@@ -12,12 +15,12 @@ export class ListProjectWorktreesService {
   async execute(
     input: ListProjectWorktreesInput,
     signal?: AbortSignal,
-  ): Promise<ProjectWorktrees> {
+  ): Promise<ListProjectWorktreesResult> {
     const listing = await this.projectWorktreeReader.list(
       input.project,
       signal,
     );
-    if (listing.outcome === 'listed')
+    if (listing.kind === 'listed')
       return {
         projectId: listing.projectId,
         available: true,
@@ -28,10 +31,9 @@ export class ListProjectWorktreesService {
       projectId: listing.projectId,
       available: false,
       complete: false,
-      worktrees: listing.lastSeen.map((worktree) => ({
-        ...worktree,
-        available: false,
-      })),
+      worktrees: unavailableWorktrees(
+        this.projectWorktreeReader.lastSeen({ projectId: listing.projectId }),
+      ),
     };
   }
 }

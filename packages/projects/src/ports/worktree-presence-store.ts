@@ -1,6 +1,13 @@
+import type { ProjectKey } from '../models/project.ts';
+import type {
+  RemoveWorktreePresenceInput,
+  SaveWorktreePresenceInput,
+  WorktreePresence,
+} from '../models/worktree-presence.ts';
+
 export interface WorktreePresenceStore {
-  record(projectId: string, presentIds: string[]): void;
-  observe(projectId: string, presentIds: string[], at: string): void;
-  expired(before: string): string[];
-  collect(worktreeIds: string[]): void;
+  list(): WorktreePresence[];
+  read(input: ProjectKey): WorktreePresence[];
+  save(input: SaveWorktreePresenceInput): void;
+  remove(input: RemoveWorktreePresenceInput): void;
 }

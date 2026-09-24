@@ -6,14 +6,14 @@ import type { GitProjectWorktreeReader } from './git-project-worktree-reader.ts'
 
 export class GitWorktreeAccess implements WorktreeAccess<ListedWorktree> {
   private readonly worktreeDirectory: Pick<GitProjectWorktreeReader, 'find'>;
-  private readonly inventoryStore: Pick<InventoryStore, 'read'>;
+  private readonly inventory: Pick<InventoryStore, 'read'>;
 
   constructor(
     worktreeDirectory: Pick<GitProjectWorktreeReader, 'find'>,
-    inventoryStore: Pick<InventoryStore, 'read'>,
+    inventory: Pick<InventoryStore, 'read'>,
   ) {
     this.worktreeDirectory = worktreeDirectory;
-    this.inventoryStore = inventoryStore;
+    this.inventory = inventory;
   }
 
   async known(
@@ -34,7 +34,7 @@ export class GitWorktreeAccess implements WorktreeAccess<ListedWorktree> {
   ): Promise<WorktreeCheck<ListedWorktree>> {
     const check = await this.known(worktreeId, signal);
     if (check.kind !== 'found') return check;
-    const project = this.inventoryStore
+    const project = this.inventory
       .read()
       .projects.find((entry) => entry.id === check.worktree.projectId);
     return project?.available && check.worktree.available

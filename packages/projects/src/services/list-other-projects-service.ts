@@ -1,19 +1,23 @@
-import type { RegisteredProject } from '../models/project.ts';
-import type { ListOtherProjectsInput } from '../models/project-operations.ts';
+import type {
+  ListOtherProjectsInput,
+  ListOtherProjectsResult,
+} from '../models/list-other-projects.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class ListOtherProjectsService {
-  private readonly inventoryStore: InventoryStore;
+  private readonly inventory: InventoryStore;
 
-  constructor(inventoryStore: InventoryStore) {
-    this.inventoryStore = inventoryStore;
+  constructor(inventory: InventoryStore) {
+    this.inventory = inventory;
   }
 
-  execute(input: ListOtherProjectsInput): RegisteredProject[] {
-    return this.inventoryStore
-      .read()
-      .projects.filter(
-        (project) => project.repositoryIdentity !== input.repositoryIdentity,
-      );
+  execute(input: ListOtherProjectsInput): ListOtherProjectsResult {
+    return {
+      projects: this.inventory
+        .read()
+        .projects.filter(
+          (project) => project.repositoryIdentity !== input.repositoryIdentity,
+        ),
+    };
   }
 }

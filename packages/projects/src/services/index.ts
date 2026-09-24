@@ -1,12 +1,15 @@
 export { BrowseProjectFoldersService } from './browse-project-folders-service.ts';
 export { CheckProjectService } from './check-project-service.ts';
+export { CheckWorktreeService } from './check-worktree-service.ts';
 export { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
 export { ComposeInventoryService } from './compose-inventory-service.ts';
 export { ComposeProjectReportService } from './compose-project-report-service.ts';
 export { DiscoverProjectsService } from './discover-projects-service.ts';
+export { FindWorktreeByPathService } from './find-worktree-by-path-service.ts';
 export { ForgetProjectWorktreesService } from './forget-project-worktrees-service.ts';
 export { InspectProjectRepositoryService } from './inspect-project-repository-service.ts';
 export { ListFilePreferencesService } from './list-file-preferences-service.ts';
+export { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
 export { ListOtherProjectsService } from './list-other-projects-service.ts';
 export { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
 export { ListRegisteredProjectsService } from './list-registered-projects-service.ts';
@@ -17,6 +20,5 @@ export { RecordWorktreePresenceService } from './record-worktree-presence-servic
 export { RegisterProjectService } from './register-project-service.ts';
 export { RemoveProjectService } from './remove-project-service.ts';
 export { RenameProjectService } from './rename-project-service.ts';
-export { ResolveWorktreeByPathService } from './resolve-worktree-by-path-service.ts';
 export { SetFilePreferenceService } from './set-file-preference-service.ts';
 export { UpdateProjectAvailabilityService } from './update-project-availability-service.ts';

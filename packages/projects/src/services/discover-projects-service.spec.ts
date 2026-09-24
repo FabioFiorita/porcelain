@@ -18,9 +18,11 @@ function repository(
   };
 }
 
+const roots = [home, '/srv/work'];
+
 function setup(candidates: string[], limited = false) {
   const folders = new ScriptedProjectFolderReader();
-  folders.searchFinds({ candidates, limited });
+  folders.searchFinds(roots, { candidates, limited });
   const repositories = new ScriptedProjectRepositoryReader();
   const service = new DiscoverProjectsService(
     new InMemoryInventoryStore('environment', [
@@ -31,21 +33,29 @@ function setup(candidates: string[], limited = false) {
         commonDirectory: '/srv/work/api/.git',
         repositoryIdentity: 'registered',
         available: true,
+        position: 1,
       },
     ]),
     folders,
     repositories,
-    { home },
+    {
+      home,
+      maxRepositories: 50,
+      maxFolders: 500,
+      maxDepth: 3,
+      maxEntries: 2000,
+      skippedNames: ['node_modules'],
+    },
   );
-  return { folders, repositories, service };
+  return { repositories, service };
 }
 
 describe('DiscoverProjectsService', () => {
   it('searches the project home and the folders holding registered projects', async () => {
-    const { folders, service } = setup([]);
-    await service.execute();
-    expect(folders.searches.map((search) => search.roots)).toEqual([
-      [home, '/srv/work'],
+    const { repositories, service } = setup(['/srv/work/web']);
+    repositories.repository('/srv/work/web', repository('w'));
+    expect((await service.execute()).repositories).toEqual([
+      { name: 'web', path: '/srv/work/web' },
     ]);
   });
 

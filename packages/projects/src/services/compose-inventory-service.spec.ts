@@ -1,19 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  RegisteredProject,
   ListedWorktree,
+  ProjectWorktrees,
+  RegisteredProject,
 } from '@porcelain/projects/models';
-import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { ComposeInventoryService } from './compose-inventory-service.ts';
 
-function project(id: string): RegisteredProject {
+function project(id: string, position: number): RegisteredProject {
   return {
     id,
-    name: id,
+    name: `name-${id}`,
     namedByOwner: false,
     commonDirectory: `/srv/${id}/.git`,
     repositoryIdentity: `identity-${id}`,
     available: true,
+    position,
   };
 }
 
@@ -22,7 +23,7 @@ function worktree(id: string, projectId: string): ListedWorktree {
     id,
     projectId,
     path: `/srv/${id}`,
-    branch: undefined,
+    branch: 'refs/heads/main',
     main: true,
     available: true,
     metadataIdentity: id,
@@ -32,24 +33,28 @@ function worktree(id: string, projectId: string): ListedWorktree {
   };
 }
 
-function listing(projectId: string, worktreeId: string) {
-  return {
-    projectId,
-    available: true,
-    complete: true,
-    worktrees: [worktree(worktreeId, projectId)],
-  };
+function listing(
+  projectId: string,
+  worktrees: ListedWorktree[],
+  available = true,
+): ProjectWorktrees {
+  return { projectId, available, worktrees };
 }
 
+const service = new ComposeInventoryService();
+
 describe('ComposeInventoryService', () => {
-  it('reports registered projects in registration order with review status', () => {
-    const inventory = new InMemoryInventoryStore('environment', [
-      project('first'),
-      project('second'),
-    ]);
+  it('reports every project in inventory order with its worktrees and review status', () => {
     expect(
-      new ComposeInventoryService(inventory).execute({
-        listings: [listing('second', 'w2'), listing('first', 'w1')],
+      service.execute({
+        inventory: {
+          environmentId: 'environment',
+          projects: [project('first', 1), project('second', 2)],
+        },
+        listings: [
+          listing('second', [worktree('w2', 'second')]),
+          listing('first', [worktree('w1', 'first')]),
+        ],
         statuses: new Map([['w2', 'pending']]),
       }),
     ).toEqual({
@@ -57,14 +62,14 @@ describe('ComposeInventoryService', () => {
       projects: [
         {
           id: 'first',
-          name: 'first',
+          name: 'name-first',
           available: true,
           worktrees: [
             {
               id: 'w1',
               path: '/srv/w1',
               main: true,
-              branch: undefined,
+              branch: 'refs/heads/main',
               available: true,
               status: undefined,
             },
@@ -72,14 +77,14 @@ describe('ComposeInventoryService', () => {
         },
         {
           id: 'second',
-          name: 'second',
+          name: 'name-second',
           available: true,
           worktrees: [
             {
               id: 'w2',
               path: '/srv/w2',
               main: true,
-              branch: undefined,
+              branch: 'refs/heads/main',
               available: true,
               status: 'pending',
             },
@@ -89,26 +94,36 @@ describe('ComposeInventoryService', () => {
     });
   });
 
-  it('leaves out a project removed while it was being listed', () => {
-    const inventory = new InMemoryInventoryStore('environment', [
-      project('kept'),
-    ]);
-    const report = new ComposeInventoryService(inventory).execute({
-      listings: [listing('kept', 'w1'), listing('removed', 'w2')],
+  it('reports a project as unavailable when its listing was', () => {
+    const report = service.execute({
+      inventory: { environmentId: 'environment', projects: [project('a', 1)] },
+      listings: [listing('a', [], false)],
+      statuses: new Map(),
+    });
+    expect(report.projects[0]?.available).toBe(false);
+  });
+
+  it('reports a project with no known worktrees with an empty list', () => {
+    const report = service.execute({
+      inventory: { environmentId: 'environment', projects: [project('a', 1)] },
+      listings: [listing('a', [])],
+      statuses: new Map(),
+    });
+    expect(report.projects[0]?.worktrees).toEqual([]);
+  });
+
+  it('reports only registered projects, whatever the listings hold', () => {
+    const report = service.execute({
+      inventory: {
+        environmentId: 'environment',
+        projects: [project('kept', 1)],
+      },
+      listings: [
+        listing('kept', [worktree('w1', 'kept')]),
+        listing('removed', [worktree('w2', 'removed')]),
+      ],
       statuses: new Map(),
     });
     expect(report.projects.map((entry) => entry.id)).toEqual(['kept']);
-  });
-
-  it('leaves out a project registered after the listing started', () => {
-    const inventory = new InMemoryInventoryStore('environment', [
-      project('listed'),
-      project('late'),
-    ]);
-    const report = new ComposeInventoryService(inventory).execute({
-      listings: [listing('listed', 'w1')],
-      statuses: new Map(),
-    });
-    expect(report.projects.map((entry) => entry.id)).toEqual(['listed']);
   });
 });

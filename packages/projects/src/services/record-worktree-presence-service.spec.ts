@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
+import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type {
-  RegisteredProject,
   ListedWorktree,
+  RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { RecordWorktreePresenceService } from './record-worktree-presence-service.ts';
+
+const FIRST = '2026-09-01T00:00:00.000Z';
+const LATER = '2026-09-02T00:00:00.000Z';
 
 const project: RegisteredProject = {
   id: 'project-1',
@@ -15,9 +19,8 @@ const project: RegisteredProject = {
   commonDirectory: '/srv/api/.git',
   repositoryIdentity: 'identity-1',
   available: true,
+  position: 1,
 };
-
-const later = '2026-09-02T00:00:00.000Z';
 
 function worktree(id: string): ListedWorktree {
   return {
@@ -37,7 +40,7 @@ function worktree(id: string): ListedWorktree {
 function setup() {
   const inventory = new InMemoryInventoryStore('environment', [project]);
   const presence = new InMemoryWorktreePresenceStore();
-  const clock = new FixedClock('2026-09-01T00:00:00.000Z');
+  const clock = new FixedClock(FIRST);
   const service = new RecordWorktreePresenceService(inventory, presence, clock);
   const record = (
     ids: string[],
@@ -51,52 +54,70 @@ function setup() {
         worktrees: ids.map(worktree),
       },
     });
-  return { inventory, presence, clock, record };
+  const missing = () =>
+    Object.fromEntries(
+      presence
+        .read({ projectId: project.id })
+        .map((row) => [row.worktreeId, row.missingSince]),
+    );
+  return { inventory, clock, record, missing };
 }
 
 describe('RecordWorktreePresenceService', () => {
+  it('records every listed worktree as present', () => {
+    const { record, missing } = setup();
+    record(['main', 'feature']);
+    expect(missing()).toEqual({ main: undefined, feature: undefined });
+  });
+
   it('marks a worktree missing from a complete listing as absent from now', () => {
-    const { presence, record } = setup();
+    const { record, missing } = setup();
     record(['main', 'feature']);
     record(['main']);
-    expect(presence.expired(later)).toEqual(['feature']);
-    expect(presence.expired('2026-09-01T00:00:00.000Z')).toEqual([]);
+    expect(missing()).toEqual({ main: undefined, feature: FIRST });
+  });
+
+  it('keeps the moment a worktree first went missing while it stays away', () => {
+    const { clock, record, missing } = setup();
+    record(['main', 'feature']);
+    record(['main']);
+    clock.set(LATER);
+    record(['main']);
+    expect(missing().feature).toBe(FIRST);
   });
 
   it('clears the absence when the worktree comes back', () => {
-    const { presence, record } = setup();
+    const { clock, record, missing } = setup();
     record(['main', 'feature']);
     record(['main']);
+    clock.set(LATER);
     record(['main', 'feature']);
-    expect(presence.expired(later)).toEqual([]);
+    expect(missing()).toEqual({ main: undefined, feature: undefined });
   });
 
   it('keeps the worktrees an incomplete listing did reach without marking absences', () => {
-    const { presence, record } = setup();
+    const { record, missing } = setup();
     record(['main', 'feature']);
     record(['main'], { complete: false });
-    expect(presence.expired(later)).toEqual([]);
+    expect(missing()).toEqual({ main: undefined, feature: undefined });
   });
 
   it('records a worktree first seen in an incomplete listing', () => {
-    const { presence, record } = setup();
+    const { record, missing } = setup();
     record(['feature'], { complete: false });
-    record(['main']);
-    expect(presence.expired(later)).toEqual(['feature']);
+    expect(missing()).toEqual({ feature: undefined });
   });
 
   it('records nothing while the project is unavailable', () => {
-    const { presence, record } = setup();
+    const { record, missing } = setup();
     record(['main', 'feature']);
     record([], { available: false, complete: false });
-    expect(presence.expired(later)).toEqual([]);
+    expect(missing()).toEqual({ main: undefined, feature: undefined });
   });
 
-  it('records nothing for a project removed while it was being listed', () => {
-    const { inventory, presence, record } = setup();
-    record(['main', 'feature']);
+  it('refuses a project that is no longer registered', () => {
+    const { inventory, record } = setup();
     inventory.remove(project.id);
-    record(['main']);
-    expect(presence.expired(later)).toEqual([]);
+    expect(() => record(['main'])).toThrow(ProjectNotFoundError);
   });
 });

@@ -1,22 +1,33 @@
 import type { Clock } from '@porcelain/kernel/ports';
-import type { CollectAbsentWorktreesResult } from '../models/inventory-operations.ts';
-import { presenceCutoff } from '../rules/presence-cutoff.ts';
+import type {
+  CollectAbsentWorktreesOptions,
+  CollectAbsentWorktreesResult,
+} from '../models/collect-absent-worktrees.ts';
 import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
+import { expired } from '../rules/worktree-presence.ts';
 
 export class CollectAbsentWorktreesService {
-  private readonly worktreePresenceStore: WorktreePresenceStore;
+  private readonly worktreePresence: WorktreePresenceStore;
   private readonly clock: Clock;
+  private readonly options: CollectAbsentWorktreesOptions;
 
-  constructor(worktreePresenceStore: WorktreePresenceStore, clock: Clock) {
-    this.worktreePresenceStore = worktreePresenceStore;
+  constructor(
+    worktreePresence: WorktreePresenceStore,
+    clock: Clock,
+    options: CollectAbsentWorktreesOptions,
+  ) {
+    this.worktreePresence = worktreePresence;
     this.clock = clock;
+    this.options = options;
   }
 
   execute(): CollectAbsentWorktreesResult {
-    const expired = this.worktreePresenceStore.expired(
-      presenceCutoff(this.clock.now()),
+    const collected = expired(
+      this.worktreePresence.list(),
+      this.clock.now(),
+      this.options.graceMs,
     );
-    this.worktreePresenceStore.collect(expired);
-    return { collected: expired };
+    this.worktreePresence.remove({ worktreeIds: collected });
+    return { collected };
   }
 }

@@ -1,4 +1,4 @@
-import type { ForgetProjectWorktreesInput } from '../models/project-operations.ts';
+import type { ForgetProjectWorktreesInput } from '../models/forget-project-worktrees.ts';
 import type { ProjectWorktreeReader } from '../ports/project-worktree-reader.ts';
 
 export class ForgetProjectWorktreesService {
@@ -9,6 +9,6 @@ export class ForgetProjectWorktreesService {
   }
 
   execute(input: ForgetProjectWorktreesInput): void {
-    this.projectWorktreeReader.forget(input.projectId);
+    this.projectWorktreeReader.forget({ projectId: input.projectId });
   }
 }

@@ -1,15 +1,8 @@
 export type FilePreference = { path: string; pinned: boolean; hidden: boolean };
 
-export type FilePreferenceChange = {
-  path: string;
-  flag: 'pinned' | 'hidden';
-  value: boolean;
-};
+export type FilePreferenceKey = { projectId: string; path: string };
 
-export type FilePreferenceList = { preferences: FilePreference[] };
-
-export type ListFilePreferencesInput = { projectId: string };
-
-export type SetFilePreferenceInput = FilePreferenceChange & {
+export type ProjectFilePreference = {
   projectId: string;
+  preference: FilePreference;
 };

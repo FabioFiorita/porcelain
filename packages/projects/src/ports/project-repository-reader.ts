@@ -1,16 +1,19 @@
-import type { DiscoveredProjectRepository } from '../models/project-repository.ts';
+import type {
+  DiscoveredProjectRepository,
+  RepositoryLocation,
+} from '../models/project-repository.ts';
 
 export interface ProjectRepositoryReader {
   inspect(
-    checkout: string,
+    input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<DiscoveredProjectRepository>;
   find(
-    checkout: string,
+    input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<DiscoveredProjectRepository | undefined>;
   readOriginUrl(
-    checkout: string,
+    input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<string | undefined>;
 }

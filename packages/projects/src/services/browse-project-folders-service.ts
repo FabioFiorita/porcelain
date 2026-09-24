@@ -4,10 +4,11 @@ import { UnsupportedFolderNameError } from '../errors/unsupported-folder-name-er
 import type {
   BrowseProjectFoldersInput,
   BrowseProjectFoldersOptions,
-} from '../models/folder-operations.ts';
-import type { ProjectFolder } from '../models/project-folder.ts';
+  BrowseProjectFoldersResult,
+} from '../models/browse-project-folders.ts';
 import type { ProjectFolderReader } from '../ports/project-folder-reader.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
+import { withoutGitDirectory } from '../rules/without-git-directory.ts';
 
 export class BrowseProjectFoldersService {
   private readonly projectFolderReader: ProjectFolderReader;
@@ -27,25 +28,31 @@ export class BrowseProjectFoldersService {
   async execute(
     input: BrowseProjectFoldersInput,
     signal?: AbortSignal,
-  ): Promise<ProjectFolder> {
+  ): Promise<BrowseProjectFoldersResult> {
     const read = await this.projectFolderReader.read(
-      input.path ?? this.options.home,
+      {
+        path: input.path ?? this.options.home,
+        maxEntries: this.options.maxEntries,
+      },
       signal,
     );
-    if (read.outcome === 'missing') throw new FolderNotFoundError();
-    if (read.outcome === 'unreadable') throw new FolderNotReadableError();
-    if (read.outcome === 'unsupported-name')
+    if (read.kind === 'missing') throw new FolderNotFoundError();
+    if (read.kind === 'unreadable') throw new FolderNotReadableError();
+    if (read.kind === 'unsupported-name')
       throw new UnsupportedFolderNameError();
     const folder = read.contents;
     const repository =
       folder.gitMarker &&
-      (await this.projectRepositoryReader.find(folder.path, signal)) !==
-        undefined;
-    signal?.throwIfAborted();
+      (await this.projectRepositoryReader.find(
+        { path: folder.path },
+        signal,
+      )) !== undefined;
     return {
       path: folder.path,
       parent: folder.parent,
-      directories: folder.directories.map(({ name, path }) => ({ name, path })),
+      directories: withoutGitDirectory(folder.directories).map(
+        ({ name, path }) => ({ name, path }),
+      ),
       repository,
       truncated: folder.truncated,
     };

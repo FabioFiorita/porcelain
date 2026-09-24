@@ -1,39 +1,40 @@
 import type { Clock } from '@porcelain/kernel/ports';
-import type { RecordWorktreePresenceInput } from '../models/inventory-operations.ts';
+import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
+import type { RecordWorktreePresenceInput } from '../models/record-worktree-presence.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
+import { observed, sighted } from '../rules/worktree-presence.ts';
 
 export class RecordWorktreePresenceService {
-  private readonly inventoryStore: InventoryStore;
-  private readonly worktreePresenceStore: WorktreePresenceStore;
+  private readonly inventory: InventoryStore;
+  private readonly worktreePresence: WorktreePresenceStore;
   private readonly clock: Clock;
 
   constructor(
-    inventoryStore: InventoryStore,
-    worktreePresenceStore: WorktreePresenceStore,
+    inventory: InventoryStore,
+    worktreePresence: WorktreePresenceStore,
     clock: Clock,
   ) {
-    this.inventoryStore = inventoryStore;
-    this.worktreePresenceStore = worktreePresenceStore;
+    this.inventory = inventory;
+    this.worktreePresence = worktreePresence;
     this.clock = clock;
   }
 
   execute(input: RecordWorktreePresenceInput): void {
     const { projectId, available, complete, worktrees } = input.worktrees;
-    if (!available) return;
     if (
-      !this.inventoryStore
+      !this.inventory
         .read()
         .projects.some((project) => project.id === projectId)
     )
-      return;
+      throw new ProjectNotFoundError();
+    if (!available) return;
+    const rows = this.worktreePresence.read({ projectId });
     const presentIds = worktrees.map((worktree) => worktree.id);
-    if (complete)
-      this.worktreePresenceStore.observe(
-        projectId,
-        presentIds,
-        this.clock.now(),
-      );
-    else this.worktreePresenceStore.record(projectId, presentIds);
+    this.worktreePresence.save({
+      rows: complete
+        ? observed(rows, projectId, presentIds, this.clock.now())
+        : sighted(rows, projectId, presentIds),
+    });
   }
 }

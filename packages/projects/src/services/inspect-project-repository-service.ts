@@ -1,5 +1,7 @@
-import type { InspectProjectRepositoryInput } from '../models/project-operations.ts';
-import type { DiscoveredProjectRepository } from '../models/project-repository.ts';
+import type {
+  InspectProjectRepositoryInput,
+  InspectProjectRepositoryResult,
+} from '../models/inspect-project-repository.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
 
 export class InspectProjectRepositoryService {
@@ -12,7 +14,7 @@ export class InspectProjectRepositoryService {
   execute(
     input: InspectProjectRepositoryInput,
     signal?: AbortSignal,
-  ): Promise<DiscoveredProjectRepository> {
-    return this.projectRepositoryReader.inspect(input.path, signal);
+  ): Promise<InspectProjectRepositoryResult> {
+    return this.projectRepositoryReader.inspect({ path: input.path }, signal);
   }
 }

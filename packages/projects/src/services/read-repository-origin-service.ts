@@ -1,5 +1,7 @@
-import type { ReadRepositoryOriginInput } from '../models/project-operations.ts';
-import type { RepositoryOrigin } from '../models/project-repository.ts';
+import type {
+  ReadRepositoryOriginInput,
+  ReadRepositoryOriginResult,
+} from '../models/read-repository-origin.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
 
 export class ReadRepositoryOriginService {
@@ -12,10 +14,10 @@ export class ReadRepositoryOriginService {
   async execute(
     input: ReadRepositoryOriginInput,
     signal?: AbortSignal,
-  ): Promise<RepositoryOrigin> {
+  ): Promise<ReadRepositoryOriginResult> {
     return {
       originUrl: await this.projectRepositoryReader.readOriginUrl(
-        input.path,
+        { path: input.path },
         signal,
       ),
     };

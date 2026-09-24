@@ -10,9 +10,11 @@ import {
   ComposeInventoryService,
   ComposeProjectReportService,
   DiscoverProjectsService,
+  FindWorktreeByPathService,
   ForgetProjectWorktreesService,
   InspectProjectRepositoryService,
   ListFilePreferencesService,
+  ListKnownWorktreesService,
   ListOtherProjectsService,
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
@@ -23,7 +25,6 @@ import {
   RegisterProjectService,
   RemoveProjectService,
   RenameProjectService,
-  ResolveWorktreeByPathService,
   SetFilePreferenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
@@ -52,6 +53,16 @@ import type { EventPublisher } from '../ports/event-publisher.ts';
 import type { LaneKeys } from '../runtime/lane-keys.ts';
 import type { Lanes } from '../runtime/lanes.ts';
 
+const limits = {
+  presenceGraceMs: 30 * 24 * 60 * 60 * 1000,
+  folderEntries: 2000,
+  discoveredRepositories: 50,
+  discoveryFolders: 500,
+  discoveryDepth: 3,
+  discoverySkippedNames: ['node_modules', 'vendor', 'dist', 'build', 'target'],
+  filePreferences: 2000,
+};
+
 export type ProjectsDependencies = {
   session: StorageSession;
   lanes: Lanes;
@@ -68,26 +79,24 @@ export type ProjectsDependencies = {
 
 export function composeProjects(deps: ProjectsDependencies) {
   const { lanes, laneKeys, events } = deps;
-  const inventoryStore = createInventoryStore(deps.session);
-  const worktreePresenceStore = createWorktreePresenceStore(deps.session);
-  const filePreferenceStore = createFilePreferenceStore(deps.session);
+  const inventory = createInventoryStore(deps.session);
+  const worktreePresence = createWorktreePresenceStore(deps.session);
+  const filePreference = createFilePreferenceStore(deps.session);
   const projectFolderReader =
     deps.projectFolderReader ?? new FilesystemProjectFolderReader();
   const projectRepositoryReader = new GitProjectRepositoryReader(deps.git);
   const { worktreeDirectory } = deps;
 
-  const listRegisteredProjects = new ListRegisteredProjectsService(
-    inventoryStore,
-  );
+  const listRegisteredProjects = new ListRegisteredProjectsService(inventory);
   const listProjectWorktrees = new ListProjectWorktreesService(
     worktreeDirectory,
   );
   const updateProjectAvailability = new UpdateProjectAvailabilityService(
-    inventoryStore,
+    inventory,
   );
   const recordWorktreePresence = new RecordWorktreePresenceService(
-    inventoryStore,
-    worktreePresenceStore,
+    inventory,
+    worktreePresence,
     deps.clock,
   );
   const readWorktreeStatuses = new ReadWorktreeStatusesService(
@@ -97,23 +106,21 @@ export function composeProjects(deps: ProjectsDependencies) {
   return {
     readInventory: new ReadInventoryUseCase(
       listRegisteredProjects,
-      listProjectWorktrees,
-      updateProjectAvailability,
-      recordWorktreePresence,
+      new ListKnownWorktreesService(worktreeDirectory),
       readWorktreeStatuses,
-      new ComposeInventoryService(inventoryStore),
+      new ComposeInventoryService(),
       lanes,
       laneKeys,
     ),
     resolveWorktreeByPath: new ResolveWorktreeByPathUseCase(
       listRegisteredProjects,
       listProjectWorktrees,
-      new ResolveWorktreeByPathService(),
+      new FindWorktreeByPathService(),
       lanes,
       laneKeys,
     ),
     refreshInventory: new RefreshInventoryUseCase(
-      new MarkProjectsUnavailableService(inventoryStore),
+      new MarkProjectsUnavailableService(inventory),
       listRegisteredProjects,
       listProjectWorktrees,
       updateProjectAvailability,
@@ -123,10 +130,12 @@ export function composeProjects(deps: ProjectsDependencies) {
     ),
     registerProject: new RegisterProjectUseCase(
       new InspectProjectRepositoryService(projectRepositoryReader),
-      new ListOtherProjectsService(inventoryStore),
+      new ListOtherProjectsService(inventory),
       listProjectWorktrees,
       new ReadRepositoryOriginService(projectRepositoryReader),
-      new RegisterProjectService(inventoryStore, deps.idSource),
+      new RegisterProjectService(inventory, deps.idSource),
+      updateProjectAvailability,
+      recordWorktreePresence,
       readWorktreeStatuses,
       new ComposeProjectReportService(),
       lanes,
@@ -134,7 +143,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       events,
     ),
     renameProject: new RenameProjectUseCase(
-      new RenameProjectService(inventoryStore),
+      new RenameProjectService(inventory),
       lanes,
       laneKeys,
       events,
@@ -148,10 +157,17 @@ export function composeProjects(deps: ProjectsDependencies) {
     ),
     discoverProjects: new DiscoverProjectsUseCase(
       new DiscoverProjectsService(
-        inventoryStore,
+        inventory,
         projectFolderReader,
         projectRepositoryReader,
-        { home: deps.projectHome },
+        {
+          home: deps.projectHome,
+          maxRepositories: limits.discoveredRepositories,
+          maxFolders: limits.discoveryFolders,
+          maxDepth: limits.discoveryDepth,
+          maxEntries: limits.folderEntries,
+          skippedNames: limits.discoverySkippedNames,
+        },
       ),
       lanes,
       laneKeys,
@@ -160,22 +176,27 @@ export function composeProjects(deps: ProjectsDependencies) {
       new BrowseProjectFoldersService(
         projectFolderReader,
         projectRepositoryReader,
-        { home: deps.projectHome },
+        { home: deps.projectHome, maxEntries: limits.folderEntries },
       ),
       lanes,
       laneKeys,
     ),
     listFilePreferences: new ListFilePreferencesUseCase(
-      new ListFilePreferencesService(inventoryStore, filePreferenceStore),
+      new ListFilePreferencesService(inventory, filePreference),
       lanes,
     ),
     setFilePreference: new SetFilePreferenceUseCase(
-      new SetFilePreferenceService(inventoryStore, filePreferenceStore),
+      new SetFilePreferenceService(inventory, filePreference, {
+        maxPreferences: limits.filePreferences,
+      }),
       lanes,
+      laneKeys,
       events,
     ),
     collectAbsentWorktrees: new CollectAbsentWorktreesUseCase(
-      new CollectAbsentWorktreesService(worktreePresenceStore, deps.clock),
+      new CollectAbsentWorktreesService(worktreePresence, deps.clock, {
+        graceMs: limits.presenceGraceMs,
+      }),
       lanes,
       laneKeys,
     ),

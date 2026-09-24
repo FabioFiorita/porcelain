@@ -11,6 +11,7 @@ const project: RegisteredProject = {
   commonDirectory: '/srv/api/.git',
   repositoryIdentity: 'identity-1',
   available: false,
+  position: 1,
 };
 
 describe('CheckProjectService', () => {

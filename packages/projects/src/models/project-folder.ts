@@ -10,34 +10,24 @@ export type ProjectFolderContents = {
   truncated: boolean;
 };
 
-export type ProjectFolderRead =
-  | { outcome: 'read'; contents: ProjectFolderContents }
-  | { outcome: 'missing' }
-  | { outcome: 'unreadable' }
-  | { outcome: 'unsupported-name' };
+export type ReadProjectFolderInput = { path: string; maxEntries: number };
 
-export type ProjectFolder = {
-  path: string;
-  parent: string | undefined;
-  directories: ProjectLocation[];
-  repository: boolean;
-  truncated: boolean;
-};
+export type ProjectFolderRead =
+  | { kind: 'read'; contents: ProjectFolderContents }
+  | { kind: 'missing' }
+  | { kind: 'unreadable' }
+  | { kind: 'unsupported-name' };
 
 export type FolderSearch = {
   roots: string[];
   maxDepth: number;
   maxFolders: number;
+  maxEntries: number;
   skipHidden: boolean;
   skippedNames: readonly string[];
 };
 
 export type FolderSearchResult = {
   candidates: string[];
-  limited: boolean;
-};
-
-export type ProjectDiscovery = {
-  repositories: ProjectLocation[];
   limited: boolean;
 };

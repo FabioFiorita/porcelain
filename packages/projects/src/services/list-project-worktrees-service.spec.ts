@@ -32,8 +32,8 @@ describe('ListProjectWorktreesService', () => {
   it('reports a listed project as available and complete', async () => {
     const reader = new ScriptedProjectWorktreeReader();
     reader.answer({
+      kind: 'listed',
       projectId: project.id,
-      outcome: 'listed',
       worktrees: [worktree('main')],
       unidentified: 0,
     });
@@ -48,8 +48,8 @@ describe('ListProjectWorktreesService', () => {
   it('keeps a listing with unidentified worktrees available but incomplete', async () => {
     const reader = new ScriptedProjectWorktreeReader();
     reader.answer({
+      kind: 'listed',
       projectId: project.id,
-      outcome: 'listed',
       worktrees: [worktree('main')],
       unidentified: 1,
     });
@@ -60,13 +60,10 @@ describe('ListProjectWorktreesService', () => {
 
   it.each(['unavailable', 'timed-out', 'moved'] as const)(
     'shows the last seen worktrees as unavailable when the listing is %s',
-    async (outcome) => {
+    async (kind) => {
       const reader = new ScriptedProjectWorktreeReader();
-      reader.answer({
-        projectId: project.id,
-        outcome,
-        lastSeen: [worktree('main'), worktree('feature')],
-      });
+      reader.saw(project.id, [worktree('main'), worktree('feature')]);
+      reader.answer({ kind, projectId: project.id });
       expect(await service(reader).execute({ project })).toEqual({
         projectId: project.id,
         available: false,
@@ -78,11 +75,7 @@ describe('ListProjectWorktreesService', () => {
 
   it('reports an unlisted project with nothing seen before as empty', async () => {
     const reader = new ScriptedProjectWorktreeReader();
-    reader.answer({
-      projectId: project.id,
-      outcome: 'unavailable',
-      lastSeen: [],
-    });
+    reader.answer({ kind: 'unavailable', projectId: project.id });
     expect((await service(reader).execute({ project })).worktrees).toEqual([]);
   });
 });

@@ -1,19 +1,21 @@
-import type { UpdateProjectAvailabilityInput } from '../models/inventory-operations.ts';
+import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
+import type { UpdateProjectAvailabilityInput } from '../models/update-project-availability.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class UpdateProjectAvailabilityService {
-  private readonly inventoryStore: InventoryStore;
+  private readonly inventory: InventoryStore;
 
-  constructor(inventoryStore: InventoryStore) {
-    this.inventoryStore = inventoryStore;
+  constructor(inventory: InventoryStore) {
+    this.inventory = inventory;
   }
 
   execute(input: UpdateProjectAvailabilityInput): void {
     const { projectId, available } = input.worktrees;
-    const project = this.inventoryStore
+    const project = this.inventory
       .read()
       .projects.find((entry) => entry.id === projectId);
-    if (!project || project.available === available) return;
-    this.inventoryStore.save({ ...project, available });
+    if (!project) throw new ProjectNotFoundError();
+    if (project.available === available) return;
+    this.inventory.save({ ...project, available });
   }
 }

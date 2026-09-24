@@ -1,14 +1,14 @@
-import type { Inventory } from '../models/project.ts';
+import type { ListRegisteredProjectsResult } from '../models/list-registered-projects.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class ListRegisteredProjectsService {
-  private readonly inventoryStore: InventoryStore;
+  private readonly inventory: InventoryStore;
 
-  constructor(inventoryStore: InventoryStore) {
-    this.inventoryStore = inventoryStore;
+  constructor(inventory: InventoryStore) {
+    this.inventory = inventory;
   }
 
-  execute(): Inventory {
-    return this.inventoryStore.read();
+  execute(): ListRegisteredProjectsResult {
+    return this.inventory.read();
   }
 }

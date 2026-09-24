@@ -1,6 +1,9 @@
 import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { RemoveProjectResult } from '@porcelain/projects/models';
+import type {
+  RemoveProjectInput,
+  RemoveProjectResult,
+} from '@porcelain/projects/models';
 import type { ProjectRemovalStore } from '@porcelain/projects/ports';
 import { inventoryProjects } from '../../db/schema/inventory-projects.ts';
 
@@ -11,12 +14,12 @@ export class SqliteProjectRemovalStore implements ProjectRemovalStore {
     this.db = db;
   }
 
-  remove(projectId: string): RemoveProjectResult {
+  remove(input: RemoveProjectInput): RemoveProjectResult {
     const { changes } = this.db.transaction(
       (tx) =>
         tx
           .delete(inventoryProjects)
-          .where(eq(inventoryProjects.id, projectId))
+          .where(eq(inventoryProjects.id, input.projectId))
           .run(),
       { behavior: 'immediate' },
     );

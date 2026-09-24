@@ -1,5 +1,8 @@
-import type { RemoveProjectResult } from '../models/project-operations.ts';
+import type {
+  RemoveProjectInput,
+  RemoveProjectResult,
+} from '../models/remove-project.ts';
 
 export interface ProjectRemovalStore {
-  remove(projectId: string): RemoveProjectResult;
+  remove(input: RemoveProjectInput): RemoveProjectResult;
 }

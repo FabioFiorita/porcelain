@@ -1,17 +1,17 @@
 import type {
   RemoveProjectInput,
   RemoveProjectResult,
-} from '../models/project-operations.ts';
+} from '../models/remove-project.ts';
 import type { ProjectRemovalStore } from '../ports/project-removal-store.ts';
 
 export class RemoveProjectService {
-  private readonly projectRemovalStore: ProjectRemovalStore;
+  private readonly projectRemoval: ProjectRemovalStore;
 
-  constructor(projectRemovalStore: ProjectRemovalStore) {
-    this.projectRemovalStore = projectRemovalStore;
+  constructor(projectRemoval: ProjectRemovalStore) {
+    this.projectRemoval = projectRemoval;
   }
 
   execute(input: RemoveProjectInput): RemoveProjectResult {
-    return this.projectRemovalStore.remove(input.projectId);
+    return this.projectRemoval.remove({ projectId: input.projectId });
   }
 }

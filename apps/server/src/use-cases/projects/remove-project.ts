@@ -39,13 +39,19 @@ export class RemoveProjectUseCase {
     return this.lanes.run(
       this.laneKeys.project(input.projectId),
       'write',
-      async () => {
-        const result = this.removeProject.execute(input);
-        if (!result.deleted) return result;
-        this.forgetProjectWorktrees.execute(input);
-        this.events.inventoryChanged();
-        return result;
-      },
+      ({ signal }) =>
+        this.lanes.run(
+          this.laneKeys.inventory(),
+          'write',
+          async () => {
+            const result = this.removeProject.execute(input);
+            if (!result.deleted) return result;
+            this.forgetProjectWorktrees.execute(input);
+            this.events.inventoryChanged();
+            return result;
+          },
+          { callerSignal: signal },
+        ),
       { callerSignal: context.signal },
     );
   }

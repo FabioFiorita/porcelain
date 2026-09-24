@@ -9,6 +9,7 @@ import {
 import type {
   ListableProject,
   ListedWorktree,
+  ProjectKey,
   WorktreeListing,
 } from '@porcelain/projects/models';
 import type {
@@ -40,20 +41,22 @@ export class GitProjectWorktreeReader implements ProjectWorktreeReader {
     this.options = options;
   }
 
-  list(
-    project: ListableProject,
-    signal?: AbortSignal,
-  ): Promise<WorktreeListing> {
+  list(input: ListableProject, signal?: AbortSignal): Promise<WorktreeListing> {
     return this.options.sharedReads.run(
-      `worktrees\0${project.id}\0${project.commonDirectory}`,
-      async (shared) => this.listNow(project, shared),
+      `worktrees\0${input.id}\0${input.commonDirectory}`,
+      async (shared) => this.listNow(input, shared),
       signal,
     );
   }
 
-  forget(projectId: string): void {
-    for (const [id, entry] of this.entries)
-      if (entry.projectId === projectId) this.entries.delete(id);
+  lastSeen(input: ProjectKey): ListedWorktree[] {
+    return [...this.entries.values()].filter(
+      (entry) => entry.projectId === input.projectId,
+    );
+  }
+
+  forget(input: ProjectKey): void {
+    for (const entry of this.lastSeen(input)) this.entries.delete(entry.id);
   }
 
   async find(
@@ -73,7 +76,7 @@ export class GitProjectWorktreeReader implements ProjectWorktreeReader {
     if (found) return { worktree: await this.reread(found), unlisted: false };
     return {
       worktree: undefined,
-      unlisted: listings.some((listing) => listing.outcome !== 'listed'),
+      unlisted: listings.some((listing) => listing.kind !== 'listed'),
     };
   }
 
@@ -97,13 +100,13 @@ export class GitProjectWorktreeReader implements ProjectWorktreeReader {
       }, signal);
     } catch (failure) {
       signal?.throwIfAborted();
-      if (expiry?.aborted) return this.unlisted(project.id, 'timed-out');
+      if (expiry?.aborted) return { kind: 'timed-out', projectId: project.id };
       if (!isRepositoryUnavailable(failure)) throw failure;
-      return this.unlisted(project.id, 'unavailable');
+      return { kind: 'unavailable', projectId: project.id };
     }
     const { repository } = discovered;
     if (repository.repositoryIdentity !== project.repositoryIdentity)
-      return this.unlisted(project.id, 'moved');
+      return { kind: 'moved', projectId: project.id };
     const worktrees: ListedWorktree[] = [];
     let unidentified = 0;
     for (const worktree of repository.worktrees) {
@@ -124,27 +127,9 @@ export class GitProjectWorktreeReader implements ProjectWorktreeReader {
         repositoryIdentity: repository.repositoryIdentity,
       });
     }
-    this.forget(project.id);
+    this.forget({ projectId: project.id });
     for (const worktree of worktrees) this.entries.set(worktree.id, worktree);
-    return {
-      projectId: project.id,
-      outcome: 'listed',
-      worktrees,
-      unidentified,
-    };
-  }
-
-  private unlisted(
-    projectId: string,
-    outcome: 'unavailable' | 'timed-out' | 'moved',
-  ): WorktreeListing {
-    return {
-      projectId,
-      outcome,
-      lastSeen: [...this.entries.values()].filter(
-        (entry) => entry.projectId === projectId,
-      ),
-    };
+    return { kind: 'listed', projectId: project.id, worktrees, unidentified };
   }
 
   private async reread(

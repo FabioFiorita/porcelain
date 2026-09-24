@@ -1,36 +1,37 @@
-import type { WorktreePresenceStore } from '@porcelain/projects/ports';
-
-type Presence = { projectId: string; missingSince: string | undefined };
+import type { ProjectKey } from '../../src/models/project.ts';
+import type {
+  RemoveWorktreePresenceInput,
+  SaveWorktreePresenceInput,
+  WorktreePresence,
+} from '../../src/models/worktree-presence.ts';
+import type { WorktreePresenceStore } from '../../src/ports/worktree-presence-store.ts';
 
 export class InMemoryWorktreePresenceStore implements WorktreePresenceStore {
-  private readonly rows = new Map<string, Presence>();
+  private rows = new Map<string, WorktreePresence>();
 
-  record(projectId: string, presentIds: string[]): void {
-    for (const worktreeId of presentIds)
-      this.rows.set(worktreeId, { projectId, missingSince: undefined });
+  list(): WorktreePresence[] {
+    return [...this.rows.values()].map((row) => ({ ...row }));
   }
 
-  observe(projectId: string, presentIds: string[], at: string): void {
-    this.record(projectId, presentIds);
-    for (const [worktreeId, row] of this.rows)
-      if (
-        row.projectId === projectId &&
-        row.missingSince === undefined &&
-        !presentIds.includes(worktreeId)
-      )
-        this.rows.set(worktreeId, { ...row, missingSince: at });
+  read(input: ProjectKey): WorktreePresence[] {
+    return this.list().filter((row) => row.projectId === input.projectId);
   }
 
-  expired(before: string): string[] {
-    return [...this.rows]
-      .filter(
-        ([, row]) =>
-          row.missingSince !== undefined && row.missingSince < before,
-      )
-      .map(([worktreeId]) => worktreeId);
+  save(input: SaveWorktreePresenceInput): void {
+    this.rows = new Map([
+      ...this.rows,
+      ...input.rows.map((row): [string, WorktreePresence] => [
+        row.worktreeId,
+        { ...row },
+      ]),
+    ]);
   }
 
-  collect(worktreeIds: string[]): void {
-    for (const worktreeId of worktreeIds) this.rows.delete(worktreeId);
+  remove(input: RemoveWorktreePresenceInput): void {
+    this.rows = new Map(
+      [...this.rows].filter(
+        ([worktreeId]) => !input.worktreeIds.includes(worktreeId),
+      ),
+    );
   }
 }

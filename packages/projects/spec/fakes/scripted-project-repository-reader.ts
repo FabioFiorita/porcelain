@@ -1,5 +1,8 @@
-import type { DiscoveredProjectRepository } from '@porcelain/projects/models';
-import type { ProjectRepositoryReader } from '@porcelain/projects/ports';
+import type {
+  DiscoveredProjectRepository,
+  RepositoryLocation,
+} from '../../src/models/project-repository.ts';
+import type { ProjectRepositoryReader } from '../../src/ports/project-repository-reader.ts';
 
 export class ScriptedProjectRepositoryReader implements ProjectRepositoryReader {
   private readonly repositories = new Map<
@@ -8,27 +11,30 @@ export class ScriptedProjectRepositoryReader implements ProjectRepositoryReader 
   >();
   private readonly origins = new Map<string, string>();
 
-  repository(checkout: string, repository: DiscoveredProjectRepository): void {
-    this.repositories.set(checkout, repository);
+  repository(path: string, repository: DiscoveredProjectRepository): void {
+    this.repositories.set(path, repository);
   }
 
-  origin(checkout: string, originUrl: string): void {
-    this.origins.set(checkout, originUrl);
+  origin(path: string, originUrl: string): void {
+    this.origins.set(path, originUrl);
   }
 
-  async inspect(checkout: string): Promise<DiscoveredProjectRepository> {
-    const repository = this.repositories.get(checkout);
-    if (!repository) throw new Error(`Not a repository: ${checkout}`);
-    return repository;
+  async inspect(
+    input: RepositoryLocation,
+  ): Promise<DiscoveredProjectRepository> {
+    return (
+      this.repositories.get(input.path) ??
+      Promise.reject(new Error(`Not a repository: ${input.path}`))
+    );
   }
 
   async find(
-    checkout: string,
+    input: RepositoryLocation,
   ): Promise<DiscoveredProjectRepository | undefined> {
-    return this.repositories.get(checkout);
+    return this.repositories.get(input.path);
   }
 
-  async readOriginUrl(checkout: string): Promise<string | undefined> {
-    return this.origins.get(checkout);
+  async readOriginUrl(input: RepositoryLocation): Promise<string | undefined> {
+    return this.origins.get(input.path);
   }
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NoWorktreeAtPathError } from '@porcelain/projects/errors';
 import type { ProjectWorktrees } from '@porcelain/projects/models';
-import { ResolveWorktreeByPathService } from './resolve-worktree-by-path-service.ts';
+import { FindWorktreeByPathService } from './find-worktree-by-path-service.ts';
 
 function worktree(id: string, path: string) {
   return {
@@ -21,7 +21,7 @@ function worktree(id: string, path: string) {
 function listing(
   ...worktrees: ReturnType<typeof worktree>[]
 ): ProjectWorktrees {
-  return { projectId: 'project', available: true, complete: true, worktrees };
+  return { projectId: 'project', available: true, worktrees };
 }
 
 const listings = [
@@ -32,9 +32,9 @@ const listings = [
   listing(worktree('other', '/code/application')),
 ];
 
-const service = new ResolveWorktreeByPathService();
+const service = new FindWorktreeByPathService();
 
-describe('ResolveWorktreeByPathService', () => {
+describe('FindWorktreeByPathService', () => {
   it('finds the worktree at its own root and anywhere below it', () => {
     expect(service.execute({ path: '/code/app', listings })).toEqual({
       worktreeId: 'app',

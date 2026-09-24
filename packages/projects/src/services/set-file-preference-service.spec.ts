@@ -15,13 +15,17 @@ const project: RegisteredProject = {
   commonDirectory: '/srv/api/.git',
   repositoryIdentity: 'identity-1',
   available: true,
+  position: 1,
 };
+
+const LIMIT = 2000;
 
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
   const service = new SetFilePreferenceService(
     new InMemoryInventoryStore('environment', [project]),
     preferences,
+    { maxPreferences: LIMIT },
   );
   return { preferences, service };
 }
@@ -75,7 +79,7 @@ describe('SetFilePreferenceService', () => {
         value: false,
       }),
     ).toEqual({ preferences: [] });
-    expect(preferences.count(project.id)).toBe(0);
+    expect(preferences.count({ projectId: project.id })).toBe(0);
   });
 
   it('stores nothing when clearing a flag on a path without preferences', () => {
@@ -86,7 +90,7 @@ describe('SetFilePreferenceService', () => {
       flag: 'hidden',
       value: false,
     });
-    expect(preferences.count(project.id)).toBe(0);
+    expect(preferences.count({ projectId: project.id })).toBe(0);
   });
 
   it('refuses an unknown project', () => {
@@ -101,13 +105,12 @@ describe('SetFilePreferenceService', () => {
     ).toThrow(ProjectNotFoundError);
   });
 
-  it('refuses a new path once the project holds two thousand preferences', () => {
+  it('refuses a new path once the project holds as many preferences as allowed', () => {
     const { preferences, service } = setup();
-    for (let index = 0; index < 2000; index++)
-      preferences.save(project.id, {
-        path: `f${index}`,
-        pinned: true,
-        hidden: false,
+    for (let index = 0; index < LIMIT; index++)
+      preferences.save({
+        projectId: project.id,
+        preference: { path: `f${index}`, pinned: true, hidden: false },
       });
     expect(() =>
       service.execute({
@@ -117,16 +120,17 @@ describe('SetFilePreferenceService', () => {
         value: true,
       }),
     ).toThrow(FilePreferenceLimitError);
-    expect(preferences.find(project.id, 'new.md')).toBeUndefined();
+    expect(
+      preferences.find({ projectId: project.id, path: 'new.md' }),
+    ).toBeUndefined();
   });
 
-  it('accepts the two thousandth preference', () => {
+  it('accepts the last preference the limit allows', () => {
     const { preferences, service } = setup();
-    for (let index = 0; index < 1999; index++)
-      preferences.save(project.id, {
-        path: `f${index}`,
-        pinned: true,
-        hidden: false,
+    for (let index = 0; index < LIMIT - 1; index++)
+      preferences.save({
+        projectId: project.id,
+        preference: { path: `f${index}`, pinned: true, hidden: false },
       });
     service.execute({
       projectId: project.id,
@@ -134,16 +138,15 @@ describe('SetFilePreferenceService', () => {
       flag: 'pinned',
       value: true,
     });
-    expect(preferences.count(project.id)).toBe(2000);
+    expect(preferences.count({ projectId: project.id })).toBe(LIMIT);
   });
 
   it('still changes and clears existing paths at the limit', () => {
     const { preferences, service } = setup();
-    for (let index = 0; index < 2000; index++)
-      preferences.save(project.id, {
-        path: `f${index}`,
-        pinned: true,
-        hidden: false,
+    for (let index = 0; index < LIMIT; index++)
+      preferences.save({
+        projectId: project.id,
+        preference: { path: `f${index}`, pinned: true, hidden: false },
       });
     service.execute({
       projectId: project.id,
@@ -151,7 +154,7 @@ describe('SetFilePreferenceService', () => {
       flag: 'hidden',
       value: true,
     });
-    expect(preferences.find(project.id, 'f0')).toEqual({
+    expect(preferences.find({ projectId: project.id, path: 'f0' })).toEqual({
       path: 'f0',
       pinned: true,
       hidden: true,
@@ -162,6 +165,6 @@ describe('SetFilePreferenceService', () => {
       flag: 'pinned',
       value: false,
     });
-    expect(preferences.count(project.id)).toBe(1999);
+    expect(preferences.count({ projectId: project.id })).toBe(LIMIT - 1);
   });
 });

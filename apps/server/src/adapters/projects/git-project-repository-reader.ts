@@ -1,6 +1,9 @@
 import type { GitFactory } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/discovery';
-import type { DiscoveredProjectRepository } from '@porcelain/projects/models';
+import type {
+  DiscoveredProjectRepository,
+  RepositoryLocation,
+} from '@porcelain/projects/models';
 import type { ProjectRepositoryReader } from '@porcelain/projects/ports';
 
 export class GitProjectRepositoryReader implements ProjectRepositoryReader {
@@ -11,10 +14,10 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
   }
 
   async inspect(
-    checkout: string,
+    input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<DiscoveredProjectRepository> {
-    const { repository } = await this.git(checkout).listWorktrees(signal);
+    const { repository } = await this.git(input.path).listWorktrees(signal);
     return {
       commonDirectory: repository.commonDirectory,
       repositoryIdentity: repository.repositoryIdentity,
@@ -27,11 +30,11 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
   }
 
   async find(
-    checkout: string,
+    input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<DiscoveredProjectRepository | undefined> {
     try {
-      return await this.inspect(checkout, signal);
+      return await this.inspect(input, signal);
     } catch (error) {
       signal?.throwIfAborted();
       if (isRepositoryUnavailable(error)) return undefined;
@@ -40,9 +43,9 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
   }
 
   async readOriginUrl(
-    checkout: string,
+    input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<string | undefined> {
-    return (await this.git(checkout).readOriginUrl(signal)) ?? undefined;
+    return (await this.git(input.path).readOriginUrl(signal)) ?? undefined;
   }
 }

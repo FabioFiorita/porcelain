@@ -1,11 +1,9 @@
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type {
   ComposeInventoryService,
-  ListProjectWorktreesService,
+  ListKnownWorktreesService,
   ListRegisteredProjectsService,
   ReadWorktreeStatusesService,
-  RecordWorktreePresenceService,
-  UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -13,9 +11,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class ReadInventoryUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
-  private readonly listProjectWorktrees: ListProjectWorktreesService;
-  private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
-  private readonly recordWorktreePresence: RecordWorktreePresenceService;
+  private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
   private readonly composeInventory: ComposeInventoryService;
   private readonly lanes: Lanes;
@@ -23,18 +19,14 @@ export class ReadInventoryUseCase {
 
   constructor(
     listRegisteredProjects: ListRegisteredProjectsService,
-    listProjectWorktrees: ListProjectWorktreesService,
-    updateProjectAvailability: UpdateProjectAvailabilityService,
-    recordWorktreePresence: RecordWorktreePresenceService,
+    listKnownWorktrees: ListKnownWorktreesService,
     readWorktreeStatuses: ReadWorktreeStatusesService,
     composeInventory: ComposeInventoryService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
     this.listRegisteredProjects = listRegisteredProjects;
-    this.listProjectWorktrees = listProjectWorktrees;
-    this.updateProjectAvailability = updateProjectAvailability;
-    this.recordWorktreePresence = recordWorktreePresence;
+    this.listKnownWorktrees = listKnownWorktrees;
     this.readWorktreeStatuses = readWorktreeStatuses;
     this.composeInventory = composeInventory;
     this.lanes = lanes;
@@ -45,19 +37,11 @@ export class ReadInventoryUseCase {
     return this.lanes.run(
       this.laneKeys.inventory(),
       'read',
-      async ({ signal }) => {
-        const { projects } = this.listRegisteredProjects.execute();
-        const listings = await Promise.all(
-          projects.map((project) =>
-            this.listProjectWorktrees.execute({ project }, signal),
-          ),
-        );
-        for (const worktrees of listings) {
-          this.updateProjectAvailability.execute({ worktrees });
-          this.recordWorktreePresence.execute({ worktrees });
-        }
+      async () => {
+        const inventory = this.listRegisteredProjects.execute();
+        const { listings } = this.listKnownWorktrees.execute(inventory);
         const statuses = this.readWorktreeStatuses.execute({ listings });
-        return this.composeInventory.execute({ listings, statuses });
+        return this.composeInventory.execute({ inventory, listings, statuses });
       },
       { callerSignal: context.signal },
     );

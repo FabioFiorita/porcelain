@@ -1,9 +1,11 @@
-import type { ProjectReport } from '../models/inventory-report.ts';
-import type { ComposeProjectReportInput } from '../models/inventory-operations.ts';
+import type {
+  ComposeProjectReportInput,
+  ComposeProjectReportResult,
+} from '../models/compose-project-report.ts';
 import { projectReport } from '../rules/project-report.ts';
 
 export class ComposeProjectReportService {
-  execute(input: ComposeProjectReportInput): ProjectReport {
+  execute(input: ComposeProjectReportInput): ComposeProjectReportResult {
     return projectReport(input.project, input.worktrees, input.statuses);
   }
 }

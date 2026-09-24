@@ -9,7 +9,9 @@ import type {
   ListProjectWorktreesService,
   ReadRepositoryOriginService,
   ReadWorktreeStatusesService,
+  RecordWorktreePresenceService,
   RegisterProjectService,
+  UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -22,6 +24,8 @@ export class RegisterProjectUseCase {
   private readonly listProjectWorktrees: ListProjectWorktreesService;
   private readonly readRepositoryOrigin: ReadRepositoryOriginService;
   private readonly registerProject: RegisterProjectService;
+  private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
+  private readonly recordWorktreePresence: RecordWorktreePresenceService;
   private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
   private readonly composeProjectReport: ComposeProjectReportService;
   private readonly lanes: Lanes;
@@ -34,6 +38,8 @@ export class RegisterProjectUseCase {
     listProjectWorktrees: ListProjectWorktreesService,
     readRepositoryOrigin: ReadRepositoryOriginService,
     registerProject: RegisterProjectService,
+    updateProjectAvailability: UpdateProjectAvailabilityService,
+    recordWorktreePresence: RecordWorktreePresenceService,
     readWorktreeStatuses: ReadWorktreeStatusesService,
     composeProjectReport: ComposeProjectReportService,
     lanes: Lanes,
@@ -45,6 +51,8 @@ export class RegisterProjectUseCase {
     this.listProjectWorktrees = listProjectWorktrees;
     this.readRepositoryOrigin = readRepositoryOrigin;
     this.registerProject = registerProject;
+    this.updateProjectAvailability = updateProjectAvailability;
+    this.recordWorktreePresence = recordWorktreePresence;
     this.readWorktreeStatuses = readWorktreeStatuses;
     this.composeProjectReport = composeProjectReport;
     this.lanes = lanes;
@@ -64,11 +72,9 @@ export class RegisterProjectUseCase {
           input,
           signal,
         );
-        const others = this.listOtherProjects.execute({
-          repositoryIdentity: repository.repositoryIdentity,
-        });
+        const others = this.listOtherProjects.execute(repository);
         await Promise.all(
-          others.map((project) =>
+          others.projects.map((project) =>
             this.listProjectWorktrees.execute({ project }, signal),
           ),
         );
@@ -81,6 +87,8 @@ export class RegisterProjectUseCase {
           { project },
           signal,
         );
+        this.updateProjectAvailability.execute({ worktrees });
+        this.recordWorktreePresence.execute({ worktrees });
         const statuses = this.readWorktreeStatuses.execute({
           listings: [worktrees],
         });

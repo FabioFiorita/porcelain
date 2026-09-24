@@ -24,6 +24,7 @@ function registered(overrides: Partial<RegisteredProject>): RegisteredProject {
     commonDirectory: '/old/api/.git',
     repositoryIdentity: 'identity-1',
     available: false,
+    position: 1,
     ...overrides,
   };
 }
@@ -51,6 +52,7 @@ describe('RegisterProjectService', () => {
       commonDirectory: '/srv/api/.git',
       repositoryIdentity: 'identity-1',
       available: true,
+      position: 1,
     });
     expect(inventory.read().projects).toEqual([project]);
   });
@@ -105,5 +107,31 @@ describe('RegisterProjectService', () => {
         originUrl: 'https://example.com/team/new.git',
       }).name,
     ).toBe('new');
+  });
+
+  it('lists a new repository after every project registered before it', () => {
+    const { inventory, service } = setup([
+      registered({ id: 'first', repositoryIdentity: 'other-1', position: 1 }),
+      registered({ id: 'second', repositoryIdentity: 'other-2', position: 4 }),
+    ]);
+    const project = service.execute({ repository, originUrl: undefined });
+    expect(project.position).toBe(5);
+    expect(inventory.read().projects.map((entry) => entry.id)).toEqual([
+      'first',
+      'second',
+      project.id,
+    ]);
+  });
+
+  it('keeps its place in the inventory when the repository is registered again', () => {
+    const { inventory, service } = setup([
+      registered({ id: 'existing', position: 1 }),
+      registered({ id: 'later', repositoryIdentity: 'other', position: 2 }),
+    ]);
+    service.execute({ repository, originUrl: undefined });
+    expect(inventory.read().projects.map((entry) => entry.id)).toEqual([
+      'existing',
+      'later',
+    ]);
   });
 });

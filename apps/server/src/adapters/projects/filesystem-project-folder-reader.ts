@@ -6,10 +6,10 @@ import type {
   FolderSearchResult,
   ProjectFolderContents,
   ProjectFolderRead,
+  ReadProjectFolderInput,
 } from '@porcelain/projects/models';
 import type { ProjectFolderReader } from '@porcelain/projects/ports';
 
-const ENTRY_LIMIT = 2000;
 const UNREADABLE_CODES = [
   'ENOENT',
   'ENOTDIR',
@@ -42,37 +42,43 @@ function hasCode(error: unknown, codes: readonly string[]): boolean {
 }
 
 export class FilesystemProjectFolderReader implements ProjectFolderReader {
-  async read(path: string, signal?: AbortSignal): Promise<ProjectFolderRead> {
+  async read(
+    input: ReadProjectFolderInput,
+    signal?: AbortSignal,
+  ): Promise<ProjectFolderRead> {
     try {
-      const contents = await this.contents(path, signal);
+      const contents = await this.contents(input, signal);
       return contents
-        ? { outcome: 'read', contents }
-        : { outcome: 'unsupported-name' };
+        ? { kind: 'read', contents }
+        : { kind: 'unsupported-name' };
     } catch (error) {
-      if (hasCode(error, MISSING_CODES)) return { outcome: 'missing' };
-      if (hasCode(error, UNREADABLE_CODES)) return { outcome: 'unreadable' };
+      if (hasCode(error, MISSING_CODES)) return { kind: 'missing' };
+      if (hasCode(error, UNREADABLE_CODES)) return { kind: 'unreadable' };
       throw error;
     }
   }
 
   async search(
-    search: FolderSearch,
+    input: FolderSearch,
     signal?: AbortSignal,
   ): Promise<FolderSearchResult> {
-    const skipped = new Set(search.skippedNames);
-    const queue = search.roots.map((path) => ({ path, depth: 0 }));
+    const skipped = new Set(input.skippedNames);
+    const queue = input.roots.map((path) => ({ path, depth: 0 }));
     const visited = new Set<string>();
     const candidates: string[] = [];
     let limited = false;
     for (let index = 0; index < queue.length; index++) {
       signal?.throwIfAborted();
-      if (index >= search.maxFolders) {
+      if (index >= input.maxFolders) {
         limited = true;
         break;
       }
       const next = queue[index];
       if (!next) break;
-      const folder = await this.readable(next.path, signal);
+      const folder = await this.readable(
+        { path: next.path, maxEntries: input.maxEntries },
+        signal,
+      );
       if (!folder) {
         limited = true;
         continue;
@@ -87,15 +93,15 @@ export class FilesystemProjectFolderReader implements ProjectFolderReader {
       const children = folder.directories.filter(
         (entry) =>
           !entry.symbolicLink &&
-          !(search.skipHidden && entry.name.startsWith('.')) &&
+          !(input.skipHidden && entry.name.startsWith('.')) &&
           !skipped.has(entry.name),
       );
-      if (next.depth >= search.maxDepth) {
+      if (next.depth >= input.maxDepth) {
         limited ||= children.length > 0;
         continue;
       }
       for (const child of children) {
-        if (queue.length >= search.maxFolders) {
+        if (queue.length >= input.maxFolders) {
           limited = true;
           break;
         }
@@ -106,11 +112,11 @@ export class FilesystemProjectFolderReader implements ProjectFolderReader {
   }
 
   private async readable(
-    path: string,
+    input: ReadProjectFolderInput,
     signal?: AbortSignal,
   ): Promise<ProjectFolderContents | undefined> {
     try {
-      return await this.contents(path, signal);
+      return await this.contents(input, signal);
     } catch (error) {
       signal?.throwIfAborted();
       if (hasCode(error, UNREADABLE_CODES)) return undefined;
@@ -119,24 +125,23 @@ export class FilesystemProjectFolderReader implements ProjectFolderReader {
   }
 
   private async contents(
-    requestedPath: string,
+    input: ReadProjectFolderInput,
     signal?: AbortSignal,
   ): Promise<ProjectFolderContents | undefined> {
     signal?.throwIfAborted();
-    const path = await realpath(requestedPath);
+    const path = await realpath(input.path);
     const directory = await opendir(path, { encoding: 'buffer' });
     const directories: FolderEntry[] = [];
     let count = 0;
     let truncated = false;
     for await (const entry of directory) {
       signal?.throwIfAborted();
-      if (++count > ENTRY_LIMIT) {
+      if (++count > input.maxEntries) {
         truncated = true;
         break;
       }
       const name = decodedName(entry.name);
       if (name === undefined) return undefined;
-      if (name === '.git') continue;
       const child = join(path, name);
       const symbolicLink = entry.isSymbolicLink();
       if (

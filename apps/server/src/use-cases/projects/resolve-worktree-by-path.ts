@@ -3,9 +3,9 @@ import type {
   ResolveWorktreeByPathResponse,
 } from '@porcelain/contracts/projects';
 import type {
+  FindWorktreeByPathService,
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
-  ResolveWorktreeByPathService,
 } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -14,20 +14,20 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ResolveWorktreeByPathUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listProjectWorktrees: ListProjectWorktreesService;
-  private readonly resolveWorktreeByPath: ResolveWorktreeByPathService;
+  private readonly findWorktreeByPath: FindWorktreeByPathService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
     listRegisteredProjects: ListRegisteredProjectsService,
     listProjectWorktrees: ListProjectWorktreesService,
-    resolveWorktreeByPath: ResolveWorktreeByPathService,
+    findWorktreeByPath: FindWorktreeByPathService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
     this.listRegisteredProjects = listRegisteredProjects;
     this.listProjectWorktrees = listProjectWorktrees;
-    this.resolveWorktreeByPath = resolveWorktreeByPath;
+    this.findWorktreeByPath = findWorktreeByPath;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -46,10 +46,7 @@ export class ResolveWorktreeByPathUseCase {
             this.listProjectWorktrees.execute({ project }, signal),
           ),
         );
-        return this.resolveWorktreeByPath.execute({
-          path: input.path,
-          listings,
-        });
+        return this.findWorktreeByPath.execute({ path: input.path, listings });
       },
       { callerSignal: context.signal },
     );

@@ -1,10 +1,10 @@
 import type { ProjectReport } from '../models/inventory-report.ts';
-import type { RegisteredProject } from '../models/project.ts';
-import type { ProjectWorktrees } from '../models/worktree-listing.ts';
+import type { ProjectName } from '../models/project.ts';
+import type { ProjectWorktrees } from '../models/project-worktrees.ts';
 import type { WorktreeStatuses } from '../models/worktree-status.ts';
 
 export function projectReport(
-  project: Pick<RegisteredProject, 'id' | 'name'>,
+  project: ProjectName,
   worktrees: ProjectWorktrees,
   statuses: WorktreeStatuses,
 ): ProjectReport {

@@ -31,6 +31,7 @@ function project(id: string): RegisteredProject {
     commonDirectory: `/repositories/${id}/.git`,
     repositoryIdentity: `identity-${id}`,
     available: true,
+    position: 1,
   };
 }
 
@@ -65,11 +66,12 @@ function receipt(projectId: string, worktreeId: string): GitActionReceipt {
 
 function seed(session: StorageSession, projectId: string, worktreeId: string) {
   createInventoryStore(session).save(project(projectId));
-  createWorktreePresenceStore(session).observe(projectId, [worktreeId], at);
-  createFilePreferenceStore(session).save(projectId, {
-    path: 'README.md',
-    pinned: true,
-    hidden: false,
+  createWorktreePresenceStore(session).save({
+    rows: [{ worktreeId, projectId, missingSince: undefined }],
+  });
+  createFilePreferenceStore(session).save({
+    projectId,
+    preference: { path: 'README.md', pinned: true, hidden: false },
   });
   createReviewStore(session).save({
     worktreeId,
@@ -110,7 +112,7 @@ function stored(
     project: createInventoryStore(session)
       .read()
       .projects.some((entry) => entry.id === projectId),
-    preferences: createFilePreferenceStore(session).count(projectId),
+    preferences: createFilePreferenceStore(session).count({ projectId }),
     review: createReviewStore(session).read(worktreeId) !== undefined,
     reviewedFiles: createReviewedFileStore(session).count(worktreeId),
     reviewedLayers: createReviewedLayerStore(session).list(worktreeId).length,
@@ -169,7 +171,9 @@ describe('SqliteProjectRemovalStore', () => {
     seed(session, 'removed', 'removed-worktree');
     seed(session, 'kept', 'kept-worktree');
 
-    expect(createProjectRemovalStore(session).remove('removed')).toEqual({
+    expect(
+      createProjectRemovalStore(session).remove({ projectId: 'removed' }),
+    ).toEqual({
       deleted: true,
     });
 
@@ -180,7 +184,9 @@ describe('SqliteProjectRemovalStore', () => {
   it('reports nothing deleted for a project that is not registered', () => {
     seed(session, 'kept', 'kept-worktree');
 
-    expect(createProjectRemovalStore(session).remove('unknown')).toEqual({
+    expect(
+      createProjectRemovalStore(session).remove({ projectId: 'unknown' }),
+    ).toEqual({
       deleted: false,
     });
     expect(stored(session, 'kept', 'kept-worktree')).toEqual(everything);

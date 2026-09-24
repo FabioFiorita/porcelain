@@ -1,14 +1,26 @@
 import { and, asc, count, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { projectFilePreferences } from '../../db/schema/project-file-preferences.ts';
-import type { FilePreference } from '@porcelain/projects/models';
+import type {
+  FilePreference,
+  FilePreferenceKey,
+  ProjectFilePreference,
+  ProjectKey,
+} from '@porcelain/projects/models';
 import type { FilePreferenceStore } from '@porcelain/projects/ports';
+import { projectFilePreferences } from '../../db/schema/project-file-preferences.ts';
 
-const columns = {
+const COLUMNS = {
   path: projectFilePreferences.path,
   pinned: projectFilePreferences.pinned,
   hidden: projectFilePreferences.hidden,
 };
+
+function keyed(input: FilePreferenceKey) {
+  return and(
+    eq(projectFilePreferences.projectId, input.projectId),
+    eq(projectFilePreferences.path, input.path),
+  );
+}
 
 export class SqliteFilePreferenceStore implements FilePreferenceStore {
   private readonly db: BetterSQLite3Database;
@@ -17,39 +29,35 @@ export class SqliteFilePreferenceStore implements FilePreferenceStore {
     this.db = db;
   }
 
-  list(projectId: string): FilePreference[] {
+  list(input: ProjectKey): FilePreference[] {
     return this.db
-      .select(columns)
+      .select(COLUMNS)
       .from(projectFilePreferences)
-      .where(eq(projectFilePreferences.projectId, projectId))
+      .where(eq(projectFilePreferences.projectId, input.projectId))
       .orderBy(asc(projectFilePreferences.path))
       .all();
   }
 
-  find(projectId: string, path: string): FilePreference | undefined {
+  find(input: FilePreferenceKey): FilePreference | undefined {
     return this.db
-      .select(columns)
+      .select(COLUMNS)
       .from(projectFilePreferences)
-      .where(
-        and(
-          eq(projectFilePreferences.projectId, projectId),
-          eq(projectFilePreferences.path, path),
-        ),
-      )
+      .where(keyed(input))
       .get();
   }
 
-  count(projectId: string): number {
+  count(input: ProjectKey): number {
     return (
       this.db
         .select({ total: count() })
         .from(projectFilePreferences)
-        .where(eq(projectFilePreferences.projectId, projectId))
+        .where(eq(projectFilePreferences.projectId, input.projectId))
         .get()?.total ?? 0
     );
   }
 
-  save(projectId: string, preference: FilePreference): void {
+  save(input: ProjectFilePreference): void {
+    const { projectId, preference } = input;
     this.db.transaction(
       (tx) => {
         tx.insert(projectFilePreferences)
@@ -67,17 +75,10 @@ export class SqliteFilePreferenceStore implements FilePreferenceStore {
     );
   }
 
-  remove(projectId: string, path: string): void {
+  remove(input: FilePreferenceKey): void {
     this.db.transaction(
       (tx) => {
-        tx.delete(projectFilePreferences)
-          .where(
-            and(
-              eq(projectFilePreferences.projectId, projectId),
-              eq(projectFilePreferences.path, path),
-            ),
-          )
-          .run();
+        tx.delete(projectFilePreferences).where(keyed(input)).run();
       },
       { behavior: 'immediate' },
     );

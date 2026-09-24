@@ -3,42 +3,36 @@ import type {
   FolderSearchResult,
   ProjectFolderContents,
   ProjectFolderRead,
-} from '@porcelain/projects/models';
-import type { ProjectFolderReader } from '@porcelain/projects/ports';
+  ReadProjectFolderInput,
+} from '../../src/models/project-folder.ts';
+import type { ProjectFolderReader } from '../../src/ports/project-folder-reader.ts';
+
+const NOTHING_FOUND: FolderSearchResult = { candidates: [], limited: false };
 
 export class ScriptedProjectFolderReader implements ProjectFolderReader {
-  private readonly folders = new Map<string, ProjectFolderContents>();
-  private readonly failures = new Map<
-    string,
-    Exclude<ProjectFolderRead, { outcome: 'read' }>
-  >();
-  private found: FolderSearchResult = { candidates: [], limited: false };
-  searches: FolderSearch[] = [];
+  private readonly reads = new Map<string, ProjectFolderRead>();
+  private readonly searches = new Map<string, FolderSearchResult>();
 
   folder(contents: ProjectFolderContents): void {
-    this.folders.set(contents.path, contents);
+    this.reads.set(contents.path, { kind: 'read', contents });
   }
 
   failing(
     path: string,
-    outcome: 'missing' | 'unreadable' | 'unsupported-name',
+    kind: 'missing' | 'unreadable' | 'unsupported-name',
   ): void {
-    this.failures.set(path, { outcome });
+    this.reads.set(path, { kind });
   }
 
-  searchFinds(result: FolderSearchResult): void {
-    this.found = result;
+  searchFinds(roots: string[], result: FolderSearchResult): void {
+    this.searches.set(roots.join('\0'), result);
   }
 
-  async read(path: string): Promise<ProjectFolderRead> {
-    const failure = this.failures.get(path);
-    if (failure) return failure;
-    const contents = this.folders.get(path);
-    return contents ? { outcome: 'read', contents } : { outcome: 'missing' };
+  async read(input: ReadProjectFolderInput): Promise<ProjectFolderRead> {
+    return this.reads.get(input.path) ?? { kind: 'missing' };
   }
 
-  async search(search: FolderSearch): Promise<FolderSearchResult> {
-    this.searches.push(search);
-    return this.found;
+  async search(input: FolderSearch): Promise<FolderSearchResult> {
+    return this.searches.get(input.roots.join('\0')) ?? NOTHING_FOUND;
   }
 }

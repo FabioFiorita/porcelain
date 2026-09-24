@@ -4,32 +4,45 @@ import {
   FolderNotReadableError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
+import type { ProjectFolderContents } from '@porcelain/projects/models';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
 import { BrowseProjectFoldersService } from './browse-project-folders-service.ts';
 
+function folder(
+  path: string,
+  contents: Partial<ProjectFolderContents> = {},
+): ProjectFolderContents {
+  return {
+    path,
+    parent: '/home',
+    directories: [],
+    gitMarker: false,
+    truncated: false,
+    ...contents,
+  };
+}
+
 function setup() {
   const folders = new ScriptedProjectFolderReader();
-  const service = new BrowseProjectFoldersService(
-    folders,
-    new ScriptedProjectRepositoryReader(),
-    { home: '/home/owner' },
-  );
-  return { folders, service };
+  const repositories = new ScriptedProjectRepositoryReader();
+  const service = new BrowseProjectFoldersService(folders, repositories, {
+    home: '/home/owner',
+    maxEntries: 2000,
+  });
+  return { folders, repositories, service };
 }
 
 describe('BrowseProjectFoldersService', () => {
   it('lists the home folder when no path is given', async () => {
     const { folders, service } = setup();
-    folders.folder({
-      path: '/home/owner',
-      parent: '/home',
-      directories: [
-        { name: 'code', path: '/home/owner/code', symbolicLink: false },
-      ],
-      gitMarker: false,
-      truncated: false,
-    });
+    folders.folder(
+      folder('/home/owner', {
+        directories: [
+          { name: 'code', path: '/home/owner/code', symbolicLink: false },
+        ],
+      }),
+    );
     await expect(service.execute({})).resolves.toEqual({
       path: '/home/owner',
       parent: '/home',
@@ -37,6 +50,68 @@ describe('BrowseProjectFoldersService', () => {
       repository: false,
       truncated: false,
     });
+  });
+
+  it('lists the folder that was asked for', async () => {
+    const { folders, service } = setup();
+    folders.folder(folder('/srv', { parent: '/' }));
+    expect((await service.execute({ path: '/srv' })).path).toBe('/srv');
+  });
+
+  it('never offers the Git directory as a folder to open', async () => {
+    const { folders, service } = setup();
+    folders.folder(
+      folder('/srv/api', {
+        gitMarker: true,
+        directories: [
+          { name: '.git', path: '/srv/api/.git', symbolicLink: false },
+          { name: 'src', path: '/srv/api/src', symbolicLink: false },
+        ],
+      }),
+    );
+    expect((await service.execute({ path: '/srv/api' })).directories).toEqual([
+      { name: 'src', path: '/srv/api/src' },
+    ]);
+  });
+
+  it('marks a folder as a repository when Git can open it', async () => {
+    const { folders, repositories, service } = setup();
+    folders.folder(folder('/srv/api', { gitMarker: true }));
+    repositories.repository('/srv/api', {
+      commonDirectory: '/srv/api/.git',
+      repositoryIdentity: 'identity-1',
+      worktrees: [{ path: '/srv/api', main: true, available: true }],
+    });
+    expect((await service.execute({ path: '/srv/api' })).repository).toBe(true);
+  });
+
+  it('does not mark a folder whose Git marker Git cannot open', async () => {
+    const { folders, service } = setup();
+    folders.folder(folder('/srv/broken', { gitMarker: true }));
+    expect((await service.execute({ path: '/srv/broken' })).repository).toBe(
+      false,
+    );
+  });
+
+  it('does not mark a folder without a Git marker, even inside a repository', async () => {
+    const { folders, repositories, service } = setup();
+    folders.folder(folder('/srv/api/src'));
+    repositories.repository('/srv/api/src', {
+      commonDirectory: '/srv/api/.git',
+      repositoryIdentity: 'identity-1',
+      worktrees: [],
+    });
+    expect((await service.execute({ path: '/srv/api/src' })).repository).toBe(
+      false,
+    );
+  });
+
+  it('says when the folder held more entries than it lists', async () => {
+    const { folders, service } = setup();
+    folders.folder(folder('/srv/large', { truncated: true }));
+    expect((await service.execute({ path: '/srv/large' })).truncated).toBe(
+      true,
+    );
   });
 
   it('refuses a folder that does not exist', async () => {

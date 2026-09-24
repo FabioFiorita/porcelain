@@ -1,13 +1,13 @@
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class MarkProjectsUnavailableService {
-  private readonly inventoryStore: InventoryStore;
+  private readonly inventory: InventoryStore;
 
-  constructor(inventoryStore: InventoryStore) {
-    this.inventoryStore = inventoryStore;
+  constructor(inventory: InventoryStore) {
+    this.inventory = inventory;
   }
 
   execute(): void {
-    this.inventoryStore.markAllUnavailable();
+    this.inventory.markAllUnavailable();
   }
 }

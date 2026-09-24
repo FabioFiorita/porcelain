@@ -1,15 +1,23 @@
-import {
-  and,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  notInArray,
-} from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { worktreePresence } from '../../db/schema/worktree-presence.ts';
+import type {
+  ProjectKey,
+  RemoveWorktreePresenceInput,
+  SaveWorktreePresenceInput,
+  WorktreePresence,
+} from '@porcelain/projects/models';
 import type { WorktreePresenceStore } from '@porcelain/projects/ports';
+import { worktreePresence } from '../../db/schema/worktree-presence.ts';
+
+type PresenceRow = typeof worktreePresence.$inferSelect;
+
+function presence(row: PresenceRow): WorktreePresence {
+  return {
+    worktreeId: row.worktreeId,
+    projectId: row.projectId,
+    missingSince: row.missingSince ?? undefined,
+  };
+}
 
 export class SqliteWorktreePresenceStore implements WorktreePresenceStore {
   private readonly db: BetterSQLite3Database;
@@ -18,72 +26,46 @@ export class SqliteWorktreePresenceStore implements WorktreePresenceStore {
     this.db = db;
   }
 
-  record(projectId: string, presentIds: string[]): void {
-    if (presentIds.length === 0) return;
-    this.db.transaction(
-      (tx) => {
-        this.upsertPresent(tx, projectId, presentIds);
-      },
-      { behavior: 'immediate' },
-    );
+  list(): WorktreePresence[] {
+    return this.db.select().from(worktreePresence).all().map(presence);
   }
 
-  observe(projectId: string, presentIds: string[], at: string): void {
-    this.db.transaction(
-      (tx) => {
-        this.upsertPresent(tx, projectId, presentIds);
-        tx.update(worktreePresence)
-          .set({ missingSince: at })
-          .where(
-            and(
-              eq(worktreePresence.projectId, projectId),
-              isNull(worktreePresence.missingSince),
-              presentIds.length > 0
-                ? notInArray(worktreePresence.worktreeId, presentIds)
-                : undefined,
-            ),
-          )
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  private upsertPresent(
-    tx: Pick<BetterSQLite3Database, 'insert'>,
-    projectId: string,
-    presentIds: string[],
-  ): void {
-    for (const worktreeId of presentIds)
-      tx.insert(worktreePresence)
-        .values({ worktreeId, projectId, missingSince: null })
-        .onConflictDoUpdate({
-          target: worktreePresence.worktreeId,
-          set: { projectId, missingSince: null },
-        })
-        .run();
-  }
-
-  expired(before: string): string[] {
+  read(input: ProjectKey): WorktreePresence[] {
     return this.db
-      .select({ worktreeId: worktreePresence.worktreeId })
+      .select()
       .from(worktreePresence)
-      .where(
-        and(
-          isNotNull(worktreePresence.missingSince),
-          lt(worktreePresence.missingSince, before),
-        ),
-      )
+      .where(eq(worktreePresence.projectId, input.projectId))
       .all()
-      .map((row) => row.worktreeId);
+      .map(presence);
   }
 
-  collect(worktreeIds: string[]): void {
-    if (worktreeIds.length === 0) return;
+  save(input: SaveWorktreePresenceInput): void {
+    this.db.transaction(
+      (tx) => {
+        for (const row of input.rows) {
+          const values = {
+            worktreeId: row.worktreeId,
+            projectId: row.projectId,
+            missingSince: row.missingSince ?? null,
+          };
+          tx.insert(worktreePresence)
+            .values(values)
+            .onConflictDoUpdate({
+              target: worktreePresence.worktreeId,
+              set: values,
+            })
+            .run();
+        }
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
+  remove(input: RemoveWorktreePresenceInput): void {
     this.db.transaction(
       (tx) => {
         tx.delete(worktreePresence)
-          .where(inArray(worktreePresence.worktreeId, worktreeIds))
+          .where(inArray(worktreePresence.worktreeId, input.worktreeIds))
           .run();
       },
       { behavior: 'immediate' },

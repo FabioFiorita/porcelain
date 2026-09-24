@@ -1,21 +1,16 @@
-import { asc, eq, max } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { EnvironmentIdentityStore } from '@porcelain/access/ports';
 import type { Inventory, RegisteredProject } from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
+import { environment } from '../../db/schema/environment.ts';
 import { inventoryProjects } from '../../db/schema/inventory-projects.ts';
 import { MissingEnvironmentIdentityError } from '../../models/missing-environment-identity-error.ts';
 
 export class SqliteInventoryStore implements InventoryStore {
   private readonly db: BetterSQLite3Database;
-  private readonly environmentIdentityStore: EnvironmentIdentityStore;
 
-  constructor(
-    db: BetterSQLite3Database,
-    environmentIdentityStore: EnvironmentIdentityStore,
-  ) {
+  constructor(db: BetterSQLite3Database) {
     this.db = db;
-    this.environmentIdentityStore = environmentIdentityStore;
   }
 
   markAllUnavailable(): void {
@@ -28,7 +23,7 @@ export class SqliteInventoryStore implements InventoryStore {
   }
 
   read(): Inventory {
-    const environmentId = this.environmentIdentityStore.environmentId();
+    const environmentId = this.db.select().from(environment).get()?.id;
     if (environmentId === undefined)
       throw new MissingEnvironmentIdentityError();
     return {
@@ -41,6 +36,7 @@ export class SqliteInventoryStore implements InventoryStore {
           commonDirectory: inventoryProjects.commonDirectory,
           repositoryIdentity: inventoryProjects.repositoryIdentity,
           available: inventoryProjects.available,
+          position: inventoryProjects.position,
         })
         .from(inventoryProjects)
         .orderBy(asc(inventoryProjects.position))
@@ -48,23 +44,12 @@ export class SqliteInventoryStore implements InventoryStore {
     };
   }
 
-  save(project: RegisteredProject): void {
+  save(input: RegisteredProject): void {
     this.db.transaction(
       (tx) => {
-        const existing = tx
-          .select({ position: inventoryProjects.position })
-          .from(inventoryProjects)
-          .where(eq(inventoryProjects.id, project.id))
-          .get();
-        const position =
-          existing?.position ??
-          (tx
-            .select({ position: max(inventoryProjects.position) })
-            .from(inventoryProjects)
-            .get()?.position ?? 0) + 1;
         tx.insert(inventoryProjects)
-          .values({ ...project, position })
-          .onConflictDoUpdate({ target: inventoryProjects.id, set: project })
+          .values(input)
+          .onConflictDoUpdate({ target: inventoryProjects.id, set: input })
           .run();
       },
       { behavior: 'immediate' },

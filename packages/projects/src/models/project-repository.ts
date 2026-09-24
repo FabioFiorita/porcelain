@@ -8,4 +8,4 @@ export type DiscoveredProjectRepository = {
   }[];
 };
 
-export type RepositoryOrigin = { originUrl: string | undefined };
+export type RepositoryLocation = { path: string };

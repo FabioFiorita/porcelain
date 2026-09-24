@@ -11,14 +11,14 @@ export class GitLaneKeys implements LaneKeys {
     GitProjectWorktreeReader,
     'repositoryOf'
   >;
-  private readonly inventoryStore: InventoryStore;
+  private readonly projectInventory: InventoryStore;
 
   constructor(
     worktreeDirectory: Pick<GitProjectWorktreeReader, 'repositoryOf'>,
-    inventoryStore: InventoryStore,
+    projectInventory: InventoryStore,
   ) {
     this.worktreeDirectory = worktreeDirectory;
-    this.inventoryStore = inventoryStore;
+    this.projectInventory = projectInventory;
   }
 
   inventory(): string {
@@ -31,7 +31,7 @@ export class GitLaneKeys implements LaneKeys {
 
   project(projectId: string): string {
     return (
-      this.inventoryStore
+      this.projectInventory
         .read()
         .projects.find((project) => project.id === projectId)
         ?.repositoryIdentity ?? UNRESOLVED
