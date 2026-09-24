@@ -72,3 +72,5 @@ export default defineFeature({
 ## Adding or changing a feature
 
 Write `behaviour` in domain language, cover the happy path and the main failure of every route the feature reaches (invalid input as the contract defines it, unknown IDs, conflicts; unauthenticated access is swept for every route of a feature that declares `paired: true`), run the feature, read its evidence, then run `--all`. Keep the fixture minimal: extend `scripts/dev-server-child.ts` only when a route cannot be reached from a case's setup.
+
+On a host that cannot create a network namespace (GitHub's ubuntu runners), set `PORCELAIN_SANDBOX_NETWORK=host`: the sandbox keeps every other isolation and only the network namespace is dropped. CI does this and says so in its step names.

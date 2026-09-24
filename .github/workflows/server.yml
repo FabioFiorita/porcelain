@@ -30,7 +30,11 @@ jobs:
       - run: pnpm test
       - run: pnpm db:check
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
-      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
-      - run: node .agents/skills/server-verify/scripts/verify.ts --all
+      - name: Probe the sandbox; the runner cannot create a network namespace, so the net keeps the host network there
+        run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --new-session --die-with-parent -- true
+      - name: Verification net without the network namespace (the host network is the only isolation the runner refuses)
+        run: node .agents/skills/server-verify/scripts/verify.ts --all
+        env:
+          PORCELAIN_SANDBOX_NETWORK: host
       - run: pnpm arch:check
       - run: pnpm probes

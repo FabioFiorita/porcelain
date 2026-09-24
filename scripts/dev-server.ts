@@ -160,7 +160,9 @@ function sandboxArguments(server: string, root: string): string[] {
     '--new-session',
     '--unshare-pid',
     '--unshare-ipc',
-    '--unshare-net',
+    ...(process.env.PORCELAIN_SANDBOX_NETWORK === 'host'
+      ? []
+      : ['--unshare-net']),
     '--dev',
     '/dev',
     '--proc',
