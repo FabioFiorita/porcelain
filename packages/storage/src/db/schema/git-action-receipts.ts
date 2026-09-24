@@ -1,5 +1,12 @@
-import { index, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import type { GitActionReceipt } from '@porcelain/git-actions/models';
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import type {
+  GitActionExpectation,
+  GitActionIntent,
+  GitActionKind,
+  GitActionReason,
+  GitActionReceiptState,
+  GitActionResult,
+} from '@porcelain/git-actions/models';
 import { inventoryProjects } from './inventory-projects.ts';
 import { worktreePresence } from './worktree-presence.ts';
 
@@ -13,7 +20,20 @@ export const gitActionReceipts = sqliteTable(
     worktreeId: text('worktree_id')
       .notNull()
       .references(() => worktreePresence.worktreeId, { onDelete: 'cascade' }),
-    value: text('value', { mode: 'json' }).$type<GitActionReceipt>().notNull(),
+    action: text('action').$type<GitActionKind>().notNull(),
+    state: text('state').$type<GitActionReceiptState>().notNull(),
+    reason: text('reason').$type<GitActionReason>(),
+    message: text('message'),
+    refreshRequired: integer('refresh_required', { mode: 'boolean' }).notNull(),
+    acceptedAt: text('accepted_at').notNull(),
+    finishedAt: text('finished_at'),
+    dismissedAt: text('dismissed_at'),
+    intent: text('intent', { mode: 'json' }).$type<GitActionIntent>().notNull(),
+    expected: text('expected', { mode: 'json' })
+      .$type<GitActionExpectation>()
+      .notNull(),
+    result: text('result', { mode: 'json' }).$type<GitActionResult>(),
+    progress: text('progress', { mode: 'json' }).$type<string[]>().notNull(),
   },
   (table) => [
     index('git_action_receipts_project').on(table.projectId),
