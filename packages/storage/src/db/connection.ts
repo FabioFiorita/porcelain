@@ -3,6 +3,7 @@ import { isAbsolute, join } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { InvalidDataDirectoryError } from '../models/invalid-data-directory-error.ts';
+import { DATABASE_FILE } from './database-files.ts';
 import { createEnvironmentIdentity } from './environment-identity.ts';
 import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 import { createSession, type StorageSession } from './session.ts';
@@ -17,7 +18,7 @@ export function openStorageSession(
 ): StorageSession {
   if (!isAbsolute(dataDirectory)) throw new InvalidDataDirectoryError();
   mkdirSync(dataDirectory, { recursive: true, mode: 0o700 });
-  const database = new Database(join(dataDirectory, 'inventory.sqlite'));
+  const database = new Database(join(dataDirectory, DATABASE_FILE));
   try {
     assertMigrationHistory(database);
     database.pragma('busy_timeout = 5000');

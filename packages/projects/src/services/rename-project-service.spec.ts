@@ -15,7 +15,7 @@ const project: RegisteredProject = {
 };
 
 function setup() {
-  const inventory = new InMemoryInventoryStore('environment', [project]);
+  const inventory = new InMemoryInventoryStore([project]);
   return { inventory, service: new RenameProjectService(inventory) };
 }
 

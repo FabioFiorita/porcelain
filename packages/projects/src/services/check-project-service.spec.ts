@@ -17,14 +17,14 @@ const project: RegisteredProject = {
 describe('CheckProjectService', () => {
   it('answers a registered project even while it is unavailable', () => {
     const service = new CheckProjectService(
-      new InMemoryInventoryStore('environment', [project]),
+      new InMemoryInventoryStore([project]),
     );
     expect(service.execute({ projectId: project.id })).toEqual(project);
   });
 
   it('refuses a project that is not registered', () => {
     const service = new CheckProjectService(
-      new InMemoryInventoryStore('environment', [project]),
+      new InMemoryInventoryStore([project]),
     );
     expect(() => service.execute({ projectId: 'project-2' })).toThrow(
       ProjectNotFoundError,

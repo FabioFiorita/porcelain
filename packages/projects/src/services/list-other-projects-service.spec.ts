@@ -16,7 +16,7 @@ function project(id: string, position: number): RegisteredProject {
 }
 
 const service = new ListOtherProjectsService(
-  new InMemoryInventoryStore('environment', [
+  new InMemoryInventoryStore([
     project('api', 1),
     project('web', 2),
     project('docs', 3),

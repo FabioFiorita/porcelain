@@ -2,9 +2,7 @@ import { asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { Inventory, RegisteredProject } from '@porcelain/projects/models';
 import type { InventoryStore } from '@porcelain/projects/ports';
-import { environment } from '../../db/schema/environment.ts';
 import { inventoryProjects } from '../../db/schema/inventory-projects.ts';
-import { MissingEnvironmentIdentityError } from '../../models/missing-environment-identity-error.ts';
 
 export class SqliteInventoryStore implements InventoryStore {
   private readonly db: BetterSQLite3Database;
@@ -23,11 +21,7 @@ export class SqliteInventoryStore implements InventoryStore {
   }
 
   read(): Inventory {
-    const environmentId = this.db.select().from(environment).get()?.id;
-    if (environmentId === undefined)
-      throw new MissingEnvironmentIdentityError();
     return {
-      environmentId,
       projects: this.db
         .select({
           id: inventoryProjects.id,

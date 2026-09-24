@@ -18,6 +18,5 @@ export type ListableProject = Pick<
 export type ProjectKey = { projectId: string };
 
 export type Inventory = {
-  environmentId: string;
   projects: RegisteredProject[];
 };

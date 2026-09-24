@@ -23,7 +23,7 @@ const LIMIT = 2000;
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
   const service = new SetFilePreferenceService(
-    new InMemoryInventoryStore('environment', [project]),
+    new InMemoryInventoryStore([project]),
     preferences,
     { maxPreferences: LIMIT },
   );

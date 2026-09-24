@@ -20,7 +20,7 @@ function project(id: string): RegisteredProject {
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
   const service = new ListFilePreferencesService(
-    new InMemoryInventoryStore('environment', [project('api'), project('web')]),
+    new InMemoryInventoryStore([project('api'), project('web')]),
     preferences,
   );
   return { preferences, service };

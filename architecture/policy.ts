@@ -336,6 +336,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'config',
     'kernel',
     'process-api',
+    'repository-api',
   ]),
   'installer-api': new Set(['installer', 'config']),
   'domain-api': new Set(['service']),

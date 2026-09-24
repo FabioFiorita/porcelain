@@ -38,7 +38,7 @@ function worktree(id: string): ListedWorktree {
 }
 
 function setup() {
-  const inventory = new InMemoryInventoryStore('environment', [project]);
+  const inventory = new InMemoryInventoryStore([project]);
   const presence = new InMemoryWorktreePresenceStore();
   const clock = new FixedClock(FIRST);
   const service = new RecordWorktreePresenceService(inventory, presence, clock);

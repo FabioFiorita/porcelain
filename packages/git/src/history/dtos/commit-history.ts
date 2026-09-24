@@ -61,5 +61,4 @@ export interface HistoryCheckout {
   administrativeDirectory: string;
   repositoryIdentity: string;
   metadataIdentity: string;
-  scope: string;
 }

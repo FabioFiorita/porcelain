@@ -25,7 +25,7 @@ function setup(candidates: string[], limited = false) {
   folders.searchFinds(roots, { candidates, limited });
   const repositories = new ScriptedProjectRepositoryReader();
   const service = new DiscoverProjectsService(
-    new InMemoryInventoryStore('environment', [
+    new InMemoryInventoryStore([
       {
         id: 'project-1',
         name: 'api',

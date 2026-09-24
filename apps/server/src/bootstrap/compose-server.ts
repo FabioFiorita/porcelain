@@ -143,6 +143,7 @@ export async function openApplication(
     ),
   });
   const projects = composeProjects(context, {
+    readEnvironment,
     git,
     inventoryStore,
     worktreeStatusStore: createWorktreeStatusStore(session),
@@ -159,7 +160,6 @@ export async function openApplication(
     worktreeAccess,
     checkWorktree,
     readEnvironment,
-    inventoryStore,
     inspection,
     commitGit,
     readTextFile: readTextFileService,

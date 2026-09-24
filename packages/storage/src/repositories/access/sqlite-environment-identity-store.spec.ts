@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openStorageSession } from '../../index.ts';
-import { createInventoryStore } from '../projects/index.ts';
 import { createEnvironmentIdentityStore } from './index.ts';
 
 const uuid =
@@ -61,15 +60,5 @@ describe('SqliteEnvironmentIdentityStore', () => {
     rmSync(otherDirectory, { recursive: true, force: true });
 
     expect(identities[0]).not.toBe(identities[1]);
-  });
-
-  it('reports the same identity in the inventory', () => {
-    const session = open(dataDirectory);
-    const environmentId =
-      createEnvironmentIdentityStore(session).environmentId();
-    const inventory = createInventoryStore(session).read();
-    session.close();
-
-    expect(inventory).toEqual({ environmentId, projects: [] });
   });
 });

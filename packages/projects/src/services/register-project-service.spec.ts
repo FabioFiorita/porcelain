@@ -30,7 +30,7 @@ function registered(overrides: Partial<RegisteredProject>): RegisteredProject {
 }
 
 function setup(projects: RegisteredProject[] = []) {
-  const inventory = new InMemoryInventoryStore('environment', projects);
+  const inventory = new InMemoryInventoryStore(projects);
   const service = new RegisterProjectService(
     inventory,
     new SequentialIdSource(),

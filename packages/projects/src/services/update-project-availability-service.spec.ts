@@ -26,20 +26,20 @@ function listing(available: boolean) {
 
 describe('UpdateProjectAvailabilityService', () => {
   it('stores the availability the listing observed', () => {
-    const store = new InMemoryInventoryStore('environment', [project]);
+    const store = new InMemoryInventoryStore([project]);
     new UpdateProjectAvailabilityService(store).execute(listing(true));
     expect(store.read().projects).toEqual([{ ...project, available: true }]);
   });
 
   it('keeps the rest of the stored project, including a rename made while listing', () => {
-    const store = new InMemoryInventoryStore('environment', [project]);
+    const store = new InMemoryInventoryStore([project]);
     store.save({ ...project, name: 'Renamed meanwhile' });
     new UpdateProjectAvailabilityService(store).execute(listing(true));
     expect(store.read().projects[0]?.name).toBe('Renamed meanwhile');
   });
 
   it('refuses a project that is no longer registered, without bringing it back', () => {
-    const store = new InMemoryInventoryStore('environment', [project]);
+    const store = new InMemoryInventoryStore([project]);
     store.remove(project.id);
     expect(() =>
       new UpdateProjectAvailabilityService(store).execute(listing(true)),
@@ -48,9 +48,7 @@ describe('UpdateProjectAvailabilityService', () => {
   });
 
   it('marks a listed project unavailable when the listing could not reach it', () => {
-    const store = new InMemoryInventoryStore('environment', [
-      { ...project, available: true },
-    ]);
+    const store = new InMemoryInventoryStore([{ ...project, available: true }]);
     new UpdateProjectAvailabilityService(store).execute(listing(false));
     expect(store.read().projects[0]?.available).toBe(false);
   });

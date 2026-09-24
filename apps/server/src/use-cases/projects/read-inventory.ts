@@ -1,3 +1,4 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type {
   ComposeInventoryService,
@@ -13,6 +14,7 @@ export class ReadInventoryUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
+  private readonly readEnvironment: ReadEnvironmentService;
   private readonly composeInventory: ComposeInventoryService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -21,6 +23,7 @@ export class ReadInventoryUseCase {
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
     readWorktreeStatuses: ReadWorktreeStatusesService,
+    readEnvironment: ReadEnvironmentService,
     composeInventory: ComposeInventoryService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -28,6 +31,7 @@ export class ReadInventoryUseCase {
     this.listRegisteredProjects = listRegisteredProjects;
     this.listKnownWorktrees = listKnownWorktrees;
     this.readWorktreeStatuses = readWorktreeStatuses;
+    this.readEnvironment = readEnvironment;
     this.composeInventory = composeInventory;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -41,7 +45,13 @@ export class ReadInventoryUseCase {
         const inventory = this.listRegisteredProjects.execute();
         const { listings } = this.listKnownWorktrees.execute(inventory);
         const statuses = this.readWorktreeStatuses.execute({ listings });
-        return this.composeInventory.execute({ inventory, listings, statuses });
+        const { environmentId } = this.readEnvironment.execute();
+        return this.composeInventory.execute({
+          environmentId,
+          inventory,
+          listings,
+          statuses,
+        });
       },
       { callerSignal: context.signal },
     );

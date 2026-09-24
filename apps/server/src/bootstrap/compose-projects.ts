@@ -1,3 +1,4 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { GitFactory } from '@porcelain/git/discovery';
 import type {
   InventoryStore,
@@ -50,6 +51,7 @@ import { SetFilePreferenceUseCase } from '../use-cases/projects/set-file-prefere
 import type { ComposeContext } from './compose-context.ts';
 
 export type ProjectsAdapters = {
+  readEnvironment: ReadEnvironmentService;
   git: GitFactory;
   inventoryStore: InventoryStore;
   worktreeStatusStore: WorktreeStatusStore;
@@ -91,6 +93,7 @@ export function composeProjects(
       listRegisteredProjects,
       listKnownWorktrees,
       readWorktreeStatuses,
+      adapters.readEnvironment,
       new ComposeInventoryService(),
       lanes,
       laneKeys,

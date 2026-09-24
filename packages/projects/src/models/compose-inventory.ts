@@ -4,6 +4,7 @@ import type { ProjectWorktrees } from './project-worktrees.ts';
 import type { WorktreeStatuses } from './worktree-status.ts';
 
 export type ComposeInventoryInput = {
+  environmentId: string;
   inventory: Inventory;
   listings: ProjectWorktrees[];
   statuses: WorktreeStatuses;

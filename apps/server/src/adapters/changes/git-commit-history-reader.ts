@@ -16,22 +16,14 @@ import {
 } from '@porcelain/git/history';
 import type { WritableWorktrees } from '../projects/checkout-session.ts';
 
-type EnvironmentReader = { read(): { environmentId: string } };
-
 type CommitReader = ReturnType<CommitReaderFactory>;
 
 export class GitCommitHistoryReader implements CommitHistoryReader {
   private readonly worktrees: WritableWorktrees;
-  private readonly environment: EnvironmentReader;
   private readonly git: CommitReaderFactory;
 
-  constructor(
-    worktrees: WritableWorktrees,
-    environment: EnvironmentReader,
-    git: CommitReaderFactory,
-  ) {
+  constructor(worktrees: WritableWorktrees, git: CommitReaderFactory) {
     this.worktrees = worktrees;
-    this.environment = environment;
     this.git = git;
   }
 
@@ -134,7 +126,6 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
       administrativeDirectory: worktree.administrativeDirectory,
       repositoryIdentity: worktree.repositoryIdentity,
       metadataIdentity: worktree.metadataIdentity,
-      scope: `${this.environment.read().environmentId}:${worktree.projectId}:${worktree.id}`,
     });
   }
 }

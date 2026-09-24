@@ -41,7 +41,6 @@ export type ChangesAdapters = {
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
   readEnvironment: ReadEnvironmentService;
-  inventoryStore: { read(): { environmentId: string } };
   inspection: InspectionFactory;
   commitGit: CommitReaderFactory;
   readTextFile: ReadTextFileService;
@@ -65,7 +64,6 @@ export function composeChanges(
   const headTextReader = new GitHeadTextReader(openInspection);
   const commitHistoryReader = new GitCommitHistoryReader(
     adapters.worktreeAccess,
-    adapters.inventoryStore,
     adapters.commitGit,
   );
   const { checkWorktree, readEnvironment } = adapters;

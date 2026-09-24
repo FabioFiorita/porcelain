@@ -47,8 +47,8 @@ describe('ComposeInventoryService', () => {
   it('reports every project in inventory order with its worktrees and review status', () => {
     expect(
       service.execute({
+        environmentId: 'environment',
         inventory: {
-          environmentId: 'environment',
           projects: [project('first', 1), project('second', 2)],
         },
         listings: [
@@ -96,7 +96,8 @@ describe('ComposeInventoryService', () => {
 
   it('reports a project as unavailable when its listing was', () => {
     const report = service.execute({
-      inventory: { environmentId: 'environment', projects: [project('a', 1)] },
+      environmentId: 'environment',
+      inventory: { projects: [project('a', 1)] },
       listings: [listing('a', [], false)],
       statuses: new Map(),
     });
@@ -105,7 +106,8 @@ describe('ComposeInventoryService', () => {
 
   it('reports a project with no known worktrees with an empty list', () => {
     const report = service.execute({
-      inventory: { environmentId: 'environment', projects: [project('a', 1)] },
+      environmentId: 'environment',
+      inventory: { projects: [project('a', 1)] },
       listings: [listing('a', [])],
       statuses: new Map(),
     });
@@ -114,10 +116,8 @@ describe('ComposeInventoryService', () => {
 
   it('reports only registered projects, whatever the listings hold', () => {
     const report = service.execute({
-      inventory: {
-        environmentId: 'environment',
-        projects: [project('kept', 1)],
-      },
+      environmentId: 'environment',
+      inventory: { projects: [project('kept', 1)] },
       listings: [
         listing('kept', [worktree('w1', 'kept')]),
         listing('removed', [worktree('w2', 'removed')]),

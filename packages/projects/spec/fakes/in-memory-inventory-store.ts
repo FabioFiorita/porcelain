@@ -2,11 +2,9 @@ import type { Inventory, RegisteredProject } from '../../src/models/project.ts';
 import type { InventoryStore } from '../../src/ports/inventory-store.ts';
 
 export class InMemoryInventoryStore implements InventoryStore {
-  private readonly environmentId: string;
   private projects: Map<string, RegisteredProject>;
 
-  constructor(environmentId: string, projects: RegisteredProject[] = []) {
-    this.environmentId = environmentId;
+  constructor(projects: RegisteredProject[] = []) {
     this.projects = new Map(
       projects.map((project) => [project.id, { ...project }]),
     );
@@ -14,7 +12,6 @@ export class InMemoryInventoryStore implements InventoryStore {
 
   read(): Inventory {
     return {
-      environmentId: this.environmentId,
       projects: [...this.projects.values()]
         .map((project) => ({ ...project }))
         .sort((a, b) => a.position - b.position),
