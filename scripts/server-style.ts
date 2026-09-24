@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { domainPackages, type StyleRule } from '../architecture/policy.ts';
@@ -125,41 +125,27 @@ const ruleListSchema = z.strictObject({
 const probeModuleSchema = z.object({ default: z.unknown() });
 
 const tsconfigSchema = z.object({
+  extends: z.string().optional(),
   compilerOptions: z.record(z.string(), z.unknown()).optional(),
   include: z.array(z.string()).optional(),
 });
 
-const sanctionedRootCompilerOptions: Readonly<Record<string, unknown>> = {
-  target: 'ES2024',
-  module: 'NodeNext',
-  moduleResolution: 'NodeNext',
-  lib: ['ES2024'],
-  types: ['node'],
-  strict: true,
-  noUncheckedIndexedAccess: true,
-  exactOptionalPropertyTypes: true,
-  noImplicitOverride: true,
-  noFallthroughCasesInSwitch: true,
-  noUnusedLocals: true,
-  noUnusedParameters: true,
-  verbatimModuleSyntax: true,
-  allowImportingTsExtensions: true,
-  erasableSyntaxOnly: true,
-  skipLibCheck: true,
-  noEmit: true,
-};
+const sanctionedFilesSchema = z.record(z.string(), z.unknown());
+const sanctionedScriptsSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.string()),
+);
+const manifestScriptsSchema = z.object({
+  scripts: z.record(z.string(), z.string()).optional(),
+});
+const configModuleSchema = z.object({ default: z.unknown() });
 
-const sanctionedDomainTsconfig: Readonly<Record<string, unknown>> = {
-  extends: '../../tsconfig.json',
-  compilerOptions: { types: [] },
-  include: [
-    'src/**/*.ts',
-    'spec/**/*.ts',
-    '../../architecture/platform/domain-globals.d.ts',
-  ],
-};
+const packageFolders = [
+  'apps/server',
+  ...packageNames.map((name) => join('packages', name)),
+];
 
-const pinnedTsconfigPackages = new Set<string>([...domainPackages, 'kernel']);
+const tsconfigPackageOptions: ReadonlySet<string> = new Set(['types', 'lib']);
 
 const sanctionedOverrides: readonly unknown[] = [
   {
@@ -280,21 +266,30 @@ async function configProblems(): Promise<Problem[]> {
   const tsconfigs = filesUnder('.').filter((path) =>
     /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
   );
-  if (
-    !isDeepStrictEqual(
-      tsconfigSchema.parse(strictJson('tsconfig.json')).compilerOptions,
-      sanctionedRootCompilerOptions,
-    )
-  )
-    problems.push(
-      problem(
-        'tsconfig',
-        'tsconfig.json compilerOptions differ from the sanctioned block in scripts/server-style.ts; every package inherits them.',
-      ),
-    );
+  const sanctionedTsconfigs = sanctionedFilesSchema.parse(
+    strictJson('architecture/sanctioned/tsconfigs.json'),
+  );
+  for (const path of [
+    'tsconfig.json',
+    ...packageFolders.map((folder) => join(folder, 'tsconfig.json')),
+  ])
+    if (!(path in sanctionedTsconfigs))
+      problems.push(
+        problem(
+          'tsconfig',
+          `${path} has no sanctioned copy in architecture/sanctioned/tsconfigs.json; every tsconfig a gate compiles with is pinned.`,
+        ),
+      );
+  for (const [path, sanctioned] of Object.entries(sanctionedTsconfigs))
+    if (!existsSync(path) || !isDeepStrictEqual(strictJson(path), sanctioned))
+      problems.push(
+        problem(
+          'tsconfig',
+          `${path} differs from its sanctioned copy in architecture/sanctioned/tsconfigs.json; the compiler options a gate runs with change only there, where the change is visible.`,
+        ),
+      );
   for (const path of tsconfigs) {
-    const raw = strictJson(path);
-    const tsconfig = tsconfigSchema.parse(raw);
+    const tsconfig = tsconfigSchema.parse(strictJson(path));
     const owner = /^(?:packages\/([^/]+)|apps\/(server))\/tsconfig\.json$/.exec(
       path,
     );
@@ -303,14 +298,15 @@ async function configProblems(): Promise<Problem[]> {
     for (const pattern of ['src/**/*.ts', 'spec/**/*.ts'])
       if (!tsconfig.include?.includes(pattern))
         problems.push(problem('tsconfig', `${path} includes ${pattern}.`));
+    const options = Object.keys(tsconfig.compilerOptions ?? {});
     if (
-      pinnedTsconfigPackages.has(name) &&
-      !isDeepStrictEqual(raw, sanctionedDomainTsconfig)
+      tsconfig.extends !== '../../tsconfig.json' ||
+      options.some((option) => !tsconfigPackageOptions.has(option))
     )
       problems.push(
         problem(
           'tsconfig',
-          `${path} differs from the sanctioned domain tsconfig in scripts/server-style.ts; a domain compiles with types [], lib ES2024 and the domain globals only.`,
+          `${path} extends ../../tsconfig.json and sets only types and lib; every strictness flag comes from the root.`,
         ),
       );
     if (
@@ -324,7 +320,90 @@ async function configProblems(): Promise<Problem[]> {
         ),
       );
   }
+  problems.push(...scriptProblems());
+  problems.push(...(await configModuleProblems()));
   problems.push(...(await ruleProblems()));
+  return problems;
+}
+
+function scriptProblems(): Problem[] {
+  const problems: Problem[] = [];
+  const sanctioned = sanctionedScriptsSchema.parse(
+    strictJson('architecture/sanctioned/scripts.json'),
+  );
+  for (const folder of packageFolders)
+    if (!(join(folder, 'package.json') in sanctioned))
+      problems.push(
+        problem(
+          'package-scripts',
+          `${join(folder, 'package.json')} has no sanctioned scripts in architecture/sanctioned/scripts.json; every package runs the type gate.`,
+        ),
+      );
+  for (const [path, scripts] of Object.entries(sanctioned)) {
+    const manifest = existsSync(path)
+      ? manifestScriptsSchema.parse(strictJson(path))
+      : undefined;
+    for (const [name, command] of Object.entries(scripts))
+      if (manifest?.scripts?.[name] !== command)
+        problems.push(
+          problem(
+            'package-scripts',
+            `${path} runs "${command}" as ${name}, as architecture/sanctioned/scripts.json pins it; a gate cannot be switched off from a package script.`,
+          ),
+        );
+  }
+  return problems;
+}
+
+function pinnedShape(value: unknown, root: string): unknown {
+  if (typeof value === 'function') return '<function>';
+  if (value === root) return '<root>';
+  if (Array.isArray(value))
+    return value.map((entry: unknown) => pinnedShape(entry, root));
+  if (typeof value === 'object' && value !== null)
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        pinnedShape(entry, root),
+      ]),
+    );
+  return value;
+}
+
+async function configModuleProblems(): Promise<Problem[]> {
+  const root = resolve('.');
+  const pinned = [
+    {
+      rule: 'vitest-config',
+      module: 'vitest.config.ts',
+      sanctioned: 'architecture/sanctioned/vitest.json',
+      why: 'every project keeps its include, setup files and expect settings, requireAssertions among them, and the run keeps the spec-discipline reporter',
+    },
+    {
+      rule: 'cruiser-config',
+      module: 'architecture/dependency-cruiser.cjs',
+      sanctioned: 'architecture/sanctioned/dependency-cruiser.json',
+      why: 'the forbidden rules keep their names, severity and from/to scope, and the resolution options stay as they are',
+    },
+  ] as const;
+  const problems: Problem[] = [];
+  for (const { rule, module, sanctioned, why } of pinned) {
+    const loaded = configModuleSchema.parse(
+      await import(pathToFileURL(resolve(module)).href),
+    );
+    if (
+      !isDeepStrictEqual(
+        pinnedShape(loaded.default, root),
+        strictJson(sanctioned),
+      )
+    )
+      problems.push(
+        problem(
+          rule,
+          `${module} differs from ${sanctioned}; ${why}. A change to the gate is made in the sanctioned copy, where it is visible.`,
+        ),
+      );
+  }
   return problems;
 }
 

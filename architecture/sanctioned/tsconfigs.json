@@ -1,0 +1,155 @@
+{
+  "tsconfig.json": {
+    "compilerOptions": {
+      "target": "ES2024",
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
+      "lib": ["ES2024"],
+      "types": ["node"],
+      "strict": true,
+      "noUncheckedIndexedAccess": true,
+      "exactOptionalPropertyTypes": true,
+      "noImplicitOverride": true,
+      "noFallthroughCasesInSwitch": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "verbatimModuleSyntax": true,
+      "allowImportingTsExtensions": true,
+      "erasableSyntaxOnly": true,
+      "skipLibCheck": true,
+      "noEmit": true
+    },
+    "include": [
+      "vitest.config.ts",
+      "scripts/**/*.ts",
+      ".agents/skills/server-verify/scripts/**/*.ts",
+      ".agents/skills/server-verify/feature-map/**/*.ts",
+      ".agents/skills/server-verify/negative/**/*.ts",
+      "architecture/*.ts",
+      "architecture/probes/*.ts",
+      "apps/server/src/adapters/files/node-opendir.d.ts"
+    ]
+  },
+  "apps/server/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "include": ["src/**/*.ts", "spec/**/*.ts"],
+    "compilerOptions": {
+      "lib": ["ES2024"]
+    }
+  },
+  "packages/access/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/agents/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "include": ["src/**/*.ts", "spec/**/*.ts"]
+  },
+  "packages/changes/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/contracts/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/files/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/git/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "include": ["src/**/*.ts", "spec/**/*.ts"],
+    "compilerOptions": {
+      "lib": ["ES2024"]
+    }
+  },
+  "packages/git-actions/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/kernel/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/process/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "include": ["src/**/*.ts", "spec/**/*.ts"],
+    "compilerOptions": {
+      "lib": ["ES2024"]
+    }
+  },
+  "packages/projects/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/reviews/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "types": []
+    },
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "../../architecture/platform/domain-globals.d.ts"
+    ]
+  },
+  "packages/storage/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "include": [
+      "src/**/*.ts",
+      "spec/**/*.ts",
+      "scripts/**/*.ts",
+      "drizzle.config.ts"
+    ]
+  }
+}

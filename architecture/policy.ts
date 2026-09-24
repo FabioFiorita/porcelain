@@ -200,6 +200,9 @@ export const styleRules = [
   'rule-list',
   'probe-shape',
   'tsconfig',
+  'package-scripts',
+  'vitest-config',
+  'cruiser-config',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];

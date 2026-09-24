@@ -1,0 +1,28 @@
+{
+  "forbidden": [
+    {
+      "name": "no-circular-source-imports",
+      "severity": "error",
+      "from": {
+        "path": "^(apps/server/src/|packages/)"
+      },
+      "to": {
+        "circular": true
+      }
+    }
+  ],
+  "options": {
+    "tsConfig": {
+      "fileName": "tsconfig.json"
+    },
+    "tsPreCompilationDeps": true,
+    "doNotFollow": {
+      "path": "node_modules"
+    },
+    "enhancedResolveOptions": {
+      "exportsFields": ["exports"],
+      "conditionNames": ["import", "node", "default"],
+      "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs", ".json"]
+    }
+  }
+}

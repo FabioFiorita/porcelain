@@ -1,0 +1,52 @@
+{
+  "package.json": {
+    "typecheck:server": "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
+    "lint:server": "node scripts/server-style.ts lint",
+    "format:server:check": "node scripts/server-style.ts format",
+    "arch:check": "node scripts/architecture.ts check",
+    "probes": "node scripts/probes.ts",
+    "test": "vitest run",
+    "db:check": "pnpm --filter @porcelain/storage db:check",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "apps/server/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/access/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/agents/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/changes/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/contracts/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/files/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/git/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/git-actions/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/kernel/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/process/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/projects/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/reviews/package.json": {
+    "typecheck": "tsc --noEmit"
+  },
+  "packages/storage/package.json": {
+    "typecheck": "tsc --noEmit",
+    "db:check": "drizzle-kit check && node scripts/check-migrations.ts"
+  }
+}

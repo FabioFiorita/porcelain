@@ -75,13 +75,16 @@
     "only-throw-error"
   ],
   "style": [
+    "cruiser-config",
     "disable-directives",
     "lint-config",
     "one-lint-config",
+    "package-scripts",
     "probe-shape",
     "rule-list",
     "strict-json",
-    "tsconfig"
+    "tsconfig",
+    "vitest-config"
   ],
   "arch": [
     "<role>-cannot-import-<role>",
