@@ -1,4 +1,4 @@
-import type { Worktree } from '@porcelain/kernel/models';
+import type { ListedWorktree } from './listed-worktree.ts';
 
 export type CheckWorktreeInput = {
   worktreeId: string;
@@ -6,4 +6,15 @@ export type CheckWorktreeInput = {
   purpose: 'reading' | 'writing';
 };
 
-export type CheckWorktreeResult = Worktree;
+export type CheckWorktreeOptions = { staleAfterMs: number };
+
+export type CheckWorktreeResult =
+  | { kind: 'found'; worktree: ListedWorktree }
+  | { kind: 'stale' };
+
+export type CheckRefreshedWorktreeResult = ListedWorktree;
+
+export type WorktreeCheckAnswer =
+  | CheckWorktreeResult
+  | { kind: 'missing' }
+  | { kind: 'unavailable' };

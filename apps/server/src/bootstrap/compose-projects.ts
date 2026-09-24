@@ -3,14 +3,13 @@ import {
   BrowseProjectFoldersService,
   CollectAbsentWorktreesService,
   DiscoverProjectsService,
-  ForgetProjectWorktreesService,
   InspectProjectRepositoryService,
   ListExpiredWorktreesService,
   ListFilePreferencesService,
-  ListOtherProjectsService,
   ListProjectWorktreesService,
   MarkProjectsUnavailableService,
   ReadRepositoryOriginService,
+  RecordWorktreeCatalogService,
   RecordWorktreePresenceService,
   RegisterProjectService,
   RemoveProjectService,
@@ -20,6 +19,7 @@ import {
 } from '@porcelain/projects/services';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
+import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
 import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
 import { FindWorktreeByPathUseCase } from '../use-cases/projects/find-worktree-by-path.ts';
@@ -50,12 +50,13 @@ export function composeProjects(
   const inventory = stores.inventory;
   const worktreePresence = stores.worktreePresence;
   const filePreference = stores.filePreferences;
-  const { worktreeDirectory, readWorktreeStatuses } = shared;
+  const { catalog, readWorktreeStatuses } = shared;
   const projectRepositoryReader = new GitProjectRepositoryReader(shared.git);
 
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const listProjectWorktrees = new ListProjectWorktreesService(
-    worktreeDirectory,
+    shared.worktreeListing,
+    catalog,
   );
   const updateProjectAvailability = new UpdateProjectAvailabilityService(
     inventory,
@@ -64,6 +65,19 @@ export function composeProjects(
     inventory,
     worktreePresence,
     clock,
+  );
+
+  const refreshInventory = new RefreshInventoryUseCase(
+    listRegisteredProjects,
+    listKnownWorktrees,
+    listProjectWorktrees,
+    new MarkProjectsUnavailableService(inventory),
+    updateProjectAvailability,
+    recordWorktreePresence,
+    new RecordWorktreeCatalogService(catalog, clock),
+    lanes,
+    laneKeys,
+    events,
   );
 
   return {
@@ -77,29 +91,24 @@ export function composeProjects(
     ),
     findWorktreeByPath: new FindWorktreeByPathUseCase(
       listRegisteredProjects,
-      listProjectWorktrees,
+      listKnownWorktrees,
+      refreshInventory,
       lanes,
       laneKeys,
     ),
-    refreshInventory: new RefreshInventoryUseCase(
-      listRegisteredProjects,
-      listKnownWorktrees,
-      listProjectWorktrees,
-      new MarkProjectsUnavailableService(inventory),
-      updateProjectAvailability,
-      recordWorktreePresence,
-      lanes,
-      laneKeys,
-      events,
+    refreshInventory,
+    checkWorktree: new CheckWorktreeUseCase(
+      shared.checkWorktreeService,
+      shared.checkRefreshedWorktree,
+      refreshInventory,
     ),
     registerProject: new RegisterProjectUseCase(
       new InspectProjectRepositoryService(projectRepositoryReader),
-      new ListOtherProjectsService(inventory),
-      listProjectWorktrees,
       new ReadRepositoryOriginService(projectRepositoryReader),
       new RegisterProjectService(inventory, ids),
-      updateProjectAvailability,
-      recordWorktreePresence,
+      refreshInventory,
+      listRegisteredProjects,
+      listKnownWorktrees,
       readWorktreeStatuses,
       lanes,
       laneKeys,
@@ -113,7 +122,7 @@ export function composeProjects(
     ),
     removeProject: new RemoveProjectUseCase(
       new RemoveProjectService(inventory),
-      new ForgetProjectWorktreesService(worktreeDirectory),
+      refreshInventory,
       lanes,
       laneKeys,
       events,

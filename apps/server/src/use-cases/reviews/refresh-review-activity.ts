@@ -1,5 +1,4 @@
 import type {
-  CheckWorktreeService,
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
@@ -12,11 +11,12 @@ import type {
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class RefreshReviewActivityUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly recordReviewActivity: RecordReviewActivityService;
@@ -27,7 +27,7 @@ export class RefreshReviewActivityUseCase {
   constructor(
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readPublishedReview: ReadPublishedReviewService,
     readReviewEvidence: ReadReviewEvidenceService,
     recordReviewActivity: RecordReviewActivityService,
@@ -71,7 +71,7 @@ export class RefreshReviewActivityUseCase {
   ): Promise<void> {
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     await this.lanes.run(
       this.laneKeys.reviews(worktree),

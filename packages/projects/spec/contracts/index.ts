@@ -10,3 +10,7 @@ export {
   worktreePresenceStoreContract,
   type WorktreePresenceStoreSubject,
 } from './worktree-presence-store-contract.ts';
+export {
+  worktreeCatalogStoreContract,
+  type WorktreeCatalogStoreSubject,
+} from './worktree-catalog-store-contract.ts';

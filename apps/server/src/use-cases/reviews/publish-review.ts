@@ -1,6 +1,5 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { PublishReviewToolResponse } from '@porcelain/contracts/reviews';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ReviewPublication } from '@porcelain/reviews/models';
 import type {
   GeneratePublishedReviewService,
@@ -11,9 +10,10 @@ import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class PublishReviewUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readReviewEvidence: ReadReviewEvidenceService;
   private readonly publishReview: PublishReviewService;
   private readonly readEnvironment: ReadEnvironmentService;
@@ -23,7 +23,7 @@ export class PublishReviewUseCase {
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readReviewEvidence: ReadReviewEvidenceService,
     publishReview: PublishReviewService,
     readEnvironment: ReadEnvironmentService,
@@ -49,7 +49,7 @@ export class PublishReviewUseCase {
     const { worktreeId, review: draft } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'writing' },
-      context.signal,
+      context,
     );
     const published = await this.lanes.run(
       this.laneKeys.reviews(worktree),

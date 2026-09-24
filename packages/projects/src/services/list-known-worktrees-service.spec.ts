@@ -3,7 +3,7 @@ import type {
   ListedWorktree,
   RegisteredProject,
 } from '@porcelain/projects/models';
-import { ScriptedWorktreeCatalogStore } from '../../spec/fakes/scripted-worktree-catalog-store.ts';
+import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
 
 function project(id: string, available: boolean): RegisteredProject {
@@ -38,11 +38,29 @@ function worktree(
   };
 }
 
+function catalog(seen: Record<string, ListedWorktree[]>) {
+  const store = new InMemoryWorktreeCatalogStore();
+  store.save({
+    projects: Object.entries(seen).map(([id, worktrees]) => ({
+      observation: {
+        id,
+        commonDirectory: `/srv/${id}/.git`,
+        repositoryIdentity: `identity-${id}`,
+        observedAt: '2026-09-24T12:00:00.000Z',
+        listed: true,
+      },
+      worktrees,
+    })),
+  });
+  return store;
+}
+
 describe('ListKnownWorktreesService', () => {
   it('answers the worktrees last seen for each project, in the order given', () => {
-    const reader = new ScriptedWorktreeCatalogStore();
-    reader.saw('api', [worktree('api-main', 'api')]);
-    reader.saw('web', [worktree('web-main', 'web', false)]);
+    const reader = catalog({
+      api: [worktree('api-main', 'api')],
+      web: [worktree('web-main', 'web', false)],
+    });
     expect(
       new ListKnownWorktreesService(reader).execute({
         projects: [project('web', true), project('api', true)],
@@ -64,8 +82,7 @@ describe('ListKnownWorktreesService', () => {
   });
 
   it('shows every worktree of an unavailable project as unavailable', () => {
-    const reader = new ScriptedWorktreeCatalogStore();
-    reader.saw('api', [worktree('api-main', 'api')]);
+    const reader = catalog({ api: [worktree('api-main', 'api')] });
     expect(
       new ListKnownWorktreesService(reader).execute({
         projects: [project('api', false)],
@@ -82,7 +99,7 @@ describe('ListKnownWorktreesService', () => {
   });
 
   it('answers an empty list for a project never listed', () => {
-    const reader = new ScriptedWorktreeCatalogStore();
+    const reader = catalog({});
     expect(
       new ListKnownWorktreesService(reader).execute({
         projects: [project('api', true)],

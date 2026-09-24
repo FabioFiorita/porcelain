@@ -3,21 +3,21 @@ import type {
   DismissInterruptedGitActionResponse,
 } from '@porcelain/contracts/git-actions';
 import type { DismissInterruptedGitActionService } from '@porcelain/git-actions/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class DismissInterruptedGitActionUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly dismissInterruptedGitAction: DismissInterruptedGitActionService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     dismissInterruptedGitAction: DismissInterruptedGitActionService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -36,7 +36,7 @@ export class DismissInterruptedGitActionUseCase {
   ): Promise<DismissInterruptedGitActionResponse> {
     const worktree = await this.checkWorktree.execute(
       { worktreeId: input.worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     const result = await this.lanes.run(
       this.laneKeys.receipts(worktree),

@@ -6,13 +6,13 @@ import type {
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ReadChangesUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly readInterruptedGitAction: ReadInterruptedGitActionService;
@@ -21,7 +21,7 @@ export class ReadChangesUseCase {
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     readInterruptedGitAction: ReadInterruptedGitActionService,
@@ -45,7 +45,7 @@ export class ReadChangesUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run<ReadChangesResponse>(
       this.laneKeys.repository(worktree),
@@ -61,7 +61,7 @@ export class ReadChangesUseCase {
         );
         await this.checkWorktree.execute(
           { worktreeId, purpose: 'reading' },
-          signal,
+          { signal },
         );
         const interrupted = this.readInterruptedGitAction.execute({
           worktreeId,

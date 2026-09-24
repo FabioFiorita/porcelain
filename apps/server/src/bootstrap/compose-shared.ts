@@ -1,4 +1,5 @@
 import { ReadEnvironmentService } from '@porcelain/access/services';
+import type { Clock } from '@porcelain/kernel/ports';
 import {
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
@@ -20,7 +21,9 @@ import {
   InspectionGit,
   type InspectionFactory,
 } from '@porcelain/git/inspection';
+import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import {
+  CheckRefreshedWorktreeService,
   CheckWorktreeService,
   ListKnownWorktreesService,
   ListRecordedWorktreesService,
@@ -40,8 +43,8 @@ import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-rea
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
 import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
-import { GitWorktreeCatalogStore } from '../adapters/projects/git-project-worktree-reader.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
+import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
@@ -52,12 +55,14 @@ export type Shared = ReturnType<typeof composeShared>;
 export type SharedDependencies = {
   settings: ServerSettings;
   stores: Stores;
+  catalog: WorktreeCatalogStore;
   gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
+  clock: Clock;
 };
 
 export function composeShared(dependencies: SharedDependencies) {
-  const { stores, gitVersion } = dependencies;
+  const { stores, catalog, gitVersion } = dependencies;
   const { limits } = dependencies.settings;
   const git: GitFactory = (checkout) => new DiscoveryGit(checkout);
   const actionGit: GitActionWriterFactory = (checkout) =>
@@ -66,15 +71,15 @@ export function composeShared(dependencies: SharedDependencies) {
     new HistoryGit(checkout, gitVersion);
   const inspection: InspectionFactory = (checkout) =>
     new InspectionGit(checkout);
-  const worktreeDirectory = new GitWorktreeCatalogStore({
+  const worktreeListing = new GitWorktreeListingReader({
     git,
-    inventoryStore: stores.inventory,
     sharedReads: new SharedReads(),
     launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
     timeoutMs: limits.inventory.listingTimeoutMs,
     worktreeId: dependencies.worktreeId,
   });
-  const worktreeAccess = new GitWorktreeAccessReader(worktreeDirectory);
+  const worktreeAccess = new GitWorktreeAccessReader(catalog);
+  const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
   const openInspection = inspectionCheckouts(worktreeAccess, inspection);
   const changeStatusReader = new GitChangeStatusReader(openInspection);
   const fileReader = new FilesystemFileReader(worktreeAccess);
@@ -95,12 +100,24 @@ export function composeShared(dependencies: SharedDependencies) {
     git,
     actionGit,
     commitGit,
-    worktreeDirectory,
+    catalog,
+    worktreeListing,
     worktreeAccess,
     openInspection,
     changeStatusReader,
     fileReader,
-    checkWorktree: new CheckWorktreeService(worktreeAccess, stores.inventory),
+    checkWorktreeService: new CheckWorktreeService(
+      catalog,
+      stores.inventory,
+      dependencies.clock,
+      staleness,
+    ),
+    checkRefreshedWorktree: new CheckRefreshedWorktreeService(
+      catalog,
+      stores.inventory,
+      dependencies.clock,
+      staleness,
+    ),
     readEnvironment: new ReadEnvironmentService(stores.environmentIdentity),
     readTextFile,
     readWorktreeStatus,
@@ -110,7 +127,7 @@ export function composeShared(dependencies: SharedDependencies) {
       stores.gitActions,
     ),
     listRegisteredProjects: new ListRegisteredProjectsService(stores.inventory),
-    listKnownWorktrees: new ListKnownWorktreesService(worktreeDirectory),
+    listKnownWorktrees: new ListKnownWorktreesService(catalog),
     listRecordedWorktrees: new ListRecordedWorktreesService(
       stores.worktreePresence,
       stores.inventory,

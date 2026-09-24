@@ -4,19 +4,19 @@ import type {
 } from '@porcelain/contracts/files';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadFileAssetService } from '@porcelain/files/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ReadFileAssetUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readFileAsset: ReadFileAssetService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readFileAsset: ReadFileAssetService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -33,7 +33,7 @@ export class ReadFileAssetUseCase {
   ): Promise<ReadFileAssetResponse> {
     const worktree = await this.checkWorktree.execute(
       { worktreeId: input.worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run(
       this.laneKeys.repository(worktree),
@@ -42,7 +42,7 @@ export class ReadFileAssetUseCase {
         const result = await this.readFileAsset.execute(input, signal);
         await this.checkWorktree.execute(
           { worktreeId: input.worktreeId, purpose: 'reading' },
-          signal,
+          { signal },
         );
         return result;
       },

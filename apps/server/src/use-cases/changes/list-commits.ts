@@ -4,19 +4,19 @@ import type {
   ListCommitsResponse,
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ListCommitsUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly listCommits: ListCommitsService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     listCommits: ListCommitsService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -34,7 +34,7 @@ export class ListCommitsUseCase {
     const { worktreeId, limit, after, tip } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run(
       this.laneKeys.repository(worktree),
@@ -46,7 +46,7 @@ export class ListCommitsUseCase {
         );
         await this.checkWorktree.execute(
           { worktreeId, purpose: 'reading' },
-          signal,
+          { signal },
         );
         return page;
       },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ListedWorktree } from '@porcelain/projects/models';
-import { ScriptedWorktreeCatalogStore } from '../../spec/fakes/scripted-worktree-catalog-store.ts';
+import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
+import { ScriptedWorktreeListingReader } from '../../spec/fakes/scripted-worktree-listing-reader.ts';
 import { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
 
 const project = {
@@ -25,13 +26,33 @@ function worktree(id: string, available = true): ListedWorktree {
   };
 }
 
-function service(reader: ScriptedWorktreeCatalogStore) {
-  return new ListProjectWorktreesService(reader);
+function service(
+  reader: ScriptedWorktreeListingReader,
+  catalog = new InMemoryWorktreeCatalogStore(),
+) {
+  return new ListProjectWorktreesService(reader, catalog);
+}
+
+function seen(worktrees: ListedWorktree[]) {
+  const catalog = new InMemoryWorktreeCatalogStore();
+  catalog.save({
+    projects: [
+      {
+        observation: {
+          ...project,
+          observedAt: '2026-09-24T12:00:00.000Z',
+          listed: true,
+        },
+        worktrees,
+      },
+    ],
+  });
+  return catalog;
 }
 
 describe('ListProjectWorktreesService', () => {
   it('reports a listed project as available and complete', async () => {
-    const reader = new ScriptedWorktreeCatalogStore();
+    const reader = new ScriptedWorktreeListingReader();
     reader.answer({
       kind: 'listed',
       projectId: project.id,
@@ -47,7 +68,7 @@ describe('ListProjectWorktreesService', () => {
   });
 
   it('keeps a listing with unidentified worktrees available but incomplete', async () => {
-    const reader = new ScriptedWorktreeCatalogStore();
+    const reader = new ScriptedWorktreeListingReader();
     reader.answer({
       kind: 'listed',
       projectId: project.id,
@@ -62,10 +83,10 @@ describe('ListProjectWorktreesService', () => {
   it.each(['unavailable', 'timed-out', 'moved'] as const)(
     'shows the last seen worktrees as unavailable when the listing is %s',
     async (kind) => {
-      const reader = new ScriptedWorktreeCatalogStore();
-      reader.saw(project.id, [worktree('main'), worktree('feature')]);
+      const reader = new ScriptedWorktreeListingReader();
       reader.answer({ kind, projectId: project.id });
-      expect(await service(reader).execute({ project })).toEqual({
+      const catalog = seen([worktree('main'), worktree('feature')]);
+      expect(await service(reader, catalog).execute({ project })).toEqual({
         projectId: project.id,
         available: false,
         complete: false,
@@ -75,7 +96,7 @@ describe('ListProjectWorktreesService', () => {
   );
 
   it('reports an unlisted project with nothing seen before as empty', async () => {
-    const reader = new ScriptedWorktreeCatalogStore();
+    const reader = new ScriptedWorktreeListingReader();
     reader.answer({ kind: 'unavailable', projectId: project.id });
     expect((await service(reader).execute({ project })).worktrees).toEqual([]);
   });

@@ -1,24 +1,49 @@
+import {
+  corroborates,
+  identity,
+  readGitdirPointer,
+  readHead,
+} from '@porcelain/git/discovery';
 import type { WorktreeCheck } from '@porcelain/kernel/models';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
-import type { GitWorktreeCatalogStore } from './git-project-worktree-reader.ts';
+import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
 
 export class GitWorktreeAccessReader implements WorktreeAccessReader<ListedWorktree> {
-  private readonly worktreeDirectory: Pick<GitWorktreeCatalogStore, 'find'>;
+  private readonly catalog: WorktreeCatalogStore;
 
-  constructor(worktreeDirectory: Pick<GitWorktreeCatalogStore, 'find'>) {
-    this.worktreeDirectory = worktreeDirectory;
+  constructor(catalog: WorktreeCatalogStore) {
+    this.catalog = catalog;
   }
 
-  async known(
-    input: { worktreeId: string },
-    signal?: AbortSignal,
-  ): Promise<WorktreeCheck<ListedWorktree>> {
-    const { worktree, unlisted } = await this.worktreeDirectory.find(
-      input.worktreeId,
-      signal,
-    );
-    if (worktree) return { kind: 'found', worktree };
-    return { kind: unlisted ? 'unavailable' : 'missing' };
+  async known(input: {
+    worktreeId: string;
+  }): Promise<WorktreeCheck<ListedWorktree>> {
+    const entry = this.catalog.find({ worktreeId: input.worktreeId });
+    const current = entry ? await this.onDisk(entry.worktree) : undefined;
+    return current ? { kind: 'found', worktree: current } : { kind: 'missing' };
+  }
+
+  private async onDisk(
+    worktree: ListedWorktree,
+  ): Promise<ListedWorktree | undefined> {
+    let current: string;
+    try {
+      current = await identity(worktree.administrativeDirectory);
+    } catch {
+      return undefined;
+    }
+    if (current !== worktree.metadataIdentity) return undefined;
+    const path = worktree.main
+      ? worktree.path
+      : await readGitdirPointer(worktree.administrativeDirectory);
+    if (!path) return undefined;
+    const branch = await readHead(worktree.administrativeDirectory);
+    return {
+      ...worktree,
+      path,
+      branch: branch ?? undefined,
+      available: await corroborates(path, worktree.administrativeDirectory),
+    };
   }
 }

@@ -1,9 +1,15 @@
+import type { WorktreeKey } from '@porcelain/kernel/models';
 import type { ListedWorktree } from '../models/listed-worktree.ts';
-import type { ListableProject, ProjectKey } from '../models/project.ts';
-import type { WorktreeListing } from '../models/worktree-listing.ts';
+import type { ProjectKey } from '../models/project.ts';
+import type {
+  CatalogEntry,
+  CatalogObservation,
+  CatalogSnapshot,
+} from '../models/worktree-catalog.ts';
 
 export interface WorktreeCatalogStore {
-  list(input: ListableProject, signal?: AbortSignal): Promise<WorktreeListing>;
+  find(input: WorktreeKey): CatalogEntry | undefined;
   lastSeen(input: ProjectKey): ListedWorktree[];
-  remove(input: ProjectKey): void;
+  observations(): CatalogObservation[];
+  save(input: CatalogSnapshot): void;
 }

@@ -5,14 +5,14 @@ import type {
 } from '@porcelain/changes/services';
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
 export class ReadGitStatusUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readBranchDetails: ReadBranchDetailsService;
   private readonly readEnvironment: ReadEnvironmentService;
@@ -21,7 +21,7 @@ export class ReadGitStatusUseCase {
   private readonly sharedReads: SharedReads<ReadGitStatusResponse>;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readWorktreeStatus: ReadWorktreeStatusService,
     readBranchDetails: ReadBranchDetailsService,
     readEnvironment: ReadEnvironmentService,
@@ -45,7 +45,7 @@ export class ReadGitStatusUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     const lane = this.laneKeys.repository(worktree);
     return this.sharedReads.run(
@@ -65,7 +65,7 @@ export class ReadGitStatusUseCase {
             );
             await this.checkWorktree.execute(
               { worktreeId, purpose: 'reading' },
-              signal,
+              { signal },
             );
             return {
               environmentId: this.readEnvironment.execute().environmentId,

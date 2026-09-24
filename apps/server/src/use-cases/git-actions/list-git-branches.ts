@@ -3,19 +3,19 @@ import type {
   ListGitBranchesResponse,
 } from '@porcelain/contracts/git-actions';
 import type { ListGitBranchesService } from '@porcelain/git-actions/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ListGitBranchesUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly listGitBranches: ListGitBranchesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     listGitBranches: ListGitBranchesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -33,7 +33,7 @@ export class ListGitBranchesUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run(
       this.laneKeys.repository(worktree),

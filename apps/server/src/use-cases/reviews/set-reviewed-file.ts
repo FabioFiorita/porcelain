@@ -7,15 +7,15 @@ import type {
   SetReviewedFileResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { SetReviewedFilesService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class SetReviewedFileUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly setReviewedFiles: SetReviewedFilesService;
@@ -24,7 +24,7 @@ export class SetReviewedFileUseCase {
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     setReviewedFiles: SetReviewedFilesService,
@@ -48,7 +48,7 @@ export class SetReviewedFileUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'writing' },
-      context.signal,
+      context,
     );
     const result = await this.lanes.run(
       this.laneKeys.reviews(worktree),

@@ -2,15 +2,15 @@ import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { Clock } from '@porcelain/kernel/ports';
 import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
 import type {
+  CheckRefreshedWorktreeResult,
   CheckWorktreeInput,
   CheckWorktreeOptions,
-  CheckWorktreeResult,
 } from '../models/check-worktree.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
 import { checkedWorktree } from '../rules/checked-worktree.ts';
 
-export class CheckWorktreeService {
+export class CheckRefreshedWorktreeService {
   private readonly catalog: WorktreeCatalogStore;
   private readonly inventory: InventoryStore;
   private readonly clock: Clock;
@@ -28,7 +28,7 @@ export class CheckWorktreeService {
     this.options = options;
   }
 
-  execute(input: CheckWorktreeInput): CheckWorktreeResult {
+  execute(input: CheckWorktreeInput): CheckRefreshedWorktreeResult {
     const entry = this.catalog.find({ worktreeId: input.worktreeId });
     const answer = checkedWorktree(
       input,
@@ -39,8 +39,8 @@ export class CheckWorktreeService {
         : undefined,
       { now: this.clock.now(), staleAfterMs: this.options.staleAfterMs },
     );
+    if (answer.kind === 'found') return answer.worktree;
     if (answer.kind === 'missing') throw new WorktreeNotFoundError();
-    if (answer.kind === 'unavailable') throw new WorktreeUnavailableError();
-    return answer;
+    throw new WorktreeUnavailableError();
   }
 }

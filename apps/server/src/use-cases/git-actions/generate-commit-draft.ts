@@ -13,15 +13,15 @@ import type {
   CaptureCommitDraftService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export type GenerateCommitDraftOptions = { deadlineMs: number };
 
 export class GenerateCommitDraftUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
@@ -31,7 +31,7 @@ export class GenerateCommitDraftUseCase {
   private readonly options: GenerateCommitDraftOptions;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     captureCommitDraft: CaptureCommitDraftService,
@@ -57,7 +57,7 @@ export class GenerateCommitDraftUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'writing' },
-      context.signal,
+      context,
     );
     const capture = await this.lanes.run(
       this.laneKeys.repository(worktree),

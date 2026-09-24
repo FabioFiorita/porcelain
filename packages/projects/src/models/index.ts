@@ -4,8 +4,11 @@ export type {
   BrowseProjectFoldersResult,
 } from './browse-project-folders.ts';
 export type {
+  CheckRefreshedWorktreeResult,
   CheckWorktreeInput,
+  CheckWorktreeOptions,
   CheckWorktreeResult,
+  WorktreeCheckAnswer,
 } from './check-worktree.ts';
 export type {
   CollectAbsentWorktreesOptions,
@@ -21,7 +24,6 @@ export type {
   FilePreferenceKey,
   ProjectFilePreference,
 } from './file-preference.ts';
-export type { ForgetProjectWorktreesInput } from './forget-project-worktrees.ts';
 export type {
   InspectProjectRepositoryInput,
   InspectProjectRepositoryResult,
@@ -39,10 +41,6 @@ export type {
   ListKnownWorktreesInput,
   ListKnownWorktreesResult,
 } from './list-known-worktrees.ts';
-export type {
-  ListOtherProjectsInput,
-  ListOtherProjectsResult,
-} from './list-other-projects.ts';
 export type {
   ListProjectWorktreesInput,
   ListProjectWorktreesResult,
@@ -93,6 +91,13 @@ export type {
   SetFilePreferenceResult,
 } from './set-file-preference.ts';
 export type { UpdateProjectAvailabilityInput } from './update-project-availability.ts';
+export type {
+  CatalogEntry,
+  CatalogObservation,
+  CatalogProject,
+  CatalogSnapshot,
+  RecordWorktreeCatalogInput,
+} from './worktree-catalog.ts';
 export type { WorktreeListing } from './worktree-listing.ts';
 export type {
   RemoveWorktreePresenceInput,

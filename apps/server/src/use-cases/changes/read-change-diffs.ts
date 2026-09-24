@@ -20,13 +20,13 @@ import type {
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ReadChangeDiffsUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly readChangeDiffs: ReadChangeDiffsService;
@@ -35,7 +35,7 @@ export class ReadChangeDiffsUseCase {
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     readChangeDiffs: ReadChangeDiffsService,
@@ -60,7 +60,7 @@ export class ReadChangeDiffsUseCase {
       input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run(
       this.laneKeys.repository(worktree),
@@ -108,7 +108,7 @@ export class ReadChangeDiffsUseCase {
         if (moved) throw this.failure(moved);
         await this.checkWorktree.execute(
           { worktreeId, purpose: 'reading' },
-          signal,
+          { signal },
         );
         return {
           environmentId: this.readEnvironment.execute().environmentId,

@@ -26,6 +26,22 @@ export function projectReport(
   };
 }
 
+export function registeredProjectReport(
+  project: ProjectName,
+  listings: readonly ProjectWorktrees[],
+  statuses: WorktreeStatuses,
+): ProjectReport {
+  return projectReport(
+    project,
+    listings.find((listing) => listing.projectId === project.id) ?? {
+      projectId: project.id,
+      available: false,
+      worktrees: [],
+    },
+    statuses,
+  );
+}
+
 export function inventoryReport(
   environmentId: string,
   inventory: Inventory,

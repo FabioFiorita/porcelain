@@ -14,10 +14,14 @@ import { ReadCommitDiffsUseCase } from '../use-cases/changes/read-commit-diffs.t
 import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.ts';
 import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
+import type { WorktreeCheck } from '../runtime/worktree-check.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 
-export type ChangesDependencies = { shared: Shared };
+export type ChangesDependencies = {
+  shared: Shared;
+  checkWorktree: WorktreeCheck;
+};
 
 export function composeChanges(
   context: ComposeContext,
@@ -26,8 +30,8 @@ export function composeChanges(
   const { lanes, laneKeys } = context;
   const { shared } = dependencies;
   const limits = context.settings.limits.changes;
+  const { checkWorktree } = dependencies;
   const {
-    checkWorktree,
     readEnvironment,
     readWorktreeStatus,
     readChangeFingerprints,

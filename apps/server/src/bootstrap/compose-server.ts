@@ -12,6 +12,7 @@ import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { GitLaneKeys } from '../adapters/projects/git-lane-keys.ts';
+import { InMemoryWorktreeCatalogStore } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
@@ -55,20 +56,28 @@ export const openServer: OpenServer = async (input) => {
   const gitVersion = await readGitVersion(input.signal);
   const session = openStorageSession(settings.dataDirectory);
   const stores = composeStores(session);
+  const catalog = new InMemoryWorktreeCatalogStore();
+  const clock = new SystemClock();
   const lanes = new Lanes({
     deadlineMs: () =>
-      operationDeadlineMs(stores.inventory.read().projects.length, limits),
+      operationDeadlineMs(catalog.observations().length, limits),
     readCapacity: limits.lanes.readCapacity,
     closeResources: () => session.close(),
   });
-  const clock = new SystemClock();
   const logger = new StderrLogger(clock);
   const liveConnections = new LiveConnections();
   const events = new WebSocketEventPublisher(liveConnections);
-  const shared = composeShared({ settings, stores, gitVersion, worktreeId });
+  const shared = composeShared({
+    settings,
+    stores,
+    catalog,
+    gitVersion,
+    worktreeId,
+    clock,
+  });
   const context: ComposeContext = {
     lanes,
-    laneKeys: new GitLaneKeys(stores.inventory),
+    laneKeys: new GitLaneKeys(catalog),
     events,
     settings,
     clock,
@@ -88,10 +97,12 @@ export const openServer: OpenServer = async (input) => {
     shared,
     projectFolderReader: new FilesystemProjectFolderReader(),
   });
-  const changes = composeChanges(context, { shared });
+  const { checkWorktree } = projects;
+  const changes = composeChanges(context, { shared, checkWorktree });
   const reviews = composeReviews(context, {
     stores,
     shared,
+    checkWorktree,
     findWorktreeByPath: projects.findWorktreeByPath,
   });
   const worktreeWatches = new WatchWorktrees(
@@ -100,19 +111,21 @@ export const openServer: OpenServer = async (input) => {
     events,
     new ParcelWorktreeWatcher({
       worktrees: shared.worktreeAccess,
-      projects: () => stores.inventory.read().projects,
+      projects: () => catalog.observations(),
     }),
     logger,
     limits.liveUpdates,
   );
   const files = composeFiles(context, {
     shared,
+    checkWorktree,
     announcedEdits: worktreeWatches,
   });
   const commitPlanner = createCommitPlanner();
   const gitActions = composeGitActions(context, {
     stores,
     shared,
+    checkWorktree,
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
   });

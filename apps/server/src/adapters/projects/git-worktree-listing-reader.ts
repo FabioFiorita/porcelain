@@ -1,43 +1,26 @@
 import type { DiscoveryResult, GitFactory } from '@porcelain/git/discovery';
-import {
-  corroborates,
-  identity,
-  isRepositoryUnavailable,
-  readGitdirPointer,
-  readHead,
-} from '@porcelain/git/discovery';
+import { isRepositoryUnavailable } from '@porcelain/git/discovery';
 import type {
   ListableProject,
   ListedWorktree,
-  ProjectKey,
   WorktreeListing,
 } from '@porcelain/projects/models';
-import type {
-  InventoryStore,
-  WorktreeCatalogStore,
-} from '@porcelain/projects/ports';
+import type { WorktreeListingReader } from '@porcelain/projects/ports';
 import type { LaunchLimit } from '../../runtime/launch-limit.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
-export type WorktreeLookup = {
-  worktree: ListedWorktree | undefined;
-  unlisted: boolean;
-};
-
-export type WorktreeDirectoryOptions = {
+export type WorktreeListingOptions = {
   git: GitFactory;
-  inventoryStore: InventoryStore;
   sharedReads: Pick<SharedReads<WorktreeListing>, 'run'>;
   launchLimit: Pick<LaunchLimit, 'run'>;
   timeoutMs: number;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
 };
 
-export class GitWorktreeCatalogStore implements WorktreeCatalogStore {
-  private readonly entries = new Map<string, ListedWorktree>();
-  private readonly options: WorktreeDirectoryOptions;
+export class GitWorktreeListingReader implements WorktreeListingReader {
+  private readonly options: WorktreeListingOptions;
 
-  constructor(options: WorktreeDirectoryOptions) {
+  constructor(options: WorktreeListingOptions) {
     this.options = options;
   }
 
@@ -47,37 +30,6 @@ export class GitWorktreeCatalogStore implements WorktreeCatalogStore {
       async (shared) => this.listNow(input, shared),
       signal,
     );
-  }
-
-  lastSeen(input: ProjectKey): ListedWorktree[] {
-    return [...this.entries.values()].filter(
-      (entry) => entry.projectId === input.projectId,
-    );
-  }
-
-  remove(input: ProjectKey): void {
-    for (const entry of this.lastSeen(input)) this.entries.delete(entry.id);
-  }
-
-  async find(
-    worktreeId: string,
-    signal?: AbortSignal,
-  ): Promise<WorktreeLookup> {
-    const known = this.entries.get(worktreeId);
-    const refreshed = known ? await this.reread(known) : undefined;
-    if (refreshed) return { worktree: refreshed, unlisted: false };
-    if (known) this.entries.delete(worktreeId);
-    const listings = await Promise.all(
-      this.options.inventoryStore
-        .read()
-        .projects.map((project) => this.list(project, signal)),
-    );
-    const found = this.entries.get(worktreeId);
-    if (found) return { worktree: await this.reread(found), unlisted: false };
-    return {
-      worktree: undefined,
-      unlisted: listings.some((listing) => listing.kind !== 'listed'),
-    };
   }
 
   private async listNow(
@@ -124,33 +76,6 @@ export class GitWorktreeCatalogStore implements WorktreeCatalogStore {
         repositoryId: repository.repositoryIdentity,
       });
     }
-    this.remove({ projectId: project.id });
-    for (const worktree of worktrees) this.entries.set(worktree.id, worktree);
     return { kind: 'listed', projectId: project.id, worktrees, unidentified };
-  }
-
-  private async reread(
-    entry: ListedWorktree,
-  ): Promise<ListedWorktree | undefined> {
-    let current: string;
-    try {
-      current = await identity(entry.administrativeDirectory);
-    } catch {
-      return undefined;
-    }
-    if (current !== entry.metadataIdentity) return undefined;
-    const path = entry.main
-      ? entry.path
-      : await readGitdirPointer(entry.administrativeDirectory);
-    if (!path) return undefined;
-    const branch = await readHead(entry.administrativeDirectory);
-    const refreshed: ListedWorktree = {
-      ...entry,
-      path,
-      branch: branch ?? undefined,
-      available: await corroborates(path, entry.administrativeDirectory),
-    };
-    this.entries.set(entry.id, refreshed);
-    return refreshed;
   }
 }

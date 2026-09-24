@@ -3,6 +3,7 @@ import type {
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
   MarkProjectsUnavailableService,
+  RecordWorktreeCatalogService,
   RecordWorktreePresenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
@@ -19,6 +20,7 @@ export class RefreshInventoryUseCase {
   private readonly markProjectsUnavailable: MarkProjectsUnavailableService;
   private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
   private readonly recordWorktreePresence: RecordWorktreePresenceService;
+  private readonly recordWorktreeCatalog: RecordWorktreeCatalogService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -30,6 +32,7 @@ export class RefreshInventoryUseCase {
     markProjectsUnavailable: MarkProjectsUnavailableService,
     updateProjectAvailability: UpdateProjectAvailabilityService,
     recordWorktreePresence: RecordWorktreePresenceService,
+    recordWorktreeCatalog: RecordWorktreeCatalogService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
@@ -40,6 +43,7 @@ export class RefreshInventoryUseCase {
     this.markProjectsUnavailable = markProjectsUnavailable;
     this.updateProjectAvailability = updateProjectAvailability;
     this.recordWorktreePresence = recordWorktreePresence;
+    this.recordWorktreeCatalog = recordWorktreeCatalog;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -62,6 +66,10 @@ export class RefreshInventoryUseCase {
           this.updateProjectAvailability.execute({ worktrees });
           this.recordWorktreePresence.execute({ worktrees });
         }
+        this.recordWorktreeCatalog.execute({
+          projects: inventory.projects,
+          listings,
+        });
         const after = this.listKnownWorktrees.execute(
           this.listRegisteredProjects.execute(),
         ).listings;

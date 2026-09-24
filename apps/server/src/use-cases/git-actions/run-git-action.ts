@@ -17,7 +17,6 @@ import type {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import type { FileChange, Worktree } from '@porcelain/kernel/models';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type {
   ReadPublishedReviewService,
   ReadReviewEvidenceService,
@@ -28,11 +27,12 @@ import type { Logger } from '../../ports/logger.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export type RunGitActionOptions = { deadlineMs: number };
 
 export class RunGitActionUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly expireGitActionReceipts: ExpireGitActionReceiptsService;
   private readonly acceptGitAction: AcceptGitActionService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
@@ -51,7 +51,7 @@ export class RunGitActionUseCase {
   private readonly options: RunGitActionOptions;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     expireGitActionReceipts: ExpireGitActionReceiptsService,
     acceptGitAction: AcceptGitActionService,
     readWorktreeStatus: ReadWorktreeStatusService,
@@ -96,7 +96,7 @@ export class RunGitActionUseCase {
     const { upstreamOid, ...expected } = input.expected;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'writing' },
-      context.signal,
+      context,
     );
     const { projectId } = worktree;
     const accepted = await this.lanes.run(

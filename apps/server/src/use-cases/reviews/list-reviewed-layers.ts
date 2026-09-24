@@ -1,6 +1,5 @@
 import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import { reviewedLayerMarks } from '@porcelain/reviews/rules';
 import type {
   ListReviewedLayerPathsService,
@@ -11,9 +10,10 @@ import type {
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ListReviewedLayersUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
   private readonly readReviewTexts: ReadReviewTextsService;
   private readonly readPublishedReview: ReadPublishedReviewService;
@@ -22,7 +22,7 @@ export class ListReviewedLayersUseCase {
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
     readReviewTexts: ReadReviewTextsService,
     readPublishedReview: ReadPublishedReviewService,
@@ -46,7 +46,7 @@ export class ListReviewedLayersUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run(
       this.laneKeys.reviews(worktree),

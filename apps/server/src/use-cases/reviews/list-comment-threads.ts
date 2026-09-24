@@ -1,19 +1,19 @@
 import type { ListCommentThreadsResponse } from '@porcelain/contracts/reviews';
-import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { ListCommentThreadsInput } from '@porcelain/reviews/models';
 import type { ListCommentThreadsService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
+import type { WorktreeCheck } from '../../runtime/worktree-check.ts';
 
 export class ListCommentThreadsUseCase {
-  private readonly checkWorktree: CheckWorktreeService;
+  private readonly checkWorktree: WorktreeCheck;
   private readonly listCommentThreads: ListCommentThreadsService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeService,
+    checkWorktree: WorktreeCheck,
     listCommentThreads: ListCommentThreadsService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -31,7 +31,7 @@ export class ListCommentThreadsUseCase {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, purpose: 'reading' },
-      context.signal,
+      context,
     );
     return this.lanes.run(
       this.laneKeys.reviews(worktree),

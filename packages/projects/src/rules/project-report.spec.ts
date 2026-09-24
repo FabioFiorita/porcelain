@@ -4,7 +4,7 @@ import type {
   ProjectWorktrees,
   RegisteredProject,
 } from '@porcelain/projects/models';
-import { inventoryReport } from './project-report.ts';
+import { inventoryReport, registeredProjectReport } from './project-report.ts';
 
 function project(id: string, position: number): RegisteredProject {
   return {
@@ -124,5 +124,43 @@ describe('inventoryReport', () => {
       new Map(),
     );
     expect(report.projects.map((entry) => entry.id)).toEqual(['kept']);
+  });
+});
+
+describe('registeredProjectReport', () => {
+  it('reports the registered project with the worktrees the refresh listed for it', () => {
+    expect(
+      registeredProjectReport(
+        project('second', 2),
+        [
+          listing('first', [worktree('w1', 'first')]),
+          listing('second', [worktree('w2', 'second')], false),
+        ],
+        new Map(),
+      ),
+    ).toEqual({
+      id: 'second',
+      name: 'name-second',
+      available: false,
+      worktrees: [
+        {
+          id: 'w2',
+          path: '/srv/w2',
+          main: true,
+          branch: 'refs/heads/main',
+          available: true,
+          status: undefined,
+        },
+      ],
+    });
+  });
+
+  it('reports the project unavailable and without worktrees when the refresh no longer lists it', () => {
+    expect(registeredProjectReport(project('gone', 1), [], new Map())).toEqual({
+      id: 'gone',
+      name: 'name-gone',
+      available: false,
+      worktrees: [],
+    });
   });
 });

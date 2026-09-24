@@ -1,5 +1,5 @@
 import type { Worktree } from '@porcelain/kernel/models';
-import type { InventoryStore } from '@porcelain/projects/ports';
+import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 
 const ACCESS = 'access';
@@ -7,10 +7,10 @@ const INVENTORY = 'inventory';
 const FILESYSTEM = 'filesystem';
 
 export class GitLaneKeys implements LaneKeys {
-  private readonly projectInventory: InventoryStore;
+  private readonly catalog: WorktreeCatalogStore;
 
-  constructor(projectInventory: InventoryStore) {
-    this.projectInventory = projectInventory;
+  constructor(catalog: WorktreeCatalogStore) {
+    this.catalog = catalog;
   }
 
   access(): string {
@@ -27,9 +27,7 @@ export class GitLaneKeys implements LaneKeys {
 
   project(projectId: string): string {
     return (
-      this.projectInventory
-        .read()
-        .projects.find((project) => project.id === projectId)
+      this.catalog.observations().find((project) => project.id === projectId)
         ?.repositoryIdentity ?? `project\0${projectId}`
     );
   }

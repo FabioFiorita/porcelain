@@ -3,12 +3,18 @@ import type {
   ListProjectWorktreesResult,
 } from '../models/list-project-worktrees.ts';
 import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
+import type { WorktreeListingReader } from '../ports/worktree-listing-reader.ts';
 import { unavailableWorktrees } from '../rules/unavailable-worktrees.ts';
 
 export class ListProjectWorktreesService {
+  private readonly worktreeListing: WorktreeListingReader;
   private readonly worktreeCatalog: WorktreeCatalogStore;
 
-  constructor(worktreeCatalog: WorktreeCatalogStore) {
+  constructor(
+    worktreeListing: WorktreeListingReader,
+    worktreeCatalog: WorktreeCatalogStore,
+  ) {
+    this.worktreeListing = worktreeListing;
     this.worktreeCatalog = worktreeCatalog;
   }
 
@@ -16,7 +22,7 @@ export class ListProjectWorktreesService {
     input: ListProjectWorktreesInput,
     signal?: AbortSignal,
   ): Promise<ListProjectWorktreesResult> {
-    const listing = await this.worktreeCatalog.list(input.project, signal);
+    const listing = await this.worktreeListing.list(input.project, signal);
     if (listing.kind === 'listed')
       return {
         projectId: listing.projectId,

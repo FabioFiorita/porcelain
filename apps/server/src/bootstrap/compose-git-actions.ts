@@ -28,6 +28,7 @@ import { ListGitBranchesUseCase } from '../use-cases/git-actions/list-git-branch
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
+import type { WorktreeCheck } from '../runtime/worktree-check.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
@@ -35,6 +36,7 @@ import type { Stores } from './compose-stores.ts';
 export type GitActionsDependencies = {
   stores: Stores;
   shared: Shared;
+  checkWorktree: WorktreeCheck;
   commitDraftSource: CommitDraftSource;
   commitModelReader: CommitModelReader;
 };
@@ -54,7 +56,7 @@ export function composeGitActions(
   );
   return {
     runGitAction: new RunGitActionUseCase(
-      shared.checkWorktree,
+      dependencies.checkWorktree,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
       shared.readWorktreeStatus,
@@ -75,20 +77,20 @@ export function composeGitActions(
       { deadlineMs: limits.deadlineMs },
     ),
     readGitActionReceipt: new ReadGitActionReceiptUseCase(
-      shared.checkWorktree,
+      dependencies.checkWorktree,
       new ReadGitActionReceiptService(store),
       lanes,
       laneKeys,
     ),
     dismissInterruptedGitAction: new DismissInterruptedGitActionUseCase(
-      shared.checkWorktree,
+      dependencies.checkWorktree,
       new DismissInterruptedGitActionService(store, clock),
       lanes,
       laneKeys,
       events,
     ),
     listGitBranches: new ListGitBranchesUseCase(
-      shared.checkWorktree,
+      dependencies.checkWorktree,
       new ListGitBranchesService(
         new GitBranchReader(shared.worktreeAccess, shared.actionGit),
       ),
@@ -101,7 +103,7 @@ export function composeGitActions(
       { deadlineMs: limits.processDeadlineMs },
     ),
     generateCommitDraft: new GenerateCommitDraftUseCase(
-      shared.checkWorktree,
+      dependencies.checkWorktree,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
       new CaptureCommitDraftService(

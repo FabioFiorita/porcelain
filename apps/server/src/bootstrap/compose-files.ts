@@ -16,11 +16,13 @@ import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
 import type { AnnouncedEditStore } from '../ports/announced-edit-store.ts';
+import type { WorktreeCheck } from '../runtime/worktree-check.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 
 export type FilesDependencies = {
   shared: Shared;
+  checkWorktree: WorktreeCheck;
   announcedEdits: AnnouncedEditStore;
 };
 
@@ -30,7 +32,8 @@ export function composeFiles(
 ) {
   const { lanes, laneKeys, events } = context;
   const limits = context.settings.limits.files;
-  const { worktreeAccess, checkWorktree, fileReader } = dependencies.shared;
+  const { worktreeAccess, fileReader } = dependencies.shared;
+  const { checkWorktree } = dependencies;
   return {
     listDirectory: new ListDirectoryUseCase(
       checkWorktree,

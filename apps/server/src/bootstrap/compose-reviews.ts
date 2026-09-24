@@ -40,6 +40,7 @@ import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.t
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
+import type { WorktreeCheck } from '../runtime/worktree-check.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
@@ -47,6 +48,7 @@ import type { Stores } from './compose-stores.ts';
 export type ReviewsDependencies = {
   stores: Stores;
   shared: Shared;
+  checkWorktree: WorktreeCheck;
   findWorktreeByPath: WorktreeFinder;
 };
 
@@ -57,7 +59,8 @@ export function composeReviews(
   const { lanes, laneKeys, events, clock, ids } = context;
   const limits = context.settings.limits.reviews;
   const { stores, shared } = dependencies;
-  const { checkWorktree, readEnvironment, readTextFile } = shared;
+  const { readEnvironment, readTextFile } = shared;
+  const { checkWorktree } = dependencies;
   const signatureSource = new HmacSignatureSource();
   const commentStore = stores.comments;
   const reviewStore = stores.reviews;

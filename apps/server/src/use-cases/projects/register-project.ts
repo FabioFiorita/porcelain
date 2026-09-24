@@ -4,28 +4,26 @@ import type {
 } from '@porcelain/contracts/projects';
 import type {
   InspectProjectRepositoryService,
-  ListOtherProjectsService,
-  ListProjectWorktreesService,
+  ListKnownWorktreesService,
+  ListRegisteredProjectsService,
   ReadRepositoryOriginService,
-  RecordWorktreePresenceService,
   RegisterProjectService,
-  UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
 import type { ReadReviewBadgesService } from '@porcelain/reviews/services';
-import { projectReport } from '@porcelain/projects/rules';
+import { registeredProjectReport } from '@porcelain/projects/rules';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type { JobWork } from '../../runtime/interval-job.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
 
 export class RegisterProjectUseCase {
   private readonly inspectProjectRepository: InspectProjectRepositoryService;
-  private readonly listOtherProjects: ListOtherProjectsService;
-  private readonly listProjectWorktrees: ListProjectWorktreesService;
   private readonly readRepositoryOrigin: ReadRepositoryOriginService;
   private readonly registerProject: RegisterProjectService;
-  private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
-  private readonly recordWorktreePresence: RecordWorktreePresenceService;
+  private readonly refreshInventory: JobWork;
+  private readonly listRegisteredProjects: ListRegisteredProjectsService;
+  private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly readWorktreeStatuses: ReadReviewBadgesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -33,24 +31,22 @@ export class RegisterProjectUseCase {
 
   constructor(
     inspectProjectRepository: InspectProjectRepositoryService,
-    listOtherProjects: ListOtherProjectsService,
-    listProjectWorktrees: ListProjectWorktreesService,
     readRepositoryOrigin: ReadRepositoryOriginService,
     registerProject: RegisterProjectService,
-    updateProjectAvailability: UpdateProjectAvailabilityService,
-    recordWorktreePresence: RecordWorktreePresenceService,
+    refreshInventory: JobWork,
+    listRegisteredProjects: ListRegisteredProjectsService,
+    listKnownWorktrees: ListKnownWorktreesService,
     readWorktreeStatuses: ReadReviewBadgesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
     this.inspectProjectRepository = inspectProjectRepository;
-    this.listOtherProjects = listOtherProjects;
-    this.listProjectWorktrees = listProjectWorktrees;
     this.readRepositoryOrigin = readRepositoryOrigin;
     this.registerProject = registerProject;
-    this.updateProjectAvailability = updateProjectAvailability;
-    this.recordWorktreePresence = recordWorktreePresence;
+    this.refreshInventory = refreshInventory;
+    this.listRegisteredProjects = listRegisteredProjects;
+    this.listKnownWorktrees = listKnownWorktrees;
     this.readWorktreeStatuses = readWorktreeStatuses;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -69,34 +65,32 @@ export class RegisterProjectUseCase {
           input,
           signal,
         );
-        const others = this.listOtherProjects.execute(repository);
-        await Promise.all(
-          others.projects.map((project) =>
-            this.listProjectWorktrees.execute({ project }, signal),
-          ),
-        );
         const { originUrl } = await this.readRepositoryOrigin.execute(
           input,
           signal,
         );
-        const { project, changed } = this.registerProject.execute({
-          repository,
-          originUrl,
-        });
-        const worktrees = await this.listProjectWorktrees.execute(
-          { project },
-          signal,
+        return this.registerProject.execute({ repository, originUrl });
+      },
+      { callerSignal: context.signal },
+    );
+    await this.refreshInventory.execute(context);
+    const report = await this.lanes.run(
+      this.laneKeys.inventory(),
+      'read',
+      async () => {
+        const { listings } = this.listKnownWorktrees.execute(
+          this.listRegisteredProjects.execute(),
         );
-        this.updateProjectAvailability.execute({ worktrees });
-        this.recordWorktreePresence.execute({ worktrees });
         const { statuses } = this.readWorktreeStatuses.execute({
-          worktreeIds: worktrees.worktrees.map((worktree) => worktree.id),
+          worktreeIds: listings.flatMap((listing) =>
+            listing.worktrees.map((worktree) => worktree.id),
+          ),
         });
-        return { report: projectReport(project, worktrees, statuses), changed };
+        return registeredProjectReport(registered.project, listings, statuses);
       },
       { callerSignal: context.signal },
     );
     if (registered.changed) this.events.inventoryChanged();
-    return registered.report;
+    return report;
   }
 }

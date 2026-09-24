@@ -85,7 +85,11 @@ export type Limits = {
     };
     commitGroups: { maxGroups: number; maxMessageBytes: number };
   };
-  inventory: { listingLaunches: number; listingTimeoutMs: number };
+  inventory: {
+    listingLaunches: number;
+    listingTimeoutMs: number;
+    staleAfterMs: number;
+  };
   lanes: { readCapacity: number; operationTimeoutMs: number };
   liveUpdates: {
     maxConnections: number;
@@ -190,7 +194,11 @@ export const LIMITS: Limits = {
       maxMessageBytes: COMMIT_MESSAGE_BYTES,
     },
   },
-  inventory: { listingLaunches: 4, listingTimeoutMs: 5 * SECOND_MS },
+  inventory: {
+    listingLaunches: 4,
+    listingTimeoutMs: 5 * SECOND_MS,
+    staleAfterMs: 60 * SECOND_MS,
+  },
   lanes: { readCapacity: 4, operationTimeoutMs: 30 * SECOND_MS },
   liveUpdates: {
     maxConnections: 64,
