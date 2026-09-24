@@ -52,49 +52,10 @@
     }
   },
   "porcelain/no-number-outside-limits": {
-    "apps/server/src/adapters/access/random-secret-source.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 1
-    },
-    "apps/server/src/adapters/changes/worktree-files.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 3
-    },
-    "apps/server/src/adapters/files/filesystem-file-writer.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 2
-    },
-    "apps/server/src/adapters/reviews/random-secret-source.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 1
-    },
     "packages/access/src/rules/credential.ts": {
       "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 2
     },
-    "packages/access/src/rules/device-details.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 5
-    },
-    "packages/access/src/rules/host-policy.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 8
-    },
-    "packages/changes/src/rules/order-comparisons.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 2
-    },
-    "packages/files/src/rules/encode-base64.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 1
-    },
-    "packages/files/src/rules/serialized-byte-length.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 6
-    },
-    "packages/git-actions/src/rules/utf8-byte-length.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 6
-    },
-    "packages/projects/src/rules/derive-worktree-id.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 1
-    },
-    "packages/reviews/src/rules/resolve-review.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 1
-    },
     "packages/reviews/src/rules/review-diagnostics.ts": {
-      "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 6
-    },
-    "packages/reviews/src/rules/review-digests.ts": {
       "A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.": 6
     }
   },
@@ -202,9 +163,6 @@
   "porcelain/spec-one-case-per-behaviour": {
     "packages/access/src/rules/device-details.spec.ts": {
       "One case per behaviour: turn the loop into it.each with a sentence title per row.": 1
-    },
-    "packages/access/src/services/check-request-origin-service.spec.ts": {
-      "One case per behaviour: turn the loop into it.each with a sentence title per row.": 2
     }
   },
   "lane-mode-matches-service": {
